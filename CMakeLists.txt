@@ -13,4 +13,6 @@ file(GLOB src_files
 	"src/*.cpp"
 )
 
+include_directories("src/headers")
+
 add_executable(interloper ${src_files})
