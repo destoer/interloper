@@ -3,8 +3,13 @@
 
 struct Lexer
 {
-    std::vector<Token> tokenize(const std::string &file);
+    std::vector<Token> tokenize(const std::vector<std::string> &file);
 private:
+
+    void tokenize_line(const std::string &line, std::vector<Token> &tokens);
+
+
+    void decode_imm(const std::string &file, size_t &i,std::vector<Token> &tokens);
 
     bool is_keyword(const std::string &literal) const
     {

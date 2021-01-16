@@ -1,2 +1,2 @@
 # interloper
-hobby compilier (this shouldn't exist)
+hobby compiler (this shouldn't exist)

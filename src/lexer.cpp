@@ -1,23 +1,12 @@
 #include <interloper.h>
 
-void print_tokens(const std::vector<Token> &tokens)
-{
-    for(const auto &t: tokens)
-    {
-        printf("type: %s\n",TOKEN_NAMES[static_cast<size_t>(t.type)]);
-        printf("literal: %s\n",t.literal.c_str());
-    }
-}
 
-std::vector<Token> Lexer::tokenize(const std::string &file)
+void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 {
-    int line = 0;
-    std::vector<Token> tokens;
-
-    const auto size = file.size();
+    const auto size = line.size();
     for(size_t i = 0; i < size; i++)
     {
-        auto c = file[i];
+        auto c = line[i];
         switch(c)
         {
             case '\t': break;
@@ -25,9 +14,24 @@ std::vector<Token> Lexer::tokenize(const std::string &file)
             
             case '\n':
             {
-                line += 1;
+                // add line counting later
+                //line += 1;
                 break;
             }
+
+            case '(': tokens.push_back(Token(token_type::left_paren)); break;
+
+            case ')': tokens.push_back(Token(token_type::right_paren)); break;
+
+            case '{': tokens.push_back(Token(token_type::left_c_brace)); break;
+
+            case '}': tokens.push_back(Token(token_type::right_c_brace)); break;
+
+            case '=': tokens.push_back(Token(token_type::equal)); break;
+
+            case ';': tokens.push_back(Token(token_type::semi_colon)); break;
+        
+
 
             default:
             {
@@ -37,7 +41,7 @@ std::vector<Token> Lexer::tokenize(const std::string &file)
                     std::string literal(1,c);
                     while(i < size)
                     {
-                        c = file[++i];
+                        c = line[++i];
                         if(!isalnum(c))
                         {
                             i--;
@@ -61,6 +65,16 @@ std::vector<Token> Lexer::tokenize(const std::string &file)
 
                 }
 
+                // parse out a integer literal
+                // we will ignore floats for now
+                // 0b
+                // 0x
+                // 0
+                else if(isdigit(c))
+                {
+                    decode_imm(line,i,tokens);
+                }
+
                 else
                 {
                     // make this return an error token
@@ -71,6 +85,17 @@ std::vector<Token> Lexer::tokenize(const std::string &file)
                 break;
             }
         }
+    }
+}
+
+std::vector<Token> Lexer::tokenize(const std::vector<std::string> &file)
+{
+    int line_number = 0;
+    std::vector<Token> tokens;
+
+    for(const auto &line: file)
+    {
+        tokenize_line(line,tokens);
     }
 
     return tokens;

@@ -14,6 +14,8 @@ enum class token_type
     left_paren,
     right_paren,
 
+    equal,
+
     s32,
 
     func,
@@ -26,7 +28,7 @@ enum class token_type
 };
 
 
-static constexpr size_t TOKEN_SIZE = static_cast<size_t>(token_type::END);
+static constexpr size_t TOKEN_SIZE = static_cast<size_t>(token_type::END)+1;
 inline const char *TOKEN_NAMES[TOKEN_SIZE] =
 {
     "value",
@@ -40,10 +42,14 @@ inline const char *TOKEN_NAMES[TOKEN_SIZE] =
     "(",
     ")",
 
+    "=",
+
     "s32",
 
     "func",
     "return",
+
+    "error",
 
     // should not be used...
     "END"
@@ -68,3 +74,12 @@ struct Token
     token_type type;
     std::string literal;
 };
+
+inline void print_tokens(const std::vector<Token> &tokens)
+{
+    for(const auto &t: tokens)
+    {
+        printf("type: %s\n",TOKEN_NAMES[static_cast<size_t>(t.type)]);
+        printf("literal: %s\n\n",t.literal.c_str());
+    }
+}

@@ -22,3 +22,21 @@ inline std::string read_file(const std::string &filename)
 
     return "";
 }
+
+
+inline std::vector<std::string> read_string_lines(const std::string &str)
+{
+    std::vector<std::string> out;
+
+    std::stringstream line_stream;
+
+    line_stream << str;
+
+    std::string line;
+    while(getline(line_stream,line))
+    {
+        out.push_back(line);
+    }
+
+    return out;
+}
