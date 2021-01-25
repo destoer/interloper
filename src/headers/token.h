@@ -23,6 +23,8 @@ enum class token_type
 
     error,
 
+    eof,
+
     // make getting enum size easy
     END 
 };
@@ -50,6 +52,8 @@ inline const char *TOKEN_NAMES[TOKEN_SIZE] =
     "return",
 
     "error",
+
+    "eof",
 
     // should not be used...
     "END"

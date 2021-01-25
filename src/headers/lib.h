@@ -40,3 +40,5 @@ inline std::vector<std::string> read_string_lines(const std::string &str)
 
     return out;
 }
+
+#define UNUSED(X) ((void)X)

@@ -25,4 +25,9 @@ int main(int argc, char *argv[])
 
     // ok lets just print them all for now
     print_tokens(tokens);
+
+    Parser parser;
+
+    auto ast = parser.parse(tokens);
+    UNUSED(ast);
 }

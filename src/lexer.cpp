@@ -51,7 +51,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                     }
 
 
-                    // if its a keyword identify it as a type
+                    // if its a keyword identify its type
                     // else its a symbol
                     if(is_keyword(literal))
                     {
@@ -78,7 +78,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                 else
                 {
                     // make this return an error token
-                    printf("unexpected char at line %d: %c\n",line,c);
+                    printf("unexpected char %c\n",c);
                     print_tokens(tokens);
                     exit(1);
                 }
@@ -90,7 +90,6 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
 std::vector<Token> Lexer::tokenize(const std::vector<std::string> &file)
 {
-    int line_number = 0;
     std::vector<Token> tokens;
 
     for(const auto &line: file)
