@@ -85,115 +85,12 @@ AstNode *Parser::type()
     return nullptr;
 }
 
-
-int32_t Parser::lbp(const Token &t)
-{
-    const auto bp = TOKEN_INFO[static_cast<size_t>(t.type)].lbp;
-
-    //printf("lbp: %s -> %d\n",tok_name(t.type),bp);
-
-    if(bp == -1)
-    {
-        printf("lbp: illegal token: %s\n",tok_name(t.type));
-        exit(1);
-    }
-
-    return bp;
-}
-
-AstNode *Parser::led(Token &t,AstNode *left)
-{
-    UNUSED(left);
-
-    switch(t.type)
-    {
-    
-        case token_type::equal:
-        {
-            return new AstNode(left,ast_type::equal,expression(lbp(t.type)));
-        }
-        
-        case token_type::plus:
-        {
-            return new AstNode(left,ast_type::plus,expression(lbp(t.type)));
-        }
-    
-        default:
-        {
-            printf("led: unexpected token %s\n",tok_name(t.type));
-            exit(1);
-        }        
-    }
-
-    // should not be reached
-    assert(false);
-    return nullptr;
-}
-
-// unary operators
-AstNode *Parser::nud(Token &t)
-{
-    switch(t.type)
-    {
-        case token_type::value:
-        {
-            return new AstNode(nullptr,AstData(ast_type::value,t.literal),nullptr);
-        }
-
-        case token_type::symbol:
-        {
-            return new AstNode(nullptr,AstData(ast_type::symbol,t.literal),nullptr);
-        }
-
-        case token_type::equal:
-        {
-            return new AstNode(nullptr,AstData(ast_type::equal,t.literal),nullptr);
-        }
-
-        default:
-        {
-            printf("nud: unexpected token %s\n",tok_name(t.type));
-            exit(1);
-        }
-    }
-
-    // should not be reached
-    assert(false);
-    return nullptr;
-}
-
-// pratt parser
-// https://web.archive.org/web/20151223215421/http://hall.org.ua/halls/wizzard/pdf/Vaughan.Pratt.TDOP.pdf
-AstNode *Parser::expression(int32_t rbp)
-{
-    auto cur = expr_tok;
-    expr_tok = next_token();
-
-    auto left = nud(cur);
-
-    while(rbp < lbp(expr_tok))
-    {
-        cur = expr_tok;
-        expr_tok = next_token();
-        left = led(cur,left);
-    }
-
-    return left;
-}
-
-AstNode *Parser::expr(const Token &t)
-{
-    seen_eq = false;
-    expr_tok = t;
-    return expression(0);
-}
-
 AstNode *Parser::declartion(const std::string &type)
 {
     // declartion
     // type symbol ( ';' | '=' expression ';')
 
-    const auto s = peek(0);
+    const auto s = next_token();
 
     if(s.type != token_type::symbol)
     {
@@ -204,25 +101,21 @@ AstNode *Parser::declartion(const std::string &type)
     //    [declare:name]
     // [type: name]   optional([eqauls])
 
-    auto d = new AstNode(ast_type::declaration);
+    auto d = new AstNode(ast_type::declaration,s.literal);
     d->nodes.push_back(new AstNode(ast_type::type,type));
 
-    const auto eq = peek(1);
+    const auto eq = peek(0);
 
     switch(eq.type)
     {
+        // declartion without assigment
         case token_type::semi_colon:
         {
-            d->nodes.push_back(new AstNode(ast_type::symbol,s.literal));
-            tok_idx += 2;
+            consume(token_type::semi_colon);
             break;
         }
 
-        // intialized
-        // should the declare contain the symbol name?
-        // also multiple assigments aernt working?
-        // s32 z = x = y + 2; 
-        // ^ start here
+        // declartion with assingment
         case token_type::equal:
         {
             const auto e = expr(next_token());
@@ -436,14 +329,16 @@ void Parser::print(const AstNode *root) const
     }
 
     static int depth = 0;
+    
     for(int i = 0; i < depth; i++)
     { 
-        printf("--");
+        printf(" -");
     }
-
+    printf(" %d-",depth);
+    
     const auto data = root->data;
 
-    printf("> %s %s\n",AST_NAMES[static_cast<size_t>(data.type)],data.literal.c_str());
+    printf(" %s %s\n",AST_NAMES[static_cast<size_t>(data.type)],data.literal.c_str());
     depth += 1;
 
     for(const auto &n: root->nodes)
@@ -451,8 +346,7 @@ void Parser::print(const AstNode *root) const
         if(n)
         {
             print(n);
-            depth -= 1;
         }
     }
-
+    depth -= 1;
 }

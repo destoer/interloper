@@ -30,3 +30,14 @@
 *.exe
 *.out
 *.app
+
+# windows cmake stuff
+*.vcxproj
+*.filters
+*.sln
+CMakeCache.txt
+*.cmake
+CMakeFiles/
+Release/
+interloper.dir
+x64/

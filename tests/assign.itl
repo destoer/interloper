@@ -3,9 +3,15 @@ func s32 main()
 {
     s32 x = 2 + 2;
 
+    s32 y;
+    
     y = x;
 
-    s32 z = x = y + 2;
+    s32 z = x + y + 2;
 
-    return z;
+    x = y = z;
+
+    s32 a = x = y = z;
+
+    return z + x;
 }
