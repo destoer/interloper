@@ -30,7 +30,10 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
             case '=': tokens.push_back(Token(token_type::equal)); break;
 
             case ';': tokens.push_back(Token(token_type::semi_colon)); break;
-        
+
+            case '*': tokens.push_back(Token(token_type::times)); break;        
+
+            case '+': tokens.push_back(Token(token_type::plus)); break;      
 
 
             default:

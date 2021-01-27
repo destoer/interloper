@@ -11,11 +11,16 @@ enum class ast_type
     function_args,
 
     value,
+    symbol,
+
+    ret,
 
     type,
 
-    declare,
+    declaration,
     
+    equal,
+    plus,
 
     END
 };
@@ -29,14 +34,19 @@ inline const char *AST_NAMES[TOKEN_SIZE] =
 
 
     "function",
-    "function_args"
+    "function_args",
 
     "value",
+    "symbol",
+
+    "return",
 
     "type",
 
-    "declare",
+    "declaration",
 
+    "=",
+    "+",
 
     // should not be used...
     "END"
@@ -76,22 +86,58 @@ struct AstNode
         data = AstData(type,literal);
     }
     
+    // binary op
+    AstNode(AstNode *l, const AstData &d, AstNode *r)
+    {
+        nodes.push_back(l);
+        nodes.push_back(r);
+        data = d;
+    }
+
+
+
     AstData data;
     std::vector<AstNode *> nodes;
 };
 
 struct Parser
 {
-    AstNode *parse(const std::vector<Token> &tokens);
+    Parser(const std::vector<Token> &t) : tokens(t) 
+    {
+        tok_idx = 0;
+    }
+
+    AstNode *parse();
+    void print(const AstNode *root) const;
 private:
 
-    AstNode *func(const std::vector<Token> &tokens);
-    AstNode *type(const std::vector<Token> &tokens);
+    AstNode *func();
+    AstNode *block();
+    AstNode *statement();
 
-    void consume(const std::vector<Token> &tokens, token_type type);
-    bool match(const std::vector<Token> &tokens, token_type type);
+    AstNode *type();
+    AstNode *declartion(const std::string &type);
 
-    Token next_token(const std::vector<Token> &tokens);
+    AstNode *expr(const Token &t);
 
+    // pratt parser
+    AstNode *expression(int32_t rbp);
+
+    int32_t lbp(const Token &t);
+    AstNode *led(Token &t,AstNode *left);
+    AstNode *nud(Token &t);
+
+    void consume(token_type type);
+    bool match(token_type type);
+
+    Token next_token();
+    Token peek(uint32_t v);
+
+    const std::vector<Token> &tokens;
+
+
+    // pratt parser
+    bool seen_eq;
+    Token expr_tok;
     size_t tok_idx;
 };

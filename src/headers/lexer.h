@@ -24,9 +24,9 @@ private:
 
     std::unordered_map<std::string, token_type> keywords = 
     {
-        {TOKEN_NAMES[static_cast<size_t>(token_type::s32)],token_type::s32},
-        {TOKEN_NAMES[static_cast<size_t>(token_type::func)],token_type::func},
-        {TOKEN_NAMES[static_cast<size_t>(token_type::ret)],token_type::ret}
+        {tok_name(token_type::s32),token_type::s32},
+        {tok_name(token_type::func),token_type::func},
+        {tok_name(token_type::ret),token_type::ret}
     };
 };
 

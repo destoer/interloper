@@ -4,10 +4,13 @@
 #include <sstream>
 #include <fstream>
 #include <unordered_map>
+#include <functional>
+#include <algorithm>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <assert.h>
 
 // read entire file into a string
 inline std::string read_file(const std::string &filename)
