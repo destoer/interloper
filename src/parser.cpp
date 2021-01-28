@@ -2,56 +2,50 @@
 
 
 
-/*
-func s32 main()
-{
-    s32 x = 1;
-    return x;
-}
-*/
-
-// how do we want to define this because say for instance in a func declartion
-// this should be allowed to "fail" for i.e no return type
-
-
 Token Parser::next_token()
 {
-    if(tok_idx >= tokens.size())
+    const auto &vt = *tokens;
+    if(tok_idx >= vt.size())
     {
-        return Token(token_type::eof);
+        // TODO: make this return the actual file end
+        // for row and col
+        return Token(token_type::eof,"",0,0);
     }
 
-    return tokens[tok_idx++];
+    return vt[tok_idx++];
 }
 
 Token Parser::peek(uint32_t v)
 {
     const auto idx = tok_idx + v;
-    if(idx >= tokens.size())
+    const auto &vt = *tokens;
+    if(idx >= vt.size())
     {
-        return Token(token_type::eof);
+        return Token(token_type::eof,"",0,0);
     }
 
-    return tokens[idx];
+    return vt[idx];
 }
 
 
 
 void Parser::consume(token_type type)
 {
-    const auto t = tok_idx >= tokens.size()? token_type::eof : tokens[tok_idx].type;
+    const auto &vt = *tokens;
+    const auto t = tok_idx >= vt.size()? token_type::eof : vt[tok_idx].type;
 
     if(t != type)
     {
-        printf("expected %s got %s\n", tok_name(type),tok_name(t));
-        exit(1);
+        const auto tok = next_token();
+        panic(tok,"expected %s got %s\n", tok_name(type),tok_name(t));
     }
     tok_idx += 1;
 }
 
 bool Parser::match(token_type type)
 {
-    const auto t = tok_idx >= tokens.size()? token_type::eof : tokens[tok_idx].type;
+    const auto &vt = *tokens;
+    const auto t = tok_idx >= vt.size()? token_type::eof : vt[tok_idx].type;
 
     return t == type;
 }
@@ -94,8 +88,7 @@ AstNode *Parser::declartion(const std::string &type)
 
     if(s.type != token_type::symbol)
     {
-        printf("declartion expected symbol got: %s:%zd\n",tok_name(s.type),tok_idx);
-        exit(1);
+        panic(s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),tok_idx);
     }
 
     //    [declare:name]
@@ -130,8 +123,7 @@ AstNode *Parser::declartion(const std::string &type)
 
         default:
         {
-            printf("malformed declartion: %s\n",tok_name(eq.type));
-            exit(1);
+            panic(eq,"malformed declartion: %s\n",tok_name(eq.type));
         }
     }
 
@@ -173,18 +165,18 @@ AstNode *Parser::statement()
 
                 default:
                 {
-                    printf("statement: unhandled symbol expr: %s\n",tok_name(t2.type));
-                    exit(1);
+                    panic(t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
+                    break;
                 }
             }
-
+            break;
         }
 
 
         default:
         {
-            printf("statement: unexpected token %s\n",tok_name(t.type));
-            exit(1);
+            panic(t,"statement: unexpected token %s\n",tok_name(t.type));
+            break;
         }
     }
 
@@ -196,7 +188,7 @@ AstNode *Parser::block()
     // now parse out the block
 
     // block = '{' statement... '}'
-
+    const auto tok = peek(0);
     consume(token_type::left_c_brace);
 
     auto b = new AstNode(ast_type::block);
@@ -207,8 +199,7 @@ AstNode *Parser::block()
     {
         if(match(token_type::eof))
         {
-            printf("unterminated function block!");
-            exit(1);
+            panic(tok,"unterminated block!");
         }
 
         b->nodes.push_back(statement());
@@ -241,16 +232,14 @@ AstNode *Parser::func()
 
     if(func_name.type != token_type::symbol)
     {
-        // todo add proper error messaging (need to include info with tokens)
-        printf("expected function name got: %s!\n",tok_name(func_name.type));
-        exit(1);     
+        panic(func_name,"expected function name got: %s!\n",tok_name(func_name.type));    
     }
 
     auto f = new AstNode(ast_type::function, func_name.literal);
     
 
 
-
+    const auto paren = peek(0);
     consume(token_type::left_paren);
 
     AstNode *a = new AstNode(ast_type::function_args);
@@ -261,8 +250,7 @@ AstNode *Parser::func()
     {
         if(match(token_type::eof))
         {
-            printf("unterminated function declaration!");
-            exit(1);
+            panic(paren,"unterminated function declaration!");
         }
 
 
@@ -292,10 +280,18 @@ AstNode *Parser::func()
     return f;
 }
 
-AstNode *Parser::parse()
+AstNode *Parser::parse(const std::vector<std::string> *file,const std::vector<Token> *tokens = nullptr)
 {
+    this->file = file;
+    this->tokens = tokens;
+
+    assert(file != nullptr);
+    assert(file != nullptr);
+
+    tok_idx = 0;
     auto ast = new AstNode(ast_type::root);
-    const auto size = tokens.size();
+    const auto &vt = *tokens;
+    const auto size = vt.size();
     while(tok_idx < size)
     {
         const auto &t = next_token();
@@ -312,8 +308,7 @@ AstNode *Parser::parse()
 
             default:
             {
-                printf("unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
-                exit(1);
+                panic(t,"unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
             }
         }
     }

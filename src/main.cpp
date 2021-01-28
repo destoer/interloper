@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 
     
 
-    std::vector<std::string> file = read_string_lines(read_file(argv[1]));
+    const std::vector<std::string> file = read_string_lines(read_file(argv[1]));
 
     printf("compiling file: ");
     for(const auto &line: file)
@@ -20,15 +20,6 @@ int main(int argc, char *argv[])
         printf("%s\n",line.c_str());
     }
 
-    Lexer lexer;
-
-    auto tokens = lexer.tokenize(file);
-
-    // ok lets just print them all for now
-    print_tokens(tokens);
-
-    Parser parser(tokens);
-
-    auto ast = parser.parse();
-    parser.print(ast);
+    Interloper interloper;
+    interloper.compile(file);
 }

@@ -8,8 +8,7 @@ int32_t Parser::lbp(const Token &t)
 
     if(bp == -1)
     {
-        printf("lbp: illegal token: %s\n",tok_name(t.type));
-        exit(1);
+        panic(t,"lbp: illegal token: %s\n",tok_name(t.type));
     }
 
     return bp;
@@ -24,18 +23,18 @@ AstNode *Parser::led(Token &t,AstNode *left)
     
         case token_type::equal:
         {
-            return new AstNode(left,ast_type::equal,expression(lbp(t.type)));
+            return new AstNode(left,ast_type::equal,expression(lbp(t)));
         }
         
         case token_type::plus:
         {
-            return new AstNode(left,ast_type::plus,expression(lbp(t.type)));
+            return new AstNode(left,ast_type::plus,expression(lbp(t)));
         }
     
         default:
         {
-            printf("led: unexpected token %s\n",tok_name(t.type));
-            exit(1);
+            panic(t,"led: unexpected token %s\n",tok_name(t.type));
+            break;
         }        
     }
 
@@ -64,8 +63,7 @@ AstNode *Parser::nud(Token &t)
         {
             if(expr_tok.type == token_type::equal)
             {
-                printf("expected expression");
-                exit(1);
+                panic(t,"expected expression");
             }
 
             return new AstNode(expression(0),AstData(ast_type::equal,t.literal),nullptr);
@@ -74,8 +72,8 @@ AstNode *Parser::nud(Token &t)
 
         default:
         {
-            printf("nud: unexpected token %s\n",tok_name(t.type));
-            exit(1);
+            panic(t,"nud: unexpected token %s\n",tok_name(t.type));
+            break;
         }
     }
 

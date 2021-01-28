@@ -87,16 +87,16 @@ struct Token
 
     Token() {}
 
-    Token(token_type type)
-    {
-        this->type = type;
-    }
-
-    Token(token_type type, std::string literal)
+    Token(token_type type, const std::string &literal, uint32_t line, uint32_t col)
     {
         this->type = type;
         this->literal = literal;
+        this->line = line;
+        this->col = col;
     }
+
+    uint32_t line;
+    uint32_t col;
 
     token_type type;
     std::string literal;

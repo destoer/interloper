@@ -4,37 +4,29 @@
 void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 {
     const auto size = line.size();
-    for(size_t i = 0; i < size; i++)
+    for(column = 0; column < size; column++)
     {
-        auto c = line[i];
+        auto c = line[column];
         switch(c)
         {
             case '\t': break;
             case ' ': break;
-            
-            case '\n':
-            {
-                // add line counting later
-                //line += 1;
-                break;
-            }
 
-            case '(': tokens.push_back(Token(token_type::left_paren)); break;
+            case '(': insert_token(tokens,token_type::left_paren); break;
 
-            case ')': tokens.push_back(Token(token_type::right_paren)); break;
+            case ')': insert_token(tokens,token_type::right_paren); break;
 
-            case '{': tokens.push_back(Token(token_type::left_c_brace)); break;
+            case '{': insert_token(tokens,token_type::left_c_brace); break;
 
-            case '}': tokens.push_back(Token(token_type::right_c_brace)); break;
+            case '}': insert_token(tokens,token_type::right_c_brace); break;
 
-            case '=': tokens.push_back(Token(token_type::equal)); break;
+            case '=': insert_token(tokens,token_type::equal); break;
 
-            case ';': tokens.push_back(Token(token_type::semi_colon)); break;
+            case ';': insert_token(tokens,token_type::semi_colon); break;
 
-            case '*': tokens.push_back(Token(token_type::times)); break;        
-
-            case '+': tokens.push_back(Token(token_type::plus)); break;      
-
+            case '*': insert_token(tokens,token_type::times); break;        
+            // eg
+            case '+': insert_token(tokens,token_type::plus); break;
 
             default:
             {
@@ -42,12 +34,12 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                 if(isalpha(c))
                 {
                     std::string literal(1,c);
-                    while(i < size)
+                    while(column < size)
                     {
-                        c = line[++i];
+                        c = line[++column];
                         if(!isalnum(c))
                         {
-                            i--;
+                            column--;
                             break;
                         }
                         literal += c;
@@ -58,12 +50,12 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                     // else its a symbol
                     if(is_keyword(literal))
                     {
-                        tokens.push_back(Token(keyword_token_type(literal)));
+                        insert_token(tokens,keyword_token_type(literal));
                     }
 
                     else
                     {
-                        tokens.push_back(Token(token_type::symbol,literal));
+                        insert_token(tokens,token_type::symbol,literal);
                     }
 
                 }
@@ -75,15 +67,12 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                 // 0
                 else if(isdigit(c))
                 {
-                    decode_imm(line,i,tokens);
+                    decode_imm(line,column,tokens);
                 }
 
                 else
                 {
-                    // make this return an error token
-                    printf("unexpected char %c\n",c);
-                    print_tokens(tokens);
-                    exit(1);
+                    panic("unexpected char %c\n",c);
                 }
                 break;
             }
@@ -91,13 +80,17 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
     }
 }
 
-std::vector<Token> Lexer::tokenize(const std::vector<std::string> &file)
+std::vector<Token> Lexer::tokenize(const std::vector<std::string> *file)
 {
-    std::vector<Token> tokens;
+    this->file = file;
+    assert(file != nullptr);
 
-    for(const auto &line: file)
+    std::vector<Token> tokens;
+    row = 0;
+    for(const auto &line: *file)
     {
         tokenize_line(line,tokens);
+        row += 1;
     }
 
     return tokens;

@@ -3,7 +3,7 @@
 // TODO move all the immediate decoding off into its own file
 // and rename everything to make more sense now this code is not used in a assembler
 template<typename F>
-bool verify_immediate_internal(const std::string &line, size_t &i, F lambda)
+bool verify_immediate_internal(const std::string &line, uint32_t &i, F lambda)
 {
     const auto len = line.size();
 
@@ -42,7 +42,7 @@ bool verify_immediate(const std::string &line, std::string &literal)
         return false;
     }
 
-    size_t i = 0;
+    uint32_t i = 0;
 
     const auto c = line[0];
 
@@ -115,8 +115,7 @@ int32_t convert_imm(const std::string &imm)
 }
 
 // TODO add checks on the size of the immediate to check it fits in a i32 
-// and propogate errors
-void Lexer::decode_imm(const std::string &line, size_t &i,std::vector<Token> &tokens)
+void Lexer::decode_imm(const std::string &line, uint32_t &i,std::vector<Token> &tokens)
 {
     std::string literal = "";
 
@@ -124,8 +123,7 @@ void Lexer::decode_imm(const std::string &line, size_t &i,std::vector<Token> &to
 
     if(!success)
     {
-        printf("invalid immediate: %s",line.c_str());
-        exit(1);
+        panic("invalid immediate: %s\n",line.c_str());
     }
 
     // set one back for whatever the terminating character was
@@ -133,5 +131,5 @@ void Lexer::decode_imm(const std::string &line, size_t &i,std::vector<Token> &to
 
     i += literal.size();
 
-    tokens.push_back(Token(token_type::value,literal));    
+    insert_token(tokens,token_type::value,literal);    
 }

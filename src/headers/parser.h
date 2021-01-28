@@ -102,14 +102,19 @@ struct AstNode
 
 struct Parser
 {
-    Parser(const std::vector<Token> &t) : tokens(t) 
-    {
-        tok_idx = 0;
-    }
-
-    AstNode *parse();
+    AstNode *parse(const std::vector<std::string> *file,const std::vector<Token> *tokens);
     void print(const AstNode *root) const;
 private:
+
+    template<typename... Args>
+    void panic(const Token &token,const char *fmt, Args... args)
+    {
+        printf(fmt,args...);
+        const auto &lv = *file;
+        printf("%s",lv[token.line].c_str());
+        printf("\nat: line %d col %d\n",token.line,token.col);
+        exit(1);
+    }
 
     AstNode *func();
     AstNode *block();
@@ -133,8 +138,8 @@ private:
     Token next_token();
     Token peek(uint32_t v);
 
-    const std::vector<Token> &tokens;
-
+    const std::vector<Token> *tokens = nullptr;
+    const std::vector<std::string> *file = nullptr;
 
     // pratt parser
     bool seen_eq;
