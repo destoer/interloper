@@ -7,6 +7,6 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     //print_tokens(tokens);
 
-    auto ast = parser.parse(&lines,&tokens);
-    parser.print(ast);
+    parser.parse(&lines,&tokens,&root);
+    parser.print(root);
 }

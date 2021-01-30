@@ -94,15 +94,13 @@ struct AstNode
         data = d;
     }
 
-
-
     AstData data;
     std::vector<AstNode *> nodes;
 };
 
 struct Parser
 {
-    AstNode *parse(const std::vector<std::string> *file,const std::vector<Token> *tokens);
+    void parse(const std::vector<std::string> *file,const std::vector<Token> *tokens,  AstNode **root_ptr);
     void print(const AstNode *root) const;
 private:
 

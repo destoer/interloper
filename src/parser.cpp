@@ -280,16 +280,17 @@ AstNode *Parser::func()
     return f;
 }
 
-AstNode *Parser::parse(const std::vector<std::string> *file,const std::vector<Token> *tokens = nullptr)
+void Parser::parse(const std::vector<std::string> *file,const std::vector<Token> *tokens, AstNode **root_ptr)
 {
     this->file = file;
     this->tokens = tokens;
 
     assert(file != nullptr);
-    assert(file != nullptr);
+    assert(tokens != nullptr);
+    assert(root_ptr != nullptr);
 
     tok_idx = 0;
-    auto ast = new AstNode(ast_type::root);
+    *root_ptr = new AstNode(ast_type::root);
     const auto &vt = *tokens;
     const auto size = vt.size();
     while(tok_idx < size)
@@ -301,7 +302,7 @@ AstNode *Parser::parse(const std::vector<std::string> *file,const std::vector<To
             // function declartion
             case token_type::func:
             {
-                ast->nodes.push_back(func());
+                (*root_ptr)->nodes.push_back(func());
                 break;
             }
 
@@ -313,7 +314,9 @@ AstNode *Parser::parse(const std::vector<std::string> *file,const std::vector<To
         }
     }
 
-    return ast;
+
+    this->file = nullptr;
+    this->tokens = nullptr;
 }
 
 void Parser::print(const AstNode *root) const
