@@ -98,11 +98,32 @@ struct AstNode
     std::vector<AstNode *> nodes;
 };
 
+
+inline void delete_tree(AstNode *node)
+{
+    if(!node)
+    {
+        return;
+    }
+
+
+    for(auto &n: node->nodes)
+    {
+        delete_tree(n);
+    }
+
+    delete node;
+    node = nullptr;
+}
+
 struct Parser
 {
     void parse(const std::vector<std::string> *file,const std::vector<Token> *tokens,  AstNode **root_ptr);
     void print(const AstNode *root) const;
+    
+    bool error;
 private:
+    
 
     template<typename... Args>
     void panic(const Token &token,const char *fmt, Args... args)
@@ -111,7 +132,7 @@ private:
         const auto &lv = *file;
         printf("%s",lv[token.line].c_str());
         printf("\nat: line %d col %d\n",token.line,token.col);
-        exit(1);
+        error = true;
     }
 
     AstNode *func();

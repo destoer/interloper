@@ -14,25 +14,6 @@ struct Interloper
     }
 
 private:
-
-
-    void delete_tree(AstNode *node)
-    {
-        if(!node)
-        {
-            return;
-        }
-
-
-        for(auto &n: node->nodes)
-        {
-            delete_tree(n);
-        }
-
-        delete node;
-        node = nullptr;
-    }
-
     Lexer lexer;
     Parser parser;
 

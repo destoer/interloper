@@ -4,6 +4,8 @@
 struct Lexer
 {
     std::vector<Token> tokenize(const std::vector<std::string> *file);
+
+    bool error;
 private:
 
     uint32_t column;
@@ -18,7 +20,7 @@ private:
         const auto &lv = *file;
         printf("%s",lv[row].c_str());
         printf("\nat: line %d col %d\n",row,column);
-        exit(1);
+        error = true;
     }
 
     void insert_token(std::vector<Token> &tokens,token_type type, const std::string &literal = "")

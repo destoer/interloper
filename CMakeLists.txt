@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 file(GLOB src_files
 	"src/*.h"
 	"src/*.cpp"
+	"src/test/*.cpp"
 )
 
 if(WIN32)

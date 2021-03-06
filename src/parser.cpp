@@ -89,6 +89,7 @@ AstNode *Parser::declartion(const std::string &type)
     if(s.type != token_type::symbol)
     {
         panic(s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),tok_idx);
+        return nullptr;
     }
 
     //    [declare:name]
@@ -123,7 +124,9 @@ AstNode *Parser::declartion(const std::string &type)
 
         default:
         {
+            delete_tree(d);
             panic(eq,"malformed declartion: %s\n",tok_name(eq.type));
+            break;
         }
     }
 
@@ -199,7 +202,9 @@ AstNode *Parser::block()
     {
         if(match(token_type::eof))
         {
+            delete_tree(b);
             panic(tok,"unterminated block!");
+            return nullptr;
         }
 
         b->nodes.push_back(statement());
@@ -232,7 +237,9 @@ AstNode *Parser::func()
 
     if(func_name.type != token_type::symbol)
     {
-        panic(func_name,"expected function name got: %s!\n",tok_name(func_name.type));    
+        delete_tree(t);
+        panic(func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
+        return nullptr;  
     }
 
     auto f = new AstNode(ast_type::function, func_name.literal);
@@ -242,7 +249,7 @@ AstNode *Parser::func()
     const auto paren = peek(0);
     consume(token_type::left_paren);
 
-    AstNode *a = new AstNode(ast_type::function_args);
+    auto a = new AstNode(ast_type::function_args);
 
     // parse out the function args
     // if  token is eof then we have a problem 
@@ -250,7 +257,10 @@ AstNode *Parser::func()
     {
         if(match(token_type::eof))
         {
+            delete_tree(a);
+            delete_tree(f);
             panic(paren,"unterminated function declaration!");
+            return nullptr;
         }
 
 
@@ -282,6 +292,7 @@ AstNode *Parser::func()
 
 void Parser::parse(const std::vector<std::string> *file,const std::vector<Token> *tokens, AstNode **root_ptr)
 {
+    
     this->file = file;
     this->tokens = tokens;
 
@@ -289,6 +300,7 @@ void Parser::parse(const std::vector<std::string> *file,const std::vector<Token>
     assert(tokens != nullptr);
     assert(root_ptr != nullptr);
 
+    error = false;
     tok_idx = 0;
     *root_ptr = new AstNode(ast_type::root);
     const auto &vt = *tokens;
@@ -310,6 +322,7 @@ void Parser::parse(const std::vector<std::string> *file,const std::vector<Token>
             default:
             {
                 panic(t,"unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
+                break;
             }
         }
     }

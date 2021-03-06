@@ -25,8 +25,10 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
             case ';': insert_token(tokens,token_type::semi_colon); break;
 
             case '*': insert_token(tokens,token_type::times); break;        
-            // eg
+
             case '+': insert_token(tokens,token_type::plus); break;
+
+            case '-': insert_token(tokens,token_type::minus); break;
 
             default:
             {
@@ -73,6 +75,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                 else
                 {
                     panic("unexpected char %c\n",c);
+                    return;
                 }
                 break;
             }
@@ -82,6 +85,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
 std::vector<Token> Lexer::tokenize(const std::vector<std::string> *file)
 {
+    error = false;
     this->file = file;
     assert(file != nullptr);
 

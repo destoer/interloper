@@ -1,4 +1,5 @@
 #include <interloper.h>
+#include <test.h>
 
 
 int main(int argc, char *argv[])
@@ -8,6 +9,13 @@ int main(int argc, char *argv[])
     {
         printf("usage: %s <file to compile>\n",argv[0]);
         return -1;
+    }
+
+    // run tests
+    if(std::string(argv[1]) == "-t")
+    {
+        run_tests();
+        return 0;
     }
 
     

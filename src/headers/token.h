@@ -23,6 +23,7 @@ enum class token_type
 
     times,
     plus,
+    minus,
 
     error,
 
@@ -69,6 +70,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::times,"*",13},
     {token_type::plus,"+",12},
+    {token_type::minus,"-",12},
 
     {token_type::error,"error",-1},
 
@@ -87,7 +89,7 @@ struct Token
 
     Token() {}
 
-    Token(token_type type, const std::string &literal, uint32_t line, uint32_t col)
+    Token(token_type type, const std::string &literal = "", uint32_t line = 0, uint32_t col = 0)
     {
         this->type = type;
         this->literal = literal;
@@ -95,12 +97,29 @@ struct Token
         this->col = col;
     }
 
+
+    friend bool operator == (const Token &t1, const Token &t2);
+    friend bool operator != (const Token &t1, const Token &t2);
+
+
     uint32_t line;
     uint32_t col;
 
     token_type type;
     std::string literal;
 };
+
+inline bool operator == (const Token &t1, const Token &t2)
+{
+    return t1.type == t2.type && t1.literal == t2.literal;
+}
+
+
+inline bool operator != (const Token &t1, const Token &t2)
+{
+    return !operator==(t1,t2);
+}
+
 
 inline void print_tokens(const std::vector<Token> &tokens)
 {
