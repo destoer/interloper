@@ -11,8 +11,8 @@ void Interloper::compile(const std::vector<std::string> &lines)
     }
 
     //print_tokens(tokens);
-
-    parser.parse(&lines,&tokens,&root);
+    parser.init(&lines,&tokens);
+    parser.parse(&root);
     parser.print(root);
 
     if(parser.error)

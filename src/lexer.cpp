@@ -30,6 +30,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '-': insert_token(tokens,token_type::minus); break;
 
+            case '/': insert_token(tokens,token_type::divide); break;
+
             default:
             {
                 // potential symbol

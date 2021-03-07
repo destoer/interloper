@@ -12,7 +12,7 @@ Token Parser::next_token()
         return Token(token_type::eof,"",0,0);
     }
 
-    return vt[tok_idx++];
+    return vt[tok_idx++];  
 }
 
 Token Parser::peek(uint32_t v)
@@ -290,18 +290,25 @@ AstNode *Parser::func()
     return f;
 }
 
-void Parser::parse(const std::vector<std::string> *file,const std::vector<Token> *tokens, AstNode **root_ptr)
+void Parser::init(const std::vector<std::string> *file,const std::vector<Token> *tokens)
 {
-    
     this->file = file;
     this->tokens = tokens;
 
     assert(file != nullptr);
     assert(tokens != nullptr);
+    
+    error = false;
+    initialized = true;
+    tok_idx = 0;
+}
+
+
+void Parser::parse(AstNode **root_ptr)
+{
+    assert(initialized);
     assert(root_ptr != nullptr);
 
-    error = false;
-    tok_idx = 0;
     *root_ptr = new AstNode(ast_type::root);
     const auto &vt = *tokens;
     const auto size = vt.size();
@@ -327,7 +334,7 @@ void Parser::parse(const std::vector<std::string> *file,const std::vector<Token>
         }
     }
 
-
+    initialized = false;
     this->file = nullptr;
     this->tokens = nullptr;
 }

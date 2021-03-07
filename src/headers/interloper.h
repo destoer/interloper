@@ -19,3 +19,5 @@ private:
 
     AstNode *root = nullptr;
 };
+
+int32_t convert_imm(const std::string &imm);

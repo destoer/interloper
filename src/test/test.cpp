@@ -7,4 +7,5 @@ void run_tests()
 
 
     lexer_test();
+    expr_test();
 }

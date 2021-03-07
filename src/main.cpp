@@ -2,6 +2,13 @@
 #include <test.h>
 
 
+// test for expression parser
+// semantic analysis
+// code gen (2 stage), emit operations on vars
+// then actual bytecode that worries about where things are placed
+// control flow and scoping
+// ...
+
 int main(int argc, char *argv[])
 {
     // just one file arg for now

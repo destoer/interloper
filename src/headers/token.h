@@ -24,6 +24,7 @@ enum class token_type
     times,
     plus,
     minus,
+    divide,
 
     error,
 
@@ -71,6 +72,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::times,"*",13},
     {token_type::plus,"+",12},
     {token_type::minus,"-",12},
+    {token_type::divide,"/",13},
 
     {token_type::error,"error",-1},
 

@@ -20,7 +20,11 @@ enum class ast_type
     declaration,
     
     equal,
+    times,
     plus,
+    minus,
+    divide,
+
 
     END
 };
@@ -46,7 +50,10 @@ inline const char *AST_NAMES[TOKEN_SIZE] =
     "declaration",
 
     "=",
+    "*"
     "+",
+    "-",
+    "/",
 
     // should not be used...
     "END"
@@ -118,12 +125,17 @@ inline void delete_tree(AstNode *node)
 
 struct Parser
 {
-    void parse(const std::vector<std::string> *file,const std::vector<Token> *tokens,  AstNode **root_ptr);
+    void init(const std::vector<std::string> *file,const std::vector<Token> *tokens);
+
+    void parse(AstNode **root_ptr);
     void print(const AstNode *root) const;
     
+    AstNode *expr(const Token &t);
+    Token next_token();
+
     bool error;
 private:
-    
+    bool initialized = false;
 
     template<typename... Args>
     void panic(const Token &token,const char *fmt, Args... args)
@@ -142,7 +154,7 @@ private:
     AstNode *type();
     AstNode *declartion(const std::string &type);
 
-    AstNode *expr(const Token &t);
+    
 
     // pratt parser
     AstNode *expression(int32_t rbp);
@@ -152,16 +164,18 @@ private:
     AstNode *nud(Token &t);
 
     void consume(token_type type);
+    void consume_expr(token_type type);
     bool match(token_type type);
 
-    Token next_token();
+    Token next_token_expr();
+
     Token peek(uint32_t v);
 
     const std::vector<Token> *tokens = nullptr;
     const std::vector<std::string> *file = nullptr;
 
     // pratt parser
-    bool seen_eq;
     Token expr_tok;
     size_t tok_idx;
+    uint32_t brace_count;
 };

@@ -1,5 +1,33 @@
 #include <interloper.h>
 
+void Parser::consume_expr(token_type type)
+{
+    if(type != expr_tok.type)
+    {
+        panic(expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(expr_tok.type));
+    }
+
+    expr_tok = next_token_expr();
+}
+
+Token Parser::next_token_expr()
+{
+    const auto tok = next_token();
+    
+    // easiest just to jam a state machine in here
+    if(tok.type == token_type::left_paren)
+    {
+        brace_count += 1;
+    }
+
+    else if(tok.type == token_type::right_paren)
+    {
+        brace_count -= 1;
+    }
+
+    return tok;    
+}
+
 int32_t Parser::lbp(const Token &t)
 {
     const auto bp = TOKEN_INFO[static_cast<size_t>(t.type)].lbp;
@@ -30,11 +58,26 @@ AstNode *Parser::led(Token &t,AstNode *left)
         {
             return new AstNode(left,ast_type::plus,expression(lbp(t)));
         }
+
+        case token_type::minus:
+        {
+            return new AstNode(left,ast_type::minus,expression(lbp(t)));
+        }
+
+        case token_type::divide:
+        {
+            return new AstNode(left,ast_type::divide,expression(lbp(t)));
+        }
     
+        case token_type::times:
+        {
+            return new AstNode(left,ast_type::times,expression(lbp(t)));
+        }
+
         default:
         {
             panic(t,"led: unexpected token %s\n",tok_name(t.type));
-            break;
+            return nullptr;
         }        
     }
 
@@ -58,6 +101,25 @@ AstNode *Parser::nud(Token &t)
             return new AstNode(nullptr,AstData(ast_type::symbol,t.literal),nullptr);
         }
 
+        case token_type::minus:
+        {
+            return new AstNode(expression(100),AstData(ast_type::minus),nullptr);
+        }
+
+        case token_type::plus:
+        {
+            return new AstNode(expression(100),AstData(ast_type::plus),nullptr);
+        }
+
+        case token_type::left_paren:
+        {
+            const auto expr = expression(0);
+
+            consume_expr(token_type::right_paren);
+            return expr;
+        }
+
+
         // declaration
         case token_type::equal:
         {
@@ -77,8 +139,6 @@ AstNode *Parser::nud(Token &t)
         }
     }
 
-    // should not be reached
-    assert(false);
     return nullptr;
 }
 
@@ -87,14 +147,14 @@ AstNode *Parser::nud(Token &t)
 AstNode *Parser::expression(int32_t rbp)
 {
     auto cur = expr_tok;
-    expr_tok = next_token();
+    expr_tok = next_token_expr();
 
     auto left = nud(cur);
 
     while(rbp < lbp(expr_tok))
     {
         cur = expr_tok;
-        expr_tok = next_token();
+        expr_tok = next_token_expr();
         left = led(cur,left);
     }
 
@@ -103,7 +163,25 @@ AstNode *Parser::expression(int32_t rbp)
 
 AstNode *Parser::expr(const Token &t)
 {
-    seen_eq = false;
+    brace_count = 0;
     expr_tok = t;
-    return expression(0);
+
+    if(expr_tok.type == token_type::left_paren)
+    {
+        brace_count += 1;
+    }
+
+    else if(expr_tok.type == token_type::right_paren)
+    {
+        brace_count -= 1;
+    }
+
+    const auto e = expression(0);
+
+    if(brace_count != 0)
+    {
+        panic(expr_tok,"unterminated bracket: ");
+    }
+
+    return e;
 }
