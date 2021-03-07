@@ -17,7 +17,7 @@ ExprTest EXPR_TESTS[] =
 {
     {"2 + 2",false,4},
     {"4 / 2",false,2},
-    //{"((5+5)*2) + 4",false,24}, // TODO: this breaks here, but not in our assembler that uses the same method why?
+    {"((5+5)*2) + 4",false,24},
     {"(5 + 3) * 4",false,32},
     {"3 + 4 * -5",false,-17},
     {"5 - 5 * 2",false,-5},
