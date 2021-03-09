@@ -31,7 +31,7 @@ enum class ast_type
 
 static constexpr size_t AST_TYPE_SIZE = static_cast<size_t>(ast_type::END)+1;
 
-inline const char *AST_NAMES[TOKEN_SIZE] =
+inline const char *AST_NAMES[AST_TYPE_SIZE] =
 {
     "root",
     "block",
@@ -50,7 +50,7 @@ inline const char *AST_NAMES[TOKEN_SIZE] =
     "declaration",
 
     "=",
-    "*"
+    "*",
     "+",
     "-",
     "/",

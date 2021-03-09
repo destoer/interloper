@@ -30,7 +30,22 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '-': insert_token(tokens,token_type::minus); break;
 
-            case '/': insert_token(tokens,token_type::divide); break;
+            case '/': 
+            {
+                const char next = (column+1) < size? line[column+1] : '0';
+
+                // we have comment this line is now done
+                if(next == '/')
+                {
+                    return;
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::divide);
+                } 
+                break;
+            }
 
             default:
             {

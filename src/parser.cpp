@@ -352,11 +352,11 @@ void Parser::print(const AstNode *root) const
     { 
         printf(" -");
     }
-    printf(" %d-",depth);
+    printf(" %d ",depth);
     
     const auto data = root->data;
 
-    printf(" %s %s\n",AST_NAMES[static_cast<size_t>(data.type)],data.literal.c_str());
+    printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(data.type)],data.literal.c_str());
     depth += 1;
 
     for(const auto &n: root->nodes)
