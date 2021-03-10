@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <assert.h>
+#include <string.h>
 
 // read entire file into a string
 inline std::string read_file(const std::string &filename)

@@ -79,7 +79,7 @@ AstNode *Parser::type()
     return nullptr;
 }
 
-AstNode *Parser::declartion(const std::string &type)
+AstNode *Parser::declartion(var_type type, const std::string &type_str)
 {
     // declartion
     // type symbol ( ';' | '=' expression ';')
@@ -96,7 +96,7 @@ AstNode *Parser::declartion(const std::string &type)
     // [type: name]   optional([eqauls])
 
     auto d = new AstNode(ast_type::declaration,s.literal);
-    d->nodes.push_back(new AstNode(ast_type::type,type));
+    d->nodes.push_back(new AstNode(type,type_str));
 
     const auto eq = peek(0);
 
@@ -141,7 +141,7 @@ AstNode *Parser::statement()
     {
         case token_type::s32:
         {
-            return declartion("s32");
+            return declartion(var_type::s32_t,"s32");
         }
 
         case token_type::ret:
@@ -229,7 +229,7 @@ AstNode *Parser::func()
     // assume void
     if(!t)
     {
-        t = new AstNode(ast_type::type,"void");
+        t = new AstNode(var_type::void_t,"void");
     }
 
     // what is the name of our function?
@@ -354,9 +354,7 @@ void Parser::print(const AstNode *root) const
     }
     printf(" %d ",depth);
     
-    const auto data = root->data;
-
-    printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(data.type)],data.literal.c_str());
+    printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str());
     depth += 1;
 
     for(const auto &n: root->nodes)

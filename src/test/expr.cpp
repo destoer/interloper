@@ -49,11 +49,11 @@ int32_t sum(AstNode *node)
         AstNode *right = size >= 2? node->nodes[1] : nullptr;
 
 
-        switch(node->data.type)
+        switch(node->type)
         {
             case ast_type::value:
             {
-                return convert_imm(node->data.literal);
+                return static_cast<int32_t>(node->value);
             }
 
             case ast_type::plus:
@@ -90,7 +90,7 @@ int32_t sum(AstNode *node)
 
             default:
             {
-                printf("sum illegal tok:%d\n",static_cast<int>(node->data.type));
+                printf("sum illegal tok:%d\n",static_cast<int>(node->type));
                 exit(1);
                 break;
             }

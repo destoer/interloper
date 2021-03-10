@@ -103,15 +103,16 @@ bool verify_immediate(const std::string &line, std::string &literal)
     return valid;    
 }
 
-int32_t convert_imm(const std::string &imm)
+// TODO: make sure the number fits in 32 bits
+uint32_t convert_imm(const std::string &imm)
 {
     if(imm.size() >= 3 && imm.substr(0,2) == "0b")
     {
-        return std::stoi(imm.substr(2),0,2);
+        return static_cast<uint32_t>(std::stoi(imm.substr(2),0,2));
     }
 
     // stoi wont auto detect base for binary strings?
-    return std::stoi(imm,0,0);
+    return static_cast<uint32_t>(std::stoi(imm,0,0));
 }
 
 // TODO add checks on the size of the immediate to check it fits in a i32 

@@ -51,27 +51,27 @@ AstNode *Parser::led(Token &t,AstNode *left)
     
         case token_type::equal:
         {
-            return new AstNode(left,ast_type::equal,expression(lbp(t)));
+            return new AstNode(left,expression(lbp(t)),ast_type::equal);
         }
         
         case token_type::plus:
         {
-            return new AstNode(left,ast_type::plus,expression(lbp(t)));
+            return new AstNode(left,expression(lbp(t)),ast_type::plus);
         }
 
         case token_type::minus:
         {
-            return new AstNode(left,ast_type::minus,expression(lbp(t)));
+            return new AstNode(left,expression(lbp(t)),ast_type::minus);
         }
 
         case token_type::divide:
         {
-            return new AstNode(left,ast_type::divide,expression(lbp(t)));
+            return new AstNode(left,expression(lbp(t)),ast_type::divide);
         }
     
         case token_type::times:
         {
-            return new AstNode(left,ast_type::times,expression(lbp(t)));
+            return new AstNode(left,expression(lbp(t)),ast_type::times);
         }
 
         default:
@@ -93,22 +93,22 @@ AstNode *Parser::nud(Token &t)
     {
         case token_type::value:
         {
-            return new AstNode(nullptr,AstData(ast_type::value,t.literal),nullptr);
+            return new AstNode(nullptr,nullptr,convert_imm(t.literal),t.literal);
         }
 
         case token_type::symbol:
         {
-            return new AstNode(nullptr,AstData(ast_type::symbol,t.literal),nullptr);
+            return new AstNode(nullptr,nullptr,ast_type::symbol,t.literal);
         }
 
         case token_type::minus:
         {
-            return new AstNode(expression(100),AstData(ast_type::minus),nullptr);
+            return new AstNode(expression(100),nullptr,ast_type::minus);
         }
 
         case token_type::plus:
         {
-            return new AstNode(expression(100),AstData(ast_type::plus),nullptr);
+            return new AstNode(expression(100),nullptr,ast_type::plus);
         }
 
         case token_type::left_paren:
@@ -128,7 +128,7 @@ AstNode *Parser::nud(Token &t)
                 panic(t,"expected expression");
             }
 
-            return new AstNode(expression(0),AstData(ast_type::equal,t.literal),nullptr);
+            return new AstNode(expression(0),nullptr,ast_type::equal,t.literal);
         }
 
 

@@ -3,9 +3,12 @@
 #include <token.h>
 #include <lexer.h>
 #include <parser.h>
+#include <type.h>
 
 struct Interloper
 {
+    Interloper();
+
     void compile(const std::vector<std::string> &lines);
 
     ~Interloper()
@@ -18,6 +21,9 @@ private:
     Parser parser;
 
     AstNode *root = nullptr;
+
+    std::unordered_map<std::string, Function> function_table;
+    std::unordered_map<std::string, Symbol> symbol_table; 
 };
 
-int32_t convert_imm(const std::string &imm);
+uint32_t convert_imm(const std::string &imm);

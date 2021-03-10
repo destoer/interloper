@@ -1,6 +1,7 @@
 #pragma once
 #include <lib.h>
 #include <token.h>
+#include <type.h>
 
 enum class ast_type
 {
@@ -60,48 +61,73 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 };
 
 
-struct AstData
+struct AstNode
 {
-    AstData() {}
-
-    AstData(ast_type type)
+    AstNode() 
     {
-        this->type = type;
+        this->value = 0;
     }
 
-    AstData(ast_type type, std::string literal)
+    // general astdata no literal required eg '+'
+    AstNode(ast_type type)
+    {
+        this->type = type;
+        this->value = 0;
+    }
+
+    // general astdata string literal required eg symbol
+    AstNode(ast_type type, const std::string &literal)
     {
         this->type = type;
         this->literal = literal;
+        this->value = 0;
     }
 
-    ast_type type;
-    std::string literal;
-};
-
-
-struct AstNode
-{
-    // plain node
-    AstNode(ast_type type)
+    // astdata decleration
+    AstNode(var_type type, const std::string &literal)
     {
-        data = AstData(type); 
+        this->type = ast_type::type;
+        this->literal = literal;
+        this->variable_type = type;
     }
 
-    AstNode(ast_type type, std::string literal)
-    {
-        data = AstData(type,literal);
-    }
     
     // binary op
-    AstNode(AstNode *l, const AstData &d, AstNode *r)
+    AstNode(AstNode *l, AstNode *r, ast_type type, std::string literal = "")
     {
         nodes.push_back(l);
         nodes.push_back(r);
-        data = d;
+        this->type = type;
+        this->literal = literal;
+        this->value = 0;
     }
 
-    AstData data;
+
+    // binary op value
+    AstNode(AstNode *l, AstNode *r, uint32_t value, std::string literal = "")
+    {
+        nodes.push_back(l);
+        nodes.push_back(r);
+        this->type = ast_type::value;
+        this->literal = literal;
+        this->value = value;
+    }
+
+
+    // node data
+    ast_type type;
+    std::string literal;
+
+   
+    union
+    {
+        // ast_type::type
+        var_type variable_type;
+
+        // ast_type::value
+        uint32_t value;
+    };
+
     std::vector<AstNode *> nodes;
 };
 
@@ -152,7 +178,7 @@ private:
     AstNode *statement();
 
     AstNode *type();
-    AstNode *declartion(const std::string &type);
+    AstNode *declartion(var_type type, const std::string &type_str);
 
     
 
