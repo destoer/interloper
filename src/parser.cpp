@@ -15,6 +15,15 @@ Token Parser::next_token()
     return vt[tok_idx++];  
 }
 
+void Parser::prev_token()
+{
+    if(tok_idx != 0)
+    {
+        tok_idx -= 1;
+    }
+}
+
+
 Token Parser::peek(uint32_t v)
 {
     const auto idx = tok_idx + v;
@@ -50,10 +59,8 @@ bool Parser::match(token_type type)
     return t == type;
 }
 
-// also how do we want to handle types?
-// because we will also have builtin ones...
-// a literal for every type is going to make our life a pain
-AstNode *Parser::type()
+
+Type Parser::get_type(std::string &type_literal)
 {
     const auto tok = next_token();
 
@@ -62,7 +69,8 @@ AstNode *Parser::type()
     {
         case token_type::s32:
         {
-            return new AstNode(ast_type::type,"s32");
+            type_literal = "s32";
+            return Type(builtin_type::s32_t);
         }
 
         case token_type::symbol:
@@ -72,14 +80,17 @@ AstNode *Parser::type()
             exit(1);
         }
 
-        default: break;
+        default:
+        {
+            panic(tok,"expected type declaration");
+            break;
+        }
     }
 
-
-    return nullptr;
+    assert(false);
 }
 
-AstNode *Parser::declartion(var_type type, const std::string &type_str)
+AstNode *Parser::declaration(const Type &var_type, const std::string &type_str)
 {
     // declartion
     // type symbol ( ';' | '=' expression ';')
@@ -93,10 +104,10 @@ AstNode *Parser::declartion(var_type type, const std::string &type_str)
     }
 
     //    [declare:name]
-    // [type: name]   optional([eqauls])
+    // [type]   optional([eqauls])
 
     auto d = new AstNode(ast_type::declaration,s.literal);
-    d->nodes.push_back(new AstNode(type,type_str));
+    d->nodes.push_back(new AstNode(var_type,type_str));
 
     const auto eq = peek(0);
 
@@ -139,9 +150,14 @@ AstNode *Parser::statement()
 
     switch(t.type)
     {
+        // we will have to parse out a full type here later
+        // but for now lets just assume that this type is plain
         case token_type::s32:
         {
-            return declartion(var_type::s32_t,"s32");
+            prev_token();
+            std::string type_literal;
+            const auto var_type = get_type(type_literal);
+            return declaration(var_type,type_literal);
         }
 
         case token_type::ret:
@@ -224,20 +240,28 @@ AstNode *Parser::func()
     // arg = type ident
 
     // can be null (i.e we have no return type)
-    auto t = type();
+    std::string return_type_literal;
+    auto return_type = get_type(return_type_literal);
+
+/*
+    for now assume there is no void
+    we will have to check for this by scannining if there is a name followed by a paren
+    but for now i dont want to worry about it
 
     // assume void
     if(!t)
     {
-        t = new AstNode(var_type::void_t,"void");
+        const auto var_type = Type(builtin_type::void_t);
+        t = new AstNode(var_type,"void");
     }
+*/
+
 
     // what is the name of our function?
     const auto func_name = next_token();
 
     if(func_name.type != token_type::symbol)
     {
-        delete_tree(t);
         panic(func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
         return nullptr;  
     }
@@ -263,7 +287,7 @@ AstNode *Parser::func()
             return nullptr;
         }
 
-
+        // TODO: handle this
         const auto t = next_token();
         printf("function args, %s: %s\n",tok_name(t.type),t.literal.c_str());
         exit(1);
@@ -274,7 +298,7 @@ AstNode *Parser::func()
     // no args (make void)
     if(!a->nodes.size())
     {
-        a->nodes.push_back(new AstNode(ast_type::type,"void"));
+        a->nodes.push_back(new AstNode(Type(builtin_type::void_t),"void"));
     }
 
 
@@ -283,7 +307,7 @@ AstNode *Parser::func()
 
     //      [func: name]
     // [type] [block]  [args]
-    f->nodes.push_back(t);
+    f->nodes.push_back(new AstNode(return_type,return_type_literal));
     f->nodes.push_back(b);
     f->nodes.push_back(a);
 

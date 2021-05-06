@@ -84,7 +84,7 @@ struct AstNode
     }
 
     // astdata decleration
-    AstNode(var_type type, const std::string &literal)
+    AstNode(Type type, const std::string &literal)
     {
         this->type = ast_type::type;
         this->literal = literal;
@@ -122,7 +122,7 @@ struct AstNode
     union
     {
         // ast_type::type
-        var_type variable_type;
+        Type variable_type;
 
         // ast_type::value
         uint32_t value;
@@ -177,10 +177,10 @@ private:
     AstNode *block();
     AstNode *statement();
 
-    AstNode *type();
-    AstNode *declartion(var_type type, const std::string &type_str);
+    Type get_type(std::string &type_literal);
+    AstNode *declaration(const Type &var_type, const std::string &type_str);
 
-    
+    void prev_token();
 
     // pratt parser
     AstNode *expression(int32_t rbp);

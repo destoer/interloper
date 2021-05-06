@@ -17,6 +17,8 @@ struct Interloper
     }
 
 private:
+    void parse_function_declarations();
+
     Lexer lexer;
     Parser parser;
 
