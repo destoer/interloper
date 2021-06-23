@@ -123,6 +123,8 @@ AstNode *Parser::declaration(const Type &var_type, const std::string &type_str)
         // declartion with assingment
         case token_type::equal:
         {
+            consume(token_type::equal);
+            
             const auto e = expr(next_token());
             
             // declartion with initalizer skip over initial symbol
@@ -244,7 +246,7 @@ AstNode *Parser::func()
     auto return_type = get_type(return_type_literal);
 
 /*
-    for now assume there is no void
+    for now assume there is no void in the return type
     we will have to check for this by scannining if there is a name followed by a paren
     but for now i dont want to worry about it
 

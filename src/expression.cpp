@@ -49,11 +49,15 @@ AstNode *Parser::led(Token &t,AstNode *left)
     switch(t.type)
     {
     
+
         case token_type::equal:
-        {
-            return new AstNode(left,expression(lbp(t)),ast_type::equal);
+        { 
+            // right precedence rbp = lbp -1 so that things on the right 
+            // are sen as sub expressions
+            return new AstNode(left,expression(lbp(t)-1),ast_type::equal);  
         }
-        
+    
+      
         case token_type::plus:
         {
             return new AstNode(left,expression(lbp(t)),ast_type::plus);
@@ -119,19 +123,6 @@ AstNode *Parser::nud(Token &t)
             return expr;
         }
 
-
-        // declaration
-        case token_type::equal:
-        {
-            if(expr_tok.type == token_type::equal)
-            {
-                panic(t,"expected expression");
-            }
-
-            return new AstNode(expression(0),nullptr,ast_type::equal,t.literal);
-        }
-
-
         default:
         {
             panic(t,"nud: unexpected token %s\n",tok_name(t.type));
@@ -144,6 +135,8 @@ AstNode *Parser::nud(Token &t)
 
 // pratt parser
 // https://web.archive.org/web/20151223215421/http://hall.org.ua/halls/wizzard/pdf/Vaughan.Pratt.TDOP.pdf
+// ^ this algo is elegant as hell
+
 AstNode *Parser::expression(int32_t rbp)
 {
     auto cur = expr_tok;
