@@ -1,16 +1,5 @@
 #include <interloper.h>
 
-// how do we organise this so getting out our actual type enum aint a pain
-// do we want this information allready on the tree for us and do some casting?
-// or keep doing very annoying string lookups
-
-// do we push the type on the ast into a format that is less of a pain to convert because we have
-// effectively reobscured the type on the ast when there is really no need to do so
-// we could just have an enum and then take the base off the thing  and then get it into an actual type enum 
-// we use 
-
-
-// either way the 2nd needs to be done and maybe dumped ontop of the first
 
 Interloper::Interloper()
 {
@@ -46,7 +35,6 @@ void Interloper::parse_function_declarations()
         
 
 
-        // why does this constructor spew 5 million error messages in my face
         const Function function(name,return_type,args);
 
 
@@ -79,42 +67,13 @@ std::string Interloper::type_name(const Type &type)
 // c) how do we handle the type? (we can ignore this concern for now but it needs to be solved at some point)
 
 // d) how do we handle symbols we need i.e function names? or branches
-//    the offsets for them will differ from our ir ones
-
-// TODO: handle multiple assignment...
-// i think i need to rethink the tree for declartions with 
-// an expr on the other side
-
+//    the offsets for them will differ from our ir ones and they will be moved
+//    during optimisation passes
 
 void Interloper::compile_arith_op(AstNode *node, op_type type)
 {
-    // we want to parse the operator branch first so we can
-    // do the calc and then dump in a reg 
-    /* i.e
-        mov r0, 2
-        mov r1, 2
-        div r0, r0, r1
-    */
-
-
-    // if only one side has a "value" parse the other one
-    
-    const auto type0 = node->nodes[0]->type;
-    // this side has an operator parse it first
-    if(type0 != ast_type::symbol && type0 != ast_type::value)
-    {
-        compile_expression(node->nodes[0]);
-        compile_expression(node->nodes[1]);
-    }
-
-    // other side has the operator or a symbol
-    else
-    {
-        compile_expression(node->nodes[1]);
-        compile_expression(node->nodes[0]);
-    }
-
-    
+    compile_expression(node->nodes[0]);
+    compile_expression(node->nodes[1]);
 
     const auto v1 = reg(emitter.reg_count-2);
     const auto v2 = reg(emitter.reg_count-1);
@@ -396,16 +355,22 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     compile_functions();
 
-    dump_ir();
+    //dump_ir();
 
     // optimise_ir();
 
     // perform register allocation
     allocate_registers();
 
-    // emit the actual target asm
-    // for now we will just interpret the IR
-    // emit_asm();
+    dump_ir();
 
-    
+    // emit the actual target asm
+    // for now we will just perform some adjustment on the register operands
+    emit_asm();
+
+    // okay now we need to actually resolve all the addresses into a meaningful place
+    // resolve_labels();
+
+    Interpretter interpretter;
+    interpretter.run(reinterpret_cast<uint8_t*>(program.data()),program.size() * sizeof(Opcode));
 }

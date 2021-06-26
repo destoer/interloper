@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <list>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -44,5 +45,20 @@ inline std::vector<std::string> read_string_lines(const std::string &str)
 
     return out;
 }
+
+template<typename access_type>
+inline access_type handle_read(const uint8_t *buf, uint32_t idx)
+{
+    access_type v;
+    memcpy(&v,&buf[idx],sizeof(access_type));
+    return v;
+}
+
+template<typename access_type>
+inline void handle_write(uint8_t *buf, uint32_t idx, access_type v)
+{
+    memcpy(&buf[idx],&v,sizeof(access_type));
+}
+
 
 #define UNUSED(X) ((void)X)

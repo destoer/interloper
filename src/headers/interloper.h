@@ -5,6 +5,7 @@
 #include <parser.h>
 #include <type.h>
 #include <ir.h>
+#include <interpretter.h>
 
 struct Interloper
 {
@@ -26,6 +27,8 @@ private:
     void compile_block(AstNode *node);
     void compile_expression(AstNode *node);
     void compile_arith_op(AstNode *node, op_type type);
+    void emit_asm();
+
 
     Lexer lexer;
     Parser parser;
@@ -51,6 +54,10 @@ private:
 
     // is there a better way to implement this?
     std::vector<std::string> slot_lookup;
+
+    // probably  needs to be moved to a uint8_t
+    // when we have static data in the program
+    std::vector<Opcode> program;
 };
 
 uint32_t convert_imm(const std::string &imm);
