@@ -4,7 +4,7 @@
 template<typename access_type>
 access_type Interpretter::read_mem(uint32_t addr)
 {
-    // force algin access
+    // force align access
     addr &= ~(sizeof(access_type) - 1);
 
     if(addr >= 0x20000000 && addr < 0x20000000 + stack.size())
@@ -22,7 +22,7 @@ access_type Interpretter::read_mem(uint32_t addr)
 template<typename access_type>
 void Interpretter::write_mem(uint32_t addr, access_type v)
 {
-    // force algin access
+    // force align access
     addr &= ~(sizeof(access_type) - 1);
 
     if(addr >= 0x20000000 && addr < 0x20000000 + stack.size())
@@ -69,6 +69,8 @@ void Interpretter::run(const uint8_t *program, uint32_t size)
         }
 
         memcpy(&opcode,&program[regs[PC]],sizeof(opcode));
+
+        //disass_opcode_raw(opcode);
 
         regs[PC] += OP_SIZE;
 

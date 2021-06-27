@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <functional>
 #include <algorithm>
+#include <optional>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

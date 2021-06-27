@@ -106,9 +106,8 @@ void Interloper::compile_expression(AstNode *node)
             // TODO: this needs to be type checked
 
             
-            const bool exists = symbol_table.count(name);
 
-            if(!exists)
+            if(!symbol_table.exists(name))
             {
                 printf("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
                 parser.print(node);
@@ -116,7 +115,7 @@ void Interloper::compile_expression(AstNode *node)
             }
 
             
-            auto &sym = symbol_table[name];
+            const auto &sym = symbol_table[name];
             emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count - 1));
 
             break;            
@@ -131,18 +130,17 @@ void Interloper::compile_expression(AstNode *node)
 
         case ast_type::symbol:
         {
-            // check symbol is declared or else error
-            const bool exists = symbol_table.count(node->literal);
+            const auto name = node->literal;
 
-            if(!exists)
+            if(!symbol_table.exists(name))
             {
-                printf("[COMPILE]: symbol '%s' used before declaration\n",node->literal.c_str());
+                printf("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
                 parser.print(node);
                 exit(1);
             }
 
             
-            auto &sym = symbol_table[node->literal];
+            const auto &sym = symbol_table[name];
 
 
             emitter.emit(op_type::mov_reg,reg(emitter.reg_count++),symbol(sym.slot));
@@ -204,13 +202,17 @@ void Interloper::compile_block(AstNode *node)
                 const auto name = line.literal;
                 const auto type = line.nodes[0]->variable_type;
 
-                const auto slot = emitter.sym_count;
+                const auto slot = symbol_table.sym_count;
+
+                if(symbol_table.exists(name))
+                {
+                    printf("redeclared symbol: %s\n",name.c_str());
+                    exit(1);
+                }
 
                 // add new symbol table entry
-                symbol_table[name] = Symbol(name,type,emitter.sym_count++);
+                symbol_table.add_symbol(name,type);
 
-                // allocate new symbol slot in the IR
-                slot_lookup.push_back(name);
 
                 // handle right side expression (if present)
                 if(line.nodes.size() == 2)
@@ -227,16 +229,17 @@ void Interloper::compile_block(AstNode *node)
             {
                 compile_expression(line.nodes[1]);
 
-                const bool exists = symbol_table.count(line.nodes[0]->literal);
+                const auto name = line.nodes[0]->literal;
 
-                if(!exists)
+
+                if(!symbol_table.exists(name))
                 {
-                    printf("[COMPILE]: symbol '%s' assigned before declaration\n",line.nodes[0]->literal.c_str());
+                    printf("[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
                     parser.print(l);
                     exit(1);
                 }
 
-                auto &sym = symbol_table[line.nodes[0]->literal];
+                const auto &sym = symbol_table[name];
 
 
                 emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count - 1));
@@ -355,14 +358,12 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     compile_functions();
 
-    //dump_ir();
+    //dump_ir_sym();
 
     // optimise_ir();
 
     // perform register allocation
     allocate_registers();
-
-    dump_ir();
 
     // emit the actual target asm
     // for now we will just perform some adjustment on the register operands

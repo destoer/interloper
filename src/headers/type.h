@@ -107,3 +107,30 @@ struct Function
     Type return_type;
     std::vector<Symbol> args;
 };
+
+
+struct SymbolTable
+{
+    bool exists(const std::string &sym)
+    {
+        return table.count(sym);
+    }
+
+    const Symbol &operator[](const std::string &sym)
+    {
+        return table[sym];
+    }
+
+    void add_symbol(const std::string &name, const Type &type)
+    {
+        slot_lookup.push_back(name);
+        table[name] = Symbol(name,type,sym_count++);
+    }
+
+    std::unordered_map<std::string, Symbol> table; 
+
+    // get the back the symbol name from an allocated IR slot
+    std::vector<std::string> slot_lookup;
+
+    uint32_t sym_count = 0;
+};

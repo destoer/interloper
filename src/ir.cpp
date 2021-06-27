@@ -27,22 +27,6 @@ void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
     pc += 1;
 }
 
-std::string Interloper::get_ir_operand(uint32_t v)
-{
-    if(v >= SYMBOL_START)
-    {
-        return symbol_table[slot_lookup[v-SYMBOL_START]].name;
-    }
-
-    if(v == SP)
-    {
-        return "sp";
-    }
-
-    return "r" + std::to_string(v);
-}
-
-
 // we wont worry about keeping things in registers for now
 // just constantly shove stuff back out to the stack
 
@@ -55,13 +39,13 @@ void Interloper::allocate_registers()
     bool used[MACHINE_REG_SIZE];
 */
 
-    printf("symbol count: %d\n",emitter.sym_count);
+    printf("symbol count: %d\n",symbol_table.sym_count);
 
     // TODO: dont bother with this if we aernt calling another function
     // insert function prologue
 
     // assume we just have a bunch of s32
-    const uint32_t stack_size = emitter.sym_count * 4;
+    const uint32_t stack_size = symbol_table.sym_count * 4;
 
     emitter.program.push_front(Opcode(op_type::sub_imm,SP,SP,stack_size));
 
@@ -84,7 +68,7 @@ void Interloper::allocate_registers()
             if(!is_reg(opcode.v1))
             {
                 // hardcode this to an s32 and dont care about the size for now
-                const auto slot = symbol_table[slot_lookup[opcode.v1-SYMBOL_START]].slot;
+                const auto slot = symbol_to_idx(opcode.v1);
                 const auto offset = slot * 4; // word size
 
                 opcode = Opcode(op_type::sw,opcode.v2,SP,offset);
@@ -95,7 +79,7 @@ void Interloper::allocate_registers()
             else if(!is_reg(opcode.v2))
             {
                 // hardcode this to an s32 and dont care about the size for now
-                const auto slot = symbol_table[slot_lookup[opcode.v2-SYMBOL_START]].slot;
+                const auto slot = symbol_to_idx(opcode.v2);
                 const auto offset = slot * 4; // word size
 
                 opcode = Opcode(op_type::lw,opcode.v1,SP,offset);
@@ -113,7 +97,6 @@ void Interloper::allocate_registers()
 
 
 }
-
 
 void Interloper::emit_asm()
 {
@@ -149,97 +132,139 @@ void Interloper::emit_asm()
 }
 
 
-void Interloper::print_op3(const char *name, const Opcode &opcode)
+
+using IR_OPER_STRING_FUNC = std::string (*)(const SymbolTable* ,uint32_t);
+
+// disassemble with symbols
+std::string get_oper_sym(const SymbolTable *table,uint32_t v)
 {
-    printf("%s %s, %s, %s\n",name,
-        get_ir_operand(opcode.v1).c_str(), get_ir_operand(opcode.v2).c_str(), 
-        get_ir_operand(opcode.v3).c_str());
+    if(v >= SYMBOL_START && symbol_to_idx(v) < table->slot_lookup.size())
+    {
+        return table->slot_lookup[symbol_to_idx(v)];
+    }
+
+    if(v == SP_IR)
+    {
+        return "sp";
+    }
+
+    return "r" + std::to_string(v);
+}
+
+// disassemble without needing the symbol information
+std::string get_oper_raw(const SymbolTable *table,uint32_t v)
+{
+    UNUSED(table);
+
+    if(v == SP)
+    {
+        return "sp";
+    }
+
+    return "r" + std::to_string(v);
+}
+
+
+// pass in a "optional" table and a operand function so we can either disassemble it with symbol
+// information or without
+void disass_opcode(const Opcode &opcode, const SymbolTable *table, IR_OPER_STRING_FUNC get_oper)
+{
+    const auto &info = OPCODE_TABLE[static_cast<size_t>(opcode.op)];
+
+    switch(info.group)
+    {
+        case op_group::reg_t:
+        {
+            switch(info.args)
+            {
+                case 2:
+                {
+                    printf("%s %s, %s\n",info.name ,get_oper(table,opcode.v1).c_str(),get_oper(table,opcode.v2).c_str());
+                    break;
+                }
+
+                case 3:
+                {
+                    printf("%s %s, %s, %s\n",info.name,
+                        get_oper(table,opcode.v1).c_str(), get_oper(table,opcode.v2).c_str(), 
+                        get_oper(table,opcode.v3).c_str());
+                    break;
+                }
+
+                default:
+                {
+                    printf("unknown opcode");
+                    exit(1); 
+                    break;                       
+                } 
+            }
+            break;
+        }
+
+
+        case op_group::imm_t:
+        {
+            switch(info.args)
+            {
+                case 2:
+                {
+                    printf("%s %s, %d\n",info.name,get_oper(table,opcode.v1).c_str(),opcode.v2);
+                    break;
+                }
+
+                case 3:
+                {
+                    printf("%s %s, %s, %d\n",info.name,get_oper(table,opcode.v1).c_str(),get_oper(table,opcode.v2).c_str(),opcode.v3);
+                    break;
+                }
+
+                default:
+                {
+                    printf("unknown opcode");
+                    exit(1);                        
+                } 
+            }
+            break;
+        }
+
+        case op_group::load_t:
+        {
+            if(info.args != 3)
+            {
+                printf("unknown opcode");
+                exit(1);
+            }
+
+            printf("%s %s, [%s,%d]\n",info.name,get_oper(table,opcode.v1).c_str(),get_oper(table,opcode.v2).c_str(),opcode.v3);
+            break;
+        }
+
+        case op_group::implicit_t:
+        {
+            printf("%s\n",info.name);
+            break;
+        }
+
+    }
+
+}
+
+void disass_opcode_sym(const Opcode &opcode, const SymbolTable &table)
+{
+    disass_opcode(opcode,&table,get_oper_sym);
+}
+
+void disass_opcode_raw(const Opcode &opcode)
+{
+    disass_opcode(opcode,nullptr,get_oper_raw);
 }
 
 // how do we decouple the get_ir_operand so we can use this dump
 // on the copy of the code we want to interpret?
-void Interloper::dump_ir()
+void Interloper::dump_ir_sym()
 {
-
     for(const auto &opcode : emitter.program)
     {
-        const auto &info = OPCODE_TABLE[static_cast<size_t>(opcode.op)];
-
-        switch(info.group)
-        {
-            case op_group::reg_t:
-            {
-                switch(info.args)
-                {
-                    case 2:
-                    {
-                        printf("%s %s, %s\n",info.name ,get_ir_operand(opcode.v1).c_str(),get_ir_operand(opcode.v2).c_str());
-                        break;
-                    }
-
-                    case 3:
-                    {
-                        printf("%s %s, %s, %s\n",info.name,
-                            get_ir_operand(opcode.v1).c_str(), get_ir_operand(opcode.v2).c_str(), 
-                            get_ir_operand(opcode.v3).c_str());
-                        break;
-                    }
-
-                    default:
-                    {
-                        printf("unknown opcode");
-                        exit(1); 
-                        break;                       
-                    } 
-                }
-                break;
-            }
-
-
-            case op_group::imm_t:
-            {
-                switch(info.args)
-                {
-                    case 2:
-                    {
-                        printf("%s %s, %d\n",info.name,get_ir_operand(opcode.v1).c_str(),opcode.v2);
-                        break;
-                    }
-
-                    case 3:
-                    {
-                        printf("%s %s, %s, %d\n",info.name,get_ir_operand(opcode.v1).c_str(),get_ir_operand(opcode.v2).c_str(),opcode.v3);
-                        break;
-                    }
-
-                    default:
-                    {
-                        printf("unknown opcode");
-                        exit(1);                        
-                    } 
-                }
-                break;
-            }
-
-            case op_group::load_t:
-            {
-                if(info.args != 3)
-                {
-                    printf("unknown opcode");
-                    exit(1);
-                }
-
-                printf("%s %s, [%s,%d]\n",info.name,get_ir_operand(opcode.v1).c_str(),get_ir_operand(opcode.v2).c_str(),opcode.v3);
-                break;
-            }
-
-            case op_group::implicit_t:
-            {
-                printf("%s\n",info.name);
-                break;
-            }
-
-        }
+        disass_opcode_sym(opcode,symbol_table);
     }
-
 }

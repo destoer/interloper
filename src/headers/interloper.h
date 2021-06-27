@@ -36,8 +36,7 @@ private:
     // ir functions (defined in ir.cpp)
     void emit_ir(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
     std::string get_ir_operand(uint32_t v);
-    void dump_ir();
-    void print_op3(const char *name, const Opcode &opcode);
+    void dump_ir_sym();
 
     void allocate_registers();
 
@@ -50,10 +49,8 @@ private:
 
     std::unordered_map<std::string, Function> function_table;
 
-    std::unordered_map<std::string, Symbol> symbol_table; 
+    SymbolTable symbol_table;
 
-    // is there a better way to implement this?
-    std::vector<std::string> slot_lookup;
 
     // probably  needs to be moved to a uint8_t
     // when we have static data in the program

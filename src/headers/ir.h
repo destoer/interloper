@@ -1,5 +1,6 @@
 #pragma once
 #include <lib.h>
+#include <type.h>
 
 enum class op_type
 {
@@ -102,6 +103,9 @@ static constexpr uint32_t PC = 15;
 
 static constexpr uint32_t OP_SIZE = sizeof(Opcode);
 
+void disass_opcode_sym(const Opcode &opcode, const SymbolTable &table);
+void disass_opcode_raw(const Opcode &opcode);
+
 struct IrEmitter
 {
     void emit(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
@@ -110,8 +114,6 @@ struct IrEmitter
     
     // how many registers used in this expression
     uint32_t reg_count;
-
-    uint32_t sym_count;
 
     // how do we handle resolving labels?
     uint32_t pc;
