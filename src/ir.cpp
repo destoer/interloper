@@ -68,6 +68,9 @@ void Interloper::allocate_registers()
             if(!is_reg(opcode.v1))
             {
                 // hardcode this to an s32 and dont care about the size for now
+
+                // TODO: handle storage requirements
+                // we need to handle properly choosing where different sized vars need to be stored
                 const auto slot = symbol_to_idx(opcode.v1);
                 const auto offset = slot * 4; // word size
 

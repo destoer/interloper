@@ -1,0 +1,10 @@
+
+// expected: compile error
+func s32 main()
+{
+    u8 x = 512;
+    // correct way
+    // u8 x = cast(u8,512);
+
+    return x;
+}

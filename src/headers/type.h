@@ -5,19 +5,58 @@
 
 
 // if type idx is >= to this then this is a custom defined type
-static constexpr int BUILTIN_TYPE_SIZE = 2;
+static constexpr int BUILTIN_TYPE_SIZE = 7;
 
 enum class builtin_type
 {
     void_t, 
+
+    u8_t,
+    u16_t,
+    u32_t,
+
+    s8_t,
+    s16_t,
     s32_t,
 };
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
 {
     "void",
+
+    "u8",
+    "u16",
+    "u32",
+
+    "s8",
+    "s16",
     "s32",
 };
+
+struct BuiltinTypeInfo
+{
+    builtin_type type;
+
+    // integer type?
+    bool is_integer;
+
+    bool is_signed;
+
+    // how many bytes is the type
+    u32 size;
+
+    u32 min;
+
+    u32 max;
+};
+
+
+extern const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE];
+
+inline bool is_builtin(uint32_t t)
+{
+    return t < BUILTIN_TYPE_SIZE;
+}
 
 inline const char *builtin_type_name(builtin_type t)
 {
@@ -34,6 +73,27 @@ inline builtin_type conv_type_idx(int type_idx)
 {
     return static_cast<builtin_type>(type_idx);
 }
+
+inline bool is_integer(builtin_type t)
+{
+    return builtin_type_info[static_cast<size_t>(t)].is_integer;
+}
+
+inline u32 size(builtin_type t)
+{
+    return builtin_type_info[static_cast<size_t>(t)].size;
+}
+
+inline u32 max(builtin_type t)
+{
+    return builtin_type_info[static_cast<size_t>(t)].max;
+}
+
+inline u32 min(builtin_type t)
+{
+    return builtin_type_info[static_cast<size_t>(t)].min;
+}
+
 
 
 enum class contained_type

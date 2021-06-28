@@ -16,6 +16,12 @@ enum class token_type
 
     equal,
 
+    u8,
+    u16,
+    u32,
+
+    s8,
+    s16,
     s32,
 
     func,
@@ -64,6 +70,12 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::equal,"=",2},
 
+    {token_type::u8,"u8",-1},
+    {token_type::u16,"u16",-1},
+    {token_type::u32,"u32",-1},
+
+    {token_type::s8,"s8",-1},
+    {token_type::s16,"s16",-1},
     {token_type::s32,"s32",-1},
 
     {token_type::func,"func",-1},

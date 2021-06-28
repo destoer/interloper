@@ -21,17 +21,14 @@ struct Interloper
 private:
     void parse_function_declarations();
 
-    std::string type_name(const Type &type);
+    
 
+    // IR and assembly
     void compile_functions();
     void compile_block(AstNode *node);
-    void compile_expression(AstNode *node);
-    void compile_arith_op(AstNode *node, op_type type);
+    Type compile_expression(AstNode *node);
+    Type compile_arith_op(AstNode *node, op_type type);
     void emit_asm();
-
-
-    Lexer lexer;
-    Parser parser;
 
     // ir functions (defined in ir.cpp)
     void emit_ir(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
@@ -39,6 +36,18 @@ private:
     void dump_ir_sym();
 
     void allocate_registers();
+
+
+
+    // typing
+    std::string type_name(const Type &type);
+    void check_assign(const Type &ltype, const Type &rtype);
+    Type effective_arith_type(const Type &ltype, const Type &rtype);
+
+
+    Lexer lexer;
+    Parser parser;
+
 
     IrEmitter emitter;
 

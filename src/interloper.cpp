@@ -42,38 +42,21 @@ void Interloper::parse_function_declarations()
     }
 }
 
-std::string Interloper::type_name(const Type &type)
-{
-    if(type.type_idx < BUILTIN_TYPE_SIZE)
-    {
-        return builtin_type_name(static_cast<builtin_type>(type.type_idx));
-    }
 
-    // TODO: make this return properly for user defined types
-    else
-    {
-        return "";
-    }
-}
-
-// TODO: for now we are going to ignore typechecking
-// but we will have to check each part of this expr coerces to the right type at some point
-
-// how do we want to emit this because we are having something thats like 
-// a) ones going to functions and vars will they need to be compiled differently
-
-// b) how do we emit the correct name
-
-// c) how do we handle the type? (we can ignore this concern for now but it needs to be solved at some point)
-
-// d) how do we handle symbols we need i.e function names? or branches
+// TODO:
+//    how do we handle symbols we need i.e function names? or branches
 //    the offsets for them will differ from our ir ones and they will be moved
 //    during optimisation passes
 
-void Interloper::compile_arith_op(AstNode *node, op_type type)
+Type Interloper::compile_arith_op(AstNode *node, op_type type)
 {
-    compile_expression(node->nodes[0]);
-    compile_expression(node->nodes[1]);
+    const auto t1 = compile_expression(node->nodes[0]);
+    const auto t2 = compile_expression(node->nodes[1]);
+
+
+    // produce effective type
+    const auto final_type = effective_arith_type(t1,t2);
+
 
     const auto v1 = reg(emitter.reg_count-2);
     const auto v2 = reg(emitter.reg_count-1);
@@ -83,14 +66,17 @@ void Interloper::compile_arith_op(AstNode *node, op_type type)
     const auto dst = reg(v1);
     emitter.reg_count -= 1; 
 
-    emitter.emit(type,dst,v1,v2);        
+    emitter.emit(type,dst,v1,v2);
+
+    return final_type;        
 }
 
-void Interloper::compile_expression(AstNode *node)
+
+Type Interloper::compile_expression(AstNode *node)
 {
     if(!node)
     {
-        return;
+        return Type(builtin_type::void_t);
     }
 
    
@@ -99,11 +85,11 @@ void Interloper::compile_expression(AstNode *node)
         // multiple assigment
         case ast_type::equal:
         {
-            compile_expression(node->nodes[1]);
+            const auto rtype = compile_expression(node->nodes[1]);
 
             const auto name = node->nodes[0]->literal;
 
-            // TODO: this needs to be type checked
+            
 
             
 
@@ -116,16 +102,37 @@ void Interloper::compile_expression(AstNode *node)
 
             
             const auto &sym = symbol_table[name];
+
+            check_assign(sym.type,rtype);
+
             emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count - 1));
 
-            break;            
+            return sym.type;        
         }
 
 
         case ast_type::value:
         {
             emitter.emit(op_type::mov_imm,reg(emitter.reg_count++),node->value);
-            break;
+
+
+
+            // what is the smallest storage type that this will fit inside?
+            if(in_range(node->value,min(builtin_type::u8_t),max(builtin_type::u8_t)))
+            {
+                return Type(builtin_type::u8_t);
+            }
+
+            else if(in_range(node->value,min(builtin_type::u16_t),max(builtin_type::u16_t)))
+            {
+                return Type(builtin_type::u16_t);
+            }
+
+            //else if(in_range(node->value,min(builtin_type::u32_t),max(builtin_type::u32_t))
+            else
+            {
+                return Type(builtin_type::u32_t);
+            }
         }
 
         case ast_type::symbol:
@@ -139,38 +146,57 @@ void Interloper::compile_expression(AstNode *node)
                 exit(1);
             }
 
-            
             const auto &sym = symbol_table[name];
 
-
             emitter.emit(op_type::mov_reg,reg(emitter.reg_count++),symbol(sym.slot));
-            break;
+
+            return sym.type;
         }
 
     
         case ast_type::minus:
         {
-            compile_arith_op(node,op_type::sub_reg);
-            break;
+        /*
+            // unary minus
+            // TODO: start here! & implement cast operator
+            // then basic type checking is done
+            if()
+            {
+
+            }
+
+            else
+        */
+            {
+                return compile_arith_op(node,op_type::sub_reg);
+            }
         }
 
         case ast_type::plus:
         {
-            compile_arith_op(node,op_type::add_reg);
-            break;
+        /*
+            // unary plus
+            if()
+            {
+
+            }
+
+            else
+        */
+            {
+                return compile_arith_op(node,op_type::add_reg);
+            }
         }
     
         case ast_type::times:
         {
-            compile_arith_op(node,op_type::mul_reg);
-            break;          
+            return compile_arith_op(node,op_type::mul_reg);        
         }
 
 
         case ast_type::divide:
         {
-            compile_arith_op(node,op_type::div_reg);
-            break;           
+            return compile_arith_op(node,op_type::div_reg);       
         }
 
         default:
@@ -200,7 +226,7 @@ void Interloper::compile_block(AstNode *node)
             {
                 // get entry into symbol table
                 const auto name = line.literal;
-                const auto type = line.nodes[0]->variable_type;
+                const auto ltype = line.nodes[0]->variable_type;
 
                 const auto slot = symbol_table.sym_count;
 
@@ -211,13 +237,15 @@ void Interloper::compile_block(AstNode *node)
                 }
 
                 // add new symbol table entry
-                symbol_table.add_symbol(name,type);
+                symbol_table.add_symbol(name,ltype);
 
 
                 // handle right side expression (if present)
                 if(line.nodes.size() == 2)
                 {
-                    compile_expression(line.nodes[1]);
+                    const auto rtype = compile_expression(line.nodes[1]);
+                    check_assign(ltype,rtype);
+
                     emitter.emit(op_type::mov_reg,symbol(slot),reg(emitter.reg_count - 1));
                 }
                 break;
@@ -227,7 +255,7 @@ void Interloper::compile_block(AstNode *node)
             // assignment
             case ast_type::equal:
             {
-                compile_expression(line.nodes[1]);
+                const auto rtype = compile_expression(line.nodes[1]);
 
                 const auto name = line.nodes[0]->literal;
 
@@ -241,6 +269,7 @@ void Interloper::compile_block(AstNode *node)
 
                 const auto &sym = symbol_table[name];
 
+                check_assign(sym.type,rtype);
 
                 emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count - 1));
                 break;
@@ -248,8 +277,11 @@ void Interloper::compile_block(AstNode *node)
 
             case ast_type::ret:
             {
-                compile_expression(line.nodes[0]);
+                const auto rtype = compile_expression(line.nodes[0]);
                 
+                // TODO: dont hard code this function infromation
+                check_assign(function_table["main"].return_type,rtype);
+
                 emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(emitter.reg_count - 1));
                 emitter.emit(op_type::ret);
                 break;
@@ -296,6 +328,14 @@ void Interloper::compile_functions()
         compile_block(block);    
     }
 }
+
+// TODO: free file & tokens, parse tree etc,
+// when we are done with them and dont just leave them lying in memory 
+
+// TODO: start writing tests for more invalid sequences
+// and improve error reporting in later stages of compilation
+
+// TODO: add tests/ folder to our -t flag now we can actually run programs
 
 void Interloper::compile(const std::vector<std::string> &lines)
 {
@@ -358,7 +398,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     compile_functions();
 
-    //dump_ir_sym();
+    dump_ir_sym();
 
     // optimise_ir();
 

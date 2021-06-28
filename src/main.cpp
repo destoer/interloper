@@ -28,6 +28,12 @@ int main(int argc, char *argv[])
     
 
     const std::vector<std::string> file = read_string_lines(read_file(argv[1]));
+    if(!file.size())
+    {
+        printf("no such file: %s\n",argv[1]);
+        return 0;
+    }
+
 
     printf("compiling file: ");
     for(const auto &line: file)

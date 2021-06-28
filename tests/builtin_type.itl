@@ -1,0 +1,24 @@
+// expected 11
+
+func s32 main()
+{
+    s8 v1 = 5;
+
+    // same size, this is fine
+    u8 v2 = v1 + 5;
+
+    // v4 = 0
+    u16 v4 = 65535;
+    v4 += 1;
+    
+
+    // type promotion should be fine
+    // rtype = u16
+    s32 v3 = v2 + 1 + v4;
+
+    // requires cast as this would narrow
+    s8 ans = cast(s8,v3);
+
+    // returning a s8 should be fine
+    return ans;
+}

@@ -59,7 +59,8 @@ bool Parser::match(token_type type)
     return t == type;
 }
 
-
+// assume this is a plain type for now
+// i.e no array etc
 Type Parser::get_type(std::string &type_literal)
 {
     const auto tok = next_token();
@@ -67,11 +68,45 @@ Type Parser::get_type(std::string &type_literal)
     // is a builtin type
     switch(tok.type)
     {
+        case token_type::u8:
+        {
+            type_literal = "u8";
+            return Type(builtin_type::u8_t);
+        }
+
+        case token_type::u16:
+        {
+            type_literal = "u16";
+            return Type(builtin_type::u16_t);
+        }
+
+
+        case token_type::u32:
+        {
+            type_literal = "u32";
+            return Type(builtin_type::u32_t);
+        }
+
+
+        case token_type::s8:
+        {
+            type_literal = "s8";
+            return Type(builtin_type::s8_t);
+        }
+
+        case token_type::s16:
+        {
+            type_literal = "s16";
+            return Type(builtin_type::s16_t);
+        }
+
         case token_type::s32:
         {
             type_literal = "s32";
             return Type(builtin_type::s32_t);
         }
+
+        
 
         case token_type::symbol:
         {
@@ -152,8 +187,12 @@ AstNode *Parser::statement()
 
     switch(t.type)
     {
-        // we will have to parse out a full type here later
-        // but for now lets just assume that this type is plain
+        // handle builtin types
+        case token_type::u8:
+        case token_type::u16:
+        case token_type::u32:
+        case token_type::s8:
+        case token_type::s16:
         case token_type::s32:
         {
             prev_token();
@@ -162,6 +201,7 @@ AstNode *Parser::statement()
             return declaration(var_type,type_literal);
         }
 
+
         case token_type::ret:
         {
             auto r = new AstNode(ast_type::ret);
@@ -169,6 +209,7 @@ AstNode *Parser::statement()
             return r;
         }
 
+        // TODO: detect a declartion with a user defined type
         case token_type::symbol:
         {
             const auto t2 = peek(0);

@@ -15,6 +15,14 @@
 #include <assert.h>
 #include <string.h>
 
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+
+using s8 = int8_t;
+using s16 = int16_t;
+using s32 = int32_t;
+
 // read entire file into a string
 inline std::string read_file(const std::string &filename)
 {
@@ -59,6 +67,11 @@ template<typename access_type>
 inline void handle_write(uint8_t *buf, uint32_t idx, access_type v)
 {
     memcpy(&buf[idx],&v,sizeof(access_type));
+}
+
+inline bool in_range(u32 v, u32 min, u32 max)
+{
+    return v >= min && v <= max;
 }
 
 

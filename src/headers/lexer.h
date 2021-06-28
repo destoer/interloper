@@ -47,6 +47,7 @@ private:
 
     std::unordered_map<std::string, token_type> keywords = 
     {
+        {tok_name(token_type::u8),token_type::u8},
         {tok_name(token_type::s32),token_type::s32},
         {tok_name(token_type::func),token_type::func},
         {tok_name(token_type::ret),token_type::ret}
