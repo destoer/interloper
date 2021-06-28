@@ -156,17 +156,24 @@ Type Interloper::compile_expression(AstNode *node)
     
         case ast_type::minus:
         {
-        /*
             // unary minus
-            // TODO: start here! & implement cast operator
-            // then basic type checking is done
-            if()
+            if(!node->nodes[1])
             {
+                // subtract this from zero
+                const auto t = compile_expression(node->nodes[0]);
 
+                // we are done with the reg used to load zero after this
+                const auto dst = emitter.reg_count - 1;
+
+                // todo: make sure our optimiser sees through this
+                emitter.emit(op_type::mov_imm,reg(emitter.reg_count),0);
+                emitter.emit(op_type::sub_reg,dst,emitter.reg_count,dst);
+                
+
+                return t;
             }
 
             else
-        */
             {
                 return compile_arith_op(node,op_type::sub_reg);
             }
@@ -174,15 +181,15 @@ Type Interloper::compile_expression(AstNode *node)
 
         case ast_type::plus:
         {
-        /*
+        
             // unary plus
-            if()
+            if(!node->nodes[1])
             {
-
+                return compile_expression(node->nodes[0]); 
             }
 
             else
-        */
+        
             {
                 return compile_arith_op(node,op_type::add_reg);
             }
@@ -336,6 +343,8 @@ void Interloper::compile_functions()
 // and improve error reporting in later stages of compilation
 
 // TODO: add tests/ folder to our -t flag now we can actually run programs
+
+// TODO: implement cast operator
 
 void Interloper::compile(const std::vector<std::string> &lines)
 {
