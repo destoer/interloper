@@ -267,6 +267,11 @@ AstNode *Parser::block()
         }
 
         b->nodes.push_back(statement());
+
+        if(error)
+        {
+            return b;
+        }
     }
     
 
@@ -398,6 +403,11 @@ void Parser::parse(AstNode **root_ptr)
                 panic(t,"unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
                 break;
             }
+        }
+
+        if(error)
+        {
+            return;
         }
     }
 

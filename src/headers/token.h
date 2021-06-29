@@ -14,6 +14,8 @@ enum class token_type
     left_paren,
     right_paren,
 
+    comma,
+
     equal,
 
     u8,
@@ -23,6 +25,8 @@ enum class token_type
     s8,
     s16,
     s32,
+
+    cast,
 
     func,
     ret,
@@ -68,6 +72,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::left_paren,"(",-1},
     {token_type::right_paren,")",0},
 
+    {token_type::comma,",",-1},
+
     {token_type::equal,"=",2},
 
     {token_type::u8,"u8",-1},
@@ -77,6 +83,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::s8,"s8",-1},
     {token_type::s16,"s16",-1},
     {token_type::s32,"s32",-1},
+
+    {token_type::cast,"cast",-1},
 
     {token_type::func,"func",-1},
     {token_type::ret,"return",-1},

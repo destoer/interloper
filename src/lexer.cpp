@@ -20,6 +20,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '}': insert_token(tokens,token_type::right_c_brace); break;
 
+            case ',': insert_token(tokens,token_type::comma); break;
+
             case '=': insert_token(tokens,token_type::equal); break;
 
             case ';': insert_token(tokens,token_type::semi_colon); break;

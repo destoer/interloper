@@ -143,12 +143,21 @@ AstNode *Parser::expression(int32_t rbp)
     expr_tok = next_token_expr();
 
     auto left = nud(cur);
+    if(error)
+    {
+        return left;
+    }
+
 
     while(rbp < lbp(expr_tok))
     {
         cur = expr_tok;
         expr_tok = next_token_expr();
         left = led(cur,left);
+        if(error)
+        {
+            return left;
+        }
     }
 
     return left;

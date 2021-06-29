@@ -1,4 +1,4 @@
-// expected 11
+// expected 6
 
 func s32 main()
 {
@@ -9,15 +9,20 @@ func s32 main()
 
     // v4 = 0
     u16 v4 = 65535;
-    v4 += 1;
+    v4 = v4 + 1;
     
 
     // type promotion should be fine
     // rtype = u16
     s32 v3 = v2 + 1 + v4;
 
+    s8 v4 = -5;
+
+    // sign extend expected
+    s32 v5 = cast(s32,-5);
+
     // requires cast as this would narrow
-    s8 ans = cast(s8,v3);
+    s8 ans = cast(s8,v3+v5);
 
     // returning a s8 should be fine
     return ans;

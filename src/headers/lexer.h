@@ -8,6 +8,8 @@ struct Lexer
     bool error;
 private:
 
+    void tokenize_line(const std::string &line, std::vector<Token> &tokens);
+
     uint32_t column;
     uint32_t row;
 
@@ -29,8 +31,6 @@ private:
     }
 
 
-    void tokenize_line(const std::string &line, std::vector<Token> &tokens);
-
 
     void decode_imm(const std::string &file, uint32_t &i,std::vector<Token> &tokens);
 
@@ -48,7 +48,14 @@ private:
     std::unordered_map<std::string, token_type> keywords = 
     {
         {tok_name(token_type::u8),token_type::u8},
+        {tok_name(token_type::u16),token_type::u16},
+        {tok_name(token_type::u32),token_type::u32},
+
+        {tok_name(token_type::s8),token_type::s8},
+        {tok_name(token_type::s16),token_type::s16},
         {tok_name(token_type::s32),token_type::s32},
+
+        {tok_name(token_type::cast),token_type::cast},
         {tok_name(token_type::func),token_type::func},
         {tok_name(token_type::ret),token_type::ret}
     };

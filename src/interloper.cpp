@@ -159,7 +159,7 @@ Type Interloper::compile_expression(AstNode *node)
             // unary minus
             if(!node->nodes[1])
             {
-                // subtract this from zero
+                // negate by doing 0 - v
                 const auto t = compile_expression(node->nodes[0]);
 
                 // we are done with the reg used to load zero after this
@@ -344,7 +344,13 @@ void Interloper::compile_functions()
 
 // TODO: add tests/ folder to our -t flag now we can actually run programs
 
-// TODO: implement cast operator
+// current task:
+// TODO: implement cast operator, when casting from a larger type to a smaller one
+// truncate the value
+
+// model as a risc machine
+// for signed casting to work we need to make sure that integers not 32 bit
+// are sign extended when we load them
 
 void Interloper::compile(const std::vector<std::string> &lines)
 {
