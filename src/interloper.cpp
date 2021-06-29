@@ -82,6 +82,28 @@ Type Interloper::compile_expression(AstNode *node)
    
     switch(node->type)
     {
+        case ast_type::cast:
+        {
+            compile_expression(node->nodes[1]);
+
+            // skip validity checks on this for now
+            const auto new_type = node->nodes[0]->variable_type;
+
+            // handle side effects of the cast
+            // integer
+            // unsigned -> larger type
+            // zero extend
+
+            // signed -> larger type
+            // sign extend
+
+            // larger type -> smaller type
+            // truncate value (mask)
+
+            return new_type;
+        }
+
+
         // multiple assigment
         case ast_type::equal:
         {
@@ -90,9 +112,6 @@ Type Interloper::compile_expression(AstNode *node)
             const auto name = node->nodes[0]->literal;
 
             
-
-            
-
             if(!symbol_table.exists(name))
             {
                 printf("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());

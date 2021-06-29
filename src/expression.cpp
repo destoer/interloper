@@ -95,6 +95,29 @@ AstNode *Parser::nud(Token &t)
 {
     switch(t.type)
     {
+        // cast(<type>,<expr>)
+        // TODO: this does not work
+        case token_type::cast:
+        {
+            // we want to use normal semantics for this 
+            // so we need to go back a token
+            prev_token();
+
+            consume(token_type::left_paren);
+
+            std::string type_name;
+            const auto type = get_type(type_name);
+
+            const auto left = new AstNode(type,type_name);
+
+            consume(token_type::comma);
+
+
+            const auto right = expression(0);
+
+            return new AstNode(left,right,ast_type::cast);
+        }
+
         case token_type::value:
         {
             return new AstNode(nullptr,nullptr,convert_imm(t.literal),t.literal);

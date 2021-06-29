@@ -117,8 +117,8 @@ Type Parser::get_type(std::string &type_literal)
 
         default:
         {
-            panic(tok,"expected type declaration");
-            break;
+            panic(tok,"expected type declaration got: %s\n",tok_name(tok.type));
+            return Type(builtin_type::void_t);
         }
     }
 
@@ -407,7 +407,7 @@ void Parser::parse(AstNode **root_ptr)
 
         if(error)
         {
-            return;
+            break;
         }
     }
 
