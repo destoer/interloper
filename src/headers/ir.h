@@ -10,17 +10,30 @@ enum class op_type
     mul_reg,
     div_reg,
     
+    sxb,
+    sxh,
+
     mov_imm,
     add_imm,
     sub_imm,
 
+    and_imm,
+
+    lb,
+    lh,
     lw,
+
+    lsb,
+    lsh,
+
+    sb,
+    sh,
     sw,
 
     ret,
 };
 
-static constexpr uint32_t OPCODE_SIZE = 11;
+static constexpr uint32_t OPCODE_SIZE = 20;
 
 
 // what kind of opcode is this?

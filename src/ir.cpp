@@ -9,11 +9,24 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"mul",3},
     {op_group::reg_t,"div",3},
 
+    {op_group::reg_t,"sxb",2},
+    {op_group::reg_t,"sxh",2},
+
     {op_group::imm_t,"mov",2},
     {op_group::imm_t,"add",3},
     {op_group::imm_t,"sub",3},
 
+    {op_group::imm_t,"and",3},
+
+    {op_group::load_t,"lb",3},
+    {op_group::load_t,"lh",3},
     {op_group::load_t,"lw",3},
+
+    {op_group::load_t,"lsb",3},
+    {op_group::load_t,"lsh",3},
+
+    {op_group::load_t,"sb",3},
+    {op_group::load_t,"sh",3},
     {op_group::load_t,"sw",3},
 
     {op_group::implicit_t,"ret",0},
@@ -25,6 +38,16 @@ void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
 
     program.push_back(opcode);
     pc += 1;
+}
+
+
+
+
+
+void stack_allocate(u32 *stack_alloc, VarAlloc &var_alloc)
+{
+    var_alloc.offset = stack_alloc[var_alloc.size >> 1];
+    stack_alloc[var_alloc.size >> 1] += var_alloc.size;
 }
 
 // we wont worry about keeping things in registers for now
@@ -40,17 +63,47 @@ void Interloper::allocate_registers()
 */
 
     printf("symbol count: %d\n",symbol_table.sym_count);
+    printf("byte count: %d\n",symbol_table.size_count[0]);
+    printf("half count: %d\n",symbol_table.size_count[1]);
+    printf("word count: %d\n",symbol_table.size_count[2]);
+
+    /*
+        okay we are going to store all byte variables sequentially and algin,
+        then store all half variables sequentially and align,
+        then store all other variables as ints (this includes structs when added),
+    */
+
+    // align for u16
+    if(symbol_table.size_count[0] & 1)
+    {
+        symbol_table.size_count[0] += 1;
+    }
+
+    // align for u32 
+    if(symbol_table.size_count[1] & 2)
+    {
+        symbol_table.size_count[1] += 2;
+    }
+
+
 
     // TODO: dont bother with this if we aernt calling another function
     // insert function prologue
 
-    // assume we just have a bunch of s32
-    const uint32_t stack_size = symbol_table.sym_count * 4;
+    
+    const u32 stack_size = symbol_table.size_count[0] + (symbol_table.size_count[1] * 2) + (symbol_table.size_count[2] * 4);
+    printf("stack size: %d\n",stack_size);
 
     emitter.program.push_front(Opcode(op_type::sub_imm,SP,SP,stack_size));
 
     // opcode to re correct the stack
     const auto stack_clean = Opcode(op_type::add_imm,SP,SP,stack_size);
+
+    u32 stack_alloc[3] = {0};
+
+    // start at end of byte allocation
+    stack_alloc[1] = symbol_table.size_count[0];
+    stack_alloc[2] = stack_alloc[1] + (symbol_table.size_count[1] * 2);
 
     for(auto it = emitter.program.begin(); it != emitter.program.end(); ++it)
     {
@@ -68,24 +121,56 @@ void Interloper::allocate_registers()
             if(!is_reg(opcode.v1))
             {
                 // hardcode this to an s32 and dont care about the size for now
-
-                // TODO: handle storage requirements
-                // we need to handle properly choosing where different sized vars need to be stored
                 const auto slot = symbol_to_idx(opcode.v1);
-                const auto offset = slot * 4; // word size
 
-                opcode = Opcode(op_type::sw,opcode.v2,SP,offset);
+                auto &var_alloc = symbol_table.slot_lookup[slot];
+
+                // we have not allocated where this variable goes yet
+                if(var_alloc.offset == UNALLOCATED_OFFSET)
+                {
+                    stack_allocate(stack_alloc,var_alloc);
+                }
+
+                // move by size
+                static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+
+                opcode = Opcode(instr[var_alloc.size >> 1],opcode.v2,SP,var_alloc.offset);
             }
 
             // swap all mov reg, var
             // with lw reg, [sp,var_offset]
             else if(!is_reg(opcode.v2))
             {
-                // hardcode this to an s32 and dont care about the size for now
                 const auto slot = symbol_to_idx(opcode.v2);
-                const auto offset = slot * 4; // word size
 
-                opcode = Opcode(op_type::lw,opcode.v1,SP,offset);
+                auto &var_alloc = symbol_table.slot_lookup[slot];
+
+                // we have not allocated where this variable goes yet
+                if(var_alloc.offset == UNALLOCATED_OFFSET)
+                {
+                    stack_allocate(stack_alloc,var_alloc);
+                }
+
+
+          
+                const auto& type = symbol_table[var_alloc.name].type;
+
+                // is a signed integer (we need to sign extend)
+                if(is_builtin(type.type_idx) && is_signed_integer(static_cast<builtin_type>(type.type_idx)))
+                {
+                    // word is register size (we dont need to extend it)
+                    static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+
+                    opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,var_alloc.offset);                    
+                }
+
+                // "plain data"
+                // just move by size
+                else
+                {
+                    static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+                    opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,var_alloc.offset);
+                }
             }
         }
 
@@ -143,7 +228,7 @@ std::string get_oper_sym(const SymbolTable *table,uint32_t v)
 {
     if(v >= SYMBOL_START && symbol_to_idx(v) < table->slot_lookup.size())
     {
-        return table->slot_lookup[symbol_to_idx(v)];
+        return table->slot_lookup[symbol_to_idx(v)].name;
     }
 
     if(v == SP_IR)

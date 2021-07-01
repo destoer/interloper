@@ -79,6 +79,16 @@ inline bool is_integer(builtin_type t)
     return builtin_type_info[static_cast<size_t>(t)].is_integer;
 }
 
+inline bool is_signed(builtin_type t)
+{
+    return builtin_type_info[static_cast<size_t>(t)].is_signed;
+}
+
+inline bool is_signed_integer(builtin_type t)
+{
+    return is_signed(t) && is_integer(t);
+}
+
 inline u32 size(builtin_type t)
 {
     return builtin_type_info[static_cast<size_t>(t)].size;
@@ -93,7 +103,6 @@ inline u32 min(builtin_type t)
 {
     return builtin_type_info[static_cast<size_t>(t)].min;
 }
-
 
 
 enum class contained_type
@@ -135,6 +144,7 @@ struct Type
 };
 
 
+
 static constexpr uint32_t SYMBOL_NO_SLOT = 0xffffffff;
 
 struct Symbol
@@ -168,6 +178,26 @@ struct Function
     std::vector<Symbol> args;
 };
 
+static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
+
+
+struct VarAlloc
+{
+    VarAlloc(u32 s, const std::string &n) : size(s), offset(UNALLOCATED_OFFSET), name(n)
+    {}
+
+    // size of one item
+    u32 size;
+
+    // initialized during reg alloc
+    u32 offset;
+
+    // how many items do we have (for arrays)
+    //u32 count;
+
+    // symbol name
+    std::string name;
+};
 
 struct SymbolTable
 {
@@ -181,16 +211,28 @@ struct SymbolTable
         return table[sym];
     }
 
-    void add_symbol(const std::string &name, const Type &type)
+    void add_symbol(const std::string &name, const Type &type,u32 size)
     {
-        slot_lookup.push_back(name);
+        // we only want to move quantitys under 4 bytes
+        // larger thigns i.e structs
+        // will allready have memory semantics
+        assert(size <= 4);
+
+        // shift by 1 to turn 1, 2, 4 
+        // into and idx 
+        size_count[size >> 1] += 1;
+
+        slot_lookup.push_back(VarAlloc(size,name));
         table[name] = Symbol(name,type,sym_count++);
     }
 
     std::unordered_map<std::string, Symbol> table; 
 
     // get the back the symbol name from an allocated IR slot
-    std::vector<std::string> slot_lookup;
+    std::vector<VarAlloc> slot_lookup;
 
-    uint32_t sym_count = 0;
+    u32 sym_count = 0;
+
+    // how many of each size have we added?
+    u32 size_count[3] = {0};
 };

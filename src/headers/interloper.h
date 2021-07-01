@@ -43,6 +43,8 @@ private:
     std::string type_name(const Type &type);
     void check_assign(const Type &ltype, const Type &rtype);
     Type effective_arith_type(const Type &ltype, const Type &rtype);
+    void handle_cast(const Type &old_type, const Type &new_type);
+    u32 type_size(const Type &type);
 
 
     Lexer lexer;

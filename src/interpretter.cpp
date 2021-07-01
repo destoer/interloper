@@ -2,7 +2,7 @@
 
 
 template<typename access_type>
-access_type Interpretter::read_mem(uint32_t addr)
+access_type Interpretter::read_mem(u32 addr)
 {
     // force align access
     addr &= ~(sizeof(access_type) - 1);
@@ -20,7 +20,7 @@ access_type Interpretter::read_mem(uint32_t addr)
 }
 
 template<typename access_type>
-void Interpretter::write_mem(uint32_t addr, access_type v)
+void Interpretter::write_mem(u32 addr, access_type v)
 {
     // force align access
     addr &= ~(sizeof(access_type) - 1);
@@ -37,7 +37,7 @@ void Interpretter::write_mem(uint32_t addr, access_type v)
 }
 
 
-void Interpretter::run(const uint8_t *program, uint32_t size)
+void Interpretter::run(const u8 *program, u32 size)
 {
     this->program = program;
     this->size = size;
@@ -70,7 +70,7 @@ void Interpretter::run(const uint8_t *program, uint32_t size)
 
         memcpy(&opcode,&program[regs[PC]],sizeof(opcode));
 
-        //disass_opcode_raw(opcode);
+        disass_opcode_raw(opcode);
 
         regs[PC] += OP_SIZE;
 
@@ -114,6 +114,18 @@ void Interpretter::run(const uint8_t *program, uint32_t size)
                 break;
             }
 
+            case op_type::sxb:
+            {
+                regs[opcode.v1] = static_cast<s32>(static_cast<s8>(regs[opcode.v2]));
+                break;
+            }
+
+            case op_type::sxh:
+            {
+                regs[opcode.v1] = static_cast<s32>(static_cast<s16>(regs[opcode.v2]));
+                break;
+            }
+
             case op_type::mov_imm:
             {
                 regs[opcode.v1] = opcode.v2;
@@ -134,16 +146,58 @@ void Interpretter::run(const uint8_t *program, uint32_t size)
             }
 
 
+            case op_type::and_imm:
+            {
+                regs[opcode.v1] = regs[opcode.v2] & opcode.v3;
+                break;
+            }
+
+            case op_type::lb:
+            {
+                regs[opcode.v1] = read_mem<u8>(regs[opcode.v2]+opcode.v3);
+                break;
+            }
+
+            case op_type::lh:
+            {
+                regs[opcode.v1] = read_mem<u16>(regs[opcode.v2]+opcode.v3);
+                break;
+            }
+
             case op_type::lw:
             {
-                regs[opcode.v1] = read_mem<uint32_t>(regs[opcode.v2]+opcode.v3);
+                regs[opcode.v1] = read_mem<u32>(regs[opcode.v2]+opcode.v3);
+                break;
+            }
+
+            case op_type::lsb:
+            {
+                regs[opcode.v1] = read_mem<s8>(regs[opcode.v2]+opcode.v3);
+                break;
+            }
+
+            case op_type::lsh:
+            {
+                regs[opcode.v1] = read_mem<s16>(regs[opcode.v2]+opcode.v3);
+                break;
+            }
+
+            case op_type::sb:
+            {
+                write_mem<u8>(regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
+                break;
+            }
+
+            case op_type::sh:
+            {
+                write_mem<u16>(regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
                 break;
             }
 
 
             case op_type::sw:
             {
-                write_mem<uint32_t>(regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
+                write_mem<u32>(regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
                 break;
             }
 

@@ -51,22 +51,21 @@ void Interloper::parse_function_declarations()
 Type Interloper::compile_arith_op(AstNode *node, op_type type)
 {
     const auto t1 = compile_expression(node->nodes[0]);
-    const auto t2 = compile_expression(node->nodes[1]);
+    const auto v1 = reg(emitter.reg_count);
+    emitter.reg_count++;
 
+    
+    const auto t2 = compile_expression(node->nodes[1]);
+    const auto v2 = reg(emitter.reg_count);
 
     // produce effective type
     const auto final_type = effective_arith_type(t1,t2);
 
 
-    const auto v1 = reg(emitter.reg_count-2);
-    const auto v2 = reg(emitter.reg_count-1);
-
-    // we are now done with one of the registers as it was only used a tmp
-    // for calculating the result
-    const auto dst = reg(v1);
-    emitter.reg_count -= 1; 
-
-    emitter.emit(type,dst,v1,v2);
+    // one of these is just a temp for the result calc
+    // so afer this we no longer need it
+    emitter.emit(type,v1,v1,v2);
+    emitter.reg_count--;
 
     return final_type;        
 }
@@ -76,6 +75,7 @@ Type Interloper::compile_expression(AstNode *node)
 {
     if(!node)
     {
+        assert(false);
         return Type(builtin_type::void_t);
     }
 
@@ -84,21 +84,10 @@ Type Interloper::compile_expression(AstNode *node)
     {
         case ast_type::cast:
         {
-            compile_expression(node->nodes[1]);
-
-            // skip validity checks on this for now
+            const auto old_type = compile_expression(node->nodes[1]);
             const auto new_type = node->nodes[0]->variable_type;
 
-            // handle side effects of the cast
-            // integer
-            // unsigned -> larger type
-            // zero extend
-
-            // signed -> larger type
-            // sign extend
-
-            // larger type -> smaller type
-            // truncate value (mask)
+            handle_cast(old_type,new_type);
 
             return new_type;
         }
@@ -124,7 +113,7 @@ Type Interloper::compile_expression(AstNode *node)
 
             check_assign(sym.type,rtype);
 
-            emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count - 1));
+            emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count));
 
             return sym.type;        
         }
@@ -132,9 +121,9 @@ Type Interloper::compile_expression(AstNode *node)
 
         case ast_type::value:
         {
-            emitter.emit(op_type::mov_imm,reg(emitter.reg_count++),node->value);
+            emitter.emit(op_type::mov_imm,reg(emitter.reg_count),node->value);
 
-
+            // TODO: do we care about tracking if an input value is -ve
 
             // what is the smallest storage type that this will fit inside?
             if(in_range(node->value,min(builtin_type::u8_t),max(builtin_type::u8_t)))
@@ -167,7 +156,7 @@ Type Interloper::compile_expression(AstNode *node)
 
             const auto &sym = symbol_table[name];
 
-            emitter.emit(op_type::mov_reg,reg(emitter.reg_count++),symbol(sym.slot));
+            emitter.emit(op_type::mov_reg,reg(emitter.reg_count),symbol(sym.slot));
 
             return sym.type;
         }
@@ -182,12 +171,15 @@ Type Interloper::compile_expression(AstNode *node)
                 const auto t = compile_expression(node->nodes[0]);
 
                 // we are done with the reg used to load zero after this
-                const auto dst = emitter.reg_count - 1;
+                const auto dst = reg(emitter.reg_count);
+
+                emitter.reg_count++;
 
                 // todo: make sure our optimiser sees through this
                 emitter.emit(op_type::mov_imm,reg(emitter.reg_count),0);
-                emitter.emit(op_type::sub_reg,dst,emitter.reg_count,dst);
+                emitter.emit(op_type::sub_reg,dst,reg(emitter.reg_count),dst);
                 
+                emitter.reg_count--;
 
                 return t;
             }
@@ -262,8 +254,10 @@ void Interloper::compile_block(AstNode *node)
                     exit(1);
                 }
 
+                const auto size = type_size(ltype);
+
                 // add new symbol table entry
-                symbol_table.add_symbol(name,ltype);
+                symbol_table.add_symbol(name,ltype,size);
 
 
                 // handle right side expression (if present)
@@ -272,7 +266,7 @@ void Interloper::compile_block(AstNode *node)
                     const auto rtype = compile_expression(line.nodes[1]);
                     check_assign(ltype,rtype);
 
-                    emitter.emit(op_type::mov_reg,symbol(slot),reg(emitter.reg_count - 1));
+                    emitter.emit(op_type::mov_reg,symbol(slot),reg(emitter.reg_count));
                 }
                 break;
             }
@@ -297,7 +291,7 @@ void Interloper::compile_block(AstNode *node)
 
                 check_assign(sym.type,rtype);
 
-                emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count - 1));
+                emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count));
                 break;
             }
 
@@ -308,7 +302,7 @@ void Interloper::compile_block(AstNode *node)
                 // TODO: dont hard code this function infromation
                 check_assign(function_table["main"].return_type,rtype);
 
-                emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(emitter.reg_count - 1));
+                emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(emitter.reg_count));
                 emitter.emit(op_type::ret);
                 break;
             }
@@ -362,14 +356,6 @@ void Interloper::compile_functions()
 // and improve error reporting in later stages of compilation
 
 // TODO: add tests/ folder to our -t flag now we can actually run programs
-
-// current task:
-// TODO: implement cast operator, when casting from a larger type to a smaller one
-// truncate the value
-
-// model as a risc machine
-// for signed casting to work we need to make sure that integers not 32 bit
-// are sign extended when we load them
 
 void Interloper::compile(const std::vector<std::string> &lines)
 {
@@ -432,7 +418,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     compile_functions();
 
-    dump_ir_sym();
+    //dump_ir_sym();
 
     // optimise_ir();
 
