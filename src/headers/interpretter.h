@@ -9,7 +9,7 @@
 //  0x30000000 and above -> heap allocations (when implemented)
 struct Interpretter final
 {
-    void run(const uint8_t *program, uint32_t size);
+    s32 run(const uint8_t *program, uint32_t size);
 
     template<typename access_type>
     access_type read_mem(uint32_t addr);

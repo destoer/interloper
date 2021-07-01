@@ -18,7 +18,23 @@ struct Interloper
         delete_tree(root);
     }
 
+
+     // probably  needs to be moved to a uint8_t
+    // when we have static data in the program
+    std::vector<Opcode> program;
+
+    bool error;
+
 private:
+
+    template<typename... Args>
+    void panic(const char *fmt, Args... args)
+    {
+        printf(fmt,args...);
+        error = true;
+    }
+
+
     void parse_function_declarations();
 
     
@@ -54,18 +70,11 @@ private:
     IrEmitter emitter;
 
 
-
-
     AstNode *root = nullptr;
 
     std::unordered_map<std::string, Function> function_table;
 
     SymbolTable symbol_table;
-
-
-    // probably  needs to be moved to a uint8_t
-    // when we have static data in the program
-    std::vector<Opcode> program;
 };
 
 uint32_t convert_imm(const std::string &imm);

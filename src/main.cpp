@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     }
 
 
-    printf("compiling file: ");
+    printf("compiling file: %s\n",argv[1]);
     for(const auto &line: file)
     {
         printf("%s\n",line.c_str());
@@ -43,4 +43,12 @@ int main(int argc, char *argv[])
 
     Interloper interloper;
     interloper.compile(file);
+
+    if(interloper.error)
+    {
+        return 1;
+    }
+
+    Interpretter interpretter;
+    interpretter.run(reinterpret_cast<uint8_t*>(interloper.program.data()),interloper.program.size() * sizeof(Opcode));
 }

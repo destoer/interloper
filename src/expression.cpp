@@ -96,7 +96,6 @@ AstNode *Parser::nud(Token &t)
     switch(t.type)
     {
         // cast(<type>,<expr>)
-        // TODO: this does not work
         case token_type::cast:
         {
             // we want to use normal semantics for this 

@@ -103,9 +103,9 @@ Type Interloper::compile_expression(AstNode *node)
             
             if(!symbol_table.exists(name))
             {
-                printf("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+                panic("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
                 parser.print(node);
-                exit(1);
+                return Type(builtin_type::void_t);
             }
 
             
@@ -149,9 +149,9 @@ Type Interloper::compile_expression(AstNode *node)
 
             if(!symbol_table.exists(name))
             {
-                printf("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+                panic("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
                 parser.print(node);
-                exit(1);
+                return Type(builtin_type::void_t);
             }
 
             const auto &sym = symbol_table[name];
@@ -219,9 +219,9 @@ Type Interloper::compile_expression(AstNode *node)
 
         default:
         {
-            printf("[COMPILE]: invalid expression\n");
+            panic("[COMPILE]: invalid expression\n");
             parser.print(node);
-            exit(1);
+            return Type(builtin_type::void_t);
         }
     }
 }
@@ -233,6 +233,11 @@ void Interloper::compile_block(AstNode *node)
 {
     for(const auto l : node->nodes)
     {
+        if(error)
+        {
+            return;
+        }
+
         const auto &line = *l;
 
         emitter.reg_count = 0;
@@ -250,8 +255,8 @@ void Interloper::compile_block(AstNode *node)
 
                 if(symbol_table.exists(name))
                 {
-                    printf("redeclared symbol: %s\n",name.c_str());
-                    exit(1);
+                    panic("redeclared symbol: %s\n",name.c_str());
+                    return;
                 }
 
                 const auto size = type_size(ltype);
@@ -282,9 +287,8 @@ void Interloper::compile_block(AstNode *node)
 
                 if(!symbol_table.exists(name))
                 {
-                    printf("[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
+                    panic("[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
                     parser.print(l);
-                    exit(1);
                 }
 
                 const auto &sym = symbol_table[name];
@@ -311,9 +315,8 @@ void Interloper::compile_block(AstNode *node)
 
             default:
             {
-                printf("[COMPILE] unexpected token\n");
+                panic("[COMPILE] unexpected token\n");
                 parser.print(l);
-                exit(1);
             }
         }
     }
@@ -345,50 +348,64 @@ void Interloper::compile_functions()
         // for now we are going to ignore scoping issues
         
         auto block = node.nodes[1];
-        compile_block(block);    
+        compile_block(block);
+
+        if(error)
+        {
+            return;
+        }    
     }
 }
 
-// TODO: free file & tokens, parse tree etc,
-// when we are done with them and dont just leave them lying in memory 
 
 // TODO: start writing tests for more invalid sequences
 // and improve error reporting in later stages of compilation
 
-// TODO: add tests/ folder to our -t flag now we can actually run programs
+// plan:
+// implement bitwise operators -> boolean + logical -> if statements
+// for loops -> function calls -> pointers -> arrays -> structs
 
 void Interloper::compile(const std::vector<std::string> &lines)
 {
+    // make sure everything is clean
+    program.clear();
+    symbol_table.clear();
+    function_table.clear();
+    emitter.program.clear();
+
+    error = false;
+
     // tokenize input file
-    const auto tokens = lexer.tokenize(&lines);
-
-    if(lexer.error)
     {
-        exit(1);
+        const auto tokens = lexer.tokenize(&lines);
+
+        if(lexer.error)
+        {
+            error = true;
+            return;
+        }
+
+        //print_tokens(tokens);
+
+
+        // build ast
+        parser.init(&lines,&tokens);
+        parser.parse(&root);
     }
-
-    //print_tokens(tokens);
-
-
-    // build ast
-
-    parser.init(&lines,&tokens);
-    parser.parse(&root);
-    
     
     if(!root || parser.error)
     {
-        exit(1);
+        error = true;
+        return;
     }
 
-    parser.print(root);
+    //parser.print(root);
 
 
     // okay now we need to start doing semantic analysis
     // first handle any imports, macros etc (skip for now)
     // handle any type declartions (skip for now)
-    // go through every function type check and emit ir
-
+    // handle function declartions
 
 
     parse_function_declarations();
@@ -418,9 +435,21 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     compile_functions();
 
+
+    // okay we dont need the parse tree anymore
+    // free it
+    delete_tree(root); root = nullptr;
+
+    if(error)
+    {
+        return;
+    }
+
+
+
     //dump_ir_sym();
 
-    // optimise_ir();
+    //optimise_ir();
 
     // perform register allocation
     allocate_registers();
@@ -431,7 +460,4 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     // okay now we need to actually resolve all the addresses into a meaningful place
     // resolve_labels();
-
-    Interpretter interpretter;
-    interpretter.run(reinterpret_cast<uint8_t*>(program.data()),program.size() * sizeof(Opcode));
 }

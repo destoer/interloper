@@ -90,7 +90,7 @@ static constexpr uint32_t LEXER_TEST_SIZE = sizeof(LEXER_TESTS) / sizeof(LEXER_T
 
 void lexer_test()
 {
-    puts("running lexer tests");
+    puts("\nrunning lexer tests\n");
 
 
     Lexer lexer;
@@ -126,5 +126,7 @@ void lexer_test()
 
         printf("pass[%d]: %s\n",i,test.line);
     }
+
+    puts("\nlexer tests done\n");
 
 }

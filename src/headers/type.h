@@ -226,6 +226,14 @@ struct SymbolTable
         table[name] = Symbol(name,type,sym_count++);
     }
 
+    void clear()
+    {
+        slot_lookup.clear();
+        table.clear();
+        memset(size_count,0,sizeof(size_count));
+        sym_count = 0;
+    }
+
     std::unordered_map<std::string, Symbol> table; 
 
     // get the back the symbol name from an allocated IR slot

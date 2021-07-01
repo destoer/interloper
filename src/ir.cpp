@@ -62,10 +62,12 @@ void Interloper::allocate_registers()
     bool used[MACHINE_REG_SIZE];
 */
 
+/*
     printf("symbol count: %d\n",symbol_table.sym_count);
     printf("byte count: %d\n",symbol_table.size_count[0]);
     printf("half count: %d\n",symbol_table.size_count[1]);
     printf("word count: %d\n",symbol_table.size_count[2]);
+*/
 
     /*
         okay we are going to store all byte variables sequentially and algin,
@@ -92,17 +94,22 @@ void Interloper::allocate_registers()
 
     
     const u32 stack_size = symbol_table.size_count[0] + (symbol_table.size_count[1] * 2) + (symbol_table.size_count[2] * 4);
-    printf("stack size: %d\n",stack_size);
+    //printf("stack size: %d\n",stack_size);
 
     emitter.program.push_front(Opcode(op_type::sub_imm,SP,SP,stack_size));
 
     // opcode to re correct the stack
     const auto stack_clean = Opcode(op_type::add_imm,SP,SP,stack_size);
 
-    u32 stack_alloc[3] = {0};
+    u32 stack_alloc[3];
+
+    // byte located at start
+    stack_alloc[0] = 0;
 
     // start at end of byte allocation
     stack_alloc[1] = symbol_table.size_count[0];
+
+    // start at end of half allocation
     stack_alloc[2] = stack_alloc[1] + (symbol_table.size_count[1] * 2);
 
     for(auto it = emitter.program.begin(); it != emitter.program.end(); ++it)
@@ -110,8 +117,7 @@ void Interloper::allocate_registers()
         auto &opcode = *it;
 
         // how do we want to handle allocation?
-        // i think at this point a lut is going to be real handy
-        // to tell us how many arguments we have in our instruction
+        // when we aernt just storing stuff back and forth?
 
         // handle variable accesses
         if(opcode.op == op_type::mov_reg)

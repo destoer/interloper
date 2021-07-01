@@ -106,7 +106,7 @@ int32_t sum(AstNode *node)
 
 void expr_test()
 {
-    puts("expr tests...");
+    puts("\nexpr tests\n");
 
     Lexer lexer;
     Parser parser;
@@ -172,6 +172,8 @@ void expr_test()
         }
         
     }
+
+    puts("\nexpr tests done\n");
 
     delete_tree(expr_tree);
 }

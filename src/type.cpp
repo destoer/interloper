@@ -111,8 +111,7 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
             // would narrow (assign is illegal)
             if(size(builtin_l) < size(builtin_r))
             {
-                printf("narrowing conversion %s = %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
-                exit(1);
+                panic("narrowing conversion %s = %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
             }
         }
 

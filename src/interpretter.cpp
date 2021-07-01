@@ -37,7 +37,7 @@ void Interpretter::write_mem(u32 addr, access_type v)
 }
 
 
-void Interpretter::run(const u8 *program, u32 size)
+s32 Interpretter::run(const u8 *program, u32 size)
 {
     this->program = program;
     this->size = size;
@@ -45,6 +45,7 @@ void Interpretter::run(const u8 *program, u32 size)
     assert(program);
 
     stack.resize(16 * 1024 * 1024);
+    std::fill(stack.begin(),stack.end(),0);
 
     memset(regs,0,sizeof(regs));
 
@@ -70,7 +71,7 @@ void Interpretter::run(const u8 *program, u32 size)
 
         memcpy(&opcode,&program[regs[PC]],sizeof(opcode));
 
-        disass_opcode_raw(opcode);
+        //disass_opcode_raw(opcode);
 
         regs[PC] += OP_SIZE;
 
@@ -213,6 +214,10 @@ void Interpretter::run(const u8 *program, u32 size)
 
     }
 
+    this->program = nullptr;
+    this->size = 0;
+
     printf("exit code: %d\n",regs[0]);
+    return regs[0];
 }
 
