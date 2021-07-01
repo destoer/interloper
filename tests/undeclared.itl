@@ -1,0 +1,8 @@
+
+// expected compile error
+func s32 main()
+{
+    x = 5;
+
+    return x;
+}

@@ -18,6 +18,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/assign.itl",1190,false},
     {"tests/unary.itl",-11,false},
     {"tests/builtin_type.itl",271,false},
+    {"tests/redeclare.itl",-1,true},
+    {"tests/undeclared.itl",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
