@@ -234,6 +234,14 @@ AstNode *Parser::statement()
             break;
         }
 
+        case token_type::left_c_brace:
+        {
+            // block expects to see the left c brace
+            tok_idx--;
+
+            return block();
+        };
+
 
         default:
         {

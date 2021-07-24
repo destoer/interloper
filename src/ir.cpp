@@ -158,11 +158,8 @@ void Interloper::allocate_registers()
                 }
 
 
-          
-                const auto& type = symbol_table[var_alloc.name].type;
-
                 // is a signed integer (we need to sign extend)
-                if(is_builtin(type.type_idx) && is_signed_integer(static_cast<builtin_type>(type.type_idx)))
+                if(var_alloc.is_signed)
                 {
                     // word is register size (we dont need to extend it)
                     static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};

@@ -10,6 +10,7 @@ enum class ast_type
 
     function,
     function_args,
+    function_call,
 
     value,
     symbol,
@@ -42,6 +43,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "function",
     "function_args",
+    "function_call"
 
     "value",
     "symbol",

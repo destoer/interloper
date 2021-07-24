@@ -1,0 +1,11 @@
+
+// expected 712
+func s32 main() {
+    u32 x = 1000000 & 0x7ff;
+
+    x = x | 0xff;
+
+    x = x ^ 55;
+
+    return x;
+}

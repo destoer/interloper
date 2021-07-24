@@ -100,8 +100,8 @@ Type Interloper::compile_expression(AstNode *node)
 
             const auto name = node->nodes[0]->literal;
 
-            
-            if(!symbol_table.exists(name))
+            const auto sym_opt = symbol_table.get_sym(name);
+            if(!sym_opt)
             {
                 panic("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
                 parser.print(node);
@@ -109,7 +109,7 @@ Type Interloper::compile_expression(AstNode *node)
             }
 
             
-            const auto &sym = symbol_table[name];
+            const auto &sym = sym_opt.value();
 
             check_assign(sym.type,rtype);
 
@@ -147,14 +147,15 @@ Type Interloper::compile_expression(AstNode *node)
         {
             const auto name = node->literal;
 
-            if(!symbol_table.exists(name))
+            const auto sym_opt = symbol_table.get_sym(name);
+            if(!sym_opt)
             {
                 panic("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
                 parser.print(node);
                 return Type(builtin_type::void_t);
             }
 
-            const auto &sym = symbol_table[name];
+            const auto &sym = sym_opt.value();
 
             emitter.emit(op_type::mov_reg,reg(emitter.reg_count),symbol(sym.slot));
 
@@ -227,11 +228,21 @@ Type Interloper::compile_expression(AstNode *node)
 }
 
 
-// in our IR how do we seperate a tempoary from an actual value we need to actually keep
+
+
+
+// TODO: reclaim stack space when scope drops
+// emit directives when scope drops out 
+// need to figure out how to get this not break with optimisation passes
+
+// TODO: impl function calls
+// and handle resolving global labels
 
 void Interloper::compile_block(AstNode *node)
 {
-    for(const auto l : node->nodes)
+    symbol_table.new_scope();
+
+    for(auto l : node->nodes)
     {
         if(error)
         {
@@ -253,7 +264,8 @@ void Interloper::compile_block(AstNode *node)
 
                 const auto slot = symbol_table.sym_count;
 
-                if(symbol_table.exists(name))
+
+                if(symbol_table.get_sym(name))
                 {
                     panic("redeclared symbol: %s\n",name.c_str());
                     return;
@@ -285,13 +297,15 @@ void Interloper::compile_block(AstNode *node)
                 const auto name = line.nodes[0]->literal;
 
 
-                if(!symbol_table.exists(name))
+                const auto sym_opt = symbol_table.get_sym(name);
+                if(!sym_opt)
                 {
                     panic("[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
                     parser.print(l);
+                    return;
                 }
 
-                const auto &sym = symbol_table[name];
+                const auto &sym = sym_opt.value();
 
                 check_assign(sym.type,rtype);
 
@@ -311,7 +325,11 @@ void Interloper::compile_block(AstNode *node)
                 break;
             }
 
-
+            case ast_type::block:
+            {
+                compile_block(l);
+                break;
+            }
 
             default:
             {
@@ -320,6 +338,8 @@ void Interloper::compile_block(AstNode *node)
             }
         }
     }
+
+    symbol_table.destroy_scope();
 }
 
 void Interloper::compile_functions()

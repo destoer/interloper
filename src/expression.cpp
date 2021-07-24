@@ -124,6 +124,11 @@ AstNode *Parser::nud(Token &t)
 
         case token_type::symbol:
         {
+            // look ahead extra tokens that would change the meaning of this
+
+            // function call
+
+            // plain symbol
             return new AstNode(nullptr,nullptr,ast_type::symbol,t.literal);
         }
 

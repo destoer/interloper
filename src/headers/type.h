@@ -183,7 +183,8 @@ static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
 
 struct VarAlloc
 {
-    VarAlloc(u32 s, const std::string &n) : size(s), offset(UNALLOCATED_OFFSET), name(n)
+    VarAlloc(u32 s, const std::string &n, bool sign) : size(s), offset(UNALLOCATED_OFFSET), 
+        is_signed(sign), name(n)
     {}
 
     // size of one item
@@ -191,6 +192,8 @@ struct VarAlloc
 
     // initialized during reg alloc
     u32 offset;
+
+    bool is_signed;
 
     // how many items do we have (for arrays)
     //u32 count;
@@ -201,14 +204,30 @@ struct VarAlloc
 
 struct SymbolTable
 {
-    bool exists(const std::string &sym)
+    void new_scope()
     {
-        return table.count(sym);
+        table.push_back({});
     }
 
-    const Symbol &operator[](const std::string &sym)
+    void destroy_scope()
     {
-        return table[sym];
+        table.pop_back();
+    }
+
+    // declare the global scope
+    SymbolTable() { new_scope(); }
+
+    std::optional<Symbol> get_sym(const std::string &sym)
+    {
+        for(int i = table.size()-1; i >= 0; i--)
+        {
+            if(table[i].count(sym))
+            {
+                return std::optional<Symbol>(table[i][sym]);
+            }
+        }
+
+        return std::nullopt;
     }
 
     void add_symbol(const std::string &name, const Type &type,u32 size)
@@ -222,8 +241,11 @@ struct SymbolTable
         // into and idx 
         size_count[size >> 1] += 1;
 
-        slot_lookup.push_back(VarAlloc(size,name));
-        table[name] = Symbol(name,type,sym_count++);
+        const bool sign = is_builtin(type.type_idx) && 
+            is_signed_integer(static_cast<builtin_type>(type.type_idx));
+
+        slot_lookup.push_back(VarAlloc(size,name,sign));
+        table[table.size()-1][name] = Symbol(name,type,sym_count++);
     }
 
     void clear()
@@ -234,7 +256,7 @@ struct SymbolTable
         sym_count = 0;
     }
 
-    std::unordered_map<std::string, Symbol> table; 
+    std::vector<std::unordered_map<std::string, Symbol>> table; 
 
     // get the back the symbol name from an allocated IR slot
     std::vector<VarAlloc> slot_lookup;
