@@ -316,7 +316,12 @@ void Interloper::compile_block(AstNode *node)
             case ast_type::ret:
             {
                 const auto rtype = compile_expression(line.nodes[0]);
-                
+                if(error)
+                {
+                    return;
+                }
+
+
                 // TODO: dont hard code this function infromation
                 check_assign(function_table["main"].return_type,rtype);
 

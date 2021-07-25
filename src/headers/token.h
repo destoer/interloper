@@ -72,7 +72,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::left_paren,"(",-1},
     {token_type::right_paren,")",0},
 
-    {token_type::comma,",",-1},
+    {token_type::comma,",",0},
 
     {token_type::equal,"=",2},
 

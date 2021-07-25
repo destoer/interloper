@@ -98,21 +98,27 @@ AstNode *Parser::nud(Token &t)
         // cast(<type>,<expr>)
         case token_type::cast:
         {
-            // we want to use normal semantics for this 
-            // so we need to go back a token
-            prev_token();
 
-            consume(token_type::left_paren);
+            consume_expr(token_type::left_paren);
+
+
+            // get_type is inside the normal parser we need
+            // to correct the tok idx
+            tok_idx -= 1;
 
             std::string type_name;
             const auto type = get_type(type_name);
 
             const auto left = new AstNode(type,type_name);
+           
+            // correct our state machine
+            expr_tok = next_token_expr();
 
-            consume(token_type::comma);
-
+            consume_expr(token_type::comma);
 
             const auto right = expression(0);
+
+            consume_expr(token_type::right_paren);
 
             return new AstNode(left,right,ast_type::cast);
         }
@@ -127,6 +133,39 @@ AstNode *Parser::nud(Token &t)
             // look ahead extra tokens that would change the meaning of this
 
             // function call
+            if(expr_tok.type == token_type::left_paren)
+            {
+                consume_expr(token_type::left_paren);
+
+                auto func_call = new AstNode(ast_type::function_call,t.literal);
+
+                // keep reading args till we run out of commas
+                bool done = false;
+                while(!done)
+                {
+                    auto expr = expression(0);
+
+                    func_call->nodes.push_back(expr);
+
+                    // no more args terminate the call
+                    if(expr_tok.type != token_type::comma)
+                    {
+                        consume_expr(token_type::right_paren);
+                        done = true;
+                    }
+
+                    else
+                    {
+                        consume_expr(token_type::comma);
+                    }
+                }
+
+                
+                print(func_call);
+
+                return func_call;
+            }
+
 
             // plain symbol
             return new AstNode(nullptr,nullptr,ast_type::symbol,t.literal);
