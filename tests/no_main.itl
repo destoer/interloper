@@ -1,0 +1,7 @@
+
+// expected compile error
+
+func s32 test()
+{
+    return 5;
+}

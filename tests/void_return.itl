@@ -1,0 +1,12 @@
+
+// TODO: make this allowed
+// TODO: test this properly when we get pointers
+func void_func()
+{
+    return;
+}
+
+func s32 main()
+{
+    return;
+}

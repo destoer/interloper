@@ -1,11 +1,10 @@
 
-// expected 34
+// expected 7
 
-func s32 main()
+
+func s32 number()
 {
-    s32 x = square(5);
-
-    return add(x,9);
+    return 5;
 }
 
 
@@ -14,7 +13,16 @@ func s32 square(s32 x)
     return x * x;
 }
 
-func s32 add(s32 x, s32 y)
+
+func s32 main()
 {
-    return x + y;
+    s32 x = square(number());
+
+    return sub(x,3 * 3,2);
+}
+
+
+func s32 sub(s32 x, s32 y, s32 factor)
+{
+    return x - (y * 2);
 }

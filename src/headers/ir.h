@@ -1,6 +1,5 @@
 #pragma once
 #include <lib.h>
-#include <type.h>
 
 enum class op_type
 {
@@ -30,10 +29,15 @@ enum class op_type
     sh,
     sw,
 
+    push,
+
+    call,
     ret,
+
+    swi
 };
 
-static constexpr uint32_t OPCODE_SIZE = 20;
+static constexpr uint32_t OPCODE_SIZE = 23;
 
 
 // what kind of opcode is this?
@@ -43,6 +47,7 @@ enum op_group
     imm_t,
     load_t,
     implicit_t,
+    branch_t,
 };
 
 struct OpInfo
@@ -79,11 +84,26 @@ struct Opcode
     uint32_t v3;
 };
 
+// standard symbols
 static constexpr uint32_t SYMBOL_START = 0x80000000;
+
+// function args
+static constexpr uint32_t SYMBOL_ARG_START = 0xf0000000;
 
 inline uint32_t reg(uint32_t r)
 {
     return r;
+}
+
+// need a better way to mark an arg cause we want to index the slots similar to the rest
+inline uint32_t arg(uint32_t s)
+{
+    return SYMBOL_ARG_START + s;
+}
+
+inline bool is_arg(u32 s)
+{
+    return s >= SYMBOL_ARG_START;
 }
 
 inline uint32_t symbol(uint32_t s)
@@ -93,7 +113,7 @@ inline uint32_t symbol(uint32_t s)
 
 inline uint32_t symbol_to_idx(uint32_t s)
 {
-    return s - SYMBOL_START;
+    return s >= SYMBOL_ARG_START? s - SYMBOL_ARG_START : s - SYMBOL_START;
 }
 
 inline bool is_reg(uint32_t r)
@@ -109,15 +129,21 @@ static constexpr uint32_t MACHINE_REG_SIZE = 14;
 
 static constexpr uint32_t RETURN_REGISTER = 0;
 
-static constexpr uint32_t SP_IR = 0x7fffffff;
 
 static constexpr uint32_t SP = 14;
 static constexpr uint32_t PC = 15;
 
 static constexpr uint32_t OP_SIZE = sizeof(Opcode);
 
-void disass_opcode_sym(const Opcode &opcode, const SymbolTable &table);
+struct SymbolTable;
+struct VarAlloc;
+
+void disass_opcode_sym(const Opcode &opcode, const std::vector<VarAlloc> &table, const std::vector<std::string> &label_lookup);
 void disass_opcode_raw(const Opcode &opcode);
+
+
+// IR SYSCALLS
+static constexpr u32 SWI_EXIT = 0x0;
 
 struct IrEmitter
 {

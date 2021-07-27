@@ -52,13 +52,13 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
             default:
             {
                 // potential symbol
-                if(isalpha(c))
+                if(isalpha(c) || c == '_')
                 {
                     std::string literal(1,c);
                     while(column < size)
                     {
                         c = line[++column];
-                        if(!isalnum(c))
+                        if(!isalnum(c) && c != '_')
                         {
                             column--;
                             break;

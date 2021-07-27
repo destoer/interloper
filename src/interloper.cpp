@@ -28,17 +28,32 @@ void Interloper::parse_function_declarations()
 
         std::vector<Symbol> args;
 
-        // for now assume void and avoid dealing with a bunch of things
-        args.push_back(Symbol("",builtin_type::void_t));
-        
+
+        const auto decl = node.nodes[2];
+
         // rip every arg
-        
+        for(const auto a : decl->nodes)
+        {
+            const auto name = a->literal;
+            const auto type = a->nodes[0]->variable_type;
+
+            args.push_back(Symbol(name,type,true));
+        }
 
 
-        const Function function(name,return_type,args);
+        const Function function(name,return_type,args,symbol_table.label_lookup.size());
 
 
         function_table[name] = function;
+
+        // add as a label as it this will be need to referenced by call instrs
+        // in the ir to get the name back
+        symbol_table.add_label(name);
+    }
+
+    if(!function_table.count("main"))
+    {
+        panic("main is not defined!\n");
     }
 }
 
@@ -48,15 +63,15 @@ void Interloper::parse_function_declarations()
 //    the offsets for them will differ from our ir ones and they will be moved
 //    during optimisation passes
 
-Type Interloper::compile_arith_op(AstNode *node, op_type type)
+Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 {
-    const auto t1 = compile_expression(node->nodes[0]);
-    const auto v1 = reg(emitter.reg_count);
-    emitter.reg_count++;
+    const auto t1 = compile_expression(func,node->nodes[0]);
+    const auto v1 = reg(func.emitter.reg_count);
+    func.emitter.reg_count++;
 
     
-    const auto t2 = compile_expression(node->nodes[1]);
-    const auto v2 = reg(emitter.reg_count);
+    const auto t2 = compile_expression(func,node->nodes[1]);
+    const auto v2 = reg(func.emitter.reg_count);
 
     // produce effective type
     const auto final_type = effective_arith_type(t1,t2);
@@ -64,14 +79,14 @@ Type Interloper::compile_arith_op(AstNode *node, op_type type)
 
     // one of these is just a temp for the result calc
     // so afer this we no longer need it
-    emitter.emit(type,v1,v1,v2);
-    emitter.reg_count--;
+    func.emitter.emit(type,v1,v1,v2);
+    func.emitter.reg_count--;
 
     return final_type;        
 }
 
 
-Type Interloper::compile_expression(AstNode *node)
+Type Interloper::compile_expression(Function &func,AstNode *node)
 {
     if(!node)
     {
@@ -84,10 +99,10 @@ Type Interloper::compile_expression(AstNode *node)
     {
         case ast_type::cast:
         {
-            const auto old_type = compile_expression(node->nodes[1]);
+            const auto old_type = compile_expression(func,node->nodes[1]);
             const auto new_type = node->nodes[0]->variable_type;
 
-            handle_cast(old_type,new_type);
+            handle_cast(func.emitter,old_type,new_type);
 
             return new_type;
         }
@@ -96,7 +111,7 @@ Type Interloper::compile_expression(AstNode *node)
         // multiple assigment
         case ast_type::equal:
         {
-            const auto rtype = compile_expression(node->nodes[1]);
+            const auto rtype = compile_expression(func,node->nodes[1]);
 
             const auto name = node->nodes[0]->literal;
 
@@ -113,7 +128,7 @@ Type Interloper::compile_expression(AstNode *node)
 
             check_assign(sym.type,rtype);
 
-            emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count));
+            func.emitter.emit(op_type::mov_reg,sym.slot_idx(sym.slot),reg(func.emitter.reg_count));
 
             return sym.type;        
         }
@@ -121,7 +136,7 @@ Type Interloper::compile_expression(AstNode *node)
 
         case ast_type::value:
         {
-            emitter.emit(op_type::mov_imm,reg(emitter.reg_count),node->value);
+            func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),node->value);
 
             // TODO: do we care about tracking if an input value is -ve
 
@@ -157,7 +172,7 @@ Type Interloper::compile_expression(AstNode *node)
 
             const auto &sym = sym_opt.value();
 
-            emitter.emit(op_type::mov_reg,reg(emitter.reg_count),symbol(sym.slot));
+            func.emitter.emit(op_type::mov_reg,reg(func.emitter.reg_count),sym.slot_idx(sym.slot));
 
             return sym.type;
         }
@@ -169,25 +184,25 @@ Type Interloper::compile_expression(AstNode *node)
             if(!node->nodes[1])
             {
                 // negate by doing 0 - v
-                const auto t = compile_expression(node->nodes[0]);
+                const auto t = compile_expression(func,node->nodes[0]);
 
                 // we are done with the reg used to load zero after this
-                const auto dst = reg(emitter.reg_count);
+                const auto dst = reg(func.emitter.reg_count);
 
-                emitter.reg_count++;
+                func.emitter.reg_count++;
 
                 // todo: make sure our optimiser sees through this
-                emitter.emit(op_type::mov_imm,reg(emitter.reg_count),0);
-                emitter.emit(op_type::sub_reg,dst,reg(emitter.reg_count),dst);
+                func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),0);
+                func.emitter.emit(op_type::sub_reg,dst,reg(func.emitter.reg_count),dst);
                 
-                emitter.reg_count--;
+                func.emitter.reg_count--;
 
                 return t;
             }
 
             else
             {
-                return compile_arith_op(node,op_type::sub_reg);
+                return compile_arith_op(func,node,op_type::sub_reg);
             }
         }
 
@@ -197,25 +212,94 @@ Type Interloper::compile_expression(AstNode *node)
             // unary plus
             if(!node->nodes[1])
             {
-                return compile_expression(node->nodes[0]); 
+                return compile_expression(func,node->nodes[0]); 
             }
 
             else
         
             {
-                return compile_arith_op(node,op_type::add_reg);
+                return compile_arith_op(func,node,op_type::add_reg);
             }
         }
     
         case ast_type::times:
         {
-            return compile_arith_op(node,op_type::mul_reg);        
+            return compile_arith_op(func,node,op_type::mul_reg);        
         }
 
 
         case ast_type::divide:
         {
-            return compile_arith_op(node,op_type::div_reg);       
+            return compile_arith_op(func,node,op_type::div_reg);       
+        }
+
+        case ast_type::function_call:
+        {
+            // check function is declared
+            if(!function_table.count(node->literal))
+            {
+                panic("[COMPILE]: function %s is not declared\n",node->literal.c_str());
+                return Type(builtin_type::void_t);
+            }
+            const auto &func_call = function_table[node->literal];
+
+            // check we have the right number of params
+            if(func_call.args.size() != node->nodes.size())
+            {
+                panic("[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
+                parser.print(node);
+                return Type(builtin_type::void_t);
+            }
+
+            // TODO: do we want a pseudo op for adding args
+            // so we can pick later if we want it on the stack
+            // or in a reg
+
+            // push args in reverse order and type check them
+            for(s32 i = func_call.args.size() - 1; i >= 0; i--)
+            {
+                // TODO: handle being passed 
+                if(type_size(func_call.args[i].type) > sizeof(u32))
+                {
+                    printf("function arg: non register size: %d\n",type_size(func_call.args[i].type));
+                    exit(1);
+                }
+
+                
+                // builtin type
+                const auto arg_type = compile_expression(func,node->nodes[i]);
+
+                // type check the arg
+                check_assign(func_call.args[i].type,arg_type);
+
+                // "push" the args by storing them into the stack below the current pointer
+                // this is to make sure the stack does not get messed with while we are pushing args
+                
+                // TODO: we need to swap this operation for one that cleary shows its moving args
+                // when we want to dump the first set of args into regs
+                func.emitter.emit(op_type::sw,reg(func.emitter.reg_count),SP,(i - func_call.args.size()) * sizeof(u32));
+            }
+
+            // we have moved the params into the stack now drop the pointer
+            if(func_call.args.size())
+            {
+                func.emitter.emit(op_type::sub_imm,SP,SP,sizeof(u32) * func_call.args.size());
+            }
+
+            // emit call to label slot
+            // the actual address will have to resolved as the last compile step
+            // once we know the size of all the code
+            func.emitter.emit(op_type::call,func_call.slot);
+
+            // and the stack cleanup if we pass any args
+            if(func_call.args.size())
+            {
+                func.emitter.emit(op_type::add_imm,SP,SP,sizeof(u32) * func_call.args.size());
+            }
+            
+            
+            // result of expr is the return type
+            return func.return_type;
         }
 
         default:
@@ -235,10 +319,24 @@ Type Interloper::compile_expression(AstNode *node)
 // emit directives when scope drops out 
 // need to figure out how to get this not break with optimisation passes
 
-// TODO: impl function calls
-// and handle resolving global labels
+// TODO: fold sucessive adds for stack reclaims
+// i.e 
 
-void Interloper::compile_block(AstNode *node)
+/*
+    call 0x10
+    add sp, sp, 8
+    add sp, sp, 4
+    ret
+
+    ->
+
+    call 0x10
+    add sp, sp, 12
+    ret
+*/
+
+
+void Interloper::compile_block(Function &func,AstNode *node)
 {
     symbol_table.new_scope();
 
@@ -251,7 +349,7 @@ void Interloper::compile_block(AstNode *node)
 
         const auto &line = *l;
 
-        emitter.reg_count = 0;
+        func.emitter.reg_count = 0;
 
         switch(line.type)
         {
@@ -274,16 +372,23 @@ void Interloper::compile_block(AstNode *node)
                 const auto size = type_size(ltype);
 
                 // add new symbol table entry
-                symbol_table.add_symbol(name,ltype,size);
+                symbol_table.add_symbol(name,ltype);
+
+                // TODO: we cant have a arg when a var is just declared
+                // this is probably not needed
+                const auto &sym = symbol_table.get_sym(name).value();
+
+                // add allocation information
+                func.add_var(name,ltype,size);
 
 
                 // handle right side expression (if present)
                 if(line.nodes.size() == 2)
                 {
-                    const auto rtype = compile_expression(line.nodes[1]);
+                    const auto rtype = compile_expression(func,line.nodes[1]);
                     check_assign(ltype,rtype);
 
-                    emitter.emit(op_type::mov_reg,symbol(slot),reg(emitter.reg_count));
+                    func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
                 }
                 break;
             }
@@ -292,7 +397,7 @@ void Interloper::compile_block(AstNode *node)
             // assignment
             case ast_type::equal:
             {
-                const auto rtype = compile_expression(line.nodes[1]);
+                const auto rtype = compile_expression(func,line.nodes[1]);
 
                 const auto name = line.nodes[0]->literal;
 
@@ -309,30 +414,29 @@ void Interloper::compile_block(AstNode *node)
 
                 check_assign(sym.type,rtype);
 
-                emitter.emit(op_type::mov_reg,symbol(sym.slot),reg(emitter.reg_count));
+                func.emitter.emit(op_type::mov_reg,sym.slot_idx(sym.slot),reg(func.emitter.reg_count));
                 break;
             }
 
             case ast_type::ret:
             {
-                const auto rtype = compile_expression(line.nodes[0]);
+                const auto rtype = compile_expression(func,line.nodes[0]);
                 if(error)
                 {
                     return;
                 }
 
+                check_assign(func.return_type,rtype);
 
-                // TODO: dont hard code this function infromation
-                check_assign(function_table["main"].return_type,rtype);
+                //func.emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(func.emitter.reg_count));
 
-                emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(emitter.reg_count));
-                emitter.emit(op_type::ret);
+                func.emitter.emit(op_type::ret);
                 break;
             }
 
             case ast_type::block:
             {
-                compile_block(l);
+                compile_block(func,l);
                 break;
             }
 
@@ -351,10 +455,6 @@ void Interloper::compile_functions()
 {
     for(const auto n: root->nodes)
     {
-        // TODO: we want to preserver this information but where shoudl we store it
-        // when we have more than one function?
-        //emitter.sym_count = 0;
-
         const auto &node = *n;
 
         // unless its a function we dont care
@@ -363,22 +463,36 @@ void Interloper::compile_functions()
             continue;
         }
 
-        // TODO:
-        // need to allocate intial slots to the function args...
+        
+        // put arguments on the symbol table they are marked as args
+        // so we know to access them "above" to stack pointer
+        symbol_table.new_scope();
+
+        auto &func = function_table[node.literal];
+
+        for(auto &sym: func.args)
+        {
+            const auto size = type_size(sym.type);
+            symbol_table.add_symbol(sym);
+
+            // this has to be parsed in forward order or all the offsets
+            // will be messed up
+            func.add_arg(sym.name,sym.type,size);
+        }
 
 
         // parse out each line of the function
-    
-        // what is the best way to go about doing this?
-        // for now we are going to ignore scoping issues
-        
         auto block = node.nodes[1];
-        compile_block(block);
+        compile_block(func,block);
+
+        symbol_table.destroy_scope();
 
         if(error)
         {
             return;
-        }    
+        }
+
+        //func.dump_ir(symbol_table.label_lookup);    
     }
 }
 
@@ -396,7 +510,6 @@ void Interloper::compile(const std::vector<std::string> &lines)
     program.clear();
     symbol_table.clear();
     function_table.clear();
-    emitter.program.clear();
 
     error = false;
 
@@ -424,7 +537,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
         return;
     }
 
-    //parser.print(root);
+//    parser.print(root);
 
 
     // okay now we need to start doing semantic analysis
@@ -434,6 +547,11 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
 
     parse_function_declarations();
+
+    if(error)
+    {
+        return;
+    }
 
     putchar('\n');
 
@@ -450,7 +568,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
         {
             printf("%s: %s\n",s.name.c_str(),type_name(s.type).c_str());
         }
-
+        puts("\n\n");
     }
 */
 
@@ -477,12 +595,16 @@ void Interloper::compile(const std::vector<std::string> &lines)
     //optimise_ir();
 
     // perform register allocation
-    allocate_registers();
+    for(auto &[key, func]: function_table)
+    {
+        UNUSED(key);
+        allocate_registers(func);
+    }
 
     // emit the actual target asm
-    // for now we will just perform some adjustment on the register operands
+    // for now we will just collect the emitter IR
+    // and resolve labels
     emit_asm();
 
-    // okay now we need to actually resolve all the addresses into a meaningful place
-    // resolve_labels();
+
 }

@@ -14,7 +14,7 @@ access_type Interpretter::read_mem(u32 addr)
 
     else
     {
-        printf("warning out of bounds read at %x\n",addr);
+        printf("%x: warning out of bounds read at %x\n",regs[PC],addr);
         return 0;
     }
 }
@@ -32,7 +32,7 @@ void Interpretter::write_mem(u32 addr, access_type v)
 
     else
     {
-        printf("warning out of bounds write at %x:%x\n",addr,v);
+        printf("%x: warning out of bounds write at %x:%x\n",regs[PC],addr,v);
     }
 }
 
@@ -53,8 +53,6 @@ s32 Interpretter::run(const u8 *program, u32 size)
     regs[SP] = 0x20000000 + stack.size();
 
 
-
-
     bool quit = false;
 
     while(!quit)
@@ -71,6 +69,7 @@ s32 Interpretter::run(const u8 *program, u32 size)
 
         memcpy(&opcode,&program[regs[PC]],sizeof(opcode));
 
+        //printf("%08x: ",regs[PC]);
         //disass_opcode_raw(opcode);
 
         regs[PC] += OP_SIZE;
@@ -202,16 +201,55 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
-            // hard code as program exit for now
-            // we will actually have to impl this when we add function calls
-            case op_type::ret:
+            case op_type::push:
             {
-                quit = true;
+                regs[SP] -= sizeof(u32);
+                write_mem<u32>(regs[SP],regs[opcode.v1]); 
+                break;               
+            }
+
+
+            case op_type::call:
+            {
+                // push
+               
+                regs[SP] -= sizeof(u32);
+                write_mem<u32>(regs[SP],regs[PC]);
+
+                regs[PC] = opcode.v1;
+                break;
+            }
+
+            // TODO: why does this read out of bounds
+            case op_type::ret:
+            {              
+                // pop pc
+                regs[PC] = read_mem<u32>(regs[SP]);
+                regs[SP] += sizeof(u32);
+                break;
+            }
+
+            // system call
+            case op_type::swi:
+            {
+                switch(opcode.v1)
+                {
+                    case 0x0: // exit
+                    {
+                        quit = true;
+                        break;
+                    }
+
+                    default:
+                    {
+                        printf("unknown syscall: %x\n",opcode.v1);
+                        break;
+                    }
+                }
                 break;
             }
 
         }
-
     }
 
     this->program = nullptr;

@@ -139,10 +139,21 @@ AstNode *Parser::nud(Token &t)
 
                 auto func_call = new AstNode(ast_type::function_call,t.literal);
 
+
+
                 // keep reading args till we run out of commas
                 bool done = false;
+
+                // empty call we are done
+                if(expr_tok.type == token_type::right_paren)
+                {
+                    done = true;
+                    consume_expr(token_type::right_paren);
+                }
+
                 while(!done)
                 {
+
                     auto expr = expression(0);
 
                     func_call->nodes.push_back(expr);
@@ -159,9 +170,6 @@ AstNode *Parser::nud(Token &t)
                         consume_expr(token_type::comma);
                     }
                 }
-
-                
-                print(func_call);
 
                 return func_call;
             }

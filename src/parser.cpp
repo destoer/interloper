@@ -302,7 +302,8 @@ AstNode *Parser::func()
 /*
     for now assume there is no void in the return type
     we will have to check for this by scannining if there is a name followed by a paren
-    but for now i dont want to worry about it
+    but for now i dont want to worry about it we need pointers to verify such a function works
+    to begin with
 
     // assume void
     if(!t)
@@ -343,20 +344,33 @@ AstNode *Parser::func()
             return nullptr;
         }
 
-        // TODO: handle this
-        const auto t = next_token();
-        printf("function args, %s: %s\n",tok_name(t.type),t.literal.c_str());
-        exit(1);
+        // for each arg pull type, name
+        std::string type_name;
+        const auto type = get_type(type_name);
+        const auto lit_tok = next_token();
+
+        if(lit_tok.type != token_type::symbol)
+        {
+            panic(lit_tok,"expected name for function arg");
+            return nullptr;
+        }
+        
+        // add each declartion
+        auto d = new AstNode(ast_type::declaration,lit_tok.literal);
+        d->nodes.push_back(new AstNode(type,type_name));
+
+        a->nodes.push_back(d);
+
+        // if the declaration isnt closed get the next arg
+        if(peek(0).type != token_type::right_paren)
+        {
+            consume(token_type::comma);
+        }
     }
 
     consume(token_type::right_paren);
 
-    // no args (make void)
-    if(!a->nodes.size())
-    {
-        a->nodes.push_back(new AstNode(Type(builtin_type::void_t),"void"));
-    }
-
+    // no args is fine
 
     auto b = block();
 
@@ -430,6 +444,12 @@ void Parser::print(const AstNode *root) const
     {
         return;
     }
+
+    if(root->type == ast_type::function)
+    {
+        printf("\n\n\n");
+    }
+
 
     static int depth = 0;
     

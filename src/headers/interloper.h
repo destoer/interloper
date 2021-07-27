@@ -41,17 +41,18 @@ private:
 
     // IR and assembly
     void compile_functions();
-    void compile_block(AstNode *node);
-    Type compile_expression(AstNode *node);
-    Type compile_arith_op(AstNode *node, op_type type);
+
+    void compile_block(Function &func, AstNode *node);
+    Type compile_expression(Function &func,AstNode *node);
+    Type compile_arith_op(Function &func, AstNode *node, op_type type);
+
     void emit_asm();
 
     // ir functions (defined in ir.cpp)
     void emit_ir(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
     std::string get_ir_operand(uint32_t v);
-    void dump_ir_sym();
 
-    void allocate_registers();
+    void allocate_registers(Function &func);
 
 
 
@@ -59,16 +60,12 @@ private:
     std::string type_name(const Type &type);
     void check_assign(const Type &ltype, const Type &rtype);
     Type effective_arith_type(const Type &ltype, const Type &rtype);
-    void handle_cast(const Type &old_type, const Type &new_type);
+    void handle_cast(IrEmitter &emitter, const Type &old_type, const Type &new_type);
     u32 type_size(const Type &type);
 
 
     Lexer lexer;
     Parser parser;
-
-
-    IrEmitter emitter;
-
 
     AstNode *root = nullptr;
 

@@ -1,0 +1,11 @@
+
+// TODO: this shouldunt be allowed
+func s32 test()
+{
+
+}
+
+func s32 main()
+{
+    return 0;
+}

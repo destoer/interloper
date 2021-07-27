@@ -1,6 +1,6 @@
 #pragma once
 #include <lib.h>
-
+#include <ir.h>
 
 
 
@@ -151,35 +151,31 @@ struct Symbol
 {
     Symbol() {}
 
-    Symbol(const std::string &n, Type t) : name(n), type(t), slot(SYMBOL_NO_SLOT)
+    Symbol(const std::string &n, Type t, bool a = false) : name(n), type(t), is_arg(a), slot(SYMBOL_NO_SLOT)
     {}
 
-    Symbol(const std::string &n, Type t, uint32_t s) : name(n), type(t), slot(s)
+    Symbol(const std::string &n, Type t, u32 s, bool a = false) : name(n), type(t), is_arg(a), slot(s)
     {}
+
+    u32 slot_idx(u32 slot) const
+    {
+        return is_arg? arg(slot) : symbol(slot);
+    }
+
 
     std::string name;
     Type type;
 
+    // is this symbol a function argument?
+    bool is_arg;
+
     // what slot does this symbol hold inside the ir?
-    uint32_t slot;
+    u32 slot;
 };
 
 
-struct Function
-{
-    Function() {}
-
-    Function(const std::string &n, Type rt, std::vector<Symbol> a) : name(n), return_type(rt), args(a)
-    {}
-
-
-    std::string name;
-    Type return_type;
-    std::vector<Symbol> args;
-};
 
 static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
-
 
 struct VarAlloc
 {
@@ -202,6 +198,81 @@ struct VarAlloc
     std::string name;
 };
 
+
+struct Function
+{
+    Function() {}
+
+    Function(const std::string &n, Type rt, std::vector<Symbol> a, u32 s) : name(n), return_type(rt), args(a), slot(s)
+    {}
+
+    // TODO: remove the need to pass a type by emitting dedicated 
+    // mov signed instrs
+    void add_var(const std::string &name,const Type &type, u32 size)
+    {
+        // we only want to move quantitys under 4 bytes
+        // larger thigns i.e structs
+        // will allready have memory semantics
+        assert(size <= 4);
+
+        // shift by 1 to turn 1, 2, 4 
+        // into and idx 
+        size_count[size >> 1] += 1;
+
+        const bool sign = is_builtin(type.type_idx) && 
+            is_signed_integer(static_cast<builtin_type>(type.type_idx));
+
+        slot_lookup.push_back(VarAlloc(size,name,sign));
+    }
+
+    // allocation on stack is callee handled
+    // so dont add to size count
+    void add_arg(const std::string &name,const Type &type, u32 size)
+    {
+        const bool sign = is_builtin(type.type_idx) && 
+            is_signed_integer(static_cast<builtin_type>(type.type_idx));
+
+        auto alloc = VarAlloc(size,name,sign);
+
+        // we allready know where this going to go for now
+        // TODO: how do we want to mark an argument being inside a register
+        // when we actually allocate them
+        alloc.offset = arg_offset;
+        arg_offset += sizeof(u32);
+
+        slot_lookup.push_back(alloc);        
+    }
+
+    void dump_ir(const std::vector<std::string> &label_lookup)
+    {
+        printf("%s:\n",name.c_str());
+        for(const auto &opcode : emitter.program)
+        {
+            disass_opcode_sym(opcode,slot_lookup,label_lookup);
+        }       
+    }
+
+    std::string name;
+    Type return_type;
+    std::vector<Symbol> args;
+    
+    // IR code for function
+    IrEmitter emitter;
+
+    u32 slot;
+
+    // get the back the symbol name from an allocated IR slot
+    std::vector<VarAlloc> slot_lookup;
+
+    // how many vars of each size have we got
+    u32 size_count[3] = {0};
+
+    u32 arg_offset = 0;
+
+    // where is the funciton code located in the binary?
+    u32 func_offset = 0;
+};
+
 struct SymbolTable
 {
     void new_scope()
@@ -211,6 +282,7 @@ struct SymbolTable
 
     void destroy_scope()
     {
+        sym_count -= table.back().size();
         table.pop_back();
     }
 
@@ -230,39 +302,31 @@ struct SymbolTable
         return std::nullopt;
     }
 
-    void add_symbol(const std::string &name, const Type &type,u32 size)
+    void add_symbol(Symbol &symbol)
     {
-        // we only want to move quantitys under 4 bytes
-        // larger thigns i.e structs
-        // will allready have memory semantics
-        assert(size <= 4);
+        symbol.slot = sym_count++;
+        table[table.size()-1][symbol.name] = symbol;
+    }
 
-        // shift by 1 to turn 1, 2, 4 
-        // into and idx 
-        size_count[size >> 1] += 1;
-
-        const bool sign = is_builtin(type.type_idx) && 
-            is_signed_integer(static_cast<builtin_type>(type.type_idx));
-
-        slot_lookup.push_back(VarAlloc(size,name,sign));
+    void add_symbol(const std::string &name, const Type &type)
+    {
         table[table.size()-1][name] = Symbol(name,type,sym_count++);
+    }
+
+    void add_label(const std::string &label)
+    {
+        label_lookup.push_back(label);
     }
 
     void clear()
     {
-        slot_lookup.clear();
         table.clear();
-        memset(size_count,0,sizeof(size_count));
         sym_count = 0;
     }
 
     std::vector<std::unordered_map<std::string, Symbol>> table; 
 
-    // get the back the symbol name from an allocated IR slot
-    std::vector<VarAlloc> slot_lookup;
+    std::vector<std::string> label_lookup;
 
     u32 sym_count = 0;
-
-    // how many of each size have we added?
-    u32 size_count[3] = {0};
 };

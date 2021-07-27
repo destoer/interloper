@@ -9,6 +9,9 @@ struct ProgramTest
     bool error;
 };
 
+//TODO:
+// tests for void return
+// and for no return from non void
 
 static constexpr ProgramTest PROGRAM_TEST[] = 
 {
@@ -22,6 +25,9 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/undeclared.itl",-1,true},
     {"tests/scope.itl",16,false},
     {"tests/out_of_scope.itl",-1,true},
+    {"tests/func.itl",7,false},
+    {"tests/no_main.itl",-1,true},
+    {"tests/invalid_args.itl",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

@@ -136,7 +136,7 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
 // start here
 // we need to implement proper stores and loads 
 // for each type first
-void Interloper::handle_cast(const Type &old_type, const Type &new_type)
+void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type &new_type)
 {
     // we dont care if we have the same type
     // i.e this cast does nothing
