@@ -219,7 +219,6 @@ void Interloper::emit_asm()
 {
     // emit a dummy call to main
     // that will get filled in later once we know where main lives
-    // TODO: make sure there is actually a main function
     program.push_back(Opcode(op_type::call,function_table["main"].slot,0,0));
 
     // program exit
@@ -242,6 +241,8 @@ void Interloper::emit_asm()
     
     // "link" the program and resolve all the labels we now have the absolute
     // posistions for
+    // TODO: how do we want to labels for a mov i.e
+    // x = &some_function;
     for(auto &opcode : program)
     {
         if(opcode.op == op_type::call)

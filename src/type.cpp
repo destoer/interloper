@@ -119,8 +119,17 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
         // i.e when we add a boolean type or pointers etc
         else
         {
-            printf("unimplmented: non integer assign!\n");
-            exit(1);            
+            // void is not assignable!
+            if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
+            {
+                panic("void assign %s = %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+            }
+
+            else
+            {
+                printf("unimplmented: non integer assign!\n");
+                exit(1); 
+            }           
         }
     }
 

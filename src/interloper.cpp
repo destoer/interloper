@@ -51,6 +51,7 @@ void Interloper::parse_function_declarations()
         symbol_table.add_label(name);
     }
 
+    // ensure the entry function is defined
     if(!function_table.count("main"))
     {
         panic("main is not defined!\n");
@@ -85,6 +86,77 @@ Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
     return final_type;        
 }
 
+
+Type Interloper::compile_function_call(Function &func,AstNode *node)
+{
+    // check function is declared
+    if(!function_table.count(node->literal))
+    {
+        panic("[COMPILE]: function %s is not declared\n",node->literal.c_str());
+        return Type(builtin_type::void_t);
+    }
+    const auto &func_call = function_table[node->literal];
+
+    // check we have the right number of params
+    if(func_call.args.size() != node->nodes.size())
+    {
+        panic("[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
+        parser.print(node);
+        return Type(builtin_type::void_t);
+    }
+
+    // TODO: do we want a pseudo op for adding args
+    // so we can pick later if we want it on the stack
+    // or in a reg
+
+    // push args in reverse order and type check them
+    for(s32 i = func_call.args.size() - 1; i >= 0; i--)
+    {
+        // TODO: handle being passed 
+        if(type_size(func_call.args[i].type) > sizeof(u32))
+        {
+            printf("function arg: non register size: %d\n",type_size(func_call.args[i].type));
+            exit(1);
+        }
+
+        
+        // builtin type
+        const auto arg_type = compile_expression(func,node->nodes[i]);
+
+        // type check the arg
+        check_assign(func_call.args[i].type,arg_type);
+
+        // "push" the args by storing them into the stack below the current pointer
+        // this is to make sure the stack does not get messed with while we are pushing args
+        
+        // TODO: we need to swap this operation for one that cleary shows its moving args
+        // when we want to dump the first set of args into regs
+        // and also make it clear we are starting to insert args so we can correct var access for stack pushes (during reg alloc)
+        // and avoid having the emit an extra stack oper
+        func.emitter.emit(op_type::sw,reg(func.emitter.reg_count),SP,(i - func_call.args.size()) * sizeof(u32));
+    }
+
+    // we have moved the params into the stack now drop the pointer
+    if(func_call.args.size())
+    {
+        func.emitter.emit(op_type::sub_imm,SP,SP,sizeof(u32) * func_call.args.size());
+    }
+
+    // emit call to label slot
+    // the actual address will have to resolved as the last compile step
+    // once we know the size of all the code
+    func.emitter.emit(op_type::call,func_call.slot);
+
+    // and the stack cleanup if we pass any args
+    if(func_call.args.size())
+    {
+        func.emitter.emit(op_type::add_imm,SP,SP,sizeof(u32) * func_call.args.size());
+    }
+    
+    
+    // result of expr is the return type
+    return func_call.return_type;    
+}
 
 Type Interloper::compile_expression(Function &func,AstNode *node)
 {
@@ -235,71 +307,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
         case ast_type::function_call:
         {
-            // check function is declared
-            if(!function_table.count(node->literal))
-            {
-                panic("[COMPILE]: function %s is not declared\n",node->literal.c_str());
-                return Type(builtin_type::void_t);
-            }
-            const auto &func_call = function_table[node->literal];
-
-            // check we have the right number of params
-            if(func_call.args.size() != node->nodes.size())
-            {
-                panic("[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
-                parser.print(node);
-                return Type(builtin_type::void_t);
-            }
-
-            // TODO: do we want a pseudo op for adding args
-            // so we can pick later if we want it on the stack
-            // or in a reg
-
-            // push args in reverse order and type check them
-            for(s32 i = func_call.args.size() - 1; i >= 0; i--)
-            {
-                // TODO: handle being passed 
-                if(type_size(func_call.args[i].type) > sizeof(u32))
-                {
-                    printf("function arg: non register size: %d\n",type_size(func_call.args[i].type));
-                    exit(1);
-                }
-
-                
-                // builtin type
-                const auto arg_type = compile_expression(func,node->nodes[i]);
-
-                // type check the arg
-                check_assign(func_call.args[i].type,arg_type);
-
-                // "push" the args by storing them into the stack below the current pointer
-                // this is to make sure the stack does not get messed with while we are pushing args
-                
-                // TODO: we need to swap this operation for one that cleary shows its moving args
-                // when we want to dump the first set of args into regs
-                func.emitter.emit(op_type::sw,reg(func.emitter.reg_count),SP,(i - func_call.args.size()) * sizeof(u32));
-            }
-
-            // we have moved the params into the stack now drop the pointer
-            if(func_call.args.size())
-            {
-                func.emitter.emit(op_type::sub_imm,SP,SP,sizeof(u32) * func_call.args.size());
-            }
-
-            // emit call to label slot
-            // the actual address will have to resolved as the last compile step
-            // once we know the size of all the code
-            func.emitter.emit(op_type::call,func_call.slot);
-
-            // and the stack cleanup if we pass any args
-            if(func_call.args.size())
-            {
-                func.emitter.emit(op_type::add_imm,SP,SP,sizeof(u32) * func_call.args.size());
-            }
-            
-            
-            // result of expr is the return type
-            return func.return_type;
+            return compile_function_call(func,node);
         }
 
         default:
@@ -420,17 +428,28 @@ void Interloper::compile_block(Function &func,AstNode *node)
 
             case ast_type::ret:
             {
-                const auto rtype = compile_expression(func,line.nodes[0]);
-                if(error)
+                // has an arg
+                if(line.nodes.size() == 1)
                 {
-                    return;
+                    const auto rtype = compile_expression(func,line.nodes[0]);
+                    if(error)
+                    {
+                        return;
+                    }
+
+                    check_assign(func.return_type,rtype);
+
+                    //func.emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(func.emitter.reg_count));
                 }
-
-                check_assign(func.return_type,rtype);
-
-                //func.emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(func.emitter.reg_count));
-
+                
+                has_return = true;
                 func.emitter.emit(op_type::ret);
+                break;
+            }
+
+            case ast_type::function_call:
+            {
+                compile_function_call(func,l);
                 break;
             }
 
@@ -481,11 +500,29 @@ void Interloper::compile_functions()
         }
 
 
+        has_return = false;
+
         // parse out each line of the function
         auto block = node.nodes[1];
         compile_block(func,block);
 
         symbol_table.destroy_scope();
+
+        if(!has_return)
+        {
+            // is a void function this is fine
+            // we just need to emit the ret at the end 
+            if(func.return_type.type_idx == static_cast<int>(builtin_type::void_t))
+            {
+                func.emitter.emit(op_type::ret);
+            }
+
+            else
+            {
+                panic("[COMPILE]: non void function without a return");
+            }
+        }
+
 
         if(error)
         {
@@ -502,7 +539,7 @@ void Interloper::compile_functions()
 
 // plan:
 // implement bitwise operators -> boolean + logical -> if statements
-// for loops -> function calls -> pointers -> arrays -> structs
+// for loops -> pointers -> structs -> arrays
 
 void Interloper::compile(const std::vector<std::string> &lines)
 {

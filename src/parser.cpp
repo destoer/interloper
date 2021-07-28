@@ -205,7 +205,17 @@ AstNode *Parser::statement()
         case token_type::ret:
         {
             auto r = new AstNode(ast_type::ret);
-            r->nodes.push_back(expr(next_token()));
+
+            // return value is optional
+            if(peek(0) != token_type::semi_colon)
+            {
+                r->nodes.push_back(expr(next_token()));
+            }
+            else
+            {
+                consume(token_type::semi_colon);
+            }
+
             return r;
         }
 
@@ -224,6 +234,13 @@ AstNode *Parser::statement()
 
                 // check for brackets
                 // array indexes etc here 
+
+                // function call
+                case token_type::left_paren:
+                {
+                    return expr(t);
+                }
+
 
                 default:
                 {
@@ -295,24 +312,22 @@ AstNode *Parser::func()
     // func_dec = func return_type ident(arg...)
     // arg = type ident
 
-    // can be null (i.e we have no return type)
+    // can be void (i.e we have no return type)
     std::string return_type_literal;
-    auto return_type = get_type(return_type_literal);
-
-/*
-    for now assume there is no void in the return type
-    we will have to check for this by scannining if there is a name followed by a paren
-    but for now i dont want to worry about it we need pointers to verify such a function works
-    to begin with
-
-    // assume void
-    if(!t)
+    Type return_type;
+    
+    // void
+    if(peek(0).type == token_type::symbol && peek(1).type == token_type::left_paren)
     {
-        const auto var_type = Type(builtin_type::void_t);
-        t = new AstNode(var_type,"void");
+        return_type_literal = "void";
+        return_type = Type(builtin_type::void_t);
     }
-*/
 
+    // type specified
+    else
+    {
+        return_type = get_type(return_type_literal);
+    }
 
     // what is the name of our function?
     const auto func_name = next_token();

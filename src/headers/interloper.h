@@ -45,6 +45,7 @@ private:
     void compile_block(Function &func, AstNode *node);
     Type compile_expression(Function &func,AstNode *node);
     Type compile_arith_op(Function &func, AstNode *node, op_type type);
+    Type compile_function_call(Function &func,AstNode *node);
 
     void emit_asm();
 
@@ -70,6 +71,8 @@ private:
     AstNode *root = nullptr;
 
     std::unordered_map<std::string, Function> function_table;
+    // did the last compiled function have a return
+    bool has_return;
 
     SymbolTable symbol_table;
 };

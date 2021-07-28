@@ -1,0 +1,14 @@
+
+// expected 0
+
+// should not need a return
+func void_func()
+{
+
+}
+
+func s32 main()
+{
+    void_func();
+    return 0;
+}

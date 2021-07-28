@@ -1,0 +1,12 @@
+
+// expected compile error
+
+func void_return()
+{
+
+}
+
+func s32 main()
+{
+    return void_return();
+}

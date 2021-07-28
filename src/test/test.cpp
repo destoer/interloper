@@ -28,6 +28,9 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/func.itl",7,false},
     {"tests/no_main.itl",-1,true},
     {"tests/invalid_args.itl",-1,true},
+    {"tests/void_assign.itl",-1,true},
+    {"tests/void_return.itl",0,false},
+    {"tests/void_no_return.itl",0,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
