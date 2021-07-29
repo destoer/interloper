@@ -102,6 +102,30 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
+            case op_type::or_reg:
+            {
+                regs[opcode.v1] = regs[opcode.v2] | regs[opcode.v3];
+                break;
+            }
+
+            case op_type::and_reg:
+            {
+                regs[opcode.v1] = regs[opcode.v2] & regs[opcode.v3];
+                break;
+            }
+
+            case op_type::xor_reg:
+            {
+                regs[opcode.v1] = regs[opcode.v2] ^ regs[opcode.v3];
+                break;
+            }
+
+            case op_type::not_reg:
+            {
+                regs[opcode.v1] = ~regs[opcode.v1];
+                break;
+            }
+
             case op_type::div_reg:
             {
                 if(regs[opcode.v3] == 0)

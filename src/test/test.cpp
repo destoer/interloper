@@ -31,6 +31,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/void_assign.itl",-1,true},
     {"tests/void_return.itl",0,false},
     {"tests/void_no_return.itl",0,false},
+    {"tests/bitwise.itl",-713,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

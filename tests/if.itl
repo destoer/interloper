@@ -1,0 +1,25 @@
+
+// expected 90112
+
+func s32 test(s32 x)
+{
+    if(x < 0)
+    {
+        return 0x8000;
+    }
+
+    else if(x == 0)
+    {
+        return 0x5000;
+    }
+
+    else
+    {
+        return 0x1000;
+    }
+}
+
+func s32 main()
+{
+    return test(0) + test(1) + test(-1) + test(-5000);
+}

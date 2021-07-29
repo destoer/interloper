@@ -78,6 +78,21 @@ AstNode *Parser::led(Token &t,AstNode *left)
             return new AstNode(left,expression(lbp(t)),ast_type::times);
         }
 
+        case token_type::bitwise_and:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::bitwise_and);
+        }
+
+        case token_type::bitwise_or:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::bitwise_or);
+        }
+
+        case token_type::bitwise_xor:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::bitwise_xor);
+        }
+
         default:
         {
             panic(t,"led: unexpected token %s\n",tok_name(t.type));
@@ -187,6 +202,11 @@ AstNode *Parser::nud(Token &t)
         case token_type::plus:
         {
             return new AstNode(expression(100),nullptr,ast_type::plus);
+        }
+
+        case token_type::bitwise_not:
+        {
+            return new AstNode(expression(100),nullptr,ast_type::bitwise_not);
         }
 
         case token_type::left_paren:

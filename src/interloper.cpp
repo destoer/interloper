@@ -305,6 +305,32 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             return compile_arith_op(func,node,op_type::div_reg);       
         }
 
+        case ast_type::bitwise_and:
+        {
+            return compile_arith_op(func,node,op_type::and_reg);
+        }
+
+        case ast_type::bitwise_or:
+        {
+            return compile_arith_op(func,node,op_type::or_reg);
+        }
+
+        case ast_type::bitwise_xor:
+        {
+            return compile_arith_op(func,node,op_type::xor_reg);
+        }
+
+        case ast_type::bitwise_not:
+        {
+            const auto t = compile_expression(func,node->nodes[0]);
+
+            // TODO: do we need to check this is integer?
+
+
+            func.emitter.emit(op_type::not_reg,reg(func.emitter.reg_count));
+            return t;
+        }    
+
         case ast_type::function_call:
         {
             return compile_function_call(func,node);
@@ -539,7 +565,9 @@ void Interloper::compile_functions()
 
 // plan:
 // implement bitwise operators -> boolean + logical -> if statements
-// for loops -> pointers -> structs -> arrays
+// for loops -> pointers -> structs -> arrays -> strings -> imports
+// -> early stl -> function_pointers -> labels ->  compile time execution ->
+// unions -> inline asm
 
 void Interloper::compile(const std::vector<std::string> &lines)
 {

@@ -36,6 +36,11 @@ enum class token_type
     minus,
     divide,
 
+    bitwise_and,
+    bitwise_or,
+    bitwise_not,
+    bitwise_xor,    
+
     error,
 
     eof,
@@ -93,6 +98,12 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::plus,"+",12},
     {token_type::minus,"-",12},
     {token_type::divide,"/",13},
+
+    {token_type::bitwise_and,"&",11},
+    {token_type::bitwise_or,"|",10},
+    {token_type::bitwise_not,"~",-1}, // unary
+    {token_type::bitwise_xor,"^",9},
+
 
     {token_type::error,"error",-1},
 

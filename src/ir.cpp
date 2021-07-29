@@ -9,6 +9,11 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"mul",3},
     {op_group::reg_t,"div",3},
 
+    {op_group::reg_t,"xor",3},
+    {op_group::reg_t,"or",3},
+    {op_group::reg_t,"and",3},
+    {op_group::reg_t,"not",1},
+
     {op_group::reg_t,"sxb",2},
     {op_group::reg_t,"sxh",2},
 
@@ -353,7 +358,7 @@ void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, con
 
                 case 2:
                 {
-                    printf("%s %s, %d\n",info.name,get_oper(table,opcode.v1).c_str(),opcode.v2);
+                    printf("%s %s, 0x%x\n",info.name,get_oper(table,opcode.v1).c_str(),opcode.v2);
                     break;
                 }
 

@@ -29,6 +29,10 @@ enum class ast_type
     minus,
     divide,
 
+    bitwise_or,
+    bitwise_not,
+    bitwise_and,
+    bitwise_xor,
 
     END
 };
@@ -61,6 +65,11 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "+",
     "-",
     "/",
+
+    "|",
+    "~",
+    "&",
+    "^",
 
     // should not be used...
     "END"

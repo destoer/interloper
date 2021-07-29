@@ -32,6 +32,11 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '-': insert_token(tokens,token_type::minus); break;
 
+            case '&': insert_token(tokens,token_type::bitwise_and); break;
+            case '|': insert_token(tokens,token_type::bitwise_or); break;
+            case '~': insert_token(tokens,token_type::bitwise_not); break;
+            case '^': insert_token(tokens,token_type::bitwise_xor); break;
+
             case '/': 
             {
                 const char next = (column+1) < size? line[column+1] : '0';
