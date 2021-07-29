@@ -40,6 +40,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::implicit_t,"ret",0},
 
     {op_group::imm_t,"swi",1},
+
+    // directives
+    {op_group::imm_t,"free_slot",1},
 };
 
 void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
@@ -74,12 +77,11 @@ void Interloper::allocate_registers(Function &func)
     bool used[MACHINE_REG_SIZE];
 */
 
-/*
-    printf("symbol count: %d\n",symbol_table.sym_count);
+
     printf("byte count: %d\n",func.size_count[0]);
     printf("half count: %d\n",func.size_count[1]);
     printf("word count: %d\n",func.size_count[2]);
-*/
+
 
     /*
         okay we are going to store all byte variables sequentially and algin,
@@ -126,15 +128,27 @@ void Interloper::allocate_registers(Function &func)
     // start at end of half allocation
     stack_alloc[2] = stack_alloc[1] + (func.size_count[1] * 2);
 
-    for(auto it = func.emitter.program.begin(); it != func.emitter.program.end(); ++it)
+    for(auto it = func.emitter.program.begin(); it != func.emitter.program.end();)
     {
         auto &opcode = *it;
 
         // how do we want to handle allocation?
         // when we aernt just storing stuff back and forth?
 
+        // directive reclaim stack space
+        // TODO: account for count when we have arrays
+        if(opcode.op == op_type::free_slot_stack)
+        {
+            const auto &var_alloc = func.slot_lookup[opcode.v1];
+            stack_alloc[var_alloc.size >> 1] -= var_alloc.size;
+
+            // how do we properly erase this?
+            it = func.emitter.program.erase(it);
+            continue;
+        }
+
         // handle variable accesses
-        if(opcode.op == op_type::mov_reg)
+        else if(opcode.op == op_type::mov_reg)
         {
             // swap all mov var, reg
             // with sw reg, [sp,var_offset]
@@ -205,7 +219,7 @@ void Interloper::allocate_registers(Function &func)
 
 
         // add stack cleanup to all ret functions
-        if(opcode.op == op_type::ret)
+        else if(opcode.op == op_type::ret)
         {
             // if there is no stack allocation there is nothing to clean up
             if(stack_size)
@@ -214,6 +228,8 @@ void Interloper::allocate_registers(Function &func)
             }
         }
 
+        // use continue to skip this statement when we have to delete from the list
+        ++it;
     }
 
 
@@ -257,13 +273,13 @@ void Interloper::emit_asm()
     }
 
     // program dump
-/*
+
     for(u32 pc = 0; pc < program.size(); pc++)
     {
         printf("0x%08x: ",pc * OP_SIZE);
         disass_opcode_raw(program[pc]);
     }
-*/
+
 }
 
 

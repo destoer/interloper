@@ -208,27 +208,39 @@ struct Function
 
     // TODO: remove the need to pass a type by emitting dedicated 
     // mov signed instrs
-    void add_var(const std::string &name,const Type &type, u32 size)
+    u32 add_var(const std::string &name,const Type &type, u32 size)
     {
         // we only want to move quantitys under 4 bytes
         // larger thigns i.e structs
         // will allready have memory semantics
         assert(size <= 4);
 
+        const auto slot = slot_lookup.size();
+
         // shift by 1 to turn 1, 2, 4 
         // into and idx 
-        size_count[size >> 1] += 1;
+        size_count_cur[size >> 1] += 1;
 
         const bool sign = is_builtin(type.type_idx) && 
             is_signed_integer(static_cast<builtin_type>(type.type_idx));
 
         slot_lookup.push_back(VarAlloc(size,name,sign));
+
+        return slot;
     }
 
     // allocation on stack is callee handled
     // so dont add to size count
-    void add_arg(const std::string &name,const Type &type, u32 size)
+    u32 add_arg(const std::string &name,const Type &type, u32 size)
     {
+
+        // we only want to move quantitys under 4 bytes
+        // larger thigns i.e structs
+        // will allready have memory semantics
+        assert(size <= 4);
+
+        const auto slot = slot_lookup.size();
+
         const bool sign = is_builtin(type.type_idx) && 
             is_signed_integer(static_cast<builtin_type>(type.type_idx));
 
@@ -240,7 +252,9 @@ struct Function
         alloc.offset = arg_offset;
         arg_offset += sizeof(u32);
 
-        slot_lookup.push_back(alloc);        
+        slot_lookup.push_back(alloc); 
+
+        return slot;       
     }
 
     void dump_ir(const std::vector<std::string> &label_lookup)
@@ -264,8 +278,13 @@ struct Function
     // get the back the symbol name from an allocated IR slot
     std::vector<VarAlloc> slot_lookup;
 
+
     // how many vars of each size have we got
+    // this is the max count
     u32 size_count[3] = {0};
+
+    // current size count
+    u32 size_count_cur[3] = {0};
 
     u32 arg_offset = 0;
 
@@ -302,15 +321,17 @@ struct SymbolTable
         return std::nullopt;
     }
 
-    void add_symbol(Symbol &symbol)
+    void add_symbol(Symbol &symbol, u32 slot)
     {
-        symbol.slot = sym_count++;
+        symbol.slot = slot;
         table[table.size()-1][symbol.name] = symbol;
+        sym_count++;
     }
 
-    void add_symbol(const std::string &name, const Type &type)
+    void add_symbol(const std::string &name, const Type &type, u32 slot)
     {
-        table[table.size()-1][name] = Symbol(name,type,sym_count++);
+        table[table.size()-1][name] = Symbol(name,type,slot);
+        sym_count++;
     }
 
     void add_label(const std::string &label)

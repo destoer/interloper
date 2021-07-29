@@ -349,9 +349,6 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
 
 
-// TODO: reclaim stack space when scope drops
-// emit directives when scope drops out 
-// need to figure out how to get this not break with optimisation passes
 
 // TODO: fold sucessive adds for stack reclaims
 // i.e 
@@ -394,7 +391,7 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 const auto name = line.literal;
                 const auto ltype = line.nodes[0]->variable_type;
 
-                const auto slot = symbol_table.sym_count;
+                //const auto slot = symbol_table.sym_count;
 
 
                 if(symbol_table.get_sym(name))
@@ -405,15 +402,17 @@ void Interloper::compile_block(Function &func,AstNode *node)
 
                 const auto size = type_size(ltype);
 
+                // add allocation information
+                const auto slot = func.add_var(name,ltype,size);
+
                 // add new symbol table entry
-                symbol_table.add_symbol(name,ltype);
+                symbol_table.add_symbol(name,ltype,slot);
 
                 // TODO: we cant have a arg when a var is just declared
                 // this is probably not needed
                 const auto &sym = symbol_table.get_sym(name).value();
 
-                // add allocation information
-                func.add_var(name,ltype,size);
+
 
 
                 // handle right side expression (if present)
@@ -493,6 +492,26 @@ void Interloper::compile_block(Function &func,AstNode *node)
         }
     }
 
+
+    // std::max the sizes this is what we need to allocate
+    for(int i = 0; i < 3; i++)
+    {
+        func.size_count[i] = std::max(func.size_count[i],func.size_count_cur[i]);
+    }
+
+    // scope is about to be destroyed reclaim the stack for every var that is no longer used
+    for(const auto &[key, sym] : symbol_table.table[symbol_table.table.size()-1])
+    {
+        if(!sym.is_arg)
+        {
+            func.emitter.emit(op_type::free_slot_stack,sym.slot);
+
+            // free the stack alloc for each var thats about to go out of scope
+            const auto &var_alloc = func.slot_lookup[sym.slot];
+            func.size_count_cur[var_alloc.size >> 1]--;
+        }
+    }
+
     symbol_table.destroy_scope();
 }
 
@@ -518,11 +537,12 @@ void Interloper::compile_functions()
         for(auto &sym: func.args)
         {
             const auto size = type_size(sym.type);
-            symbol_table.add_symbol(sym);
 
             // this has to be parsed in forward order or all the offsets
             // will be messed up
-            func.add_arg(sym.name,sym.type,size);
+            const auto slot = func.add_arg(sym.name,sym.type,size);
+
+            symbol_table.add_symbol(sym,slot);
         }
 
 

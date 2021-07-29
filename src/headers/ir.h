@@ -40,10 +40,13 @@ enum class op_type
     call,
     ret,
 
-    swi
+    swi,
+
+    // DIRECTIVES
+    free_slot_stack
 };
 
-static constexpr uint32_t OPCODE_SIZE = 27;
+static constexpr uint32_t OPCODE_SIZE = 28;
 
 
 // what kind of opcode is this?

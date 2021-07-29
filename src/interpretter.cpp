@@ -273,6 +273,13 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
+            // directives should not be hit at runtime..
+            case op_type::free_slot_stack:
+            {
+                printf("free_slot derective not removed!?");
+                exit(1);
+            }
+
         }
     }
 
