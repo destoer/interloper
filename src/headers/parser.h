@@ -34,6 +34,21 @@ enum class ast_type
     bitwise_and,
     bitwise_xor,
 
+    logical_or,
+    logical_not,
+    logical_and,
+
+    logical_eq,
+    logical_ne,
+
+    logical_lt,
+    logical_gt,
+    logical_le,
+    logical_ge,
+
+    false_t,
+    true_t,
+
     END
 };
 
@@ -70,6 +85,21 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "~",
     "&",
     "^",
+
+    "||",
+    "!",
+    "&&",
+
+   "==",
+   "!=",
+
+    "<",
+    ">",
+    "<=",
+    ">=",
+
+    "false",
+    "true",
 
     // should not be used...
     "END"

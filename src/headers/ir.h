@@ -42,11 +42,18 @@ enum class op_type
 
     swi,
 
+    cmplt,
+    cmple,
+    cmpgt,
+    cmpge,
+    cmpeq,
+    cmpne,
+
     // DIRECTIVES
     free_slot_stack
 };
 
-static constexpr uint32_t OPCODE_SIZE = 28;
+static constexpr uint32_t OPCODE_SIZE = 34;
 
 
 // what kind of opcode is this?

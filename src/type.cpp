@@ -10,7 +10,9 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 
     {builtin_type::s8_t, true, true, 1, static_cast<u32>(-(0xff / 2)), (0xff / 2)},
     {builtin_type::s16_t, true, true ,2,  static_cast<u32>(-(0xffff / 2)), (0xffff / 2)},
-    {builtin_type::s32_t, true, true ,4,  static_cast<u32>(-(0xffff / 2)), (0xffffffff / 2)},
+    {builtin_type::s32_t, true, true ,4,  static_cast<u32>(-(0xffffffff / 2)), (0xffffffff / 2)},
+
+    {builtin_type::bool_t, false, false ,1,  0, 1},
 };
 
 // this needs to have more added when we get extra fields
@@ -53,11 +55,6 @@ std::string Interloper::type_name(const Type &type)
 // TODO: do we want to pass the operation in here for when we support overloading?
 Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
 {
-    if(same_type(ltype,rtype))
-    {
-        return ltype;
-    }
-
     // builtin type
     if(is_builtin(rtype.type_idx) && is_builtin(ltype.type_idx))
     {
@@ -87,6 +84,43 @@ Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
         exit(1);        
     }
 }
+
+void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
+{
+    // both are builtin
+    if(is_builtin(rtype.type_idx) && is_builtin(ltype.type_idx))
+    {
+        const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
+        const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
+
+        // both integers 
+        if(is_integer(builtin_l) && is_integer(builtin_r))
+        {
+    
+        }
+
+        // both bool
+        else if(builtin_r == builtin_type::bool_t && builtin_l == builtin_type::bool_t)
+        {
+            
+        }
+
+        // something else
+        else
+        {
+            panic("logical operation undefined for %s and %s\n",type_name(ltype),type_name(rtype));
+        }
+    }
+
+    // one or more type is user defined
+    // here probably the only valid thing is both are the same
+    else
+    {
+        printf("unimplmented: check assign user defined type!\n");
+        exit(1);
+    }   
+}
+
 
 void Interloper::check_assign(const Type &ltype, const Type &rtype)
 {

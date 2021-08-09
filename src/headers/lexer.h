@@ -54,6 +54,10 @@ private:
         {tok_name(token_type::s8),token_type::s8},
         {tok_name(token_type::s16),token_type::s16},
         {tok_name(token_type::s32),token_type::s32},
+        {tok_name(token_type::bool_t),token_type::bool_t},
+
+        {tok_name(token_type::false_t),token_type::false_t},
+        {tok_name(token_type::true_t),token_type::true_t},
 
         {tok_name(token_type::cast),token_type::cast},
         {tok_name(token_type::func),token_type::func},

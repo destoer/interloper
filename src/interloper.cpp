@@ -86,6 +86,67 @@ Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
     return final_type;        
 }
 
+// handles <, <=, >, >=, &&, ||, ==, !=
+void Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
+{
+    const auto t1 = compile_expression(func,node->nodes[0]);
+    const auto v1 = reg(func.emitter.reg_count);
+    func.emitter.reg_count++; 
+
+    const auto t2 = compile_expression(func,node->nodes[1]);
+    const auto v2 = reg(func.emitter.reg_count);  
+
+
+    // okay now then does a boolean operation make sense for this operator
+    // with these types?
+
+
+    switch(type)
+    {
+        // only bools are valid
+        // || &&
+
+        case op_type::or_reg: case op_type::and_reg:
+        {
+            if(!is_bool(t1) && is_bool(t2))
+            {
+                panic("operations || and && are only defined on bools\n");
+                return;
+            }
+            break;
+        }
+
+        // <, <=, >, >=, ==, !=
+        // valid if the underlying type is the same
+        // and can somehow by interpretted as a integer
+        // i.e pointers, ints, bools
+        case op_type::cmplt: case op_type::cmple: case op_type::cmpgt:
+        case op_type::cmpge: case op_type::cmpeq: case op_type::cmpne:
+        {
+            check_logical_operation(t1,t2);
+            if(error)
+            {
+                return;
+            }
+            break;
+        }
+
+        // this shouldunt happen
+        default: 
+        {
+            printf("%d is not a logical operation\n",static_cast<int>(type));
+            exit(1);
+        }
+    }
+
+
+    // one of these is just a temp for the result calc
+    // so afer this we no longer need it
+    func.emitter.emit(type,v1,v1,v2);
+    func.emitter.reg_count--;
+}
+
+
 
 Type Interloper::compile_function_call(Function &func,AstNode *node)
 {
@@ -367,6 +428,8 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 */
 
 
+// TODO: implement logical operations
+
 void Interloper::compile_block(Function &func,AstNode *node)
 {
     symbol_table.new_scope();
@@ -575,7 +638,7 @@ void Interloper::compile_functions()
             return;
         }
 
-        //func.dump_ir(symbol_table.label_lookup);    
+        func.dump_ir(symbol_table.label_lookup);    
     }
 }
 

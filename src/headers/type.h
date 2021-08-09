@@ -5,7 +5,7 @@
 
 
 // if type idx is >= to this then this is a custom defined type
-static constexpr int BUILTIN_TYPE_SIZE = 7;
+static constexpr int BUILTIN_TYPE_SIZE = 8;
 
 enum class builtin_type
 {
@@ -18,6 +18,8 @@ enum class builtin_type
     s8_t,
     s16_t,
     s32_t,
+
+    bool_t,
 };
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
@@ -31,6 +33,8 @@ static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
     "s8",
     "s16",
     "s32",
+
+    "bool",
 };
 
 struct BuiltinTypeInfo
@@ -142,6 +146,11 @@ struct Type
     // type specifiers here i.e const
 
 };
+
+inline bool is_bool(const Type &t1)
+{
+    return is_builtin(static_cast<int>(t1.type_idx)) && conv_type_idx(t1.type_idx) == builtin_type::bool_t;
+}
 
 
 

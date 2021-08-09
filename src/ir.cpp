@@ -41,6 +41,13 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::imm_t,"swi",1},
 
+    {op_group::reg_t,"cmplt",3},
+    {op_group::reg_t,"cmple",3},
+    {op_group::reg_t,"cmpgt",3},
+    {op_group::reg_t,"cmpge",3},
+    {op_group::reg_t,"cmpeq",3},
+    {op_group::reg_t,"cmpne",3},
+
     // directives
     {op_group::imm_t,"free_slot",1},
 };

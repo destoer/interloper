@@ -106,6 +106,11 @@ Type Parser::get_type(std::string &type_literal)
             return Type(builtin_type::s32_t);
         }
 
+        case token_type::bool_t:
+        {
+            type_literal = "bool";
+            return Type(builtin_type::bool_t);
+        }
         
 
         case token_type::symbol:
@@ -194,6 +199,7 @@ AstNode *Parser::statement()
         case token_type::s8:
         case token_type::s16:
         case token_type::s32:
+        case token_type::bool_t:
         {
             prev_token();
             std::string type_literal;

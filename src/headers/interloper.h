@@ -45,6 +45,7 @@ private:
     void compile_block(Function &func, AstNode *node);
     Type compile_expression(Function &func,AstNode *node);
     Type compile_arith_op(Function &func, AstNode *node, op_type type);
+    void compile_logical_op(Function &func,AstNode *node, op_type type);
     Type compile_function_call(Function &func,AstNode *node);
 
     void emit_asm();
@@ -61,6 +62,7 @@ private:
     std::string type_name(const Type &type);
     void check_assign(const Type &ltype, const Type &rtype);
     Type effective_arith_type(const Type &ltype, const Type &rtype);
+    void check_logical_operation(const Type &ltype, const Type &rtype);
     void handle_cast(IrEmitter &emitter, const Type &old_type, const Type &new_type);
     u32 type_size(const Type &type);
 

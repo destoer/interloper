@@ -253,6 +253,42 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
+            case op_type::cmplt:
+            {
+                regs[opcode.v1] = regs[opcode.v2] < regs[opcode.v3];
+                break;
+            }
+
+            case op_type::cmple:
+            {
+                regs[opcode.v1] = regs[opcode.v2] <= regs[opcode.v3];
+                break;
+            }
+
+            case op_type::cmpgt:
+            {
+                regs[opcode.v1] = regs[opcode.v2] > regs[opcode.v3];
+                break;
+            }
+
+            case op_type::cmpge:
+            {
+                regs[opcode.v1] = regs[opcode.v2] >= regs[opcode.v3];
+                break;
+            }
+
+            case op_type::cmpeq:
+            {
+                regs[opcode.v1] = regs[opcode.v2] == regs[opcode.v3];
+                break;
+            }
+
+            case op_type::cmpne:
+            {
+                regs[opcode.v1] = regs[opcode.v2] != regs[opcode.v3];
+                break;
+            }
+
             // system call
             case op_type::swi:
             {

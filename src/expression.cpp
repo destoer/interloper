@@ -93,6 +93,48 @@ AstNode *Parser::led(Token &t,AstNode *left)
             return new AstNode(left,expression(lbp(t)),ast_type::bitwise_xor);
         }
 
+        case token_type::logical_or:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_or);
+        }
+    
+        case token_type::logical_and:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_and);
+        }
+
+
+        case token_type::logical_lt:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_lt);
+        }
+
+        case token_type::logical_gt:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_gt);
+        }   
+
+        case token_type::logical_le:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_le);
+        }   
+
+        case token_type::logical_ge:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_ge);
+        }   
+
+        case token_type::logical_eq:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_eq);
+        }    
+
+        case token_type::logical_ne:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::logical_ne);
+        }         
+
+
         default:
         {
             panic(t,"led: unexpected token %s\n",tok_name(t.type));
@@ -142,6 +184,16 @@ AstNode *Parser::nud(Token &t)
         {
             return new AstNode(nullptr,nullptr,convert_imm(t.literal),t.literal);
         }
+
+        case token_type::false_t:
+        {
+            return new AstNode(nullptr,nullptr,ast_type::false_t,t.literal);
+        }      
+
+        case token_type::true_t:
+        {
+            return new AstNode(nullptr,nullptr,ast_type::true_t,t.literal);
+        }      
 
         case token_type::symbol:
         {
@@ -208,6 +260,12 @@ AstNode *Parser::nud(Token &t)
         {
             return new AstNode(expression(100),nullptr,ast_type::bitwise_not);
         }
+
+        case token_type::logical_not:
+        {
+            return new AstNode(expression(100),nullptr,ast_type::logical_not);
+        }
+
 
         case token_type::left_paren:
         {

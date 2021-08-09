@@ -1,0 +1,54 @@
+
+// expected one
+
+func bool is_positive(s32 x)
+{
+    return !(x < 0);
+}
+
+func bool is_eq(s32 x, s32 y)
+{
+    return x == y;
+}
+
+func bool not_eq(s32 x, s32 y)
+{
+    return x != y;
+}
+
+func bool is_gt(s32 x, s32 y)
+{
+    return x > y;
+}
+
+func bool is_lt(s32 x, s32 y)
+{
+    return x < y;
+}
+
+func bool is_le(s32 x, s32 y)
+{
+    return x <= y;
+}
+
+func bool is_ge(s32 x, s32 y)
+{
+    return x >= y;
+}
+
+func s32 main()
+{
+    bool res = is_positive(cast(s32,false)) && !is_positive(-1) && is_eq(5,5) && !is_eq(0,5) 
+        && is_gt(5, 2) && !is_gt(5,10) && is_lt(1,7) && !is_lt(500,15) 
+        && is_le(5,5) && is_le(4,5) && !is_le(6,5) && is_ge(5,5) && is_ge(6,5) &&
+        !is_ge(4,5) && not_eq(5,4) && !not_eq(5,5); 
+
+    // anyything less than one is false
+    // eq to < 1
+    bool or = true || cast(bool,-1);
+
+    res = or && res;
+
+    // false is 0 and 1 is true
+    return cast(s32,res);
+}

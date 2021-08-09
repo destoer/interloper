@@ -22,7 +22,25 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case ',': insert_token(tokens,token_type::comma); break;
 
-            case '=': insert_token(tokens,token_type::equal); break;
+            case '=': 
+            {
+                const char next = (column+1) < size? line[column+1] : '0';
+
+                // equal
+                if(next == '=')
+                {
+                    insert_token(tokens,token_type::logical_eq);
+                    column++;
+                }
+                
+                else
+                {
+                    insert_token(tokens,token_type::equal); 
+                }
+
+                
+                break;
+            }
 
             case ';': insert_token(tokens,token_type::semi_colon); break;
 
@@ -32,10 +50,97 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '-': insert_token(tokens,token_type::minus); break;
 
-            case '&': insert_token(tokens,token_type::bitwise_and); break;
-            case '|': insert_token(tokens,token_type::bitwise_or); break;
+            case '&':
+            {
+                const char next = (column+1) < size? line[column+1] : '0';
+
+                // not equal
+                if(next == '&')
+                {
+                    insert_token(tokens,token_type::logical_and);
+                    column++;
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::bitwise_and);
+                }
+                break;              
+            }
+
+            case '|':
+            {
+                const char next = (column+1) < size? line[column+1] : '0';
+
+                // not equal
+                if(next == '|')
+                {
+                    insert_token(tokens,token_type::logical_or);
+                    column++;
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::bitwise_and);
+                }
+                break;              
+            }
+
             case '~': insert_token(tokens,token_type::bitwise_not); break;
             case '^': insert_token(tokens,token_type::bitwise_xor); break;
+
+            case '!':
+            {
+                const char next = (column+1) < size? line[column+1] : '0';
+
+                // not equal
+                if(next == '=')
+                {
+                    insert_token(tokens,token_type::logical_ne);
+                    column++;
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::logical_not);
+                }
+                break;
+            }
+
+            case '<':
+            {
+                const char next = (column+1) < size? line[column+1] : '0';
+
+                if(next == '=')
+                {
+                    insert_token(tokens,token_type::logical_le);
+                    column++;
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::logical_lt);
+                }
+                break;
+            }
+
+            case '>':
+            {
+                const char next = (column+1) < size? line[column+1] : '0';
+
+                if(next == '=')
+                {
+                    insert_token(tokens,token_type::logical_ge);
+                    column++;
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::logical_gt);
+                }
+                break;
+            }
+
 
             case '/': 
             {

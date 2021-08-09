@@ -6,6 +6,9 @@ enum class token_type
     value,
     symbol, 
     
+    true_t,
+    false_t,
+
     semi_colon,
 
     left_c_brace,
@@ -26,6 +29,8 @@ enum class token_type
     s16,
     s32,
 
+    bool_t,
+
     cast,
 
     func,
@@ -40,6 +45,16 @@ enum class token_type
     bitwise_or,
     bitwise_not,
     bitwise_xor,    
+
+    logical_or,
+    logical_and,
+    logical_not,
+    logical_eq,
+    logical_ne,
+    logical_lt,
+    logical_gt,
+    logical_le,
+    logical_ge,
 
     error,
 
@@ -69,6 +84,9 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::value,"value",0},
     {token_type::symbol,"symbol",0},
 
+    {token_type::true_t,"true",0},
+    {token_type::false_t,"false",0},
+
     {token_type::semi_colon,";",0},
 
     {token_type::left_c_brace,"{",-1},
@@ -89,20 +107,36 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::s16,"s16",-1},
     {token_type::s32,"s32",-1},
 
+    {token_type::bool_t,"bool",-1},
+
     {token_type::cast,"cast",-1},
 
     {token_type::func,"func",-1},
     {token_type::ret,"return",-1},
 
-    {token_type::times,"*",13},
-    {token_type::plus,"+",12},
-    {token_type::minus,"-",12},
-    {token_type::divide,"/",13},
+    {token_type::times,"*",14},
+    {token_type::plus,"+",13},
+    {token_type::minus,"-",13},
+    {token_type::divide,"/",14},
 
-    {token_type::bitwise_and,"&",11},
-    {token_type::bitwise_or,"|",10},
+    {token_type::bitwise_and,"&",10},
+    {token_type::bitwise_or,"|",9},
     {token_type::bitwise_not,"~",-1}, // unary
-    {token_type::bitwise_xor,"^",9},
+    {token_type::bitwise_xor,"^",8},
+
+    {token_type::logical_or,"||",6},
+    {token_type::logical_and,"&&",5},
+    {token_type::logical_not,"!",7},
+
+    {token_type::logical_eq,"==",11},
+    {token_type::logical_ne,"!=",11},
+
+    {token_type::logical_lt,"<",12},
+    {token_type::logical_gt,">",12},
+    {token_type::logical_le,"<=",12},
+    {token_type::logical_ge,">=",12},
+
+
 
 
     {token_type::error,"error",-1},
