@@ -23,6 +23,7 @@ enum class op_type
     sub_imm,
 
     and_imm,
+    xor_imm,
 
     lb,
     lh,
@@ -36,24 +37,35 @@ enum class op_type
     sw,
 
     push,
+    pop,
 
     call,
     ret,
 
     swi,
 
-    cmplt,
-    cmple,
-    cmpgt,
-    cmpge,
-    cmpeq,
-    cmpne,
+    cmpgt_imm,
+
+    cmplt_reg,
+    cmple_reg,
+    cmpgt_reg,
+    cmpge_reg,
+    cmpeq_reg,
+    cmpne_reg,
 
     // DIRECTIVES
-    free_slot_stack
+    free_slot_stack,
+
+    // give a function call arg
+    // how it will be passed will be decided in reg alloc
+    push_arg,
+
+    // perform cleanup after a function call
+    // free the stack space for args
+    clean_args,
 };
 
-static constexpr uint32_t OPCODE_SIZE = 34;
+static constexpr uint32_t OPCODE_SIZE = 39;
 
 
 // what kind of opcode is this?
@@ -141,13 +153,13 @@ inline bool is_reg(uint32_t r)
 // for now hardcode this to the limits of our vm
 // we will move this into a struct as part of a config
 // when we actually want to define some targets
-static constexpr uint32_t MACHINE_REG_SIZE = 14;
+static constexpr uint32_t MACHINE_REG_SIZE = 4;
 
-static constexpr uint32_t RETURN_REGISTER = 0;
+static constexpr uint32_t SP = MACHINE_REG_SIZE;
+static constexpr uint32_t PC = MACHINE_REG_SIZE + 1;
 
-
-static constexpr uint32_t SP = 14;
-static constexpr uint32_t PC = 15;
+// so we the "first" register reserved for returns
+static constexpr uint32_t RV = 0;
 
 static constexpr uint32_t OP_SIZE = sizeof(Opcode);
 

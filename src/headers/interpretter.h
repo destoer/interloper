@@ -20,10 +20,8 @@ struct Interpretter final
     const uint8_t *program = nullptr;
     uint32_t size = 0;
 
-    // is an extra pass to recompile the registers
-    // so pc and sp are 14 & 15 
-    // and to jam the immediates worthwhile or should we just leave it?
-    uint32_t regs[16];
+    //pc and sp are after the standard regs
+    uint32_t regs[MACHINE_REG_SIZE + 2];
 
     // 16MB stack
     std::vector<uint8_t> stack;

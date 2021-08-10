@@ -87,7 +87,7 @@ Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 }
 
 // handles <, <=, >, >=, &&, ||, ==, !=
-void Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
+Type Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
 {
     const auto t1 = compile_expression(func,node->nodes[0]);
     const auto v1 = reg(func.emitter.reg_count);
@@ -111,7 +111,6 @@ void Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
             if(!is_bool(t1) && is_bool(t2))
             {
                 panic("operations || and && are only defined on bools\n");
-                return;
             }
             break;
         }
@@ -120,14 +119,10 @@ void Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
         // valid if the underlying type is the same
         // and can somehow by interpretted as a integer
         // i.e pointers, ints, bools
-        case op_type::cmplt: case op_type::cmple: case op_type::cmpgt:
-        case op_type::cmpge: case op_type::cmpeq: case op_type::cmpne:
+        case op_type::cmplt_reg: case op_type::cmple_reg: case op_type::cmpgt_reg:
+        case op_type::cmpge_reg: case op_type::cmpeq_reg: case op_type::cmpne_reg:
         {
             check_logical_operation(t1,t2);
-            if(error)
-            {
-                return;
-            }
             break;
         }
 
@@ -139,11 +134,21 @@ void Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
         }
     }
 
+    if(!error)
+    {
+        // one of these is just a temp for the result calc
+        // so afer this we no longer need it
+        func.emitter.emit(type,v1,v1,v2);
+        func.emitter.reg_count--;
 
-    // one of these is just a temp for the result calc
-    // so afer this we no longer need it
-    func.emitter.emit(type,v1,v1,v2);
-    func.emitter.reg_count--;
+        return Type(builtin_type::bool_t);
+    }
+
+    // operation is not valid for given types..
+    else
+    {
+        return Type(builtin_type::void_t);
+    }
 }
 
 
@@ -166,10 +171,6 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
         return Type(builtin_type::void_t);
     }
 
-    // TODO: do we want a pseudo op for adding args
-    // so we can pick later if we want it on the stack
-    // or in a reg
-
     // push args in reverse order and type check them
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
     {
@@ -187,34 +188,52 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
         // type check the arg
         check_assign(func_call.args[i].type,arg_type);
 
-        // "push" the args by storing them into the stack below the current pointer
-        // this is to make sure the stack does not get messed with while we are pushing args
-        
-        // TODO: we need to swap this operation for one that cleary shows its moving args
-        // when we want to dump the first set of args into regs
-        // and also make it clear we are starting to insert args so we can correct var access for stack pushes (during reg alloc)
-        // and avoid having the emit an extra stack oper
-        func.emitter.emit(op_type::sw,reg(func.emitter.reg_count),SP,(i - func_call.args.size()) * sizeof(u32));
+        // finally push the arg
+        func.emitter.emit(op_type::push_arg,reg(func.emitter.reg_count));
     }
 
-    // we have moved the params into the stack now drop the pointer
-    if(func_call.args.size())
+
+
+
+    // TODO: this needs to be redone properly when we try implement a register allocator
+
+
+    // START HERE: save callee regs with directives
+
+/*
+    // callee save regs in use
+    // return register zero is reserved dont push it
+    for(u32 i = 1; i < func.emitter.reg_count; i++)
     {
-        func.emitter.emit(op_type::sub_imm,SP,SP,sizeof(u32) * func_call.args.size());
+        func.emitter.emit(op_type::push, reg(i));
     }
+*/
 
     // emit call to label slot
     // the actual address will have to resolved as the last compile step
     // once we know the size of all the code
     func.emitter.emit(op_type::call,func_call.slot);
 
-    // and the stack cleanup if we pass any args
-    if(func_call.args.size())
+/*
+    // restore callee saved values
+    for(int i = func.emitter.reg_count - 1; i >= 1; i--)
     {
-        func.emitter.emit(op_type::add_imm,SP,SP,sizeof(u32) * func_call.args.size());
+        func.emitter.emit(op_type::pop, reg(i));
     }
-    
-    
+*/
+
+
+    // clean up args after the function call
+    // TODO: how should we encode this when we do arg passing in regs
+    func.emitter.emit(op_type::clean_args,func_call.args.size());
+
+  
+    // if function returns a value save the return register
+    if(func.return_type.type_idx != static_cast<int>(builtin_type::void_t))
+    {
+        func.emitter.emit(op_type::mov_reg,reg(func.emitter.reg_count),reg(RV));
+    }
+
     // result of expr is the return type
     return func_call.return_type;    
 }
@@ -289,6 +308,18 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             {
                 return Type(builtin_type::u32_t);
             }
+        }
+
+        case ast_type::false_t:
+        {
+            func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),0);
+            return Type(builtin_type::bool_t);
+        }
+
+        case ast_type::true_t:
+        {
+            func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),1);
+            return Type(builtin_type::bool_t);
         }
 
         case ast_type::symbol:
@@ -392,6 +423,61 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             return t;
         }    
 
+        case ast_type::logical_not:
+        {
+            const auto t = compile_expression(func,node->nodes[0]);
+
+            if(!is_bool(t))
+            {
+                panic("compile: logical_not expected bool got: %s\n",type_name(t).c_str());
+                return Type(builtin_type::void_t);
+            }
+
+            // xor can invert our boolean which is either 1 or 0
+            func.emitter.emit(op_type::xor_imm,reg(func.emitter.reg_count),reg(func.emitter.reg_count),1);
+            return t;
+        }
+
+        case ast_type::logical_lt:
+        {
+            return compile_logical_op(func,node,op_type::cmplt_reg);
+        }
+
+        case ast_type::logical_le:
+        {
+            return compile_logical_op(func,node,op_type::cmple_reg);
+        }
+
+        case ast_type::logical_gt:
+        {
+            return compile_logical_op(func,node,op_type::cmpgt_reg);
+        }
+
+        case ast_type::logical_ge:
+        {
+            return compile_logical_op(func,node,op_type::cmpge_reg);
+        }
+
+        case ast_type::logical_eq:
+        {
+            return compile_logical_op(func,node,op_type::cmpeq_reg);
+        }
+
+        case ast_type::logical_ne:
+        {
+            return compile_logical_op(func,node,op_type::cmpne_reg);
+        }
+
+        case ast_type::logical_and:
+        {
+            return compile_logical_op(func,node,op_type::and_reg);
+        }
+
+        case ast_type::logical_or:
+        {
+            return compile_logical_op(func,node,op_type::or_reg);
+        }
+
         case ast_type::function_call:
         {
             return compile_function_call(func,node);
@@ -443,7 +529,8 @@ void Interloper::compile_block(Function &func,AstNode *node)
 
         const auto &line = *l;
 
-        func.emitter.reg_count = 0;
+        // first register reserved for return value
+        func.emitter.reg_count = 1;
 
         switch(line.type)
         {
@@ -527,7 +614,8 @@ void Interloper::compile_block(Function &func,AstNode *node)
 
                     check_assign(func.return_type,rtype);
 
-                    //func.emitter.emit(op_type::mov_reg,reg(RETURN_REGISTER),reg(func.emitter.reg_count));
+                    // TODO: we are gonna require this when we have a register allocator
+                    func.emitter.emit(op_type::mov_reg,reg(RV),reg(func.emitter.reg_count));
                 }
                 
                 has_return = true;

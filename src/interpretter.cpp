@@ -39,6 +39,8 @@ void Interpretter::write_mem(u32 addr, access_type v)
 
 s32 Interpretter::run(const u8 *program, u32 size)
 {
+    puts("startring progam execution\n\n\n");
+
     this->program = program;
     this->size = size;
 
@@ -176,6 +178,12 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
+            case op_type::xor_imm:
+            {
+                regs[opcode.v1] = regs[opcode.v2] ^ opcode.v3;
+                break;
+            }
+
             case op_type::lb:
             {
                 regs[opcode.v1] = read_mem<u8>(regs[opcode.v2]+opcode.v3);
@@ -232,6 +240,13 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;               
             }
 
+            case op_type::pop:
+            {
+                regs[opcode.v1] = read_mem<u32>(regs[SP]);
+                regs[SP] += sizeof(u32);
+                break;
+            }
+
 
             case op_type::call:
             {
@@ -253,37 +268,43 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
-            case op_type::cmplt:
+            case op_type::cmpgt_imm:
+            {
+                regs[opcode.v1] = regs[opcode.v2] > opcode.v3;
+                break;                
+            }
+
+            case op_type::cmplt_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] < regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmple:
+            case op_type::cmple_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] <= regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmpgt:
+            case op_type::cmpgt_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] > regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmpge:
+            case op_type::cmpge_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] >= regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmpeq:
+            case op_type::cmpeq_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] == regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmpne:
+            case op_type::cmpne_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] != regs[opcode.v3];
                 break;
@@ -310,9 +331,11 @@ s32 Interpretter::run(const u8 *program, u32 size)
             }
 
             // directives should not be hit at runtime..
+            case op_type::push_arg:
+            case op_type::clean_args:
             case op_type::free_slot_stack:
             {
-                printf("free_slot derective not removed!?");
+                puts("directive not removed!?");
                 exit(1);
             }
 

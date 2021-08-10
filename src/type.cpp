@@ -108,7 +108,7 @@ void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
         // something else
         else
         {
-            panic("logical operation undefined for %s and %s\n",type_name(ltype),type_name(rtype));
+            panic("logical operation undefined for %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
         }
     }
 
@@ -254,9 +254,23 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
 
         }
 
+        // bool to integer
+        else if(builtin_old == builtin_type::bool_t && is_integer(builtin_new))
+        {
+            // do nothing 0 and 1 are fine as integers
+            // we do want this to require a cast though so conversions have to be explicit
+        } 
+
+        // integer to bool
+        // if integer is > 0, its true else false
+        else if(is_integer(builtin_old) && builtin_new == builtin_type::bool_t)
+        {
+            emitter.emit(op_type::cmpgt_imm,reg(emitter.reg_count),0);
+        }        
+
         else
         {
-            printf("unimplmented: handle cast non integer type!\n");
+            printf("unimplmented: handle cast builtin illegal %s -> %s\n",type_name(old_type).c_str(),type_name(new_type).c_str());
             exit(1);
         }
     }
