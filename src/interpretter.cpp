@@ -334,6 +334,8 @@ s32 Interpretter::run(const u8 *program, u32 size)
             case op_type::push_arg:
             case op_type::clean_args:
             case op_type::free_slot_stack:
+            case op_type::save_reg:
+            case op_type::restore_reg:
             {
                 puts("directive not removed!?");
                 exit(1);

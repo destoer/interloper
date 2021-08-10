@@ -171,6 +171,18 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
         return Type(builtin_type::void_t);
     }
 
+
+    // TODO: this needs to be redone properly when we try implement a register allocator
+    // TODO: allow saved regs can be used while we are pushing args
+
+    // callee save regs in use
+    // return register zero is reserved dont push it
+    for(u32 i = 1; i < func.emitter.reg_count; i++)
+    {
+        func.emitter.emit(op_type::save_reg, reg(i));
+    }
+
+
     // push args in reverse order and type check them
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
     {
@@ -194,33 +206,10 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
 
 
 
-
-    // TODO: this needs to be redone properly when we try implement a register allocator
-
-
-    // START HERE: save callee regs with directives
-
-/*
-    // callee save regs in use
-    // return register zero is reserved dont push it
-    for(u32 i = 1; i < func.emitter.reg_count; i++)
-    {
-        func.emitter.emit(op_type::push, reg(i));
-    }
-*/
-
     // emit call to label slot
     // the actual address will have to resolved as the last compile step
     // once we know the size of all the code
     func.emitter.emit(op_type::call,func_call.slot);
-
-/*
-    // restore callee saved values
-    for(int i = func.emitter.reg_count - 1; i >= 1; i--)
-    {
-        func.emitter.emit(op_type::pop, reg(i));
-    }
-*/
 
 
     // clean up args after the function call
@@ -228,6 +217,18 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
     func.emitter.emit(op_type::clean_args,func_call.args.size());
 
   
+
+    // restore callee saved values
+    // do in reverse order to the save so it can be implemented as push and pop
+    // has to be done after the arg cleanup
+    for(int i = func.emitter.reg_count - 1; i >= 1; i--)
+    {
+        func.emitter.emit(op_type::restore_reg, reg(i));
+    }
+
+
+
+
     // if function returns a value save the return register
     if(func.return_type.type_idx != static_cast<int>(builtin_type::void_t))
     {

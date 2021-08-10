@@ -54,6 +54,8 @@ enum class op_type
     cmpne_reg,
 
     // DIRECTIVES
+    // varabile on the stack is out of scope
+    // so we can reclaim allocation on the stack
     free_slot_stack,
 
     // give a function call arg
@@ -63,9 +65,13 @@ enum class op_type
     // perform cleanup after a function call
     // free the stack space for args
     clean_args,
+
+    // directives to make sure registers get preserved correctly across calls
+    save_reg,
+    restore_reg,
 };
 
-static constexpr uint32_t OPCODE_SIZE = 39;
+static constexpr uint32_t OPCODE_SIZE = 41;
 
 
 // what kind of opcode is this?

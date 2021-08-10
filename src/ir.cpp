@@ -60,6 +60,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // free the stack space for args
     // restore callee saved registers
     {op_group::imm_t,"clean_args",1},
+
+    {op_group::reg_t,"save_reg",1},
+    {op_group::reg_t,"restore_reg",1},
 };
 
 void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
@@ -159,6 +162,23 @@ void Interloper::allocate_registers(Function &func)
 
         switch(opcode.op)
         {
+
+            case op_type::save_reg:
+            {
+                opcode = Opcode(op_type::push,opcode.v1,0,0);
+                stack_offset += sizeof(u32);
+                break;
+            }
+
+
+            case op_type::restore_reg:
+            {
+                opcode = Opcode(op_type::pop,opcode.v1,0,0);
+                stack_offset -= sizeof(u32);
+                break;
+            }
+
+
 
             case op_type::push_arg:
             {
