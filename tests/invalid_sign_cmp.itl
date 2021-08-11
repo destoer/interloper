@@ -1,0 +1,15 @@
+
+
+
+// expected compile error
+// differing sign
+
+func s32 main()
+{
+    u32 x = 5;
+    s32 y = 4;
+
+    bool res = x > y;
+
+    return cast(s32,res); 
+}

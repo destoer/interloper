@@ -182,7 +182,15 @@ AstNode *Parser::nud(Token &t)
 
         case token_type::value:
         {
-            return new AstNode(nullptr,nullptr,convert_imm(t.literal),t.literal);
+            const u32 v = convert_imm(t.literal); 
+
+            // is this literal a -ve?
+            const bool sign = t.literal[0] == '-';
+
+
+            Value value(v,sign);
+
+            return new AstNode(nullptr,nullptr,value,t.literal);
         }
 
         case token_type::false_t:

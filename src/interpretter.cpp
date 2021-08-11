@@ -268,36 +268,72 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
-            case op_type::cmpgt_imm:
+            // signed compare
+            case op_type::cmpsgt_imm:
+            {
+                regs[opcode.v1] = static_cast<s32>(regs[opcode.v2]) > static_cast<s32>(opcode.v3);
+                break;                
+            }
+
+            case op_type::cmpslt_reg:
+            {
+                regs[opcode.v1] = static_cast<s32>(regs[opcode.v2]) < static_cast<s32>(regs[opcode.v3]);
+                break;
+            }
+
+            case op_type::cmpsle_reg:
+            {
+                regs[opcode.v1] = static_cast<s32>(regs[opcode.v2]) <= static_cast<s32>(regs[opcode.v3]);
+                break;
+            }
+
+            case op_type::cmpsgt_reg:
+            {
+                regs[opcode.v1] = static_cast<s32>(regs[opcode.v2]) > static_cast<s32>(regs[opcode.v3]);
+                break;
+            }
+
+            case op_type::cmpsge_reg:
+            {
+                regs[opcode.v1] = static_cast<s32>(regs[opcode.v2]) >= static_cast<s32>(regs[opcode.v3]);
+                break;
+            }
+
+
+
+            // unsigned compare
+            case op_type::cmpugt_imm:
             {
                 regs[opcode.v1] = regs[opcode.v2] > opcode.v3;
                 break;                
             }
 
-            case op_type::cmplt_reg:
+            case op_type::cmpult_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] < regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmple_reg:
+            case op_type::cmpule_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] <= regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmpgt_reg:
+            case op_type::cmpugt_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] > regs[opcode.v3];
                 break;
             }
 
-            case op_type::cmpge_reg:
+            case op_type::cmpuge_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] >= regs[opcode.v3];
                 break;
             }
 
+
+            // compare equality
             case op_type::cmpeq_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] == regs[opcode.v3];
@@ -336,6 +372,7 @@ s32 Interpretter::run(const u8 *program, u32 size)
             case op_type::free_slot_stack:
             case op_type::save_reg:
             case op_type::restore_reg:
+            case op_type::END:
             {
                 puts("directive not removed!?");
                 exit(1);

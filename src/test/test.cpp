@@ -32,6 +32,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/void_return.itl",0,false},
     {"tests/void_no_return.itl",0,false},
     {"tests/bitwise.itl",-713,false},
+    {"tests/logical.itl",1,false},
+    {"tests/invalid_sign_cmp.itl",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
@@ -71,7 +73,7 @@ void run_tests()
         else if(interloper.error && !test.error)
         {
             printf("Fail %s error does not match %d != %d\n",test.name,test.error,interloper.error);
-            continue;
+            return;
         }
 
 
@@ -81,7 +83,7 @@ void run_tests()
         if(test.expected != r)
         {
             printf("Fail %s return code does not match %d != %d\n",test.name,test.expected,r);
-            continue;
+            return;
         }
 
         printf("Pass: %s\n",test.name);

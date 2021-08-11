@@ -271,8 +271,10 @@ struct Function
         printf("%s:\n",name.c_str());
         for(const auto &opcode : emitter.program)
         {
+            printf("\t");
             disass_opcode_sym(opcode,slot_lookup,label_lookup);
-        }       
+        }
+        printf("\n");       
     }
 
     std::string name;

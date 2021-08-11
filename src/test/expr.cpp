@@ -53,7 +53,7 @@ int32_t sum(AstNode *node)
         {
             case ast_type::value:
             {
-                return static_cast<int32_t>(node->value);
+                return static_cast<int32_t>(node->value.v);
             }
 
             case ast_type::plus:

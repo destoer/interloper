@@ -43,14 +43,24 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::imm_t,"swi",1},
 
-    {op_group::imm_t,"cmpgt",3},
+    // compare unsigned
+    {op_group::imm_t,"cmpugt_imm",3},
+    {op_group::reg_t,"cmpult_reg",3},
+    {op_group::reg_t,"cmpule_reg",3},
+    {op_group::reg_t,"cmpugt_reg",3},
+    {op_group::reg_t,"cmpuge_reg",3},
 
-    {op_group::reg_t,"cmplt",3},
-    {op_group::reg_t,"cmple",3},
-    {op_group::reg_t,"cmpgt",3},
-    {op_group::reg_t,"cmpge",3},
-    {op_group::reg_t,"cmpeq",3},
-    {op_group::reg_t,"cmpne",3},
+
+    // compare signed
+    {op_group::reg_t,"cmpsgt_imm",3},
+    {op_group::reg_t,"cmpslt_reg",3},
+    {op_group::reg_t,"cmpsle_reg",3},
+    {op_group::reg_t,"cmpsgt_reg",3},
+    {op_group::reg_t,"cmpsge_reg",3},
+
+    // dont care about sign for equality
+    {op_group::reg_t,"cmpeq_reg",3},
+    {op_group::reg_t,"cmpne_reg",3},
 
     // directives
     {op_group::imm_t,"free_slot",1},
@@ -63,6 +73,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::reg_t,"save_reg",1},
     {op_group::reg_t,"restore_reg",1},
+
+    // not used
+    {op_group::implicit_t,"END",0},
 };
 
 void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
@@ -342,14 +355,14 @@ void Interloper::emit_asm()
     }
 
     // program dump
-
+/*
     puts("raw program dump\n\n\n");
     for(u32 pc = 0; pc < program.size(); pc++)
     {
         printf("0x%08x: ",pc * OP_SIZE);
         disass_opcode_raw(program[pc]);
     }
-
+*/
 }
 
 

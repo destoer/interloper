@@ -96,7 +96,10 @@ void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
         // both integers 
         if(is_integer(builtin_l) && is_integer(builtin_r))
         {
-    
+            if(is_signed(builtin_l) != is_signed(builtin_r))
+            {
+                panic("logical comparision on different signs %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+            }
         }
 
         // both bool
@@ -265,7 +268,16 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
         // if integer is > 0, its true else false
         else if(is_integer(builtin_old) && builtin_new == builtin_type::bool_t)
         {
-            emitter.emit(op_type::cmpgt_imm,reg(emitter.reg_count),0);
+            if(is_signed(builtin_old))
+            {
+                emitter.emit(op_type::cmpsgt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
+            }
+
+            // unsigned
+            else
+            {
+                emitter.emit(op_type::cmpugt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
+            }
         }        
 
         else

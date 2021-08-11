@@ -64,6 +64,7 @@ void Interloper::parse_function_declarations()
 //    the offsets for them will differ from our ir ones and they will be moved
 //    during optimisation passes
 
+// TODO: this needs to be changed when we handle operator overloading
 Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 {
     const auto t1 = compile_expression(func,node->nodes[0]);
@@ -87,14 +88,28 @@ Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 }
 
 // handles <, <=, >, >=, &&, ||, ==, !=
-Type Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
+// TODO: this needs to be changed when we handle operator overloading
+Type Interloper::compile_logical_op(Function &func,AstNode *node, logic_op type)
 {
-    const auto t1 = compile_expression(func,node->nodes[0]);
+    auto t1 = compile_expression(func,node->nodes[0]);
     const auto v1 = reg(func.emitter.reg_count);
     func.emitter.reg_count++; 
 
-    const auto t2 = compile_expression(func,node->nodes[1]);
+    auto t2 = compile_expression(func,node->nodes[1]);
     const auto v2 = reg(func.emitter.reg_count);  
+
+
+    // coerce zero to the other type so comparisions with zero work
+    // regardless of the sign they are compared against
+    if(node->nodes[0]->type == ast_type::value && node->nodes[0]->value.v == 0)
+    {
+        t1 = t2;
+    }
+
+    else if(node->nodes[1]->type == ast_type::value && node->nodes[1]->value.v == 0)
+    {
+        t2 = t1;
+    }
 
 
     // okay now then does a boolean operation make sense for this operator
@@ -106,7 +121,7 @@ Type Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
         // only bools are valid
         // || &&
 
-        case op_type::or_reg: case op_type::and_reg:
+        case logic_op::or_reg: case logic_op::and_reg:
         {
             if(!is_bool(t1) && is_bool(t2))
             {
@@ -119,8 +134,8 @@ Type Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
         // valid if the underlying type is the same
         // and can somehow by interpretted as a integer
         // i.e pointers, ints, bools
-        case op_type::cmplt_reg: case op_type::cmple_reg: case op_type::cmpgt_reg:
-        case op_type::cmpge_reg: case op_type::cmpeq_reg: case op_type::cmpne_reg:
+        case logic_op::cmplt_reg: case logic_op::cmple_reg: case logic_op::cmpgt_reg:
+        case logic_op::cmpge_reg: case logic_op::cmpeq_reg: case logic_op::cmpne_reg:
         {
             check_logical_operation(t1,t2);
             break;
@@ -136,9 +151,25 @@ Type Interloper::compile_logical_op(Function &func,AstNode *node, op_type type)
 
     if(!error)
     {
+        // 0 is unsigned, 1 is signed
+        static constexpr op_type LOGIC_OPCODE[2][LOGIC_OP_SIZE] = 
+        {
+            {op_type::cmpugt_imm,op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
+            op_type::cmpeq_reg,op_type::cmpne_reg,op_type::and_reg,op_type::or_reg},
+
+            {op_type::cmpsgt_imm,op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
+            op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg, op_type::and_reg,op_type::or_reg},
+        };
+
+        const auto sign = is_signed(static_cast<builtin_type>(t1.type_idx));
+
+        // if we have gotten this far the sign of both are the same
+        const auto op = LOGIC_OPCODE[sign][static_cast<int>(type)];
+
+
         // one of these is just a temp for the result calc
         // so afer this we no longer need it
-        func.emitter.emit(type,v1,v1,v2);
+        func.emitter.emit(op,v1,v1,v2);
         func.emitter.reg_count--;
 
         return Type(builtin_type::bool_t);
@@ -167,7 +198,7 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
     if(func_call.args.size() != node->nodes.size())
     {
         panic("[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
-        parser.print(node);
+        print(node);
         return Type(builtin_type::void_t);
     }
 
@@ -272,7 +303,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             if(!sym_opt)
             {
                 panic("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-                parser.print(node);
+                print(node);
                 return Type(builtin_type::void_t);
             }
 
@@ -289,25 +320,27 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
         case ast_type::value:
         {
-            func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),node->value);
+            const u32 value = node->value.v;
+            const auto sign = node->value.sign;
 
-            // TODO: do we care about tracking if an input value is -ve
+            func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),value);
+
 
             // what is the smallest storage type that this will fit inside?
-            if(in_range(node->value,min(builtin_type::u8_t),max(builtin_type::u8_t)))
+            if(in_range(value,min(builtin_type::u8_t),max(builtin_type::u8_t)))
             {
-                return Type(builtin_type::u8_t);
+                return sign? Type(builtin_type::s8_t) : Type(builtin_type::u8_t);
             }
 
-            else if(in_range(node->value,min(builtin_type::u16_t),max(builtin_type::u16_t)))
+            else if(in_range(value,min(builtin_type::u16_t),max(builtin_type::u16_t)))
             {
-                return Type(builtin_type::u16_t);
+                return sign? Type(builtin_type::s16_t) : Type(builtin_type::u16_t);
             }
 
-            //else if(in_range(node->value,min(builtin_type::u32_t),max(builtin_type::u32_t))
+            //else if(in_range(value,min(builtin_type::u32_t),max(builtin_type::u32_t))
             else
             {
-                return Type(builtin_type::u32_t);
+                return sign? Type(builtin_type::s32_t) : Type(builtin_type::u32_t);
             }
         }
 
@@ -331,7 +364,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             if(!sym_opt)
             {
                 panic("[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-                parser.print(node);
+                print(node);
                 return Type(builtin_type::void_t);
             }
 
@@ -439,44 +472,47 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             return t;
         }
 
+        // we want to pass in the base operation but we need to do the actual type checking
+        // to know what the fuck we are comparing later
+        // how should we do it?
         case ast_type::logical_lt:
         {
-            return compile_logical_op(func,node,op_type::cmplt_reg);
+            return compile_logical_op(func,node,logic_op::cmplt_reg);
         }
 
         case ast_type::logical_le:
         {
-            return compile_logical_op(func,node,op_type::cmple_reg);
+            return compile_logical_op(func,node,logic_op::cmple_reg);
         }
 
         case ast_type::logical_gt:
         {
-            return compile_logical_op(func,node,op_type::cmpgt_reg);
+            return compile_logical_op(func,node,logic_op::cmpgt_reg);
         }
 
         case ast_type::logical_ge:
         {
-            return compile_logical_op(func,node,op_type::cmpge_reg);
+            return compile_logical_op(func,node,logic_op::cmpge_reg);
         }
 
         case ast_type::logical_eq:
         {
-            return compile_logical_op(func,node,op_type::cmpeq_reg);
+            return compile_logical_op(func,node,logic_op::cmpeq_reg);
         }
 
         case ast_type::logical_ne:
         {
-            return compile_logical_op(func,node,op_type::cmpne_reg);
+            return compile_logical_op(func,node,logic_op::cmpne_reg);
         }
 
         case ast_type::logical_and:
         {
-            return compile_logical_op(func,node,op_type::and_reg);
+            return compile_logical_op(func,node,logic_op::and_reg);
         }
 
         case ast_type::logical_or:
         {
-            return compile_logical_op(func,node,op_type::or_reg);
+            return compile_logical_op(func,node,logic_op::or_reg);
         }
 
         case ast_type::function_call:
@@ -487,7 +523,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
         default:
         {
             panic("[COMPILE]: invalid expression\n");
-            parser.print(node);
+            print(node);
             return Type(builtin_type::void_t);
         }
     }
@@ -590,7 +626,7 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 if(!sym_opt)
                 {
                     panic("[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
-                    parser.print(l);
+                    print(l);
                     return;
                 }
 
@@ -639,7 +675,7 @@ void Interloper::compile_block(Function &func,AstNode *node)
             default:
             {
                 panic("[COMPILE] unexpected token\n");
-                parser.print(l);
+                print(l);
             }
         }
     }
@@ -717,7 +753,7 @@ void Interloper::compile_functions()
 
             else
             {
-                panic("[COMPILE]: non void function without a return");
+                panic("[COMPILE]: non void function without a return\n");
             }
         }
 
@@ -734,6 +770,8 @@ void Interloper::compile_functions()
 
 // TODO: start writing tests for more invalid sequences
 // and improve error reporting in later stages of compilation
+
+// TODO: impl source line information on the parse tree
 
 // plan:
 // implement bitwise operators -> boolean + logical -> if statements
@@ -774,7 +812,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
         return;
     }
 
-//    parser.print(root);
+//    print(root);
 
 
     // okay now we need to start doing semantic analysis

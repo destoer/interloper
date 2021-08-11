@@ -44,14 +44,25 @@ enum class op_type
 
     swi,
 
-    cmpgt_imm,
+    // compare unsigned
+    cmpugt_imm,
+    cmpult_reg,
+    cmpule_reg,
+    cmpugt_reg,
+    cmpuge_reg,
 
-    cmplt_reg,
-    cmple_reg,
-    cmpgt_reg,
-    cmpge_reg,
+
+    // compare signed
+    cmpsgt_imm,
+    cmpslt_reg,
+    cmpsle_reg,
+    cmpsgt_reg,
+    cmpsge_reg,
+
+    // dont care about sign for equality
     cmpeq_reg,
     cmpne_reg,
+
 
     // DIRECTIVES
     // varabile on the stack is out of scope
@@ -69,9 +80,32 @@ enum class op_type
     // directives to make sure registers get preserved correctly across calls
     save_reg,
     restore_reg,
+
+    // just c++ things not used
+    END,
 };
 
-static constexpr uint32_t OPCODE_SIZE = 41;
+// general operation defined for unsigned or unsigned ints
+// will be convered to a specific conterpart in op_type
+enum class logic_op
+{
+    cmpgt_imm,
+
+    cmplt_reg,
+    cmple_reg,
+    cmpgt_reg,
+    cmpge_reg,
+
+    cmpeq_reg,
+    cmpne_reg,
+
+    and_reg,
+    or_reg,
+};
+
+static constexpr u32 LOGIC_OP_SIZE = 9;
+
+static constexpr u32 OPCODE_SIZE = static_cast<uint32_t>(op_type::END)+1;
 
 
 // what kind of opcode is this?

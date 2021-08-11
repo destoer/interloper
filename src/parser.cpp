@@ -459,7 +459,7 @@ void Parser::parse(AstNode **root_ptr)
     this->tokens = nullptr;
 }
 
-void Parser::print(const AstNode *root) const
+void print(const AstNode *root)
 {
     if(!root)
     {

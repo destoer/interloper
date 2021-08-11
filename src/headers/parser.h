@@ -105,19 +105,27 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "END"
 };
 
+struct Value
+{
+    Value(u32 value, bool s) : v(value), sign(s) {}
+
+    u32 v;
+    bool sign;
+};
+
 
 struct AstNode
 {
     AstNode() 
     {
-        this->value = 0;
+        this->value = Value(0,false);
     }
 
     // general astdata no literal required eg '+'
     AstNode(ast_type type)
     {
         this->type = type;
-        this->value = 0;
+        this->value = Value(0,false);
     }
 
     // general astdata string literal required eg symbol
@@ -125,7 +133,7 @@ struct AstNode
     {
         this->type = type;
         this->literal = literal;
-        this->value = 0;
+        this->value = Value(0,false);
     }
 
     // astdata decleration
@@ -144,12 +152,12 @@ struct AstNode
         nodes.push_back(r);
         this->type = type;
         this->literal = literal;
-        this->value = 0;
+        this->value = Value(0,false);
     }
 
 
     // binary op value
-    AstNode(AstNode *l, AstNode *r, uint32_t value, std::string literal = "")
+    AstNode(AstNode *l, AstNode *r, Value value, std::string literal = "")
     {
         nodes.push_back(l);
         nodes.push_back(r);
@@ -170,7 +178,7 @@ struct AstNode
         Type variable_type;
 
         // ast_type::value
-        uint32_t value;
+        Value value;
     };
 
     std::vector<AstNode *> nodes;
@@ -194,12 +202,13 @@ inline void delete_tree(AstNode *node)
     node = nullptr;
 }
 
+void print(const AstNode *root);
+
 struct Parser
 {
     void init(const std::vector<std::string> *file,const std::vector<Token> *tokens);
 
     void parse(AstNode **root_ptr);
-    void print(const AstNode *root) const;
     
     AstNode *expr(const Token &t);
     Token next_token();

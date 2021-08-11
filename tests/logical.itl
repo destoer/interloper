@@ -3,6 +3,7 @@
 
 func bool is_positive(s32 x)
 {
+    // comparision with zero works regardless of sign
     return !(x < 0);
 }
 
@@ -36,18 +37,20 @@ func bool is_ge(s32 x, s32 y)
     return x >= y;
 }
 
+// i think negative compares are broken
+
 func s32 main()
 {
-    bool res = is_positive(cast(s32,false)) && !is_positive(-1) && is_eq(5,5) && !is_eq(0,5) 
-        && is_gt(5, 2) && !is_gt(5,10) && is_lt(1,7) && !is_lt(500,15) 
-        && is_le(5,5) && is_le(4,5) && !is_le(6,5) && is_ge(5,5) && is_ge(6,5) &&
-        !is_ge(4,5) && not_eq(5,4) && !not_eq(5,5); 
+    bool res1 = is_positive(cast(s32,false)) && !is_positive(-1) && is_eq(5,5) && !is_eq(0,5);
+    bool res2 = is_gt(5, 2) && !is_gt(5,10) && is_lt(1,7) && !is_lt(500,15);
+    bool res3 = is_le(5,5) && is_le(4,5) && !is_le(6,5) && is_ge(5,5) && is_ge(6,5);
+    bool res4 = !is_ge(4,5) && not_eq(5,4) && !not_eq(5,5); 
 
     // anyything less than one is false
     // eq to < 1
     bool or = true || cast(bool,-1);
 
-    res = or && res;
+    bool res = or && res1 && res2 && res3 && res4;
 
     // false is 0 and 1 is true
     return cast(s32,res);

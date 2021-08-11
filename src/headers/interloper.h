@@ -45,7 +45,7 @@ private:
     void compile_block(Function &func, AstNode *node);
     Type compile_expression(Function &func,AstNode *node);
     Type compile_arith_op(Function &func, AstNode *node, op_type type);
-    Type compile_logical_op(Function &func,AstNode *node, op_type type);
+    Type compile_logical_op(Function &func,AstNode *node, logic_op type);
     Type compile_function_call(Function &func,AstNode *node);
 
     void emit_asm();

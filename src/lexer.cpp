@@ -81,7 +81,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
                 else
                 {
-                    insert_token(tokens,token_type::bitwise_and);
+                    insert_token(tokens,token_type::bitwise_or);
                 }
                 break;              
             }
