@@ -1,0 +1,13 @@
+
+
+// compile error function redefined
+
+func test() {}
+
+func test() {}
+
+func s32 main()
+{
+    test();
+    return -1;
+}

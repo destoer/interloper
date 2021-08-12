@@ -1,7 +1,6 @@
 #include <interloper.h>
 
-// TODO move all the immediate decoding off into its own file
-// and rename everything to make more sense now this code is not used in a assembler
+
 template<typename F>
 bool verify_immediate_internal(const std::string &line, uint32_t &i, F lambda)
 {
@@ -115,7 +114,6 @@ uint32_t convert_imm(const std::string &imm)
     return static_cast<uint32_t>(std::stoi(imm,0,0));
 }
 
-// TODO add checks on the size of the immediate to check it fits in a i32 
 void Lexer::decode_imm(const std::string &line, uint32_t &i,std::vector<Token> &tokens)
 {
     std::string literal = "";

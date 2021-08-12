@@ -21,10 +21,16 @@ void Interloper::parse_function_declarations()
         }
 
 
-        // TODO: check for redefinition
+        
         const auto return_type = node.nodes[0]->variable_type;
         const auto name = node.literal;
         
+        if(function_table.count(name))
+        {
+            panic("function %s has been declared twice!\n",name.c_str());
+            return;
+        }
+
 
         std::vector<Symbol> args;
 
