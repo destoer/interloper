@@ -69,7 +69,8 @@ inline void handle_write(uint8_t *buf, uint32_t idx, access_type v)
     memcpy(&buf[idx],&v,sizeof(access_type));
 }
 
-inline bool in_range(u32 v, u32 min, u32 max)
+template<typename T>
+inline bool in_range(T v, T min, T max)
 {
     return v >= min && v <= max;
 }

@@ -34,6 +34,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/bitwise.itl",-713,false},
     {"tests/logical.itl",1,false},
     {"tests/invalid_sign_cmp.itl",-1,true},
+    {"tests/u32_eq_s32.itl",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

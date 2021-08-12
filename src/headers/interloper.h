@@ -30,6 +30,7 @@ private:
     template<typename... Args>
     void panic(const char *fmt, Args... args)
     {
+        printf("error: ");
         printf(fmt,args...);
         error = true;
     }

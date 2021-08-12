@@ -325,22 +325,45 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
             func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),value);
 
-
-            // what is the smallest storage type that this will fit inside?
-            if(in_range(value,min(builtin_type::u8_t),max(builtin_type::u8_t)))
+            // figure out what the min storage is required to fit this value
+            if(sign)
             {
-                return sign? Type(builtin_type::s8_t) : Type(builtin_type::u8_t);
+                // what is the smallest storage type that this will fit inside?
+                if(in_range(static_cast<s32>(value),static_cast<s32>(min(builtin_type::s8_t)),static_cast<s32>(max(builtin_type::s8_t))))
+                {
+                    return  Type(builtin_type::s8_t);
+                }
+
+                else if(in_range(static_cast<s32>(value),static_cast<s32>(min(builtin_type::s16_t)),static_cast<s32>(max(builtin_type::s16_t))))
+                {
+                    return Type(builtin_type::s16_t);
+                }
+
+                //else if(in_range(static_cast<s32>(value),static_cast<s32>(min(builtin_type::s32_t)),static_cast<s32>(max(builtin_type::s32_t)))
+                else
+                {
+                    return Type(builtin_type::s32_t);
+                }
             }
 
-            else if(in_range(value,min(builtin_type::u16_t),max(builtin_type::u16_t)))
-            {
-                return sign? Type(builtin_type::s16_t) : Type(builtin_type::u16_t);
-            }
-
-            //else if(in_range(value,min(builtin_type::u32_t),max(builtin_type::u32_t))
             else
             {
-                return sign? Type(builtin_type::s32_t) : Type(builtin_type::u32_t);
+                // what is the smallest storage type that this will fit inside?
+                if(in_range(value,min(builtin_type::u8_t),max(builtin_type::u8_t)))
+                {
+                    return  Type(builtin_type::u8_t);
+                }
+
+                else if(in_range(value,min(builtin_type::u16_t),max(builtin_type::u16_t)))
+                {
+                    return Type(builtin_type::u16_t);
+                }
+
+                //else if(in_range(value,min(builtin_type::u32_t),max(builtin_type::u32_t))
+                else
+                {
+                    return Type(builtin_type::u32_t);
+                }
             }
         }
 

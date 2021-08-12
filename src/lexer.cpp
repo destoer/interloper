@@ -48,7 +48,23 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '+': insert_token(tokens,token_type::plus); break;
 
-            case '-': insert_token(tokens,token_type::minus); break;
+            case '-': 
+            {
+                const char next = (column+1) < size? line[column+1] : '_';
+
+                // parse out negative literal
+                if(isdigit(next))
+                {
+                    decode_imm(line,column,tokens);
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::minus); break;
+                }
+                break;
+            }
+            
 
             case '&':
             {

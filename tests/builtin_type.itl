@@ -23,7 +23,7 @@ func s32 main()
     s8 v6 = cast(s8,v4+v5);
 
     u8 x = 10;
-    u32 ans = cast(s32,cast(s8,x)) + v6 + cast(s32,cast(s8,255));
+    u32 ans = cast(u32,cast(s32,cast(s8,x)) + v6 + cast(s32,cast(s8,255)));
 
     // cast should narrow
     return ans + cast(u8,511);

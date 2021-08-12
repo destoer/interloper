@@ -150,6 +150,13 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
             {
                 panic("narrowing conversion %s = %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
             }
+
+            // unsigned cannot assign to signed
+            // TODO: do we want to be this pedantic with integer conversions?
+            if(!is_signed(builtin_l) && is_signed(builtin_r))
+            {
+                panic("unsigned = signed (%s = %s)\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+            }
         }
 
         // something else (probably by here we only want the same types to be allowed)
