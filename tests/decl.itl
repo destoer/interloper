@@ -1,0 +1,8 @@
+
+
+func s32 main()
+{
+    decl x = 255;
+
+    return x;
+}

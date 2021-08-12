@@ -21,6 +21,8 @@ enum class token_type
 
     equal,
 
+    decl,
+
     u8,
     u16,
     u32,
@@ -98,6 +100,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::comma,",",0},
 
     {token_type::equal,"=",2},
+
+    {token_type::decl,"decl",-1},
 
     {token_type::u8,"u8",-1},
     {token_type::u16,"u16",-1},

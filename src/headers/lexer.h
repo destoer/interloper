@@ -30,6 +30,7 @@ private:
         tokens.push_back(Token(type,literal,row,column));
     }
 
+    char peek(u32 offset, const std::string &line);
 
 
     void decode_imm(const std::string &file, uint32_t &i,std::vector<Token> &tokens);
@@ -47,6 +48,8 @@ private:
 
     std::unordered_map<std::string, token_type> keywords = 
     {
+        {tok_name(token_type::decl),token_type::decl},
+
         {tok_name(token_type::u8),token_type::u8},
         {tok_name(token_type::u16),token_type::u16},
         {tok_name(token_type::u32),token_type::u32},

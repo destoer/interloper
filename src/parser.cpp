@@ -207,6 +207,28 @@ AstNode *Parser::statement()
             return declaration(var_type,type_literal);
         }
 
+    
+        case token_type::decl:
+        {
+            // decl symbol = expr;
+            const auto s = next_token();
+
+            if(s.type != token_type::symbol)
+            {
+                panic(s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),tok_idx);
+                return nullptr;
+            }
+
+           
+            // okay here we require an expression on the right side
+            consume(token_type::equal);
+
+            const auto d = new AstNode(ast_type::auto_decl,s.literal);
+
+            d->nodes.push_back(expr(next_token()));
+
+            return d;
+        }
 
         case token_type::ret:
         {

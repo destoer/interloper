@@ -1,6 +1,11 @@
 #include <interloper.h>
 
 
+char Lexer::peek(u32 offset, const std::string &line)
+{
+    return column + offset < line.size()? line[column + offset] : '\0';
+}
+
 void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 {
     const auto size = line.size();
@@ -24,10 +29,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '=': 
             {
-                const char next = (column+1) < size? line[column+1] : '0';
-
                 // equal
-                if(next == '=')
+                if(peek(1,line) == '=')
                 {
                     insert_token(tokens,token_type::logical_eq);
                     column++;
@@ -50,10 +53,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '-': 
             {
-                const char next = (column+1) < size? line[column+1] : '_';
-
                 // parse out negative literal
-                if(isdigit(next))
+                if(isdigit(peek(1,line)))
                 {
                     decode_imm(line,column,tokens);
                 }
@@ -68,10 +69,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '&':
             {
-                const char next = (column+1) < size? line[column+1] : '0';
-
                 // not equal
-                if(next == '&')
+                if(peek(1,line) == '&')
                 {
                     insert_token(tokens,token_type::logical_and);
                     column++;
@@ -86,10 +85,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '|':
             {
-                const char next = (column+1) < size? line[column+1] : '0';
-
                 // not equal
-                if(next == '|')
+                if(peek(1,line) == '|')
                 {
                     insert_token(tokens,token_type::logical_or);
                     column++;
@@ -107,10 +104,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '!':
             {
-                const char next = (column+1) < size? line[column+1] : '0';
-
                 // not equal
-                if(next == '=')
+                if(peek(1,line) == '=')
                 {
                     insert_token(tokens,token_type::logical_ne);
                     column++;
@@ -125,9 +120,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '<':
             {
-                const char next = (column+1) < size? line[column+1] : '0';
-
-                if(next == '=')
+                if(peek(1,line) == '=')
                 {
                     insert_token(tokens,token_type::logical_le);
                     column++;
@@ -142,9 +135,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '>':
             {
-                const char next = (column+1) < size? line[column+1] : '0';
-
-                if(next == '=')
+                if(peek(1,line) == '=')
                 {
                     insert_token(tokens,token_type::logical_ge);
                     column++;
@@ -160,10 +151,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case '/': 
             {
-                const char next = (column+1) < size? line[column+1] : '0';
-
                 // we have comment this line is now done
-                if(next == '/')
+                if(peek(1,line) == '/')
                 {
                     return;
                 }

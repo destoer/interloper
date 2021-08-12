@@ -601,9 +601,6 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 const auto name = line.literal;
                 const auto ltype = line.nodes[0]->variable_type;
 
-                //const auto slot = symbol_table.sym_count;
-
-
                 if(symbol_table.get_sym(name))
                 {
                     panic("redeclared symbol: %s\n",name.c_str());
@@ -618,11 +615,8 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 // add new symbol table entry
                 symbol_table.add_symbol(name,ltype,slot);
 
-                // TODO: we cant have a arg when a var is just declared
-                // this is probably not needed
+
                 const auto &sym = symbol_table.get_sym(name).value();
-
-
 
 
                 // handle right side expression (if present)
@@ -635,6 +629,37 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 }
                 break;
             }
+
+
+            case ast_type::auto_decl:
+            {
+                const auto name = line.literal;
+
+                if(symbol_table.get_sym(name))
+                {
+                    panic("redeclared symbol: %s\n",name.c_str());
+                    return;
+                }
+
+                
+                const auto type = compile_expression(func,line.nodes[0]);
+
+                // add the symbol
+
+                const auto size = type_size(type);
+
+                // add allocation information
+                const auto slot = func.add_var(name,type,size);
+
+                // add new symbol table entry
+                symbol_table.add_symbol(name,type,slot);
+
+                const auto &sym = symbol_table.get_sym(name).value();
+
+                func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
+                break;
+            }
+
 
 
             // assignment

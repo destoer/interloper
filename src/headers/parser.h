@@ -22,6 +22,7 @@ enum class ast_type
     type,
 
     declaration,
+    auto_decl,
     
     equal,
     times,
@@ -74,6 +75,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "type",
 
     "declaration",
+    "auto_decl",
 
     "=",
     "*",
