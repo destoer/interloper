@@ -336,7 +336,7 @@ AstNode *Parser::statement()
                     }
                 }
 
-                // this chain is done
+                // this chain is done we have another token
                 else
                 {
                     done = true;
