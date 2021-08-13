@@ -1,22 +1,28 @@
 
-// expected 90112
+// expected 45077
 
 func s32 test(s32 x)
 {
-    if(x < 0)
+    x = x + 5;
+
+    // parens are optional
+    if x < 0
     {
-        return 0x8000;
+        x = 0x8000;
     }
 
     else if(x == 0)
     {
-        return 0x5000;
+        x = 0x5000;
+        return x;
     }
 
     else
     {
-        return 0x1000;
+        return x + 0x1000;
     }
+
+    return x + 6;
 }
 
 func s32 main()

@@ -101,8 +101,6 @@ void stack_allocate(u32 *stack_alloc, VarAlloc &var_alloc)
 
 // TODO: make sure register number does not exceed our target regs
 
-// TODO: why does the offset not account for the PC 
-// for args
 void Interloper::allocate_registers(Function &func)
 {
 

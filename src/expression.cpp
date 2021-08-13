@@ -303,24 +303,54 @@ AstNode *Parser::expression(int32_t rbp)
     expr_tok = next_token_expr();
 
     auto left = nud(cur);
-    if(error)
+
+    if(terminate)
     {
         return left;
     }
 
+    if(expr_tok.type == termination_type)
+    {
+        terminate = true;
+        return left;
+    }
 
     while(rbp < lbp(expr_tok))
     {
         cur = expr_tok;
         expr_tok = next_token_expr();
         left = led(cur,left);
-        if(error)
+
+        if(terminate)
         {
             return left;
         }
     }
 
     return left;
+}
+
+
+AstNode *Parser::expr_terminate(token_type t)
+{
+    // make pratt parser terminate as soon as it sees
+    // this token
+    termination_type = t;
+
+    auto e = expr(next_token());
+
+    // expression must terminate on this token
+    if(expr_tok.type != token_type::left_c_brace || !terminate)
+    {
+        panic(expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(expr_tok.type),tok_name(termination_type));
+        delete e;
+        return nullptr;
+    }
+
+    terminate = false;
+    termination_type = token_type::eof;
+
+    return e;
 }
 
 AstNode *Parser::expr(const Token &t)

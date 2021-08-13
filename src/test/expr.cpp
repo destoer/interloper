@@ -40,10 +40,6 @@ int32_t sum(AstNode *node)
 {
     if(node != nullptr)
     {
-        // TODO: 
-        // reformat our tree struct to have specialised types when we figure out the best way to do it...
-        // for now do this silly workaround
-
         const auto size = node->nodes.size();
         AstNode *left = size >= 1? node->nodes[0] : nullptr;
         AstNode *right = size >= 2? node->nodes[1] : nullptr;

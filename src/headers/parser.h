@@ -50,6 +50,11 @@ enum class ast_type
     false_t,
     true_t,
 
+    if_block,
+    if_t,
+    else_if_t,
+    else_t,
+
     END
 };
 
@@ -102,6 +107,11 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "false",
     "true",
+
+    "if_block",
+    "if",
+    "else if",
+    "else",
 
     // should not be used...
     "END"
@@ -227,6 +237,7 @@ private:
         printf("%s",lv[token.line].c_str());
         printf("\nat: line %d col %d\n",token.line,token.col);
         error = true;
+        terminate = true;
     }
 
     AstNode *func();
@@ -239,6 +250,7 @@ private:
     void prev_token();
 
     // pratt parser
+    AstNode *expr_terminate(token_type t);
     AstNode *expression(int32_t rbp);
 
     int32_t lbp(const Token &t);
@@ -260,4 +272,6 @@ private:
     Token expr_tok;
     size_t tok_idx;
     uint32_t brace_count;
+    bool terminate;
+    token_type termination_type;
 };

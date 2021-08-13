@@ -259,7 +259,6 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
-            // TODO: why does this read out of bounds
             case op_type::ret:
             {              
                 // pop pc

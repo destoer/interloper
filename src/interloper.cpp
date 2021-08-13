@@ -580,7 +580,6 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 */
 
 
-// TODO: implement logical operations
 
 void Interloper::compile_block(Function &func,AstNode *node)
 {
@@ -821,9 +820,6 @@ void Interloper::compile_functions()
     }
 }
 
-
-// TODO: start writing tests for more invalid sequences
-// and improve error reporting in later stages of compilation
 
 // TODO: impl source line information on the parse tree
 

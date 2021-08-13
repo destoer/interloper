@@ -285,8 +285,65 @@ AstNode *Parser::statement()
             tok_idx--;
 
             return block();
-        };
+        }
 
+        // else_if and else parsed out here
+        case token_type::if_t:
+        {
+            const auto if_block = new AstNode(ast_type::if_block);
+
+            const auto if_stmt = new AstNode(ast_type::if_t);
+
+            // read out if expr and block
+            if_stmt->nodes.push_back(expr_terminate(token_type::left_c_brace)); prev_token(); 
+            if_stmt->nodes.push_back(block());
+
+           
+            if_block->nodes.push_back(if_stmt);
+            
+            bool done = false;
+            
+            while(!done)
+            {
+                if(peek(0).type == token_type::else_t)
+                {
+                    consume(token_type::else_t);
+
+                    // we have an else if
+                    if(peek(0).type == token_type::if_t)
+                    {
+                        consume(token_type::if_t);
+
+                        const auto else_if_stmt = new AstNode(ast_type::else_if_t);
+
+                        else_if_stmt->nodes.push_back(expr_terminate(token_type::left_c_brace)); prev_token(); 
+                        else_if_stmt->nodes.push_back(block());
+
+                        if_block->nodes.push_back(else_if_stmt);
+                    }
+
+                    // just a plain else
+                    else
+                    {
+                        const auto else_stmt = new AstNode(ast_type::else_t);
+
+                        // no expr for else
+                        else_stmt->nodes.push_back(block());
+
+                        if_block->nodes.push_back(else_stmt);
+
+                        done = true;
+                    }
+                }
+
+                // this chain is done
+                else
+                {
+                    done = true;
+                }
+            }
+            return if_block;
+        }
 
         default:
         {
@@ -438,6 +495,8 @@ void Parser::init(const std::vector<std::string> *file,const std::vector<Token> 
     error = false;
     initialized = true;
     tok_idx = 0;
+    terminate = false;
+    termination_type = token_type::eof;
 }
 
 

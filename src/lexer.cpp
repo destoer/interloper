@@ -186,6 +186,8 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                     // else its a symbol
                     if(is_keyword(literal))
                     {
+                        // TODO: we need to check for the else keyword so we can join else if
+
                         insert_token(tokens,keyword_token_type(literal));
                     }
 
