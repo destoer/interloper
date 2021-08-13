@@ -57,10 +57,14 @@ struct BuiltinTypeInfo
 
 extern const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE];
 
-inline bool is_builtin(uint32_t t)
+
+enum class contained_type
 {
-    return t < BUILTIN_TYPE_SIZE;
-}
+    plain,
+    array,
+    pointer,
+};
+
 
 inline const char *builtin_type_name(builtin_type t)
 {
@@ -77,44 +81,6 @@ inline builtin_type conv_type_idx(int type_idx)
 {
     return static_cast<builtin_type>(type_idx);
 }
-
-inline bool is_integer(builtin_type t)
-{
-    return builtin_type_info[static_cast<size_t>(t)].is_integer;
-}
-
-inline bool is_signed(builtin_type t)
-{
-    return builtin_type_info[static_cast<size_t>(t)].is_signed;
-}
-
-inline bool is_signed_integer(builtin_type t)
-{
-    return is_signed(t) && is_integer(t);
-}
-
-inline u32 size(builtin_type t)
-{
-    return builtin_type_info[static_cast<size_t>(t)].size;
-}
-
-inline u32 max(builtin_type t)
-{
-    return builtin_type_info[static_cast<size_t>(t)].max;
-}
-
-inline u32 min(builtin_type t)
-{
-    return builtin_type_info[static_cast<size_t>(t)].min;
-}
-
-
-enum class contained_type
-{
-    plain,
-    array,
-    pointer,
-};
 
 
 struct Type
@@ -147,10 +113,47 @@ struct Type
 
 };
 
-inline bool is_bool(const Type &t1)
+inline bool is_builtin(const Type &t)
 {
-    return is_builtin(static_cast<int>(t1.type_idx)) && conv_type_idx(t1.type_idx) == builtin_type::bool_t;
+    return t.type_idx < BUILTIN_TYPE_SIZE;
 }
+
+
+inline bool is_bool(const Type &t)
+{
+    return is_builtin(t) && conv_type_idx(t.type_idx) == builtin_type::bool_t;
+}
+
+inline bool is_integer(const Type &t)
+{
+    return is_builtin(t) && builtin_type_info[t.type_idx].is_integer;
+}
+
+inline bool is_signed(const Type &t)
+{
+    return is_builtin(t) && builtin_type_info[t.type_idx].is_signed;
+}
+
+inline bool is_signed_integer(const Type &t)
+{
+    return is_signed(t) && is_integer(t);
+}
+
+inline u32 builtin_size(builtin_type t)
+{
+    return builtin_type_info[static_cast<u32>(t)].size;
+}
+
+inline u32 builtin_max(builtin_type t)
+{
+    return builtin_type_info[static_cast<u32>(t)].max;
+}
+
+inline u32 builtin_min(builtin_type t)
+{
+    return builtin_type_info[static_cast<u32>(t)].min;
+}
+
 
 
 
@@ -230,8 +233,7 @@ struct Function
         // into and idx 
         size_count_cur[size >> 1] += 1;
 
-        const bool sign = is_builtin(type.type_idx) && 
-            is_signed_integer(static_cast<builtin_type>(type.type_idx));
+        const bool sign = is_signed_integer(type);
 
         slot_lookup.push_back(VarAlloc(size,name,sign));
 
@@ -250,8 +252,7 @@ struct Function
 
         const auto slot = slot_lookup.size();
 
-        const bool sign = is_builtin(type.type_idx) && 
-            is_signed_integer(static_cast<builtin_type>(type.type_idx));
+        const bool sign = is_signed_integer(type);
 
         auto alloc = VarAlloc(size,name,sign);
 
@@ -269,11 +270,19 @@ struct Function
     void dump_ir(const std::vector<std::string> &label_lookup)
     {
         printf("%s:\n",name.c_str());
-        for(const auto &opcode : emitter.program)
+
+        u32 l = 0;
+        for(const auto &block : emitter.program)
         {
-            printf("\t");
-            disass_opcode_sym(opcode,slot_lookup,label_lookup);
+            printf("L%d:\n",l);
+            for(const auto &opcode : block)
+            {
+                printf("\t");
+                disass_opcode_sym(opcode,slot_lookup,label_lookup);
+            }
+            l++;
         }
+
         printf("\n");       
     }
 

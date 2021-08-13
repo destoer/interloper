@@ -107,11 +107,11 @@ uint32_t convert_imm(const std::string &imm)
 {
     if(imm.size() >= 3 && imm.substr(0,2) == "0b")
     {
-        return static_cast<uint32_t>(std::stoi(imm.substr(2),0,2));
+        return static_cast<uint32_t>(stoul(imm.substr(2),nullptr,2));
     }
 
     // stoi wont auto detect base for binary strings?
-    return static_cast<uint32_t>(std::stoi(imm,0,0));
+    return static_cast<uint32_t>(stoul(imm,nullptr,0));
 }
 
 void Lexer::decode_imm(const std::string &line, uint32_t &i,std::vector<Token> &tokens)

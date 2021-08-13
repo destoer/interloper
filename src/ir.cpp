@@ -62,6 +62,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cmpeq_reg",3},
     {op_group::reg_t,"cmpne_reg",3},
 
+    {op_group::branch_t,"bnc",2},
+
     // directives
     {op_group::imm_t,"free_slot",1},
     {op_group::reg_t,"push_arg",1},
@@ -82,8 +84,13 @@ void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    program.push_back(opcode);
+    program[program.size()-1].push_back(opcode);
     pc += 1;
+}
+
+void IrEmitter::new_block()
+{
+    program.push_back({});
 }
 
 
@@ -142,7 +149,7 @@ void Interloper::allocate_registers(Function &func)
     // only allocate a stack if we need it
     if(stack_size)
     {
-        func.emitter.program.push_front(Opcode(op_type::sub_imm,SP,SP,stack_size));
+        func.emitter.program[0].push_front(Opcode(op_type::sub_imm,SP,SP,stack_size));
     }
 
     // opcode to re correct the stack
@@ -163,155 +170,156 @@ void Interloper::allocate_registers(Function &func)
     // so how much do we need to offset accesses to varaibles
     u32 stack_offset = 0;
 
-
-    for(auto it = func.emitter.program.begin(); it != func.emitter.program.end();)
+    for(auto &block : func.emitter.program)
     {
-        auto &opcode = *it;
-
-        // how do we want to handle allocation?
-        // when we aernt just storing stuff back and forth?
-
-        switch(opcode.op)
+        for(auto it = block.begin(); it != block.end();)
         {
+            auto &opcode = *it;
 
-            case op_type::save_reg:
+            // how do we want to handle allocation?
+            // when we aernt just storing stuff back and forth?
+
+            switch(opcode.op)
             {
-                opcode = Opcode(op_type::push,opcode.v1,0,0);
-                stack_offset += sizeof(u32);
-                break;
-            }
 
-
-            case op_type::restore_reg:
-            {
-                opcode = Opcode(op_type::pop,opcode.v1,0,0);
-                stack_offset -= sizeof(u32);
-                break;
-            }
-
-
-
-            case op_type::push_arg:
-            {
-                opcode =  Opcode(op_type::push,opcode.v1,0,0);
-
-                // varaibles now have to be accessed at a different offset
-                // until this is corrected by clean call
-                stack_offset += sizeof(u32);
-
-                break;
-            }
-
-            case op_type::clean_args:
-            {
-                // clean up args
-                const auto stack_clean = sizeof(u32) * opcode.v1;
-
-                opcode = Opcode(op_type::add_imm,SP,SP,stack_clean);
-                stack_offset -= stack_clean; 
-                break;
-            }
-
-            case op_type::free_slot_stack:
-            {
-                const auto &var_alloc = func.slot_lookup[opcode.v1];
-                stack_alloc[var_alloc.size >> 1] -= var_alloc.size;
-
-                // how do we properly erase this?
-                it = func.emitter.program.erase(it);
-                continue;
-            }
-
-            // handle variable accesses
-            case op_type::mov_reg:
-            {
-                // swap all mov var, reg
-                // with sw reg, [sp,var_offset]
-                if(!is_reg(opcode.v1))
+                case op_type::save_reg:
                 {
-                    // hardcode this to an s32 and dont care about the size for now
-                    const auto slot = symbol_to_idx(opcode.v1);
-
-
-                    auto &var_alloc = func.slot_lookup[slot];
-
-                    // we have not allocated where this variable goes yet
-                    if(var_alloc.offset == UNALLOCATED_OFFSET)
-                    {
-                        stack_allocate(stack_alloc,var_alloc);
-                    }
-
-                    // if is an arg read "above" the stack (stack allocation + return value)
-                    // TODO: handle arg being a reg
-                    const u32 offset = is_arg(opcode.v1)? var_alloc.offset + stack_size + sizeof(u32) : var_alloc.offset;
-
-                    // move by size
-                    static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-
-                    opcode = Opcode(instr[var_alloc.size >> 1],opcode.v2,SP,offset + stack_offset);
+                    opcode = Opcode(op_type::push,opcode.v1,0,0);
+                    stack_offset += sizeof(u32);
+                    break;
                 }
 
-                // swap all mov reg, var
-                // with lw reg, [sp,var_offset]
-                else if(!is_reg(opcode.v2))
+
+                case op_type::restore_reg:
                 {
-                    const auto slot = symbol_to_idx(opcode.v2);
-
-                    auto &var_alloc = func.slot_lookup[slot];
-
-
-                    // we have not allocated where this variable goes yet
-                    if(var_alloc.offset == UNALLOCATED_OFFSET)
-                    {
-                        stack_allocate(stack_alloc,var_alloc);
-                    }
-
-
-                    // if is an arg read "above" the stack (stack allocation + return value)
-                    // TODO: handle arg being a reg
-                    const u32 offset = is_arg(opcode.v2)? var_alloc.offset + stack_size + sizeof(u32) : var_alloc.offset;
-
-
-
-                    // is a signed integer (we need to sign extend)
-                    if(var_alloc.is_signed)
-                    {
-                        // word is register size (we dont need to extend it)
-                        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-
-                        opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,offset + stack_offset);                    
-                    }
-
-                    // "plain data"
-                    // just move by size
-                    else
-                    {
-                        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-                        opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,offset + stack_offset);
-                    }
+                    opcode = Opcode(op_type::pop,opcode.v1,0,0);
+                    stack_offset -= sizeof(u32);
+                    break;
                 }
-                break;
+
+
+
+                case op_type::push_arg:
+                {
+                    opcode =  Opcode(op_type::push,opcode.v1,0,0);
+
+                    // varaibles now have to be accessed at a different offset
+                    // until this is corrected by clean call
+                    stack_offset += sizeof(u32);
+
+                    break;
+                }
+
+                case op_type::clean_args:
+                {
+                    // clean up args
+                    const auto stack_clean = sizeof(u32) * opcode.v1;
+
+                    opcode = Opcode(op_type::add_imm,SP,SP,stack_clean);
+                    stack_offset -= stack_clean; 
+                    break;
+                }
+
+                case op_type::free_slot_stack:
+                {
+                    const auto &var_alloc = func.slot_lookup[opcode.v1];
+                    stack_alloc[var_alloc.size >> 1] -= var_alloc.size;
+
+                    // how do we properly erase this?
+                    it = block.erase(it);
+                    continue;
+                }
+
+                // handle variable accesses
+                case op_type::mov_reg:
+                {
+                    // swap all mov var, reg
+                    // with sw reg, [sp,var_offset]
+                    if(!is_reg(opcode.v1))
+                    {
+                        // hardcode this to an s32 and dont care about the size for now
+                        const auto slot = symbol_to_idx(opcode.v1);
+
+
+                        auto &var_alloc = func.slot_lookup[slot];
+
+                        // we have not allocated where this variable goes yet
+                        if(var_alloc.offset == UNALLOCATED_OFFSET)
+                        {
+                            stack_allocate(stack_alloc,var_alloc);
+                        }
+
+                        // if is an arg read "above" the stack (stack allocation + return value)
+                        // TODO: handle arg being a reg
+                        const u32 offset = is_arg(opcode.v1)? var_alloc.offset + stack_size + sizeof(u32) : var_alloc.offset;
+
+                        // move by size
+                        static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+
+                        opcode = Opcode(instr[var_alloc.size >> 1],opcode.v2,SP,offset + stack_offset);
+                    }
+
+                    // swap all mov reg, var
+                    // with lw reg, [sp,var_offset]
+                    else if(!is_reg(opcode.v2))
+                    {
+                        const auto slot = symbol_to_idx(opcode.v2);
+
+                        auto &var_alloc = func.slot_lookup[slot];
+
+
+                        // we have not allocated where this variable goes yet
+                        if(var_alloc.offset == UNALLOCATED_OFFSET)
+                        {
+                            stack_allocate(stack_alloc,var_alloc);
+                        }
+
+
+                        // if is an arg read "above" the stack (stack allocation + return value)
+                        // TODO: handle arg being a reg
+                        const u32 offset = is_arg(opcode.v2)? var_alloc.offset + stack_size + sizeof(u32) : var_alloc.offset;
+
+
+
+                        // is a signed integer (we need to sign extend)
+                        if(var_alloc.is_signed)
+                        {
+                            // word is register size (we dont need to extend it)
+                            static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+
+                            opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,offset + stack_offset);                    
+                        }
+
+                        // "plain data"
+                        // just move by size
+                        else
+                        {
+                            static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+                            opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,offset + stack_offset);
+                        }
+                    }
+                    break;
+                }
+
+
+                // add stack cleanup to all ret functions
+                case op_type::ret:
+                {
+                    // if there is no stack allocation there is nothing to clean up
+                    if(stack_size)
+                    {
+                        block.insert(it,stack_clean);
+                    }
+                    break;
+                }
+
+                default: break;
             }
 
-
-            // add stack cleanup to all ret functions
-            case op_type::ret:
-            {
-                // if there is no stack allocation there is nothing to clean up
-                if(stack_size)
-                {
-                    func.emitter.program.insert(it,stack_clean);
-                }
-                break;
-            }
-
-            default: break;
+            // use continue to skip this statement when we have to delete from the list
+            ++it;
         }
-
-        // use continue to skip this statement when we have to delete from the list
-        ++it;
     }
-
 
 }
 
@@ -333,9 +341,15 @@ void Interloper::emit_asm()
         // when we assembly to an actual arch we will 
         // have to switch over to a byte array
         func.func_offset = program.size() * OP_SIZE;
-        for(const auto &op : func.emitter.program)
+
+        for(const auto &block : func.emitter.program)
         {
-            program.push_back(op);
+            // TODO: record each block loc by here
+
+            for(const auto &op : block)
+            {
+                program.push_back(op);
+            }
         }
     }
 
@@ -494,26 +508,42 @@ void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, con
 
         case op_group::branch_t:
         {
-            if(info.args != 1)
+            switch(info.args)
             {
-                printf("unknown opcode");
-                exit(1);
-            }
+                // unconditonal branch
+                case 1:
+                {
+                    // symbols have been resolved
+                    if(!label_lookup)
+                    {
+                        printf("%s 0x%x\n",info.name,opcode.v1);
+                    }
 
-            // symbols have been resolved
-            if(!label_lookup)
-            {
-                printf("%s 0x%x\n",info.name,opcode.v1);
-            }
+                    else
+                    {
+                        const auto labels = *label_lookup;
+                        assert(opcode.v1 < labels.size());
 
-            else
-            {
-                const auto labels = *label_lookup;
-                assert(opcode.v1 < labels.size());
+                        printf("%s %s\n",info.name,labels[opcode.v1].c_str());
+                    }
+                    break;
+                }
 
-                printf("%s %s\n",info.name,labels[opcode.v1].c_str());
-            }
+                // conditional branch
+                // add name resolution for this
+                case 2:
+                {
+                    printf("%s %x,%s\n",info.name,opcode.v1,get_oper(table,opcode.v2).c_str());
+                    break;
+                }
 
+                default:
+                {
+                    printf("unknown opcode");
+                    exit(1);
+                }
+            }   
+            break;
         }
 
     }

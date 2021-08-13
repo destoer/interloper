@@ -24,12 +24,42 @@ bool same_type(const Type &type1, const Type &type2)
 
 u32 Interloper::type_size(const Type &type)
 {
-    if(is_builtin(type.type_idx))
+    if(is_builtin(type))
     {
         // assume plain type for now i.e no pointers etc
-        return builtin_type_info[type.type_idx].size;
+        return builtin_size(static_cast<builtin_type>(type.type_idx));
     }
-    
+
+    else
+    {
+        puts("user defined type size\n");
+        exit(1);
+    }
+}
+
+u32 Interloper::type_min(const Type &type)
+{
+    if(is_builtin(type))
+    {
+        // assume plain type for now i.e no pointers etc
+        return builtin_min(static_cast<builtin_type>(type.type_idx));
+    }
+
+    else
+    {
+        puts("user defined type size\n");
+        exit(1);
+    }
+}
+
+u32 Interloper::type_max(const Type &type)
+{
+    if(is_builtin(type))
+    {
+        // assume plain type for now i.e no pointers etc
+        return builtin_max(static_cast<builtin_type>(type.type_idx));
+    }
+
     else
     {
         puts("user defined type size\n");
@@ -40,7 +70,7 @@ u32 Interloper::type_size(const Type &type)
 
 std::string Interloper::type_name(const Type &type)
 {
-    if(is_builtin(type.type_idx))
+    if(is_builtin(type))
     {
         return builtin_type_name(static_cast<builtin_type>(type.type_idx));
     }
@@ -56,16 +86,16 @@ std::string Interloper::type_name(const Type &type)
 Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
 {
     // builtin type
-    if(is_builtin(rtype.type_idx) && is_builtin(ltype.type_idx))
+    if(is_builtin(rtype) && is_builtin(ltype))
     {
-        const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
-        const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
-
         // both integers
-        if(is_integer(builtin_l) && is_integer(builtin_r))
+        if(is_integer(rtype) && is_integer(ltype))
         {
+            const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
+            const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
+
             // return the larger size of the type (promotion)
-            return (size(builtin_l) > size(builtin_r))? ltype : rtype; 
+            return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype; 
         }
 
         // something else
@@ -88,15 +118,15 @@ Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
 void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
 {
     // both are builtin
-    if(is_builtin(rtype.type_idx) && is_builtin(ltype.type_idx))
+    if(is_builtin(rtype) && is_builtin(ltype))
     {
         const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
         const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
 
         // both integers 
-        if(is_integer(builtin_l) && is_integer(builtin_r))
+        if(is_integer(rtype) && is_integer(ltype))
         {
-            if(is_signed(builtin_l) != is_signed(builtin_r))
+            if(is_signed(rtype) != is_signed(ltype))
             {
                 panic("logical comparision on different signs %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
             }
@@ -137,16 +167,16 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
 
 
     // both are builtin
-    if(is_builtin(rtype.type_idx) && is_builtin(ltype.type_idx))
+    if(is_builtin(rtype) && is_builtin(ltype))
     {
         const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
         const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
 
         // both integers
-        if(is_integer(builtin_l) && is_integer(builtin_r))
+        if(is_integer(ltype) && is_integer(rtype))
         {
             // would narrow (assign is illegal)
-            if(size(builtin_l) < size(builtin_r))
+            if(builtin_size(builtin_l) < builtin_size(builtin_r))
             {
                 panic("narrowing conversion %s = %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
             }
@@ -202,13 +232,13 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
 
     // handle side effects of the cast
     // builtin type
-    if(is_builtin(old_type.type_idx) && is_builtin(new_type.type_idx))
+    if(is_builtin(old_type) && is_builtin(new_type))
     {
         const auto builtin_old = static_cast<builtin_type>(old_type.type_idx);
         const auto builtin_new = static_cast<builtin_type>(new_type.type_idx);
 
         // integer
-        if(is_integer(builtin_new) && is_integer(builtin_old))
+        if(is_integer(old_type) && is_integer(new_type))
         {
             // TODO: make sure this is optimised out
 
@@ -219,8 +249,8 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
             
             // signed -> larger type
             // sign extend
-            if(is_signed(builtin_old) && is_signed(builtin_old) && 
-                size(builtin_old) < size(builtin_new))
+            if(is_signed(old_type) && is_signed(new_type) && 
+                builtin_size(builtin_old) < builtin_size(builtin_new))
             {
                 switch(builtin_old)
                 {
@@ -242,9 +272,9 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
 
             // larger type -> smaller type
             // truncate value (mask)
-            else if(size(builtin_old) > size(builtin_new))
+            else if(builtin_size(builtin_old) > builtin_size(builtin_new))
             {
-                switch(size(builtin_new))
+                switch(builtin_size(builtin_new))
                 {
                     case 1: 
                     {

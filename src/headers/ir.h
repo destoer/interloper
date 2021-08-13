@@ -63,6 +63,8 @@ enum class op_type
     cmpeq_reg,
     cmpne_reg,
 
+    bnc,
+
 
     // DIRECTIVES
     // varabile on the stack is out of scope
@@ -217,7 +219,9 @@ struct IrEmitter
 {
     void emit(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
 
-    std::list<Opcode> program;
+    void new_block();
+
+    std::vector<std::list<Opcode>> program;
     
     // how many registers used in this expression
     uint32_t reg_count;

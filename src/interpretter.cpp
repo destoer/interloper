@@ -39,6 +39,8 @@ void Interpretter::write_mem(u32 addr, access_type v)
 
 s32 Interpretter::run(const u8 *program, u32 size)
 {
+    puts("BOOP!"); exit(1);
+
     puts("startring progam execution\n\n\n");
 
     this->program = program;
@@ -342,6 +344,15 @@ s32 Interpretter::run(const u8 *program, u32 size)
             case op_type::cmpne_reg:
             {
                 regs[opcode.v1] = regs[opcode.v2] != regs[opcode.v3];
+                break;
+            }
+
+            case op_type::bnc:
+            {
+                if(!regs[opcode.v2])
+                {
+                    regs[PC] = opcode.v1;
+                }
                 break;
             }
 

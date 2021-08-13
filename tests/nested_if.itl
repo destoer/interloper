@@ -1,5 +1,5 @@
 
-// expected 574
+// expected 575
 
 func s32 test(s32 x)
 {
@@ -29,6 +29,11 @@ func s32 test(s32 x)
     else if(x == 0)
     {
         x = x + 100;
+
+        if(x < 200)
+        {
+            x = x + 1;
+        }
     }
 
     else

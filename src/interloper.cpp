@@ -105,16 +105,46 @@ Type Interloper::compile_logical_op(Function &func,AstNode *node, logic_op type)
     const auto v2 = reg(func.emitter.reg_count);  
 
 
-    // coerce zero to the other type so comparisions with zero work
-    // regardless of the sign they are compared against
-    if(node->nodes[0]->type == ast_type::value && node->nodes[0]->value.v == 0)
+    // if one side is a value do type checking
+    if(is_integer(t1) && is_integer(t2))
     {
-        t1 = t2;
-    }
+        if(node->nodes[0]->type == ast_type::value || node->nodes[1]->type == ast_type::value)
+        {
+            const bool is_op1 = node->nodes[0]->type == ast_type::value;
 
-    else if(node->nodes[1]->type == ast_type::value && node->nodes[1]->value.v == 0)
-    {
-        t2 = t1;
+            u32 v = is_op1? node->nodes[0]->value.v : node->nodes[1]->value.v;
+            Type &oper = is_op1? t2 : t1;
+            Type &value = is_op1? t1 : t2;
+
+
+            // unsigned value against signed value
+            // if one side is signed and the other unsigned
+            // allow comparision if the unsigned is a static value that
+            // the signed side can represent
+            if(!is_signed(value) && is_signed(oper))
+            {
+                // value is within range of operand value
+                // change value to a the signed type
+                if(v <= type_max(oper))
+                {
+                    value = oper;
+                }
+
+                else
+                {
+                    panic("value: %x exceeds type %s\n",v,type_name(oper).c_str());
+                }
+            }
+
+            // value is outside the range of the other type
+            else if(is_signed(value) == is_signed(oper))
+            {
+                if(type_size(value) > type_size(oper))
+                {
+                    panic("value: %x exceeds type %s\n",v,type_name(oper).c_str());
+                }
+            }
+        } 
     }
 
 
@@ -335,17 +365,17 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             if(sign)
             {
                 // what is the smallest storage type that this will fit inside?
-                if(in_range(static_cast<s32>(value),static_cast<s32>(min(builtin_type::s8_t)),static_cast<s32>(max(builtin_type::s8_t))))
+                if(in_range(static_cast<s32>(value),static_cast<s32>(builtin_min(builtin_type::s8_t)),static_cast<s32>(builtin_max(builtin_type::s8_t))))
                 {
                     return  Type(builtin_type::s8_t);
                 }
 
-                else if(in_range(static_cast<s32>(value),static_cast<s32>(min(builtin_type::s16_t)),static_cast<s32>(max(builtin_type::s16_t))))
+                else if(in_range(static_cast<s32>(value),static_cast<s32>(builtin_min(builtin_type::s16_t)),static_cast<s32>(builtin_max(builtin_type::s16_t))))
                 {
                     return Type(builtin_type::s16_t);
                 }
 
-                //else if(in_range(static_cast<s32>(value),static_cast<s32>(min(builtin_type::s32_t)),static_cast<s32>(max(builtin_type::s32_t)))
+                //else if(in_range(static_cast<s32>(value),static_cast<s32>(builtin_min(builtin_type::s32_t)),static_cast<s32>(builtin_max(builtin_type::s32_t)))
                 else
                 {
                     return Type(builtin_type::s32_t);
@@ -355,17 +385,17 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             else
             {
                 // what is the smallest storage type that this will fit inside?
-                if(in_range(value,min(builtin_type::u8_t),max(builtin_type::u8_t)))
+                if(in_range(value,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
                 {
                     return  Type(builtin_type::u8_t);
                 }
 
-                else if(in_range(value,min(builtin_type::u16_t),max(builtin_type::u16_t)))
+                else if(in_range(value,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
                 {
                     return Type(builtin_type::u16_t);
                 }
 
-                //else if(in_range(value,min(builtin_type::u32_t),max(builtin_type::u32_t))
+                //else if(in_range(value,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t))
                 else
                 {
                     return Type(builtin_type::u32_t);
@@ -559,7 +589,83 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 }
 
 
+// okay we know how to handle the block labels
+// now we just need to think about how to represent them within the func
+// and when are where we need to introduce new ones
+// cant rely on introducing them on standard blocks
+// because we will ruin some of the basic blocks
 
+
+// i think on entry of function
+// entry into each if block
+// and exit of compiling an if block is enough to do it
+// how does this play with the stack reclaim directives?
+// i think it should "just work" but im not 100% sure
+// so we need a vector of "blocks" which are just std::lists of opcodes
+// and then we need to place them after eachover linearlly during emit_asm
+// while linking functions
+// and add the label posistions into a lookup
+// (i think this should be a seperatee lookup compared to functions)
+// because this one can be done very fast indeed
+
+// breaks down on nested stmts
+void Interloper::compile_if_block(Function &func,AstNode *node)
+{
+    for(u32 n = 0; n < node->nodes.size(); n++)
+    {
+        const auto &if_stmt = *node->nodes[n];
+
+        if(if_stmt.type != ast_type::else_t)
+        {
+
+            if(n != 0)
+            {
+                // emit new block for compare
+                func.emitter.new_block();
+            }
+
+            // compile the compare expr for conditon
+            const auto t = compile_expression(func,if_stmt.nodes[0]);
+
+            if(!is_bool(t))
+            {
+                panic("expected bool got %s in if condition\n",type_name(t).c_str());
+                return;
+            }
+
+            // branch past the block that is about to be made
+            const u32 target = func.emitter.program.size() + 1;
+
+            // TODO: this needs to be reworked for else if
+            // we need to make this the first thing
+            // bnc
+            func.emitter.emit(op_type::bnc,target,reg(func.emitter.reg_count));
+
+            // emit new block for the body
+            func.emitter.new_block();
+
+            compile_block(func,if_stmt.nodes[1]);
+        }
+
+        // else stmt has no expr so its in the first node
+        else 
+        {
+            // emit block for body
+            func.emitter.new_block();
+            compile_block(func,if_stmt.nodes[0]);
+        }
+    }
+
+    // emit the "exit block"
+    func.emitter.new_block();
+
+    // for every block bar the last we just added
+    // add a unconditonal branch to the "exit block"
+    // the last block is directly before the next and does not need one
+
+    // TODO: we need a way to mark what the block is for
+    // i.e we only want to dump this into if and else if stmts
+}
 
 
 
@@ -725,6 +831,13 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 break;
             }
 
+
+            case ast_type::if_block:
+            {
+                compile_if_block(func,l);
+                break;
+            }
+
             default:
             {
                 panic("[COMPILE] unexpected token\n");
@@ -788,6 +901,9 @@ void Interloper::compile_functions()
 
 
         has_return = false;
+
+        func.emitter.new_block();
+
 
         // parse out each line of the function
         auto block = node.nodes[1];
@@ -862,7 +978,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
         return;
     }
 
-//    print(root);
+   print(root);
 
 
     // okay now we need to start doing semantic analysis
