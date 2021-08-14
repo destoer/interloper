@@ -64,6 +64,7 @@ enum class op_type
     cmpne_reg,
 
     bnc,
+    b,
 
 
     // DIRECTIVES
@@ -82,6 +83,9 @@ enum class op_type
     // directives to make sure registers get preserved correctly across calls
     save_reg,
     restore_reg,
+
+    // branch to end of if statement chain
+    exit_block,
 
     // just c++ things not used
     END,
@@ -207,8 +211,9 @@ static constexpr uint32_t OP_SIZE = sizeof(Opcode);
 
 struct SymbolTable;
 struct VarAlloc;
+struct Label;
 
-void disass_opcode_sym(const Opcode &opcode, const std::vector<VarAlloc> &table, const std::vector<std::string> &label_lookup);
+void disass_opcode_sym(const Opcode &opcode, const std::vector<VarAlloc> &table, const std::vector<Label> &label_lookup);
 void disass_opcode_raw(const Opcode &opcode);
 
 
@@ -219,10 +224,12 @@ struct IrEmitter
 {
     void emit(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
 
-    void new_block();
+    void new_block(u32 slot = 0xffffffff);
 
     std::vector<std::list<Opcode>> program;
-    
+    std::vector<u32> block_slot;
+
+
     // how many registers used in this expression
     uint32_t reg_count;
 

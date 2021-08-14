@@ -355,27 +355,25 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
 
         case ast_type::value:
-        {
-            const u32 value = node->value.v;
-            const auto sign = node->value.sign;
-
-            func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),value);
-
+        { 
             // figure out what the min storage is required to fit this value
-            if(sign)
+            if(node->value.sign)
             {
+                const auto value = static_cast<s32>(node->value.v);
+                func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),value);
+
                 // what is the smallest storage type that this will fit inside?
-                if(in_range(static_cast<s32>(value),static_cast<s32>(builtin_min(builtin_type::s8_t)),static_cast<s32>(builtin_max(builtin_type::s8_t))))
+                if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s8_t)),static_cast<s32>(builtin_max(builtin_type::s8_t))))
                 {
                     return  Type(builtin_type::s8_t);
                 }
 
-                else if(in_range(static_cast<s32>(value),static_cast<s32>(builtin_min(builtin_type::s16_t)),static_cast<s32>(builtin_max(builtin_type::s16_t))))
+                else if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s16_t)),static_cast<s32>(builtin_max(builtin_type::s16_t))))
                 {
                     return Type(builtin_type::s16_t);
                 }
 
-                //else if(in_range(static_cast<s32>(value),static_cast<s32>(builtin_min(builtin_type::s32_t)),static_cast<s32>(builtin_max(builtin_type::s32_t)))
+                //else if(value,static_cast<s32>(builtin_min(builtin_type::s32_t)),static_cast<s32>(builtin_max(builtin_type::s32_t)))
                 else
                 {
                     return Type(builtin_type::s32_t);
@@ -384,6 +382,9 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
             else
             {
+                const u32 value = node->value.v;
+                func.emitter.emit(op_type::mov_imm,reg(func.emitter.reg_count),value);
+
                 // what is the smallest storage type that this will fit inside?
                 if(in_range(value,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
                 {
@@ -588,29 +589,27 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
     }
 }
 
+std::string label_name(u32 slot)
+{
+    return "L" + std::to_string(slot);
+}
 
-// okay we know how to handle the block labels
-// now we just need to think about how to represent them within the func
-// and when are where we need to introduce new ones
-// cant rely on introducing them on standard blocks
-// because we will ruin some of the basic blocks
+u32 Interloper::new_basic_block(Function &func)
+{
+    const u32 slot = symbol_table.label_lookup.size();
+
+    func.emitter.new_block(slot);
+    symbol_table.add_label(label_name(slot)); 
+
+    return slot;   
+}
 
 
-// i think on entry of function
-// entry into each if block
-// and exit of compiling an if block is enough to do it
-// how does this play with the stack reclaim directives?
-// i think it should "just work" but im not 100% sure
-// so we need a vector of "blocks" which are just std::lists of opcodes
-// and then we need to place them after eachover linearlly during emit_asm
-// while linking functions
-// and add the label posistions into a lookup
-// (i think this should be a seperatee lookup compared to functions)
-// because this one can be done very fast indeed
-
-// breaks down on nested stmts
+// nested if statements mess up all 2nd stmt and onward offsets
 void Interloper::compile_if_block(Function &func,AstNode *node)
 {
+    const u32 start_block = func.emitter.program.size();
+
     for(u32 n = 0; n < node->nodes.size(); n++)
     {
         const auto &if_stmt = *node->nodes[n];
@@ -620,8 +619,8 @@ void Interloper::compile_if_block(Function &func,AstNode *node)
 
             if(n != 0)
             {
-                // emit new block for compare
-                func.emitter.new_block();
+                // create new block for compare
+                new_basic_block(func);
             }
 
             // compile the compare expr for conditon
@@ -633,38 +632,60 @@ void Interloper::compile_if_block(Function &func,AstNode *node)
                 return;
             }
 
-            // branch past the block that is about to be made
-            const u32 target = func.emitter.program.size() + 1;
+            const u32 r = reg(func.emitter.reg_count);
+            const u32 cur_block = func.emitter.program.size() - 1;
 
-            // TODO: this needs to be reworked for else if
-            // we need to make this the first thing
-            // bnc
-            func.emitter.emit(op_type::bnc,target,reg(func.emitter.reg_count));
-
-            // emit new block for the body
-            func.emitter.new_block();
-
+            // compile the body block
+            new_basic_block(func);
             compile_block(func,if_stmt.nodes[1]);
+
+            // add branch over the block we just compiled
+            const u32 slot = symbol_table.label_lookup.size();
+
+            func.emitter.program[cur_block].push_back(Opcode(op_type::bnc,slot,r,0));
+
+
+            // not the last statment (branch is not require)
+            if(n != node->nodes.size() - 1)
+            {
+                // emit a directive so we know to insert a branch
+                // to the exit block here once we know how many blocks
+                // there are
+                func.emitter.emit(op_type::exit_block);
+            }
         }
 
         // else stmt has no expr so its in the first node
+        // by definition this is the last statement
         else 
         {
-            // emit block for body
-            func.emitter.new_block();
+            // create block for body
+            new_basic_block(func);
+
             compile_block(func,if_stmt.nodes[0]);
         }
     }
 
-    // emit the "exit block"
-    func.emitter.new_block();
+    // create the exit block, for new code to code
+    const u32 exit_block = new_basic_block(func);
 
-    // for every block bar the last we just added
+
+
+    // for every body block bar the last we just added
     // add a unconditonal branch to the "exit block"
     // the last block is directly before the next and does not need one
 
-    // TODO: we need a way to mark what the block is for
-    // i.e we only want to dump this into if and else if stmts
+    for(u32 b = start_block; b < func.emitter.program.size() - 2; b++)
+    {
+        auto &block = func.emitter.program[b];
+
+        if(block.back().op == op_type::exit_block)
+        {
+            block.back() = Opcode(op_type::b,exit_block,0,0);
+        }
+    }
+
+
 }
 
 
@@ -902,7 +923,7 @@ void Interloper::compile_functions()
 
         has_return = false;
 
-        func.emitter.new_block();
+        new_basic_block(func);
 
 
         // parse out each line of the function

@@ -38,6 +38,10 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/decl.itl",255,false},
     {"tests/redefine_func.itl",-1,true},
     {"tests/invalid_compare.itl",-1,true},
+    {"tests/if.itl",25,false},
+    {"tests/else_if.itl",45077,false},
+    {"tests/nested_if.itl",575,false},
+    {"tests/recur.itl",1,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

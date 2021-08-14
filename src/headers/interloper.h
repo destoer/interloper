@@ -45,6 +45,8 @@ private:
 
     void compile_block(Function &func, AstNode *node);
     void compile_if_block(Function &func,AstNode *node);
+    u32 new_basic_block(Function &func);
+
     Type compile_expression(Function &func,AstNode *node);
     Type compile_arith_op(Function &func, AstNode *node, op_type type);
     Type compile_logical_op(Function &func,AstNode *node, logic_op type);

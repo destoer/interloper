@@ -39,7 +39,7 @@ void Interpretter::write_mem(u32 addr, access_type v)
 
 s32 Interpretter::run(const u8 *program, u32 size)
 {
-    puts("BOOP!"); exit(1);
+    //puts("BOOP!"); exit(1);
 
     puts("startring progam execution\n\n\n");
 
@@ -356,6 +356,12 @@ s32 Interpretter::run(const u8 *program, u32 size)
                 break;
             }
 
+            case op_type::b:
+            {
+                regs[PC] = opcode.v1;
+                break;
+            }
+
             // system call
             case op_type::swi:
             {
@@ -382,6 +388,7 @@ s32 Interpretter::run(const u8 *program, u32 size)
             case op_type::free_slot_stack:
             case op_type::save_reg:
             case op_type::restore_reg:
+            case op_type::exit_block:
             case op_type::END:
             {
                 puts("directive not removed!?");

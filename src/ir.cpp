@@ -63,6 +63,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cmpne_reg",3},
 
     {op_group::branch_t,"bnc",2},
+    {op_group::branch_t,"b",1},
 
     // directives
     {op_group::imm_t,"free_slot",1},
@@ -76,6 +77,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"save_reg",1},
     {op_group::reg_t,"restore_reg",1},
 
+    {op_group::implicit_t,"exit_block",0},
+
     // not used
     {op_group::implicit_t,"END",0},
 };
@@ -88,9 +91,11 @@ void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
     pc += 1;
 }
 
-void IrEmitter::new_block()
+void IrEmitter::new_block(u32 slot)
 {
     program.push_back({});
+    block_slot.push_back(slot);
+
 }
 
 
@@ -340,11 +345,19 @@ void Interloper::emit_asm()
 
         // when we assembly to an actual arch we will 
         // have to switch over to a byte array
-        func.func_offset = program.size() * OP_SIZE;
+        symbol_table.label_lookup[func.slot].offset = program.size() * OP_SIZE;
 
-        for(const auto &block : func.emitter.program)
+
+        for(u32 b = 0; b < func.emitter.program.size(); b++)
         {
-            // TODO: record each block loc by here
+            const auto &block = func.emitter.program[b];
+
+            // resolve label addr.
+            // TODO: to locate this properly we need to know
+            // how many labels were allocated at the start of this func
+            // for now we will cheat as we only have one func with labels
+            // so just move the labels past the function ones
+            symbol_table.label_lookup[func.emitter.block_slot[b]].offset = program.size() * OP_SIZE;
 
             for(const auto &op : block)
             {
@@ -353,6 +366,15 @@ void Interloper::emit_asm()
         }
     }
 
+    // label dump
+/*
+    puts("\n\nlabels");
+    for(const auto &label : symbol_table.label_lookup)
+    {
+        printf("label %s = %x\n",label.name.c_str(),label.offset);
+    }
+    putchar('\n');
+*/
     
     // "link" the program and resolve all the labels we now have the absolute
     // posistions for
@@ -360,9 +382,11 @@ void Interloper::emit_asm()
     // x = &some_function;
     for(auto &opcode : program)
     {
-        if(opcode.op == op_type::call)
+        // handle all the branch labels
+        // TODO: this probably needs to be changed for when we have call <reg>
+        if(OPCODE_TABLE[static_cast<u32>(opcode.op)].group == op_group::branch_t)
         {
-            opcode.v1 = function_table[symbol_table.label_lookup[opcode.v1]].func_offset;
+            opcode.v1 = symbol_table.label_lookup[opcode.v1].offset;
         }
     }
 
@@ -415,7 +439,7 @@ std::string get_oper_raw(const std::vector<VarAlloc> *table,uint32_t v)
 
 // pass in a "optional" table and a operand function so we can either disassemble it with symbol
 // information or without
-void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, const std::vector<std::string> *label_lookup, IR_OPER_STRING_FUNC get_oper)
+void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, const std::vector<Label> *label_lookup, IR_OPER_STRING_FUNC get_oper)
 {
     const auto &info = OPCODE_TABLE[static_cast<size_t>(opcode.op)];
 
@@ -524,7 +548,7 @@ void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, con
                         const auto labels = *label_lookup;
                         assert(opcode.v1 < labels.size());
 
-                        printf("%s %s\n",info.name,labels[opcode.v1].c_str());
+                        printf("%s %s\n",info.name,labels[opcode.v1].name.c_str());
                     }
                     break;
                 }
@@ -533,7 +557,20 @@ void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, con
                 // add name resolution for this
                 case 2:
                 {
-                    printf("%s %x,%s\n",info.name,opcode.v1,get_oper(table,opcode.v2).c_str());
+                    // assume this is only going for a branch now
+                    // we will want a table lookup later
+                    if(label_lookup)
+                    {
+                        const auto labels = *label_lookup;
+                        assert(opcode.v1 < labels.size());
+
+                        printf("%s %s,%s\n",info.name,labels[opcode.v1].name.c_str(),get_oper(table,opcode.v2).c_str());
+                    }
+
+                    else
+                    {
+                        printf("%s %x,%s\n",info.name,opcode.v1,get_oper(table,opcode.v2).c_str());
+                    }
                     break;
                 }
 
@@ -550,7 +587,7 @@ void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, con
 
 }
 
-void disass_opcode_sym(const Opcode &opcode, const std::vector<VarAlloc> &table, const std::vector<std::string> &label_lookup)
+void disass_opcode_sym(const Opcode &opcode, const std::vector<VarAlloc> &table, const std::vector<Label> &label_lookup)
 {
     disass_opcode(opcode,&table,&label_lookup,get_oper_sym);
 }

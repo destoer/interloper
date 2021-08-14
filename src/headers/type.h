@@ -210,6 +210,18 @@ struct VarAlloc
     std::string name;
 };
 
+struct Label 
+{
+    Label(const std::string &name, u32 offset)
+    {
+        this->name = name;
+        this->offset = offset;
+    }
+
+    std::string name;
+    u32 offset;  
+};
+
 
 struct Function
 {
@@ -267,14 +279,20 @@ struct Function
         return slot;       
     }
 
-    void dump_ir(const std::vector<std::string> &label_lookup)
+    void dump_ir(const std::vector<Label> &label_lookup)
     {
         printf("%s:\n",name.c_str());
 
         u32 l = 0;
-        for(const auto &block : emitter.program)
+        for(u32 b = 0; b < emitter.program.size(); b++)
         {
-            printf("L%d:\n",l);
+            const auto &block = emitter.program[b];
+        
+            if(emitter.block_slot[b] != 0xffffffff)
+            {
+                printf("%s:\n",label_lookup[emitter.block_slot[b]].name.c_str());
+            }
+
             for(const auto &opcode : block)
             {
                 printf("\t");
@@ -307,9 +325,6 @@ struct Function
     u32 size_count_cur[3] = {0};
 
     u32 arg_offset = 0;
-
-    // where is the funciton code located in the binary?
-    u32 func_offset = 0;
 };
 
 struct SymbolTable
@@ -356,18 +371,19 @@ struct SymbolTable
 
     void add_label(const std::string &label)
     {
-        label_lookup.push_back(label);
+        label_lookup.push_back(Label(label,0));
     }
 
     void clear()
     {
         table.clear();
+        label_lookup.clear();
         sym_count = 0;
     }
 
     std::vector<std::unordered_map<std::string, Symbol>> table; 
 
-    std::vector<std::string> label_lookup;
+    std::vector<Label> label_lookup;
 
     u32 sym_count = 0;
 };
