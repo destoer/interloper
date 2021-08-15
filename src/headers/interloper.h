@@ -63,7 +63,7 @@ private:
 
     void allocate_registers(Function &func);
 
-
+    void dump_ir_sym();
 
     // typing
     std::string type_name(const Type &type);

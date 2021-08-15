@@ -51,7 +51,7 @@ void Interloper::optimise_ir()
                         const auto op3 = peek_opcode(block,++it_op);
 
                         // can constant fold
-                        if(op2.op == op_type::mov_imm && op3.v2 == opcode.v1 && op3.v3 == op2.v1)
+                        if(op2.op == op_type::mov_imm && op3.op != op_type::placeholder && op3.v2 == opcode.v1 && op3.v3 == op2.v1)
                         {
                             const u32 dst = op3.v1;
 

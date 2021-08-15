@@ -949,9 +949,17 @@ void Interloper::compile_functions()
         {
             return;
         }
-
-        func.dump_ir(symbol_table.label_lookup);    
     }
+}
+
+void Interloper::dump_ir_sym()
+{
+    for(auto &[key,func] : function_table)
+    {
+        UNUSED(key);
+
+        func.dump_ir(symbol_table.label_lookup);
+    }    
 }
 
 
@@ -1048,10 +1056,9 @@ void Interloper::compile(const std::vector<std::string> &lines)
     }
 
 
-
-    //dump_ir_sym();
-
     optimise_ir();
+
+    dump_ir_sym();
 
     // perform register allocation
     for(auto &[key, func]: function_table)

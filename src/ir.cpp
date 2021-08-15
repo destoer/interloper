@@ -393,14 +393,14 @@ void Interloper::emit_asm()
     }
 
     // program dump
-
+/*
     puts("raw program dump\n\n\n");
     for(u32 pc = 0; pc < program.size(); pc++)
     {
         printf("0x%08x: ",pc * OP_SIZE);
         disass_opcode_raw(program[pc]);
     }
-
+*/
 }
 
 
