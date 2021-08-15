@@ -605,7 +605,6 @@ u32 Interloper::new_basic_block(Function &func)
 }
 
 
-// nested if statements mess up all 2nd stmt and onward offsets
 void Interloper::compile_if_block(Function &func,AstNode *node)
 {
     const u32 start_block = func.emitter.program.size();
@@ -666,7 +665,7 @@ void Interloper::compile_if_block(Function &func,AstNode *node)
         }
     }
 
-    // create the exit block, for new code to code
+    // create the exit block, for new code
     const u32 exit_block = new_basic_block(func);
 
 
@@ -684,8 +683,6 @@ void Interloper::compile_if_block(Function &func,AstNode *node)
             block.back() = Opcode(op_type::b,exit_block,0,0);
         }
     }
-
-
 }
 
 
@@ -1054,7 +1051,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     //dump_ir_sym();
 
-    //optimise_ir();
+    optimise_ir();
 
     // perform register allocation
     for(auto &[key, func]: function_table)

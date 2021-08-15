@@ -57,7 +57,6 @@ void run_tests()
     puts("\nprogram tests\n");
 
     Interloper interloper;
-    Interpretter interpretter;
     for(u32 i = 0; i < PROGRAM_TEST_SIZE; i++)
     {
         const auto &test = PROGRAM_TEST[i];
@@ -85,7 +84,7 @@ void run_tests()
         }
 
 
-        const auto r = interpretter.run(reinterpret_cast<uint8_t*>(interloper.program.data()),interloper.program.size() * sizeof(Opcode));      
+        const auto r = interloper.interpretter.run(reinterpret_cast<uint8_t*>(interloper.program.data()),interloper.program.size() * sizeof(Opcode));      
 
 
         if(test.expected != r)

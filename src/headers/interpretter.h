@@ -10,6 +10,7 @@
 struct Interpretter final
 {
     s32 run(const uint8_t *program, uint32_t size);
+    void reset();
 
     template<typename access_type>
     access_type read_mem(uint32_t addr);
@@ -17,11 +18,15 @@ struct Interpretter final
     template<typename access_type>
     void write_mem(uint32_t addr, access_type v);
 
+    void execute_opcode(const Opcode &opcode);
+
     const uint8_t *program = nullptr;
     uint32_t size = 0;
 
     //pc and sp are after the standard regs
     uint32_t regs[MACHINE_REG_SIZE + 2];
+
+    bool quit;
 
     // 16MB stack
     std::vector<uint8_t> stack;

@@ -49,6 +49,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Interpretter interpretter;
-    interpretter.run(reinterpret_cast<uint8_t*>(interloper.program.data()),interloper.program.size() * sizeof(Opcode));
+    
+    interloper.interpretter.run(reinterpret_cast<uint8_t*>(interloper.program.data()),interloper.program.size() * sizeof(Opcode));
 }

@@ -25,6 +25,7 @@ struct Interloper
 
     bool error;
 
+    Interpretter interpretter;
 private:
 
     template<typename... Args>
@@ -53,6 +54,8 @@ private:
     Type compile_function_call(Function &func,AstNode *node);
 
     void emit_asm();
+
+    void optimise_ir();
 
     // ir functions (defined in ir.cpp)
     void emit_ir(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);

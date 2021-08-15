@@ -87,6 +87,9 @@ enum class op_type
     // branch to end of if statement chain
     exit_block,
 
+    // used when the end of the block is read past in the optimiser
+    placeholder,
+
     // just c++ things not used
     END,
 };
