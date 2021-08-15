@@ -598,8 +598,13 @@ u32 Interloper::new_basic_block(Function &func)
 {
     const u32 slot = symbol_table.label_lookup.size();
 
+    const u32 basic_block = func.emitter.program.size();
+
     func.emitter.new_block(slot);
-    symbol_table.add_label(label_name(slot)); 
+    symbol_table.add_label(label_name(slot));
+
+    // offset is the block offset until full resolution
+    symbol_table.label_lookup[slot].offset = basic_block;
 
     return slot;   
 }

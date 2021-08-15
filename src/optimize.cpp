@@ -72,9 +72,45 @@ void Interloper::optimise_ir()
                     }
 
                     // implement dead code elimination on returns
+                    case op_type::ret:
+                    {
+                        // remove everything after the return
+                        it = block.erase(++it,block.end());
+                        continue;
+                    }
 
                     // and remove branch indirection
                     // i.e branches that immediately branch to another
+                    case op_type::bnc:
+                    case op_type::b:
+                    {
+                        u32 dst = opcode.v1;
+
+
+                        // TODO: make sure we cant branch to things outside the function scope with this
+                        // have a "far" jump for that purpose
+                        for(;;)
+                        {
+                            // lookup table has the block number rather than the absolute address
+                            // before label resolution
+                            const u32 block = symbol_table.label_lookup[dst].offset;
+
+                            const auto b = peek_opcode(func.emitter.program[block],func.emitter.program[block].begin());
+
+                            // while an branch that is not to itself
+                            if((b.op == op_type::b || b.op == op_type::bnc) && b.v1 != dst)
+                            {
+                                dst = b.v1;
+                                continue;
+                            }
+
+                            break;
+                        }
+
+                        opcode.v1 = dst;
+                        break;
+                    }
+
 
                     default: break;
                 }
