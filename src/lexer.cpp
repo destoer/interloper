@@ -47,9 +47,35 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
 
             case ';': insert_token(tokens,token_type::semi_colon); break;
 
-            case '*': insert_token(tokens,token_type::times); break;        
+            case '*':
+            { 
+                if(peek(1,line) == '=')
+                {
+                    insert_token(tokens,token_type::times_eq);
+                    column++;
+                }
 
-            case '+': insert_token(tokens,token_type::plus); break;
+                else
+                {
+                    insert_token(tokens,token_type::times); 
+                }
+                break;
+            }        
+
+            case '+':
+            {
+                if(peek(1,line) == '=')
+                {
+                    insert_token(tokens,token_type::plus_eq);
+                    column++;
+                }
+
+                else
+                {
+                    insert_token(tokens,token_type::plus); 
+                }
+                break;
+            }
 
             case '-': 
             {
@@ -58,6 +84,12 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                 {
                     decode_imm(line,column,tokens);
                 }
+
+                else if(peek(1,line) == '=')
+                {
+                    insert_token(tokens,token_type::minus_eq);
+                    column++;
+                }                
 
                 else
                 {
@@ -155,6 +187,12 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                 if(peek(1,line) == '/')
                 {
                     return;
+                }
+
+                else if(peek(1,line) == '=')
+                {
+                    insert_token(tokens,token_type::divide_eq);
+                    column++;
                 }
 
                 else

@@ -20,6 +20,10 @@ enum class token_type
     comma,
 
     equal,
+    plus_eq,
+    minus_eq,
+    times_eq,
+    divide_eq,
 
     decl,
 
@@ -104,6 +108,11 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::comma,",",0},
 
     {token_type::equal,"=",2},
+    {token_type::plus_eq,"+=",2},
+    {token_type::minus_eq,"-=",2},
+    {token_type::times_eq,"*=",2},
+    {token_type::divide_eq,"/=",2},
+
 
     {token_type::decl,"decl",-1},
 

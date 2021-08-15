@@ -59,6 +59,46 @@ bool Parser::match(token_type type)
     return t == type;
 }
 
+AstNode *copy_node(const AstNode *node)
+{
+    if(!node)
+    {
+        return nullptr;
+    }
+
+    auto copy  = new AstNode();
+
+    copy->type = node->type;
+    copy->literal = node->literal;
+
+    switch(copy->type)
+    {
+        case ast_type::type:
+        {
+            memcpy(&copy->variable_type,&node->variable_type,sizeof(Type));
+            break;
+        }
+
+        case ast_type::value:
+        {
+            memcpy(&copy->value,&node->value,sizeof(Value));
+        }
+
+        default: break;
+    }
+
+    for(const AstNode* n : node->nodes)
+    {
+        if(n)
+        {
+            copy->nodes.push_back(copy_node(n));
+        }
+    }
+
+    return copy;
+}
+
+
 // assume this is a plain type for now
 // i.e no array etc
 Type Parser::get_type(std::string &type_literal)
@@ -255,6 +295,10 @@ AstNode *Parser::statement()
             switch(t2.type)
             {
                 // assignment expr
+                case token_type::plus_eq:
+                case token_type::minus_eq:
+                case token_type::divide_eq:
+                case token_type::times_eq:
                 case token_type::equal:
                 {
                     return expr(t);

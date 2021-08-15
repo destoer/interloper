@@ -42,13 +42,43 @@ int32_t Parser::lbp(const Token &t)
     return bp;
 }
 
+// i.e +=
+AstNode *Parser::oper_eq(AstNode *left,Token t,ast_type oper)
+{
+    auto e = expression(lbp(t)-1);
+
+    // sugar as <sym> = <sym> + <expr>
+    auto e2 = new AstNode(copy_node(left),e,oper);
+
+    auto n = new AstNode(left,e2,ast_type::equal);
+
+    return n;    
+}
+
 AstNode *Parser::led(Token &t,AstNode *left)
 {
-    UNUSED(left);
-
     switch(t.type)
     {
-    
+        case token_type::plus_eq:
+        {
+            return oper_eq(left,t,ast_type::plus);
+        }
+
+        case token_type::minus_eq:
+        {
+            return oper_eq(left,t,ast_type::minus);
+        }
+
+        case token_type::times_eq:
+        {
+            return oper_eq(left,t,ast_type::times);
+        }
+
+
+        case token_type::divide_eq:
+        {
+            return oper_eq(left,t,ast_type::divide);
+        }
 
         case token_type::equal:
         { 

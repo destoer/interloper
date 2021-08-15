@@ -125,7 +125,6 @@ struct Value
     bool sign;
 };
 
-
 struct AstNode
 {
     AstNode() 
@@ -183,7 +182,9 @@ struct AstNode
     ast_type type;
     std::string literal;
 
-   
+    // if we put anything in here
+    // we need to make sure we add the copy into
+    // copy_node
     union
     {
         // ast_type::type
@@ -195,6 +196,10 @@ struct AstNode
 
     std::vector<AstNode *> nodes;
 };
+
+// copy an entire set of nodes
+AstNode *copy_node(const AstNode *node);
+
 
 
 inline void delete_tree(AstNode *node)
@@ -256,6 +261,7 @@ private:
     int32_t lbp(const Token &t);
     AstNode *led(Token &t,AstNode *left);
     AstNode *nud(Token &t);
+    AstNode *oper_eq(AstNode *left,Token t,ast_type oper);
 
     void consume(token_type type);
     void consume_expr(token_type type);

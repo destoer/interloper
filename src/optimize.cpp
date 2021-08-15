@@ -16,7 +16,6 @@ Opcode peek_opcode(const std::list<Opcode> &block, opcode_iterator_t it)
     }
 }
 
-// for now just do constant folding
 
 void Interloper::optimise_ir()
 {
@@ -65,7 +64,7 @@ void Interloper::optimise_ir()
                             *it_op = Opcode(op_type::mov_imm,dst,interpretter.regs[dst],0);
 
                             // remove the redundant mov_imm
-                            it = block.erase(it,it_op);
+                            it = block.erase(it,it_op); it--;
                             continue;
                         }
                         break;
