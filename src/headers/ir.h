@@ -64,6 +64,7 @@ enum class op_type
     cmpne_reg,
 
     bnc,
+    bc,
     b,
 
 

@@ -317,6 +317,16 @@ void Interpretter::execute_opcode(const Opcode &opcode)
             break;
         }
 
+        case op_type::bc:
+        {
+            if(regs[opcode.v2])
+            {
+                regs[PC] = opcode.v1;
+            }
+            break;
+        }
+
+
         case op_type::b:
         {
             regs[PC] = opcode.v1;

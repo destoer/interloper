@@ -50,6 +50,8 @@ enum class ast_type
     false_t,
     true_t,
 
+    for_block,
+
     if_block,
     if_t,
     else_if_t,
@@ -107,6 +109,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "false",
     "true",
+
+    "for_block",
 
     "if_block",
     "if",

@@ -63,6 +63,8 @@ enum class token_type
     logical_ge,
 
 
+    for_t,
+
     if_t,
     else_t,
 
@@ -152,6 +154,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::logical_gt,">",12},
     {token_type::logical_le,"<=",12},
     {token_type::logical_ge,">=",12},
+
+    {token_type::if_t,"for",-1},
 
     {token_type::if_t,"if",-1},
     {token_type::else_t,"else",-1},

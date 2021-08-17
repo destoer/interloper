@@ -331,6 +331,17 @@ AstNode *Parser::statement()
             return block();
         }
 
+        // assume one cond for now
+        case token_type::for_t:
+        {
+            const auto for_block = new AstNode(ast_type::for_block);
+
+            for_block->nodes.push_back(expr_terminate(token_type::left_c_brace)); prev_token(); 
+            for_block->nodes.push_back(block());
+
+            return for_block;
+        }
+
         // else_if and else parsed out here
         case token_type::if_t:
         {

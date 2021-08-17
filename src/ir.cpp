@@ -63,6 +63,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cmpne_reg",3},
 
     {op_group::branch_t,"bnc",2},
+    {op_group::branch_t,"bc",2},
     {op_group::branch_t,"b",1},
 
     // directives

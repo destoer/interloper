@@ -609,6 +609,36 @@ u32 Interloper::new_basic_block(Function &func)
     return slot;   
 }
 
+// asume one cond
+void Interloper::compile_for_block(Function &func,AstNode *node)
+{
+    const u32 intial_block = func.emitter.program.size() - 1;
+
+    const auto t = compile_expression(func,node->nodes[0]);
+
+    if(!is_bool(t))
+    {
+        panic("expected bool got %s in for condition\n",type_name(t).c_str());
+        return;
+    }    
+
+
+    // compile the body
+    const u32 cur = new_basic_block(func);
+    
+    compile_block(func,node->nodes[1]);    
+
+    compile_expression(func,node->nodes[0]);
+    func.emitter.emit(op_type::bc,cur,reg(func.emitter.reg_count));
+
+
+    const u32 exit_block = new_basic_block(func);
+
+    // emit branch over the loop body in initial block
+    // if cond is not met
+    func.emitter.program[intial_block].push_back(Opcode(op_type::bnc,exit_block,reg(func.emitter.reg_count),0));
+}
+
 
 void Interloper::compile_if_block(Function &func,AstNode *node)
 {
@@ -854,6 +884,12 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 break;
             }
 
+
+            case ast_type::for_block:
+            {
+                compile_for_block(func,l);
+                break;
+            }
 
             case ast_type::if_block:
             {
