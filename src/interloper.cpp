@@ -491,6 +491,11 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             return compile_arith_op(func,node,op_type::div_reg);       
         }
 
+        case ast_type::mod:
+        {
+            return compile_arith_op(func,node,op_type::mod_reg);       
+        }
+
         case ast_type::bitwise_and:
         {
             return compile_arith_op(func,node,op_type::and_reg);

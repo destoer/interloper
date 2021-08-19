@@ -8,6 +8,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"sub",3},
     {op_group::reg_t,"mul",3},
     {op_group::reg_t,"div",3},
+    {op_group::reg_t,"mod",3},
 
     {op_group::reg_t,"xor",3},
     {op_group::reg_t,"or",3},

@@ -180,6 +180,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                 break;
             }
 
+            case '%': insert_token(tokens,token_type::mod); break;
 
             case '/': 
             {

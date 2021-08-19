@@ -46,6 +46,7 @@ enum class token_type
     plus,
     minus,
     divide,
+    mod,
 
     bitwise_and,
     bitwise_or,
@@ -137,6 +138,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::plus,"+",13},
     {token_type::minus,"-",13},
     {token_type::divide,"/",14},
+    {token_type::mod,"%",14},
 
     {token_type::bitwise_and,"&",10},
     {token_type::bitwise_or,"|",9},

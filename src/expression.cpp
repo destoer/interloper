@@ -102,7 +102,12 @@ AstNode *Parser::led(Token &t,AstNode *left)
         {
             return new AstNode(left,expression(lbp(t)),ast_type::divide);
         }
-    
+
+        case token_type::mod:
+        {
+            return new AstNode(left,expression(lbp(t)),ast_type::mod);
+        }
+
         case token_type::times:
         {
             return new AstNode(left,expression(lbp(t)),ast_type::times);

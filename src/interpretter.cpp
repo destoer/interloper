@@ -103,6 +103,18 @@ void Interpretter::execute_opcode(const Opcode &opcode)
             break;
         }
 
+        case op_type::mod_reg:
+        {
+            if(regs[opcode.v3] == 0)
+            {
+                printf("mod by zero at %08x\n",regs[PC]);
+                break;
+            }
+
+            regs[opcode.v1] = regs[opcode.v2] % regs[opcode.v3];
+            break;
+        }
+
         case op_type::sxb:
         {
             regs[opcode.v1] = static_cast<s32>(static_cast<s8>(regs[opcode.v2]));

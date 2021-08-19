@@ -8,6 +8,7 @@ enum class op_type
     sub_reg,
     mul_reg,
     div_reg,
+    mod_reg,
     
     xor_reg,
     or_reg,
