@@ -155,7 +155,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::logical_le,"<=",12},
     {token_type::logical_ge,">=",12},
 
-    {token_type::if_t,"for",-1},
+    {token_type::for_t,"for",-1},
 
     {token_type::if_t,"if",-1},
     {token_type::else_t,"else",-1},

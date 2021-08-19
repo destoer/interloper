@@ -43,6 +43,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/nested_if.itl",575,false},
     {"tests/recur.itl",1,false},
     {"tests/arith_eq.itl",294,false},
+    {"tests/for.itl",32,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
