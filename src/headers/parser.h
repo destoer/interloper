@@ -255,13 +255,17 @@ private:
     AstNode *block();
     AstNode *statement();
 
-    Type get_type(std::string &type_literal);
+    std::optional<Type> get_type(std::string &type_literal);
+    void type_panic();
     AstNode *declaration(const Type &var_type, const std::string &type_str);
+    AstNode *auto_decl();
 
     void prev_token();
 
     // pratt parser
     AstNode *expr_terminate(token_type t);
+    AstNode *expr_terminate(token_type t, token_type &term);
+    AstNode *expr_terminate_internal(token_type t);
     AstNode *expression(int32_t rbp);
 
     int32_t lbp(const Token &t);

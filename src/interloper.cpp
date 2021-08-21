@@ -617,9 +617,54 @@ u32 Interloper::new_basic_block(Function &func)
 // asume one cond
 void Interloper::compile_for_block(Function &func,AstNode *node)
 {
+    // scope for any var decls in the stmt
+    symbol_table.new_scope();
+
     const u32 intial_block = func.emitter.program.size() - 1;
 
-    const auto t = compile_expression(func,node->nodes[0]);
+    // single statment
+    const bool single_statement = node->nodes.size() == 2;
+
+    const u32 cond_expr_idx = single_statement? 0 : 1;
+    const u32 block_expr_idx = single_statement? 1 : 3;
+
+    // compile the first stmt (ussualy an assign)
+    if(!single_statement)
+    {
+        assert(node->nodes.size() == 4);
+
+        const auto type = node->nodes[0]->type;
+
+        // handle this being a declaration
+        switch(type)
+        {
+            case ast_type::auto_decl:
+            {
+                compile_auto_decl(func,*node->nodes[0]);
+                break;
+            }
+
+            case ast_type::declaration:
+            {
+                compile_decl(func,*node->nodes[0]);
+                break;
+            }
+
+
+            default:
+            {
+                compile_expression(func,node->nodes[0]);
+                break;
+            }
+        }
+
+        if(error)
+        {
+            return;
+        }
+    }
+
+    const auto t = compile_expression(func,node->nodes[cond_expr_idx]);
 
     if(!is_bool(t))
     {
@@ -631,9 +676,15 @@ void Interloper::compile_for_block(Function &func,AstNode *node)
     // compile the body
     const u32 cur = new_basic_block(func);
     
-    compile_block(func,node->nodes[1]);    
+    compile_block(func,node->nodes[block_expr_idx]);    
 
-    compile_expression(func,node->nodes[0]);
+    // compile loop end stmt
+    if(!single_statement)
+    {
+        compile_expression(func,node->nodes[2]);
+    }
+
+    compile_expression(func,node->nodes[cond_expr_idx]);
     func.emitter.emit(op_type::bc,cur,reg(func.emitter.reg_count));
 
 
@@ -642,6 +693,8 @@ void Interloper::compile_for_block(Function &func,AstNode *node)
     // emit branch over the loop body in initial block
     // if cond is not met
     func.emitter.program[intial_block].push_back(Opcode(op_type::bnc,exit_block,reg(func.emitter.reg_count),0));
+
+    symbol_table.destroy_scope();
 }
 
 
@@ -745,6 +798,68 @@ void Interloper::compile_if_block(Function &func,AstNode *node)
 
 
 
+void Interloper::compile_decl(Function &func, const AstNode &line)
+{
+    // get entry into symbol table
+    const auto name = line.literal;
+    const auto ltype = line.nodes[0]->variable_type;
+
+    if(symbol_table.get_sym(name))
+    {
+        panic("redeclared symbol: %s\n",name.c_str());
+        return;
+    }
+
+    const auto size = type_size(ltype);
+
+    // add allocation information
+    const auto slot = func.add_var(name,ltype,size);
+
+    // add new symbol table entry
+    symbol_table.add_symbol(name,ltype,slot);
+
+
+    const auto &sym = symbol_table.get_sym(name).value();
+
+
+    // handle right side expression (if present)
+    if(line.nodes.size() == 2)
+    {
+        const auto rtype = compile_expression(func,line.nodes[1]);
+        check_assign(ltype,rtype);
+
+        func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
+    }    
+}
+
+void Interloper::compile_auto_decl(Function &func, const AstNode &line)
+{
+    const auto name = line.literal;
+
+    if(symbol_table.get_sym(name))
+    {
+        panic("redeclared symbol: %s\n",name.c_str());
+        return;
+    }
+
+    
+    const auto type = compile_expression(func,line.nodes[0]);
+
+    // add the symbol
+
+    const auto size = type_size(type);
+
+    // add allocation information
+    const auto slot = func.add_var(name,type,size);
+
+    // add new symbol table entry
+    symbol_table.add_symbol(name,type,slot);
+
+    const auto &sym = symbol_table.get_sym(name).value();
+
+    func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
+}
+
 void Interloper::compile_block(Function &func,AstNode *node)
 {
     symbol_table.new_scope();
@@ -766,66 +881,14 @@ void Interloper::compile_block(Function &func,AstNode *node)
             // variable declaration
             case ast_type::declaration:
             {
-                // get entry into symbol table
-                const auto name = line.literal;
-                const auto ltype = line.nodes[0]->variable_type;
-
-                if(symbol_table.get_sym(name))
-                {
-                    panic("redeclared symbol: %s\n",name.c_str());
-                    return;
-                }
-
-                const auto size = type_size(ltype);
-
-                // add allocation information
-                const auto slot = func.add_var(name,ltype,size);
-
-                // add new symbol table entry
-                symbol_table.add_symbol(name,ltype,slot);
-
-
-                const auto &sym = symbol_table.get_sym(name).value();
-
-
-                // handle right side expression (if present)
-                if(line.nodes.size() == 2)
-                {
-                    const auto rtype = compile_expression(func,line.nodes[1]);
-                    check_assign(ltype,rtype);
-
-                    func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
-                }
+                compile_decl(func,line);
                 break;
             }
 
 
             case ast_type::auto_decl:
             {
-                const auto name = line.literal;
-
-                if(symbol_table.get_sym(name))
-                {
-                    panic("redeclared symbol: %s\n",name.c_str());
-                    return;
-                }
-
-                
-                const auto type = compile_expression(func,line.nodes[0]);
-
-                // add the symbol
-
-                const auto size = type_size(type);
-
-                // add allocation information
-                const auto slot = func.add_var(name,type,size);
-
-                // add new symbol table entry
-                symbol_table.add_symbol(name,type,slot);
-
-                const auto &sym = symbol_table.get_sym(name).value();
-
-                func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
+                compile_auto_decl(func,line);
                 break;
             }
 

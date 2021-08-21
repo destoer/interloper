@@ -199,10 +199,17 @@ AstNode *Parser::nud(Token &t)
             tok_idx -= 1;
 
             std::string type_name;
-            const auto type = get_type(type_name);
+            const auto type_opt = get_type(type_name);
 
+            if(!type_opt)
+            {
+                type_panic();
+                return nullptr;
+            }
+
+            const auto type = type_opt.value();
             const auto left = new AstNode(type,type_name);
-           
+        
             // correct our state machine
             expr_tok = next_token_expr();
 
@@ -211,8 +218,8 @@ AstNode *Parser::nud(Token &t)
             const auto right = expression(0);
 
             consume_expr(token_type::right_paren);
-
-            return new AstNode(left,right,ast_type::cast);
+            
+            return new AstNode(left,right,ast_type::cast);    
         }
 
         case token_type::value:
@@ -366,7 +373,7 @@ AstNode *Parser::expression(int32_t rbp)
 }
 
 
-AstNode *Parser::expr_terminate(token_type t)
+AstNode *Parser::expr_terminate_internal(token_type t)
 {
     // make pratt parser terminate as soon as it sees
     // this token
@@ -374,17 +381,39 @@ AstNode *Parser::expr_terminate(token_type t)
 
     auto e = expr(next_token());
 
+    termination_type = token_type::eof;
+
+    return e;
+}
+
+
+AstNode *Parser::expr_terminate(token_type t, token_type &term)
+{
+    auto e = expr_terminate_internal(t);
+    terminate = false;
+
+    // what token did we terminate on?
+    term = expr_tok.type;
+
+    return e;
+}
+
+
+// panic on failure to terminate with token
+AstNode *Parser::expr_terminate(token_type t)
+{
+    auto e = expr_terminate_internal(t);
+    
+
     // expression must terminate on this token
-    if(expr_tok.type != token_type::left_c_brace || !terminate)
+    if(expr_tok.type != t || !terminate)
     {
-        panic(expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(expr_tok.type),tok_name(termination_type));
+        panic(expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(expr_tok.type),tok_name(t));
         delete e;
         return nullptr;
     }
 
     terminate = false;
-    termination_type = token_type::eof;
-
     return e;
 }
 
@@ -405,7 +434,8 @@ AstNode *Parser::expr(const Token &t)
 
     const auto e = expression(0);
 
-    if(brace_count != 0)
+    // non closed brace, where specified terminator is not a right_paren
+    if(brace_count != 0 && !(terminate && expr_tok.type == token_type::right_paren))
     {
         panic(expr_tok,"unterminated bracket: ");
     }

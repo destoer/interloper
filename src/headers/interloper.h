@@ -54,6 +54,10 @@ private:
     Type compile_logical_op(Function &func,AstNode *node, logic_op type);
     Type compile_function_call(Function &func,AstNode *node);
 
+
+    void compile_auto_decl(Function &func, const AstNode &line);
+    void compile_decl(Function &func, const AstNode &line);
+
     void emit_asm();
 
     void optimise_ir();
