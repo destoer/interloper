@@ -64,7 +64,17 @@ void Interloper::optimise_ir()
                             *it_op = Opcode(op_type::mov_imm,dst,interpretter.regs[dst],0);
 
                             // remove the redundant mov_imm
-                            it = block.erase(it,it_op); it--;
+                            it = block.erase(it,it_op);
+
+
+                            // last opcode is a mov_imm, i.e our folding has allowed extra folds to occur
+                            // go back to the last op
+                            it_op = it; it_op--;
+
+                            if((*it_op).op == op_type::mov_imm)
+                            {
+                                it = it_op;
+                            }
                             continue;
                         }
                         break;

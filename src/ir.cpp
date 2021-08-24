@@ -119,7 +119,6 @@ void stack_allocate(u32 *stack_alloc, VarAlloc &var_alloc)
 
 void Interloper::allocate_registers(Function &func)
 {
-
 /*
     bool used[MACHINE_REG_SIZE];
 */
@@ -135,6 +134,10 @@ void Interloper::allocate_registers(Function &func)
         then store all half variables sequentially and align,
         then store all other variables as ints (this includes structs when added),
     */
+
+    // okay i think now we want to implement a register allocator
+    // the real question is how do we do it?
+
 
     // align for u16
     if(func.size_count[0] & 1)

@@ -709,6 +709,7 @@ void Parser::parse(AstNode **root_ptr)
             default:
             {
                 panic(t,"unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
+                delete_tree(*root_ptr); *root_ptr = nullptr;
                 break;
             }
         }

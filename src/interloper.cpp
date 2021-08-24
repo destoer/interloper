@@ -1075,8 +1075,7 @@ void Interloper::dump_ir_sym()
 // TODO: impl source line information on the parse tree
 
 // plan:
-// implement bitwise operators -> boolean + logical -> if statements
-// for loops -> pointers -> structs -> arrays -> strings -> imports
+// reg alloc -> shifts -> pointers -> structs -> arrays -> strings -> imports
 // -> early stl -> function_pointers -> labels ->  compile time execution ->
 // unions -> inline asm
 
@@ -1086,6 +1085,12 @@ void Interloper::compile(const std::vector<std::string> &lines)
     program.clear();
     symbol_table.clear();
     function_table.clear();
+
+    // clear the tree if present
+    if(root)
+    {
+        delete_tree(root); root = nullptr;
+    }
 
     error = false;
 
