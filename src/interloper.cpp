@@ -66,18 +66,24 @@ void Interloper::parse_function_declarations()
 
 
 
+std::pair<Type,u32> Interloper::compile_oper(Function &func,AstNode *node)
+{
+    const auto t1 = compile_expression(func,node);
+    const auto v1 = reg(func.emitter.reg_count);
+
+    return std::pair<Type,u32>{t1,v1};
+}
+
 // TODO: compile_arith_op, compile_logical_op, compile_shift may need changing
 // if we add operator overloading
 
 Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 {
-    const auto t1 = compile_expression(func,node->nodes[0]);
-    const auto v1 = reg(func.emitter.reg_count);
+    const auto [t1,v1] = compile_oper(func,node->nodes[0]);
     func.emitter.reg_count++;
 
-    
-    const auto t2 = compile_expression(func,node->nodes[1]);
-    const auto v2 = reg(func.emitter.reg_count);
+    const auto [t2,v2] = compile_oper(func,node->nodes[1]);
+
 
     // produce effective type
     const auto final_type = effective_arith_type(t1,t2);
@@ -93,13 +99,10 @@ Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 
 Type Interloper::compile_shift(Function &func,AstNode *node,bool right)
 {
-    const auto t1 = compile_expression(func,node->nodes[0]);
-    const auto v1 = reg(func.emitter.reg_count);
+    const auto [t1,v1] = compile_oper(func,node->nodes[0]);
     func.emitter.reg_count++;
 
-    
-    const auto t2 = compile_expression(func,node->nodes[1]);
-    const auto v2 = reg(func.emitter.reg_count);
+    const auto [t2,v2] = compile_oper(func,node->nodes[1]);
 
     if(!(is_integer(t1) && is_integer(t2)))
     {
@@ -137,12 +140,10 @@ Type Interloper::compile_shift(Function &func,AstNode *node,bool right)
 // handles <, <=, >, >=, &&, ||, ==, !=
 Type Interloper::compile_logical_op(Function &func,AstNode *node, logic_op type)
 {
-    auto t1 = compile_expression(func,node->nodes[0]);
-    const auto v1 = reg(func.emitter.reg_count);
-    func.emitter.reg_count++; 
+    auto [t1,v1] = compile_oper(func,node->nodes[0]);
+    func.emitter.reg_count++;
 
-    auto t2 = compile_expression(func,node->nodes[1]);
-    const auto v2 = reg(func.emitter.reg_count);  
+    auto [t2,v2] = compile_oper(func,node->nodes[1]);
 
 
     // if one side is a value do type checking
@@ -302,13 +303,14 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
 
         
         // builtin type
-        const auto arg_type = compile_expression(func,node->nodes[i]);
+        const auto [arg_type,reg] = compile_oper(func,node->nodes[i]);
+
 
         // type check the arg
         check_assign(func_call.args[i].type,arg_type);
 
         // finally push the arg
-        func.emitter.emit(op_type::push_arg,reg(func.emitter.reg_count));
+        func.emitter.emit(op_type::push_arg,reg);
     }
 
 
@@ -371,7 +373,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
         // multiple assigment
         case ast_type::equal:
         {
-            const auto rtype = compile_expression(func,node->nodes[1]);
+            const auto [rtype,reg] = compile_oper(func,node->nodes[1]);
 
             const auto name = node->nodes[0]->literal;
 
@@ -388,7 +390,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
             check_assign(sym.type,rtype);
 
-            func.emitter.emit(op_type::mov_reg,sym.slot_idx(sym.slot),reg(func.emitter.reg_count));
+            func.emitter.emit(op_type::mov_reg,sym.slot_idx(sym.slot),reg);
 
             return sym.type;        
         }
@@ -482,10 +484,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             if(!node->nodes[1])
             {
                 // negate by doing 0 - v
-                const auto t = compile_expression(func,node->nodes[0]);
-
-                // we are done with the reg used to load zero after this
-                const auto dst = reg(func.emitter.reg_count);
+                const auto [t,dst] = compile_oper(func,node->nodes[0]);
 
                 func.emitter.reg_count++;
 
@@ -563,18 +562,18 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
 
         case ast_type::bitwise_not:
         {
-            const auto t = compile_expression(func,node->nodes[0]);
+            const auto [t,reg] = compile_oper(func,node->nodes[0]);
 
             // TODO: do we need to check this is integer?
 
 
-            func.emitter.emit(op_type::not_reg,reg(func.emitter.reg_count));
+            func.emitter.emit(op_type::not_reg,reg);
             return t;
         }    
 
         case ast_type::logical_not:
         {
-            const auto t = compile_expression(func,node->nodes[0]);
+            const auto [t,reg] = compile_oper(func,node->nodes[0]);
 
             if(!is_bool(t))
             {
@@ -583,7 +582,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             }
 
             // xor can invert our boolean which is either 1 or 0
-            func.emitter.emit(op_type::xor_imm,reg(func.emitter.reg_count),reg(func.emitter.reg_count),1);
+            func.emitter.emit(op_type::xor_imm,reg,reg,1);
             return t;
         }
 
@@ -714,7 +713,7 @@ void Interloper::compile_for_block(Function &func,AstNode *node)
         }
     }
 
-    const auto t = compile_expression(func,node->nodes[cond_expr_idx]);
+    const auto [t,stmt_cond_reg] = compile_oper(func,node->nodes[cond_expr_idx]);
 
     if(!is_bool(t))
     {
@@ -734,15 +733,16 @@ void Interloper::compile_for_block(Function &func,AstNode *node)
         compile_expression(func,node->nodes[2]);
     }
 
-    compile_expression(func,node->nodes[cond_expr_idx]);
-    func.emitter.emit(op_type::bc,cur,reg(func.emitter.reg_count));
+    u32 loop_cond_reg;
+    std::tie(std::ignore,loop_cond_reg) = compile_oper(func,node->nodes[cond_expr_idx]);
+    func.emitter.emit(op_type::bc,cur,loop_cond_reg);
 
 
     const u32 exit_block = new_basic_block(func);
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    func.emitter.program[intial_block].push_back(Opcode(op_type::bnc,exit_block,reg(func.emitter.reg_count),0));
+    func.emitter.program[intial_block].push_back(Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
 
     symbol_table.destroy_scope();
 }
@@ -766,7 +766,7 @@ void Interloper::compile_if_block(Function &func,AstNode *node)
             }
 
             // compile the compare expr for conditon
-            const auto t = compile_expression(func,if_stmt.nodes[0]);
+            const auto [t,r] = compile_oper(func,if_stmt.nodes[0]);
 
             if(!is_bool(t))
             {
@@ -774,7 +774,6 @@ void Interloper::compile_if_block(Function &func,AstNode *node)
                 return;
             }
 
-            const u32 r = reg(func.emitter.reg_count);
             const u32 cur_block = func.emitter.program.size() - 1;
 
             // compile the body block
@@ -875,10 +874,10 @@ void Interloper::compile_decl(Function &func, const AstNode &line)
     // handle right side expression (if present)
     if(line.nodes.size() == 2)
     {
-        const auto rtype = compile_expression(func,line.nodes[1]);
+        const auto [rtype,reg] = compile_oper(func,line.nodes[1]);
         check_assign(ltype,rtype);
 
-        func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
+        func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg);
     }    
 }
 
@@ -893,7 +892,7 @@ void Interloper::compile_auto_decl(Function &func, const AstNode &line)
     }
 
     
-    const auto type = compile_expression(func,line.nodes[0]);
+    const auto [type,reg] = compile_oper(func,line.nodes[0]);
 
     // add the symbol
 
@@ -907,7 +906,7 @@ void Interloper::compile_auto_decl(Function &func, const AstNode &line)
 
     const auto &sym = symbol_table.get_sym(name).value();
 
-    func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg(func.emitter.reg_count));
+    func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg);
 }
 
 void Interloper::compile_block(Function &func,AstNode *node)
@@ -947,7 +946,7 @@ void Interloper::compile_block(Function &func,AstNode *node)
             // assignment
             case ast_type::equal:
             {
-                const auto rtype = compile_expression(func,line.nodes[1]);
+                const auto [rtype,reg] = compile_oper(func,line.nodes[1]);
 
                 const auto name = line.nodes[0]->literal;
 
@@ -964,7 +963,7 @@ void Interloper::compile_block(Function &func,AstNode *node)
 
                 check_assign(sym.type,rtype);
 
-                func.emitter.emit(op_type::mov_reg,sym.slot_idx(sym.slot),reg(func.emitter.reg_count));
+                func.emitter.emit(op_type::mov_reg,sym.slot_idx(sym.slot),reg);
                 break;
             }
 
@@ -973,7 +972,8 @@ void Interloper::compile_block(Function &func,AstNode *node)
                 // has an arg
                 if(line.nodes.size() == 1)
                 {
-                    const auto rtype = compile_expression(func,line.nodes[0]);
+                    const auto [rtype,v1] = compile_oper(func,line.nodes[0]);
+
                     if(error)
                     {
                         return;
@@ -982,7 +982,7 @@ void Interloper::compile_block(Function &func,AstNode *node)
                     check_assign(func.return_type,rtype);
 
                     // TODO: we are gonna require this when we have a register allocator
-                    func.emitter.emit(op_type::mov_reg,reg(RV),reg(func.emitter.reg_count));
+                    func.emitter.emit(op_type::mov_reg,reg(RV),v1);
                 }
                 
                 has_return = true;

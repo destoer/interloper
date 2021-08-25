@@ -54,6 +54,7 @@ private:
     Type compile_shift(Function &func,AstNode *node,bool right);
     Type compile_logical_op(Function &func,AstNode *node, logic_op type);
     Type compile_function_call(Function &func,AstNode *node);
+    std::pair<Type,u32> compile_oper(Function &func,AstNode *node);
 
 
     void compile_auto_decl(Function &func, const AstNode &line);

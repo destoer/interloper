@@ -158,7 +158,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                     column++;
                 }
 
-                if(peek(1,line) == '<')
+                else if(peek(1,line) == '<')
                 {
                     insert_token(tokens,token_type::shift_l);
                     column++;
@@ -179,7 +179,7 @@ void Lexer::tokenize_line(const std::string &line, std::vector<Token> &tokens)
                     column++;
                 }
 
-                if(peek(1,line) == '>')
+                else if(peek(1,line) == '>')
                 {
                     insert_token(tokens,token_type::shift_r);
                     column++;
