@@ -48,6 +48,9 @@ enum class token_type
     divide,
     mod,
 
+    shift_l,
+    shift_r,
+
     bitwise_and,
     bitwise_or,
     bitwise_not,
@@ -134,11 +137,14 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::func,"func",-1},
     {token_type::ret,"return",-1},
 
-    {token_type::times,"*",14},
-    {token_type::plus,"+",13},
-    {token_type::minus,"-",13},
-    {token_type::divide,"/",14},
-    {token_type::mod,"%",14},
+    {token_type::times,"*",21},
+    {token_type::plus,"+",20},
+    {token_type::minus,"-",20},
+    {token_type::divide,"/",21},
+    {token_type::mod,"%",21},
+
+    {token_type::shift_l,"<<",13},
+    {token_type::shift_r,">>",13},
 
     {token_type::bitwise_and,"&",10},
     {token_type::bitwise_or,"|",9},

@@ -65,12 +65,10 @@ void Interloper::parse_function_declarations()
 }
 
 
-// TODO:
-//    how do we handle symbols we need i.e function names? or branches
-//    the offsets for them will differ from our ir ones and they will be moved
-//    during optimisation passes
 
-// TODO: this needs to be changed when we handle operator overloading
+// TODO: compile_arith_op, compile_logical_op, compile_shift may need changing
+// if we add operator overloading
+
 Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 {
     const auto t1 = compile_expression(func,node->nodes[0]);
@@ -86,15 +84,57 @@ Type Interloper::compile_arith_op(Function &func,AstNode *node, op_type type)
 
 
     // one of these is just a temp for the result calc
-    // so afer this we no longer need it
+    // so after this we no longer need it
     func.emitter.emit(type,v1,v1,v2);
     func.emitter.reg_count--;
 
     return final_type;        
 }
 
+Type Interloper::compile_shift(Function &func,AstNode *node,bool right)
+{
+    const auto t1 = compile_expression(func,node->nodes[0]);
+    const auto v1 = reg(func.emitter.reg_count);
+    func.emitter.reg_count++;
+
+    
+    const auto t2 = compile_expression(func,node->nodes[1]);
+    const auto v2 = reg(func.emitter.reg_count);
+
+    if(!(is_integer(t1) && is_integer(t2)))
+    {
+        panic("shifts only defined for integers, got %s and %s\n",type_name(t1).c_str(),type_name(t2).c_str());
+        return Type(builtin_type::void_t);
+    }
+
+    if(right)
+    {
+        // if signed do a arithmetic shift 
+        if(is_signed(t1))
+        {
+            func.emitter.emit(op_type::asr_reg,v1,v1,v2);
+        }
+
+        else
+        {
+            func.emitter.emit(op_type::lsr_reg,v1,v1,v2);
+        }
+    }
+
+    // left shift
+    else
+    {
+        func.emitter.emit(op_type::lsl_reg,v1,v1,v2);
+    }
+
+    // no longer need the tmp
+    func.emitter.reg_count--;
+
+    // type being shifted is the resulting type
+    return t1;
+}
+
 // handles <, <=, >, >=, &&, ||, ==, !=
-// TODO: this needs to be changed when we handle operator overloading
 Type Interloper::compile_logical_op(Function &func,AstNode *node, logic_op type)
 {
     auto t1 = compile_expression(func,node->nodes[0]);
@@ -496,6 +536,16 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
             return compile_arith_op(func,node,op_type::mod_reg);       
         }
 
+        case ast_type::shift_l:
+        {
+            return compile_shift(func,node,false);
+        }
+
+        case ast_type::shift_r:
+        {
+            return compile_shift(func,node,true);
+        }        
+        
         case ast_type::bitwise_and:
         {
             return compile_arith_op(func,node,op_type::and_reg);

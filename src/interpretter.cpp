@@ -79,6 +79,25 @@ void Interpretter::execute_opcode(const Opcode &opcode)
             break;
         }
 
+
+        case op_type::lsl_reg:
+        {
+            regs[opcode.v1] = regs[opcode.v2] << regs[opcode.v3];
+            break;
+        }
+
+        case op_type::lsr_reg:
+        {
+            regs[opcode.v1] = regs[opcode.v2] >> regs[opcode.v3];
+            break;
+        }
+
+        case op_type::asr_reg:
+        {
+            regs[opcode.v1] = static_cast<s32>(regs[opcode.v2]) >> regs[opcode.v3];
+            break;
+        }
+
         case op_type::xor_reg:
         {
             regs[opcode.v1] = regs[opcode.v2] ^ regs[opcode.v3];

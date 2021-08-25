@@ -4,7 +4,6 @@ using opcode_iterator_t = std::list<Opcode>::iterator;
 
 Opcode peek_opcode(const std::list<Opcode> &block, opcode_iterator_t it)
 {
-    // what is the iterator type rofl
     if(it != block.end())
     {
         return *it;
@@ -66,12 +65,9 @@ void Interloper::optimise_ir()
                             // remove the redundant mov_imm
                             it = block.erase(it,it_op);
 
-
-                            // last opcode is a mov_imm, i.e our folding has allowed extra folds to occur
-                            // go back to the last op
-                            it_op = it; it_op--;
-
-                            if((*it_op).op == op_type::mov_imm)
+                            // folding has enabled more folding to occur
+                            it_op--;
+                            if(peek_opcode(block,it_op).op == op_type::mov_imm)
                             {
                                 it = it_op;
                             }

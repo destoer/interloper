@@ -9,7 +9,12 @@ enum class op_type
     mul_reg,
     div_reg,
     mod_reg,
-    
+
+
+    lsl_reg,
+    asr_reg,
+    lsr_reg,
+
     xor_reg,
     or_reg,
     and_reg,
