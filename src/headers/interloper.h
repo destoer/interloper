@@ -26,7 +26,6 @@ struct Interloper
     bool error;
 
     Interpretter interpretter;
-private:
 
     template<typename... Args>
     void panic(const char *fmt, Args... args)

@@ -50,30 +50,31 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"swi",1},
 
     // compare unsigned
-    {op_group::imm_t,"cmpugt_imm",3},
-    {op_group::reg_t,"cmpult_reg",3},
-    {op_group::reg_t,"cmpule_reg",3},
-    {op_group::reg_t,"cmpugt_reg",3},
-    {op_group::reg_t,"cmpuge_reg",3},
+    {op_group::imm_t,"cmpugt",3},
+    {op_group::reg_t,"cmpult",3},
+    {op_group::reg_t,"cmpule",3},
+    {op_group::reg_t,"cmpugt",3},
+    {op_group::reg_t,"cmpuge",3},
 
 
     // compare signed
-    {op_group::reg_t,"cmpsgt_imm",3},
-    {op_group::reg_t,"cmpslt_reg",3},
-    {op_group::reg_t,"cmpsle_reg",3},
-    {op_group::reg_t,"cmpsgt_reg",3},
-    {op_group::reg_t,"cmpsge_reg",3},
+    {op_group::reg_t,"cmpsgt",3},
+    {op_group::reg_t,"cmpslt",3},
+    {op_group::reg_t,"cmpsle",3},
+    {op_group::reg_t,"cmpsgt",3},
+    {op_group::reg_t,"cmpsge",3},
 
     // dont care about sign for equality
-    {op_group::reg_t,"cmpeq_reg",3},
-    {op_group::reg_t,"cmpne_reg",3},
+    {op_group::reg_t,"cmpeq",3},
+    {op_group::reg_t,"cmpne",3},
 
     {op_group::branch_t,"bnc",2},
     {op_group::branch_t,"bc",2},
     {op_group::branch_t,"b",1},
 
     // directives
-    {op_group::imm_t,"free_slot",1},
+    {op_group::slot_t,"alloc_slot",1},
+    {op_group::slot_t,"free_slot",1},
     {op_group::reg_t,"push_arg",1},
 
     // perform cleanup after a function call
@@ -122,11 +123,31 @@ void stack_allocate(u32 *stack_alloc, VarAlloc &var_alloc)
 
 // TODO: make sure register number does not exceed our target regs
 
+
+
 void Interloper::allocate_registers(Function &func)
 {
 /*
-    bool used[MACHINE_REG_SIZE];
+    u32 free_regs = MACHINE_REG_SIZE;
+
+    static constexpr u32 REG_FREE = 0xffffffff;
+    static constexpr u32 REG_TMP = 0xfffffffe;
+
+    // is this free? or does this hold a var?
+    u32 regs[MACHINE_REG_SIZE];
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        regs[i] = REG_FREE;
+    }
+    
+
+    // and we just need to have the slot
+    // know where it is allocated
+    // either in a reg or at its current stack offset...
 */
+
+
 
     printf("function: %s\n",func.name.c_str());
     printf("byte count: %d\n",func.size_count[0]);
@@ -139,9 +160,6 @@ void Interloper::allocate_registers(Function &func)
         then store all half variables sequentially and align,
         then store all other variables as ints (this includes structs when added),
     */
-
-    // okay i think now we want to implement a register allocator
-    // the real question is how do we do it?
 
 
     // align for u16
@@ -199,6 +217,7 @@ void Interloper::allocate_registers(Function &func)
             switch(opcode.op)
             {
 
+                // TODO: this needs to handle reg alloc
                 case op_type::save_reg:
                 {
                     opcode = Opcode(op_type::push,opcode.v1,0,0);
@@ -237,9 +256,16 @@ void Interloper::allocate_registers(Function &func)
                     break;
                 }
 
-                case op_type::free_slot_stack:
+                // for now just do nothing with this
+                case op_type::alloc_slot:
                 {
-                    const auto &var_alloc = func.slot_lookup[opcode.v1];
+                    it = block.erase(it);
+                    continue;
+                }
+
+                case op_type::free_slot:
+                {
+                    const auto &var_alloc = func.slot_lookup[symbol_to_idx(opcode.v1)];
                     stack_alloc[var_alloc.size >> 1] -= var_alloc.size;
 
                     // how do we properly erase this?
@@ -258,22 +284,31 @@ void Interloper::allocate_registers(Function &func)
                         const auto slot = symbol_to_idx(opcode.v1);
 
 
+                        // okay we need to make this allocation onto the stack less messy so we dont have to worry about it as much
+                        // for example we should have args be accessed the same here and not really have to care...
+
                         auto &var_alloc = func.slot_lookup[slot];
 
                         // we have not allocated where this variable goes yet
                         if(var_alloc.offset == UNALLOCATED_OFFSET)
                         {
-                            stack_allocate(stack_alloc,var_alloc);
+                            if(!is_arg(opcode.v1))
+                            {
+                                stack_allocate(stack_alloc,var_alloc);
+                            }
+
+                            else
+                            {
+                                // arg is above the stack frame
+                                var_alloc.offset = (slot * var_alloc.size) + stack_size + sizeof(u32);
+                            }
                         }
 
-                        // if is an arg read "above" the stack (stack allocation + return value)
-                        // TODO: handle arg being a reg
-                        const u32 offset = is_arg(opcode.v1)? var_alloc.offset + stack_size + sizeof(u32) : var_alloc.offset;
 
                         // move by size
                         static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
 
-                        opcode = Opcode(instr[var_alloc.size >> 1],opcode.v2,SP,offset + stack_offset);
+                        opcode = Opcode(instr[var_alloc.size >> 1],opcode.v2,SP,var_alloc.offset + stack_offset);
                     }
 
                     // swap all mov reg, var
@@ -288,23 +323,28 @@ void Interloper::allocate_registers(Function &func)
                         // we have not allocated where this variable goes yet
                         if(var_alloc.offset == UNALLOCATED_OFFSET)
                         {
-                            stack_allocate(stack_alloc,var_alloc);
+                            if(!is_arg(opcode.v2))
+                            {
+                                stack_allocate(stack_alloc,var_alloc);
+                            }
+
+                            else
+                            {
+                                // arg is above the stack frame
+                                var_alloc.offset = (slot * var_alloc.size) + stack_size + sizeof(u32);
+                            }
                         }
 
-
-                        // if is an arg read "above" the stack (stack allocation + return value)
-                        // TODO: handle arg being a reg
-                        const u32 offset = is_arg(opcode.v2)? var_alloc.offset + stack_size + sizeof(u32) : var_alloc.offset;
-
-
+    
 
                         // is a signed integer (we need to sign extend)
+                        // TODO: directly emit signed mov pseudo instrs so we dont have to do this nonsense
                         if(var_alloc.is_signed)
                         {
                             // word is register size (we dont need to extend it)
                             static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
 
-                            opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,offset + stack_offset);                    
+                            opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,var_alloc.offset + stack_offset);                    
                         }
 
                         // "plain data"
@@ -312,7 +352,7 @@ void Interloper::allocate_registers(Function &func)
                         else
                         {
                             static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-                            opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,offset + stack_offset);
+                            opcode = Opcode(instr[var_alloc.size >> 1],opcode.v1,SP,var_alloc.offset + stack_offset);
                         }
                     }
                     break;
@@ -391,7 +431,7 @@ void Interloper::emit_asm()
     // "link" the program and resolve all the labels we now have the absolute
     // posistions for
     // TODO: how do we want to labels for a mov i.e
-    // x = &some_function;
+    // x = @some_function;
     for(auto &opcode : program)
     {
         // handle all the branch labels
@@ -403,14 +443,14 @@ void Interloper::emit_asm()
     }
 
     // program dump
-/*
+
     puts("raw program dump\n\n\n");
     for(u32 pc = 0; pc < program.size(); pc++)
     {
         printf("0x%08x: ",pc * OP_SIZE);
         disass_opcode_raw(program[pc]);
     }
-*/
+
 }
 
 
@@ -521,6 +561,18 @@ void disass_opcode(const Opcode &opcode, const std::vector<VarAlloc> *table, con
                     exit(1);                        
                 } 
             }
+            break;
+        }
+
+        case op_group::slot_t:
+        {
+            if(info.args != 1)
+            {
+                puts("unknown opcode");
+                exit(1);
+            }
+
+            printf("%s %s\n",info.name,get_oper(table,opcode.v1).c_str());
             break;
         }
 

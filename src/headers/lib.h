@@ -23,6 +23,8 @@ using s8 = int8_t;
 using s16 = int16_t;
 using s32 = int32_t;
 
+using b32 = bool;
+
 // read entire file into a string
 inline std::string read_file(const std::string &filename)
 {

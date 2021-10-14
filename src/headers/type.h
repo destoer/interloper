@@ -188,11 +188,12 @@ struct Symbol
 
 
 static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
+static constexpr u32 LOCATION_MEM = 0xffffffff;
 
 struct VarAlloc
 {
     VarAlloc(u32 s, const std::string &n, bool sign) : size(s), offset(UNALLOCATED_OFFSET), 
-        is_signed(sign), name(n)
+        location(LOCATION_MEM),is_signed(sign),name(n)
     {}
 
     // size of one item
@@ -200,6 +201,10 @@ struct VarAlloc
 
     // initialized during reg alloc
     u32 offset;
+
+    // where is this item stored?
+    // is it in memory or is it in register?
+    u32 location;
 
     bool is_signed;
 
@@ -268,12 +273,6 @@ struct Function
 
         auto alloc = VarAlloc(size,name,sign);
 
-        // we allready know where this going to go for now
-        // TODO: how do we want to mark an argument being inside a register
-        // when we actually allocate them
-        alloc.offset = arg_offset;
-        arg_offset += sizeof(u32);
-
         slot_lookup.push_back(alloc); 
 
         return slot;       
@@ -323,8 +322,6 @@ struct Function
 
     // current size count
     u32 size_count_cur[3] = {0};
-
-    u32 arg_offset = 0;
 };
 
 struct SymbolTable

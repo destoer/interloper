@@ -387,7 +387,8 @@ void Interpretter::execute_opcode(const Opcode &opcode)
         // directives should not be hit at runtime..
         case op_type::push_arg:
         case op_type::clean_args:
-        case op_type::free_slot_stack:
+        case op_type::alloc_slot:
+        case op_type::free_slot:
         case op_type::save_reg:
         case op_type::restore_reg:
         case op_type::exit_block:

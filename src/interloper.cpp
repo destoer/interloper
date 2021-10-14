@@ -587,7 +587,7 @@ Type Interloper::compile_expression(Function &func,AstNode *node)
         }
 
         // we want to pass in the base operation but we need to do the actual type checking
-        // to know what the fuck we are comparing later
+        // to know what we are comparing later
         // how should we do it?
         case ast_type::logical_lt:
         {
@@ -871,6 +871,8 @@ void Interloper::compile_decl(Function &func, const AstNode &line)
     const auto &sym = symbol_table.get_sym(name).value();
 
 
+    func.emitter.emit(op_type::alloc_slot,sym.slot_idx(slot));
+
     // handle right side expression (if present)
     if(line.nodes.size() == 2)
     {
@@ -900,11 +902,13 @@ void Interloper::compile_auto_decl(Function &func, const AstNode &line)
 
     // add allocation information
     const auto slot = func.add_var(name,type,size);
-
+    
     // add new symbol table entry
     symbol_table.add_symbol(name,type,slot);
 
     const auto &sym = symbol_table.get_sym(name).value();
+
+    func.emitter.emit(op_type::alloc_slot,sym.slot_idx(slot));
 
     func.emitter.emit(op_type::mov_reg,sym.slot_idx(slot),reg);
 }
@@ -1035,7 +1039,8 @@ void Interloper::compile_block(Function &func,AstNode *node)
     {
         if(!sym.is_arg)
         {
-            func.emitter.emit(op_type::free_slot_stack,sym.slot);
+            // okay what the fuck where is this getting deleted?
+            func.emitter.emit(op_type::free_slot,sym.slot_idx(sym.slot)); 
 
             // free the stack alloc for each var thats about to go out of scope
             const auto &var_alloc = func.slot_lookup[sym.slot];
@@ -1125,7 +1130,7 @@ void Interloper::dump_ir_sym()
 // TODO: impl source line information on the parse tree
 
 // plan:
-// reg alloc -> shifts -> pointers -> structs -> arrays -> strings -> imports
+// reg alloc -> pointers -> structs -> arrays -> strings -> imports
 // -> early stl -> function_pointers -> labels ->  compile time execution ->
 // unions -> inline asm
 

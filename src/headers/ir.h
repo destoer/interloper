@@ -77,7 +77,8 @@ enum class op_type
     // DIRECTIVES
     // varabile on the stack is out of scope
     // so we can reclaim allocation on the stack
-    free_slot_stack,
+    alloc_slot,
+    free_slot,
 
     // give a function call arg
     // how it will be passed will be decided in reg alloc
@@ -132,6 +133,7 @@ enum op_group
     load_t,
     implicit_t,
     branch_t,
+    slot_t,
 };
 
 struct OpInfo

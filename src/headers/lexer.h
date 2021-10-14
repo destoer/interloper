@@ -6,7 +6,7 @@ struct Lexer
     std::vector<Token> tokenize(const std::vector<std::string> *file);
 
     bool error;
-private:
+
 
     void tokenize_line(const std::string &line, std::vector<Token> &tokens);
 

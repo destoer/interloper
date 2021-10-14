@@ -243,7 +243,7 @@ struct Parser
     Token next_token();
 
     bool error;
-private:
+
     bool initialized = false;
 
     template<typename... Args>
