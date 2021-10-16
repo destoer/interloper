@@ -294,11 +294,10 @@ Type Interloper::compile_function_call(Function &func,AstNode *node)
     // push args in reverse order and type check them
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
     {
-        // TODO: handle being passed 
+        // TODO: handle being passed args that wont fit inside a single hardware reg
         if(type_size(func_call.args[i].type) > sizeof(u32))
         {
-            printf("function arg: non register size: %d\n",type_size(func_call.args[i].type));
-            exit(1);
+            unimplemented("function arg: non register size: %d\n",type_size(func_call.args[i].type));
         }
 
         
@@ -1151,9 +1150,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
     // tokenize input file
     {
-        const auto tokens = lexer.tokenize(&lines);
-
-        if(lexer.error)
+        if(tokenize(lexer,&lines))
         {
             error = true;
             return;
@@ -1163,7 +1160,7 @@ void Interloper::compile(const std::vector<std::string> &lines)
 
 
         // build ast
-        parser.init(&lines,&tokens);
+        parser.init(&lines,&lexer.tokens);
         parser.parse(&root);
     }
     

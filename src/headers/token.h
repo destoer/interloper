@@ -90,7 +90,7 @@ struct TokInfo
 
     token_type type;
     const char *name;
-    int32_t lbp;
+    s32 lbp;
 };
 
 static constexpr size_t TOKEN_SIZE = static_cast<size_t>(token_type::END)+1;
@@ -189,7 +189,7 @@ struct Token
 
     Token() {}
 
-    Token(token_type type, const std::string &literal = "", uint32_t line = 0, uint32_t col = 0)
+    Token(token_type type, const std::string &literal = "", u32 line = 0, u32 col = 0)
     {
         this->type = type;
         this->literal = literal;
@@ -202,8 +202,8 @@ struct Token
     friend bool operator != (const Token &t1, const Token &t2);
 
 
-    uint32_t line;
-    uint32_t col;
+    u32 line;
+    u32 col;
 
     token_type type;
     std::string literal;

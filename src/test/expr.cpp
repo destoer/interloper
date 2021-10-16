@@ -119,16 +119,16 @@ void expr_test()
 
         const auto &test = EXPR_TESTS[i];
         dummy[0] = test.expression;
-        const auto tokens = lexer.tokenize(&dummy);
+        const b32 error = tokenize(lexer,&dummy);
 
         // check that the expression even consists of valid tokens
-        if(lexer.error)
+        if(error)
         {
             printf("fail lex error[%d]: %s\n",i,test.expression);
             break;
         }
 
-        parser.init(&dummy,&tokens);
+        parser.init(&dummy,&lexer.tokens);
         
         expr_tree = parser.expr(parser.next_token());
 

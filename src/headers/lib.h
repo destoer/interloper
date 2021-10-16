@@ -14,7 +14,9 @@
 #include <ctype.h>
 #include <assert.h>
 #include <string.h>
+#include <stdarg.h>
 
+// integer typedefs
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
@@ -58,7 +60,7 @@ inline std::vector<std::string> read_string_lines(const std::string &str)
 }
 
 template<typename access_type>
-inline access_type handle_read(const uint8_t *buf, uint32_t idx)
+inline access_type handle_read(const u8 *buf, u32 idx)
 {
     access_type v;
     memcpy(&v,&buf[idx],sizeof(access_type));
@@ -66,7 +68,7 @@ inline access_type handle_read(const uint8_t *buf, uint32_t idx)
 }
 
 template<typename access_type>
-inline void handle_write(uint8_t *buf, uint32_t idx, access_type v)
+inline void handle_write(u8 *buf, u32 idx, access_type v)
 {
     memcpy(&buf[idx],&v,sizeof(access_type));
 }
@@ -75,6 +77,31 @@ template<typename T>
 inline bool in_range(T v, T min, T max)
 {
     return v >= min && v <= max;
+}
+
+
+// TODO: make sure the number fits in 32 bits
+inline u32 convert_imm(const std::string &imm)
+{
+    if(imm.size() >= 3 && imm.substr(0,2) == "0b")
+    {
+        return static_cast<u32>(stoul(imm.substr(2),nullptr,2));
+    }
+
+    // stoi wont auto detect base for binary strings?
+    return static_cast<u32>(stoul(imm,nullptr,0));
+}
+
+
+__attribute__((noreturn))
+inline void unimplemented(const char *fmt, ...)
+{
+    printf("unimplemented: ");
+    va_list args; 
+    va_start(args, fmt);
+    vprintf(fmt,args);
+    va_end(args);
+    exit(1);
 }
 
 

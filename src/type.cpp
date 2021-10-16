@@ -32,8 +32,7 @@ u32 Interloper::type_size(const Type &type)
 
     else
     {
-        puts("user defined type size\n");
-        exit(1);
+        unimplemented("user defined type size\n");
     }
 }
 
@@ -47,8 +46,7 @@ u32 Interloper::type_min(const Type &type)
 
     else
     {
-        puts("user defined type size\n");
-        exit(1);
+        unimplemented("user defined type size\n");
     }
 }
 
@@ -62,8 +60,7 @@ u32 Interloper::type_max(const Type &type)
 
     else
     {
-        puts("user defined type size\n");
-        exit(1);
+        unimplemented("user defined type size\n");
     }
 }
 
@@ -75,9 +72,10 @@ std::string Interloper::type_name(const Type &type)
         return builtin_type_name(static_cast<builtin_type>(type.type_idx));
     }
 
-    // TODO: make this return properly for user defined types
+
     else
     {
+        unimplemented("type_name: user defined type");
         return "undefined_type";
     }
 }
@@ -101,8 +99,8 @@ Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
         // something else
         else
         {
-            printf("arithmetic operation undefined for %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
-            exit(1);
+            panic("arithmetic operation undefined for %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+            return Type(builtin_type::void_t);
         }
 
     }
@@ -110,8 +108,7 @@ Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
     // one or more user defined
     else
     {
-        printf("unimplmented: user defined type arithmetic!\n");
-        exit(1);        
+        unimplemented("user defined type arithmetic!\n");       
     }
 }
 
@@ -149,8 +146,7 @@ void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
     // here probably the only valid thing is both are the same
     else
     {
-        printf("unimplmented: check assign user defined type!\n");
-        exit(1);
+        unimplemented("check assign user defined type!\n");
     }   
 }
 
@@ -201,8 +197,7 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
 
             else
             {
-                printf("unimplmented: non integer assign!\n");
-                exit(1); 
+                unimplemented("unimplmented: non integer assign!\n");
             }           
         }
     }
@@ -211,8 +206,7 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
     // here probably the only valid thing is both are the same
     else
     {
-        printf("unimplmented: check assign user defined type!\n");
-        exit(1);
+        unimplemented("unimplmented: check assign user defined type!\n");
     }
 }
 
@@ -319,16 +313,14 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
 
         else
         {
-            printf("unimplmented: handle cast builtin illegal %s -> %s\n",type_name(old_type).c_str(),type_name(new_type).c_str());
-            exit(1);
+            unimplemented("handle cast builtin illegal %s -> %s\n",type_name(old_type).c_str(),type_name(new_type).c_str());
         }
     }
 
     // probably only pointers are gonna valid for casts here
     else
     {
-        printf("unimplmented: handle cast user defined type!\n");
-        exit(1);        
+        unimplemented("handle cast user defined type!\n");        
     }
 
 }

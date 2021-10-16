@@ -127,27 +127,29 @@ void stack_allocate(u32 *stack_alloc, VarAlloc &var_alloc)
 
 void Interloper::allocate_registers(Function &func)
 {
-/*
+#if 0
     u32 free_regs = MACHINE_REG_SIZE;
 
     static constexpr u32 REG_FREE = 0xffffffff;
     static constexpr u32 REG_TMP = 0xfffffffe;
 
+
+     // TODO: okay how do we know when something is moved so we know our reg now refers to a tmp
+    // because otherwhise we will run into fun problems
+
     // is this free? or does this hold a var?
     u32 regs[MACHINE_REG_SIZE];
+
+    // when this thing is used in the original IR
+    // we need to know what actual reg we have allocated it into
+    u32 ir_regs[MACHINE_REG_SIZE];
 
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         regs[i] = REG_FREE;
+        ir_regs[i] = 0;
     }
-    
-
-    // and we just need to have the slot
-    // know where it is allocated
-    // either in a reg or at its current stack offset...
-*/
-
-
+#endif
 
     printf("function: %s\n",func.name.c_str());
     printf("byte count: %d\n",func.size_count[0]);
@@ -284,9 +286,6 @@ void Interloper::allocate_registers(Function &func)
                         const auto slot = symbol_to_idx(opcode.v1);
 
 
-                        // okay we need to make this allocation onto the stack less messy so we dont have to worry about it as much
-                        // for example we should have args be accessed the same here and not really have to care...
-
                         auto &var_alloc = func.slot_lookup[slot];
 
                         // we have not allocated where this variable goes yet
@@ -303,6 +302,13 @@ void Interloper::allocate_registers(Function &func)
                                 var_alloc.offset = (slot * var_alloc.size) + stack_size + sizeof(u32);
                             }
                         }
+
+                        // TODO: start here!, we need to mark this is allocatted by here
+                        // but we then need and rewrite the register defintion 
+
+                        // ignore writeback for now we need a seperate directive that makes it clear this is a 'hard' store
+                        // i.e due to pointers etc it has to go back into memory
+                        // i.e spill x
 
 
                         // move by size
