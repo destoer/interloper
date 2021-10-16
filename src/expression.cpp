@@ -1,34 +1,38 @@
 #include <interloper.h>
 
-void Parser::consume_expr(token_type type)
-{
-    if(type != expr_tok.type)
-    {
-        panic(expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(expr_tok.type));
-    }
+AstNode *expression(Parser &parser,s32 rbp);
+AstNode *expr(Parser &parser,const Token &t);
 
-    expr_tok = next_token_expr();
-}
 
-Token Parser::next_token_expr()
+Token next_token_expr(Parser &parser)
 {
-    const auto tok = next_token();
+    const auto tok = next_token(parser);
     
     // easiest just to jam a state machine in here
     if(tok.type == token_type::left_paren)
     {
-        brace_count += 1;
+        parser.brace_count += 1;
     }
 
     else if(tok.type == token_type::right_paren)
     {
-        brace_count -= 1;
+        parser.brace_count -= 1;
     }
 
     return tok;    
 }
 
-int32_t Parser::lbp(const Token &t)
+void consume_expr(Parser &parser,token_type type)
+{
+    if(type != parser.expr_tok.type)
+    {
+        panic(parser,parser.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(parser.expr_tok.type));
+    }
+
+    parser.expr_tok = next_token_expr(parser);
+}
+
+s32 lbp(Parser &parser,const Token &t)
 {
     const auto bp = TOKEN_INFO[static_cast<size_t>(t.type)].lbp;
 
@@ -36,16 +40,16 @@ int32_t Parser::lbp(const Token &t)
 
     if(bp == -1)
     {
-        panic(t,"lbp: illegal token: %s\n",tok_name(t.type));
+        panic(parser,t,"lbp: illegal token: %s\n",tok_name(t.type));
     }
 
     return bp;
 }
 
 // i.e +=
-AstNode *Parser::oper_eq(AstNode *left,Token t,ast_type oper)
+AstNode *oper_eq(Parser &parser,AstNode *left,Token t,ast_type oper)
 {
-    auto e = expression(lbp(t)-1);
+    auto e = expression(parser,lbp(parser,t)-1);
 
     // sugar as <sym> = <sym> + <expr>
     auto e2 = new AstNode(copy_node(left),e,oper);
@@ -55,134 +59,134 @@ AstNode *Parser::oper_eq(AstNode *left,Token t,ast_type oper)
     return n;    
 }
 
-AstNode *Parser::led(Token &t,AstNode *left)
+AstNode *led(Parser &parser,Token &t,AstNode *left)
 {
     switch(t.type)
     {
         case token_type::plus_eq:
         {
-            return oper_eq(left,t,ast_type::plus);
+            return oper_eq(parser,left,t,ast_type::plus);
         }
 
         case token_type::minus_eq:
         {
-            return oper_eq(left,t,ast_type::minus);
+            return oper_eq(parser,left,t,ast_type::minus);
         }
 
         case token_type::times_eq:
         {
-            return oper_eq(left,t,ast_type::times);
+            return oper_eq(parser,left,t,ast_type::times);
         }
 
 
         case token_type::divide_eq:
         {
-            return oper_eq(left,t,ast_type::divide);
+            return oper_eq(parser,left,t,ast_type::divide);
         }
 
         case token_type::equal:
         { 
             // right precedence rbp = lbp -1 so that things on the right 
             // are sen as sub expressions
-            return new AstNode(left,expression(lbp(t)-1),ast_type::equal);  
+            return new AstNode(left,expression(parser,lbp(parser,t)-1),ast_type::equal);  
         }
     
       
         case token_type::plus:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::plus);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::plus);
         }
 
         case token_type::minus:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::minus);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::minus);
         }
 
         case token_type::divide:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::divide);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::divide);
         }
 
         case token_type::mod:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::mod);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::mod);
         }
 
         case token_type::shift_l:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::shift_l);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::shift_l);
         }
 
         case token_type::shift_r:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::shift_r);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::shift_r);
         }
 
         case token_type::times:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::times);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::times);
         }
 
         case token_type::bitwise_and:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::bitwise_and);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::bitwise_and);
         }
 
         case token_type::bitwise_or:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::bitwise_or);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::bitwise_or);
         }
 
         case token_type::bitwise_xor:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::bitwise_xor);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::bitwise_xor);
         }
 
         case token_type::logical_or:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_or);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_or);
         }
     
         case token_type::logical_and:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_and);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_and);
         }
 
 
         case token_type::logical_lt:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_lt);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_lt);
         }
 
         case token_type::logical_gt:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_gt);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_gt);
         }   
 
         case token_type::logical_le:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_le);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_le);
         }   
 
         case token_type::logical_ge:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_ge);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_ge);
         }   
 
         case token_type::logical_eq:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_eq);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_eq);
         }    
 
         case token_type::logical_ne:
         {
-            return new AstNode(left,expression(lbp(t)),ast_type::logical_ne);
+            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_ne);
         }         
 
 
         default:
         {
-            panic(t,"led: unexpected token %s\n",tok_name(t.type));
+            panic(parser,t,"led: unexpected token %s\n",tok_name(t.type));
             return nullptr;
         }        
     }
@@ -193,7 +197,7 @@ AstNode *Parser::led(Token &t,AstNode *left)
 }
 
 // unary operators
-AstNode *Parser::nud(Token &t)
+AstNode *nud(Parser &parser,Token &t)
 {
     switch(t.type)
     {
@@ -201,19 +205,19 @@ AstNode *Parser::nud(Token &t)
         case token_type::cast:
         {
 
-            consume_expr(token_type::left_paren);
+            consume_expr(parser,token_type::left_paren);
 
 
             // get_type is inside the normal parser we need
             // to correct the tok idx
-            tok_idx -= 1;
+            parser.tok_idx -= 1;
 
             std::string type_name;
-            const auto type_opt = get_type(type_name);
+            const auto type_opt = get_type(parser,type_name);
 
             if(!type_opt)
             {
-                type_panic();
+                type_panic(parser);
                 return nullptr;
             }
 
@@ -221,13 +225,13 @@ AstNode *Parser::nud(Token &t)
             const auto left = new AstNode(type,type_name);
         
             // correct our state machine
-            expr_tok = next_token_expr();
+            parser.expr_tok = next_token_expr(parser);
 
-            consume_expr(token_type::comma);
+            consume_expr(parser,token_type::comma);
 
-            const auto right = expression(0);
+            const auto right = expression(parser,0);
 
-            consume_expr(token_type::right_paren);
+            consume_expr(parser,token_type::right_paren);
             
             return new AstNode(left,right,ast_type::cast);    
         }
@@ -260,9 +264,9 @@ AstNode *Parser::nud(Token &t)
             // look ahead extra tokens that would change the meaning of this
 
             // function call
-            if(expr_tok.type == token_type::left_paren)
+            if(parser.expr_tok.type == token_type::left_paren)
             {
-                consume_expr(token_type::left_paren);
+                consume_expr(parser,token_type::left_paren);
 
                 auto func_call = new AstNode(ast_type::function_call,t.literal);
 
@@ -272,29 +276,29 @@ AstNode *Parser::nud(Token &t)
                 bool done = false;
 
                 // empty call we are done
-                if(expr_tok.type == token_type::right_paren)
+                if(parser.expr_tok.type == token_type::right_paren)
                 {
                     done = true;
-                    consume_expr(token_type::right_paren);
+                    consume_expr(parser,token_type::right_paren);
                 }
 
                 while(!done)
                 {
 
-                    auto expr = expression(0);
+                    auto expr = expression(parser,0);
 
                     func_call->nodes.push_back(expr);
 
                     // no more args terminate the call
-                    if(expr_tok.type != token_type::comma)
+                    if(parser.expr_tok.type != token_type::comma)
                     {
-                        consume_expr(token_type::right_paren);
+                        consume_expr(parser,token_type::right_paren);
                         done = true;
                     }
 
                     else
                     {
-                        consume_expr(token_type::comma);
+                        consume_expr(parser,token_type::comma);
                     }
                 }
 
@@ -308,36 +312,36 @@ AstNode *Parser::nud(Token &t)
 
         case token_type::minus:
         {
-            return new AstNode(expression(100),nullptr,ast_type::minus);
+            return new AstNode(expression(parser,100),nullptr,ast_type::minus);
         }
 
         case token_type::plus:
         {
-            return new AstNode(expression(100),nullptr,ast_type::plus);
+            return new AstNode(expression(parser,100),nullptr,ast_type::plus);
         }
 
         case token_type::bitwise_not:
         {
-            return new AstNode(expression(100),nullptr,ast_type::bitwise_not);
+            return new AstNode(expression(parser,100),nullptr,ast_type::bitwise_not);
         }
 
         case token_type::logical_not:
         {
-            return new AstNode(expression(100),nullptr,ast_type::logical_not);
+            return new AstNode(expression(parser,100),nullptr,ast_type::logical_not);
         }
 
 
         case token_type::left_paren:
         {
-            const auto expr = expression(0);
+            const auto expr = expression(parser,0);
 
-            consume_expr(token_type::right_paren);
+            consume_expr(parser,token_type::right_paren);
             return expr;
         }
 
         default:
         {
-            panic(t,"nud: unexpected token %s\n",tok_name(t.type));
+            panic(parser,t,"nud: unexpected token %s\n",tok_name(t.type));
             break;
         }
     }
@@ -349,31 +353,31 @@ AstNode *Parser::nud(Token &t)
 // https://web.archive.org/web/20151223215421/http://hall.org.ua/halls/wizzard/pdf/Vaughan.Pratt.TDOP.pdf
 // ^ this algo is elegant as hell
 
-AstNode *Parser::expression(int32_t rbp)
+AstNode *expression(Parser &parser,s32 rbp)
 {
-    auto cur = expr_tok;
-    expr_tok = next_token_expr();
+    auto cur = parser.expr_tok;
+    parser.expr_tok = next_token_expr(parser);
 
-    auto left = nud(cur);
+    auto left = nud(parser,cur);
 
-    if(terminate)
+    if(parser.terminate)
     {
         return left;
     }
 
-    if(expr_tok.type == termination_type)
+    if(parser.expr_tok.type == parser.termination_type)
     {
-        terminate = true;
+        parser.terminate = true;
         return left;
     }
 
-    while(rbp < lbp(expr_tok))
+    while(rbp < lbp(parser,parser.expr_tok))
     {
-        cur = expr_tok;
-        expr_tok = next_token_expr();
-        left = led(cur,left);
+        cur = parser.expr_tok;
+        parser.expr_tok = next_token_expr(parser);
+        left = led(parser,cur,left);
 
-        if(terminate)
+        if(parser.terminate)
         {
             return left;
         }
@@ -383,71 +387,71 @@ AstNode *Parser::expression(int32_t rbp)
 }
 
 
-AstNode *Parser::expr_terminate_internal(token_type t)
+AstNode *expr_terminate_internal(Parser &parser,token_type t)
 {
     // make pratt parser terminate as soon as it sees
     // this token
-    termination_type = t;
+    parser.termination_type = t;
 
-    auto e = expr(next_token());
+    auto e = expr(parser,next_token(parser));
 
-    termination_type = token_type::eof;
+    parser.termination_type = token_type::eof;
 
     return e;
 }
 
 
-AstNode *Parser::expr_terminate(token_type t, token_type &term)
+AstNode *expr_terminate(Parser &parser,token_type t, token_type &term)
 {
-    auto e = expr_terminate_internal(t);
-    terminate = false;
+    auto e = expr_terminate_internal(parser,t);
+    parser.terminate = false;
 
     // what token did we terminate on?
-    term = expr_tok.type;
+    term = parser.expr_tok.type;
 
     return e;
 }
 
 
 // panic on failure to terminate with token
-AstNode *Parser::expr_terminate(token_type t)
+AstNode *expr_terminate(Parser &parser,token_type t)
 {
-    auto e = expr_terminate_internal(t);
+    auto e = expr_terminate_internal(parser,t);
     
 
     // expression must terminate on this token
-    if(expr_tok.type != t || !terminate)
+    if(parser.expr_tok.type != t || !parser.terminate)
     {
-        panic(expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(expr_tok.type),tok_name(t));
+        panic(parser,parser.expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(parser.expr_tok.type),tok_name(t));
         delete e;
         return nullptr;
     }
 
-    terminate = false;
+    parser.terminate = false;
     return e;
 }
 
-AstNode *Parser::expr(const Token &t)
+AstNode *expr(Parser &parser,const Token &t)
 {
-    brace_count = 0;
-    expr_tok = t;
+    parser.brace_count = 0;
+    parser.expr_tok = t;
 
-    if(expr_tok.type == token_type::left_paren)
+    if(parser.expr_tok.type == token_type::left_paren)
     {
-        brace_count += 1;
+        parser.brace_count += 1;
     }
 
-    else if(expr_tok.type == token_type::right_paren)
+    else if(parser.expr_tok.type == token_type::right_paren)
     {
-        brace_count -= 1;
+        parser.brace_count -= 1;
     }
 
-    const auto e = expression(0);
+    const auto e = expression(parser,0);
 
     // non closed brace, where specified terminator is not a right_paren
-    if(brace_count != 0 && !(terminate && expr_tok.type == token_type::right_paren))
+    if(parser.brace_count != 0 && !(parser.terminate && parser.expr_tok.type == token_type::right_paren))
     {
-        panic(expr_tok,"unterminated bracket: ");
+        panic(parser,parser.expr_tok,"unterminated bracket: ");
     }
 
     return e;

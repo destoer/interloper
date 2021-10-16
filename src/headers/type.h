@@ -155,6 +155,11 @@ inline u32 builtin_min(builtin_type t)
 }
 
 
+inline builtin_type cast_builtin(Type &type)
+{
+    return static_cast<builtin_type>(type.type_idx);
+}
+
 
 
 static constexpr uint32_t SYMBOL_NO_SLOT = 0xffffffff;
@@ -169,11 +174,6 @@ struct Symbol
     Symbol(const std::string &n, Type t, u32 s, bool a = false) : name(n), type(t), is_arg(a), slot(s)
     {}
 
-    u32 slot_idx(u32 slot) const
-    {
-        return is_arg? arg(slot) : symbol(slot);
-    }
-
 
     std::string name;
     Type type;
@@ -184,6 +184,7 @@ struct Symbol
     // what slot does this symbol hold inside the ir?
     u32 slot;
 };
+u32 slot_idx(const Symbol &sym);
 
 
 
@@ -235,73 +236,6 @@ struct Function
     Function(const std::string &n, Type rt, std::vector<Symbol> a, u32 s) : name(n), return_type(rt), args(a), slot(s)
     {}
 
-    // TODO: remove the need to pass a type by emitting dedicated 
-    // mov signed instrs
-    u32 add_var(const std::string &name,const Type &type, u32 size)
-    {
-        // we only want to move quantitys under 4 bytes
-        // larger thigns i.e structs
-        // will allready have memory semantics
-        assert(size <= 4);
-
-        const auto slot = slot_lookup.size();
-
-        // shift by 1 to turn 1, 2, 4 
-        // into and idx 
-        size_count_cur[size >> 1] += 1;
-
-        const bool sign = is_signed_integer(type);
-
-        slot_lookup.push_back(VarAlloc(size,name,sign));
-
-        return slot;
-    }
-
-    // allocation on stack is callee handled
-    // so dont add to size count
-    u32 add_arg(const std::string &name,const Type &type, u32 size)
-    {
-
-        // we only want to move quantitys under 4 bytes
-        // larger thigns i.e structs
-        // will allready have memory semantics
-        assert(size <= 4);
-
-        const auto slot = slot_lookup.size();
-
-        const bool sign = is_signed_integer(type);
-
-        auto alloc = VarAlloc(size,name,sign);
-
-        slot_lookup.push_back(alloc); 
-
-        return slot;       
-    }
-
-    void dump_ir(const std::vector<Label> &label_lookup)
-    {
-        printf("%s:\n",name.c_str());
-
-        u32 l = 0;
-        for(u32 b = 0; b < emitter.program.size(); b++)
-        {
-            const auto &block = emitter.program[b];
-        
-            if(emitter.block_slot[b] != 0xffffffff)
-            {
-                printf("%s:\n",label_lookup[emitter.block_slot[b]].name.c_str());
-            }
-
-            for(const auto &opcode : block)
-            {
-                printf("\t");
-                disass_opcode_sym(opcode,slot_lookup,label_lookup);
-            }
-            l++;
-        }
-
-        printf("\n");       
-    }
 
     std::string name;
     Type return_type;
@@ -323,64 +257,39 @@ struct Function
     // current size count
     u32 size_count_cur[3] = {0};
 };
+void dump_ir(Function &func,const std::vector<Label> &label_lookup);
+u32 add_arg(Function &func,const std::string &name,const Type &type, u32 size);
+u32 add_var(Function &func,const std::string &name,const Type &type, u32 size);
+
 
 struct SymbolTable
 {
-    void new_scope()
-    {
-        table.push_back({});
-    }
-
-    void destroy_scope()
-    {
-        sym_count -= table.back().size();
-        table.pop_back();
-    }
-
-    // declare the global scope
-    SymbolTable() { new_scope(); }
-
-    std::optional<Symbol> get_sym(const std::string &sym)
-    {
-        for(int i = table.size()-1; i >= 0; i--)
-        {
-            if(table[i].count(sym))
-            {
-                return std::optional<Symbol>(table[i][sym]);
-            }
-        }
-
-        return std::nullopt;
-    }
-
-    void add_symbol(Symbol &symbol, u32 slot)
-    {
-        symbol.slot = slot;
-        table[table.size()-1][symbol.name] = symbol;
-        sym_count++;
-    }
-
-    void add_symbol(const std::string &name, const Type &type, u32 slot)
-    {
-        table[table.size()-1][name] = Symbol(name,type,slot);
-        sym_count++;
-    }
-
-    void add_label(const std::string &label)
-    {
-        label_lookup.push_back(Label(label,0));
-    }
-
-    void clear()
-    {
-        table.clear();
-        label_lookup.clear();
-        sym_count = 0;
-    }
-
     std::vector<std::unordered_map<std::string, Symbol>> table; 
 
     std::vector<Label> label_lookup;
 
     u32 sym_count = 0;
 };
+
+void new_scope(SymbolTable &sym_table);
+void destroy_scope(SymbolTable &sym_table);
+std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym);
+void add_symbol(SymbolTable &sym_table,Symbol &symbol, u32 slot);
+void add_symbol(SymbolTable &sym_table,const std::string &name, const Type &type, u32 slot);
+void add_label(SymbolTable &sym_table,const std::string &label);
+void clear(SymbolTable &sym_table);
+
+
+
+
+struct Interloper;
+Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype);
+void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtype);
+void check_assign(Interloper& itl,const Type &ltype, const Type &rtype);
+
+u32 type_size(Interloper& itl,const Type &type);
+u32 type_min(Interloper& itl,const Type &type);
+u32 type_max(Interloper& itl,const Type &type);
+std::string type_name(Interloper& itl,const Type &type);
+
+void handle_cast(Interloper& itl,IrEmitter &emitter,const Type &old_type, const Type &new_type);

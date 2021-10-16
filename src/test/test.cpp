@@ -61,7 +61,7 @@ void run_tests()
 
     puts("\nprogram tests\n");
 
-    Interloper interloper;
+    Interloper itl;
     for(u32 i = 0; i < PROGRAM_TEST_SIZE; i++)
     {
         const auto &test = PROGRAM_TEST[i];
@@ -74,22 +74,22 @@ void run_tests()
         }
 
         
-        interloper.compile(file);
+        compile(itl,file);
 
-        if(test.error && interloper.error)
+        if(test.error && itl.error)
         {
             printf("Pass %s\n",test.name);
             continue;
         }
 
-        else if(interloper.error && !test.error)
+        else if(itl.error && !test.error)
         {
-            printf("Fail %s error does not match %d != %d\n",test.name,test.error,interloper.error);
+            printf("Fail %s error does not match %d != %d\n",test.name,test.error,itl.error);
             return;
         }
 
 
-        const auto r = interloper.interpretter.run(reinterpret_cast<uint8_t*>(interloper.program.data()),interloper.program.size() * sizeof(Opcode));      
+        const auto r = run(itl.interpretter,reinterpret_cast<uint8_t*>(itl.program.data()),itl.program.size() * sizeof(Opcode));      
 
 
         if(test.expected != r)

@@ -93,23 +93,19 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::implicit_t,"END",0},
 };
 
-void IrEmitter::emit(op_type op, uint32_t v1, uint32_t v2, uint32_t v3)
+void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    program[program.size()-1].push_back(opcode);
-    pc += 1;
+    emitter.program[emitter.program.size()-1].push_back(opcode);
+    emitter.pc += 1;    
 }
 
-void IrEmitter::new_block(u32 slot)
+void new_block(IrEmitter &emitter,u32 slot)
 {
-    program.push_back({});
-    block_slot.push_back(slot);
-
+    emitter.program.push_back({});
+    emitter.block_slot.push_back(slot);    
 }
-
-
-
 
 
 void stack_allocate(u32 *stack_alloc, VarAlloc &var_alloc)
@@ -125,7 +121,7 @@ void stack_allocate(u32 *stack_alloc, VarAlloc &var_alloc)
 
 
 
-void Interloper::allocate_registers(Function &func)
+void allocate_registers(Function &func)
 {
 #if 0
     u32 free_regs = MACHINE_REG_SIZE;
@@ -387,23 +383,23 @@ void Interloper::allocate_registers(Function &func)
 }
 
 
-void Interloper::emit_asm()
+void emit_asm(Interloper &itl)
 {
     // emit a dummy call to main
     // that will get filled in later once we know where main lives
-    program.push_back(Opcode(op_type::call,function_table["main"].slot,0,0));
+    itl.program.push_back(Opcode(op_type::call,itl.function_table["main"].slot,0,0));
 
     // program exit
-    program.push_back(Opcode(op_type::swi,SWI_EXIT,0,0));
+    itl.program.push_back(Opcode(op_type::swi,SWI_EXIT,0,0));
 
     // dump ever function into one vector and record where it is in the function table
-    for(auto &[key, func]: function_table)
+    for(auto &[key, func]: itl.function_table)
     {
         UNUSED(key);
 
         // when we assembly to an actual arch we will 
         // have to switch over to a byte array
-        symbol_table.label_lookup[func.slot].offset = program.size() * OP_SIZE;
+        itl.symbol_table.label_lookup[func.slot].offset = itl.program.size() * OP_SIZE;
 
 
         for(u32 b = 0; b < func.emitter.program.size(); b++)
@@ -415,11 +411,11 @@ void Interloper::emit_asm()
             // how many labels were allocated at the start of this func
             // for now we will cheat as we only have one func with labels
             // so just move the labels past the function ones
-            symbol_table.label_lookup[func.emitter.block_slot[b]].offset = program.size() * OP_SIZE;
+            itl.symbol_table.label_lookup[func.emitter.block_slot[b]].offset = itl.program.size() * OP_SIZE;
 
             for(const auto &op : block)
             {
-                program.push_back(op);
+                itl.program.push_back(op);
             }
         }
     }
@@ -427,7 +423,7 @@ void Interloper::emit_asm()
     // label dump
 /*
     puts("\n\nlabels");
-    for(const auto &label : symbol_table.label_lookup)
+    for(const auto &label : itl.symbol_table.label_lookup)
     {
         printf("label %s = %x\n",label.name.c_str(),label.offset);
     }
@@ -438,33 +434,33 @@ void Interloper::emit_asm()
     // posistions for
     // TODO: how do we want to labels for a mov i.e
     // x = @some_function;
-    for(auto &opcode : program)
+    for(auto &opcode : itl.program)
     {
         // handle all the branch labels
         // TODO: this probably needs to be changed for when we have call <reg>
         if(OPCODE_TABLE[static_cast<u32>(opcode.op)].group == op_group::branch_t)
         {
-            opcode.v1 = symbol_table.label_lookup[opcode.v1].offset;
+            opcode.v1 = itl.symbol_table.label_lookup[opcode.v1].offset;
         }
     }
 
     // program dump
 
     puts("raw program dump\n\n\n");
-    for(u32 pc = 0; pc < program.size(); pc++)
+    for(u32 pc = 0; pc < itl.program.size(); pc++)
     {
         printf("0x%08x: ",pc * OP_SIZE);
-        disass_opcode_raw(program[pc]);
+        disass_opcode_raw(itl.program[pc]);
     }
 
 }
 
 
 
-using IR_OPER_STRING_FUNC = std::string (*)(const std::vector<VarAlloc> *table, uint32_t);
+using IR_OPER_STRING_FUNC = std::string (*)(const std::vector<VarAlloc> *table, u32);
 
 // disassemble with symbols
-std::string get_oper_sym(const std::vector<VarAlloc> *table,uint32_t v)
+std::string get_oper_sym(const std::vector<VarAlloc> *table,u32 v)
 {
     auto slot_lookup = *table;
 
@@ -482,7 +478,7 @@ std::string get_oper_sym(const std::vector<VarAlloc> *table,uint32_t v)
 }
 
 // disassemble without needing the symbol information
-std::string get_oper_raw(const std::vector<VarAlloc> *table,uint32_t v)
+std::string get_oper_raw(const std::vector<VarAlloc> *table,u32 v)
 {
     UNUSED(table);
 

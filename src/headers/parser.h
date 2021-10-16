@@ -206,6 +206,8 @@ struct AstNode
         Value value;
     };
 
+    // TODO: fixme this doesnt need to be a pointer
+    // remove tit
     std::vector<AstNode *> nodes;
 };
 
@@ -233,67 +235,47 @@ inline void delete_tree(AstNode *node)
 
 void print(const AstNode *root);
 
+
 struct Parser
 {
-    void init(const std::vector<std::string> *file,const std::vector<Token> *tokens);
-
-    void parse(AstNode **root_ptr);
-    
-    AstNode *expr(const Token &t);
-    Token next_token();
-
-    bool error;
-
-    bool initialized = false;
-
-    template<typename... Args>
-    void panic(const Token &token,const char *fmt, Args... args)
-    {
-        printf(fmt,args...);
-        const auto &lv = *file;
-        printf("%s",lv[token.line].c_str());
-        printf("\nat: line %d col %d\n",token.line,token.col);
-        error = true;
-        terminate = true;
-    }
-
-    AstNode *func();
-    AstNode *block();
-    AstNode *statement();
-
-    std::optional<Type> get_type(std::string &type_literal);
-    void type_panic();
-    AstNode *declaration(const Type &var_type, const std::string &type_str);
-    AstNode *auto_decl();
-
-    void prev_token();
-
-    // pratt parser
-    AstNode *expr_terminate(token_type t);
-    AstNode *expr_terminate(token_type t, token_type &term);
-    AstNode *expr_terminate_internal(token_type t);
-    AstNode *expression(int32_t rbp);
-
-    int32_t lbp(const Token &t);
-    AstNode *led(Token &t,AstNode *left);
-    AstNode *nud(Token &t);
-    AstNode *oper_eq(AstNode *left,Token t,ast_type oper);
-
-    void consume(token_type type);
-    void consume_expr(token_type type);
-    bool match(token_type type);
-
-    Token next_token_expr();
-
-    Token peek(uint32_t v);
-
     const std::vector<Token> *tokens = nullptr;
-    const std::vector<std::string> *file = nullptr;
 
     // pratt parser
     Token expr_tok;
-    size_t tok_idx;
-    uint32_t brace_count;
-    bool terminate;
-    token_type termination_type;
+    u32 tok_idx = 0;
+    u32 brace_count = 0;
+    b32 terminate = false;
+    token_type termination_type = token_type::eof;
+
+    // error handling
+    b32 error = false;
+    s32 line = 0;
 };
+
+Token next_token(Parser &parser);
+void prev_token(Parser &parser);
+Token peek(Parser &parser,u32 v);
+void consume(Parser &parser,token_type type);
+bool match(Parser &parser,token_type type);
+
+
+AstNode *expr(Parser &parser,const Token &t);
+AstNode *expr_terminate(Parser &parser,token_type t);
+AstNode *expr_terminate(Parser &parser,token_type t, token_type &term);
+
+std::optional<Type> get_type(Parser &parser,std::string &type_literal);
+void type_panic(Parser &parser);
+
+
+template<typename... Args>
+inline void panic(Parser &parser,const Token &token,const char *fmt, Args... args)
+{
+    printf(fmt,args...);
+    printf("\nat: line %d col %d\n",token.line,token.col);
+    parser.error = true;
+    parser.line = token.line;
+}
+
+
+
+bool parse(AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines);

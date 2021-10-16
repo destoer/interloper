@@ -2,13 +2,6 @@
 #include <test.h>
 
 
-// test for expression parser
-// semantic analysis
-// code gen (2 stage), emit operations on vars
-// then actual bytecode that worries about where things are placed
-// control flow and scoping
-// ...
-
 int main(int argc, char *argv[])
 {
     // just one file arg for now
@@ -41,14 +34,14 @@ int main(int argc, char *argv[])
         printf("%s\n",line.c_str());
     }
 
-    Interloper interloper;
-    interloper.compile(file);
+    Interloper itl;
+    compile(itl,file);
 
-    if(interloper.error)
+    if(itl.error)
     {
         return 1;
     }
 
     
-    interloper.interpretter.run(reinterpret_cast<uint8_t*>(interloper.program.data()),interloper.program.size() * sizeof(Opcode));
+    run(itl.interpretter,reinterpret_cast<uint8_t*>(itl.program.data()),itl.program.size() * sizeof(Opcode));
 }

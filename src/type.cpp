@@ -18,12 +18,13 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 // this needs to have more added when we get extra fields
 bool same_type(const Type &type1, const Type &type2)
 {
-    return 
-        type1.type_idx == type2.type_idx;
+    return type1.type_idx == type2.type_idx;
 }
 
-u32 Interloper::type_size(const Type &type)
+u32 type_size(Interloper& itl,const Type &type)
 {
+    UNUSED(itl);
+
     if(is_builtin(type))
     {
         // assume plain type for now i.e no pointers etc
@@ -36,8 +37,10 @@ u32 Interloper::type_size(const Type &type)
     }
 }
 
-u32 Interloper::type_min(const Type &type)
+u32 type_min(Interloper& itl,const Type &type)
 {
+    UNUSED(itl);
+
     if(is_builtin(type))
     {
         // assume plain type for now i.e no pointers etc
@@ -50,8 +53,10 @@ u32 Interloper::type_min(const Type &type)
     }
 }
 
-u32 Interloper::type_max(const Type &type)
+u32 type_max(Interloper& itl,const Type &type)
 {
+    UNUSED(itl);
+
     if(is_builtin(type))
     {
         // assume plain type for now i.e no pointers etc
@@ -65,8 +70,10 @@ u32 Interloper::type_max(const Type &type)
 }
 
 
-std::string Interloper::type_name(const Type &type)
+std::string type_name(Interloper& itl,const Type &type)
 {
+    UNUSED(itl);
+
     if(is_builtin(type))
     {
         return builtin_type_name(static_cast<builtin_type>(type.type_idx));
@@ -81,8 +88,10 @@ std::string Interloper::type_name(const Type &type)
 }
 
 // TODO: do we want to pass the operation in here for when we support overloading?
-Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
+Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
 {
+    UNUSED(itl);
+
     // builtin type
     if(is_builtin(rtype) && is_builtin(ltype))
     {
@@ -99,7 +108,7 @@ Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
         // something else
         else
         {
-            panic("arithmetic operation undefined for %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+            panic(itl,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             return Type(builtin_type::void_t);
         }
 
@@ -112,8 +121,10 @@ Type Interloper::effective_arith_type(const Type &ltype, const Type &rtype)
     }
 }
 
-void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
+void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtype)
 {
+    UNUSED(itl);
+
     // both are builtin
     if(is_builtin(rtype) && is_builtin(ltype))
     {
@@ -125,7 +136,7 @@ void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
         {
             if(is_signed(rtype) != is_signed(ltype))
             {
-                panic("logical comparision on different signs %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+                panic(itl,"logical comparision on different signs %s and %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             }
         }
 
@@ -138,7 +149,7 @@ void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
         // something else
         else
         {
-            panic("logical operation undefined for %s and %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+            panic(itl,"logical operation undefined for %s and %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
         }
     }
 
@@ -151,8 +162,10 @@ void Interloper::check_logical_operation(const Type &ltype, const Type &rtype)
 }
 
 
-void Interloper::check_assign(const Type &ltype, const Type &rtype)
+void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
 {
+    UNUSED(itl);
+
     // if we have the same types we dont care
     // TODO: an additonal earlier check might be needed on the dst
     // if we add const specifiers
@@ -174,14 +187,14 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
             // would narrow (assign is illegal)
             if(builtin_size(builtin_l) < builtin_size(builtin_r))
             {
-                panic("narrowing conversion %s = %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+                panic(itl,"narrowing conversion %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             }
 
             // unsigned cannot assign to signed
             // TODO: do we want to be this pedantic with integer conversions?
             if(!is_signed(builtin_l) && is_signed(builtin_r))
             {
-                panic("unsigned = signed (%s = %s)\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+                panic(itl,"unsigned = signed (%s = %s)\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             }
         }
 
@@ -192,7 +205,7 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
             // void is not assignable!
             if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
             {
-                panic("void assign %s = %s\n",type_name(ltype).c_str(),type_name(rtype).c_str());
+                panic(itl,"void assign %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             }
 
             else
@@ -213,8 +226,10 @@ void Interloper::check_assign(const Type &ltype, const Type &rtype)
 // start here
 // we need to implement proper stores and loads 
 // for each type first
-void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type &new_type)
+void handle_cast(Interloper& itl,IrEmitter &emitter,const Type &old_type, const Type &new_type)
 {
+    UNUSED(itl);
+
     // we dont care if we have the same type
     // i.e this cast does nothing
     if(same_type(old_type,new_type))
@@ -250,13 +265,13 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
                 {
                     case builtin_type::s8_t: 
                     {
-                        emitter.emit(op_type::sxb,reg(emitter.reg_count),reg(emitter.reg_count));
+                        emit(emitter,op_type::sxb,reg(emitter.reg_count),reg(emitter.reg_count));
                         break;
                     }
 
                     case builtin_type::s16_t:
                     {
-                        emitter.emit(op_type::sxh,reg(emitter.reg_count),reg(emitter.reg_count));
+                        emit(emitter,op_type::sxh,reg(emitter.reg_count),reg(emitter.reg_count));
                         break;
                     }
 
@@ -272,13 +287,13 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
                 {
                     case 1: 
                     {
-                        emitter.emit(op_type::and_imm,reg(emitter.reg_count),reg(emitter.reg_count),0xff);
+                        emit(emitter,op_type::and_imm,reg(emitter.reg_count),reg(emitter.reg_count),0xff);
                         break;
                     }
 
                     case 2:  
                     {
-                        emitter.emit(op_type::and_imm,reg(emitter.reg_count),reg(emitter.reg_count),0xffff);
+                        emit(emitter,op_type::and_imm,reg(emitter.reg_count),reg(emitter.reg_count),0xffff);
                         break;
                     }
 
@@ -301,19 +316,19 @@ void Interloper::handle_cast(IrEmitter &emitter,const Type &old_type, const Type
         {
             if(is_signed(builtin_old))
             {
-                emitter.emit(op_type::cmpsgt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
+                emit(emitter,op_type::cmpsgt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
             }
 
             // unsigned
             else
             {
-                emitter.emit(op_type::cmpugt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
+                emit(emitter,op_type::cmpugt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
             }
         }        
 
         else
         {
-            unimplemented("handle cast builtin illegal %s -> %s\n",type_name(old_type).c_str(),type_name(new_type).c_str());
+            unimplemented("handle cast builtin illegal %s -> %s\n",type_name(itl,old_type).c_str(),type_name(itl,new_type).c_str());
         }
     }
 

@@ -119,7 +119,7 @@ void expr_test()
 
         const auto &test = EXPR_TESTS[i];
         dummy[0] = test.expression;
-        const b32 error = tokenize(lexer,&dummy);
+        const b32 error = tokenize(lexer,dummy);
 
         // check that the expression even consists of valid tokens
         if(error)
@@ -127,10 +127,10 @@ void expr_test()
             printf("fail lex error[%d]: %s\n",i,test.expression);
             break;
         }
-
-        parser.init(&dummy,&lexer.tokens);
         
-        expr_tree = parser.expr(parser.next_token());
+        // TODO: how do we wanna handle this?
+        parser.tokens = &lexer.tokens;
+        expr_tree = expr(parser,next_token(parser));
 
         // check this expression is valid
         if(parser.error != test.error)

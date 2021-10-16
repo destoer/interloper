@@ -7,34 +7,23 @@
 //  0x10000000 -> program memory
 //  0x20000000 + stack size -> stack
 //  0x30000000 and above -> heap allocations (when implemented)
-struct Interpretter final
+struct Interpretter
 {
-    s32 run(const uint8_t *program, uint32_t size);
-    void reset();
-
-    template<typename access_type>
-    access_type read_mem(uint32_t addr);
-
-    template<typename access_type>
-    void write_mem(uint32_t addr, access_type v);
-
-    void execute_opcode(const Opcode &opcode);
-
-    const uint8_t *program = nullptr;
-    uint32_t size = 0;
+    u32 size = 0;
 
     //pc and sp are after the standard regs
-    uint32_t regs[MACHINE_REG_SIZE + 2];
+    u32 regs[MACHINE_REG_SIZE + 2];
 
-    bool quit;
+    b32 quit;
 
     // 16MB stack
-    std::vector<uint8_t> stack;
+    std::vector<u8> stack;
 };
 
 
 
 
 
-
-
+s32 run(Interpretter& interpretter,const u8 *program, u32 size);
+void reset(Interpretter &interpretter);
+void execute_opcode(Interpretter& interpretter,const Opcode &opcode);

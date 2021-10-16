@@ -456,18 +456,17 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 }
 
 
-bool tokenize(Lexer &lexer,const std::vector<std::string> *file)
+bool tokenize(Lexer &lexer,const std::vector<std::string> &file)
 {
     lexer.row = 0;
     lexer.column = 0;
     lexer.tokens.clear();
 
-    for(const auto &line: *file)
+    for(const auto &line: file)
     {
         if(tokenize_line(lexer,line))
         {
-            const auto &lv = *file;
-            printf("%s",lv[lexer.row].c_str());
+            printf("%s",file[lexer.row].c_str());
             printf("\nat: line %d col %d\n",lexer.row,lexer.column);
             return true;
         }

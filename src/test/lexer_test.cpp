@@ -102,7 +102,7 @@ void lexer_test()
     {
         const auto &test = LEXER_TESTS[i];
         dummy[0] = test.line;
-        const b32 lexer_error = tokenize(lexer,&dummy);
+        const b32 lexer_error = tokenize(lexer,dummy);
 
         // lexer did or did not report an error when it should
         // or did not return enough tokens

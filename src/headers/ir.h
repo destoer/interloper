@@ -234,10 +234,6 @@ static constexpr u32 SWI_EXIT = 0x0;
 
 struct IrEmitter
 {
-    void emit(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
-
-    void new_block(u32 slot = 0xffffffff);
-
     std::vector<std::list<Opcode>> program;
     std::vector<u32> block_slot;
 
@@ -248,3 +244,6 @@ struct IrEmitter
     // how do we handle resolving labels?
     uint32_t pc;
 };
+
+void emit(IrEmitter &emitter,op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
+void new_block(IrEmitter &emitter,u32 slot = 0xffffffff);

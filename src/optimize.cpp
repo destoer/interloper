@@ -16,9 +16,9 @@ Opcode peek_opcode(const std::list<Opcode> &block, opcode_iterator_t it)
 }
 
 
-void Interloper::optimise_ir()
+void optimise_ir(Interloper &itl)
 {
-    for(auto &[key,func] : function_table)
+    for(auto &[key,func] : itl.function_table)
     {
         UNUSED(key);
 
@@ -53,14 +53,14 @@ void Interloper::optimise_ir()
                         {
                             const u32 dst = op3.v1;
 
-                            interpretter.reset();
+                            reset(itl.interpretter);
 
                             // execute the ir instrs then read the final result of the reg
-                            interpretter.execute_opcode(opcode);
-                            interpretter.execute_opcode(op2);
-                            interpretter.execute_opcode(op3);
+                            execute_opcode(itl.interpretter,opcode);
+                            execute_opcode(itl.interpretter,op2);
+                            execute_opcode(itl.interpretter,op3);
 
-                            *it_op = Opcode(op_type::mov_imm,dst,interpretter.regs[dst],0);
+                            *it_op = Opcode(op_type::mov_imm,dst,itl.interpretter.regs[dst],0);
 
                             // remove the redundant mov_imm
                             it = block.erase(it,it_op);
@@ -98,7 +98,7 @@ void Interloper::optimise_ir()
                         {
                             // lookup table has the block number rather than the absolute address
                             // before label resolution
-                            const u32 block = symbol_table.label_lookup[dst].offset;
+                            const u32 block = itl.symbol_table.label_lookup[dst].offset;
 
                             const auto b = peek_opcode(func.emitter.program[block],func.emitter.program[block].begin());
 

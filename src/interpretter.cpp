@@ -2,43 +2,45 @@
 
 
 template<typename access_type>
-access_type Interpretter::read_mem(u32 addr)
+access_type read_mem(Interpretter& interpretter,u32 addr)
 {
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
-    if(addr >= 0x20000000 && addr < 0x20000000 + stack.size())
+    if(addr >= 0x20000000 && addr < 0x20000000 + interpretter.stack.size())
     {
-        return handle_read<access_type>(stack.data(),addr - 0x20000000);
+        return handle_read<access_type>(interpretter.stack.data(),addr - 0x20000000);
     }
 
     else
     {
-        printf("%x: warning out of bounds read at %x\n",regs[PC],addr);
+        printf("%x: warning out of bounds read at %x\n",interpretter.regs[PC],addr);
         return 0;
     }
 }
 
 template<typename access_type>
-void Interpretter::write_mem(u32 addr, access_type v)
+void write_mem(Interpretter& interpretter,u32 addr, access_type v)
 {
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
-    if(addr >= 0x20000000 && addr < 0x20000000 + stack.size())
+    if(addr >= 0x20000000 && addr < 0x20000000 + interpretter.stack.size())
     {
-        handle_write<access_type>(stack.data(),addr - 0x20000000,v);
+        handle_write<access_type>(interpretter.stack.data(),addr - 0x20000000,v);
     }
 
     else
     {
-        printf("%x: warning out of bounds write at %x:%x\n",regs[PC],addr,v);
+        printf("%x: warning out of bounds write at %x:%x\n",interpretter.regs[PC],addr,v);
     }
 }
 
 
-void Interpretter::execute_opcode(const Opcode &opcode)
+void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 {
+    auto &regs = interpretter.regs;
+
     switch(opcode.op)
     {
 
@@ -180,63 +182,63 @@ void Interpretter::execute_opcode(const Opcode &opcode)
 
         case op_type::lb:
         {
-            regs[opcode.v1] = read_mem<u8>(regs[opcode.v2]+opcode.v3);
+            regs[opcode.v1] = read_mem<u8>(interpretter,regs[opcode.v2]+opcode.v3);
             break;
         }
 
         case op_type::lh:
         {
-            regs[opcode.v1] = read_mem<u16>(regs[opcode.v2]+opcode.v3);
+            regs[opcode.v1] = read_mem<u16>(interpretter,regs[opcode.v2]+opcode.v3);
             break;
         }
 
         case op_type::lw:
         {
-            regs[opcode.v1] = read_mem<u32>(regs[opcode.v2]+opcode.v3);
+            regs[opcode.v1] = read_mem<u32>(interpretter,regs[opcode.v2]+opcode.v3);
             break;
         }
 
         case op_type::lsb:
         {
-            regs[opcode.v1] = read_mem<s8>(regs[opcode.v2]+opcode.v3);
+            regs[opcode.v1] = read_mem<s8>(interpretter,regs[opcode.v2]+opcode.v3);
             break;
         }
 
         case op_type::lsh:
         {
-            regs[opcode.v1] = read_mem<s16>(regs[opcode.v2]+opcode.v3);
+            regs[opcode.v1] = read_mem<s16>(interpretter,regs[opcode.v2]+opcode.v3);
             break;
         }
 
         case op_type::sb:
         {
-            write_mem<u8>(regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
+            write_mem<u8>(interpretter,regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
             break;
         }
 
         case op_type::sh:
         {
-            write_mem<u16>(regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
+            write_mem<u16>(interpretter,regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
             break;
         }
 
 
         case op_type::sw:
         {
-            write_mem<u32>(regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
+            write_mem<u32>(interpretter,regs[opcode.v2]+opcode.v3,regs[opcode.v1]);
             break;
         }
 
         case op_type::push:
         {
             regs[SP] -= sizeof(u32);
-            write_mem<u32>(regs[SP],regs[opcode.v1]); 
+            write_mem<u32>(interpretter,regs[SP],regs[opcode.v1]); 
             break;               
         }
 
         case op_type::pop:
         {
-            regs[opcode.v1] = read_mem<u32>(regs[SP]);
+            regs[opcode.v1] = read_mem<u32>(interpretter,regs[SP]);
             regs[SP] += sizeof(u32);
             break;
         }
@@ -247,7 +249,7 @@ void Interpretter::execute_opcode(const Opcode &opcode)
             // push
             
             regs[SP] -= sizeof(u32);
-            write_mem<u32>(regs[SP],regs[PC]);
+            write_mem<u32>(interpretter,regs[SP],regs[PC]);
 
             regs[PC] = opcode.v1;
             break;
@@ -256,7 +258,7 @@ void Interpretter::execute_opcode(const Opcode &opcode)
         case op_type::ret:
         {              
             // pop pc
-            regs[PC] = read_mem<u32>(regs[SP]);
+            regs[PC] = read_mem<u32>(interpretter,regs[SP]);
             regs[SP] += sizeof(u32);
             break;
         }
@@ -371,7 +373,7 @@ void Interpretter::execute_opcode(const Opcode &opcode)
             {
                 case 0x0: // exit
                 {
-                    quit = true;
+                    interpretter.quit = true;
                     break;
                 }
 
@@ -402,33 +404,31 @@ void Interpretter::execute_opcode(const Opcode &opcode)
     }    
 }
 
-void Interpretter::reset()
+void reset(Interpretter& interpretter)
 {
-    stack.resize(16 * 1024 * 1024);
-    std::fill(stack.begin(),stack.end(),0);
+    interpretter.stack.resize(16 * 1024 * 1024);
+    std::fill(interpretter.stack.begin(),interpretter.stack.end(),0);
 
-    memset(regs,0,sizeof(regs));
+    memset(interpretter.regs,0,sizeof(interpretter.regs));
 
-    regs[PC] = 0;
-    regs[SP] = 0x20000000 + stack.size();
+    interpretter.regs[PC] = 0;
+    interpretter.regs[SP] = 0x20000000 + interpretter.stack.size();
 
-    quit = false;
+    interpretter.quit = false;
 }
 
-s32 Interpretter::run(const u8 *program, u32 size)
+s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 {
     //puts("BOOP!"); exit(1);
 
     puts("startring progam execution\n\n\n");
-
-    this->program = program;
-    this->size = size;
-
     assert(program);
-
-    reset();
+    reset(interpretter);
     
-    while(!quit)
+
+    auto &regs = interpretter.regs;
+
+    while(!interpretter.quit)
     {
         Opcode opcode;
 
@@ -447,11 +447,8 @@ s32 Interpretter::run(const u8 *program, u32 size)
 
         regs[PC] += OP_SIZE;
 
-        execute_opcode(opcode);
+        execute_opcode(interpretter,opcode);
     }
-
-    this->program = nullptr;
-    this->size = 0;
 
     printf("exit code: %d\n",regs[0]);
     return regs[0];

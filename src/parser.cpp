@@ -2,32 +2,37 @@
 
 
 
-Token Parser::next_token()
+std::optional<Type> get_type(Parser &parser,std::string &type_literal);
+void type_panic(Parser &parser);
+AstNode *block(Parser &parser);
+
+
+Token next_token(Parser &parser)
 {
-    const auto &vt = *tokens;
-    if(tok_idx >= vt.size())
+    const auto &vt = *parser.tokens;
+    if(parser.tok_idx >= vt.size())
     {
         // TODO: make this return the actual file end
         // for row and col
         return Token(token_type::eof,"",0,0);
     }
 
-    return vt[tok_idx++];  
+    return vt[parser.tok_idx++];  
 }
 
-void Parser::prev_token()
+void prev_token(Parser &parser)
 {
-    if(tok_idx != 0)
+    if(parser.tok_idx != 0)
     {
-        tok_idx -= 1;
+        parser.tok_idx -= 1;
     }
 }
 
 
-Token Parser::peek(uint32_t v)
+Token peek(Parser &parser,u32 v)
 {
-    const auto idx = tok_idx + v;
-    const auto &vt = *tokens;
+    const auto idx = parser.tok_idx + v;
+    const auto &vt = *parser.tokens;
     if(idx >= vt.size())
     {
         return Token(token_type::eof,"",0,0);
@@ -38,26 +43,27 @@ Token Parser::peek(uint32_t v)
 
 
 
-void Parser::consume(token_type type)
+void consume(Parser &parser,token_type type)
 {
-    const auto &vt = *tokens;
-    const auto t = tok_idx >= vt.size()? token_type::eof : vt[tok_idx].type;
+    const auto &vt = *parser.tokens;
+    const auto t = parser.tok_idx >= vt.size()? token_type::eof : vt[parser.tok_idx].type;
 
     if(t != type)
     {
-        const auto tok = next_token();
-        panic(tok,"expected %s got %s\n", tok_name(type),tok_name(t));
+        const auto tok = next_token(parser);
+        panic(parser,tok,"expected %s got %s\n", tok_name(type),tok_name(t));
     }
-    tok_idx += 1;
+    parser.tok_idx += 1;
 }
 
-bool Parser::match(token_type type)
+bool match(Parser &parser,token_type type)
 {
-    const auto &vt = *tokens;
-    const auto t = tok_idx >= vt.size()? token_type::eof : vt[tok_idx].type;
+    const auto &vt = *parser.tokens;
+    const auto t = parser.tok_idx >= vt.size()? token_type::eof : vt[parser.tok_idx].type;
 
     return t == type;
 }
+
 
 AstNode *copy_node(const AstNode *node)
 {
@@ -99,18 +105,18 @@ AstNode *copy_node(const AstNode *node)
 }
 
 
-void Parser::type_panic()
+void type_panic(Parser &parser)
 {
-    const auto tok = peek(1);
-    panic(tok,"expected type declaration got: %s\n",tok_name(tok.type));
+    const auto tok = peek(parser,1);
+    panic(parser,tok,"expected type declaration got: %s\n",tok_name(tok.type));
 }
 
 // assume this is a plain type for now
 // i.e no array etc
 
-std::optional<Type> Parser::get_type(std::string &type_literal)
+std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 {
-    const auto tok = next_token();
+    const auto tok = next_token(parser);
 
     // is a builtin type
     switch(tok.type)
@@ -175,16 +181,16 @@ std::optional<Type> Parser::get_type(std::string &type_literal)
     assert(false);
 }
 
-AstNode *Parser::declaration(const Type &var_type, const std::string &type_str)
+AstNode *declaration(Parser &parser,const Type &var_type, const std::string &type_str)
 {
     // declartion
     // type symbol ( ';' | '=' expression ';')
 
-    const auto s = next_token();
+    const auto s = next_token(parser);
 
     if(s.type != token_type::symbol)
     {
-        panic(s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),tok_idx);
+        panic(parser,s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),parser.tok_idx);
         return nullptr;
     }
 
@@ -194,23 +200,23 @@ AstNode *Parser::declaration(const Type &var_type, const std::string &type_str)
     auto d = new AstNode(ast_type::declaration,s.literal);
     d->nodes.push_back(new AstNode(var_type,type_str));
 
-    const auto eq = peek(0);
+    const auto eq = peek(parser,0);;
 
     switch(eq.type)
     {
         // declartion without assigment
         case token_type::semi_colon:
         {
-            consume(token_type::semi_colon);
+            consume(parser,token_type::semi_colon);
             break;
         }
 
         // declartion with assingment
         case token_type::equal:
         {
-            consume(token_type::equal);
+            consume(parser,token_type::equal);
             
-            const auto e = expr(next_token());
+            const auto e = expr(parser,next_token(parser));
             
             // declartion with initalizer skip over initial symbol
             if(e && e->nodes.size() >= 1)
@@ -223,7 +229,7 @@ AstNode *Parser::declaration(const Type &var_type, const std::string &type_str)
         default:
         {
             delete_tree(d);
-            panic(eq,"malformed declartion: %s\n",tok_name(eq.type));
+            panic(parser,eq,"malformed declartion: %s\n",tok_name(eq.type));
             break;
         }
     }
@@ -231,31 +237,31 @@ AstNode *Parser::declaration(const Type &var_type, const std::string &type_str)
     return d;
 }
 
-AstNode *Parser::auto_decl()
+AstNode *auto_decl(Parser &parser)
 {
     // decl symbol = expr;
-    const auto s = next_token();
+    const auto s = next_token(parser);
 
     if(s.type != token_type::symbol)
     {
-        panic(s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),tok_idx);
+        panic(parser,s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),parser.tok_idx);
         return nullptr;
     }
 
     
     // okay here we require an expression on the right side
-    consume(token_type::equal);
+    consume(parser,token_type::equal);
 
     const auto d = new AstNode(ast_type::auto_decl,s.literal);
 
-    d->nodes.push_back(expr(next_token()));
+    d->nodes.push_back(expr(parser,next_token(parser)));
 
     return d;    
 }
 
-AstNode *Parser::statement()
+AstNode *statement(Parser &parser)
 {
-    const auto t = next_token();
+    const auto t = next_token(parser);
 
     switch(t.type)
     {
@@ -268,24 +274,24 @@ AstNode *Parser::statement()
         case token_type::s32:
         case token_type::bool_t:
         {
-            prev_token();
+            prev_token(parser);
             std::string type_literal;
-            const auto var_type_opt = get_type(type_literal);
+            const auto var_type_opt = get_type(parser,type_literal);
 
             if(!var_type_opt)
             {
-                type_panic();
+                type_panic(parser);
                 return nullptr;
             }
 
             const auto var_type = var_type_opt.value();
-            return declaration(var_type,type_literal);
+            return declaration(parser,var_type,type_literal);
         }
 
     
         case token_type::decl:
         {
-            return auto_decl();
+            return auto_decl(parser);
         }
 
         case token_type::ret:
@@ -293,13 +299,13 @@ AstNode *Parser::statement()
             auto r = new AstNode(ast_type::ret);
 
             // return value is optional
-            if(peek(0) != token_type::semi_colon)
+            if(peek(parser,0) != token_type::semi_colon)
             {
-                r->nodes.push_back(expr(next_token()));
+                r->nodes.push_back(expr(parser,next_token(parser)));
             }
             else
             {
-                consume(token_type::semi_colon);
+                consume(parser,token_type::semi_colon);
             }
 
             return r;
@@ -308,7 +314,7 @@ AstNode *Parser::statement()
         // TODO: detect a declartion with a user defined type
         case token_type::symbol:
         {
-            const auto t2 = peek(0);
+            const auto t2 = peek(parser,0);
 
             switch(t2.type)
             {
@@ -319,7 +325,7 @@ AstNode *Parser::statement()
                 case token_type::times_eq:
                 case token_type::equal:
                 {
-                    return expr(t);
+                    return expr(parser,t);
                 }
 
                 // check for brackets
@@ -328,13 +334,13 @@ AstNode *Parser::statement()
                 // function call
                 case token_type::left_paren:
                 {
-                    return expr(t);
+                    return expr(parser,t);
                 }
 
 
                 default:
                 {
-                    panic(t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
+                    panic(parser,t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
                     break;
                 }
             }
@@ -344,9 +350,9 @@ AstNode *Parser::statement()
         case token_type::left_c_brace:
         {
             // block expects to see the left c brace
-            tok_idx--;
+            parser.tok_idx--;
 
-            return block();
+            return block(parser);
         }
 
         // assume one cond for now
@@ -355,21 +361,21 @@ AstNode *Parser::statement()
             const auto for_block = new AstNode(ast_type::for_block);
 
             // allow statment to wrapped a in a set of parens
-            const bool term_paren = peek(0).type == token_type::left_paren;
+            const bool term_paren = peek(parser,0).type == token_type::left_paren;
             const token_type first_term = term_paren? token_type::right_paren : token_type::left_c_brace;
             token_type terminator;
 
             // ignore the first paren
             if(term_paren)
             {
-                consume(token_type::left_paren);
+                consume(parser,token_type::left_paren);
             }
 
             // auto decl
-            if(peek(0).type == token_type::decl)
+            if(peek(parser,0).type == token_type::decl)
             {
-                consume(token_type::decl);
-                for_block->nodes.push_back(auto_decl());
+                consume(parser,token_type::decl);
+                for_block->nodes.push_back(auto_decl(parser));
                 terminator = token_type::semi_colon;                 
             }
 
@@ -377,25 +383,25 @@ AstNode *Parser::statement()
             else
             {
                 
-                const u32 old = tok_idx;
+                const u32 old = parser.tok_idx;
 
                 std::string type_literal = "";
-                const auto type_opt = get_type(type_literal);
+                const auto type_opt = get_type(parser,type_literal);
 
                 // allow declaration for mult type statement
                 if(type_opt)
                 {
                     const auto type = type_opt.value();
 
-                    for_block->nodes.push_back(declaration(type,type_literal));
+                    for_block->nodes.push_back(declaration(parser,type,type_literal));
                     terminator = token_type::semi_colon; 
                 }
 
                 // some other statement (maybe a boolean one for a single stmt)
                 else
                 {
-                    tok_idx = old;
-                    for_block->nodes.push_back(expr_terminate(first_term,terminator)); 
+                    parser.tok_idx = old;
+                    for_block->nodes.push_back(expr_terminate(parser,first_term,terminator)); 
                 }
             }
 
@@ -403,16 +409,16 @@ AstNode *Parser::statement()
             // for(s32 x = 5; x > 0; x -= 1) (multiple statement)
             if(terminator == token_type::semi_colon)
             {
-                for_block->nodes.push_back(expr_terminate(token_type::semi_colon)); 
+                for_block->nodes.push_back(expr_terminate(parser,token_type::semi_colon)); 
 
                 // allow paren terminator followed by a '{'
                 if(term_paren)
                 {
-                    for_block->nodes.push_back(expr_terminate(token_type::right_paren));
-                    auto next = peek(0);
+                    for_block->nodes.push_back(expr_terminate(parser,token_type::right_paren));
+                    auto next = peek(parser,0);
                     if(next.type != token_type::left_c_brace)
                     {
-                        panic(next,"invalid single for statement terminator: %s\n",tok_name(next.type));
+                        panic(parser,next,"invalid single for statement terminator: %s\n",tok_name(next.type));
                         return nullptr;                        
                     }
                 }
@@ -421,8 +427,8 @@ AstNode *Parser::statement()
                 // expect brace to end it
                 else
                 {
-                    for_block->nodes.push_back(expr_terminate(token_type::left_c_brace));
-                    prev_token();
+                    for_block->nodes.push_back(expr_terminate(parser,token_type::left_c_brace));
+                    prev_token(parser);
                 }  
             }
 
@@ -432,19 +438,19 @@ AstNode *Parser::statement()
                 // allow paren terminator
                 if(terminator == token_type::right_paren && term_paren)
                 {
-                    terminator = peek(0).type;
+                    terminator = peek(parser,0).type;
                 }
 
                 if(terminator != token_type::left_c_brace)
                 {
-                    panic(peek(0),"invalid single if statement terminator: %s\n",tok_name(terminator));
+                    panic(parser,peek(parser,0),"invalid single if statement terminator: %s\n",tok_name(terminator));
                     return nullptr;                        
                 }
             }
 
 
             // for stmt parsed now compile the actual block
-            for_block->nodes.push_back(block());
+            for_block->nodes.push_back(block(parser));
 
             return for_block;
         }
@@ -457,8 +463,8 @@ AstNode *Parser::statement()
             const auto if_stmt = new AstNode(ast_type::if_t);
 
             // read out if expr and block
-            if_stmt->nodes.push_back(expr_terminate(token_type::left_c_brace)); prev_token(); 
-            if_stmt->nodes.push_back(block());
+            if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
+            if_stmt->nodes.push_back(block(parser));
 
            
             if_block->nodes.push_back(if_stmt);
@@ -467,19 +473,19 @@ AstNode *Parser::statement()
             
             while(!done)
             {
-                if(peek(0).type == token_type::else_t)
+                if(peek(parser,0).type == token_type::else_t)
                 {
-                    consume(token_type::else_t);
+                    consume(parser,token_type::else_t);
 
                     // we have an else if
-                    if(peek(0).type == token_type::if_t)
+                    if(peek(parser,0).type == token_type::if_t)
                     {
-                        consume(token_type::if_t);
+                        consume(parser,token_type::if_t);
 
                         const auto else_if_stmt = new AstNode(ast_type::else_if_t);
 
-                        else_if_stmt->nodes.push_back(expr_terminate(token_type::left_c_brace)); prev_token(); 
-                        else_if_stmt->nodes.push_back(block());
+                        else_if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
+                        else_if_stmt->nodes.push_back(block(parser));
 
                         if_block->nodes.push_back(else_if_stmt);
                     }
@@ -490,7 +496,7 @@ AstNode *Parser::statement()
                         const auto else_stmt = new AstNode(ast_type::else_t);
 
                         // no expr for else
-                        else_stmt->nodes.push_back(block());
+                        else_stmt->nodes.push_back(block(parser));
 
                         if_block->nodes.push_back(else_stmt);
 
@@ -509,7 +515,7 @@ AstNode *Parser::statement()
 
         default:
         {
-            panic(t,"statement: unexpected token %s\n",tok_name(t.type));
+            panic(parser,t,"statement: unexpected token %s\n",tok_name(t.type));
             break;
         }
     }
@@ -517,42 +523,42 @@ AstNode *Parser::statement()
     return nullptr;
 }
 
-AstNode *Parser::block()
+AstNode *block(Parser &parser)
 {
     // now parse out the block
 
     // block = '{' statement... '}'
-    const auto tok = peek(0);
-    consume(token_type::left_c_brace);
+    const auto tok = peek(parser,0);
+    consume(parser,token_type::left_c_brace);
 
     auto b = new AstNode(ast_type::block);
 
     
     // parse out all our statements
-    while(!match(token_type::right_c_brace))
+    while(!match(parser,token_type::right_c_brace))
     {
-        if(match(token_type::eof))
+        if(match(parser,token_type::eof))
         {
             delete_tree(b);
-            panic(tok,"unterminated block!");
+            panic(parser,tok,"unterminated block!");
             return nullptr;
         }
 
-        b->nodes.push_back(statement());
+        b->nodes.push_back(statement(parser));
 
-        if(error)
+        if(parser.error)
         {
             return b;
         }
     }
     
 
-    consume(token_type::right_c_brace);
+    consume(parser,token_type::right_c_brace);
 
     return b;
 }
 
-AstNode *Parser::func()
+AstNode *func(Parser &parser)
 {
 
     // first check this is a valid function definiton and consume it 
@@ -564,7 +570,7 @@ AstNode *Parser::func()
     Type return_type;
     
     // void
-    if(peek(0).type == token_type::symbol && peek(1).type == token_type::left_paren)
+    if(peek(parser,0).type == token_type::symbol && peek(parser,1).type == token_type::left_paren)
     {
         return_type_literal = "void";
         return_type = Type(builtin_type::void_t);
@@ -573,11 +579,11 @@ AstNode *Parser::func()
     // type specified
     else
     {
-        const auto return_type_opt = get_type(return_type_literal);
+        const auto return_type_opt = get_type(parser,return_type_literal);
 
         if(!return_type_opt)
         {
-            type_panic();
+            type_panic(parser);
             return nullptr;
         }
 
@@ -586,11 +592,11 @@ AstNode *Parser::func()
     }
 
     // what is the name of our function?
-    const auto func_name = next_token();
+    const auto func_name = next_token(parser);
 
     if(func_name.type != token_type::symbol)
     {
-        panic(func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
+        panic(parser,func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
         return nullptr;  
     }
 
@@ -598,30 +604,30 @@ AstNode *Parser::func()
     
 
 
-    const auto paren = peek(0);
-    consume(token_type::left_paren);
+    const auto paren = peek(parser,0);
+    consume(parser,token_type::left_paren);
 
     auto a = new AstNode(ast_type::function_args);
 
     // parse out the function args
     // if  token is eof then we have a problem 
-    while(!match(token_type::right_paren))
+    while(!match(parser,token_type::right_paren))
     {
-        if(match(token_type::eof))
+        if(match(parser,token_type::eof))
         {
             delete_tree(a);
             delete_tree(f);
-            panic(paren,"unterminated function declaration!");
+            panic(parser,paren,"unterminated function declaration!");
             return nullptr;
         }
 
         // for each arg pull type, name
         std::string type_name;
-        const auto type_opt = get_type(type_name);
+        const auto type_opt = get_type(parser,type_name);
 
         if(!type_opt)
         {
-            type_panic();
+            type_panic(parser);
             delete_tree(a);
             delete_tree(f);
             return nullptr;
@@ -629,13 +635,13 @@ AstNode *Parser::func()
 
         const auto type = type_opt.value();
 
-        const auto lit_tok = next_token();
+        const auto lit_tok = next_token(parser);
 
         if(lit_tok.type != token_type::symbol)
         {
             delete_tree(a);
             delete_tree(f);
-            panic(lit_tok,"expected name for function arg");
+            panic(parser,lit_tok,"expected name for function arg");
             return nullptr;
         }
         
@@ -646,17 +652,17 @@ AstNode *Parser::func()
         a->nodes.push_back(d);
 
         // if the declaration isnt closed get the next arg
-        if(peek(0).type != token_type::right_paren)
+        if(peek(parser,0).type != token_type::right_paren)
         {
-            consume(token_type::comma);
+            consume(parser,token_type::comma);
         }
     }
 
-    consume(token_type::right_paren);
+    consume(parser,token_type::right_paren);
 
     // no args is fine
 
-    auto b = block();
+    auto b = block(parser);
 
 
     //      [func: name]
@@ -668,61 +674,50 @@ AstNode *Parser::func()
     return f;
 }
 
-void Parser::init(const std::vector<std::string> *file,const std::vector<Token> *tokens)
+
+bool parse(AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines)
 {
-    this->file = file;
-    this->tokens = tokens;
-
-    assert(file != nullptr);
-    assert(tokens != nullptr);
-    
-    error = false;
-    initialized = true;
-    tok_idx = 0;
-    terminate = false;
-    termination_type = token_type::eof;
-}
-
-
-void Parser::parse(AstNode **root_ptr)
-{
-    assert(initialized);
     assert(root_ptr != nullptr);
 
     *root_ptr = new AstNode(ast_type::root);
-    const auto &vt = *tokens;
-    const auto size = vt.size();
-    while(tok_idx < size)
+    const auto size = tokens.size();
+
+
+    Parser parser;
+    parser.tokens = &tokens;
+
+    while(parser.tok_idx < size)
     {
-        const auto &t = next_token();
+        const auto &t = next_token(parser);
         // okay what is our "top level" token
         switch(t.type)
         {
             // function declartion
             case token_type::func:
             {
-                (*root_ptr)->nodes.push_back(func());
+                (*root_ptr)->nodes.push_back(func(parser));
                 break;
             }
 
 
             default:
             {
-                panic(t,"unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
+                panic(parser,t,"unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
                 delete_tree(*root_ptr); *root_ptr = nullptr;
                 break;
             }
         }
 
-        if(error)
+        if(parser.error)
         {
+            // print line number
+            printf("%s\n",lines[parser.line].c_str());
+
             break;
         }
     }
 
-    initialized = false;
-    this->file = nullptr;
-    this->tokens = nullptr;
+    return parser.error;
 }
 
 void print(const AstNode *root)

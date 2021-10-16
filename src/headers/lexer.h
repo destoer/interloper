@@ -11,4 +11,4 @@ struct Lexer
 
 
 // NOTE: return -> was there an error?
-bool tokenize(Lexer &lexer,const std::vector<std::string> *file);
+bool tokenize(Lexer &lexer,const std::vector<std::string> &file);

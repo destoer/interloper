@@ -9,88 +9,35 @@
 
 struct Interloper
 {
-    Interloper();
-
-    void compile(const std::vector<std::string> &lines);
-
-    ~Interloper()
-    {
-        delete_tree(root);
-    }
-
-
-     // probably  needs to be moved to a uint8_t
+    // probably  needs to be moved to a uint8_t
     // when we have static data in the program
     std::vector<Opcode> program;
 
-    bool error;
+    b32 error;
 
     Interpretter interpretter;
 
-    template<typename... Args>
-    void panic(const char *fmt, Args... args)
-    {
-        printf("error: ");
-        printf(fmt,args...);
-        error = true;
-    }
-
-
-    void parse_function_declarations();
-
-    
-
-    // IR and assembly
-    void compile_functions();
-
-    void compile_block(Function &func, AstNode *node);
-    void compile_if_block(Function &func,AstNode *node);
-    void compile_for_block(Function &func,AstNode *node);
-    u32 new_basic_block(Function &func);
-
-    Type compile_expression(Function &func,AstNode *node);
-    Type compile_arith_op(Function &func, AstNode *node, op_type type);
-    Type compile_shift(Function &func,AstNode *node,bool right);
-    Type compile_logical_op(Function &func,AstNode *node, logic_op type);
-    Type compile_function_call(Function &func,AstNode *node);
-    std::pair<Type,u32> compile_oper(Function &func,AstNode *node);
-
-
-    void compile_auto_decl(Function &func, const AstNode &line);
-    void compile_decl(Function &func, const AstNode &line);
-
-    void emit_asm();
-
-    void optimise_ir();
-
-    // ir functions (defined in ir.cpp)
-    void emit_ir(op_type op, uint32_t v1 = 0, uint32_t v2 = 0, uint32_t v3 = 0);
-    std::string get_ir_operand(uint32_t v);
-
-    void allocate_registers(Function &func);
-
-    void dump_ir_sym();
-
-    // typing
-    std::string type_name(const Type &type);
-    void check_assign(const Type &ltype, const Type &rtype);
-    Type effective_arith_type(const Type &ltype, const Type &rtype);
-    void check_logical_operation(const Type &ltype, const Type &rtype);
-    void handle_cast(IrEmitter &emitter, const Type &old_type, const Type &new_type);
-    u32 type_size(const Type &type);
-    u32 type_min(const Type &type);
-    u32 type_max(const Type &type);
-
     Lexer lexer;
-    Parser parser;
 
     AstNode *root = nullptr;
 
     std::unordered_map<std::string, Function> function_table;
     // did the last compiled function have a return
-    bool has_return;
+    b32 has_return;
 
     SymbolTable symbol_table;
 };
 
-uint32_t convert_imm(const std::string &imm);
+u32 convert_imm(const std::string &imm);
+void optimise_ir(Interloper &itl);
+void allocate_registers(Function &func);
+void compile(Interloper &itl,const std::vector<std::string> &lines);
+void emit_asm(Interloper &itl);
+
+template<typename... Args>
+inline void panic(Interloper &itl,const char *fmt, Args... args)
+{
+    printf("error: ");
+    printf(fmt,args...);
+    itl.error = true;
+}
