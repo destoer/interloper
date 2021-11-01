@@ -489,7 +489,9 @@ void allocate_registers(Function &func)
                     const auto &var_alloc = func.slot_lookup[symbol_to_idx(opcode.v[0])];
                     alloc.stack_alloc[var_alloc.size >> 1] -= var_alloc.size;
 
-                    // how do we properly erase this?
+                    // this var is gone so we can free it
+                    free_reg(alloc,var_alloc.location);
+
                     it = block.erase(it);
                     continue;
                 }
