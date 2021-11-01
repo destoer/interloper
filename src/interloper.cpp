@@ -1001,7 +1001,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                     check_assign(itl,func.return_type,rtype);
 
                     // TODO: we are gonna require this when we have a register allocator
-                    emit(func.emitter,op_type::mov_reg,reg(RV),v1);
+                    emit(func.emitter,op_type::ret_mov,reg(RV),v1);
                 }
                 
                 itl.has_return = true;
@@ -1241,7 +1241,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     }
 
 
-    optimise_ir(itl);
+    //optimise_ir(itl);
 
     dump_ir_sym(itl);
 

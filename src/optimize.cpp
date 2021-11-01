@@ -1,7 +1,5 @@
 #include <interloper.h>
 
-using opcode_iterator_t = std::list<Opcode>::iterator;
-
 Opcode peek_opcode(const std::list<Opcode> &block, opcode_iterator_t it)
 {
     if(it != block.end())
@@ -49,9 +47,9 @@ void optimise_ir(Interloper &itl)
                         const auto op3 = peek_opcode(block,++it_op);
 
                         // can constant fold
-                        if(op2.op == op_type::mov_imm && op3.op != op_type::placeholder && op3.v2 == opcode.v1 && op3.v3 == op2.v1)
+                        if(op2.op == op_type::mov_imm && op3.op != op_type::placeholder && op3.v[1] == opcode.v[0] && op3.v[2] == op2.v[0])
                         {
-                            const u32 dst = op3.v1;
+                            const u32 dst = op3.v[0];
 
                             reset(itl.interpretter);
 
@@ -89,7 +87,7 @@ void optimise_ir(Interloper &itl)
                     case op_type::bnc:
                     case op_type::b:
                     {
-                        u32 dst = opcode.v1;
+                        u32 dst = opcode.v[0];
 
 
                         // TODO: make sure we cant branch to things outside the function scope with this
@@ -103,16 +101,16 @@ void optimise_ir(Interloper &itl)
                             const auto b = peek_opcode(func.emitter.program[block],func.emitter.program[block].begin());
 
                             // while an branch that is not to itself
-                            if((b.op == op_type::b || b.op == op_type::bnc) && b.v1 != dst)
+                            if((b.op == op_type::b || b.op == op_type::bnc) && b.v[0] != dst)
                             {
-                                dst = b.v1;
+                                dst = b.v[0];
                                 continue;
                             }
 
                             break;
                         }
 
-                        opcode.v1 = dst;
+                        opcode.v[0] = dst;
                         break;
                     }
 
