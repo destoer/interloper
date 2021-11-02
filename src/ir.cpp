@@ -89,7 +89,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::implicit_t,"placeholder",0},
 
-    {op_group::reg_t,"ret_mov",2},
+    // ret variable
+    {op_group::reg_t,"ret",1},
 
     // not used
     {op_group::implicit_t,"END",0},
@@ -162,7 +163,7 @@ void spill_reg(Block &block,opcode_iterator_t block_ptr, u32 stack_offset, VarAl
     block.insert(block_ptr,opcode); 
 
     // register is back in memory!
-    var_alloc.location = LOCATION_MEM;  
+    var_alloc.location = LOCATION_MEM;
 }
 
 u32 alloc_internal(LocalAlloc &alloc,Block &block, opcode_iterator_t block_ptr,std::vector<VarAlloc> &slot_lookup)
@@ -171,11 +172,10 @@ u32 alloc_internal(LocalAlloc &alloc,Block &block, opcode_iterator_t block_ptr,s
 
     // if there is a free register remove from free list
     // and give to alloc
-    if(alloc.free_regs != 0)
+    if(alloc.free_regs)
     {
         // allocate a register
-        reg = alloc.free_list[alloc.free_regs-1];
-        alloc.free_regs -= 1;
+        reg = alloc.free_list[--alloc.free_regs];
     }
 
     // TODO: fixme how do we handle regs we are going to free being in the calc or can this not happen
@@ -195,6 +195,13 @@ u32 alloc_internal(LocalAlloc &alloc,Block &block, opcode_iterator_t block_ptr,s
                 break;
             }
         }
+
+        // failed to find a reg to spill should not happen
+        // TODO: at the momement this is triggering because tmps aernt getting cleaned up properly
+        // the logical test somehow requires 8 registers to compute the expression fully which is way beyond
+        // what should be required
+
+        assert(reg != MACHINE_REG_SIZE);
     }
 
     return reg;    
@@ -208,20 +215,25 @@ void alloc_tmp(LocalAlloc &alloc, u32 ir_reg, Block &block, opcode_iterator_t bl
     alloc.regs[reg] = REG_TMP;
 }
 
+// mark a tmp as allocated to a var
 void alloc_into_tmp(VarAlloc &var_alloc,LocalAlloc &alloc, u32 ir_reg, u32 slot)
 {   
+    printf("%s allocated into tmp %d\n",var_alloc.name.c_str(),alloc.ir_regs[ir_reg]);
+
+
     const u32 reg = alloc.ir_regs[ir_reg];
     var_alloc.location = reg;
     alloc.regs[reg] = slot;
 }
 
-
-void alloc_reg(VarAlloc &var_alloc, LocalAlloc &alloc, Block &block,opcode_iterator_t block_ptr,std::vector<VarAlloc> &slot_lookup, u32 ir_reg, u32 slot)
+// directly allocate a var ito a reg
+u32 alloc_reg(VarAlloc &var_alloc, LocalAlloc &alloc, Block &block,opcode_iterator_t block_ptr,std::vector<VarAlloc> &slot_lookup, u32 slot)
 {
     const u32 reg = alloc_internal(alloc, block, block_ptr, slot_lookup);
     alloc.regs[reg] = slot;
-    alloc.ir_regs[ir_reg] = reg;
     var_alloc.location = reg;
+
+    return reg;
 }
 
 
@@ -229,12 +241,13 @@ void free_reg(LocalAlloc &alloc, u32 reg)
 {
     alloc.regs[reg] = REG_FREE;
     alloc.free_list[alloc.free_regs++] = reg;
-
 }
 
-void free_reg(LocalAlloc &alloc, VarAlloc &var_alloc, u32 reg)
+void free_reg(LocalAlloc &alloc, VarAlloc &var_alloc)
 {
-    free_reg(alloc,reg);
+    printf("freed %s from %d\n",var_alloc.name.c_str(),var_alloc.location);
+
+    free_reg(alloc,var_alloc.location);
     var_alloc.location = LOCATION_MEM;
 }
 
@@ -272,6 +285,14 @@ void correct_reg(Opcode &opcode, LocalAlloc &alloc)
     {
         case op_group::reg_t:
         {
+            // we need to do var alloc in each of these
+            // we need to understand what part of the instructions are dsts and which part are src
+            // to know if we just need to alloc or we actually need to load the damn thing
+            // and to handle tmp freeing -> might emit a directive for it
+            // if we can do this here, then our register allocation will be fine
+
+
+
             for(u32 i = 0; i < info.args; i++)
             {
                 opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
@@ -325,9 +346,13 @@ void correct_reg(Opcode &opcode, LocalAlloc &alloc)
 
 
 // TODO: this still hasnt been solved
+// and it causes problems with unary minus
+
 // how do we know when a tmp is freed?
 // we can remove them when they are stored back as regs
 // but what about when we have extras?
+
+
 // do we just drop the other tmp taht aint stored?
 // do we just have certain instrs where we BURN all the tmps left allocated?
 // do we emit directives to tell us when expressions are "dead"
@@ -458,14 +483,6 @@ void allocate_registers(Function &func)
                     break;
                 }
 
-                
-                case op_type::ret_mov:
-                {
-                    // first operand must go through as normal only correct the 2nd
-                    opcode = Opcode(op_type::mov_reg,opcode.v[0],rewrite_reg(alloc,opcode.v[1]),0);
-                    ++it;
-                    continue;
-                }
 
                 case op_type::clean_args:
                 {
@@ -486,138 +503,19 @@ void allocate_registers(Function &func)
 
                 case op_type::free_slot:
                 {
-                    const auto &var_alloc = func.slot_lookup[symbol_to_idx(opcode.v[0])];
+                    auto &var_alloc = func.slot_lookup[symbol_to_idx(opcode.v[0])];
                     alloc.stack_alloc[var_alloc.size >> 1] -= var_alloc.size;
 
-                    // this var is gone so we can free it
-                    free_reg(alloc,var_alloc.location);
+                    if(var_alloc.location != LOCATION_MEM)
+                    {
+                        // this var is gone so we can free it
+                        free_reg(alloc,var_alloc);
+                    }
+
 
                     it = block.erase(it);
                     continue;
                 }
-
-                // handle variable accesses
-                case op_type::mov_reg:
-                {
-                    // swap all mov var, reg
-                    // with sw reg, [sp,var_offset]
-                    if(!is_reg(opcode.v[0]))
-                    {
-                        const auto slot = symbol_to_idx(opcode.v[0]);
-
-
-                        auto &var_alloc = func.slot_lookup[slot];
-
-                        // we have not allocated where this variable goes yet
-                        if(var_alloc.offset == UNALLOCATED_OFFSET)
-                        {
-                            if(!is_arg(opcode.v[0]))
-                            {
-                                stack_allocate(alloc.stack_alloc,var_alloc);
-                            }
-
-                            else
-                            {
-                                // arg is above the stack frame
-                                var_alloc.offset = (slot * var_alloc.size) + stack_size + sizeof(u32);
-                            }
-                        }
-
-                        // TODO: 
-                        // ignore writeback for now we need a seperate directive that makes it clear this is a 'hard' store
-                        // i.e due to pointers etc it has to go back into memory
-                        // i.e spill x
-
-           
-                        // free the old reg
-                        if(var_alloc.location != LOCATION_MEM)
-                        {
-                            free_reg(alloc,var_alloc,var_alloc.location);
-                        }
-
-                        
-                        // variable now allocated in the tmp
-                        alloc_into_tmp(var_alloc,alloc,opcode.v[1],slot);
-
-                        // any temps used in the expression for assignment are no longer required!
-                        reclaim_tmp(alloc);
-                        
-
-
-                        
-
-                        // we are not spilling delete the ops
-                        // TODO: we need a instruction that will force spills
-                        it = block.erase(it);
-                        continue;
-                    }
-
-                    // swap all mov reg, var
-                    // with lw reg, [sp,var_offset]
-                    else if(!is_reg(opcode.v[1]))
-                    {
-                        const auto slot = symbol_to_idx(opcode.v[1]);
-
-                        auto &var_alloc = func.slot_lookup[slot];
-
-
-                        // we have not allocated where this variable goes yet
-                        if(var_alloc.offset == UNALLOCATED_OFFSET)
-                        {
-                            if(!is_arg(opcode.v[1]))
-                            {
-                                stack_allocate(alloc.stack_alloc,var_alloc);
-                            }
-
-                            else
-                            {
-                                // arg is above the stack frame
-                                var_alloc.offset = (slot * var_alloc.size) + stack_size + sizeof(u32);
-                            }
-                        }
-
-
-                        // register is not loaded we need to spill out something
-                        if(var_alloc.location == LOCATION_MEM)
-                        {
-                            // TODO: how do we make sure we dont spill out something we need?
-                            alloc_reg(var_alloc,alloc,block,it,func.slot_lookup,opcode.v[0],slot);
-
-
-                            // is a signed integer (we need to sign extend)
-                            // TODO: directly emit signed mov pseudo instrs so we dont have to do this nonsense
-                            if(var_alloc.is_signed)
-                            {
-                                // word is register size (we dont need to extend it)
-                                static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-
-                                opcode = Opcode(instr[var_alloc.size >> 1],opcode.v[0],SP,var_alloc.offset + alloc.stack_offset);                    
-                            }
-
-                            // "plain data"
-                            // just move by size
-                            else
-                            {
-                                static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-                                opcode = Opcode(instr[var_alloc.size >> 1],opcode.v[0],SP,var_alloc.offset + alloc.stack_offset);
-                            }
-                        }
-              
-                        else
-                        {
-                            // rewrite what ir reg it is loaded in
-                            alloc.ir_regs[opcode.v[0]] = var_alloc.location;
-
-
-                            // this load is useless as its allready allocated  
-                            it = block.erase(it);
-                            continue;
-                        }
-                        
-                    }
-                    break;
-                }
-
 
                 // add stack cleanup to all ret functions
                 case op_type::ret:

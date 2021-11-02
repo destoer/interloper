@@ -98,11 +98,8 @@ enum class op_type
     // used when the end of the block is read past in the optimiser
     placeholder,
 
-
-    // used to mov a return into RV
-    // this is to bypass register allocation
-    ret_mov,
-
+    ret_var,
+    
     // just c++ things not used
     END,
 };
