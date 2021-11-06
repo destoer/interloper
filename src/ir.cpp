@@ -1,100 +1,5 @@
 #include <interloper.h>
-
-
-const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
-{
-    {op_group::reg_t,"mov",2},
-    {op_group::reg_t,"add",3},
-    {op_group::reg_t,"sub",3},
-    {op_group::reg_t,"mul",3},
-    {op_group::reg_t,"div",3},
-    {op_group::reg_t,"mod",3},
-
-
-    {op_group::reg_t,"lsl",3},
-    {op_group::reg_t,"asr",3},
-    {op_group::reg_t,"lsr",3},
-
-    {op_group::reg_t,"xor",3},
-    {op_group::reg_t,"or",3},
-    {op_group::reg_t,"and",3},
-    {op_group::reg_t,"not",1},
-
-    {op_group::reg_t,"sxb",2},
-    {op_group::reg_t,"sxh",2},
-
-    {op_group::imm_t,"mov",2},
-    {op_group::imm_t,"add",3},
-    {op_group::imm_t,"sub",3},
-
-    {op_group::imm_t,"and",3},
-    {op_group::imm_t,"xor",3},
-
-    {op_group::load_t,"lb",3},
-    {op_group::load_t,"lh",3},
-    {op_group::load_t,"lw",3},
-
-    {op_group::load_t,"lsb",3},
-    {op_group::load_t,"lsh",3},
-
-    {op_group::load_t,"sb",3},
-    {op_group::load_t,"sh",3},
-    {op_group::load_t,"sw",3},
-
-    {op_group::reg_t,"push",1},
-    {op_group::reg_t,"pop",1},
-
-    {op_group::branch_t,"call",1},
-    {op_group::implicit_t,"ret",0},
-
-    {op_group::imm_t,"swi",1},
-
-    // compare unsigned
-    {op_group::imm_t,"cmpugt",3},
-    {op_group::reg_t,"cmpult",3},
-    {op_group::reg_t,"cmpule",3},
-    {op_group::reg_t,"cmpugt",3},
-    {op_group::reg_t,"cmpuge",3},
-
-
-    // compare signed
-    {op_group::reg_t,"cmpsgt",3},
-    {op_group::reg_t,"cmpslt",3},
-    {op_group::reg_t,"cmpsle",3},
-    {op_group::reg_t,"cmpsgt",3},
-    {op_group::reg_t,"cmpsge",3},
-
-    // dont care about sign for equality
-    {op_group::reg_t,"cmpeq",3},
-    {op_group::reg_t,"cmpne",3},
-
-    {op_group::branch_t,"bnc",2},
-    {op_group::branch_t,"bc",2},
-    {op_group::branch_t,"b",1},
-
-    // directives
-    {op_group::slot_t,"alloc_slot",1},
-    {op_group::slot_t,"free_slot",1},
-    {op_group::reg_t,"push_arg",1},
-
-    // perform cleanup after a function call
-    // free the stack space for args
-    // restore callee saved registers
-    {op_group::imm_t,"clean_args",1},
-
-    {op_group::reg_t,"save_reg",1},
-    {op_group::reg_t,"restore_reg",1},
-
-    {op_group::implicit_t,"exit_block",0},
-
-    {op_group::implicit_t,"placeholder",0},
-
-    // ret variable
-    {op_group::reg_t,"ret",1},
-
-    // not used
-    {op_group::implicit_t,"END",0},
-};
+#include <op_table.inl>
 
 void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
@@ -277,44 +182,141 @@ u32 rewrite_reg(const LocalAlloc &alloc, u32 ir_reg)
     }
 }
 
-// rewrite the opcode regs based on allocation and opcode type!
-void correct_reg(Opcode &opcode, LocalAlloc &alloc)
+
+void handle_allocation(Function &func, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr, Opcode &opcode, u32 args)
 {
+    UNUSED(op_ptr); UNUSED(block);
+
+    // ensure src var is allocated 
+    // (if we are using a tmp as an arg then it must allready have been allocated)
+    for(u32 i = 1; i < args; i++)
+    {
+        if(!is_reg(opcode.v[i]))
+        {
+            const auto slot = symbol_to_idx(opcode.v[i]);
+            auto &var_alloc = func.slot_lookup[slot];
+
+            // unallocated
+            if(var_alloc.location == LOCATION_MEM)
+            {
+                assert(false);
+            }
+        }
+    }
+
+    // handle dst allocation
+    const u32 idx = opcode.v[0];
+
+    // TODO: we need to look if a src arg is a tmp here and allocate into that instead of something new
+
+    // is a var
+    if(!is_reg(idx))
+    {
+        const auto slot = symbol_to_idx(idx);
+        auto &var_alloc = func.slot_lookup[slot];        
+
+        if(var_alloc.location == LOCATION_MEM)
+        {
+            alloc_reg(var_alloc,alloc,block,op_ptr,func.slot_lookup,slot);
+        }
+
+
+        // we have stored back into a var
+        // we no longer need any temps
+        reclaim_tmp(alloc);
+    }
+
+    // tmp
+    else
+    {
+        if(alloc.regs[alloc.ir_regs[idx]] == REG_FREE)
+        {
+            alloc_tmp(alloc,opcode.v[0],block,op_ptr,func.slot_lookup);
+        }
+    }
+
+    
+
+
+    // rewrite the register names
+    for(u32 i = 0; i < args; i++)
+    {
+        const bool is_var = !is_reg(opcode.v[i]);
+
+        if(is_var)
+        {
+            const auto slot = symbol_to_idx(opcode.v[i]);
+            auto &var_alloc = func.slot_lookup[slot]; 
+
+            opcode.v[i] = var_alloc.location;
+        }
+
+        else
+        {
+            // is a tmp 
+            opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
+        }
+
+    }
+}
+
+// rewrite the opcode regs based on allocation and opcode type!
+void correct_reg(Function &func, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr,Opcode &opcode)
+{
+
+    UNUSED(alloc);
+
     const auto &info = OPCODE_TABLE[static_cast<size_t>(opcode.op)];
     switch(info.group)
     {
-        case op_group::reg_t:
-        {
-            // we need to do var alloc in each of these
-            // we need to understand what part of the instructions are dsts and which part are src
-            // to know if we just need to alloc or we actually need to load the damn thing
-            // and to handle tmp freeing -> might emit a directive for it
-            // if we can do this here, then our register allocation will be fine
 
 
+        // we need to do var alloc in each of these
+        // we need to understand what part of the instructions are dsts and which part are src
 
+        // should be enough to have a lut for op_group + the number of regs to give us back what is what
+        
+
+
+        // to know if we just need to alloc or we actually need to load the damn thing
+        // at that point we can just go -> is this thing a tmp or a var
+        // because now we have a very clear distinction
+
+        // if we have a var dst and one tmp src then we can just put the result into the tmp
+        // and move it after the calc 
+        
+        // and to handle tmp freeing -> might emit a directive for it
+        // if we can do this here, then our register allocation will be fine
+
+
+        /*
             for(u32 i = 0; i < info.args; i++)
             {
                 opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
             }
+        */
+
+        case op_group::reg_t:
+        {
+            handle_allocation(func,alloc,block,op_ptr,opcode,info.args);
             break;
         }
 
         case op_group::imm_t:
         {
-            for(u32 i = 0; i < info.args-1; i++)
+            if(info.args == 1)
             {
-                opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
+                // just an immediate on its own does not require correction
+                break;
             }
+
+            handle_allocation(func,alloc,block,op_ptr,opcode,info.args-1);
             break;
         }
 
         case op_group::load_t:
         {
-            for(u32 i = 0; i < info.args-1; i++)
-            {
-                opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
-            }
+            assert(false);
             break;
         }
 
@@ -376,7 +378,7 @@ void allocate_registers(Function &func)
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         alloc.regs[i] = REG_FREE;
-        alloc.ir_regs[i] = 0;
+        alloc.ir_regs[i] = i;
         alloc.free_list[i] = i;
     }
 
@@ -501,6 +503,10 @@ void allocate_registers(Function &func)
                     continue;
                 }
 
+
+                
+
+
                 case op_type::free_slot:
                 {
                     auto &var_alloc = func.slot_lookup[symbol_to_idx(opcode.v[0])];
@@ -514,6 +520,19 @@ void allocate_registers(Function &func)
 
 
                     it = block.erase(it);
+                    continue;
+                }
+
+
+                case op_type::ret_var:
+                {
+                    // convert to a standard ret
+                    // rewrite the registers here
+                    correct_reg(func, alloc, block, it, opcode);
+
+                    // convert into a standard ret
+                    opcode = Opcode(op_type::mov_reg,RV,opcode.v[0],0);
+                    it = block.insert(++it,Opcode(op_type::ret,0,0,0));
                     continue;
                 }
 
@@ -534,7 +553,7 @@ void allocate_registers(Function &func)
 
 
             // adjust opcode for reg alloc
-            correct_reg(opcode,alloc);
+            correct_reg(func, alloc, block, it, opcode);
 
             // use continue to skip this statement when we have to delete from the list
             ++it;
