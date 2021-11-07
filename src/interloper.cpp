@@ -45,7 +45,9 @@ void parse_function_declarations(Interloper& itl)
             const auto name = a->literal;
             const auto type = a->nodes[0]->variable_type;
 
-            args.push_back(Symbol(name,type,true));
+            const auto size = type_size(itl,type);
+
+            args.push_back(Symbol(name,type,size,args.size()-1));
         }
 
 
@@ -230,6 +232,22 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             }
         }
 
+
+        case ast_type::divide:
+        {
+            return compile_arith_op(itl,func,node,op_type::div_reg,dst_slot);
+        }
+
+        case ast_type::times:
+        {
+            return compile_arith_op(itl,func,node,op_type::mul_reg,dst_slot);
+        }
+
+        case ast_type::minus:
+        {
+            return compile_arith_op(itl,func,node,op_type::sub_reg,dst_slot);
+        }
+
         default:
         {
             panic(itl,"[COMPILE]: invalid expression\n");
@@ -273,11 +291,11 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 
     const auto size = type_size(itl,ltype);
 
-    // add allocation information
-    const auto slot = add_var(func,name,ltype,size);
+    // TODO: get rid of the need to use this for calculating stack requirements
+    add_var(func,size);
 
     // add new symbol table entry
-    add_symbol(itl.symbol_table,name,ltype,slot);
+    add_symbol(itl.symbol_table,name,ltype,size);
 
 
     const auto &sym = get_sym(itl.symbol_table,name).value();
@@ -356,6 +374,9 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
     }
 
 
+
+    // TODO: clean up this nonsense when we improve how stack allocation is done
+
     // std::max the sizes this is what we need to allocate
     for(int i = 0; i < 3; i++)
     {
@@ -363,15 +384,15 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
     }
 
     // scope is about to be destroyed reclaim the stack for every var that is no longer used
-    for(const auto &[key, sym] : itl.symbol_table.table[itl.symbol_table.table.size()-1])
-    {
-        if(!sym.is_arg)
+    for(const auto &[key, slot] : itl.symbol_table.table[itl.symbol_table.table.size()-1])
+    { 
+        const auto &sym = itl.symbol_table.slot_lookup[slot];
+
+        // free the stack alloc for each var thats about to go out of scope
+        if(sym.arg_num == NON_ARG)
         {
             emit(func.emitter,op_type::free_slot,slot_idx(sym)); 
-
-            // free the stack alloc for each var thats about to go out of scope
-            const auto &var_alloc = func.slot_lookup[sym.slot];
-            func.size_count_cur[var_alloc.size >> 1]--;
+            func.size_count_cur[sym.size >> 1]--;
         }
     }
 
@@ -400,15 +421,10 @@ void compile_functions(Interloper &itl)
 
         auto &func = itl.function_table[node.literal];
 
+        // add arguments to the symbol table scope
         for(auto &sym: func.args)
         {
-            const auto size = type_size(itl,sym.type);
-
-            // this has to be parsed in forward order or all the offsets
-            // will be messed up
-            const auto slot = add_arg(func,sym.name,sym.type,size);
-
-            add_symbol(itl.symbol_table,sym,slot);
+            add_symbol(itl.symbol_table,sym);
         }
 
 
@@ -452,7 +468,7 @@ void dump_ir_sym(Interloper &itl)
     {
         UNUSED(key);
 
-        dump_ir(func,itl.symbol_table.label_lookup);
+        dump_ir(func,itl.symbol_table.slot_lookup,itl.symbol_table.label_lookup);
     }    
 }
 
@@ -562,7 +578,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     for(auto &[key, func]: itl.function_table)
     {
         UNUSED(key);
-        allocate_registers(func);
+        allocate_registers(func,itl.symbol_table.slot_lookup);
     }
 
     // emit the actual target asm

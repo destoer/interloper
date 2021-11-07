@@ -162,59 +162,42 @@ inline builtin_type cast_builtin(Type &type)
 
 
 
-static constexpr uint32_t SYMBOL_NO_SLOT = 0xffffffff;
+static constexpr u32 SYMBOL_NO_SLOT = 0xffffffff;
+static constexpr u32 NON_ARG = 0xffffffff;
+
+static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
+static constexpr u32 LOCATION_MEM = 0xffffffff;
 
 struct Symbol
 {
     Symbol() {}
 
-    Symbol(const std::string &n, Type t, bool a = false) : name(n), type(t), is_arg(a), slot(SYMBOL_NO_SLOT)
-    {}
-
-    Symbol(const std::string &n, Type t, u32 s, bool a = false) : name(n), type(t), is_arg(a), slot(s)
+    Symbol(const std::string &n, Type t, u32 s, u32 a = NON_ARG) : name(n), type(t), size(s), arg_num(a), 
+        slot(SYMBOL_NO_SLOT), offset(UNALLOCATED_OFFSET), location(LOCATION_MEM)
     {}
 
 
     std::string name;
     Type type;
 
-    // is this symbol a function argument?
-    bool is_arg;
+    u32 size;
+    u32 arg_num;
 
     // what slot does this symbol hold inside the ir?
     u32 slot;
-};
-u32 slot_idx(const Symbol &sym);
 
+    
+    // intialized during register allocation
 
-
-static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
-static constexpr u32 LOCATION_MEM = 0xffffffff;
-
-struct VarAlloc
-{
-    VarAlloc(u32 s, const std::string &n, bool sign) : size(s), offset(UNALLOCATED_OFFSET), 
-        location(LOCATION_MEM),is_signed(sign),name(n)
-    {}
-
-    // size of one item
-    u32 size;
-
-    // initialized during reg alloc
+    // where is it this is stored on the stack?
     u32 offset;
 
     // where is this item stored?
     // is it in memory or is it in register?
     u32 location;
-
-    bool is_signed;
-
-    // how many items do we have (for arrays)
-    //u32 count;
-
-    // symbol name
-    std::string name;
 };
+u32 slot_idx(const Symbol &sym);
+
 
 struct Label 
 {
@@ -246,9 +229,9 @@ struct Function
 
     u32 slot;
 
-    // get the back the symbol name from an allocated IR slot
-    std::vector<VarAlloc> slot_lookup;
 
+    // TODO: this should be moved into the LocalAlloc struct when
+    // stack allocation is reworked
 
     // how many vars of each size have we got
     // this is the max count
@@ -257,16 +240,27 @@ struct Function
     // current size count
     u32 size_count_cur[3] = {0};
 };
-void dump_ir(Function &func,const std::vector<Label> &label_lookup);
-u32 add_arg(Function &func,const std::string &name,const Type &type, u32 size);
-u32 add_var(Function &func,const std::string &name,const Type &type, u32 size);
+void dump_ir(Function &func, const SlotLookup &slot_lookup, const LabelLookup &label_lookup);
+void add_var(Function &func, u32 size);
 
+
+// TODO: start by fixing all the compile errors
+// for using a var alloc
+
+// then actually try the symbol table impl
+// maybe i will wrap it up internally inside just two
+// std::maps while we get it off the ground
+
+
+using SlotLookup = std::vector<Symbol>;
+using LabelLookup = std::vector<Label>;
 
 struct SymbolTable
 {
-    std::vector<std::unordered_map<std::string, Symbol>> table; 
+    std::vector<std::unordered_map<std::string, u32>> table;
 
-    std::vector<Label> label_lookup;
+    SlotLookup slot_lookup;
+    LabelLookup label_lookup;
 
     u32 sym_count = 0;
 };
@@ -274,10 +268,12 @@ struct SymbolTable
 void new_scope(SymbolTable &sym_table);
 void destroy_scope(SymbolTable &sym_table);
 std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym);
-void add_symbol(SymbolTable &sym_table,Symbol &symbol, u32 slot);
-void add_symbol(SymbolTable &sym_table,const std::string &name, const Type &type, u32 slot);
+Symbol get_sym(SymbolTable &sym_table, u32 slot);
+void add_symbol(SymbolTable &sym_table,Symbol &symbol);
+void add_symbol(SymbolTable &sym_table,const std::string &name, const Type &type, u32 size);
 void add_label(SymbolTable &sym_table,const std::string &label);
 void clear(SymbolTable &sym_table);
+
 
 
 

@@ -224,11 +224,13 @@ static constexpr u32 RV = 0;
 
 static constexpr u32 OP_SIZE = sizeof(Opcode);
 
+struct Symbol;
 struct SymbolTable;
-struct VarAlloc;
 struct Label;
+using SlotLookup = std::vector<Symbol>;
+using LabelLookup = std::vector<Label>;
 
-void disass_opcode_sym(const Opcode &opcode, const std::vector<VarAlloc> &table, const std::vector<Label> &label_lookup);
+void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
 void disass_opcode_raw(const Opcode &opcode);
 
 
