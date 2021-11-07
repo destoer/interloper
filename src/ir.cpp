@@ -61,7 +61,7 @@ struct LocalAlloc
 
 void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbol& sym, u32 reg)
 {
-    printf("spill %d\n",reg);
+    printf("spill %s:%d\n",sym.name.c_str(),reg);
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
 
@@ -110,8 +110,8 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
         reg = alloc.free_list[--alloc.free_regs];
     }
 
-    // TODO: fixme how do we handle regs we are going to free being in the calc or can this not happen
-    // under this design?
+    // TODO: fixme how do we properly handle regs that need to be used in the current opcode
+    // being freed?
 
     // if there is not spill another register (not a tmp or this will break)
     // back into memory
@@ -119,8 +119,25 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
     {
         for(reg = 0; reg < MACHINE_REG_SIZE; reg++)
         {
+            const auto slot = alloc.regs[reg]; 
+
+            bool in_expr = false;
+
+            const auto &opcode = *block_ptr;
+
+            // ^ for now we are just going to check we are not currently using the varaible inside this opcode
+            // with a linear scan -> fix this later
+            for(int i = 1; i < 3; i++)
+            {
+                if(slot == opcode.v[i])
+                {
+                    in_expr = true;
+                    break;
+                }
+            }
+
             // we have a register to spill
-            if(alloc.regs[reg] < REG_TMP)
+            if(slot < REG_TMP && !in_expr)
             {
                 const auto slot = alloc.regs[reg];
                 auto &sym = slot_lookup[slot];
@@ -146,6 +163,8 @@ void alloc_tmp(LocalAlloc &alloc, u32 ir_reg, Block &block, opcode_iterator_t bl
     const u32 reg = alloc_internal(slot_lookup, alloc, block, block_ptr);
     alloc.ir_regs[ir_reg] = reg;
     alloc.regs[reg] = REG_TMP;
+
+    printf("%d allocated tmp into %d\n",ir_reg,reg);
 }
 
 // mark a tmp as allocated to a var
@@ -153,10 +172,9 @@ void alloc_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
 {   
     printf("%s allocated into tmp %d\n",sym.name.c_str(),alloc.ir_regs[ir_reg]);
 
-
     const u32 reg = alloc.ir_regs[ir_reg];
-    sym.location = reg;
     alloc.regs[reg] = sym.slot;
+    sym.location = reg;
 }
 
 void alloc_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
@@ -171,12 +189,16 @@ u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t blo
     alloc.regs[reg] = sym.slot;
     sym.location = reg;
 
+    printf("%s allocated into reg %d\n",sym.name.c_str(),reg);
+
     return reg;
 }
 
 
 void free_reg(LocalAlloc &alloc, u32 reg)
 {
+    printf("freed tmp %d\n",reg);
+
     alloc.regs[reg] = REG_FREE;
     alloc.free_list[alloc.free_regs++] = reg;
 }
@@ -187,18 +209,6 @@ void free_reg(LocalAlloc &alloc, Symbol &sym)
 
     free_reg(alloc,sym.location);
     sym.location = LOCATION_MEM;
-}
-
-void reclaim_tmp(LocalAlloc &alloc)
-{
-    // TODO: this may need to be faster
-    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
-    {
-        if(alloc.regs[i] == REG_TMP)
-        {
-            free_reg(alloc,i);
-        }
-    }
 }
 
 u32 rewrite_reg(const LocalAlloc &alloc, u32 ir_reg)
@@ -233,11 +243,9 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
             if(sym.location == LOCATION_MEM)
             {
                 // TODO: does this need to return the opcode ptr incase it inserts?
-                // TODO: how do we prevent a register we need in this calc getting spilled?
                 alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
 
                 // reload the spilled var 
-                // TODO: this is broken i think its because we are getting a rewrite on something we dont want to rewrite?
                 if(is_signed_integer(sym.type))
                 {
                     // word is register size (we dont need to extend it)
@@ -279,6 +287,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
         const auto slot = symbol_to_idx(idx);
         auto &sym = slot_lookup[slot];        
 
+        // not currently loaded
         if(sym.location == LOCATION_MEM)
         {
             // allocate into a tmp
@@ -292,22 +301,26 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
                 alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
             }
         }
-
-        // TODO:
-        // for handling tmp freeing might emit a directive for it
-        // as it may to be difficult to infer in properly in all cases
-
-        // we have stored back into a var
-        // we no longer need any temps
-        reclaim_tmp(alloc);
     }
 
     // tmp
     else
     {
-        if(alloc.regs[alloc.ir_regs[idx]] == REG_FREE)
+        // this is not allready a tmp we need to allocate this
+        if(alloc.regs[alloc.ir_regs[idx]] != REG_TMP)
         {
-            alloc_tmp(alloc,opcode.v[0],block,op_ptr,slot_lookup);        
+            // put this tmp directly into another tmp we will be done with
+            // after the end of the expr
+            if(tmp_reg != REG_FREE)
+            {
+                alloc_into_tmp(alloc,idx,tmp_reg);
+            }
+
+            // spill something we need to allocate
+            else
+            {
+                alloc_tmp(alloc,idx,block,op_ptr,slot_lookup); 
+            }       
         }
     }
 
@@ -384,37 +397,26 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             assert(false);
             break;
         }
+    }
 
+    // TODO: is this sufficent to clean up tmps?
+    // or do we need to foribly clean all of them on some specific
+    // instructions? 
+
+    const u32 dst_ir = opcode.v[0];
+
+    // free all the tmps that aint the dest as we are done with them
+    for(u32 a = 1; a < info.args; a++)
+    {
+        // these registers have been converted we have to look inside the 
+        // allocation struct to find out what they are for now
+        if(alloc.regs[opcode.v[a]] == REG_TMP && opcode.v[a] != dst_ir)
+        {
+            free_reg(alloc,opcode.v[a]);
+        }
     }
 }
 
-// TODO: we need to do a set of register rewriting rules that will properly handle the following
-
-// how do know when something is a tmp
-// could go for mov imm, or when something is is just registers
-// but that scheme seemsl like it will fail fast
-
-
-// TODO: this still hasnt been solved
-// and it causes problems with unary minus
-
-// how do we know when a tmp is freed?
-// we can remove them when they are stored back as regs
-// but what about when we have extras?
-
-
-// do we just drop the other tmp taht aint stored?
-// do we just have certain instrs where we BURN all the tmps left allocated?
-// do we emit directives to tell us when expressions are "dead"
-// i.e branches
-// i.e stores into vars
-
-// TODO: cantt we get conflicts with tmps?
-// ans: no we will rewrite hte ir_reg pos when it gets loaded out again
-
-
-
-// TODO: we need a way to rewrite the allocation posistions of temp's
 
 void allocate_registers(Function &func, SlotLookup &slot_lookup)
 {
