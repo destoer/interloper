@@ -92,8 +92,9 @@ inline u32 convert_imm(const std::string &imm)
     return static_cast<u32>(stoul(imm,nullptr,0));
 }
 
-
+#ifndef _MSC_VER
 __attribute__((noreturn))
+#endif
 inline void unimplemented(const char *fmt, ...)
 {
     printf("unimplemented: ");
