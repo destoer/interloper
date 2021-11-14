@@ -205,9 +205,9 @@ inline u32 symbol_to_idx(u32 s)
     return s >= SYMBOL_ARG_START? s - SYMBOL_ARG_START : s - SYMBOL_START;
 }
 
-inline bool is_reg(u32 r)
+inline bool is_symbol(u32 s)
 {
-    return r < SYMBOL_START;
+    return s >= SYMBOL_START;
 }
 
 
@@ -216,8 +216,27 @@ inline bool is_reg(u32 r)
 // when we actually want to define some targets
 static constexpr u32 MACHINE_REG_SIZE = 4;
 
+static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x07000000;
+
+static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START;
+static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
+
+// for use in the interpretter
 static constexpr u32 SP = MACHINE_REG_SIZE;
 static constexpr u32 PC = MACHINE_REG_SIZE + 1;
+
+
+inline bool is_reg(u32 r)
+{
+    return r < SPECIAL_PURPOSE_REG_START;
+}
+
+inline bool is_special_reg(u32 r)
+{
+    return r >= SPECIAL_PURPOSE_REG_START && r < SYMBOL_START;
+}
+
+
 
 // so we the "first" register reserved for returns
 static constexpr u32 RV = 0;

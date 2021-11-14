@@ -71,14 +71,16 @@ void parse_function_declarations(Interloper& itl)
 
 
 u32 new_slot(Function &func)
-{
+{       
     const auto slot = reg(func.emitter.reg_count++);
-    return slot;
-}
 
-void reclaim_slot(Function &func)
-{
-    func.emitter.reg_count--;
+    printf("new slot: %d\n",slot);
+
+    // expressions should not need to take up so many registers
+    // i could support it taking an endless ammount but i shouldunt have to
+    //assert(slot < MACHINE_REG_SIZE);
+
+    return slot;
 }
 
 std::pair<Type,u32> symbol(Interloper &itl, AstNode *node)
@@ -191,13 +193,7 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
     // produce effective type
     const auto final_type = effective_arith_type(itl,t1,t2);
 
-    // no longer need tmps as we have pushed out the result
-    reclaim_slot(func);
-    reclaim_slot(func);
-
-
     emit(func.emitter,type,dst_slot,v1,v2);
-
 
     return final_type;        
 }
@@ -230,6 +226,40 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             {
                 return compile_arith_op(itl,func,node,op_type::add_reg,dst_slot);
             }
+        }
+
+
+
+        // multiple assigment
+        case ast_type::equal:
+        {
+            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[1],dst_slot);
+
+            const auto name = node->nodes[0]->literal;
+
+            const auto sym_opt = get_sym(itl.symbol_table,name);
+            if(!sym_opt)
+            {
+                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+                print(node);
+                return Type(builtin_type::void_t);
+            }
+
+            const auto &sym = sym_opt.value();
+
+            check_assign(itl,sym.type,rtype);
+
+
+            emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
+
+            // TODO: make sure that the silly code this gens
+            // is cleaned up by the optimiser
+            if(dst_slot != slot)
+            {
+                emit(func.emitter,op_type::mov_reg,dst_slot,slot);
+            }
+
+            return sym.type;        
         }
 
 
@@ -314,7 +344,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 
 void compile_block(Interloper &itl,Function &func,AstNode *node)
 {
-   new_scope(itl.symbol_table);
+    new_scope(itl.symbol_table);
 
     for(auto l : node->nodes)
     {
@@ -324,9 +354,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
         }
 
         const auto &line = *l;
-
-        // first register reserved for return value
-        func.emitter.reg_count = 1;
 
         switch(line.type)
         {
@@ -338,13 +365,37 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             }           
 
 
+            // assignment
+            case ast_type::equal:
+            {
+                const auto [rtype,slot] = compile_oper(itl,func,line.nodes[1],new_slot(func));
+
+                const auto name = line.nodes[0]->literal;
+
+
+                const auto sym_opt = get_sym(itl.symbol_table,name);
+                if(!sym_opt)
+                {
+                    panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
+                    print(l);
+                    return;
+                }
+
+                const auto &sym = sym_opt.value();
+
+                check_assign(itl,sym.type,rtype);
+
+                emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
+                break;
+            }
+
+
             // stub to no return just to see asm
             case ast_type::ret:
             {
                 if(line.nodes.size() == 1)
                 {
                     const auto [rtype,v1] = compile_oper(itl,func,line.nodes[0],new_slot(func));
-                    reclaim_slot(func);
 
                     if(itl.error)
                     {
@@ -420,6 +471,8 @@ void compile_functions(Interloper &itl)
         new_scope(itl.symbol_table);
 
         auto &func = itl.function_table[node.literal];
+
+        func.emitter.reg_count = 0;
 
         // add arguments to the symbol table scope
         for(auto &sym: func.args)

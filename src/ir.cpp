@@ -38,7 +38,7 @@ struct LocalAlloc
 
     // when this thing is used in the original IR
     // we need to know what actual reg we have allocated it into
-    u32 ir_regs[MACHINE_REG_SIZE];
+    std::map<u32,u32> ir_regs;
 
     u32 free_regs;
 
@@ -211,12 +211,19 @@ void free_reg(LocalAlloc &alloc, Symbol &sym)
     sym.location = LOCATION_MEM;
 }
 
-u32 rewrite_reg(const LocalAlloc &alloc, u32 ir_reg)
+u32 rewrite_reg(LocalAlloc &alloc, u32 ir_reg)
 {
-    // do not rewrite special purpose regs
-    if(ir_reg >= MACHINE_REG_SIZE)
+    // dont rewrite any special purpose reg
+
+    // TODO: for now assume this is being rewritten the interprettter
+    if(ir_reg >= SPECIAL_PURPOSE_REG_START)
     {
-        return ir_reg;
+        switch(ir_reg)
+        {
+            case SP_IR: return SP;
+
+            default: assert(false);
+        }
     }
 
     else
@@ -234,7 +241,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
     // (if we are using a tmp as an arg then it must allready have been allocated)
     for(u32 i = 1; i < args; i++)
     {
-        if(!is_reg(opcode.v[i]))
+        if(is_symbol(opcode.v[i]))
         {
             const auto slot = symbol_to_idx(opcode.v[i]);
             auto &sym = slot_lookup[slot];
@@ -251,8 +258,9 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
                     // word is register size (we dont need to extend it)
                     static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
 
+                    // this here does not otherwhise need rewriting so we will emit SP directly
                     const auto reload_op = Opcode(instr[sym.size >> 1],sym.location,SP,sym.offset + alloc.stack_offset);
-                    block.insert(op_ptr,reload_op);                    
+                    block.insert(op_ptr,reload_op);               
                 }
 
                 // "plain data"
@@ -282,7 +290,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
 
 
     // is a var
-    if(!is_reg(idx))
+    if(is_symbol(idx))
     {
         const auto slot = symbol_to_idx(idx);
         auto &sym = slot_lookup[slot];        
@@ -304,8 +312,8 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
     }
 
     // tmp
-    else
-    {
+    else if(!is_special_reg(idx))
+    {  
         // this is not allready a tmp we need to allocate this
         if(alloc.regs[alloc.ir_regs[idx]] != REG_TMP)
         {
@@ -330,9 +338,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
     // rewrite the register names
     for(u32 i = 0; i < args; i++)
     {
-        const bool is_var = !is_reg(opcode.v[i]);
-
-        if(is_var)
+        if( is_symbol(opcode.v[i]))
         {
             const auto slot = symbol_to_idx(opcode.v[i]);
             auto &sym = slot_lookup[slot]; 
@@ -342,7 +348,6 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
 
         else
         {
-            // is a tmp 
             opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
         }
 
@@ -354,6 +359,9 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 {
 
     const auto &info = OPCODE_TABLE[static_cast<size_t>(opcode.op)];
+
+    u32 reg_args = info.args;
+
     switch(info.group)
     {
 
@@ -371,6 +379,9 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
                 break;
             }
 
+            // which args are actually for registers?
+            reg_args = info.args - 1;
+
             handle_allocation(slot_lookup,alloc,block,op_ptr,opcode,info.args-1);
             break;
         }
@@ -384,11 +395,13 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
         // no regs dont rewrite
         case op_group::implicit_t:
         {
+            reg_args = 0;
             break;
         }
 
         case op_group::branch_t:
         {
+            reg_args = 0;
             break;
         }
 
@@ -406,8 +419,14 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
     const u32 dst_ir = opcode.v[0];
 
     // free all the tmps that aint the dest as we are done with them
-    for(u32 a = 1; a < info.args; a++)
+    for(u32 a = 1; a < reg_args; a++)
     {
+        // ignore special puprose registers
+        if(opcode.v[a] >= MACHINE_REG_SIZE)
+        {
+            continue;
+        }
+
         // these registers have been converted we have to look inside the 
         // allocation struct to find out what they are for now
         if(alloc.regs[opcode.v[a]] == REG_TMP && opcode.v[a] != dst_ir)
@@ -428,7 +447,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         alloc.regs[i] = REG_FREE;
-        alloc.ir_regs[i] = i;
+        //alloc.ir_regs[i] = i;
         alloc.free_list[i] = i;
     }
 
@@ -468,11 +487,11 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     // only allocate a stack if we need it
     if(alloc.stack_size)
     {
-        func.emitter.program[0].push_front(Opcode(op_type::sub_imm,SP,SP,alloc.stack_size));
+        func.emitter.program[0].push_front(Opcode(op_type::sub_imm,SP_IR,SP_IR,alloc.stack_size));
     }
 
     // opcode to re correct the stack
-    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_size);
+    const auto stack_clean = Opcode(op_type::add_imm,SP_IR,SP_IR,alloc.stack_size);
 
 
     // byte located at start
@@ -541,7 +560,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // clean up args
                     const auto stack_clean = sizeof(u32) * opcode.v[0];
 
-                    opcode = Opcode(op_type::add_imm,SP,SP,stack_clean);
+                    opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
                     alloc.stack_offset -= stack_clean; 
                     break;
                 }
@@ -592,7 +611,9 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // if there is no stack allocation there is nothing to clean up
                     if(alloc.stack_size)
                     {
-                        block.insert(it,stack_clean);
+                        auto it_ret = block.insert(it,stack_clean);
+                        
+                        correct_reg(slot_lookup,alloc,block,it_ret,*it_ret);
                     }
                     break;
                 }
@@ -699,12 +720,7 @@ std::string get_oper_sym(const SlotLookup *table,u32 v)
         return slot_lookup[symbol_to_idx(v)].name;
     }
 
-    if(v == SP)
-    {
-        return "sp";
-    }
-
-    return "r" + std::to_string(v);
+    return "v" + std::to_string(v);
 }
 
 // disassemble without needing the symbol information
