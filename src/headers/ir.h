@@ -236,7 +236,10 @@ inline bool is_special_reg(u32 r)
     return r >= SPECIAL_PURPOSE_REG_START && r < SYMBOL_START;
 }
 
-
+inline bool is_tmp(u32 r)
+{
+    return r < SPECIAL_PURPOSE_REG_START;
+}
 
 // so we the "first" register reserved for returns
 static constexpr u32 RV = 0;

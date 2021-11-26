@@ -1,6 +1,9 @@
 #include <interloper.h>
 #include <op_table.inl>
 
+std::string get_oper_sym(const SlotLookup *table,u32 v);
+std::string get_oper_raw(const SlotLookup *table,u32 v);
+
 void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
@@ -121,7 +124,7 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
         {
             const auto slot = alloc.regs[reg]; 
 
-            bool in_expr = false;
+            b32 in_expr = false;
 
             const auto &opcode = *block_ptr;
 
@@ -129,14 +132,14 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
             // with a linear scan -> fix this later
             for(int i = 1; i < 3; i++)
             {
-                if(slot == opcode.v[i])
+                if(is_symbol(opcode.v[i]) && slot == symbol_to_idx(opcode.v[i]))
                 {
                     in_expr = true;
                     break;
                 }
             }
 
-            // we have a register to spill
+            // we have a var to spill
             if(slot < REG_TMP && !in_expr)
             {
                 const auto slot = alloc.regs[reg];
@@ -164,7 +167,7 @@ void alloc_tmp(LocalAlloc &alloc, u32 ir_reg, Block &block, opcode_iterator_t bl
     alloc.ir_regs[ir_reg] = reg;
     alloc.regs[reg] = REG_TMP;
 
-    printf("%d allocated tmp into %d\n",ir_reg,reg);
+    printf("v%d allocated tmp into %d\n",ir_reg,reg);
 }
 
 // mark a tmp as allocated to a var
@@ -177,9 +180,21 @@ void alloc_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
     sym.location = reg;
 }
 
+void destroy_ir_reg(LocalAlloc &alloc, u32 ir_reg)
+{
+    alloc.ir_regs[ir_reg] = MACHINE_REG_SIZE;
+}
+
+
 void alloc_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
 {
     alloc.ir_regs[ir_dst] = alloc.ir_regs[ir_src];
+    
+
+    // as ir_src is unqiue once it has been used in an expr it wont be used again
+    // so we dont need to worry about unlinking the ref
+
+    printf("tmp v%d allocated into existing tmp v%d -> %d\n",ir_dst,ir_src,alloc.ir_regs[ir_dst]);
 }
 
 // directly allocate a var ito a reg
@@ -284,10 +299,6 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
     // handle dst allocation
     const u32 idx = opcode.v[0];
 
-    // TODO: we need to look if a src arg is a tmp here and allocate into that instead of something new
-    
-
-
 
     // is a var
     if(is_symbol(idx))
@@ -311,11 +322,12 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
         }
     }
 
-    // tmp
-    else if(!is_special_reg(idx))
+
+    // each tmp store is unique we only need to allocate at first use
+    else if(is_tmp(idx))
     {  
         // this is not allready a tmp we need to allocate this
-        if(alloc.regs[alloc.ir_regs[idx]] != REG_TMP)
+        if(!alloc.ir_regs.count(idx))
         {
             // put this tmp directly into another tmp we will be done with
             // after the end of the expr
@@ -338,7 +350,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
     // rewrite the register names
     for(u32 i = 0; i < args; i++)
     {
-        if( is_symbol(opcode.v[i]))
+        if(is_symbol(opcode.v[i]))
         {
             const auto slot = symbol_to_idx(opcode.v[i]);
             auto &sym = slot_lookup[slot]; 
@@ -350,7 +362,6 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
         {
             opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
         }
-
     }
 }
 
@@ -421,15 +432,9 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
     // free all the tmps that aint the dest as we are done with them
     for(u32 a = 1; a < reg_args; a++)
     {
-        // ignore special puprose registers
-        if(opcode.v[a] >= MACHINE_REG_SIZE)
-        {
-            continue;
-        }
-
         // these registers have been converted we have to look inside the 
         // allocation struct to find out what they are for now
-        if(alloc.regs[opcode.v[a]] == REG_TMP && opcode.v[a] != dst_ir)
+        if(opcode.v[a] != dst_ir && alloc.regs[opcode.v[a]] == REG_TMP)
         {
             free_reg(alloc,opcode.v[a]);
         }
@@ -447,7 +452,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         alloc.regs[i] = REG_FREE;
-        //alloc.ir_regs[i] = i;
         alloc.free_list[i] = i;
     }
 

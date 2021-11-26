@@ -72,15 +72,7 @@ void parse_function_declarations(Interloper& itl)
 
 u32 new_slot(Function &func)
 {       
-    const auto slot = reg(func.emitter.reg_count++);
-
-    printf("new slot: %d\n",slot);
-
-    // expressions should not need to take up so many registers
-    // i could support it taking an endless ammount but i shouldunt have to
-    //assert(slot < MACHINE_REG_SIZE);
-
-    return slot;
+    return reg(func.emitter.reg_count++);
 }
 
 std::pair<Type,u32> symbol(Interloper &itl, AstNode *node)
