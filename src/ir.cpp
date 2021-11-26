@@ -92,6 +92,12 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
 
 
     // write value back out into mem
+    // TOOD: we need to make sure when we finish up our stack alloc rewrite
+    // that the offsets on this are aligned properly atm on x86 this doesnt matter but it will later
+
+    // TODO: we need to not bother storing these back if the varaible has not been modified
+    // and is justt for performing a calc (how do we track this?)
+
     static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
     const auto opcode = Opcode(instr[sym.size >> 1],reg,SP,sym.offset + alloc.stack_offset); 
 
@@ -99,6 +105,7 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
 
     // register is back in memory!
     sym.location = LOCATION_MEM;
+    alloc.regs[reg] = REG_FREE;
 }
 
 u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcode_iterator_t block_ptr)
@@ -167,13 +174,13 @@ void alloc_tmp(LocalAlloc &alloc, u32 ir_reg, Block &block, opcode_iterator_t bl
     alloc.ir_regs[ir_reg] = reg;
     alloc.regs[reg] = REG_TMP;
 
-    printf("v%d allocated tmp into %d\n",ir_reg,reg);
+    printf("tmp t%d allocated into r%d\n",ir_reg,reg);
 }
 
 // mark a tmp as allocated to a var
 void alloc_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
 {   
-    printf("%s allocated into tmp %d\n",sym.name.c_str(),alloc.ir_regs[ir_reg]);
+    printf("symbol %s allocated into tmp r%d\n",sym.name.c_str(),alloc.ir_regs[ir_reg]);
 
     const u32 reg = alloc.ir_regs[ir_reg];
     alloc.regs[reg] = sym.slot;
@@ -194,7 +201,7 @@ void alloc_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
     // as ir_src is unqiue once it has been used in an expr it wont be used again
     // so we dont need to worry about unlinking the ref
 
-    printf("tmp v%d allocated into existing tmp v%d -> %d\n",ir_dst,ir_src,alloc.ir_regs[ir_dst]);
+    printf("tmp t%d allocated into existing tmp t%d -> r%d\n",ir_dst,ir_src,alloc.ir_regs[ir_dst]);
 }
 
 // directly allocate a var ito a reg
@@ -204,7 +211,7 @@ u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t blo
     alloc.regs[reg] = sym.slot;
     sym.location = reg;
 
-    printf("%s allocated into reg %d\n",sym.name.c_str(),reg);
+    printf("smybol %s into reg r%d\n",sym.name.c_str(),reg);
 
     return reg;
 }
@@ -212,7 +219,7 @@ u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t blo
 
 void free_reg(LocalAlloc &alloc, u32 reg)
 {
-    printf("freed tmp %d\n",reg);
+    printf("freed tmp from r%d\n",reg);
 
     alloc.regs[reg] = REG_FREE;
     alloc.free_list[alloc.free_regs++] = reg;
@@ -220,7 +227,7 @@ void free_reg(LocalAlloc &alloc, u32 reg)
 
 void free_reg(LocalAlloc &alloc, Symbol &sym)
 {
-    printf("freed %s from %d\n",sym.name.c_str(),sym.location);
+    printf("freed %s from r%d\n",sym.name.c_str(),sym.location);
 
     free_reg(alloc,sym.location);
     sym.location = LOCATION_MEM;
@@ -466,27 +473,39 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
         okay we are going to store all byte variables sequentially and algin,
         then store all half variables sequentially and align,
         then store all other variables as ints (this includes structs when added),
+
+
+        // TODO: rework this when we add proper stack allocation under the register allocator
+        // as this is wasting a ton of stack space right now
     */
 
 
+
+    // byte located at start
+    alloc.stack_alloc[0] = 0;
+
+    // start at end of byte allocation
+    alloc.stack_alloc[1] = func.size_count[0];
+
     // align for u16
-    if(func.size_count[0] & 1)
+    if(alloc.stack_alloc[1] & 1)
     {
-        func.size_count[0] += 1;
-    }
-
-    // align for u32 
-    if(func.size_count[1] & 2)
-    {
-        func.size_count[1] += 2;
+        alloc.stack_alloc[1] += 1;
     }
 
 
+    // start at end of half allocation
+    alloc.stack_alloc[2] = alloc.stack_alloc[1] + (func.size_count[1] * 2);
 
+    // align for u32
+    if(alloc.stack_alloc[2] & 2)
+    {
+        alloc.stack_alloc[2] += 2;
+    }
 
-    
-    alloc.stack_size = func.size_count[0] + (func.size_count[1] * 2) + (func.size_count[2] * 4);
-    //printf("stack size: %d\n",stack_size);
+    // get the total stack size
+    alloc.stack_size =  alloc.stack_alloc[2] + (func.size_count[2] * 4);
+    printf("stack size: %d\n",alloc.stack_size);
 
     // only allocate a stack if we need it
     if(alloc.stack_size)
@@ -496,16 +515,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
     // opcode to re correct the stack
     const auto stack_clean = Opcode(op_type::add_imm,SP_IR,SP_IR,alloc.stack_size);
-
-
-    // byte located at start
-    alloc.stack_alloc[0] = 0;
-
-    // start at end of byte allocation
-    alloc.stack_alloc[1] = func.size_count[0];
-
-    // start at end of half allocation
-    alloc.stack_alloc[2] = alloc.stack_alloc[1] + (func.size_count[1] * 2);
 
 
     alloc.stack_offset = 0;
@@ -541,7 +550,17 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                 // allocate a tmp
                 case op_type::mov_imm:
                 {
-                    alloc_tmp(alloc,opcode.v[0],block,it,slot_lookup);
+                    if(is_tmp(opcode.v[0]))
+                    {
+                        alloc_tmp(alloc,opcode.v[0],block,it,slot_lookup);
+                    }
+
+                    else if(is_symbol(opcode.v[0]))
+                    {
+                        // alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
+                        auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])];
+                        alloc_reg(sym,alloc,block,it,slot_lookup);
+                    }
                     break;
                 }
 
@@ -724,7 +743,7 @@ std::string get_oper_sym(const SlotLookup *table,u32 v)
         return slot_lookup[symbol_to_idx(v)].name;
     }
 
-    return "v" + std::to_string(v);
+    return "t" + std::to_string(v);
 }
 
 // disassemble without needing the symbol information

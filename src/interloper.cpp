@@ -206,6 +206,16 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     // OKAY start slowing reimpl the min ammount to get these working!
     switch(node->type)
     {
+        case ast_type::cast:
+        {
+            const auto [old_type,slot] = compile_oper(itl,func,node->nodes[1],new_slot(func));
+            const auto new_type = node->nodes[0]->variable_type;
+
+            handle_cast(itl,func.emitter,dst_slot,slot,old_type,new_type);
+            return new_type;
+        }
+
+
         case ast_type::plus:
         {
             // unary plus
@@ -266,8 +276,26 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         }
 
         case ast_type::minus:
-        {
-            return compile_arith_op(itl,func,node,op_type::sub_reg,dst_slot);
+        {            
+            // unary minus
+            if(!node->nodes[1])
+            {
+                // negate by doing 0 - v
+                const auto [t,dst] = compile_oper(itl,func,node->nodes[0],dst_slot);
+
+                const auto slot = new_slot(func);
+
+                // TODO: make sure our optimiser sees through this
+                emit(func.emitter,op_type::mov_imm,slot,0);
+                emit(func.emitter,op_type::sub_reg,dst,slot,dst);
+                
+                return t;
+            }
+
+            else
+            {
+                return compile_arith_op(itl,func,node,op_type::sub_reg,dst_slot);
+            }
         }
 
         default:
@@ -405,6 +433,13 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                 }
 
                 itl.has_return = true;
+                break;
+            }
+
+
+            case ast_type::block:
+            {
+                compile_block(itl,func,l);
                 break;
             }
 

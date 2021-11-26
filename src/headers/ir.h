@@ -207,7 +207,7 @@ inline u32 symbol_to_idx(u32 s)
 
 inline bool is_symbol(u32 s)
 {
-    return s >= SYMBOL_START;
+    return s >= SYMBOL_START && s < SYMBOL_ARG_START;
 }
 
 
