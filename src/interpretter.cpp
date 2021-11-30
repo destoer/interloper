@@ -392,8 +392,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::clean_args:
         case op_type::alloc_slot:
         case op_type::free_slot:
-        case op_type::save_reg:
-        case op_type::restore_reg:
+        case op_type::save_regs:
+        case op_type::restore_regs:
         case op_type::exit_block:
         case op_type::placeholder:
         case op_type::END:
@@ -420,7 +420,7 @@ void reset(Interpretter& interpretter)
 
 s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 {
-//    puts("BOOP!"); exit(1);
+    puts("BOOP!"); exit(1);
 
     puts("startring progam execution\n\n\n");
     assert(program);

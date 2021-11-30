@@ -25,13 +25,24 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym)
     return std::nullopt;
 }
 
-void add_slot(SymbolTable &sym_table, Symbol &sym)
+// add symbol to slot lookup
+void add_var(SymbolTable &sym_table,Symbol &sym)
 {
     sym.slot = sym_table.slot_lookup.size();
-    sym_table.slot_lookup.push_back(sym);
+    sym_table.slot_lookup.push_back(sym);    
+}
 
+// add symbol to the scope table
+void add_scope(SymbolTable &sym_table, Symbol &sym)
+{
     sym_table.table[sym_table.table.size()-1][sym.name] = sym.slot;
     sym_table.sym_count++;
+}    
+
+void add_slot(SymbolTable &sym_table, Symbol &sym)
+{
+    add_var(sym_table,sym);
+    add_scope(sym_table,sym);
 }
 
 void add_symbol(SymbolTable &sym_table,Symbol &symbol)
@@ -61,5 +72,5 @@ void clear(SymbolTable &sym_table)
 
 u32 slot_idx(const Symbol &sym)
 {
-    return sym.arg_num != NON_ARG? arg(sym.slot) : symbol(sym.slot);
+    return symbol(sym.slot);
 }

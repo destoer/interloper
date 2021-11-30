@@ -33,9 +33,7 @@ void parse_function_declarations(Interloper& itl)
             return;
         }
 
-
-        std::vector<Symbol> args;
-
+        std::vector<u32> args;
 
         const auto decl = node.nodes[2];
 
@@ -47,7 +45,14 @@ void parse_function_declarations(Interloper& itl)
 
             const auto size = type_size(itl,type);
 
-            args.push_back(Symbol(name,type,size,args.size()-1));
+            // add the var to slot lookup and link to function
+            // we will do a add_scope to put it into the scope later
+            Symbol sym = Symbol(name,type,size,args.size()-1);
+            add_var(itl.symbol_table,sym);
+
+            args.push_back(sym.slot);
+
+            printf("arg slot %s: %d : %d\n",sym.name.c_str(),sym.slot, args[args.size()-1]);
         }
 
 
@@ -191,6 +196,95 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
 }
 
 
+Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+{
+    // check function is declared
+    if(!itl.function_table.count(node->literal))
+    {
+        panic(itl,"[COMPILE]: function %s is not declared\n",node->literal.c_str());
+        return Type(builtin_type::void_t);
+    }
+    const auto &func_call = itl.function_table[node->literal];
+
+    // check we have the right number of params
+    if(func_call.args.size() != node->nodes.size())
+    {
+        panic(itl,"[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
+        print(node);
+        return Type(builtin_type::void_t);
+    }
+
+
+    // TODO: this needs to be redone properly when we try implement a register allocator
+    // TODO: allow saved regs can be used while we are pushing args
+
+
+    // TODO:  START HERE!!!!!
+    // this needs to just have a save regs that gets called
+    // and we save all our currently used registers (we have no calling convention atm)
+    // and we need to fix up moving out of the RV reg so it is special purpose and ignored 
+    // also need to make a reg push "free" regs to make proper use of space
+
+    // save all the used regs
+    emit(func.emitter,op_type::save_regs);
+    
+
+
+    // push args in reverse order and type check them
+    for(s32 i = func_call.args.size() - 1; i >= 0; i--)
+    {
+        const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
+
+        // TODO: handle being passed args that wont fit inside a single hardware reg
+        if(type_size(itl,arg.type) > sizeof(u32))
+        {
+            unimplemented("function arg: non register size: %d\n",type_size(itl,arg.type));
+        }
+
+        
+        // builtin type
+        const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+
+
+        // type check the arg
+        check_assign(itl,arg.type,arg_type);
+
+        // finally push the arg
+        emit(func.emitter,op_type::push_arg,reg);
+    }
+
+
+
+    // emit call to label slot
+    // the actual address will have to resolved as the last compile step
+    // once we know the size of all the code
+    emit(func.emitter,op_type::call,func_call.slot);
+
+
+    // clean up args after the function call
+    // TODO: how should we encode this when we do arg passing in regs
+    emit(func.emitter,op_type::clean_args,func_call.args.size());
+
+  
+
+    // restore callee saved values
+    emit(func.emitter,op_type::restore_regs);
+
+
+
+
+    // if function returns a value save the return register
+    // our register allocator will have to force a spill on R0 if its in use
+    if(func.return_type.type_idx != static_cast<int>(builtin_type::void_t))
+    {
+        emit(func.emitter,op_type::mov_reg,dst_slot,reg(RV));
+    }
+
+    // result of expr is the return type
+    return func_call.return_type;    
+}
+
+
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
 {
@@ -297,6 +391,12 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
                 return compile_arith_op(itl,func,node,op_type::sub_reg,dst_slot);
             }
         }
+
+        case ast_type::function_call:
+        {
+            return compile_function_call(itl,func,node,dst_slot);
+        }
+
 
         default:
         {
@@ -501,11 +601,12 @@ void compile_functions(Interloper &itl)
 
         func.emitter.reg_count = 0;
 
-        // add arguments to the symbol table scope
-        for(auto &sym: func.args)
+        // put each arg into scope
+        for(auto &a : func.args)
         {
-            add_symbol(itl.symbol_table,sym);
+            add_scope(itl.symbol_table,itl.symbol_table.slot_lookup[a]);
         }
+
 
 
         itl.has_return = false;

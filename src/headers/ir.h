@@ -89,8 +89,8 @@ enum class op_type
     clean_args,
 
     // directives to make sure registers get preserved correctly across calls
-    save_reg,
-    restore_reg,
+    save_regs,
+    restore_regs,
 
     // branch to end of if statement chain
     exit_block,
@@ -176,23 +176,10 @@ using opcode_iterator_t = std::list<Opcode>::iterator;
 // standard symbols
 static constexpr u32 SYMBOL_START = 0x80000000;
 
-// function args
-static constexpr u32 SYMBOL_ARG_START = 0xf0000000;
 
 inline u32 reg(u32 r)
 {
     return r;
-}
-
-// need a better way to mark an arg cause we want to index the slots similar to the rest
-inline u32 arg(u32 s)
-{
-    return SYMBOL_ARG_START + s;
-}
-
-inline bool is_arg(u32 s)
-{
-    return s >= SYMBOL_ARG_START;
 }
 
 inline u32 symbol(u32 s)
@@ -202,12 +189,12 @@ inline u32 symbol(u32 s)
 
 inline u32 symbol_to_idx(u32 s)
 {
-    return s >= SYMBOL_ARG_START? s - SYMBOL_ARG_START : s - SYMBOL_START;
+    return s - SYMBOL_START;
 }
 
 inline bool is_symbol(u32 s)
 {
-    return s >= SYMBOL_START && s < SYMBOL_ARG_START;
+    return s >= SYMBOL_START;
 }
 
 

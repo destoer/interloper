@@ -198,6 +198,12 @@ struct Symbol
 };
 u32 slot_idx(const Symbol &sym);
 
+inline bool is_arg(const Symbol &sym)
+{
+    return sym.arg_num != NON_ARG;
+}
+
+
 
 struct Label 
 {
@@ -216,13 +222,18 @@ struct Function
 {
     Function() {}
 
-    Function(const std::string &n, Type rt, std::vector<Symbol> a, u32 s) : name(n), return_type(rt), args(a), slot(s)
+    Function(const std::string &n, Type rt, std::vector<u32> a, u32 s) : name(n), return_type(rt), args(a), slot(s)
     {}
 
 
     std::string name;
     Type return_type;
-    std::vector<Symbol> args;
+
+    // TODO: if we need debugging information on local vars we need an array
+    // of slots for both normal vars so we know whats in the functions
+
+    // gives slots into the main symbol table
+    std::vector<u32> args;
     
     // IR code for function
     IrEmitter emitter;
@@ -271,6 +282,8 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym);
 Symbol get_sym(SymbolTable &sym_table, u32 slot);
 void add_symbol(SymbolTable &sym_table,Symbol &symbol);
 void add_symbol(SymbolTable &sym_table,const std::string &name, const Type &type, u32 size);
+void add_var(SymbolTable &sym_table,Symbol &sym);
+void add_scope(SymbolTable &sym_table, Symbol &sym);
 void add_label(SymbolTable &sym_table,const std::string &label);
 void clear(SymbolTable &sym_table);
 

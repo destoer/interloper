@@ -69,25 +69,23 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
 
     // TODO:
-    // we will probably want to do some extra marking here for removing stack prologues later
-    // and re parse the rets to insert the prologues
-    // rather than attempting to do it ahead of time this will also allow us to spill args
-    // once they are kept inside registers
+    // We probably just want to emit a spill <reg>, <slot> here and actually move it onto the stack later
+    // so we can allocate the stack offsets at a later parse
 
     if(sym.offset == UNALLOCATED_OFFSET)
     {
-        if(is_arg)
+        // only allocate the stack args by here
+        if(!is_arg(sym))
         {
             stack_allocate(alloc.stack_alloc,sym);
         }
 
+        // TODO: fixme
+        // an arg should allways have its offset allocated for now as we dont have register passing
         else
         {
-            // arg is above the stack frame
-
-            // TODO: how we will handle this when we dont acutally know how large we need to have the stack yet?
-            sym.offset = (sym.slot * sym.size) + alloc.stack_size + sizeof(u32);
-        }        
+            assert(false);
+        }   
     }
 
 
@@ -157,10 +155,6 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
         }
 
         // failed to find a reg to spill should not happen
-        // TODO: at the momement this is triggering because tmps aernt getting cleaned up properly
-        // the logical test somehow requires 8 registers to compute the expression fully which is way beyond
-        // what should be required
-
         assert(reg != MACHINE_REG_SIZE);
     }
 
@@ -237,14 +231,15 @@ u32 rewrite_reg(LocalAlloc &alloc, u32 ir_reg)
 {
     // dont rewrite any special purpose reg
 
-    // TODO: for now assume this is being rewritten the interprettter
-    if(ir_reg >= SPECIAL_PURPOSE_REG_START)
+    // TODO: for now assume this is running under the interpretter
+    // so its converted to our interrpetter regs and not a hardware target
+    if(is_special_reg(ir_reg))
     {
         switch(ir_reg)
         {
             case SP_IR: return SP;
 
-            default: assert(false);
+            default: printf("unhandled special reg %x\n",ir_reg); assert(false);
         }
     }
 
@@ -267,7 +262,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
         {
             const auto slot = symbol_to_idx(opcode.v[i]);
             auto &sym = slot_lookup[slot];
-
+                   
             // unallocated we need to reload it
             if(sym.location == LOCATION_MEM)
             {
@@ -328,7 +323,6 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
             }
         }
     }
-
 
     // each tmp store is unique we only need to allocate at first use
     else if(is_tmp(idx))
@@ -448,6 +442,20 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
     }
 }
 
+// TODO: need to rethink this when we do register passing
+// and when we push off determining stack size to a later pass
+void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup)
+{
+
+    for(auto slot : func.args)
+    {
+        auto &sym = slot_lookup[slot];
+
+        // alloc above the stack frame
+        sym.offset = (sym.arg_num  * sym.size) + alloc.stack_size + sizeof(u32);
+    }
+             
+}
 
 void allocate_registers(Function &func, SlotLookup &slot_lookup)
 {
@@ -519,6 +527,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
     alloc.stack_offset = 0;
 
+    alloc_args(func,alloc,slot_lookup);
+
     for(auto &block : func.emitter.program)
     {
         for(auto it = block.begin(); it != block.end();)
@@ -532,16 +542,22 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
             {
 
                 // TODO: this needs to handle reg alloc
-                case op_type::save_reg:
+                // TODO: start here
+                case op_type::save_regs:
                 {
+                    // for each and every register in use save it 
+
+
                     opcode = Opcode(op_type::push,opcode.v[0],0,0);
                     alloc.stack_offset += sizeof(u32);
                     break;
                 }
 
 
-                case op_type::restore_reg:
+                case op_type::restore_regs:
                 {
+                    // if r0 is in use force a spill 
+                    // TODO fixme: dont do this when we havea void function
                     opcode = Opcode(op_type::pop,opcode.v[0],0,0);
                     alloc.stack_offset -= sizeof(u32);
                     break;
@@ -681,10 +697,6 @@ void emit_asm(Interloper &itl)
             const auto &block = func.emitter.program[b];
 
             // resolve label addr.
-            // TODO: to locate this properly we need to know
-            // how many labels were allocated at the start of this func
-            // for now we will cheat as we only have one func with labels
-            // so just move the labels past the function ones
             itl.symbol_table.label_lookup[func.emitter.block_slot[b]].offset = itl.program.size() * OP_SIZE;
 
             for(const auto &op : block)
@@ -795,7 +807,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
                 default:
                 {
-                    printf("unknown opcode");
+                    printf("unknown reg opcode\n");
                     exit(1); 
                     break;                       
                 } 
@@ -828,7 +840,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
                 default:
                 {
-                    printf("unknown opcode");
+                    printf("unknown imm opcode\n");
                     exit(1);                        
                 } 
             }
@@ -839,7 +851,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
         {
             if(info.args != 1)
             {
-                puts("unknown opcode");
+                puts("unknown slot opcode\n");
                 exit(1);
             }
 
@@ -851,7 +863,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
         {
             if(info.args != 3)
             {
-                printf("unknown opcode");
+                printf("unknown opcode\n");
                 exit(1);
             }
 
@@ -911,7 +923,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
                 default:
                 {
-                    printf("unknown opcode");
+                    printf("unknown branch opcode\n");
                     exit(1);
                 }
             }   

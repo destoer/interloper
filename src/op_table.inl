@@ -79,8 +79,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // restore callee saved registers
     {op_group::imm_t,"clean_args",1},
 
-    {op_group::reg_t,"save_reg",1},
-    {op_group::reg_t,"restore_reg",1},
+    {op_group::implicit_t,"save_regs",0},
+    {op_group::implicit_t,"restore_regs",0},
 
     {op_group::implicit_t,"exit_block",0},
 
