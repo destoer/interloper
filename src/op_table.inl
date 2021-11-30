@@ -92,6 +92,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // ret variable
     {op_group::reg_t,"ret",1},
 
+    {op_group::implicit_t,"spill_rv",0},
+
     // not used
     {op_group::implicit_t,"END",0},
 };

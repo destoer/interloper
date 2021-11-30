@@ -102,7 +102,9 @@ enum class op_type
     placeholder,
 
     ret_var,
-    
+
+    spill_rv,
+
     // just c++ things not used
     END,
 };

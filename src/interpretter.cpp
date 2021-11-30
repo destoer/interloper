@@ -422,6 +422,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::restore_regs:
         case op_type::exit_block:
         case op_type::placeholder:
+        case op_type::spill_rv:
         case op_type::END:
         {
             puts("directive not removed!?");

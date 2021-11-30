@@ -256,6 +256,7 @@ u32 rewrite_reg(LocalAlloc &alloc, u32 ir_reg)
         switch(ir_reg)
         {
             case SP_IR: return SP;
+            case RV_IR: return RV;
 
             default: printf("unhandled special reg %x\n",ir_reg); assert(false);
         }
@@ -685,6 +686,18 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     continue;
                 }
 
+                // make sure the return value has nothing important when calling functions
+                case op_type::spill_rv:
+                {
+                    if(reg_is_var(alloc.regs[RV]))
+                    {
+                        spill_reg(alloc,block,it,slot_lookup[alloc.regs[RV]],RV);
+                    }
+
+                    it = block.erase(it);
+                    continue;
+                }
+
 
                 
                 case op_type::free_slot:
@@ -744,6 +757,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     // TODO: this might be good to loop jam with somethign but just have a seperate loop for simplictiy atm
 
     // TODO: we still need to handle properly saving the return reg if its allready in use when a call is made
+
+    // TODO: make register allactor not emit mov r0,r0 after function calls with return values
 
     UNUSED(stack_clean);
 #if 1

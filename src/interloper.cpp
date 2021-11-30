@@ -248,6 +248,14 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
 
 
+    const bool returns_value = func.return_type.type_idx != static_cast<int>(builtin_type::void_t);
+
+    // if we have a register in R0 we need to spill it so emit a push instr
+    if(returns_value)
+    {
+        emit(func.emitter,op_type::spill_rv);
+    }
+
 
     // emit call to label slot
     // the actual address will have to resolved as the last compile step
@@ -267,11 +275,9 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     //emit(func.emitter,op_type::restore_regs);
 
 
-
-
     // if function returns a value save the return register
     // our register allocator will have to force a spill on R0 if its in use
-    if(func.return_type.type_idx != static_cast<int>(builtin_type::void_t))
+    if(returns_value)
     {
         emit(func.emitter,op_type::mov_reg,dst_slot,RV_IR);
     }
