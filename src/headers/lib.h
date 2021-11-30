@@ -93,6 +93,16 @@ inline u32 convert_imm(const std::string &imm)
     return static_cast<u32>(stoul(imm,nullptr,0));
 }
 
+inline u32 set_bit(u32 v, u32 bit)
+{
+    return v | (1 << bit);
+}
+
+inline bool is_set(u32 v, u32 bit)
+{
+    return (v >> bit) & 1;
+}
+
 #ifndef _MSC_VER
 __attribute__((noreturn))
 #endif

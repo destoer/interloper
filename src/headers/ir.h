@@ -45,6 +45,9 @@ enum class op_type
     push,
     pop,
 
+    pushm,
+    popm,
+
     call,
     ret,
 
@@ -132,6 +135,7 @@ static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 enum op_group
 {
     reg_t,
+    regm_t,
     imm_t,
     load_t,
     implicit_t,
@@ -207,10 +211,12 @@ static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x07000000;
 
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
+static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 
 // for use in the interpretter
 static constexpr u32 SP = MACHINE_REG_SIZE;
 static constexpr u32 PC = MACHINE_REG_SIZE + 1;
+static constexpr u32 RV = 0;
 
 
 inline bool is_reg(u32 r)
@@ -227,9 +233,6 @@ inline bool is_tmp(u32 r)
 {
     return r < SPECIAL_PURPOSE_REG_START;
 }
-
-// so we the "first" register reserved for returns
-static constexpr u32 RV = 0;
 
 static constexpr u32 OP_SIZE = sizeof(Opcode);
 

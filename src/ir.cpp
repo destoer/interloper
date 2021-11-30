@@ -30,6 +30,14 @@ static constexpr u32 REG_FREE = 0xffffffff;
 static constexpr u32 REG_TMP = 0xfffffffe;
 
 
+bool reg_is_var(u32 loc)
+{
+    return loc < REG_TMP;
+}
+
+// our bitset can only store 32 regs
+static_assert(MACHINE_REG_SIZE <= 32);
+
 // is this how we want it?
 // or should we just pass stuff through one by one?
 struct LocalAlloc
@@ -47,6 +55,11 @@ struct LocalAlloc
 
     // free list for register allocator
     u32 free_list[MACHINE_REG_SIZE];
+
+    // bitset of which regs this functions needs to use
+    // for now we are going to just callee save every register
+    u32 used_regs;
+    u32 use_count;
 
 
     // stack allocation
@@ -116,6 +129,11 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
     {
         // allocate a register
         reg = alloc.free_list[--alloc.free_regs];
+
+        // mark as used by the function
+        alloc.use_count += !is_set(alloc.used_regs,reg);
+
+        alloc.used_regs = set_bit(alloc.used_regs,reg);
     }
 
     // TODO: fixme how do we properly handle regs that need to be used in the current opcode
@@ -145,7 +163,7 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
             }
 
             // we have a var to spill
-            if(slot < REG_TMP && !in_expr)
+            if(reg_is_var(slot) && !in_expr)
             {
                 const auto slot = alloc.regs[reg];
                 auto &sym = slot_lookup[slot];
@@ -376,6 +394,11 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 
     switch(info.group)
     {
+        case op_group::regm_t:
+        {
+            assert(false);
+        }
+
 
         case op_group::reg_t:
         {
@@ -463,6 +486,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
     // every register is free!
     alloc.free_regs = MACHINE_REG_SIZE;
+    alloc.use_count = 0;
+    alloc.used_regs = 0;
 
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
@@ -535,32 +560,81 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
         {
             auto &opcode = *it;
 
-            // how do we want to handle allocation?
-            // when we aernt just storing stuff back and forth?
+
 
             switch(opcode.op)
             {
 
-                // TODO: this needs to handle reg alloc
-                // TODO: start here
+                // TODO: reviist when we add caller saved regs
                 case op_type::save_regs:
                 {
+                /*
+                    it = block.erase(it);
+
+
+                    u32 bitset = 0;
+                    u32 count = 0;
+
                     // for each and every register in use save it 
+                    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+                    {
 
 
-                    opcode = Opcode(op_type::push,opcode.v[0],0,0);
-                    alloc.stack_offset += sizeof(u32);
-                    break;
+                        // if its a var spill it
+                        if(reg_is_var(alloc.regs[r]))
+                        {
+                            spill_reg(alloc,block,it,slot_lookup[alloc.regs[r]],r);
+                        }
+
+             
+                        else if(alloc.regs[r] == REG_TMP)
+                        {
+                            bitset = set_bit(bitset,r);
+                            count++;
+
+                            // TODO: will this break or no?
+                            alloc.regs[r] = REG_FREE;
+                        }
+                   
+                        // todo: do tmps need to be pushed?
+                        // if they do then its probably best to have a bitset 
+                        // of registers to push we have 32bits of space which should be enoguh to target anything
+                        //opcode = Opcode(op_type::push,,0,0);
+                        
+                    }
+                
+
+                
+                    // tempories had to be saved?
+                    // emit a pushm
+                    if(count)
+                    {
+                        
+                    }
+                */
+                    assert(false);
+                    continue;
                 }
 
+                // TODO: is a explicit restore even required or can we expect it to just adjust all the regs?
+                // TODO: how is best to know which call this restore is for because we need to know which temperioes to reload
 
+
+                // TODO: how do we handle the return value being put inside something we dont want...
+                //
                 case op_type::restore_regs:
                 {
+                /*
+                    it = block.erase(it);
+
                     // if r0 is in use force a spill 
                     // TODO fixme: dont do this when we havea void function
+                
                     opcode = Opcode(op_type::pop,opcode.v[0],0,0);
                     alloc.stack_offset -= sizeof(u32);
-                    break;
+                */
+                    assert(false);
+                    continue;
                 }
 
                 // allocate a tmp
@@ -613,8 +687,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
 
                 
-
-
                 case op_type::free_slot:
                 {
                     auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])];
@@ -644,18 +716,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     continue;
                 }
 
-                // add stack cleanup to all ret functions
-                case op_type::ret:
-                {
-                    // if there is no stack allocation there is nothing to clean up
-                    if(alloc.stack_size)
-                    {
-                        auto it_ret = block.insert(it,stack_clean);
-                        
-                        correct_reg(slot_lookup,alloc,block,it_ret,*it_ret);
-                    }
-                    break;
-                }
 
                 default: break;
             }
@@ -670,6 +730,72 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
         }
     }
 
+
+
+    // iterate over the function by here and add callee cleanup at every ret
+    // restore used registers 
+
+    // this will affect how our stack is offset
+    // in doing so we will have to add the ammount we have allocated for callee saving when we access anything from the caller frame
+    // so we need to only partially compile argument access and actually implement the loads on a later pass...
+    // so we need to find where to hook intial stack access for vars (including args) so we can allocate insert its posistion
+    // once we have a done a complete  pass an know where the stack needs to go
+
+    // TODO: this might be good to loop jam with somethign but just have a seperate loop for simplictiy atm
+
+    // TODO: we still need to handle properly saving the return reg if its allready in use when a call is made
+
+    UNUSED(stack_clean);
+#if 1
+
+    const bool is_main = func.name == "main";
+
+    // entry point does not need to preserve regs
+    if(!is_main)
+    {
+        func.emitter.program[0].push_front(Opcode(op_type::pushm,alloc.used_regs,0,0));
+    }
+
+    const auto callee_restore = Opcode(op_type::popm,alloc.used_regs,0,0);
+
+    for(auto &block : func.emitter.program)
+    {
+        for(auto it = block.begin(); it != block.end();)
+        {
+            auto &opcode = *it;
+
+            switch(opcode.op)
+            {
+
+
+                case op_type::ret:
+                {
+                    const auto old = it;
+
+                    // if there is no stack allocation there is nothing to clean up
+                    if(alloc.stack_size)
+                    {
+                        it = block.insert(it,stack_clean);
+                        correct_reg(slot_lookup,alloc,block,it,*it);
+                    }
+
+                    if(!is_main)
+                    {
+                        block.insert(it,callee_restore);
+                    }
+
+                    it = old;
+                    break;
+                }
+
+                default: break;
+
+            }
+
+            it++;
+        }
+    }
+#endif
 }
 
 
@@ -750,7 +876,12 @@ std::string get_oper_sym(const SlotLookup *table,u32 v)
 {
     auto slot_lookup = *table;
 
-    if(v >= SYMBOL_START && symbol_to_idx(v) < table->size())
+    if(v == RV_IR)
+    {
+        return "rv";
+    }
+
+    else if(v >= SYMBOL_START && symbol_to_idx(v) < table->size())
     {
         return slot_lookup[symbol_to_idx(v)].name;
     }
@@ -780,6 +911,34 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
     switch(info.group)
     {
+        case op_group::regm_t:
+        {
+            switch(info.args)
+            {
+                
+                case 1:
+                {
+                    u32 count = 0;
+                    printf("%s {",info.name);
+                    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+                    {
+                        if(is_set(opcode.v[0],r))
+                        {
+                            printf("%sr%d",count != 0? "," : "",r);
+                            count++;
+                        }
+                    }
+
+                    printf("}\n");
+
+                    break;
+                }
+
+                default: printf("invalid regm opcode\n"); exit(1); 
+            }
+            break;
+        }
+
         case op_group::reg_t:
         {
             switch(info.args)

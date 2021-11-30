@@ -41,6 +41,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"push",1},
     {op_group::reg_t,"pop",1},
 
+    {op_group::regm_t, "pushm",1},
+    {op_group::regm_t, "popm", 1},
+
     {op_group::branch_t,"call",1},
     {op_group::implicit_t,"ret",0},
 

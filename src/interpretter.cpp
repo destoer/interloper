@@ -244,6 +244,32 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         }
 
 
+        case op_type::pushm:
+        {
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                if(is_set(opcode.v[0],r))
+                { 
+                    regs[SP] -= sizeof(u32);
+                    write_mem<u32>(interpretter,regs[SP],regs[r]); 
+                }
+            }
+            break;               
+        }
+
+        case op_type::popm:
+        {
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                if(is_set(opcode.v[0],r))
+                { 
+                    regs[r] = read_mem<u32>(interpretter,regs[SP]);
+                    regs[SP] += sizeof(u32);
+                }
+            }
+            break;
+        }
+
         case op_type::call:
         {
             // push
@@ -420,7 +446,7 @@ void reset(Interpretter& interpretter)
 
 s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 {
-    puts("BOOP!"); exit(1);
+    //puts("BOOP!"); exit(1);
 
     puts("startring progam execution\n\n\n");
     assert(program);

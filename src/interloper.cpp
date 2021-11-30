@@ -52,7 +52,7 @@ void parse_function_declarations(Interloper& itl)
 
             args.push_back(sym.slot);
 
-            printf("arg slot %s: %d : %d\n",sym.name.c_str(),sym.slot, args[args.size()-1]);
+            //printf("arg slot %s: %d : %d\n",sym.name.c_str(),sym.slot, args[args.size()-1]);
         }
 
 
@@ -214,19 +214,13 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         return Type(builtin_type::void_t);
     }
 
-
-    // TODO: this needs to be redone properly when we try implement a register allocator
-    // TODO: allow saved regs can be used while we are pushing args
-
-
-    // TODO:  START HERE!!!!!
-    // this needs to just have a save regs that gets called
-    // and we save all our currently used registers (we have no calling convention atm)
-    // and we need to fix up moving out of the RV reg so it is special purpose and ignored 
-    // also need to make a reg push "free" regs to make proper use of space
-
+    // for now we are just going with callee saved
+    // if we eventually mix caller and callee saved so we can have the called func overwrite values
+    // we dont care about then we need to re add the save and restore directives
+    // and we will need a push and pop bitset to implement them
+    // with care to rewrite where the return register ends up when we restore
     // save all the used regs
-    emit(func.emitter,op_type::save_regs);
+    //emit(func.emitter,op_type::save_regs);
     
 
 
@@ -263,12 +257,14 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
     // clean up args after the function call
     // TODO: how should we encode this when we do arg passing in regs
-    emit(func.emitter,op_type::clean_args,func_call.args.size());
-
+    if(func_call.args.size())
+    {
+        emit(func.emitter,op_type::clean_args,func_call.args.size());
+    }
   
 
     // restore callee saved values
-    emit(func.emitter,op_type::restore_regs);
+    //emit(func.emitter,op_type::restore_regs);
 
 
 
@@ -277,7 +273,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // our register allocator will have to force a spill on R0 if its in use
     if(func.return_type.type_idx != static_cast<int>(builtin_type::void_t))
     {
-        emit(func.emitter,op_type::mov_reg,dst_slot,reg(RV));
+        emit(func.emitter,op_type::mov_reg,dst_slot,RV_IR);
     }
 
     // result of expr is the return type
