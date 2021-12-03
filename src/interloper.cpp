@@ -512,12 +512,20 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             }
 
 
-            // stub to no return just to see asm
             case ast_type::ret:
             {
                 if(line.nodes.size() == 1)
                 {
-                    const auto [rtype,v1] = compile_oper(itl,func,line.nodes[0],new_slot(func));
+                    const auto [rtype,v1] = compile_oper(itl,func,line.nodes[0],RV_IR);
+
+                    // what we are returning is just a var 
+                    // it needs to be moved into ret
+                    // TODO: make sure the optimiser sees through this
+                    if(v1 != RV_IR)
+                    {
+                        emit(func.emitter,op_type::mov_reg,RV_IR,v1);
+                    }
+
 
                     if(itl.error)
                     {
@@ -525,14 +533,10 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                     }
 
                     check_assign(itl,func.return_type,rtype);
-
-                    emit(func.emitter,op_type::ret_var,v1);
                 }
 
-                else
-                {
-                    emit(func.emitter,op_type::ret);
-                }
+                emit(func.emitter,op_type::ret);
+                
 
                 itl.has_return = true;
                 break;

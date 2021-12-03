@@ -413,7 +413,6 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         }
 
         // directives should not be hit at runtime..
-        case op_type::ret_var:
         case op_type::push_arg:
         case op_type::clean_args:
         case op_type::alloc_slot:

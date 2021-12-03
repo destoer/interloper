@@ -101,8 +101,6 @@ enum class op_type
     // used when the end of the block is read past in the optimiser
     placeholder,
 
-    ret_var,
-
     spill_rv,
 
     spill,

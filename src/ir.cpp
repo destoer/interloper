@@ -445,7 +445,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
         auto &sym = slot_lookup[slot];
 
         // alloc above the stack frame
-        sym.offset = (sym.arg_num  * sym.size) + alloc.stack_size + saved_regs_offset + sizeof(u32);
+        sym.offset = (sym.arg_num  * sizeof(u32)) + alloc.stack_size + saved_regs_offset + sizeof(u32);
     }
              
 }
@@ -685,19 +685,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                 }
 
 
-                case op_type::ret_var:
-                {
-                    // convert to a standard ret
-                    // rewrite the registers here
-                    correct_reg(slot_lookup, alloc, block, it, opcode);
-
-                    // convert into a standard ret
-                    opcode = Opcode(op_type::mov_reg,RV,opcode.v[0],0);
-                    it = block.insert(++it,Opcode(op_type::ret,0,0,0));
-                    continue;
-                }
-
-
                 default: break;
             }
 
@@ -733,13 +720,13 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     UNUSED(stack_clean);
 #if 1
 
-    const bool is_main = func.name == "main";
+    const bool insert_callee_saves = func.name != "main" && alloc.use_count != 0;
 
 
-    alloc_args(func,alloc,slot_lookup,is_main? 0 : sizeof(u32) * alloc.use_count);
+    alloc_args(func,alloc,slot_lookup,insert_callee_saves? sizeof(u32) * alloc.use_count : 0);
 
     // entry point does not need to preserve regs
-    if(!is_main)
+    if(insert_callee_saves)
     {
         func.emitter.program[0].push_front(Opcode(op_type::pushm,alloc.used_regs,0,0));
     }
@@ -767,7 +754,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                         correct_reg(slot_lookup,alloc,block,it,*it);
                     }
 
-                    if(!is_main)
+                    if(insert_callee_saves)
                     {
                         block.insert(it,callee_restore);
                     }
