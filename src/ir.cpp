@@ -35,6 +35,11 @@ bool reg_is_var(u32 loc)
     return loc < REG_TMP;
 }
 
+bool reg_is_tmp(u32 loc)
+{
+    return loc == REG_TMP;
+}
+
 // our bitset can only store 32 regs
 static_assert(MACHINE_REG_SIZE <= 32);
 
@@ -439,10 +444,12 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 // and when we push off determining stack size to a later pass
 void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 saved_regs_offset)
 {
-
+    UNUSED(saved_regs_offset);
     for(auto slot : func.args)
     {
         auto &sym = slot_lookup[slot];
+
+        printf("%s : %d\n",sym.name.c_str(),sym.arg_num);
 
         // alloc above the stack frame
         sym.offset = (sym.arg_num  * sizeof(u32)) + alloc.stack_size + saved_regs_offset + sizeof(u32);
@@ -660,6 +667,12 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     if(reg_is_var(alloc.regs[RV]))
                     {
                         spill_reg(alloc,block,it,slot_lookup[alloc.regs[RV]],RV);
+                    }
+
+                    // TODO: can this happen?
+                    else if(reg_is_tmp(alloc.regs[RV]))
+                    {
+                        assert(false);
                     }
 
                     it = block.erase(it);

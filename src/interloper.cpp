@@ -47,7 +47,7 @@ void parse_function_declarations(Interloper& itl)
 
             // add the var to slot lookup and link to function
             // we will do a add_scope to put it into the scope later
-            Symbol sym = Symbol(name,type,size,args.size()-1);
+            Symbol sym = Symbol(name,type,size,args.size());
             add_var(itl.symbol_table,sym);
 
             args.push_back(sym.slot);
@@ -277,6 +277,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
     // if function returns a value save the return register
     // our register allocator will have to force a spill on R0 if its in use
+    // TODO: we want this as an explicit just mark as allocation ito R0
     if(returns_value)
     {
         emit(func.emitter,op_type::mov_reg,dst_slot,RV_IR);
