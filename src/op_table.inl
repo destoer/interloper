@@ -94,6 +94,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::implicit_t,"spill_rv",0},
 
+    {op_group::reg_t,"spill",2},
+    {op_group::reg_t,"load",2},
+
     // not used
     {op_group::implicit_t,"END",0},
 };

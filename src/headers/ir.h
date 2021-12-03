@@ -105,6 +105,9 @@ enum class op_type
 
     spill_rv,
 
+    spill,
+    load,
+
     // just c++ things not used
     END,
 };

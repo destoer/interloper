@@ -81,10 +81,6 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
 
-    // TODO:
-    // We probably just want to emit a spill <reg>, <slot> here and actually move it onto the stack later
-    // so we can allocate the stack offsets at a later parse
-
     if(sym.offset == UNALLOCATED_OFFSET)
     {
         // only allocate the stack args by here
@@ -101,16 +97,7 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
         }   
     }
 
-
-    // write value back out into mem
-    // TOOD: we need to make sure when we finish up our stack alloc rewrite
-    // that the offsets on this are aligned properly atm on x86 this doesnt matter but it will later
-
-    // TODO: we need to not bother storing these back if the varaible has not been modified
-    // and is justt for performing a calc (how do we track this?)
-
-    static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-    const auto opcode = Opcode(instr[sym.size >> 1],reg,SP,sym.offset + alloc.stack_offset); 
+    const auto opcode = Opcode(op_type::spill,reg,slot_idx(sym),0);
 
     block.insert(block_ptr,opcode); 
 
@@ -288,26 +275,8 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
                 // TODO: does this need to return the opcode ptr incase it inserts?
                 alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
 
-                // reload the spilled var 
-                if(is_signed_integer(sym.type))
-                {
-                    // word is register size (we dont need to extend it)
-                    static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-
-                    // this here does not otherwhise need rewriting so we will emit SP directly
-                    const auto reload_op = Opcode(instr[sym.size >> 1],sym.location,SP,sym.offset + alloc.stack_offset);
-                    block.insert(op_ptr,reload_op);               
-                }
-
-                // "plain data"
-                // just move by size
-                else
-                {
-                    static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-
-                    const auto reload_op =  Opcode(instr[sym.size >> 1],sym.location,SP,sym.offset + alloc.stack_offset);
-                    block.insert(op_ptr,reload_op); 
-                }
+                const auto reload_op = Opcode(op_type::load,sym.location,opcode.v[i],0);
+                block.insert(op_ptr,reload_op); 
             }
         }
 
@@ -468,7 +437,7 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 
 // TODO: need to rethink this when we do register passing
 // and when we push off determining stack size to a later pass
-void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup)
+void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 saved_regs_offset)
 {
 
     for(auto slot : func.args)
@@ -476,7 +445,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup)
         auto &sym = slot_lookup[slot];
 
         // alloc above the stack frame
-        sym.offset = (sym.arg_num  * sym.size) + alloc.stack_size + sizeof(u32);
+        sym.offset = (sym.arg_num  * sym.size) + alloc.stack_size + saved_regs_offset + sizeof(u32);
     }
              
 }
@@ -553,7 +522,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
     alloc.stack_offset = 0;
 
-    alloc_args(func,alloc,slot_lookup);
 
     for(auto &block : func.emitter.program)
     {
@@ -753,6 +721,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     // so we need to only partially compile argument access and actually implement the loads on a later pass...
     // so we need to find where to hook intial stack access for vars (including args) so we can allocate insert its posistion
     // once we have a done a complete  pass an know where the stack needs to go
+    // so swap out lw, [] and sw [], for spill <var> and load <reg>, <var>
+    // that preserver the meaning of hey we want to do these things under the reg alloc
 
     // TODO: this might be good to loop jam with somethign but just have a seperate loop for simplictiy atm
 
@@ -764,6 +734,9 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 #if 1
 
     const bool is_main = func.name == "main";
+
+
+    alloc_args(func,alloc,slot_lookup,is_main? 0 : sizeof(u32) * alloc.use_count);
 
     // entry point does not need to preserve regs
     if(!is_main)
@@ -802,6 +775,52 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     it = old;
                     break;
                 }
+
+                // reload a reg
+                case op_type::load:
+                {
+                    const auto slot = symbol_to_idx(opcode.v[1]);
+                    auto &sym = slot_lookup[slot];
+
+
+                    // reload the spilled var 
+                    if(is_signed_integer(sym.type))
+                    {
+                        // word is register size (we dont need to extend it)
+                        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+
+                        // this here does not otherwhise need rewriting so we will emit SP directly
+                        opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + alloc.stack_offset);        
+                    }
+
+                    // "plain data"
+                    // just move by size
+                    else
+                    {
+                        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+
+                        opcode =  Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + alloc.stack_offset);
+                    }
+                    break;
+                }
+
+                case op_type::spill:
+                {
+                    const auto slot = symbol_to_idx(opcode.v[1]);
+                    auto &sym = slot_lookup[slot];
+
+                    // write value back out into mem
+                    // TOOD: we need to make sure when we finish up our stack alloc rewrite
+                    // that the offsets on this are aligned properly atm on x86 this doesnt matter but it will later
+
+                    // TODO: we need to not bother storing these back if the varaible has not been modified
+                    // and is justt for performing a calc (how do we track this?)
+
+                    static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+                    opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + alloc.stack_offset);   
+                    break;                  
+                }
+
 
                 default: break;
 
