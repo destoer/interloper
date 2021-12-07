@@ -444,12 +444,11 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 // and when we push off determining stack size to a later pass
 void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 saved_regs_offset)
 {
-    UNUSED(saved_regs_offset);
     for(auto slot : func.args)
     {
         auto &sym = slot_lookup[slot];
 
-        printf("%s : %d\n",sym.name.c_str(),sym.arg_num);
+        //printf("%s : %d\n",sym.name.c_str(),sym.arg_num);
 
         // alloc above the stack frame
         sym.offset = (sym.arg_num  * sizeof(u32)) + alloc.stack_size + saved_regs_offset + sizeof(u32);
@@ -714,24 +713,13 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
 
     // iterate over the function by here and add callee cleanup at every ret
-    // restore used registers 
-
-    // this will affect how our stack is offset
-    // in doing so we will have to add the ammount we have allocated for callee saving when we access anything from the caller frame
-    // so we need to only partially compile argument access and actually implement the loads on a later pass...
-    // so we need to find where to hook intial stack access for vars (including args) so we can allocate insert its posistion
-    // once we have a done a complete  pass an know where the stack needs to go
-    // so swap out lw, [] and sw [], for spill <var> and load <reg>, <var>
-    // that preserver the meaning of hey we want to do these things under the reg alloc
+    // and insert the stack offsets and load and spill directives
 
     // TODO: this might be good to loop jam with somethign but just have a seperate loop for simplictiy atm
 
-    // TODO: we still need to handle properly saving the return reg if its allready in use when a call is made
 
     // TODO: make register allactor not emit mov r0,r0 after function calls with return values
 
-    UNUSED(stack_clean);
-#if 1
 
     const bool insert_callee_saves = func.name != "main" && alloc.use_count != 0;
 
@@ -813,8 +801,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // TOOD: we need to make sure when we finish up our stack alloc rewrite
                     // that the offsets on this are aligned properly atm on x86 this doesnt matter but it will later
 
-                    // TODO: we need to not bother storing these back if the varaible has not been modified
-                    // and is justt for performing a calc (how do we track this?)
+                    // TODO: we need to not bother storing these back if the varaible spilled has not been modified
+                    // and is just used as a const for a calc (how do we impl this?)
 
                     static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
                     opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + alloc.stack_offset);   
@@ -829,7 +817,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
             it++;
         }
     }
-#endif
 }
 
 

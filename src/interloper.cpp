@@ -278,6 +278,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // if function returns a value save the return register
     // our register allocator will have to force a spill on R0 if its in use
     // TODO: we want this as an explicit just mark as allocation ito R0
+
     if(returns_value)
     {
         emit(func.emitter,op_type::mov_reg,dst_slot,RV_IR);
@@ -394,6 +395,35 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
                 return compile_arith_op(itl,func,node,op_type::sub_reg,dst_slot);
             }
         }
+
+        case ast_type::bitwise_and:
+        {
+            return compile_arith_op(itl,func,node,op_type::and_reg,dst_slot);
+        }
+
+        case ast_type::bitwise_or:
+        {
+            return compile_arith_op(itl,func,node,op_type::or_reg,dst_slot);
+        }
+
+        case ast_type::bitwise_xor:
+        {
+            return compile_arith_op(itl,func,node,op_type::xor_reg,dst_slot);
+        }
+
+        // looks like unarys are causing a move from an unitialized temp
+        // TODO: FIXME
+        case ast_type::bitwise_not:
+        {
+            const auto [t,reg] = compile_oper(itl,func,node->nodes[0],dst_slot);
+
+            // TODO: do we need to check this is integer?
+
+
+            emit(func.emitter,op_type::not_reg,dst_slot,reg);
+            return t;
+        }            
+
 
         case ast_type::function_call:
         {
@@ -542,6 +572,12 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                 itl.has_return = true;
                 break;
             }
+
+            case ast_type::function_call:
+            {
+                compile_function_call(itl,func,l,new_slot(func));
+                break;
+            }            
 
 
             case ast_type::block:

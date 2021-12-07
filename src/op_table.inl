@@ -15,7 +15,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"xor",3},
     {op_group::reg_t,"or",3},
     {op_group::reg_t,"and",3},
-    {op_group::reg_t,"not",1},
+    {op_group::reg_t,"not",2},
 
     {op_group::reg_t,"sxb",2},
     {op_group::reg_t,"sxh",2},

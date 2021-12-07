@@ -108,7 +108,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::not_reg:
         {
-            regs[opcode.v[0]] = ~regs[opcode.v[0]];
+            regs[opcode.v[0]] = ~regs[opcode.v[1]];
             break;
         }
 
