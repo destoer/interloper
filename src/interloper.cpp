@@ -196,6 +196,141 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
 }
 
 
+// handles <, <=, >, >=, &&, ||, ==, !=
+Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type, u32 dst_slot)
+{
+    auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+
+    auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
+
+
+    // if one side is a value do type checking
+    if(is_integer(t1) && is_integer(t2))
+    {
+        if(node->nodes[0]->type == ast_type::value || node->nodes[1]->type == ast_type::value)
+        {
+            const bool is_op1 = node->nodes[0]->type == ast_type::value;
+
+            u32 v = is_op1? node->nodes[0]->value.v : node->nodes[1]->value.v;
+            Type &oper = is_op1? t2 : t1;
+            Type &value = is_op1? t1 : t2;
+
+
+            // unsigned value against signed value
+            // if one side is signed and the other unsigned
+            // allow comparision if the unsigned is a static value that
+            // the signed side can represent
+            if(!is_signed(value) && is_signed(oper))
+            {
+                // value is within range of operand value
+                // change value to a the signed type
+                if(v <= builtin_max(cast_builtin(oper)))
+                {
+                    value = oper;
+                }
+
+                else
+                {
+                    panic(itl,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+                }
+            }
+
+            // value is outside the range of the other type
+            else if(is_signed(value) == is_signed(oper))
+            {
+                if(builtin_size(cast_builtin(value)) > builtin_size(cast_builtin(oper)))
+                {
+                    panic(itl,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+                }
+            }
+        } 
+    }
+
+    // two bools is fine
+    else if(is_bool(t1) && is_bool(t2))
+    {
+
+    }
+
+    else
+    {
+        unimplemented("comparison on non integeral type!");
+    }
+
+    // okay now then does a boolean operation make sense for this operator
+    // with these types?
+
+
+    switch(type)
+    {
+        // only bools are valid
+        // || &&
+
+        case logic_op::or_reg: case logic_op::and_reg:
+        {
+            if(!is_bool(t1) && is_bool(t2))
+            {
+                panic(itl,"operations || and && are only defined on bools\n");
+            }
+            break;
+        }
+
+        // <, <=, >, >=, ==, !=
+        // valid if the underlying type is the same
+        // and can somehow by interpretted as a integer
+        // i.e pointers, ints, bools
+        case logic_op::cmplt_reg: case logic_op::cmple_reg: case logic_op::cmpgt_reg:
+        case logic_op::cmpge_reg: case logic_op::cmpeq_reg: case logic_op::cmpne_reg:
+        {
+            check_logical_operation(itl,t1,t2);
+            break;
+        }
+
+        // this shouldunt happen
+        default: 
+        {
+            printf("%d is not a logical operation\n",static_cast<int>(type));
+            exit(1);
+        }
+    }
+
+    if(!itl.error)
+    {
+        // 0 is unsigned, 1 is signed
+        static constexpr op_type LOGIC_OPCODE[2][LOGIC_OP_SIZE] = 
+        {
+            {op_type::cmpugt_imm,op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
+            op_type::cmpeq_reg,op_type::cmpne_reg,op_type::and_reg,op_type::or_reg},
+
+            {op_type::cmpsgt_imm,op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
+            op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg, op_type::and_reg,op_type::or_reg},
+        };
+
+
+        // TODO: fixme this should only be done when we know we have a builtin type
+        // else we dont care
+        const auto sign = is_signed(static_cast<builtin_type>(t1.type_idx));
+
+        // if we have gotten this far the sign of both are the same
+        const auto op = LOGIC_OPCODE[sign][static_cast<int>(type)];
+
+
+        // one of these is just a temp for the result calc
+        // so afer this we no longer need it
+        emit(func.emitter,op,dst_slot,v1,v2);
+
+        return Type(builtin_type::bool_t);
+    }
+
+    // operation is not valid for given types..
+    else
+    {
+        return Type(builtin_type::void_t);
+    }
+}
+
+
+
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     // check function is declared
@@ -411,8 +546,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             return compile_arith_op(itl,func,node,op_type::xor_reg,dst_slot);
         }
 
-        // looks like unarys are causing a move from an unitialized temp
-        // TODO: FIXME
+
         case ast_type::bitwise_not:
         {
             const auto [t,reg] = compile_oper(itl,func,node->nodes[0],dst_slot);
@@ -423,6 +557,79 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             emit(func.emitter,op_type::not_reg,dst_slot,reg);
             return t;
         }            
+
+
+
+        case ast_type::false_t:
+        {
+            emit(func.emitter,op_type::mov_imm,dst_slot,0);
+            return Type(builtin_type::bool_t);
+        }
+
+        case ast_type::true_t:
+        {
+            emit(func.emitter,op_type::mov_imm,dst_slot,1);
+            return Type(builtin_type::bool_t);
+        }
+
+
+        case ast_type::logical_not:
+        {
+            const auto [t,reg] = compile_oper(itl,func,node->nodes[0],dst_slot);
+
+            if(!is_bool(t))
+            {
+                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).c_str());
+                return Type(builtin_type::void_t);
+            }
+
+            // xor can invert our boolean which is either 1 or 0
+            emit(func.emitter,op_type::xor_imm,reg,reg,1);
+            return t;
+        }
+
+        // we want to pass in the base operation but we need to do the actual type checking
+        // to know what we are comparing later
+        // how should we do it?
+        case ast_type::logical_lt:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmplt_reg,dst_slot);
+        }
+
+        case ast_type::logical_le:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmple_reg,dst_slot);
+        }
+
+        case ast_type::logical_gt:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpgt_reg,dst_slot);
+        }
+
+        case ast_type::logical_ge:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpge_reg,dst_slot);
+        }
+
+        case ast_type::logical_eq:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpeq_reg,dst_slot);
+        }
+
+        case ast_type::logical_ne:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpne_reg,dst_slot);
+        }
+
+        case ast_type::logical_and:
+        {
+            return compile_logical_op(itl,func,node,logic_op::and_reg,dst_slot);
+        }
+
+        case ast_type::logical_or:
+        {
+            return compile_logical_op(itl,func,node,logic_op::or_reg,dst_slot);
+        }
 
 
         case ast_type::function_call:

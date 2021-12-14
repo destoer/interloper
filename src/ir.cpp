@@ -669,6 +669,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     }
 
                     // TODO: can this happen?
+                    // OKAY this has finally tripped we need to make it so we can 
+                    // copy this tmp elsewhere and have the defintions correctly rewritten
                     else if(reg_is_tmp(alloc.regs[RV]))
                     {
                         assert(false);
