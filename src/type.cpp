@@ -275,7 +275,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
                         break;
                     }
 
-                    default: assert(false);
+                    default: panic("invalid signed integer upcast");
                 }
             }
 
@@ -297,7 +297,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
                         break;
                     }
 
-                    default: assert(false);
+                    default: panic("invalid signed integer downcast");
                 }
             }
 

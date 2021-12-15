@@ -178,7 +178,7 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
         }
     }
 
-    assert(false);
+    panic("get_type fell through!?");
 }
 
 AstNode *declaration(Parser &parser,const Type &var_type, const std::string &type_str)
@@ -677,7 +677,7 @@ AstNode *func(Parser &parser)
 
 bool parse(AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines)
 {
-    assert(root_ptr != nullptr);
+    panic(!root_ptr,"attempted to parse into null tree");
 
     *root_ptr = new AstNode(ast_type::root);
     const auto size = tokens.size();

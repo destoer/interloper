@@ -6,7 +6,7 @@ void add_var(Function &func, u32 size)
     // we only want to move quantitys under 4 bytes
     // larger thigns i.e structs
     // will allready have memory semantics
-    assert(size <= 4);
+    panic(size > sizeof(u32),"add_var structs implemented");
 
 
 

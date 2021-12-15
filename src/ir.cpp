@@ -27,17 +27,27 @@ void stack_allocate(u32 *stack_alloc, Symbol &sym)
 
 
 static constexpr u32 REG_FREE = 0xffffffff;
-static constexpr u32 REG_TMP = 0xfffffffe;
+static constexpr u32 REG_TMP_START = 0xf0000000;
 
 
 bool reg_is_var(u32 loc)
 {
-    return loc < REG_TMP;
+    return loc < REG_TMP_START;
 }
 
 bool reg_is_tmp(u32 loc)
 {
-    return loc == REG_TMP;
+    return loc >= REG_TMP_START && loc != REG_FREE;
+}
+
+u32 tmp_to_ir(u32 loc)
+{
+    return loc - REG_TMP_START;
+}
+
+u32 tmp(u32 ir_reg)
+{
+    return ir_reg + REG_TMP_START;
 }
 
 // our bitset can only store 32 regs
@@ -96,9 +106,10 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
 
         // TODO: fixme
         // an arg should allways have its offset allocated for now as we dont have register passing
+        // or stack alloc during reg alloc properly
         else
         {
-            assert(false);
+            panic("attempted to spill unallocated var");
         }   
     }
 
@@ -165,7 +176,7 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
         }
 
         // failed to find a reg to spill should not happen
-        assert(reg != MACHINE_REG_SIZE);
+        panic(reg == MACHINE_REG_SIZE,"failed to allocate register!");
     }
 
     return reg;    
@@ -176,7 +187,7 @@ void alloc_tmp(LocalAlloc &alloc, u32 ir_reg, Block &block, opcode_iterator_t bl
 {
     const u32 reg = alloc_internal(slot_lookup, alloc, block, block_ptr);
     alloc.ir_regs[ir_reg] = reg;
-    alloc.regs[reg] = REG_TMP;
+    alloc.regs[reg] = tmp(ir_reg);
 
     printf("tmp t%d allocated into r%d\n",ir_reg,reg);
 }
@@ -184,9 +195,10 @@ void alloc_tmp(LocalAlloc &alloc, u32 ir_reg, Block &block, opcode_iterator_t bl
 // mark a tmp as allocated to a var
 void alloc_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
 {   
-    printf("symbol %s allocated into tmp r%d\n",sym.name.c_str(),alloc.ir_regs[ir_reg]);
-
     const u32 reg = alloc.ir_regs[ir_reg];
+
+    printf("symbol %s allocated into tmp t%d -> r%d\n",sym.name.c_str(),tmp_to_ir(alloc.regs[reg]),reg);
+
     alloc.regs[reg] = sym.slot;
     sym.location = reg;
 }
@@ -215,7 +227,7 @@ u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t blo
     alloc.regs[reg] = sym.slot;
     sym.location = reg;
 
-    printf("smybol %s into reg r%d\n",sym.name.c_str(),reg);
+    printf("symbol %s into reg r%d\n",sym.name.c_str(),reg);
 
     return reg;
 }
@@ -223,7 +235,7 @@ u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t blo
 
 void free_reg(LocalAlloc &alloc, u32 reg)
 {
-    printf("freed tmp from r%d\n",reg);
+    printf("freed tmp t%d from r%d\n",tmp_to_ir(alloc.regs[reg]),reg);
 
     alloc.regs[reg] = REG_FREE;
     alloc.free_list[alloc.free_regs++] = reg;
@@ -231,11 +243,35 @@ void free_reg(LocalAlloc &alloc, u32 reg)
 
 void free_reg(LocalAlloc &alloc, Symbol &sym)
 {
-    printf("freed %s from r%d\n",sym.name.c_str(),sym.location);
+    printf("freed sym %s from r%d\n",sym.name.c_str(),sym.location);
 
     free_reg(alloc,sym.location);
     sym.location = LOCATION_MEM;
 }
+
+
+void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLookup &slot_lookup,u32 tmp)
+{
+    //puts("need to realloc tmp"); exit(1);
+    
+    // get a new register
+    const u32 reg = alloc_internal(slot_lookup, alloc, block, block_ptr);
+
+    const u32 ir_reg = tmp_to_ir(tmp);
+
+    const auto op = Opcode(op_type::mov_reg,ir_reg,RV,0);
+
+    // emit a mov from the the current tmp to the new one
+    block.insert(block_ptr,op);
+
+    // rewrite the ir allocation
+    alloc.ir_regs[ir_reg] = reg;
+    alloc.regs[reg] = ir_reg;
+
+    // free RV
+    free_reg(alloc,RV);
+}
+
 
 u32 rewrite_reg(LocalAlloc &alloc, u32 ir_reg)
 {
@@ -250,7 +286,7 @@ u32 rewrite_reg(LocalAlloc &alloc, u32 ir_reg)
             case SP_IR: return SP;
             case RV_IR: return RV;
 
-            default: printf("unhandled special reg %x\n",ir_reg); assert(false);
+            default: panic("unhandled special reg %x\n",ir_reg);
         }
     }
 
@@ -371,7 +407,8 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
     {
         case op_group::regm_t:
         {
-            assert(false);
+            panic("regm in correct_reg");
+            break;
         }
 
 
@@ -398,7 +435,7 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 
         case op_group::load_t:
         {
-            assert(false);
+            panic("load in correct_reg");
             break;
         }
 
@@ -417,7 +454,7 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 
         case op_group::slot_t:
         {
-            assert(false);
+            panic("slot in correct_reg");
             break;
         }
     }
@@ -433,7 +470,7 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
     {
         // these registers have been converted we have to look inside the 
         // allocation struct to find out what they are for now
-        if(opcode.v[a] != dst_ir && alloc.regs[opcode.v[a]] == REG_TMP)
+        if(opcode.v[a] != dst_ir && reg_is_tmp(alloc.regs[opcode.v[a]]))
         {
             free_reg(alloc,opcode.v[a]);
         }
@@ -541,76 +578,10 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
             {
 
                 // TODO: reviist when we add caller saved regs
-                case op_type::save_regs:
-                {
-                /*
-                    it = block.erase(it);
-
-
-                    u32 bitset = 0;
-                    u32 count = 0;
-
-                    // for each and every register in use save it 
-                    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
-                    {
-
-
-                        // if its a var spill it
-                        if(reg_is_var(alloc.regs[r]))
-                        {
-                            spill_reg(alloc,block,it,slot_lookup[alloc.regs[r]],r);
-                        }
-
-             
-                        else if(alloc.regs[r] == REG_TMP)
-                        {
-                            bitset = set_bit(bitset,r);
-                            count++;
-
-                            // TODO: will this break or no?
-                            alloc.regs[r] = REG_FREE;
-                        }
-                   
-                        // todo: do tmps need to be pushed?
-                        // if they do then its probably best to have a bitset 
-                        // of registers to push we have 32bits of space which should be enoguh to target anything
-                        //opcode = Opcode(op_type::push,,0,0);
-                        
-                    }
+                //case op_type::save_regs:
+                //case op_type::restore_regs:
                 
 
-                
-                    // tempories had to be saved?
-                    // emit a pushm
-                    if(count)
-                    {
-                        
-                    }
-                */
-                    assert(false);
-                    continue;
-                }
-
-                // TODO: is a explicit restore even required or can we expect it to just adjust all the regs?
-                // TODO: how is best to know which call this restore is for because we need to know which temperioes to reload
-
-
-                // TODO: how do we handle the return value being put inside something we dont want...
-                //
-                case op_type::restore_regs:
-                {
-                /*
-                    it = block.erase(it);
-
-                    // if r0 is in use force a spill 
-                    // TODO fixme: dont do this when we havea void function
-                
-                    opcode = Opcode(op_type::pop,opcode.v[0],0,0);
-                    alloc.stack_offset -= sizeof(u32);
-                */
-                    assert(false);
-                    continue;
-                }
 
                 // allocate a tmp
                 case op_type::mov_imm:
@@ -668,12 +639,12 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                         spill_reg(alloc,block,it,slot_lookup[alloc.regs[RV]],RV);
                     }
 
-                    // TODO: can this happen?
-                    // OKAY this has finally tripped we need to make it so we can 
-                    // copy this tmp elsewhere and have the defintions correctly rewritten
+
                     else if(reg_is_tmp(alloc.regs[RV]))
                     {
-                        assert(false);
+                        // should we have this get pushed instead?
+                        // and then popped into another reg?
+                        save_rv(alloc,block,it,slot_lookup,alloc.regs[RV]);
                     }
 
                     it = block.erase(it);
@@ -1075,7 +1046,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
                     else
                     {
                         const auto labels = *label_lookup;
-                        assert(opcode.v[0] < labels.size());
+                        panic(opcode.v[0] >= labels.size(),"out of range label in branch");
 
                         printf("%s %s\n",info.name,labels[opcode.v[0]].name.c_str());
                     }
@@ -1091,7 +1062,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
                     if(label_lookup)
                     {
                         const auto labels = *label_lookup;
-                        assert(opcode.v[0] < labels.size());
+                        panic(opcode.v[0] >= labels.size(),"out of range label in cond branch");
 
                         printf("%s %s,%s\n",info.name,labels[opcode.v[0]].name.c_str(),get_oper(table,opcode.v[1]).c_str());
                     }

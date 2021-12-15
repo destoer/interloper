@@ -116,5 +116,28 @@ inline void unimplemented(const char *fmt, ...)
     exit(1);
 }
 
+inline void panic(bool cond, const char *fmt, ...)
+{
+    if(cond)
+    {
+        printf("panic: ");
+        va_list args; 
+        va_start(args, fmt);
+        vprintf(fmt,args);
+        va_end(args);
+        exit(1);        
+    }
+} 
+
+#ifndef _MSC_VER
+__attribute__((noreturn))
+#endif
+inline void panic(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args,fmt);
+    panic(true,fmt,args);
+}
+
 
 #define UNUSED(X) ((void)X)

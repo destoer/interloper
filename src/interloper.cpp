@@ -151,7 +151,7 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
 // if it can see a symbol or a value it wont call compile_expression
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
 {
-    assert(node != nullptr);
+    panic(node == nullptr,"nullptr in compile_oper");
 
     // test what the current node is
     if(node->type == ast_type::value)
@@ -431,7 +431,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
     if(!node)
     {
-        assert(false);
+        panic("nullptr in compile_expression");
         return Type(builtin_type::void_t);
     }
 
@@ -1010,6 +1010,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     {
         UNUSED(key);
         allocate_registers(func,itl.symbol_table.slot_lookup);
+        putchar('\n');
     }
 
     // emit the actual target asm
