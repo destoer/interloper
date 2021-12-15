@@ -212,6 +212,7 @@ void destroy_ir_reg(LocalAlloc &alloc, u32 ir_reg)
 void alloc_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
 {
     alloc.ir_regs[ir_dst] = alloc.ir_regs[ir_src];
+    alloc.regs[alloc.ir_regs[ir_dst]] = tmp(ir_dst);
     
 
     // as ir_src is unqiue once it has been used in an expr it wont be used again
@@ -245,7 +246,8 @@ void free_reg(LocalAlloc &alloc, Symbol &sym)
 {
     printf("freed sym %s from r%d\n",sym.name.c_str(),sym.location);
 
-    free_reg(alloc,sym.location);
+    alloc.regs[sym.location] = REG_FREE;
+    alloc.free_list[alloc.free_regs++] = sym.location;
     sym.location = LOCATION_MEM;
 }
 
@@ -254,6 +256,7 @@ void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLook
 {
     //puts("need to realloc tmp"); exit(1);
     
+
     // get a new register
     const u32 reg = alloc_internal(slot_lookup, alloc, block, block_ptr);
 
@@ -263,6 +266,8 @@ void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLook
 
     // emit a mov from the the current tmp to the new one
     block.insert(block_ptr,op);
+
+    printf("moved tmp t%d from rv to r%d\n",ir_reg,reg);
 
     // rewrite the ir allocation
     alloc.ir_regs[ir_reg] = reg;
@@ -321,7 +326,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
             }
         }
 
-        else
+        else if(is_tmp(opcode.v[i]))
         {
             tmp_reg = opcode.v[i];
         }
