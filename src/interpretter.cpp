@@ -465,8 +465,7 @@ s32 run(Interpretter& interpretter,const u8 *program, u32 size)
         // self modfying code inside this vm would not be very useful anyways
         if(regs[PC] + sizeof(opcode) > size)
         {
-            printf("attempted to execute out of bounds: %x : %x\n",regs[PC],size);
-            exit(1);
+            panic("attempted to execute out of bounds: %x : %x\n",regs[PC],size);
         }
 
         memcpy(&opcode,&program[regs[PC]],sizeof(opcode));

@@ -125,6 +125,7 @@ inline void panic(bool cond, const char *fmt, ...)
         va_start(args, fmt);
         vprintf(fmt,args);
         va_end(args);
+        putchar('\n');
         exit(1);        
     }
 } 
@@ -137,6 +138,9 @@ inline void panic(const char *fmt, ...)
     va_list args;
     va_start(args,fmt);
     panic(true,fmt,args);
+
+    // no return detection aint good enough...
+    exit(1);
 }
 
 

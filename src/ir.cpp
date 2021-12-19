@@ -113,7 +113,9 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
         }   
     }
 
-    const auto opcode = Opcode(op_type::spill,reg,slot_idx(sym),0);
+    // TODO: how do we know if a variable has not been modified
+    // i.e it is a ready only copy so we dont actually bother saving a reg?
+    const auto opcode = Opcode(op_type::spill,reg,slot_idx(sym),alloc.stack_offset);
 
     block.insert(block_ptr,opcode); 
 
@@ -254,7 +256,7 @@ void free_reg(LocalAlloc &alloc, Symbol &sym)
 
 void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLookup &slot_lookup,u32 tmp)
 {
-    //puts("need to realloc tmp"); exit(1);
+    //panic("need to realloc tmp");
     
 
     // get a new register
@@ -271,7 +273,7 @@ void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLook
 
     // rewrite the ir allocation
     alloc.ir_regs[ir_reg] = reg;
-    alloc.regs[reg] = ir_reg;
+    alloc.regs[reg] = tmp;
 
     // free RV
     free_reg(alloc,RV);
@@ -301,6 +303,18 @@ u32 rewrite_reg(LocalAlloc &alloc, u32 ir_reg)
     }
 }
 
+void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,Block &block, opcode_iterator_t op_ptr,SlotLookup &slot_lookup)
+{
+    // TODO: does this need to return the opcode ptr incase it inserts?
+    alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
+
+    printf("reloading sym %s into r%d\n",sym.name.c_str(),sym.location);
+
+    // we need to save the current stack offset here as by the time we load it 
+    // it may be different
+    const auto reload_op = Opcode(op_type::load,sym.location,slot,alloc.stack_offset);
+    block.insert(op_ptr,reload_op); 
+}
 
 void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr, Opcode &opcode, u32 args)
 {
@@ -318,11 +332,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
             // unallocated we need to reload it
             if(sym.location == LOCATION_MEM)
             {
-                // TODO: does this need to return the opcode ptr incase it inserts?
-                alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
-
-                const auto reload_op = Opcode(op_type::load,sym.location,opcode.v[i],0);
-                block.insert(op_ptr,reload_op); 
+                reload_sym(sym,opcode.v[i],alloc,block,op_ptr,slot_lookup);
             }
         }
 
@@ -353,7 +363,17 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
 
             else
             {
-                alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
+                if(args != 1)
+                {
+                    alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
+                }
+
+                // [0] is not a dst but a src 
+                // i.e this operation wont just destroy the value we need to reload it
+                else
+                {
+                    reload_sym(sym,opcode.v[0],alloc,block,op_ptr,slot_lookup);
+                }
             }
         }
     }
@@ -607,15 +627,20 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
 
 
+                // have to do correct reg by here to make sure hte offset is applied after any reloads occur
                 case op_type::push_arg:
                 {
                     opcode =  Opcode(op_type::push,opcode.v[0],0,0);
+
+
+                    // adjust opcode for reg alloc
+                    correct_reg(slot_lookup, alloc, block, it, opcode);
 
                     // varaibles now have to be accessed at a different offset
                     // until this is corrected by clean call
                     alloc.stack_offset += sizeof(u32);
 
-                    break;
+                    it++; continue;
                 }
 
 
@@ -749,6 +774,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     auto &sym = slot_lookup[slot];
 
 
+                    const s32 stack_offset = opcode.v[2];
+
                     // reload the spilled var 
                     if(is_signed_integer(sym.type))
                     {
@@ -756,7 +783,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                         static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
 
                         // this here does not otherwhise need rewriting so we will emit SP directly
-                        opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + alloc.stack_offset);        
+                        opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);        
                     }
 
                     // "plain data"
@@ -765,7 +792,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     {
                         static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
 
-                        opcode =  Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + alloc.stack_offset);
+                        opcode =  Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);
                     }
                     break;
                 }
@@ -775,6 +802,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     const auto slot = symbol_to_idx(opcode.v[1]);
                     auto &sym = slot_lookup[slot];
 
+                    const s32 stack_offset = opcode.v[2];
+
                     // write value back out into mem
                     // TOOD: we need to make sure when we finish up our stack alloc rewrite
                     // that the offsets on this are aligned properly atm on x86 this doesnt matter but it will later
@@ -783,7 +812,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // and is just used as a const for a calc (how do we impl this?)
 
                     static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-                    opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + alloc.stack_offset);   
+                    opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);   
                     break;                  
                 }
 
@@ -933,7 +962,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
                     break;
                 }
 
-                default: printf("invalid regm opcode\n"); exit(1); 
+                default: panic("invalid regm opcode\n"); 
             }
             break;
         }
@@ -965,8 +994,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
                 default:
                 {
-                    printf("unknown reg opcode\n");
-                    exit(1); 
+                    panic("unknown reg opcode\n");
                     break;                       
                 } 
             }
@@ -998,8 +1026,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
                 default:
                 {
-                    printf("unknown imm opcode\n");
-                    exit(1);                        
+                    panic("unknown imm opcode\n");                       
                 } 
             }
             break;
@@ -1009,8 +1036,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
         {
             if(info.args != 1)
             {
-                puts("unknown slot opcode\n");
-                exit(1);
+                panic("unknown slot opcode\n");
             }
 
             printf("%s %s\n",info.name,get_oper(table,opcode.v[0]).c_str());
@@ -1021,8 +1047,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
         {
             if(info.args != 3)
             {
-                printf("unknown opcode\n");
-                exit(1);
+                panic("unknown opcode\n");
             }
 
             printf("%s %s, [%s,%d]\n",info.name,get_oper(table,opcode.v[0]).c_str(),get_oper(table,opcode.v[1]).c_str(),opcode.v[2]);
@@ -1081,8 +1106,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
                 default:
                 {
-                    printf("unknown branch opcode\n");
-                    exit(1);
+                    panic("unknown branch opcode\n");
                 }
             }   
             break;

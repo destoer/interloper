@@ -289,8 +289,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
         // this shouldunt happen
         default: 
         {
-            printf("%d is not a logical operation\n",static_cast<int>(type));
-            exit(1);
+            panic("%d is not a logical operation\n",static_cast<int>(type));
         }
     }
 

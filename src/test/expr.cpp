@@ -86,8 +86,7 @@ int32_t sum(AstNode *node)
 
             default:
             {
-                printf("sum illegal tok:%d\n",static_cast<int>(node->type));
-                exit(1);
+                panic("sum illegal tok:%d\n",static_cast<int>(node->type));
                 break;
             }
         }
