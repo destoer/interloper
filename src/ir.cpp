@@ -227,7 +227,7 @@ void alloc_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
 u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t block_ptr,SlotLookup &slot_lookup)
 {
     const u32 reg = alloc_internal(slot_lookup,alloc, block, block_ptr);
-    alloc.regs[reg] = sym.slot;
+    alloc.regs[reg] = sym.slot; 
     sym.location = reg;
 
     printf("symbol %s into reg r%d\n",sym.name.c_str(),reg);
@@ -261,13 +261,13 @@ void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLook
 
     // get a new register
     const u32 reg = alloc_internal(slot_lookup, alloc, block, block_ptr);
+    const auto op = Opcode(op_type::mov_reg,reg,RV,0);
 
-    const u32 ir_reg = tmp_to_ir(tmp);
-
-    const auto op = Opcode(op_type::mov_reg,ir_reg,RV,0);
 
     // emit a mov from the the current tmp to the new one
     block.insert(block_ptr,op);
+
+    const u32 ir_reg = tmp_to_ir(tmp);
 
     printf("moved tmp t%d from rv to r%d\n",ir_reg,reg);
 
@@ -488,6 +488,9 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
     // or do we need to foribly clean all of them on some specific
     // instructions? 
 
+
+    // free any temporary used only as a src 
+
     const u32 dst_ir = opcode.v[0];
 
     // free all the tmps that aint the dest as we are done with them
@@ -500,6 +503,18 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             free_reg(alloc,opcode.v[a]);
         }
     }
+
+    // why is this causing crashes lol
+#if 1
+    // single args used as src can be freed
+    if(opcode.op == op_type::push)
+    {
+        if(reg_is_tmp(alloc.regs[opcode.v[0]]))
+        {
+            free_reg(alloc,opcode.v[0]);
+        }
+    }
+#endif
 }
 
 // TODO: need to rethink this when we do register passing
