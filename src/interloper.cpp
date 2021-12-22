@@ -196,6 +196,43 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
 }
 
 
+Type compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32 dst_slot)
+{
+    const auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+
+    const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
+
+    if(!(is_integer(t1) && is_integer(t2)))
+    {
+        panic(itl,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).c_str(),type_name(itl,t2).c_str());
+        return Type(builtin_type::void_t);
+    }
+
+    if(right)
+    {
+        // if signed do a arithmetic shift 
+        if(is_signed(t1))
+        {
+            emit(func.emitter,op_type::asr_reg,dst_slot,v1,v2);
+        }
+
+        else
+        {
+            emit(func.emitter,op_type::lsr_reg,dst_slot,v1,v2);
+        }
+    }
+
+    // left shift
+    else
+    {
+        emit(func.emitter,op_type::lsl_reg,dst_slot,v1,v2);
+    }
+
+    // type being shifted is the resulting type
+    return t1;
+}
+
+
 // handles <, <=, >, >=, &&, ||, ==, !=
 Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type, u32 dst_slot)
 {
@@ -557,6 +594,16 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             return t;
         }            
 
+
+        case ast_type::shift_l:
+        {
+            return compile_shift(itl,func,node,false,dst_slot);
+        }
+
+        case ast_type::shift_r:
+        {
+            return compile_shift(itl,func,node,true,dst_slot);
+        }        
 
 
         case ast_type::false_t:
