@@ -701,6 +701,37 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 }
 
 
+void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
+{
+    const auto name = line.literal;
+
+    if(get_sym(itl.symbol_table,name))
+    {
+        panic(itl,"redeclared symbol: %s\n",name.c_str());
+        return;
+    }
+
+    
+    const auto [type,reg] = compile_oper(itl,func,line.nodes[0],new_slot(func));
+
+    // add the symbol
+
+    const auto size = type_size(itl,type);
+
+    // TODO: get rid of the need to use this for calculating stack requirements
+    add_var(func,size);
+
+    // add new symbol table entry
+    add_symbol(itl.symbol_table,name,type,size);
+
+    const auto &sym = get_sym(itl.symbol_table,name).value();
+
+
+    emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
+    emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
+}
+
+
 void compile_block(Interloper &itl,Function &func,AstNode *node)
 {
     new_scope(itl.symbol_table);
@@ -722,6 +753,14 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                 compile_decl(itl,func,line);
                 break;
             }           
+
+
+            case ast_type::auto_decl:
+            {
+                compile_auto_decl(itl,func,line);
+                break;
+            }
+
 
 
             // assignment
