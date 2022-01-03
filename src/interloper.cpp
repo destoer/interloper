@@ -461,6 +461,110 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
 
 
+std::string label_name(u32 slot)
+{
+    return "L" + std::to_string(slot);
+}
+
+u32 new_basic_block(Interloper &itl,Function &func)
+{
+    const u32 slot = itl.symbol_table.label_lookup.size();
+
+    const u32 basic_block = func.emitter.program.size();
+
+    new_block(func.emitter,slot);
+    add_label(itl.symbol_table,label_name(slot));
+
+    // offset is the block offset until full resolution
+    itl.symbol_table.label_lookup[slot].offset = basic_block;
+
+    return slot;   
+}
+
+void compile_if_block(Interloper &itl,Function &func,AstNode *node)
+{
+    const u32 start_block = func.emitter.program.size();
+
+    for(u32 n = 0; n < node->nodes.size(); n++)
+    {
+        const auto &if_stmt = *node->nodes[n];
+
+        if(if_stmt.type != ast_type::else_t)
+        {
+
+            if(n != 0)
+            {
+                // create new block for compare
+                new_basic_block(itl,func);
+            }
+
+            // compile the compare expr for conditon
+            const auto [t,r] = compile_oper(itl,func,if_stmt.nodes[0],new_slot(func));
+
+            if(!is_bool(t))
+            {
+                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).c_str());
+                return;
+            }
+
+            const u32 cur_block = func.emitter.program.size() - 1;
+
+            // compile the body block
+            new_basic_block(itl,func);
+            compile_block(itl,func,if_stmt.nodes[1]);
+
+            // add branch over the block we just compiled
+            const u32 slot = itl.symbol_table.label_lookup.size();
+
+            func.emitter.program[cur_block].push_back(Opcode(op_type::bnc,slot,r,0));
+
+
+            // not the last statment (branch is not require)
+            if(n != node->nodes.size() - 1)
+            {
+                // emit a directive so we know to insert a branch
+                // to the exit block here once we know how many blocks
+                // there are
+                emit(func.emitter,op_type::exit_block);
+            }
+        }
+
+        // else stmt has no expr so its in the first node
+        // and by definition this is the last statement
+        else 
+        {
+            // create block for body
+            new_basic_block(itl,func);
+
+            compile_block(itl,func,if_stmt.nodes[0]);
+        }
+    }
+
+    // create the exit block, for new code
+    const u32 exit_block = new_basic_block(itl,func);
+
+
+
+    // for every body block bar the last we just added
+    // add a unconditonal branch to the "exit block"
+    // the last block is directly before the next and does not need one
+
+    for(u32 b = start_block; b < func.emitter.program.size() - 2; b++)
+    {
+        auto &block = func.emitter.program[b];
+
+        if(block.back().op == op_type::exit_block)
+        {
+            block.back() = Opcode(op_type::b,exit_block,0,0);
+        }
+    }
+}
+
+
+
+
+
+
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
 {
     UNUSED(dst_slot); UNUSED(func);
@@ -693,25 +797,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     }
 }
 
-std::string label_name(u32 slot)
-{
-    return "L" + std::to_string(slot);
-}
 
-u32 new_basic_block(Interloper &itl,Function &func)
-{
-    const u32 slot = itl.symbol_table.label_lookup.size();
-
-    const u32 basic_block = func.emitter.program.size();
-
-    new_block(func.emitter,slot);
-    add_label(itl.symbol_table,label_name(slot));
-
-    // offset is the block offset until full resolution
-    itl.symbol_table.label_lookup[slot].offset = basic_block;
-
-    return slot;   
-}
 
 void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 {
@@ -875,6 +961,13 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             case ast_type::block:
             {
                 compile_block(itl,func,l);
+                break;
+            }
+
+
+            case ast_type::if_block:
+            {
+                compile_if_block(itl,func,l);
                 break;
             }
 

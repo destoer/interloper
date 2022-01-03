@@ -316,6 +316,27 @@ void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,Block &block, opcode_iter
     block.insert(op_ptr,reload_op); 
 }
 
+
+void rewrite_registers(u32 start, u32 end, Opcode &opcode, LocalAlloc &alloc, SlotLookup &slot_lookup)
+{
+    // rewrite the register names
+    for(u32 i = start; i < end; i++)
+    {
+        if(is_symbol(opcode.v[i]))
+        {
+            const auto slot = symbol_to_idx(opcode.v[i]);
+            auto &sym = slot_lookup[slot]; 
+
+            opcode.v[i] = sym.location;
+        }
+
+        else
+        {
+            opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
+        }
+    }    
+}
+
 void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr, Opcode &opcode, u32 args)
 {
     u32 tmp_reg = REG_FREE;
@@ -402,22 +423,7 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
     
 
 
-    // rewrite the register names
-    for(u32 i = 0; i < args; i++)
-    {
-        if(is_symbol(opcode.v[i]))
-        {
-            const auto slot = symbol_to_idx(opcode.v[i]);
-            auto &sym = slot_lookup[slot]; 
-
-            opcode.v[i] = sym.location;
-        }
-
-        else
-        {
-            opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
-        }
-    }
+    rewrite_registers(0,args,opcode,alloc,slot_lookup);
 }
 
 // rewrite the opcode regs based on allocation and opcode type!
@@ -471,8 +477,17 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             break;
         }
 
+        // allocation handling is not being done on cond branches
+        // how can we make sure it is
         case op_group::branch_t:
         {
+            // cond branch
+            if(reg_args == 2)
+            {
+                rewrite_registers(1,2,opcode,alloc,slot_lookup);
+            }
+
+
             reg_args = 0;
             break;
         }
@@ -504,8 +519,7 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
         }
     }
 
-    // why is this causing crashes lol
-#if 1
+
     // single args used as src can be freed
     if(opcode.op == op_type::push)
     {
@@ -514,7 +528,6 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             free_reg(alloc,opcode.v[0]);
         }
     }
-#endif
 }
 
 // TODO: need to rethink this when we do register passing

@@ -42,8 +42,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     // TODO fixme: we are going to comment these while we are working on a register allocator
     // because it will be broken under control flow for the time being
 
-    //{"tests/if.itl",25,false},
-    //{"tests/else_if.itl",45077,false},
+    {"tests/if.itl",25,false},
+    {"tests/else_if.itl",45077,false},
     //{"tests/nested_if.itl",575,false},
     //{"tests/recur.itl",1,false},
     //{"tests/arith_eq.itl",294,false},
