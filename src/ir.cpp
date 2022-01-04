@@ -98,19 +98,14 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
 
     if(sym.offset == UNALLOCATED_OFFSET)
     {
-        // only allocate the stack args by here
+        // only allocate the local vars by here
         if(!is_arg(sym))
         {
             stack_allocate(alloc.stack_alloc,sym);
         }
 
-        // TODO: fixme
-        // an arg should allways have its offset allocated for now as we dont have register passing
-        // or stack alloc during reg alloc properly
-        else
-        {
-            panic("attempted to spill unallocated var");
-        }   
+        // args need to be allocated later
+        // because we need to know the stack size to know there posistions
     }
 
     // TODO: how do we know if a variable has not been modified
@@ -487,8 +482,10 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
                 rewrite_registers(1,2,opcode,alloc,slot_lookup);
             }
 
-
-            reg_args = 0;
+            else
+            {
+                reg_args = 0;
+            }
             break;
         }
 
@@ -618,7 +615,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
     alloc.stack_offset = 0;
 
-
+    // TODO: this wont behave properly for conditional blocks
     for(auto &block : func.emitter.program)
     {
         for(auto it = block.begin(); it != block.end();)
