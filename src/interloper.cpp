@@ -560,6 +560,91 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     }
 }
 
+// asume one cond
+void compile_for_block(Interloper &itl,Function &func,AstNode *node)
+{
+    // scope for any var decls in the stmt
+    new_scope(itl.symbol_table);
+
+    const u32 intial_block = func.emitter.program.size() - 1;
+
+    // single statment
+    const bool single_statement = node->nodes.size() == 2;
+
+    const u32 cond_expr_idx = single_statement? 0 : 1;
+    const u32 block_expr_idx = single_statement? 1 : 3;
+
+    // compile the first stmt (ussualy an assign)
+    if(!single_statement)
+    {
+        assert(node->nodes.size() == 4);
+
+        const auto type = node->nodes[0]->type;
+
+        // handle this being a declaration
+        switch(type)
+        {
+            case ast_type::auto_decl:
+            {
+                compile_auto_decl(itl,func,*node->nodes[0]);
+                break;
+            }
+
+            case ast_type::declaration:
+            {
+                compile_decl(itl,func,*node->nodes[0]);
+                break;
+            }
+
+
+            default:
+            {
+                compile_expression(itl,func,node->nodes[0],new_slot(func));
+                break;
+            }
+        }
+
+        if(itl.error)
+        {
+            return;
+        }
+    }
+
+    const auto [t,stmt_cond_reg] = compile_oper(itl,func,node->nodes[cond_expr_idx],new_slot(func));
+
+    if(!is_bool(t))
+    {
+        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).c_str());
+        return;
+    }    
+
+
+    // compile the body
+    const u32 cur = new_basic_block(itl,func);
+    
+    compile_block(itl,func,node->nodes[block_expr_idx]);    
+
+    // compile loop end stmt
+    if(!single_statement)
+    {
+        compile_expression(itl,func,node->nodes[2],new_slot(func));
+    }
+
+    u32 loop_cond_reg;
+    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,node->nodes[cond_expr_idx],new_slot(func));
+    emit(func.emitter,op_type::bc,cur,loop_cond_reg);
+
+
+    const u32 exit_block = new_basic_block(itl,func);
+
+    // emit branch over the loop body in initial block
+    // if cond is not met
+    func.emitter.program[intial_block].push_back(Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
+
+    destroy_scope(itl.symbol_table);
+}
+
+
 
 
 
@@ -641,6 +726,11 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         case ast_type::divide:
         {
             return compile_arith_op(itl,func,node,op_type::div_reg,dst_slot);
+        }
+
+        case ast_type::mod:
+        {
+            return compile_arith_op(itl,func,node,op_type::mod_reg,dst_slot);       
         }
 
         case ast_type::times:
@@ -968,6 +1058,12 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             case ast_type::if_block:
             {
                 compile_if_block(itl,func,l);
+                break;
+            }
+
+            case ast_type::for_block:
+            {
+                compile_for_block(itl,func,l);
                 break;
             }
 
