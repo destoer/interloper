@@ -58,7 +58,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
 
     // compare signed
-    {op_group::reg_t,"cmpsgt",3},
+    {op_group::imm_t,"cmpsgt",3},
     {op_group::reg_t,"cmpslt",3},
     {op_group::reg_t,"cmpsle",3},
     {op_group::reg_t,"cmpsgt",3},

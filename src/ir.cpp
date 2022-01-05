@@ -117,6 +117,7 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
     // register is back in memory!
     sym.location = LOCATION_MEM;
     alloc.regs[reg] = REG_FREE;
+    alloc.free_list[alloc.free_regs++] = reg;
 }
 
 u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcode_iterator_t block_ptr)
@@ -168,6 +169,9 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
                 const auto slot = alloc.regs[reg];
                 auto &sym = slot_lookup[slot];
                 spill_reg(alloc,block,block_ptr,sym,reg);
+
+                // claim the register
+                reg = alloc.free_list[--alloc.free_regs];
                 break;
             }
         }
@@ -486,6 +490,7 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             {
                 reg_args = 0;
             }
+
             break;
         }
 
@@ -615,7 +620,27 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
     alloc.stack_offset = 0;
 
-    // TODO: this wont behave properly for conditional blocks
+    // TODO: this is busted under conditional blocks
+    // we need to include marking on blocks so we know what they are used for
+    // then we can spill upon exit of them appropiately
+
+    // okay the issue is the bottom block thinks that x has not been spilled....
+
+
+    puts("spilling everything"); 
+/*           
+    // TODO: revisit this once we come up with a scheme to make sure that vars get put into the proper regs
+    // TODO: this is not required for the endloop branch...
+    
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        if(reg_is_var(alloc.regs[r]))
+        {
+            auto &sym = slot_lookup[alloc.regs[r]];
+            spill_reg(alloc,block,op_ptr,sym,r);
+        }
+    }
+*/
     for(auto &block : func.emitter.program)
     {
         for(auto it = block.begin(); it != block.end();)
@@ -912,6 +937,11 @@ void emit_asm(Interloper &itl)
     // program dump
 
     puts("raw program dump\n\n\n");
+
+    // okay we want to improve the information provided at this tage so we can debug the control flow issue with the reg alloc
+    // after its fixed
+    // we probably want one that uses the old stack still method to initially test pointers with
+
     for(u32 pc = 0; pc < itl.program.size(); pc++)
     {
         printf("0x%08x: ",pc * OP_SIZE);

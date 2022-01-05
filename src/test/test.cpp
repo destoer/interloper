@@ -38,10 +38,6 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/decl.itl",255,false},
     {"tests/redefine_func.itl",-1,true},
     {"tests/invalid_compare.itl",-1,true},
-    
-    // TODO fixme: we are going to comment these while we are working on a register allocator
-    // because it will be broken under control flow for the time being
-
     {"tests/if.itl",25,false},
     {"tests/else_if.itl",45077,false},
     {"tests/nested_if.itl",575,false},
