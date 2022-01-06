@@ -253,7 +253,39 @@ void disass_opcode_raw(const Opcode &opcode);
 static constexpr u32 SWI_EXIT = 0x0;
 
 
-using Block =  std::list<Opcode>;
+enum class block_type
+{   
+    if_t,
+    else_if_t,
+    else_t,
+    chain_cmp_t,
+    for_t,
+    body_t,
+};
+
+inline const char *block_names[] =
+{
+    "if",
+    "else_if",
+    "else",
+    "chain_cmp",
+    "for",
+    "body",
+};
+
+
+struct Block
+{
+    Block(block_type t) : type(t)
+    {}
+
+    std::list<Opcode> buf;
+
+    block_type type;
+
+    // is considered the last block in a set of control flow
+    bool last = false;
+};
 
 struct IrEmitter
 {
@@ -269,4 +301,4 @@ struct IrEmitter
 };
 
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void new_block(IrEmitter &emitter,u32 slot = 0xffffffff);
+void new_block(IrEmitter &emitter,block_type type, u32 slot = 0xffffffff);

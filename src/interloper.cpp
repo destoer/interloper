@@ -466,13 +466,13 @@ std::string label_name(u32 slot)
     return "L" + std::to_string(slot);
 }
 
-u32 new_basic_block(Interloper &itl,Function &func)
+u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 {
     const u32 slot = itl.symbol_table.label_lookup.size();
 
     const u32 basic_block = func.emitter.program.size();
 
-    new_block(func.emitter,slot);
+    new_block(func.emitter,type,slot);
     add_label(itl.symbol_table,label_name(slot));
 
     // offset is the block offset until full resolution
@@ -481,9 +481,15 @@ u32 new_basic_block(Interloper &itl,Function &func)
     return slot;   
 }
 
+
+
 void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
     const u32 start_block = func.emitter.program.size();
+
+    auto &blocks = func.emitter.program;
+
+    block_type old = blocks[blocks.size() - 1].type;
 
     for(u32 n = 0; n < node->nodes.size(); n++)
     {
@@ -495,7 +501,8 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             if(n != 0)
             {
                 // create new block for compare
-                new_basic_block(itl,func);
+                // TODO: should this have hte type of the initial node or no?
+                new_basic_block(itl,func,block_type::chain_cmp_t);
             }
 
             // compile the compare expr for conditon
@@ -507,16 +514,17 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 return;
             }
 
-            const u32 cur_block = func.emitter.program.size() - 1;
+            // block for comparison branch
+            const u32 cur_block = blocks.size() - 1;
 
             // compile the body block
-            new_basic_block(itl,func);
+            new_basic_block(itl,func,if_stmt.type == ast_type::if_t? block_type::if_t : block_type::else_if_t);
             compile_block(itl,func,if_stmt.nodes[1]);
 
             // add branch over the block we just compiled
             const u32 slot = itl.symbol_table.label_lookup.size();
 
-            func.emitter.program[cur_block].push_back(Opcode(op_type::bnc,slot,r,0));
+            blocks[cur_block].buf.push_back(Opcode(op_type::bnc,slot,r,0));
 
 
             // not the last statment (branch is not require)
@@ -527,6 +535,11 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 // there are
                 emit(func.emitter,op_type::exit_block);
             }
+
+            else
+            {
+                blocks[blocks.size() - 1].last = true;
+            }
         }
 
         // else stmt has no expr so its in the first node
@@ -534,14 +547,16 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         else 
         {
             // create block for body
-            new_basic_block(itl,func);
-
+            new_basic_block(itl,func,block_type::else_t);
             compile_block(itl,func,if_stmt.nodes[0]);
+
+            blocks[blocks.size() - 1].last = true;
         }
     }
 
+    // TODO: is this being a body fine or does it need to take whatever the intial block was?
     // create the exit block, for new code
-    const u32 exit_block = new_basic_block(itl,func);
+    const u32 exit_block = new_basic_block(itl,func,old);
 
 
 
@@ -549,13 +564,13 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     // add a unconditonal branch to the "exit block"
     // the last block is directly before the next and does not need one
 
-    for(u32 b = start_block; b < func.emitter.program.size() - 2; b++)
+    for(u32 b = start_block; b < blocks.size() - 2; b++)
     {
         auto &block = func.emitter.program[b];
 
-        if(block.back().op == op_type::exit_block)
+        if(block.buf.back().op == op_type::exit_block)
         {
-            block.back() = Opcode(op_type::b,exit_block,0,0);
+            block.buf.back() = Opcode(op_type::b,exit_block,0,0);
         }
     }
 }
@@ -573,6 +588,9 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     const u32 cond_expr_idx = single_statement? 0 : 1;
     const u32 block_expr_idx = single_statement? 1 : 3;
+
+    auto &blocks = func.emitter.program;
+    block_type old = blocks[blocks.size() - 1].type;
 
     // compile the first stmt (ussualy an assign)
     if(!single_statement)
@@ -620,7 +638,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 
     // compile the body
-    const u32 cur = new_basic_block(itl,func);
+    const u32 cur = new_basic_block(itl,func,block_type::for_t);
     
     compile_block(itl,func,node->nodes[block_expr_idx]);    
 
@@ -634,12 +652,11 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,node->nodes[cond_expr_idx],new_slot(func));
     emit(func.emitter,op_type::bc,cur,loop_cond_reg);
 
-
-    const u32 exit_block = new_basic_block(itl,func);
+    const u32 exit_block = new_basic_block(itl,func,old);
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    func.emitter.program[intial_block].push_back(Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
+    func.emitter.program[intial_block].buf.push_back(Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
 
     destroy_scope(itl.symbol_table);
 }
@@ -1135,7 +1152,7 @@ void compile_functions(Interloper &itl)
 
         itl.has_return = false;
 
-        new_basic_block(itl,func);
+        new_basic_block(itl,func,block_type::body_t);
 
 
         // parse out each line of the function

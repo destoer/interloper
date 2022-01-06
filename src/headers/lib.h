@@ -98,10 +98,27 @@ inline u32 set_bit(u32 v, u32 bit)
     return v | (1 << bit);
 }
 
+inline u32 deset_bit(u32 v, u32 bit)
+{
+    return v & ~(1 << bit);
+}
+
 inline bool is_set(u32 v, u32 bit)
 {
     return (v >> bit) & 1;
 }
+
+inline u32 popcount(u32 v)
+{
+    u32 count = 0;
+    for(u32 i = 0; i < sizeof(v) * 8; i++)
+    {
+        count += is_set(v,i);
+    }
+
+    return count;
+}
+
 
 #ifndef _MSC_VER
 __attribute__((noreturn))
