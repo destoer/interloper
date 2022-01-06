@@ -1,0 +1,17 @@
+
+
+// expected 5
+
+func modify(u32 @x)
+{
+    @x += 5;
+}
+
+func s32 main()
+{
+    u32 x = 0;
+
+    modify(&x);
+
+    return x;
+}

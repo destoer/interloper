@@ -47,6 +47,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/for_single.itl",32,false},
     {"tests/mod.itl",233168,false},
     {"tests/shift.itl",1,false},
+    {"tests/pointer.itl",5,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
