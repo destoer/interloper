@@ -206,8 +206,7 @@ struct AstNode
         Value value;
     };
 
-    // TODO: fixme this doesnt need to be a pointer
-    // remove tit
+    // TODO: should this even be a pointer?
     std::vector<AstNode *> nodes;
 };
 

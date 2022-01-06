@@ -41,3 +41,10 @@ CMakeFiles/
 Release/
 interloper.dir
 x64/
+
+# build stuff
+.ninja_deps
+.ninja_log
+Makefile
+interloper
+build.ninja

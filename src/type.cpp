@@ -226,7 +226,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
 // start here
 // we need to implement proper stores and loads 
 // for each type first
-void handle_cast(Interloper& itl,IrEmitter &emitter,const Type &old_type, const Type &new_type)
+void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,const Type &old_type, const Type &new_type)
 {
     UNUSED(itl);
 
@@ -265,17 +265,17 @@ void handle_cast(Interloper& itl,IrEmitter &emitter,const Type &old_type, const 
                 {
                     case builtin_type::s8_t: 
                     {
-                        emit(emitter,op_type::sxb,reg(emitter.reg_count),reg(emitter.reg_count));
+                        emit(emitter,op_type::sxb,dst_slot,src_slot);
                         break;
                     }
 
                     case builtin_type::s16_t:
                     {
-                        emit(emitter,op_type::sxh,reg(emitter.reg_count),reg(emitter.reg_count));
+                        emit(emitter,op_type::sxh,dst_slot,src_slot);
                         break;
                     }
 
-                    default: assert(false);
+                    default: panic("invalid signed integer upcast");
                 }
             }
 
@@ -287,18 +287,24 @@ void handle_cast(Interloper& itl,IrEmitter &emitter,const Type &old_type, const 
                 {
                     case 1: 
                     {
-                        emit(emitter,op_type::and_imm,reg(emitter.reg_count),reg(emitter.reg_count),0xff);
+                        emit(emitter,op_type::and_imm,dst_slot,src_slot,0xff);
                         break;
                     }
 
                     case 2:  
                     {
-                        emit(emitter,op_type::and_imm,reg(emitter.reg_count),reg(emitter.reg_count),0xffff);
+                        emit(emitter,op_type::and_imm,dst_slot,src_slot,0xffff);
                         break;
                     }
 
-                    default: assert(false);
+                    default: panic("invalid signed integer downcast");
                 }
+            }
+
+            // cast doesnt do anything but move into a tmp so the IR doesnt break
+            else
+            {
+                emit(emitter,op_type::mov_reg,dst_slot,src_slot);
             }
 
         }
@@ -308,6 +314,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter,const Type &old_type, const 
         {
             // do nothing 0 and 1 are fine as integers
             // we do want this to require a cast though so conversions have to be explicit
+            emit(emitter,op_type::mov_reg,dst_slot,src_slot);
         } 
 
         // integer to bool
@@ -316,13 +323,13 @@ void handle_cast(Interloper& itl,IrEmitter &emitter,const Type &old_type, const 
         {
             if(is_signed(builtin_old))
             {
-                emit(emitter,op_type::cmpsgt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
+                emit(emitter,op_type::cmpsgt_imm,dst_slot,src_slot,0);
             }
 
             // unsigned
             else
             {
-                emit(emitter,op_type::cmpugt_imm,reg(emitter.reg_count),reg(emitter.reg_count),0);
+                emit(emitter,op_type::cmpugt_imm,dst_slot,src_slot,0);
             }
         }        
 

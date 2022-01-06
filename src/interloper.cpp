@@ -1,7 +1,7 @@
 #include <interloper.h>
 
 
-Type compile_expression(Interloper &itl,Function &func,AstNode *node);
+Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_block(Interloper &itl,Function &func,AstNode *node);
@@ -33,9 +33,7 @@ void parse_function_declarations(Interloper& itl)
             return;
         }
 
-
-        std::vector<Symbol> args;
-
+        std::vector<u32> args;
 
         const auto decl = node.nodes[2];
 
@@ -45,7 +43,16 @@ void parse_function_declarations(Interloper& itl)
             const auto name = a->literal;
             const auto type = a->nodes[0]->variable_type;
 
-            args.push_back(Symbol(name,type,true));
+            const auto size = type_size(itl,type);
+
+            // add the var to slot lookup and link to function
+            // we will do a add_scope to put it into the scope later
+            Symbol sym = Symbol(name,type,size,args.size());
+            add_var(itl.symbol_table,sym);
+
+            args.push_back(sym.slot);
+
+            //printf("arg slot %s: %d : %d\n",sym.name.c_str(),sym.slot, args[args.size()-1]);
         }
 
 
@@ -68,43 +75,132 @@ void parse_function_declarations(Interloper& itl)
 
 
 
-std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node)
-{
-    const auto t1 = compile_expression(itl,func,node);
-    const auto v1 = reg(func.emitter.reg_count);
-
-    return std::pair<Type,u32>{t1,v1};
+u32 new_slot(Function &func)
+{       
+    return reg(func.emitter.reg_count++);
 }
 
-// TODO: compile_arith_op, compile_logical_op, compile_shift may need changing
-// if we add operator overloading
-
-Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type)
+std::pair<Type,u32> symbol(Interloper &itl, AstNode *node)
 {
-    const auto [t1,v1] = compile_oper(itl,func,node->nodes[0]);
-    func.emitter.reg_count++;
+    const auto name = node->literal;
 
-    const auto [t2,v2] = compile_oper(itl,func,node->nodes[1]);
+    const auto sym_opt = get_sym(itl.symbol_table,name);
+    if(!sym_opt)
+    {
+        panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+        print(node);
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+    }
+
+    const auto &sym = sym_opt.value();
+
+    return std::pair<Type,u32>{sym.type,slot_idx(sym)};
+}
+
+
+Type value(Function& func,AstNode *node, u32 dst_slot)
+{
+    if(node->value.sign)
+    {
+        const auto value = static_cast<s32>(node->value.v);
+        emit(func.emitter,op_type::mov_imm,dst_slot,value);
+
+        // what is the smallest storage type that this will fit inside?
+        if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s8_t)),static_cast<s32>(builtin_max(builtin_type::s8_t))))
+        {
+            return  Type(builtin_type::s8_t);
+        }
+
+        else if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s16_t)),static_cast<s32>(builtin_max(builtin_type::s16_t))))
+        {
+            return Type(builtin_type::s16_t);
+        }
+
+        //else if(value,static_cast<s32>(builtin_min(builtin_type::s32_t)),static_cast<s32>(builtin_max(builtin_type::s32_t)))
+        else
+        {
+            return Type(builtin_type::s32_t);
+        }
+    }
+
+    else
+    {
+        const u32 value = node->value.v;
+        emit(func.emitter,op_type::mov_imm,dst_slot,value);
+
+        // what is the smallest storage type that this will fit inside?
+        if(in_range(value,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
+        {
+            return  Type(builtin_type::u8_t);
+        }
+
+        else if(in_range(value,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
+        {
+            return Type(builtin_type::u16_t);
+        }
+
+        //else if(in_range(value,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t))
+        else
+        {
+            return Type(builtin_type::u32_t);
+        }
+    }    
+}
+
+// this should handle grabbing values and symbols
+// if it can see a symbol or a value it wont call compile_expression
+std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
+{
+    panic(node == nullptr,"nullptr in compile_oper");
+
+    // test what the current node is
+    if(node->type == ast_type::value)
+    {
+        const auto t1 = value(func,node,dst_slot);
+        return std::pair<Type,u32>{t1,dst_slot};
+
+    }
+
+    else if(node->type == ast_type::symbol)
+    {
+        return symbol(itl,node);
+    }
+
+    // if its a value or symbol return out immdiatly
+
+    // else compile an expr
+    else
+    {
+        const auto t1 = compile_expression(itl,func,node,dst_slot);
+        return std::pair<Type,u32>{t1,dst_slot};
+    }
+}
+
+
+
+Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type, u32 dst_slot)
+{
+    // how should these two by here work?
+    // the dst slot is fundementally for the dst for compile_oper should we just allocate something
+    const auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+
+    const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
 
     // produce effective type
     const auto final_type = effective_arith_type(itl,t1,t2);
 
-
-    // one of these is just a temp for the result calc
-    // so after this we no longer need it
-    emit(func.emitter,type,v1,v1,v2);
-    func.emitter.reg_count--;
+    emit(func.emitter,type,dst_slot,v1,v2);
 
     return final_type;        
 }
 
-Type compile_shift(Interloper& itl,Function &func,AstNode *node,bool right)
-{
-    const auto [t1,v1] = compile_oper(itl,func,node->nodes[0]);
-    func.emitter.reg_count++;
 
-    const auto [t2,v2] = compile_oper(itl,func,node->nodes[1]);
+Type compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32 dst_slot)
+{
+    const auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+
+    const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
     if(!(is_integer(t1) && is_integer(t2)))
     {
@@ -117,35 +213,32 @@ Type compile_shift(Interloper& itl,Function &func,AstNode *node,bool right)
         // if signed do a arithmetic shift 
         if(is_signed(t1))
         {
-            emit(func.emitter,op_type::asr_reg,v1,v1,v2);
+            emit(func.emitter,op_type::asr_reg,dst_slot,v1,v2);
         }
 
         else
         {
-            emit(func.emitter,op_type::lsr_reg,v1,v1,v2);
+            emit(func.emitter,op_type::lsr_reg,dst_slot,v1,v2);
         }
     }
 
     // left shift
     else
     {
-        emit(func.emitter,op_type::lsl_reg,v1,v1,v2);
+        emit(func.emitter,op_type::lsl_reg,dst_slot,v1,v2);
     }
-
-    // no longer need the tmp
-    func.emitter.reg_count--;
 
     // type being shifted is the resulting type
     return t1;
 }
 
-// handles <, <=, >, >=, &&, ||, ==, !=
-Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type)
-{
-    auto [t1,v1] = compile_oper(itl,func,node->nodes[0]);
-    func.emitter.reg_count++;
 
-    auto [t2,v2] = compile_oper(itl,func,node->nodes[1]);
+// handles <, <=, >, >=, &&, ||, ==, !=
+Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type, u32 dst_slot)
+{
+    auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+
+    auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
 
     // if one side is a value do type checking
@@ -233,8 +326,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
         // this shouldunt happen
         default: 
         {
-            printf("%d is not a logical operation\n",static_cast<int>(type));
-            exit(1);
+            panic("%d is not a logical operation\n",static_cast<int>(type));
         }
     }
 
@@ -261,8 +353,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 
         // one of these is just a temp for the result calc
         // so afer this we no longer need it
-        emit(func.emitter,op,v1,v1,v2);
-        func.emitter.reg_count--;
+        emit(func.emitter,op,dst_slot,v1,v2);
 
         return Type(builtin_type::bool_t);
     }
@@ -276,7 +367,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 
 
 
-Type compile_function_call(Interloper &itl,Function &func,AstNode *node)
+Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     // check function is declared
     if(!itl.function_table.count(node->literal))
@@ -294,39 +385,47 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node)
         return Type(builtin_type::void_t);
     }
 
-
-    // TODO: this needs to be redone properly when we try implement a register allocator
-    // TODO: allow saved regs can be used while we are pushing args
-
-    // callee save regs in use
-    // return register zero is reserved dont push it
-    for(u32 i = 1; i < func.emitter.reg_count; i++)
-    {
-        emit(func.emitter,op_type::save_reg, reg(i));
-    }
+    // for now we are just going with callee saved
+    // if we eventually mix caller and callee saved so we can have the called func overwrite values
+    // we dont care about then we need to re add the save and restore directives
+    // and we will need a push and pop bitset to implement them
+    // with care to rewrite where the return register ends up when we restore
+    // save all the used regs
+    //emit(func.emitter,op_type::save_regs);
+    
 
 
     // push args in reverse order and type check them
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
     {
+        const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
+
         // TODO: handle being passed args that wont fit inside a single hardware reg
-        if(type_size(itl,func_call.args[i].type) > sizeof(u32))
+        if(type_size(itl,arg.type) > sizeof(u32))
         {
-            unimplemented("function arg: non register size: %d\n",type_size(itl,func_call.args[i].type));
+            unimplemented("function arg: non register size: %d\n",type_size(itl,arg.type));
         }
 
         
         // builtin type
-        const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i]);
+        const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
 
 
         // type check the arg
-        check_assign(itl,func_call.args[i].type,arg_type);
+        check_assign(itl,arg.type,arg_type);
 
         // finally push the arg
         emit(func.emitter,op_type::push_arg,reg);
     }
 
+
+    const bool returns_value = func.return_type.type_idx != static_cast<int>(builtin_type::void_t);
+
+    // if we have a register in R0 we need to spill it so emit a push instr
+    if(returns_value)
+    {
+        emit(func.emitter,op_type::spill_rv);
+    }
 
 
     // emit call to label slot
@@ -337,344 +436,143 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node)
 
     // clean up args after the function call
     // TODO: how should we encode this when we do arg passing in regs
-    emit(func.emitter,op_type::clean_args,func_call.args.size());
-
+    if(func_call.args.size())
+    {
+        emit(func.emitter,op_type::clean_args,func_call.args.size());
+    }
   
 
     // restore callee saved values
-    // do in reverse order to the save so it can be implemented as push and pop
-    // has to be done after the arg cleanup
-    for(int i = func.emitter.reg_count - 1; i >= 1; i--)
-    {
-        emit(func.emitter,op_type::restore_reg, reg(i));
-    }
-
-
+    //emit(func.emitter,op_type::restore_regs);
 
 
     // if function returns a value save the return register
-    if(func.return_type.type_idx != static_cast<int>(builtin_type::void_t))
+    // our register allocator will have to force a spill on R0 if its in use
+    // TODO: we want this as an explicit just mark as allocation ito R0
+
+    if(returns_value)
     {
-        emit(func.emitter,op_type::mov_reg,reg(func.emitter.reg_count),reg(RV));
+        emit(func.emitter,op_type::mov_reg,dst_slot,RV_IR);
     }
 
     // result of expr is the return type
     return func_call.return_type;    
 }
 
-Type compile_expression(Interloper &itl,Function &func,AstNode *node)
-{
-    if(!node)
-    {
-        assert(false);
-        return Type(builtin_type::void_t);
-    }
 
-   
-    switch(node->type)
-    {
-        case ast_type::cast:
-        {
-            const auto old_type = compile_expression(itl,func,node->nodes[1]);
-            const auto new_type = node->nodes[0]->variable_type;
-
-            handle_cast(itl,func.emitter,old_type,new_type);
-
-            return new_type;
-        }
-
-
-        // multiple assigment
-        case ast_type::equal:
-        {
-            const auto [rtype,reg] = compile_oper(itl,func,node->nodes[1]);
-
-            const auto name = node->nodes[0]->literal;
-
-            const auto sym_opt = get_sym(itl.symbol_table,name);
-            if(!sym_opt)
-            {
-                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-                print(node);
-                return Type(builtin_type::void_t);
-            }
-
-            
-            const auto &sym = sym_opt.value();
-
-            check_assign(itl,sym.type,rtype);
-
-            emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
-
-            return sym.type;        
-        }
-
-
-        case ast_type::value:
-        { 
-            // figure out what the min storage is required to fit this value
-            if(node->value.sign)
-            {
-                const auto value = static_cast<s32>(node->value.v);
-                emit(func.emitter,op_type::mov_imm,reg(func.emitter.reg_count),value);
-
-                // what is the smallest storage type that this will fit inside?
-                if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s8_t)),static_cast<s32>(builtin_max(builtin_type::s8_t))))
-                {
-                    return  Type(builtin_type::s8_t);
-                }
-
-                else if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s16_t)),static_cast<s32>(builtin_max(builtin_type::s16_t))))
-                {
-                    return Type(builtin_type::s16_t);
-                }
-
-                //else if(value,static_cast<s32>(builtin_min(builtin_type::s32_t)),static_cast<s32>(builtin_max(builtin_type::s32_t)))
-                else
-                {
-                    return Type(builtin_type::s32_t);
-                }
-            }
-
-            else
-            {
-                const u32 value = node->value.v;
-                emit(func.emitter,op_type::mov_imm,reg(func.emitter.reg_count),value);
-
-                // what is the smallest storage type that this will fit inside?
-                if(in_range(value,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
-                {
-                    return  Type(builtin_type::u8_t);
-                }
-
-                else if(in_range(value,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
-                {
-                    return Type(builtin_type::u16_t);
-                }
-
-                //else if(in_range(value,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t))
-                else
-                {
-                    return Type(builtin_type::u32_t);
-                }
-            }
-        }
-
-        case ast_type::false_t:
-        {
-            emit(func.emitter,op_type::mov_imm,reg(func.emitter.reg_count),0);
-            return Type(builtin_type::bool_t);
-        }
-
-        case ast_type::true_t:
-        {
-            emit(func.emitter,op_type::mov_imm,reg(func.emitter.reg_count),1);
-            return Type(builtin_type::bool_t);
-        }
-
-        case ast_type::symbol:
-        {
-            const auto name = node->literal;
-
-            const auto sym_opt = get_sym(itl.symbol_table,name);
-            if(!sym_opt)
-            {
-                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-                print(node);
-                return Type(builtin_type::void_t);
-            }
-
-            const auto &sym = sym_opt.value();
-
-            emit(func.emitter,op_type::mov_reg,reg(func.emitter.reg_count),slot_idx(sym));
-
-            return sym.type;
-        }
-
-    
-        case ast_type::minus:
-        {
-            // unary minus
-            if(!node->nodes[1])
-            {
-                // negate by doing 0 - v
-                const auto [t,dst] = compile_oper(itl,func,node->nodes[0]);
-
-                func.emitter.reg_count++;
-
-                // todo: make sure our optimiser sees through this
-                emit(func.emitter,op_type::mov_imm,reg(func.emitter.reg_count),0);
-                emit(func.emitter,op_type::sub_reg,dst,reg(func.emitter.reg_count),dst);
-                
-                func.emitter.reg_count--;
-
-                return t;
-            }
-
-            else
-            {
-                return compile_arith_op(itl,func,node,op_type::sub_reg);
-            }
-        }
-
-        case ast_type::plus:
-        {
-        
-            // unary plus
-            if(!node->nodes[1])
-            {
-                return compile_expression(itl,func,node->nodes[0]); 
-            }
-
-            else
-        
-            {
-                return compile_arith_op(itl,func,node,op_type::add_reg);
-            }
-        }
-    
-        case ast_type::times:
-        {
-            return compile_arith_op(itl,func,node,op_type::mul_reg);        
-        }
-
-
-        case ast_type::divide:
-        {
-            return compile_arith_op(itl,func,node,op_type::div_reg);       
-        }
-
-        case ast_type::mod:
-        {
-            return compile_arith_op(itl,func,node,op_type::mod_reg);       
-        }
-
-        case ast_type::shift_l:
-        {
-            return compile_shift(itl,func,node,false);
-        }
-
-        case ast_type::shift_r:
-        {
-            return compile_shift(itl,func,node,true);
-        }        
-        
-        case ast_type::bitwise_and:
-        {
-            return compile_arith_op(itl,func,node,op_type::and_reg);
-        }
-
-        case ast_type::bitwise_or:
-        {
-            return compile_arith_op(itl,func,node,op_type::or_reg);
-        }
-
-        case ast_type::bitwise_xor:
-        {
-            return compile_arith_op(itl,func,node,op_type::xor_reg);
-        }
-
-        case ast_type::bitwise_not:
-        {
-            const auto [t,reg] = compile_oper(itl,func,node->nodes[0]);
-
-            // TODO: do we need to check this is integer?
-
-
-            emit(func.emitter,op_type::not_reg,reg);
-            return t;
-        }    
-
-        case ast_type::logical_not:
-        {
-            const auto [t,reg] = compile_oper(itl,func,node->nodes[0]);
-
-            if(!is_bool(t))
-            {
-                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).c_str());
-                return Type(builtin_type::void_t);
-            }
-
-            // xor can invert our boolean which is either 1 or 0
-            emit(func.emitter,op_type::xor_imm,reg,reg,1);
-            return t;
-        }
-
-        // we want to pass in the base operation but we need to do the actual type checking
-        // to know what we are comparing later
-        // how should we do it?
-        case ast_type::logical_lt:
-        {
-            return compile_logical_op(itl,func,node,logic_op::cmplt_reg);
-        }
-
-        case ast_type::logical_le:
-        {
-            return compile_logical_op(itl,func,node,logic_op::cmple_reg);
-        }
-
-        case ast_type::logical_gt:
-        {
-            return compile_logical_op(itl,func,node,logic_op::cmpgt_reg);
-        }
-
-        case ast_type::logical_ge:
-        {
-            return compile_logical_op(itl,func,node,logic_op::cmpge_reg);
-        }
-
-        case ast_type::logical_eq:
-        {
-            return compile_logical_op(itl,func,node,logic_op::cmpeq_reg);
-        }
-
-        case ast_type::logical_ne:
-        {
-            return compile_logical_op(itl,func,node,logic_op::cmpne_reg);
-        }
-
-        case ast_type::logical_and:
-        {
-            return compile_logical_op(itl,func,node,logic_op::and_reg);
-        }
-
-        case ast_type::logical_or:
-        {
-            return compile_logical_op(itl,func,node,logic_op::or_reg);
-        }
-
-        case ast_type::function_call:
-        {
-            return compile_function_call(itl,func,node);
-        }
-
-        default:
-        {
-            panic(itl,"[COMPILE]: invalid expression\n");
-            print(node);
-            return Type(builtin_type::void_t);
-        }
-    }
-}
 
 std::string label_name(u32 slot)
 {
     return "L" + std::to_string(slot);
 }
 
-u32 new_basic_block(Interloper &itl,Function &func)
+u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 {
     const u32 slot = itl.symbol_table.label_lookup.size();
 
     const u32 basic_block = func.emitter.program.size();
 
-    new_block(func.emitter,slot);
+    new_block(func.emitter,type,slot);
     add_label(itl.symbol_table,label_name(slot));
 
     // offset is the block offset until full resolution
     itl.symbol_table.label_lookup[slot].offset = basic_block;
 
     return slot;   
+}
+
+
+
+void compile_if_block(Interloper &itl,Function &func,AstNode *node)
+{
+    const u32 start_block = func.emitter.program.size();
+
+    auto &blocks = func.emitter.program;
+
+    block_type old = blocks[blocks.size() - 1].type;
+
+    for(u32 n = 0; n < node->nodes.size(); n++)
+    {
+        const auto &if_stmt = *node->nodes[n];
+
+        if(if_stmt.type != ast_type::else_t)
+        {
+
+            if(n != 0)
+            {
+                // create new block for compare
+                // TODO: should this have hte type of the initial node or no?
+                new_basic_block(itl,func,block_type::chain_cmp_t);
+            }
+
+            // compile the compare expr for conditon
+            const auto [t,r] = compile_oper(itl,func,if_stmt.nodes[0],new_slot(func));
+
+            if(!is_bool(t))
+            {
+                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).c_str());
+                return;
+            }
+
+            // block for comparison branch
+            const u32 cur_block = blocks.size() - 1;
+
+            // compile the body block
+            new_basic_block(itl,func,if_stmt.type == ast_type::if_t? block_type::if_t : block_type::else_if_t);
+            compile_block(itl,func,if_stmt.nodes[1]);
+
+            // add branch over the block we just compiled
+            const u32 slot = itl.symbol_table.label_lookup.size();
+
+            blocks[cur_block].buf.push_back(Opcode(op_type::bnc,slot,r,0));
+
+
+            // not the last statment (branch is not require)
+            if(n != node->nodes.size() - 1)
+            {
+                // emit a directive so we know to insert a branch
+                // to the exit block here once we know how many blocks
+                // there are
+                emit(func.emitter,op_type::exit_block);
+            }
+
+            else
+            {
+                blocks[blocks.size() - 1].last = true;
+            }
+        }
+
+        // else stmt has no expr so its in the first node
+        // and by definition this is the last statement
+        else 
+        {
+            // create block for body
+            new_basic_block(itl,func,block_type::else_t);
+            compile_block(itl,func,if_stmt.nodes[0]);
+
+            blocks[blocks.size() - 1].last = true;
+        }
+    }
+
+    // TODO: is this being a body fine or does it need to take whatever the intial block was?
+    // create the exit block, for new code
+    const u32 exit_block = new_basic_block(itl,func,old);
+
+
+
+    // for every body block bar the last we just added
+    // add a unconditonal branch to the "exit block"
+    // the last block is directly before the next and does not need one
+
+    for(u32 b = start_block; b < blocks.size() - 2; b++)
+    {
+        auto &block = func.emitter.program[b];
+
+        if(block.buf.back().op == op_type::exit_block)
+        {
+            block.buf.back() = Opcode(op_type::b,exit_block,0,0);
+        }
+    }
 }
 
 // asume one cond
@@ -690,6 +588,9 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     const u32 cond_expr_idx = single_statement? 0 : 1;
     const u32 block_expr_idx = single_statement? 1 : 3;
+
+    auto &blocks = func.emitter.program;
+    block_type old = blocks[blocks.size() - 1].type;
 
     // compile the first stmt (ussualy an assign)
     if(!single_statement)
@@ -716,7 +617,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
             default:
             {
-                compile_expression(itl,func,node->nodes[0]);
+                compile_expression(itl,func,node->nodes[0],new_slot(func));
                 break;
             }
         }
@@ -727,7 +628,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
         }
     }
 
-    const auto [t,stmt_cond_reg] = compile_oper(itl,func,node->nodes[cond_expr_idx]);
+    const auto [t,stmt_cond_reg] = compile_oper(itl,func,node->nodes[cond_expr_idx],new_slot(func));
 
     if(!is_bool(t))
     {
@@ -737,127 +638,271 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 
     // compile the body
-    const u32 cur = new_basic_block(itl,func);
+    const u32 cur = new_basic_block(itl,func,block_type::for_t);
     
     compile_block(itl,func,node->nodes[block_expr_idx]);    
 
     // compile loop end stmt
     if(!single_statement)
     {
-        compile_expression(itl,func,node->nodes[2]);
+        compile_expression(itl,func,node->nodes[2],new_slot(func));
     }
 
     u32 loop_cond_reg;
-    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,node->nodes[cond_expr_idx]);
+    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,node->nodes[cond_expr_idx],new_slot(func));
     emit(func.emitter,op_type::bc,cur,loop_cond_reg);
 
-
-    const u32 exit_block = new_basic_block(itl,func);
+    const u32 exit_block = new_basic_block(itl,func,old);
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    func.emitter.program[intial_block].push_back(Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
+    func.emitter.program[intial_block].buf.push_back(Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
 
     destroy_scope(itl.symbol_table);
 }
 
 
-void compile_if_block(Interloper &itl,Function &func,AstNode *node)
+
+
+
+
+
+Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
 {
-    const u32 start_block = func.emitter.program.size();
+    UNUSED(dst_slot); UNUSED(func);
 
-    for(u32 n = 0; n < node->nodes.size(); n++)
+    if(!node)
     {
-        const auto &if_stmt = *node->nodes[n];
+        panic("nullptr in compile_expression");
+        return Type(builtin_type::void_t);
+    }
 
-        if(if_stmt.type != ast_type::else_t)
+   
+    // OKAY start slowing reimpl the min ammount to get these working!
+    switch(node->type)
+    {
+        case ast_type::cast:
         {
+            const auto [old_type,slot] = compile_oper(itl,func,node->nodes[1],new_slot(func));
+            const auto new_type = node->nodes[0]->variable_type;
 
-            if(n != 0)
+            handle_cast(itl,func.emitter,dst_slot,slot,old_type,new_type);
+            return new_type;
+        }
+
+
+        case ast_type::plus:
+        {
+            // unary plus
+            if(!node->nodes[1])
             {
-                // create new block for compare
-                new_basic_block(itl,func);
+                return compile_expression(itl,func,node->nodes[0],dst_slot); 
             }
 
-            // compile the compare expr for conditon
-            const auto [t,r] = compile_oper(itl,func,if_stmt.nodes[0]);
+            else
+            {
+                return compile_arith_op(itl,func,node,op_type::add_reg,dst_slot);
+            }
+        }
+
+
+
+        // multiple assigment
+        case ast_type::equal:
+        {
+            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[1],dst_slot);
+
+            const auto name = node->nodes[0]->literal;
+
+            const auto sym_opt = get_sym(itl.symbol_table,name);
+            if(!sym_opt)
+            {
+                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+                print(node);
+                return Type(builtin_type::void_t);
+            }
+
+            const auto &sym = sym_opt.value();
+
+            check_assign(itl,sym.type,rtype);
+
+
+            emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
+
+            // TODO: make sure that the silly code this gens
+            // is cleaned up by the optimiser
+            if(dst_slot != slot)
+            {
+                emit(func.emitter,op_type::mov_reg,dst_slot,slot);
+            }
+
+            return sym.type;        
+        }
+
+
+        case ast_type::divide:
+        {
+            return compile_arith_op(itl,func,node,op_type::div_reg,dst_slot);
+        }
+
+        case ast_type::mod:
+        {
+            return compile_arith_op(itl,func,node,op_type::mod_reg,dst_slot);       
+        }
+
+        case ast_type::times:
+        {
+            return compile_arith_op(itl,func,node,op_type::mul_reg,dst_slot);
+        }
+
+        case ast_type::minus:
+        {            
+            // unary minus
+            if(!node->nodes[1])
+            {
+                // negate by doing 0 - v
+                const auto [t,dst] = compile_oper(itl,func,node->nodes[0],dst_slot);
+
+                const auto slot = new_slot(func);
+
+                // TODO: make sure our optimiser sees through this
+                emit(func.emitter,op_type::mov_imm,slot,0);
+                emit(func.emitter,op_type::sub_reg,dst,slot,dst);
+                
+                return t;
+            }
+
+            else
+            {
+                return compile_arith_op(itl,func,node,op_type::sub_reg,dst_slot);
+            }
+        }
+
+        case ast_type::bitwise_and:
+        {
+            return compile_arith_op(itl,func,node,op_type::and_reg,dst_slot);
+        }
+
+        case ast_type::bitwise_or:
+        {
+            return compile_arith_op(itl,func,node,op_type::or_reg,dst_slot);
+        }
+
+        case ast_type::bitwise_xor:
+        {
+            return compile_arith_op(itl,func,node,op_type::xor_reg,dst_slot);
+        }
+
+
+        case ast_type::bitwise_not:
+        {
+            const auto [t,reg] = compile_oper(itl,func,node->nodes[0],dst_slot);
+
+            // TODO: do we need to check this is integer?
+
+
+            emit(func.emitter,op_type::not_reg,dst_slot,reg);
+            return t;
+        }            
+
+
+        case ast_type::shift_l:
+        {
+            return compile_shift(itl,func,node,false,dst_slot);
+        }
+
+        case ast_type::shift_r:
+        {
+            return compile_shift(itl,func,node,true,dst_slot);
+        }        
+
+
+        case ast_type::false_t:
+        {
+            emit(func.emitter,op_type::mov_imm,dst_slot,0);
+            return Type(builtin_type::bool_t);
+        }
+
+        case ast_type::true_t:
+        {
+            emit(func.emitter,op_type::mov_imm,dst_slot,1);
+            return Type(builtin_type::bool_t);
+        }
+
+
+        case ast_type::logical_not:
+        {
+            const auto [t,reg] = compile_oper(itl,func,node->nodes[0],dst_slot);
 
             if(!is_bool(t))
             {
-                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).c_str());
-                return;
+                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).c_str());
+                return Type(builtin_type::void_t);
             }
 
-            const u32 cur_block = func.emitter.program.size() - 1;
-
-            // compile the body block
-            new_basic_block(itl,func);
-            compile_block(itl,func,if_stmt.nodes[1]);
-
-            // add branch over the block we just compiled
-            const u32 slot = itl.symbol_table.label_lookup.size();
-
-            func.emitter.program[cur_block].push_back(Opcode(op_type::bnc,slot,r,0));
-
-
-            // not the last statment (branch is not require)
-            if(n != node->nodes.size() - 1)
-            {
-                // emit a directive so we know to insert a branch
-                // to the exit block here once we know how many blocks
-                // there are
-                emit(func.emitter,op_type::exit_block);
-            }
+            // xor can invert our boolean which is either 1 or 0
+            emit(func.emitter,op_type::xor_imm,reg,reg,1);
+            return t;
         }
 
-        // else stmt has no expr so its in the first node
-        // by definition this is the last statement
-        else 
+        // we want to pass in the base operation but we need to do the actual type checking
+        // to know what we are comparing later
+        // how should we do it?
+        case ast_type::logical_lt:
         {
-            // create block for body
-            new_basic_block(itl,func);
-
-            compile_block(itl,func,if_stmt.nodes[0]);
+            return compile_logical_op(itl,func,node,logic_op::cmplt_reg,dst_slot);
         }
-    }
 
-    // create the exit block, for new code
-    const u32 exit_block = new_basic_block(itl,func);
-
-
-
-    // for every body block bar the last we just added
-    // add a unconditonal branch to the "exit block"
-    // the last block is directly before the next and does not need one
-
-    for(u32 b = start_block; b < func.emitter.program.size() - 2; b++)
-    {
-        auto &block = func.emitter.program[b];
-
-        if(block.back().op == op_type::exit_block)
+        case ast_type::logical_le:
         {
-            block.back() = Opcode(op_type::b,exit_block,0,0);
+            return compile_logical_op(itl,func,node,logic_op::cmple_reg,dst_slot);
+        }
+
+        case ast_type::logical_gt:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpgt_reg,dst_slot);
+        }
+
+        case ast_type::logical_ge:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpge_reg,dst_slot);
+        }
+
+        case ast_type::logical_eq:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpeq_reg,dst_slot);
+        }
+
+        case ast_type::logical_ne:
+        {
+            return compile_logical_op(itl,func,node,logic_op::cmpne_reg,dst_slot);
+        }
+
+        case ast_type::logical_and:
+        {
+            return compile_logical_op(itl,func,node,logic_op::and_reg,dst_slot);
+        }
+
+        case ast_type::logical_or:
+        {
+            return compile_logical_op(itl,func,node,logic_op::or_reg,dst_slot);
+        }
+
+
+        case ast_type::function_call:
+        {
+            return compile_function_call(itl,func,node,dst_slot);
+        }
+
+
+        default:
+        {
+            panic(itl,"[COMPILE]: invalid expression\n");
+            print(node);
+            return Type(builtin_type::void_t);
         }
     }
 }
-
-
-
-// TODO: fold sucessive adds for stack reclaims
-// i.e 
-
-/*
-    call 0x10
-    add sp, sp, 8
-    add sp, sp, 4
-    ret
-
-    ->
-
-    call 0x10
-    add sp, sp, 12
-    ret
-*/
 
 
 
@@ -875,11 +920,11 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 
     const auto size = type_size(itl,ltype);
 
-    // add allocation information
-    const auto slot = add_var(func,name,ltype,size);
+    // TODO: get rid of the need to use this for calculating stack requirements
+    add_var(func,size);
 
     // add new symbol table entry
-    add_symbol(itl.symbol_table,name,ltype,slot);
+    add_symbol(itl.symbol_table,name,ltype,size);
 
 
     const auto &sym = get_sym(itl.symbol_table,name).value();
@@ -890,12 +935,11 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     // handle right side expression (if present)
     if(line.nodes.size() == 2)
     {
-        const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1]);
+        const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
         check_assign(itl,ltype,rtype);
-
-        emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
     }    
 }
+
 
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
 {
@@ -908,29 +952,29 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     }
 
     
-    const auto [type,reg] = compile_oper(itl,func,line.nodes[0]);
+    const auto [type,reg] = compile_oper(itl,func,line.nodes[0],new_slot(func));
 
     // add the symbol
 
     const auto size = type_size(itl,type);
 
-    // add allocation information
-    const auto slot = add_var(func,name,type,size);
-    
+    // TODO: get rid of the need to use this for calculating stack requirements
+    add_var(func,size);
+
     // add new symbol table entry
-    add_symbol(itl.symbol_table,name,type,slot);
+    add_symbol(itl.symbol_table,name,type,size);
 
     const auto &sym = get_sym(itl.symbol_table,name).value();
 
 
     emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
-
     emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
 }
 
+
 void compile_block(Interloper &itl,Function &func,AstNode *node)
 {
-   new_scope(itl.symbol_table);
+    new_scope(itl.symbol_table);
 
     for(auto l : node->nodes)
     {
@@ -941,9 +985,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
         const auto &line = *l;
 
-        // first register reserved for return value
-        func.emitter.reg_count = 1;
-
         switch(line.type)
         {
             // variable declaration
@@ -951,7 +992,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             {
                 compile_decl(itl,func,line);
                 break;
-            }
+            }           
 
 
             case ast_type::auto_decl:
@@ -965,7 +1006,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             // assignment
             case ast_type::equal:
             {
-                const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1]);
+                const auto [rtype,slot] = compile_oper(itl,func,line.nodes[1],new_slot(func));
 
                 const auto name = line.nodes[0]->literal;
 
@@ -982,16 +1023,25 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                 check_assign(itl,sym.type,rtype);
 
-                emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
+                emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
                 break;
             }
 
+
             case ast_type::ret:
             {
-                // has an arg
                 if(line.nodes.size() == 1)
                 {
-                    const auto [rtype,v1] = compile_oper(itl,func,line.nodes[0]);
+                    const auto [rtype,v1] = compile_oper(itl,func,line.nodes[0],RV_IR);
+
+                    // what we are returning is just a var 
+                    // it needs to be moved into ret
+                    // TODO: make sure the optimiser sees through this
+                    if(v1 != RV_IR)
+                    {
+                        emit(func.emitter,op_type::mov_reg,RV_IR,v1);
+                    }
+
 
                     if(itl.error)
                     {
@@ -999,21 +1049,21 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                     }
 
                     check_assign(itl,func.return_type,rtype);
-
-                    // TODO: we are gonna require this when we have a register allocator
-                    emit(func.emitter,op_type::mov_reg,reg(RV),v1);
                 }
-                
-                itl.has_return = true;
+
                 emit(func.emitter,op_type::ret);
+                
+
+                itl.has_return = true;
                 break;
             }
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,func,l);
+                compile_function_call(itl,func,l,new_slot(func));
                 break;
-            }
+            }            
+
 
             case ast_type::block:
             {
@@ -1022,15 +1072,15 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             }
 
 
-            case ast_type::for_block:
-            {
-                compile_for_block(itl,func,l);
-                break;
-            }
-
             case ast_type::if_block:
             {
                 compile_if_block(itl,func,l);
+                break;
+            }
+
+            case ast_type::for_block:
+            {
+                compile_for_block(itl,func,l);
                 break;
             }
 
@@ -1043,6 +1093,9 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
     }
 
 
+
+    // TODO: clean up this nonsense when we improve how stack allocation is done
+
     // std::max the sizes this is what we need to allocate
     for(int i = 0; i < 3; i++)
     {
@@ -1050,15 +1103,15 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
     }
 
     // scope is about to be destroyed reclaim the stack for every var that is no longer used
-    for(const auto &[key, sym] : itl.symbol_table.table[itl.symbol_table.table.size()-1])
-    {
-        if(!sym.is_arg)
+    for(const auto &[key, slot] : itl.symbol_table.table[itl.symbol_table.table.size()-1])
+    { 
+        const auto &sym = itl.symbol_table.slot_lookup[slot];
+
+        // free the stack alloc for each var thats about to go out of scope
+        if(sym.arg_num == NON_ARG)
         {
             emit(func.emitter,op_type::free_slot,slot_idx(sym)); 
-
-            // free the stack alloc for each var thats about to go out of scope
-            const auto &var_alloc = func.slot_lookup[sym.slot];
-            func.size_count_cur[var_alloc.size >> 1]--;
+            func.size_count_cur[sym.size >> 1]--;
         }
     }
 
@@ -1087,21 +1140,19 @@ void compile_functions(Interloper &itl)
 
         auto &func = itl.function_table[node.literal];
 
-        for(auto &sym: func.args)
+        func.emitter.reg_count = 0;
+
+        // put each arg into scope
+        for(auto &a : func.args)
         {
-            const auto size = type_size(itl,sym.type);
-
-            // this has to be parsed in forward order or all the offsets
-            // will be messed up
-            const auto slot = add_arg(func,sym.name,sym.type,size);
-
-            add_symbol(itl.symbol_table,sym,slot);
+            add_scope(itl.symbol_table,itl.symbol_table.slot_lookup[a]);
         }
+
 
 
         itl.has_return = false;
 
-        new_basic_block(itl,func);
+        new_basic_block(itl,func,block_type::body_t);
 
 
         // parse out each line of the function
@@ -1139,7 +1190,7 @@ void dump_ir_sym(Interloper &itl)
     {
         UNUSED(key);
 
-        dump_ir(func,itl.symbol_table.label_lookup);
+        dump_ir(func,itl.symbol_table.slot_lookup,itl.symbol_table.label_lookup);
     }    
 }
 
@@ -1241,7 +1292,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     }
 
 
-    optimise_ir(itl);
+    //optimise_ir(itl);
 
     dump_ir_sym(itl);
 
@@ -1249,7 +1300,8 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     for(auto &[key, func]: itl.function_table)
     {
         UNUSED(key);
-        allocate_registers(func);
+        allocate_registers(func,itl.symbol_table.slot_lookup);
+        putchar('\n');
     }
 
     // emit the actual target asm
