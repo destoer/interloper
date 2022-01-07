@@ -51,7 +51,9 @@ enum class token_type
     shift_l,
     shift_r,
 
-    bitwise_and,
+    deref,
+
+    operator_and,
     bitwise_or,
     bitwise_not,
     bitwise_xor,    
@@ -146,7 +148,9 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::shift_l,"<<",13},
     {token_type::shift_r,">>",13},
 
-    {token_type::bitwise_and,"&",10},
+    {token_type::deref,"@",30},
+
+    {token_type::operator_and,"&",10},
     {token_type::bitwise_or,"|",9},
     {token_type::bitwise_not,"~",-1}, // unary
     {token_type::bitwise_xor,"^",8},

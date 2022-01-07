@@ -223,6 +223,8 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case ';': insert_token(lexer,token_type::semi_colon); break;
 
+            case '@': insert_token(lexer,token_type::deref); break;
+
             case '*':
             { 
                 if(peek(lexer.column+1,line) == '=')
@@ -280,7 +282,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case '&':
             {
-                // not equal
+                // equal
                 if(peek(lexer.column+1,line) == '&')
                 {
                     insert_token(lexer,token_type::logical_and);
@@ -289,14 +291,14 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
                 else
                 {
-                    insert_token(lexer,token_type::bitwise_and);
+                    insert_token(lexer,token_type::operator_and);
                 }
                 break;              
             }
 
             case '|':
             {
-                // not equal
+                // logical or
                 if(peek(lexer.column+1,line) == '|')
                 {
                     insert_token(lexer,token_type::logical_or);

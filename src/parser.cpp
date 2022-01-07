@@ -111,13 +111,8 @@ void type_panic(Parser &parser)
     panic(parser,tok,"expected type declaration got: %s\n",tok_name(tok.type));
 }
 
-// assume this is a plain type for now
-// i.e no array etc
-
-std::optional<Type> get_type(Parser &parser,std::string &type_literal)
+std::optional<Type> get_plain_type(const Token &tok, std::string &type_literal)
 {
-    const auto tok = next_token(parser);
-
     // is a builtin type
     switch(tok.type)
     {
@@ -176,9 +171,39 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
         {
             return std::nullopt;
         }
+    }    
+}
+
+
+std::optional<Type> get_type(Parser &parser,std::string &type_literal)
+{
+    auto tok = next_token(parser);
+
+
+    auto type = get_plain_type(tok,type_literal);
+
+    if(!type)
+    {
+        panic("invalid plain type");
+        return std::nullopt;
     }
 
-    panic("get_type fell through!?");
+    // check for any specifiers i.e '@'
+    switch(peek(parser,0).type)
+    {
+        case token_type::deref:
+        {
+            panic("dereference not implemented");
+            tok = next_token(parser);
+            break;
+        }
+
+        // we have just a plain type
+        default: break;
+    }
+
+
+    return type;
 }
 
 AstNode *declaration(Parser &parser,const Type &var_type, const std::string &type_str)
@@ -200,7 +225,7 @@ AstNode *declaration(Parser &parser,const Type &var_type, const std::string &typ
     auto d = new AstNode(ast_type::declaration,s.literal);
     d->nodes.push_back(new AstNode(var_type,type_str));
 
-    const auto eq = peek(parser,0);;
+    const auto eq = peek(parser,0);
 
     switch(eq.type)
     {

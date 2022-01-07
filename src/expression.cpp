@@ -127,7 +127,8 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
             return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::times);
         }
 
-        case token_type::bitwise_and:
+        // and operator in binary context is a bitwise and
+        case token_type::operator_and:
         {
             return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::bitwise_and);
         }
