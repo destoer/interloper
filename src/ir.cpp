@@ -685,7 +685,19 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     break;
                 }
 
+                case op_type::addrof:
+                {
+                    // we need to take the address of our vars...
+                    // but we dont know where we are at this phase...
+                    // do we have to half compile this and then do it in the 2nd pass?
+                    // <addrof> <dst_slot> <var>
 
+                    // -> <addrof> <alloced reg> <slot>
+                    // -> lea <alloced reg> <sp + whatever>
+                    // when addrof happens we also need to force the var to be reloaded from mem whenever it is accessed
+                    panic("addrof");
+                    break;
+                }
 
                 // have to do correct reg by here to make sure hte offset is applied after any reloads occur
                 case op_type::push_arg:

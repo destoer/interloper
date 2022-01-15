@@ -25,10 +25,15 @@ u32 type_size(Interloper& itl,const Type &type)
 {
     UNUSED(itl);
 
-    if(is_builtin(type))
+    if(is_plain_builtin(type))
     {
         // assume plain type for now i.e no pointers etc
         return builtin_size(static_cast<builtin_type>(type.type_idx));
+    }
+
+    else if(is_pointer(type))
+    {
+        return  GPR_SIZE;
     }
 
     else
@@ -41,7 +46,7 @@ u32 type_min(Interloper& itl,const Type &type)
 {
     UNUSED(itl);
 
-    if(is_builtin(type))
+    if(is_plain_builtin(type))
     {
         // assume plain type for now i.e no pointers etc
         return builtin_min(static_cast<builtin_type>(type.type_idx));
@@ -49,7 +54,7 @@ u32 type_min(Interloper& itl,const Type &type)
 
     else
     {
-        unimplemented("user defined type size\n");
+        unimplemented("user defined type min\n");
     }
 }
 
@@ -57,7 +62,7 @@ u32 type_max(Interloper& itl,const Type &type)
 {
     UNUSED(itl);
 
-    if(is_builtin(type))
+    if(is_plain_builtin(type))
     {
         // assume plain type for now i.e no pointers etc
         return builtin_max(static_cast<builtin_type>(type.type_idx));
@@ -65,7 +70,7 @@ u32 type_max(Interloper& itl,const Type &type)
 
     else
     {
-        unimplemented("user defined type size\n");
+        unimplemented("user defined type max\n");
     }
 }
 
@@ -74,7 +79,7 @@ std::string type_name(Interloper& itl,const Type &type)
 {
     UNUSED(itl);
 
-    if(is_builtin(type))
+    if(is_plain_builtin(type))
     {
         return builtin_type_name(static_cast<builtin_type>(type.type_idx));
     }
@@ -93,7 +98,7 @@ Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
     UNUSED(itl);
 
     // builtin type
-    if(is_builtin(rtype) && is_builtin(ltype))
+    if(is_plain_builtin(rtype) && is_plain_builtin(ltype))
     {
         // both integers
         if(is_integer(rtype) && is_integer(ltype))
@@ -126,7 +131,7 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
     UNUSED(itl);
 
     // both are builtin
-    if(is_builtin(rtype) && is_builtin(ltype))
+    if(is_plain_builtin(rtype) && is_plain_builtin(ltype))
     {
         const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
         const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
@@ -176,7 +181,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
 
 
     // both are builtin
-    if(is_builtin(rtype) && is_builtin(ltype))
+    if(is_plain_builtin(rtype) && is_plain_builtin(ltype))
     {
         const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
         const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
@@ -241,7 +246,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
 
     // handle side effects of the cast
     // builtin type
-    if(is_builtin(old_type) && is_builtin(new_type))
+    if(is_plain_builtin(old_type) && is_plain_builtin(new_type))
     {
         const auto builtin_old = static_cast<builtin_type>(old_type.type_idx);
         const auto builtin_new = static_cast<builtin_type>(new_type.type_idx);

@@ -665,6 +665,98 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 
 
+// TODO: does it make sense to use the same function for both the @ and & operator?
+std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool deref)
+{
+    // figure out what the addr is
+    switch(node->type)
+    {
+        case ast_type::symbol:
+        {
+            const auto name = node->literal;
+            const auto sym_opt = get_sym(itl.symbol_table,name);
+            if(!sym_opt)
+            {
+                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+                print(node);
+                return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+            }
+
+            const auto &sym = sym_opt.value();
+
+            // type is now what it pointed to
+            auto type = sym.type;
+            if(deref)
+            {
+                if(!is_pointer(type))
+                {
+                    panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.c_str());
+                }
+                type.ptr_indirection -= 1;
+            }
+
+            else
+            {
+                type.ptr_indirection += 1;
+            }
+
+            // actually  get the addr of the ptr
+            emit(func.emitter,op_type::addrof,slot,slot_idx(sym));
+
+            return std::pair<Type,u32>{type,slot};
+        }
+
+        default:
+        {
+            print(node);
+            panic("load_addr expr");
+        }
+    }
+}
+
+void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
+{
+    const u32 size = type_size(itl,type);
+
+    if(size <= sizeof(u32))
+    {
+        if(is_signed_integer(type))
+        {
+            // word is register size (we dont need to extend it)
+            static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);       
+        }
+
+        // "plain data"
+        // just move by size
+        else
+        {
+            static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
+        }
+    }   
+
+    else
+    {
+        panic("struct deref");
+    }
+}
+
+void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
+{
+    const u32 size = type_size(itl,type);
+
+    if(size <= sizeof(u32))
+    {
+        static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+        emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
+    }   
+
+    else
+    {
+        panic("struct deref");
+    }
+}
 
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
@@ -678,9 +770,23 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     }
 
    
-    // OKAY start slowing reimpl the min ammount to get these working!
     switch(node->type)
     {
+
+        case ast_type::addrof:
+        {
+            // want this to also get an addr but we want the actual ptr_count to go up...
+            const auto [type,slot] = load_addr(itl,func,node->nodes[0],dst_slot,false);
+            return type;
+        }
+
+        case ast_type::deref:
+        {
+            const auto [type,slot]  = load_addr(itl,func,node->nodes[0],new_slot(func),true);
+            do_ptr_load(itl,func,dst_slot,slot,type);
+            return type;
+        }
+
         case ast_type::cast:
         {
             const auto [old_type,slot] = compile_oper(itl,func,node->nodes[1],new_slot(func));
@@ -912,8 +1018,11 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto name = line.literal;
     const auto ltype = line.nodes[0]->variable_type;
 
-    if(get_sym(itl.symbol_table,name))
+    const auto sym_opt = get_sym(itl.symbol_table,name);
+    if(sym_opt)
     {
+        print(&line);
+        print_sym(sym_opt.value());
         panic(itl,"redeclared symbol: %s\n",name.c_str());
         return;
     }
@@ -1002,28 +1111,50 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             }
 
 
-
             // assignment
             case ast_type::equal:
             {
                 const auto [rtype,slot] = compile_oper(itl,func,line.nodes[1],new_slot(func));
 
-                const auto name = line.nodes[0]->literal;
 
-
-                const auto sym_opt = get_sym(itl.symbol_table,name);
-                if(!sym_opt)
+                if(line.nodes[0]->type != ast_type::symbol)
                 {
-                    panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
-                    print(l);
-                    return;
+                    switch(line.nodes[0]->type)
+                    {
+                        case ast_type::deref:
+                        {
+                            const auto [type,addr_slot] = load_addr(itl,func,line.nodes[0]->nodes[0],new_slot(func),true);
+                            check_assign(itl,type,rtype);
+                            do_ptr_write(itl,func,slot,addr_slot,type);
+                            break;                        
+                        }    
+
+                        default:
+                        {
+                            panic("unhandled non plain assign");
+                            break;
+                        }
+                    }
                 }
+                
+                else
+                {
+                    const auto name = line.nodes[0]->literal;
 
-                const auto &sym = sym_opt.value();
+                    const auto sym_opt = get_sym(itl.symbol_table,name);
+                    if(!sym_opt)
+                    {
+                        panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
+                        print(l);
+                        return;
+                    }
 
-                check_assign(itl,sym.type,rtype);
+                    const auto &sym = sym_opt.value();
 
-                emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
+                    check_assign(itl,sym.type,rtype);
+
+                    emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
+                }
                 break;
             }
 
@@ -1182,6 +1313,8 @@ void compile_functions(Interloper &itl)
             return;
         }
     }
+
+    destroy_scope(itl.symbol_table); 
 }
 
 void dump_ir_sym(Interloper &itl)
@@ -1196,6 +1329,9 @@ void dump_ir_sym(Interloper &itl)
 
 
 // TODO: impl source line information on the parse tree
+// impl raii for varaible scopes to prevent dumb bugs
+
+
 
 // plan:
 // reg alloc -> pointers -> structs -> arrays -> strings -> imports

@@ -4,7 +4,9 @@
 
 func modify(u32 @x)
 {
-    @x += 5;
+    // TODO: fix this 
+    //@x += 5;
+    @x = @x + 5;
 }
 
 

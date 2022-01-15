@@ -340,6 +340,17 @@ AstNode *nud(Parser &parser,Token &t)
             return expr;
         }
 
+        case token_type::deref:
+        {
+            return new AstNode(expression(parser,lbp(parser,t)),nullptr,ast_type::deref);
+        }
+
+        // in unary context and operator takes addr
+        case token_type::operator_and:
+        {
+            return new AstNode(expression(parser,30),nullptr,ast_type::addrof);
+        }
+
         default:
         {
             panic(parser,t,"nud: unexpected token %s\n",tok_name(t.type));

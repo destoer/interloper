@@ -25,6 +25,15 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym)
     return std::nullopt;
 }
 
+void print_sym(const Symbol &sym)
+{
+    printf("symbol: %s\n",sym.name.c_str());
+
+    // TODO: make somethign to properly resolve the type
+    printf("type: %d\n",sym.type.type_idx);
+    printf("indirection: %d\n",sym.type.ptr_indirection);
+}
+
 // add symbol to slot lookup
 void add_var(SymbolTable &sym_table,Symbol &sym)
 {

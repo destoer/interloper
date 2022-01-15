@@ -180,27 +180,36 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
     auto tok = next_token(parser);
 
 
-    auto type = get_plain_type(tok,type_literal);
+    auto type_opt = get_plain_type(tok,type_literal);
 
-    if(!type)
+    if(!type_opt)
     {
         panic("invalid plain type");
         return std::nullopt;
     }
 
+    auto type = type_opt.value();
+
     // check for any specifiers i.e '@'
+    // TODO: we need to keep doing this until it runs out of matches
+    // but for now just assuem a single '@' at  most
+
+    u32 ptr_indirection = 0;
+
     switch(peek(parser,0).type)
     {
         case token_type::deref:
         {
-            panic("dereference not implemented");
             tok = next_token(parser);
+            ptr_indirection++;
             break;
         }
 
         // we have just a plain type
         default: break;
     }
+
+    type.ptr_indirection = ptr_indirection;
 
 
     return type;
@@ -334,6 +343,69 @@ AstNode *statement(Parser &parser)
             }
 
             return r;
+        }
+
+
+        // TODO: need to make this keep doing derefs until there are no more token matches
+        case token_type::deref:
+        {
+            // what do we want to for the tree format here?
+            // @x = <expr>
+            const auto t1 = next_token(parser);
+            const auto t2 = peek(parser,0);
+
+            switch(t1.type)
+            {
+
+                case token_type::symbol:
+                {
+                    switch(t2.type)
+                    {
+
+                        /*
+                            we are gonna get something like this back from expr
+                            = 
+                                x
+                                y
+
+                            and we want
+
+                            = 
+                                @
+                                    x
+                                y
+                        */
+
+                        // assignment expr
+                        case token_type::equal:
+                        {
+                            auto e = expr(parser,t1);
+                            auto d = new AstNode(ast_type::deref);
+
+
+                            d->nodes.push_back(e->nodes[0]);
+                            e->nodes[0] = d;
+
+                            return e;
+                        }
+
+                        // TODO: maybe it is too hacky to try sugaring these
+                        case token_type::plus_eq:
+                        case token_type::minus_eq:
+                        case token_type::divide_eq:
+                        case token_type::times_eq:
+                        {
+                            panic("deref for this is broken");
+                        }
+
+                        default: panic(parser,t2,"statement: expected assignment for pointer deref %s\n",tok_name(t2.type)); break;
+                    }
+                    break;
+                }
+
+                default: panic(parser,t1,"statement: expected symbol for deref %s\n"); break;
+            }
+            break;
         }
 
         // TODO: detect a declartion with a user defined type

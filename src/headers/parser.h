@@ -34,6 +34,9 @@ enum class ast_type
     shift_l,
     shift_r,
 
+    deref,
+    addrof,
+
     bitwise_or,
     bitwise_not,
     bitwise_and,
@@ -97,6 +100,9 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "<<",
     ">>",
+
+    "@",
+    "addrof",
 
     "|",
     "~",

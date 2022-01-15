@@ -96,10 +96,14 @@ struct Type
 
     int type_idx;
 
+    u32 ptr_indirection;
+
+    // TODO: start here
+
     // arrays etc (ignore for now)
     /*
-    int array_indirection;
-    int ptr_indirection;
+    u32 array_indirection;
+    u32 ptr_indirection;
 
     // is this an array holding pointers
     // pointers to an array
@@ -119,19 +123,36 @@ inline bool is_builtin(const Type &t)
 }
 
 
+inline bool is_pointer(const Type &t)
+{
+    return t.ptr_indirection >= 1;
+}
+
+
+inline bool is_plain(const Type &t)
+{
+    return !is_pointer(t);
+}
+
+
+inline bool is_plain_builtin(const Type &t)
+{
+    return is_builtin(t) && is_plain(t);
+}
+
 inline bool is_bool(const Type &t)
 {
-    return is_builtin(t) && conv_type_idx(t.type_idx) == builtin_type::bool_t;
+    return is_plain_builtin(t) && conv_type_idx(t.type_idx) == builtin_type::bool_t;
 }
 
 inline bool is_integer(const Type &t)
 {
-    return is_builtin(t) && builtin_type_info[t.type_idx].is_integer;
+    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_integer;
 }
 
 inline bool is_signed(const Type &t)
 {
-    return is_builtin(t) && builtin_type_info[t.type_idx].is_signed;
+    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_signed;
 }
 
 inline bool is_signed_integer(const Type &t)
@@ -203,6 +224,7 @@ inline bool is_arg(const Symbol &sym)
     return sym.arg_num != NON_ARG;
 }
 
+void print_sym(const Symbol &sym);
 
 
 struct Label 

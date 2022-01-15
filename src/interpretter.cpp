@@ -424,6 +424,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::spill_rv:
         case op_type::spill:
         case op_type::load:
+        case op_type::addrof:
         case op_type::END:
         {
             puts("directive not removed!?");

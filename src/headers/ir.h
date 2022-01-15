@@ -106,6 +106,8 @@ enum class op_type
     spill,
     load,
 
+    addrof,
+
     // just c++ things not used
     END,
 };
@@ -220,6 +222,10 @@ static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 static constexpr u32 SP = MACHINE_REG_SIZE;
 static constexpr u32 PC = MACHINE_REG_SIZE + 1;
 static constexpr u32 RV = 0;
+
+
+static constexpr u32 GPR_SIZE = sizeof(u32);
+
 
 
 inline bool is_reg(u32 r)
