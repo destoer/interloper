@@ -709,7 +709,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
         default:
         {
             print(node);
-            panic("load_addr expr");
+            unimplemented("load_addr expr");
         }
     }
 }
@@ -738,7 +738,7 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 
     else
     {
-        panic("struct deref");
+       unimplemented("struct deref");
     }
 }
 
@@ -754,7 +754,7 @@ void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 
     else
     {
-        panic("struct deref");
+        unimplemented("struct deref");
     }
 }
 
@@ -1131,7 +1131,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                         default:
                         {
-                            panic("unhandled non plain assign");
+                            unimplemented("non plain assign");
                             break;
                         }
                     }

@@ -215,7 +215,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
 
             else
             {
-                unimplemented("unimplmented: non integer assign!\n");
+                unimplemented("non integer assign!\n");
             }           
         }
     }
@@ -224,7 +224,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
     // here probably the only valid thing is both are the same
     else
     {
-        unimplemented("unimplmented: check assign user defined type!\n");
+        unimplemented("check assign user defined type!\n");
     }
 }
 

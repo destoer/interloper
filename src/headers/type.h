@@ -88,7 +88,7 @@ struct Type
     Type() {}
 
     // plain builtin type
-    Type(builtin_type t) : type_idx(conv_builtin_type(t)) 
+    Type(builtin_type t) : type_idx(conv_builtin_type(t)), ptr_indirection(0) 
     {
         
     }

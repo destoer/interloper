@@ -182,9 +182,10 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 
     auto type_opt = get_plain_type(tok,type_literal);
 
+    // this is allowed to fail
+    // caller is expected to check
     if(!type_opt)
     {
-        panic("invalid plain type");
         return std::nullopt;
     }
 
@@ -390,6 +391,7 @@ AstNode *statement(Parser &parser)
                         }
 
                         // TODO: maybe it is too hacky to try sugaring these
+                        // TODO: we should try putting this directly inside the expr parser rather than hacking around this
                         case token_type::plus_eq:
                         case token_type::minus_eq:
                         case token_type::divide_eq:

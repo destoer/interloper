@@ -695,7 +695,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // -> <addrof> <alloced reg> <slot>
                     // -> lea <alloced reg> <sp + whatever>
                     // when addrof happens we also need to force the var to be reloaded from mem whenever it is accessed
-                    panic("addrof");
+                    unimplemented("addrof");
                     break;
                 }
 
