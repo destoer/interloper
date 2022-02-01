@@ -3,10 +3,8 @@
 // expected -2
 
 func modify(u32 @x)
-{
-    // TODO: fix this 
-    //@x += 5;
-    @x = @x + 5;
+{ 
+    @x += 5;
 }
 
 

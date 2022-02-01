@@ -692,7 +692,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // do we have to half compile this and then do it in the 2nd pass?
                     // <addrof> <dst_slot> <var>
 
-                    // -> <addrof> <alloced reg> <slot>
+                    // -> <addrof> <alloced reg> <slot> <stack offset>
                     // -> lea <alloced reg> <sp + whatever>
                     // when addrof happens we also need to force the var to be reloaded from mem whenever it is accessed
                     unimplemented("addrof");
