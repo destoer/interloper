@@ -203,6 +203,7 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
         {
             tok = next_token(parser);
             ptr_indirection++;
+            type_literal = type_literal + '@';
             break;
         }
 
