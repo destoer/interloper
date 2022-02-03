@@ -42,6 +42,8 @@ enum class op_type
     sh,
     sw,
 
+    lea,
+
     push,
     pop,
 

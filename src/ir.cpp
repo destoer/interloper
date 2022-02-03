@@ -355,6 +355,11 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
             {
                 reload_sym(sym,opcode.v[i],alloc,block,op_ptr,slot_lookup);
             }
+
+            /* // in a reg make sure to spill out the pointer
+            else if()
+
+            */
         }
 
         else if(is_tmp(opcode.v[i]))
@@ -397,6 +402,11 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
                 }
             }
         }
+
+/*      // in a reg spill out the damn pointer
+        else if()
+
+*/
     }
 
     // each tmp store is unique we only need to allocate at first use
@@ -480,9 +490,11 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             break;
         }
 
+        // How should we handle this crap?
         case op_group::load_t:
         {
-            panic("load in correct_reg");
+            reg_args = info.args - 1;
+            handle_allocation(slot_lookup,alloc,block,op_ptr,opcode,info.args-1);
             break;
         }
 
@@ -695,7 +707,10 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // -> <addrof> <alloced reg> <slot> <stack offset>
                     // -> lea <alloced reg> <sp + whatever>
                     // when addrof happens we also need to force the var to be reloaded from mem whenever it is accessed
-                    unimplemented("addrof");
+
+                    // okay apply the stack offset, and let the register allocator deal with it
+                    // we will get the actual address using it later
+                    opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
                     break;
                 }
 
@@ -880,6 +895,12 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
                         opcode =  Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);
                     }
+                    break;
+                }
+
+                case op_type::addrof:
+                {
+                    unimplemented("2nd stage addrof");
                     break;
                 }
 

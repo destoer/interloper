@@ -38,6 +38,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::load_t,"sh",3},
     {op_group::load_t,"sw",3},
 
+    {op_group::load_t,"lea",3},
+
     {op_group::reg_t,"push",1},
     {op_group::reg_t,"pop",1},
 
@@ -94,7 +96,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"spill",2},
     {op_group::reg_t,"load",2},
 
-    {op_group::reg_t,"addrof",2},
+    {op_group::imm_t,"addrof",3},
 
     // not used
     {op_group::implicit_t,"END",0},
