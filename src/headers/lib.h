@@ -27,6 +27,7 @@ using s16 = int16_t;
 using s32 = int32_t;
 
 using b32 = bool;
+using b8 = bool;
 
 // read entire file into a string
 inline std::string read_file(const std::string &filename)
@@ -161,5 +162,13 @@ inline void panic(const char *fmt, ...)
     exit(1);
 }
 
+
+// TODO: force this to take the actual iterator type so this gives sane errors
+template<typename T, typename Y>
+inline void insert_after(std::list<T> list,Y it, T v)
+{
+    it++;
+    list.insert(it,v);
+}
 
 #define UNUSED(X) ((void)X)

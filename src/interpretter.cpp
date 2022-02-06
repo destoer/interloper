@@ -223,6 +223,12 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         }
 
 
+        case op_type::lea:
+        {
+            regs[opcode.v[0]] = regs[opcode.v[1]] + opcode.v[2];
+            break;
+        }
+
         case op_type::sw:
         {
             write_mem<u32>(interpretter,regs[opcode.v[1]]+opcode.v[2],regs[opcode.v[0]]);

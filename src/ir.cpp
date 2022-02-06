@@ -92,6 +92,12 @@ struct LocalAlloc
 
 void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbol& sym, u32 reg)
 {
+    // no need to spill
+    if(sym.location == LOCATION_MEM)
+    {
+        return;
+    }
+
     printf("spill %s:%d\n",sym.name.c_str(),reg);
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
@@ -236,6 +242,22 @@ u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t blo
 }
 
 
+// alloc based on it being a var or a tmp
+void alloc_idx(u32 idx,LocalAlloc &alloc, Block &block,opcode_iterator_t block_ptr,SlotLookup &slot_lookup)
+{
+    if(is_tmp(idx))
+    {
+        alloc_tmp(alloc,idx,block,block_ptr,slot_lookup);
+    }
+
+    else if(is_symbol(idx))
+    {
+        // alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
+        auto &sym = slot_lookup[symbol_to_idx(idx)];
+        alloc_reg(sym,alloc,block,block_ptr,slot_lookup);
+    }
+}
+
 void free_reg(LocalAlloc &alloc, u32 reg)
 {
     printf("freed tmp t%d from r%d\n",tmp_to_ir(alloc.regs[reg]),reg);
@@ -356,10 +378,11 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
                 reload_sym(sym,opcode.v[i],alloc,block,op_ptr,slot_lookup);
             }
 
-            /* // in a reg make sure to spill out the pointer
-            else if()
-
-            */
+            // var has had a pointer taken to it make sure to reload this anyways
+            else if(sym.referenced)
+            {
+                reload_sym(sym,opcode.v[i],alloc,block,op_ptr,slot_lookup);
+            }            
         }
 
         else if(is_tmp(opcode.v[i]))
@@ -403,10 +426,13 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block,
             }
         }
 
-/*      // in a reg spill out the damn pointer
-        else if()
+        // in a reg spill out the damn pointer
+        else if(sym.referenced)
+        {
+            auto it = op_ptr++;
+            spill_reg(alloc,block,it,sym,sym.location);
+        }
 
-*/
     }
 
     // each tmp store is unique we only need to allocate at first use
@@ -683,17 +709,7 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                 // allocate a tmp
                 case op_type::mov_imm:
                 {
-                    if(is_tmp(opcode.v[0]))
-                    {
-                        alloc_tmp(alloc,opcode.v[0],block,it,slot_lookup);
-                    }
-
-                    else if(is_symbol(opcode.v[0]))
-                    {
-                        // alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
-                        auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])];
-                        alloc_reg(sym,alloc,block,it,slot_lookup);
-                    }
+                    alloc_idx(opcode.v[0],alloc,block,it,slot_lookup);
                     break;
                 }
 
@@ -708,10 +724,22 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // -> lea <alloced reg> <sp + whatever>
                     // when addrof happens we also need to force the var to be reloaded from mem whenever it is accessed
 
+
+                    // mark the var as having a pointer taken to it
+                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
+                    sym.referenced = true;
+
                     // okay apply the stack offset, and let the register allocator deal with it
                     // we will get the actual address using it later
                     opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
-                    break;
+                    
+                    // just rewrite the 1st reg we dont want the address of the 2nd
+                    alloc_idx(opcode.v[0],alloc,block,it,slot_lookup);
+                    rewrite_registers(0,1,opcode,alloc,slot_lookup);
+
+                    it++;
+                    spill_reg(alloc,block,it,sym,sym.location);
+                    continue;
                 }
 
                 // have to do correct reg by here to make sure hte offset is applied after any reloads occur
@@ -900,7 +928,10 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
 
                 case op_type::addrof:
                 {
-                    unimplemented("2nd stage addrof");
+                    const s32 stack_offset = opcode.v[2];
+                    const auto sym_offset = slot_lookup[symbol_to_idx(opcode.v[1])].offset;
+
+                    opcode = Opcode(op_type::lea,opcode.v[0],SP,sym_offset + stack_offset);
                     break;
                 }
 

@@ -662,11 +662,10 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 }
 
 
-
-
-
+// TODO: this needs a cleanup
 // TODO: does it make sense to use the same function for both the @ and & operator?
-std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool deref)
+// TODO: this wont handle arrays
+std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof)
 {
     // figure out what the addr is
     switch(node->type)
@@ -686,24 +685,26 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 
             // type is now what it pointed to
             auto type = sym.type;
-            if(deref)
+
+
+
+            if(addrof)
+            {
+                type.ptr_indirection += 1;
+                // actually  get the addr of the ptr
+                emit(func.emitter,op_type::addrof,slot,slot_idx(sym));
+                return std::pair<Type,u32>{type,slot};
+            }
+
+            else
             {
                 if(!is_pointer(type))
                 {
                     panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.c_str());
                 }
                 type.ptr_indirection -= 1;
+                return std::pair<Type,u32>{type,slot_idx(sym)};
             }
-
-            else
-            {
-                type.ptr_indirection += 1;
-            }
-
-            // actually  get the addr of the ptr
-            emit(func.emitter,op_type::addrof,slot,slot_idx(sym));
-
-            return std::pair<Type,u32>{type,slot};
         }
 
         default:
@@ -776,13 +777,13 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         case ast_type::addrof:
         {
             // want this to also get an addr but we want the actual ptr_count to go up...
-            const auto [type,slot] = load_addr(itl,func,node->nodes[0],dst_slot,false);
+            const auto [type,slot] = load_addr(itl,func,node->nodes[0],dst_slot,true);
             return type;
         }
 
         case ast_type::deref:
         {
-            const auto [type,slot]  = load_addr(itl,func,node->nodes[0],new_slot(func),true);
+            const auto [type,slot]  = load_addr(itl,func,node->nodes[0],new_slot(func),false);
             do_ptr_load(itl,func,dst_slot,slot,type);
             return type;
         }
@@ -1123,7 +1124,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                     {
                         case ast_type::deref:
                         {
-                            const auto [type,addr_slot] = load_addr(itl,func,line.nodes[0]->nodes[0],new_slot(func),true);
+                            const auto [type,addr_slot] = load_addr(itl,func,line.nodes[0]->nodes[0],new_slot(func),false);
                             check_assign(itl,type,rtype);
                             do_ptr_write(itl,func,slot,addr_slot,type);
                             break;                        

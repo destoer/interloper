@@ -194,7 +194,7 @@ struct Symbol
     Symbol() {}
 
     Symbol(const std::string &n, Type t, u32 s, u32 a = NON_ARG) : name(n), type(t), size(s), arg_num(a), 
-        slot(SYMBOL_NO_SLOT), offset(UNALLOCATED_OFFSET), location(LOCATION_MEM)
+        slot(SYMBOL_NO_SLOT), offset(UNALLOCATED_OFFSET), location(LOCATION_MEM), referenced(false)
     {}
 
 
@@ -216,6 +216,8 @@ struct Symbol
     // where is this item stored?
     // is it in memory or is it in register?
     u32 location;
+
+    b8 referenced;
 };
 u32 slot_idx(const Symbol &sym);
 
