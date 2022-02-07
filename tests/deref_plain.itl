@@ -1,0 +1,8 @@
+
+
+// expected error
+
+func s32 main() {
+    u32 x = 0;
+    return @x;
+}

@@ -18,7 +18,7 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 // this needs to have more added when we get extra fields
 bool same_type(const Type &type1, const Type &type2)
 {
-    return type1.type_idx == type2.type_idx;
+    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection);
 }
 
 u32 type_size(Interloper& itl,const Type &type)
@@ -33,7 +33,7 @@ u32 type_size(Interloper& itl,const Type &type)
 
     else if(is_pointer(type))
     {
-        return  GPR_SIZE;
+        return GPR_SIZE;
     }
 
     else

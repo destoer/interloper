@@ -197,18 +197,23 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 
     u32 ptr_indirection = 0;
 
-    switch(peek(parser,0).type)
-    {
-        case token_type::deref:
-        {
-            tok = next_token(parser);
-            ptr_indirection++;
-            type_literal = type_literal + '@';
-            break;
-        }
+    b8 done = false;
 
-        // we have just a plain type
-        default: break;
+    while(!done)
+    {
+        switch(peek(parser,0).type)
+        {
+            case token_type::deref:
+            {
+                tok = next_token(parser);
+                ptr_indirection++;
+                type_literal = type_literal + '@';
+                break;
+            }
+
+            // we have just a plain type
+            default: done = true; break;
+        }
     }
 
     type.ptr_indirection = ptr_indirection;

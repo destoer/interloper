@@ -156,6 +156,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
     // test what the current node is
     if(node->type == ast_type::value)
     {
+        printf("hi\n");
         const auto t1 = value(func,node,dst_slot);
         return std::pair<Type,u32>{t1,dst_slot};
 
@@ -1046,6 +1047,13 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     if(line.nodes.size() == 2)
     {
         const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
+
+        // oper is a single symbol and the move hasn't happened we need to explictly move it
+        if(slot_idx(sym) != reg)
+        {
+            emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
+        }
+
         check_assign(itl,ltype,rtype);
     }    
 }
