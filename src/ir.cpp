@@ -875,6 +875,17 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
             switch(opcode.op)
             {
 
+                case op_type::mov_reg:
+                {
+                    // remove dead stores (still need to perform reg correction)
+                    if(opcode.op == op_type::mov_reg && opcode.v[0] == opcode.v[1])
+                    {
+                        it = block.buf.erase(it);
+                        continue;
+                    }
+                    break;
+                }
+
 
                 case op_type::ret:
                 {
