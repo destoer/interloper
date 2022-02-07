@@ -1,14 +1,16 @@
 
-// expected 0
+// expected 255
 
 // TODO: test this properly when we get pointers because we cant verify such a call works atm
-func void_func()
+func void_func(u8 @x)
 {
+    @x = 255;
     return;
 }
 
 func s32 main()
 {
-    void_func();
-    return 0;
+    u8 x = 0;
+    void_func(&x);
+    return x;
 }

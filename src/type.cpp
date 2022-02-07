@@ -79,9 +79,17 @@ std::string type_name(Interloper& itl,const Type &type)
 {
     UNUSED(itl);
 
-    if(is_plain_builtin(type))
+    if(is_builtin(type))
     {
-        return builtin_type_name(static_cast<builtin_type>(type.type_idx));
+        std::string plain = builtin_type_name(static_cast<builtin_type>(type.type_idx));
+
+        // is a pointer
+        for(u32 i = 0; i < type.ptr_indirection; i++)
+        {
+            plain = plain + "@";
+        }        
+
+        return plain;
     }
 
 
@@ -224,6 +232,14 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
     // here probably the only valid thing is both are the same
     else
     {
+        if(ltype.ptr_indirection != rtype.ptr_indirection)
+        {
+            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            return;
+        }
+
+
+
         unimplemented("check assign user defined type!\n");
     }
 }

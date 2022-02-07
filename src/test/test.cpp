@@ -29,7 +29,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/no_main.itl",-1,true},
     {"tests/invalid_args.itl",-1,true},
     {"tests/void_assign.itl",-1,true},
-    {"tests/void_return.itl",0,false},
+    {"tests/void_return.itl",255,false},
     {"tests/void_no_return.itl",0,false},
     {"tests/bitwise.itl",-713,false},
     {"tests/logical.itl",1,false},
@@ -50,6 +50,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/pointer.itl",-2,false},
     {"tests/deref_plain.itl",-1,true},
     {"tests/ptr_to_ptr.itl",1,true},
+    {"tests/expected_ptr,itl",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

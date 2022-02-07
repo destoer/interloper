@@ -846,9 +846,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     // TODO: this might be good to loop jam with somethign but just have a seperate loop for simplictiy atm
 
 
-    // TODO: make register allactor not emit mov r0,r0 after function calls with return values
-
-
     // R0 is callee saved
     static constexpr u32 CALLEE_SAVED_MASK = 1;
 
