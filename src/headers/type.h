@@ -187,6 +187,8 @@ static constexpr u32 SYMBOL_NO_SLOT = 0xffffffff;
 static constexpr u32 NON_ARG = 0xffffffff;
 
 static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
+static constexpr u32 PENDING_ALLOCATION = 0xf0000000 - 1;
+
 static constexpr u32 LOCATION_MEM = 0xffffffff;
 
 struct Symbol
@@ -263,17 +265,6 @@ struct Function
     IrEmitter emitter;
 
     u32 slot;
-
-
-    // TODO: this should be moved into the LocalAlloc struct when
-    // stack allocation is reworked
-
-    // how many vars of each size have we got
-    // this is the max count
-    u32 size_count[3] = {0};
-
-    // current size count
-    u32 size_count_cur[3] = {0};
 };
 void dump_ir(Function &func, const SlotLookup &slot_lookup, const LabelLookup &label_lookup);
 void add_var(Function &func, u32 size);

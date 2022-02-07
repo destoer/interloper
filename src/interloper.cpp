@@ -156,10 +156,8 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
     // test what the current node is
     if(node->type == ast_type::value)
     {
-        printf("hi\n");
         const auto t1 = value(func,node,dst_slot);
         return std::pair<Type,u32>{t1,dst_slot};
-
     }
 
     else if(node->type == ast_type::symbol)
@@ -1031,9 +1029,6 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 
     const auto size = type_size(itl,ltype);
 
-    // TODO: get rid of the need to use this for calculating stack requirements
-    add_var(func,size);
-
     // add new symbol table entry
     add_symbol(itl.symbol_table,name,ltype,size);
 
@@ -1075,9 +1070,6 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     // add the symbol
 
     const auto size = type_size(itl,type);
-
-    // TODO: get rid of the need to use this for calculating stack requirements
-    add_var(func,size);
 
     // add new symbol table entry
     add_symbol(itl.symbol_table,name,type,size);
@@ -1233,15 +1225,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
     }
 
 
-
-    // TODO: clean up this nonsense when we improve how stack allocation is done
-
-    // std::max the sizes this is what we need to allocate
-    for(int i = 0; i < 3; i++)
-    {
-        func.size_count[i] = std::max(func.size_count[i],func.size_count_cur[i]);
-    }
-
     // scope is about to be destroyed reclaim the stack for every var that is no longer used
     for(const auto &[key, slot] : itl.symbol_table.table[itl.symbol_table.table.size()-1])
     { 
@@ -1251,7 +1234,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
         if(sym.arg_num == NON_ARG)
         {
             emit(func.emitter,op_type::free_slot,slot_idx(sym)); 
-            func.size_count_cur[sym.size >> 1]--;
         }
     }
 

@@ -19,13 +19,6 @@ void new_block(IrEmitter &emitter,block_type type, u32 slot)
 }
 
 
-void stack_allocate(u32 *stack_alloc, Symbol &sym)
-{
-    sym.offset = stack_alloc[sym.size >> 1];
-    stack_alloc[sym.size >> 1] += sym.size;
-}
-
-
 static constexpr u32 REG_FREE = 0xffffffff;
 static constexpr u32 REG_TMP_START = 0xf0000000;
 
@@ -86,6 +79,13 @@ struct LocalAlloc
     // how much space has been used so far for each var
     u32 stack_alloc[3];
 
+    // how much of each type of var is there at the momemnt?
+    u32 size_count[3];
+
+    // what is the maximum ammount of vars?
+    // this will be used to compute the stack size later
+    u32 size_count_max[3];
+
     // what is the total ammount of space that this functions stack requires!
     u32 stack_size;
 };
@@ -107,7 +107,19 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
         // only allocate the local vars by here
         if(!is_arg(sym))
         {
-            stack_allocate(alloc.stack_alloc,sym);
+            const u32 size = sym.size;
+            const u32 idx = size >> 1;
+
+            // TODO: handle structs
+            assert(size <= sizeof(u32));
+
+            // extract how far into the size block is it currently?
+            const u32 cur = alloc.size_count[idx];
+            sym.offset = PENDING_ALLOCATION + cur;
+
+            // another var of this size allocated
+            alloc.size_count[idx]++;
+            alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
         }
 
         // args need to be allocated later
@@ -624,69 +636,12 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
         alloc.free_list[i] = i;
     }
 
+    memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
 
-    printf("function: %s\n",func.name.c_str());
-    printf("byte count: %d\n",func.size_count[0]);
-    printf("half count: %d\n",func.size_count[1]);
-    printf("word count: %d\n",func.size_count[2]);
-
-
-    /*
-        okay we are going to store all byte variables sequentially and algin,
-        then store all half variables sequentially and align,
-        then store all other variables as ints (this includes structs when added),
-
-
-        // TODO: rework this when we add proper stack allocation under the register allocator
-        // as this is wasting a ton of stack space right now
-    */
-
-
-
-    // byte located at start
-    alloc.stack_alloc[0] = 0;
-
-    // start at end of byte allocation
-    alloc.stack_alloc[1] = func.size_count[0];
-
-    // align for u16
-    if(alloc.stack_alloc[1] & 1)
-    {
-        alloc.stack_alloc[1] += 1;
-    }
-
-
-    // start at end of half allocation
-    alloc.stack_alloc[2] = alloc.stack_alloc[1] + (func.size_count[1] * 2);
-
-    // align for u32
-    if(alloc.stack_alloc[2] & 2)
-    {
-        alloc.stack_alloc[2] += 2;
-    }
-
-    // get the total stack size
-    alloc.stack_size =  alloc.stack_alloc[2] + (func.size_count[2] * 4);
-    printf("stack size: %d\n",alloc.stack_size);
-
-    // only allocate a stack if we need it
-    if(alloc.stack_size)
-    {
-        func.emitter.program[0].buf.push_front(Opcode(op_type::sub_imm,SP_IR,SP_IR,alloc.stack_size));
-    }
-
-    // opcode to re correct the stack
-    const auto stack_clean = Opcode(op_type::add_imm,SP_IR,SP_IR,alloc.stack_size);
-
-
+    memset(alloc.size_count_max,0,sizeof(alloc.size_count_max));
+    memset(alloc.size_count,0,sizeof(alloc.size_count));
+    alloc.stack_size = 0;
     alloc.stack_offset = 0;
-
-    // TODO: this is busted under conditional blocks
-    // we need to include marking on blocks so we know what they are used for
-    // then we can spill upon exit of them appropiately
-
-    // okay the issue is the bottom block thinks that x has not been spilled....
-
 
 
     for(auto &block : func.emitter.program)
@@ -801,7 +756,13 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                 case op_type::free_slot:
                 {
                     auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])];
-                    alloc.stack_alloc[sym.size >> 1] -= sym.size;
+
+                    // this var is done so we can reclaim the stack space
+                    if(sym.offset >= PENDING_ALLOCATION)
+                    {
+                        alloc.size_count[sym.size >> 1] -= 1;
+                    }
+
 
                     if(sym.location != LOCATION_MEM)
                     {
@@ -836,6 +797,48 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     }
 
 
+
+    // calculate the final stack sizes
+    // byte located at start
+    alloc.stack_alloc[0] = 0;
+
+    // start at end of byte allocation
+    alloc.stack_alloc[1] = alloc.size_count_max[0];
+
+    // align for u16
+    if(alloc.stack_alloc[1] & 1)
+    {
+        alloc.stack_alloc[1] += 1;
+    }
+
+
+    // start at end of half allocation
+    alloc.stack_alloc[2] = alloc.stack_alloc[1] + (alloc.size_count_max[1] * sizeof(u16));
+
+    // align for u32
+    if(alloc.stack_alloc[2] & 2)
+    {
+        alloc.stack_alloc[2] += 2;
+    }
+
+    // get the total stack size
+    alloc.stack_size =  alloc.stack_alloc[2] + (alloc.size_count_max[2] * sizeof(u32));
+
+
+    printf("byte count: %d\n",alloc.size_count_max[0]);
+    printf("half count: %d\n",alloc.size_count_max[1]);
+    printf("word count: %d\n",alloc.size_count_max[2]);
+    printf("stack size: %d\n",alloc.stack_size);
+
+    // only allocate a stack if we need it
+    if(alloc.stack_size)
+    {
+        func.emitter.program[0].buf.push_front(Opcode(op_type::sub_imm,SP,SP,alloc.stack_size));
+    }
+
+
+    // opcode to re correct the stack
+    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_size);
 
     // iterate over the function by here and add callee cleanup at every ret
     // and insert the stack offsets and load and spill directives
@@ -895,7 +898,6 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     if(alloc.stack_size)
                     {
                         it = block.buf.insert(it,stack_clean);
-                        correct_reg(slot_lookup,alloc,block,it,*it);
                     }
 
                     if(insert_callee_saves)
@@ -940,9 +942,16 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                 case op_type::addrof:
                 {
                     const s32 stack_offset = opcode.v[2];
-                    const auto sym_offset = slot_lookup[symbol_to_idx(opcode.v[1])].offset;
+                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
 
-                    opcode = Opcode(op_type::lea,opcode.v[0],SP,sym_offset + stack_offset);
+                     // this is the first stack access so we need to compute the final posistion
+                    if(sym.offset >= PENDING_ALLOCATION)
+                    {
+                        const u32 idx = sym.offset - PENDING_ALLOCATION;  
+                        sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+                    }
+
+                    opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
                     break;
                 }
 
@@ -952,6 +961,13 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     auto &sym = slot_lookup[slot];
 
                     const s32 stack_offset = opcode.v[2];
+
+                    // this is the first stack access so we need to compute the final posistion
+                    if(sym.offset >= PENDING_ALLOCATION)
+                    {
+                        const u32 idx = sym.offset - PENDING_ALLOCATION;  
+                        sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+                    }
 
                     // write value back out into mem
                     // TOOD: we need to make sure when we finish up our stack alloc rewrite
