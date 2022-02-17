@@ -758,6 +758,12 @@ void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
     }
 }
 
+/*
+Value const_expr_value(Interloper &itl, AstNode *node)
+{
+
+}
+*/
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
 {

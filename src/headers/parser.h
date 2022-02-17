@@ -262,7 +262,7 @@ void prev_token(Parser &parser);
 Token peek(Parser &parser,u32 v);
 void consume(Parser &parser,token_type type);
 bool match(Parser &parser,token_type type);
-
+Value read_value(const Token &t);
 
 AstNode *expr(Parser &parser,const Token &t);
 AstNode *expr_terminate(Parser &parser,token_type t);

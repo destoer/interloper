@@ -43,6 +43,16 @@ Token peek(Parser &parser,u32 v)
 
 
 
+Value read_value(const Token &t)
+{
+    const u32 v = convert_imm(t.literal); 
+
+    // is this literal a -ve?
+    const bool sign = t.literal[0] == '-';
+
+    return Value(v,sign);
+}
+
 void consume(Parser &parser,token_type type)
 {
     const auto &vt = *parser.tokens;
@@ -203,6 +213,7 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
     {
         switch(peek(parser,0).type)
         {
+            // pointer decl
             case token_type::deref:
             {
                 tok = next_token(parser);
@@ -210,6 +221,27 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
                 type_literal = type_literal + '@';
                 break;
             }
+
+
+            // array decl
+
+            // TODO: for now we will just assume it is one dimensonal
+            case token_type::sl_brace:
+            {
+                // TODO: we need the concept of a 'const' expression so we can do like
+                // u32[4 * 8];
+                // for simpliclitly we will just hard code this to expect a value
+                consume(parser,token_type::sl_brace);
+
+                // read out the expr
+
+
+
+
+                exit(1);
+                break;
+            }
+
 
             // we have just a plain type
             default: done = true; break;
@@ -231,7 +263,7 @@ AstNode *declaration(Parser &parser,const Type &var_type, const std::string &typ
 
     if(s.type != token_type::symbol)
     {
-        panic(parser,s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),parser.tok_idx);
+        panic(parser,s,"declartion expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
         return nullptr;
     }
 

@@ -48,6 +48,11 @@ enum class token_type
     divide,
     mod,
 
+    sl_brace,
+    sr_brace,
+
+    dot,
+
     shift_l,
     shift_r,
 
@@ -144,6 +149,11 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::minus,"-",20},
     {token_type::divide,"/",21},
     {token_type::mod,"%",21},
+
+    {token_type::sl_brace,"[",30},
+    {token_type::sr_brace,"]",-1},
+
+    {token_type::dot,".",-1},
 
     {token_type::shift_l,"<<",13},
     {token_type::shift_r,">>",13},

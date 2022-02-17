@@ -1,0 +1,35 @@
+
+
+func s32 main()
+{
+    bool[100] x;
+
+    // TODO: replace with initializer
+    for(u32 i = 0; i < x.len; i++)
+    {
+        x[i] = true;
+    }
+
+  
+    for(u32 i = 0; i < x.len; i++)
+    {
+        if(x[i])
+        {
+            for(u32 j = i * 2; j < x.len; j += i)
+            {
+                x[j] = false;      
+            }
+        }
+    }
+
+    u32 ans = 0;
+    for(u32 i = 0; i < x.len; i++)
+    {
+        if(x[i])
+        {
+            ans += i;
+        }
+    }
+
+    return ans;
+}

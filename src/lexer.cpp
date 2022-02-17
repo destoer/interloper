@@ -221,6 +221,13 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 break;
             }
 
+
+            case '[': insert_token(lexer,token_type::sl_brace); break;
+
+            case ']': insert_token(lexer,token_type::sr_brace); break;
+
+            case '.': insert_token(lexer,token_type::dot); break;
+
             case ';': insert_token(lexer,token_type::semi_colon); break;
 
             case '@': insert_token(lexer,token_type::deref); break;
@@ -419,8 +426,6 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                     // else its a symbol
                     if(is_keyword(literal))
                     {
-                        // TODO: we need to check for the else keyword so we can join else if
-
                         insert_token(lexer,keyword_token_type(literal));
                     }
 

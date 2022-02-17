@@ -50,7 +50,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/pointer.itl",-2,false},
     {"tests/deref_plain.itl",-1,true},
     {"tests/ptr_to_ptr.itl",1,true},
-    {"tests/expected_ptr,itl",-1,true},
+    {"tests/expected_ptr.itl",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
