@@ -224,19 +224,26 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 
 
             // array decl
-
-            // TODO: for now we will just assume it is one dimensonal
             case token_type::sl_brace:
             {
-                // TODO: we need the concept of a 'const' expression so we can do like
-                // u32[4 * 8];
-                // for simpliclitly we will just hard code this to expect a value
-                consume(parser,token_type::sl_brace);
+                u32 dimensions = 0;
 
-                // read out the expr
+                auto expressions = new AstNode(ast_type::arr_dimensions);
 
+                while(peek(parser,0).type == token_type::sl_brace)
+                {
+                    // TODO: we need the concept of a 'const' expression so we can do like
+                    // u32[4 * 8];
+                    // for simpliclitly we will just hard code this to expect a value
+                    consume(parser,token_type::sl_brace);
 
+                    // read out the expr
+                    const auto e =  expr_terminate(parser,token_type::sr_brace); UNUSED(e);
+                    expressions->nodes.push_back(e);
 
+                    dimensions++;
+                }
+                print(expressions);
 
                 exit(1);
                 break;
