@@ -82,36 +82,37 @@ inline builtin_type conv_type_idx(int type_idx)
     return static_cast<builtin_type>(type_idx);
 }
 
+struct AstNode;
+static constexpr u32 MAX_ARR_SIZE = 4;
 
 struct Type
 {
-    Type() {}
+    Type() 
+    {
+
+    }
 
     // plain builtin type
-    Type(builtin_type t) : type_idx(conv_builtin_type(t)), ptr_indirection(0) 
+    Type(builtin_type t) : type_idx(conv_builtin_type(t)), ptr_indirection(0), contains_array(false), degree(0)
     {
         
     }
 
-
-    int type_idx;
+    u32 type_idx;
 
     u32 ptr_indirection;
 
-    // TODO: start here
 
-    // arrays etc (ignore for now)
-    /*
-    u32 array_indirection;
-    u32 ptr_indirection;
+    // array definiton
 
-    // is this an array holding pointers
-    // pointers to an array
-    // for simplicty mixing containers like
-    // int[]@[]@ is not permitted
-    // or just a plain type?
-    contained_type held_type;
-    */
+    // i.e is a pointer to an array
+    // rather than a array of pointers
+    b8 contains_array;
+
+    // either a number of RUNTIME_SIZE i.e variable length
+    u32 dimensions[MAX_ARR_SIZE];
+    u32 degree;
+
 
     // type specifiers here i.e const
 

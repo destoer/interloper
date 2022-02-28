@@ -91,13 +91,14 @@ AstNode *copy_node(const AstNode *node)
     {
         case ast_type::type:
         {
-            memcpy(&copy->variable_type,&node->variable_type,sizeof(Type));
+            copy->variable_type = node->variable_type;
             break;
         }
 
         case ast_type::value:
         {
-            memcpy(&copy->value,&node->value,sizeof(Value));
+            copy->value = node->value;
+            break;
         }
 
         default: break;
@@ -185,6 +186,18 @@ std::optional<Type> get_plain_type(const Token &tok, std::string &type_literal)
 }
 
 
+// TODO: if we want this to support expressions beyond arithmetic constants (i dont see a use for this yet)
+// we will have to save the expr's and handle them along with the type checking pass
+u32 eval_const_expr(const AstNode *node)
+{
+    switch(node->type)
+    {
+        case ast_type::value: return node->value.v;
+
+        default: print(node); unimplemented("eval const expr node"); break;
+    }
+}
+
 std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 {
     auto tok = next_token(parser);
@@ -201,13 +214,14 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 
     auto type = type_opt.value();
 
-    // check for any specifiers i.e '@'
-    // TODO: we need to keep doing this until it runs out of matches
-    // but for now just assuem a single '@' at  most
 
     u32 ptr_indirection = 0;
-
+    u32 degree = 0;
+    b8 contains_array = false;
     b8 done = false;
+    
+    // TODO: type check we can only have an array containing pointers and vice versa
+    // i.e no []@[][]@
 
     while(!done)
     {
@@ -216,9 +230,17 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
             // pointer decl
             case token_type::deref:
             {
-                tok = next_token(parser);
-                ptr_indirection++;
-                type_literal = type_literal + '@';
+                if(ptr_indirection && degree)
+                {
+                    panic(parser,peek(parser,0).type,"arbitary nesting of array and pointer type %s is not allowed\n",type_literal);                    
+                }
+
+                while(peek(parser,0).type == token_type::deref)
+                {
+                    tok = next_token(parser);
+                    ptr_indirection++;
+                    type_literal = type_literal + '@';
+                }
                 break;
             }
 
@@ -226,26 +248,41 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
             // array decl
             case token_type::sl_brace:
             {
-                u32 dimensions = 0;
+                if(ptr_indirection)
+                {
+                    // this is the first time we have an array
+                    // after a pointer
+                    // otherwhise we assume the array comes first
+                    if(degree == 0)
+                    {
+                        contains_array = true;
+                    }
 
-                auto expressions = new AstNode(ast_type::arr_dimensions);
+                    else
+                    {
+                        panic(parser,peek(parser,0).type,"arbitary nesting of array and pointer of type %s is not allowed\n",type_literal);
+                        return type;
+                    }
+                }
 
                 while(peek(parser,0).type == token_type::sl_brace)
                 {
-                    // TODO: we need the concept of a 'const' expression so we can do like
-                    // u32[4 * 8];
-                    // for simpliclitly we will just hard code this to expect a value
+                    if(degree >= MAX_ARR_SIZE)
+                    {
+                        panic(parser,tok.type,"max array degree exceeded %d\n",MAX_ARR_SIZE);
+                        return type;
+                    }
+
                     consume(parser,token_type::sl_brace);
 
-                    // read out the expr
-                    const auto e =  expr_terminate(parser,token_type::sr_brace); UNUSED(e);
-                    expressions->nodes.push_back(e);
+                    // TODO: this needs to be allowed to be empty for dynmaic array sizes
+                    const auto e =  expr_terminate(parser,token_type::sr_brace);
+                    type.dimensions[degree++] = eval_const_expr(e); 
 
-                    dimensions++;
+                    type_literal = type_literal + "[]";
                 }
-                print(expressions);
 
-                exit(1);
+                type.degree = degree;
                 break;
             }
 
@@ -256,7 +293,7 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
     }
 
     type.ptr_indirection = ptr_indirection;
-
+    type.contains_array = contains_array;
 
     return type;
 }

@@ -171,7 +171,7 @@ struct AstNode
     }
 
     // astdata decleration
-    AstNode(Type type, const std::string &literal)
+    AstNode(const Type &type, const std::string &literal)
     {
         this->type = ast_type::type;
         this->literal = literal;
@@ -200,6 +200,16 @@ struct AstNode
         this->value = value;
     }
 
+
+    ~AstNode()
+    {
+        switch(type)
+        {
+            case ast_type::type: variable_type.~Type(); break;
+
+            default: break;
+        }
+    }
 
     // node data
     ast_type type;
@@ -237,10 +247,10 @@ inline void delete_tree(AstNode *node)
     for(auto &n: node->nodes)
     {
         delete_tree(n);
+        n = nullptr;
     }
 
     delete node;
-    node = nullptr;
 }
 
 void print(const AstNode *root);

@@ -1327,7 +1327,7 @@ void dump_ir_sym(Interloper &itl)
 
 // TODO: impl source line information on the parse tree
 // impl raii for varaible scopes to prevent dumb bugs
-
+// remove reliance on stl containers for compilier structs
 
 
 // plan:
