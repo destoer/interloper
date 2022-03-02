@@ -151,7 +151,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::mod,"%",21},
 
     {token_type::sl_brace,"[",30},
-    {token_type::sr_brace,"]",-1},
+    {token_type::sr_brace,"]",0},
 
     {token_type::dot,".",-1},
 

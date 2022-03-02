@@ -302,6 +302,7 @@ AstNode *nud(Parser &parser,Token &t)
                 }
 
                 // TODO: this assumes this is one member deep
+                // and wont work for more complicated expressions but just do it simple for now
                 case token_type::dot:
                 {
                 /*
@@ -326,6 +327,19 @@ AstNode *nud(Parser &parser,Token &t)
                     parser.expr_tok = next_token_expr(parser);
 
                     return access_member;
+                }
+
+                // TODO: we assume a single subscript
+                case token_type::sl_brace:
+                {
+                    consume_expr(parser,token_type::sl_brace);
+                    const auto e = expression(parser,0);
+                    consume_expr(parser,token_type::sr_brace);
+
+                    auto arr_access = new AstNode(ast_type::array_access,t.literal);
+                    arr_access->nodes.push_back(e);
+
+                    return arr_access;
                 }
 
                 default:

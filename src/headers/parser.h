@@ -69,6 +69,7 @@ enum class ast_type
 
     access_member,
     member,
+    array_access,
 
     END
 };
@@ -141,6 +142,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "access_member",
     "member",
+    "array_access",
 
     // should not be used...
     "END"

@@ -11,7 +11,7 @@ func s32 main()
     }
 
   
-    for(u32 i = 0; i < x.len; i++)
+    for(u32 i = 0; i < x.len; i += 1)
     {
         if(x[i])
         {
@@ -23,7 +23,7 @@ func s32 main()
     }
 
     u32 ans = 0;
-    for(u32 i = 0; i < x.len; i++)
+    for(u32 i = 0; i < x.len; i += 1)
     {
         if(x[i])
         {

@@ -470,6 +470,12 @@ AstNode *statement(Parser &parser)
                     return expr(parser,t);
                 }
 
+                // array access
+                case token_type::sl_brace:
+                {
+                    return expr(parser,t);
+                }
+
 
                 default:
                 {
