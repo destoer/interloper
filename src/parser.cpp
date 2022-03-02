@@ -186,8 +186,10 @@ std::optional<Type> get_plain_type(const Token &tok, std::string &type_literal)
 }
 
 
-// TODO: if we want this to support expressions beyond arithmetic constants (i dont see a use for this yet)
+// NOTE: if we want this to support expressions beyond arithmetic constants (i dont see a use for this yet)
 // we will have to save the expr's and handle them along with the type checking pass
+// need to bind a decl_expr into the Type struct that is freed as soon as the type checking on the decl
+// is fully done
 u32 eval_const_expr(const AstNode *node)
 {
     switch(node->type)

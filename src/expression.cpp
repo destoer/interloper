@@ -257,51 +257,84 @@ AstNode *nud(Parser &parser,Token &t)
         {
             // look ahead extra tokens that would change the meaning of this
 
-            // function call
-            if(parser.expr_tok.type == token_type::left_paren)
+            switch(parser.expr_tok.type)
             {
-                consume_expr(parser,token_type::left_paren);
-
-                auto func_call = new AstNode(ast_type::function_call,t.literal);
-
-
-
-                // keep reading args till we run out of commas
-                bool done = false;
-
-                // empty call we are done
-                if(parser.expr_tok.type == token_type::right_paren)
+                // function call
+                case token_type::left_paren:
                 {
-                    done = true;
-                    consume_expr(parser,token_type::right_paren);
-                }
+                    consume_expr(parser,token_type::left_paren);
 
-                while(!done)
-                {
+                    auto func_call = new AstNode(ast_type::function_call,t.literal);
 
-                    auto expr = expression(parser,0);
 
-                    func_call->nodes.push_back(expr);
 
-                    // no more args terminate the call
-                    if(parser.expr_tok.type != token_type::comma)
+                    // keep reading args till we run out of commas
+                    bool done = false;
+
+                    // empty call we are done
+                    if(parser.expr_tok.type == token_type::right_paren)
                     {
-                        consume_expr(parser,token_type::right_paren);
                         done = true;
+                        consume_expr(parser,token_type::right_paren);
                     }
 
-                    else
+                    while(!done)
                     {
-                        consume_expr(parser,token_type::comma);
+
+                        auto expr = expression(parser,0);
+
+                        func_call->nodes.push_back(expr);
+
+                        // no more args terminate the call
+                        if(parser.expr_tok.type != token_type::comma)
+                        {
+                            consume_expr(parser,token_type::right_paren);
+                            done = true;
+                        }
+
+                        else
+                        {
+                            consume_expr(parser,token_type::comma);
+                        }
                     }
+
+                    return func_call;
                 }
 
-                return func_call;
+                // TODO: this assumes this is one member deep
+                case token_type::dot:
+                {
+                /*
+                    unimplemented("struct member");
+                    return nullptr;
+                */
+                    // skip dot token
+                    auto member_tok = next_token_expr(parser);
+                    if(member_tok.type != token_type::symbol)
+                    {
+                        panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.c_str(),tok_name(member_tok.type));
+                        return nullptr;
+                    }
+
+
+                    // This has to be vague because we dont know any of the typing yet
+                    auto access_member = new AstNode(ast_type::access_member,t.literal);
+                    auto member = new AstNode(ast_type::member,member_tok.literal);
+                    access_member->nodes.push_back(member);
+
+                    // correct the state machine
+                    parser.expr_tok = next_token_expr(parser);
+
+                    return access_member;
+                }
+
+                default:
+                {
+                    // plain symbol
+                    return new AstNode(nullptr,nullptr,ast_type::symbol,t.literal);
+                }
+                break;
             }
-
-
-            // plain symbol
-            return new AstNode(nullptr,nullptr,ast_type::symbol,t.literal);
         }
 
         case token_type::minus:

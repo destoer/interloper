@@ -474,7 +474,7 @@ bool tokenize(Lexer &lexer,const std::vector<std::string> &file)
         if(tokenize_line(lexer,line))
         {
             printf("%s",file[lexer.row].c_str());
-            printf("\nat: line %d col %d\n",lexer.row,lexer.column);
+            printf("\nat: line %d col %d\n",lexer.row + 1,lexer.column + 1);
             return true;
         }
 

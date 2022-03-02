@@ -67,6 +67,9 @@ enum class ast_type
     else_if_t,
     else_t,
 
+    access_member,
+    member,
+
     END
 };
 
@@ -135,6 +138,9 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "if",
     "else if",
     "else",
+
+    "access_member",
+    "member",
 
     // should not be used...
     "END"
@@ -291,7 +297,7 @@ template<typename... Args>
 inline void panic(Parser &parser,const Token &token,const char *fmt, Args... args)
 {
     printf(fmt,args...);
-    printf("\nat: line %d col %d\n",token.line,token.col);
+    printf("at: line %d col %d\n\n",token.line + 1,token.col + 1);
     parser.error = true;
     parser.line = token.line;
 }
