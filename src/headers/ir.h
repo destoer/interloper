@@ -27,6 +27,7 @@ enum class op_type
     mov_imm,
     add_imm,
     sub_imm,
+    mul_imm,
 
     and_imm,
     xor_imm,
@@ -78,7 +79,8 @@ enum class op_type
     bc,
     b,
 
-    read_struct,
+    load_struct,
+    load_arr,
 
 
     // DIRECTIVES

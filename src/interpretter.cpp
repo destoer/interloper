@@ -167,6 +167,11 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
+        case op_type::mul_imm:
+        {
+            regs[opcode.v[0]] = regs[opcode.v[1]] * opcode.v[2];
+            break;
+        }
 
         case op_type::and_imm:
         {
@@ -419,7 +424,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         }
 
         // directives/pseudo ops should not be hit at runtime..
-        case op_type::read_struct:
+        case op_type::load_struct:
+        case op_type::load_arr:
         case op_type::push_arg:
         case op_type::clean_args:
         case op_type::alloc_slot:

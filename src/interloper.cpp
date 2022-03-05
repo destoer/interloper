@@ -8,6 +8,16 @@ void compile_block(Interloper &itl,Function &func,AstNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 
 
+void dump_ir_sym(Interloper &itl)
+{
+    for(auto &[key,func] : itl.function_table)
+    {
+        UNUSED(key);
+
+        dump_ir(func,itl.symbol_table.slot_lookup,itl.symbol_table.label_lookup);
+    }    
+}
+
 // scan the top level of the parse tree for functions
 // and grab the entire signature
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
@@ -147,14 +157,56 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
     }    
 }
 
-std::pair<Type,u32> struct_access(Interloper &itl,Function &func, AstNode *node, u32 dst_slot)
+void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
 {
-    UNUSED(node); UNUSED(itl); UNUSED(dst_slot);
-    
+    const u32 size = type_size(itl,type);
 
+    if(size <= sizeof(u32))
+    {
+        if(is_signed_integer(type))
+        {
+            // word is register size (we dont need to extend it)
+            static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);       
+        }
+
+        // "plain data"
+        // just move by size
+        else
+        {
+            static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
+        }
+    }   
+
+    else
+    {
+       unimplemented("struct deref");
+    }
+}
+
+void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
+{
+    const u32 size = type_size(itl,type);
+
+    if(size <= sizeof(u32))
+    {
+        static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+        emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
+    }   
+
+    else
+    {
+        unimplemented("struct deref");
+    }
+}
+
+
+std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u32 dst_slot)
+{
     // TODO: how should we emit this for pointers?
 
-    // load_struct <dst> [<struct>,<member_offset>]
+    // load_struct <dst> <struct>,<member_idx>
 
     const auto name = node->literal;
 
@@ -176,7 +228,7 @@ std::pair<Type,u32> struct_access(Interloper &itl,Function &func, AstNode *node,
     {
         if(member == "len")
         {
-            emit(func.emitter,op_type::read_struct,dst_slot,ARRAY_LEN_OFFSET);
+            emit(func.emitter,op_type::load_struct,dst_slot,slot_idx(sym),ARRAY_LEN_OFFSET);
             return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
         }
 
@@ -212,7 +264,10 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
     else if(node->type == ast_type::access_member)
     {
-        return struct_access(itl,func,node,dst_slot);
+        const auto [type,addr_slot] = load_struct(itl,func,node,dst_slot);
+        do_ptr_load(itl,func,dst_slot,addr_slot,type);
+
+        return std::pair<Type,u32>{type,dst_slot};
     }
 
     // if its a value or symbol return out immdiatly
@@ -764,48 +819,67 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
     }
 }
 
-void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
+
+std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
-    const u32 size = type_size(itl,type);
+    const auto arr_name = node->literal;
 
-    if(size <= sizeof(u32))
+    const auto arr_opt = get_sym(itl.symbol_table,arr_name);
+
+    if(!arr_opt)
     {
-        if(is_signed_integer(type))
-        {
-            // word is register size (we dont need to extend it)
-            static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);       
-        }
-
-        // "plain data"
-        // just move by size
-        else
-        {
-            static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
-        }
-    }   
-
-    else
-    {
-       unimplemented("struct deref");
+        panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.c_str());
+        print(node);
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};       
     }
-}
 
-void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
-{
-    const u32 size = type_size(itl,type);
+    const auto arr = arr_opt.value();
 
-    if(size <= sizeof(u32))
+    if(!is_array(arr.type))
     {
-        static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-        emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
-    }   
-
-    else
-    {
-        unimplemented("struct deref");
+        panic(itl,"[COMPILE]: expected array '%s' got %s\n",arr_name.c_str(),type_name(itl,arr.type));
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
+
+    
+
+    // TODO: for now we assume this is a plain array access
+    // this will have to be slightly adjusted for var length arrays
+    // on a single dimension
+
+    /*
+        // repeat for every index
+        // and just add the exprs on each subscript together
+        mov t0, <expr_result>
+        mul t1, t0, arr_size
+
+        // after full offset is calced
+        load_arr t0, [arr,t1] 
+    */
+    const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+    if(!is_integer(subscript_type))
+    {
+        panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type));
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
+    }
+
+    const u32 mul_slot = new_slot(func);
+
+    // TODO: handle this for multi dimensional arrays
+
+    // perform the access and get the underlying type
+    auto& arr_type = arr.type;
+
+    Type accessed_type;
+    accessed_type.type_idx = arr_type.type_idx;
+
+    const auto size = type_size(itl,accessed_type);
+    emit(func.emitter,op_type::mul_imm,mul_slot,subscript_slot,size);   
+
+
+    emit(func.emitter,op_type::load_arr,dst_slot,slot_idx(arr),mul_slot);
+
+    return std::pair<Type,u32>{arr_type,dst_slot};
 }
 
 /*
@@ -817,8 +891,6 @@ Value const_expr_value(Interloper &itl, AstNode *node)
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
 {
-    UNUSED(dst_slot); UNUSED(func);
-
     if(!node)
     {
         panic("nullptr in compile_expression");
@@ -1188,7 +1260,10 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                         case ast_type::array_access:
                         {
-                            unimplemented("array access");
+                            const auto [type,addr_slot] = load_arr(itl,func,line.nodes[0],new_slot(func));
+                            check_assign(itl,type,rtype);
+                            do_ptr_write(itl,func,slot,addr_slot,type);
+                            break;
                         }    
 
                         default:
@@ -1368,16 +1443,6 @@ void compile_functions(Interloper &itl)
     }
 
     destroy_scope(itl.symbol_table); 
-}
-
-void dump_ir_sym(Interloper &itl)
-{
-    for(auto &[key,func] : itl.function_table)
-    {
-        UNUSED(key);
-
-        dump_ir(func,itl.symbol_table.slot_lookup,itl.symbol_table.label_lookup);
-    }    
 }
 
 

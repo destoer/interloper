@@ -23,6 +23,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"mov",2},
     {op_group::imm_t,"add",3},
     {op_group::imm_t,"sub",3},
+    {op_group::imm_t,"mul",3},
 
     {op_group::imm_t,"and",3},
     {op_group::imm_t,"xor",3},
@@ -74,7 +75,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::branch_t,"bc",2},
     {op_group::branch_t,"b",1},
 
-    {op_group::load_t,"read_struct",3},
+    {op_group::imm_t,"load_struct",3},
+    {op_group::reg_t,"load_arr",3},
 
     // directives
     {op_group::slot_t,"alloc_slot",1},

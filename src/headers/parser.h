@@ -163,6 +163,9 @@ struct AstNode
         this->value = Value(0,false);
     }
 
+    // TODO: factors these into named functions because it isn't clear what they are used for
+    // without glancing the header
+
     // general astdata no literal required eg '+'
     AstNode(ast_type type)
     {
@@ -208,16 +211,6 @@ struct AstNode
         this->value = value;
     }
 
-
-    ~AstNode()
-    {
-        switch(type)
-        {
-            case ast_type::type: variable_type.~Type(); break;
-
-            default: break;
-        }
-    }
 
     // node data
     ast_type type;

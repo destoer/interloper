@@ -89,31 +89,31 @@ static constexpr u32 ARRAY_LEN_OFFSET = 1;
 
 struct Type
 {
-    Type() 
+    Type()
     {
 
     }
 
     // plain builtin type
-    Type(builtin_type t) : type_idx(conv_builtin_type(t)), ptr_indirection(0), contains_array(false), degree(0)
+    Type(builtin_type t) : type_idx(conv_builtin_type(t))
     {
         
     }
 
-    u32 type_idx;
+    u32 type_idx = 0;
 
-    u32 ptr_indirection;
+    u32 ptr_indirection = 0;
 
 
     // array definiton
 
     // i.e is a pointer to an array
     // rather than a array of pointers
-    b8 contains_array;
+    b8 contains_array = 0;
 
     // either a number of RUNTIME_SIZE i.e variable length
-    u32 dimensions[MAX_ARR_SIZE];
-    u32 degree;
+    u32 dimensions[MAX_ARR_SIZE] = {0};
+    u32 degree = 0;
 
 
     // type specifiers here i.e const
