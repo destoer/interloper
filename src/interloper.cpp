@@ -147,6 +147,51 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
     }    
 }
 
+std::pair<Type,u32> struct_access(Interloper &itl,Function &func, AstNode *node, u32 dst_slot)
+{
+    UNUSED(node); UNUSED(itl); UNUSED(dst_slot);
+    
+
+    // TODO: how should we emit this for pointers?
+
+    // load_struct <dst> [<struct>,<member_offset>]
+
+    const auto name = node->literal;
+
+    const auto sym_opt = get_sym(itl.symbol_table,name);
+    if(!sym_opt)
+    {
+        panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+        print(node);
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+    }
+
+    const auto sym = sym_opt.value();
+
+    // TODO: for now we assume that this is a single member
+    const auto member = node->nodes[0]->literal;
+
+    // is an array hardcode the members
+    if(is_array(sym.type))
+    {
+        if(member == "len")
+        {
+            emit(func.emitter,op_type::read_struct,dst_slot,ARRAY_LEN_OFFSET);
+            return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
+        }
+
+        else
+        {
+            unimplemented("array unknown member access %s : %s\n",name.c_str(),member.c_str());
+        }
+    }
+
+    else
+    {
+        unimplemented("struct access on user defined type");
+    }
+}
+
 // this should handle grabbing values and symbols
 // if it can see a symbol or a value it wont call compile_expression
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
@@ -163,6 +208,11 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
     else if(node->type == ast_type::symbol)
     {
         return symbol(itl,node);
+    }
+
+    else if(node->type == ast_type::access_member)
+    {
+        return struct_access(itl,func,node,dst_slot);
     }
 
     // if its a value or symbol return out immdiatly
@@ -1134,10 +1184,16 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                             check_assign(itl,type,rtype);
                             do_ptr_write(itl,func,slot,addr_slot,type);
                             break;                        
+                        }
+
+                        case ast_type::array_access:
+                        {
+                            unimplemented("array access");
                         }    
 
                         default:
                         {
+                            print(line.nodes[0]);
                             unimplemented("non plain assign");
                             break;
                         }

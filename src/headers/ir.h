@@ -78,6 +78,8 @@ enum class op_type
     bc,
     b,
 
+    read_struct,
+
 
     // DIRECTIVES
     // varabile on the stack is out of scope

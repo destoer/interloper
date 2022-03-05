@@ -74,6 +74,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::branch_t,"bc",2},
     {op_group::branch_t,"b",1},
 
+    {op_group::load_t,"read_struct",3},
+
     // directives
     {op_group::slot_t,"alloc_slot",1},
     {op_group::slot_t,"free_slot",1},

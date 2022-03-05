@@ -418,7 +418,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
-        // directives should not be hit at runtime..
+        // directives/pseudo ops should not be hit at runtime..
+        case op_type::read_struct:
         case op_type::push_arg:
         case op_type::clean_args:
         case op_type::alloc_slot:

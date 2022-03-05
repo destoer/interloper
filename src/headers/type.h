@@ -83,7 +83,9 @@ inline builtin_type conv_type_idx(int type_idx)
 }
 
 struct AstNode;
+
 static constexpr u32 MAX_ARR_SIZE = 4;
+static constexpr u32 ARRAY_LEN_OFFSET = 1;
 
 struct Type
 {
@@ -118,6 +120,8 @@ struct Type
 
 };
 
+static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
+
 inline bool is_builtin(const Type &t)
 {
     return t.type_idx < BUILTIN_TYPE_SIZE;
@@ -127,6 +131,12 @@ inline bool is_builtin(const Type &t)
 inline bool is_pointer(const Type &t)
 {
     return t.ptr_indirection >= 1;
+}
+
+
+inline bool is_array(const Type &t)
+{
+    return t.degree >= 1;
 }
 
 
