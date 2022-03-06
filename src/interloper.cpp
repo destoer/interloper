@@ -2,6 +2,7 @@
 
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_block(Interloper &itl,Function &func,AstNode *node);
@@ -264,7 +265,15 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
     else if(node->type == ast_type::access_member)
     {
-        const auto [type,addr_slot] = load_struct(itl,func,node,dst_slot);
+        const auto [type,addr_slot] = load_struct(itl,func,node,new_slot(func));
+        do_ptr_load(itl,func,dst_slot,addr_slot,type);
+
+        return std::pair<Type,u32>{type,dst_slot};
+    }
+
+    else if(node->type == ast_type::array_access)
+    {
+        const auto [type,addr_slot] = load_arr(itl,func,node,new_slot(func));
         do_ptr_load(itl,func,dst_slot,addr_slot,type);
 
         return std::pair<Type,u32>{type,dst_slot};

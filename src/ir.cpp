@@ -3,6 +3,7 @@
 
 std::string get_oper_sym(const SlotLookup *table,u32 v);
 std::string get_oper_raw(const SlotLookup *table,u32 v);
+void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
 
 void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
@@ -163,13 +164,13 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
     // back into memory
     else 
     {
+        const auto &opcode = *block_ptr;
+
         for(reg = 0; reg < MACHINE_REG_SIZE; reg++)
         {
             const auto slot = alloc.regs[reg]; 
 
             b32 in_expr = false;
-
-            const auto &opcode = *block_ptr;
 
             // ^ for now we are just going to check we are not currently using the varaible inside this opcode
             // with a linear scan -> fix this later
@@ -196,7 +197,11 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
         }
 
         // failed to find a reg to spill should not happen
-        panic(reg == MACHINE_REG_SIZE,"failed to allocate register!");
+        if(reg == MACHINE_REG_SIZE)
+        {
+            disass_opcode_sym(opcode,slot_lookup);
+            panic("failed to allocate register!");
+        }
     }
 
     return reg;    
@@ -1293,6 +1298,11 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
     }
 
+}
+
+void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table)
+{
+    disass_opcode(opcode,&table,nullptr,get_oper_sym);
 }
 
 void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup)
