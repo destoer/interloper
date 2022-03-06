@@ -252,40 +252,42 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
     panic(node == nullptr,"nullptr in compile_oper");
 
     // test what the current node is
-    if(node->type == ast_type::value)
+    switch(node->type)
     {
-        const auto t1 = value(func,node,dst_slot);
-        return std::pair<Type,u32>{t1,dst_slot};
-    }
+        case ast_type::value:
+        {
+            const auto t1 = value(func,node,dst_slot);
+            return std::pair<Type,u32>{t1,dst_slot};
+        }
 
-    else if(node->type == ast_type::symbol)
-    {
-        return symbol(itl,node);
-    }
+        case ast_type::symbol:
+        {
+            return symbol(itl,node);
+        }
 
-    else if(node->type == ast_type::access_member)
-    {
-        const auto [type,addr_slot] = load_struct(itl,func,node,new_slot(func));
-        do_ptr_load(itl,func,dst_slot,addr_slot,type);
+        case ast_type::access_member:
+        {
+            const auto [type,addr_slot] = load_struct(itl,func,node,new_slot(func));
+            do_ptr_load(itl,func,dst_slot,addr_slot,type);
 
-        return std::pair<Type,u32>{type,dst_slot};
-    }
+            return std::pair<Type,u32>{type,dst_slot};
+        }
 
-    else if(node->type == ast_type::array_access)
-    {
-        const auto [type,addr_slot] = load_arr(itl,func,node,new_slot(func));
-        do_ptr_load(itl,func,dst_slot,addr_slot,type);
+        case ast_type::array_access:
+        {
+            const auto [type,addr_slot] = load_arr(itl,func,node,new_slot(func));
+            do_ptr_load(itl,func,dst_slot,addr_slot,type);
 
-        return std::pair<Type,u32>{type,dst_slot};
-    }
+            return std::pair<Type,u32>{type,dst_slot};
+        }
 
-    // if its a value or symbol return out immdiatly
-
-    // else compile an expr
-    else
-    {
-        const auto t1 = compile_expression(itl,func,node,dst_slot);
-        return std::pair<Type,u32>{t1,dst_slot};
+        // if its a value or symbol return out immdiatly
+        // else compile an expr
+        default:
+        {
+            const auto t1 = compile_expression(itl,func,node,dst_slot);
+            return std::pair<Type,u32>{t1,dst_slot};
+        }
     }
 }
 

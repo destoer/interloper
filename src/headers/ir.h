@@ -149,6 +149,7 @@ enum op_group
     regm_t,
     imm_t,
     load_t,
+    store_t,
     implicit_t,
     branch_t,
     slot_t,

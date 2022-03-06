@@ -35,9 +35,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::load_t,"lsb",3},
     {op_group::load_t,"lsh",3},
 
-    {op_group::load_t,"sb",3},
-    {op_group::load_t,"sh",3},
-    {op_group::load_t,"sw",3},
+    {op_group::store_t,"sb",3},
+    {op_group::store_t,"sh",3},
+    {op_group::store_t,"sw",3},
 
     {op_group::load_t,"lea",3},
 

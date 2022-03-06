@@ -140,6 +140,36 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
     alloc.free_list[alloc.free_regs++] = reg;
 }
 
+
+void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
+{
+    printf("\n\nallocation:\n\n");
+
+    printf("total registers: %d\n",MACHINE_REG_SIZE);
+    printf("free registers: %d\n",alloc.free_regs);
+    printf("used regsisters: %d\n",MACHINE_REG_SIZE - alloc.free_regs);
+    printf("total used registers: %d\n",alloc.use_count);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        const u32 slot = alloc.regs[i];
+
+        if(reg_is_tmp(slot))
+        {
+            printf("reg r%d -> temp t%d\n",i,tmp_to_ir(slot));
+        }
+
+        else if(reg_is_var(slot))
+        {
+            const auto &sym = slot_lookup[slot];
+
+            printf("reg r%d -> var %s\n",i,sym.name.c_str());
+        }
+    }
+
+
+}
+
 u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcode_iterator_t block_ptr)
 {
     u32 reg = REG_FREE;
@@ -200,6 +230,7 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
         if(reg == MACHINE_REG_SIZE)
         {
             disass_opcode_sym(opcode,slot_lookup);
+            print_alloc(alloc,slot_lookup);
             panic("failed to allocate register!");
         }
     }
@@ -541,6 +572,13 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             break;
         }
 
+        case op_group::store_t:
+        {
+            reg_args = info.args - 1;
+            handle_allocation(slot_lookup,alloc,block,op_ptr,opcode,info.args-1);
+            break;            
+        }
+
         // no regs dont rewrite
         case op_group::implicit_t:
         {
@@ -602,6 +640,15 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 
     // single args used as src can be freed
     if(opcode.op == op_type::push)
+    {
+        if(reg_is_tmp(alloc.regs[opcode.v[0]]))
+        {
+            free_reg(alloc,opcode.v[0]);
+        }
+    }
+
+    // store tmp's can be freed
+    if(info.group == op_group::store_t)
     {
         if(reg_is_tmp(alloc.regs[opcode.v[0]]))
         {
@@ -834,6 +881,8 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
     printf("half count: %d\n",alloc.size_count_max[1]);
     printf("word count: %d\n",alloc.size_count_max[2]);
     printf("stack size: %d\n",alloc.stack_size);
+
+    print_alloc(alloc,slot_lookup);
 
     // only allocate a stack if we need it
     if(alloc.stack_size)
@@ -1227,6 +1276,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
             break;
         }
 
+        case op_group::store_t:
         case op_group::load_t:
         {
             if(info.args != 3)
