@@ -655,6 +655,8 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
             free_reg(alloc,opcode.v[0]);
         }
     }
+
+    // load tmps can be freed
 }
 
 // TODO: need to rethink this when we do register passing
@@ -671,6 +673,24 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
         sym.offset = (sym.arg_num  * sizeof(u32)) + alloc.stack_size + saved_regs_offset + sizeof(u32);
     }
              
+}
+
+void load_struct(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr,Opcode &opcode)
+{
+    UNUSED(block); UNUSED(op_ptr);
+
+    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
+
+    // allocate the struct on the stack
+    // anything outside for gpr size is going into mem for now
+    if(sym.offset == UNALLOCATED_OFFSET)
+    {
+        printf("unallocated offset for struct %s\n",sym.name.c_str());
+    }
+
+
+    print_alloc(alloc,slot_lookup);
+    unimplemented("load_struct");
 }
 
 void allocate_registers(Function &func, SlotLookup &slot_lookup)
@@ -717,6 +737,19 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                 case op_type::mov_imm:
                 {
                     alloc_idx(opcode.v[0],alloc,block,it,slot_lookup);
+                    break;
+                }
+
+                case op_type::load_arr:
+                {
+                    print_alloc(alloc,slot_lookup);
+                    unimplemented("load_arr");
+                    break;
+                }
+
+                case op_type::load_struct:
+                {
+                    load_struct(slot_lookup,alloc,block,it,opcode);
                     break;
                 }
 

@@ -281,8 +281,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
             return std::pair<Type,u32>{type,dst_slot};
         }
 
-        // if its a value or symbol return out immdiatly
-        // else compile an expr
+        // compile an expr
         default:
         {
             const auto t1 = compile_expression(itl,func,node,dst_slot);
@@ -298,7 +297,7 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
     // how should these two by here work?
     // the dst slot is fundementally for the dst for compile_oper should we just allocate something
     const auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
-
+    
     const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
 
