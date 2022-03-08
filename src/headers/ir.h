@@ -79,7 +79,7 @@ enum class op_type
     bc,
     b,
 
-    load_struct,
+    load_arr_len,
     load_arr,
 
 

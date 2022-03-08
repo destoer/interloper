@@ -202,7 +202,8 @@ void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
     }
 }
 
-
+// TODO: we want this but have a bool that diffentiates between
+// reads/writes
 std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u32 dst_slot)
 {
     // TODO: how should we emit this for pointers?
@@ -229,7 +230,7 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     {
         if(member == "len")
         {
-            emit(func.emitter,op_type::load_struct,dst_slot,slot_idx(sym),ARRAY_LEN_OFFSET);
+            emit(func.emitter,op_type::load_arr_len,dst_slot,slot_idx(sym),0);
             return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
         }
 
@@ -267,9 +268,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::access_member:
         {
-            const auto [type,addr_slot] = load_struct(itl,func,node,new_slot(func));
-            do_ptr_load(itl,func,dst_slot,addr_slot,type);
-
+            const auto [type,addr_slot] = load_struct(itl,func,node,dst_slot);
             return std::pair<Type,u32>{type,dst_slot};
         }
 
@@ -830,6 +829,17 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 }
 
 
+Type index_array(const Type &type)
+{
+    // perform the access and get the underlying type
+    // for now just assume this is simple
+
+    Type accessed_type;
+    accessed_type.type_idx = type.type_idx;
+
+    return accessed_type;
+}
+
 std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     const auto arr_name = node->literal;
@@ -880,10 +890,9 @@ std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 
     // perform the access and get the underlying type
     auto& arr_type = arr.type;
 
-    Type accessed_type;
-    accessed_type.type_idx = arr_type.type_idx;
-
+    auto accessed_type = index_array(arr.type);
     const auto size = type_size(itl,accessed_type);
+
     emit(func.emitter,op_type::mul_imm,mul_slot,subscript_slot,size);   
 
 
@@ -1457,9 +1466,9 @@ void compile_functions(Interloper &itl)
 
 
 // TODO: impl source line information on the parse tree
-// impl raii for varaible scopes to prevent dumb bugs
-// remove reliance on stl containers for compilier structs
 
+// remove reliance on stl containers for compiler structs
+// and do a big refactoring pass on the compiler when arrays are implemented
 
 // plan:
 // reg alloc -> pointers -> structs -> arrays -> strings -> imports

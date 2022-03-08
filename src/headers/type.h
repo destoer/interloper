@@ -327,4 +327,6 @@ u32 type_min(Interloper& itl,const Type &type);
 u32 type_max(Interloper& itl,const Type &type);
 std::string type_name(Interloper& itl,const Type &type);
 
+Type index_array(const Type &type);
+
 void handle_cast(Interloper& itl,IrEmitter &emitter, u32 slot,u32 src_slot,const Type &old_type, const Type &new_type);

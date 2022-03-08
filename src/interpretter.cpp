@@ -424,7 +424,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         }
 
         // directives/pseudo ops should not be hit at runtime..
-        case op_type::load_struct:
+        case op_type::load_arr_len:
         case op_type::load_arr:
         case op_type::push_arg:
         case op_type::clean_args:

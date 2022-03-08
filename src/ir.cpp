@@ -675,26 +675,10 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
              
 }
 
-void load_struct(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr,Opcode &opcode)
-{
-    UNUSED(block); UNUSED(op_ptr);
-
-    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
-
-    // allocate the struct on the stack
-    // anything outside for gpr size is going into mem for now
-    if(sym.offset == UNALLOCATED_OFFSET)
-    {
-        printf("unallocated offset for struct %s\n",sym.name.c_str());
-    }
-
-
-    print_alloc(alloc,slot_lookup);
-    unimplemented("load_struct");
-}
-
 void allocate_registers(Function &func, SlotLookup &slot_lookup)
 {
+    printf("allocating registers for %s:\n\n",func.name.c_str());
+
     LocalAlloc alloc;
 
     // every register is free!
@@ -747,9 +731,11 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     break;
                 }
 
-                case op_type::load_struct:
+                case op_type::load_arr_len:
                 {
-                    load_struct(slot_lookup,alloc,block,it,opcode);
+                    // TODO: this assumes an array with a known size
+                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
+                    opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
                     break;
                 }
 
@@ -812,6 +798,14 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                 // for now just do nothing with this
                 case op_type::alloc_slot:
                 {
+                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])]; 
+
+                    // if we have an array we need to allocate the memory right now
+                    if(is_array(sym.type))
+                    {
+                        unimplemented("allocate array");
+                    }
+
                     it = block.buf.erase(it);
                     continue;
                 }

@@ -75,7 +75,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::branch_t,"bc",2},
     {op_group::branch_t,"b",1},
 
-    {op_group::imm_t,"load_struct",3},
+    {op_group::imm_t,"load_arr_len",3},
     {op_group::reg_t,"load_arr",3},
 
     // directives
