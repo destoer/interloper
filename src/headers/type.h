@@ -214,6 +214,7 @@ struct Symbol
     std::string name;
     Type type;
 
+    // Cached type size
     u32 size;
     u32 arg_num;
 
@@ -328,5 +329,6 @@ u32 type_max(Interloper& itl,const Type &type);
 std::string type_name(Interloper& itl,const Type &type);
 
 Type index_array(const Type &type);
+std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type);
 
 void handle_cast(Interloper& itl,IrEmitter &emitter, u32 slot,u32 src_slot,const Type &old_type, const Type &new_type);

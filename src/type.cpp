@@ -21,6 +21,32 @@ bool same_type(const Type &type1, const Type &type2)
     return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection);
 }
 
+Type index_array(const Type &type)
+{
+    // perform the access and get the underlying type
+    // for now just assume this is simple
+
+    Type accessed_type;
+    accessed_type.type_idx = type.type_idx;
+
+    return accessed_type;
+}
+
+std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
+{
+    // get size, len
+    // emit a alloc ir op
+    const auto contained_type = index_array(type);
+    const u32 size = type_size(itl,contained_type);
+
+    // TODO: assumes static array
+    const u32 count = type.dimensions[0];    
+
+    return std::pair<u32,u32>{size,count};
+}
+
+
+
 u32 type_size(Interloper& itl,const Type &type)
 {
     UNUSED(itl);
@@ -33,6 +59,12 @@ u32 type_size(Interloper& itl,const Type &type)
 
     else if(is_pointer(type))
     {
+        return GPR_SIZE;
+    }
+
+    else if(is_array(type))
+    {
+        // TODO: this assumes a static array
         return GPR_SIZE;
     }
 

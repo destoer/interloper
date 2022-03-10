@@ -80,7 +80,8 @@ enum class op_type
     b,
 
     load_arr_len,
-    load_arr,
+    load_arr_data,
+    arr_index,
 
 
     // DIRECTIVES
@@ -88,6 +89,7 @@ enum class op_type
     // so we can reclaim allocation on the stack
     alloc_slot,
     free_slot,
+    alloc,
 
     // give a function call arg
     // how it will be passed will be decided in reg alloc

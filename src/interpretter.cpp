@@ -425,10 +425,12 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         // directives/pseudo ops should not be hit at runtime..
         case op_type::load_arr_len:
-        case op_type::load_arr:
+        case op_type::load_arr_data:
+        case op_type::arr_index:
         case op_type::push_arg:
         case op_type::clean_args:
         case op_type::alloc_slot:
+        case op_type::alloc:
         case op_type::free_slot:
         case op_type::save_regs:
         case op_type::restore_regs:

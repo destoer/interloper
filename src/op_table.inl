@@ -75,12 +75,14 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::branch_t,"bc",2},
     {op_group::branch_t,"b",1},
 
-    {op_group::imm_t,"load_arr_len",3},
-    {op_group::reg_t,"load_arr",3},
+    {op_group::reg_t,"load_arr_len",2},
+    {op_group::reg_t,"load_arr_data",2},
+    {op_group::reg_t,"arr_index",3},
 
     // directives
     {op_group::slot_t,"alloc_slot",1},
     {op_group::slot_t,"free_slot",1},
+    {op_group::slot_t,"alloc",3},
     {op_group::reg_t,"push_arg",1},
 
     // perform cleanup after a function call

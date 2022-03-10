@@ -829,17 +829,6 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 }
 
 
-Type index_array(const Type &type)
-{
-    // perform the access and get the underlying type
-    // for now just assume this is simple
-
-    Type accessed_type;
-    accessed_type.type_idx = type.type_idx;
-
-    return accessed_type;
-}
-
 std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     const auto arr_name = node->literal;
@@ -883,7 +872,7 @@ std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
-    const u32 mul_slot = new_slot(func);
+    const u32 index_slot = new_slot(func);
 
     // TODO: handle this for multi dimensional arrays
 
@@ -893,10 +882,12 @@ std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 
     auto accessed_type = index_array(arr.type);
     const auto size = type_size(itl,accessed_type);
 
-    emit(func.emitter,op_type::mul_imm,mul_slot,subscript_slot,size);   
+    emit(func.emitter,op_type::mul_imm,index_slot,subscript_slot,size);   
 
+    const auto data_slot = new_slot(func);
 
-    emit(func.emitter,op_type::load_arr,dst_slot,slot_idx(arr),mul_slot);
+    emit(func.emitter,op_type::load_arr_data,data_slot,slot_idx(arr));
+    emit(func.emitter,op_type::arr_index,dst_slot,data_slot,index_slot);
 
     return std::pair<Type,u32>{arr_type,dst_slot};
 }
@@ -1573,7 +1564,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     for(auto &[key, func]: itl.function_table)
     {
         UNUSED(key);
-        allocate_registers(func,itl.symbol_table.slot_lookup);
+        allocate_registers(itl,func,itl.symbol_table.slot_lookup);
         putchar('\n');
     }
 

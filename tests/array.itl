@@ -1,5 +1,7 @@
 
 
+// expected 1061
+
 func s32 main()
 {
     bool[100] x;
@@ -11,7 +13,7 @@ func s32 main()
     }
 
   
-    for(u32 i = 0; i < x.len; i += 1)
+    for(u32 i = 2; i < x.len; i += 1)
     {
         if(x[i])
         {

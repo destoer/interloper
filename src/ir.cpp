@@ -167,6 +167,7 @@ void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
         }
     }
 
+    putchar('\n');
 
 }
 
@@ -612,7 +613,8 @@ void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcod
 
         case op_group::slot_t:
         {
-            panic("slot in correct_reg");
+            // dont rewrite
+            reg_args = 0;
             break;
         }
     }
@@ -675,7 +677,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
              
 }
 
-void allocate_registers(Function &func, SlotLookup &slot_lookup)
+void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup)
 {
     printf("allocating registers for %s:\n\n",func.name.c_str());
 
@@ -711,11 +713,9 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
             switch(opcode.op)
             {
 
-                // TODO: reviist when we add caller saved regs
+                // TODO: revisit when we add caller saved regs
                 //case op_type::save_regs:
                 //case op_type::restore_regs:
-                
-
 
                 // allocate a tmp
                 case op_type::mov_imm:
@@ -724,15 +724,38 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     break;
                 }
 
-                case op_type::load_arr:
+
+                case op_type::load_arr_data:
                 {
-                    print_alloc(alloc,slot_lookup);
-                    unimplemented("load_arr");
+
+                    // we dont have the information for this yet so we have to fill it in later
+                    /*
+                        load_arr_data <dst>, <sym>
+                        lea <dst>, [<sym_offset>]
+                    */
+
+                    opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
+
+                    // only want to allocate the dst,
+                    // we need to use the sym as a "slot" later
+                    alloc_idx(opcode.v[0],alloc,block,it,slot_lookup);
+                    rewrite_registers(0,1,opcode,alloc,slot_lookup);                    
+
+                    
+                    it++; continue;
+                }
+
+                case op_type::arr_index:
+                {
+                    // arr_index <dst>, <array_data_ptr>, <subscript_offset>
+                    // add <dst>, <array_data_ptr>,<subcript_offset>
+                    opcode = Opcode(op_type::add_reg,opcode.v[0],opcode.v[1],opcode.v[2]);
                     break;
                 }
 
                 case op_type::load_arr_len:
                 {
+                    // load_arr_len <dst> <symbol> <dimension>
                     // TODO: this assumes an array with a known size
                     auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
                     opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
@@ -795,18 +818,35 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     break;
                 }
 
-                // for now just do nothing with this
                 case op_type::alloc_slot:
                 {
                     auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])]; 
 
-                    // if we have an array we need to allocate the memory right now
+                    // if we have an array and we know the size
+                    // then we need to allocate memory for it
                     if(is_array(sym.type))
                     {
-                        unimplemented("allocate array");
+                        // get size, len
+                        // emit a alloc ir op
+                        const auto [size,count] = get_arr_size(itl,sym.type);                    
+
+                        const u32 idx = size >> 1;
+
+                        opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
+
+                        const u32 cur = alloc.size_count[idx];
+                        sym.offset = PENDING_ALLOCATION + cur;
+
+                        
+                        alloc.size_count[idx] += count;
+                        alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
                     }
 
-                    it = block.buf.erase(it);
+                    else
+                    {
+                        it = block.buf.erase(it);
+                    }
+
                     continue;
                 }
 
@@ -839,7 +879,16 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     // this var is done so we can reclaim the stack space
                     if(sym.offset >= PENDING_ALLOCATION)
                     {
-                        alloc.size_count[sym.size >> 1] -= 1;
+                        if(!is_array(sym.type))
+                        {
+                            alloc.size_count[sym.size >> 1] -= 1;
+                        }
+
+                        else
+                        {
+                            const auto [size,count] = get_arr_size(itl,sym.type); 
+                            alloc.size_count[size >> 1] -= count;
+                        }
                     }
 
 
@@ -967,6 +1016,36 @@ void allocate_registers(Function &func, SlotLookup &slot_lookup)
                     break;
                 }
 
+
+
+
+                case op_type::load_arr_data:
+                {
+                    /*
+                        load_arr_data <dst>, <sym>, stack_offset
+                        lea <dst>, [<sym_offset>]
+                    */
+
+                    // TODO: assumes static array
+                    const s32 stack_offset = opcode.v[2];
+                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
+
+                    opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+                    break;
+                }
+
+                case op_type::alloc:
+                {
+                    // alloc <slot>, <size>, <count>
+                    const auto slot = symbol_to_idx(opcode.v[0]);
+                    auto &sym = slot_lookup[slot];
+
+                    const u32 idx = sym.offset - PENDING_ALLOCATION;  
+                    sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * opcode.v[1]);                    
+
+                    it = block.buf.erase(it);
+                    continue;
+                }
 
                 case op_type::ret:
                 {
@@ -1294,12 +1373,22 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
         case op_group::slot_t:
         {
-            if(info.args != 1)
+            switch(info.args)
             {
-                panic("unknown slot opcode\n");
-            }
+                case 1:
+                { 
+                    printf("%s %s\n",info.name,get_oper(table,opcode.v[0]).c_str()); 
+                    break;
+                }
 
-            printf("%s %s\n",info.name,get_oper(table,opcode.v[0]).c_str());
+                case 3:
+                { 
+                    printf("%s %s, %d, %d\n",info.name,get_oper(table,opcode.v[0]).c_str(),opcode.v[1],opcode.v[2]); 
+                    break;
+                }
+
+                default: panic("unknown slot opcode\n"); break;
+            }
             break;
         }
 
