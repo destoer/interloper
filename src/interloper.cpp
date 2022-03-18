@@ -4,6 +4,7 @@
 Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line);
 std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_block(Interloper &itl,Function &func,AstNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
@@ -820,7 +821,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 
         case ast_type::array_access:
         {
-            unimplemented("addr array access");
+            return index_arr(itl,func,node,slot);
         }
 
         default:
@@ -830,14 +831,6 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
         }
     }
 }
-
-
-// need to handle returning just the pointer
-// and returning the the value in one go
-// how do we want to define this?
-
-// after this works we can define a local jagged array
-// and sum a subsection to prove it works
 
 
 std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
