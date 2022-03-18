@@ -2,8 +2,8 @@
 
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
-std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line);
+std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_block(Interloper &itl,Function &func,AstNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
@@ -274,10 +274,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::array_access:
         {
-            const auto [type,addr_slot] = load_arr(itl,func,node,new_slot(func));
-            do_ptr_load(itl,func,dst_slot,addr_slot,type);
-
-            return std::pair<Type,u32>{type,dst_slot};
+            return read_arr(itl,func,node,dst_slot);
         }
 
         // compile an expr
@@ -809,6 +806,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 return std::pair<Type,u32>{type,slot};
             }
 
+            // deref
             else
             {
                 if(!is_pointer(type))
@@ -820,6 +818,11 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
             }
         }
 
+        case ast_type::array_access:
+        {
+            unimplemented("addr array access");
+        }
+
         default:
         {
             print(node);
@@ -829,7 +832,15 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 }
 
 
-std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+// need to handle returning just the pointer
+// and returning the the value in one go
+// how do we want to define this?
+
+// after this works we can define a local jagged array
+// and sum a subsection to prove it works
+
+
+std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     const auto arr_name = node->literal;
 
@@ -876,9 +887,9 @@ std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 
 
     // TODO: handle this for multi dimensional arrays
 
-    // perform the access and get the underlying type
-    auto& arr_type = arr.type;
+    // TODO: bound check this at compile time for const exprs, or fixed size arrays
 
+    // perform the access and get the underlying type
     auto accessed_type = index_array(arr.type);
     const auto size = type_size(itl,accessed_type);
 
@@ -889,7 +900,36 @@ std::pair<Type, u32> load_arr(Interloper &itl,Function &func,AstNode *node, u32 
     emit(func.emitter,op_type::load_arr_data,data_slot,slot_idx(arr));
     emit(func.emitter,op_type::arr_index,dst_slot,data_slot,index_slot);
 
-    return std::pair<Type,u32>{arr_type,dst_slot};
+    // pointer to this type!
+    accessed_type.ptr_indirection += 1;
+    
+
+    return std::pair<Type,u32>{accessed_type,dst_slot};
+}
+
+std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+{
+    auto [type,addr_slot] = index_arr(itl,func,node,new_slot(func));
+
+    // deref of pointer
+    type.ptr_indirection -= 1;
+
+
+    do_ptr_load(itl,func,dst_slot,addr_slot,type);
+
+    return std::pair<Type,u32>{type,dst_slot};
+}
+
+void write_arr(Interloper &itl,Function &func,AstNode *node,const Type& write_type, u32 slot)
+{
+    auto [type,addr_slot] = index_arr(itl,func,node,new_slot(func));
+
+    // deref of pointer
+    type.ptr_indirection -= 1;
+
+    do_ptr_write(itl,func,slot,addr_slot,type);
+
+    check_assign(itl,type,write_type);
 }
 
 /*
@@ -1270,9 +1310,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                         case ast_type::array_access:
                         {
-                            const auto [type,addr_slot] = load_arr(itl,func,line.nodes[0],new_slot(func));
-                            check_assign(itl,type,rtype);
-                            do_ptr_write(itl,func,slot,addr_slot,type);
+                            write_arr(itl,func,line.nodes[0],rtype,slot);
                             break;
                         }    
 
@@ -1461,10 +1499,13 @@ void compile_functions(Interloper &itl)
 // remove reliance on stl containers for compiler structs
 // and do a big refactoring pass on the compiler when arrays are implemented
 
+// finish up arrays then do the cleanup above
+// need jagged arrays, mult dimensional arrays and pointer semantics on arrays working
+
 // plan:
-// reg alloc -> pointers -> structs -> arrays -> strings -> imports
+// arrays -> strings -> imports -> tuples -> structs -> 
 // -> early stl -> function_pointers -> labels ->  compile time execution ->
-// unions -> inline asm
+// unions -> inline asm -> debugg memory guards -> ...
 
 void compile(Interloper &itl,const std::vector<std::string> &lines)
 {
