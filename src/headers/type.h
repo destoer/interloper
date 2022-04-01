@@ -7,10 +7,9 @@
 // if type idx is >= to this then this is a custom defined type
 static constexpr int BUILTIN_TYPE_SIZE = 8;
 
+// NOTE: expects to be defined in same order as tokens
 enum class builtin_type
 {
-    void_t, 
-
     u8_t,
     u16_t,
     u32_t,
@@ -20,12 +19,12 @@ enum class builtin_type
     s32_t,
 
     bool_t,
+
+    void_t, 
 };
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
 {
-    "void",
-
     "u8",
     "u16",
     "u32",
@@ -35,6 +34,8 @@ static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
     "s32",
 
     "bool",
+
+    "void",
 };
 
 struct BuiltinTypeInfo
@@ -86,6 +87,8 @@ struct AstNode;
 
 static constexpr u32 MAX_ARR_SIZE = 4;
 static constexpr u32 ARRAY_LEN_OFFSET = 1;
+
+static constexpr u32 RUNTIME_SIZE = 0xffffffff;
 
 struct Type
 {

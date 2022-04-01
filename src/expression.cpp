@@ -213,18 +213,14 @@ AstNode *nud(Parser &parser,Token &t)
             // to correct the tok idx
             parser.tok_idx -= 1;
 
-            std::string type_name;
-            const auto type_opt = get_type(parser,type_name);
+            auto type = parse_type(parser);
 
-            if(!type_opt)
+            if(!type)
             {
                 type_panic(parser);
                 return nullptr;
             }
 
-            const auto type = type_opt.value();
-            const auto left = new AstNode(type,type_name);
-        
             // correct our state machine
             parser.expr_tok = next_token_expr(parser);
 
@@ -234,7 +230,7 @@ AstNode *nud(Parser &parser,Token &t)
 
             consume_expr(parser,token_type::right_paren);
             
-            return new AstNode(left,right,ast_type::cast);    
+            return new AstNode(type,right,ast_type::cast);    
         }
 
         case token_type::value:

@@ -1,7 +1,6 @@
 
 // expected 255
 
-// TODO: test this properly when we get pointers because we cant verify such a call works atm
 func void_func(u8 @x)
 {
     @x = 255;

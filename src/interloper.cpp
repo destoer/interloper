@@ -20,6 +20,103 @@ void dump_ir_sym(Interloper &itl)
     }    
 }
 
+u32 eval_const_expr(const AstNode *node)
+{
+    assert(node);
+
+    switch(node->type)
+    {
+        case ast_type::value: return node->value.v;
+
+        default: print(node); unimplemented("eval const expr node"); break;
+    }
+}
+
+
+
+
+Type get_type(Interloper &itl, AstNode *type_decl)
+{
+    Type type;
+
+    type.type_idx = type_decl->type_idx;
+
+    // not a plain plain type
+    if(type_decl->nodes.size())
+    {
+        AstNode *arr_decl = nullptr;
+        AstNode *ptr_decl = nullptr;
+
+        for(auto n : type_decl->nodes)
+        {
+            switch(n->type)
+            {
+                case ast_type::ptr_indirection:
+                {
+                    ptr_decl = n;
+                    break;
+                }
+
+                case ast_type::arr_dimensions:
+                {
+                    if(ptr_decl)
+                    {
+                        // array is contained by the pointer
+                        type.contains_array = true;
+                    }
+
+                    arr_decl = n;
+                    break;
+                }
+
+                default: assert(false);
+            }
+        }
+
+        // parse out pointer indirection
+        if(ptr_decl)
+        {
+            type.ptr_indirection = ptr_decl->type_idx;
+        }
+
+        // parse out array dimensions
+        if(arr_decl)
+        {
+            type.degree = arr_decl->nodes.size();
+            
+            for(u32 i = 0; i < type.degree; i++)
+            {
+                if(i >= MAX_ARR_SIZE)
+                {
+                    panic(itl,"array dimensions execeeded %s\n",type_decl->literal.c_str());
+                    return type;
+                }
+
+                auto n = arr_decl->nodes[i];
+
+                // variable size
+                if(n->type == ast_type::arr_var_size)
+                {
+                    assert(false);
+                }
+
+                // fixed size: const expr
+                else
+                {
+                    type.dimensions[i] = eval_const_expr(n);
+                }
+            }
+        }
+
+
+        
+
+    }
+
+    return type;
+}
+
+
 // scan the top level of the parse tree for functions
 // and grab the entire signature
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
@@ -36,7 +133,7 @@ void parse_function_declarations(Interloper& itl)
 
 
         
-        const auto return_type = node.nodes[0]->variable_type;
+        const auto return_type = get_type(itl,node.nodes[0]);
         const auto name = node.literal;
         
         if(itl.function_table.count(name))
@@ -53,7 +150,7 @@ void parse_function_declarations(Interloper& itl)
         for(const auto a : decl->nodes)
         {
             const auto name = a->literal;
-            const auto type = a->nodes[0]->variable_type;
+            const auto type = get_type(itl,a->nodes[0]);
 
             const auto size = type_size(itl,type);
 
@@ -961,7 +1058,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         case ast_type::cast:
         {
             const auto [old_type,slot] = compile_oper(itl,func,node->nodes[1],new_slot(func));
-            const auto new_type = node->nodes[0]->variable_type;
+            const auto new_type = get_type(itl,node->nodes[0]);
 
             handle_cast(itl,func.emitter,dst_slot,slot,old_type,new_type);
             return new_type;
@@ -1187,7 +1284,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 {
     // get entry into symbol table
     const auto name = line.literal;
-    const auto ltype = line.nodes[0]->variable_type;
+    const auto ltype = get_type(itl,line.nodes[0]);
 
     const auto sym_opt = get_sym(itl.symbol_table,name);
     if(sym_opt)
@@ -1494,6 +1591,8 @@ void compile_functions(Interloper &itl)
 
 // finish up arrays then do the cleanup above
 // need jagged arrays, mult dimensional arrays and pointer semantics on arrays working
+
+// impl source line information for parse tree
 
 // plan:
 // arrays -> strings -> imports -> tuples -> structs -> 

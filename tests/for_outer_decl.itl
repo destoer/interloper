@@ -1,0 +1,15 @@
+// ans 32
+
+func s32 main()
+{
+    s32 y = 1;
+
+    u32 x;
+
+    for(x = 5; x > 0; x -= 1)
+    {
+        y *= 2;
+    }
+
+    return y;
+}

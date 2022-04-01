@@ -30,6 +30,7 @@
 *.exe
 *.out
 *.app
+vgcore.*
 
 # windows cmake stuff
 *.vcxproj

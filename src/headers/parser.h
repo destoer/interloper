@@ -20,11 +20,14 @@ enum class ast_type
     ret,
 
     type,
+    ptr_indirection,
+    arr_dimensions,
+    arr_var_size,
 
     declaration,
     auto_decl,
     
-    arr_dimensions,
+
 
 
     equal,
@@ -94,11 +97,14 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "return",
 
     "type",
+    "ptr_indirection",
+    "arr_dimensions",
+    "arr_var_size",
 
     "declaration",
     "auto_decl",
 
-    "arr_dimensions",
+    
 
     "=",
     "*",
@@ -181,15 +187,6 @@ struct AstNode
         this->value = Value(0,false);
     }
 
-    // astdata decleration
-    AstNode(const Type &type, const std::string &literal)
-    {
-        this->type = ast_type::type;
-        this->literal = literal;
-        this->variable_type = type;
-    }
-
-    
     // binary op
     AstNode(AstNode *l, AstNode *r, ast_type type, std::string literal = "")
     {
@@ -215,17 +212,17 @@ struct AstNode
     // node data
     ast_type type;
     std::string literal;
+    u32 line;
 
     // if we put anything in here
     // we need to make sure we add the copy into
     // copy_node
     union
     {
-        // ast_type::type
-        Type variable_type;
-
         // ast_type::value
         Value value;
+
+        u32 type_idx;
     };
 
     // TODO: should this even be a pointer?
@@ -300,3 +297,4 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, Args... arg
 
 
 bool parse(AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines);
+AstNode *parse_type(Parser &parser);

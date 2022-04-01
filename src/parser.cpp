@@ -1,8 +1,6 @@
 #include <interloper.h>
 
 
-
-std::optional<Type> get_type(Parser &parser,std::string &type_literal);
 void type_panic(Parser &parser);
 AstNode *block(Parser &parser);
 
@@ -89,16 +87,16 @@ AstNode *copy_node(const AstNode *node)
 
     switch(copy->type)
     {
-        case ast_type::type:
-        {
-            copy->variable_type = node->variable_type;
-            break;
-        }
-
         case ast_type::value:
         {
             copy->value = node->value;
             break;
+        }
+
+        case ast_type::ptr_indirection:
+        case ast_type::type:
+        {
+            copy->type_idx = node->type_idx;
         }
 
         default: break;
@@ -121,6 +119,7 @@ void type_panic(Parser &parser)
     const auto tok = peek(parser,1);
     panic(parser,tok,"expected type declaration got: %s\n",tok_name(tok.type));
 }
+/*
 
 std::optional<Type> get_plain_type(const Token &tok, std::string &type_literal)
 {
@@ -186,20 +185,11 @@ std::optional<Type> get_plain_type(const Token &tok, std::string &type_literal)
 }
 
 
-// NOTE: if we want this to support expressions beyond arithmetic constants (i dont see a use for this yet)
-// we will have to save the expr's and handle them along with the type checking pass
-// need to bind a decl_expr into the Type struct that is freed as soon as the type checking on the decl
-// is fully done
-u32 eval_const_expr(const AstNode *node)
-{
-    switch(node->type)
-    {
-        case ast_type::value: return node->value.v;
 
-        default: print(node); unimplemented("eval const expr node"); break;
-    }
-}
 
+
+// Should we just push off type extraction to a later phase altogether
+// and just extract it into something easy to parse later?
 std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 {
     auto tok = next_token(parser);
@@ -277,11 +267,19 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 
                     consume(parser,token_type::sl_brace);
 
-                    // TODO: this needs to be allowed to be empty for dynmaic array sizes
                     const auto e =  expr_terminate(parser,token_type::sr_brace);
-                    type.dimensions[degree++] = eval_const_expr(e); 
 
-                    type_literal = type_literal + "[]";
+                    if(e)
+                    {
+                        type.dimensions[degree++] = eval_const_expr(e); 
+                        type_literal = type_literal + "[]";
+                    }
+
+                    else
+                    {
+                        type.dimensions[degree++] = RUNTIME_SIZE;
+                        type_literal = type_literal + "[]";
+                    }
                 }
 
                 type.degree = degree;
@@ -299,8 +297,126 @@ std::optional<Type> get_type(Parser &parser,std::string &type_literal)
 
     return type;
 }
+*/
 
-AstNode *declaration(Parser &parser,const Type &var_type, const std::string &type_str)
+static constexpr s32 INVALID_TYPE = -1;
+
+bool is_builtin_type_tok(const Token &tok)
+{
+   return tok.type >= token_type::u8 && tok.type <= token_type::bool_t; 
+}
+
+s32 plain_type_idx(const Token &tok)
+{
+    // within the plain type range
+    if(is_builtin_type_tok(tok))
+    {
+        // compute builtin type idx 
+        return s32(tok.type) - s32(token_type::u8);
+    }
+
+
+    else if(tok.type == token_type::symbol)
+    {
+        unimplemented("user defined type");
+    }
+
+    else
+    {
+        return INVALID_TYPE;
+    }    
+}
+
+
+AstNode *parse_type(Parser &parser)
+{
+    // read out the plain type
+
+    auto plain_tok = next_token(parser);
+
+    s32 type_idx = plain_type_idx(plain_tok);
+
+    if(type_idx == INVALID_TYPE)
+    {
+        panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
+        return nullptr;
+    }
+
+    std::string type_literal = TYPE_NAMES[type_idx];
+
+    // TODO: need to mark the idx for when have user defined types
+    auto type = new AstNode(ast_type::type);
+    type->type_idx = type_idx;
+    
+
+    b32 quit = false;
+
+    while(!quit)
+    {
+        // parse out other types, arrays, pointers
+        switch(peek(parser,0).type)
+        {
+            // pointer decl
+            case token_type::deref:
+            {
+                u32 ptr_indirection = 0;
+                while(peek(parser,0).type == token_type::deref)
+                {
+                    next_token(parser);
+                    ptr_indirection++;
+                    type_literal = type_literal + '@';
+                }
+
+                auto ptr_node = new AstNode(ast_type::ptr_indirection);
+                ptr_node->type_idx = ptr_indirection;
+
+                ptr_node->literal = std::to_string(ptr_indirection);
+
+                type->nodes.push_back(ptr_node);
+                break;
+            }
+
+
+            // array decl
+            case token_type::sl_brace:
+            {
+                auto arr_decl = new AstNode(ast_type::arr_dimensions);
+
+                while(peek(parser,0).type == token_type::sl_brace)
+                {
+                    consume(parser,token_type::sl_brace);
+
+                    // var size
+                    if(peek(parser,0).type == token_type::sr_brace)
+                    {
+                        arr_decl->nodes.push_back(new AstNode(ast_type::arr_var_size));
+                        consume(parser,token_type::sr_brace);
+                    }
+
+                    else 
+                    {
+                        arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
+                    }
+                }
+
+                type->nodes.push_back(arr_decl);
+
+                break;
+            }
+
+            default: quit = true; break;
+        }
+    }
+
+    type->literal = type_literal;
+
+    return type;
+}
+
+
+
+
+AstNode *declaration(Parser &parser, AstNode *type)
 {
     // declartion
     // type symbol ( ';' | '=' expression ';')
@@ -317,7 +433,7 @@ AstNode *declaration(Parser &parser,const Type &var_type, const std::string &typ
     // [type]   optional([eqauls])
 
     auto d = new AstNode(ast_type::declaration,s.literal);
-    d->nodes.push_back(new AstNode(var_type,type_str));
+    d->nodes.push_back(type);
 
     const auto eq = peek(parser,0);
 
@@ -394,17 +510,16 @@ AstNode *statement(Parser &parser)
         case token_type::bool_t:
         {
             prev_token(parser);
-            std::string type_literal;
-            const auto var_type_opt = get_type(parser,type_literal);
 
-            if(!var_type_opt)
+            auto type = parse_type(parser);
+
+            if(!type)
             {
                 type_panic(parser);
                 return nullptr;
             }
 
-            const auto var_type = var_type_opt.value();
-            return declaration(parser,var_type,type_literal);
+            return declaration(parser,type);
         }
 
     
@@ -521,25 +636,18 @@ AstNode *statement(Parser &parser)
             // standard decl
             else
             {
-                
-                const u32 old = parser.tok_idx;
 
-                std::string type_literal = "";
-                const auto type_opt = get_type(parser,type_literal);
-
-                // allow declaration for mult type statement
-                if(type_opt)
+                // decl for builtin type
+                if(is_builtin_type_tok(peek(parser,0)))
                 {
-                    const auto type = type_opt.value();
-
-                    for_block->nodes.push_back(declaration(parser,type,type_literal));
+                    auto type = parse_type(parser);
+                    for_block->nodes.push_back(declaration(parser,type));
                     terminator = token_type::semi_colon; 
                 }
 
-                // some other statement (maybe a boolean one for a single stmt)
+                // standard stmt
                 else
                 {
-                    parser.tok_idx = old;
                     for_block->nodes.push_back(expr_terminate(parser,first_term,terminator)); 
                 }
             }
@@ -705,29 +813,25 @@ AstNode *func(Parser &parser)
     // arg = type ident
 
     // can be void (i.e we have no return type)
-    std::string return_type_literal;
-    Type return_type;
+    AstNode *return_type = nullptr;
     
     // void
     if(peek(parser,0).type == token_type::symbol && peek(parser,1).type == token_type::left_paren)
     {
-        return_type_literal = "void";
-        return_type = Type(builtin_type::void_t);
+        return_type = new AstNode(ast_type::type);
+        return_type->type_idx = u32(builtin_type::void_t);
     }
 
     // type specified
     else
     {
-        const auto return_type_opt = get_type(parser,return_type_literal);
+        return_type = parse_type(parser);
 
-        if(!return_type_opt)
+        if(!return_type)
         {
             type_panic(parser);
             return nullptr;
         }
-
-
-        return_type = return_type_opt.value();
     }
 
     // what is the name of our function?
@@ -761,18 +865,15 @@ AstNode *func(Parser &parser)
         }
 
         // for each arg pull type, name
-        std::string type_name;
-        const auto type_opt = get_type(parser,type_name);
+        auto type = parse_type(parser);
 
-        if(!type_opt)
+        if(!type)
         {
             type_panic(parser);
             delete_tree(a);
             delete_tree(f);
             return nullptr;
         }
-
-        const auto type = type_opt.value();
 
         const auto lit_tok = next_token(parser);
 
@@ -786,7 +887,7 @@ AstNode *func(Parser &parser)
         
         // add each declartion
         auto d = new AstNode(ast_type::declaration,lit_tok.literal);
-        d->nodes.push_back(new AstNode(type,type_name));
+        d->nodes.push_back(type);
 
         a->nodes.push_back(d);
 
@@ -806,7 +907,7 @@ AstNode *func(Parser &parser)
 
     //      [func: name]
     // [type] [block]  [args]
-    f->nodes.push_back(new AstNode(return_type,return_type_literal));
+    f->nodes.push_back(return_type);
     f->nodes.push_back(b);
     f->nodes.push_back(a);
 

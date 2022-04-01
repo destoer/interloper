@@ -2,8 +2,6 @@
 
 const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 {
-    {builtin_type::void_t, false, false, 0, 0, 0},
-
     {builtin_type::u8_t, true, false, 1, 0, 0xff},
     {builtin_type::u16_t, true, false ,2, 0, 0xffff},
     {builtin_type::u32_t, true, false ,4, 0, 0xffffffff},
@@ -13,6 +11,8 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::s32_t, true, true ,4,  static_cast<u32>(-(0xffffffff / 2)), (0xffffffff / 2)},
 
     {builtin_type::bool_t, false, false ,1,  0, 1},
+
+    {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
 // this needs to have more added when we get extra fields
@@ -255,7 +255,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
 
             else
             {
-                unimplemented("non integer assign!\n");
+                unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             }           
         }
     }

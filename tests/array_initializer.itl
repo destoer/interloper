@@ -1,0 +1,15 @@
+
+// expected 16
+func s32 main()
+{
+    u32[] buf = {1,3,7,5};
+
+    u32 ans = 0;
+
+    for(u32 i = 0; i < buf.len; i++)
+    {
+        ans += buf[i];
+    }
+
+    return ans;
+}

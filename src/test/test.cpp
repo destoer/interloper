@@ -44,6 +44,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/recur.itl",1,false},
     {"tests/arith_eq.itl",294,false},
     {"tests/for.itl",32,false},
+    {"tests/for_outer_decl.itl",32,false},
     {"tests/for_single.itl",32,false},
     {"tests/mod.itl",233168,false},
     {"tests/shift.itl",1,false},
