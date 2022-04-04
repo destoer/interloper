@@ -23,6 +23,7 @@ enum class ast_type
     ptr_indirection,
     arr_dimensions,
     arr_var_size,
+    arr_initializer,
 
     declaration,
     auto_decl,
@@ -100,6 +101,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "ptr_indirection",
     "arr_dimensions",
     "arr_var_size",
+    "arr_intializer",
 
     "declaration",
     "auto_decl",

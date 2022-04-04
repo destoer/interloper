@@ -233,6 +233,25 @@ AstNode *nud(Parser &parser,Token &t)
             return new AstNode(type,right,ast_type::cast);    
         }
 
+        // array initializer
+        case token_type::left_c_brace:
+        {
+            auto init = new AstNode(ast_type::arr_initializer);
+            while(parser.expr_tok.type != token_type::right_c_brace)
+            {
+                init->nodes.push_back(expression(parser,0));
+
+                if(parser.expr_tok.type != token_type::right_c_brace)
+                {
+                    consume_expr(parser,token_type::comma);
+                }
+            }
+
+            consume_expr(parser,token_type::right_c_brace);
+            
+            return init;
+        }
+
         case token_type::value:
         {
             const auto value = read_value(t);

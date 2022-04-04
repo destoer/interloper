@@ -6,7 +6,7 @@ func s32 main()
 
     u32 ans = 0;
 
-    for(u32 i = 0; i < buf.len; i++)
+    for(u32 i = 0; i < buf.len; i += 1)
     {
         ans += buf[i];
     }

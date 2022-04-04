@@ -113,7 +113,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::semi_colon,";",0},
 
     {token_type::left_c_brace,"{",-1},
-    {token_type::right_c_brace,"}",-1},
+    {token_type::right_c_brace,"}",0},
 
     {token_type::left_paren,"(",-1},
     {token_type::right_paren,")",0},
