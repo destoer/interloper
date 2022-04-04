@@ -1113,6 +1113,29 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             return sym.type;        
         }
 
+        
+        
+        // TODO: this has to be reworked to support nesting
+        // TODO: the way we want to move depends on the way it is used
+        // we fundemtnally want to return out the array ->
+        // but we need to return out not only the length + pointer
+
+        case ast_type::arr_initializer:
+        {
+            // for each val
+
+                //  check the type against the assigned one
+
+            // we need to setup an initial array size 
+            // so we need to design the IR for this
+            // we need to decide how this will be shoved on the stack too
+
+            // TODO: how do we want to emit the intial array setup operation?
+            // just emit a bunch of stores by gutting our array deref methods?
+
+            unimplemented("array initializer");
+        }
+
 
         case ast_type::divide:
         {
@@ -1309,6 +1332,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     // handle right side expression (if present)
     if(line.nodes.size() == 2)
     {
+        // normal assign
         const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
 
         // oper is a single symbol and the move hasn't happened we need to explictly move it
@@ -1317,7 +1341,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
             emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
         }
 
-        check_assign(itl,ltype,rtype);
+        check_assign(itl,ltype,rtype);      
     }    
 }
 
