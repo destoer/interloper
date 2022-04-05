@@ -78,6 +78,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"load_arr_len",2},
     {op_group::reg_t,"load_arr_data",2},
     {op_group::reg_t,"arr_index",3},
+    {op_group::imm_t,"init_arr_idx",3},
 
     // directives
     {op_group::slot_t,"alloc_slot",1},

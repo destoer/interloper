@@ -145,7 +145,7 @@ inline bool is_array(const Type &t)
 
 inline bool is_plain(const Type &t)
 {
-    return !is_pointer(t);
+    return !is_pointer(t) && !is_array(t);
 }
 
 

@@ -1332,17 +1332,56 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     // handle right side expression (if present)
     if(line.nodes.size() == 2)
     {
-        // normal assign
-        const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
 
-        // oper is a single symbol and the move hasn't happened we need to explictly move it
-        if(slot_idx(sym) != reg)
+        // TODO: this has to be reworked to support nesting
+        // TODO: the way we want to move depends on the way it is used
+        // we fundemtnally want to return out the array ->
+        // but we need to return out not only the length + pointer
+
+        // TODO: we need to check if this array is just a constant
+        // and then just shove it in the const data section
+
+        const Type index_type = index_array(sym.type);
+
+        if(line.nodes[1]->type == ast_type::arr_initializer)
         {
-            emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
-        }
+            // TODO: type check this is an array
+            // TODO: typecheck the length on this
+            // TODO: handle this on a variable length array
 
-        check_assign(itl,ltype,rtype);      
-    }    
+            // for each val
+            for(u32 i = 0; i < line.nodes[1]->nodes.size(); i++)
+            {
+                auto n = line.nodes[1]->nodes[i];
+
+                // check the type against cur type and check it matches
+                // perform type promotion if necessary for integers etc
+                const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
+
+                check_assign(itl,index_type,rtype);
+
+                if(itl.error)
+                {
+                    return;
+                }
+
+                emit(func.emitter,op_type::init_arr_idx,slot_idx(sym),reg,i);
+            }
+        }
+        else
+        {
+            // normal assign
+            const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
+
+            // oper is a single symbol and the move hasn't happened we need to explictly move it
+            if(slot_idx(sym) != reg)
+            {
+                emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
+            }
+
+            check_assign(itl,ltype,rtype);     
+        }
+    } 
 }
 
 

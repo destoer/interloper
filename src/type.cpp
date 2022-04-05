@@ -18,13 +18,14 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 // this needs to have more added when we get extra fields
 bool same_type(const Type &type1, const Type &type2)
 {
-    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection);
+    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection) && (type1.degree == type2.degree);
 }
 
 Type index_array(const Type &type)
 {
     // perform the access and get the underlying type
     // for now just assume this is simple
+    // and we cnat have multlayered arrays etc
 
     Type accessed_type;
     accessed_type.type_idx = type.type_idx;
@@ -40,6 +41,7 @@ std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
     const u32 size = type_size(itl,contained_type);
 
     // TODO: assumes static array
+    // of one dimension
     const u32 count = type.dimensions[0];    
 
     return std::pair<u32,u32>{size,count};
@@ -115,11 +117,18 @@ std::string type_name(Interloper& itl,const Type &type)
     {
         std::string plain = builtin_type_name(static_cast<builtin_type>(type.type_idx));
 
+        // TODO: this type printing does not handle nesting
+
         // is a pointer
         for(u32 i = 0; i < type.ptr_indirection; i++)
         {
             plain = plain + "@";
-        }        
+        } 
+
+        for(u32 i = 0; i < type.degree; i++)
+        {
+            plain = plain + "[]";
+        }       
 
         return plain;
     }

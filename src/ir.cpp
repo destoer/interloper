@@ -762,6 +762,18 @@ void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup)
                     break;
                 }
 
+                case op_type::init_arr_idx:
+                {
+                    // init_arr_idx <dst> <slot> <idx>
+
+                    // load_arr_data
+                    // index_arr <-- can const compute this
+                    // store_arr 
+
+                    unimplemented("init_arr_idx");
+                    break;
+                }                
+
                 case op_type::addrof:
                 {
                     // we need to take the address of our vars...
@@ -1041,7 +1053,7 @@ void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup)
                     auto &sym = slot_lookup[slot];
 
                     const u32 idx = sym.offset - PENDING_ALLOCATION;  
-                    sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * opcode.v[1]);                    
+                    sym.offset = alloc.stack_alloc[opcode.v[1] >> 1] + (idx * opcode.v[1]);                    
 
                     it = block.buf.erase(it);
                     continue;

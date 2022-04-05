@@ -82,6 +82,7 @@ enum class op_type
     load_arr_len,
     load_arr_data,
     arr_index,
+    init_arr_idx,
 
 
     // DIRECTIVES
