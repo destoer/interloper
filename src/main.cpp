@@ -1,5 +1,6 @@
 #include <interloper.h>
 
+#include "alloc.cpp"
 #include "lib.cpp"
 #include "interloper.cpp"
 #include "interpretter.cpp"

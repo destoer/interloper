@@ -251,12 +251,30 @@ inline const char *block_names[] =
 };
 
 
+
+struct ListNode
+{
+    Opcode opcode;
+    ListNode *next;
+    ListNode *prev;
+};
+
+struct List
+{
+    ListNode *start = nullptr;
+
+    // NOTE: only valid if using insert_end
+    // this wont be valid once we get inside IR.cpp
+    ListNode *end = nullptr;
+};
+
+
 struct Block
 {
     Block(block_type t) : type(t)
     {}
 
-    std::list<Opcode> buf;
+    List list;
 
     block_type type;
 
@@ -272,9 +290,6 @@ struct IrEmitter
 
     // how many registers used in this expression
     u32 reg_count;
-
-    // how do we handle resolving labels?
-    u32 pc;
 };
 
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);

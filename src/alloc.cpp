@@ -21,6 +21,8 @@ Pool make_pool(u32 size)
     pool.buf = malloc(size);
 
     assert(pool.buf);
+
+    return pool;
 }
 
 void reset_pool(Pool &pool)

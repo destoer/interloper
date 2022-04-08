@@ -1,6 +1,8 @@
 #include <interloper.h>
 #include <op_table.inl>
 
+#include "list.cpp"
+
 std::string get_oper_sym(const SlotLookup *table,u32 v);
 std::string get_oper_raw(const SlotLookup *table,u32 v);
 
@@ -10,8 +12,8 @@ void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    emitter.program[emitter.program.size()-1].buf.push_back(opcode);
-    emitter.pc += 1;    
+    auto list = emitter.program[emitter.program.size()-1].list;
+    insert_end(list,opcode);
 }
 
 void new_block(IrEmitter &emitter,block_type type, u32 slot)
@@ -222,9 +224,11 @@ void emit_asm(Interloper &itl)
                 inv_label_lookup[itl.program.size() * OP_SIZE] = func.emitter.block_slot[b];
             }
 
-            for(const auto &op : block.buf)
+            auto node = block.list.start;
+            while(node->next != nullptr)
             {
-                itl.program.push_back(op);
+                itl.program.push_back(node->opcode);
+                node = node->next;
             }
         }
     }
@@ -519,10 +523,13 @@ void dump_ir(Function &func,const SlotLookup &slot_lookup,const LabelLookup &lab
             printf("%s:\n",label_lookup[func.emitter.block_slot[b]].name.c_str());
         }
 
-        for(const auto &opcode : block.buf)
+
+        auto node = block.list.start;
+        while(node->next != nullptr)
         {
             printf("\t");
-            disass_opcode_sym(opcode,slot_lookup,label_lookup);
+            disass_opcode_sym(node->opcode,slot_lookup,label_lookup);
+            node = node->next;
         }
 
         if(block.last)

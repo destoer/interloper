@@ -1,26 +1,28 @@
 #include <ir.h>
-// TODO: start on this list impl
 
-
-struct ListNode
-{
-    Opcode opcode;
-    ListNode *next;
-    ListNode *prev;
-};
-
-//TODO:
+//TODO: actually implement this
 ListNode *alloc_node()
 {
+    unimplemented("list allocation");
     return nullptr;
 }
 
-void insert(Opcode &opcode, ListNode *cur)
+
+ListNode *insert(ListNode *cur, const Opcode opcode)
 {
     ListNode *node = alloc_node();
     node->opcode = opcode;
     node->prev = cur;
+    node->next = cur->next;
+
     cur->next = node;
+
+    return node;
+}
+
+void insert_end(List &list, const Opcode opcode)
+{
+    list.end = insert(list.end,opcode);
 }
 
 ListNode *next(ListNode *node)
