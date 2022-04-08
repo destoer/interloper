@@ -15,6 +15,18 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
+const char *builtin_type_name(builtin_type t)
+{
+    return TYPE_NAMES[static_cast<size_t>(t)];
+}
+
+
+builtin_type conv_type_idx(int type_idx)
+{
+    return static_cast<builtin_type>(type_idx);
+}
+
+
 // this needs to have more added when we get extra fields
 bool same_type(const Type &type1, const Type &type2)
 {
@@ -33,20 +45,77 @@ Type index_array(const Type &type)
     return accessed_type;
 }
 
-std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
+
+
+bool is_builtin(const Type &t)
 {
-    // get size, len
-    // emit a alloc ir op
-    const auto contained_type = index_array(type);
-    const u32 size = type_size(itl,contained_type);
-
-    // TODO: assumes static array
-    // of one dimension
-    const u32 count = type.dimensions[0];    
-
-    return std::pair<u32,u32>{size,count};
+    return t.type_idx < BUILTIN_TYPE_SIZE;
 }
 
+
+bool is_pointer(const Type &t)
+{
+    return t.ptr_indirection >= 1;
+}
+
+
+bool is_array(const Type &t)
+{
+    return t.degree >= 1;
+}
+
+
+bool is_plain(const Type &t)
+{
+    return !is_pointer(t) && !is_array(t);
+}
+
+
+bool is_plain_builtin(const Type &t)
+{
+    return is_builtin(t) && is_plain(t);
+}
+
+bool is_bool(const Type &t)
+{
+    return is_plain_builtin(t) && conv_type_idx(t.type_idx) == builtin_type::bool_t;
+}
+
+bool is_integer(const Type &t)
+{
+    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_integer;
+}
+
+bool is_signed(const Type &t)
+{
+    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_signed;
+}
+
+bool is_signed_integer(const Type &t)
+{
+    return is_signed(t) && is_integer(t);
+}
+
+u32 builtin_size(builtin_type t)
+{
+    return builtin_type_info[static_cast<u32>(t)].size;
+}
+
+u32 builtin_max(builtin_type t)
+{
+    return builtin_type_info[static_cast<u32>(t)].max;
+}
+
+u32 builtin_min(builtin_type t)
+{
+    return builtin_type_info[static_cast<u32>(t)].min;
+}
+
+
+builtin_type cast_builtin(Type &type)
+{
+    return static_cast<builtin_type>(type.type_idx);
+}
 
 
 u32 type_size(Interloper& itl,const Type &type)
@@ -106,6 +175,21 @@ u32 type_max(Interloper& itl,const Type &type)
     {
         unimplemented("user defined type max\n");
     }
+}
+
+
+std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
+{
+    // get size, len
+    // emit a alloc ir op
+    const auto contained_type = index_array(type);
+    const u32 size = type_size(itl,contained_type);
+
+    // TODO: assumes static array
+    // of one dimension
+    const u32 count = type.dimensions[0];    
+
+    return std::pair<u32,u32>{size,count};
 }
 
 

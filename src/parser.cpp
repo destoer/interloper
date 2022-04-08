@@ -1,9 +1,27 @@
 #include <interloper.h>
+#include "expression.cpp"
 
 
 void type_panic(Parser &parser);
 AstNode *block(Parser &parser);
 
+// TODO: replace tree with pool allocation
+void delete_tree(AstNode *node)
+{
+    if(!node)
+    {
+        return;
+    }
+
+
+    for(auto &n: node->nodes)
+    {
+        delete_tree(n);
+        n = nullptr;
+    }
+
+    delete node;
+}
 
 Token next_token(Parser &parser)
 {

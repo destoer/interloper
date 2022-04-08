@@ -67,28 +67,16 @@ enum class contained_type
 };
 
 
-inline const char *builtin_type_name(builtin_type t)
-{
-    return TYPE_NAMES[static_cast<size_t>(t)];
-}
+static constexpr u32 MAX_ARR_SIZE = 4;
+static constexpr u32 ARRAY_LEN_OFFSET = 1;
 
+static constexpr u32 RUNTIME_SIZE = 0xffffffff;
 
 inline int conv_builtin_type(builtin_type t)
 {
     return static_cast<int>(t);
 }
 
-inline builtin_type conv_type_idx(int type_idx)
-{
-    return static_cast<builtin_type>(type_idx);
-}
-
-struct AstNode;
-
-static constexpr u32 MAX_ARR_SIZE = 4;
-static constexpr u32 ARRAY_LEN_OFFSET = 1;
-
-static constexpr u32 RUNTIME_SIZE = 0xffffffff;
 
 struct Type
 {
@@ -124,77 +112,6 @@ struct Type
 };
 
 static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
-
-inline bool is_builtin(const Type &t)
-{
-    return t.type_idx < BUILTIN_TYPE_SIZE;
-}
-
-
-inline bool is_pointer(const Type &t)
-{
-    return t.ptr_indirection >= 1;
-}
-
-
-inline bool is_array(const Type &t)
-{
-    return t.degree >= 1;
-}
-
-
-inline bool is_plain(const Type &t)
-{
-    return !is_pointer(t) && !is_array(t);
-}
-
-
-inline bool is_plain_builtin(const Type &t)
-{
-    return is_builtin(t) && is_plain(t);
-}
-
-inline bool is_bool(const Type &t)
-{
-    return is_plain_builtin(t) && conv_type_idx(t.type_idx) == builtin_type::bool_t;
-}
-
-inline bool is_integer(const Type &t)
-{
-    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_integer;
-}
-
-inline bool is_signed(const Type &t)
-{
-    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_signed;
-}
-
-inline bool is_signed_integer(const Type &t)
-{
-    return is_signed(t) && is_integer(t);
-}
-
-inline u32 builtin_size(builtin_type t)
-{
-    return builtin_type_info[static_cast<u32>(t)].size;
-}
-
-inline u32 builtin_max(builtin_type t)
-{
-    return builtin_type_info[static_cast<u32>(t)].max;
-}
-
-inline u32 builtin_min(builtin_type t)
-{
-    return builtin_type_info[static_cast<u32>(t)].min;
-}
-
-
-inline builtin_type cast_builtin(Type &type)
-{
-    return static_cast<builtin_type>(type.type_idx);
-}
-
 
 
 static constexpr u32 SYMBOL_NO_SLOT = 0xffffffff;
@@ -236,14 +153,6 @@ struct Symbol
 
     b8 referenced;
 };
-u32 slot_idx(const Symbol &sym);
-
-inline bool is_arg(const Symbol &sym)
-{
-    return sym.arg_num != NON_ARG;
-}
-
-void print_sym(const Symbol &sym);
 
 
 struct Label 
@@ -281,8 +190,6 @@ struct Function
 
     u32 slot;
 };
-void dump_ir(Function &func, const SlotLookup &slot_lookup, const LabelLookup &label_lookup);
-void add_var(Function &func, u32 size);
 
 
 // TODO: start by fixing all the compile errors
@@ -305,33 +212,3 @@ struct SymbolTable
 
     u32 sym_count = 0;
 };
-
-void new_scope(SymbolTable &sym_table);
-void destroy_scope(SymbolTable &sym_table);
-std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym);
-Symbol get_sym(SymbolTable &sym_table, u32 slot);
-void add_symbol(SymbolTable &sym_table,Symbol &symbol);
-void add_symbol(SymbolTable &sym_table,const std::string &name, const Type &type, u32 size);
-void add_var(SymbolTable &sym_table,Symbol &sym);
-void add_scope(SymbolTable &sym_table, Symbol &sym);
-void add_label(SymbolTable &sym_table,const std::string &label);
-void clear(SymbolTable &sym_table);
-
-
-
-
-
-struct Interloper;
-Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype);
-void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtype);
-void check_assign(Interloper& itl,const Type &ltype, const Type &rtype);
-
-u32 type_size(Interloper& itl,const Type &type);
-u32 type_min(Interloper& itl,const Type &type);
-u32 type_max(Interloper& itl,const Type &type);
-std::string type_name(Interloper& itl,const Type &type);
-
-Type index_array(const Type &type);
-std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type);
-
-void handle_cast(Interloper& itl,IrEmitter &emitter, u32 slot,u32 src_slot,const Type &old_type, const Type &new_type);

@@ -4,6 +4,13 @@ AstNode *expression(Parser &parser,s32 rbp);
 AstNode *expr(Parser &parser,const Token &t);
 
 
+
+Token next_token(Parser &parser);
+Value read_value(const Token &t);
+void type_panic(Parser &parser);
+AstNode *parse_type(Parser &parser);
+AstNode *copy_node(const AstNode *node);
+
 Token next_token_expr(Parser &parser)
 {
     const auto tok = next_token(parser);

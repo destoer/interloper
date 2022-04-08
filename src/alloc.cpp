@@ -19,8 +19,23 @@ Pool make_pool(u32 size)
     pool.len = 0;
     pool.size = size;
     pool.buf = malloc(size);
+
+    assert(pool.buf);
 }
 
+void reset_pool(Pool &pool)
+{
+    pool.len = 0;
+}
+
+void destory_pool(Pool &pool)
+{
+    if(pool.buf)
+    {
+        free(pool.buf);
+        pool.buf = nullptr;
+    }
+}
 
 // for now just have a single pool
 // and dont deal with it getting exhausted
@@ -29,11 +44,16 @@ struct Allocator
     Pool pool;
 };
 
-Allocator make_allocator()
+Allocator make_allocator(u32 size)
 {
     Allocator allocator;
 
-    allocator.pool = make_pool(10 * 1024 * 1024);
+    allocator.pool = make_pool(size);
 
     return allocator;
+}
+
+void destory_allocator(Allocator &allocator)
+{
+    destory_pool(allocator.pool);
 }

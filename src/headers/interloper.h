@@ -28,11 +28,6 @@ struct Interloper
     SymbolTable symbol_table;
 };
 
-u32 convert_imm(const std::string &imm);
-void optimise_ir(Interloper &itl);
-void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup);
-void compile(Interloper &itl,const std::vector<std::string> &lines);
-void emit_asm(Interloper &itl);
 
 template<typename... Args>
 inline void panic(Interloper &itl,const char *fmt, Args... args)

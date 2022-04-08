@@ -1,6 +1,7 @@
 #include <interloper.h>
-#include <test.h>
 
+#include "expr.cpp"
+#include "lexer_test.cpp"
 
 struct ProgramTest
 {

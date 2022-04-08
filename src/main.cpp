@@ -1,5 +1,9 @@
 #include <interloper.h>
-#include <test.h>
+
+#include "lib.cpp"
+#include "interloper.cpp"
+#include "interpretter.cpp"
+#include "test/test.cpp"
 
 
 int main(int argc, char *argv[])

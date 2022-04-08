@@ -1,5 +1,11 @@
 #include <interloper.h>
 
+#include "lexer.cpp"
+#include "symbol.cpp"
+#include "parser.cpp"
+#include "optimize.cpp"
+#include "ir.cpp"
+
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line);
@@ -8,6 +14,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 void compile_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_block(Interloper &itl,Function &func,AstNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
+
 
 
 void dump_ir_sym(Interloper &itl)
@@ -1321,10 +1328,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto size = type_size(itl,ltype);
 
     // add new symbol table entry
-    add_symbol(itl.symbol_table,name,ltype,size);
-
-
-    const auto &sym = get_sym(itl.symbol_table,name).value();
+    const auto &sym = add_symbol(itl.symbol_table,name,ltype,size);
 
 
     emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
@@ -1403,10 +1407,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto size = type_size(itl,type);
 
     // add new symbol table entry
-    add_symbol(itl.symbol_table,name,type,size);
-
-    const auto &sym = get_sym(itl.symbol_table,name).value();
-
+    const auto &sym = add_symbol(itl.symbol_table,name,type,size);
 
     emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
     emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);

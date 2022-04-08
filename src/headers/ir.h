@@ -196,27 +196,6 @@ using opcode_iterator_t = std::list<Opcode>::iterator;
 static constexpr u32 SYMBOL_START = 0x80000000;
 
 
-inline u32 reg(u32 r)
-{
-    return r;
-}
-
-inline u32 symbol(u32 s)
-{
-    return SYMBOL_START + s;
-}
-
-inline u32 symbol_to_idx(u32 s)
-{
-    return s - SYMBOL_START;
-}
-
-inline bool is_symbol(u32 s)
-{
-    return s >= SYMBOL_START;
-}
-
-
 // for now hardcode this to the limits of our vm
 // we will move this into a struct as part of a config
 // when we actually want to define some targets
@@ -238,21 +217,6 @@ static constexpr u32 GPR_SIZE = sizeof(u32);
 
 
 
-inline bool is_reg(u32 r)
-{
-    return r < SPECIAL_PURPOSE_REG_START;
-}
-
-inline bool is_special_reg(u32 r)
-{
-    return r >= SPECIAL_PURPOSE_REG_START && r < SYMBOL_START;
-}
-
-inline bool is_tmp(u32 r)
-{
-    return r < SPECIAL_PURPOSE_REG_START;
-}
-
 static constexpr u32 OP_SIZE = sizeof(Opcode);
 
 struct Symbol;
@@ -260,9 +224,6 @@ struct SymbolTable;
 struct Label;
 using SlotLookup = std::vector<Symbol>;
 using LabelLookup = std::vector<Label>;
-
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
-void disass_opcode_raw(const Opcode &opcode);
 
 
 // IR SYSCALLS
@@ -318,3 +279,12 @@ struct IrEmitter
 
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
 void new_block(IrEmitter &emitter,block_type type, u32 slot = 0xffffffff);
+
+void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
+void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
+void disass_opcode_raw(const Opcode &opcode);
+
+inline u32 symbol(u32 s)
+{
+    return SYMBOL_START + s;
+}

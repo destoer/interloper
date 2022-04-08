@@ -3,7 +3,8 @@
 
 std::string get_oper_sym(const SlotLookup *table,u32 v);
 std::string get_oper_raw(const SlotLookup *table,u32 v);
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
+
+
 
 void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
@@ -22,6 +23,22 @@ void new_block(IrEmitter &emitter,block_type type, u32 slot)
 
 static constexpr u32 REG_FREE = 0xffffffff;
 static constexpr u32 REG_TMP_START = 0xf0000000;
+
+u32 reg(u32 r)
+{
+    return r;
+}
+
+
+u32 symbol_to_idx(u32 s)
+{
+    return s - SYMBOL_START;
+}
+
+bool is_symbol(u32 s)
+{
+    return s >= SYMBOL_START;
+}
 
 
 bool reg_is_var(u32 loc)
@@ -42,6 +59,21 @@ u32 tmp_to_ir(u32 loc)
 u32 tmp(u32 ir_reg)
 {
     return ir_reg + REG_TMP_START;
+}
+
+bool is_reg(u32 r)
+{
+    return r < SPECIAL_PURPOSE_REG_START;
+}
+
+bool is_special_reg(u32 r)
+{
+    return r >= SPECIAL_PURPOSE_REG_START && r < SYMBOL_START;
+}
+
+bool is_tmp(u32 r)
+{
+    return r < SPECIAL_PURPOSE_REG_START;
 }
 
 // our bitset can only store 32 regs
@@ -469,4 +501,37 @@ void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const Labe
 void disass_opcode_raw(const Opcode &opcode)
 {
     disass_opcode(opcode,nullptr,nullptr,get_oper_raw);
+}
+
+
+void dump_ir(Function &func,const SlotLookup &slot_lookup,const LabelLookup &label_lookup)
+{
+    printf("%s:\n",func.name.c_str());
+
+    u32 l = 0;
+    for(u32 b = 0; b < func.emitter.program.size(); b++)
+    {   
+        const auto &block = func.emitter.program[b];
+        //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
+    
+        if(func.emitter.block_slot[b] != 0xffffffff)
+        {
+            printf("%s:\n",label_lookup[func.emitter.block_slot[b]].name.c_str());
+        }
+
+        for(const auto &opcode : block.buf)
+        {
+            printf("\t");
+            disass_opcode_sym(opcode,slot_lookup,label_lookup);
+        }
+
+        if(block.last)
+        {
+            printf("\tspill_last\n");
+        }
+        
+        l++;
+    }
+
+    printf("\n");       
 }
