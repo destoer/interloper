@@ -12,8 +12,8 @@ void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    auto list = emitter.program[emitter.program.size()-1].list;
-    insert_end(list,opcode);
+    auto &list = emitter.program[emitter.program.size()-1].list;
+    append(list,opcode);
 }
 
 void new_block(IrEmitter &emitter,block_type type, u32 slot)
@@ -166,10 +166,146 @@ void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
     and if it is a source or a dst inside the lookup table so its easier to disassembly opcodes
     and to rewrite registers because the table allready has all the information
 */
-
-void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup)
+/*
+void rewrite_field()
 {
-    UNUSED(itl); UNUSED(func); UNUSED(slot_lookup);
+
+}
+
+void rewrite_opcode(LocalAlloc& alloc,List &list, ListNode *node)
+{
+    
+}
+*/
+
+ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node)
+{
+    UNUSED(itl); UNUSED(alloc); UNUSED(list); UNUSED(node);
+
+    switch(node->opcode.op)
+    {
+        // TODO: revisit when we add caller saved regs
+        //case op_type::save_regs:
+        //case op_type::restore_regs:
+
+        // allocate a tmp
+        case op_type::mov_imm:
+        {
+            unimplemented("mov_imm");
+            break;
+        }
+
+
+        case op_type::load_arr_data:
+        {
+            unimplemented("load_arr_data");
+            break;
+        }
+
+        case op_type::arr_index:
+        {
+            unimplemented("arr_index");
+            break;
+        }
+
+        case op_type::load_arr_len:
+        {
+            unimplemented("load_arr_len");
+            break;
+        }
+
+        case op_type::init_arr_idx:
+        {
+            unimplemented("init_arr_idx");
+            break;
+        }                
+
+        case op_type::addrof:
+        {
+            unimplemented("addrof");
+            break;
+        }
+
+        // have to do correct reg by here to make sure hte offset is applied after any reloads occur
+        case op_type::push_arg:
+        {
+            unimplemented("push_arg");
+            break;
+        }
+
+        case op_type::clean_args:
+        {
+            unimplemented("clean_args");
+            break;
+        }
+
+        case op_type::alloc_slot:
+        {
+            unimplemented("alloc_slot");
+            break;
+        }
+
+        // make sure the return value has nothing important when calling functions
+        case op_type::spill_rv:
+        {
+            unimplemented("spill_rv");
+            break;
+        }
+
+
+        
+        case op_type::free_slot:
+        {
+            unimplemented("free_slot");
+            break;
+        }
+
+        default:
+        {
+            node = node->next;
+            break; 
+        }
+    }
+
+    return node;
+}
+
+void allocate_registers(Interloper& itl,Function &func)
+{
+    printf("allocating registers for %s:\n\n",func.name.c_str());
+
+    LocalAlloc alloc;
+
+    // every register is free!
+    alloc.free_regs = MACHINE_REG_SIZE;
+    alloc.use_count = 0;
+    alloc.used_regs = 0;
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        alloc.regs[i] = REG_FREE;
+        alloc.free_list[i] = i;
+    }
+
+    memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
+
+    memset(alloc.size_count_max,0,sizeof(alloc.size_count_max));
+    memset(alloc.size_count,0,sizeof(alloc.size_count));
+    alloc.stack_size = 0;
+    alloc.stack_offset = 0;
+
+   
+
+    for(auto &block : func.emitter.program)
+    {
+        List& list = block.list;
+
+        ListNode *node = list.start;
+        while(node)
+        {
+            allocate_opcode(itl,alloc,list,node);
+        }
+    }
 }
 
 
@@ -225,7 +361,7 @@ void emit_asm(Interloper &itl)
             }
 
             auto node = block.list.start;
-            while(node->next != nullptr)
+            while(node)
             {
                 itl.program.push_back(node->opcode);
                 node = node->next;
@@ -525,7 +661,7 @@ void dump_ir(Function &func,const SlotLookup &slot_lookup,const LabelLookup &lab
 
 
         auto node = block.list.start;
-        while(node->next != nullptr)
+        while(node)
         {
             printf("\t");
             disass_opcode_sym(node->opcode,slot_lookup,label_lookup);

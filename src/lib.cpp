@@ -131,12 +131,3 @@ void panic(const char *fmt, ...)
     // no return detection aint good enough...
     exit(1);
 }
-
-
-// TODO: force this to take the actual iterator type so this gives sane errors
-template<typename T, typename Y>
-void insert_after(std::list<T> list,Y it, T v)
-{
-    it++;
-    list.insert(it,v);
-}

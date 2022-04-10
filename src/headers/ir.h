@@ -146,7 +146,7 @@ static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 
 // what kind of opcode is this?
 // NOTE: when we add indirect branches we need it under a seperate group
-enum op_group
+enum class op_group
 {
     reg_t,
     regm_t,
@@ -158,11 +158,23 @@ enum op_group
     slot_t,
 };
 
+enum class arg_type
+{
+    src_reg,
+    dst_reg,
+    imm,
+    label,
+    directive,
+    none,
+};
+
+
 struct OpInfo
 {
     op_group group;
     const char *name;
     u32 args;
+    arg_type type[3];
 };
 
 extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
@@ -255,8 +267,8 @@ inline const char *block_names[] =
 struct ListNode
 {
     Opcode opcode;
-    ListNode *next;
-    ListNode *prev;
+    ListNode *next = nullptr;
+    ListNode *prev = nullptr;
 };
 
 struct List

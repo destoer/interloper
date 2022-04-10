@@ -739,7 +739,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             // add branch over the block we just compiled
             const u32 slot = itl.symbol_table.label_lookup.size();
 
-            insert_end(blocks[cur_block].list,Opcode(op_type::bnc,slot,r,0));
+            append(blocks[cur_block].list,Opcode(op_type::bnc,slot,r,0));
 
 
             // not the last statment (branch is not require)
@@ -871,7 +871,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    insert_end(func.emitter.program[intial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
+    append(func.emitter.program[intial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
 
     destroy_scope(itl.symbol_table);
 }
@@ -1761,7 +1761,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     for(auto &[key, func]: itl.function_table)
     {
         UNUSED(key);
-        allocate_registers(itl,func,itl.symbol_table.slot_lookup);
+        allocate_registers(itl,func);
         putchar('\n');
     }
 

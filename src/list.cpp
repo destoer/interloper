@@ -1,37 +1,85 @@
 #include <ir.h>
 
-//TODO: actually implement this
+void print(List &list)
+{
+    puts("list contents:");
+
+    ListNode *tmp = list.start;
+    while(tmp)
+    {
+        disass_opcode_raw(tmp->opcode);
+        tmp = tmp->next;
+    }
+}
+
+//TODO: actually implement this with a pool allocator 
 ListNode *alloc_node()
 {
-    unimplemented("list allocation");
-    return nullptr;
+    //unimplemented("list allocation");
+    return new ListNode;
 }
 
 
-ListNode *insert(ListNode *cur, const Opcode opcode)
+ListNode *insert_at(List &list, ListNode *cur, const Opcode &opcode)
 {
     ListNode *node = alloc_node();
     node->opcode = opcode;
-    node->prev = cur;
-    node->next = cur->next;
 
-    cur->next = node;
+
+    if(!list.start)
+    {
+        list.start = node;
+        list.end = node;
+    }
+
+    else
+    {
+        if(cur == list.start)
+        {
+            list.start = node;    
+        }
+
+        node->next = cur;
+        node->prev = cur->prev;
+        cur->prev = node;
+    }
 
     return node;
 }
 
-void insert_end(List &list, const Opcode opcode)
+// TODO: start here
+ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
 {
-    list.end = insert(list.end,opcode);
+    ListNode *node = alloc_node();
+    node->opcode = opcode;
+
+    if(!list.start)
+    {
+        list.start = node;
+        list.end = node;        
+    }
+
+    else
+    {
+        if(cur == list.end)
+        {
+            list.end = node;
+        }
+        
+        node->next = cur->next;
+        node->prev = cur;
+        cur->next = node;
+    }
+
+    print(list);
+
+    return node;
 }
 
-ListNode *next(ListNode *node)
+void append(List &list, const Opcode opcode)
 {
-    return node->next;
+    insert_after(list,list.end,opcode);
 }
 
-ListNode *prev(ListNode *node)
-{
-    return node->prev;
-}
-
+// TODO:
+// void delete_node
