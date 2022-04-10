@@ -83,9 +83,6 @@ void append(List &list, const Opcode opcode)
 // return node after deleted
 ListNode *remove(List &list, ListNode* node)
 {
-    printf("remove: ");
-    disass_opcode_raw(node->opcode);
-
     if(node == list.start)
     {
         list.start = node->next;
@@ -93,9 +90,6 @@ ListNode *remove(List &list, ListNode* node)
         if(list.start)
         {
             list.start->prev = nullptr;
-
-            puts("list");
-            print(list);
 
             return list.start->next;
         }
@@ -112,9 +106,6 @@ ListNode *remove(List &list, ListNode* node)
             list.end->next = nullptr;
         }
 
-        puts("list");
-        print(list);
-
         return nullptr;
     }
 
@@ -125,9 +116,6 @@ ListNode *remove(List &list, ListNode* node)
 
         before->next = node->next;
         before->next->prev = before;
-
-        puts("list");
-        print(list);
 
         return before->next;
     }
