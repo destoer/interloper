@@ -20,6 +20,7 @@ ListNode *alloc_node()
 }
 
 
+// returns inserted node
 ListNode *insert_at(List &list, ListNode *cur, const Opcode &opcode)
 {
     ListNode *node = alloc_node();
@@ -47,7 +48,7 @@ ListNode *insert_at(List &list, ListNode *cur, const Opcode &opcode)
     return node;
 }
 
-// TODO: start here
+// returns inserted node
 ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
 {
     ListNode *node = alloc_node();
@@ -71,8 +72,6 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
         cur->next = node;
     }
 
-    print(list);
-
     return node;
 }
 
@@ -81,5 +80,55 @@ void append(List &list, const Opcode opcode)
     insert_after(list,list.end,opcode);
 }
 
-// TODO:
-// void delete_node
+// return node after deleted
+ListNode *remove(List &list, ListNode* node)
+{
+    printf("remove: ");
+    disass_opcode_raw(node->opcode);
+
+    if(node == list.start)
+    {
+        list.start = node->next;
+        
+        if(list.start)
+        {
+            list.start->prev = nullptr;
+
+            puts("list");
+            print(list);
+
+            return list.start->next;
+        }
+
+        return nullptr;
+    }
+
+    else if(node == list.end)
+    {
+        list.end = node->prev;
+
+        if(list.end)
+        {
+            list.end->next = nullptr;
+        }
+
+        puts("list");
+        print(list);
+
+        return nullptr;
+    }
+
+    else
+    {
+        // unlink the "middle" node
+        ListNode *before = node->prev;
+
+        before->next = node->next;
+        before->next->prev = before;
+
+        puts("list");
+        print(list);
+
+        return before->next;
+    }
+}

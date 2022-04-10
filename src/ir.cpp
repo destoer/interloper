@@ -78,6 +78,11 @@ bool is_tmp(u32 r)
     return r < SPECIAL_PURPOSE_REG_START;
 }
 
+Symbol& sym_from_slot(SlotLookup slot_lookup, u32 slot)
+{
+    return slot_lookup[symbol_to_idx(slot)]; 
+}
+
 // our bitset can only store 32 regs
 static_assert(MACHINE_REG_SIZE <= 32);
 
@@ -171,30 +176,114 @@ void rewrite_field()
 {
 
 }
-
-void rewrite_opcode(LocalAlloc& alloc,List &list, ListNode *node)
-{
-    
-}
 */
+
+void handle_allocation(Interloper &itl, LocalAlloc& alloc,List &list, ListNode *node)
+{
+    UNUSED(list); UNUSED(alloc);
+
+    const auto opcode = node->opcode;
+
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    u32 tmp_reg = REG_FREE; UNUSED(tmp_reg);
+
+    const auto& slot_lookup = itl.symbol_table.slot_lookup;
+
+    // allocate every src var 
+    // mark if any are tmp's we can reuse
+    for(u32 a = 0; a < info.args; a++)
+    {
+        // only interested in registers
+        if(info.type[a] != arg_type::src_reg)
+        {
+            continue;
+        }
+
+
+        if(is_symbol(opcode.v[a]))
+        {
+            const auto sym = sym_from_slot(slot_lookup,opcode.v[a]);
+
+            if(sym.location == LOCATION_MEM)
+            {
+                unimplemented("reload spilled symbol");
+            }
+
+            // pointer taken to var reload anynways
+            if(sym.referenced)
+            {
+                unimplemented("pointer symbol reload");
+            }
+
+        }
+        
+        
+        else if(is_tmp(opcode.v[a]))
+        {
+            tmp_reg = opcode.v[a];
+        }
+    }
+
+
+    const u32 slot = opcode.v[0];
+
+    // allocate the dst
+    // NOTE: this can only appear in the 0 posistion
+    // and there can only be one
+    if(info.type[0] == arg_type::dst_reg)
+    {
+        if(is_symbol(slot))
+        {
+            unimplemented("allocate dst reg var");
+        }
+
+        else if(is_tmp(slot))
+        {
+            unimplemented("allocate dst reg tmp");
+        }
+    }
+
+    else if(info.type[0] == arg_type::src_reg)
+    {
+        unimplemented("src_reg first arg");
+    }
+}
+
+void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node)
+{
+    // allocate the registers
+    handle_allocation(itl,alloc,list,node);
+
+    // rewrite each slot to its allocated register
+    unimplemented("rewrite regs");
+
+    // handle freeing up any tmp's
+    unimplemented("free tmp");
+}
+
+
 
 ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node)
 {
     UNUSED(itl); UNUSED(alloc); UNUSED(list); UNUSED(node);
+
+    const auto &slot_lookup = itl.symbol_table.slot_lookup;
+    const auto &opcode = node->opcode;
 
     switch(node->opcode.op)
     {
         // TODO: revisit when we add caller saved regs
         //case op_type::save_regs:
         //case op_type::restore_regs:
-
+/*
         // allocate a tmp
         case op_type::mov_imm:
         {
             unimplemented("mov_imm");
             break;
         }
-
+*/
 
         case op_type::load_arr_data:
         {
@@ -241,7 +330,19 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
         case op_type::alloc_slot:
         {
-            unimplemented("alloc_slot");
+            const auto sym = sym_from_slot(slot_lookup,opcode.v[0]);
+
+            // if we have an array and we know the size
+            // then we need to allocate memory for it
+            if(is_array(sym.type))
+            {
+                unimplemented("alloc slot array");
+            }
+
+            else
+            {
+                return remove(list,node);
+            }
             break;
         }
 
@@ -262,6 +363,7 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
         default:
         {
+            rewrite_opcode(itl,alloc,list,node);
             node = node->next;
             break; 
         }
@@ -303,7 +405,7 @@ void allocate_registers(Interloper& itl,Function &func)
         ListNode *node = list.start;
         while(node)
         {
-            allocate_opcode(itl,alloc,list,node);
+            node = allocate_opcode(itl,alloc,list,node);
         }
     }
 }
