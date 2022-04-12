@@ -225,6 +225,22 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym)
     alloc.free_list[alloc.free_regs++] = reg;    
 }
 
+void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, List& list, ListNode* node)
+{
+    puts("spilling everything"); 
+         
+    // TODO: revisit this once we come up with a scheme to make sure that vars get put into the proper regs
+    
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        if(reg_is_sym(alloc.regs[r]))
+        {
+            auto &sym = slot_lookup[alloc.regs[r]];
+            spill_sym(alloc,list,node,sym);
+        }
+    }    
+}
+
 u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,List &list, ListNode* node)
 {
     u32 reg = REG_FREE;
@@ -1001,9 +1017,11 @@ void allocate_registers(Interloper& itl,Function &func)
         }
 
         // block is directly falls to the next one we need to spill regs
+        // TODO: fix register allocation so we dont have to spill everyhting across basic blocks
         if(block.last)
         {
-            unimplemented("spill last");
+            puts("spilling last");
+            spill_all(alloc,itl.symbol_table.slot_lookup,list,list.end);
         }
     }
 
