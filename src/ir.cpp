@@ -474,12 +474,34 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc& alloc,List &list, Li
             }
         }
     }
-
-    else if(info.type[0] == arg_type::src_reg)
-    {
-        unimplemented("src_reg first arg");
-    }
 }
+
+
+void save_rv(LocalAlloc &alloc,List &list,ListNode* node,SlotLookup &slot_lookup,u32 tmp)
+{
+    //panic("need to realloc tmp");
+    
+
+    // get a new register
+    const u32 reg = alloc_internal(slot_lookup, alloc, list, node);
+    const auto op = Opcode(op_type::mov_reg,reg,RV,0);
+
+    // emit a mov from the the current tmp to the new one
+    insert_at(list,node,op);
+    
+    const u32 ir_reg = tmp_to_ir(tmp);
+
+    printf("moved tmp t%d from rv to r%d\n",ir_reg,reg);
+
+    // rewrite the ir allocation
+    alloc.ir_regs[ir_reg] = reg;
+    alloc.regs[reg] = tmp;
+
+    // free RV
+    free_tmp(alloc,RV);
+}
+
+
 
 void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
@@ -600,16 +622,34 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
             break;
         }
 
-        // have to do correct reg by here to make sure hte offset is applied after any reloads occur
+        // have to do opcode rewriting by here to make sure hte offset is applied after any reloads occur
         case op_type::push_arg:
         {
-            unimplemented("push_arg");
+            node->opcode =  Opcode(op_type::push,opcode.v[0],0,0);
+
+
+            // adjust opcode for reg alloc
+            rewrite_opcode(itl,alloc,list,node);
+
+            // varaibles now have to be accessed at a different offset
+            // until this is corrected by clean call
+            alloc.stack_offset += sizeof(u32);
+
+            node = node->next;
             break;
         }
 
         case op_type::clean_args:
         {
-            unimplemented("clean_args");
+            // clean up args
+            const auto stack_clean = sizeof(u32) * opcode.v[0];
+
+            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
+            alloc.stack_offset -= stack_clean; 
+
+            rewrite_opcode(itl,alloc,list,node);
+
+            node = node->next;
             break;
         }
 
@@ -634,8 +674,20 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
         // make sure the return value has nothing important when calling functions
         case op_type::spill_rv:
         {
-            unimplemented("spill_rv");
-            break;
+            if(reg_is_sym(alloc.regs[RV]))
+            {
+                spill_sym(alloc,list,node,slot_lookup[alloc.regs[RV]]);
+            }
+
+
+            else if(reg_is_tmp(alloc.regs[RV]))
+            {
+                // should we have this get pushed instead?
+                // and then popped into another reg?
+                save_rv(alloc,list,node,slot_lookup,alloc.regs[RV]);
+            }
+
+            return remove(list,node);
         }
 
 
@@ -671,7 +723,6 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
         default:
         {
-            disass_opcode_sym(opcode,slot_lookup);
             rewrite_opcode(itl,alloc,list,node);
             node = node->next;
             break; 
