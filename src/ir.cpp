@@ -141,6 +141,7 @@ struct LocalAlloc
     u32 stack_size;
 };
 
+void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg);
 
 void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
 {
@@ -323,6 +324,21 @@ void alloc_sym_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
 }
 
 
+// alloc based on it being a var or a tmp
+void alloc_slot(u32 slot,LocalAlloc &alloc, List &list,ListNode* node,SlotLookup &slot_lookup)
+{
+    if(is_tmp(slot))
+    {
+        alloc_tmp(slot_lookup,alloc,list,node,slot);
+    }
+
+    else if(is_sym(slot))
+    {
+        auto &sym = sym_from_slot(slot_lookup,slot);
+        alloc_sym(slot_lookup,alloc,list,node,sym);
+    }
+}
+
 
 /* TODO: 
     make register rewriting have an easier interface (make it so you can just rewrite individual opcode fields if need be)
@@ -415,9 +431,9 @@ void handle_allocation(SlotLookup &slot_lookup, LocalAlloc& alloc,List &list, Li
             }
 
             // pointer taken to var reload anyways
-            if(sym.referenced)
+            else if(sym.referenced)
             {
-                unimplemented("pointer symbol reload");
+                reload_sym(sym,opcode.v[a],alloc,list,node,slot_lookup);
             }
 
         }
@@ -501,7 +517,38 @@ void save_rv(LocalAlloc &alloc,List &list,ListNode* node,SlotLookup &slot_lookup
     free_tmp(alloc,RV);
 }
 
+// NOTE: use this to force rewrites of directives
+void rewrite_reg_internal(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg)
+{
+    const u32 slot = opcode.v[reg];
 
+    if(is_sym(slot))
+    {
+        const auto sym = sym_from_slot(slot_lookup,slot);
+
+        opcode.v[reg] = sym.location;
+    }
+
+
+    // dont rewrite any special purpose reg
+    // NOTE: for now assume this is running under the interpretter
+    // so its converted to our interrpetter regs and not a hardware target
+    else if(is_special_reg(slot))
+    {
+        switch(slot)
+        {
+            case SP_IR: opcode.v[reg] = SP; break;
+            case RV_IR: opcode.v[reg] = RV; break;
+
+            default: panic("unhandled special reg %x\n",slot); break;
+        }
+    }
+
+    else
+    {
+        opcode.v[reg] = alloc.ir_regs[slot];
+    }          
+}
 
 void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
@@ -511,34 +558,7 @@ void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 r
 
     if(info.type[reg] == arg_type::src_reg || info.type[reg] == arg_type::dst_reg)
     {
-        const u32 slot = opcode.v[reg];
-
-        if(is_sym(slot))
-        {
-            const auto sym = sym_from_slot(slot_lookup,slot);
-
-            opcode.v[reg] = sym.location;
-        }
-
-
-        // dont rewrite any special purpose reg
-        // NOTE: for now assume this is running under the interpretter
-        // so its converted to our interrpetter regs and not a hardware target
-        else if(is_special_reg(slot))
-        {
-            switch(slot)
-            {
-                case SP_IR: opcode.v[reg] = SP; break;
-                case RV_IR: opcode.v[reg] = RV; break;
-
-                default: panic("unhandled special reg %x\n",slot); break;
-            }
-        }
-
-        else
-        {
-            opcode.v[reg] = alloc.ir_regs[slot];
-        }           
+        rewrite_reg_internal(slot_lookup,alloc,opcode,reg);
     }
 }
 
@@ -618,7 +638,26 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
         case op_type::addrof:
         {
-            unimplemented("addrof");
+            // -> <addrof> <alloced reg> <slot> <stack offset>
+            // -> lea <alloced reg> <sp + whatever>
+
+            // mark the var as having a pointer taken to it
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+            sym.referenced = true;
+
+            // okay apply the stack offset, and let the register allocator deal with it
+            // we will get the actual address using it later
+            node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
+            
+            // just rewrite the 1st reg we dont want the address of the 2nd
+            alloc_slot(node->opcode.v[0],alloc,list,node,slot_lookup);
+            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);
+
+
+            // spill the var that has had a pointer taken to it
+            spill_sym(alloc,list,node,sym);
+            
+            node = node->next;
             break;
         }
 
@@ -820,7 +859,21 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::addrof:
         {
-            unimplemented("addrof");
+            const auto opcode = node->opcode;
+
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,opcode.v[1]);
+
+                // this is the first stack access so we need to compute the final posistion
+            if(sym.offset >= PENDING_ALLOCATION)
+            {
+                const u32 idx = sym.offset - PENDING_ALLOCATION;  
+                sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+            }
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+
+            node = node->next;
             break;
         }
 
