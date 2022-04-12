@@ -12,18 +12,28 @@ void print(List &list)
     }
 }
 
-//TODO: actually implement this with a pool allocator 
-ListNode *alloc_node()
+List make_list(ArenaAllocator* allocator)
 {
-    //unimplemented("list allocation");
-    return new ListNode;
+    List list = {};
+
+    // default to a megabyte
+    list.allocator = allocator;
+
+    return list;
 }
 
+ListNode *alloc_node(List& list)
+{
+    void* ptr = allocate(*list.allocator,sizeof(ListNode));
+    return (ListNode*)(ptr);
+}
 
 // returns inserted node
 ListNode *insert_at(List &list, ListNode *cur, const Opcode &opcode)
 {
-    ListNode *node = alloc_node();
+    ListNode *node = alloc_node(list);
+    *node = {};
+
     node->opcode = opcode;
 
 
@@ -35,14 +45,19 @@ ListNode *insert_at(List &list, ListNode *cur, const Opcode &opcode)
 
     else
     {
+        node->next = cur;
+        node->prev = cur->prev;
+        cur->prev = node;
+
         if(cur == list.start)
         {
             list.start = node;    
         }
 
-        node->next = cur;
-        node->prev = cur->prev;
-        cur->prev = node;
+        else
+        {
+            node->prev->next = node;
+        }
     }
 
     return node;
@@ -51,7 +66,9 @@ ListNode *insert_at(List &list, ListNode *cur, const Opcode &opcode)
 // returns inserted node
 ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
 {
-    ListNode *node = alloc_node();
+    ListNode *node = alloc_node(list);
+    *node = {};
+
     node->opcode = opcode;
 
     if(!list.start)
@@ -62,14 +79,19 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
 
     else
     {
+        node->next = cur->next;
+        node->prev = cur;
+        cur->next = node;
+
         if(cur == list.end)
         {
             list.end = node;
         }
-        
-        node->next = cur->next;
-        node->prev = cur;
-        cur->next = node;
+
+        else
+        {
+            node->next->prev = node;
+        }
     }
 
     return node;
@@ -78,6 +100,11 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
 void append(List &list, const Opcode opcode)
 {
     insert_after(list,list.end,opcode);
+}
+
+void insert_front(List &list, const Opcode opcode)
+{
+    insert_at(list,list.start,opcode);
 }
 
 // return node after deleted
@@ -91,7 +118,7 @@ ListNode *remove(List &list, ListNode* node)
         {
             list.start->prev = nullptr;
 
-            return list.start->next;
+            return list.start;
         }
 
         return nullptr;

@@ -71,6 +71,7 @@ void clear(SymbolTable &sym_table)
 {
     sym_table.table.clear();
     sym_table.label_lookup.clear();
+    sym_table.slot_lookup.clear();
     sym_table.sym_count = 0;
 }
 
@@ -83,4 +84,22 @@ u32 slot_idx(const Symbol &sym)
 bool is_arg(const Symbol &sym)
 {
     return sym.arg_num != NON_ARG;
+}
+
+void print(Interloper& itl,const Symbol&sym)
+{
+    printf("name: %s\n",sym.name.c_str());
+    printf("type: %s\n",type_name(itl,sym.type).c_str());
+    printf("slot: %x\n",sym.slot);
+    printf("arg_num: %x\n",sym.arg_num);
+    printf("offset: %x\n",sym.offset);
+    printf("location: %x\n\n",sym.location);
+}
+
+void dump_slots(Interloper& itl,SlotLookup &slot_lookup)
+{
+    for(const auto &sym: slot_lookup)
+    {
+        print(itl,sym);
+    }
 }

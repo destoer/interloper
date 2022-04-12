@@ -1,7 +1,7 @@
 #include <interloper.h>
 
-#include "alloc.cpp"
 #include "lib.cpp"
+#include "alloc.cpp"
 #include "interloper.cpp"
 #include "interpretter.cpp"
 #include "test/test.cpp"
@@ -49,4 +49,6 @@ int main(int argc, char *argv[])
 
     
     run(itl.interpretter,reinterpret_cast<uint8_t*>(itl.program.data()),itl.program.size() * sizeof(Opcode));
+
+    destroy_itl(itl);
 }

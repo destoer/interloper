@@ -687,7 +687,7 @@ u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 
     const u32 basic_block = func.emitter.program.size();
 
-    new_block(func.emitter,type,slot);
+    new_block(&itl.list_allocator,func.emitter,type,slot);
     add_label(itl.symbol_table,label_name(slot));
 
     // offset is the block offset until full resolution
@@ -1663,9 +1663,8 @@ void compile_functions(Interloper &itl)
 // -> early stl -> function_pointers -> labels ->  compile time execution ->
 // unions -> inline asm -> debugg memory guards -> ...
 
-void compile(Interloper &itl,const std::vector<std::string> &lines)
+void destroy_itl(Interloper &itl)
 {
-    // make sure everything is clean
     itl.program.clear();
     clear(itl.symbol_table);
     itl.function_table.clear();
@@ -1676,7 +1675,16 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
         delete_tree(itl.root); itl.root = nullptr;
     }
 
+    destory_allocator(itl.list_allocator);
+}
+
+static constexpr u32 LIST_INITIAL_SIZE = 10 * 1024;
+
+void compile(Interloper &itl,const std::vector<std::string> &lines)
+{
+    itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
     itl.error = false;
+
 
     // tokenize input file
     {

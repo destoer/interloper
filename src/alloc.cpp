@@ -1,61 +1,72 @@
 #include <lib.h>
 
-struct Pool
+
+Arena make_arena(u32 size)
 {
-    // how much have we used?
-    u32 len; 
+    Arena arena;
 
-    // how much do we have total?
-    u32 size;
+    arena.len = 0;
+    arena.size = size;
+    arena.buf = malloc(size);
 
-    // underyling memory
-    void* buf;
-};
+    assert(arena.buf);
 
-Pool make_pool(u32 size)
-{
-    Pool pool;
-
-    pool.len = 0;
-    pool.size = size;
-    pool.buf = malloc(size);
-
-    assert(pool.buf);
-
-    return pool;
+    return arena;
 }
 
-void reset_pool(Pool &pool)
+void reset_arena(Arena &arena)
 {
-    pool.len = 0;
+    arena.len = 0;
 }
 
-void destory_pool(Pool &pool)
+void destory_arena(Arena &arena)
 {
-    if(pool.buf)
+    if(arena.buf)
     {
-        free(pool.buf);
-        pool.buf = nullptr;
+        free(arena.buf);
+        arena.buf = nullptr;
     }
 }
 
-// for now just have a single pool
-// and dont deal with it getting exhausted
-struct Allocator
-{
-    Pool pool;
-};
+void *allocate(Arena &arena,u32 size)
+{   
+    // allocation failed
+    if(arena.len + size >= arena.size)
+    {
+        return nullptr;
+    }
 
-Allocator make_allocator(u32 size)
-{
-    Allocator allocator;
+    // do the allocation
+    u8* ptr = (u8*)(arena.buf); 
 
-    allocator.pool = make_pool(size);
+    void* alloc_ptr =  (void*)(&ptr[arena.len]);
+    arena.len += size;
+
+    return alloc_ptr;
+}
+
+ArenaAllocator make_allocator(u32 size)
+{
+    ArenaAllocator allocator;
+
+    allocator.arena = make_arena(size);
 
     return allocator;
 }
 
-void destory_allocator(Allocator &allocator)
+void destory_allocator(ArenaAllocator &allocator)
 {
-    destory_pool(allocator.pool);
+    destory_arena(allocator.arena);
 }
+
+void* allocate(ArenaAllocator& allocator, u32 size)
+{
+    // TODO: handle this failing and add a new area
+    if(allocator.arena.len + size >= allocator.arena.size)
+    {
+        unimplemented("Arena OOM");
+    }
+
+    return allocate(allocator.arena,size);
+}
+

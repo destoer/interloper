@@ -26,6 +26,9 @@ struct Interloper
     b32 has_return;
 
     SymbolTable symbol_table;
+
+    // TODO: move other structures to an arena
+    ArenaAllocator list_allocator;
 };
 
 

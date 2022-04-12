@@ -63,7 +63,7 @@ static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTe
 void run_tests()
 {
     puts("running tests....");
-
+    auto start = std::chrono::system_clock::now();
 
     lexer_test();
     expr_test();
@@ -73,6 +73,8 @@ void run_tests()
     Interloper itl;
     for(u32 i = 0; i < PROGRAM_TEST_SIZE; i++)
     {
+        destroy_itl(itl);
+        
         const auto &test = PROGRAM_TEST[i];
 
         const std::vector<std::string> file = read_string_lines(read_file(test.name));
@@ -111,5 +113,8 @@ void run_tests()
     }
 
     puts("\nfinished testing\n");
+    auto current = std::chrono::system_clock::now();
 
+    auto count = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count()) / 1000.0;
+    printf("total time taken %f\n",count);
 }

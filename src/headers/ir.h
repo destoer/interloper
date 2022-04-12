@@ -1,5 +1,6 @@
 #pragma once
 #include <lib.h>
+#include <alloc.h>
 
 enum class op_type
 {
@@ -273,25 +274,24 @@ struct ListNode
 
 struct List
 {
+    // global list Arena allocator
+    ArenaAllocator *allocator = nullptr;
+
     ListNode *start = nullptr;
 
-    // NOTE: only valid if using insert_end
-    // this wont be valid once we get inside IR.cpp
     ListNode *end = nullptr;
 };
+List make_list(ArenaAllocator* allocator);
 
 
 struct Block
 {
-    Block(block_type t) : type(t)
-    {}
-
     List list;
 
     block_type type;
 
     // is considered the last block in a set of control flow
-    bool last = false;
+    bool last;
 };
 
 struct IrEmitter
@@ -305,7 +305,7 @@ struct IrEmitter
 };
 
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void new_block(IrEmitter &emitter,block_type type, u32 slot = 0xffffffff);
+void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot = 0xffffffff); 
 
 void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
 void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
