@@ -74,9 +74,10 @@ u32 tmp(u32 ir_reg)
     return ir_reg + REG_TMP_START;
 }
 
+// dont correct special regs
 bool is_reg(u32 r)
 {
-    return r < SPECIAL_PURPOSE_REG_START;
+    return r < MACHINE_REG_SIZE;
 }
 
 bool is_special_reg(u32 r)
@@ -141,6 +142,31 @@ struct LocalAlloc
     u32 stack_size;
 };
 
+LocalAlloc make_local_alloc()
+{
+    LocalAlloc alloc;
+
+    // every register is free!
+    alloc.free_regs = MACHINE_REG_SIZE;
+    alloc.use_count = 0;
+    alloc.used_regs = 0;
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        alloc.regs[i] = REG_FREE;
+        alloc.free_list[i] = i;
+    }
+
+    memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
+
+    memset(alloc.size_count_max,0,sizeof(alloc.size_count_max));
+    memset(alloc.size_count,0,sizeof(alloc.size_count));
+    alloc.stack_size = 0;
+    alloc.stack_offset = 0;    
+
+    return alloc;
+}
+
 void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg);
 
 void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
@@ -174,7 +200,7 @@ void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
 }
 
 
-void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym)
+void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool after=false)
 {
     // no need to spill
     if(sym.location == LOCATION_MEM)
@@ -216,8 +242,16 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym)
     // TODO: how do we know if a variable has not been modified
     // i.e it is a ready only copy and has not been modifed so we dont actually need to write it back
     const auto opcode = Opcode(op_type::spill,reg,slot_idx(sym),alloc.stack_offset);
-    insert_at(list,node,opcode); 
 
+    if(!after)
+    {
+        insert_at(list,node,opcode); 
+    }
+
+    else 
+    {
+        insert_after(list,node,opcode);
+    }
 
     // register is back in memory!
     sym.location = LOCATION_MEM;
@@ -225,7 +259,7 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym)
     alloc.free_list[alloc.free_regs++] = reg;    
 }
 
-void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, List& list, ListNode* node)
+void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, List& list, ListNode* node, bool after)
 {
     puts("spilling everything"); 
          
@@ -236,7 +270,7 @@ void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, List& list, ListNode*
         if(reg_is_sym(alloc.regs[r]))
         {
             auto &sym = slot_lookup[alloc.regs[r]];
-            spill_sym(alloc,list,node,sym);
+            spill_sym(alloc,list,node,sym,after);
         }
     }    
 }
@@ -393,7 +427,6 @@ void free_sym(LocalAlloc &alloc, Symbol &sym)
 
 void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,List &list, ListNode *node,SlotLookup &slot_lookup)
 {
-    // TODO: does this need to return the opcode ptr incase it inserts?
     alloc_sym(slot_lookup,alloc,list,node,sym);
 
     printf("reloading sym %s into r%d\n",sym.name.c_str(),sym.location);
@@ -600,9 +633,19 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
 
     const auto info = OPCODE_TABLE[u32(opcode.op)];
 
+    // branch is happening spill everything
+    // TODO: revisit this with a proper reg alloc method
+    // we dont want to spill on a branch at all but rather the block types
+    // this is just easy...
+    if(info.group == op_group::branch_t)
+    {
+        spill_all(alloc,itl.symbol_table.slot_lookup,list,node,false);        
+    }
+
     // make sure not to free a tmp that has been repurposed
     const u32 dst = info.type[0] == arg_type::dst_reg? opcode.v[0] : REG_FREE;
 
+    disass_opcode_raw(node->opcode);
     // free any temp's that are "source" registers as we are done with them
     for(u32 r = 0; r < info.args; r++)
     {
@@ -702,7 +745,7 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
             node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
             alloc.stack_offset -= stack_clean; 
 
-            rewrite_opcode(itl,alloc,list,node);
+            rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
 
             node = node->next;
             break;
@@ -983,34 +1026,13 @@ void allocate_registers(Interloper& itl,Function &func)
 {
     printf("allocating registers for %s:\n\n",func.name.c_str());
 
-    LocalAlloc alloc;
-
-    // every register is free!
-    alloc.free_regs = MACHINE_REG_SIZE;
-    alloc.use_count = 0;
-    alloc.used_regs = 0;
-
-    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
-    {
-        alloc.regs[i] = REG_FREE;
-        alloc.free_list[i] = i;
-    }
-
-    memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
-
-    memset(alloc.size_count_max,0,sizeof(alloc.size_count_max));
-    memset(alloc.size_count,0,sizeof(alloc.size_count));
-    alloc.stack_size = 0;
-    alloc.stack_offset = 0;
-
-   
+    auto alloc = make_local_alloc();
 
     for(auto &block : func.emitter.program)
     {
         List& list = block.list;
 
         ListNode *node = list.start;
-        disass_opcode_sym(node->opcode,itl.symbol_table.slot_lookup);
         while(node)
         {
             node = allocate_opcode(itl,alloc,list,node);
@@ -1021,7 +1043,7 @@ void allocate_registers(Interloper& itl,Function &func)
         if(block.last)
         {
             puts("spilling last");
-            spill_all(alloc,itl.symbol_table.slot_lookup,list,list.end);
+            spill_all(alloc,itl.symbol_table.slot_lookup,list,list.end,true);
         }
     }
 
