@@ -645,7 +645,6 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
     // make sure not to free a tmp that has been repurposed
     const u32 dst = info.type[0] == arg_type::dst_reg? opcode.v[0] : REG_FREE;
 
-    disass_opcode_raw(node->opcode);
     // free any temp's that are "source" registers as we are done with them
     for(u32 r = 0; r < info.args; r++)
     {
@@ -673,19 +672,44 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
         case op_type::load_arr_data:
         {
-            unimplemented("load_arr_data");
+
+            // we dont have the information for this yet so we have to fill it in later
+            /*
+                load_arr_data <dst>, <sym>
+                lea <dst>, [<sym_offset>]
+            */
+
+            node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
+
+            // only want to allocate the dst,
+            // we need to use the sym as a "slot" later
+            alloc_slot(node->opcode.v[0],alloc,list,node,slot_lookup);
+            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);                   
+   
+            node = node->next;
             break;
         }
 
         case op_type::arr_index:
         {
-            unimplemented("arr_index");
+            // arr_index <dst>, <array_data_ptr>, <subscript_offset>
+            // add <dst>, <array_data_ptr>,<subcript_offset>
+            node->opcode = Opcode(op_type::add_reg,opcode.v[0],opcode.v[1],opcode.v[2]);
+            rewrite_opcode(itl,alloc,list,node);
+
+            node = node->next;
             break;
         }
 
         case op_type::load_arr_len:
         {
-            unimplemented("load_arr_len");
+            // load_arr_len <dst> <symbol> <dimension>
+            // TODO: this assumes an array with a known size
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+            node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
+            rewrite_opcode(itl,alloc,list,node);
+
+            node = node->next;
             break;
         }
 
@@ -753,13 +777,28 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
         case op_type::alloc_slot:
         {
-            const auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
 
             // if we have an array and we know the size
             // then we need to allocate memory for it
             if(is_array(sym.type))
             {
-                unimplemented("alloc slot array");
+                // get size, len
+                // emit a alloc ir op
+                const auto [size,count] = get_arr_size(itl,sym.type);                    
+
+                const u32 idx = size >> 1;
+
+                node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
+
+                const u32 cur = alloc.size_count[idx];
+                sym.offset = PENDING_ALLOCATION + cur;
+
+                
+                alloc.size_count[idx] += count;
+                alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
+
+                node = node->next;      
             }
 
             else
@@ -834,13 +873,14 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node,const Opcode& callee_restore,
     const Opcode& stack_clean, bool insert_callee_saves)
 {
+    auto& slot_lookup = itl.symbol_table.slot_lookup;
+    const auto opcode = node->opcode;
+
     switch(node->opcode.op)
     {
 
         case op_type::mov_reg:
         {
-            const auto opcode = node->opcode;
-
             // remove dead stores (still need to perform reg correction)
             // so it has to be done in the 2nd pass
             if(opcode.op == op_type::mov_reg && opcode.v[0] == opcode.v[1])
@@ -855,15 +895,30 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::load_arr_data:
         {
-            unimplemented("load_arr_data");
+            /*
+                load_arr_data <dst>, <sym>, stack_offset
+                lea <dst>, [<sym_offset>]
+            */
+
+            // TODO: assumes static array
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+
+            node = node->next;
             break;
-            
         }
 
         case op_type::alloc:
         {
-            unimplemented("alloc");
-            break;
+            // alloc <slot>, <size>, <count>
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+
+            const u32 idx = sym.offset - PENDING_ALLOCATION;  
+            sym.offset = alloc.stack_alloc[opcode.v[1] >> 1] + (idx * opcode.v[1]);                    
+
+            return remove(list,node);
         }
 
         case op_type::ret:
@@ -887,8 +942,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         // reload a reg
         case op_type::load:
         {
-            const auto opcode = node->opcode;
-            auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,opcode.v[1]);
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
 
 
             const s32 stack_offset = opcode.v[2];
@@ -918,10 +972,8 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::addrof:
         {
-            const auto opcode = node->opcode;
-
             const s32 stack_offset = opcode.v[2];
-            auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,opcode.v[1]);
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
 
                 // this is the first stack access so we need to compute the final posistion
             if(sym.offset >= PENDING_ALLOCATION)
@@ -938,8 +990,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::spill:
         {
-            const auto opcode = node->opcode;
-            auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,opcode.v[1]);
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
 
             const s32 stack_offset = opcode.v[2];
 
