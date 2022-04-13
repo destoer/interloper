@@ -1,5 +1,4 @@
 #include <interloper.h>
-#include <test.h>
 
 struct LexerTest
 {

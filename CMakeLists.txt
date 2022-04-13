@@ -10,14 +10,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 file(GLOB src_files
 	"src/*.h"
-	"src/*.cpp"
-	"src/test/*.cpp"
+	"src/main.cpp"
 )
 
 if(WIN32)
 
 else()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Werror -Wall -Wextra -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Werror -fno-exceptions -fomit-frame-pointer  -Wall -Wextra -O3")
 endif()
 
 include_directories("src/headers")

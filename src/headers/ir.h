@@ -1,5 +1,6 @@
 #pragma once
 #include <lib.h>
+#include <alloc.h>
 
 enum class op_type
 {
@@ -146,7 +147,7 @@ static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 
 // what kind of opcode is this?
 // NOTE: when we add indirect branches we need it under a seperate group
-enum op_group
+enum class op_group
 {
     reg_t,
     regm_t,
@@ -158,11 +159,23 @@ enum op_group
     slot_t,
 };
 
+enum class arg_type
+{
+    src_reg,
+    dst_reg,
+    imm,
+    label,
+    directive,
+    none,
+};
+
+
 struct OpInfo
 {
     op_group group;
     const char *name;
     u32 args;
+    arg_type type[3];
 };
 
 extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
@@ -196,27 +209,6 @@ using opcode_iterator_t = std::list<Opcode>::iterator;
 static constexpr u32 SYMBOL_START = 0x80000000;
 
 
-inline u32 reg(u32 r)
-{
-    return r;
-}
-
-inline u32 symbol(u32 s)
-{
-    return SYMBOL_START + s;
-}
-
-inline u32 symbol_to_idx(u32 s)
-{
-    return s - SYMBOL_START;
-}
-
-inline bool is_symbol(u32 s)
-{
-    return s >= SYMBOL_START;
-}
-
-
 // for now hardcode this to the limits of our vm
 // we will move this into a struct as part of a config
 // when we actually want to define some targets
@@ -238,21 +230,6 @@ static constexpr u32 GPR_SIZE = sizeof(u32);
 
 
 
-inline bool is_reg(u32 r)
-{
-    return r < SPECIAL_PURPOSE_REG_START;
-}
-
-inline bool is_special_reg(u32 r)
-{
-    return r >= SPECIAL_PURPOSE_REG_START && r < SYMBOL_START;
-}
-
-inline bool is_tmp(u32 r)
-{
-    return r < SPECIAL_PURPOSE_REG_START;
-}
-
 static constexpr u32 OP_SIZE = sizeof(Opcode);
 
 struct Symbol;
@@ -260,9 +237,6 @@ struct SymbolTable;
 struct Label;
 using SlotLookup = std::vector<Symbol>;
 using LabelLookup = std::vector<Label>;
-
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
-void disass_opcode_raw(const Opcode &opcode);
 
 
 // IR SYSCALLS
@@ -290,17 +264,34 @@ inline const char *block_names[] =
 };
 
 
+
+struct ListNode
+{
+    Opcode opcode;
+    ListNode *next = nullptr;
+    ListNode *prev = nullptr;
+};
+
+struct List
+{
+    // global list Arena allocator
+    ArenaAllocator *allocator = nullptr;
+
+    ListNode *start = nullptr;
+
+    ListNode *end = nullptr;
+};
+List make_list(ArenaAllocator* allocator);
+
+
 struct Block
 {
-    Block(block_type t) : type(t)
-    {}
-
-    std::list<Opcode> buf;
+    List list;
 
     block_type type;
 
     // is considered the last block in a set of control flow
-    bool last = false;
+    bool last;
 };
 
 struct IrEmitter
@@ -311,10 +302,16 @@ struct IrEmitter
 
     // how many registers used in this expression
     u32 reg_count;
-
-    // how do we handle resolving labels?
-    u32 pc;
 };
 
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void new_block(IrEmitter &emitter,block_type type, u32 slot = 0xffffffff);
+void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot = 0xffffffff); 
+
+void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
+void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
+void disass_opcode_raw(const Opcode &opcode);
+
+inline u32 symbol(u32 s)
+{
+    return SYMBOL_START + s;
+}

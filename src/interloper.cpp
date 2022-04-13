@@ -1,5 +1,11 @@
 #include <interloper.h>
 
+#include "lexer.cpp"
+#include "symbol.cpp"
+#include "parser.cpp"
+#include "optimize.cpp"
+#include "ir.cpp"
+
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line);
@@ -8,6 +14,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 void compile_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_block(Interloper &itl,Function &func,AstNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
+
 
 
 void dump_ir_sym(Interloper &itl)
@@ -680,7 +687,7 @@ u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 
     const u32 basic_block = func.emitter.program.size();
 
-    new_block(func.emitter,type,slot);
+    new_block(&itl.list_allocator,func.emitter,type,slot);
     add_label(itl.symbol_table,label_name(slot));
 
     // offset is the block offset until full resolution
@@ -732,7 +739,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             // add branch over the block we just compiled
             const u32 slot = itl.symbol_table.label_lookup.size();
 
-            blocks[cur_block].buf.push_back(Opcode(op_type::bnc,slot,r,0));
+            append(blocks[cur_block].list,Opcode(op_type::bnc,slot,r,0));
 
 
             // not the last statment (branch is not require)
@@ -776,9 +783,9 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     {
         auto &block = func.emitter.program[b];
 
-        if(block.buf.back().op == op_type::exit_block)
+        if(block.list.end->opcode.op == op_type::exit_block)
         {
-            block.buf.back() = Opcode(op_type::b,exit_block,0,0);
+            block.list.end->opcode = Opcode(op_type::b,exit_block,0,0);
         }
     }
 }
@@ -864,7 +871,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    func.emitter.program[intial_block].buf.push_back(Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
+    append(func.emitter.program[intial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
 
     destroy_scope(itl.symbol_table);
 }
@@ -1321,10 +1328,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto size = type_size(itl,ltype);
 
     // add new symbol table entry
-    add_symbol(itl.symbol_table,name,ltype,size);
-
-
-    const auto &sym = get_sym(itl.symbol_table,name).value();
+    const auto &sym = add_symbol(itl.symbol_table,name,ltype,size);
 
 
     emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
@@ -1403,10 +1407,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto size = type_size(itl,type);
 
     // add new symbol table entry
-    add_symbol(itl.symbol_table,name,type,size);
-
-    const auto &sym = get_sym(itl.symbol_table,name).value();
-
+    const auto &sym = add_symbol(itl.symbol_table,name,type,size);
 
     emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
     emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
@@ -1662,9 +1663,8 @@ void compile_functions(Interloper &itl)
 // -> early stl -> function_pointers -> labels ->  compile time execution ->
 // unions -> inline asm -> debugg memory guards -> ...
 
-void compile(Interloper &itl,const std::vector<std::string> &lines)
+void destroy_itl(Interloper &itl)
 {
-    // make sure everything is clean
     itl.program.clear();
     clear(itl.symbol_table);
     itl.function_table.clear();
@@ -1675,7 +1675,16 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
         delete_tree(itl.root); itl.root = nullptr;
     }
 
+    destory_allocator(itl.list_allocator);
+}
+
+static constexpr u32 LIST_INITIAL_SIZE = 10 * 1024;
+
+void compile(Interloper &itl,const std::vector<std::string> &lines)
+{
+    itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
     itl.error = false;
+
 
     // tokenize input file
     {
@@ -1760,7 +1769,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     for(auto &[key, func]: itl.function_table)
     {
         UNUSED(key);
-        allocate_registers(itl,func,itl.symbol_table.slot_lookup);
+        allocate_registers(itl,func);
         putchar('\n');
     }
 

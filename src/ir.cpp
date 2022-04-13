@@ -1,21 +1,35 @@
 #include <interloper.h>
 #include <op_table.inl>
 
+#include "list.cpp"
+
 std::string get_oper_sym(const SlotLookup *table,u32 v);
 std::string get_oper_raw(const SlotLookup *table,u32 v);
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
+
+
 
 void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    emitter.program[emitter.program.size()-1].buf.push_back(opcode);
-    emitter.pc += 1;    
+    auto &list = emitter.program[emitter.program.size()-1].list;
+    append(list,opcode);
 }
 
-void new_block(IrEmitter &emitter,block_type type, u32 slot)
+Block make_block(block_type type,ArenaAllocator* list_allocator)
 {
-    emitter.program.push_back(Block(type));
+    Block block;
+
+    block.type = type;
+    block.last = false;
+    block.list = make_list(list_allocator);
+
+    return block;
+}
+
+void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot)
+{
+    emitter.program.push_back(make_block(type,list_allocator));
     emitter.block_slot.push_back(slot);    
 }
 
@@ -23,8 +37,24 @@ void new_block(IrEmitter &emitter,block_type type, u32 slot)
 static constexpr u32 REG_FREE = 0xffffffff;
 static constexpr u32 REG_TMP_START = 0xf0000000;
 
+u32 reg(u32 r)
+{
+    return r;
+}
 
-bool reg_is_var(u32 loc)
+
+u32 sym_to_idx(u32 s)
+{
+    return s - SYMBOL_START;
+}
+
+bool is_sym(u32 s)
+{
+    return s >= SYMBOL_START;
+}
+
+
+bool reg_is_sym(u32 loc)
 {
     return loc < REG_TMP_START;
 }
@@ -42,6 +72,27 @@ u32 tmp_to_ir(u32 loc)
 u32 tmp(u32 ir_reg)
 {
     return ir_reg + REG_TMP_START;
+}
+
+// dont correct special regs
+bool is_reg(u32 r)
+{
+    return r < MACHINE_REG_SIZE;
+}
+
+bool is_special_reg(u32 r)
+{
+    return r >= SPECIAL_PURPOSE_REG_START && r < SYMBOL_START;
+}
+
+bool is_tmp(u32 r)
+{
+    return r < SPECIAL_PURPOSE_REG_START;
+}
+
+Symbol& sym_from_slot(SlotLookup &slot_lookup, u32 slot)
+{
+    return slot_lookup[sym_to_idx(slot)]; 
 }
 
 // our bitset can only store 32 regs
@@ -91,13 +142,73 @@ struct LocalAlloc
     u32 stack_size;
 };
 
-void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbol& sym, u32 reg)
+LocalAlloc make_local_alloc()
+{
+    LocalAlloc alloc;
+
+    // every register is free!
+    alloc.free_regs = MACHINE_REG_SIZE;
+    alloc.use_count = 0;
+    alloc.used_regs = 0;
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        alloc.regs[i] = REG_FREE;
+        alloc.free_list[i] = i;
+    }
+
+    memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
+
+    memset(alloc.size_count_max,0,sizeof(alloc.size_count_max));
+    memset(alloc.size_count,0,sizeof(alloc.size_count));
+    alloc.stack_size = 0;
+    alloc.stack_offset = 0;    
+
+    return alloc;
+}
+
+void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg);
+
+void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
+{
+    printf("\n\nallocation:\n\n");
+
+    printf("total registers: %d\n",MACHINE_REG_SIZE);
+    printf("free registers: %d\n",alloc.free_regs);
+    printf("used regsisters: %d\n",MACHINE_REG_SIZE - alloc.free_regs);
+    printf("total used registers: %d\n",alloc.use_count);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        const u32 slot = alloc.regs[i];
+
+        if(reg_is_tmp(slot))
+        {
+            printf("reg r%d -> temp t%d\n",i,tmp_to_ir(slot));
+        }
+
+        else if(reg_is_sym(slot))
+        {
+            const auto &sym = slot_lookup[slot];
+
+            printf("reg r%d -> var %s\n",i,sym.name.c_str());
+        }
+    }
+
+    putchar('\n');
+
+}
+
+
+void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool after=false)
 {
     // no need to spill
     if(sym.location == LOCATION_MEM)
     {
         return;
     }
+
+    const u32 reg = sym.location;
 
     printf("spill %s:%d\n",sym.name.c_str(),reg);
 
@@ -129,49 +240,42 @@ void spill_reg(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr, Symbo
 
 
     // TODO: how do we know if a variable has not been modified
-    // i.e it is a ready only copy so we dont actually bother saving a reg?
+    // i.e it is a ready only copy and has not been modifed so we dont actually need to write it back
     const auto opcode = Opcode(op_type::spill,reg,slot_idx(sym),alloc.stack_offset);
-    block.buf.insert(block_ptr,opcode); 
 
+    if(!after)
+    {
+        insert_at(list,node,opcode); 
+    }
+
+    else 
+    {
+        insert_after(list,node,opcode);
+    }
 
     // register is back in memory!
     sym.location = LOCATION_MEM;
     alloc.regs[reg] = REG_FREE;
-    alloc.free_list[alloc.free_regs++] = reg;
+    alloc.free_list[alloc.free_regs++] = reg;    
 }
 
-
-void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
+void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, List& list, ListNode* node, bool after)
 {
-    printf("\n\nallocation:\n\n");
-
-    printf("total registers: %d\n",MACHINE_REG_SIZE);
-    printf("free registers: %d\n",alloc.free_regs);
-    printf("used regsisters: %d\n",MACHINE_REG_SIZE - alloc.free_regs);
-    printf("total used registers: %d\n",alloc.use_count);
-
-    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    puts("spilling everything"); 
+         
+    // TODO: revisit this once we come up with a scheme to make sure that vars get put into the proper regs
+    
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
     {
-        const u32 slot = alloc.regs[i];
-
-        if(reg_is_tmp(slot))
+        if(reg_is_sym(alloc.regs[r]))
         {
-            printf("reg r%d -> temp t%d\n",i,tmp_to_ir(slot));
+            auto &sym = slot_lookup[alloc.regs[r]];
+            spill_sym(alloc,list,node,sym,after);
         }
-
-        else if(reg_is_var(slot))
-        {
-            const auto &sym = slot_lookup[slot];
-
-            printf("reg r%d -> var %s\n",i,sym.name.c_str());
-        }
-    }
-
-    putchar('\n');
-
+    }    
 }
 
-u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcode_iterator_t block_ptr)
+u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,List &list, ListNode* node)
 {
     u32 reg = REG_FREE;
 
@@ -188,26 +292,26 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
         alloc.used_regs = set_bit(alloc.used_regs,reg);
     }
 
-    // TODO: fixme how do we properly handle regs that need to be used in the current opcode
-    // being freed?
+    // TODO: devise a proper method for spilling regs that isn't just the first one we can find
 
     // if there is not spill another register (not a tmp or this will break)
     // back into memory
     else 
-    {
-        const auto &opcode = *block_ptr;
+    {   
+        const auto &opcode = node->opcode;
+        //const auto info = OPCODE_TABLE[u32(opcode.op)];
 
         for(reg = 0; reg < MACHINE_REG_SIZE; reg++)
         {
-            const auto slot = alloc.regs[reg]; 
+            const auto idx = alloc.regs[reg]; 
 
             b32 in_expr = false;
 
             // ^ for now we are just going to check we are not currently using the varaible inside this opcode
             // with a linear scan -> fix this later
-            for(int i = 1; i < 3; i++)
+            for(u32 i = 1; i < 3; i++)
             {
-                if(is_symbol(opcode.v[i]) && slot == symbol_to_idx(opcode.v[i]))
+                if(is_sym(opcode.v[i]) && idx == sym_to_idx(opcode.v[i]))
                 {
                     in_expr = true;
                     break;
@@ -215,11 +319,10 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
             }
 
             // we have a var to spill
-            if(reg_is_var(slot) && !in_expr)
+            if(reg_is_sym(idx) && !in_expr)
             {
-                const auto slot = alloc.regs[reg];
-                auto &sym = slot_lookup[slot];
-                spill_reg(alloc,block,block_ptr,sym,reg);
+                auto &sym = slot_lookup[idx];
+                spill_sym(alloc,list,node,sym);
 
                 // claim the register
                 reg = alloc.free_list[--alloc.free_regs];
@@ -240,17 +343,27 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,Block &block, opcod
 }
 
 
-void alloc_tmp(LocalAlloc &alloc, u32 ir_reg, Block &block, opcode_iterator_t block_ptr, SlotLookup &slot_lookup)
+
+void alloc_tmp(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* node, u32 ir_reg)
 {
-    const u32 reg = alloc_internal(slot_lookup, alloc, block, block_ptr);
+    const u32 reg = alloc_internal(slot_lookup, alloc, list, node);
     alloc.ir_regs[ir_reg] = reg;
     alloc.regs[reg] = tmp(ir_reg);
 
     printf("tmp t%d allocated into r%d\n",ir_reg,reg);
 }
 
+void alloc_sym(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* node, Symbol &sym)
+{
+    const u32 reg = alloc_internal(slot_lookup, alloc, list, node);
+    alloc.regs[reg] = sym.slot; 
+    sym.location = reg;
+
+    printf("symbol %s into reg r%d\n",sym.name.c_str(),reg);
+}
+
 // mark a tmp as allocated to a var
-void alloc_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
+void alloc_sym_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
 {   
     const u32 reg = alloc.ir_regs[ir_reg];
 
@@ -260,13 +373,72 @@ void alloc_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
     sym.location = reg;
 }
 
-void destroy_ir_reg(LocalAlloc &alloc, u32 ir_reg)
+
+// alloc based on it being a var or a tmp
+void alloc_slot(u32 slot,LocalAlloc &alloc, List &list,ListNode* node,SlotLookup &slot_lookup)
 {
-    alloc.ir_regs[ir_reg] = MACHINE_REG_SIZE;
+    if(is_tmp(slot))
+    {
+        alloc_tmp(slot_lookup,alloc,list,node,slot);
+    }
+
+    else if(is_sym(slot))
+    {
+        auto &sym = sym_from_slot(slot_lookup,slot);
+        alloc_sym(slot_lookup,alloc,list,node,sym);
+    }
 }
 
 
-void alloc_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
+/* TODO: 
+    make register rewriting have an easier interface (make it so you can just rewrite individual opcode fields if need be)
+    make accessing symbols easier
+    make inserting opcodes easier -> (roll your own doubly linked list)
+    refactor the loop to make deletion less tricky
+    implement proper IR descriptions, i.e what the purpose of a field is 
+    and if it is a source or a dst inside the lookup table so its easier to disassembly opcodes
+    and to rewrite registers because the table allready has all the information
+*/
+/*
+void rewrite_field()
+{
+
+}
+*/
+
+
+void free_tmp(LocalAlloc &alloc, u32 reg)
+{
+    printf("freed tmp t%d from r%d\n",tmp_to_ir(alloc.regs[reg]),reg);
+
+    alloc.regs[reg] = REG_FREE;
+    alloc.free_list[alloc.free_regs++] = reg;
+}
+
+void free_sym(LocalAlloc &alloc, Symbol &sym)
+{
+    printf("freed sym %s from r%d\n",sym.name.c_str(),sym.location);
+
+    alloc.regs[sym.location] = REG_FREE;
+    alloc.free_list[alloc.free_regs++] = sym.location;
+    sym.location = LOCATION_MEM;
+}
+
+
+void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,List &list, ListNode *node,SlotLookup &slot_lookup)
+{
+    alloc_sym(slot_lookup,alloc,list,node,sym);
+
+    printf("reloading sym %s into r%d\n",sym.name.c_str(),sym.location);
+
+    // we need to save the current stack offset here as by the time we load it 
+    // it may be different
+    const auto opcode = Opcode(op_type::load,sym.location,slot,alloc.stack_offset);
+    insert_at(list,node,opcode); 
+}
+
+
+void alloc_tmp_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
 {
     alloc.ir_regs[ir_dst] = alloc.ir_regs[ir_src];
     alloc.regs[alloc.ir_regs[ir_dst]] = tmp(ir_dst);
@@ -278,66 +450,110 @@ void alloc_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
     printf("tmp t%d allocated into existing tmp t%d -> r%d\n",ir_dst,ir_src,alloc.ir_regs[ir_dst]);
 }
 
-// directly allocate a var ito a reg
-u32 alloc_reg(Symbol &sym, LocalAlloc &alloc, Block &block,opcode_iterator_t block_ptr,SlotLookup &slot_lookup)
+
+void handle_allocation(SlotLookup &slot_lookup, LocalAlloc& alloc,List &list, ListNode *node)
 {
-    const u32 reg = alloc_internal(slot_lookup,alloc, block, block_ptr);
-    alloc.regs[reg] = sym.slot; 
-    sym.location = reg;
+    const auto opcode = node->opcode;
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
 
-    printf("symbol %s into reg r%d\n",sym.name.c_str(),reg);
+    u32 tmp_reg = REG_FREE;
 
-    return reg;
-}
-
-
-// alloc based on it being a var or a tmp
-void alloc_idx(u32 idx,LocalAlloc &alloc, Block &block,opcode_iterator_t block_ptr,SlotLookup &slot_lookup)
-{
-    if(is_tmp(idx))
+    // make sure our src var's are loaded
+    // mark if any are tmp's we can reuse to allocate the dst
+    for(u32 a = 0; a < info.args; a++)
     {
-        alloc_tmp(alloc,idx,block,block_ptr,slot_lookup);
+        // only interested in registers
+        if(info.type[a] != arg_type::src_reg)
+        {
+            continue;
+        }
+
+
+        if(is_sym(opcode.v[a]))
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[a]);
+
+            // in memory reload into register
+            if(sym.location == LOCATION_MEM)
+            {
+                reload_sym(sym,opcode.v[a],alloc,list,node,slot_lookup);
+            }
+
+            // pointer taken to var reload anyways
+            else if(sym.referenced)
+            {
+                reload_sym(sym,opcode.v[a],alloc,list,node,slot_lookup);
+            }
+
+        }
+        
+        
+        else if(is_tmp(opcode.v[a]))
+        {
+            tmp_reg = opcode.v[a];
+        }
     }
 
-    else if(is_symbol(idx))
+
+    const u32 slot = opcode.v[0];
+
+    // allocate the dst
+    // NOTE: this can only appear in the 0 posistion
+    // and there can only be one
+    if(info.type[0] == arg_type::dst_reg)
     {
-        // alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
-        auto &sym = slot_lookup[symbol_to_idx(idx)];
-        alloc_reg(sym,alloc,block,block_ptr,slot_lookup);
+        if(is_sym(slot))
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+
+            if(sym.location == LOCATION_MEM)
+            {
+                if(tmp_reg != REG_FREE)
+                {
+                    alloc_sym_into_tmp(sym,alloc,tmp_reg);
+                }
+
+                else
+                {
+                    alloc_sym(slot_lookup,alloc,list,node,sym);
+                }
+            }
+
+            // spill the register as soon as it is written
+            else if(sym.referenced)
+            {
+                unimplemented("sym dst pointer spill");
+            }
+        }
+
+        else if(is_tmp(slot))
+        {
+            if(tmp_reg != REG_FREE)
+            {
+                alloc_tmp_into_tmp(alloc,slot,tmp_reg);
+            }
+
+            else
+            {
+                alloc_tmp(slot_lookup,alloc,list,node,slot);
+            }
+        }
     }
 }
 
-void free_reg(LocalAlloc &alloc, u32 reg)
-{
-    printf("freed tmp t%d from r%d\n",tmp_to_ir(alloc.regs[reg]),reg);
 
-    alloc.regs[reg] = REG_FREE;
-    alloc.free_list[alloc.free_regs++] = reg;
-}
-
-void free_reg(LocalAlloc &alloc, Symbol &sym)
-{
-    printf("freed sym %s from r%d\n",sym.name.c_str(),sym.location);
-
-    alloc.regs[sym.location] = REG_FREE;
-    alloc.free_list[alloc.free_regs++] = sym.location;
-    sym.location = LOCATION_MEM;
-}
-
-
-void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLookup &slot_lookup,u32 tmp)
+void save_rv(LocalAlloc &alloc,List &list,ListNode* node,SlotLookup &slot_lookup,u32 tmp)
 {
     //panic("need to realloc tmp");
     
 
     // get a new register
-    const u32 reg = alloc_internal(slot_lookup, alloc, block, block_ptr);
+    const u32 reg = alloc_internal(slot_lookup, alloc, list, node);
     const auto op = Opcode(op_type::mov_reg,reg,RV,0);
 
-
     // emit a mov from the the current tmp to the new one
-    block.buf.insert(block_ptr,op);
-
+    insert_at(list,node,op);
+    
     const u32 ir_reg = tmp_to_ir(tmp);
 
     printf("moved tmp t%d from rv to r%d\n",ir_reg,reg);
@@ -347,597 +563,466 @@ void save_rv(LocalAlloc &alloc,Block &block,opcode_iterator_t block_ptr,SlotLook
     alloc.regs[reg] = tmp;
 
     // free RV
-    free_reg(alloc,RV);
+    free_tmp(alloc,RV);
 }
 
-
-u32 rewrite_reg(LocalAlloc &alloc, u32 ir_reg)
+// NOTE: use this to force rewrites of directives
+void rewrite_reg_internal(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
-    // dont rewrite any special purpose reg
+    const u32 slot = opcode.v[reg];
 
-    // TODO: for now assume this is running under the interpretter
-    // so its converted to our interrpetter regs and not a hardware target
-    if(is_special_reg(ir_reg))
+    if(is_sym(slot))
     {
-        switch(ir_reg)
-        {
-            case SP_IR: return SP;
-            case RV_IR: return RV;
+        const auto sym = sym_from_slot(slot_lookup,slot);
 
-            default: panic("unhandled special reg %x\n",ir_reg);
+        opcode.v[reg] = sym.location;
+    }
+
+
+    // dont rewrite any special purpose reg
+    // NOTE: for now assume this is running under the interpretter
+    // so its converted to our interrpetter regs and not a hardware target
+    else if(is_special_reg(slot))
+    {
+        switch(slot)
+        {
+            case SP_IR: opcode.v[reg] = SP; break;
+            case RV_IR: opcode.v[reg] = RV; break;
+
+            default: panic("unhandled special reg %x\n",slot); break;
         }
     }
 
     else
     {
-        return alloc.ir_regs[ir_reg];
-    }
+        opcode.v[reg] = alloc.ir_regs[slot];
+    }          
 }
 
-void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,Block &block, opcode_iterator_t op_ptr,SlotLookup &slot_lookup)
+void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
-    // TODO: does this need to return the opcode ptr incase it inserts?
-    alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
-
-    printf("reloading sym %s into r%d\n",sym.name.c_str(),sym.location);
-
-    // we need to save the current stack offset here as by the time we load it 
-    // it may be different
-    const auto reload_op = Opcode(op_type::load,sym.location,slot,alloc.stack_offset);
-    block.buf.insert(op_ptr,reload_op); 
-}
-
-
-void rewrite_registers(u32 start, u32 end, Opcode &opcode, LocalAlloc &alloc, SlotLookup &slot_lookup)
-{
-    // rewrite the register names
-    for(u32 i = start; i < end; i++)
-    {
-        if(is_symbol(opcode.v[i]))
-        {
-            const auto slot = symbol_to_idx(opcode.v[i]);
-            auto &sym = slot_lookup[slot]; 
-
-            opcode.v[i] = sym.location;
-        }
-
-        else
-        {
-            opcode.v[i] = rewrite_reg(alloc,opcode.v[i]);
-        }
-    }    
-}
-
-void handle_allocation(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr, Opcode &opcode, u32 args)
-{
-    u32 tmp_reg = REG_FREE;
-
-    // ensure src var is allocated 
-    // (if we are using a tmp as an arg then it must allready have been allocated)
-    for(u32 i = 1; i < args; i++)
-    {
-        if(is_symbol(opcode.v[i]))
-        {
-            const auto slot = symbol_to_idx(opcode.v[i]);
-            auto &sym = slot_lookup[slot];
-                   
-            // unallocated we need to reload it
-            if(sym.location == LOCATION_MEM)
-            {
-                reload_sym(sym,opcode.v[i],alloc,block,op_ptr,slot_lookup);
-            }
-
-            // var has had a pointer taken to it make sure to reload this anyways
-            else if(sym.referenced)
-            {
-                reload_sym(sym,opcode.v[i],alloc,block,op_ptr,slot_lookup);
-            }            
-        }
-
-        else if(is_tmp(opcode.v[i]))
-        {
-            tmp_reg = opcode.v[i];
-        }
-    }
-
-    // handle dst allocation
-    const u32 idx = opcode.v[0];
-
-
-    // is a var
-    if(is_symbol(idx))
-    {
-        const auto slot = symbol_to_idx(idx);
-        auto &sym = slot_lookup[slot];        
-
-        // not currently loaded
-        if(sym.location == LOCATION_MEM)
-        {
-            // allocate into a tmp
-            if(tmp_reg != REG_FREE)
-            {
-                alloc_into_tmp(sym,alloc,tmp_reg);
-            }
-
-            else
-            {
-                if(args != 1)
-                {
-                    alloc_reg(sym,alloc,block,op_ptr,slot_lookup);
-                }
-
-                // [0] is not a dst but a src 
-                // i.e this operation wont just destroy the value we need to reload it
-                else
-                {
-                    reload_sym(sym,opcode.v[0],alloc,block,op_ptr,slot_lookup);
-                }
-            }
-        }
-
-        // in a reg spill out the damn pointer
-        else if(sym.referenced)
-        {
-            auto it = op_ptr++;
-            spill_reg(alloc,block,it,sym,sym.location);
-        }
-
-    }
-
-    // each tmp store is unique we only need to allocate at first use
-    else if(is_tmp(idx))
-    {  
-        // this is not allready a tmp we need to allocate this
-        if(!alloc.ir_regs.count(idx))
-        {
-            // put this tmp directly into another tmp we will be done with
-            // after the end of the expr
-            if(tmp_reg != REG_FREE)
-            {
-                alloc_into_tmp(alloc,idx,tmp_reg);
-            }
-
-            // spill something we need to allocate
-            else
-            {
-                alloc_tmp(alloc,idx,block,op_ptr,slot_lookup); 
-            }       
-        }
-    }
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
 
     
 
-
-    rewrite_registers(0,args,opcode,alloc,slot_lookup);
+    if(info.type[reg] == arg_type::src_reg || info.type[reg] == arg_type::dst_reg)
+    {
+        rewrite_reg_internal(slot_lookup,alloc,opcode,reg);
+    }
 }
 
-void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, Block &block, opcode_iterator_t op_ptr)
-{
-    puts("spilling everything"); 
-         
-    // TODO: revisit this once we come up with a scheme to make sure that vars get put into the proper regs
-    
-    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+void rewrite_regs(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode)
+{   
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    for(u32 r = 0; r < info.args; r++)
     {
-        if(reg_is_var(alloc.regs[r]))
-        {
-            auto &sym = slot_lookup[alloc.regs[r]];
-            spill_reg(alloc,block,op_ptr,sym,r);
-        }
-    }    
+        rewrite_reg(slot_lookup,alloc,opcode,r);
+    }
 }
 
-// rewrite the opcode regs based on allocation and opcode type!
-void correct_reg(SlotLookup &slot_lookup, LocalAlloc &alloc, Block &block, opcode_iterator_t op_ptr,Opcode &opcode)
+void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node)
 {
+    // allocate the registers
+    handle_allocation(itl.symbol_table.slot_lookup,alloc,list,node);
 
-    const auto &info = OPCODE_TABLE[static_cast<size_t>(opcode.op)];
+    auto &opcode = node->opcode;
 
-    u32 reg_args = info.args;
+    // rewrite each slot to its allocated register
+    rewrite_regs(itl.symbol_table.slot_lookup,alloc,opcode);
 
-    switch(info.group)
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    // branch is happening spill everything
+    // TODO: revisit this with a proper reg alloc method
+    // we dont want to spill on a branch at all but rather the block types
+    // this is just easy...
+    if(info.group == op_group::branch_t)
     {
-        case op_group::regm_t:
-        {
-            panic("regm in correct_reg");
-            break;
-        }
-
-
-        case op_group::reg_t:
-        {
-            handle_allocation(slot_lookup,alloc,block,op_ptr,opcode,info.args);
-            break;
-        }
-
-        case op_group::imm_t:
-        {
-            if(info.args == 1)
-            {
-                // just an immediate on its own does not require correction
-                break;
-            }
-
-            // which args are actually for registers?
-            reg_args = info.args - 1;
-
-            handle_allocation(slot_lookup,alloc,block,op_ptr,opcode,info.args-1);
-            break;
-        }
-
-        // How should we handle this crap?
-        case op_group::load_t:
-        {
-            reg_args = info.args - 1;
-            handle_allocation(slot_lookup,alloc,block,op_ptr,opcode,info.args-1);
-            break;
-        }
-
-        case op_group::store_t:
-        {
-            reg_args = info.args - 1;
-            handle_allocation(slot_lookup,alloc,block,op_ptr,opcode,info.args-1);
-            break;            
-        }
-
-        // no regs dont rewrite
-        case op_group::implicit_t:
-        {
-            reg_args = 0;
-            break;
-        }
-
-        // allocation handling is not being done on cond branches
-        // how can we make sure it is
-        case op_group::branch_t:
-        {
-            // cond branch
-            if(reg_args == 2)
-            {
-                rewrite_registers(1,2,opcode,alloc,slot_lookup);
-            }
-
-            else
-            {
-                reg_args = 0;
-            }
-
-            // branch is happening spill everything
-            // TODO: revisit this with a proper reg alloc method
-            // we dont want to spill on a branch at all but rather the block types
-            // this is just easy...
-            spill_all(alloc,slot_lookup,block,op_ptr);
-
-            break;
-        }
-
-        case op_group::slot_t:
-        {
-            // dont rewrite
-            reg_args = 0;
-            break;
-        }
+        spill_all(alloc,itl.symbol_table.slot_lookup,list,node,false);        
     }
 
-    // TODO: is this sufficent to clean up tmps?
-    // or do we need to foribly clean all of them on some specific
-    // instructions? 
+    // make sure not to free a tmp that has been repurposed
+    const u32 dst = info.type[0] == arg_type::dst_reg? opcode.v[0] : REG_FREE;
 
-
-    // free any temporary used only as a src 
-
-    const u32 dst_ir = opcode.v[0];
-
-    // free all the tmps that aint the dest as we are done with them
-    for(u32 a = 1; a < reg_args; a++)
+    // free any temp's that are "source" registers as we are done with them
+    for(u32 r = 0; r < info.args; r++)
     {
-        // these registers have been converted we have to look inside the 
-        // allocation struct to find out what they are for now
-        if(opcode.v[a] != dst_ir && reg_is_tmp(alloc.regs[opcode.v[a]]))
+        const u32 reg = opcode.v[r];
+
+        if(info.type[r] == arg_type::src_reg && reg_is_tmp(alloc.regs[reg]) && reg != dst)
         {
-            free_reg(alloc,opcode.v[a]);
+            free_tmp(alloc,reg);
         }
     }
-
-
-    // single args used as src can be freed
-    if(opcode.op == op_type::push)
-    {
-        if(reg_is_tmp(alloc.regs[opcode.v[0]]))
-        {
-            free_reg(alloc,opcode.v[0]);
-        }
-    }
-
-    // store tmp's can be freed
-    if(info.group == op_group::store_t)
-    {
-        if(reg_is_tmp(alloc.regs[opcode.v[0]]))
-        {
-            free_reg(alloc,opcode.v[0]);
-        }
-    }
-
-    // load tmps can be freed
 }
 
-// TODO: need to rethink this when we do register passing
-// and when we push off determining stack size to a later pass
-void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 saved_regs_offset)
+
+
+ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node)
 {
-    for(auto slot : func.args)
+    auto &slot_lookup = itl.symbol_table.slot_lookup;
+    const auto &opcode = node->opcode;
+
+    switch(node->opcode.op)
     {
-        auto &sym = slot_lookup[slot];
+        // TODO: revisit when we add caller saved regs
+        //case op_type::save_regs:
+        //case op_type::restore_regs:
 
-        //printf("%s : %d\n",sym.name.c_str(),sym.arg_num);
-
-        // alloc above the stack frame
-        sym.offset = (sym.arg_num  * sizeof(u32)) + alloc.stack_size + saved_regs_offset + sizeof(u32);
-    }
-             
-}
-
-void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup)
-{
-    printf("allocating registers for %s:\n\n",func.name.c_str());
-
-    LocalAlloc alloc;
-
-    // every register is free!
-    alloc.free_regs = MACHINE_REG_SIZE;
-    alloc.use_count = 0;
-    alloc.used_regs = 0;
-
-    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
-    {
-        alloc.regs[i] = REG_FREE;
-        alloc.free_list[i] = i;
-    }
-
-    memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
-
-    memset(alloc.size_count_max,0,sizeof(alloc.size_count_max));
-    memset(alloc.size_count,0,sizeof(alloc.size_count));
-    alloc.stack_size = 0;
-    alloc.stack_offset = 0;
-
-
-    for(auto &block : func.emitter.program)
-    {
-        for(auto it = block.buf.begin(); it != block.buf.end();)
+        case op_type::load_arr_data:
         {
-            auto &opcode = *it;
+
+            // we dont have the information for this yet so we have to fill it in later
+            /*
+                load_arr_data <dst>, <sym>
+                lea <dst>, [<sym_offset>]
+            */
+
+            node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
+
+            // only want to allocate the dst,
+            // we need to use the sym as a "slot" later
+            alloc_slot(node->opcode.v[0],alloc,list,node,slot_lookup);
+            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);                   
+   
+            node = node->next;
+            break;
+        }
+
+        case op_type::arr_index:
+        {
+            // arr_index <dst>, <array_data_ptr>, <subscript_offset>
+            // add <dst>, <array_data_ptr>,<subcript_offset>
+            node->opcode = Opcode(op_type::add_reg,opcode.v[0],opcode.v[1],opcode.v[2]);
+            rewrite_opcode(itl,alloc,list,node);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::load_arr_len:
+        {
+            // load_arr_len <dst> <symbol> <dimension>
+            // TODO: this assumes an array with a known size
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+            node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
+            rewrite_opcode(itl,alloc,list,node);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::init_arr_idx:
+        {
+            unimplemented("init_arr_idx");
+            break;
+        }                
+
+        case op_type::addrof:
+        {
+            // -> <addrof> <alloced reg> <slot> <stack offset>
+            // -> lea <alloced reg> <sp + whatever>
+
+            // mark the var as having a pointer taken to it
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+            sym.referenced = true;
+
+            // okay apply the stack offset, and let the register allocator deal with it
+            // we will get the actual address using it later
+            node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
+            
+            // just rewrite the 1st reg we dont want the address of the 2nd
+            alloc_slot(node->opcode.v[0],alloc,list,node,slot_lookup);
+            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);
 
 
+            // spill the var that has had a pointer taken to it
+            spill_sym(alloc,list,node,sym);
+            
+            node = node->next;
+            break;
+        }
 
-            switch(opcode.op)
-            {
-
-                // TODO: revisit when we add caller saved regs
-                //case op_type::save_regs:
-                //case op_type::restore_regs:
-
-                // allocate a tmp
-                case op_type::mov_imm:
-                {
-                    alloc_idx(opcode.v[0],alloc,block,it,slot_lookup);
-                    break;
-                }
-
-
-                case op_type::load_arr_data:
-                {
-
-                    // we dont have the information for this yet so we have to fill it in later
-                    /*
-                        load_arr_data <dst>, <sym>
-                        lea <dst>, [<sym_offset>]
-                    */
-
-                    opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
-
-                    // only want to allocate the dst,
-                    // we need to use the sym as a "slot" later
-                    alloc_idx(opcode.v[0],alloc,block,it,slot_lookup);
-                    rewrite_registers(0,1,opcode,alloc,slot_lookup);                    
-
-                    
-                    it++; continue;
-                }
-
-                case op_type::arr_index:
-                {
-                    // arr_index <dst>, <array_data_ptr>, <subscript_offset>
-                    // add <dst>, <array_data_ptr>,<subcript_offset>
-                    opcode = Opcode(op_type::add_reg,opcode.v[0],opcode.v[1],opcode.v[2]);
-                    break;
-                }
-
-                case op_type::load_arr_len:
-                {
-                    // load_arr_len <dst> <symbol> <dimension>
-                    // TODO: this assumes an array with a known size
-                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
-                    opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
-                    break;
-                }
-
-                case op_type::init_arr_idx:
-                {
-                    // init_arr_idx <dst> <slot> <idx>
-
-                    // load_arr_data
-                    // index_arr <-- can const compute this
-                    // store_arr 
-
-                    unimplemented("init_arr_idx");
-                    break;
-                }                
-
-                case op_type::addrof:
-                {
-                    // we need to take the address of our vars...
-                    // but we dont know where we are at this phase...
-                    // do we have to half compile this and then do it in the 2nd pass?
-                    // <addrof> <dst_slot> <var>
-
-                    // -> <addrof> <alloced reg> <slot> <stack offset>
-                    // -> lea <alloced reg> <sp + whatever>
-                    // when addrof happens we also need to force the var to be reloaded from mem whenever it is accessed
-
-
-                    // mark the var as having a pointer taken to it
-                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
-                    sym.referenced = true;
-
-                    // okay apply the stack offset, and let the register allocator deal with it
-                    // we will get the actual address using it later
-                    opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
-                    
-                    // just rewrite the 1st reg we dont want the address of the 2nd
-                    alloc_idx(opcode.v[0],alloc,block,it,slot_lookup);
-                    rewrite_registers(0,1,opcode,alloc,slot_lookup);
-
-                    it++;
-                    spill_reg(alloc,block,it,sym,sym.location);
-                    continue;
-                }
-
-                // have to do correct reg by here to make sure hte offset is applied after any reloads occur
-                case op_type::push_arg:
-                {
-                    opcode =  Opcode(op_type::push,opcode.v[0],0,0);
-
-
-                    // adjust opcode for reg alloc
-                    correct_reg(slot_lookup, alloc, block, it, opcode);
-
-                    // varaibles now have to be accessed at a different offset
-                    // until this is corrected by clean call
-                    alloc.stack_offset += sizeof(u32);
-
-                    it++; continue;
-                }
-
-
-                case op_type::clean_args:
-                {
-                    // clean up args
-                    const auto stack_clean = sizeof(u32) * opcode.v[0];
-
-                    opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
-                    alloc.stack_offset -= stack_clean; 
-                    break;
-                }
-
-                case op_type::alloc_slot:
-                {
-                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])]; 
-
-                    // if we have an array and we know the size
-                    // then we need to allocate memory for it
-                    if(is_array(sym.type))
-                    {
-                        // get size, len
-                        // emit a alloc ir op
-                        const auto [size,count] = get_arr_size(itl,sym.type);                    
-
-                        const u32 idx = size >> 1;
-
-                        opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
-
-                        const u32 cur = alloc.size_count[idx];
-                        sym.offset = PENDING_ALLOCATION + cur;
-
-                        
-                        alloc.size_count[idx] += count;
-                        alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
-                    }
-
-                    else
-                    {
-                        it = block.buf.erase(it);
-                    }
-
-                    continue;
-                }
-
-                // make sure the return value has nothing important when calling functions
-                case op_type::spill_rv:
-                {
-                    if(reg_is_var(alloc.regs[RV]))
-                    {
-                        spill_reg(alloc,block,it,slot_lookup[alloc.regs[RV]],RV);
-                    }
-
-
-                    else if(reg_is_tmp(alloc.regs[RV]))
-                    {
-                        // should we have this get pushed instead?
-                        // and then popped into another reg?
-                        save_rv(alloc,block,it,slot_lookup,alloc.regs[RV]);
-                    }
-
-                    it = block.buf.erase(it);
-                    continue;
-                }
-
-
-                
-                case op_type::free_slot:
-                {
-                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[0])];
-
-                    // this var is done so we can reclaim the stack space
-                    if(sym.offset >= PENDING_ALLOCATION)
-                    {
-                        if(!is_array(sym.type))
-                        {
-                            alloc.size_count[sym.size >> 1] -= 1;
-                        }
-
-                        else
-                        {
-                            const auto [size,count] = get_arr_size(itl,sym.type); 
-                            alloc.size_count[size >> 1] -= count;
-                        }
-                    }
-
-
-                    if(sym.location != LOCATION_MEM)
-                    {
-                        // this var is gone so we can free it
-                        free_reg(alloc,sym);
-                    }
-
-
-                    it = block.buf.erase(it);
-                    continue;
-                }
-
-
-                default: break;
-            }
-
+        // have to do opcode rewriting by here to make sure hte offset is applied after any reloads occur
+        case op_type::push_arg:
+        {
+            node->opcode =  Opcode(op_type::push,opcode.v[0],0,0);
 
 
             // adjust opcode for reg alloc
-            correct_reg(slot_lookup, alloc, block, it, opcode);
+            rewrite_opcode(itl,alloc,list,node);
 
-            // use continue to skip this statement when we have to delete from the list
-            ++it;
+            // varaibles now have to be accessed at a different offset
+            // until this is corrected by clean call
+            alloc.stack_offset += sizeof(u32);
+
+            node = node->next;
+            break;
         }
 
-        // block is directly falls to the next one we need to spill regs
-        if(block.last)
+        case op_type::clean_args:
         {
-            puts("spilling last");
-            spill_all(alloc,slot_lookup,block,block.buf.end());
+            // clean up args
+            const auto stack_clean = sizeof(u32) * opcode.v[0];
+
+            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
+            alloc.stack_offset -= stack_clean; 
+
+            rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::alloc_slot:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+
+            // if we have an array and we know the size
+            // then we need to allocate memory for it
+            if(is_array(sym.type))
+            {
+                // get size, len
+                // emit a alloc ir op
+                const auto [size,count] = get_arr_size(itl,sym.type);                    
+
+                const u32 idx = size >> 1;
+
+                node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
+
+                const u32 cur = alloc.size_count[idx];
+                sym.offset = PENDING_ALLOCATION + cur;
+
+                
+                alloc.size_count[idx] += count;
+                alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
+
+                node = node->next;      
+            }
+
+            else
+            {
+                return remove(list,node);
+            }
+            break;
+        }
+
+        // make sure the return value has nothing important when calling functions
+        case op_type::spill_rv:
+        {
+            if(reg_is_sym(alloc.regs[RV]))
+            {
+                spill_sym(alloc,list,node,slot_lookup[alloc.regs[RV]]);
+            }
+
+
+            else if(reg_is_tmp(alloc.regs[RV]))
+            {
+                // should we have this get pushed instead?
+                // and then popped into another reg?
+                save_rv(alloc,list,node,slot_lookup,alloc.regs[RV]);
+            }
+
+            return remove(list,node);
+        }
+
+
+        
+        case op_type::free_slot:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+
+            // this var is done so we can reclaim the stack space
+            if(sym.offset >= PENDING_ALLOCATION)
+            {
+                if(!is_array(sym.type))
+                {
+                    alloc.size_count[sym.size >> 1] -= 1;
+                }
+
+                else
+                {
+                    const auto [size,count] = get_arr_size(itl,sym.type); 
+                    alloc.size_count[size >> 1] -= count;
+                }
+            }
+
+
+            if(sym.location != LOCATION_MEM)
+            {
+                // this var is gone so we can free it
+                free_sym(alloc,sym);
+            }
+
+            return remove(list,node);
+        }
+
+        default:
+        {
+            rewrite_opcode(itl,alloc,list,node);
+            node = node->next;
+            break; 
         }
     }
 
+    return node;
+}
+
+// 2nd pass of rewriting on the IR
+ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node,const Opcode& callee_restore,
+    const Opcode& stack_clean, bool insert_callee_saves)
+{
+    auto& slot_lookup = itl.symbol_table.slot_lookup;
+    const auto opcode = node->opcode;
+
+    switch(node->opcode.op)
+    {
+
+        case op_type::mov_reg:
+        {
+            // remove dead stores (still need to perform reg correction)
+            // so it has to be done in the 2nd pass
+            if(opcode.op == op_type::mov_reg && opcode.v[0] == opcode.v[1])
+            {
+                return remove(list,node);
+            }
+
+            node = node->next;
+            break;
+        }
 
 
+        case op_type::load_arr_data:
+        {
+            /*
+                load_arr_data <dst>, <sym>, stack_offset
+                lea <dst>, [<sym_offset>]
+            */
+
+            // TODO: assumes static array
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::alloc:
+        {
+            // alloc <slot>, <size>, <count>
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+
+            const u32 idx = sym.offset - PENDING_ALLOCATION;  
+            sym.offset = alloc.stack_alloc[opcode.v[1] >> 1] + (idx * opcode.v[1]);                    
+
+            return remove(list,node);
+        }
+
+        case op_type::ret:
+        {
+            ListNode *tmp = node;
+
+            if(alloc.stack_size)
+            {
+                tmp = insert_at(list,tmp,stack_clean);
+            }
+
+            if(insert_callee_saves)
+            {
+                tmp = insert_at(list,tmp,callee_restore);
+            }
+
+            node = node->next;
+            break;
+        }
+
+        // reload a reg
+        case op_type::load:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+
+            const s32 stack_offset = opcode.v[2];
+
+            // reload the spilled var 
+            if(is_signed_integer(sym.type))
+            {
+                // word is register size (we dont need to extend it)
+                static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+
+                // this here does not otherwhise need rewriting so we will emit SP directly
+                node->opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);        
+            }
+
+            // "plain data"
+            // just move by size
+            else
+            {
+                static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+
+                node->opcode =  Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);
+            }
+            
+            node = node->next;
+            break;
+        }
+
+        case op_type::addrof:
+        {
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+                // this is the first stack access so we need to compute the final posistion
+            if(sym.offset >= PENDING_ALLOCATION)
+            {
+                const u32 idx = sym.offset - PENDING_ALLOCATION;  
+                sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+            }
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::spill:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+            const s32 stack_offset = opcode.v[2];
+
+            // this is the first stack access so we need to compute the final posistion
+            if(sym.offset >= PENDING_ALLOCATION)
+            {
+                const u32 idx = sym.offset - PENDING_ALLOCATION;  
+                sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+            }
+
+            // write value back out into mem
+            // TODO: are these offsets aligned? 
+
+            // TODO: we need to not bother storing these back if the varaible spilled has not been modified
+            // and is just used as a const for a calc (how do we impl this?)
+
+            static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+            node->opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);   
+
+            node = node->next;
+            break;                  
+        }
+
+
+        default: node = node->next; break;
+    }
+
+    return node;
+}
+
+void calc_allocation(LocalAlloc& alloc)
+{
     // calculate the final stack sizes
     // byte located at start
     alloc.stack_alloc[0] = 0;
@@ -969,18 +1054,60 @@ void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup)
     printf("half count: %d\n",alloc.size_count_max[1]);
     printf("word count: %d\n",alloc.size_count_max[2]);
     printf("stack size: %d\n",alloc.stack_size);
+}
+    
+// TODO: need to rethink this when we do register passing
+// and when we push off determining stack size to a later pass
+void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 saved_regs_offset)
+{
+    for(auto slot : func.args)
+    {
+        auto &sym = slot_lookup[slot];
 
-    print_alloc(alloc,slot_lookup);
+        //printf("%s : %d\n",sym.name.c_str(),sym.arg_num);
+
+        // alloc above the stack frame
+        sym.offset = (sym.arg_num  * sizeof(u32)) + alloc.stack_size + saved_regs_offset + sizeof(u32);
+    }
+             
+}
+
+
+void allocate_registers(Interloper& itl,Function &func)
+{
+    printf("allocating registers for %s:\n\n",func.name.c_str());
+
+    auto alloc = make_local_alloc();
+
+    for(auto &block : func.emitter.program)
+    {
+        List& list = block.list;
+
+        ListNode *node = list.start;
+        while(node)
+        {
+            node = allocate_opcode(itl,alloc,list,node);
+        }
+
+        // block is directly falls to the next one we need to spill regs
+        // TODO: fix register allocation so we dont have to spill everyhting across basic blocks
+        if(block.last)
+        {
+            puts("spilling last");
+            spill_all(alloc,itl.symbol_table.slot_lookup,list,list.end,true);
+        }
+    }
+
+    calc_allocation(alloc);
+
+    print_alloc(alloc,itl.symbol_table.slot_lookup);
 
     // only allocate a stack if we need it
     if(alloc.stack_size)
     {
-        func.emitter.program[0].buf.push_front(Opcode(op_type::sub_imm,SP,SP,alloc.stack_size));
+        insert_front(func.emitter.program[0].list,Opcode(op_type::sub_imm,SP,SP,alloc.stack_size));
     }
 
-
-    // opcode to re correct the stack
-    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_size);
 
     // iterate over the function by here and add callee cleanup at every ret
     // and insert the stack offsets and load and spill directives
@@ -998,166 +1125,29 @@ void allocate_registers(Interloper& itl,Function &func, SlotLookup &slot_lookup)
     const bool insert_callee_saves = func.name != "main" && save_count != 0;
 
 
-    alloc_args(func,alloc,slot_lookup,insert_callee_saves? sizeof(u32) * save_count : 0);
+    alloc_args(func,alloc,itl.symbol_table.slot_lookup,insert_callee_saves? sizeof(u32) * save_count : 0);
 
     // entry point does not need to preserve regs
     if(insert_callee_saves)
     {
-        func.emitter.program[0].buf.push_front(Opcode(op_type::pushm,saved_regs,0,0));
+        insert_front(func.emitter.program[0].list,Opcode(op_type::pushm,saved_regs,0,0));
     }
 
+    // epilogue opcodes
     const auto callee_restore = Opcode(op_type::popm,saved_regs,0,0);
+    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_size);
 
     for(auto &block : func.emitter.program)
     {
-        for(auto it = block.buf.begin(); it != block.buf.end();)
+        List& list = block.list;
+
+        ListNode *node = list.start;
+        while(node)
         {
-            auto &opcode = *it;
-
-            switch(opcode.op)
-            {
-
-                case op_type::mov_reg:
-                {
-                    // remove dead stores (still need to perform reg correction)
-                    if(opcode.op == op_type::mov_reg && opcode.v[0] == opcode.v[1])
-                    {
-                        it = block.buf.erase(it);
-                        continue;
-                    }
-                    break;
-                }
-
-
-
-
-                case op_type::load_arr_data:
-                {
-                    /*
-                        load_arr_data <dst>, <sym>, stack_offset
-                        lea <dst>, [<sym_offset>]
-                    */
-
-                    // TODO: assumes static array
-                    const s32 stack_offset = opcode.v[2];
-                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
-
-                    opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
-                    break;
-                }
-
-                case op_type::alloc:
-                {
-                    // alloc <slot>, <size>, <count>
-                    const auto slot = symbol_to_idx(opcode.v[0]);
-                    auto &sym = slot_lookup[slot];
-
-                    const u32 idx = sym.offset - PENDING_ALLOCATION;  
-                    sym.offset = alloc.stack_alloc[opcode.v[1] >> 1] + (idx * opcode.v[1]);                    
-
-                    it = block.buf.erase(it);
-                    continue;
-                }
-
-                case op_type::ret:
-                {
-                    const auto old = it;
-
-                    // if there is no stack allocation there is nothing to clean up
-                    if(alloc.stack_size)
-                    {
-                        it = block.buf.insert(it,stack_clean);
-                    }
-
-                    if(insert_callee_saves)
-                    {
-                        block.buf.insert(it,callee_restore);
-                    }
-
-                    it = old;
-                    break;
-                }
-
-                // reload a reg
-                case op_type::load:
-                {
-                    const auto slot = symbol_to_idx(opcode.v[1]);
-                    auto &sym = slot_lookup[slot];
-
-
-                    const s32 stack_offset = opcode.v[2];
-
-                    // reload the spilled var 
-                    if(is_signed_integer(sym.type))
-                    {
-                        // word is register size (we dont need to extend it)
-                        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-
-                        // this here does not otherwhise need rewriting so we will emit SP directly
-                        opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);        
-                    }
-
-                    // "plain data"
-                    // just move by size
-                    else
-                    {
-                        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-
-                        opcode =  Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);
-                    }
-                    break;
-                }
-
-                case op_type::addrof:
-                {
-                    const s32 stack_offset = opcode.v[2];
-                    auto &sym = slot_lookup[symbol_to_idx(opcode.v[1])];
-
-                     // this is the first stack access so we need to compute the final posistion
-                    if(sym.offset >= PENDING_ALLOCATION)
-                    {
-                        const u32 idx = sym.offset - PENDING_ALLOCATION;  
-                        sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
-                    }
-
-                    opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
-                    break;
-                }
-
-                case op_type::spill:
-                {
-                    const auto slot = symbol_to_idx(opcode.v[1]);
-                    auto &sym = slot_lookup[slot];
-
-                    const s32 stack_offset = opcode.v[2];
-
-                    // this is the first stack access so we need to compute the final posistion
-                    if(sym.offset >= PENDING_ALLOCATION)
-                    {
-                        const u32 idx = sym.offset - PENDING_ALLOCATION;  
-                        sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
-                    }
-
-                    // write value back out into mem
-                    // TOOD: we need to make sure when we finish up our stack alloc rewrite
-                    // that the offsets on this are aligned properly atm on x86 this doesnt matter but it will later
-
-                    // TODO: we need to not bother storing these back if the varaible spilled has not been modified
-                    // and is just used as a const for a calc (how do we impl this?)
-
-                    static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-                    opcode = Opcode(instr[sym.size >> 1],opcode.v[0],SP,sym.offset + stack_offset);   
-                    break;                  
-                }
-
-
-                default: break;
-
-            }
-
-            it++;
+            node = rewrite_directives(itl,alloc,list,node,callee_restore,stack_clean,insert_callee_saves);
         }
     }
+    
 }
 
 
@@ -1212,9 +1202,11 @@ void emit_asm(Interloper &itl)
                 inv_label_lookup[itl.program.size() * OP_SIZE] = func.emitter.block_slot[b];
             }
 
-            for(const auto &op : block.buf)
+            auto node = block.list.start;
+            while(node)
             {
-                itl.program.push_back(op);
+                itl.program.push_back(node->opcode);
+                node = node->next;
             }
         }
     }
@@ -1260,9 +1252,9 @@ std::string get_oper_sym(const SlotLookup *table,u32 v)
         return "rv";
     }
 
-    else if(v >= SYMBOL_START && symbol_to_idx(v) < table->size())
+    else if(v >= SYMBOL_START && sym_to_idx(v) < table->size())
     {
-        return slot_lookup[symbol_to_idx(v)].name;
+        return slot_lookup[sym_to_idx(v)].name;
     }
 
     return "t" + std::to_string(v);
@@ -1491,4 +1483,40 @@ void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const Labe
 void disass_opcode_raw(const Opcode &opcode)
 {
     disass_opcode(opcode,nullptr,nullptr,get_oper_raw);
+}
+
+
+void dump_ir(Function &func,const SlotLookup &slot_lookup,const LabelLookup &label_lookup)
+{
+    printf("%s:\n",func.name.c_str());
+
+    u32 l = 0;
+    for(u32 b = 0; b < func.emitter.program.size(); b++)
+    {   
+        const auto &block = func.emitter.program[b];
+        //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
+    
+        if(func.emitter.block_slot[b] != 0xffffffff)
+        {
+            printf("%s:\n",label_lookup[func.emitter.block_slot[b]].name.c_str());
+        }
+
+
+        auto node = block.list.start;
+        while(node)
+        {
+            printf("\t");
+            disass_opcode_sym(node->opcode,slot_lookup,label_lookup);
+            node = node->next;
+        }
+
+        if(block.last)
+        {
+            printf("\tspill_last\n");
+        }
+        
+        l++;
+    }
+
+    printf("\n");       
 }

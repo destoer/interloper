@@ -22,8 +22,3 @@ struct Interpretter
 
 
 
-
-
-s32 run(Interpretter& interpretter,const u8 *program, u32 size);
-void reset(Interpretter &interpretter);
-void execute_opcode(Interpretter& interpretter,const Opcode &opcode);

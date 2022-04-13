@@ -1,4 +1,6 @@
 #include <interloper.h>
+#include "type.cpp"
+
 
 void new_scope(SymbolTable &sym_table)
 {
@@ -48,22 +50,16 @@ void add_scope(SymbolTable &sym_table, Symbol &sym)
     sym_table.sym_count++;
 }    
 
-void add_slot(SymbolTable &sym_table, Symbol &sym)
+Symbol &add_symbol(SymbolTable &sym_table,const std::string &name, const Type &type, u32 size)
 {
-    add_var(sym_table,sym);
-    add_scope(sym_table,sym);
-}
-
-void add_symbol(SymbolTable &sym_table,Symbol &symbol)
-{
-    add_slot(sym_table,symbol);
-}
-
-void add_symbol(SymbolTable &sym_table,const std::string &name, const Type &type, u32 size)
-{
-    // TODO: we need to initialize the size on this!
     auto sym = Symbol(name,type,size);
-    add_slot(sym_table,sym);
+
+    sym.slot = sym_table.slot_lookup.size();
+    sym_table.slot_lookup.push_back(sym);  
+
+    add_scope(sym_table,sym);
+
+    return sym_table.slot_lookup[sym.slot];
 }
 
 void add_label(SymbolTable &sym_table,const std::string &label)
@@ -75,6 +71,7 @@ void clear(SymbolTable &sym_table)
 {
     sym_table.table.clear();
     sym_table.label_lookup.clear();
+    sym_table.slot_lookup.clear();
     sym_table.sym_count = 0;
 }
 
@@ -82,4 +79,27 @@ void clear(SymbolTable &sym_table)
 u32 slot_idx(const Symbol &sym)
 {
     return symbol(sym.slot);
+}
+
+bool is_arg(const Symbol &sym)
+{
+    return sym.arg_num != NON_ARG;
+}
+
+void print(Interloper& itl,const Symbol&sym)
+{
+    printf("name: %s\n",sym.name.c_str());
+    printf("type: %s\n",type_name(itl,sym.type).c_str());
+    printf("slot: %x\n",sym.slot);
+    printf("arg_num: %x\n",sym.arg_num);
+    printf("offset: %x\n",sym.offset);
+    printf("location: %x\n\n",sym.location);
+}
+
+void dump_slots(Interloper& itl,SlotLookup &slot_lookup)
+{
+    for(const auto &sym: slot_lookup)
+    {
+        print(itl,sym);
+    }
 }

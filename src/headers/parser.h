@@ -231,30 +231,6 @@ struct AstNode
     std::vector<AstNode *> nodes;
 };
 
-// copy an entire set of nodes
-AstNode *copy_node(const AstNode *node);
-
-
-
-inline void delete_tree(AstNode *node)
-{
-    if(!node)
-    {
-        return;
-    }
-
-
-    for(auto &n: node->nodes)
-    {
-        delete_tree(n);
-        n = nullptr;
-    }
-
-    delete node;
-}
-
-void print(const AstNode *root);
-
 
 struct Parser
 {
@@ -272,20 +248,6 @@ struct Parser
     s32 line = 0;
 };
 
-Token next_token(Parser &parser);
-void prev_token(Parser &parser);
-Token peek(Parser &parser,u32 v);
-void consume(Parser &parser,token_type type);
-bool match(Parser &parser,token_type type);
-Value read_value(const Token &t);
-
-AstNode *expr(Parser &parser,const Token &t);
-AstNode *expr_terminate(Parser &parser,token_type t);
-AstNode *expr_terminate(Parser &parser,token_type t, token_type &term);
-
-std::optional<Type> get_type(Parser &parser,std::string &type_literal);
-void type_panic(Parser &parser);
-
 
 template<typename... Args>
 inline void panic(Parser &parser,const Token &token,const char *fmt, Args... args)
@@ -296,7 +258,3 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, Args... arg
     parser.line = token.line;
 }
 
-
-
-bool parse(AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines);
-AstNode *parse_type(Parser &parser);
