@@ -191,11 +191,6 @@ void parse_function_declarations(Interloper& itl)
 
 
 
-u32 new_slot(Function &func)
-{       
-    return reg(func.emitter.reg_count++);
-}
-
 std::pair<Type,u32> symbol(Interloper &itl, AstNode *node)
 {
     const auto name = node->literal;
@@ -287,24 +282,16 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 
     else
     {
-       unimplemented("struct deref");
+       unimplemented("struct read");
     }
 }
+
 
 void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
 {
     const u32 size = type_size(itl,type);
 
-    if(size <= sizeof(u32))
-    {
-        static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-        emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
-    }   
-
-    else
-    {
-        unimplemented("struct deref");
-    }
+    emit(func.emitter,write_ptr(dst_slot,addr_slot,size,0));   
 }
 
 // TODO: we want this but have a bool that diffentiates between

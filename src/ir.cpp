@@ -7,6 +7,11 @@ std::string get_oper_sym(const SlotLookup *table,u32 v);
 std::string get_oper_raw(const SlotLookup *table,u32 v);
 
 
+void emit(IrEmitter &emitter,const Opcode& opcode)
+{
+    auto &list = emitter.program[emitter.program.size()-1].list;
+    append(list,opcode);
+}
 
 void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
@@ -14,6 +19,20 @@ void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 
     auto &list = emitter.program[emitter.program.size()-1].list;
     append(list,opcode);
+}
+
+Opcode write_ptr(u32 dst_slot, u32 addr_slot, u32 size, u32 offset)
+{
+    if(size <= sizeof(u32))
+    {
+        static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
+    }   
+
+    else
+    {
+        unimplemented("struct write");
+    }    
 }
 
 Block make_block(block_type type,ArenaAllocator* list_allocator)
@@ -94,6 +113,14 @@ Symbol& sym_from_slot(SlotLookup &slot_lookup, u32 slot)
 {
     return slot_lookup[sym_to_idx(slot)]; 
 }
+
+
+u32 new_slot(Function &func)
+{       
+    return reg(func.emitter.reg_count++);
+}
+
+
 
 // our bitset can only store 32 regs
 static_assert(MACHINE_REG_SIZE <= 32);
@@ -658,8 +685,13 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
 }
 
 
+void allocate_and_rewrite(LocalAlloc& alloc,List& list, ListNode* node,u32 reg, SlotLookup& slot_lookup)
+{
+    alloc_slot(node->opcode.v[reg],alloc,list,node,slot_lookup);
+    rewrite_reg_internal(slot_lookup,alloc,node->opcode,reg);         
+}
 
-ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node)
+ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List &list, ListNode *node)
 {
     auto &slot_lookup = itl.symbol_table.slot_lookup;
     const auto &opcode = node->opcode;
@@ -683,8 +715,7 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
             // only want to allocate the dst,
             // we need to use the sym as a "slot" later
-            alloc_slot(node->opcode.v[0],alloc,list,node,slot_lookup);
-            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);                   
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
    
             node = node->next;
             break;
@@ -715,8 +746,31 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
 
         case op_type::init_arr_idx:
         {
-            unimplemented("init_arr_idx");
-            break;
+            // init_arr_idx <arr> <slot> <index>
+            const auto &arr = sym_from_slot(slot_lookup,opcode.v[0]);
+            const u32 index = opcode.v[2];
+            const u32 var_slot = opcode.v[1];
+
+            // load_arr_data
+            // store <slot> <hard coded offset>
+
+            const u32 arr_slot = new_slot(func);
+
+            node->opcode = Opcode(op_type::load_arr_data,arr_slot,opcode.v[0],alloc.stack_offset);
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
+            
+
+            
+            // calc the offset we will use for the store
+            auto accessed_type = index_array(arr.type);
+            const auto size = type_size(itl,accessed_type);            
+
+            // as the index is an immdediate we can jsut calc this ahead of time
+            const u32 offset = index * size;
+
+            const auto opcode = write_ptr(var_slot,arr_slot,size,offset);
+
+            return insert_after(list,node,opcode);
         }                
 
         case op_type::addrof:
@@ -733,8 +787,7 @@ ListNode *allocate_opcode(Interloper& itl,LocalAlloc &alloc,List &list, ListNode
             node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
             
             // just rewrite the 1st reg we dont want the address of the 2nd
-            alloc_slot(node->opcode.v[0],alloc,list,node,slot_lookup);
-            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
 
 
             // spill the var that has had a pointer taken to it
@@ -1086,7 +1139,7 @@ void allocate_registers(Interloper& itl,Function &func)
         ListNode *node = list.start;
         while(node)
         {
-            node = allocate_opcode(itl,alloc,list,node);
+            node = allocate_opcode(itl,func,alloc,list,node);
         }
 
         // block is directly falls to the next one we need to spill regs
