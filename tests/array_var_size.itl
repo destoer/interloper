@@ -1,0 +1,28 @@
+
+// expected 16
+
+u32 sum(u32[] arr)
+{
+    u32 ans = 0;
+
+    for(u32 i = 0; i < buf.len; i += 1)
+    {
+        ans += buf[i];
+    }
+
+    return ans;
+}
+
+func s32 main()
+{
+    u32 ans = 0;
+    u32[] arr1 = {1,2,3};
+    u32[] arr2 = {1,2,3,4};
+
+    ans += sum(arr1);
+
+    ans += sum(arr2);
+
+
+    return 0;
+}
