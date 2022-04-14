@@ -26,6 +26,8 @@ void destory_arena(Arena &arena)
         free(arena.buf);
         arena.buf = nullptr;
     }
+    arena.len = 0;
+    arena.size = 0;
 }
 
 void *allocate(Arena &arena,u32 size)
@@ -64,9 +66,8 @@ void* allocate(ArenaAllocator& allocator, u32 size)
     // TODO: handle this failing and add a new area
     if(allocator.arena.len + size >= allocator.arena.size)
     {
-        unimplemented("Arena OOM");
+        unimplemented("Arena OOM requested: %d %d:%d",size,allocator.arena.len,allocator.arena.size);
     }
 
     return allocate(allocator.arena,size);
 }
-

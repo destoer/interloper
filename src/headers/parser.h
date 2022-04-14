@@ -164,52 +164,20 @@ struct Value
     bool sign;
 };
 
+// TODO: guess we need a Array struct that we can allocate on
+// as well as a String if we want deletion on this to be fast
+// with a Arena Allocator
+
+
+// TODO: Optimise the memory usage on this
+// and 80 byte struct is way to much for this
+
 struct AstNode
 {
-    AstNode() 
+    AstNode()
     {
-        this->value = Value(0,false);
+        value = Value(0,false);
     }
-
-    // TODO: factors these into named functions because it isn't clear what they are used for
-    // without glancing the header
-
-    // general astdata no literal required eg '+'
-    AstNode(ast_type type)
-    {
-        this->type = type;
-        this->value = Value(0,false);
-    }
-
-    // general astdata string literal required eg symbol
-    AstNode(ast_type type, const std::string &literal)
-    {
-        this->type = type;
-        this->literal = literal;
-        this->value = Value(0,false);
-    }
-
-    // binary op
-    AstNode(AstNode *l, AstNode *r, ast_type type, std::string literal = "")
-    {
-        nodes.push_back(l);
-        nodes.push_back(r);
-        this->type = type;
-        this->literal = literal;
-        this->value = Value(0,false);
-    }
-
-
-    // binary op value
-    AstNode(AstNode *l, AstNode *r, Value value, std::string literal = "")
-    {
-        nodes.push_back(l);
-        nodes.push_back(r);
-        this->type = ast_type::value;
-        this->literal = literal;
-        this->value = value;
-    }
-
 
     // node data
     ast_type type;
@@ -228,6 +196,8 @@ struct AstNode
     };
 
     // TODO: should this even be a pointer?
+
+
     std::vector<AstNode *> nodes;
 };
 
@@ -247,6 +217,82 @@ struct Parser
     b32 error = false;
     s32 line = 0;
 };
+
+AstNode* alloc_node()
+{
+    return new AstNode();
+}
+
+AstNode *ast_plain(ast_type type)
+{
+    AstNode* node = alloc_node();
+    node->type = type;
+    node->value = Value(0,false);
+
+    return node;    
+}
+
+AstNode *ast_literal(ast_type type,const std::string &literal)
+{
+    AstNode* node = alloc_node();
+    node->type = type;
+    node->literal = literal;
+    node->value = Value(0,false);
+
+    return node;    
+}
+
+
+AstNode *ast_binary(AstNode *l, AstNode *r, ast_type type, std::string literal = "")
+{
+    AstNode* node = alloc_node();
+
+    node->nodes.push_back(l);
+    node->nodes.push_back(r);
+    node->type = type;
+    node->literal = literal;
+    node->value = Value(0,false);  
+
+    return node;  
+}
+
+AstNode *ast_unary(AstNode *l, ast_type type, std::string literal = "")
+{
+    AstNode* node = alloc_node();
+
+    node->nodes.push_back(l);
+    node->type = type;
+    node->literal = literal;
+    node->value = Value(0,false);  
+
+    return node;  
+}
+
+
+AstNode *ast_binary_value(AstNode *l, AstNode *r, Value value, std::string literal = "")
+{
+    AstNode* node = alloc_node();
+
+    node->nodes.push_back(l);
+    node->nodes.push_back(r);
+    node->type = ast_type::value;
+    node->literal = literal;
+    node->value = value; 
+
+    return node;  
+}
+
+AstNode *ast_value(Value value, std::string literal = "")
+{
+    AstNode* node = alloc_node();
+
+    node->type = ast_type::value;
+    node->literal = literal;
+    node->value = value; 
+
+    return node;  
+}
+
 
 
 template<typename... Args>

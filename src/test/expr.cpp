@@ -11,7 +11,6 @@ struct ExprTest
     const char *expression;
 };
 
-
 ExprTest EXPR_TESTS[] = 
 {
     {"2 + 2",false,4},
@@ -113,6 +112,7 @@ void expr_test()
 
     for(uint32_t i = 0; i < EXPR_TESTS_SIZE; i++)
     {
+        parser = {};
         delete_tree(expr_tree);
 
         const auto &test = EXPR_TESTS[i];
@@ -134,7 +134,7 @@ void expr_test()
         if(parser.error != test.error)
         {
             printf("fail parser error[%d]: %s\n",i,test.expression);
-            break;            
+            break;     
         }
         
         // test is supposed to not produce a valid expression so we aernt going to try and sum it
@@ -151,7 +151,7 @@ void expr_test()
             if(ans != test.ans)
             {
                 printf("fail[%d]: %d != %d\n",i,test.ans,ans);
-                break;             
+                break;          
             }
 
             else

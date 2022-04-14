@@ -112,6 +112,8 @@ void run_tests()
         printf("Pass: %s\n",test.name);
     }
 
+    destroy_itl(itl);
+
     puts("\nfinished testing\n");
     auto current = std::chrono::system_clock::now();
 

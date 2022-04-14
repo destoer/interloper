@@ -1672,7 +1672,8 @@ void destroy_itl(Interloper &itl)
     // clear the tree if present
     if(itl.root)
     {
-        delete_tree(itl.root); itl.root = nullptr;
+        delete_tree(itl.root); 
+        itl.root = nullptr;
     }
 
     destory_allocator(itl.list_allocator);
@@ -1698,7 +1699,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
 
 
         // build ast
-        const b32 parser_error = parse(&itl.root,itl.lexer.tokens,lines);
+        const b32 parser_error = parse(itl.parser,&itl.root,itl.lexer.tokens,lines);
 
     
         if(!itl.root || parser_error)
@@ -1753,7 +1754,8 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
 
     // okay we dont need the parse tree anymore
     // free it
-    delete_tree(itl.root); itl.root = nullptr;
+    delete_tree(itl.root);
+    itl.root = nullptr;
 
     if(itl.error)
     {

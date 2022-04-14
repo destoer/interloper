@@ -59,9 +59,9 @@ AstNode *oper_eq(Parser &parser,AstNode *left,Token t,ast_type oper)
     auto e = expression(parser,lbp(parser,t)-1);
 
     // sugar as <sym> = <sym> + <expr>
-    auto e2 = new AstNode(copy_node(left),e,oper);
+    auto e2 = ast_binary(copy_node(left),e,oper);
 
-    auto n = new AstNode(left,e2,ast_type::equal);
+    auto n = ast_binary(left,e2,ast_type::equal);
 
     return n;    
 }
@@ -95,100 +95,100 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
         { 
             // right precedence rbp = lbp -1 so that things on the right 
             // are sen as sub expressions
-            return new AstNode(left,expression(parser,lbp(parser,t)-1),ast_type::equal);  
+            return ast_binary(left,expression(parser,lbp(parser,t)-1),ast_type::equal);  
         }
     
       
         case token_type::plus:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::plus);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::plus);
         }
 
         case token_type::minus:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::minus);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::minus);
         }
 
         case token_type::divide:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::divide);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::divide);
         }
 
         case token_type::mod:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::mod);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::mod);
         }
 
         case token_type::shift_l:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::shift_l);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::shift_l);
         }
 
         case token_type::shift_r:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::shift_r);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::shift_r);
         }
 
         case token_type::times:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::times);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::times);
         }
 
         // and operator in binary context is a bitwise and
         case token_type::operator_and:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::bitwise_and);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::bitwise_and);
         }
 
         case token_type::bitwise_or:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::bitwise_or);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::bitwise_or);
         }
 
         case token_type::bitwise_xor:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::bitwise_xor);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::bitwise_xor);
         }
 
         case token_type::logical_or:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_or);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_or);
         }
     
         case token_type::logical_and:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_and);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_and);
         }
 
 
         case token_type::logical_lt:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_lt);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_lt);
         }
 
         case token_type::logical_gt:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_gt);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_gt);
         }   
 
         case token_type::logical_le:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_le);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_le);
         }   
 
         case token_type::logical_ge:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_ge);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_ge);
         }   
 
         case token_type::logical_eq:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_eq);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_eq);
         }    
 
         case token_type::logical_ne:
         {
-            return new AstNode(left,expression(parser,lbp(parser,t)),ast_type::logical_ne);
+            return ast_binary(left,expression(parser,lbp(parser,t)),ast_type::logical_ne);
         }         
 
 
@@ -237,13 +237,13 @@ AstNode *nud(Parser &parser,Token &t)
 
             consume_expr(parser,token_type::right_paren);
             
-            return new AstNode(type,right,ast_type::cast);    
+            return ast_binary(type,right,ast_type::cast);    
         }
 
         // array initializer
         case token_type::left_c_brace:
         {
-            auto init = new AstNode(ast_type::arr_initializer);
+            auto init = ast_plain(ast_type::arr_initializer);
             while(parser.expr_tok.type != token_type::right_c_brace)
             {
                 init->nodes.push_back(expression(parser,0));
@@ -259,20 +259,21 @@ AstNode *nud(Parser &parser,Token &t)
             return init;
         }
 
+        // TODO: why does this break?
         case token_type::value:
         {
             const auto value = read_value(t);
-            return new AstNode(nullptr,nullptr,value,t.literal);
+            return ast_value(value,t.literal);
         }
 
         case token_type::false_t:
         {
-            return new AstNode(nullptr,nullptr,ast_type::false_t,t.literal);
+            return ast_plain(ast_type::false_t);
         }      
 
         case token_type::true_t:
         {
-            return new AstNode(nullptr,nullptr,ast_type::true_t,t.literal);
+            return ast_plain(ast_type::true_t);
         }      
 
         case token_type::symbol:
@@ -286,7 +287,7 @@ AstNode *nud(Parser &parser,Token &t)
                 {
                     consume_expr(parser,token_type::left_paren);
 
-                    auto func_call = new AstNode(ast_type::function_call,t.literal);
+                    auto func_call = ast_literal(ast_type::function_call,t.literal);
 
 
 
@@ -341,8 +342,8 @@ AstNode *nud(Parser &parser,Token &t)
 
 
                     // This has to be vague because we dont know any of the typing yet
-                    auto access_member = new AstNode(ast_type::access_member,t.literal);
-                    auto member = new AstNode(ast_type::member,member_tok.literal);
+                    auto access_member = ast_literal(ast_type::access_member,t.literal);
+                    auto member = ast_literal(ast_type::member,member_tok.literal);
                     access_member->nodes.push_back(member);
 
                     // correct the state machine
@@ -358,7 +359,7 @@ AstNode *nud(Parser &parser,Token &t)
                     const auto e = expression(parser,0);
                     consume_expr(parser,token_type::sr_brace);
 
-                    auto arr_access = new AstNode(ast_type::array_access,t.literal);
+                    auto arr_access = ast_literal(ast_type::array_access,t.literal);
                     arr_access->nodes.push_back(e);
 
                     return arr_access;
@@ -367,7 +368,7 @@ AstNode *nud(Parser &parser,Token &t)
                 default:
                 {
                     // plain symbol
-                    return new AstNode(nullptr,nullptr,ast_type::symbol,t.literal);
+                    return ast_literal(ast_type::symbol,t.literal);
                 }
                 break;
             }
@@ -375,22 +376,22 @@ AstNode *nud(Parser &parser,Token &t)
 
         case token_type::minus:
         {
-            return new AstNode(expression(parser,100),nullptr,ast_type::minus);
+            return ast_unary(expression(parser,100),ast_type::minus);
         }
 
         case token_type::plus:
         {
-            return new AstNode(expression(parser,100),nullptr,ast_type::plus);
+            return ast_unary(expression(parser,100),ast_type::plus);
         }
 
         case token_type::bitwise_not:
         {
-            return new AstNode(expression(parser,100),nullptr,ast_type::bitwise_not);
+            return ast_unary(expression(parser,100),ast_type::bitwise_not);
         }
 
         case token_type::logical_not:
         {
-            return new AstNode(expression(parser,100),nullptr,ast_type::logical_not);
+            return ast_unary(expression(parser,100),ast_type::logical_not);
         }
 
 
@@ -404,13 +405,13 @@ AstNode *nud(Parser &parser,Token &t)
 
         case token_type::deref:
         {
-            return new AstNode(expression(parser,lbp(parser,t)),nullptr,ast_type::deref);
+            return ast_unary(expression(parser,lbp(parser,t)),ast_type::deref);
         }
 
         // in unary context and operator takes addr
         case token_type::operator_and:
         {
-            return new AstNode(expression(parser,30),nullptr,ast_type::addrof);
+            return ast_unary(expression(parser,30),ast_type::addrof);
         }
 
         default:

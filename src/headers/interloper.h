@@ -19,6 +19,8 @@ struct Interloper
 
     Lexer lexer;
 
+    Parser parser;
+
     AstNode *root = nullptr;
 
     std::unordered_map<std::string, Function> function_table;

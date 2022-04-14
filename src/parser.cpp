@@ -5,6 +5,7 @@
 void type_panic(Parser &parser);
 AstNode *block(Parser &parser);
 
+
 // TODO: replace tree with pool allocation
 void delete_tree(AstNode *node)
 {
@@ -22,6 +23,7 @@ void delete_tree(AstNode *node)
 
     delete node;
 }
+
 
 Token next_token(Parser &parser)
 {
@@ -98,7 +100,7 @@ AstNode *copy_node(const AstNode *node)
         return nullptr;
     }
 
-    auto copy  = new AstNode();
+    auto copy  = alloc_node();
 
     copy->type = node->type;
     copy->literal = node->literal;
@@ -185,7 +187,7 @@ AstNode *parse_type(Parser &parser)
     std::string type_literal = TYPE_NAMES[type_idx];
 
     // TODO: need to mark the idx for when have user defined types
-    auto type = new AstNode(ast_type::type);
+    auto type = ast_plain(ast_type::type);
     type->type_idx = type_idx;
     
 
@@ -207,7 +209,7 @@ AstNode *parse_type(Parser &parser)
                     type_literal = type_literal + '@';
                 }
 
-                auto ptr_node = new AstNode(ast_type::ptr_indirection);
+                auto ptr_node = ast_plain(ast_type::ptr_indirection);
                 ptr_node->type_idx = ptr_indirection;
 
                 ptr_node->literal = std::to_string(ptr_indirection);
@@ -220,7 +222,7 @@ AstNode *parse_type(Parser &parser)
             // array decl
             case token_type::sl_brace:
             {
-                auto arr_decl = new AstNode(ast_type::arr_dimensions);
+                auto arr_decl = ast_plain(ast_type::arr_dimensions);
 
                 while(peek(parser,0).type == token_type::sl_brace)
                 {
@@ -229,7 +231,7 @@ AstNode *parse_type(Parser &parser)
                     // var size
                     if(peek(parser,0).type == token_type::sr_brace)
                     {
-                        arr_decl->nodes.push_back(new AstNode(ast_type::arr_var_size));
+                        arr_decl->nodes.push_back(ast_plain(ast_type::arr_var_size));
                         consume(parser,token_type::sr_brace);
                     }
 
@@ -272,7 +274,7 @@ AstNode *declaration(Parser &parser, AstNode *type)
     //    [declare:name]
     // [type]   optional([eqauls])
 
-    auto d = new AstNode(ast_type::declaration,s.literal);
+    auto d = ast_literal(ast_type::declaration,s.literal);
     d->nodes.push_back(type);
 
     const auto eq = peek(parser,0);
@@ -294,7 +296,7 @@ AstNode *declaration(Parser &parser, AstNode *type)
             const auto e = expr(parser,next_token(parser));
             
             // declartion with initalizer skip over initial symbol
-            if(e && e->nodes.size() >= 1)
+            if(e)
             {
                 d->nodes.push_back(e);
             }
@@ -327,7 +329,7 @@ AstNode *auto_decl(Parser &parser)
     // okay here we require an expression on the right side
     consume(parser,token_type::equal);
 
-    const auto d = new AstNode(ast_type::auto_decl,s.literal);
+    const auto d = ast_literal(ast_type::auto_decl,s.literal);
 
     d->nodes.push_back(expr(parser,next_token(parser)));
 
@@ -370,7 +372,7 @@ AstNode *statement(Parser &parser)
 
         case token_type::ret:
         {
-            auto r = new AstNode(ast_type::ret);
+            auto r = ast_plain(ast_type::ret);
 
             // return value is optional
             if(peek(parser,0) != token_type::semi_colon)
@@ -452,7 +454,7 @@ AstNode *statement(Parser &parser)
         // assume one cond for now
         case token_type::for_t:
         {
-            const auto for_block = new AstNode(ast_type::for_block);
+            const auto for_block = ast_plain(ast_type::for_block);
 
             // allow statment to wrapped a in a set of parens
             const bool term_paren = peek(parser,0).type == token_type::left_paren;
@@ -545,9 +547,9 @@ AstNode *statement(Parser &parser)
         // else_if and else parsed out here
         case token_type::if_t:
         {
-            const auto if_block = new AstNode(ast_type::if_block);
+            const auto if_block = ast_plain(ast_type::if_block);
 
-            const auto if_stmt = new AstNode(ast_type::if_t);
+            const auto if_stmt = ast_plain(ast_type::if_t);
 
             // read out if expr and block
             if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
@@ -569,7 +571,7 @@ AstNode *statement(Parser &parser)
                     {
                         consume(parser,token_type::if_t);
 
-                        const auto else_if_stmt = new AstNode(ast_type::else_if_t);
+                        const auto else_if_stmt = ast_plain(ast_type::else_if_t);
 
                         else_if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
                         else_if_stmt->nodes.push_back(block(parser));
@@ -580,7 +582,7 @@ AstNode *statement(Parser &parser)
                     // just a plain else
                     else
                     {
-                        const auto else_stmt = new AstNode(ast_type::else_t);
+                        const auto else_stmt = ast_plain(ast_type::else_t);
 
                         // no expr for else
                         else_stmt->nodes.push_back(block(parser));
@@ -618,7 +620,7 @@ AstNode *block(Parser &parser)
     const auto tok = peek(parser,0);
     consume(parser,token_type::left_c_brace);
 
-    auto b = new AstNode(ast_type::block);
+    auto b = ast_plain(ast_type::block);
 
     
     // parse out all our statements
@@ -658,7 +660,7 @@ AstNode *func(Parser &parser)
     // void
     if(peek(parser,0).type == token_type::symbol && peek(parser,1).type == token_type::left_paren)
     {
-        return_type = new AstNode(ast_type::type);
+        return_type = ast_plain(ast_type::type);
         return_type->type_idx = u32(builtin_type::void_t);
     }
 
@@ -683,14 +685,14 @@ AstNode *func(Parser &parser)
         return nullptr;  
     }
 
-    auto f = new AstNode(ast_type::function, func_name.literal);
+    auto f = ast_literal(ast_type::function, func_name.literal);
     
 
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
 
-    auto a = new AstNode(ast_type::function_args);
+    auto a = ast_plain(ast_type::function_args);
 
     // parse out the function args
     // if  token is eof then we have a problem 
@@ -726,7 +728,7 @@ AstNode *func(Parser &parser)
         }
         
         // add each declartion
-        auto d = new AstNode(ast_type::declaration,lit_tok.literal);
+        auto d = ast_literal(ast_type::declaration,lit_tok.literal);
         d->nodes.push_back(type);
 
         a->nodes.push_back(d);
@@ -754,16 +756,18 @@ AstNode *func(Parser &parser)
     return f;
 }
 
+const u32 AST_ALLOC_DEFAULT_SIZE = 100 * 1024;
 
-bool parse(AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines)
+bool parse(Parser &parser, AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines)
 {
     panic(!root_ptr,"attempted to parse into null tree");
 
-    *root_ptr = new AstNode(ast_type::root);
+    *root_ptr = ast_plain(ast_type::root);
     const auto size = tokens.size();
 
+    parser = {};
 
-    Parser parser;
+
     parser.tokens = &tokens;
 
     while(parser.tok_idx < size)

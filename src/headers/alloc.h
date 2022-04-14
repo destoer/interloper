@@ -23,3 +23,4 @@ struct ArenaAllocator
     Arena arena;
 };
 
+void* allocate(ArenaAllocator& allocator, u32 size);

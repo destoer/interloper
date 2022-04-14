@@ -216,10 +216,10 @@ struct Token
     friend bool operator != (const Token &t1, const Token &t2);
 
 
-    u32 line;
-    u32 col;
+    u32 line = 0;
+    u32 col = 0;
 
-    token_type type;
+    token_type type = token_type::eof;
     std::string literal;
 };
 
