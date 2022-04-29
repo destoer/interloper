@@ -104,7 +104,7 @@ Type get_type(Interloper &itl, AstNode *type_decl)
                 // variable size
                 if(n->type == ast_type::arr_var_size)
                 {
-                    assert(false);
+                    type.dimensions[i] = RUNTIME_SIZE;
                 }
 
                 // fixed size: const expr
@@ -1636,6 +1636,8 @@ void compile_functions(Interloper &itl)
 
 
 // TODO: impl source line information on the parse tree
+
+// TODO: make prints such as the assembly and parse tree command line flags
 
 // remove reliance on stl containers for compiler structs
 // and do a big refactoring pass on the compiler when arrays are implemented

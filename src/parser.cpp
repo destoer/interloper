@@ -238,6 +238,7 @@ AstNode *parse_type(Parser &parser)
                     else 
                     {
                         arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
+                        consume(parser,token_type::sr_brace);
                     }
                 }
 
