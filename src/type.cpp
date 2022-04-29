@@ -135,8 +135,17 @@ u32 type_size(Interloper& itl,const Type &type)
 
     else if(is_array(type))
     {
-        // TODO: this assumes a static array
-        return GPR_SIZE;
+        // first index is not fixed size
+        // so we need to hold the length
+        if(is_runtime_size(type.dimensions[0]))
+        {
+            return GPR_SIZE * 2;
+        }
+
+        else
+        {
+            return GPR_SIZE;
+        }
     }
 
     else

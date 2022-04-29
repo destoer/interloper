@@ -842,6 +842,15 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
                 if(is_runtime_size(count))
                 {
+                    // TODO: we want this allocation to give us the locaiton of the array struct
+                    // not directly the location of the pointer (unless the array is fixed sized)
+                    // so in the load_arr_data directive we need to check what type of array we are screwing with
+                    // along with load_arr_len so that it can get loaded in the correct way...
+
+                    // we can just dump the allocation in the location slot 
+                    // and then when we get the stack alloc dump it into the initial stack location?
+                    // but we probably want a way of marking that we are expecting this to happen
+
                     unimplemented("allocate runtime array struct");
 
                     if(!runtime_size_unk(count))
