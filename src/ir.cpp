@@ -838,7 +838,25 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             {
                 // get size, len
                 // emit a alloc ir op
-                const auto [size,count] = get_arr_size(itl,sym.type);                    
+                auto [size,count] = get_arr_size(itl,sym.type);                    
+
+                if(is_runtime_size(count))
+                {
+                    unimplemented("allocate runtime array struct");
+
+                    if(!runtime_size_unk(count))
+                    {
+                        // get the initial runtime size
+                        count = initial_runtime_size(count);
+                    }
+
+                    // we have no intial data we have nothing to do
+                    else
+                    {   
+                        node = node->next;
+                        break;
+                    }
+                }
 
                 const u32 idx = size >> 1;
 
@@ -850,7 +868,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
                 
                 alloc.size_count[idx] += count;
                 alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
-
+                
                 node = node->next;      
             }
 
@@ -896,8 +914,21 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
                 else
                 {
-                    const auto [size,count] = get_arr_size(itl,sym.type); 
-                    alloc.size_count[size >> 1] -= count;
+                    auto [size,count] = get_arr_size(itl,sym.type); 
+                    if(is_runtime_size(count))
+                    {
+                        // had an initial size on the stack this needs to be gone
+                        if(!runtime_size_unk(count))
+                        {
+                            count = initial_runtime_size(count);
+                            alloc.size_count[size >> 1] -= count;
+                        }
+                    }
+
+                    else
+                    {
+                        alloc.size_count[size >> 1] -= count;
+                    }
                 }
             }
 

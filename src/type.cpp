@@ -187,16 +187,12 @@ std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
 
     // TODO: assumes static array
     // of one dimension
-    const u32 count = type.dimensions[0];    
+    const u32 count = type.dimensions[0]; 
 
-    // TODO: even if we are goign to have this set up as runtime size
-    // we still need to know how much this thing had stack allocated
-    // if it had an intializer
-    if(count == RUNTIME_SIZE)
+    if(type.degree > 1)
     {
-        unimplemented("variable length array");
-    }
-
+        unimplemented("multidimensional array");
+    }   
 
     return std::pair<u32,u32>{size,count};
 }
