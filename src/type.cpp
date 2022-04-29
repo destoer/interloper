@@ -198,6 +198,10 @@ std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
     // of one dimension
     const u32 count = type.dimensions[0]; 
 
+    // NOTE: the "count" we return iis the total ammount of indexes
+    // until we hit a runtime sized dimension
+    // the first index is what matters for sizing, as unless all dimensions
+    // are fixed, it will be an "array of arrays" and not indexed tradiontially
     if(type.degree > 1)
     {
         unimplemented("multidimensional array");

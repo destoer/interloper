@@ -605,6 +605,11 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         // TODO: handle being passed args that wont fit inside a single hardware reg
         if(type_size(itl,arg.type) > sizeof(u32))
         {
+            if(is_array(arg.type))
+            {
+                unimplemented("pass variable length array");
+            }
+
             unimplemented("function arg: non register size: %d\n",type_size(itl,arg.type));
         }
 
