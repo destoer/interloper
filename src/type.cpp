@@ -26,6 +26,29 @@ builtin_type conv_type_idx(int type_idx)
     return static_cast<builtin_type>(type_idx);
 }
 
+b32 is_runtime_size(u32 size)
+{
+    return size >= RUNTIME_SIZE;
+}
+
+b32 runtime_size_unk(u32 size)
+{
+    return size == RUNTIME_SIZE_UNK;
+}
+
+// NOTE: we can have a runtime sized array
+// but still have an initial on it
+u32 initial_runtime_size(u32 size)
+{
+    return size - RUNTIME_SIZE;
+}
+
+u32 make_runtime_size(u32 size)
+{
+    return size + RUNTIME_SIZE;
+}
+
+
 
 // this needs to have more added when we get extra fields
 bool same_type(const Type &type1, const Type &type2)
@@ -185,7 +208,6 @@ u32 type_max(Interloper& itl,const Type &type)
         unimplemented("user defined type max\n");
     }
 }
-
 
 std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
 {

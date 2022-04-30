@@ -74,28 +74,6 @@ static constexpr u32 ARRAY_LEN_OFFSET = 1;
 static constexpr u32 RUNTIME_SIZE = 0xf0000000;
 static constexpr u32 RUNTIME_SIZE_UNK = 0xffffffff;
 
-b32 is_runtime_size(u32 size)
-{
-    return size >= RUNTIME_SIZE;
-}
-
-b32 runtime_size_unk(u32 size)
-{
-    return size == RUNTIME_SIZE_UNK;
-}
-
-// NOTE: we can have a runtime sized array
-// but still have an initial on it
-u32 initial_runtime_size(u32 size)
-{
-    return size - RUNTIME_SIZE;
-}
-
-u32 make_runtime_size(u32 size)
-{
-    return size + RUNTIME_SIZE;
-}
-
 
 inline int conv_builtin_type(builtin_type t)
 {

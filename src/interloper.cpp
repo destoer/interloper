@@ -602,27 +602,61 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     {
         const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
 
-        // TODO: handle being passed args that wont fit inside a single hardware reg
-        if(type_size(itl,arg.type) > sizeof(u32))
+        if(is_array(arg.type))
         {
-            if(is_array(arg.type))
+            
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+
+            // TODO fixme: this the passed arg needs to be type checked against the actual
+            // for now we will just assume that it is getting passed propely
+            // probably best to just add a handler in check_assign because we are going to need to do 
+            // type checkign on actual assigns as well
+
+            dump_ir_sym(itl);
+            
+            // check what kind of array we are getting by here and just push the struct in reverse order
+            if(is_runtime_size(arg_type.dimensions[0]))
             {
-                unimplemented("pass variable length array");
+                unimplemented("runtime size pass");
             }
 
+            // standard array pass
+            else
+            {
+                if(is_runtime_size(arg.type.dimensions[0]))
+                {
+                    unimplemented("fixed size passed to runtime size");
+                }
+
+                else
+                {
+                    unimplemented("fixed size passed to fixed size");
+                }
+            }
+
+            unimplemented("pass array");
+        }
+
+        // TODO: handle being passed args that wont fit inside a single hardware reg
+        // NOTE: this is just an impl guard we weill probably want specific handlerls for structs etc
+        else if(type_size(itl,arg.type) > sizeof(u32))
+        {
             unimplemented("function arg: non register size: %d\n",type_size(itl,arg.type));
         }
 
-        
-        // builtin type
-        const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+        // plain builtin in variable
+        else
+        {
+            // builtin type
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
 
 
-        // type check the arg
-        check_assign(itl,arg.type,arg_type);
+            // type check the arg
+            check_assign(itl,arg.type,arg_type);
 
-        // finally push the arg
-        emit(func.emitter,op_type::push_arg,reg);
+            // finally push the arg
+            emit(func.emitter,op_type::push_arg,reg);
+        }
     }
 
 

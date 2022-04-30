@@ -14,8 +14,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
 
     else
     {
-        printf("%x: warning out of bounds read at %x\n",interpretter.regs[PC],addr);
-        return 0;
+        panic("%x: warning out of bounds read at %x\n",interpretter.regs[PC],addr);
     }
 }
 
@@ -32,7 +31,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
 
     else
     {
-        printf("%x: warning out of bounds write at %x:%x\n",interpretter.regs[PC],addr,v);
+       panic("%x: warning out of bounds write at %x:%x\n",interpretter.regs[PC],addr,v);
     }
 }
 
@@ -116,8 +115,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             if(regs[opcode.v[2]] == 0)
             {
-                printf("division by zero at %08x\n",regs[PC]);
-                break;
+                panic("division by zero at %08x\n",regs[PC]);
             }
 
             regs[opcode.v[0]] = regs[opcode.v[1]] / regs[opcode.v[2]];
@@ -128,8 +126,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             if(regs[opcode.v[2]] == 0)
             {
-                printf("mod by zero at %08x\n",regs[PC]);
-                break;
+                panic("mod by zero at %08x\n",regs[PC]);
             }
 
             regs[opcode.v[0]] = regs[opcode.v[1]] % regs[opcode.v[2]];
@@ -465,7 +462,7 @@ void reset(Interpretter& interpretter)
 
 s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 {
-    puts("BOOP!"); exit(1);
+    //puts("BOOP!"); exit(1);
 
     puts("startring progam execution\n\n\n");
     panic(!program, "attempted to execute empty program");
