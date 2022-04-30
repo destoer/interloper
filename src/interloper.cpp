@@ -322,7 +322,8 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     {
         if(member == "len")
         {
-            emit(func.emitter,op_type::load_arr_len,dst_slot,slot_idx(sym),0);
+            // TODO: how should this work for multi dimensional arrays?
+            emit(func.emitter,op_type::load_arr_len,dst_slot,slot_idx(sym));
             return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
         }
 
@@ -595,7 +596,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // save all the used regs
     //emit(func.emitter,op_type::save_regs);
     
-
+    // how many args are we pushing to the stack?
+    u32 arg_clean = 0;
 
     // push args in reverse order and type check them
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
@@ -612,8 +614,6 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // probably best to just add a handler in check_assign because we are going to need to do 
             // type checkign on actual assigns as well
 
-            dump_ir_sym(itl);
-            
             // check what kind of array we are getting by here and just push the struct in reverse order
             if(is_runtime_size(arg_type.dimensions[0]))
             {
@@ -625,7 +625,15 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             {
                 if(is_runtime_size(arg.type.dimensions[0]))
                 {
-                    unimplemented("fixed size passed to runtime size");
+                    const u32 len_slot = new_slot(func);
+                    emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
+                    emit(func.emitter,op_type::push_arg,len_slot);
+
+                    const u32 data_slot = new_slot(func);
+                    emit(func.emitter,op_type::load_arr_data,data_slot,reg,0);
+                    emit(func.emitter,op_type::push_arg,data_slot);
+
+                    arg_clean += 2;
                 }
 
                 else
@@ -633,8 +641,6 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                     unimplemented("fixed size passed to fixed size");
                 }
             }
-
-            unimplemented("pass array");
         }
 
         // TODO: handle being passed args that wont fit inside a single hardware reg
@@ -656,6 +662,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
             // finally push the arg
             emit(func.emitter,op_type::push_arg,reg);
+
+            arg_clean++;
         }
     }
 
@@ -677,9 +685,9 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
     // clean up args after the function call
     // TODO: how should we encode this when we do arg passing in regs
-    if(func_call.args.size())
+    if(arg_clean)
     {
-        emit(func.emitter,op_type::clean_args,func_call.args.size());
+        emit(func.emitter,op_type::clean_args,arg_clean);
     }
   
 
@@ -1683,6 +1691,27 @@ void compile_functions(Interloper &itl)
 
 // finish up arrays then do the cleanup above
 // need jagged arrays, mult dimensional arrays and pointer semantics on arrays working
+
+// array order
+/*
+    // <--- need to check what kind of array we are using inside the IR
+    // and emit the appropiate set of loads
+    // i.e .len should use the offset + GPR_SIZE
+    array_conv
+    array_var_size
+    <--- type checking tests for these here
+
+
+    array_multi_fixed_size
+    array_multi_vla
+    <--- type checking tests for multi dimensional arrays
+
+    pointers to arrays
+
+
+    refactoring if need be
+*/
+
 
 // impl source line information for parse tree
 

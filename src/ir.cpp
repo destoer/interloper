@@ -706,10 +706,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         {
 
             // we dont have the information for this yet so we have to fill it in later
-            /*
-                load_arr_data <dst>, <sym>
-                lea <dst>, [<sym_offset>]
-            */
+            // load_arr_data <dst>, <sym>
 
             node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
 
@@ -734,12 +731,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
         case op_type::load_arr_len:
         {
-            // load_arr_len <dst> <symbol> <dimension>
-            // TODO: this assumes an array with a known size
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-            node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
-            rewrite_opcode(itl,alloc,list,node);
-
+            
+            // load_arr_len <dst> <symbol>
+            node->opcode = Opcode(op_type::load_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
+   
             node = node->next;
             break;
         }
@@ -989,15 +985,62 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         case op_type::load_arr_data:
         {
             /*
+                
                 load_arr_data <dst>, <sym>, stack_offset
+
+                // static array
                 lea <dst>, [<sym_offset>]
+
+                // vla
+                lw <dst>, [<sym_offset>]
             */
 
             // TODO: assumes static array
             const s32 stack_offset = opcode.v[2];
             auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
 
-            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+            if(is_runtime_size(sym.type.dimensions[0]))
+            {
+                // TODO: this assumes GPR_SIZE is 4
+                node->opcode = Opcode(op_type::lw,opcode.v[0],SP,sym.offset + stack_offset + 0);
+            }
+
+            // static array
+            else
+            {
+                node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+            }
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::load_arr_len:
+        {
+            /*
+                
+                load_arr_len <dst>, <sym>, stack_offset
+
+                // static array
+                mov <dst>, [<size>]
+
+                // vla
+                lw <dst>, [<sym_offset> + GPR_SIZE]
+            */
+
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+            const s32 stack_offset = opcode.v[2];
+
+            if(is_runtime_size(sym.type.dimensions[0]))
+            {
+                // TODO: this assumes GPR_SIZE is 4
+                node->opcode = Opcode(op_type::lw,opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE);
+            }
+
+            else
+            {
+                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
+            }
 
             node = node->next;
             break;
