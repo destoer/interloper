@@ -838,43 +838,47 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
                 if(is_runtime_size(count))
                 {
-                    // TODO: we want this allocation to give us the locaiton of the array struct
-                    // not directly the location of the pointer (unless the array is fixed sized)
-                    // so in the load_arr_data directive we need to check what type of array we are screwing with
-                    // along with load_arr_len so that it can get loaded in the correct way...
-
-                    // we can just dump the allocation in the location slot 
-                    // and then when we get the stack alloc dump it into the initial stack location?
-                    // but we probably want a way of marking that we are expecting this to happen
-
+                    // TODO: where to do we dump the allocation offset for the actual struct?
+                    /*
+                        alloc_vla <arr>, size , count
+                        store_arr_data <src_data>, <arr>
+                        store_arr_len  <src_len>, <arr>
+                    */
                     unimplemented("allocate runtime array struct");
 
+                    // is a vla, but it has an initial runtime size
                     if(!runtime_size_unk(count))
                     {
-                        // get the initial runtime size
                         count = initial_runtime_size(count);
                     }
 
                     // we have no intial data we have nothing to do
                     else
                     {   
-                        node = node->next;
-                        break;
+                        unimplemented("vla empty");
                     }
                 }
 
-                const u32 idx = size >> 1;
-
-                node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
-
-                const u32 cur = alloc.size_count[idx];
-                sym.offset = PENDING_ALLOCATION + cur;
-
                 
-                alloc.size_count[idx] += count;
-                alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
-                
-                node = node->next;      
+                else
+                {
+                    
+
+                    node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
+
+                    // TODO: factor off this code
+                    const u32 idx = size >> 1;
+
+                    const u32 cur = alloc.size_count[idx];
+                    sym.offset = PENDING_ALLOCATION + cur;
+
+                    
+                    alloc.size_count[idx] += count;
+                    alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
+                    
+                    
+                } 
+                node = node->next;     
             }
 
             else
@@ -977,13 +981,31 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
                 return remove(list,node);
             }
 
+            // TODO: we need to handle moving objects that dont fit inside registers here...
+            // i.e arrays
+
             node = node->next;
             break;
         }
 
-
+        
         case op_type::load_arr_data:
         {
+            // TODO: on a multidimensional array the offset must be 
+            // able to loaded from something other than a sym
+            // should we have a load_offset IR? load_offset <dst>, <sym>, stack_offset
+            // so it is uniform for them?
+            // and have seperate opcodes describing the array type?
+            // so in effect we get
+
+            /* 
+               load_offset <offset>, <sym>, stack_offset
+               load_arr_data_static <dst> <offset>
+
+               load_offset <offset>, <sym>, stack_offset
+               load_arr_data_vla <dst> <offset>
+            */
+            
             /*
                 
                 load_arr_data <dst>, <sym>, stack_offset
@@ -1017,6 +1039,8 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::load_arr_len:
         {
+            // TODO: on a multidimensional array the offset must be 
+            // able to loaded from something other than a sym
             /*
                 
                 load_arr_len <dst>, <sym>, stack_offset

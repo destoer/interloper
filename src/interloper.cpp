@@ -615,9 +615,19 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // type checkign on actual assigns as well
 
             // check what kind of array we are getting by here and just push the struct in reverse order
+
+            // TODO: this needs to be factored off but just hard code it all for now
             if(is_runtime_size(arg_type.dimensions[0]))
             {
-                unimplemented("runtime size pass");
+                const u32 len_slot = new_slot(func);
+                emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
+                emit(func.emitter,op_type::push_arg,len_slot);
+
+                const u32 data_slot = new_slot(func);
+                emit(func.emitter,op_type::load_arr_data,data_slot,reg,0);
+                emit(func.emitter,op_type::push_arg,data_slot);
+
+                arg_clean += 2;
             }
 
             // standard array pass
@@ -1686,6 +1696,8 @@ void compile_functions(Interloper &itl)
 
 // TODO: make prints such as the assembly and parse tree command line flags
 
+// TODO: basic type checking for returning pointers to local's
+
 // remove reliance on stl containers for compiler structs
 // and do a big refactoring pass on the compiler when arrays are implemented
 
@@ -1697,12 +1709,14 @@ void compile_functions(Interloper &itl)
     // <--- need to check what kind of array we are using inside the IR
     // and emit the appropiate set of loads
     // i.e .len should use the offset + GPR_SIZE
-    array_conv
-    array_var_size
+    array_conv +
+    array_var_size #
     <--- type checking tests for these here
 
-
+    // DO fixed sized first so we have some idea about the upper level encoding
+    // without the complexlitly of VLA
     array_multi_fixed_size
+
     array_multi_vla
     <--- type checking tests for multi dimensional arrays
 
