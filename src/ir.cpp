@@ -691,6 +691,20 @@ void allocate_and_rewrite(LocalAlloc& alloc,List& list, ListNode* node,u32 reg, 
     rewrite_reg_internal(slot_lookup,alloc,node->opcode,reg);         
 }
 
+
+u32 stack_alloc(LocalAlloc& alloc, u32 size, u32 count)
+{
+    // TODO: factor off this code
+    const u32 idx = size >> 1;
+
+    const u32 cur = alloc.size_count[idx];
+
+    alloc.size_count[idx] += count;
+    alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
+
+    return cur;    
+}
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List &list, ListNode *node)
 {
     auto &slot_lookup = itl.symbol_table.slot_lookup;
@@ -838,18 +852,44 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
                 if(is_runtime_size(count))
                 {
-                    // TODO: where to do we dump the allocation offset for the actual struct?
                     /*
                         alloc_vla <arr>, size , count
-                        store_arr_data <src_data>, <arr>
+                        store_arr_data <src_data>, <arr>, <data_offset>
                         store_arr_len  <src_len>, <arr>
                     */
-                    unimplemented("allocate runtime array struct");
-
+                    
+                    
                     // is a vla, but it has an initial runtime size
                     if(!runtime_size_unk(count))
                     {
                         count = initial_runtime_size(count);
+
+                        node->opcode = Opcode(op_type::alloc_vla,opcode.v[0],size,count);
+
+                        // alloc the main struct
+                        sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,GPR_SIZE,2);
+
+                        const u32 data_offset = stack_alloc(alloc,size,count);
+
+
+                        auto store_arr_data = Opcode(op_type::store_arr_data,new_slot(func),opcode.v[0],data_offset);
+                        auto store_arr_len = Opcode(op_type::store_arr_len,new_slot(func),opcode.v[0],0);
+
+
+
+                        // store impcomplete versions of these that require the mov's filled out later
+                        ListNode *data_node = insert_after(list,node,store_arr_data);
+                        ListNode* len_node = insert_after(list,data_node,store_arr_len);
+
+                        // TODO: this need to made free straight after this opcode
+
+                        // allocate the src slot's for each
+                        allocate_and_rewrite(alloc,list,data_node,0,slot_lookup);
+                        allocate_and_rewrite(alloc,list,len_node,0,slot_lookup);
+
+
+
+                        node = len_node;
                     }
 
                     // we have no intial data we have nothing to do
@@ -865,18 +905,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
                     
 
                     node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
-
-                    // TODO: factor off this code
-                    const u32 idx = size >> 1;
-
-                    const u32 cur = alloc.size_count[idx];
-                    sym.offset = PENDING_ALLOCATION + cur;
-
-                    
-                    alloc.size_count[idx] += count;
-                    alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
-                    
-                    
+                    sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,size,count);      
                 } 
                 node = node->next;     
             }
@@ -989,6 +1018,21 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         }
 
         
+        case op_type::alloc_vla:
+        {
+            unimplemented("alloc vla");
+        }
+
+        case op_type::store_arr_data:
+        {
+            unimplemented("store arr data");
+        }
+
+        case op_type::store_arr_len:
+        {
+            unimplemented("store arr len");
+        }
+
         case op_type::load_arr_data:
         {
             // TODO: on a multidimensional array the offset must be 

@@ -82,6 +82,8 @@ enum class op_type
 
     load_arr_len,
     load_arr_data,
+    store_arr_len,
+    store_arr_data,
     arr_index,
     init_arr_idx,
 
@@ -92,6 +94,8 @@ enum class op_type
     alloc_slot,
     free_slot,
     alloc,
+
+    alloc_vla,
 
     // give a function call arg
     // how it will be passed will be decided in reg alloc

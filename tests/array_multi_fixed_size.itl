@@ -16,11 +16,11 @@ func s32 main()
     u32 len = 0;
     u32 sum = 0;
 
-    for(u32 i = 0; i < arr.len; i++)
+    for(u32 i = 0; i < arr.len; i += 1)
     {
         len += arr[i].len;
 
-        for(u32 j = 0; i j < arr[i].len; j++)
+        for(u32 j = 0; i j < arr[i].len; j += 1)
         {
             sum += arr[i][j];
         }
