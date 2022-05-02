@@ -57,6 +57,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array_size.itl",4,false},
     {"tests/array_ptr.itl",5,false},
     {"tests/array_initializer.itl",16,false},
+    {"tests/array_conv.itl",6,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

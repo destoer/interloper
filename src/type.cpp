@@ -31,11 +31,6 @@ b32 is_runtime_size(u32 size)
     return size >= RUNTIME_SIZE;
 }
 
-b32 runtime_size_unk(u32 size)
-{
-    return size == RUNTIME_SIZE_UNK;
-}
-
 // NOTE: we can have a runtime sized array
 // but still have an initial on it
 u32 initial_runtime_size(u32 size)

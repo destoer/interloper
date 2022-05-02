@@ -1353,6 +1353,86 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 }
 
 
+void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, const Symbol& array)
+{
+
+    // TODO: this has to be reworked to support nesting
+    // TODO: the way we want to move depends on the way it is used
+    // we fundemtnally want to return out the array ->
+    // but we need to return out not only the length + pointer
+
+    // TODO: we need to check if this array is just a constant
+    // and then just shove it in the const data section
+
+    assert(array.type.degree == 1);
+
+    // fixed size
+    if(!is_runtime_size(array.type.dimensions[0]))
+    {
+        const auto [size,count] = get_arr_size(itl,array.type); 
+        emit(func.emitter,op_type::alloc_slot,slot_idx(array),size,count);
+    }
+
+    if(line.nodes.size() == 2 && line.nodes[1]->type == ast_type::arr_initializer)
+    {
+        // TODO: type check this is an array
+        // TODO: typecheck the length on this
+        // TODO: handle this on a variable length array
+
+
+       
+
+        const Type index_type = index_array(array.type);
+
+        const u32 count = line.nodes[1]->nodes.size();
+        const u32 size = type_size(itl,index_type);
+
+        // if this is vla allocate the struct and supply the setup info
+        if(is_runtime_size(array.type.dimensions[0]))
+        {
+            // allocate the buffer
+            emit(func.emitter,op_type::alloc_slot,slot_idx(array),size,count);
+
+            // TODO: we need something by here that will preserve the allocation index for the buffer
+            // so that addrof can actually get at it
+            const u32 data_slot = new_slot(func);
+            emit(func.emitter,op_type::buf_addr,data_slot,slot_idx(array));
+            // store the index we need here
+            emit(func.emitter,op_type::state_dump);
+
+            // and the struct
+            emit(func.emitter,op_type::alloc_vla,slot_idx(array));
+
+            // now store the data
+            emit(func.emitter,op_type::store_arr_data,data_slot,slot_idx(array));
+
+            // setup len
+            const u32 len_slot = new_slot(func);
+            emit(func.emitter,op_type::mov_imm,len_slot,count);
+            emit(func.emitter,op_type::store_arr_len,len_slot,slot_idx(array));
+        }
+
+        // for each val
+        for(u32 i = 0; i < count; i++)
+        {
+            auto n = line.nodes[1]->nodes[i];
+
+            // check the type against cur type and check it matches
+            // perform type promotion if necessary for integers etc
+            const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
+
+            check_assign(itl,index_type,rtype);
+
+            if(itl.error)
+            {
+                return;
+            }
+
+            emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,i);
+        }
+    }    
+}
+
 
 void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 {
@@ -1375,60 +1455,29 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto &sym = add_symbol(itl.symbol_table,name,ltype,size);
 
 
-    emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
+
+
+    if(is_array(sym.type))
+    {
+        compile_arr_decl(itl,func,line,sym);
+    }
 
     // handle right side expression (if present)
-    if(line.nodes.size() == 2)
+    // standard decl
+    else if(line.nodes.size() == 2)
     {
+        emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
 
-        // TODO: this has to be reworked to support nesting
-        // TODO: the way we want to move depends on the way it is used
-        // we fundemtnally want to return out the array ->
-        // but we need to return out not only the length + pointer
+        // normal assign
+        const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
 
-        // TODO: we need to check if this array is just a constant
-        // and then just shove it in the const data section
-
-        const Type index_type = index_array(sym.type);
-
-        if(line.nodes[1]->type == ast_type::arr_initializer)
+        // oper is a single symbol and the move hasn't happened we need to explictly move it
+        if(slot_idx(sym) != reg)
         {
-            // TODO: type check this is an array
-            // TODO: typecheck the length on this
-            // TODO: handle this on a variable length array
-
-            // for each val
-            for(u32 i = 0; i < line.nodes[1]->nodes.size(); i++)
-            {
-                auto n = line.nodes[1]->nodes[i];
-
-                // check the type against cur type and check it matches
-                // perform type promotion if necessary for integers etc
-                const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
-
-                check_assign(itl,index_type,rtype);
-
-                if(itl.error)
-                {
-                    return;
-                }
-
-                emit(func.emitter,op_type::init_arr_idx,slot_idx(sym),reg,i);
-            }
+            emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
         }
-        else
-        {
-            // normal assign
-            const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
 
-            // oper is a single symbol and the move hasn't happened we need to explictly move it
-            if(slot_idx(sym) != reg)
-            {
-                emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
-            }
-
-            check_assign(itl,ltype,rtype);     
-        }
+        check_assign(itl,ltype,rtype);         
     } 
 }
 

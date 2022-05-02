@@ -83,10 +83,15 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"init_arr_idx",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     // directives
-    {op_group::slot_t,"alloc_slot",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::slot_t,"alloc_slot",3,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::slot_t,"free_slot",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::slot_t,"alloc",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
     {op_group::slot_t,"alloc_vla",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+
+    {op_group::imm_t,"buf_addr",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+
+    // stores required information when room is exhausted on opcodes
+    {op_group::slot_t,"state_dump",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     {op_group::reg_t,"push_arg",1,{arg_type::directive,arg_type::none,arg_type::none}},
 

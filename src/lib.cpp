@@ -105,29 +105,29 @@ void unimplemented(const char *fmt, ...)
     exit(1);
 }
 
-void panic(bool cond, const char *fmt, ...)
-{
-    if(cond)
-    {
-        printf("panic: ");
-        va_list args; 
-        va_start(args, fmt);
-        vprintf(fmt,args);
-        va_end(args);
-        putchar('\n');
-        exit(1);        
-    }
-} 
-
 #ifndef _MSC_VER
 __attribute__((noreturn))
 #endif
 void panic(const char *fmt, ...)
 {
-    va_list args;
-    va_start(args,fmt);
-    panic(true,fmt,args);
-
-    // no return detection aint good enough...
-    exit(1);
+    printf("panic: ");
+    va_list args; 
+    va_start(args, fmt);
+    vprintf(fmt,args);
+    va_end(args);
+    putchar('\n');
+    exit(1);     
 }
+
+
+void panic(bool cond, const char *fmt, ...)
+{
+    if(cond)
+    {  
+        va_list args;
+        va_start(args,fmt);
+        panic(fmt,args);
+        va_end(args);      
+    }
+} 
+

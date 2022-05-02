@@ -720,7 +720,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         {
 
             // we dont have the information for this yet so we have to fill it in later
-            // load_arr_data <dst>, <sym>
+            // load_arr_data <dst>, <sym>, <stack_offset>
 
             node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
 
@@ -745,11 +745,38 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
         case op_type::load_arr_len:
         {
-            
-            // load_arr_len <dst> <symbol>
+            // load_arr_len <dst> <symbol>, <stack_offset>
             node->opcode = Opcode(op_type::load_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
             allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
    
+            node = node->next;
+            break;
+        }
+
+        case op_type::store_arr_len:
+        {
+            // store_arr_data <src>, symbol, <stack_offset>
+            node->opcode = Opcode(op_type::store_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
+
+            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);
+
+            // TODO: we might be storing things that aernt tmp's here
+            free_tmp(alloc,opcode.v[0]);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::store_arr_data:
+        {
+            // store_arr_data <src>, symbol, <stack_offset>
+            node->opcode = Opcode(op_type::store_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
+
+            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);
+
+            // TODO: we might be storing things that aernt tmp's here
+            free_tmp(alloc,opcode.v[0]);
+
             node = node->next;
             break;
         }
@@ -782,6 +809,24 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             return insert_after(list,node,opcode);
         }                
+
+        case op_type::buf_addr:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+            node->opcode = Opcode(op_type::buf_addr,opcode.v[0],opcode.v[1],alloc.stack_offset);
+        
+            // just rewrite the 1st reg we dont want the address of the 2nd
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
+
+            // save the offset we ahve
+            ListNode* state_dump = node->next;
+            state_dump->opcode.v[0] = sym.offset - PENDING_ALLOCATION;
+
+            // skip over the extra state dumping
+            node = state_dump->next;
+            break;
+        }
 
         case op_type::addrof:
         {
@@ -842,71 +887,16 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
 
-            // if we have an array and we know the size
-            // then we need to allocate memory for it
-            if(is_array(sym.type))
+
+            // if we have anything that wont just fit inside a reg
+            const u32 size = opcode.v[1];
+            const u32 count = opcode.v[2];
+
+            if(size)
             {
-                // get size, len
-                // emit a alloc ir op
-                auto [size,count] = get_arr_size(itl,sym.type);                    
+                node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
+                sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,size,count); 
 
-                if(is_runtime_size(count))
-                {
-                    /*
-                        alloc_vla <arr>, size , count
-                        store_arr_data <src_data>, <arr>, <data_offset>
-                        store_arr_len  <src_len>, <arr>
-                    */
-                    
-                    
-                    // is a vla, but it has an initial runtime size
-                    if(!runtime_size_unk(count))
-                    {
-                        count = initial_runtime_size(count);
-
-                        node->opcode = Opcode(op_type::alloc_vla,opcode.v[0],size,count);
-
-                        // alloc the main struct
-                        sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,GPR_SIZE,2);
-
-                        const u32 data_offset = stack_alloc(alloc,size,count);
-
-
-                        auto store_arr_data = Opcode(op_type::store_arr_data,new_slot(func),opcode.v[0],data_offset);
-                        auto store_arr_len = Opcode(op_type::store_arr_len,new_slot(func),opcode.v[0],0);
-
-
-
-                        // store impcomplete versions of these that require the mov's filled out later
-                        ListNode *data_node = insert_after(list,node,store_arr_data);
-                        ListNode* len_node = insert_after(list,data_node,store_arr_len);
-
-                        // TODO: this need to made free straight after this opcode
-
-                        // allocate the src slot's for each
-                        allocate_and_rewrite(alloc,list,data_node,0,slot_lookup);
-                        allocate_and_rewrite(alloc,list,len_node,0,slot_lookup);
-
-
-
-                        node = len_node;
-                    }
-
-                    // we have no intial data we have nothing to do
-                    else
-                    {   
-                        unimplemented("vla empty");
-                    }
-                }
-
-                
-                else
-                {
-                    
-
-                    node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
-                    sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,size,count);      
-                } 
                 node = node->next;     
             }
 
@@ -914,6 +904,15 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             {
                 return remove(list,node);
             }
+            break;
+        }
+
+        case op_type::alloc_vla:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+            sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,GPR_SIZE,2);
+
+            node = node->next;
             break;
         }
 
@@ -945,28 +944,19 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             // this var is done so we can reclaim the stack space
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                if(!is_array(sym.type))
+                if(is_array(sym.type))
                 {
-                    alloc.size_count[sym.size >> 1] -= 1;
+                    auto [size,count] = get_arr_size(itl,sym.type); 
+                    alloc.size_count[size >> 1] -= count;
+
+                    // TODO: free the vla struct 
+                    // (this isnt strictly necessary it will just waste stack space)
+                    
                 }
 
                 else
                 {
-                    auto [size,count] = get_arr_size(itl,sym.type); 
-                    if(is_runtime_size(count))
-                    {
-                        // had an initial size on the stack this needs to be gone
-                        if(!runtime_size_unk(count))
-                        {
-                            count = initial_runtime_size(count);
-                            alloc.size_count[size >> 1] -= count;
-                        }
-                    }
-
-                    else
-                    {
-                        alloc.size_count[size >> 1] -= count;
-                    }
+                    alloc.size_count[sym.size >> 1] -= 1;
                 }
             }
 
@@ -990,6 +980,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
     return node;
 }
+
+// TODO: factor finalising the offset
 
 // 2nd pass of rewriting on the IR
 ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node,const Opcode& callee_restore,
@@ -1020,17 +1012,67 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         
         case op_type::alloc_vla:
         {
-            unimplemented("alloc vla");
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
+
+            
+            // TODO: this idx is SCUFFED
+            const u32 idx = sym.offset - PENDING_ALLOCATION;  
+            sym.offset = alloc.stack_alloc[GPR_SIZE >> 1] + (idx * GPR_SIZE);
+
+            printf("array struct allocated to %x (%x:%x)\n",sym.offset,idx,alloc.stack_alloc[GPR_SIZE >> 1]);
+
+            node = remove(list,node);
+            break;
         }
 
         case op_type::store_arr_data:
         {
-            unimplemented("store arr data");
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+
+            // TODO: this assumes GPR_SIZE is 4
+            node->opcode = Opcode(op_type::sw,opcode.v[0],SP,sym.offset + stack_offset + 0);
+
+            node = node->next;
+            break;
         }
 
         case op_type::store_arr_len:
         {
-            unimplemented("store arr len");
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+
+            // TODO: this assumes GPR_SIZE is 4
+            node->opcode = Opcode(op_type::sw,opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::buf_addr:
+        {
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+            // pull the index offset for the buffer
+            ListNode *state_dump = node->next;
+
+            const u32 idx = state_dump->opcode.v[0];
+            const u32 offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+            
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,offset + stack_offset);
+
+            remove(list,state_dump);
+            node = node->next;
+            break;
+        }
+
+        case op_type::state_dump:
+        {
+            panic("unused state opcode");
         }
 
         case op_type::load_arr_data:
@@ -1061,7 +1103,6 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
                 lw <dst>, [<sym_offset>]
             */
 
-            // TODO: assumes static array
             const s32 stack_offset = opcode.v[2];
             auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
 
@@ -1480,6 +1521,8 @@ std::string get_oper_raw(const SlotLookup *table,u32 v)
 
 // pass in a "optional" table and a operand function so we can either disassemble it with symbol
 // information or without
+
+// TODO: make t his use the actual bits of information in the table for fmting information
 void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vector<Label> *label_lookup, IR_OPER_STRING_FUNC get_oper)
 {
     const auto &info = OPCODE_TABLE[static_cast<size_t>(opcode.op)];
@@ -1591,7 +1634,15 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
 
                 case 3:
                 { 
-                    printf("%s %s, %d, %d\n",info.name,get_oper(table,opcode.v[0]).c_str(),opcode.v[1],opcode.v[2]); 
+                    if(opcode.op == op_type::state_dump)
+                    {
+                        printf("%s %d, %d, %d\n",info.name,opcode.v[0],opcode.v[1],opcode.v[2]);
+                    }
+
+                    else
+                    {
+                        printf("%s %s, %d, %d\n",info.name,get_oper(table,opcode.v[0]).c_str(),opcode.v[1],opcode.v[2]); 
+                    }
                     break;
                 }
 

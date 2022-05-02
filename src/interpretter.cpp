@@ -31,7 +31,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
 
     else
     {
-       panic("%x: warning out of bounds write at %x:%x\n",interpretter.regs[PC],addr,v);
+       panic("%08x: warning out of bounds write at %x:%x\n",interpretter.regs[PC],addr,v);
     }
 }
 
@@ -438,9 +438,11 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::spill:
         case op_type::load:
         case op_type::addrof:
+        case op_type::buf_addr:
         case op_type::alloc_vla:
         case op_type::store_arr_len:
         case op_type::store_arr_data:
+        case op_type::state_dump:
         case op_type::END:
         {
             puts("directive not removed!?");
@@ -487,8 +489,8 @@ s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 
         memcpy(&opcode,&program[regs[PC]],sizeof(opcode));
 
-        //printf("%08x: ",regs[PC]);
-        //disass_opcode_raw(opcode);
+        printf("%08x: ",regs[PC]);
+        disass_opcode_raw(opcode);
 
         regs[PC] += OP_SIZE;
 

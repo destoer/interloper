@@ -97,6 +97,9 @@ enum class op_type
 
     alloc_vla,
 
+    buf_addr,
+    state_dump,
+
     // give a function call arg
     // how it will be passed will be decided in reg alloc
     push_arg,
