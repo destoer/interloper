@@ -1,6 +1,18 @@
 #include <interloper.h>
 
 
+void print_regs(Interpretter& interpretter)
+{
+    puts("regs:");
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        printf("r%d = 0x%08x\n",i,interpretter.regs[i]);
+    }
+
+    printf("PC = 0x%08x\n",interpretter.regs[PC]);
+    printf("SP = 0x%08x\n",interpretter.regs[SP]);
+}
+
 template<typename access_type>
 access_type read_mem(Interpretter& interpretter,u32 addr)
 {
@@ -14,7 +26,8 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
 
     else
     {
-        panic("%x: warning out of bounds read at %x\n",interpretter.regs[PC],addr);
+        print_regs(interpretter);
+        panic("%x: warning out of bounds read at %x\n",interpretter.regs[PC] - sizeof(Opcode),addr);
     }
 }
 
@@ -31,7 +44,8 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
 
     else
     {
-       panic("%08x: warning out of bounds write at %x:%x\n",interpretter.regs[PC],addr,v);
+        print_regs(interpretter);
+        panic("%08x: warning out of bounds write at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),addr,v);
     }
 }
 
@@ -115,6 +129,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             if(regs[opcode.v[2]] == 0)
             {
+                print_regs(interpretter);
                 panic("division by zero at %08x\n",regs[PC]);
             }
 
@@ -126,6 +141,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             if(regs[opcode.v[2]] == 0)
             {
+                print_regs(interpretter);
                 panic("mod by zero at %08x\n",regs[PC]);
             }
 
@@ -445,8 +461,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::state_dump:
         case op_type::END:
         {
-            puts("directive not removed!?");
-            exit(1);
+            print_regs(interpretter);
+            panic("directive not removed!?");
         }
 
     }    
@@ -484,6 +500,7 @@ s32 run(Interpretter& interpretter,const u8 *program, u32 size)
         // self modfying code inside this vm would not be very useful anyways
         if(regs[PC] + sizeof(opcode) > size)
         {
+            print_regs(interpretter);
             panic("attempted to execute out of bounds: %x : %x\n",regs[PC],size);
         }
 
