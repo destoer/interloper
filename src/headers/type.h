@@ -102,7 +102,7 @@ struct Type
 
     // i.e is a pointer to an array
     // rather than a array of pointers
-    b8 contains_array = 0;
+    b32 contains_array = 0;
 
     // either a number of RUNTIME_SIZE i.e variable length
     u32 dimensions[MAX_ARR_SIZE] = {0};
@@ -153,7 +153,7 @@ struct Symbol
     // is it in memory or is it in register?
     u32 location;
 
-    b8 referenced;
+    b32 referenced;
 };
 
 

@@ -194,6 +194,8 @@ LocalAlloc make_local_alloc()
     return alloc;
 }
 
+u32 stack_alloc(LocalAlloc& alloc, u32 size, u32 count);
+
 void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg);
 
 void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
@@ -247,18 +249,11 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
         if(!is_arg(sym))
         {
             const u32 size = sym.size;
-            const u32 idx = size >> 1;
 
             // TODO: handle structs
             assert(size <= sizeof(u32));
 
-            // extract how far into the size block is it currently?
-            const u32 cur = alloc.size_count[idx];
-            sym.offset = PENDING_ALLOCATION + cur;
-
-            // another var of this size allocated
-            alloc.size_count[idx]++;
-            alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
+            sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,size,1);
         }
 
         // args need to be allocated later
@@ -415,23 +410,6 @@ void alloc_slot(u32 slot,LocalAlloc &alloc, List &list,ListNode* node,SlotLookup
         alloc_sym(slot_lookup,alloc,list,node,sym);
     }
 }
-
-
-/* TODO: 
-    make register rewriting have an easier interface (make it so you can just rewrite individual opcode fields if need be)
-    make accessing symbols easier
-    make inserting opcodes easier -> (roll your own doubly linked list)
-    refactor the loop to make deletion less tricky
-    implement proper IR descriptions, i.e what the purpose of a field is 
-    and if it is a source or a dst inside the lookup table so its easier to disassembly opcodes
-    and to rewrite registers because the table allready has all the information
-*/
-/*
-void rewrite_field()
-{
-
-}
-*/
 
 
 void free_tmp(LocalAlloc &alloc, u32 reg)
@@ -821,7 +799,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             // save the offset we ahve
             ListNode* state_dump = node->next;
-            state_dump->opcode.v[0] = sym.offset - PENDING_ALLOCATION;
+            state_dump->opcode.v[0] = sym.offset;
 
             // skip over the extra state dumping
             node = state_dump->next;
@@ -981,6 +959,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
     return node;
 }
 
+u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size)
+{
+    const u32 idx = offset - PENDING_ALLOCATION;  
+    return alloc.stack_alloc[size >> 1] + (idx * size);     
+}
+
 // TODO: factor finalising the offset
 
 // 2nd pass of rewriting on the IR
@@ -1017,7 +1001,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             
             // TODO: this idx is SCUFFED
             const u32 idx = sym.offset - PENDING_ALLOCATION;  
-            sym.offset = alloc.stack_alloc[GPR_SIZE >> 1] + (idx * GPR_SIZE);
+            sym.offset = finish_alloc(alloc,sym.offset,GPR_SIZE);
 
             printf("array struct allocated to %x (%x:%x)\n",sym.offset,idx,alloc.stack_alloc[GPR_SIZE >> 1]);
 
@@ -1059,9 +1043,8 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // pull the index offset for the buffer
             ListNode *state_dump = node->next;
 
-            const u32 idx = state_dump->opcode.v[0];
-            const u32 offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
-            
+            const u32 pending = state_dump->opcode.v[0];
+            const u32 offset = finish_alloc(alloc,pending,sym.size);
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,offset + stack_offset);
 
@@ -1160,8 +1143,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // alloc <slot>, <size>, <count>
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
 
-            const u32 idx = sym.offset - PENDING_ALLOCATION;  
-            sym.offset = alloc.stack_alloc[opcode.v[1] >> 1] + (idx * opcode.v[1]);                    
+            sym.offset = finish_alloc(alloc,sym.offset,opcode.v[1]);
 
             return remove(list,node);
         }
@@ -1223,8 +1205,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
                 // this is the first stack access so we need to compute the final posistion
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                const u32 idx = sym.offset - PENDING_ALLOCATION;  
-                sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+                sym.offset = finish_alloc(alloc,sym.offset,sym.size);
             }
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
@@ -1242,8 +1223,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // this is the first stack access so we need to compute the final posistion
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                const u32 idx = sym.offset - PENDING_ALLOCATION;  
-                sym.offset = alloc.stack_alloc[sym.size >> 1] + (idx * sym.size);
+                sym.offset = finish_alloc(alloc,sym.offset,sym.size);
             }
 
             // write value back out into mem
