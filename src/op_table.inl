@@ -88,7 +88,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::slot_t,"alloc",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
     {op_group::slot_t,"alloc_vla",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
-    {op_group::imm_t,"buf_addr",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::imm_t,"buf_alloc",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     // stores required information when room is exhausted on opcodes
     {op_group::slot_t,"state_dump",3,{arg_type::directive,arg_type::directive,arg_type::directive}},

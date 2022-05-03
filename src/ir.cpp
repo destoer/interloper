@@ -149,6 +149,10 @@ struct LocalAlloc
     u32 use_count;
 
 
+    // debug (TODO: make this a command line flag)
+    b32 print_reg_allocation = false;
+    b32 print_stack_allocation = false;
+
     // stack allocation
 
     // how much has our stack been screwed up by function calls etc
@@ -194,7 +198,7 @@ LocalAlloc make_local_alloc()
     return alloc;
 }
 
-u32 stack_alloc(LocalAlloc& alloc, u32 size, u32 count);
+u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count);
 
 void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg);
 
@@ -239,7 +243,10 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
 
     const u32 reg = sym.location;
 
-    printf("spill %s:%d\n",sym.name.c_str(),reg);
+    if(alloc.print_reg_allocation)
+    {
+        printf("spill %s:%d\n",sym.name.c_str(),reg);
+    }
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
 
@@ -253,7 +260,7 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
             // TODO: handle structs
             assert(size <= sizeof(u32));
 
-            sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,size,1);
+            sym.offset = stack_reserve(alloc,size,1);
         }
 
         // args need to be allocated later
@@ -283,8 +290,11 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
 
 void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, List& list, ListNode* node, bool after)
 {
-    puts("spilling everything"); 
-         
+    if(alloc.print_reg_allocation)
+    {
+        puts("spilling everything"); 
+    }
+    
     // TODO: revisit this once we come up with a scheme to make sure that vars get put into the proper regs
     
     for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
@@ -372,7 +382,10 @@ void alloc_tmp(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* 
     alloc.ir_regs[ir_reg] = reg;
     alloc.regs[reg] = tmp(ir_reg);
 
-    printf("tmp t%d allocated into r%d\n",ir_reg,reg);
+    if(alloc.print_reg_allocation)
+    {
+        printf("tmp t%d allocated into r%d\n",ir_reg,reg);
+    }
 }
 
 void alloc_sym(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* node, Symbol &sym)
@@ -381,7 +394,10 @@ void alloc_sym(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* 
     alloc.regs[reg] = sym.slot; 
     sym.location = reg;
 
-    printf("symbol %s into reg r%d\n",sym.name.c_str(),reg);
+    if(alloc.print_reg_allocation)
+    {
+        printf("symbol %s into reg r%d\n",sym.name.c_str(),reg);
+    }
 }
 
 // mark a tmp as allocated to a var
@@ -389,7 +405,10 @@ void alloc_sym_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
 {   
     const u32 reg = alloc.ir_regs[ir_reg];
 
-    printf("symbol %s allocated into tmp t%d -> r%d\n",sym.name.c_str(),tmp_to_ir(alloc.regs[reg]),reg);
+    if(alloc.print_reg_allocation)
+    {
+        printf("symbol %s allocated into tmp t%d -> r%d\n",sym.name.c_str(),tmp_to_ir(alloc.regs[reg]),reg);
+    }
 
     alloc.regs[reg] = sym.slot;
     sym.location = reg;
@@ -414,7 +433,10 @@ void alloc_slot(u32 slot,LocalAlloc &alloc, List &list,ListNode* node,SlotLookup
 
 void free_tmp(LocalAlloc &alloc, u32 reg)
 {
-    printf("freed tmp t%d from r%d\n",tmp_to_ir(alloc.regs[reg]),reg);
+    if(alloc.print_reg_allocation)
+    {
+        printf("freed tmp t%d from r%d\n",tmp_to_ir(alloc.regs[reg]),reg);
+    }
 
     alloc.regs[reg] = REG_FREE;
     alloc.free_list[alloc.free_regs++] = reg;
@@ -422,7 +444,10 @@ void free_tmp(LocalAlloc &alloc, u32 reg)
 
 void free_sym(LocalAlloc &alloc, Symbol &sym)
 {
-    printf("freed sym %s from r%d\n",sym.name.c_str(),sym.location);
+    if(alloc.print_reg_allocation)
+    {
+        printf("freed sym %s from r%d\n",sym.name.c_str(),sym.location);
+    }
 
     alloc.regs[sym.location] = REG_FREE;
     alloc.free_list[alloc.free_regs++] = sym.location;
@@ -434,7 +459,10 @@ void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,List &list, ListNode *nod
 {
     alloc_sym(slot_lookup,alloc,list,node,sym);
 
-    printf("reloading sym %s into r%d\n",sym.name.c_str(),sym.location);
+    if(alloc.print_reg_allocation)
+    {
+        printf("reloading sym %s into r%d\n",sym.name.c_str(),sym.location);
+    }
 
     // we need to save the current stack offset here as by the time we load it 
     // it may be different
@@ -451,8 +479,10 @@ void alloc_tmp_into_tmp(LocalAlloc &alloc, u32 ir_dst, u32 ir_src)
 
     // as ir_src is unqiue once it has been used in an expr it wont be used again
     // so we dont need to worry about unlinking the ref
-
-    printf("tmp t%d allocated into existing tmp t%d -> r%d\n",ir_dst,ir_src,alloc.ir_regs[ir_dst]);
+    if(alloc.print_reg_allocation)
+    {
+        printf("tmp t%d allocated into existing tmp t%d -> r%d\n",ir_dst,ir_src,alloc.ir_regs[ir_dst]);
+    }
 }
 
 
@@ -561,7 +591,10 @@ void save_rv(LocalAlloc &alloc,List &list,ListNode* node,SlotLookup &slot_lookup
     
     const u32 ir_reg = tmp_to_ir(tmp);
 
-    printf("moved tmp t%d from rv to r%d\n",ir_reg,reg);
+    if(alloc.print_reg_allocation)
+    {
+        printf("moved tmp t%d from rv to r%d\n",ir_reg,reg);
+    }
 
     // rewrite the ir allocation
     alloc.ir_regs[ir_reg] = reg;
@@ -669,18 +702,24 @@ void allocate_and_rewrite(LocalAlloc& alloc,List& list, ListNode* node,u32 reg, 
     rewrite_reg_internal(slot_lookup,alloc,node->opcode,reg);         
 }
 
-
-u32 stack_alloc(LocalAlloc& alloc, u32 size, u32 count)
+// NOTE: this just reserves stack space,
+// calc allocation must be called (done before 2nd directive pass)
+// then finish_alloc to give the actual offset
+u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count)
 {
-    // TODO: factor off this code
     const u32 idx = size >> 1;
 
     const u32 cur = alloc.size_count[idx];
 
+    if(alloc.print_stack_allocation)
+    {
+        printf("intial offset allocated: %x\n",cur);
+    }
+
     alloc.size_count[idx] += count;
     alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
 
-    return cur;    
+    return cur + PENDING_ALLOCATION;    
 }
 
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List &list, ListNode *node)
@@ -788,24 +827,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             return insert_after(list,node,opcode);
         }                
 
-        case op_type::buf_addr:
-        {
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-
-            node->opcode = Opcode(op_type::buf_addr,opcode.v[0],opcode.v[1],alloc.stack_offset);
-        
-            // just rewrite the 1st reg we dont want the address of the 2nd
-            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
-
-            // save the offset we ahve
-            ListNode* state_dump = node->next;
-            state_dump->opcode.v[0] = sym.offset;
-
-            // skip over the extra state dumping
-            node = state_dump->next;
-            break;
-        }
-
         case op_type::addrof:
         {
             // -> <addrof> <alloced reg> <slot> <stack offset>
@@ -864,7 +885,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         case op_type::alloc_slot:
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-
+            printf("alloc slot: %s\n",sym.name.c_str());
 
             // if we have anything that wont just fit inside a reg
             const u32 size = opcode.v[1];
@@ -873,7 +894,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             if(size)
             {
                 node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
-                sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,size,count); 
+                sym.offset = stack_reserve(alloc,size,count); 
 
                 node = node->next;     
             }
@@ -885,10 +906,36 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             break;
         }
 
+        case op_type::buf_alloc:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+            printf("buf addr: %s\n",sym.name.c_str());
+
+            node->opcode = Opcode(op_type::buf_alloc,opcode.v[0],opcode.v[1],alloc.stack_offset);
+        
+            // just rewrite the 1st reg we dont want the address of the 2nd
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
+
+            ListNode* state_dump = node->next;
+
+            // allocate and store the offset
+            const u32 size = state_dump->opcode.v[0];
+            const u32 count = state_dump->opcode.v[1];
+
+            state_dump->opcode.v[2] = stack_reserve(alloc,size,count);
+
+            // skip over the extra state dumping
+            node = state_dump->next;
+            break;
+        }
+
+
         case op_type::alloc_vla:
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-            sym.offset = PENDING_ALLOCATION + stack_alloc(alloc,GPR_SIZE,2);
+            printf("alloc vla: %s\n",sym.name.c_str());
+            sym.offset = stack_reserve(alloc,GPR_SIZE,2);
 
             node = node->next;
             break;
@@ -914,7 +961,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         }
 
 
-        
+        // TODO: this needs to have its size emitted directly inside the opcode
         case op_type::free_slot:
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
@@ -925,6 +972,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
                 if(is_array(sym.type))
                 {
                     auto [size,count] = get_arr_size(itl,sym.type); 
+
+                    // TODO: this wont work correctly for varialbe sized array
                     alloc.size_count[size >> 1] -= count;
 
                     // TODO: free the vla struct 
@@ -961,6 +1010,13 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
 u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size)
 {
+    if(alloc.print_stack_allocation)
+    {
+        printf("final offset = %x:%x\n",offset,offset - PENDING_ALLOCATION);
+    }
+
+    assert(offset >= PENDING_ALLOCATION && offset != UNALLOCATED_OFFSET);
+
     const u32 idx = offset - PENDING_ALLOCATION;  
     return alloc.stack_alloc[size >> 1] + (idx * size);     
 }
@@ -998,12 +1054,15 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
 
-            
+            printf("alloc vla2: %s\n",sym.name.c_str());
+        #if 0
             // TODO: this idx is SCUFFED
             const u32 idx = sym.offset - PENDING_ALLOCATION;  
+            printf("array struct allocated to %x (%x:%x)\n",sym.offset,idx,alloc.stack_alloc[GPR_SIZE >> 1]);
+        #endif
             sym.offset = finish_alloc(alloc,sym.offset,GPR_SIZE);
 
-            printf("array struct allocated to %x (%x:%x)\n",sym.offset,idx,alloc.stack_alloc[GPR_SIZE >> 1]);
+            
 
             node = remove(list,node);
             break;
@@ -1035,7 +1094,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             break;
         }
 
-        case op_type::buf_addr:
+        case op_type::buf_alloc:
         {
             const s32 stack_offset = opcode.v[2];
             auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
@@ -1043,10 +1102,11 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // pull the index offset for the buffer
             ListNode *state_dump = node->next;
 
-            const u32 pending = state_dump->opcode.v[0];
+            const u32 pending = state_dump->opcode.v[2];
             const u32 offset = finish_alloc(alloc,pending,sym.size);
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,offset + stack_offset);
+
 
             remove(list,state_dump);
             node = node->next;
@@ -1143,7 +1203,14 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // alloc <slot>, <size>, <count>
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
 
-            sym.offset = finish_alloc(alloc,sym.offset,opcode.v[1]);
+            printf("alloc2: %s\n",sym.name.c_str());
+
+            // NOTE: we may finalise the allocation somewhere else 
+            // i.e buf addr in arrays
+            if(sym.offset >= PENDING_ALLOCATION)
+            {
+                sym.offset = finish_alloc(alloc,sym.offset,opcode.v[1]);
+            }
 
             return remove(list,node);
         }
@@ -1274,11 +1341,13 @@ void calc_allocation(LocalAlloc& alloc)
     // get the total stack size
     alloc.stack_size =  alloc.stack_alloc[2] + (alloc.size_count_max[2] * sizeof(u32));
 
-
-    printf("byte count: %d\n",alloc.size_count_max[0]);
-    printf("half count: %d\n",alloc.size_count_max[1]);
-    printf("word count: %d\n",alloc.size_count_max[2]);
-    printf("stack size: %d\n",alloc.stack_size);
+    if(alloc.print_stack_allocation)
+    {
+        printf("byte count: %d\n",alloc.size_count_max[0]);
+        printf("half count: %d\n",alloc.size_count_max[1]);
+        printf("word count: %d\n",alloc.size_count_max[2]);
+        printf("stack size: %d\n",alloc.stack_size);
+    }
 }
     
 // TODO: need to rethink this when we do register passing
@@ -1300,9 +1369,12 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    printf("allocating registers for %s:\n\n",func.name.c_str());
-
     auto alloc = make_local_alloc();
+
+    if(alloc.print_reg_allocation)
+    {
+        printf("allocating registers for %s:\n\n",func.name.c_str());
+    }
 
     for(auto &block : func.emitter.program)
     {
@@ -1325,7 +1397,10 @@ void allocate_registers(Interloper& itl,Function &func)
 
     calc_allocation(alloc);
 
-    print_alloc(alloc,itl.symbol_table.slot_lookup);
+    if(alloc.print_reg_allocation)
+    {
+        print_alloc(alloc,itl.symbol_table.slot_lookup);
+    }
 
     // only allocate a stack if we need it
     if(alloc.stack_size)

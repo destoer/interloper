@@ -1390,15 +1390,10 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
         // if this is vla allocate the struct and supply the setup info
         if(is_runtime_size(array.type.dimensions[0]))
         {
-            // allocate the buffer
-            emit(func.emitter,op_type::alloc_slot,slot_idx(array),size,count);
-
-            // TODO: we need something by here that will preserve the allocation index for the buffer
-            // so that addrof can actually get at it
             const u32 data_slot = new_slot(func);
-            emit(func.emitter,op_type::buf_addr,data_slot,slot_idx(array));
+            emit(func.emitter,op_type::buf_alloc,data_slot,slot_idx(array));
             // store the index we need here
-            emit(func.emitter,op_type::state_dump);
+            emit(func.emitter,op_type::state_dump,size,count);
 
             // and the struct
             emit(func.emitter,op_type::alloc_vla,slot_idx(array));

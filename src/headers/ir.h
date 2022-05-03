@@ -97,7 +97,9 @@ enum class op_type
 
     alloc_vla,
 
-    buf_addr,
+    // allocate and store offset inside a var
+    // used for runtime array alloc
+    buf_alloc,
     state_dump,
 
     // give a function call arg
