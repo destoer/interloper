@@ -816,7 +816,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             
             // calc the offset we will use for the store
-            auto accessed_type = index_array(arr.type);
+            auto accessed_type = contained_arr_type(arr.type);
             const auto size = type_size(itl,accessed_type);            
 
             // as the index is an immdediate we can jsut calc this ahead of time
@@ -972,7 +972,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             {
                 if(is_array(sym.type))
                 {
-                    auto [size,count] = get_arr_size(itl,sym.type); 
+                    auto [size,count] = arr_size(itl,sym.type); 
 
                     // TODO: this wont work correctly for varialbe sized array
                     alloc.size_count[size >> 1] -= count;

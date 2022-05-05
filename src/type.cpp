@@ -51,14 +51,14 @@ bool same_type(const Type &type1, const Type &type2)
     return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection) && (type1.degree == type2.degree);
 }
 
-Type index_array(const Type &type)
+Type contained_arr_type(const Type &type)
 {
     // perform the access and get the underlying type
     // for now just assume this is simple
     // and we cnat have multlayered arrays etc
 
-    Type accessed_type;
-    accessed_type.type_idx = type.type_idx;
+    Type accessed_type = type;
+    accessed_type.degree -= 1;
 
     return accessed_type;
 }
@@ -70,24 +70,32 @@ bool is_builtin(const Type &t)
     return t.type_idx < BUILTIN_TYPE_SIZE;
 }
 
+// pointer is active if not contained by an array
+// of any kind
+bool pointer_active(const Type &t)
+{
+    return t.degree == 0 || !t.contains_ptr;
+}
 
 bool is_pointer(const Type &t)
 {
-    return t.ptr_indirection >= 1;
+    return t.ptr_indirection && pointer_active(t); 
 }
-
 
 bool is_array(const Type &t)
 {
-    return t.degree >= 1;
+    return t.degree >= 1 && !is_pointer(t);
 }
-
 
 bool is_plain(const Type &t)
 {
     return !is_pointer(t) && !is_array(t);
 }
 
+bool is_trivial_copy(const Type &t)
+{
+    return is_pointer(t) || is_plain(t);
+}
 
 bool is_plain_builtin(const Type &t)
 {
@@ -204,11 +212,12 @@ u32 type_max(Interloper& itl,const Type &type)
     }
 }
 
-std::pair<u32,u32> get_arr_size(Interloper &itl, const Type &type)
+
+std::pair<u32,u32> arr_size(Interloper &itl, const Type &type)
 {
     // get size, len
     // emit a alloc ir op
-    const auto contained_type = index_array(type);
+    const auto contained_type = contained_arr_type(type);
     const u32 size = type_size(itl,contained_type);
 
     // TODO: assumes static array

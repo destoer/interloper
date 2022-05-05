@@ -97,17 +97,14 @@ struct Type
 
     u32 ptr_indirection = 0;
 
-
     // array definiton
-
-    // i.e is a pointer to an array
-    // rather than a array of pointers
-    b32 contains_array = 0;
 
     // either a number of RUNTIME_SIZE i.e variable length
     u32 dimensions[MAX_ARR_SIZE] = {0};
     u32 degree = 0;
 
+    // array of pointers as opposed to a pointer to an array
+    b32 contains_ptr = false;
 
     // type specifiers here i.e const
 

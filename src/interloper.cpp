@@ -60,18 +60,16 @@ Type get_type(Interloper &itl, AstNode *type_decl)
             {
                 case ast_type::ptr_indirection:
                 {
+                    if(arr_decl)
+                    {
+                        type.contains_ptr = true;
+                    }
                     ptr_decl = n;
                     break;
                 }
 
                 case ast_type::arr_dimensions:
                 {
-                    if(ptr_decl)
-                    {
-                        // array is contained by the pointer
-                        type.contains_array = true;
-                    }
-
                     arr_decl = n;
                     break;
                 }
@@ -569,6 +567,34 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 }
 
 
+/* we need to impl pointers to arrays first
+
+//  we dont want the 2nd stage IR handling how things need to be copied
+// as it does not have the information required easily accessible
+void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, const Type& dst_type, const Type& src_type)
+{
+    UNUSED(itl);
+    // check the operation is even legal
+
+    
+
+    // can be moved by a simple data copy
+    if(is_trivial_copy(dst) && is_trivial_copy(src))
+    {
+        emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
+    }
+
+    // requires special handling to move
+    else
+    {
+        unimplemented("move user defined type");
+
+        // arrays
+
+        // structs
+    }
+}
+*/
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
@@ -705,10 +731,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     //emit(func.emitter,op_type::restore_regs);
 
 
-    // if function returns a value save the return register
-    // our register allocator will have to force a spill on R0 if its in use
-    // TODO: we want this as an explicit just mark as allocation ito R0
-
+    // store the return value back into a reg
     if(returns_value)
     {
         emit(func.emitter,op_type::mov_reg,dst_slot,RV_IR);
@@ -1031,7 +1054,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     // TODO: bound check this at compile time for const exprs, or fixed size arrays
 
     // perform the access and get the underlying type
-    auto accessed_type = index_array(arr.type);
+    auto accessed_type = contained_arr_type(arr.type);
     const auto size = type_size(itl,accessed_type);
 
     emit(func.emitter,op_type::mul_imm,index_slot,subscript_slot,size);   
@@ -1369,7 +1392,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
     // fixed size
     if(!is_runtime_size(array.type.dimensions[0]))
     {
-        const auto [size,count] = get_arr_size(itl,array.type); 
+        const auto [size,count] = arr_size(itl,array.type); 
         emit(func.emitter,op_type::alloc_slot,slot_idx(array),size,count);
     }
 
@@ -1382,7 +1405,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 
        
 
-        const Type index_type = index_array(array.type);
+        const Type index_type = contained_arr_type(array.type);
 
         const u32 count = line.nodes[1]->nodes.size();
         const u32 size = type_size(itl,index_type);
@@ -1590,13 +1613,18 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
             case ast_type::ret:
             {
+                // returns a value
                 if(line.nodes.size() == 1)
                 {
                     const auto [rtype,v1] = compile_oper(itl,func,line.nodes[0],RV_IR);
 
-                    // what we are returning is just a var 
-                    // it needs to be moved into ret
-                    // TODO: make sure the optimiser sees through this
+                    // TODO: need to devise a scheme for returning out large items
+                    if(type_size(itl,func.return_type) > GPR_SIZE)
+                    {
+                        unimplemented("return large sized var");
+                    }
+
+    
                     if(v1 != RV_IR)
                     {
                         emit(func.emitter,op_type::mov_reg,RV_IR,v1);
