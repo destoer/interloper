@@ -27,7 +27,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     else
     {
         print_regs(interpretter);
-        panic("%x: warning out of bounds read at %x\n",interpretter.regs[PC] - sizeof(Opcode),addr);
+        panic("%x: out of bounds read at %x\n",interpretter.regs[PC] - sizeof(Opcode),addr);
     }
 }
 
@@ -45,7 +45,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     else
     {
         print_regs(interpretter);
-        panic("%08x: warning out of bounds write at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),addr,v);
+        panic("%08x: out of bounds write at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),addr,v);
     }
 }
 

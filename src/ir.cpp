@@ -198,7 +198,7 @@ LocalAlloc make_local_alloc()
     return alloc;
 }
 
-u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count);
+u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char *name);
 
 void rewrite_reg(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opcode, u32 reg);
 
@@ -260,7 +260,7 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
             // TODO: handle structs
             assert(size <= sizeof(u32));
 
-            sym.offset = stack_reserve(alloc,size,1);
+            sym.offset = stack_reserve(alloc,size,1,sym.name.c_str());
         }
 
         // args need to be allocated later
@@ -705,7 +705,7 @@ void allocate_and_rewrite(LocalAlloc& alloc,List& list, ListNode* node,u32 reg, 
 // NOTE: this just reserves stack space,
 // calc allocation must be called (done before 2nd directive pass)
 // then finish_alloc to give the actual offset
-u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count)
+u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
 {
     const u32 idx = size >> 1;
 
@@ -713,7 +713,7 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count)
 
     if(alloc.print_stack_allocation)
     {
-        printf("intial offset allocated: %x\n",cur);
+        printf("intial offset allocated %s: (%x,%x) -> %x\n",name,size,count,cur);
     }
 
     alloc.size_count[idx] += count;
@@ -898,7 +898,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             if(size)
             {
                 node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
-                sym.offset = stack_reserve(alloc,size,count); 
+                sym.offset = stack_reserve(alloc,size,count,sym.name.c_str()); 
 
                 node = node->next;     
             }
@@ -912,6 +912,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
         case op_type::buf_alloc:
         {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
             node->opcode = Opcode(op_type::buf_alloc,opcode.v[0],opcode.v[1],alloc.stack_offset);
         
             // just rewrite the 1st reg we dont want the address of the 2nd
@@ -923,7 +925,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             const u32 size = state_dump->opcode.v[0];
             const u32 count = state_dump->opcode.v[1];
 
-            state_dump->opcode.v[2] = stack_reserve(alloc,size,count);
+            state_dump->opcode.v[2] = stack_reserve(alloc,size,count,std::string("buffer " + sym.name).c_str());
 
             // skip over the extra state dumping
             node = state_dump->next;
@@ -934,7 +936,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         case op_type::alloc_vla:
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-            sym.offset = stack_reserve(alloc,GPR_SIZE,2);
+            sym.offset = stack_reserve(alloc,GPR_SIZE,2,sym.name.c_str());
 
             node = node->next;
             break;
@@ -1011,7 +1013,7 @@ u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size, const char* name)
 {
     if(alloc.print_stack_allocation)
     {
-        printf("final offset %s = %x:%x\n",name,offset,offset - PENDING_ALLOCATION);
+        printf("final offset %s = %x -> (%x,%x)\n",name,size,offset,offset - PENDING_ALLOCATION);
     }
 
     assert(offset >= PENDING_ALLOCATION && offset != UNALLOCATED_OFFSET);
@@ -1091,7 +1093,9 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             ListNode *state_dump = node->next;
 
             const u32 pending = state_dump->opcode.v[2];
-            const u32 offset = finish_alloc(alloc,pending,sym.size,std::string("buffer: " + sym.name).c_str());
+            const u32 size = state_dump->opcode.v[0];
+
+            const u32 offset = finish_alloc(alloc,pending,size,std::string("buffer: " + sym.name).c_str());
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,offset + stack_offset);
 
