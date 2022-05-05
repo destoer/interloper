@@ -24,5 +24,5 @@ func s32 main()
     ans += sum(arr2);
 
 
-    return 0;
+    return ans;
 }
