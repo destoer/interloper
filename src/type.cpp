@@ -43,12 +43,10 @@ u32 make_runtime_size(u32 size)
     return size + RUNTIME_SIZE;
 }
 
-
-
-// this needs to have more added when we get extra fields
 bool same_type(const Type &type1, const Type &type2)
 {
-    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection) && (type1.degree == type2.degree);
+    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection) && (type1.degree == type2.degree)
+        && is_runtime_size(type1.dimensions[0]) == is_runtime_size(type2.dimensions[0]) && type1.contains_ptr == type2.contains_ptr;
 }
 
 Type contained_arr_type(const Type &type)
@@ -397,14 +395,25 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
         }
     }
 
-    // one or more type is user defined
-    // here probably the only valid thing is both are the same
+    // check assign by ltype
     else
     {
-        if(ltype.ptr_indirection != rtype.ptr_indirection)
+        if(is_pointer(ltype))
         {
-            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
-            return;
+            if(ltype.ptr_indirection != rtype.ptr_indirection)
+            {
+                panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                return;
+            }
+        }
+
+        else if(is_array(ltype))
+        {
+            // make sure dimensions match
+            // and the other type is an array 
+            // make sure degree matches
+
+            unimplemented("type check array");
         }
 
 

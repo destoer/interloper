@@ -1,0 +1,15 @@
+
+// expected compile error
+
+func foo(u32[] x)
+{
+
+}
+
+func s32 main()
+{
+    u8[] buf;
+    foo(buf);
+
+    return 0;
+}

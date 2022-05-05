@@ -1,0 +1,13 @@
+
+// expected compile error
+
+func s32 main()
+{
+    u32 vla;
+
+    u32[3] buf = {1,2,3};
+
+    buf = vla;
+
+    return 0;
+}

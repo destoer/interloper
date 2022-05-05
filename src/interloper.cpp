@@ -635,10 +635,6 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             
             const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
 
-            // TODO fixme: this the passed arg needs to be type checked against the actual
-            // for now we will just assume that it is getting passed propely
-            // probably best to just add a handler in check_assign because we are going to need to do 
-            // type checkign on actual assigns as well
 
             // check what kind of array we are getting by here and just push the struct in reverse order
 
@@ -677,6 +673,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                     unimplemented("fixed size passed to fixed size");
                 }
             }
+
+            check_assign(itl,arg.type,arg_type);
         }
 
         // TODO: handle being passed args that wont fit inside a single hardware reg
@@ -1396,58 +1394,71 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
         emit(func.emitter,op_type::alloc_slot,slot_idx(array),size,count);
     }
 
-    if(line.nodes.size() == 2 && line.nodes[1]->type == ast_type::arr_initializer)
+    else
+    {
+        emit(func.emitter,op_type::alloc_vla,slot_idx(array));
+    }
+
+    // has an initalizer
+    if(line.nodes.size() == 2)
     {
         // TODO: type check this is an array
         // TODO: typecheck the length on this
         // TODO: handle this on a variable length array
 
+       if(line.nodes[1]->type == ast_type::arr_initializer)
+       {
 
-       
+            const Type index_type = contained_arr_type(array.type);
 
-        const Type index_type = contained_arr_type(array.type);
+            const u32 count = line.nodes[1]->nodes.size();
+            const u32 size = type_size(itl,index_type);
 
-        const u32 count = line.nodes[1]->nodes.size();
-        const u32 size = type_size(itl,index_type);
-
-        // if this is vla allocate the struct and supply the setup info
-        if(is_runtime_size(array.type.dimensions[0]))
-        {
-            // now alloc the struct
-            emit(func.emitter,op_type::alloc_vla,slot_idx(array));
-
-            const u32 data_slot = new_slot(func);
-            emit(func.emitter,op_type::buf_alloc,data_slot,slot_idx(array));
-
-            // store the index we need here
-            emit(func.emitter,op_type::state_dump,size,count);
-
-            // now store the data
-            emit(func.emitter,op_type::store_arr_data,data_slot,slot_idx(array));
-
-            //  and the length
-            const u32 len_slot = new_slot(func);
-            emit(func.emitter,op_type::mov_imm,len_slot,count);
-            emit(func.emitter,op_type::store_arr_len,len_slot,slot_idx(array));
-        }
-
-        // for each val
-        for(u32 i = 0; i < count; i++)
-        {
-            auto n = line.nodes[1]->nodes[i];
-
-            // check the type against cur type and check it matches
-            // perform type promotion if necessary for integers etc
-            const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
-
-            check_assign(itl,index_type,rtype);
-
-            if(itl.error)
+            // if this is vla allocate the struct and supply the setup info
+            if(is_runtime_size(array.type.dimensions[0]))
             {
-                return;
+
+
+                const u32 data_slot = new_slot(func);
+                emit(func.emitter,op_type::buf_alloc,data_slot,slot_idx(array));
+
+                // store the index we need here
+                emit(func.emitter,op_type::state_dump,size,count);
+
+                // now store the data
+                emit(func.emitter,op_type::store_arr_data,data_slot,slot_idx(array));
+
+                //  and the length
+                const u32 len_slot = new_slot(func);
+                emit(func.emitter,op_type::mov_imm,len_slot,count);
+                emit(func.emitter,op_type::store_arr_len,len_slot,slot_idx(array));
             }
 
-            emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,i);
+            // for each val
+            for(u32 i = 0; i < count; i++)
+            {
+                auto n = line.nodes[1]->nodes[i];
+
+                // check the type against cur type and check it matches
+                // perform type promotion if necessary for integers etc
+                const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
+
+                check_assign(itl,index_type,rtype);
+
+                if(itl.error)
+                {
+                    return;
+                }
+
+                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,i);
+            }
+
+        }
+
+        else
+        {
+            // NOTE: impl this with the move primitive
+            unimplemented("array assign");
         }
     }    
 }
