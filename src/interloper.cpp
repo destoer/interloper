@@ -1390,18 +1390,19 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
         // if this is vla allocate the struct and supply the setup info
         if(is_runtime_size(array.type.dimensions[0]))
         {
+            // now alloc the struct
+            emit(func.emitter,op_type::alloc_vla,slot_idx(array));
+
             const u32 data_slot = new_slot(func);
             emit(func.emitter,op_type::buf_alloc,data_slot,slot_idx(array));
+
             // store the index we need here
             emit(func.emitter,op_type::state_dump,size,count);
-
-            // and the struct
-            emit(func.emitter,op_type::alloc_vla,slot_idx(array));
 
             // now store the data
             emit(func.emitter,op_type::store_arr_data,data_slot,slot_idx(array));
 
-            // setup len
+            //  and the length
             const u32 len_slot = new_slot(func);
             emit(func.emitter,op_type::mov_imm,len_slot,count);
             emit(func.emitter,op_type::store_arr_len,len_slot,slot_idx(array));
@@ -1824,9 +1825,10 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
         }
     }
 
-
-    print(itl.root);
-
+    if(itl.print_ast)
+    {
+        print(itl.root);
+    }
 
     // okay now we need to start doing semantic analysis
     // first handle any imports, macros etc (skip for now)
@@ -1880,8 +1882,11 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
 
     //optimise_ir(itl);
 
-    dump_ir_sym(itl);
-
+    if(itl.print_ir)
+    {
+        dump_ir_sym(itl);
+    }
+    
     // perform register allocation
     for(auto &[key, func]: itl.function_table)
     {

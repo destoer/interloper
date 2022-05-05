@@ -150,8 +150,8 @@ struct LocalAlloc
 
 
     // debug (TODO: make this a command line flag)
-    b32 print_reg_allocation = false;
-    b32 print_stack_allocation = false;
+    b32 print_reg_allocation = true;
+    b32 print_stack_allocation = true;
 
     // stack allocation
 
@@ -885,7 +885,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         case op_type::alloc_slot:
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-            printf("alloc slot: %s\n",sym.name.c_str());
+
+            if(alloc.print_reg_allocation)
+            {
+                printf("alloc slot: %s\n",sym.name.c_str());
+            }
 
             // if we have anything that wont just fit inside a reg
             const u32 size = opcode.v[1];
@@ -908,10 +912,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
         case op_type::buf_alloc:
         {
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-
-            printf("buf addr: %s\n",sym.name.c_str());
-
             node->opcode = Opcode(op_type::buf_alloc,opcode.v[0],opcode.v[1],alloc.stack_offset);
         
             // just rewrite the 1st reg we dont want the address of the 2nd
@@ -934,7 +934,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         case op_type::alloc_vla:
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-            printf("alloc vla: %s\n",sym.name.c_str());
             sym.offset = stack_reserve(alloc,GPR_SIZE,2);
 
             node = node->next;
@@ -1008,11 +1007,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
     return node;
 }
 
-u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size)
+u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size, const char* name)
 {
     if(alloc.print_stack_allocation)
     {
-        printf("final offset = %x:%x\n",offset,offset - PENDING_ALLOCATION);
+        printf("final offset %s = %x:%x\n",name,offset,offset - PENDING_ALLOCATION);
     }
 
     assert(offset >= PENDING_ALLOCATION && offset != UNALLOCATED_OFFSET);
@@ -1020,8 +1019,6 @@ u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size)
     const u32 idx = offset - PENDING_ALLOCATION;  
     return alloc.stack_alloc[size >> 1] + (idx * size);     
 }
-
-// TODO: factor finalising the offset
 
 // 2nd pass of rewriting on the IR
 ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node,const Opcode& callee_restore,
@@ -1053,16 +1050,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         case op_type::alloc_vla:
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-
-            printf("alloc vla2: %s\n",sym.name.c_str());
-        #if 0
-            // TODO: this idx is SCUFFED
-            const u32 idx = sym.offset - PENDING_ALLOCATION;  
-            printf("array struct allocated to %x (%x:%x)\n",sym.offset,idx,alloc.stack_alloc[GPR_SIZE >> 1]);
-        #endif
-            sym.offset = finish_alloc(alloc,sym.offset,GPR_SIZE);
-
-            
+            sym.offset = finish_alloc(alloc,sym.offset,GPR_SIZE,sym.name.c_str());
 
             node = remove(list,node);
             break;
@@ -1103,7 +1091,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             ListNode *state_dump = node->next;
 
             const u32 pending = state_dump->opcode.v[2];
-            const u32 offset = finish_alloc(alloc,pending,sym.size);
+            const u32 offset = finish_alloc(alloc,pending,sym.size,std::string("buffer: " + sym.name).c_str());
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,offset + stack_offset);
 
@@ -1203,13 +1191,9 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // alloc <slot>, <size>, <count>
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
 
-            printf("alloc2: %s\n",sym.name.c_str());
-
-            // NOTE: we may finalise the allocation somewhere else 
-            // i.e buf addr in arrays
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                sym.offset = finish_alloc(alloc,sym.offset,opcode.v[1]);
+                sym.offset = finish_alloc(alloc,sym.offset,opcode.v[1],sym.name.c_str());
             }
 
             return remove(list,node);
@@ -1272,7 +1256,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
                 // this is the first stack access so we need to compute the final posistion
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                sym.offset = finish_alloc(alloc,sym.offset,sym.size);
+                sym.offset = finish_alloc(alloc,sym.offset,sym.size,sym.name.c_str());
             }
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
@@ -1290,7 +1274,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // this is the first stack access so we need to compute the final posistion
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                sym.offset = finish_alloc(alloc,sym.offset,sym.size);
+                sym.offset = finish_alloc(alloc,sym.offset,sym.size,sym.name.c_str());
             }
 
             // write value back out into mem
@@ -1535,7 +1519,10 @@ void emit_asm(Interloper &itl)
         }
     }
 
-    dump_program(itl.program,inv_label_lookup,itl.symbol_table.label_lookup);
+    if(itl.print_ir)
+    {
+        dump_program(itl.program,inv_label_lookup,itl.symbol_table.label_lookup);
+    }
 }
 
 

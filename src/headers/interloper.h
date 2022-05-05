@@ -31,6 +31,10 @@ struct Interloper
 
     // TODO: move other structures to an arena
     ArenaAllocator list_allocator;
+
+    // TODO: make this be a flag
+    b32 print_ast = true;
+    b32 print_ir = true;
 };
 
 

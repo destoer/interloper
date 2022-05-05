@@ -506,10 +506,13 @@ s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 
         memcpy(&opcode,&program[regs[PC]],sizeof(opcode));
 
+    #if 0
         printf("%08x: ",regs[PC]);
         disass_opcode_raw(opcode);
-
+    #endif
+    
         regs[PC] += OP_SIZE;
+
 
         execute_opcode(interpretter,opcode);
     }
