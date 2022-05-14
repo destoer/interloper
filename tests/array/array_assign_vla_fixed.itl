@@ -1,0 +1,11 @@
+
+// expect compile error
+func s32 main()
+{
+    u32[3] buf;
+    u32[] vla;
+
+    buf = vla;
+
+    return 0;
+}

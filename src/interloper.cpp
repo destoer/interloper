@@ -674,7 +674,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 }
             }
 
-            check_assign(itl,arg.type,arg_type);
+            check_assign(itl,arg.type,arg_type,true);
         }
 
         // TODO: handle being passed args that wont fit inside a single hardware reg
@@ -692,7 +692,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
 
             // type check the arg
-            check_assign(itl,arg.type,arg_type);
+            check_assign(itl,arg.type,arg_type,true);
 
             // finally push the arg
             emit(func.emitter,op_type::push_arg,reg);

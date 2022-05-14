@@ -71,7 +71,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array/array_conv.itl",6,false},
     {"tests/array/array_var_size.itl",16,false},
     {"tests/array/array_mismatched_type.itl",-1,true},
-    {"tests/array/array_assign_fixed_vla.itl",-1,true},
+    {"tests/array/array_assign_vla.itl",3,false},
+    {"tests/array/array_assign_vla_fixed.itl",-1,false},
     {"tests/array/array_pass_u32.itl",-1,true},
 };
 

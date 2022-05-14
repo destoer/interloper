@@ -449,29 +449,58 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
                 return;
             }
 
+            if(ltype.degree != rtype.degree)
+            {
+                panic(itl,"expected array of degree %d got %d\n",ltype.degree,rtype.degree);
+                return;
+            }
+
+
+            // when we conv them the rule is to push struct convs to a vla
+            // until we hit the end or something that is allready a vla
+            // as it will allready hold it in the correct from 
 
             // dimension assign
             // assign to var size, have to be equal or a runtime size
             // [][] = [][3]
             // [][3] = [][3]
             // [][] = [][]
-            // [][] = [3][3]
+            // [][] = [3][3] 
+
 
             // for arg passing only
             // valid
             // [3] = [3]
 
-            UNUSED(is_arg);
+            if(is_arg)
+            {
+                for(u32 i = 0; i < ltype.degree; i++)
+                {
+                    // any assignment is valid if the dst is a vla
+                    if(!is_runtime_size(ltype.dimensions[i]))
+                    {
+                        if(ltype.dimensions[i] != rtype.dimensions[i])
+                        {
+                            panic(itl,"(%d) expected array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
+                        }
+                    }
+                }
+            }
 
+            else
+            {
+                // first must be vla for this to work
+                // otherwhise this has the same set of rules
 
-        
-
-            unimplemented("type check array");
+                unimplemented("assign local");
+            }
         }
 
 
-
-        unimplemented("check assign user defined type!\n");
+        else
+        {
+            unimplemented("check assign user defined type!\n");
+        }
     }
 }
 
