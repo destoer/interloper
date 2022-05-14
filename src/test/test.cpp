@@ -57,6 +57,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/control_flow/for_single.itl",32,false},
 
     // pointers
+    // TODO: impl pointer casting
     {"tests/ptr/pointer.itl",-2,false},
     {"tests/ptr/deref_plain.itl",-1,true},
     {"tests/ptr/ptr_to_ptr.itl",1,true},
@@ -70,7 +71,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array/array_conv.itl",6,false},
     {"tests/array/array_var_size.itl",16,false},
     {"tests/array/array_mismatched_type.itl",-1,true},
-    {"tests/array_assign_fixed_vla.itl",-1,true},
+    {"tests/array/array_assign_fixed_vla.itl",-1,true},
+    {"tests/array/array_pass_u32.itl",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

@@ -20,6 +20,32 @@ const char *builtin_type_name(builtin_type t)
     return TYPE_NAMES[static_cast<size_t>(t)];
 }
 
+bool is_builtin(u32 type_idx)
+{
+    return type_idx < BUILTIN_TYPE_SIZE;
+}
+
+bool is_builtin(const Type &t)
+{
+    return is_builtin(t.type_idx);
+}
+
+
+const char *base_type_name(Interloper& itl,u32 type_idx)
+{
+    UNUSED(itl);
+
+    if(is_builtin(type_idx))
+    {
+        return builtin_type_name(builtin_type(type_idx));
+    }
+
+    else
+    {
+        unimplemented("user defined type base name");
+    }
+}
+
 
 builtin_type conv_type_idx(int type_idx)
 {
@@ -61,12 +87,6 @@ Type contained_arr_type(const Type &type)
     return accessed_type;
 }
 
-
-
-bool is_builtin(const Type &t)
-{
-    return t.type_idx < BUILTIN_TYPE_SIZE;
-}
 
 // pointer is active if not contained by an array
 // of any kind
@@ -342,7 +362,7 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
 }
 
 
-void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
+void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_arg = false)
 {
     UNUSED(itl);
 
@@ -409,9 +429,42 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype)
 
         else if(is_array(ltype))
         {
-            // make sure dimensions match
-            // and the other type is an array 
-            // make sure degree matches
+            // type idx along with the indirection, and contain type
+            // must be the same
+            if(!is_array(rtype))
+            {
+                panic(itl,"expected array of %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                return;
+            }
+
+            if(ltype.type_idx != rtype.type_idx)
+            {
+                panic(itl,"expected array of underlying type %s got %s\n",base_type_name(itl,ltype.type_idx),base_type_name(itl,rtype.type_idx));
+                return;
+            }
+
+            if(ltype.ptr_indirection != rtype.ptr_indirection)
+            {
+                panic(itl,"expected pointer of indirection %d got %d\n",ltype.ptr_indirection,rtype.ptr_indirection);
+                return;
+            }
+
+
+            // dimension assign
+            // assign to var size, have to be equal or a runtime size
+            // [][] = [][3]
+            // [][3] = [][3]
+            // [][] = [][]
+            // [][] = [3][3]
+
+            // for arg passing only
+            // valid
+            // [3] = [3]
+
+            UNUSED(is_arg);
+
+
+        
 
             unimplemented("type check array");
         }
