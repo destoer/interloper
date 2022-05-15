@@ -1082,6 +1082,8 @@ std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 
     return std::pair<Type,u32>{type,dst_slot};
 }
 
+
+// TODO: our type checking for our array assigns has to be done out here to ensure locals are type checked correctly
 void write_arr(Interloper &itl,Function &func,AstNode *node,const Type& write_type, u32 slot)
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_slot(func));
