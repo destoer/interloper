@@ -69,10 +69,15 @@ u32 make_runtime_size(u32 size)
     return size + RUNTIME_SIZE;
 }
 
-bool same_type(const Type &type1, const Type &type2)
+bool is_simple_type(const Type &type)
 {
-    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection) && (type1.degree == type2.degree)
-        && is_runtime_size(type1.dimensions[0]) == is_runtime_size(type2.dimensions[0]) && type1.contains_ptr == type2.contains_ptr;
+    return !type.degree;
+}
+
+// just a plain type, i.e has no array anywhere in its definiton
+bool same_simple_type(const Type &type1, const Type &type2)
+{
+    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection); 
 }
 
 Type contained_arr_type(const Type &type)
@@ -369,7 +374,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
     // if we have the same types we dont care
     // TODO: an additonal earlier check might be needed on the dst
     // if we add const specifiers
-    if(same_type(ltype,rtype))
+    if(is_simple_type(ltype) && is_simple_type(rtype) && same_simple_type(ltype,rtype))
     {
         return;
     }
@@ -472,28 +477,28 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             // valid
             // [3] = [3]
 
-            if(is_arg)
+
+            // we need to make sure we cant
+            // assign to static arrays?
+            // wait do we actually care....
+            if(!is_arg)
             {
-                for(u32 i = 0; i < ltype.degree; i++)
+                
+            }
+
+            for(u32 i = 0; i < ltype.degree; i++)
+            {
+                // any assignment is valid if the dst is a vla
+                if(!is_runtime_size(ltype.dimensions[i]))
                 {
-                    // any assignment is valid if the dst is a vla
-                    if(!is_runtime_size(ltype.dimensions[i]))
+                    if(ltype.dimensions[i] != rtype.dimensions[i])
                     {
-                        if(ltype.dimensions[i] != rtype.dimensions[i])
-                        {
-                            panic(itl,"(%d) expected array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
-                        }
+                        panic(itl,"(%d) expected array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
                     }
                 }
             }
+            
 
-            else
-            {
-                // first must be vla for this to work
-                // otherwhise this has the same set of rules
-
-                unimplemented("assign local");
-            }
         }
 
 
@@ -513,7 +518,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
 
     // we dont care if we have the same type
     // i.e this cast does nothing
-    if(same_type(old_type,new_type))
+    if(is_simple_type(old_type) && is_simple_type(new_type) && same_simple_type(old_type,new_type))
     {
         return;
     }

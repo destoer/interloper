@@ -567,7 +567,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 }
 
 
-/* we need to impl pointers to arrays first
+
 
 //  we dont want the 2nd stage IR handling how things need to be copied
 // as it does not have the information required easily accessible
@@ -579,7 +579,7 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     
 
     // can be moved by a simple data copy
-    if(is_trivial_copy(dst) && is_trivial_copy(src))
+    if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
     {
         emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
     }
@@ -594,7 +594,6 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
         // structs
     }
 }
-*/
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
@@ -732,7 +731,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // store the return value back into a reg
     if(returns_value)
     {
-        emit(func.emitter,op_type::mov_reg,dst_slot,RV_IR);
+        // TODO: is this dst type correct?
+        compile_move(itl,func,dst_slot,RV_IR,func.return_type,func.return_type);
     }
 
     // result of expr is the return type
@@ -1172,14 +1172,13 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
             check_assign(itl,sym.type,rtype);
 
-
-            emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
+            compile_move(itl,func,slot_idx(sym),slot,sym.type,rtype);
 
             // TODO: make sure that the silly code this gens
             // is cleaned up by the optimiser
             if(dst_slot != slot)
             {
-                emit(func.emitter,op_type::mov_reg,dst_slot,slot);
+                compile_move(itl,func,dst_slot,slot,sym.type,rtype);
             }
 
             return sym.type;        
@@ -1457,8 +1456,11 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 
         else
         {
-            // NOTE: impl this with the move primitive
-            unimplemented("array assign");
+            const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],new_slot(func));
+
+            check_assign(itl,array.type,rtype); 
+
+            compile_move(itl,func,slot_idx(array),reg,array.type,rtype);
         }
     }    
 }
@@ -1504,7 +1506,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
         // oper is a single symbol and the move hasn't happened we need to explictly move it
         if(slot_idx(sym) != reg)
         {
-            emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
+            compile_move(itl,func,slot_idx(sym),reg,sym.type,rtype);
         }
 
         check_assign(itl,ltype,rtype);         
@@ -1533,7 +1535,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto &sym = add_symbol(itl.symbol_table,name,type,size);
 
     emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
-    emit(func.emitter,op_type::mov_reg,slot_idx(sym),reg);
+    compile_move(itl,func,slot_idx(sym),reg,sym.type,type);
 }
 
 
@@ -1616,7 +1618,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                     check_assign(itl,sym.type,rtype);
 
-                    emit(func.emitter,op_type::mov_reg,slot_idx(sym),slot);
+                    compile_move(itl,func,slot_idx(sym),slot,sym.type,rtype);
                 }
                 break;
             }
@@ -1638,7 +1640,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
     
                     if(v1 != RV_IR)
                     {
-                        emit(func.emitter,op_type::mov_reg,RV_IR,v1);
+                        compile_move(itl,func,RV_IR,v1,func.return_type,rtype);
                     }
 
 
