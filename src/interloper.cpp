@@ -60,16 +60,16 @@ Type get_type(Interloper &itl, AstNode *type_decl)
             {
                 case ast_type::ptr_indirection:
                 {
-                    if(arr_decl)
-                    {
-                        type.contains_ptr = true;
-                    }
                     ptr_decl = n;
                     break;
                 }
 
                 case ast_type::arr_dimensions:
                 {
+                    if(ptr_decl)
+                    {
+                        type.contains_ptr = true;
+                    }
                     arr_decl = n;
                     break;
                 }
