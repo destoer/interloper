@@ -66,7 +66,6 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     // arrays
     {"tests/array/array.itl",1061,false},
     {"tests/array/array_size.itl",4,false},
-    {"tests/array/array_of_ptr.itl",5,false},
     {"tests/array/array_initializer.itl",16,false},
     {"tests/array/array_conv.itl",6,false},
     {"tests/array/array_var_size.itl",16,false},
@@ -74,6 +73,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array/array_assign_vla.itl",3,false},
     {"tests/array/array_assign_vla_fixed.itl",-1,true},
     {"tests/array/array_pass_u32.itl",-1,true},
+    {"tests/array/array_take_pointer.itl",5,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
