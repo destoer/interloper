@@ -23,6 +23,8 @@ struct Interloper
 
     AstNode *root = nullptr;
 
+    AstNode *cur_line = nullptr;
+
     std::unordered_map<std::string, Function> function_table;
     // did the last compiled function have a return
     b32 has_return;
@@ -38,10 +40,17 @@ struct Interloper
 };
 
 
+void print(const AstNode *root);
+
 template<typename... Args>
 inline void panic(Interloper &itl,const char *fmt, Args... args)
 {
     printf("error: ");
     printf(fmt,args...);
     itl.error = true;
+
+    if(itl.cur_line)
+    {
+        print(itl.cur_line);
+    }
 }

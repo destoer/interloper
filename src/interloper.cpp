@@ -1003,7 +1003,15 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 
         case ast_type::array_access:
         {
-            return index_arr(itl,func,node,slot);
+            if(addrof)
+            {
+                return index_arr(itl,func,node,slot);
+            }
+
+            else
+            {
+                unimplemented("deref array of ptr");
+            }
         }
 
         default:
@@ -1560,12 +1568,15 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
     for(auto l : node->nodes)
     {
+        // for error printing
+        itl.cur_line = l;
+
+        const auto &line = *l;
+
         if(itl.error)
         {
             return;
         }
-
-        const auto &line = *l;
 
         switch(line.type)
         {
@@ -1626,7 +1637,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                     {
                         panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
                         print(l);
-                        return;
+                        break;
                     }
 
                     const auto &sym = sym_opt.value();
@@ -1661,7 +1672,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                     if(itl.error)
                     {
-                        return;
+                        break;
                     }
 
                     check_assign(itl,func.return_type,rtype);
