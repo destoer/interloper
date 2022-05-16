@@ -584,6 +584,20 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
         emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
     }
 
+    else if(is_array(dst_type) && is_array(src_type))
+    {
+        // store the len
+        const u32 len_slot = new_slot(func);
+        emit(func.emitter,op_type::load_arr_len,len_slot,src_slot,0);
+        emit(func.emitter,op_type::store_arr_len,len_slot,dst_slot,0);
+
+
+        // store the buf
+        const u32 buf_slot = new_slot(func);
+        emit(func.emitter,op_type::load_arr_data,buf_slot,src_slot,0);
+        emit(func.emitter,op_type::store_arr_data,buf_slot,dst_slot,0);
+    }
+
     // requires special handling to move
     else
     {
@@ -944,7 +958,6 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 // TODO: this needs a cleanup
 // TODO: does it make sense to use the same function for both the @ and & operator?
-// TODO: this wont handle arrays
 std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof)
 {
     // figure out what the addr is

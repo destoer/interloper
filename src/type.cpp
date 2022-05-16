@@ -483,7 +483,11 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             // wait do we actually care....
             if(!is_arg)
             {
-                
+                if(!is_runtime_size(ltype.dimensions[0]))
+                {
+                    panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                    return;
+                }
             }
 
             for(u32 i = 0; i < ltype.degree; i++)
@@ -494,6 +498,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
                     if(ltype.dimensions[i] != rtype.dimensions[i])
                     {
                         panic(itl,"(%d) expected array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
+                        return;
                     }
                 }
             }
