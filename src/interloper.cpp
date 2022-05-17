@@ -197,7 +197,6 @@ std::pair<Type,u32> symbol(Interloper &itl, AstNode *node)
     if(!sym_opt)
     {
         panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-        print(node);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};
     }
 
@@ -306,7 +305,6 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     if(!sym_opt)
     {
         panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-        print(node);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};
     }
 
@@ -623,7 +621,6 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     if(func_call.args.size() != node->nodes.size())
     {
         panic(itl,"[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
-        print(node);
         return Type(builtin_type::void_t);
     }
 
@@ -970,7 +967,6 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
             if(!sym_opt)
             {
                 panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-                print(node);
                 return std::pair<Type,u32>{Type(builtin_type::void_t),0};
             }
 
@@ -1010,7 +1006,24 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 
             else
             {
-                unimplemented("deref array of ptr");
+                auto [type,addr_slot] = index_arr(itl,func,node,slot);
+
+                // actually load the pointer with ptr_load
+                type.ptr_indirection -= 1;
+                const u32 ptr_slot = new_slot(func);
+                do_ptr_load(itl,func,ptr_slot,addr_slot,type);
+
+                // contained type is not actually a pointer
+                if(!is_pointer(type))
+                {
+                    panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",node->literal.c_str());
+                    return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+                }
+
+                // okay now just index out the final type
+                type.ptr_indirection -= 1;
+
+                return std::pair<Type,u32>{type,ptr_slot};
             }
         }
 
@@ -1032,7 +1045,6 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     if(!arr_opt)
     {
         panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.c_str());
-        print(node);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};       
     }
 
@@ -1187,7 +1199,6 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             if(!sym_opt)
             {
                 panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-                print(node);
                 return Type(builtin_type::void_t);
             }
 
@@ -1389,7 +1400,6 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         default:
         {
             panic(itl,"[COMPILE]: invalid expression\n");
-            print(node);
             return Type(builtin_type::void_t);
         }
     }
