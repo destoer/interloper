@@ -830,10 +830,8 @@ void print(const AstNode *root)
 
     for(const auto &n: root->nodes)
     {
-        if(n)
-        {
-            print(n);
-        }
+        print(n);
     }
+    
     depth -= 1;
 }

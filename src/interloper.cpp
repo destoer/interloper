@@ -1867,6 +1867,7 @@ void destroy_itl(Interloper &itl)
     {
         delete_tree(itl.root); 
         itl.root = nullptr;
+        itl.cur_line = nullptr;
     }
 
     destory_allocator(itl.list_allocator);
@@ -1950,6 +1951,7 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     // free it
     delete_tree(itl.root);
     itl.root = nullptr;
+    itl.cur_line = nullptr;
 
     if(itl.error)
     {

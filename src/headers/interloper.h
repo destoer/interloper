@@ -49,8 +49,16 @@ inline void panic(Interloper &itl,const char *fmt, Args... args)
     printf(fmt,args...);
     itl.error = true;
 
-    if(itl.cur_line)
+    print(itl.cur_line);
+}
+
+
+inline std::string get_program_name(const std::string &filename)
+{
+    if(filename.find(".") == std::string::npos)
     {
-        print(itl.cur_line);
+        return filename + ".itl";
     }
+
+    return filename;
 }

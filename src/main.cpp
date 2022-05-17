@@ -23,9 +23,9 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    
+    const auto filename = get_program_name(argv[1]);
 
-    const std::vector<std::string> file = read_string_lines(read_file(argv[1]));
+    const std::vector<std::string> file = read_string_lines(read_file(filename));
     if(!file.size())
     {
         printf("no such file: %s\n",argv[1]);
