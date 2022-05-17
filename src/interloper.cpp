@@ -279,7 +279,15 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 
     else
     {
-       unimplemented("struct read");
+        if(is_array(type))
+        {
+            unimplemented("read array");
+        }
+
+        else
+        {
+            unimplemented("struct read");
+        }
     }
 }
 
