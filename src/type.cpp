@@ -270,17 +270,33 @@ std::string type_name(Interloper& itl,const Type &type)
 
         // TODO: this type printing does not handle nesting
 
-        // is a pointer
-        for(u32 i = 0; i < type.ptr_indirection; i++)
+        // could be pointer to an array
+        if(!type.contains_ptr)
         {
-            plain = plain + "@";
-        } 
+            for(u32 i = 0; i < type.degree; i++)
+            {
+                plain = plain + "[]";
+            }  
 
-        for(u32 i = 0; i < type.degree; i++)
+            for(u32 i = 0; i < type.ptr_indirection; i++)
+            {
+                plain = plain + "@";
+            } 
+        }
+
+        // could be array of pointers
+        else
         {
-            plain = plain + "[]";
-        }       
+            for(u32 i = 0; i < type.ptr_indirection; i++)
+            {
+                plain = plain + "@";
+            } 
 
+            for(u32 i = 0; i < type.degree; i++)
+            {
+                plain = plain + "[]";
+            }       
+        }
         return plain;
     }
 

@@ -1052,7 +1052,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
     if(!is_array(arr.type))
     {
-        panic(itl,"[COMPILE]: expected array '%s' got %s\n",arr_name.c_str(),type_name(itl,arr.type));
+        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.c_str(),type_name(itl,arr.type).c_str());
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
