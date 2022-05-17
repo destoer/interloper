@@ -233,11 +233,13 @@ AstNode *parse_type(Parser &parser)
                     {
                         arr_decl->nodes.push_back(ast_plain(ast_type::arr_var_size));
                         consume(parser,token_type::sr_brace);
+                        type_literal = type_literal + "[]";
                     }
 
                     else 
                     {
                         arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
+                        type_literal = type_literal + "[_]";
                     }
                 }
 
@@ -832,6 +834,6 @@ void print(const AstNode *root)
     {
         print(n);
     }
-    
+
     depth -= 1;
 }
