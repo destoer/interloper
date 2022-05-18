@@ -41,7 +41,18 @@ u32 eval_const_expr(const AstNode *node)
 
         case ast_type::minus: return eval_const_expr(node->nodes[0]) - eval_const_expr(node->nodes[1]);
 
-        case ast_type::divide: return eval_const_expr(node->nodes[0]) / eval_const_expr(node->nodes[1]);
+        case ast_type::divide:
+        {
+            const u32 v1 = eval_const_expr(node->nodes[0]);
+            const u32 v2 = eval_const_expr(node->nodes[1]);
+
+            if(v2 == 0)
+            {
+                panic("division by zero in eval const expr");
+            }
+
+            return v1 / v2;
+        }
 
         default: print(node); unimplemented("eval const expr node"); break;
     }
