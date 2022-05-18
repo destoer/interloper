@@ -68,7 +68,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
 
     // arrays
     {"tests/array/array",1061,false},
-    {"tests/array/array_size",4,false},
+    {"tests/array/array_size",16,false},
     {"tests/array/array_initializer",16,false},
     {"tests/array/array_conv",6,false},
     {"tests/array/array_var_size",16,false},

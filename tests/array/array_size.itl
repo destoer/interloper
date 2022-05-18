@@ -1,10 +1,9 @@
 
-// expected 4
+// expected 16
 
 func s32 main()
 {
-    // TODO: have this be a expr
-    u32[4] x;
+    u32[4 * 4] x;
 
     return x.len;
 }

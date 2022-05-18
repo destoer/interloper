@@ -35,6 +35,14 @@ u32 eval_const_expr(const AstNode *node)
     {
         case ast_type::value: return node->value.v;
 
+        case ast_type::times: return eval_const_expr(node->nodes[0]) * eval_const_expr(node->nodes[1]);
+
+        case ast_type::plus: return eval_const_expr(node->nodes[0]) + eval_const_expr(node->nodes[1]);
+
+        case ast_type::minus: return eval_const_expr(node->nodes[0]) - eval_const_expr(node->nodes[1]);
+
+        case ast_type::divide: return eval_const_expr(node->nodes[0]) / eval_const_expr(node->nodes[1]);
+
         default: print(node); unimplemented("eval const expr node"); break;
     }
 }
