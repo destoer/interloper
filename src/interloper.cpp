@@ -334,8 +334,13 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     // TODO: for now we assume that this is a single member
     const auto member = node->nodes[0]->literal;
 
+    if(is_pointer(sym.type))
+    {
+        unimplemented("struct access via pointer");
+    }
+
     // is an array hardcode the members
-    if(is_array(sym.type))
+    else if(is_array(sym.type))
     {
         if(member == "len")
         {
@@ -1000,7 +1005,19 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 
             if(addrof)
             {
+                if(is_array(sym.type))
+                {
+                    // we only want to allow taking a pointer to a vla
+                    // as the real one doesnt have a struct...
+                    if(!is_runtime_size(sym.type.dimensions[0]))
+                    {
+                        panic(itl,"cannot take pointer to fixed size array: %s\n",name.c_str());
+                        return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+                    }
+                }
+
                 type.ptr_indirection += 1;
+
                 // actually  get the addr of the ptr
                 emit(func.emitter,op_type::addrof,slot,slot_idx(sym));
                 return std::pair<Type,u32>{type,slot};
