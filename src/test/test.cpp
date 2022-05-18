@@ -64,6 +64,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/ptr/expected_ptr",-1,true},
     {"tests/ptr/ptr_to_array",3,false},
     {"tests/ptr/ptr_to_fixed_array",-1,true},
+    {"tests/ptr/ptr_to_array_member",4,false},
 
     // arrays
     {"tests/array/array",1061,false},

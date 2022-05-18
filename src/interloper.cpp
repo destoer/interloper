@@ -336,7 +336,29 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
     if(is_pointer(sym.type))
     {
-        unimplemented("struct access via pointer");
+        auto type = sym.type;
+        type.ptr_indirection -= 1;
+
+
+        if(is_array(type))
+        {
+            if(member == "len")
+            {
+                // TODO: how should this work for multi dimensional arrays?
+                emit(func.emitter,load_ptr(dst_slot,slot_idx(sym),GPR_SIZE,GPR_SIZE,false));
+                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
+            }
+
+            else
+            {
+                unimplemented("array unknown member access %s : %s\n",name.c_str(),member.c_str());
+            }           
+        }
+
+        else
+        {
+            unimplemented("struct access via pointer");
+        }
     }
 
     // is an array hardcode the members

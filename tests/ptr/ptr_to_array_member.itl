@@ -1,4 +1,4 @@
-
+// expected 4
 func s32 arr_len(u32[]@ buf_ptr)
 {
     return buf_ptr.len;
@@ -7,7 +7,7 @@ func s32 arr_len(u32[]@ buf_ptr)
 
 func s32 main()
 {
-    u32[] buf = {1,2,3};
+    u32[] buf = {1,2,3,4};
 
     return arr_len(&buf);
 }
