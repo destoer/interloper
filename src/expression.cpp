@@ -362,6 +362,11 @@ AstNode *nud(Parser &parser,Token &t)
                     auto arr_access = ast_literal(ast_type::array_access,t.literal);
                     arr_access->nodes.push_back(e);
 
+                    if(parser.expr_tok.type == token_type::dot)
+                    {
+                        unimplemented("struct member access on array");
+                    }
+
                     return arr_access;
                 }
 
