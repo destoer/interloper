@@ -255,40 +255,53 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
     }    
 }
 
+// this function only supports up to 32 bit reads atm
+static_assert(GPR_SIZE == sizeof(u32));
+
+Opcode load_ptr(u32 dst_slot, u32 addr_slot,u32 offset, u32 size, bool is_signed)
+{
+    if(is_signed)
+    {
+        // word is register size (we dont need to extend it)
+        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);       
+    }
+
+    // "plain data"
+    // just move by size
+    else
+    {
+        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
+    }
+}
+
 void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
 {
     const u32 size = type_size(itl,type);
 
     if(size <= sizeof(u32))
     {
-        if(is_signed_integer(type))
-        {
-            // word is register size (we dont need to extend it)
-            static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);       
-        }
-
-        // "plain data"
-        // just move by size
-        else
-        {
-            static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-            emit(func.emitter,instr[size >> 1],dst_slot,addr_slot);
-        }
+        emit(func.emitter,load_ptr(dst_slot,addr_slot,0,size,is_signed(type)));
     }   
+
+    else if(is_array(type))
+    {
+        // read and copy data
+        const u32 buf_slot = new_slot(func);
+        emit(func.emitter,load_ptr(buf_slot,addr_slot,0,GPR_SIZE,false));
+        emit(func.emitter,op_type::store_arr_data,buf_slot,dst_slot);
+
+        // read and copy len
+        const u32 len_slot = new_slot(func);
+        emit(func.emitter,load_ptr(len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false));
+        emit(func.emitter,op_type::store_arr_len,len_slot,dst_slot);
+    }
 
     else
     {
-        if(is_array(type))
-        {
-            unimplemented("read array");
-        }
-
-        else
-        {
-            unimplemented("struct read");
-        }
-    }
+        unimplemented("struct read");
+    }  
 }
 
 
@@ -1165,7 +1178,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
         case ast_type::deref:
         {
-            const auto [type,slot]  = load_addr(itl,func,node->nodes[0],new_slot(func),false);
+            const auto [type,slot] = load_addr(itl,func,node->nodes[0],new_slot(func),false);
             do_ptr_load(itl,func,dst_slot,slot,type);
             return type;
         }
@@ -1497,11 +1510,15 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 
         else
         {
-            const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],new_slot(func));
+            const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(array));
 
             check_assign(itl,array.type,rtype); 
 
-            compile_move(itl,func,slot_idx(array),reg,array.type,rtype);
+            // oper is a single symbol and the move hasn't happened we need to explictly move it
+            if(slot_idx(array) != reg)
+            {
+                compile_move(itl,func,slot_idx(array),reg,array.type,rtype);
+            }
         }
     }    
 }

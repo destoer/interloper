@@ -1,9 +1,7 @@
 
 func s32 arr_len(u32[]@ buf_ptr)
 {
-    u32[] arr = @buf_ptr;
-
-    return arr.len;
+    return buf_ptr.len;
 }
 
 
