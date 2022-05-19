@@ -21,18 +21,31 @@ void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
     append(list,opcode);
 }
 
-Opcode write_ptr(u32 dst_slot, u32 addr_slot, u32 size, u32 offset)
+Opcode store_ptr(u32 dst_slot, u32 addr_slot, u32 size, u32 offset)
 {
-    if(size <= sizeof(u32))
-    {
-        static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
-    }   
+    static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+    return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
+}
 
+// this function only supports up to 32 bit reads atm
+static_assert(GPR_SIZE == sizeof(u32));
+
+Opcode load_ptr(u32 dst_slot, u32 addr_slot,u32 offset, u32 size, bool is_signed)
+{
+    if(is_signed)
+    {
+        // word is register size (we dont need to extend it)
+        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);       
+    }
+
+    // "plain data"
+    // just move by size
     else
     {
-        unimplemented("struct write");
-    }    
+        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
+    }
 }
 
 Block make_block(block_type type,ArenaAllocator* list_allocator)
@@ -822,7 +835,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             // as the index is an immdediate we can jsut calc this ahead of time
             const u32 offset = index * size;
 
-            const auto opcode = write_ptr(var_slot,arr_slot,size,offset);
+            const auto opcode = store_ptr(var_slot,arr_slot,size,offset);
 
             return insert_after(list,node,opcode);
         }                
@@ -1143,8 +1156,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
             if(is_runtime_size(sym.type.dimensions[0]))
             {
-                // TODO: this assumes GPR_SIZE is 4
-                node->opcode = Opcode(op_type::lw,opcode.v[0],SP,sym.offset + stack_offset + 0);
+                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + 0,GPR_SIZE,false);
             }
 
             // static array
@@ -1178,7 +1190,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             if(is_runtime_size(sym.type.dimensions[0]))
             {
                 // TODO: this assumes GPR_SIZE is 4
-                node->opcode = Opcode(op_type::lw,opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE);
+                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
             }
 
             else

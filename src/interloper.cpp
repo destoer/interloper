@@ -274,26 +274,6 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
     }    
 }
 
-// this function only supports up to 32 bit reads atm
-static_assert(GPR_SIZE == sizeof(u32));
-
-Opcode load_ptr(u32 dst_slot, u32 addr_slot,u32 offset, u32 size, bool is_signed)
-{
-    if(is_signed)
-    {
-        // word is register size (we dont need to extend it)
-        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);       
-    }
-
-    // "plain data"
-    // just move by size
-    else
-    {
-        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
-    }
-}
 
 void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
 {
@@ -324,11 +304,19 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 }
 
 
-void do_ptr_write(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
+void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
 {
     const u32 size = type_size(itl,type);
 
-    emit(func.emitter,write_ptr(dst_slot,addr_slot,size,0));   
+    if(size <= sizeof(u32))
+    {
+        emit(func.emitter,store_ptr(dst_slot,addr_slot,size,0));  
+    }
+
+    else
+    {
+        unimplemented("struct write");
+    } 
 }
 
 // TODO: we want this but have a bool that diffentiates between
@@ -1203,7 +1191,7 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,const Type& write_ty
     // deref of pointer
     type.ptr_indirection -= 1;
 
-    do_ptr_write(itl,func,slot,addr_slot,type);
+    do_ptr_store(itl,func,slot,addr_slot,type);
 
     check_assign(itl,type,write_type);
 }
@@ -1702,7 +1690,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                         {
                             const auto [type,addr_slot] = load_addr(itl,func,line.nodes[0]->nodes[0],new_slot(func),false);
                             check_assign(itl,type,rtype);
-                            do_ptr_write(itl,func,slot,addr_slot,type);
+                            do_ptr_store(itl,func,slot,addr_slot,type);
                             break;                        
                         }
 
