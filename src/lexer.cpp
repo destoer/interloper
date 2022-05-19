@@ -6,9 +6,9 @@ char peek(u32 offset, const std::string &line)
     return offset < line.size()? line[offset] : '\0';
 }
 
-void insert_token(Lexer &lexer, token_type type)
+void insert_token(Lexer &lexer, token_type type, u32 offset = 0)
 {
-    lexer.tokens.push_back(Token(type,"",lexer.row,lexer.column));
+    lexer.tokens.push_back(Token(type,"",lexer.row,lexer.column + offset));
 }
 
 void insert_token(Lexer &lexer, token_type type, const std::string &literal)
@@ -208,7 +208,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // equal
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_eq);
+                    insert_token(lexer,token_type::logical_eq,1);
                     lexer.column++;
                 }
                 
@@ -236,7 +236,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             { 
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::times_eq);
+                    insert_token(lexer,token_type::times_eq,1);
                     lexer.column++;
                 }
 
@@ -251,7 +251,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::plus_eq);
+                    insert_token(lexer,token_type::plus_eq,1);
                     lexer.column++;
                 }
 
@@ -275,7 +275,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
                 else if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::minus_eq);
+                    insert_token(lexer,token_type::minus_eq,1);
                     lexer.column++;
                 }                
 
@@ -292,7 +292,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // equal
                 if(peek(lexer.column+1,line) == '&')
                 {
-                    insert_token(lexer,token_type::logical_and);
+                    insert_token(lexer,token_type::logical_and,1);
                     lexer.column++;
                 }
 
@@ -308,7 +308,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // logical or
                 if(peek(lexer.column+1,line) == '|')
                 {
-                    insert_token(lexer,token_type::logical_or);
+                    insert_token(lexer,token_type::logical_or,1);
                     lexer.column++;
                 }
 
@@ -327,7 +327,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // not equal
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_ne);
+                    insert_token(lexer,token_type::logical_ne,1);
                     lexer.column++;
                 }
 
@@ -342,13 +342,13 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_le);
+                    insert_token(lexer,token_type::logical_le,1);
                     lexer.column++;
                 }
 
                 else if(peek(lexer.column+1,line) == '<')
                 {
-                    insert_token(lexer,token_type::shift_l);
+                    insert_token(lexer,token_type::shift_l,1);
                     lexer.column++;
                 }
 
@@ -363,13 +363,13 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_ge);
+                    insert_token(lexer,token_type::logical_ge,1);
                     lexer.column++;
                 }
 
                 else if(peek(lexer.column+1,line) == '>')
                 {
-                    insert_token(lexer,token_type::shift_r);
+                    insert_token(lexer,token_type::shift_r,1);
                     lexer.column++;
                 }
 
@@ -393,7 +393,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
                 else if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::divide_eq);
+                    insert_token(lexer,token_type::divide_eq,1);
                     lexer.column++;
                 }
 
