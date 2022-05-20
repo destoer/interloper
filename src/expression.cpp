@@ -355,12 +355,17 @@ AstNode *nud(Parser &parser,Token &t)
                 // TODO: we assume a single subscript
                 case token_type::sl_brace:
                 {
-                    consume_expr(parser,token_type::sl_brace);
-                    const auto e = expression(parser,0);
-                    consume_expr(parser,token_type::sr_brace);
-
                     auto arr_access = ast_literal(ast_type::array_access,t.literal);
-                    arr_access->nodes.push_back(e);
+
+                    while(parser.expr_tok.type == token_type::sl_brace)
+                    {
+                        consume_expr(parser,token_type::sl_brace);
+
+                        const auto e = expression(parser,0);
+                        arr_access->nodes.push_back(e);
+
+                        consume_expr(parser,token_type::sr_brace);
+                    }
 
                     if(parser.expr_tok.type == token_type::dot)
                     {
