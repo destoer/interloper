@@ -52,6 +52,11 @@ builtin_type conv_type_idx(int type_idx)
     return static_cast<builtin_type>(type_idx);
 }
 
+b32 is_runtime_size(const Type& type, u32 idx)
+{
+    return type.dimensions[idx] >= RUNTIME_SIZE;
+}
+
 b32 is_runtime_size(u32 size)
 {
     return size >= RUNTIME_SIZE;
@@ -181,20 +186,11 @@ u32 type_size(Interloper& itl,const Type &type)
     {
         return GPR_SIZE;
     }
-
+    
+    // TODO: this doesnt handle VLA
     else if(is_array(type))
     {
-        // first index is not fixed size
-        // so we need to hold the length
-        if(is_runtime_size(type.dimensions[0]))
-        {
-            return GPR_SIZE * 2;
-        }
-
-        else
-        {
-            return GPR_SIZE;
-        }
+        return GPR_SIZE;
     }
 
     else
@@ -235,26 +231,27 @@ u32 type_max(Interloper& itl,const Type &type)
     }
 }
 
-
-std::pair<u32,u32> arr_size(Interloper &itl, const Type &type)
+std::pair<u32,u32> arr_size(Interloper&itl,const Type& arr_type)
 {
-    // get size, len
-    // emit a alloc ir op
-    const auto contained_type = contained_arr_type(type);
-    const u32 size = type_size(itl,contained_type);
-
-    // TODO: assumes static array
-    // of one dimension
-    const u32 count = type.dimensions[0]; 
-
-    // NOTE: the "count" we return iis the total ammount of indexes
-    // until we hit a runtime sized dimension
-    // the first index is what matters for sizing, as unless all dimensions
-    // are fixed, it will be an "array of arrays" and not indexed tradiontially
-    if(type.degree > 1)
+    if(is_runtime_size(arr_type,0))
     {
-        unimplemented("multidimensional array");
-    }   
+        return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
+    }
+
+    // fixed size array
+    u32 count = arr_type.dimensions[0];
+    for(u32 i = 1; i < arr_type.degree; i++)
+    {
+        if(is_runtime_size(arr_type,i))
+        {
+            return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
+        }
+
+        count *= arr_type.dimensions[i];
+    }
+
+    const auto contained_type = contained_arr_type(arr_type);
+    const u32 size = type_size(itl,contained_type);
 
     return std::pair<u32,u32>{size,count};
 }

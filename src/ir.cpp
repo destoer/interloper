@@ -740,105 +740,14 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
     auto &slot_lookup = itl.symbol_table.slot_lookup;
     const auto &opcode = node->opcode;
 
+    UNUSED(func);
+
     switch(node->opcode.op)
     {
         // TODO: revisit when we add caller saved regs
         //case op_type::save_regs:
         //case op_type::restore_regs:
 
-        case op_type::load_arr_data:
-        {
-
-            // we dont have the information for this yet so we have to fill it in later
-            // load_arr_data <dst>, <sym>, <stack_offset>
-
-            node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
-
-            // only want to allocate the dst,
-            // we need to use the sym as a "slot" later
-            allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
-   
-            node = node->next;
-            break;
-        }
-
-        case op_type::arr_index:
-        {
-            // arr_index <dst>, <array_data_ptr>, <subscript_offset>
-            // add <dst>, <array_data_ptr>,<subcript_offset>
-            node->opcode = Opcode(op_type::add_reg,opcode.v[0],opcode.v[1],opcode.v[2]);
-            rewrite_opcode(itl,alloc,list,node);
-
-            node = node->next;
-            break;
-        }
-
-        case op_type::load_arr_len:
-        {
-            // load_arr_len <dst> <symbol>, <stack_offset>
-            node->opcode = Opcode(op_type::load_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
-            allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
-   
-            node = node->next;
-            break;
-        }
-
-        case op_type::store_arr_len:
-        {
-            // store_arr_data <src>, symbol, <stack_offset>
-            node->opcode = Opcode(op_type::store_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
-
-            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);
-
-            // TODO: we might be storing things that aernt tmp's here
-            free_tmp(alloc,opcode.v[0]);
-
-            node = node->next;
-            break;
-        }
-
-        case op_type::store_arr_data:
-        {
-            // store_arr_data <src>, symbol, <stack_offset>
-            node->opcode = Opcode(op_type::store_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
-
-            rewrite_reg_internal(slot_lookup,alloc,node->opcode,0);
-
-            // TODO: we might be storing things that aernt tmp's here
-            free_tmp(alloc,opcode.v[0]);
-
-            node = node->next;
-            break;
-        }
-
-        case op_type::init_arr_idx:
-        {
-            // init_arr_idx <arr> <slot> <index>
-            const auto &arr = sym_from_slot(slot_lookup,opcode.v[0]);
-            const u32 index = opcode.v[2];
-            const u32 var_slot = opcode.v[1];
-
-            // load_arr_data
-            // store <slot> <hard coded offset>
-
-            const u32 arr_slot = new_slot(func);
-
-            node->opcode = Opcode(op_type::load_arr_data,arr_slot,opcode.v[0],alloc.stack_offset);
-            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
-            
-
-            
-            // calc the offset we will use for the store
-            auto accessed_type = contained_arr_type(arr.type);
-            const auto size = type_size(itl,accessed_type);            
-
-            // as the index is an immdediate we can jsut calc this ahead of time
-            const u32 offset = index * size;
-
-            const auto opcode = store_ptr(var_slot,arr_slot,size,offset);
-
-            return insert_after(list,node,opcode);
-        }                
 
         case op_type::addrof:
         {
@@ -923,38 +832,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             break;
         }
 
-        case op_type::buf_alloc:
-        {
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-
-            node->opcode = Opcode(op_type::buf_alloc,opcode.v[0],opcode.v[1],alloc.stack_offset);
-        
-            // just rewrite the 1st reg we dont want the address of the 2nd
-            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
-
-            ListNode* state_dump = node->next;
-
-            // allocate and store the offset
-            const u32 size = state_dump->opcode.v[0];
-            const u32 count = state_dump->opcode.v[1];
-
-            state_dump->opcode.v[2] = stack_reserve(alloc,size,count,std::string("buffer " + sym.name).c_str());
-
-            // skip over the extra state dumping
-            node = state_dump->next;
-            break;
-        }
-
-
-        case op_type::alloc_vla:
-        {
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-            sym.offset = stack_reserve(alloc,GPR_SIZE,2,sym.name.c_str());
-
-            node = node->next;
-            break;
-        }
-
         // make sure the return value has nothing important when calling functions
         case op_type::spill_rv:
         {
@@ -980,27 +857,17 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         {
             auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
 
-            // this var is done so we can reclaim the stack space
-            if(sym.offset >= PENDING_ALLOCATION)
+            // specified size
+            if(opcode.v[2])
             {
-                if(is_array(sym.type))
-                {
-                    auto [size,count] = arr_size(itl,sym.type); 
-
-                    // TODO: this wont work correctly for varialbe sized array
-                    alloc.size_count[size >> 1] -= count;
-
-                    // TODO: free the vla struct 
-                    // (this isnt strictly necessary it will just waste stack space)
-                    
-                }
-
-                else
-                {
-                    alloc.size_count[sym.size >> 1] -= 1;
-                }
+                alloc.size_count[opcode.v[1] >> 1] -= opcode.v[2];
             }
 
+            // this var is done so we can reclaim the stack space
+            else if(sym.offset >= PENDING_ALLOCATION)
+            {
+                alloc.size_count[sym.size >> 1] -= 1;
+            }
 
             if(sym.location != LOCATION_MEM)
             {
@@ -1009,6 +876,18 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             }
 
             return remove(list,node);
+        }
+
+        // arrays
+        case op_type::arr_index:
+        {
+            // arr_index <dst>, <array_data_ptr>, <subscript_offset>
+            // add <dst>, <array_data_ptr>,<subcript_offset>
+            node->opcode = Opcode(op_type::add_reg,opcode.v[0],opcode.v[1],opcode.v[2]);
+            rewrite_opcode(itl,alloc,list,node);
+
+            node = node->next;
+            break;
         }
 
         default:
@@ -1054,66 +933,6 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
                 return remove(list,node);
             }
 
-            // TODO: we need to handle moving objects that dont fit inside registers here...
-            // i.e arrays
-
-            node = node->next;
-            break;
-        }
-
-        
-        case op_type::alloc_vla:
-        {
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[0]);
-            sym.offset = finish_alloc(alloc,sym.offset,GPR_SIZE,sym.name.c_str());
-
-            node = remove(list,node);
-            break;
-        }
-
-        case op_type::store_arr_data:
-        {
-            const s32 stack_offset = opcode.v[2];
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-
-
-            // TODO: this assumes GPR_SIZE is 4
-            node->opcode = Opcode(op_type::sw,opcode.v[0],SP,sym.offset + stack_offset + 0);
-
-            node = node->next;
-            break;
-        }
-
-        case op_type::store_arr_len:
-        {
-            const s32 stack_offset = opcode.v[2];
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-
-
-            // TODO: this assumes GPR_SIZE is 4
-            node->opcode = Opcode(op_type::sw,opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE);
-
-            node = node->next;
-            break;
-        }
-
-        case op_type::buf_alloc:
-        {
-            const s32 stack_offset = opcode.v[2];
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-
-            // pull the index offset for the buffer
-            ListNode *state_dump = node->next;
-
-            const u32 pending = state_dump->opcode.v[2];
-            const u32 size = state_dump->opcode.v[0];
-
-            const u32 offset = finish_alloc(alloc,pending,size,std::string("buffer: " + sym.name).c_str());
-
-            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,offset + stack_offset);
-
-
-            remove(list,state_dump);
             node = node->next;
             break;
         }
@@ -1123,84 +942,6 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             panic("unused state opcode");
         }
 
-        case op_type::load_arr_data:
-        {
-            // TODO: on a multidimensional array the offset must be 
-            // able to loaded from something other than a sym
-            // should we have a load_offset IR? load_offset <dst>, <sym>, stack_offset
-            // so it is uniform for them?
-            // and have seperate opcodes describing the array type?
-            // so in effect we get
-
-            /* 
-               load_offset <offset>, <sym>, stack_offset
-               load_arr_data_static <dst> <offset>
-
-               load_offset <offset>, <sym>, stack_offset
-               load_arr_data_vla <dst> <offset>
-            */
-            
-            /*
-                
-                load_arr_data <dst>, <sym>, stack_offset
-
-                // static array
-                lea <dst>, [<sym_offset>]
-
-                // vla
-                lw <dst>, [<sym_offset>]
-            */
-
-            const s32 stack_offset = opcode.v[2];
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-
-            if(is_runtime_size(sym.type.dimensions[0]))
-            {
-                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + 0,GPR_SIZE,false);
-            }
-
-            // static array
-            else
-            {
-                node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
-            }
-
-            node = node->next;
-            break;
-        }
-
-        case op_type::load_arr_len:
-        {
-            // TODO: on a multidimensional array the offset must be 
-            // able to loaded from something other than a sym
-            /*
-                
-                load_arr_len <dst>, <sym>, stack_offset
-
-                // static array
-                mov <dst>, [<size>]
-
-                // vla
-                lw <dst>, [<sym_offset> + GPR_SIZE]
-            */
-
-            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
-            const s32 stack_offset = opcode.v[2];
-
-            if(is_runtime_size(sym.type.dimensions[0]))
-            {
-                // TODO: this assumes GPR_SIZE is 4
-                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
-            }
-
-            else
-            {
-                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
-            }
-
-            node = node->next;
-            break;
-        }
 
         case op_type::alloc:
         {
@@ -1305,7 +1046,6 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             node = node->next;
             break;                  
         }
-
 
         default: node = node->next; break;
     }

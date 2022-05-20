@@ -287,15 +287,7 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 
     else if(is_array(type))
     {
-        // read and copy data
-        const u32 buf_slot = new_slot(func);
-        emit(func.emitter,load_ptr(buf_slot,addr_slot,0,GPR_SIZE,false));
-        emit(func.emitter,op_type::store_arr_data,buf_slot,dst_slot);
-
-        // read and copy len
-        const u32 len_slot = new_slot(func);
-        emit(func.emitter,load_ptr(len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false));
-        emit(func.emitter,op_type::store_arr_len,len_slot,dst_slot);
+        unimplemented("load arr from ptr");
     }
 
     else
@@ -335,6 +327,8 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     // TODO: for now we assume that this is a single member
     const auto member = node->literal;
 
+    UNUSED(dst_slot);
+
     if(is_pointer(type))
     {
         type.ptr_indirection -= 1;
@@ -342,19 +336,7 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
         if(is_array(type))
         {
-            assert(type.degree == 1);
-
-            if(member == "len")
-            {
-                // TODO: how should this work for multi dimensional arrays?
-                emit(func.emitter,load_ptr(dst_slot,slot,GPR_SIZE,GPR_SIZE,false));
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
-            }
-
-            else
-            {
-                unimplemented("array unknown member access %s\n",member.c_str());
-            }           
+            unimplemented("array access via pointer");
         }
 
         else
@@ -366,18 +348,23 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     // is an array hardcode the members
     else if(is_array(type))
     {
-        assert(type.degree == 1);
-
         if(member == "len")
         {
-            // TODO: how should this work for multi dimensional arrays?
-            emit(func.emitter,op_type::load_arr_len,dst_slot,slot);
-            return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
+            if(!is_runtime_size(type,0))
+            {
+                emit(func.emitter,op_type::mov_imm,dst_slot,type.dimensions[0]);
+                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
+            }
+
+            else
+            {
+                unimplemented("vla len");
+            }
         }
 
         else
         {
-            unimplemented("array unknown member %s\n",member.c_str());
+            unimplemented("array unknown member access %s\n",member.c_str());
         }
     }
 
@@ -636,26 +623,13 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
 
     else if(is_array(dst_type) && is_array(src_type))
     {
-        // store the len
-        const u32 len_slot = new_slot(func);
-        emit(func.emitter,op_type::load_arr_len,len_slot,src_slot,0);
-        emit(func.emitter,op_type::store_arr_len,len_slot,dst_slot,0);
-
-
-        // store the buf
-        const u32 buf_slot = new_slot(func);
-        emit(func.emitter,op_type::load_arr_data,buf_slot,src_slot,0);
-        emit(func.emitter,op_type::store_arr_data,buf_slot,dst_slot,0);
+        unimplemented("move array");
     }
 
     // requires special handling to move
     else
     {
         unimplemented("move user defined type");
-
-        // arrays
-
-        // structs
     }
 }
 
@@ -694,49 +668,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
         if(is_array(arg.type))
         {
-            
-            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
-
-
-            // check what kind of array we are getting by here and just push the struct in reverse order
-
-            // TODO: this needs to be factored off but just hard code it all for now
-            if(is_runtime_size(arg_type.dimensions[0]))
-            {
-                const u32 len_slot = new_slot(func);
-                emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
-                emit(func.emitter,op_type::push_arg,len_slot);
-
-                const u32 data_slot = new_slot(func);
-                emit(func.emitter,op_type::load_arr_data,data_slot,reg,0);
-                emit(func.emitter,op_type::push_arg,data_slot);
-
-                arg_clean += 2;
-            }
-
-            // standard array pass
-            else
-            {
-                if(is_runtime_size(arg.type.dimensions[0]))
-                {
-                    const u32 len_slot = new_slot(func);
-                    emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
-                    emit(func.emitter,op_type::push_arg,len_slot);
-
-                    const u32 data_slot = new_slot(func);
-                    emit(func.emitter,op_type::load_arr_data,data_slot,reg,0);
-                    emit(func.emitter,op_type::push_arg,data_slot);
-
-                    arg_clean += 2;
-                }
-
-                else
-                {
-                    unimplemented("fixed size passed to fixed size");
-                }
-            }
-
-            check_assign(itl,arg.type,arg_type,true);
+            unimplemented("pass array");
         }
 
         // TODO: handle being passed args that wont fit inside a single hardware reg
@@ -1158,7 +1090,9 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
     const auto data_slot = new_slot(func);
 
-    emit(func.emitter,op_type::load_arr_data,data_slot,slot_idx(arr));
+    // NOTE: assumes fixed size array
+
+    emit(func.emitter,op_type::addrof,data_slot,slot_idx(arr));
     emit(func.emitter,op_type::arr_index,dst_slot,data_slot,index_slot);
 
     // pointer to this type!
@@ -1465,101 +1399,33 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     }
 }
 
-
 void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, const Symbol& array)
 {
+    auto [size,count] = arr_size(itl,array.type);
 
-    // TODO: this has to be reworked to support nesting
-    // TODO: the way we want to move depends on the way it is used
-    // we fundemtnally want to return out the array ->
-    // but we need to return out not only the length + pointer
-
-    // TODO: we need to check if this array is just a constant
-    // and then just shove it in the const data section
-
-    assert(array.type.degree == 1);
-
-    // fixed size
-    if(!is_runtime_size(array.type.dimensions[0]))
+    if(size != RUNTIME_SIZE)
     {
-        const auto [size,count] = arr_size(itl,array.type); 
         emit(func.emitter,op_type::alloc_slot,slot_idx(array),size,count);
+
+        // has an initalizer
+        if(line.nodes.size() == 2)
+        {
+            unimplemented("fixed size initializer");
+        }
+
     }
 
+    // we want arrays on this to heap allocate by default
     else
     {
-        emit(func.emitter,op_type::alloc_vla,slot_idx(array));
-    }
+        unimplemented("VLA");
 
-    // has an initalizer
-    if(line.nodes.size() == 2)
-    {
-        // TODO: type check this is an array
-        // TODO: typecheck the length on this
-        // TODO: handle this on a variable length array
-
-       if(line.nodes[1]->type == ast_type::arr_initializer)
-       {
-
-            const Type index_type = contained_arr_type(array.type);
-
-            const u32 count = line.nodes[1]->nodes.size();
-            const u32 size = type_size(itl,index_type);
-
-            // if this is vla allocate the struct and supply the setup info
-            if(is_runtime_size(array.type.dimensions[0]))
-            {
-
-
-                const u32 data_slot = new_slot(func);
-                emit(func.emitter,op_type::buf_alloc,data_slot,slot_idx(array));
-
-                // store the index we need here
-                emit(func.emitter,op_type::state_dump,size,count);
-
-                // now store the data
-                emit(func.emitter,op_type::store_arr_data,data_slot,slot_idx(array));
-
-                //  and the length
-                const u32 len_slot = new_slot(func);
-                emit(func.emitter,op_type::mov_imm,len_slot,count);
-                emit(func.emitter,op_type::store_arr_len,len_slot,slot_idx(array));
-            }
-
-            // for each val
-            for(u32 i = 0; i < count; i++)
-            {
-                auto n = line.nodes[1]->nodes[i];
-
-                // check the type against cur type and check it matches
-                // perform type promotion if necessary for integers etc
-                const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
-
-                check_assign(itl,index_type,rtype);
-
-                if(itl.error)
-                {
-                    return;
-                }
-
-                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,i);
-            }
-
-        }
-
-        else
+        // has an initalizer
+        if(line.nodes.size() == 2)
         {
-            const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(array));
-
-            check_assign(itl,array.type,rtype); 
-
-            // oper is a single symbol and the move hasn't happened we need to explictly move it
-            if(slot_idx(array) != reg)
-            {
-                compile_move(itl,func,slot_idx(array),reg,array.type,rtype);
-            }
+            unimplemented("vla initializer");
         }
-    }    
+    }
 }
 
 
@@ -1802,7 +1668,20 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
         // free the stack alloc for each var thats about to go out of scope
         if(sym.arg_num == NON_ARG)
         {
-            emit(func.emitter,op_type::free_slot,slot_idx(sym)); 
+            if(is_array(sym.type))
+            {
+                const auto [size,count] = arr_size(itl,sym.type);
+
+                if(size != RUNTIME_SIZE)
+                {
+                    emit(func.emitter,op_type::free_slot,slot_idx(sym),size,count);
+                }
+            }
+
+            else
+            {
+                emit(func.emitter,op_type::free_slot,slot_idx(sym));
+            } 
         }
     }
 

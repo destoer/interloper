@@ -80,10 +80,6 @@ enum class op_type
     bc,
     b,
 
-    load_arr_len,
-    load_arr_data,
-    store_arr_len,
-    store_arr_data,
     arr_index,
     init_arr_idx,
 
