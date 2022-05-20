@@ -206,7 +206,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
 
     // TODO: this assumes this is one member deep
     // and wont work for more complicated expressions but just do it simple for now
-AstNode *member_access(Parser &parser, const std::string& literal)
+AstNode *member_access(Parser &parser, AstNode* expr_node)
 {
     // skip dot token
     auto member_tok = next_token_expr(parser);
@@ -219,8 +219,7 @@ AstNode *member_access(Parser &parser, const std::string& literal)
 
     // This has to be vague because we dont know any of the typing yet
     auto access_member = ast_literal(ast_type::access_member, member_tok.literal);
-    auto member = ast_literal(ast_type::symbol,literal);
-    access_member->nodes.push_back(member);
+    access_member->nodes.push_back(expr_node);
 
     // correct the state machine
     parser.expr_tok = next_token_expr(parser);
@@ -350,7 +349,7 @@ AstNode *nud(Parser &parser,Token &t)
 
                 case token_type::dot:
                 {
-                    return member_access(parser,t.literal);
+                    return member_access(parser,ast_literal(ast_type::symbol,t.literal));
                 }
 
                 // TODO: we assume a single subscript
@@ -365,10 +364,13 @@ AstNode *nud(Parser &parser,Token &t)
 
                     if(parser.expr_tok.type == token_type::dot)
                     {
-                        unimplemented("struct member access on array");
+                        return member_access(parser,arr_access);
                     }
 
-                    return arr_access;
+                    else
+                    {
+                        return arr_access;
+                    }
                 }
 
                 default:

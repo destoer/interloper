@@ -20,7 +20,7 @@ func s32 main()
     {
         len += arr[i].len;
 
-        for(u32 j = 0; i j < arr[i].len; j += 1)
+        for(u32 j = 0; j < arr[i].len; j += 1)
         {
             sum += arr[i][j];
         }
