@@ -14,6 +14,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 void compile_decl(Interloper &itl,Function &func, const AstNode &line);
 void compile_block(Interloper &itl,Function &func,AstNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
+std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot);
 
 
 
@@ -327,23 +328,15 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
     // load_struct <dst> <struct>,<member_idx>
 
-    const auto name = node->literal;
-
-    const auto sym_opt = get_sym(itl.symbol_table,name);
-    if(!sym_opt)
-    {
-        panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
-        return std::pair<Type,u32>{Type(builtin_type::void_t),0};
-    }
-
-    const auto sym = sym_opt.value();
+    // TODO: assumes no depth
+    const u32 struct_slot = new_slot(func);
+    auto [type, slot] = compile_oper(itl,func,node->nodes[0],struct_slot);
 
     // TODO: for now we assume that this is a single member
-    const auto member = node->nodes[0]->literal;
+    const auto member = node->literal;
 
-    if(is_pointer(sym.type))
+    if(is_pointer(type))
     {
-        auto type = sym.type;
         type.ptr_indirection -= 1;
 
 
@@ -352,13 +345,13 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
             if(member == "len")
             {
                 // TODO: how should this work for multi dimensional arrays?
-                emit(func.emitter,load_ptr(dst_slot,slot_idx(sym),GPR_SIZE,GPR_SIZE,false));
+                emit(func.emitter,load_ptr(dst_slot,slot,GPR_SIZE,GPR_SIZE,false));
                 return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
             }
 
             else
             {
-                unimplemented("array unknown member access %s : %s\n",name.c_str(),member.c_str());
+                unimplemented("array unknown member access %s\n",member.c_str());
             }           
         }
 
@@ -369,18 +362,18 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     }
 
     // is an array hardcode the members
-    else if(is_array(sym.type))
+    else if(is_array(type))
     {
         if(member == "len")
         {
             // TODO: how should this work for multi dimensional arrays?
-            emit(func.emitter,op_type::load_arr_len,dst_slot,slot_idx(sym));
+            emit(func.emitter,op_type::load_arr_len,dst_slot,slot);
             return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
         }
 
         else
         {
-            unimplemented("array unknown member access %s : %s\n",name.c_str(),member.c_str());
+            unimplemented("array unknown member %s\n",member.c_str());
         }
     }
 
@@ -1196,12 +1189,6 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,const Type& write_ty
     check_assign(itl,type,write_type);
 }
 
-/*
-Value const_expr_value(Interloper &itl, AstNode *node)
-{
-
-}
-*/
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
 {

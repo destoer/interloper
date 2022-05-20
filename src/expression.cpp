@@ -204,6 +204,30 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     return nullptr;
 }
 
+    // TODO: this assumes this is one member deep
+    // and wont work for more complicated expressions but just do it simple for now
+AstNode *member_access(Parser &parser, const std::string& literal)
+{
+    // skip dot token
+    auto member_tok = next_token_expr(parser);
+    if(member_tok.type != token_type::symbol)
+    {
+        panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.c_str(),tok_name(member_tok.type));
+        return nullptr;
+    }
+
+
+    // This has to be vague because we dont know any of the typing yet
+    auto access_member = ast_literal(ast_type::access_member, member_tok.literal);
+    auto member = ast_literal(ast_type::symbol,literal);
+    access_member->nodes.push_back(member);
+
+    // correct the state machine
+    parser.expr_tok = next_token_expr(parser);
+
+    return access_member;    
+}
+
 // unary operators
 AstNode *nud(Parser &parser,Token &t)
 {
@@ -324,32 +348,9 @@ AstNode *nud(Parser &parser,Token &t)
                     return func_call;
                 }
 
-                // TODO: this assumes this is one member deep
-                // and wont work for more complicated expressions but just do it simple for now
                 case token_type::dot:
                 {
-                /*
-                    unimplemented("struct member");
-                    return nullptr;
-                */
-                    // skip dot token
-                    auto member_tok = next_token_expr(parser);
-                    if(member_tok.type != token_type::symbol)
-                    {
-                        panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.c_str(),tok_name(member_tok.type));
-                        return nullptr;
-                    }
-
-
-                    // This has to be vague because we dont know any of the typing yet
-                    auto access_member = ast_literal(ast_type::access_member,t.literal);
-                    auto member = ast_literal(ast_type::member,member_tok.literal);
-                    access_member->nodes.push_back(member);
-
-                    // correct the state machine
-                    parser.expr_tok = next_token_expr(parser);
-
-                    return access_member;
+                    return member_access(parser,t.literal);
                 }
 
                 // TODO: we assume a single subscript
