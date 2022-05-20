@@ -125,6 +125,11 @@ Type get_type(Interloper &itl, AstNode *type_decl)
                     type.dimensions[i] = RUNTIME_SIZE;
                 }
 
+                else if(n->type == ast_type::arr_deduce_size)
+                {
+                    type.dimensions[i] = DEDUCE_SIZE;
+                }
+
                 // fixed size: const expr
                 else
                 {
@@ -358,7 +363,9 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
             else
             {
-                unimplemented("vla len");
+                // TODO: how should this work for multi dimensional arrays?
+                emit(func.emitter,op_type::load_arr_len,dst_slot,slot);
+                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
             }
         }
 
@@ -668,7 +675,29 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
         if(is_array(arg.type))
         {
-            unimplemented("pass array");
+            assert(arg.type.degree == 1);
+
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+
+            // push vla struct in reverse order
+            // This conversion is implicit
+            if(is_runtime_size(arg.type,0))
+            {
+                const u32 len_slot = new_slot(func);
+                emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
+                emit(func.emitter,op_type::push_arg,len_slot);
+
+                const u32 data_slot = new_slot(func);
+                emit(func.emitter,op_type::load_arr_data,data_slot,reg,0);
+                emit(func.emitter,op_type::push_arg,data_slot);
+
+                arg_clean += 2;                
+            }
+
+            else
+            {
+                unimplemented("pass fixed size");
+            }
         }
 
         // TODO: handle being passed args that wont fit inside a single hardware reg
@@ -1092,7 +1121,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
     // NOTE: assumes fixed size array
 
-    emit(func.emitter,op_type::addrof,data_slot,slot_idx(arr));
+    emit(func.emitter,op_type::load_arr_data,data_slot,slot_idx(arr));
     emit(func.emitter,op_type::arr_index,dst_slot,data_slot,index_slot);
 
     // pointer to this type!
@@ -1410,17 +1439,40 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
         // has an initalizer
         if(line.nodes.size() == 2)
         {
-            unimplemented("fixed size initializer");
+            // TODO: does not handle nesting
+            const u32 count = line.nodes[1]->nodes.size();
+
+            const Type index_type = contained_arr_type(array.type);
+
+            // for each val
+            for(u32 i = 0; i < count; i++)
+            {
+                auto n = line.nodes[1]->nodes[i];
+
+                // check the type against cur type and check it matches
+                // perform type promotion if necessary for integers etc
+                const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
+
+                check_assign(itl,index_type,rtype);
+
+                if(itl.error)
+                {
+                    return;
+                }
+
+                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,i);
+            }
         }
 
     }
 
-    // we want arrays on this to heap allocate by default
+    // we want arrays on this to heap allocate buffers by default
     else
     {
         unimplemented("VLA");
 
         // has an initalizer
+        // How should this work?, should we just allow it on the initial fixed size part?
         if(line.nodes.size() == 2)
         {
             unimplemented("vla initializer");

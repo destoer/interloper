@@ -71,7 +71,8 @@ static constexpr u32 MAX_ARR_SIZE = 4;
 static constexpr u32 ARRAY_LEN_OFFSET = 1;
 
 // is runtime but has an initial stack allocation
-static constexpr u32 RUNTIME_SIZE = 0xffffffff;
+static constexpr u32 RUNTIME_SIZE = 0xfffffff0;
+static constexpr u32 DEDUCE_SIZE = RUNTIME_SIZE + 1;
 
 
 inline int conv_builtin_type(builtin_type t)

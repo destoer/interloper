@@ -890,6 +890,62 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             break;
         }
 
+        // TODO: assumes fixed size array
+        case op_type::init_arr_idx:
+        {
+            // init_arr_idx <arr> <slot> <index>
+            const auto &arr = sym_from_slot(slot_lookup,opcode.v[0]);
+            const u32 index = opcode.v[2];
+            const u32 var_slot = opcode.v[1];
+
+            // load_arr_data
+            // store <slot> <hard coded offset>
+
+            const u32 arr_slot = new_slot(func);
+
+            node->opcode = Opcode(op_type::addrof,arr_slot,opcode.v[0],alloc.stack_offset);
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
+            
+
+            
+            // calc the offset we will use for the store
+            auto accessed_type = contained_arr_type(arr.type);
+            const auto size = type_size(itl,accessed_type);            
+
+            // as the index is an immdediate we can jsut calc this ahead of time
+            const u32 offset = index * size;
+
+            const auto opcode = store_ptr(var_slot,arr_slot,size,offset);
+
+            return insert_after(list,node,opcode);
+        } 
+
+        case op_type::load_arr_data:
+        {
+            // we dont have the information for this yet so we have to fill it in later
+            // load_arr_data <dst>, <sym>, <stack_offset>
+
+            node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
+
+            // only want to allocate the dst,
+            // we need to use the sym as a "slot" later
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
+   
+            node = node->next;
+            break;
+        }
+
+        // TODO: this probably needs to be reworked for multi dimensional arrays
+        case op_type::load_arr_len:
+        {
+            // load_arr_len <dst> <symbol>, <stack_offset>
+            node->opcode = Opcode(op_type::load_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
+   
+            node = node->next;
+            break;
+        }
+
         default:
         {
             rewrite_opcode(itl,alloc,list,node);
@@ -1045,6 +1101,50 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
             node = node->next;
             break;                  
+        }
+
+        // arrays
+        case op_type::load_arr_data:
+        {
+
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+
+            if(is_runtime_size(sym.type,0))
+            {
+                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + 0,GPR_SIZE,false);
+            }
+
+            // static array
+            else
+            {
+                node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+            }
+
+            node = node->next;
+            break;
+        }
+
+
+        case op_type::load_arr_len:
+        {
+            auto &sym = sym_from_slot(slot_lookup,opcode.v[1]);
+            const s32 stack_offset = opcode.v[2];            
+
+            if(is_runtime_size(sym.type,0))
+            {
+                // TODO: this assumes GPR_SIZE is 4
+                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
+            }
+
+            else
+            {
+                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
+            }
+
+
+            node = node->next;
+            break;
         }
 
         default: node = node->next; break;

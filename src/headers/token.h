@@ -52,6 +52,7 @@ enum class token_type
     sr_brace,
 
     dot,
+    qmark,
 
     shift_l,
     shift_r,
@@ -154,6 +155,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::sr_brace,"]",0},
 
     {token_type::dot,".",-1},
+    {token_type::qmark,"?",-1},
 
     {token_type::shift_l,"<<",13},
     {token_type::shift_r,">>",13},

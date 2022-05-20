@@ -437,6 +437,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         }
 
         // directives/pseudo ops should not be hit at runtime..
+        case op_type::load_arr_len:
+        case op_type::load_arr_data:
         case op_type::init_arr_idx:
         case op_type::arr_index:
         case op_type::push_arg:

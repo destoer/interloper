@@ -363,7 +363,7 @@ AstNode *nud(Parser &parser,Token &t)
 
                         const auto e = expression(parser,0);
                         arr_access->nodes.push_back(e);
-
+                    
                         consume_expr(parser,token_type::sr_brace);
                     }
 

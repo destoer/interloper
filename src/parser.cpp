@@ -238,8 +238,24 @@ AstNode *parse_type(Parser &parser)
 
                     else 
                     {
-                        arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
-                        type_literal = type_literal + "[_]";
+                        // figure out this size later
+                        if(peek(parser,0).type == token_type::qmark)
+                        {
+                            consume(parser,token_type::qmark);
+
+                            const auto e = ast_plain(ast_type::arr_deduce_size);
+                            arr_decl->nodes.push_back(e);
+                        
+                            consume(parser,token_type::sr_brace);
+
+                            type_literal = type_literal + "[?]";
+                        }
+
+                        else
+                        {
+                            arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
+                            type_literal = type_literal + "[_]";
+                        }
                     }
                 }
 

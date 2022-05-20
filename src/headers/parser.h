@@ -24,6 +24,7 @@ enum class ast_type
     arr_dimensions,
     arr_var_size,
     arr_initializer,
+    arr_deduce_size,
 
     declaration,
     auto_decl,
@@ -102,11 +103,10 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "arr_dimensions",
     "arr_var_size",
     "arr_intializer",
+    "deduced_arr_size",
 
     "declaration",
     "auto_decl",
-
-    
 
     "=",
     "*",

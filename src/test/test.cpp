@@ -57,11 +57,13 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/control_flow/for_single",32,false},
 
     // pointers
-    // TODO: impl pointer casting
+    // TODO: impl pointer casting (wait for coerce operation)
     {"tests/ptr/pointer",-2,false},
     {"tests/ptr/deref_plain",-1,true},
     {"tests/ptr/ptr_to_ptr",1,true},
     {"tests/ptr/expected_ptr",-1,true},
+
+    // wait for heap allocation
     //{"tests/ptr/ptr_to_array",3,false},
     //{"tests/ptr/ptr_to_fixed_array",-1,true},
     //{"tests/ptr/ptr_to_array_member",4,false},
@@ -70,17 +72,21 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array/array",1061,false},
     {"tests/array/array_size",16,false},
     {"tests/array/array_initializer",16,false},
-    {"tests/array/array_multi_fixed_size.itl",450,false},
+    {"tests/array/array_conv",6,false},
     {"tests/array/array_pass_u32",-1,true},
-    //{"tests/array/array_conv",6,false},
-    //{"tests/array/array_var_size",16,false},
-    //{"tests/array/array_mismatched_type",-1,true},
+    {"tests/array/array_auto_size",16,false},
+    {"tests/array/array_mismatched_type",-1,true},
+    {"tests/array/array_take_pointer",5,false},
+    {"tests/array/array_of_ptr",6,false},
+    {"tests/array/deref_array_of_ptr_invalid",-1,true},
+
+    {"tests/array/array_multi_fixed_size.itl",450,false},
+
+    // wait for heap allocation
     //{"tests/array/array_assign_vla",3,false},
     //{"tests/array/array_assign_vla_fixed",-1,true},
     
-    //{"tests/array/array_take_pointer",5,false},
-    //{"tests/array/array_of_ptr",6,false},
-    //{"tests/array/deref_array_of_ptr_invalid",-1,true},
+
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

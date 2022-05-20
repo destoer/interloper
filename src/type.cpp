@@ -190,6 +190,11 @@ u32 type_size(Interloper& itl,const Type &type)
     // TODO: this doesnt handle VLA
     else if(is_array(type))
     {
+        if(is_runtime_size(type,0))
+        {
+            return GPR_SIZE * 2;
+        }
+
         return GPR_SIZE;
     }
 
@@ -230,6 +235,11 @@ u32 type_max(Interloper& itl,const Type &type)
         unimplemented("user defined type max\n");
     }
 }
+
+// NOTE: when we we impl fixed size arrays the count should probably
+// return any initial size that it has...
+
+// NOTE: this needs to be reworked to support deduced sizes
 
 std::pair<u32,u32> arr_size(Interloper&itl,const Type& arr_type)
 {
