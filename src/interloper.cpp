@@ -342,6 +342,8 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
         if(is_array(type))
         {
+            assert(type.degree == 1);
+
             if(member == "len")
             {
                 // TODO: how should this work for multi dimensional arrays?
@@ -364,6 +366,8 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     // is an array hardcode the members
     else if(is_array(type))
     {
+        assert(type.degree == 1);
+
         if(member == "len")
         {
             // TODO: how should this work for multi dimensional arrays?
@@ -1117,6 +1121,8 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     }
 
     
+
+    assert(arr.type.degree == 1);
 
     // TODO: for now we assume this is a plain array access
     // this will have to be slightly adjusted for var length arrays
