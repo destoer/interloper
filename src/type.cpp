@@ -85,14 +85,13 @@ bool same_simple_type(const Type &type1, const Type &type2)
     return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection); 
 }
 
+// get the base type the array holds
+// i.e u32@ or u32
+// not u32[]
 Type contained_arr_type(const Type &type)
 {
-    // perform the access and get the underlying type
-    // for now just assume this is simple
-    // and we cnat have multlayered arrays etc
-
     Type accessed_type = type;
-    accessed_type.degree -= 1;
+    accessed_type.degree = 0;
 
     return accessed_type;
 }
@@ -237,27 +236,36 @@ u32 type_max(Interloper& itl,const Type &type)
 }
 
 // NOTE: when we we impl fixed size arrays the count should probably
-// return any initial size that it has...
+// return any initial size that it has and not just the initial size
 
 // NOTE: this needs to be reworked to support deduced sizes
 
 std::pair<u32,u32> arr_size(Interloper&itl,const Type& arr_type)
 {
-    if(is_runtime_size(arr_type,0))
-    {
-        return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
-    }
-
-    // fixed size array
     u32 count = arr_type.dimensions[0];
-    for(u32 i = 1; i < arr_type.degree; i++)
+    for(u32 i = 0; i < arr_type.degree; i++)
     {
-        if(is_runtime_size(arr_type,i))
+        if(arr_type.dimensions[i] == DEDUCE_SIZE)
+        {
+            return std::pair<u32,u32>{DEDUCE_SIZE,DEDUCE_SIZE};
+        }
+
+        else if(is_runtime_size(arr_type,i))
         {
             return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
         }
 
-        count *= arr_type.dimensions[i];
+
+        // accumulate the count
+        if(i == 0)
+        {
+            count = arr_type.dimensions[i];
+        }
+
+        else
+        {
+            count *= arr_type.dimensions[i];
+        }
     }
 
     const auto contained_type = contained_arr_type(arr_type);

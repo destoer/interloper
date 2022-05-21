@@ -7,6 +7,11 @@ std::string get_oper_sym(const SlotLookup *table,u32 v);
 std::string get_oper_raw(const SlotLookup *table,u32 v);
 
 
+ListNode* get_cur_end(IrEmitter& emitter)
+{
+    return emitter.program[emitter.program.size()-1].list.end;    
+}
+
 void emit(IrEmitter &emitter,const Opcode& opcode)
 {
     auto &list = emitter.program[emitter.program.size()-1].list;

@@ -698,6 +698,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             {
                 unimplemented("pass fixed size");
             }
+
+            check_assign(itl,arg.type,arg_type,true);
         }
 
         // TODO: handle being passed args that wont fit inside a single hardware reg
@@ -1112,6 +1114,8 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     // TODO: bound check this at compile time for const exprs, or fixed size arrays
 
     // perform the access and get the underlying type
+    // TODO: we actually only want to singly index this type
+    // for multidimensional arrays, for now it doesn't matter
     auto accessed_type = contained_arr_type(arr.type);
     const auto size = type_size(itl,accessed_type);
 
@@ -1428,55 +1432,137 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     }
 }
 
-void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, const Symbol& array)
+void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& array, u32 depth, u32* idx)
 {
-    auto [size,count] = arr_size(itl,array.type);
+    const u32 node_len = node->nodes.size();
 
-    if(size != RUNTIME_SIZE)
+    for(u32 i = 0; i < node_len; i++)
     {
-        emit(func.emitter,op_type::alloc_slot,slot_idx(array),size,count);
-
-        // has an initalizer
-        if(line.nodes.size() == 2)
+        if(itl.error)
         {
-            // TODO: does not handle nesting
-            const u32 count = line.nodes[1]->nodes.size();
+            return;
+        }
 
-            const Type index_type = contained_arr_type(array.type);
+        // decl has too many dimensions
+        if(depth >= array.type.degree)
+        {
+            panic(itl,"array declaration for %S dimension exceeds type, expected: %d got %d\n",array.name.c_str(),array.type.degree,depth);
+            return;
+        }
 
-            // for each val
-            for(u32 i = 0; i < count; i++)
+
+        // this just gets the first node size
+        if(array.type.dimensions[depth] == DEDUCE_SIZE)
+        {
+            array.type.dimensions[depth] = node_len;
+        }
+
+        else if(array.type.dimensions[depth] == RUNTIME_SIZE)
+        {
+            unimplemented("VLA assign");
+        }
+
+        const u32 count = array.type.dimensions[depth];
+
+        // type check the actual ammount is right
+        // TODO: this should allow not specifing the full ammount but for now just keep it simple
+        if(count != node_len)
+        {
+            panic(itl,"array %s expects %d initializers got %d\n",array.name.c_str(),count,node_len);
+        }        
+
+
+
+        // descend each sub initializer until we hit one containing values
+        // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
+        if(node->nodes[i]->type == ast_type::arr_initializer)
+        {
+            traverse_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
+        }
+
+        else
+        {
+            auto [first_type,first_reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+
+            
+            // we have values!!
+            if(!is_array(first_type))
             {
-                auto n = line.nodes[1]->nodes[i];
-
-                // check the type against cur type and check it matches
-                // perform type promotion if necessary for integers etc
-                const auto [rtype,reg] = compile_oper(itl,func,n,new_slot(func));
-
-                check_assign(itl,index_type,rtype);
-
-                if(itl.error)
+                // make sure this only happens at the max "depth" 
+                if(depth != array.type.degree - 1)
                 {
+                    panic(itl,"array %s should not be initialized with values at depth %d expected %d\n",array.name.c_str(),depth,array.type.degree - 1);
                     return;
                 }
 
-                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,i);
-            }
-        }
+                const auto base_type = contained_arr_type(array.type);
+                check_assign(itl,base_type,first_type);
 
+                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),first_reg,*idx);
+                *idx = *idx + 1;
+
+                // TODO: type check by here whats getting assigned to the final contained type...
+
+                for(i = 1; i < node_len; i++)
+                {
+                    auto [rtype,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+                    check_assign(itl,base_type,rtype);
+
+                    emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,*idx);
+                    *idx = *idx + 1;
+                }
+            }
+            
+
+            // handle an array (this should fufill the current "depth req in its entirety")
+            else
+            {
+                unimplemented("arr initializer with array");
+            }
+            
+        }   
+    }
+}
+
+void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symbol& array)
+{
+    // This allocation needs to happen before we initialize the array but we dont have all the information yet
+    // so we need to finish it up later
+    emit(func.emitter,op_type::alloc_slot,slot_idx(array),0,0);
+    ListNode* alloc = get_cur_end(func.emitter);
+
+
+    // has an initalizer
+    // TODO: need to handle dumping this as a constant if the array is constant
+    // rather than runtime setup
+    if(line.nodes.size() == 2)
+    {
+        u32 idx = 0;
+        traverse_initializer(itl,func,line.nodes[1],array,0,&idx);
     }
 
-    // we want arrays on this to heap allocate buffers by default
+    if(itl.error)
+    {
+        return;
+    }
+
+    const auto [size,count] = arr_size(itl,array.type);
+
+    if(count == RUNTIME_SIZE)
+    {
+        unimplemented("DECL VLA");
+    }
+
+    // this has not been inited by traverse_initializer
+    else if(count == DEDUCE_SIZE)
+    {
+        panic(itl,"auto sized array %s does not have an initializer\n",array.name.c_str());
+        return;
+    }
+
     else
     {
-        unimplemented("VLA");
-
-        // has an initalizer
-        // How should this work?, should we just allow it on the initial fixed size part?
-        if(line.nodes.size() == 2)
-        {
-            unimplemented("vla initializer");
-        }
+        alloc->opcode = Opcode(op_type::alloc_slot,slot_idx(array),size,count);
     }
 }
 
@@ -1499,7 +1585,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto size = type_size(itl,ltype);
 
     // add new symbol table entry
-    const auto &sym = add_symbol(itl.symbol_table,name,ltype,size);
+    auto &sym = add_symbol(itl.symbol_table,name,ltype,size);
 
 
 

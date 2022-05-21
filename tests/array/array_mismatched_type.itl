@@ -8,7 +8,7 @@ func foo(u32[] x)
 
 func s32 main()
 {
-    u8[] buf;
+    u8[4] buf;
     foo(buf);
 
     return 0;
