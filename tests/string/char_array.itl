@@ -24,15 +24,25 @@ u32 hamming_weight(u32 set)
     return sum;
 }
 
+u32 set_bit(u32 v, u32 bit)
+{
+    return set | (1 << bit);
+}
+
+
 func s32 main()
 {
-    char[] str = "Hello there";
+    c8[] str = "Hello there";
 
     u32 set = 0;
 
     for(u32 i = 0; i < str.len; i++)
     {
         str[i] = to_lower(str[i]);
+
+        u8 x = str[i] - 'a';
+
+        set = set_bit(set,x);
     }
 
     return hamming_weight(set);
