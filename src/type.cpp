@@ -109,6 +109,18 @@ bool is_pointer(const Type &t)
     return t.ptr_indirection && pointer_active(t); 
 }
 
+// NOTE: we use this to signify we are taking a fixed sized array
+// from something else and want to assign it to a vla etc
+// (under normal circumstances you should not be able to access to a pointer of this kind)
+// as we want to hide to semantics of its representation so we can use it
+// like any other array, there may be a better way to acheive this
+
+bool is_fixed_array_pointer(const Type& t)
+{
+    return is_pointer(t) && t.degree && t.dimensions[0] != RUNTIME_SIZE;
+}
+
+
 bool is_array(const Type &t)
 {
     return t.degree >= 1 && !is_pointer(t);
@@ -274,6 +286,15 @@ std::pair<u32,u32> arr_size(Interloper&itl,const Type& arr_type)
     return std::pair<u32,u32>{size,count};
 }
 
+std::string fmt_index(u32 index)
+{
+    if(index == RUNTIME_SIZE)
+    {
+        return "[]";
+    }
+
+    return "[" + std::to_string(index) +  "]";
+}
 
 std::string type_name(Interloper& itl,const Type &type)
 {
@@ -290,7 +311,7 @@ std::string type_name(Interloper& itl,const Type &type)
         {
             for(u32 i = 0; i < type.degree; i++)
             {
-                plain = plain + "[]";
+                plain = plain + fmt_index(type.dimensions[i]);
             }  
 
             for(u32 i = 0; i < type.ptr_indirection; i++)
@@ -309,7 +330,7 @@ std::string type_name(Interloper& itl,const Type &type)
 
             for(u32 i = 0; i < type.degree; i++)
             {
-                plain = plain + "[]";
+                plain = plain + fmt_index(type.dimensions[i]);
             }       
         }
         return plain;

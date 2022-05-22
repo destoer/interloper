@@ -292,13 +292,6 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 
     else if(is_array(type))
     {
-        if(!is_runtime_size(type,0))
-        {
-            // this needs to get promoted to a VLA
-            // we also need to restrict returning a fixed size array from a function as it makes no sense
-            unimplemented("deref fixed size array");
-        }
-
         unimplemented("load arr from ptr");
     }
 
@@ -332,6 +325,8 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
     // load_struct <dst> <struct>,<member_idx>
 
+    ListNode* old_end = get_cur_end(func.emitter);
+
     // TODO: assumes no depth
     const u32 struct_slot = new_slot(func);
     auto [type, slot] = compile_oper(itl,func,node->nodes[0],struct_slot);
@@ -339,16 +334,36 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
     // TODO: for now we assume that this is a single member
     const auto member = node->literal;
 
-    UNUSED(dst_slot);
-
     if(is_pointer(type))
     {
-        type.ptr_indirection -= 1;
+        // returning out a access on a fixed size array
+        // see definition of is_fixed_array_pointer
+        if(is_fixed_array_pointer(type))
+        {
+            if(member == "len")
+            {
+                // we dont actually need to load up the pointer as the length is contstant
+                // NOTE: if we had a dead code pass we dont need this
+                auto &list = get_cur_list(func.emitter);
+                cleave_list(list,old_end);
 
+                emit(func.emitter,op_type::mov_imm,dst_slot,type.dimensions[0]);
+                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
+            }
+
+            // TODO: use the data ptr we got
+            else
+            {
+                unimplemented("array unknown member access %s\n",member.c_str());
+            }
+        }
+
+
+        type.ptr_indirection -= 1;
 
         if(is_array(type))
         {
-            unimplemented("array access via pointer");
+            unimplemented("array access via pointer");  
         }
 
         else
@@ -390,8 +405,6 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
     else
     {
-        dump_ir_sym(itl);
-        print(itl.cur_line);
         unimplemented("struct access on user defined type");
     }
 }
@@ -636,9 +649,14 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     // check the operation is even legal
 
     
+    // convert fixed size pointer..
+    if(is_fixed_array_pointer(src_type))
+    {
+        unimplemented("convert fixed size pointer");
+    }
 
     // can be moved by a simple data copy
-    if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
+    else if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
     {
         emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
     }
@@ -688,7 +706,13 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     {
         const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
 
-        if(is_array(arg.type))
+        // TODO: try and refactor this dance across all the move operations
+        if(is_fixed_array_pointer(arg.type))
+        {
+            unimplemented("push fixed arr ptr");
+        }
+        
+        else if(is_array(arg.type))
         {
             assert(arg.type.degree == 1);
 
@@ -949,6 +973,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
         }
     }
 
+    // TODO: copy this set of IR operations rather than compiling it twice
     const auto [t,stmt_cond_reg] = compile_oper(itl,func,node->nodes[cond_expr_idx],new_slot(func));
 
     if(!is_bool(t))
@@ -1139,7 +1164,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     for(u32 i = 0; i < node->nodes.size(); i++)
     {
 
-        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[i],new_slot(func));
         if(!is_integer(subscript_type))
         {
             panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type));
@@ -1163,15 +1188,21 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
         {
             const u32 size = offsets[i];
 
-            const u32 slot = new_slot(func);
-            emit(func.emitter,op_type::mul_imm,slot,subscript_slot,size);   
+            const u32 mul_slot = new_slot(func);
+            emit(func.emitter,op_type::mul_imm,mul_slot,subscript_slot,size);   
             
             if(i != 0)
             {
-                emit(func.emitter,op_type::add_reg,slot,last_slot);
+                const u32 add_slot = new_slot(func);
+                emit(func.emitter,op_type::add_reg,add_slot,last_slot,mul_slot);
+
+                last_slot = add_slot;
             }
 
-            last_slot = slot;
+            else
+            {
+                last_slot = mul_slot;
+            }
         }
     }
 
@@ -1181,30 +1212,48 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     emit(func.emitter,op_type::arr_index,dst_slot,data_slot,last_slot);
 
 
+    // return pointer to sub array
+    if(node->nodes.size() < arr.type.degree)
+    {
+        auto sub_arr_type = arr.type;
+        
+        // make it a sub array
+        sub_arr_type.degree -= node->nodes.size();
 
-    // NOTE: if we havent fully index the array then we need to return an array as the type
-    // and not the contained type
-    assert(arr.type.degree == 1);
+        // move the dimensions back over itself
+        memcpy(&sub_arr_type.dimensions[0],&arr.type.dimensions[node->nodes.size()],sub_arr_type.degree * sizeof(arr.type.dimensions[0]));
 
 
 
-    // pointer to this type!
-    accessed_type.ptr_indirection += 1;
-    
+        sub_arr_type.ptr_indirection += 1;
 
+        return std::pair<Type,u32>{sub_arr_type,dst_slot};
+    }
 
-    return std::pair<Type,u32>{accessed_type,dst_slot};
+    // return pointer to held type
+    else
+    {
+        accessed_type.ptr_indirection += 1;
+        return std::pair<Type,u32>{accessed_type,dst_slot};
+    }
 }
 
 std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_slot(func));
 
+    // fixed array needs conversion by host
+    if(is_fixed_array_pointer(type))
+    {
+        return std::pair<Type,u32>{type,dst_slot};
+    }
+
+
     // deref of pointer
     type.ptr_indirection -= 1;
 
-
     do_ptr_load(itl,func,dst_slot,addr_slot,type);
+
 
     return std::pair<Type,u32>{type,dst_slot};
 }
@@ -1215,12 +1264,22 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,const Type& write_ty
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_slot(func));
 
-    // deref of pointer
-    type.ptr_indirection -= 1;
 
-    do_ptr_store(itl,func,slot,addr_slot,type);
+    // convert fixed size pointer..
+    if(is_fixed_array_pointer(write_type))
+    {
+        unimplemented("convert fixed size pointer");
+    }
 
-    check_assign(itl,type,write_type);
+    else
+    {
+        // deref of pointer
+        type.ptr_indirection -= 1;
+
+        do_ptr_store(itl,func,slot,addr_slot,type);
+
+        check_assign(itl,type,write_type);
+    }
 }
 
 

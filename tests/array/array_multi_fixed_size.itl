@@ -1,7 +1,7 @@
 
 // expected 7200
 
-// compute product of running total length, and totals of each array
+// compute product of sum and total array size
 func s32 main()
 {
 
@@ -12,17 +12,12 @@ func s32 main()
         { {17,18,19,20}, {21,22,23,24} },
     };
 
-    u32 len = 0;
     u32 sum = 0;
 
     for(u32 i = 0; i < arr.len; i += 1)
     {
-        len += arr[i].len;
-
         for(u32 j = 0; j < arr[i].len; j += 1)
         {
-            len += arr[i][j].len;
-
             for(u32 k = 0; k < arr[i][j].len; k += 1)
             {
                 sum += arr[i][j][k];
@@ -30,5 +25,5 @@ func s32 main()
         }
     }
 
-    return sum * len;
+    return sum * arr.len * arr[0].len * arr[0][0].len;
 }

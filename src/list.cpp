@@ -147,3 +147,16 @@ ListNode *remove(List &list, ListNode* node)
         return before->next;
     }
 }
+
+// delete everything after this ptr
+void cleave_list(List &list, ListNode* node)
+{
+    node->next = nullptr;
+
+    if(list.start == list.end)
+    {
+        list.start = node;
+    }
+
+    list.end = node;
+}

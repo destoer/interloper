@@ -12,9 +12,14 @@ ListNode* get_cur_end(IrEmitter& emitter)
     return emitter.program[emitter.program.size()-1].list.end;    
 }
 
+List& get_cur_list(IrEmitter& emitter)
+{
+    return emitter.program[emitter.program.size()-1].list; 
+}
+
 void emit(IrEmitter &emitter,const Opcode& opcode)
 {
-    auto &list = emitter.program[emitter.program.size()-1].list;
+    auto &list = get_cur_list(emitter);
     append(list,opcode);
 }
 
@@ -168,8 +173,8 @@ struct LocalAlloc
 
 
     // debug (TODO: make this a command line flag)
-    b32 print_reg_allocation = true;
-    b32 print_stack_allocation = true;
+    b32 print_reg_allocation = false;
+    b32 print_stack_allocation = false;
 
     // stack allocation
 

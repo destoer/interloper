@@ -2,7 +2,7 @@
 
 // expected 720
 
-// compute product of running total length, and totals of each array
+// compute product of sum and total array size
 // NOTE: dont worry about this yet, just get standard multidimensional arrays working
 func s32 main()
 {
