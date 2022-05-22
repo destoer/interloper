@@ -377,6 +377,8 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
     else
     {
+        dump_ir_sym(itl);
+        print(itl.cur_line);
         unimplemented("struct access on user defined type");
     }
 }
@@ -1083,54 +1085,100 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
-    
 
-    assert(arr.type.degree == 1);
-
-    // TODO: for now we assume this is a plain array access
-    // this will have to be slightly adjusted for var length arrays
-    // on a single dimension
-
-    /*
-        // repeat for every index
-        // and just add the exprs on each subscript together
-        mov t0, <expr_result>
-        mul t1, t0, arr_size
-
-        // after full offset is calced
-        load_arr t0, [arr,t1] 
-    */
-    const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[0],new_slot(func));
-    if(!is_integer(subscript_type))
+    if(node->nodes.size() > arr.type.degree)
     {
-        panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type));
+        panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.c_str(),arr.type.degree,node->nodes.size());
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
-    const u32 index_slot = new_slot(func);
-
-    // TODO: handle this for multi dimensional arrays
-
-    // TODO: bound check this at compile time for const exprs, or fixed size arrays
-
-    // perform the access and get the underlying type
-    // TODO: we actually only want to singly index this type
-    // for multidimensional arrays, for now it doesn't matter
+    
     auto accessed_type = contained_arr_type(arr.type);
-    const auto size = type_size(itl,accessed_type);
+   
+    // preaccumlate the total size per index (easiest in reverse order)
+    // i.e [1][0][0], [0][1][0], [0][0][1]
+    // how much does each of these add to the offsetting?
 
-    emit(func.emitter,op_type::mul_imm,index_slot,subscript_slot,size);   
+    u32 offsets[MAX_ARR_SIZE];
 
+    offsets[arr.type.degree - 1] = type_size(itl,accessed_type);
+
+
+    for(s32 i = arr.type.degree - 2; i >= 0; i--)
+    {
+        const u32 count = arr.type.dimensions[i];
+
+        // TODO: for now we are just going to assume we are indexing a fixed size array
+        if(count == RUNTIME_SIZE)
+        {
+            unimplemented("index VLA");
+        }
+
+        else
+        {
+            offsets[i] = arr.type.dimensions[i + 1] * offsets[i + 1];
+        }    
+    }
+
+    
+    u32 last_slot;
+
+    for(u32 i = 0; i < node->nodes.size(); i++)
+    {
+
+        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[0],new_slot(func));
+        if(!is_integer(subscript_type))
+        {
+            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type));
+            return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
+        }
+
+        // okay how do we keep track of what slots we are using?
+        // do we just have a var of the last one, and not use it for the first?
+        /*
+        const u32 count = arr.type.dimensions[i];
+
+        // this just works for single dimension VLA
+        
+        if(count == RUNTIME_SIZE)
+        {
+            unimplemented("index VLA");
+        }
+
+        else
+        */
+        {
+            const u32 size = offsets[i];
+
+            const u32 slot = new_slot(func);
+            emit(func.emitter,op_type::mul_imm,slot,subscript_slot,size);   
+            
+            if(i != 0)
+            {
+                emit(func.emitter,op_type::add_reg,slot,last_slot);
+            }
+
+            last_slot = slot;
+        }
+    }
+
+    // NOTE: this is assuming our array is fixed all the way through
     const auto data_slot = new_slot(func);
-
-    // NOTE: assumes fixed size array
-
     emit(func.emitter,op_type::load_arr_data,data_slot,slot_idx(arr));
-    emit(func.emitter,op_type::arr_index,dst_slot,data_slot,index_slot);
+    emit(func.emitter,op_type::arr_index,dst_slot,data_slot,last_slot);
+
+
+
+    // NOTE: if we havent fully index the array then we need to return an array as the type
+    // and not the contained type
+    assert(arr.type.degree == 1);
+
+
 
     // pointer to this type!
     accessed_type.ptr_indirection += 1;
     
+
 
     return std::pair<Type,u32>{accessed_type,dst_slot};
 }

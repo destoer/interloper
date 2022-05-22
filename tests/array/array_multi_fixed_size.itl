@@ -17,11 +17,11 @@ func s32 main()
 
     for(u32 i = 0; i < arr.len; i += 1)
     {
-        len += arr[i];
+        len += arr[i].len;
 
         for(u32 j = 0; j < arr[i].len; j += 1)
         {
-            len += arr[i][j];
+            len += arr[i][j].len;
 
             for(u32 k = 0; k < arr[i][j].len; k += 1)
             {
