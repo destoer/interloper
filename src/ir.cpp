@@ -173,8 +173,8 @@ struct LocalAlloc
 
 
     // debug (TODO: make this a command line flag)
-    b32 print_reg_allocation = false;
-    b32 print_stack_allocation = false;
+    b32 print_reg_allocation = true;
+    b32 print_stack_allocation = true;
 
     // stack allocation
 

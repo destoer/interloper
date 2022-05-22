@@ -1,0 +1,39 @@
+
+
+func c8 to_lower(c8 char)
+{
+    if(char >= 'A' && char <= 'Z')
+    {
+        char -= 0x20;
+    }
+
+    return char;
+}
+
+
+u32 hamming_weight(u32 set)
+{
+    u32 sum = 0;
+
+    // TODO: add way to query internal type limits
+    for(u32 i = 0; i < 32; i++)
+    {
+        sum += cast(u32,is_set(set,i));
+    }
+
+    return sum;
+}
+
+func s32 main()
+{
+    char[] str = "Hello there";
+
+    u32 set = 0;
+
+    for(u32 i = 0; i < str.len; i++)
+    {
+        str[i] = to_lower(str[i]);
+    }
+
+    return hamming_weight(set);
+}
