@@ -292,6 +292,13 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 
     else if(is_array(type))
     {
+        if(!is_runtime_size(type,0))
+        {
+            // this needs to get promoted to a VLA
+            // we also need to restrict returning a fixed size array from a function as it makes no sense
+            unimplemented("deref fixed size array");
+        }
+
         unimplemented("load arr from ptr");
     }
 
@@ -373,6 +380,12 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
         {
             unimplemented("array unknown member access %s\n",member.c_str());
         }
+    }
+
+    else if(is_builtin(type))
+    {
+        panic(itl,"cannot access struct member %s on type %s\n",member.c_str(),type_name(itl,type).c_str());
+        return std::pair<Type,u32>{Type(builtin_type::void_t),-1};
     }
 
     else
