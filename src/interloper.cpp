@@ -722,29 +722,38 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         {
             assert(arg.type.degree == 1);
 
-            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
-
-            // push vla struct in reverse order
-            // This conversion is implicit
-            if(is_runtime_size(arg.type,0))
+            // pass a static string
+            if(node->nodes[i]->type == ast_type::string)
             {
-                const u32 len_slot = new_slot(func);
-                emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
-                emit(func.emitter,op_type::push_arg,len_slot);
-
-                const u32 data_slot = new_slot(func);
-                emit(func.emitter,op_type::load_arr_data,data_slot,reg,0);
-                emit(func.emitter,op_type::push_arg,data_slot);
-
-                arg_clean += 2;                
+                unimplemented("pass static string");
             }
 
             else
             {
-                unimplemented("pass fixed size");
-            }
+                const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
 
-            check_assign(itl,arg.type,arg_type,true);
+                // push vla struct in reverse order
+                // This conversion is implicit
+                if(is_runtime_size(arg.type,0))
+                {
+                    const u32 len_slot = new_slot(func);
+                    emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
+                    emit(func.emitter,op_type::push_arg,len_slot);
+
+                    const u32 data_slot = new_slot(func);
+                    emit(func.emitter,op_type::load_arr_data,data_slot,reg,0);
+                    emit(func.emitter,op_type::push_arg,data_slot);
+
+                    arg_clean += 2;                
+                }
+
+                else
+                {
+                    unimplemented("pass fixed size");
+                }
+
+                check_assign(itl,arg.type,arg_type,true);
+            }
         }
 
         // TODO: handle being passed args that wont fit inside a single hardware reg
