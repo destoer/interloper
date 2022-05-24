@@ -467,6 +467,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
 
             else
             {
+                print(itl.cur_line);
                 unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             }           
         }

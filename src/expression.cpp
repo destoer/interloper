@@ -235,7 +235,6 @@ AstNode *nud(Parser &parser,Token &t)
         // cast(<type>,<expr>)
         case token_type::cast:
         {
-
             consume_expr(parser,token_type::left_paren);
 
 
@@ -282,11 +281,20 @@ AstNode *nud(Parser &parser,Token &t)
             return init;
         }
 
-        // TODO: why does this break?
         case token_type::value:
         {
             const auto value = read_value(t);
             return ast_value(value,t.literal);
+        }
+
+        case token_type::char_t:
+        {
+            return ast_literal(ast_type::char_t,t.literal);
+        }
+
+        case token_type::string:
+        {
+            return ast_literal(ast_type::string,t.literal);
         }
 
         case token_type::false_t:
@@ -326,7 +334,6 @@ AstNode *nud(Parser &parser,Token &t)
 
                     while(!done)
                     {
-
                         auto expr = expression(parser,0);
 
                         func_call->nodes.push_back(expr);

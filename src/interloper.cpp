@@ -435,6 +435,12 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
             return std::pair<Type,u32>{type,dst_slot};
         }
 
+        case ast_type::char_t:
+        {
+            emit(func.emitter,op_type::mov_imm,dst_slot,node->literal[0]);
+            return std::pair<Type,u32>{Type(builtin_type::u8_t),dst_slot};
+        }
+
         case ast_type::array_access:
         {
             return read_arr(itl,func,node,dst_slot);
@@ -1556,6 +1562,25 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
 {
     const u32 node_len = node->nodes.size();
 
+    // just a straight assign
+    if(!node_len)
+    {
+        if(node->type == ast_type::string)
+        {
+            unimplemented("initialized by string");
+
+            // handle any auto sizing
+        }
+
+        else
+        {
+            unimplemented("single intializer");
+        }
+
+        return;
+    }
+
+
     for(u32 i = 0; i < node_len; i++)
     {
         if(itl.error)
@@ -1569,7 +1594,6 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
             panic(itl,"array declaration for %S dimension exceeds type, expected: %d got %d\n",array.name.c_str(),array.type.degree,depth);
             return;
         }
-
 
         // this just gets the first node size
         if(array.type.dimensions[depth] == DEDUCE_SIZE)
@@ -1590,8 +1614,6 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
         {
             panic(itl,"array %s expects %d initializers got %d\n",array.name.c_str(),count,node_len);
         }        
-
-
 
         // descend each sub initializer until we hit one containing values
         // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code

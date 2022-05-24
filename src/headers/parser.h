@@ -14,6 +14,8 @@ enum class ast_type
 
     value,
     symbol,
+    char_t,
+    string,
 
     cast,
 
@@ -93,6 +95,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "value",
     "symbol",
+    "char",
+    "string",
 
     "cast",
 

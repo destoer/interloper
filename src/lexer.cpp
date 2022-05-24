@@ -222,6 +222,53 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             }
 
 
+            // char literal
+            case '\'':
+            {
+                const char c = peek(lexer.column+1,line);
+
+                if(c == '\0')
+                {
+                    printf("hit eof before char literal");
+                    return true;
+                }
+
+                if(peek(lexer.column+2,line) != '\'')
+                {
+                    printf("unterminated char literal");
+                    return true;
+                }
+
+                insert_token(lexer,token_type::char_t,std::string(1,c));
+
+                lexer.column += 2;
+                break;
+            }
+
+            // string literal
+            case '\"':
+            {
+                const u32 start = lexer.column++;
+
+                while(lexer.column < size)
+                {  
+                    const char c = line[lexer.column];
+                    if(c == '\"')
+                    {
+                        break;
+                    }
+
+                    lexer.column++;
+                }
+
+                const u32 end = lexer.column;
+                const std::string str = line.substr(start + 1,(end - start) - 1);
+
+                insert_token(lexer,token_type::string,str);
+                break;
+            }
+
+
             case '[': insert_token(lexer,token_type::sl_brace); break;
 
             case ']': insert_token(lexer,token_type::sr_brace); break;

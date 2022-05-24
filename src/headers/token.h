@@ -5,7 +5,9 @@ enum class token_type
 {
     value,
     symbol, 
-    
+    char_t,
+    string,
+
     true_t,
     false_t,
 
@@ -107,6 +109,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 {
     {token_type::value,"value",0},
     {token_type::symbol,"symbol",0},
+    {token_type::char_t,"char",0},
+    {token_type::string,"string",0},
 
     {token_type::true_t,"true",0},
     {token_type::false_t,"false",0},
