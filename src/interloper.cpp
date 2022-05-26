@@ -722,7 +722,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         {
             assert(arg.type.degree == 1);
 
-            // pass a static string
+            // pass a static string (TODO: we need to add const and make sure that the arg is marked as it)
             if(node->nodes[i]->type == ast_type::string)
             {
                 unimplemented("pass static string");
@@ -1575,10 +1575,42 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
     if(!node_len)
     {
         if(node->type == ast_type::string)
-        {
-            unimplemented("initialized by string");
+        {            
+            if(array.type.degree != 1)
+            {
+                panic(itl,"%s expected single dimensional array got %d\n",array.name.c_str(),array.type.degree);
+                return;
+            }
 
-            // handle any auto sizing
+            // handle auto sizing
+            if(array.type.dimensions[0] == DEDUCE_SIZE)
+            {
+                array.type.dimensions[0] = node->literal.size();
+            }
+
+            if(array.type.dimensions[0] == RUNTIME_SIZE)
+            {
+                unimplemented("string vla");
+            }
+
+            if(array.type.dimensions[0] < node->literal.size())
+            {
+                panic(itl,"%s expected array of atleast size %d got %d\n",array.name.c_str(),node->literal.size(),array.type.dimensions[0]);
+            }
+
+            const auto base_type = contained_arr_type(array.type);
+            const auto rtype = Type(builtin_type::u8_t);
+
+
+            for(u32 i = 0; i < node->literal.size(); i++)
+            {
+                const auto slot = new_slot(func);
+                emit(func.emitter,op_type::mov_imm,slot,node->literal[i]);
+                check_assign(itl,base_type,rtype);
+
+                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),slot,*idx);
+                *idx = *idx + 1;
+            }           
         }
 
         else

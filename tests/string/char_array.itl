@@ -1,4 +1,6 @@
 
+// expected 7
+
 // TODO: make a proper alias for char, even though we dont want care about it being strongly type checked
 func u8 to_lower(u8 char)
 {
@@ -10,6 +12,8 @@ func u8 to_lower(u8 char)
     return char;
 }
 
+
+// TODO: these need to go in as imports when we impl them!
 func bool is_set(u32 v, u32 bit)
 {
     return cast(bool,(v >> bit) & 1);
