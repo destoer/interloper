@@ -247,7 +247,8 @@ using LabelLookup = std::vector<Label>;
 
 
 // IR SYSCALLS
-static constexpr u32 SWI_EXIT = 0x0;
+static constexpr u32 SYSCALL_EXIT = 0x0;
+static constexpr u32 SYSCALL_WRITE_STRING = SYSCALL_EXIT + 1;
 
 
 enum class block_type

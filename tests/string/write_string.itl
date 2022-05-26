@@ -1,0 +1,23 @@
+
+// TODO: make this const
+func write_string(u8[] str)
+{
+    asm
+    {
+        pushm {r0,r1}
+
+        mov r0, str.data
+        mov r1, str.len
+
+        syscall 1
+
+        popm {r0,r1}
+    }
+}
+
+func s32 main()
+{
+    u8[?] str = "Go for broke";
+
+    write_string(str);
+}

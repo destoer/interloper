@@ -1325,7 +1325,7 @@ void emit_asm(Interloper &itl)
     itl.program.push_back(Opcode(op_type::call,itl.function_table["main"].slot,0,0));
 
     // program exit
-    itl.program.push_back(Opcode(op_type::swi,SWI_EXIT,0,0));
+    itl.program.push_back(Opcode(op_type::swi,SYSCALL_EXIT,0,0));
 
     // dump ever function into one vector and record where it is in the function table
     for(auto &[key, func]: itl.function_table)
