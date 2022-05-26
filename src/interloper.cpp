@@ -1174,7 +1174,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     }
 
     
-    u32 last_slot;
+    u32 last_slot = 0;
 
     for(u32 i = 0; i < node->nodes.size(); i++)
     {
@@ -2242,6 +2242,4 @@ void compile(Interloper &itl,const std::vector<std::string> &lines)
     // for now we will just collect the emitter IR
     // and resolve labels
     emit_asm(itl);
-
-
 }

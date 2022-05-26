@@ -6,8 +6,8 @@ func write_string(u8[] str)
     {
         pushm {r0,r1}
 
-        mov r0, str.data
-        mov r1, str.len
+        move r0, str.data
+        move r1, str.len
 
         syscall 1
 

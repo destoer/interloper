@@ -251,6 +251,8 @@ static constexpr u32 SYSCALL_EXIT = 0x0;
 static constexpr u32 SYSCALL_WRITE_STRING = SYSCALL_EXIT + 1;
 
 
+static constexpr u32 STACK_SIZE = 32 * 1024;
+
 enum class block_type
 {   
     if_t,
