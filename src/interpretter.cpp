@@ -468,10 +468,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
 void reset(Interpretter& interpretter)
 {
-    if(interpretter.stack.size() != STACK_SIZE)
-    {
-        interpretter.stack.resize(STACK_SIZE);
-    }
+    interpretter.stack.resize(STACK_SIZE);
     std::fill(interpretter.stack.begin(),interpretter.stack.end(),0);
 
     memset(interpretter.regs,0,sizeof(interpretter.regs));

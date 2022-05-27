@@ -1,10 +1,11 @@
 #include <interloper.h>
 #include "expression.cpp"
 
-
 void type_panic(Parser &parser);
 AstNode *block(Parser &parser);
 
+
+// TODO: replace peek(parser,0); with match()
 
 // TODO: replace tree with pool allocation
 void delete_tree(AstNode *node)
@@ -354,6 +355,9 @@ AstNode *auto_decl(Parser &parser)
     return d;    
 }
 
+#include "asm.cpp"
+
+
 AstNode *statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -451,7 +455,6 @@ AstNode *statement(Parser &parser)
                     return expr(parser,t);
                 }
 
-
                 default:
                 {
                     panic(parser,t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
@@ -467,6 +470,11 @@ AstNode *statement(Parser &parser)
             parser.tok_idx--;
 
             return block(parser);
+        }
+
+        case token_type::asm_t:
+        {
+            return parse_asm(parser);
         }
 
         // assume one cond for now

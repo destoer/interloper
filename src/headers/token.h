@@ -13,6 +13,8 @@ enum class token_type
 
     semi_colon,
 
+    asm_t,
+
     left_c_brace,
     right_c_brace,
 
@@ -116,6 +118,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::false_t,"false",0},
 
     {token_type::semi_colon,";",0},
+
+    {token_type::asm_t,"asm",-1},
 
     // TODO: } and ) should not be zero's we need to impl a explict terminator for them
     {token_type::left_c_brace,"{",-1},
@@ -241,12 +245,16 @@ inline bool operator != (const Token &t1, const Token &t2)
     return !operator==(t1,t2);
 }
 
+inline void print_token(const Token& t)
+{
+    printf("type: %s\n",tok_name(t.type));
+    printf("literal: %s\n\n",t.literal.c_str());    
+}
 
 inline void print_tokens(const std::vector<Token> &tokens)
 {
     for(const auto &t: tokens)
     {
-        printf("type: %s\n",tok_name(t.type));
-        printf("literal: %s\n\n",t.literal.c_str());
+        print_token(t);
     }
 }
