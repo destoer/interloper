@@ -649,6 +649,8 @@ void rewrite_reg_internal(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opco
         {
             case SP_IR: opcode.v[reg] = SP; break;
             case RV_IR: opcode.v[reg] = RV; break;
+            case R0_IR: opcode.v[reg] = R0; break;
+            case R1_IR: opcode.v[reg] = R1; break;
 
             default: panic("unhandled special reg %x\n",slot); break;
         }
@@ -754,11 +756,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
     switch(node->opcode.op)
     {
-        // TODO: revisit when we add caller saved regs
-        //case op_type::save_regs:
-        //case op_type::restore_regs:
-
-
         case op_type::addrof:
         {
             // -> <addrof> <alloced reg> <slot> <stack offset>
@@ -794,7 +791,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             // varaibles now have to be accessed at a different offset
             // until this is corrected by clean call
-            alloc.stack_offset += sizeof(u32);
+            alloc.stack_offset += GPR_SIZE;
 
             node = node->next;
             break;
@@ -803,7 +800,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         case op_type::clean_args:
         {
             // clean up args
-            const auto stack_clean = sizeof(u32) * opcode.v[0];
+            const auto stack_clean = GPR_SIZE * opcode.v[0];
 
             node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
             alloc.stack_offset -= stack_clean; 
@@ -839,6 +836,25 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             {
                 return remove(list,node);
             }
+            break;
+        }
+
+        // TODO: we should probably only save regs we use but this is just easy for now
+        case op_type::save_regs:
+        {
+            node->opcode = Opcode(op_type::pushm,0xffffffff,0,0);
+            alloc.stack_offset += GPR_SIZE * MACHINE_REG_SIZE;
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::restore_regs:
+        {
+            node->opcode = Opcode(op_type::popm,0xffffffff,0,0);
+            alloc.stack_offset -= GPR_SIZE * MACHINE_REG_SIZE;
+
+            node = node->next;
             break;
         }
 
@@ -1403,6 +1419,16 @@ std::string get_oper_sym(const SlotLookup *table,u32 v)
     if(v == RV_IR)
     {
         return "rv";
+    }
+
+    if(v == R0_IR)
+    {
+        return "r0";
+    }
+
+    if(v == R1_IR)
+    {
+        return "r1";
     }
 
     else if(v >= SYMBOL_START && sym_to_idx(v) < table->size())

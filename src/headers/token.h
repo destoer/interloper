@@ -13,8 +13,6 @@ enum class token_type
 
     semi_colon,
 
-    asm_t,
-
     left_c_brace,
     right_c_brace,
 
@@ -118,8 +116,6 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::false_t,"false",0},
 
     {token_type::semi_colon,";",0},
-
-    {token_type::asm_t,"asm",-1},
 
     // TODO: } and ) should not be zero's we need to impl a explict terminator for them
     {token_type::left_c_brace,"{",-1},

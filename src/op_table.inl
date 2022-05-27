@@ -98,9 +98,6 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // restore callee saved registers
     {op_group::imm_t,"clean_args",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
-    {op_group::implicit_t,"save_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
-    {op_group::implicit_t,"restore_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
-
     {op_group::implicit_t,"exit_block",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"placeholder",0,{arg_type::none,arg_type::none,arg_type::none}},
@@ -111,6 +108,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"load",2,{arg_type::directive,arg_type::directive,arg_type::none}},
 
     {op_group::imm_t,"addrof",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+
+    {op_group::implicit_t,"save_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
+    {op_group::implicit_t,"restore_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     // not used
     {op_group::implicit_t,"END",0,{arg_type::none,arg_type::none,arg_type::none}},

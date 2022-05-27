@@ -108,10 +108,6 @@ enum class op_type
     // free the stack space for args
     clean_args,
 
-    // directives to make sure registers get preserved correctly across calls
-    save_regs,
-    restore_regs,
-
     // branch to end of if statement chain
     exit_block,
 
@@ -124,6 +120,9 @@ enum class op_type
     load,
 
     addrof,
+
+    save_regs,
+    restore_regs,
 
     // just c++ things not used
     END,
@@ -223,14 +222,19 @@ static constexpr u32 MACHINE_REG_SIZE = 4;
 
 static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x07000000;
 
+
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
+static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
+static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
 
 // for use in the interpretter
 static constexpr u32 SP = MACHINE_REG_SIZE;
 static constexpr u32 PC = MACHINE_REG_SIZE + 1;
 static constexpr u32 RV = 0;
+static constexpr u32 R0 = 0;
+static constexpr u32 R1 = 1;
 
 
 static constexpr u32 GPR_SIZE = sizeof(u32);

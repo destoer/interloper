@@ -153,8 +153,6 @@ std::unordered_map<std::string, token_type> keywords =
     {tok_name(token_type::if_t),token_type::if_t},
     {tok_name(token_type::else_t),token_type::else_t},
 
-    {tok_name(token_type::asm_t),token_type::asm_t},
-
     {tok_name(token_type::decl),token_type::decl},
 
     {tok_name(token_type::u8),token_type::u8},
@@ -250,21 +248,44 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             // string literal
             case '\"':
             {
-                const u32 start = lexer.column++;
+                lexer.column++;
+                std::string str = "";
 
                 while(lexer.column < size)
                 {  
-                    const char c = line[lexer.column];
-                    if(c == '\"')
+                    char c = line[lexer.column];
+
+                    // escape sequence
+                    if(c == '\\')
+                    {
+                        char e = peek(lexer.column + 1,line);
+
+                        switch(e)
+                        {
+                            // linefeed
+                            case 'n':
+                            {
+                                c = '\n';
+                                lexer.column++;
+                                break;
+                            }
+
+                            default:
+                            {
+                                printf("unknown escape sequnce \\%c\n",e);
+                                return true;
+                            }
+                        }
+                    }
+
+                    else if(c == '\"')
                     {
                         break;
                     }
 
                     lexer.column++;
+                    str += c;
                 }
-
-                const u32 end = lexer.column;
-                const std::string str = line.substr(start + 1,(end - start) - 1);
 
                 insert_token(lexer,token_type::string,str);
                 break;

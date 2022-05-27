@@ -390,6 +390,12 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
             }
         }
 
+        else if(member == "data")
+        {
+                emit(func.emitter,op_type::load_arr_data,dst_slot,slot);
+                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};            
+        }
+
         else
         {
             unimplemented("array unknown member access %s\n",member.c_str());
@@ -678,8 +684,17 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     }
 }
 
+#include "intrin.cpp"
+
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
+
+    if(intrin_table.count(node->literal))
+    {
+        const auto handler = intrin_table[node->literal];
+        return handler(itl,func,node,dst_slot);
+    }
+
     // check function is declared
     if(!itl.function_table.count(node->literal))
     {

@@ -8,11 +8,6 @@ enum class ast_type
     root,
     block,
 
-    // ASM BLOCKS ONLY
-    asm_t,
-    instr,
-    reg,
-
     function,
     function_args,
     function_call,
@@ -92,10 +87,6 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 {
     "root",
     "block",
-
-    "asm",
-    "instr",
-    "reg",
 
 
     "function",
@@ -207,9 +198,6 @@ struct AstNode
 
         // type decl
         u32 type_idx;
-
-        // ast_type::instr
-        u32 asm_type;
     };
 
     // TODO: should this even be a pointer?

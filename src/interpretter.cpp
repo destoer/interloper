@@ -31,6 +31,19 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     }
 }
 
+void* get_vm_ptr(Interpretter& interpretter,u32 addr, u32 size)
+{
+    if(addr >= 0x20000000 && addr + size < 0x20000000 + interpretter.stack.size())
+    {
+        return &interpretter.stack[addr - 0x20000000];
+    }
+
+    else
+    {
+        return nullptr;
+    }    
+}
+
 template<typename access_type>
 void write_mem(Interpretter& interpretter,u32 addr, access_type v)
 {
@@ -109,7 +122,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::asr_reg:
         {
-            regs[opcode.v[0]] = static_cast<s32>(regs[opcode.v[1]]) >> regs[opcode.v[2]];
+            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) >> regs[opcode.v[2]];
             break;
         }
 
@@ -151,13 +164,13 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::sxb:
         {
-            regs[opcode.v[0]] = static_cast<s32>(static_cast<s8>(regs[opcode.v[1]]));
+            regs[opcode.v[0]] = s32(s8(regs[opcode.v[1]]));
             break;
         }
 
         case op_type::sxh:
         {
-            regs[opcode.v[0]] = static_cast<s32>(static_cast<s16>(regs[opcode.v[1]]));
+            regs[opcode.v[0]] = s32(s16(regs[opcode.v[1]]));
             break;
         }
 
@@ -316,31 +329,31 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         // signed compare
         case op_type::cmpsgt_imm:
         {
-            regs[opcode.v[0]] = static_cast<s32>(regs[opcode.v[1]]) > static_cast<s32>(opcode.v[2]);
+            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) > s32(opcode.v[2]);
             break;                
         }
 
         case op_type::cmpslt_reg:
         {
-            regs[opcode.v[0]] = static_cast<s32>(regs[opcode.v[1]]) < static_cast<s32>(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) < s32(regs[opcode.v[2]]);
             break;
         }
 
         case op_type::cmpsle_reg:
         {
-            regs[opcode.v[0]] = static_cast<s32>(regs[opcode.v[1]]) <= static_cast<s32>(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) <= s32(regs[opcode.v[2]]);
             break;
         }
 
         case op_type::cmpsgt_reg:
         {
-            regs[opcode.v[0]] = static_cast<s32>(regs[opcode.v[1]]) > static_cast<s32>(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) > s32(regs[opcode.v[2]]);
             break;
         }
 
         case op_type::cmpsge_reg:
         {
-            regs[opcode.v[0]] = static_cast<s32>(regs[opcode.v[1]]) >= static_cast<s32>(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) >= s32(regs[opcode.v[2]]);
             break;
         }
 
@@ -421,9 +434,24 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             switch(opcode.v[0])
             {
-                case 0x0: // exit
+                case SYSCALL_EXIT: // exit
                 {
                     interpretter.quit = true;
+                    break;
+                }
+
+                // TODO: bounds check this
+                case SYSCALL_WRITE_STRING:
+                {   
+                    void* ptr = get_vm_ptr(interpretter,regs[R0],regs[R1]);
+
+                    if(!ptr)
+                    {
+                        panic("out of bounds print at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
+                        return;
+                    }
+
+                    fwrite(ptr,1,regs[R1],stdout);
                     break;
                 }
 
@@ -515,7 +543,7 @@ s32 run(Interpretter& interpretter,const u8 *program, u32 size)
         execute_opcode(interpretter,opcode);
     }
 
-    printf("exit code: %d\n",regs[0]);
+    printf("\nexit code: %d\n",regs[0]);
     return regs[0];
 }
 

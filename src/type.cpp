@@ -131,15 +131,17 @@ bool is_plain(const Type &t)
     return !is_pointer(t) && !is_array(t);
 }
 
-bool is_trivial_copy(const Type &t)
-{
-    return is_pointer(t) || is_plain(t);
-}
-
 bool is_plain_builtin(const Type &t)
 {
     return is_builtin(t) && is_plain(t);
 }
+
+
+bool is_trivial_copy(const Type &t)
+{
+    return is_pointer(t) || is_plain_builtin(t);
+}
+
 
 bool is_bool(const Type &t)
 {

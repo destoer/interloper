@@ -4,14 +4,6 @@
 void type_panic(Parser &parser);
 AstNode *block(Parser &parser);
 
-enum class func_type
-{
-    func,
-    asm_t,
-    //label,
-};
-
-AstNode *func(Parser &parser, func_type type);
 
 // TODO: replace peek(parser,0); with match()
 
@@ -363,8 +355,6 @@ AstNode *auto_decl(Parser &parser)
     return d;    
 }
 
-#include "asm.cpp"
-
 
 AstNode *statement(Parser &parser)
 {
@@ -676,7 +666,7 @@ AstNode *block(Parser &parser)
     return b;
 }
 
-AstNode *func(Parser &parser, func_type type)
+AstNode *func(Parser &parser)
 {
 
     // first check this is a valid function definiton and consume it 
@@ -714,16 +704,7 @@ AstNode *func(Parser &parser, func_type type)
         return nullptr;  
     }
 
-    AstNode *f = nullptr;
-
-    switch(type)
-    {
-        case func_type::func: f = ast_literal(ast_type::function, func_name.literal); break;
-
-        case func_type::asm_t: f = ast_literal(ast_type::asm_t, func_name.literal); break;
-    }
-    
-
+    AstNode *f = ast_literal(ast_type::function, func_name.literal);
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
@@ -778,17 +759,7 @@ AstNode *func(Parser &parser, func_type type)
 
     consume(parser,token_type::right_paren);
 
-    AstNode *b = nullptr;
-
-    // no args is fine
-    switch(type)
-    {
-        case func_type::func: b = block(parser); break;
-
-        case func_type::asm_t: b = asm_block(parser); break;
-    }
-
-
+    AstNode *b = block(parser); 
 
     //      [func: name]
     // [type] [block]  [args]
@@ -822,16 +793,9 @@ bool parse(Parser &parser, AstNode **root_ptr, const std::vector<Token> &tokens,
             // function declartion
             case token_type::func:
             {
-                (*root_ptr)->nodes.push_back(func(parser,func_type::func));
+                (*root_ptr)->nodes.push_back(func(parser));
                 break;
             }
-
-            case token_type::asm_t:
-            {
-                (*root_ptr)->nodes.push_back(func(parser,func_type::asm_t));
-                break;
-            }
-
 
             default:
             {
