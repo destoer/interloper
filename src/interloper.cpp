@@ -385,7 +385,6 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
             else
             {
-                // TODO: how should this work for multi dimensional arrays?
                 emit(func.emitter,op_type::load_arr_len,dst_slot,slot);
                 return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
             }
@@ -988,7 +987,6 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
         }
     }
 
-    // TODO: copy this set of IR operations rather than compiling it twice
     const auto [t,stmt_cond_reg] = compile_oper(itl,func,node->nodes[cond_expr_idx],new_slot(func));
 
     if(!is_bool(t))
@@ -1380,26 +1378,9 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             return sym.type;        
         }
 
-        
-        
-        // TODO: this has to be reworked to support nesting
-        // TODO: the way we want to move depends on the way it is used
-        // we fundemtnally want to return out the array ->
-        // but we need to return out not only the length + pointer
-
+        // TODO: do we want to allow other uses of this?
         case ast_type::arr_initializer:
         {
-            // for each val
-
-                //  check the type against the assigned one
-
-            // we need to setup an initial array size 
-            // so we need to design the IR for this
-            // we need to decide how this will be shoved on the stack too
-
-            // TODO: how do we want to emit the intial array setup operation?
-            // just emit a bunch of stores by gutting our array deref methods?
-
             unimplemented("array initializer");
         }
 
@@ -1683,8 +1664,6 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
 
                 emit(func.emitter,op_type::init_arr_idx,slot_idx(array),first_reg,*idx);
                 *idx = *idx + 1;
-
-                // TODO: type check by here whats getting assigned to the final contained type...
 
                 for(i = 1; i < node_len; i++)
                 {
@@ -2078,46 +2057,26 @@ void compile_functions(Interloper &itl)
 }
 
 
-// TODO: impl source line information on the parse tree
 
-// TODO: make prints such as the assembly and parse tree command line flags
+// general refactor
+// -> remove duplicate code
+// -> source line information on parse tree
+// -> make diagnostic information require command line flags
+// -> move ast to arena allocation
+// -> impl own Array, String, and HashMap structs (not urgent)
+// -> move tokenizer over to batching (not urgent)
+// -> improve const expressions
+// -> add global constants (and eventually globals but just leave this for now because we dont wanna handle allocating them)
+// -> update comments
+// -> impl a a smarter register allocator rather than just blindly spilling things
+// -> handle block args inside the reg allocator
 
 // TODO: basic type checking for returning pointers to local's
 
-// remove reliance on stl containers for compiler structs
-// and do a big refactoring pass on the compiler when arrays are implemented
-
-// finish up arrays then do the cleanup above
-// need jagged arrays, mult dimensional arrays and pointer semantics on arrays working
-
-// array order
-/*
-    // <--- need to check what kind of array we are using inside the IR
-    // and emit the appropiate set of loads
-    // i.e .len should use the offset + GPR_SIZE
-    array_conv +
-    array_var_size #
-    <--- type checking tests for these here
-
-    // DO fixed sized first so we have some idea about the upper level encoding
-    // without the complexlitly of VLA
-    array_multi_fixed_size
-
-    array_multi_vla
-    <--- type checking tests for multi dimensional arrays
-
-    pointers to arrays
-
-
-    refactoring if need be
-*/
-
-
-// impl source line information for parse tree
-
-// plan:
-// arrays -> strings -> imports -> tuples -> structs -> 
-// -> early stl -> function_pointers -> labels ->  compile time execution ->
+// feature plan:
+//  const -> imports -> type coercion -> switch -> tuples -> structs -> 
+// -> function_pointers
+// -> early stl  -> labels ->  compile time execution ->
 // unions -> inline asm -> debugg memory guards -> ...
 
 void destroy_itl(Interloper &itl)

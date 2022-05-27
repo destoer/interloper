@@ -17,7 +17,7 @@ struct InstrHandler
 // not writing full blown functions for now
 std::map<std::string,InstrHandler> instr_table =
 {
-
+    {"pushm",{op_type::pushm,nullptr,nullptr}},
 };
 
 AstNode* asm_block(Parser& parser)
@@ -50,7 +50,12 @@ AstNode* asm_block(Parser& parser)
         {
 
             case op_group::reg_t: unimplemented("asm reg");
-            case op_group::regm_t: unimplemented("asm regm");
+
+            case op_group::regm_t:  
+            {
+                unimplemented("regm");
+            }
+
             case op_group::imm_t: unimplemented("asm imm");
             case op_group::load_t: unimplemented("asm load");
             case op_group::store_t: unimplemented("asm store");
