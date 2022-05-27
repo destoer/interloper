@@ -1,18 +1,15 @@
 
 // TODO: make this const
-func write_string(u8[] str)
+asm write_string(u8[] str)
 {
-    asm
-    {
-        pushm {r0,r1}
+    pushm {r0,r1}
 
-        move r0, str.data
-        move r1, str.len
+    move r0, str.data
+    move r1, str.len
 
-        syscall 1
+    syscall 1
 
-        popm {r0,r1}
-    }
+    popm {r0,r1} 
 }
 
 func s32 main()

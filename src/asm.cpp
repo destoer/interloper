@@ -12,14 +12,18 @@ struct InstrHandler
     INSTR_FUNC instr_fptr;
 };
 
-// NOTE: 
+// NOTE: this is not intended to assemble the standard set of directives
+// we really only want this for doing fiddly things like messing with control registers
+// not writing full blown functions for now
 std::map<std::string,InstrHandler> instr_table =
 {
 
 };
 
-AstNode* parse_asm(Parser& parser)
+AstNode* asm_block(Parser& parser)
 {
+    AstNode* block = ast_plain(ast_type::block);
+
     consume(parser,token_type::left_c_brace);
 
     while(!match(parser,token_type::right_c_brace))
@@ -55,9 +59,10 @@ AstNode* parse_asm(Parser& parser)
             case op_group::slot_t: unimplemented("asm slot");
                         
         }
+
     }
 
     consume(parser,token_type::right_c_brace);
 
-    unimplemented("parse asm");
+    return block;
 }
