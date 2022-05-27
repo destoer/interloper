@@ -91,6 +91,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
 
     // strings
     {"tests/string/char_array",7,false},
+    {"tests/string/write_string",0,false},
 
 };
 

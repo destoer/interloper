@@ -681,6 +681,7 @@ AstNode *func(Parser &parser)
     {
         return_type = ast_plain(ast_type::type);
         return_type->type_idx = u32(builtin_type::void_t);
+        return_type->literal = "void";
     }
 
     // type specified

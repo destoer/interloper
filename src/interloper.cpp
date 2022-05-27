@@ -137,10 +137,6 @@ Type get_type(Interloper &itl, AstNode *type_decl)
                 }
             }
         }
-
-
-        
-
     }
 
     return type;
@@ -795,7 +791,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
 
 
-    const bool returns_value = func.return_type.type_idx != static_cast<int>(builtin_type::void_t);
+    const bool returns_value = func_call.return_type.type_idx != static_cast<u32>(builtin_type::void_t);
 
     // if we have a register in R0 we need to spill it so emit a push instr
     if(returns_value)
@@ -2050,7 +2046,7 @@ void compile_functions(Interloper &itl)
         {
             // is a void function this is fine
             // we just need to emit the ret at the end 
-            if(func.return_type.type_idx == static_cast<int>(builtin_type::void_t))
+            if(func.return_type.type_idx == static_cast<u32>(builtin_type::void_t))
             {
                 emit(func.emitter,op_type::ret);
             }
