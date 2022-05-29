@@ -28,15 +28,14 @@ void delete_tree(AstNode *node)
 
 Token next_token(Parser &parser)
 {
-    const auto &vt = *parser.tokens;
-    if(parser.tok_idx >= vt.size())
+    if(parser.tok_idx >= parser.tokens.size())
     {
         // TODO: make this return the actual file end
         // for row and col
         return Token(token_type::eof,"",0,0);
     }
 
-    return vt[parser.tok_idx++];  
+    return parser.tokens[parser.tok_idx++];  
 }
 
 void prev_token(Parser &parser)
@@ -51,13 +50,12 @@ void prev_token(Parser &parser)
 Token peek(Parser &parser,u32 v)
 {
     const auto idx = parser.tok_idx + v;
-    const auto &vt = *parser.tokens;
-    if(idx >= vt.size())
+    if(idx >= parser.tokens.size())
     {
         return Token(token_type::eof,"",0,0);
     }
 
-    return vt[idx];
+    return parser.tokens[idx];
 }
 
 
@@ -74,8 +72,7 @@ Value read_value(const Token &t)
 
 void consume(Parser &parser,token_type type)
 {
-    const auto &vt = *parser.tokens;
-    const auto t = parser.tok_idx >= vt.size()? token_type::eof : vt[parser.tok_idx].type;
+    const auto t = parser.tok_idx >= parser.tokens.size()? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     if(t != type)
     {
@@ -87,8 +84,7 @@ void consume(Parser &parser,token_type type)
 
 bool match(Parser &parser,token_type type)
 {
-    const auto &vt = *parser.tokens;
-    const auto t = parser.tok_idx >= vt.size()? token_type::eof : vt[parser.tok_idx].type;
+    const auto t = parser.tok_idx >= parser.tokens.size()? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     return t == type;
 }
@@ -773,17 +769,40 @@ AstNode *func(Parser &parser)
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 100 * 1024;
 
-bool parse(Parser &parser, AstNode **root_ptr, const std::vector<Token> &tokens, const std::vector<std::string> &lines)
+std::vector<std::string> read_source_file(const std::string& filename)
+{
+    const std::vector<std::string> lines = read_string_lines(read_file(filename));
+    if(!lines.size())
+    {
+        printf("no such file: %s\n",filename.c_str());
+        exit(0);
+    }    
+
+    return lines;
+}
+
+
+bool parse(AstNode **root_ptr, const std::string initial_filename)
 {
     panic(!root_ptr,"attempted to parse into null tree");
-
-    *root_ptr = ast_plain(ast_type::root);
-    const auto size = tokens.size();
-
-    parser = {};
+    
+    // Parse out the file
+    Parser parser;
 
 
-    parser.tokens = &tokens;
+    auto lines = read_source_file(initial_filename);
+
+    if(tokenize(lines,parser.tokens))
+    {
+        printf("failed to tokenize file: %s\n",initial_filename.c_str());
+        return true;
+    }
+    
+    const auto size = parser.tokens.size();
+
+    //print_tokens(parser.tokens);
+
+    // outer file loop here...
 
     while(parser.tok_idx < size)
     {
@@ -791,6 +810,18 @@ bool parse(Parser &parser, AstNode **root_ptr, const std::vector<Token> &tokens,
         // okay what is our "top level" token
         switch(t.type)
         {
+            // import
+            // NOTE: this is trivial to handle so we are just going to rip the extra files as soon as we see them
+            // TODO: refeactor the above so we can call this function by filename (we need to move the initialisation code over for this)
+            // we probably want to move the itl code here somewhere, and just have a std::set, along with a bool saying we have parsed it
+
+            
+            case token_type::import:
+            {
+                unimplemented("import");
+                break;
+            }
+
             // function declartion
             case token_type::func:
             {
@@ -800,8 +831,7 @@ bool parse(Parser &parser, AstNode **root_ptr, const std::vector<Token> &tokens,
 
             default:
             {
-                panic(parser,t,"unexpected token %s: %s\n",tok_name(t.type),t.literal.c_str());
-                delete_tree(*root_ptr); *root_ptr = nullptr;
+                panic(parser,t,"unexpected top level token %s: %s\n",tok_name(t.type),t.literal.c_str());
                 break;
             }
         }
@@ -810,7 +840,6 @@ bool parse(Parser &parser, AstNode **root_ptr, const std::vector<Token> &tokens,
         {
             // print line number
             printf("%s\n",lines[parser.line].c_str());
-
             break;
         }
     }

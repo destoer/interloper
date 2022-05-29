@@ -1195,8 +1195,6 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
             return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
         }
 
-        // okay how do we keep track of what slots we are using?
-        // do we just have a var of the last one, and not use it for the first?
         /*
         const u32 count = arr.type.dimensions[i];
 
@@ -1749,9 +1747,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto sym_opt = get_sym(itl.symbol_table,name);
     if(sym_opt)
     {
-        print(&line);
-        print_sym(sym_opt.value());
-        panic(itl,"redeclared symbol: %s\n",name.c_str());
+        panic(itl,"redeclared symbol: %s:%s\n",name.c_str(),type_name(itl,sym_opt.value().type).c_str());
         return;
     }
 
@@ -1887,7 +1883,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                     if(!sym_opt)
                     {
                         panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
-                        print(l);
                         break;
                     }
 
@@ -1965,7 +1960,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             default:
             {
                 panic(itl,"[COMPILE] unexpected token\n");
-                print(l);
             }
         }
     }
@@ -2007,6 +2001,9 @@ void compile_functions(Interloper &itl)
     for(const auto n: itl.root->nodes)
     {
         const auto &node = *n;
+
+        // TODO: should we just have seperate trees?
+        // like we know what type the "top level" decl are as soon as we grab them 
 
         // unless its a function we dont care
         if(node.type != ast_type::function)
@@ -2071,9 +2068,12 @@ void compile_functions(Interloper &itl)
 
 // general refactor
 // -> remove duplicate code
-// -> source line information on parse tree
+
+// -> source line information on parse tree (impl assert)
+// NOTE: we should mark the top level decl with what file its from
+
 // -> make diagnostic information require command line flags
-// -> move ast to arena allocation
+// -> move ast to arena allocation (not urgent)
 // -> impl own Array, String, and HashMap structs (not urgent)
 // -> move tokenizer over to batching (not urgent)
 // -> improve const expressions
@@ -2109,30 +2109,26 @@ void destroy_itl(Interloper &itl)
 
 static constexpr u32 LIST_INITIAL_SIZE = 10 * 1024;
 
-void compile(Interloper &itl,const std::vector<std::string> &lines)
+void compile(Interloper &itl,const std::string& initial_filename)
 {
+    printf("compiling file: %s\n",initial_filename.c_str());
+
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
     itl.error = false;
 
 
-    // tokenize input file
+    // parse intial input file
     {
-        if(tokenize(itl.lexer,lines))
-        {
-            itl.error = true;
-            return;
-        }
-
-        //print_tokens(tokens);
-
+        itl.root = ast_plain(ast_type::root);
 
         // build ast
-        const b32 parser_error = parse(itl.parser,&itl.root,itl.lexer.tokens,lines);
+        const b32 parser_error = parse(&itl.root,initial_filename);
 
     
-        if(!itl.root || parser_error)
+        if(parser_error)
         {
             itl.error = true;
+            destroy_itl(itl);
             return;
         }
     }

@@ -209,7 +209,7 @@ struct AstNode
 
 struct Parser
 {
-    const std::vector<Token> *tokens = nullptr;
+    std::vector<Token> tokens;
 
     // pratt parser
     Token expr_tok;

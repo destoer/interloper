@@ -167,6 +167,8 @@ std::unordered_map<std::string, token_type> keywords =
     {tok_name(token_type::false_t),token_type::false_t},
     {tok_name(token_type::true_t),token_type::true_t},
 
+    {tok_name(token_type::import),token_type::import},
+
     {tok_name(token_type::cast),token_type::cast},
     {tok_name(token_type::func),token_type::func},
     {tok_name(token_type::ret),token_type::ret}
@@ -535,8 +537,10 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 }
 
 
-bool tokenize(Lexer &lexer,const std::vector<std::string> &file)
+bool tokenize(const std::vector<std::string> &file, std::vector<Token>& tokens_out)
 {
+    Lexer lexer;
+
     lexer.row = 0;
     lexer.column = 0;
     lexer.tokens.clear();
@@ -553,5 +557,6 @@ bool tokenize(Lexer &lexer,const std::vector<std::string> &file)
         lexer.row += 1;
     }
 
+    tokens_out = std::move(lexer.tokens);
     return false;
 }

@@ -17,8 +17,6 @@ struct Interloper
 
     Interpretter interpretter;
 
-    Lexer lexer;
-
     Parser parser;
 
     AstNode *root = nullptr;

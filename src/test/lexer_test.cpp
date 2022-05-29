@@ -92,8 +92,6 @@ void lexer_test()
     puts("\nrunning lexer tests\n");
 
 
-    Lexer lexer;
-
     // workaround to force tests through the same interface
     std::vector<std::string> dummy(1);
 
@@ -101,32 +99,35 @@ void lexer_test()
     {
         const auto &test = LEXER_TESTS[i];
         dummy[0] = test.line;
-        const b32 lexer_error = tokenize(lexer,dummy);
+
+        std::vector<Token> tokens;
+
+        const b32 lexer_error = tokenize(dummy,tokens);
 
         // lexer did or did not report an error when it should
         // or did not return enough tokens
-        if(lexer_error != test.error || lexer.tokens.size() != test.tokens.size())
+        if(lexer_error != test.error || tokens.size() != test.tokens.size())
         {
             printf("fail[%d]: %s\n",i,test.line);
+            printf("test error %d : actual error %d\n",test.error,lexer_error);
 
             puts("output: ");
-            print_tokens(lexer.tokens);
+            print_tokens(tokens);
 
             puts("expected: ");
             print_tokens(test.tokens);
             exit(1);
         }
 
-
         // check every last token matches
-        for(size_t t = 0; t < lexer.tokens.size(); t++)
+        for(size_t t = 0; t < tokens.size(); t++)
         {
-            if(lexer.tokens[t] != test.tokens[t])
+            if(tokens[t] != test.tokens[t])
             {
                 printf("fail[%d]: %s\n",i,test.line);
 
                 puts("output: ");
-                print_tokens(lexer.tokens);
+                print_tokens(tokens);
 
                 puts("expected: ");
                 print_tokens(test.tokens);

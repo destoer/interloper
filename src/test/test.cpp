@@ -113,16 +113,8 @@ void run_tests()
         destroy_itl(itl);
         
         const auto &test = PROGRAM_TEST[i];
-
-        const std::vector<std::string> file = read_string_lines(read_file(get_program_name(test.name)));
-        if(!file.size())
-        {
-            printf("no such file: %s\n",test.name);
-            return;
-        }
-
         
-        compile(itl,file);
+        compile(itl,get_program_name(test.name));
 
         if(test.error && itl.error)
         {

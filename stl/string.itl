@@ -1,0 +1,12 @@
+
+
+// TODO: make a proper alias for char, even though we dont want care about it being strongly type checked
+func u8 to_lower(u8 char)
+{
+    if(char >= 'A' && char <= 'Z')
+    {
+        char -= 0x20;
+    }
+
+    return char;
+}

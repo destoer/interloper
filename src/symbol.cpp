@@ -27,13 +27,10 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym)
     return std::nullopt;
 }
 
-void print_sym(const Symbol &sym)
+void print_sym(Interloper& itl,const Symbol &sym)
 {
     printf("symbol: %s\n",sym.name.c_str());
-
-    // TODO: make somethign to properly resolve the type
-    printf("type: %d\n",sym.type.type_idx);
-    printf("indirection: %d\n",sym.type.ptr_indirection);
+    printf("type: %s\n",type_name(itl,sym.type).c_str());
 }
 
 // add symbol to slot lookup

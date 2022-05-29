@@ -117,7 +117,7 @@ void expr_test()
 
         const auto &test = EXPR_TESTS[i];
         dummy[0] = test.expression;
-        const b32 error = tokenize(lexer,dummy);
+        b32 error = tokenize(dummy,parser.tokens);
 
         // check that the expression even consists of valid tokens
         if(error)
@@ -126,8 +126,7 @@ void expr_test()
             break;
         }
         
-        // TODO: how do we wanna handle this?
-        parser.tokens = &lexer.tokens;
+
         expr_tree = expr(parser,next_token(parser));
 
         // check this expression is valid

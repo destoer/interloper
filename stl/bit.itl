@@ -1,0 +1,24 @@
+
+func bool is_set(u32 v, u32 bit)
+{
+    return cast(bool,(v >> bit) & 1);
+}
+
+
+func u32 hamming_weight(u32 set)
+{
+    u32 sum = 0;
+
+    // TODO: add way to query internal type limits
+    for(u32 i = 0; i < 32; i += 1)
+    {
+        sum += cast(u32,is_set(set,i));
+    }
+
+    return sum;
+}
+
+func u32 set_bit(u32 v, u32 bit)
+{
+    return v | (1 << bit);
+}
