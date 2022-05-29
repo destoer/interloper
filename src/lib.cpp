@@ -1,4 +1,6 @@
 
+constexpr char path_separator = std::filesystem::path::preferred_separator;
+
 // read entire file into a string
 std::string read_file(const std::string &filename)
 {
@@ -13,6 +15,10 @@ std::string read_file(const std::string &filename)
     return "";
 }
 
+bool contains(const std::string& str,const char* substr) 
+{   
+    return str.find(substr) != std::string::npos;
+}    
 
 std::vector<std::string> read_string_lines(const std::string &str)
 {

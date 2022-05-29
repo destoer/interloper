@@ -782,69 +782,105 @@ std::vector<std::string> read_source_file(const std::string& filename)
 }
 
 
+void add_file(std::set<std::string>& file_set, std::vector<std::string>& stack, const std::string& filename)
+{
+    if(!file_set.count(filename))
+    {
+        file_set.insert(filename);
+        stack.push_back(filename);
+    }
+}
+
 bool parse(AstNode **root_ptr, const std::string initial_filename)
 {
     panic(!root_ptr,"attempted to parse into null tree");
     
-    // Parse out the file
-    Parser parser;
 
-
-    auto lines = read_source_file(initial_filename);
-
-    if(tokenize(lines,parser.tokens))
-    {
-        printf("failed to tokenize file: %s\n",initial_filename.c_str());
-        return true;
-    }
-    
-    const auto size = parser.tokens.size();
 
     //print_tokens(parser.tokens);
 
-    // outer file loop here...
 
-    while(parser.tok_idx < size)
+    std::set<std::string> file_set;
+    std::vector<std::string> file_stack;
+
+    add_file(file_set,file_stack,initial_filename);
+
+    // TODO: this should probably be a SHELL VAR but just hard code it for now
+    const std::string stl_path = std::string("stl") + std::string(1,path_separator);
+
+    while(file_stack.size())
     {
-        const auto &t = next_token(parser);
-        // okay what is our "top level" token
-        switch(t.type)
+        // get the next filename to parse
+        const auto filename = file_stack.back(); file_stack.pop_back();
+
+        // Parse out the file
+        Parser parser;
+
+
+        auto lines = read_source_file(filename);
+
+        if(tokenize(lines,parser.tokens))
         {
-            // import
-            // NOTE: this is trivial to handle so we are just going to rip the extra files as soon as we see them
-            // TODO: refeactor the above so we can call this function by filename (we need to move the initialisation code over for this)
-            // we probably want to move the itl code here somewhere, and just have a std::set, along with a bool saying we have parsed it
-
-            
-            case token_type::import:
-            {
-                unimplemented("import");
-                break;
-            }
-
-            // function declartion
-            case token_type::func:
-            {
-                (*root_ptr)->nodes.push_back(func(parser));
-                break;
-            }
-
-            default:
-            {
-                panic(parser,t,"unexpected top level token %s: %s\n",tok_name(t.type),t.literal.c_str());
-                break;
-            }
+            printf("failed to tokenize file: %s\n",filename.c_str());
+            return true;
         }
+        
+        const auto size = parser.tokens.size();
 
-        if(parser.error)
+        while(parser.tok_idx < size)
         {
-            // print line number
-            printf("%s\n",lines[parser.line].c_str());
-            break;
+            const auto &t = next_token(parser);
+
+            // okay what is our "top level" token
+            switch(t.type)
+            { 
+                case token_type::import:
+                {
+                    if(!match(parser,token_type::string))
+                    {
+                        panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.c_str());
+                        return true;
+                    }
+
+                    const auto name_tok = next_token(parser);
+
+                    // stl file
+                    if(!contains(name_tok.literal,"."))
+                    {
+                        add_file(file_set,file_stack,get_program_name(stl_path + name_tok.literal));
+                    }
+
+                    else
+                    {
+                        add_file(file_set,file_stack,name_tok.literal);
+                    }
+                    break;
+                }
+
+                // function declartion
+                case token_type::func:
+                {
+                    (*root_ptr)->nodes.push_back(func(parser));
+                    break;
+                }
+
+                default:
+                {
+                    panic(parser,t,"unexpected top level token %s: %s\n",tok_name(t.type),t.literal.c_str());
+                    break;
+                }
+            }
+
+            if(parser.error)
+            {
+                // print line number
+                printf("%s\n",lines[parser.line].c_str());
+                return true;
+            }
         }
     }
 
-    return parser.error;
+    return false;
 }
 
 void print(const AstNode *root)

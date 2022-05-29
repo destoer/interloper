@@ -17,6 +17,16 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot);
 
 
+std::string get_program_name(const std::string &filename)
+{
+    if(!contains(filename,"."))
+    {
+        return filename + ".itl";
+    }
+
+    return filename;
+}
+
 
 void dump_ir_sym(Interloper &itl)
 {
@@ -2081,6 +2091,7 @@ void compile_functions(Interloper &itl)
 // -> update comments
 // -> impl a a smarter register allocator rather than just blindly spilling things
 // -> handle block args inside the reg allocator
+// -> dont include functions in a binary from imports that we dont actually use
 
 // TODO: basic type checking for returning pointers to local's
 

@@ -1,6 +1,6 @@
 
 // expected 7
-import "basic.itl"
+import "basic"
 
 func s32 main()
 {
