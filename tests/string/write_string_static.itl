@@ -1,0 +1,8 @@
+
+import "basic"
+
+func s32 main()
+{
+    write_string("Go for broke\n");
+    return 0;
+}

@@ -473,7 +473,8 @@ void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_a
     
     else if(ltype.is_const)
     {
-        if(!is_initializer)
+        // if its an arg or initalizer its fine
+        if(!is_initializer && !is_arg)
         {
             panic(itl,"cannot assign to const: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
             return;
