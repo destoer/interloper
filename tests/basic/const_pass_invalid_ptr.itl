@@ -1,0 +1,14 @@
+
+// expected compile error
+func foo(u32@ x)
+{
+    return @x * @x;
+}
+
+func s32 main()
+{   
+    const u32 x = 0;
+    foo(&x);
+
+    return x;
+}

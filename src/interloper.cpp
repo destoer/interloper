@@ -2091,7 +2091,8 @@ void compile_functions(Interloper &itl)
 // -> update comments
 // -> impl a a smarter register allocator rather than just blindly spilling things
 // -> handle block args inside the reg allocator
-// -> dont include functions in a binary from imports that we dont actually use
+
+// -> dont include functions from parsing we dont actually use (how?)
 
 // TODO: basic type checking for returning pointers to local's
 

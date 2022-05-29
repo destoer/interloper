@@ -38,7 +38,15 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/basic/mod",233168,false},
     {"tests/basic/shift",1,false},
 
+#if 0
+    // const
+    {"tests/basic/const_invalid_assign",-1,true},
+    {"tests/basic/const_pass_copy.itl",100,false},
+    {"tests/basic/const_pass_invalid_ptr.itl",-1,true},
+    {"tests/basic/const_valid.itl",10,false},
+#endif 
 
+    // func
     {"tests/func/func",7,false},
     {"tests/func/no_main",-1,true},
     {"tests/func/invalid_args",-1,true},

@@ -1,0 +1,10 @@
+
+// expected 10
+func s32 main()
+{
+    const u32 x = 5;
+
+    u32 y = x + 5;
+
+    return y;
+}

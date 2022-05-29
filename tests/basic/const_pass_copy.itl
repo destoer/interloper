@@ -1,0 +1,15 @@
+
+// expected 100
+
+// passed by copy fine
+func s32 foo(u32 x)
+{
+    return x * x;
+}
+
+func s32 main()
+{
+    const u32 x = 10;
+
+    return foo(x);
+}
