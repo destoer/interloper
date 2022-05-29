@@ -32,9 +32,14 @@ struct Interloper
     // TODO: move other structures to an arena
     ArenaAllocator list_allocator;
 
+    // compilier CFG
+
     // TODO: make this be a flag
-    b32 print_ast = true;
-    b32 print_ir = true;
+    b32 print_ast = false;
+    b32 print_ir = false;
+
+    b32 print_reg_allocation = false;
+    b32 print_stack_allocation = false; 
 };
 
 

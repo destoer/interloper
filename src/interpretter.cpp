@@ -511,7 +511,7 @@ s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 {
     //puts("BOOP!"); exit(1);
 
-    puts("startring progam execution\n\n\n");
+    puts("starting progam execution");
     panic(!program, "attempted to execute empty program");
     reset(interpretter);
     

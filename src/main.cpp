@@ -7,6 +7,7 @@
 #include "test/test.cpp"
 
 
+
 int main(int argc, char *argv[])
 {
     // just one file arg for now
@@ -15,6 +16,9 @@ int main(int argc, char *argv[])
         printf("usage: %s <file to compile>\n",argv[0]);
         return -1;
     }
+
+    // parse compiler flags
+
 
     // run tests
     if(std::string(argv[1]) == "-t")

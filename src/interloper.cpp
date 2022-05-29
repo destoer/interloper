@@ -750,6 +750,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             assert(arg.type.degree == 1);
 
             // pass a static string (TODO: we need to add const and make sure that the arg is marked as it)
+            // lit_pool_addr <slot>, offset  to load the address
             if(node->nodes[i]->type == ast_type::string)
             {
                 unimplemented("pass static string");
@@ -2104,7 +2105,7 @@ void compile_functions(Interloper &itl)
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-//  const -> imports -> type coercion -> switch -> tuples -> structs -> 
+//  global const's -> type coercion -> switch -> tuples -> structs -> 
 // -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> inline asm -> debugg memory guards -> ...
@@ -2220,7 +2221,11 @@ void compile(Interloper &itl,const std::string& initial_filename)
     {
         UNUSED(key);
         allocate_registers(itl,func);
-        putchar('\n');
+
+        if(itl.print_stack_allocation || itl.print_reg_allocation)
+        {
+            putchar('\n');
+        }
     }
 
     // emit the actual target asm

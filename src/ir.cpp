@@ -173,8 +173,8 @@ struct LocalAlloc
 
 
     // debug (TODO: make this a command line flag)
-    b32 print_reg_allocation = true;
-    b32 print_stack_allocation = true;
+    b32 print_reg_allocation = false;
+    b32 print_stack_allocation = false;
 
     // stack allocation
 
@@ -196,9 +196,12 @@ struct LocalAlloc
     u32 stack_size;
 };
 
-LocalAlloc make_local_alloc()
+LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation)
 {
     LocalAlloc alloc;
+
+    alloc.print_reg_allocation = print_reg_allocation;
+    alloc.print_stack_allocation = print_stack_allocation;
 
     // every register is free!
     alloc.free_regs = MACHINE_REG_SIZE;
@@ -1235,7 +1238,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_local_alloc();
+    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation);
 
     if(alloc.print_reg_allocation)
     {
@@ -1256,7 +1259,10 @@ void allocate_registers(Interloper& itl,Function &func)
         // TODO: fix register allocation so we dont have to spill everyhting across basic blocks
         if(block.last)
         {
-            puts("spilling last");
+            if(alloc.print_reg_allocation)
+            {
+                puts("spilling last");
+            }
             spill_all(alloc,itl.symbol_table.slot_lookup,list,list.end,true);
         }
     }
