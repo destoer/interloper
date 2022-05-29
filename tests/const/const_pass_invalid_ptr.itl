@@ -2,7 +2,7 @@
 // expected compile error
 func foo(u32@ x)
 {
-    return @x * @x;
+    @x = @x * @x;
 }
 
 func s32 main()

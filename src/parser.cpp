@@ -169,6 +169,25 @@ s32 plain_type_idx(const Token &tok)
 
 AstNode *parse_type(Parser &parser)
 {
+    // parse out any specifiers
+    auto specifier = peek(parser,0);
+
+    b32 is_const = false;
+
+    switch(specifier.type)
+    {
+        case token_type::const_t:
+        {
+            next_token(parser);
+            is_const = true;
+            break;
+        }
+
+
+        // no specifier
+        default: break;
+    }
+
     // read out the plain type
 
     auto plain_tok = next_token(parser);
@@ -187,6 +206,12 @@ AstNode *parse_type(Parser &parser)
     auto type = ast_plain(ast_type::type);
     type->type_idx = type_idx;
     
+
+    if(is_const)
+    {
+        type_literal = "const " + type_literal;
+        type->nodes.push_back(ast_plain(ast_type::const_t));
+    }
 
     b32 quit = false;
 
@@ -359,6 +384,7 @@ AstNode *statement(Parser &parser)
     switch(t.type)
     {
         // handle builtin types
+        case token_type::const_t:
         case token_type::u8:
         case token_type::u16:
         case token_type::u32:

@@ -107,7 +107,8 @@ struct Type
     // array of pointers as opposed to a pointer to an array
     b32 contains_ptr = false;
 
-    // type specifiers here i.e const
+    // type specifiers
+    b32 is_const = false;
 
 };
 

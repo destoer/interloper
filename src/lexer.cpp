@@ -154,6 +154,7 @@ std::unordered_map<std::string, token_type> keywords =
     {tok_name(token_type::else_t),token_type::else_t},
 
     {tok_name(token_type::decl),token_type::decl},
+    {tok_name(token_type::const_t),token_type::const_t},
 
     {tok_name(token_type::u8),token_type::u8},
     {tok_name(token_type::u16),token_type::u16},

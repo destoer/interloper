@@ -88,6 +88,13 @@ Type get_type(Interloper &itl, AstNode *type_decl)
         {
             switch(n->type)
             {
+                // type is a constant
+                case ast_type::const_t:
+                {
+                    type.is_const = true;
+                    break;
+                }
+
                 case ast_type::ptr_indirection:
                 {
                     ptr_decl = n;
@@ -1606,7 +1613,7 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
             {
                 const auto slot = new_slot(func);
                 emit(func.emitter,op_type::mov_imm,slot,node->literal[i]);
-                check_assign(itl,base_type,rtype);
+                check_assign(itl,base_type,rtype,false,true);
 
                 emit(func.emitter,op_type::init_arr_idx,slot_idx(array),slot,*idx);
                 *idx = *idx + 1;
@@ -1679,7 +1686,7 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
                 }
 
                 const auto base_type = contained_arr_type(array.type);
-                check_assign(itl,base_type,first_type);
+                check_assign(itl,base_type,first_type,false,true);
 
                 emit(func.emitter,op_type::init_arr_idx,slot_idx(array),first_reg,*idx);
                 *idx = *idx + 1;
@@ -1687,7 +1694,7 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
                 for(i = 1; i < node_len; i++)
                 {
                     auto [rtype,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
-                    check_assign(itl,base_type,rtype);
+                    check_assign(itl,base_type,rtype,false,true);
 
                     emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,*idx);
                     *idx = *idx + 1;
@@ -1789,7 +1796,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
             compile_move(itl,func,slot_idx(sym),reg,sym.type,rtype);
         }
 
-        check_assign(itl,ltype,rtype);         
+        check_assign(itl,ltype,rtype,false,true);         
     } 
 }
 

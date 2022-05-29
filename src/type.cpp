@@ -306,6 +306,11 @@ std::string type_name(Interloper& itl,const Type &type)
     {
         std::string plain = builtin_type_name(static_cast<builtin_type>(type.type_idx));
 
+        if(type.is_const)
+        {
+            plain = "const " + plain;
+        }
+
         // TODO: this type printing does not handle nesting
 
         // could be pointer to an array
@@ -421,18 +426,72 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
 }
 
 
-void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_arg = false)
+bool is_value_type(const Type& type)
 {
-    UNUSED(itl);
+    return is_plain(type);
+}
+
+void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_arg, bool is_initializer)
+{
+    // handle const
+    // TODO: this does not typecheck arrays yet
+    if(rtype.is_const)
+    {
+        if(is_arg)
+        {
+            // if both are value types this is fine as its just a copy
+            if(is_value_type(rtype) && is_value_type(rtype))
+            {
+
+            }
+
+            // if the ltype is const and the rtype is not this is illegal
+            else if(!ltype.is_const)
+            {
+                panic(itl,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                return;
+            }
+        }
+
+        else
+        {
+            // ltype is const
+            // only valid given an initialisation
+            if(ltype.is_const && !is_initializer)
+            {
+                panic(itl,"cannot to const: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            }
+
+            // ltype is not const, fine given that the rtype is a value type
+            else if(!is_value_type(rtype))
+            {
+                panic(itl,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            }  
+        }
+    }
+
+    
+    else if(ltype.is_const)
+    {
+        if(!is_initializer)
+        {
+            panic(itl,"cannot assign to const: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            return;
+        }
+    }
+}
+
+void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_arg = false, bool is_initializer = false)
+{
+    // check const first
+    check_const(itl,ltype,rtype,is_arg,is_initializer);
+
 
     // if we have the same types we dont care
-    // TODO: an additonal earlier check might be needed on the dst
-    // if we add const specifiers
     if(is_simple_type(ltype) && is_simple_type(rtype) && same_simple_type(ltype,rtype))
     {
         return;
     }
-
 
     // both are builtin
     if(is_plain_builtin(rtype) && is_plain_builtin(ltype))

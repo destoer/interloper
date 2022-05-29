@@ -1,0 +1,9 @@
+
+// expected compile error
+func s32 main()
+{
+    const u32 y = 5;
+    u32@ x = &y;
+
+    return @x;
+}
