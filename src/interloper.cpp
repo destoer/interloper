@@ -750,10 +750,23 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             assert(arg.type.degree == 1);
 
             // pass a static string (TODO: we need to add const and make sure that the arg is marked as it)
-            // lit_pool_addr <slot>, offset  to load the address
+            // const_pool_addr <slot>, offset  to load the address
             if(node->nodes[i]->type == ast_type::string)
             {
-                unimplemented("pass static string");
+                const auto rtype = type_array(builtin_type::u8_t,node->nodes[i]->literal.size());
+                check_assign(itl,arg.type,rtype,true);
+                
+                // push the len offset
+                const u32 len_slot = new_slot(func);
+                emit(func.emitter,op_type::mov_imm,len_slot,rtype.dimensions[0]);
+                emit(func.emitter,op_type::push_arg,len_slot);
+
+                // push the data offset
+                const u32 static_offset = alloc_const_pool(itl,node->nodes[i]->literal.data(),rtype.dimensions[0],1);
+
+                const u32 addr_slot = new_slot(func);
+                emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,CONST_POOL);
+                emit(func.emitter,op_type::push_arg,addr_slot);
             }
 
             else

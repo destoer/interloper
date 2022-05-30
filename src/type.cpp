@@ -15,6 +15,16 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
+Type type_array(builtin_type t, u32 size)
+{
+    auto rtype = Type(t);
+    rtype.degree = 1;
+    rtype.dimensions[0] = size;
+
+    return rtype;   
+}
+
+
 const char *builtin_type_name(builtin_type t)
 {
     return TYPE_NAMES[static_cast<size_t>(t)];

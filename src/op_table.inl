@@ -112,6 +112,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::implicit_t,"save_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::implicit_t,"restore_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
 
+    {op_group::slot_t,"pool_addr",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+
     // not used
     {op_group::implicit_t,"END",0,{arg_type::none,arg_type::none,arg_type::none}},
 };

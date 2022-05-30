@@ -750,6 +750,21 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
     return cur + PENDING_ALLOCATION;    
 }
 
+
+u32 alloc_const_pool(Interloper& itl, const void* data,u32 count,u32 size)
+{
+    const u32 pos = itl.const_pool.size();
+
+    const u32 bytes = count * size;
+
+    itl.const_pool.reserve(pos + bytes);
+
+    memcpy(&itl.const_pool[pos],data,bytes);
+
+    return pos;
+}
+
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List &list, ListNode *node)
 {
     auto &slot_lookup = itl.symbol_table.slot_lookup;
@@ -1342,6 +1357,9 @@ void emit_asm(Interloper &itl)
     std::map<u32,u32> inv_label_lookup;
 
 
+    // TODO: we want to make this be a start function defined inside the stl
+    // so we can swap it easily with something that does more finicky things later
+
     // emit a dummy call to main
     // that will get filled in later once we know where main lives
     itl.program.push_back(Opcode(op_type::call,itl.function_table["main"].slot,0,0));
@@ -1382,6 +1400,15 @@ void emit_asm(Interloper &itl)
             }
         }
     }
+
+
+/*  TODO: we need to switch up our program to a block of bytes before we can copy this in
+
+    const u32 const_pool_loc = itl.program.size();
+
+    itl.program.resize(const_pool_loc + itl.const_pool.size());
+    memcpy(&itl.program[const_pool_loc],)
+*/
 
     // label dump
 /*

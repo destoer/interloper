@@ -1,4 +1,4 @@
-
+// func exit(u32 code)
 
 // TODO: make this const
 func write_string(const u8[] str)

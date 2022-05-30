@@ -124,6 +124,8 @@ enum class op_type
     save_regs,
     restore_regs,
 
+    pool_addr,
+
     // just c++ things not used
     END,
 };
@@ -149,6 +151,10 @@ enum class logic_op
 static constexpr u32 LOGIC_OP_SIZE = 9;
 
 static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
+
+
+// POOL
+static constexpr u32 CONST_POOL = 1;
 
 
 // what kind of opcode is this?
