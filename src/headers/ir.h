@@ -215,8 +215,6 @@ struct Opcode
     u32 v[3];
 };
 
-using opcode_iterator_t = std::list<Opcode>::iterator;
-
 // standard symbols
 static constexpr u32 SYMBOL_START = 0x80000000;
 

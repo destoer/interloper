@@ -148,7 +148,6 @@ ListNode *remove(List &list, ListNode* node)
     }
 }
 
-// delete everything after this ptr
 void cleave_list(List &list, ListNode* node)
 {
     node->next = nullptr;

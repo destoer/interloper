@@ -508,12 +508,11 @@ void reset(Interpretter& interpretter)
     interpretter.quit = false;
 }
 
-s32 run(Interpretter& interpretter,const u8 *program, u32 size)
+s32 run(Interpretter& interpretter,const Array<u8>& program)
 {
     //puts("BOOP!"); exit(1);
 
     puts("starting progam execution");
-    panic(!program, "attempted to execute empty program");
     reset(interpretter);
     
 
@@ -521,17 +520,15 @@ s32 run(Interpretter& interpretter,const u8 *program, u32 size)
 
     while(!interpretter.quit)
     {
-        Opcode opcode;
-
         // force pc only be program area for simplicty
         // self modfying code inside this vm would not be very useful anyways
-        if(regs[PC] + sizeof(opcode) > size)
+        if(regs[PC] + sizeof(Opcode) > program.size)
         {
             print_regs(interpretter);
-            panic("attempted to execute out of bounds: %x : %x\n",regs[PC],size);
+            panic("attempted to execute out of bounds: %x : %x\n",regs[PC],program.size);
         }
 
-        memcpy(&opcode,&program[regs[PC]],sizeof(opcode));
+        const auto opcode = read_var<Opcode>(program,regs[PC]);
 
     #if 0
         printf("%08x: ",regs[PC]);

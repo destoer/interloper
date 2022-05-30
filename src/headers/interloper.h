@@ -9,9 +9,7 @@
 
 struct Interloper
 {
-    // probably  needs to be moved to a uint8_t
-    // when we have static data in the program
-    std::vector<Opcode> program;
+    Array<u8> program;
 
     b32 error;
 

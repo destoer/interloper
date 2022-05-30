@@ -34,3 +34,13 @@ using b8 = bool;
 
 
 #define UNUSED(X) ((void)X)
+
+template<typename T>
+struct Array
+{
+    T* data = nullptr;
+
+    // we dont need over 4GB for our purposes so just use a u32 and pack the struct
+    u32 size = 0;
+    u32 capacity = 0;
+};

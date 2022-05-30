@@ -1338,18 +1338,25 @@ void allocate_registers(Interloper& itl,Function &func)
 }
 
 
-void dump_program(std::vector<Opcode> &program, std::map<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
+void dump_program(const Array<u8> &program, std::map<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
 {
-    for(u32 pc = 0; pc < program.size(); pc++)
+    for(u32 pc = 0; pc < program.size; pc += sizeof(Opcode))
     {
-        if(inv_label_lookup.count(pc * OP_SIZE))
+        if(inv_label_lookup.count(pc))
         {
-            printf("0x%08x %s:\n",pc * OP_SIZE,label_lookup[inv_label_lookup[pc * OP_SIZE]].name.c_str());
+            printf("0x%08x %s:\n",pc,label_lookup[inv_label_lookup[pc]].name.c_str());
         }
 
-        printf("  0x%08x:\t ",pc * OP_SIZE);    
-        disass_opcode_raw(program[pc]);
+        printf("  0x%08x:\t ",pc);   
+
+        const auto opcode = read_var<Opcode>(program,pc);
+        disass_opcode_raw(opcode);
     }
+}
+
+void insert_program(Interloper& itl, const Opcode& opcode)
+{
+    push_var(itl.program,opcode);
 }
 
 void emit_asm(Interloper &itl)
@@ -1362,10 +1369,10 @@ void emit_asm(Interloper &itl)
 
     // emit a dummy call to main
     // that will get filled in later once we know where main lives
-    itl.program.push_back(Opcode(op_type::call,itl.function_table["main"].slot,0,0));
+    insert_program(itl,Opcode(op_type::call,itl.function_table["main"].slot,0,0));
 
     // program exit
-    itl.program.push_back(Opcode(op_type::swi,SYSCALL_EXIT,0,0));
+    insert_program(itl,Opcode(op_type::swi,SYSCALL_EXIT,0,0));
 
     // dump ever function into one vector and record where it is in the function table
     for(auto &[key, func]: itl.function_table)
@@ -1374,33 +1381,32 @@ void emit_asm(Interloper &itl)
 
         // when we assembly to an actual arch we will 
         // have to switch over to a byte array
-        itl.symbol_table.label_lookup[func.slot].offset = itl.program.size() * OP_SIZE;
+        itl.symbol_table.label_lookup[func.slot].offset = itl.program.size;
 
 
-        inv_label_lookup[itl.program.size() * OP_SIZE] = func.slot;
+        inv_label_lookup[itl.program.size] = func.slot;
 
         for(u32 b = 0; b < func.emitter.program.size(); b++)
         {
             const auto &block = func.emitter.program[b];
 
             // resolve label addr.
-            itl.symbol_table.label_lookup[func.emitter.block_slot[b]].offset = itl.program.size() * OP_SIZE;
+            itl.symbol_table.label_lookup[func.emitter.block_slot[b]].offset = itl.program.size;
 
             // prefer function name
             if(b != 0)
             {
-                inv_label_lookup[itl.program.size() * OP_SIZE] = func.emitter.block_slot[b];
+                inv_label_lookup[itl.program.size] = func.emitter.block_slot[b];
             }
 
             auto node = block.list.start;
             while(node)
             {
-                itl.program.push_back(node->opcode);
+                insert_program(itl,node->opcode);
                 node = node->next;
             }
         }
     }
-
 
 /*  TODO: we need to switch up our program to a block of bytes before we can copy this in
 
@@ -1409,6 +1415,7 @@ void emit_asm(Interloper &itl)
     itl.program.resize(const_pool_loc + itl.const_pool.size());
     memcpy(&itl.program[const_pool_loc],)
 */
+
 
     // label dump
 /*
@@ -1424,13 +1431,18 @@ void emit_asm(Interloper &itl)
     // posistions for
     // TODO: how do we want to labels for a mov i.e
     // x = @some_function;
-    for(auto &opcode : itl.program)
+
+    // TODO: this needs to be the program size minus to pools
+    for(u32 i = 0; i < itl.program.size; i += sizeof(Opcode))
     {
+        auto opcode = read_var<Opcode>(itl.program,i);
+
         // handle all the branch labels
         // TODO: this probably needs to be changed for when we have call <reg>
         if(OPCODE_TABLE[static_cast<u32>(opcode.op)].group == op_group::branch_t)
         {
             opcode.v[0] = itl.symbol_table.label_lookup[opcode.v[0]].offset;
+            write_var(itl.program,i,opcode);
         }
     }
 

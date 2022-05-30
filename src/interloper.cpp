@@ -352,7 +352,7 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
         // returning out a access on a fixed size array
         // see definition of is_fixed_array_pointer
         if(is_fixed_array_pointer(type))
-        {
+        {   
             if(member == "len")
             {
                 // we dont actually need to load up the pointer as the length is contstant
@@ -2125,7 +2125,7 @@ void compile_functions(Interloper &itl)
 
 void destroy_itl(Interloper &itl)
 {
-    itl.program.clear();
+    destroy(itl.program);
     clear(itl.symbol_table);
     itl.function_table.clear();
 
