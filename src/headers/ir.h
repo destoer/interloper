@@ -240,6 +240,8 @@ static constexpr u32 RV = 0;
 static constexpr u32 R0 = 0;
 static constexpr u32 R1 = 1;
 
+static constexpr u32 PROGRAM_ORG = 0;
+
 
 static constexpr u32 GPR_SIZE = sizeof(u32);
 

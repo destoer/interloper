@@ -83,6 +83,7 @@ inline int conv_builtin_type(builtin_type t)
 
 struct Type
 {
+    // TODO: remove these
     Type()
     {
 

@@ -15,11 +15,12 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
-Type type_array(builtin_type t, u32 size)
+Type type_array(builtin_type t, u32 size, bool is_const = false)
 {
     auto rtype = Type(t);
     rtype.degree = 1;
     rtype.dimensions[0] = size;
+    rtype.is_const = is_const;
 
     return rtype;   
 }

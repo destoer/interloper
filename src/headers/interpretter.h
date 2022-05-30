@@ -16,7 +16,9 @@ struct Interpretter
 
     b32 quit;
 
-    // 16MB stack
+    Array<u8> program;
+
+
     std::vector<u8> stack;
 };
 

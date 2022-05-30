@@ -88,9 +88,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array/array_take_pointer",5,false},
     {"tests/array/array_of_ptr",6,false},
     {"tests/array/deref_array_of_ptr_invalid",-1,true},
-/*
     {"tests/array/array_multi_fixed_size.itl",7200,false},
-*/
+
     // TODO: type check array initalizer assignemnts
 
     // wait for heap allocation
@@ -101,6 +100,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     // strings
     {"tests/string/char_array",7,false},
     {"tests/string/write_string",0,false},
+    {"tests/string/write_string_static",0,false},
 
 };
 

@@ -31,8 +31,15 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     }
 }
 
+static_assert(PROGRAM_ORG == 0);
 void* get_vm_ptr(Interpretter& interpretter,u32 addr, u32 size)
 {
+    // read out the program
+    if(addr + size <= interpretter.program.size)
+    {
+        return &interpretter.program.data[addr];
+    }
+
     if(addr >= 0x20000000 && addr + size < 0x20000000 + interpretter.stack.size())
     {
         return &interpretter.stack[addr - 0x20000000];
@@ -512,23 +519,26 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
 {
     //puts("BOOP!"); exit(1);
 
-    puts("starting progam execution");
+    printf("starting progam execution: %x bytes long\n",program.size);
     reset(interpretter);
     
 
     auto &regs = interpretter.regs;
 
+    interpretter.program = program;
+
     while(!interpretter.quit)
     {
+    
         // force pc only be program area for simplicty
         // self modfying code inside this vm would not be very useful anyways
         if(regs[PC] + sizeof(Opcode) > program.size)
         {
             print_regs(interpretter);
-            panic("attempted to execute out of bounds: %x : %x\n",regs[PC],program.size);
+            panic("attempted to execute out of bounds: %x : %x\n",regs[PC],interpretter.program.size);
         }
 
-        const auto opcode = read_var<Opcode>(program,regs[PC]);
+        const auto opcode = read_var<Opcode>(interpretter.program,regs[PC]);
 
     #if 0
         printf("%08x: ",regs[PC]);

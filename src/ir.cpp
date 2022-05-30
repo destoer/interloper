@@ -753,14 +753,10 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
 
 u32 alloc_const_pool(Interloper& itl, const void* data,u32 count,u32 size)
 {
-    const u32 pos = itl.const_pool.size();
+    const u32 pos = itl.const_pool.size;
 
     const u32 bytes = count * size;
-
-    itl.const_pool.reserve(pos + bytes);
-
-    memcpy(&itl.const_pool[pos],data,bytes);
-
+    push_mem(itl.const_pool,data,bytes);
     return pos;
 }
 
@@ -986,6 +982,16 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             node->opcode = Opcode(op_type::load_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
             allocate_and_rewrite(alloc,list,node,0,slot_lookup);                
    
+            node = node->next;
+            break;
+        }
+
+        // pools
+        case op_type::pool_addr:
+        {
+            // pool_addr <dst>, <offset>, <pool>
+            allocate_and_rewrite(alloc,list,node,0,slot_lookup);   
+
             node = node->next;
             break;
         }
@@ -1337,10 +1343,10 @@ void allocate_registers(Interloper& itl,Function &func)
     
 }
 
-
-void dump_program(const Array<u8> &program, std::map<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
+// NOTE: pass in a size, so we only print the code section
+void dump_program(const Array<u8> &program,u32 size, std::map<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
 {
-    for(u32 pc = 0; pc < program.size; pc += sizeof(Opcode))
+    for(u32 pc = 0; pc < size; pc += sizeof(Opcode))
     {
         if(inv_label_lookup.count(pc))
         {
@@ -1408,13 +1414,10 @@ void emit_asm(Interloper &itl)
         }
     }
 
-/*  TODO: we need to switch up our program to a block of bytes before we can copy this in
 
-    const u32 const_pool_loc = itl.program.size();
-
-    itl.program.resize(const_pool_loc + itl.const_pool.size());
-    memcpy(&itl.program[const_pool_loc],)
-*/
+    const u32 const_pool_loc = itl.program.size;
+    push_mem(itl.program,itl.const_pool.data,itl.const_pool.size);
+    destroy(itl.const_pool);
 
 
     // label dump
@@ -1432,8 +1435,7 @@ void emit_asm(Interloper &itl)
     // TODO: how do we want to labels for a mov i.e
     // x = @some_function;
 
-    // TODO: this needs to be the program size minus to pools
-    for(u32 i = 0; i < itl.program.size; i += sizeof(Opcode))
+    for(u32 i = 0; i < const_pool_loc; i += sizeof(Opcode))
     {
         auto opcode = read_var<Opcode>(itl.program,i);
 
@@ -1444,11 +1446,32 @@ void emit_asm(Interloper &itl)
             opcode.v[0] = itl.symbol_table.label_lookup[opcode.v[0]].offset;
             write_var(itl.program,i,opcode);
         }
+
+        // resolve pools
+        else if(opcode.op == op_type::pool_addr)
+        {
+            const u32 pool = opcode.v[2];
+            const u32 offset = opcode.v[1];
+
+            switch(pool)
+            {
+                case CONST_POOL:
+                {
+                    // TODO: this needs to deal with the pro
+                    opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + offset,0);
+                    break;
+                }
+
+                default: panic("unknown pool %d\n",pool);
+            }
+
+            write_var(itl.program,i,opcode);
+        }
     }
 
     if(itl.print_ir)
     {
-        dump_program(itl.program,inv_label_lookup,itl.symbol_table.label_lookup);
+        dump_program(itl.program,const_pool_loc,inv_label_lookup,itl.symbol_table.label_lookup);
     }
 }
 

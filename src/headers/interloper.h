@@ -27,7 +27,7 @@ struct Interloper
 
     SymbolTable symbol_table;
 
-    std::vector<u8> const_pool;
+    Array<u8> const_pool;
 
     // TODO: move other structures to an arena
     ArenaAllocator list_allocator;

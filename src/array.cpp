@@ -47,13 +47,20 @@ T read_var(const Array<Y> &arr, u32 idx)
 }
 
 template<typename T, typename Y>
-void write_var(const Array<Y> &arr, u32 idx, T v)
+void write_var(Array<Y> &arr, u32 idx, T v)
 {
     return handle_write(arr.data,idx,v);
 }
 
 // insert raw memory block into the array
-// void insert_mem
+template<typename T>
+void push_mem(Array<T>& arr, const void* data, u32 size)
+{
+    reserve(arr,size);
+
+    memcpy(&arr.data[arr.size],data,size);
+    arr.size += size;
+}
 
 template<typename T>
 void destroy(Array<T> &arr)

@@ -753,7 +753,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // const_pool_addr <slot>, offset  to load the address
             if(node->nodes[i]->type == ast_type::string)
             {
-                const auto rtype = type_array(builtin_type::u8_t,node->nodes[i]->literal.size());
+                const auto rtype = type_array(builtin_type::u8_t,node->nodes[i]->literal.size(),true);
                 check_assign(itl,arg.type,rtype,true);
                 
                 // push the len offset
@@ -767,6 +767,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 const u32 addr_slot = new_slot(func);
                 emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,CONST_POOL);
                 emit(func.emitter,op_type::push_arg,addr_slot);
+
+                arg_clean += 2;
             }
 
             else
@@ -2126,6 +2128,7 @@ void compile_functions(Interloper &itl)
 void destroy_itl(Interloper &itl)
 {
     destroy(itl.program);
+    destroy(itl.const_pool);
     clear(itl.symbol_table);
     itl.function_table.clear();
 
