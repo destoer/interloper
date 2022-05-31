@@ -793,6 +793,52 @@ AstNode *func(Parser &parser)
     return f;
 }
 
+AstNode* struct_decl(Parser& parser)
+{
+    const auto name = next_token(parser);
+
+    if(name.type != token_type::symbol)
+    {
+        panic(parser,name,"expected name after struct decl got %s\n",tok_name(name.type));
+        return nullptr;
+    }
+
+    AstNode* struct_node = ast_literal(ast_type::struct_t,name.literal);
+
+    consume(parser,token_type::left_c_brace);
+
+    while(!match(parser,token_type::right_c_brace))
+    {
+        AstNode* type = parse_type(parser);
+
+        if(!type)
+        {
+            type_panic(parser);
+            return nullptr;
+        }
+
+        AstNode* decl = declaration(parser,type);
+
+        if(!decl)
+        {
+            panic(parser,name,"malformed struct member decl\n");
+            return nullptr;
+        }
+
+        struct_node->nodes.push_back(decl);
+    }
+
+    consume(parser,token_type::right_c_brace);
+
+    // semi colon after decl is optional
+    if(match(parser,token_type::semi_colon))
+    {
+        consume(parser,token_type::semi_colon);
+    }
+
+    return struct_node;
+}
+
 const u32 AST_ALLOC_DEFAULT_SIZE = 100 * 1024;
 
 std::vector<std::string> read_source_file(const std::string& filename)
@@ -887,6 +933,12 @@ bool parse(AstNode **root_ptr, const std::string initial_filename)
                 case token_type::func:
                 {
                     (*root_ptr)->nodes.push_back(func(parser));
+                    break;
+                }
+
+                case token_type::struct_t:
+                {
+                    (*root_ptr)->nodes.push_back(struct_decl(parser));
                     break;
                 }
 

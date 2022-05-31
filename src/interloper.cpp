@@ -2120,8 +2120,8 @@ void compile_functions(Interloper &itl)
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-//  global const's -> switch -> enum -> tuples -> structs -> 
-// -> function_pointers
+// structs -> default_values -> tuples ->  global const's 
+// -> switch -> enum -> -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> debugg memory guards -> ...
 
