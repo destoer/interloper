@@ -485,6 +485,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                     lexer.column++;
                 }
 
+                // start of multiline comment
                 else if(peek(lexer.column+1,line) == '*')
                 {
                     lexer.in_comment = true;

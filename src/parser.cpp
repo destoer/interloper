@@ -900,15 +900,9 @@ void add_file(std::set<std::string>& file_set, std::vector<std::string>& stack, 
     }
 }
 
-bool parse(AstNode **root_ptr, const std::string initial_filename)
+bool parse(Interloper& itl, const std::string initial_filename)
 {
-    panic(!root_ptr,"attempted to parse into null tree");
-    
-
-
     //print_tokens(parser.tokens);
-
-
     std::set<std::string> file_set;
     std::vector<std::string> file_stack;
 
@@ -969,13 +963,13 @@ bool parse(AstNode **root_ptr, const std::string initial_filename)
                 // function declartion
                 case token_type::func:
                 {
-                    (*root_ptr)->nodes.push_back(func(parser));
+                    itl.func_root->nodes.push_back(func(parser));
                     break;
                 }
 
                 case token_type::struct_t:
                 {
-                    (*root_ptr)->nodes.push_back(struct_decl(parser));
+                    itl.struct_root->nodes.push_back(struct_decl(parser));
                     break;
                 }
 

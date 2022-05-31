@@ -161,17 +161,9 @@ Type get_type(Interloper &itl, AstNode *type_decl)
 
 void parse_struct_declarations(Interloper& itl)
 {
-    for(const auto n : itl.root->nodes)
+    for(const auto n : itl.struct_root->nodes)
     {
         const auto &node = *n;
-
-        // unless its a struct declaration we dont care
-        // TODO: should we just shove every top level decl on a seperate tree?
-        if(node.type != ast_type::struct_t)
-        {
-            continue;
-        } 
-
         unimplemented("parse struct decl %s\n",node.literal.c_str());
     }   
 }
@@ -181,17 +173,11 @@ void parse_struct_declarations(Interloper& itl)
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
 void parse_function_declarations(Interloper& itl)
 {
-    for(const auto n : itl.root->nodes)
+    for(const auto n : itl.func_root->nodes)
     {
         const auto &node = *n;
-        // unless its a function declaration we dont care
-        if(node.type != ast_type::function)
-        {
-            continue;
-        }
 
 
-        
         const auto return_type = get_type(itl,node.nodes[0]);
         const auto name = node.literal;
         
@@ -421,8 +407,8 @@ std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u
 
         else if(member == "data")
         {
-                emit(func.emitter,op_type::load_arr_data,dst_slot,slot);
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};            
+            emit(func.emitter,op_type::load_arr_data,dst_slot,slot);
+            return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};            
         }
 
         else
@@ -695,7 +681,8 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
         unimplemented("convert fixed size pointer");
     }
 
-    // can be moved by a simple data copy
+    // can be moved by a simple data copy 
+    // NOTE: we use this here so we dont have to care about the underyling type if its a pointer
     else if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
     {
         emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
@@ -994,7 +981,6 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     }
 }
 
-// asume one cond
 void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 {
     // scope for any var decls in the stmt
@@ -2047,18 +2033,9 @@ void compile_functions(Interloper &itl)
     // global scope
     new_scope(itl.symbol_table);
 
-    for(const auto n: itl.root->nodes)
+    for(const auto n: itl.func_root->nodes)
     {
         const auto &node = *n;
-
-        // TODO: should we just have seperate trees?
-        // like we know what type the "top level" decl are as soon as we grab them 
-
-        // unless its a function we dont care
-        if(node.type != ast_type::function)
-        {
-            continue;
-        }
 
         
         // put arguments on the symbol table they are marked as args
@@ -2141,6 +2118,17 @@ void compile_functions(Interloper &itl)
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> debugg memory guards -> ...
 
+void destory_ast(Interloper& itl)
+{
+    delete_tree(itl.func_root); 
+    itl.func_root = nullptr;
+    
+    delete_tree(itl.struct_root);
+    itl.struct_root = nullptr;
+    
+    itl.cur_line = nullptr;    
+}
+
 void destroy_itl(Interloper &itl)
 {
     destroy(itl.program);
@@ -2148,13 +2136,7 @@ void destroy_itl(Interloper &itl)
     clear(itl.symbol_table);
     itl.function_table.clear();
 
-    // clear the tree if present
-    if(itl.root)
-    {
-        delete_tree(itl.root); 
-        itl.root = nullptr;
-        itl.cur_line = nullptr;
-    }
+    destory_ast(itl);
 
     destory_allocator(itl.list_allocator);
 }
@@ -2171,10 +2153,11 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     // parse intial input file
     {
-        itl.root = ast_plain(ast_type::root);
+        itl.func_root = ast_plain(ast_type::root);
+        itl.struct_root = ast_plain(ast_type::root);
 
         // build ast
-        const b32 parser_error = parse(&itl.root,initial_filename);
+        const b32 parser_error = parse(itl,initial_filename);
 
     
         if(parser_error)
@@ -2187,7 +2170,8 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     if(itl.print_ast)
     {
-        print(itl.root);
+        print(itl.struct_root);
+        print(itl.func_root);
     }
 
     // parse out any of the top level decl we need
@@ -2228,9 +2212,7 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     // okay we dont need the parse tree anymore
     // free it
-    delete_tree(itl.root);
-    itl.root = nullptr;
-    itl.cur_line = nullptr;
+    destory_ast(itl);
 
     if(itl.error)
     {

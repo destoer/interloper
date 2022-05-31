@@ -17,7 +17,9 @@ struct Interloper
 
     Parser parser;
 
-    AstNode *root = nullptr;
+    // top level decl tree's
+    AstNode *func_root = nullptr;
+    AstNode *struct_root = nullptr;
 
     AstNode *cur_line = nullptr;
 
