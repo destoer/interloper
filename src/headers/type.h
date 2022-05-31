@@ -5,7 +5,9 @@
 
 
 // if type idx is >= to this then this is a custom defined type
-static constexpr int BUILTIN_TYPE_SIZE = 8;
+static constexpr u32 BUILTIN_TYPE_SIZE = 8;
+static constexpr s32 STRUCT_IDX = 0xf0000000;
+static constexpr s32 INVALID_TYPE = 0xffffffff;
 
 // NOTE: expects to be defined in same order as tokens
 enum class builtin_type

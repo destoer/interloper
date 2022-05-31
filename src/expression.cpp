@@ -204,8 +204,8 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     return nullptr;
 }
 
-    // TODO: this assumes this is one member deep
-    // and wont work for more complicated expressions but just do it simple for now
+// TODO: this assumes this is one member deep
+// and wont work for more complicated expressions but just do it simple for now
 AstNode *member_access(Parser &parser, AstNode* expr_node)
 {
     // skip dot token

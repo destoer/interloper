@@ -159,6 +159,22 @@ Type get_type(Interloper &itl, AstNode *type_decl)
     return type;
 }
 
+void parse_struct_declarations(Interloper& itl)
+{
+    for(const auto n : itl.root->nodes)
+    {
+        const auto &node = *n;
+
+        // unless its a struct declaration we dont care
+        // TODO: should we just shove every top level decl on a seperate tree?
+        if(node.type != ast_type::struct_t)
+        {
+            continue;
+        } 
+
+        unimplemented("parse struct decl %s\n",node.literal.c_str());
+    }   
+}
 
 // scan the top level of the parse tree for functions
 // and grab the entire signature
@@ -2174,12 +2190,9 @@ void compile(Interloper &itl,const std::string& initial_filename)
         print(itl.root);
     }
 
-    // okay now we need to start doing semantic analysis
-    // first handle any imports, macros etc (skip for now)
-    // handle any type declartions (skip for now)
-    // handle function declartions
-
-
+    // parse out any of the top level decl we need
+    parse_struct_declarations(itl);
+    
     parse_function_declarations(itl);
 
     if(itl.error)

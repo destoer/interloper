@@ -138,8 +138,6 @@ void type_panic(Parser &parser)
 }
 
 
-static constexpr s32 INVALID_TYPE = -1;
-
 bool is_builtin_type_tok(const Token &tok)
 {
    return tok.type >= token_type::u8 && tok.type <= token_type::bool_t; 
@@ -154,10 +152,10 @@ s32 plain_type_idx(const Token &tok)
         return s32(tok.type) - s32(token_type::u8);
     }
 
-
+    // we might not know what this is yet so we will resolve the idx properly later...
     else if(tok.type == token_type::symbol)
     {
-        unimplemented("user defined type");
+        return STRUCT_IDX;
     }
 
     else
@@ -200,7 +198,17 @@ AstNode *parse_type(Parser &parser)
         return nullptr;
     }
 
-    std::string type_literal = TYPE_NAMES[type_idx];
+    std::string type_literal;
+    
+    if(type_idx == STRUCT_IDX)
+    {   
+        type_literal = plain_tok.literal;
+    }
+
+    else
+    {
+        type_literal = TYPE_NAMES[type_idx];
+    }
 
     // TODO: need to mark the idx for when have user defined types
     auto type = ast_plain(ast_type::type);
@@ -475,6 +483,29 @@ AstNode *statement(Parser &parser)
                     return expr(parser,t);
                 }
 
+                // assume we have decl of struct type
+                case token_type::symbol:
+                {
+                    prev_token(parser);
+
+                    auto type = parse_type(parser);
+
+                    if(!type)
+                    {
+                        type_panic(parser);
+                        return nullptr;
+                    }
+
+                    return declaration(parser,type);                    
+                }
+
+                // expr for member access?
+                case token_type::dot:
+                {
+                    return expr(parser,t);
+                }
+
+
                 default:
                 {
                     panic(parser,t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
@@ -641,6 +672,12 @@ AstNode *statement(Parser &parser)
                 }
             }
             return if_block;
+        }
+
+        // dont care
+        case token_type::semi_colon:
+        {
+            break;
         }
 
         default:
