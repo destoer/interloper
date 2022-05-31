@@ -1,0 +1,32 @@
+import "basic"
+
+struct Point
+{
+    s32 x;
+    s32 y;
+};
+
+func Point make_point(s32 x, s32 y)
+{
+    // TODO: update this to use a initializer
+    Point p;
+    p.x = x;
+    p.y = y;
+
+    return p;
+}
+
+// pass one in as a pointer just to check deref works
+func s32 calc_gradient(Point v1, Point@ v2)
+{
+    return (v2.y - v1.y) / (v2.x - v1.x);
+}
+
+func s32 main()
+{
+    Point v1 = make_point(2,5);
+    Point v2 = make_point(3,7);
+
+    return calc_gradient(v2,&v2);  
+}
+
