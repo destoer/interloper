@@ -37,6 +37,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/basic/arith_eq",294,false},
     {"tests/basic/mod",233168,false},
     {"tests/basic/shift",1,false},
+    {"tests/basic/comment",0,false},
 
     // const
     {"tests/const/const_invalid_assign",-1,true},

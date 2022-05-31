@@ -1,0 +1,12 @@
+
+// expected 0
+func s32 main()
+{
+    /*
+        hello there!
+
+        return 5;
+    */
+
+    return 0;
+}

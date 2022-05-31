@@ -1,14 +1,13 @@
-import "basic"
-
 struct Point
 {
-    s32 x = 0;
-    s32 y = 0;
+    s32 x = 2;
+    s32 y = 5;
 };
 
 func Point make_point(s32 x, s32 y)
 {
     // TODO: update this to use a initializer
+    // Point p = {x,y};
     Point p;
     p.x = x;
     p.y = y;
@@ -24,7 +23,7 @@ func s32 calc_gradient(Point v1, Point@ v2)
 
 func s32 main()
 {
-    Point v1 = make_point(2,5);
+    Point v1; // test default values
     Point v2 = make_point(3,7);
 
     return calc_gradient(v2,&v2);  

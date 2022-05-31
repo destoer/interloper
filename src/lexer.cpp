@@ -192,6 +192,18 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
     for(lexer.column = 0; lexer.column < size; lexer.column++)
     {
         auto c = line[lexer.column];
+
+        if(lexer.in_comment)
+        {
+            if(c == '*' && peek(lexer.column+1,line) == '/')
+            {
+                lexer.in_comment = false;
+                lexer.column++;
+            }
+
+            continue;
+        }
+
         switch(c)
         {
             case '\t': break;
@@ -470,6 +482,12 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 else if(peek(lexer.column+1,line) == '=')
                 {
                     insert_token(lexer,token_type::divide_eq,1);
+                    lexer.column++;
+                }
+
+                else if(peek(lexer.column+1,line) == '*')
+                {
+                    lexer.in_comment = true;
                     lexer.column++;
                 }
 
