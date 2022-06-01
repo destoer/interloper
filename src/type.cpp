@@ -769,7 +769,15 @@ Type get_type(Interloper &itl, AstNode *type_decl)
 {
     Type type;
 
-    type.type_idx = type_decl->type_idx;
+    if(type_decl->type_idx == STRUCT_IDX)
+    {
+        unimplemented("struct type %s\n",type_decl->literal.c_str());
+    }
+
+    else
+    {
+        type.type_idx = type_decl->type_idx;
+    }
 
     // not a plain plain type
     if(type_decl->nodes.size())

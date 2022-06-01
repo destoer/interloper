@@ -143,7 +143,7 @@ bool is_builtin_type_tok(const Token &tok)
    return tok.type >= token_type::u8 && tok.type <= token_type::bool_t; 
 }
 
-s32 plain_type_idx(const Token &tok)
+u32 plain_type_idx(const Token &tok)
 {
     // within the plain type range
     if(is_builtin_type_tok(tok))
@@ -190,7 +190,7 @@ AstNode *parse_type(Parser &parser)
 
     auto plain_tok = next_token(parser);
 
-    s32 type_idx = plain_type_idx(plain_tok);
+    u32 type_idx = plain_type_idx(plain_tok);
 
     if(type_idx == INVALID_TYPE)
     {
