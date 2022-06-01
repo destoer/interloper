@@ -182,7 +182,7 @@ struct LocalAlloc
     // so how much do we need to offset accesses to varaibles
     u32 stack_offset;
 
-    // how much space has been used so far for each var
+    // where does each section for alloc start?
     u32 stack_alloc[3];
 
     // how much of each type of var is there at the momemnt?
@@ -1203,33 +1203,35 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
     return node;
 }
 
+void align(u32 *alloc, u32 alignment)
+{
+    // make sure the last start posistion is even
+    alignment /= 2;
+
+    if(alloc[alignment] & alignment)
+    {
+        alloc[alignment] += alignment;
+    }
+}
+
 void calc_allocation(LocalAlloc& alloc)
 {
     // calculate the final stack sizes
     // byte located at start
     alloc.stack_alloc[0] = 0;
 
-    // start at end of byte allocation
+    // start u16 at end of byte allocation and align them
     alloc.stack_alloc[1] = alloc.size_count_max[0];
-
-    // align for u16
-    if(alloc.stack_alloc[1] & 1)
-    {
-        alloc.stack_alloc[1] += 1;
-    }
+    align(alloc.stack_alloc,sizeof(u16));
 
 
-    // start at end of half allocation
+    //  u32 at end of half allocation and align them
     alloc.stack_alloc[2] = alloc.stack_alloc[1] + (alloc.size_count_max[1] * sizeof(u16));
+    align(alloc.stack_alloc,sizeof(u32));
 
-    // align for u32
-    if(alloc.stack_alloc[2] & 2)
-    {
-        alloc.stack_alloc[2] += 2;
-    }
 
     // get the total stack size
-    alloc.stack_size =  alloc.stack_alloc[2] + (alloc.size_count_max[2] * sizeof(u32));
+    alloc.stack_size = alloc.stack_alloc[2] + (alloc.size_count_max[2] * sizeof(u32));
 
     if(alloc.print_stack_allocation)
     {

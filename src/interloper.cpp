@@ -5,6 +5,7 @@
 #include "parser.cpp"
 #include "optimize.cpp"
 #include "ir.cpp"
+#include "struct.cpp"
 
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
@@ -71,102 +72,6 @@ u32 eval_const_expr(const AstNode *node)
 
 
 
-
-Type get_type(Interloper &itl, AstNode *type_decl)
-{
-    Type type;
-
-    type.type_idx = type_decl->type_idx;
-
-    // not a plain plain type
-    if(type_decl->nodes.size())
-    {
-        AstNode *arr_decl = nullptr;
-        AstNode *ptr_decl = nullptr;
-
-        for(auto n : type_decl->nodes)
-        {
-            switch(n->type)
-            {
-                // type is a constant
-                case ast_type::const_t:
-                {
-                    type.is_const = true;
-                    break;
-                }
-
-                case ast_type::ptr_indirection:
-                {
-                    ptr_decl = n;
-                    break;
-                }
-
-                case ast_type::arr_dimensions:
-                {
-                    if(ptr_decl)
-                    {
-                        type.contains_ptr = true;
-                    }
-                    arr_decl = n;
-                    break;
-                }
-
-                default: assert(false);
-            }
-        }
-
-        // parse out pointer indirection
-        if(ptr_decl)
-        {
-            type.ptr_indirection = ptr_decl->type_idx;
-        }
-
-        // parse out array dimensions
-        if(arr_decl)
-        {
-            type.degree = arr_decl->nodes.size();
-            
-            for(u32 i = 0; i < type.degree; i++)
-            {
-                if(i >= MAX_ARR_SIZE)
-                {
-                    panic(itl,"array dimensions execeeded %s\n",type_decl->literal.c_str());
-                    return type;
-                }
-
-                auto n = arr_decl->nodes[i];
-
-                // variable size
-                if(n->type == ast_type::arr_var_size)
-                {
-                    type.dimensions[i] = RUNTIME_SIZE;
-                }
-
-                else if(n->type == ast_type::arr_deduce_size)
-                {
-                    type.dimensions[i] = DEDUCE_SIZE;
-                }
-
-                // fixed size: const expr
-                else
-                {
-                    type.dimensions[i] = eval_const_expr(n);
-                }
-            }
-        }
-    }
-
-    return type;
-}
-
-void parse_struct_declarations(Interloper& itl)
-{
-    for(const auto n : itl.struct_root->nodes)
-    {
-        const auto &node = *n;
-        unimplemented("parse struct decl %s\n",node.literal.c_str());
-    }   
-}
 
 // scan the top level of the parse tree for functions
 // and grab the entire signature

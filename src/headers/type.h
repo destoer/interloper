@@ -115,6 +115,31 @@ struct Type
 
 };
 
+// struct entry
+// TODO: how should we store default values?
+// should we just hold pointers to the initial definition and not delete the struct tree?
+struct Member
+{
+    std::string name;
+    u32 offset;
+    Type type;
+};
+
+struct Struct
+{
+    std::string name;
+
+    // what do we hold?
+    std::map<std::string,Member> members;
+
+    // total size of the struct
+    u32 size = 0;
+};
+
+
+
+
+
 static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
 
 

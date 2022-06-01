@@ -34,7 +34,11 @@ struct Interloper
     // TODO: move other structures to an arena
     ArenaAllocator list_allocator;
 
-    // compilier CFG
+    // struct lookup
+    std::map<std::string,Struct> struct_table;
+
+
+    // compilier config
 
     // TODO: make this be a flag
     b32 print_ast = false;
@@ -58,3 +62,4 @@ inline void panic(Interloper &itl,const char *fmt, Args... args)
 }
 
 std::string get_program_name(const std::string &filename);
+u32 eval_const_expr(const AstNode *node);

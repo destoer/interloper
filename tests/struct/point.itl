@@ -26,6 +26,6 @@ func s32 main()
     Point v1; // test default values
     Point v2 = make_point(3,7);
 
-    return calc_gradient(v2,&v2);  
+    return calc_gradient(v1,&v2);  
 }
 
