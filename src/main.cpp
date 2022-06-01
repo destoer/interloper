@@ -15,7 +15,9 @@ struct Config
     b32 print_ir = false;
 
     b32 print_reg_allocation = false;
-    b32 print_stack_allocation = false;     
+    b32 print_stack_allocation = false;
+
+    b32 print_types = false;     
 };
 
 
@@ -32,6 +34,7 @@ Config parse_flags(const char* flags)
             case 'a': cfg.print_ast = true; break;
             case 'r': cfg.print_reg_allocation = true; break;
             case 's': cfg.print_stack_allocation = true; break;
+            case 'c': cfg.print_types = true; break;
 
             default: panic("unknown flag: %c\n",flags[i]); 
         }
@@ -74,6 +77,7 @@ int main(int argc, char *argv[])
         itl.print_ir = cfg.print_ir;
         itl.print_reg_allocation = cfg.print_reg_allocation;
         itl.print_stack_allocation = cfg.print_stack_allocation;
+        itl.print_types = cfg.print_types;
 
         // for now just assume flags are in a batch
         if(argc == 3)

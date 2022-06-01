@@ -36,7 +36,6 @@ void parse_struct_declarations(Interloper& itl)
             member.type = get_type(itl,m->nodes[0]);
 
             // TODO: we dont handle the type being another struct here
-            // do it later
 
             const u32 size = type_size(itl,member.type);
 
@@ -88,5 +87,10 @@ void parse_struct_declarations(Interloper& itl)
 
         // get the total structure size
         structure.size = alloc_start[2] + (size_count[2] * sizeof(u32));
+
+        if(itl.print_types)
+        {
+            print_struct(itl,structure);
+        }
     }
 }
