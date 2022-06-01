@@ -40,6 +40,8 @@ void parse_struct_declarations(Interloper& itl)
             const u32 size = type_size(itl,member.type);
 
 
+            // TODO: handle fixed sized arrays
+
             // translate larger items, into several allocations on the final section
             if(size > GPR_SIZE)
             {
