@@ -1,0 +1,14 @@
+struct Foo
+{
+    u16 v1;
+    u8 v2;
+    u32 v3;
+};
+
+// expected 495
+func s32 main()
+{
+    Foo foo = {5,9,11};
+
+    return foo.v1 * foo.v2 * foo.v3;
+}

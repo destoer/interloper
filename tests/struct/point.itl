@@ -4,14 +4,10 @@ struct Point
     s32 y = 5;
 };
 
+// make sure returns are working
 func Point make_point(s32 x, s32 y)
 {
-    // TODO: update this to use a initializer
-    // Point p = {x,y};
-    Point p;
-    p.x = x;
-    p.y = y;
-
+    const Point p = {x,y};
     return p;
 }
 

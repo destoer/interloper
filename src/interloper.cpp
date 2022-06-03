@@ -237,102 +237,6 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
     } 
 }
 
-// TODO: we want this but have a bool that diffentiates between
-// reads/writes
-std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u32 dst_slot)
-{
-    // TODO: how should we emit this for pointers?
-
-    // load_struct <dst> <struct>,<member_idx>
-
-    ListNode* old_end = get_cur_end(func.emitter);
-
-    // TODO: assumes no depth
-    const u32 struct_slot = new_slot(func);
-    auto [type, slot] = compile_oper(itl,func,node->nodes[0],struct_slot);
-
-    // TODO: for now we assume that this is a single member
-    const auto member = node->literal;
-
-    if(is_pointer(type))
-    {
-        // returning out a access on a fixed size array
-        // see definition of is_fixed_array_pointer
-        if(is_fixed_array_pointer(type))
-        {   
-            if(member == "len")
-            {
-                // we dont actually need to load up the pointer as the length is contstant
-                // NOTE: if we had a dead code pass we dont need this
-                auto &list = get_cur_list(func.emitter);
-                cleave_list(list,old_end);
-
-                emit(func.emitter,op_type::mov_imm,dst_slot,type.dimensions[0]);
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
-            }
-
-            // TODO: use the data ptr we got
-            else
-            {
-                unimplemented("array unknown member access %s\n",member.c_str());
-            }
-        }
-
-
-        type.ptr_indirection -= 1;
-
-        if(is_array(type))
-        {
-            unimplemented("array access via pointer");  
-        }
-
-        else
-        {
-            unimplemented("struct access via pointer");
-        }
-    }
-
-    // is an array hardcode the members
-    else if(is_array(type))
-    {
-        if(member == "len")
-        {
-            if(!is_runtime_size(type,0))
-            {
-                emit(func.emitter,op_type::mov_imm,dst_slot,type.dimensions[0]);
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
-            }
-
-            else
-            {
-                emit(func.emitter,op_type::load_arr_len,dst_slot,slot);
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
-            }
-        }
-
-        else if(member == "data")
-        {
-            emit(func.emitter,op_type::load_arr_data,dst_slot,slot);
-            return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};            
-        }
-
-        else
-        {
-            unimplemented("array unknown member access %s\n",member.c_str());
-        }
-    }
-
-    else if(is_builtin(type))
-    {
-        panic(itl,"cannot access struct member %s on type %s\n",member.c_str(),type_name(itl,type).c_str());
-        return std::pair<Type,u32>{Type(builtin_type::void_t),-1};
-    }
-
-    else
-    {
-        unimplemented("struct access on user defined type");
-    }
-}
 
 // this should handle grabbing values and symbols
 // if it can see a symbol or a value it wont call compile_expression
@@ -356,8 +260,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::access_member:
         {
-            const auto [type,addr_slot] = load_struct(itl,func,node,dst_slot);
-            return std::pair<Type,u32>{type,dst_slot};
+            unimplemented("read member");
         }
 
         case ast_type::char_t:
@@ -1749,6 +1652,18 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
 }
 
 
+std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+{
+    UNUSED(itl); UNUSED(func);
+    unimplemented("access member %s\n",node->literal.c_str());
+}
+
+void write_struct(Interloper& itl,Function& func, u32 src_slot, AstNode *node)
+{
+    const auto [accessed_type, ptr_slot] = compute_member_addr(itl,func,node);
+    do_ptr_store(itl,func,src_slot,ptr_slot,accessed_type);
+}
+
 void compile_block(Interloper &itl,Function &func,AstNode *node)
 {
     new_scope(itl.symbol_table);
@@ -1804,7 +1719,14 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                         {
                             write_arr(itl,func,line.nodes[0],rtype,slot);
                             break;
-                        }    
+                        }
+
+                        // write on struct member!
+                        case ast_type::access_member:
+                        {
+                            write_struct(itl,func,slot,line.nodes[0]);
+                            break;
+                        }
 
                         default:
                         {
