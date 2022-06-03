@@ -36,6 +36,16 @@ bool is_builtin(u32 type_idx)
     return type_idx < BUILTIN_TYPE_SIZE;
 }
 
+bool is_struct(u32 type_idx)
+{
+    return type_idx >= BUILTIN_TYPE_SIZE;
+}
+
+bool is_struct(const Type& t)
+{
+    return is_struct(t.type_idx);
+}
+
 bool is_builtin(const Type &t)
 {
     return is_builtin(t.type_idx);
@@ -222,9 +232,11 @@ u32 type_size(Interloper& itl,const Type &type)
         return GPR_SIZE;
     }
 
+    // user defined type
     else
     {
-        unimplemented("user defined type size\n");
+        const auto& structure = struct_from_type_idx(itl.struct_table,type.type_idx);
+        return structure.size;
     }
 }
 
@@ -771,7 +783,21 @@ Type get_type(Interloper &itl, AstNode *type_decl)
 
     if(type_decl->type_idx == STRUCT_IDX)
     {
-        unimplemented("struct type %s\n",type_decl->literal.c_str());
+        const auto name = type_decl->literal;
+
+        const auto struct_opt = get_struct(itl.struct_table,name);
+
+        if(struct_opt)
+        {
+            const auto structure = struct_opt.value();
+            type.type_idx = structure.type_idx;
+        }
+
+        else
+        {
+            panic(itl,"no such struct %s\n",name.c_str());
+            return type;
+        }
     }
 
     else

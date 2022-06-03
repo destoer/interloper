@@ -15,6 +15,38 @@ void print_struct(Interloper& itl, const Struct& structure)
     printf("size: %d\n",structure.size);
 }
 
+void add_struct(StructTable& struct_table, Struct& structure)
+{
+    const u32 slot = struct_table.lookup.size();
+
+    structure.type_idx = slot + BUILTIN_TYPE_SIZE;
+
+    struct_table.lookup.push_back(structure);
+    struct_table.table[structure.name] = slot;
+}
+
+
+Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
+{
+    // conv to slot
+    const u32 slot = type_idx - BUILTIN_TYPE_SIZE;
+
+    return struct_table.lookup[slot];
+}
+
+std::optional<Struct> get_struct(StructTable& struct_table, const std::string& name)
+{
+    if(struct_table.table.count(name))
+    {
+        const u32 idx = struct_table.table[name];
+        return std::optional<Struct>(struct_table.lookup[idx]);
+    }
+
+    return std::nullopt;
+}
+
+
+
 void parse_struct_declarations(Interloper& itl)
 {
     for(const auto n : itl.struct_root->nodes)
@@ -27,6 +59,9 @@ void parse_struct_declarations(Interloper& itl)
         // and then we can go back through and align the struct...
 
         u32 size_count[3] = {0};
+
+        // TODO: need a vec with the original ordering
+        // and the map to point into it, to impl struct initializers
 
         // parse out members
         for(const auto m : n->nodes)
@@ -94,5 +129,8 @@ void parse_struct_declarations(Interloper& itl)
         {
             print_struct(itl,structure);
         }
+
+
+        add_struct(itl.struct_table,structure);
     }
 }

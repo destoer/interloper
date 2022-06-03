@@ -23,7 +23,7 @@ struct Interloper
 
     AstNode *cur_line = nullptr;
 
-    std::unordered_map<std::string, Function> function_table;
+    FuncTable function_table;
     // did the last compiled function have a return
     b32 has_return;
 
@@ -35,7 +35,7 @@ struct Interloper
     ArenaAllocator list_allocator;
 
     // struct lookup
-    std::map<std::string,Struct> struct_table;
+    StructTable struct_table;
 
 
     // compilier config

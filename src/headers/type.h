@@ -134,11 +134,22 @@ struct Struct
 
     // total size of the struct
     u32 size = 0;
+
+    u32 type_idx = 0;
 };
 
 
+using StructLookup = std::vector<Struct>;
 
+struct StructTable
+{
+    std::unordered_map<std::string, u32> table;
 
+    StructLookup lookup;
+};
+
+std::optional<Struct> get_struct(StructTable& struct_table, const std::string& name);
+Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx);
 
 static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
 
@@ -219,6 +230,8 @@ struct Function
 
     u32 slot;
 };
+
+using FuncTable = std::unordered_map<std::string, Function>;
 
 
 // TODO: start by fixing all the compile errors
