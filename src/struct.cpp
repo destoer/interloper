@@ -34,6 +34,12 @@ Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
     return struct_table.lookup[slot];
 }
 
+Struct struct_from_type(StructTable& struct_table, const Type& type)
+{
+    return struct_from_type_idx(struct_table,type.type_idx);
+}   
+
+
 std::optional<Struct> get_struct(StructTable& struct_table, const std::string& name)
 {
     if(struct_table.table.count(name))
@@ -45,7 +51,18 @@ std::optional<Struct> get_struct(StructTable& struct_table, const std::string& n
     return std::nullopt;
 }
 
+std::optional<Member> get_member(StructTable& struct_table, const Type& type, const std::string& member_name)
+{
+    auto structure = struct_from_type_idx(struct_table,type.type_idx);
 
+    if(!structure.members.count(member_name))
+    {
+        return std::nullopt;
+    }
+
+    const auto member = structure.members[member_name];
+    return std::optional<Member>(member);
+}
 
 void parse_struct_declarations(Interloper& itl)
 {

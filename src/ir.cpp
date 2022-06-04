@@ -31,6 +31,11 @@ void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
     append(list,opcode);
 }
 
+u32 gpr_count(u32 size)
+{
+    return size / GPR_SIZE;
+}
+
 Opcode store_ptr(u32 dst_slot, u32 addr_slot, u32 size, u32 offset)
 {
     static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};

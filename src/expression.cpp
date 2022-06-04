@@ -359,7 +359,6 @@ AstNode *nud(Parser &parser,Token &t)
                     return member_access(parser,ast_literal(ast_type::symbol,t.literal));
                 }
 
-                // TODO: we assume a single subscript
                 case token_type::sl_brace:
                 {
                     auto arr_access = ast_literal(ast_type::array_access,t.literal);
