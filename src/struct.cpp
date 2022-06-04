@@ -53,6 +53,11 @@ std::optional<Struct> get_struct(StructTable& struct_table, const std::string& n
 
 std::optional<Member> get_member(StructTable& struct_table, const Type& type, const std::string& member_name)
 {
+    if(!is_struct(type))
+    {
+        return std::nullopt;
+    }
+
     auto structure = struct_from_type_idx(struct_table,type.type_idx);
 
     if(!structure.members.count(member_name))

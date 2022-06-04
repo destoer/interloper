@@ -1691,6 +1691,8 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
         {
             const auto [type,slot] = compute_member_addr(itl,func,node->nodes[0]);
 
+            const auto member_name = node->literal;
+
             // TODO: we want the address the pointer points to here
             // not the address of the pointer itself so deref it
             if(is_pointer(type))
@@ -1698,29 +1700,34 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
                 unimplemented("member access via pointer!");
             }
 
-
-
-            const auto member_name = node->literal;
-
-            // get offset for struct member
-            const auto member_opt = get_member(itl.struct_table,type,member_name);
-
-            if(!member_opt)
+            else if(is_array(type))
             {
-                panic(itl,"No such member %s for type %s\n",member_name.c_str(),type_name(itl,type).c_str());
-                return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+                unimplemented("member access on array %s\n",member_name.c_str());
             }
 
-            const auto member = member_opt.value();
+            // actual struct member
+            else
+            {
+                // get offset for struct member
+                const auto member_opt = get_member(itl.struct_table,type,member_name);
+
+                if(!member_opt)
+                {
+                    panic(itl,"No such member %s for type %s\n",member_name.c_str(),type_name(itl,type).c_str());
+                    return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+                }
+
+                const auto member = member_opt.value();
 
 
-            // TODO: ideally we would fold all this offseting but just do it naively for now
+                // TODO: ideally we would fold all this offseting but just do it naively for now
 
-            // emit the add operation
-            const u32 addr_slot = new_slot(func);
-            emit(func.emitter,op_type::add_imm,addr_slot,slot,member.offset);
+                // emit the add operation
+                const u32 addr_slot = new_slot(func);
+                emit(func.emitter,op_type::add_imm,addr_slot,slot,member.offset);
 
-            return std::pair<Type,u32>{member.type,addr_slot};
+                return std::pair<Type,u32>{member.type,addr_slot};
+            }
         }
 
         case ast_type::symbol:
