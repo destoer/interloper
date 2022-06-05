@@ -1771,7 +1771,38 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
 
             else if(is_array(type))
             {
-                unimplemented("member access on array %s\n",member_name.c_str());
+                if(member_name == "len")
+                {
+                    if(!is_runtime_size(type,0))
+                    {
+                        // TODO: have the optimiser clean up dead code
+                        emit(func.emitter,op_type::free_reg,slot);
+                        return std::pair<Type,u32>{type,ACCESS_FIXED_LEN_REG};
+                    }
+
+                    // vla
+                    else
+                    {
+                        const u32 len_addr = new_slot(func);
+                        emit(func.emitter,op_type::add_imm,len_addr,slot,GPR_SIZE);
+
+                        return std::pair<Type,u32>{Type(builtin_type::u32_t),len_addr};
+                    }
+                }
+
+                else if(member_name == "data")
+                {
+                    // this should probably be better typed
+                    return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),slot};
+                }
+
+
+                else
+                {
+                    panic(itl,"unknown array member %s\n",member_name.c_str());
+                    return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+                }
+
             }
 
             // actual struct member
@@ -1848,6 +1879,14 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
 std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
 {
     const auto [accessed_type, ptr_slot] = compute_member_addr(itl,func,node);
+
+    // len access on fixed sized array
+    if(ptr_slot == ACCESS_FIXED_LEN_REG)
+    {
+        emit(func.emitter,op_type::mov_imm,dst_slot,accessed_type.dimensions[0]);
+        return std::pair<Type,u32>{Type(builtin_type::u32_t),dst_slot};
+    }
+
     do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type);
     return std::pair<Type,u32>{accessed_type,dst_slot};
 }

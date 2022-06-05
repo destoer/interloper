@@ -2,11 +2,11 @@
 // expected 16
 func main() s32
 {
-    u32[4] buf = {1,3,7,5};
+    buf: u32[?] = {1,3,7,5};
 
-    u32 ans = 0;
+    ans : u32 = 0;
 
-    for(u32 i = 0; i < buf.len; i += 1)
+    for(i : u32 = 0; i < buf.len; i += 1)
     {
         ans += buf[i];
     }

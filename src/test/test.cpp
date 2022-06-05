@@ -78,7 +78,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     //{"tests/ptr/ptr_to_fixed_array",-1,true},
     //{"tests/ptr/ptr_to_array_member",4,false},
 
-/* reimpl later
+
 
 
     // arrays
@@ -92,7 +92,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array/array_take_pointer",5,false},
     {"tests/array/array_of_ptr",6,false},
     {"tests/array/deref_array_of_ptr_invalid",-1,true},
-    {"tests/array/array_multi_fixed_size.itl",7200,false},
+   //{"tests/array/array_multi_fixed_size.itl",7200,false},
 
     // TODO: type check array initalizer assignemnts
 
@@ -105,7 +105,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/string/char_array",7,false},
     {"tests/string/write_string",0,false},
     {"tests/string/write_string_static",0,false},
-*/
+
     // structs
     {"tests/struct/struct",495,false},
     {"tests/struct/struct_initializer",495,false},

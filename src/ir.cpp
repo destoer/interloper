@@ -486,6 +486,20 @@ void free_sym(LocalAlloc &alloc, Symbol &sym)
     sym.location = LOCATION_MEM;
 }
 
+void free_slot(u32 slot,LocalAlloc &alloc,SlotLookup &slot_lookup)
+{
+    if(is_tmp(slot))
+    {
+        free_tmp(alloc,alloc.ir_regs[slot]);
+    }
+
+    else if(is_sym(slot))
+    {
+        auto &sym = sym_from_slot(slot_lookup,slot);
+        free_sym(alloc,sym);
+    }
+}
+
 
 void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,List &list, ListNode *node,SlotLookup &slot_lookup)
 {
@@ -1000,6 +1014,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             node = node->next;
             break;
+        }
+
+        case op_type::free_reg:
+        {   
+            free_slot(opcode.v[0],alloc,slot_lookup);
+            return remove(list,node);
         }
 
         default:

@@ -126,6 +126,8 @@ enum class op_type
 
     pool_addr,
 
+    free_reg,
+
     // just c++ things not used
     END,
 };
@@ -226,12 +228,14 @@ static constexpr u32 MACHINE_REG_SIZE = 4;
 
 static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x07000000;
 
-
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
 static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
+
+// dummy reg to tell compilier loads are not necessary for fixed arrays
+static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
 
 // for use in the interpretter
 static constexpr u32 SP = MACHINE_REG_SIZE;

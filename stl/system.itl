@@ -1,7 +1,7 @@
 // func exit(u32 code)
 
 // TODO: make this const
-func write_string(const u8[] str)
+func write_string(str: const u8[])
 {
     intrin_syscall(1,str.data,str.len); 
 }
