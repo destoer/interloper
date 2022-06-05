@@ -265,7 +265,7 @@ AstNode *nud(Parser &parser,Token &t)
         // array initializer
         case token_type::left_c_brace:
         {
-            auto init = ast_plain(ast_type::arr_initializer);
+            auto init = ast_plain(ast_type::initializer_list);
             while(parser.expr_tok.type != token_type::right_c_brace)
             {
                 init->nodes.push_back(expression(parser,0));
@@ -359,7 +359,6 @@ AstNode *nud(Parser &parser,Token &t)
                     return member_access(parser,ast_literal(ast_type::symbol,t.literal));
                 }
 
-                // TODO: we assume a single subscript
                 case token_type::sl_brace:
                 {
                     auto arr_access = ast_literal(ast_type::array_access,t.literal);

@@ -1,0 +1,17 @@
+struct Foo
+{
+    x : u32; 
+    y : u32;
+}
+
+func sum(foo: Foo) u32
+{
+    return foo.x + foo.y;
+}
+
+
+func main() s32
+{
+    foo: const Foo = {5,7};
+    return sum(foo);
+}

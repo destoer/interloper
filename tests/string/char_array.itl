@@ -2,17 +2,17 @@
 // expected 7
 import "basic"
 
-func s32 main()
+func main() s32
 {
-    u8[?] str = "Hello there";
+    str : u8[?] = "Hello there";
 
-    u32 set = 0;
+    set : u32 = 0;
 
-    for(u32 i = 0; i < str.len; i += 1)
+    for(i : u32 = 0; i < str.len; i += 1)
     {
         str[i] = to_lower(str[i]);
 
-        u8 x = str[i] - 'a';
+        x : u8 = str[i] - 'a';
 
         set = set_bit(set,x);
     }

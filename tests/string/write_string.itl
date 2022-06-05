@@ -1,9 +1,9 @@
 
 import "basic"
 
-func s32 main()
+func main() s32
 {
-    u8[?] str = "Go for broke\n";
+    str : u8[?] = "Go for broke\n";
 
     write_string(str);
 

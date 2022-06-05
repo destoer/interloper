@@ -1,11 +1,11 @@
 
 // expected 16
 
-func u32 sum(u32[] arr)
+func sum(arr: u32[]) u32
 {
-    u32 ans = 0;
+    ans : u32 = 0;
 
-    for(u32 i = 0; i < arr.len; i += 1)
+    for(i : u32 = 0; i < arr.len; i += 1)
     {
         ans += arr[i];
     }
@@ -13,13 +13,13 @@ func u32 sum(u32[] arr)
     return ans;
 }
 
-func s32 main()
+func main() s32
 {
-    u32 ans = 0;
+    ans : u32 = 0;
 
     // fixed size but determined by initializer
-    u32[?] arr1 = {1,2,3};
-    u32[?] arr2 = {1,2,3,4};
+    arr1 : u32[?] = {1,2,3};
+    arr2 : u32[?] = {1,2,3,4};
 
     ans += sum(arr1);
 

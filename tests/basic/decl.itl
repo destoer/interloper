@@ -1,6 +1,6 @@
 
 
-func s32 main()
+func main() s32
 {
     decl x = 255;
 

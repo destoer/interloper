@@ -2,12 +2,12 @@
 // expected compile error
 // unsigned = signed is illegal
 
-func s32 main()
+func main() s32
 {
     // signed = signed allowed
-    s8 y = -1;
+    y : s8 = -1;
 
     // unsigned = signed disallowed
-    u32 x = -1;
+    x : u32 = -1;
     return x;
 }

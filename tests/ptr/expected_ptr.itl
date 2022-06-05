@@ -1,12 +1,12 @@
 
-func times_two(u32 @v)
+func times_two(v: u32@)
 {
     @v *= 2;
 }
 
-func s32 main()
+func main() s32
 {
-    s32 x = 0;
+    x: u32 = 0;
     times_two(x);
     return x;
 }

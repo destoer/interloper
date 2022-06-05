@@ -6,7 +6,7 @@ func test() {}
 
 func test() {}
 
-func s32 main()
+func main() s32
 {
     test();
     return -1;

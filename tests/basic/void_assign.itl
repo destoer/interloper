@@ -6,7 +6,7 @@ func void_return()
 
 }
 
-func s32 main()
+func main() : s32
 {
     return void_return();
 }

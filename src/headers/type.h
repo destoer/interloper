@@ -129,8 +129,10 @@ struct Struct
 {
     std::string name;
 
+    std::vector<Member> members;
+
     // what do we hold?
-    std::map<std::string,Member> members;
+    std::map<std::string,u32> member_map;
 
     // total size of the struct
     u32 size = 0;

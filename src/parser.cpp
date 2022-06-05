@@ -217,7 +217,6 @@ AstNode *parse_type(Parser &parser)
 
     if(is_const)
     {
-        type_literal = "const " + type_literal;
         type->nodes.push_back(ast_plain(ast_type::const_t));
     }
 
@@ -236,7 +235,6 @@ AstNode *parse_type(Parser &parser)
                 {
                     next_token(parser);
                     ptr_indirection++;
-                    type_literal = type_literal + '@';
                 }
 
                 auto ptr_node = ast_plain(ast_type::ptr_indirection);
@@ -263,7 +261,6 @@ AstNode *parse_type(Parser &parser)
                     {
                         arr_decl->nodes.push_back(ast_plain(ast_type::arr_var_size));
                         consume(parser,token_type::sr_brace);
-                        type_literal = type_literal + "[]";
                     }
 
                     else 
@@ -277,14 +274,11 @@ AstNode *parse_type(Parser &parser)
                             arr_decl->nodes.push_back(e);
                         
                             consume(parser,token_type::sr_brace);
-
-                            type_literal = type_literal + "[?]";
                         }
 
                         else
                         {
                             arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
-                            type_literal = type_literal + "[_]";
                         }
                     }
                 }
@@ -306,10 +300,10 @@ AstNode *parse_type(Parser &parser)
 
 
 
-AstNode *declaration(Parser &parser, AstNode *type)
+AstNode *declaration(Parser &parser)
 {
     // declartion
-    // type symbol ( ';' | '=' expression ';')
+    // symbol ':' type ( ';' | '=' expression ';')
 
     const auto s = next_token(parser);
 
@@ -318,6 +312,11 @@ AstNode *declaration(Parser &parser, AstNode *type)
         panic(parser,s,"declartion expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
         return nullptr;
     }
+
+    consume(parser,token_type::colon);
+
+
+    AstNode* type = parse_type(parser);
 
     //    [declare:name]
     // [type]   optional([eqauls])
@@ -391,30 +390,6 @@ AstNode *statement(Parser &parser)
 
     switch(t.type)
     {
-        // handle builtin types
-        case token_type::const_t:
-        case token_type::u8:
-        case token_type::u16:
-        case token_type::u32:
-        case token_type::s8:
-        case token_type::s16:
-        case token_type::s32:
-        case token_type::bool_t:
-        {
-            prev_token(parser);
-
-            auto type = parse_type(parser);
-
-            if(!type)
-            {
-                type_panic(parser);
-                return nullptr;
-            }
-
-            return declaration(parser,type);
-        }
-
-    
         case token_type::decl:
         {
             return auto_decl(parser);
@@ -458,6 +433,13 @@ AstNode *statement(Parser &parser)
 
             switch(t2.type)
             {
+                // declaration with specified type
+                case token_type::colon:
+                {
+                    prev_token(parser);
+                    return declaration(parser);    
+                }
+
                 // assignment expr
                 case token_type::plus_eq:
                 case token_type::minus_eq:
@@ -481,22 +463,6 @@ AstNode *statement(Parser &parser)
                 case token_type::sl_brace:
                 {
                     return expr(parser,t);
-                }
-
-                // assume we have decl of struct type
-                case token_type::symbol:
-                {
-                    prev_token(parser);
-
-                    auto type = parse_type(parser);
-
-                    if(!type)
-                    {
-                        type_panic(parser);
-                        return nullptr;
-                    }
-
-                    return declaration(parser,type);                    
                 }
 
                 // expr for member access?
@@ -550,12 +516,10 @@ AstNode *statement(Parser &parser)
             // standard decl
             else
             {
-
-                // decl for builtin type
-                if(is_builtin_type_tok(peek(parser,0)))
+                // decl 
+                if(peek(parser,1).type == token_type::colon)
                 {
-                    auto type = parse_type(parser);
-                    for_block->nodes.push_back(declaration(parser,type));
+                    for_block->nodes.push_back(declaration(parser));
                     terminator = token_type::semi_colon; 
                 }
 
@@ -728,32 +692,8 @@ AstNode *block(Parser &parser)
 AstNode *func(Parser &parser)
 {
 
-    // first check this is a valid function definiton and consume it 
-    // func_dec = func return_type ident(arg...)
-    // arg = type ident
-
-    // can be void (i.e we have no return type)
-    AstNode *return_type = nullptr;
-    
-    // void
-    if(peek(parser,0).type == token_type::symbol && peek(parser,1).type == token_type::left_paren)
-    {
-        return_type = ast_plain(ast_type::type);
-        return_type->type_idx = u32(builtin_type::void_t);
-        return_type->literal = "void";
-    }
-
-    // type specified
-    else
-    {
-        return_type = parse_type(parser);
-
-        if(!return_type)
-        {
-            type_panic(parser);
-            return nullptr;
-        }
-    }
+    // func_dec = func ident(arg...) return_type 
+    // arg = ident : type,
 
     // what is the name of our function?
     const auto func_name = next_token(parser);
@@ -779,12 +719,27 @@ AstNode *func(Parser &parser)
         {
             delete_tree(a);
             delete_tree(f);
-            panic(parser,paren,"unterminated function declaration!");
+            panic(parser,paren,"unterminated function declaration!\n");
             return nullptr;
         }
 
         // for each arg pull type, name
-        auto type = parse_type(parser);
+       
+
+        const auto lit_tok = next_token(parser);
+
+        if(lit_tok.type != token_type::symbol)
+        {
+            delete_tree(a);
+            delete_tree(f);
+            panic(parser,lit_tok,"expected name for function arg\n");
+            return nullptr;
+        }
+        
+
+        consume(parser,token_type::colon);
+
+        AstNode* type = parse_type(parser);
 
         if(!type)
         {
@@ -794,16 +749,7 @@ AstNode *func(Parser &parser)
             return nullptr;
         }
 
-        const auto lit_tok = next_token(parser);
 
-        if(lit_tok.type != token_type::symbol)
-        {
-            delete_tree(a);
-            delete_tree(f);
-            panic(parser,lit_tok,"expected name for function arg");
-            return nullptr;
-        }
-        
         // add each declartion
         auto d = ast_literal(ast_type::declaration,lit_tok.literal);
         d->nodes.push_back(type);
@@ -818,6 +764,27 @@ AstNode *func(Parser &parser)
     }
 
     consume(parser,token_type::right_paren);
+
+    AstNode* return_type;
+
+    if(!match(parser,token_type::left_c_brace))
+    {
+        return_type = parse_type(parser);
+
+        if(!return_type)
+        {
+            type_panic(parser);
+            return nullptr;
+        }
+    }
+
+    // void
+    else
+    {
+        return_type = ast_plain(ast_type::type);
+        return_type->type_idx = u32(builtin_type::void_t);
+        return_type->literal = "void";
+    }
 
     AstNode *b = block(parser); 
 
@@ -846,15 +813,7 @@ AstNode* struct_decl(Parser& parser)
 
     while(!match(parser,token_type::right_c_brace))
     {
-        AstNode* type = parse_type(parser);
-
-        if(!type)
-        {
-            type_panic(parser);
-            return nullptr;
-        }
-
-        AstNode* decl = declaration(parser,type);
+        AstNode* decl = declaration(parser);
 
         if(!decl)
         {

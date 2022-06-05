@@ -1,8 +1,8 @@
 // ans 32
 
-func s32 main()
+func main() s32
 {
-    s32 y = 1;
+    y : s32 = 1;
 
     for(decl x = 5; x > 0; x -= 1)
     {

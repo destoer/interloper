@@ -1,7 +1,7 @@
 
 // expected compile error
 
-func s32 main()
+func main() s32
 {
     u32 vla;
 

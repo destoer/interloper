@@ -1,11 +1,11 @@
 
 // expected 3
 
-func s32 main()
+func main() s32
 {
-    u32[3] arr;
+    arr: u32[3];
 
-    u32[] vla = arr;
+    vla: u32[] = arr;
 
     return vla.len;
 }

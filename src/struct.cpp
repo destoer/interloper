@@ -6,9 +6,8 @@ void print_member(Interloper& itl,const Member& member)
 void print_struct(Interloper& itl, const Struct& structure)
 {
     printf("struct %s\n{\n",structure.name.c_str());
-    for(const auto &[key,member] : structure.members)
+    for(const auto &member : structure.members)
     {
-        UNUSED(key);
         print_member(itl,member);
     }
     printf("};\n");
@@ -34,6 +33,12 @@ Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
     return struct_table.lookup[slot];
 }
 
+Struct struct_from_type(StructTable& struct_table, const Type& type)
+{
+    return struct_from_type_idx(struct_table,type.type_idx);
+}   
+
+
 std::optional<Struct> get_struct(StructTable& struct_table, const std::string& name)
 {
     if(struct_table.table.count(name))
@@ -45,7 +50,24 @@ std::optional<Struct> get_struct(StructTable& struct_table, const std::string& n
     return std::nullopt;
 }
 
+std::optional<Member> get_member(StructTable& struct_table, const Type& type, const std::string& member_name)
+{
+    if(!is_struct(type))
+    {
+        return std::nullopt;
+    }
 
+    auto structure = struct_from_type_idx(struct_table,type.type_idx);
+
+    if(!structure.member_map.count(member_name))
+    {
+        return std::nullopt;
+    }
+
+    const u32 idx = structure.member_map[member_name];
+    const auto member = structure.members[idx];
+    return std::optional<Member>(member);
+}
 
 void parse_struct_declarations(Interloper& itl)
 {
@@ -91,8 +113,12 @@ void parse_struct_declarations(Interloper& itl)
                 size_count[size >> 1] += 1;
             }
 
+            const u32 loc = structure.members.size();
+
             // TODO: handle redefinitions
-            structure.members[member.name] = member;
+            structure.member_map[member.name] = loc;
+
+            structure.members.push_back(member);
         }
 
         // TODO: handle not reordering the struct upon request
@@ -113,9 +139,8 @@ void parse_struct_declarations(Interloper& itl)
 
 
         // iter back over every member and give its offset
-        for(auto &[key,member] : structure.members)
+        for(auto &member : structure.members)
         {
-            UNUSED(key);
             const u32 zone_offset = member.offset;
             const u32 size = type_size(itl,member.type);
 

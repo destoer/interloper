@@ -1,6 +1,6 @@
 
 // expected compile error
-func s32 main()
+func main() s32
 {
     x = 5;
 

@@ -26,7 +26,7 @@ enum class ast_type
     ptr_indirection,
     arr_dimensions,
     arr_var_size,
-    arr_initializer,
+    initializer_list,
     arr_deduce_size,
     const_t,
 
@@ -109,7 +109,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "ptr_indirection",
     "arr_dimensions",
     "arr_var_size",
-    "arr_intializer",
+    "intializer_list",
     "deduced_arr_size",
     "const",
 

@@ -1,10 +1,10 @@
 // expected 6
 
-func u32 sum(u32[] arr)
+func sum(arr: u32[]) u32
 {
-    u32 ans = 0;
+    ans: u32 = 0;
 
-    for(u32 i = 0; i < arr.len; i += 1)
+    for(i : u32 = 0; i < arr.len; i += 1)
     {
         ans += arr[i];
     }
@@ -12,10 +12,10 @@ func u32 sum(u32[] arr)
     return ans;
 }
 
-func s32 main()
+func main() s32
 {
-    u32 ans = 0;
-    u32[3] arr = {1,2,3};
+    ans : u32 = 0;
+    arr : u32[?]  = {1,2,3};
 
     // array should get converted into a runtime sized array
     // when passed

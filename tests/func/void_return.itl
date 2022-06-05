@@ -1,15 +1,15 @@
 
 // expected 255
 
-func void_func(u8 @x)
+func void_func(x: u8@)
 {
     @x = 255;
     return;
 }
 
-func s32 main()
+func main() s32
 {
-    u8 x = 0;
+    x : u8 = 0;
     void_func(&x);
     return x;
 }

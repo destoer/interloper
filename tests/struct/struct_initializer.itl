@@ -1,20 +1,14 @@
-
-
 struct Foo
 {
-    v1 : u32;
-    v2 : u32;
+    v1 : u16;
+    v2 : u8;
     v3 : u32;
 };
 
 // expected 495
 func main() s32
 {
-    foo : Foo;
-
-    foo.v1 = 5;
-    foo.v2 = 9;
-    foo.v3 = 11;
+    foo : Foo = {5,9,11};
 
     return foo.v1 * foo.v2 * foo.v3;
 }

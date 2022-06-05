@@ -1,0 +1,16 @@
+
+struct Point
+{
+    x : u32;
+    y : u32;
+}
+
+
+// TODO: for now just check this is parsed properly
+func main() s32
+{
+    x : Point[3];
+
+
+    return 0;
+}

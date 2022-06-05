@@ -1,8 +1,8 @@
 
 // expected: compile error
-func s32 main()
+func main() s32
 {
-    u8 x = 512;
+    x : u8 = 512;
     // correct way
     // u8 x = cast(u8,512);
 

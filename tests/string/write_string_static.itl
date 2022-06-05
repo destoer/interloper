@@ -1,7 +1,7 @@
 
 import "basic"
 
-func s32 main()
+func main() s32
 {
     write_string("Go for broke\n");
     return 0;

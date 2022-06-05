@@ -1,16 +1,16 @@
 
 // expected 1
 
-func s32 main()
+func main() s32
 {
     // lsl works
-    bool t1 = ((0x07 << 4) | (0x80 >> 4)) == 0x78;
+    t1 : bool = ((0x07 << 4) | (0x80 >> 4)) == 0x78;
 
     // asr works, 
-    bool t2 = (-2 >> 1) == -1;
+    t2 : bool = (-2 >> 1) == -1;
 
     // lsr works
-    bool t3 = (2 >> 1) == 1;
+    t3 : bool = (2 >> 1) == 1;
 
     return cast(s32,t1 && t2 && t3);
 }

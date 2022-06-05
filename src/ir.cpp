@@ -17,6 +17,7 @@ List& get_cur_list(IrEmitter& emitter)
     return emitter.program[emitter.program.size()-1].list; 
 }
 
+// TODO: should this return the dst slot as a matter of convience?
 void emit(IrEmitter &emitter,const Opcode& opcode)
 {
     auto &list = get_cur_list(emitter);
@@ -29,6 +30,11 @@ void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 
     auto &list = emitter.program[emitter.program.size()-1].list;
     append(list,opcode);
+}
+
+u32 gpr_count(u32 size)
+{
+    return size / GPR_SIZE;
 }
 
 Opcode store_ptr(u32 dst_slot, u32 addr_slot, u32 size, u32 offset)
@@ -478,6 +484,20 @@ void free_sym(LocalAlloc &alloc, Symbol &sym)
     alloc.regs[sym.location] = REG_FREE;
     alloc.free_list[alloc.free_regs++] = sym.location;
     sym.location = LOCATION_MEM;
+}
+
+void free_slot(u32 slot,LocalAlloc &alloc,SlotLookup &slot_lookup)
+{
+    if(is_tmp(slot))
+    {
+        free_tmp(alloc,alloc.ir_regs[slot]);
+    }
+
+    else if(is_sym(slot))
+    {
+        auto &sym = sym_from_slot(slot_lookup,slot);
+        free_sym(alloc,sym);
+    }
 }
 
 
@@ -994,6 +1014,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             node = node->next;
             break;
+        }
+
+        case op_type::free_reg:
+        {   
+            free_slot(opcode.v[0],alloc,slot_lookup);
+            return remove(list,node);
         }
 
         default:

@@ -7,7 +7,7 @@ func void_func()
 
 }
 
-func s32 main()
+func main() s32
 {
     void_func();
     return 0;

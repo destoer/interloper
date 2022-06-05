@@ -2,23 +2,23 @@
 // expected 7200
 
 // compute product of sum and total array size
-func s32 main()
+func main() s32
 {
 
-    u32[3][2][4] arr =
+    arr : u32[3][2][4] =
     {
         { {1,2,3,4},     {5,6,7,8}     },
         { {9,10,11,12},  {13,14,15,16} },
         { {17,18,19,20}, {21,22,23,24} },
     };
 
-    u32 sum = 0;
+    sum : u32 = 0;
 
-    for(u32 i = 0; i < arr.len; i += 1)
+    for(i : u32 = 0; i < arr.len; i += 1)
     {
-        for(u32 j = 0; j < arr[i].len; j += 1)
+        for(j : u32 = 0; j < arr[i].len; j += 1)
         {
-            for(u32 k = 0; k < arr[i][j].len; k += 1)
+            for(k : u32 = 0; k < arr[i][j].len; k += 1)
             {
                 sum += arr[i][j][k];
             }   

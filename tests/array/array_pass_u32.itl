@@ -6,7 +6,7 @@ func foo(u32[] buf)
 
 }
 
-func s32 main()
+func main() s32
 {
     u32 x;
 

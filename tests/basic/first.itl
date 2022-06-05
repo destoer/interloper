@@ -1,7 +1,7 @@
 
 // expected 9
-func s32 main()
+func main() s32
 {
-    s32 x = 3 + 1;
+    x : s32 = 3 + 1;
     return x + 5;
 }

@@ -17,6 +17,9 @@ void compile_block(Interloper &itl,Function &func,AstNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot);
 
+std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node);
+void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtype, AstNode *node);
+
 
 std::string get_program_name(const std::string &filename)
 {
@@ -155,21 +158,21 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
 {
     if(node->value.sign)
     {
-        const auto value = static_cast<s32>(node->value.v);
+        const s32 value = s32(node->value.v);
         emit(func.emitter,op_type::mov_imm,dst_slot,value);
 
         // what is the smallest storage type that this will fit inside?
-        if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s8_t)),static_cast<s32>(builtin_max(builtin_type::s8_t))))
+        if(in_range(value,s32(builtin_min(builtin_type::s8_t)),s32(builtin_max(builtin_type::s8_t))))
         {
             return  Type(builtin_type::s8_t);
         }
 
-        else if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s16_t)),static_cast<s32>(builtin_max(builtin_type::s16_t))))
+        else if(in_range(value,s32(builtin_min(builtin_type::s16_t)),s32(builtin_max(builtin_type::s16_t))))
         {
             return Type(builtin_type::s16_t);
         }
 
-        //else if(value,static_cast<s32>(builtin_min(builtin_type::s32_t)),static_cast<s32>(builtin_max(builtin_type::s32_t)))
+        //else if(value,s32(builtin_min(builtin_type::s32_t)),s32(builtin_max(builtin_type::s32_t)))
         else
         {
             return Type(builtin_type::s32_t);
@@ -237,105 +240,10 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
     } 
 }
 
-// TODO: we want this but have a bool that diffentiates between
-// reads/writes
-std::pair<Type,u32> load_struct(Interloper &itl,Function &func, AstNode *node, u32 dst_slot)
-{
-    // TODO: how should we emit this for pointers?
-
-    // load_struct <dst> <struct>,<member_idx>
-
-    ListNode* old_end = get_cur_end(func.emitter);
-
-    // TODO: assumes no depth
-    const u32 struct_slot = new_slot(func);
-    auto [type, slot] = compile_oper(itl,func,node->nodes[0],struct_slot);
-
-    // TODO: for now we assume that this is a single member
-    const auto member = node->literal;
-
-    if(is_pointer(type))
-    {
-        // returning out a access on a fixed size array
-        // see definition of is_fixed_array_pointer
-        if(is_fixed_array_pointer(type))
-        {   
-            if(member == "len")
-            {
-                // we dont actually need to load up the pointer as the length is contstant
-                // NOTE: if we had a dead code pass we dont need this
-                auto &list = get_cur_list(func.emitter);
-                cleave_list(list,old_end);
-
-                emit(func.emitter,op_type::mov_imm,dst_slot,type.dimensions[0]);
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
-            }
-
-            // TODO: use the data ptr we got
-            else
-            {
-                unimplemented("array unknown member access %s\n",member.c_str());
-            }
-        }
-
-
-        type.ptr_indirection -= 1;
-
-        if(is_array(type))
-        {
-            unimplemented("array access via pointer");  
-        }
-
-        else
-        {
-            unimplemented("struct access via pointer");
-        }
-    }
-
-    // is an array hardcode the members
-    else if(is_array(type))
-    {
-        if(member == "len")
-        {
-            if(!is_runtime_size(type,0))
-            {
-                emit(func.emitter,op_type::mov_imm,dst_slot,type.dimensions[0]);
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
-            }
-
-            else
-            {
-                emit(func.emitter,op_type::load_arr_len,dst_slot,slot);
-                return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};
-            }
-        }
-
-        else if(member == "data")
-        {
-            emit(func.emitter,op_type::load_arr_data,dst_slot,slot);
-            return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),dst_slot};            
-        }
-
-        else
-        {
-            unimplemented("array unknown member access %s\n",member.c_str());
-        }
-    }
-
-    else if(is_builtin(type))
-    {
-        panic(itl,"cannot access struct member %s on type %s\n",member.c_str(),type_name(itl,type).c_str());
-        return std::pair<Type,u32>{Type(builtin_type::void_t),-1};
-    }
-
-    else
-    {
-        unimplemented("struct access on user defined type");
-    }
-}
 
 // this should handle grabbing values and symbols
-// if it can see a symbol or a value it wont call compile_expression
+// if it can see a symbol or a value it wont call compile_expression (it is up to caller)
+// to decide what to actually do with operands
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
 {
     panic(node == nullptr,"nullptr in compile_oper");
@@ -356,8 +264,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::access_member:
         {
-            const auto [type,addr_slot] = load_struct(itl,func,node,dst_slot);
-            return std::pair<Type,u32>{type,dst_slot};
+            return read_struct(itl,func,dst_slot,node);
         }
 
         case ast_type::char_t:
@@ -384,10 +291,8 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
 Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type, u32 dst_slot)
 {
-    // how should these two by here work?
-    // the dst slot is fundementally for the dst for compile_oper should we just allocate something
     const auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
-    
+
     const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
 
@@ -530,7 +435,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
         // this shouldunt happen
         default: 
         {
-            panic("%d is not a logical operation\n",static_cast<int>(type));
+            panic("%d is not a logical operation\n",s32(type));
         }
     }
 
@@ -549,10 +454,10 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 
         // TODO: fixme this should only be done when we know we have a builtin type
         // else we dont care
-        const auto sign = is_signed(static_cast<builtin_type>(t1.type_idx));
+        const auto sign = is_signed(builtin_type(t1.type_idx));
 
         // if we have gotten this far the sign of both are the same
-        const auto op = LOGIC_OPCODE[sign][static_cast<int>(type)];
+        const auto op = LOGIC_OPCODE[sign][u32(type)];
 
 
         // one of these is just a temp for the result calc
@@ -707,11 +612,33 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             }
         }
 
-        // TODO: handle being passed args that wont fit inside a single hardware reg
-        // NOTE: this is just an impl guard we weill probably want specific handlerls for structs etc
-        else if(type_size(itl,arg.type) > sizeof(u32))
+
+        else if(is_struct(arg.type))
         {
-            unimplemented("function arg: non register size: %d\n",type_size(itl,arg.type));
+            const auto structure = struct_from_type(itl.struct_table,arg.type);
+
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+            check_assign(itl,arg.type,arg_type,true);
+
+
+            // TODO: support copies with larger loads
+            static_assert(GPR_SIZE == sizeof(u32));
+
+            // push the entire thing in a reverse memcpy
+            for(u32 i = 0; i < structure.size / GPR_SIZE; i++)
+            {
+                // TODO: how to handle this being a tmp?
+                const u32 addr_slot = new_slot(func);
+                emit(func.emitter,op_type::addrof,addr_slot,reg);
+
+                const u32 data_slot = new_slot(func);
+                emit(func.emitter,op_type::lw,data_slot,addr_slot,i * GPR_SIZE);
+                emit(func.emitter,op_type::push_arg,data_slot);
+            }
+
+            // clean up the stack push
+            arg_clean += structure.size / GPR_SIZE;
+
         }
 
         // plain builtin in variable
@@ -732,7 +659,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
 
 
-    const bool returns_value = func_call.return_type.type_idx != static_cast<u32>(builtin_type::void_t);
+    const bool returns_value = func_call.return_type.type_idx != u32(builtin_type::void_t);
 
     // if we have a register in R0 we need to spill it so emit a push instr
     if(returns_value)
@@ -1328,7 +1255,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         }
 
         // TODO: do we want to allow other uses of this?
-        case ast_type::arr_initializer:
+        case ast_type::initializer_list:
         {
             unimplemented("array initializer");
         }
@@ -1497,7 +1424,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     }
 }
 
-void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& array, u32 depth, u32* idx)
+void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& array, u32 depth, u32* idx)
 {
     const u32 node_len = node->nodes.size();
 
@@ -1588,9 +1515,11 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
 
         // descend each sub initializer until we hit one containing values
         // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
-        if(node->nodes[i]->type == ast_type::arr_initializer)
+        if(node->nodes[i]->type == ast_type::initializer_list)
         {
-            traverse_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
+            // TODO: we need a check to handle arrays of structs in here!
+
+            traverse_arr_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
         }
 
         else
@@ -1649,7 +1578,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
     if(line.nodes.size() == 2)
     {
         u32 idx = 0;
-        traverse_initializer(itl,func,line.nodes[1],array,0,&idx);
+        traverse_arr_initializer(itl,func,line.nodes[1],array,0,&idx);
     }
 
     if(itl.error)
@@ -1664,7 +1593,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
         unimplemented("DECL VLA");
     }
 
-    // this has not been inited by traverse_initializer
+    // this has not been inited by traverse_arr_initializer
     else if(count == DEDUCE_SIZE)
     {
         panic(itl,"auto sized array %s does not have an initializer\n",array.name.c_str());
@@ -1673,7 +1602,76 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
 
     else
     {
+        // we have the allocation information now complete it
         alloc->opcode = Opcode(op_type::alloc_slot,slot_idx(array),size,count);
+    }
+}
+
+
+void traverse_struct_initializer(Interloper& itl, Function& func, const AstNode* node, Symbol& sym, const Struct& structure)
+{
+    const u32 node_len = node->nodes.size();
+
+    if(!node_len)
+    {
+        print(node);
+        unimplemented("struct assign!");
+    }
+
+    const u32 member_size = structure.members.size();
+  
+    if(node_len != member_size)
+    {
+        panic(itl,"arr initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        return;
+    }
+    
+
+    for(u32 i = 0; i < structure.members.size(); i++)
+    {
+        const auto member = structure.members[i];
+    
+        // either sub struct OR array member initializer
+        if(node->nodes[i]->type == ast_type::initializer_list)
+        {
+            unimplemented("nested struct initializer");
+        }
+        
+        // get the operand and type check it
+        const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+        check_assign(itl,member.type,rtype);
+
+
+        // store back to the struct member
+
+        // TODO: we need to rework the IR to allow for nesting both with structs and arrays!
+        // probably just need to pass through a offset of the current struct we are doing
+        // and sucessivley add it with each depth
+        const u32 addr_slot = new_slot(func);
+        emit(func.emitter,op_type::addrof,addr_slot,slot_idx(sym));
+        const u32 ptr_slot = new_slot(func);
+        emit(func.emitter,op_type::add_imm,ptr_slot,addr_slot,member.offset);
+
+        do_ptr_store(itl,func,slot,ptr_slot,rtype);
+    }
+}
+
+void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, Symbol& sym)
+{
+
+    const auto structure = struct_from_type(itl.struct_table,sym.type);
+
+    const u32 count = gpr_count(structure.size);
+    emit(func.emitter,op_type::alloc_slot,slot_idx(sym),GPR_SIZE,count);
+
+    if(line.nodes.size() == 2)
+    {
+       traverse_struct_initializer(itl,func,line.nodes[1],sym,structure);
+    }
+
+    if(itl.error)
+    {
+        return;
     }
 }
 
@@ -1702,6 +1700,11 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     if(is_array(sym.type))
     {
         compile_arr_decl(itl,func,line,sym);
+    }
+
+    else if(is_struct(sym.type))
+    {
+        compile_struct_decl(itl,func,line,sym);
     }
 
     // handle right side expression (if present)
@@ -1748,6 +1751,184 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     compile_move(itl,func,slot_idx(sym),reg,sym.type,type);
 }
 
+std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slot, const Type& type, const std::string& member_name)
+{
+    const bool is_ptr = is_pointer(type);
+
+    if(member_name == "len")
+    {
+        if(!is_runtime_size(type,0))
+        {
+            // TODO: have the optimiser clean up dead code
+            emit(func.emitter,op_type::free_reg,slot);
+            return std::pair<Type,u32>{type,ACCESS_FIXED_LEN_REG};
+        }
+
+        // vla
+        else
+        {
+            if(!is_ptr)
+            {
+                const u32 len_addr = new_slot(func);
+                emit(func.emitter,op_type::add_imm,len_addr,slot,GPR_SIZE);
+
+                return std::pair<Type,u32>{Type(builtin_type::u32_t),len_addr};
+            }
+
+            else
+            {
+                unimplemented("vla len by ptr");
+            }
+        }
+    }
+
+    else if(member_name == "data")
+    {
+        if(!is_ptr)
+        {
+            // this should probably be better typed
+            return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),slot};
+        }
+
+        else
+        {
+            unimplemented("data by ptr");
+        }
+    }
+
+
+    else
+    {
+        panic(itl,"unknown array member %s\n",member_name.c_str());
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+    }
+}
+
+
+// TODO: make sure this offset calc is optimised
+std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+{
+    switch(node->type)
+    {
+        case ast_type::access_member:
+        {
+            const auto [type,slot] = compute_member_addr(itl,func,node->nodes[0]);
+
+            const auto member_name = node->literal;
+
+            // TODO: we want the address the pointer points to here
+            // not the address of the pointer itself so deref it
+            if(is_pointer(type))
+            {
+                // pointer to array
+                if(type.degree)
+                {
+                    return access_array_member(itl,func,slot,type,member_name);
+                }
+
+                else
+                {
+                    unimplemented("member pointer access");
+                }
+                
+            }
+
+            else if(is_array(type))
+            {
+                return access_array_member(itl,func,slot,type,member_name);
+            }
+
+            // actual struct member
+            else
+            {
+                // get offset for struct member
+                const auto member_opt = get_member(itl.struct_table,type,member_name);
+
+                if(!member_opt)
+                {
+                    panic(itl,"No such member %s for type %s\n",member_name.c_str(),type_name(itl,type).c_str());
+                    return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+                }
+
+                const auto member = member_opt.value();
+
+
+                // TODO: ideally we would fold all this offseting but just do it naively for now
+
+                // emit the add operation
+                const u32 addr_slot = new_slot(func);
+                emit(func.emitter,op_type::add_imm,addr_slot,slot,member.offset);
+
+                return std::pair<Type,u32>{member.type,addr_slot};
+            }
+        }
+
+        case ast_type::symbol:
+        {
+            const auto name = node->literal;
+            const auto sym_opt = get_sym(itl.symbol_table,name);
+
+            if(!sym_opt)
+            {
+                panic(itl,"symbol %s used before declaration\n",name.c_str());
+                return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+            }            
+
+            const auto sym = sym_opt.value();
+
+            // TODO: we want the address the pointer points to here
+            // not the address of the pointer itself so deref it
+            if(is_pointer(sym.type))
+            {
+                unimplemented("sym member access via pointer!");
+            }
+
+
+            const u32 addr_slot = new_slot(func);
+            emit(func.emitter,op_type::addrof,addr_slot,slot_idx(sym));
+
+            return std::pair<Type,u32>{sym.type,addr_slot};
+        }
+
+        case ast_type::array_access:
+        {
+            return index_arr(itl,func,node,new_slot(func));
+        }
+
+
+        default: 
+        {
+            print(node); 
+            unimplemented("member node unimpl"); 
+            break;
+        }
+    }
+
+}
+
+void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtype, AstNode *node)
+{
+    const auto [accessed_type, ptr_slot] = compute_member_addr(itl,func,node);
+    check_assign(itl,accessed_type,rtype);
+    do_ptr_store(itl,func,src_slot,ptr_slot,accessed_type);
+}
+
+// TODO: for  fixed arrays we probably want to specialise a fake slot for returning out a fixed size length / data
+// and we probably just want something that says to free an IR slot and rely on the optimisier for removing the jank IR
+std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
+{
+    const auto [accessed_type, ptr_slot] = compute_member_addr(itl,func,node);
+
+    // len access on fixed sized array
+    if(ptr_slot == ACCESS_FIXED_LEN_REG)
+    {
+        emit(func.emitter,op_type::mov_imm,dst_slot,accessed_type.dimensions[0]);
+        return std::pair<Type,u32>{Type(builtin_type::u32_t),dst_slot};
+    }
+
+    do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type);
+    return std::pair<Type,u32>{accessed_type,dst_slot};
+}
 
 void compile_block(Interloper &itl,Function &func,AstNode *node)
 {
@@ -1804,7 +1985,14 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                         {
                             write_arr(itl,func,line.nodes[0],rtype,slot);
                             break;
-                        }    
+                        }
+
+                        // write on struct member!
+                        case ast_type::access_member:
+                        {
+                            write_struct(itl,func,slot,rtype,line.nodes[0]);
+                            break;
+                        }
 
                         default:
                         {
@@ -1923,6 +2111,14 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                 }
             }
 
+            else if(is_struct(sym.type))
+            {
+                const auto structure = struct_from_type(itl.struct_table,sym.type);
+
+                const u32 count = gpr_count(structure.size);
+                emit(func.emitter,op_type::free_slot,slot_idx(sym),GPR_SIZE,count);                
+            }
+
             else
             {
                 emit(func.emitter,op_type::free_slot,slot_idx(sym));
@@ -1974,7 +2170,7 @@ void compile_functions(Interloper &itl)
         {
             // is a void function this is fine
             // we just need to emit the ret at the end 
-            if(func.return_type.type_idx == static_cast<u32>(builtin_type::void_t))
+            if(func.return_type.type_idx == u32(builtin_type::void_t))
             {
                 emit(func.emitter,op_type::ret);
             }

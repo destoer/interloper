@@ -1,21 +1,21 @@
 
 // expected 1190
 
-func s32 main()
+func main() s32
 {
-    s32 x = (2 + 2 / 2 * 5) - 1;
+    x : s32 = (2 + 2 / 2 * 5) - 1;
 
-    s32 y;
+    y : s32;
     
     y = x;
 
-    s32 z = x + y + 2;
+    z : s32 = x + y + 2;
 
     x = y = z;
 
-    s32 a = x = y = z * 5;
+    a : s32 = x = y = z * 5;
 
-    s32 v = (((a * x) / (y * 5)) * ((x + z) - 5));
+    v : s32 = (((a * x) / (y * 5)) * ((x + z) - 5));
 
     return z + x + v;
 }

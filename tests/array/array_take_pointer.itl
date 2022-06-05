@@ -1,17 +1,17 @@
 
 
-func modify(u32 @x)
+func modify(x: u32@)
 {
     @x = 5;
 }
 
 // expected 5;
 
-func s32 main()
+func main() s32
 {
-    u32[5] arr;
+    arr: u32[5];
 
-    u32 @ptr = &arr[arr.len - 1];
+    ptr: u32@ = &arr[arr.len - 1];
 
     modify(ptr);
 
