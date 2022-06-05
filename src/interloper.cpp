@@ -1751,6 +1751,60 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     compile_move(itl,func,slot_idx(sym),reg,sym.type,type);
 }
 
+std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slot, const Type& type, const std::string& member_name)
+{
+    const bool is_ptr = is_pointer(type);
+
+    if(member_name == "len")
+    {
+        if(!is_runtime_size(type,0))
+        {
+            // TODO: have the optimiser clean up dead code
+            emit(func.emitter,op_type::free_reg,slot);
+            return std::pair<Type,u32>{type,ACCESS_FIXED_LEN_REG};
+        }
+
+        // vla
+        else
+        {
+            if(!is_ptr)
+            {
+                const u32 len_addr = new_slot(func);
+                emit(func.emitter,op_type::add_imm,len_addr,slot,GPR_SIZE);
+
+                return std::pair<Type,u32>{Type(builtin_type::u32_t),len_addr};
+            }
+
+            else
+            {
+                unimplemented("vla len by ptr");
+            }
+        }
+    }
+
+    else if(member_name == "data")
+    {
+        if(!is_ptr)
+        {
+            // this should probably be better typed
+            return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),slot};
+        }
+
+        else
+        {
+            unimplemented("data by ptr");
+        }
+    }
+
+
+    else
+    {
+        panic(itl,"unknown array member %s\n",member_name.c_str());
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+    }
+}
+
+
 // TODO: make sure this offset calc is optimised
 std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
@@ -1766,43 +1820,22 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
             // not the address of the pointer itself so deref it
             if(is_pointer(type))
             {
-                unimplemented("member access via pointer!");
+                // pointer to array
+                if(type.degree)
+                {
+                    return access_array_member(itl,func,slot,type,member_name);
+                }
+
+                else
+                {
+                    unimplemented("member pointer access");
+                }
+                
             }
 
             else if(is_array(type))
             {
-                if(member_name == "len")
-                {
-                    if(!is_runtime_size(type,0))
-                    {
-                        // TODO: have the optimiser clean up dead code
-                        emit(func.emitter,op_type::free_reg,slot);
-                        return std::pair<Type,u32>{type,ACCESS_FIXED_LEN_REG};
-                    }
-
-                    // vla
-                    else
-                    {
-                        const u32 len_addr = new_slot(func);
-                        emit(func.emitter,op_type::add_imm,len_addr,slot,GPR_SIZE);
-
-                        return std::pair<Type,u32>{Type(builtin_type::u32_t),len_addr};
-                    }
-                }
-
-                else if(member_name == "data")
-                {
-                    // this should probably be better typed
-                    return std::pair<Type,u32>{Type(GPR_SIZE_TYPE),slot};
-                }
-
-
-                else
-                {
-                    panic(itl,"unknown array member %s\n",member_name.c_str());
-                    return std::pair<Type,u32>{Type(builtin_type::void_t),0};
-                }
-
+                return access_array_member(itl,func,slot,type,member_name);
             }
 
             // actual struct member
@@ -1856,6 +1889,12 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
 
             return std::pair<Type,u32>{sym.type,addr_slot};
         }
+
+        case ast_type::array_access:
+        {
+            return index_arr(itl,func,node,new_slot(func));
+        }
+
 
         default: 
         {
