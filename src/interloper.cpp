@@ -242,7 +242,8 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 
 
 // this should handle grabbing values and symbols
-// if it can see a symbol or a value it wont call compile_expression
+// if it can see a symbol or a value it wont call compile_expression (it is up to caller)
+// to decide what to actually do with operands
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
 {
     panic(node == nullptr,"nullptr in compile_oper");
@@ -290,10 +291,8 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
 Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type, u32 dst_slot)
 {
-    // how should these two by here work?
-    // the dst slot is fundementally for the dst for compile_oper should we just allocate something
     const auto [t1,v1] = compile_oper(itl,func,node->nodes[0],new_slot(func));
-    
+
     const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
 
@@ -1234,7 +1233,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         }
 
         // TODO: do we want to allow other uses of this?
-        case ast_type::arr_initializer:
+        case ast_type::initializer_list:
         {
             unimplemented("array initializer");
         }
@@ -1403,7 +1402,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     }
 }
 
-void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& array, u32 depth, u32* idx)
+void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& array, u32 depth, u32* idx)
 {
     const u32 node_len = node->nodes.size();
 
@@ -1494,9 +1493,11 @@ void traverse_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& a
 
         // descend each sub initializer until we hit one containing values
         // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
-        if(node->nodes[i]->type == ast_type::arr_initializer)
+        if(node->nodes[i]->type == ast_type::initializer_list)
         {
-            traverse_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
+            // TODO: we need a check to handle arrays of structs in here!
+
+            traverse_arr_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
         }
 
         else
@@ -1555,7 +1556,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
     if(line.nodes.size() == 2)
     {
         u32 idx = 0;
-        traverse_initializer(itl,func,line.nodes[1],array,0,&idx);
+        traverse_arr_initializer(itl,func,line.nodes[1],array,0,&idx);
     }
 
     if(itl.error)
@@ -1575,7 +1576,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
         unimplemented("DECL VLA");
     }
 
-    // this has not been inited by traverse_initializer
+    // this has not been inited by traverse_arr_initializer
     else if(count == DEDUCE_SIZE)
     {
         panic(itl,"auto sized array %s does not have an initializer\n",array.name.c_str());
@@ -1584,26 +1585,76 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
 
     else
     {
+        // we have the allocation information now complete it
         alloc->opcode = Opcode(op_type::alloc_slot,slot_idx(array),size,count);
+    }
+}
+
+
+void traverse_struct_initializer(Interloper& itl, Function& func, const AstNode* node, Symbol& sym, const Struct& structure)
+{
+    const u32 node_len = node->nodes.size();
+
+    if(!node_len)
+    {
+        print(node);
+        unimplemented("struct assign!");
+    }
+
+    const u32 member_size = structure.members.size();
+  
+    if(node_len != member_size)
+    {
+        panic(itl,"arr initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        return;
+    }
+    
+
+    for(u32 i = 0; i < structure.members.size(); i++)
+    {
+        const auto member = structure.members[i];
+    
+        // either sub struct OR array member initializer]
+
+        if(node->nodes[i]->type == ast_type::initializer_list)
+        {
+            unimplemented("nested struct initializer");
+        }
+        
+        // get the operand and type check it
+        const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+        check_assign(itl,member.type,rtype);
+
+
+        // store back to the struct member
+
+        // TODO: we need to rework the IR to allow for nesting both with structs and arrays!
+        const u32 addr_slot = new_slot(func);
+        emit(func.emitter,op_type::addrof,addr_slot,slot_idx(sym));
+        const u32 ptr_slot = new_slot(func);
+        emit(func.emitter,op_type::add_imm,ptr_slot,addr_slot,member.offset);
+
+        do_ptr_store(itl,func,slot,ptr_slot,rtype);
     }
 }
 
 void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, Symbol& sym)
 {
+
+    const auto structure = struct_from_type(itl.struct_table,sym.type);
+
+    const u32 count = gpr_count(structure.size);
+    emit(func.emitter,op_type::alloc_slot,slot_idx(sym),GPR_SIZE,count);
+
     if(line.nodes.size() == 2)
     {
-        unimplemented("struct initalizer");
+       traverse_struct_initializer(itl,func,line.nodes[1],sym,structure);
     }
 
     if(itl.error)
     {
         return;
     }
-
-    const auto structure = struct_from_type(itl.struct_table,sym.type);
-
-    const u32 count = gpr_count(structure.size);
-    emit(func.emitter,op_type::alloc_slot,slot_idx(sym),GPR_SIZE,count);
 }
 
 
@@ -1774,6 +1825,8 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
     do_ptr_store(itl,func,src_slot,ptr_slot,accessed_type);
 }
 
+// TODO: for  fixed arrays we probably want to specialise a fake slot for returning out a fixed size length / data
+// and we probably just want something that says to free an IR slot and rely on the optimisier for removing the jank IR
 std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
 {
     const auto [accessed_type, ptr_slot] = compute_member_addr(itl,func,node);
