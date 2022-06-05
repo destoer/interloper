@@ -217,7 +217,6 @@ AstNode *parse_type(Parser &parser)
 
     if(is_const)
     {
-        type_literal = "const " + type_literal;
         type->nodes.push_back(ast_plain(ast_type::const_t));
     }
 
@@ -236,7 +235,6 @@ AstNode *parse_type(Parser &parser)
                 {
                     next_token(parser);
                     ptr_indirection++;
-                    type_literal = type_literal + '@';
                 }
 
                 auto ptr_node = ast_plain(ast_type::ptr_indirection);
@@ -263,7 +261,6 @@ AstNode *parse_type(Parser &parser)
                     {
                         arr_decl->nodes.push_back(ast_plain(ast_type::arr_var_size));
                         consume(parser,token_type::sr_brace);
-                        type_literal = type_literal + "[]";
                     }
 
                     else 
@@ -277,14 +274,11 @@ AstNode *parse_type(Parser &parser)
                             arr_decl->nodes.push_back(e);
                         
                             consume(parser,token_type::sr_brace);
-
-                            type_literal = type_literal + "[?]";
                         }
 
                         else
                         {
                             arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
-                            type_literal = type_literal + "[_]";
                         }
                     }
                 }
