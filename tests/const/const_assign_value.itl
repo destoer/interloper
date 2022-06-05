@@ -1,13 +1,13 @@
 
 // expected 5
-func s32 main()
+func main() s32
 {
     // this just creates a copy not a reference
     // so this is fine
 
-    const u32 x = 5;
+    x : const u32 = 5;
 
-    u32 y = x;
+    y : u32 = x;
 
     return y;
 }

@@ -318,6 +318,8 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case ';': insert_token(lexer,token_type::semi_colon); break;
 
+            case ':': insert_token(lexer,token_type::colon); break;
+
             case '@': insert_token(lexer,token_type::deref); break;
 
             case '*':

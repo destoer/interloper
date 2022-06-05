@@ -1,7 +1,7 @@
 
 // expected 45077
 
-func s32 test(s32 x)
+func test(x: s32) s32
 {
     x = x + 5;
 
@@ -25,7 +25,7 @@ func s32 test(s32 x)
     return x + 6;
 }
 
-func s32 main()
+func main() s32
 {
     return test(0) + test(1) + test(-1) + test(-5000);
 }

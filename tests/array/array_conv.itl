@@ -12,7 +12,7 @@ func u32 sum(u32[] arr)
     return ans;
 }
 
-func s32 main()
+func main() s32
 {
     u32 ans = 0;
     u32[3] arr = {1,2,3};

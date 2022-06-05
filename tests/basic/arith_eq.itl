@@ -2,9 +2,9 @@
 
 // expected 294
 
-func s32 main()
+func main() s32
 {
-    s32 a = 100;
+    a : s32 = 100;
 
     a += 5;
 

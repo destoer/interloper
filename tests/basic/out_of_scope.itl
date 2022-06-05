@@ -1,9 +1,9 @@
 
 // expected compile error
-func s32 main()
+func main() s32
 {
     {
-        s32 x = 0;
+        x : s32 = 0;
     }
 
     return x;

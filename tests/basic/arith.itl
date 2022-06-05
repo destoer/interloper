@@ -1,15 +1,15 @@
 
 // expected 31
 
-func s32 main()
+func main() s32
 {
-    s32 a = 7 + 2;
+    a : s32 = 7 + 2;
 
-    s32 d = 7 / 2;
+    d : s32 = 7 / 2;
 
-    s32 m = 7 * 2;
+    m : s32 = 7 * 2;
 
-    s32 s = 7 - 2;
+    s : s32 = 7 - 2;
 
     return a + d + m + s;
 }

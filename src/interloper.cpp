@@ -1588,11 +1588,6 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
 
     const auto [size,count] = arr_size(itl,array.type);
 
-    if(size > GPR_SIZE)
-    {
-        unimplemented("big array");
-    }
-
     if(count == RUNTIME_SIZE)
     {
         unimplemented("DECL VLA");
@@ -2031,11 +2026,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
             if(is_array(sym.type))
             {
                 const auto [size,count] = arr_size(itl,sym.type);
-
-                if(size > GPR_SIZE)
-                {
-                    unimplemented("big array");
-                }
 
                 if(size != RUNTIME_SIZE)
                 {

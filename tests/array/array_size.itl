@@ -1,9 +1,9 @@
 
 // expected 16
 
-func s32 main()
+func main() s32
 {
-    u32[4 * 4] x;
+    x : u32[4 * 4];
 
     return x.len;
 }

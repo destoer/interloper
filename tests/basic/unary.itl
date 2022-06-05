@@ -1,6 +1,6 @@
 
 // expected -11
-func s32 main()
+func main() s32
 {
     return -5 + -6;
 }

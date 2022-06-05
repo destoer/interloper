@@ -1,12 +1,12 @@
 // expected compile error
 
-func s32 invalid_call(s32 in)
+func invalid_call(in : 32) s32
 {
     return in;
 }
 
 
-func s32 main()
+func main() s32
 {
     return invalid_call();
 }

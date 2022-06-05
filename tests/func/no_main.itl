@@ -1,7 +1,7 @@
 
 // expected compile error
 
-func s32 test()
+func test() s32
 {
     return 5;
 }

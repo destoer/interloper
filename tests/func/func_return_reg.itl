@@ -5,14 +5,14 @@
 
 // expected 30
 
-func s32 spill(s32 in)
+func spill(in: s32) s32
 {
     return in * 2;
 }
 
-func s32 main()
+func main() s32
 {
-    s32 x = spill(5+2) + spill(5+3);
+    x : s32 = spill(5+2) + spill(5+3);
 
     return x;
 }

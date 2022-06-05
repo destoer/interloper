@@ -2,7 +2,7 @@
 // expected 7200
 
 // compute product of sum and total array size
-func s32 main()
+func main() s32
 {
 
     u32[3][2][4] arr =

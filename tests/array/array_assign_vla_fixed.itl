@@ -1,9 +1,9 @@
 
 // expect compile error
-func s32 main()
+func main() s32
 {
-    u32[3] buf;
-    u32[] vla;
+    buf: u32[3];
+    vla: u32[];
 
     buf = vla;
 

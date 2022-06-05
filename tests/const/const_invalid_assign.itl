@@ -1,8 +1,8 @@
 
 // expected compile error
-func s32 main()
+func main() s32
 {
-    const u32 x = 5;
+    x : const u32 = 5;
 
     x = 6;
 

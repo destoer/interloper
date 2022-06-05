@@ -4,12 +4,12 @@
 // expected compile error
 // differing sign
 
-func s32 main()
+func main() s32
 {
-    u32 x = 5;
-    s32 y = 4;
+    x : s32 = 5;
+    y : u32 = 4;
 
-    bool res = x > y;
+    res : bool = x > y;
 
     return cast(s32,res); 
 }

@@ -1,7 +1,7 @@
 
 // expected -713
-func s32 main() {
-    u32 x = 1000000 & 0x7ff;
+func main() s32 {
+    x : s32 = 1000000 & 0x7ff;
 
     x = x | 0xff;
 

@@ -4,7 +4,7 @@
 
 // compute product of sum and total array size
 // NOTE: dont worry about this yet, just get standard multidimensional arrays working
-func s32 main()
+func main() s32
 {
     u32[1] arr1 = {1} // 1,1
     u32[2] arr2 = {1,2}, // 2,3

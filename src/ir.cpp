@@ -17,6 +17,7 @@ List& get_cur_list(IrEmitter& emitter)
     return emitter.program[emitter.program.size()-1].list; 
 }
 
+// TODO: should this return the dst slot as a matter of convience?
 void emit(IrEmitter &emitter,const Opcode& opcode)
 {
     auto &list = get_cur_list(emitter);

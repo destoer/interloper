@@ -1,13 +1,13 @@
 
 // expected compile error
-func foo(u32@ x)
+func foo(x: u32@)
 {
     @x = @x * @x;
 }
 
-func s32 main()
+func main() s32
 {   
-    const u32 x = 0;
+    x: const u32 = 0;
     foo(&x);
 
     return x;

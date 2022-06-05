@@ -1,7 +1,7 @@
 
 // expected 1
 
-func s32 recur(s32 x)
+func recur(x: s32) s32
 {
     if(x != 0)
     {
@@ -12,7 +12,7 @@ func s32 recur(s32 x)
 }
 
 
-func s32 main()
+func main() s32
 {
     if(recur(5) == 15)
     {

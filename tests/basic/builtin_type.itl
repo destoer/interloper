@@ -1,29 +1,29 @@
 // expected 271
 
-func s32 main()
+func main() s32
 {
-    s8 v1 = 3;
+    v1 : s8 = 3;
 
     // same size, this is fine
-    u8 v2 = v1 + 7;
+    v2 : u8 = v1 + 7;
 
     // v3 = 0
-    u16 v3 = 65535;
+    v3 : u16 = 65535;
     v3 = v3 + 1;
     
 
     // type promotion should be fine
     // rtype = u16
-    s32 v4 = v2 + 1 + v3;
+    v4 : s32 = v2 + 1 + v3;
 
     // sign extend expected
-    s32 v5 = cast(s32,-4);
+    v5 : s32 = cast(s32,-4);
 
     // requires cast as this would narrow
-    s8 v6 = cast(s8,v4+v5);
+    v6 : s8 = cast(s8,v4+v5);
 
-    u8 x = 10;
-    u32 ans = cast(u32,cast(s32,cast(s8,x)) + v6 + cast(s32,cast(s8,255)));
+    x : u8 = 10;
+    ans : u32 = cast(u32,cast(s32,cast(s8,x)) + v6 + cast(s32,cast(s8,255)));
 
     // cast should narrow
     return ans + cast(u8,511);

@@ -1,6 +1,6 @@
 
 // expected 0
-func s32 main()
+func main() s32
 {
     /*
         hello there!

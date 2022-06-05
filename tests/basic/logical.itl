@@ -1,56 +1,54 @@
 
 // expected one
 
-func bool is_positive(s32 x)
+func is_positive(x : s32) bool
 {
     // comparision with zero works regardless of sign
     return !(x < 0);
 }
 
-func bool is_eq(s32 x, s32 y)
+func is_eq(x: s32, y: s32) bool
 {
     return x == y;
 }
 
-func bool not_eq(s32 x, s32 y)
+func not_eq(x: s32, y: s32) bool
 {
     return x != y;
 }
 
-func bool is_gt(s32 x, s32 y)
+func is_gt(x: s32, y: s32) bool
 {
     return x > y;
 }
 
-func bool is_lt(s32 x, s32 y)
+func is_lt(x: s32, y: s32) bool
 {
     return x < y;
 }
 
-func bool is_le(s32 x, s32 y)
+func is_le(x: s32, y: s32) bool
 {
     return x <= y;
 }
 
-func bool is_ge(s32 x, s32 y)
+func is_ge(x: s32, y: s32) bool
 {
     return x >= y;
 }
 
-// i think negative compares are broken
-
-func s32 main()
+func main() s32
 {
-    bool res1 = is_positive(cast(s32,false)) && !is_positive(-1) && is_eq(5,5) && !is_eq(0,5);
-    bool res2 = is_gt(5, 2) && !is_gt(5,10) && is_lt(1,7) && !is_lt(500,15);
-    bool res3 = is_le(5,5) && is_le(4,5) && !is_le(6,5) && is_ge(5,5) && is_ge(6,5);
-    bool res4 = !is_ge(4,5) && not_eq(5,4) && !not_eq(5,5); 
+    res1 : bool = is_positive(cast(s32,false)) && !is_positive(-1) && is_eq(5,5) && !is_eq(0,5);
+    res2 : bool = is_gt(5, 2) && !is_gt(5,10) && is_lt(1,7) && !is_lt(500,15);
+    res3 : bool = is_le(5,5) && is_le(4,5) && !is_le(6,5) && is_ge(5,5) && is_ge(6,5);
+    res4 : bool = !is_ge(4,5) && not_eq(5,4) && !not_eq(5,5); 
 
     // anyything less than one is false
     // eq to < 1
-    bool or = true || cast(bool,-1);
+    or : bool = true || cast(bool,-1);
 
-    bool res = or && res1 && res2 && res3 && res4;
+    res : bool = or && res1 && res2 && res3 && res4;
 
     // false is 0 and 1 is true
     return cast(s32,res);

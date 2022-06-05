@@ -1,15 +1,15 @@
 
 // expected compile error 
 
-func bool test(u16 x)
+func test(x : u16) bool
 {
     // this comparision is allways false and should not be allowed
     return x >= 0x80000000;
 }
 
-func s32 main()
+func main() s32
 {
-    bool res = test(5);
+    res : bool = test(5);
 
     return cast(s32,res);
 }

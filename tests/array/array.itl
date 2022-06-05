@@ -2,30 +2,30 @@
 
 // expected 1061
 
-func s32 main()
+func main() s32
 {
-    bool[100] x;
+    x: bool[100];
 
     // TODO: replace with initializer
-    for(u32 i = 0; i < x.len; i += 1)
+    for(i : u32 = 0; i < x.len; i += 1)
     {
         x[i] = true;
     }
 
   
-    for(u32 i = 2; i < x.len; i += 1)
+    for(i : u32 = 2; i < x.len; i += 1)
     {
         if(x[i])
         {
-            for(u32 j = i * 2; j < x.len; j += i)
+            for(j : u32 = i * 2; j < x.len; j += i)
             {
                 x[j] = false;      
             }
         }
     }
 
-    u32 ans = 0;
-    for(u32 i = 0; i < x.len; i += 1)
+    ans : u32 = 0;
+    for(i : u32 = 0; i < x.len; i += 1)
     {
         if(x[i])
         {
