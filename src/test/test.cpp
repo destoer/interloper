@@ -106,6 +106,10 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/string/write_string",0,false},
     {"tests/string/write_string_static",0,false},
 */
+    // structs
+    {"tests/struct/struct",495,false},
+    {"tests/struct/struct_initializer",495,false},
+    {"tests/struct/pass_struct",12,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

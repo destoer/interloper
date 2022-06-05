@@ -1,15 +1,15 @@
 
 struct Point
 {
-    u32 x;
-    u32 y;
+    x : u32;
+    y : u32;
 }
 
 
 // TODO: for now just check this is parsed properly
-func s32 main()
+func main() s32
 {
-    x : Point[3] = 5;
+    x : Point[3];
 
 
     return 0;

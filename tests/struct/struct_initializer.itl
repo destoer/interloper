@@ -1,14 +1,14 @@
 struct Foo
 {
-    u16 v1;
-    u8 v2;
-    u32 v3;
+    v1 : u16;
+    v2 : u8;
+    v3 : u32;
 };
 
 // expected 495
-func s32 main()
+func main() s32
 {
-    Foo foo = {5,9,11};
+    foo : Foo = {5,9,11};
 
     return foo.v1 * foo.v2 * foo.v3;
 }
