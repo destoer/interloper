@@ -158,21 +158,21 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
 {
     if(node->value.sign)
     {
-        const auto value = static_cast<s32>(node->value.v);
+        const s32 value = s32(node->value.v);
         emit(func.emitter,op_type::mov_imm,dst_slot,value);
 
         // what is the smallest storage type that this will fit inside?
-        if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s8_t)),static_cast<s32>(builtin_max(builtin_type::s8_t))))
+        if(in_range(value,s32(builtin_min(builtin_type::s8_t)),s32(builtin_max(builtin_type::s8_t))))
         {
             return  Type(builtin_type::s8_t);
         }
 
-        else if(in_range(value,static_cast<s32>(builtin_min(builtin_type::s16_t)),static_cast<s32>(builtin_max(builtin_type::s16_t))))
+        else if(in_range(value,s32(builtin_min(builtin_type::s16_t)),s32(builtin_max(builtin_type::s16_t))))
         {
             return Type(builtin_type::s16_t);
         }
 
-        //else if(value,static_cast<s32>(builtin_min(builtin_type::s32_t)),static_cast<s32>(builtin_max(builtin_type::s32_t)))
+        //else if(value,s32(builtin_min(builtin_type::s32_t)),s32(builtin_max(builtin_type::s32_t)))
         else
         {
             return Type(builtin_type::s32_t);
@@ -435,7 +435,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
         // this shouldunt happen
         default: 
         {
-            panic("%d is not a logical operation\n",static_cast<int>(type));
+            panic("%d is not a logical operation\n",s32(type));
         }
     }
 
@@ -454,10 +454,10 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 
         // TODO: fixme this should only be done when we know we have a builtin type
         // else we dont care
-        const auto sign = is_signed(static_cast<builtin_type>(t1.type_idx));
+        const auto sign = is_signed(builtin_type(t1.type_idx));
 
         // if we have gotten this far the sign of both are the same
-        const auto op = LOGIC_OPCODE[sign][static_cast<int>(type)];
+        const auto op = LOGIC_OPCODE[sign][u32(type)];
 
 
         // one of these is just a temp for the result calc
@@ -612,11 +612,33 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             }
         }
 
-        // TODO: handle being passed args that wont fit inside a single hardware reg
-        // NOTE: this is just an impl guard we weill probably want specific handlerls for structs etc
-        else if(type_size(itl,arg.type) > sizeof(u32))
+
+        else if(is_struct(arg.type))
         {
-            unimplemented("function arg: non register size: %d\n",type_size(itl,arg.type));
+            const auto structure = struct_from_type(itl.struct_table,arg.type);
+
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+            check_assign(itl,arg.type,arg_type,true);
+
+
+            // TODO: support copies with larger loads
+            static_assert(GPR_SIZE == sizeof(u32));
+
+            // push the entire thing in a reverse memcpy
+            for(u32 i = 0; i < structure.size / GPR_SIZE; i++)
+            {
+                // TODO: how to handle this being a tmp?
+                const u32 addr_slot = new_slot(func);
+                emit(func.emitter,op_type::addrof,addr_slot,reg);
+
+                const u32 data_slot = new_slot(func);
+                emit(func.emitter,op_type::lw,data_slot,addr_slot,i * GPR_SIZE);
+                emit(func.emitter,op_type::push_arg,data_slot);
+            }
+
+            // clean up the stack push
+            arg_clean += structure.size / GPR_SIZE;
+
         }
 
         // plain builtin in variable
@@ -637,7 +659,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
 
 
-    const bool returns_value = func_call.return_type.type_idx != static_cast<u32>(builtin_type::void_t);
+    const bool returns_value = func_call.return_type.type_idx != u32(builtin_type::void_t);
 
     // if we have a register in R0 we need to spill it so emit a push instr
     if(returns_value)
@@ -1614,8 +1636,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, const AstNode*
     {
         const auto member = structure.members[i];
     
-        // either sub struct OR array member initializer]
-
+        // either sub struct OR array member initializer
         if(node->nodes[i]->type == ast_type::initializer_list)
         {
             unimplemented("nested struct initializer");
@@ -1629,6 +1650,8 @@ void traverse_struct_initializer(Interloper& itl, Function& func, const AstNode*
         // store back to the struct member
 
         // TODO: we need to rework the IR to allow for nesting both with structs and arrays!
+        // probably just need to pass through a offset of the current struct we are doing
+        // and sucessivley add it with each depth
         const u32 addr_slot = new_slot(func);
         emit(func.emitter,op_type::addrof,addr_slot,slot_idx(sym));
         const u32 ptr_slot = new_slot(func);
@@ -2079,7 +2102,7 @@ void compile_functions(Interloper &itl)
         {
             // is a void function this is fine
             // we just need to emit the ret at the end 
-            if(func.return_type.type_idx == static_cast<u32>(builtin_type::void_t))
+            if(func.return_type.type_idx == u32(builtin_type::void_t))
             {
                 emit(func.emitter,op_type::ret);
             }
