@@ -551,14 +551,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
     {
         const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
-
-        // TODO: try and refactor this dance across all the move operations
-        if(is_fixed_array_pointer(arg.type))
-        {
-            unimplemented("push fixed arr ptr");
-        }
-        
-        else if(is_array(arg.type))
+  
+        if(is_array(arg.type))
         {
             assert(arg.type.degree == 1);
 
@@ -586,11 +580,25 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
             else
             {
-                const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+                auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+
+                if(is_fixed_array_pointer(arg_type))
+                {
+                    const u32 len_slot = new_slot(func);
+                    emit(func.emitter,op_type::mov_imm,len_slot,arg_type.dimensions[0]);
+                    emit(func.emitter,op_type::push_arg,len_slot);
+
+                    emit(func.emitter,op_type::push_arg,reg);
+
+                    // no longer care about the ptr
+                    arg_type.ptr_indirection -= 1;
+
+                    arg_clean += 2;                    
+                }
 
                 // push vla struct in reverse order
                 // This conversion is implicit
-                if(is_runtime_size(arg.type,0))
+                else if(is_runtime_size(arg.type,0))
                 {
                     const u32 len_slot = new_slot(func);
                     emit(func.emitter,op_type::load_arr_len,len_slot,reg,0);
@@ -1134,7 +1142,7 @@ std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 
     // fixed array needs conversion by host
     if(is_fixed_array_pointer(type))
     {
-        return std::pair<Type,u32>{type,dst_slot};
+        return std::pair<Type,u32>{type,addr_slot};
     }
 
 

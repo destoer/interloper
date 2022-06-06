@@ -1,10 +1,21 @@
 
 // expected 7200
 
+func sum_arr(buf: u32[]) u32
+{
+    ans : u32 = 0;
+
+    for i : u32 = 0; i < buf.len; i += 1
+    {
+        ans += buf[i];
+    }
+
+    return ans;
+}
+
 // compute product of sum and total array size
 func main() s32
 {
-
     arr : u32[3][2][4] =
     {
         { {1,2,3,4},     {5,6,7,8}     },
@@ -12,16 +23,15 @@ func main() s32
         { {17,18,19,20}, {21,22,23,24} },
     };
 
+
+
     sum : u32 = 0;
 
-    for(i : u32 = 0; i < arr.len; i += 1)
+    for i : u32 = 0; i < arr.len; i += 1
     {
-        for(j : u32 = 0; j < arr[i].len; j += 1)
+        for j : u32 = 0; j < arr[i].len; j += 1
         {
-            for(k : u32 = 0; k < arr[i][j].len; k += 1)
-            {
-                sum += arr[i][j][k];
-            }   
+            sum += sum_arr(arr[i][j]);
         }
     }
 
