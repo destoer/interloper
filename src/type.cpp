@@ -323,55 +323,55 @@ std::string fmt_index(u32 index)
 
 std::string type_name(Interloper& itl,const Type &type)
 {
-    UNUSED(itl);
+    std::string plain;
 
     if(is_builtin(type))
     {
         std::string plain = builtin_type_name(static_cast<builtin_type>(type.type_idx));
-
-        if(type.is_const)
-        {
-            plain = "const " + plain;
-        }
-
-        // TODO: this type printing does not handle nesting
-
-        // could be pointer to an array
-        if(!type.contains_ptr)
-        {
-            for(u32 i = 0; i < type.degree; i++)
-            {
-                plain = plain + fmt_index(type.dimensions[i]);
-            }  
-
-            for(u32 i = 0; i < type.ptr_indirection; i++)
-            {
-                plain = plain + "@";
-            } 
-        }
-
-        // could be array of pointers
-        else
-        {
-            for(u32 i = 0; i < type.ptr_indirection; i++)
-            {
-                plain = plain + "@";
-            } 
-
-            for(u32 i = 0; i < type.degree; i++)
-            {
-                plain = plain + fmt_index(type.dimensions[i]);
-            }       
-        }
-        return plain;
     }
-
 
     else
     {
-        unimplemented("type_name: user defined type");
-        return "undefined_type";
+        const auto structure =  struct_from_type(itl.struct_table,type);
+        plain = structure.name;
     }
+
+    if(type.is_const)
+    {
+        plain = "const " + plain;
+    }
+
+    // TODO: this type printing does not handle nesting
+
+    // could be pointer to an array
+    if(!type.contains_ptr)
+    {
+        for(u32 i = 0; i < type.degree; i++)
+        {
+            plain = plain + fmt_index(type.dimensions[i]);
+        }  
+
+        for(u32 i = 0; i < type.ptr_indirection; i++)
+        {
+            plain = plain + "@";
+        } 
+    }
+
+    // could be array of pointers
+    else
+    {
+        for(u32 i = 0; i < type.ptr_indirection; i++)
+        {
+            plain = plain + "@";
+        } 
+
+        for(u32 i = 0; i < type.degree; i++)
+        {
+            plain = plain + fmt_index(type.dimensions[i]);
+        }       
+    }
+    
+    return plain;
 }
 
 // TODO: do we want to pass the operation in here for when we support overloading?

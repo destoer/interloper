@@ -1469,7 +1469,7 @@ void emit_asm(Interloper &itl)
 
         // handle all the branch labels
         // TODO: this probably needs to be changed for when we have call <reg>
-        if(OPCODE_TABLE[static_cast<u32>(opcode.op)].group == op_group::branch_t)
+        if(OPCODE_TABLE[u32(opcode.op)].group == op_group::branch_t)
         {
             opcode.v[0] = itl.symbol_table.label_lookup[opcode.v[0]].offset;
             write_var(itl.program,i,opcode);

@@ -152,6 +152,7 @@ struct StructTable
 
 std::optional<Struct> get_struct(StructTable& struct_table, const std::string& name);
 Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx);
+Struct struct_from_type(StructTable& struct_table, const Type& type);
 
 static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
 
