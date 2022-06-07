@@ -506,16 +506,10 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     // requires special handling to move
     else
     {
+        // copy out the strucutre using the hidden pointer in the first arg
         if(dst_slot == RV_IR)
         {
-        // TODO: handle this by copying out var to the current functions hidden pointer for copying out large data
-        // however we ned to think how this works with regards to tmps?
-        #if 0
-            print(itl.cur_line);
-            unimplemented("return large type %s = %s!\n",type_name(itl,dst_type).c_str(),type_name(itl,src_type).c_str());
-        #else
-            //emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
-        #endif
+            unimplemented("copy out struct");
         } 
 
         else
@@ -562,6 +556,27 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     
     // how many args are we pushing to the stack?
     u32 arg_clean = 0;
+
+
+    const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
+
+    if(return_struct)
+    {
+        if(dst_slot == NO_SLOT)
+        {
+            unimplemented("no binding on large return type");
+        }
+
+        else if(is_sym(dst_slot))
+        {
+            unimplemented("sym: large binding on return type");
+        }
+
+        else
+        {
+            unimplemented("tmp: large binding on return type");
+        }
+    }
 
     // push args in reverse order and type check them
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
@@ -685,8 +700,9 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
     const bool returns_value = func_call.return_type.type_idx != u32(builtin_type::void_t);
 
-    // if we have a register in R0 we need to spill it so emit a push instr
-    if(returns_value)
+
+    // if we have a register in R0 we need to save it so its not overwritten
+    if(returns_value && !return_struct)
     {
         emit(func.emitter,op_type::spill_rv);
     }
@@ -709,12 +725,15 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // restore callee saved values
     //emit(func.emitter,op_type::restore_regs);
 
-
-    // store the return value back into a reg (if its actually binded)
-    if(returns_value && dst_slot != NO_SLOT)
+    // normal return
+    if(!return_struct)
     {
-        // TODO: is this dst type correct?
-        compile_move(itl,func,dst_slot,RV_IR,func.return_type,func.return_type);
+        // store the return value back into a reg (if its actually binded)
+        if(returns_value && dst_slot != NO_SLOT)
+        {
+            // TODO: is this dst type correct?
+            compile_move(itl,func,dst_slot,RV_IR,func.return_type,func.return_type);
+        }
     }
 
     // result of expr is the return type
