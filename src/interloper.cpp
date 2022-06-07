@@ -510,6 +510,7 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
         {
             print(itl.cur_line);
             unimplemented("return large type %s = %s!\n",type_name(itl,dst_type).c_str(),type_name(itl,src_type).c_str());
+            //emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
         } 
 
         else
@@ -704,8 +705,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     //emit(func.emitter,op_type::restore_regs);
 
 
-    // store the return value back into a reg
-    if(returns_value)
+    // store the return value back into a reg (if its actually binded)
+    if(returns_value && dst_slot != NO_SLOT)
     {
         // TODO: is this dst type correct?
         compile_move(itl,func,dst_slot,RV_IR,func.return_type,func.return_type);
@@ -2082,7 +2083,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,func,l,new_slot(func));
+                compile_function_call(itl,func,l,NO_SLOT);
                 break;
             }            
 

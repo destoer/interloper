@@ -1,0 +1,26 @@
+
+struct Block
+{
+    x : u32;
+    y : u32;
+};
+
+
+func get_block() Block
+{
+    block : Block = {1,2};
+    return block;
+}
+
+func sum_block(block: Block) u32
+{
+    return block.x + block.y;
+}
+
+func main() s32
+{   
+    //block : Block = get_block();
+    return sum_block(get_block());
+
+    return 0;
+}

@@ -130,7 +130,7 @@ bool is_reg(u32 r)
 
 bool is_special_reg(u32 r)
 {
-    return r >= SPECIAL_PURPOSE_REG_START && r < SYMBOL_START;
+    return r >= SPECIAL_PURPOSE_REG_START && r <= SPECIAL_PURPOSE_REG_START + SPECIAL_REG_SIZE;
 }
 
 bool is_tmp(u32 r)
@@ -1512,19 +1512,9 @@ std::string get_oper_sym(const SlotLookup *table,u32 v)
 {
     auto slot_lookup = *table;
 
-    if(v == RV_IR)
+    if(is_special_reg(v))
     {
-        return "rv";
-    }
-
-    if(v == R0_IR)
-    {
-        return "r0";
-    }
-
-    if(v == R1_IR)
-    {
-        return "r1";
+        return SPECIAL_REG_NAMES[v - SPECIAL_PURPOSE_REG_START];
     }
 
     else if(v >= SYMBOL_START && sym_to_idx(v) < table->size())
