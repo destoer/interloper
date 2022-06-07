@@ -508,9 +508,14 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     {
         if(dst_slot == RV_IR)
         {
+        // TODO: handle this by copying out var to the current functions hidden pointer for copying out large data
+        // however we ned to think how this works with regards to tmps?
+        #if 0
             print(itl.cur_line);
             unimplemented("return large type %s = %s!\n",type_name(itl,dst_type).c_str(),type_name(itl,src_type).c_str());
+        #else
             //emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
+        #endif
         } 
 
         else
@@ -1665,7 +1670,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
         const u32 ptr_slot = new_slot(func);
         emit(func.emitter,op_type::add_imm,ptr_slot,addr_slot,member.offset);
 
-        do_ptr_store(itl,func,slot,ptr_slot,rtype);
+        do_ptr_store(itl,func,slot,ptr_slot,member.type);
     } 
 }
 

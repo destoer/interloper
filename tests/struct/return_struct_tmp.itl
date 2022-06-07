@@ -19,6 +19,5 @@ func sum_block(block: Block) u32
 
 func main() s32
 {   
-    block : Block = get_block();
-    return sum_block(block);
+    return sum_block(get_block());
 }
