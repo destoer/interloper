@@ -151,6 +151,33 @@ u32 new_slot(Function &func)
 
 
 
+void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 size)
+{
+    // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
+    // because this alot of boilerplate
+
+    // emit a call to memcpy with args
+    // check function is declared
+    if(!itl.function_table.count("memcpy"))
+    {
+        panic(itl,"[COMPILE]: memcpy is required for struct passing\n");
+    }
+    const auto &func_call = itl.function_table["memcpy"];
+
+    const u32 imm_slot = new_slot(func);
+    emit(func.emitter,op_type::mov_imm,imm_slot,size);
+
+    emit(func.emitter,op_type::push_arg,imm_slot);
+    emit(func.emitter,op_type::push_arg,src_slot);
+    emit(func.emitter,op_type::push_arg,dst_slot);
+
+    emit(func.emitter,op_type::spill_rv);
+    emit(func.emitter,op_type::call,func_call.slot);
+
+    emit(func.emitter,op_type::clean_args,3);
+}
+
+
 // our bitset can only store 32 regs
 static_assert(MACHINE_REG_SIZE <= 32);
 
@@ -838,6 +865,30 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
             alloc.stack_offset -= stack_clean; 
+
+            rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::alloc_stack:
+        {
+            const u32 size = opcode.v[0];
+            node->opcode = Opcode(op_type::sub_imm,SP_IR,SP_IR,size);
+            alloc.stack_offset += size;
+
+            rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::free_stack:
+        {
+            const u32 size = opcode.v[0];
+            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,size);
+            alloc.stack_offset -= size;
 
             rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
 

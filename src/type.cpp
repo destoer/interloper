@@ -401,6 +401,13 @@ Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
 
     }
 
+    // pointer arithmetic is fine
+    else if(is_pointer(ltype) && is_integer(rtype))
+    {
+        return ltype;
+    }
+
+
     // one or more user defined
     else
     {

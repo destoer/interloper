@@ -99,6 +99,22 @@ void parse_function_declarations(Interloper& itl)
 
         const auto decl = node.nodes[2];
 
+        // if we are returning out a struct we have a hidden pointer to return it out of in the first arg!
+        const b32 sfa = type_size(itl,return_type) > GPR_SIZE;
+
+        if(sfa)
+        {
+            Type ptr_type = return_type;
+            ptr_type.ptr_indirection += 1;
+
+            // add the var to slot lookup and link to function
+            // we will do a add_scope to put it into the scope later
+            Symbol sym = Symbol("_struct_ret_ptr",ptr_type,GPR_SIZE,0);
+            add_var(itl.symbol_table,sym);
+
+            args.push_back(sym.slot);            
+        }
+
         // rip every arg
         for(const auto a : decl->nodes)
         {
@@ -295,11 +311,36 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
 
     const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
+    // pointer arith adds the size of the underlying type
+    if(is_pointer(t1) && is_integer(t2))
+    {
+        if(type != op_type::sub_reg && type != op_type::add_reg)
+        {
+            panic(itl,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).c_str(),type_name(itl,t2).c_str());
+            return Type(builtin_type::void_t);
+        }
+
+        const u32 offset_slot = new_slot(func);
+
+        // get size of pointed to type
+        Type contained = t2;
+        contained.ptr_indirection -= 1;
+
+        emit(func.emitter,op_type::mul_imm,offset_slot,v2,type_size(itl,t2));
+        emit(func.emitter,type,dst_slot,v1,offset_slot);
+    }
+
+    // normal arith
+    else
+    {
+        emit(func.emitter,type,dst_slot,v1,v2);
+    }
+
 
     // produce effective type
     const auto final_type = effective_arith_type(itl,t1,t2);
 
-    emit(func.emitter,type,dst_slot,v1,v2);
+    
 
     return final_type;        
 }
@@ -558,25 +599,6 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     u32 arg_clean = 0;
 
 
-    const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
-
-    if(return_struct)
-    {
-        if(dst_slot == NO_SLOT)
-        {
-            unimplemented("no binding on large return type");
-        }
-
-        else if(is_sym(dst_slot))
-        {
-            unimplemented("sym: large binding on return type");
-        }
-
-        else
-        {
-            unimplemented("tmp: large binding on return type");
-        }
-    }
 
     // push args in reverse order and type check them
     for(s32 i = func_call.args.size() - 1; i >= 0; i--)
@@ -663,17 +685,17 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // TODO: support copies with larger loads
             static_assert(GPR_SIZE == sizeof(u32));
 
-            // push the entire thing in a reverse memcpy
-            for(u32 i = 0; i < structure.size / GPR_SIZE; i++)
-            {
-                // TODO: how to handle this being a tmp?
-                const u32 addr_slot = new_slot(func);
-                emit(func.emitter,op_type::addrof,addr_slot,reg);
+            // alloc the struct size for our copy
+            emit(func.emitter,op_type::alloc_stack,structure.size);
 
-                const u32 data_slot = new_slot(func);
-                emit(func.emitter,op_type::lw,data_slot,addr_slot,i * GPR_SIZE);
-                emit(func.emitter,op_type::push_arg,data_slot);
-            }
+            const u32 ptr = new_slot(func);
+            const u32 dst = new_slot(func);
+
+            // need to save SP as it will get pushed last
+            emit(func.emitter,op_type::mov_reg,dst,SP_IR);
+            emit(func.emitter,op_type::addrof,ptr,reg);
+
+            ir_memcpy(itl,func,dst,ptr,structure.size);
 
             // clean up the stack push
             arg_clean += structure.size / GPR_SIZE;
@@ -696,6 +718,35 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             arg_clean++;
         }
     }
+
+    // push hidden arg for a struct return if we need it
+
+    const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
+
+    if(return_struct)
+    {
+        if(dst_slot == NO_SLOT)
+        {
+            unimplemented("no_slot: binding on large return type");
+        }
+
+        else if(is_sym(dst_slot))
+        {
+            arg_clean += 1;
+
+            const u32 addr = new_slot(func);
+            emit(func.emitter,op_type::addrof,addr,dst_slot);
+            
+            emit(func.emitter,op_type::push_arg,addr);
+        }
+
+        else
+        {
+            unimplemented("tmp: large binding on return type");
+        }
+    }
+
+
 
 
     const bool returns_value = func_call.return_type.type_idx != u32(builtin_type::void_t);

@@ -106,6 +106,8 @@ enum class op_type
 
     // perform cleanup after a function call
     // free the stack space for args
+    alloc_stack,
+    free_stack,
     clean_args,
 
     // branch to end of if statement chain

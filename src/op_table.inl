@@ -96,6 +96,8 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // perform cleanup after a function call
     // free the stack space for args
     // restore callee saved registers
+    {op_group::imm_t, "alloc_stack",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::imm_t, "free_stack",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::imm_t,"clean_args",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"exit_block",0,{arg_type::none,arg_type::none,arg_type::none}},

@@ -1,3 +1,6 @@
+// TODO: have this imported for us
+import "mem"
+
 struct Foo
 {
     x : u32; 

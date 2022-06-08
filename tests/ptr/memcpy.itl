@@ -1,0 +1,22 @@
+import "mem"
+
+func sum(arr: u8[]) u32
+{
+    ans : u32 = 0;
+    for i : u32 = 0; i < arr.len; i += 1
+    {
+        ans += arr[i];
+    }
+
+    return ans;
+}
+
+func main() s32 
+{
+    buf: u8[10] = {1,2,3,4,5,6,7,8,9,10};
+    buf_copy: u8[10];
+
+    memcpy(&buf_copy[0],&buf[0],buf.len);
+
+    return sum(buf_copy);
+}

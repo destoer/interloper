@@ -275,8 +275,9 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::push:
         {
+            const u32 v = regs[opcode.v[0]];
             regs[SP] -= sizeof(u32);
-            write_mem<u32>(interpretter,regs[SP],regs[opcode.v[0]]); 
+            write_mem<u32>(interpretter,regs[SP],v); 
             break;               
         }
 
@@ -294,8 +295,10 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             {
                 if(is_set(opcode.v[0],r))
                 { 
+                    const u32 v = regs[r];
+                    
                     regs[SP] -= sizeof(u32);
-                    write_mem<u32>(interpretter,regs[SP],regs[r]); 
+                    write_mem<u32>(interpretter,regs[SP],v); 
                 }
             }
             break;               
@@ -478,6 +481,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::arr_index:
         case op_type::push_arg:
         case op_type::clean_args:
+        case op_type::free_stack:
+        case op_type::alloc_stack:
         case op_type::pool_addr:
         case op_type::alloc_slot:
         case op_type::alloc:
