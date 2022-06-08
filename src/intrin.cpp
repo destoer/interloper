@@ -26,13 +26,13 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 
     if(!is_trivial_copy(v1_type))
     {
-        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type));
+        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).c_str());
         return Type(builtin_type::void_t);  
     }
 
     if(!is_trivial_copy(v2_type))
     {
-        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type));
+        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).c_str());
         return Type(builtin_type::void_t);  
     }
 

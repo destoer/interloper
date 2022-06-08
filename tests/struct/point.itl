@@ -1,3 +1,5 @@
+import "mem"
+
 struct Point
 {
     x : s32 = 2;
@@ -19,7 +21,8 @@ func calc_gradient(v1: Point, v2: Point@) s32
 
 func main() s32
 {
-    v1 : Point; // test default values
+    v1: Point = {2,5};
+    //v1 : Point; // test default values
     v2 : Point = make_point(3,7);
 
     return calc_gradient(v1,&v2);  

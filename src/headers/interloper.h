@@ -53,11 +53,14 @@ struct Interloper
 
 void print(const AstNode *root);
 
-template<typename... Args>
-inline void panic(Interloper &itl,const char *fmt, Args... args)
+inline void panic(Interloper &itl,const char *fmt, ...)
 {
     printf("error: ");
-    printf(fmt,args...);
+    va_list args; 
+    va_start(args, fmt);
+    vprintf(fmt,args);
+    va_end(args);
+    
     itl.error = true;
 
     print(itl.cur_line);

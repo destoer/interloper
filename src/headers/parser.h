@@ -304,11 +304,15 @@ AstNode *ast_value(Value value, std::string literal = "")
 
 
 
-template<typename... Args>
-inline void panic(Parser &parser,const Token &token,const char *fmt, Args... args)
+
+inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 {
-    printf(fmt,args...);
+    va_list args; 
+    va_start(args, fmt);
+    vprintf(fmt,args);
+    va_end(args);
     printf("at: line %d col %d\n\n",token.line + 1,token.col + 1);
+    
     parser.error = true;
     parser.line = token.line;
 }

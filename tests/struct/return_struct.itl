@@ -7,9 +7,9 @@ struct Block
 };
 
 
-func get_block() Block
+func get_block(x: u32, y: u32) Block
 {
-    block : Block = {1,2};
+    block : Block = {x,y};
     return block;
 }
 
@@ -20,6 +20,6 @@ func sum_block(block: Block) u32
 
 func main() s32
 {   
-    block : Block = get_block();
+    block : Block = get_block(1,2);
     return sum_block(block);
 }

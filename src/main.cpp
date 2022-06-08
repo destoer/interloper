@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     Interloper itl;
 
     // parse compiler flags
-    const char* filename;
+    const char* filename = "";
 
     if(argv[1][0] == '-')
     {

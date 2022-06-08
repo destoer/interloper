@@ -150,7 +150,7 @@ void parse_function_declarations(Interloper& itl)
         const Function function(name,return_type,args,itl.symbol_table.label_lookup.size());
 
 
-        print_func_decl(itl,function);
+        //print_func_decl(itl,function);
 
         itl.function_table[name] = function;
 
@@ -583,7 +583,6 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
-
     if(intrin_table.count(node->literal))
     {
         const auto handler = intrin_table[node->literal];
@@ -628,6 +627,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     {
         const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
   
+        const u32 arg_idx = i - arg_offset;
+
         if(is_array(arg.type))
         {
             assert(arg.type.degree == 1);
@@ -636,7 +637,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // const_pool_addr <slot>, offset  to load the address
             if(node->nodes[i]->type == ast_type::string)
             {
-                const auto rtype = type_array(builtin_type::u8_t,node->nodes[i]->literal.size(),true);
+                const auto rtype = type_array(builtin_type::u8_t,node->nodes[arg_idx]->literal.size(),true);
                 check_assign(itl,arg.type,rtype,true);
                 
                 // push the len offset
@@ -645,7 +646,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 emit(func.emitter,op_type::push_arg,len_slot);
 
                 // push the data offset
-                const u32 static_offset = alloc_const_pool(itl,node->nodes[i]->literal.data(),rtype.dimensions[0],1);
+                const u32 static_offset = alloc_const_pool(itl,node->nodes[arg_idx]->literal.data(),rtype.dimensions[0],1);
 
                 const u32 addr_slot = new_slot(func);
                 emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,CONST_POOL);
@@ -656,7 +657,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
             else
             {
-                auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+                auto [arg_type,reg] = compile_oper(itl,func,node->nodes[arg_idx],new_slot(func));
 
                 if(is_fixed_array_pointer(arg_type))
                 {
@@ -701,7 +702,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         {
             const auto structure = struct_from_type(itl.struct_table,arg.type);
 
-            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[arg_idx],new_slot(func));
             check_assign(itl,arg.type,arg_type,true);
 
 
@@ -729,7 +730,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         else
         {
             // builtin type
-            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[arg_idx],new_slot(func));
 
 
             // type check the arg
@@ -1174,7 +1175,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
         const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[i],new_slot(func));
         if(!is_integer(subscript_type))
         {
-            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type));
+            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).c_str());
             return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
         }
 
@@ -2002,11 +2003,14 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
 
             const auto sym = sym_opt.value();
 
-            // TODO: we want the address the pointer points to here
-            // not the address of the pointer itself so deref it
+            // allready a pointer so just return the slot
+            // along with the derefed type
             if(is_pointer(sym.type))
             {
-                unimplemented("sym member access via pointer!");
+                auto type = sym.type;
+                type.ptr_indirection -= 1;
+
+                return std::pair<Type,u32>{type,slot_idx(sym)};
             }
 
 
