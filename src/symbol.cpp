@@ -31,6 +31,10 @@ void print_sym(Interloper& itl,const Symbol &sym)
 {
     printf("symbol: %s\n",sym.name.c_str());
     printf("type: %s\n",type_name(itl,sym.type).c_str());
+    printf("arg num: %d\n",sym.arg_num);
+    printf("slot: %d\n",sym.slot);
+
+    putchar('\n');
 }
 
 // add symbol to slot lookup

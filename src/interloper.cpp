@@ -75,6 +75,19 @@ u32 eval_const_expr(const AstNode *node)
 
 
 
+void print_func_decl(Interloper& itl,const Function &func)
+{
+    printf("func: %s\n",func.name.c_str());
+
+    for(auto slot : func.args)
+    {
+        auto &sym = itl.symbol_table.slot_lookup[slot];
+
+        print_sym(itl,sym); 
+    }
+
+    printf("return type %s\n",type_name(itl,func.return_type).c_str());  
+}
 
 // scan the top level of the parse tree for functions
 // and grab the entire signature
@@ -136,6 +149,8 @@ void parse_function_declarations(Interloper& itl)
 
         const Function function(name,return_type,args,itl.symbol_table.label_lookup.size());
 
+
+        print_func_decl(itl,function);
 
         itl.function_table[name] = function;
 
@@ -550,7 +565,10 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
         // copy out the strucutre using the hidden pointer in the first arg
         if(dst_slot == RV_IR)
         {
-            unimplemented("copy out struct");
+            const u32 ptr = new_slot(func);
+            emit(func.emitter,op_type::addrof,ptr,src_slot);
+
+            ir_memcpy(itl,func,symbol(func.args[0]),ptr,type_size(itl,dst_type));
         } 
 
         else
@@ -580,8 +598,13 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
     const auto &func_call = itl.function_table[node->literal];
 
+    const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
+
+
+    const s32 arg_offset = return_struct? 1 : 0;
+
     // check we have the right number of params
-    if(func_call.args.size() != node->nodes.size())
+    if((func_call.args.size() - arg_offset) != node->nodes.size())
     {
         panic(itl,"[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
         return Type(builtin_type::void_t);
@@ -601,7 +624,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
 
     // push args in reverse order and type check them
-    for(s32 i = func_call.args.size() - 1; i >= 0; i--)
+    for(s32 i = func_call.args.size() - 1; i >= arg_offset; i--)
     {
         const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
   
@@ -721,8 +744,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
     // push hidden arg for a struct return if we need it
 
-    const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
-
+   
     if(return_struct)
     {
         if(dst_slot == NO_SLOT)
