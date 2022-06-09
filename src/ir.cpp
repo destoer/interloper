@@ -868,6 +868,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
 
+            if(alloc.print_stack_allocation)
+            {
+                printf("clean args: %x\n",stack_clean);
+            }
+
             node = node->next;
             break;
         }
@@ -880,6 +885,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
 
+            if(alloc.print_stack_allocation)
+            {
+                printf("allocate stack %x\n",size);
+            }
+
+
             node = node->next;
             break;
         }
@@ -891,6 +902,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             alloc.stack_offset -= size;
 
             rewrite_regs(itl.symbol_table.slot_lookup,alloc,node->opcode);
+
+            if(alloc.print_stack_allocation)
+            {
+                printf("free stack %x\n",size);
+            }
 
             node = node->next;
             break;

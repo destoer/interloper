@@ -7,14 +7,13 @@ struct Foo
     y : u32;
 }
 
-func sum(foo: Foo) u32
+func sub(foo: Foo) u32
 {
-    return foo.x + foo.y;
+    return foo.y - foo.x;
 }
-
 
 func main() s32
 {
     foo: const Foo = {5,7};
-    return sum(foo);
+    return sub(foo);
 }
