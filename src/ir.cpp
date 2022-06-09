@@ -1345,8 +1345,12 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
 
         //printf("%s : %d\n",sym.name.c_str(),sym.arg_num);
 
+        // if size is below GPR just make it take that much
+        const u32 size = sym.size < GPR_SIZE? 4 : sym.size;
+
+
         // alloc above the stack frame
-        sym.offset = (sym.arg_num  * sizeof(u32)) + alloc.stack_size + saved_regs_offset + sizeof(u32);
+        sym.offset = (sym.arg_num  * size) + alloc.stack_size + saved_regs_offset + sizeof(u32);
     }
              
 }

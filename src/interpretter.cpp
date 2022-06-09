@@ -1,5 +1,6 @@
 #include <interloper.h>
 
+// TODO: add a basic debugger to this
 
 void print_regs(Interpretter& interpretter)
 {

@@ -177,7 +177,7 @@ struct Symbol
     std::string name;
     Type type;
 
-    // Cached type size
+    // cached sized of type
     u32 size;
     u32 arg_num;
 

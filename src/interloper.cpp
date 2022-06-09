@@ -723,7 +723,6 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
             // clean up the stack push
             arg_clean += structure.size / GPR_SIZE;
-
         }
 
         // plain builtin in variable
