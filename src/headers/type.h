@@ -169,7 +169,7 @@ struct Symbol
 {
     Symbol() {}
 
-    Symbol(const std::string &n, Type t, u32 s, u32 a = NON_ARG) : name(n), type(t), size(s), arg_num(a), 
+    Symbol(const std::string &n, Type t, u32 s, u32 a = NON_ARG) : name(n), type(t), size(s), arg_offset(a), 
         slot(SYMBOL_NO_SLOT), offset(UNALLOCATED_OFFSET), location(LOCATION_MEM), referenced(false)
     {}
 
@@ -179,7 +179,7 @@ struct Symbol
 
     // cached sized of type
     u32 size;
-    u32 arg_num;
+    u32 arg_offset;
 
     // what slot does this symbol hold inside the ir?
     u32 slot;

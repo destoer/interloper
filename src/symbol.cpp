@@ -27,15 +27,6 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym)
     return std::nullopt;
 }
 
-void print_sym(Interloper& itl,const Symbol &sym)
-{
-    printf("symbol: %s\n",sym.name.c_str());
-    printf("type: %s\n",type_name(itl,sym.type).c_str());
-    printf("arg num: %d\n",sym.arg_num);
-    printf("slot: %d\n",sym.slot);
-
-    putchar('\n');
-}
 
 // add symbol to slot lookup
 void add_var(SymbolTable &sym_table,Symbol &sym)
@@ -84,7 +75,7 @@ u32 slot_idx(const Symbol &sym)
 
 bool is_arg(const Symbol &sym)
 {
-    return sym.arg_num != NON_ARG;
+    return sym.arg_offset != NON_ARG;
 }
 
 void print(Interloper& itl,const Symbol&sym)
@@ -92,7 +83,7 @@ void print(Interloper& itl,const Symbol&sym)
     printf("name: %s\n",sym.name.c_str());
     printf("type: %s\n",type_name(itl,sym.type).c_str());
     printf("slot: %x\n",sym.slot);
-    printf("arg_num: %x\n",sym.arg_num);
+    printf("arg_offset: %x\n",sym.arg_offset);
     printf("offset: %x\n",sym.offset);
     printf("location: %x\n\n",sym.location);
 }

@@ -83,7 +83,7 @@ void print_func_decl(Interloper& itl,const Function &func)
     {
         auto &sym = itl.symbol_table.slot_lookup[slot];
 
-        print_sym(itl,sym); 
+        print(itl,sym); 
     }
 
     printf("return type %s\n",type_name(itl,func.return_type).c_str());  
@@ -115,6 +115,8 @@ void parse_function_declarations(Interloper& itl)
         // if we are returning out a struct we have a hidden pointer to return it out of in the first arg!
         const b32 sfa = type_size(itl,return_type) > GPR_SIZE;
 
+        u32 arg_offset = 0;
+
         if(sfa)
         {
             Type ptr_type = return_type;
@@ -122,10 +124,12 @@ void parse_function_declarations(Interloper& itl)
 
             // add the var to slot lookup and link to function
             // we will do a add_scope to put it into the scope later
-            Symbol sym = Symbol("_struct_ret_ptr",ptr_type,GPR_SIZE,0);
+            Symbol sym = Symbol("_struct_ret_ptr",ptr_type,GPR_SIZE,arg_offset);
             add_var(itl.symbol_table,sym);
 
-            args.push_back(sym.slot);            
+            args.push_back(sym.slot);     
+
+            arg_offset += GPR_SIZE;
         }
 
         // rip every arg
@@ -138,10 +142,15 @@ void parse_function_declarations(Interloper& itl)
 
             // add the var to slot lookup and link to function
             // we will do a add_scope to put it into the scope later
-            Symbol sym = Symbol(name,type,size,args.size());
+            Symbol sym = Symbol(name,type,size,arg_offset);
             add_var(itl.symbol_table,sym);
 
             args.push_back(sym.slot);
+
+            // if size is below GPR just make it take that much
+            const u32 arg_size = sym.size < GPR_SIZE? 4 : size;
+
+            arg_offset += arg_size;
 
             //printf("arg slot %s: %d : %d\n",sym.name.c_str(),sym.slot, args[args.size()-1]);
         }
@@ -2221,7 +2230,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
         const auto &sym = itl.symbol_table.slot_lookup[slot];
 
         // free the stack alloc for each var thats about to go out of scope
-        if(sym.arg_num == NON_ARG)
+        if(sym.arg_offset == NON_ARG)
         {
             if(is_array(sym.type))
             {

@@ -111,6 +111,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_initializer",495,false},
     {"tests/struct/pass_struct",2,false},
     {"tests/struct/return_struct",3,false},
+    {"tests/struct/point",2,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
