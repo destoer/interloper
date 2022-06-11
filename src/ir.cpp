@@ -82,39 +82,12 @@ void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type
 }
 
 
-static constexpr u32 REG_FREE = 0xffffffff;
-static constexpr u32 REG_TMP_START = 0xf0000000;
-
-u32 reg(u32 r)
-{
-    return r;
-}
-
-
-u32 sym_to_idx(u32 s)
-{
-    return s - SYMBOL_START;
-}
+static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
+static constexpr u32 REG_TMP_START = 0x00000000;
 
 bool is_sym(u32 s)
 {
     return s >= SYMBOL_START;
-}
-
-
-bool reg_is_sym(u32 loc)
-{
-    return loc < REG_TMP_START;
-}
-
-bool reg_is_tmp(u32 loc)
-{
-    return loc >= REG_TMP_START && loc != REG_FREE;
-}
-
-u32 tmp_to_ir(u32 loc)
-{
-    return loc - REG_TMP_START;
 }
 
 u32 tmp(u32 ir_reg)
@@ -135,18 +108,12 @@ bool is_special_reg(u32 r)
 
 bool is_tmp(u32 r)
 {
-    return r < SPECIAL_PURPOSE_REG_START;
+    return r < REG_FREE;
 }
-
-Symbol& sym_from_slot(SlotLookup &slot_lookup, u32 slot)
-{
-    return slot_lookup[sym_to_idx(slot)]; 
-}
-
 
 u32 new_slot(Function &func)
 {       
-    return reg(func.emitter.reg_count++);
+    return func.emitter.reg_count++;
 }
 
 
@@ -274,15 +241,15 @@ void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
     {
         const u32 slot = alloc.regs[i];
 
-        if(reg_is_tmp(slot))
+        if(is_tmp(slot))
         {
-            printf("reg r%d -> temp t%d\n",i,tmp_to_ir(slot));
+            printf("reg r%d -> temp t%d\n",i,slot);
         }
 
-        else if(reg_is_sym(slot))
+        else if(is_sym(slot))
         {
-            const auto &sym = slot_lookup[slot];
-
+            printf("slot %x\n",slot);
+            const auto &sym = sym_from_slot(slot_lookup,slot);
             printf("reg r%d -> var %s\n",i,sym.name.c_str());
         }
     }
@@ -329,7 +296,7 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
 
     // TODO: how do we know if a variable has not been modified
     // i.e it is a ready only copy and has not been modifed so we dont actually need to write it back
-    const auto opcode = Opcode(op_type::spill,reg,slot_idx(sym),alloc.stack_offset);
+    const auto opcode = Opcode(op_type::spill,reg,sym.slot,alloc.stack_offset);
 
     if(!after)
     {
@@ -358,9 +325,9 @@ void spill_all(LocalAlloc &alloc, SlotLookup &slot_lookup, List& list, ListNode*
     
     for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
     {
-        if(reg_is_sym(alloc.regs[r]))
+        if(is_sym(alloc.regs[r]))
         {
-            auto &sym = slot_lookup[alloc.regs[r]];
+            auto &sym = sym_from_slot(slot_lookup,alloc.regs[r]);
             spill_sym(alloc,list,node,sym,after);
         }
     }    
@@ -394,7 +361,7 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,List &list, ListNod
 
         for(reg = 0; reg < MACHINE_REG_SIZE; reg++)
         {
-            const auto idx = alloc.regs[reg]; 
+            const auto slot = alloc.regs[reg]; 
 
             b32 in_expr = false;
 
@@ -402,7 +369,7 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,List &list, ListNod
             // with a linear scan -> fix this later
             for(u32 i = 1; i < 3; i++)
             {
-                if(is_sym(opcode.v[i]) && idx == sym_to_idx(opcode.v[i]))
+                if(is_sym(opcode.v[i]) && slot == opcode.v[i])
                 {
                     in_expr = true;
                     break;
@@ -410,9 +377,9 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,List &list, ListNod
             }
 
             // we have a var to spill
-            if(reg_is_sym(idx) && !in_expr)
+            if(is_sym(slot) && !in_expr)
             {
-                auto &sym = slot_lookup[idx];
+                auto &sym = sym_from_slot(slot_lookup,slot);
                 spill_sym(alloc,list,node,sym);
 
                 // claim the register
@@ -435,15 +402,15 @@ u32 alloc_internal(SlotLookup &slot_lookup,LocalAlloc &alloc,List &list, ListNod
 
 
 
-void alloc_tmp(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* node, u32 ir_reg)
+void alloc_tmp(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* node, u32 tmp)
 {
     const u32 reg = alloc_internal(slot_lookup, alloc, list, node);
-    alloc.ir_regs[ir_reg] = reg;
-    alloc.regs[reg] = tmp(ir_reg);
+    alloc.ir_regs[tmp] = reg;
+    alloc.regs[reg] = tmp;
 
     if(alloc.print_reg_allocation)
     {
-        printf("tmp t%d allocated into r%d\n",ir_reg,reg);
+        printf("tmp t%d allocated into r%d\n",tmp,reg);
     }
 }
 
@@ -460,13 +427,13 @@ void alloc_sym(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* 
 }
 
 // mark a tmp as allocated to a var
-void alloc_sym_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 ir_reg)
+void alloc_sym_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 tmp)
 {   
-    const u32 reg = alloc.ir_regs[ir_reg];
+    const u32 reg = alloc.ir_regs[tmp];
 
     if(alloc.print_reg_allocation)
     {
-        printf("symbol %s allocated into tmp t%d -> r%d\n",sym.name.c_str(),tmp_to_ir(alloc.regs[reg]),reg);
+        printf("symbol %s allocated into tmp t%d -> r%d\n",sym.name.c_str(),tmp,reg);
     }
 
     alloc.regs[reg] = sym.slot;
@@ -494,7 +461,7 @@ void free_tmp(LocalAlloc &alloc, u32 reg)
 {
     if(alloc.print_reg_allocation)
     {
-        printf("freed tmp t%d from r%d\n",tmp_to_ir(alloc.regs[reg]),reg);
+        printf("freed tmp t%d from r%d\n",alloc.regs[reg],reg);
     }
 
     alloc.regs[reg] = REG_FREE;
@@ -662,15 +629,13 @@ void save_rv(LocalAlloc &alloc,List &list,ListNode* node,SlotLookup &slot_lookup
     // emit a mov from the the current tmp to the new one
     insert_at(list,node,op);
     
-    const u32 ir_reg = tmp_to_ir(tmp);
-
     if(alloc.print_reg_allocation)
     {
-        printf("moved tmp t%d from rv to r%d\n",ir_reg,reg);
+        printf("moved tmp t%d from rv to r%d\n",tmp,reg);
     }
 
     // rewrite the ir allocation
-    alloc.ir_regs[ir_reg] = reg;
+    alloc.ir_regs[tmp] = reg;
     alloc.regs[reg] = tmp;
 
     // free RV
@@ -763,7 +728,8 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
     {
         const u32 reg = opcode.v[r];
 
-        if(info.type[r] == arg_type::src_reg && reg_is_tmp(alloc.regs[reg]) && reg != dst)
+        // NOTE: the registers are allocated now so we wont be getting back the slots
+        if(info.type[r] == arg_type::src_reg && is_tmp(alloc.regs[reg]) && reg != dst)
         {
             free_tmp(alloc,reg);
         }
@@ -962,13 +928,14 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         // make sure the return value has nothing important when calling functions
         case op_type::spill_rv:
         {
-            if(reg_is_sym(alloc.regs[RV]))
+            if(is_sym(alloc.regs[RV]))
             {
-                spill_sym(alloc,list,node,slot_lookup[alloc.regs[RV]]);
+                auto &sym = sym_from_slot(slot_lookup,alloc.regs[RV]);
+                spill_sym(alloc,list,node,sym);
             }
 
 
-            else if(reg_is_tmp(alloc.regs[RV]))
+            else if(is_tmp(alloc.regs[RV]))
             {
                 // should we have this get pushed instead?
                 // and then popped into another reg?
@@ -1341,7 +1308,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
 {
     for(auto slot : func.args)
     {
-        auto &sym = slot_lookup[slot];
+        auto &sym = sym_from_slot(slot_lookup,slot);
 
         //printf("%s : %x\n",sym.name.c_str(),sym.arg_offset);
 

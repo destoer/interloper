@@ -13,14 +13,26 @@ void destroy_scope(SymbolTable &sym_table)
     sym_table.table.pop_back();
 }
 
+u32 sym_to_idx(u32 s)
+{
+    return s - SYMBOL_START;
+}
+
+
+Symbol& sym_from_slot(SlotLookup &slot_lookup, u32 slot)
+{
+    return slot_lookup[sym_to_idx(slot)]; 
+}
+
+
 std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym)
 {
     for(int i = sym_table.table.size()-1; i >= 0; i--)
     {
         if(sym_table.table[i].count(sym))
         {
-            const auto slot = sym_table.table[i][sym];
-            return std::optional<Symbol>(sym_table.slot_lookup[slot]);
+            const auto idx = sym_table.table[i][sym];
+            return std::optional<Symbol>(sym_table.slot_lookup[idx]);
         }
     }
 
@@ -31,14 +43,14 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const std::string &sym)
 // add symbol to slot lookup
 void add_var(SymbolTable &sym_table,Symbol &sym)
 {
-    sym.slot = sym_table.slot_lookup.size();
+    sym.slot = symbol(sym_table.slot_lookup.size());
     sym_table.slot_lookup.push_back(sym);    
 }
 
 // add symbol to the scope table
 void add_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    sym_table.table[sym_table.table.size()-1][sym.name] = sym.slot;
+    sym_table.table[sym_table.table.size()-1][sym.name] = sym_to_idx(sym.slot);
     sym_table.sym_count++;
 }    
 
@@ -46,12 +58,12 @@ Symbol &add_symbol(SymbolTable &sym_table,const std::string &name, const Type &t
 {
     auto sym = Symbol(name,type,size);
 
-    sym.slot = sym_table.slot_lookup.size();
+    sym.slot = symbol(sym_table.slot_lookup.size());
     sym_table.slot_lookup.push_back(sym);  
 
     add_scope(sym_table,sym);
 
-    return sym_table.slot_lookup[sym.slot];
+    return sym_from_slot(sym_table.slot_lookup,sym.slot);
 }
 
 void add_label(SymbolTable &sym_table,const std::string &label)
@@ -67,11 +79,6 @@ void clear(SymbolTable &sym_table)
     sym_table.sym_count = 0;
 }
 
-
-u32 slot_idx(const Symbol &sym)
-{
-    return symbol(sym.slot);
-}
 
 bool is_arg(const Symbol &sym)
 {
