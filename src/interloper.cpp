@@ -75,6 +75,19 @@ u32 eval_const_expr(const AstNode *node)
 
 
 
+void print_func_decl(Interloper& itl,const Function &func)
+{
+    printf("func: %s\n",func.name.c_str());
+
+    for(auto slot : func.args)
+    {
+        auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+
+        print(itl,sym); 
+    }
+
+    printf("return type %s\n",type_name(itl,func.return_type).c_str());  
+}
 
 // scan the top level of the parse tree for functions
 // and grab the entire signature
@@ -99,6 +112,26 @@ void parse_function_declarations(Interloper& itl)
 
         const auto decl = node.nodes[2];
 
+        // if we are returning out a struct we have a hidden pointer to return it out of in the first arg!
+        const b32 sfa = type_size(itl,return_type) > GPR_SIZE;
+
+        u32 arg_offset = 0;
+
+        if(sfa)
+        {
+            Type ptr_type = return_type;
+            ptr_type.ptr_indirection += 1;
+
+            // add the var to slot lookup and link to function
+            // we will do a add_scope to put it into the scope later
+            Symbol sym = Symbol("_struct_ret_ptr",ptr_type,GPR_SIZE,arg_offset);
+            add_var(itl.symbol_table,sym);
+
+            args.push_back(sym.slot);     
+
+            arg_offset += GPR_SIZE;
+        }
+
         // rip every arg
         for(const auto a : decl->nodes)
         {
@@ -109,10 +142,15 @@ void parse_function_declarations(Interloper& itl)
 
             // add the var to slot lookup and link to function
             // we will do a add_scope to put it into the scope later
-            Symbol sym = Symbol(name,type,size,args.size());
+            Symbol sym = Symbol(name,type,size,arg_offset);
             add_var(itl.symbol_table,sym);
 
             args.push_back(sym.slot);
+
+            // if size is below GPR just make it take that much
+            const u32 arg_size = sym.size < GPR_SIZE? 4 : size;
+
+            arg_offset += arg_size;
 
             //printf("arg slot %s: %d : %d\n",sym.name.c_str(),sym.slot, args[args.size()-1]);
         }
@@ -120,6 +158,8 @@ void parse_function_declarations(Interloper& itl)
 
         const Function function(name,return_type,args,itl.symbol_table.label_lookup.size());
 
+
+        //print_func_decl(itl,function);
 
         itl.function_table[name] = function;
 
@@ -150,7 +190,7 @@ std::pair<Type,u32> symbol(Interloper &itl, AstNode *node)
 
     const auto &sym = sym_opt.value();
 
-    return std::pair<Type,u32>{sym.type,slot_idx(sym)};
+    return std::pair<Type,u32>{sym.type,sym.slot};
 }
 
 
@@ -225,13 +265,13 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 }
 
 
-void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type)
+void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
 {
     const u32 size = type_size(itl,type);
 
     if(size <= sizeof(u32))
     {
-        emit(func.emitter,store_ptr(dst_slot,addr_slot,size,0));  
+        emit(func.emitter,store_ptr(dst_slot,addr_slot,size,offset));  
     }
 
     else
@@ -295,11 +335,36 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
 
     const auto [t2,v2] = compile_oper(itl,func,node->nodes[1],new_slot(func));
 
+    // pointer arith adds the size of the underlying type
+    if(is_pointer(t1) && is_integer(t2))
+    {
+        if(type != op_type::sub_reg && type != op_type::add_reg)
+        {
+            panic(itl,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).c_str(),type_name(itl,t2).c_str());
+            return Type(builtin_type::void_t);
+        }
+
+        const u32 offset_slot = new_slot(func);
+
+        // get size of pointed to type
+        Type contained = t2;
+        contained.ptr_indirection -= 1;
+
+        emit(func.emitter,op_type::mul_imm,offset_slot,v2,type_size(itl,t2));
+        emit(func.emitter,type,dst_slot,v1,offset_slot);
+    }
+
+    // normal arith
+    else
+    {
+        emit(func.emitter,type,dst_slot,v1,v2);
+    }
+
 
     // produce effective type
     const auto final_type = effective_arith_type(itl,t1,t2);
 
-    emit(func.emitter,type,dst_slot,v1,v2);
+    
 
     return final_type;        
 }
@@ -506,11 +571,13 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     // requires special handling to move
     else
     {
+        // copy out the strucutre using the hidden pointer in the first arg
         if(dst_slot == RV_IR)
         {
-            print(itl.cur_line);
-            unimplemented("return large type %s = %s!\n",type_name(itl,dst_type).c_str(),type_name(itl,src_type).c_str());
-            //emit(func.emitter,op_type::mov_reg,dst_slot,src_slot);
+            const u32 ptr = new_slot(func);
+            emit(func.emitter,op_type::addrof,ptr,src_slot);
+
+            ir_memcpy(itl,func,func.args[0],ptr,type_size(itl,dst_type));
         } 
 
         else
@@ -525,7 +592,6 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
-
     if(intrin_table.count(node->literal))
     {
         const auto handler = intrin_table[node->literal];
@@ -540,8 +606,13 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
     const auto &func_call = itl.function_table[node->literal];
 
+    const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
+
+
+    const s32 arg_offset = return_struct? 1 : 0;
+
     // check we have the right number of params
-    if(func_call.args.size() != node->nodes.size())
+    if((func_call.args.size() - arg_offset) != node->nodes.size())
     {
         panic(itl,"[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
         return Type(builtin_type::void_t);
@@ -558,11 +629,15 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // how many args are we pushing to the stack?
     u32 arg_clean = 0;
 
+
+
     // push args in reverse order and type check them
-    for(s32 i = func_call.args.size() - 1; i >= 0; i--)
+    for(s32 i = func_call.args.size() - 1; i >= arg_offset; i--)
     {
-        const auto &arg = itl.symbol_table.slot_lookup[func_call.args[i]];
+        const auto &arg =  sym_from_slot(itl.symbol_table.slot_lookup,func_call.args[i]);
   
+        const u32 arg_idx = i - arg_offset;
+
         if(is_array(arg.type))
         {
             assert(arg.type.degree == 1);
@@ -571,7 +646,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // const_pool_addr <slot>, offset  to load the address
             if(node->nodes[i]->type == ast_type::string)
             {
-                const auto rtype = type_array(builtin_type::u8_t,node->nodes[i]->literal.size(),true);
+                const auto rtype = type_array(builtin_type::u8_t,node->nodes[arg_idx]->literal.size(),true);
                 check_assign(itl,arg.type,rtype,true);
                 
                 // push the len offset
@@ -580,7 +655,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 emit(func.emitter,op_type::push_arg,len_slot);
 
                 // push the data offset
-                const u32 static_offset = alloc_const_pool(itl,node->nodes[i]->literal.data(),rtype.dimensions[0],1);
+                const u32 static_offset = alloc_const_pool(itl,node->nodes[arg_idx]->literal.data(),rtype.dimensions[0],1);
 
                 const u32 addr_slot = new_slot(func);
                 emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,CONST_POOL);
@@ -591,7 +666,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
             else
             {
-                auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+                auto [arg_type,reg] = compile_oper(itl,func,node->nodes[arg_idx],new_slot(func));
 
                 if(is_fixed_array_pointer(arg_type))
                 {
@@ -636,35 +711,34 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         {
             const auto structure = struct_from_type(itl.struct_table,arg.type);
 
-            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[arg_idx],new_slot(func));
             check_assign(itl,arg.type,arg_type,true);
 
 
             // TODO: support copies with larger loads
             static_assert(GPR_SIZE == sizeof(u32));
 
-            // push the entire thing in a reverse memcpy
-            for(u32 i = 0; i < structure.size / GPR_SIZE; i++)
-            {
-                // TODO: how to handle this being a tmp?
-                const u32 addr_slot = new_slot(func);
-                emit(func.emitter,op_type::addrof,addr_slot,reg);
+            // alloc the struct size for our copy
+            emit(func.emitter,op_type::alloc_stack,structure.size);
 
-                const u32 data_slot = new_slot(func);
-                emit(func.emitter,op_type::lw,data_slot,addr_slot,i * GPR_SIZE);
-                emit(func.emitter,op_type::push_arg,data_slot);
-            }
+            const u32 ptr = new_slot(func);
+            const u32 dst = new_slot(func);
+
+            // need to save SP as it will get pushed last
+            emit(func.emitter,op_type::mov_reg,dst,SP_IR);
+            emit(func.emitter,op_type::addrof,ptr,reg);
+
+            ir_memcpy(itl,func,dst,ptr,structure.size);
 
             // clean up the stack push
             arg_clean += structure.size / GPR_SIZE;
-
         }
 
         // plain builtin in variable
         else
         {
             // builtin type
-            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
+            const auto [arg_type,reg] = compile_oper(itl,func,node->nodes[arg_idx],new_slot(func));
 
 
             // type check the arg
@@ -677,11 +751,40 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         }
     }
 
+    // push hidden arg for a struct return if we need it
+
+   
+    if(return_struct)
+    {
+        if(dst_slot == NO_SLOT)
+        {
+            unimplemented("no_slot: binding on large return type");
+        }
+
+        else if(is_sym(dst_slot))
+        {
+            arg_clean += 1;
+
+            const u32 addr = new_slot(func);
+            emit(func.emitter,op_type::addrof,addr,dst_slot);
+            
+            emit(func.emitter,op_type::push_arg,addr);
+        }
+
+        else
+        {
+            unimplemented("tmp: large binding on return type");
+        }
+    }
+
+
+
 
     const bool returns_value = func_call.return_type.type_idx != u32(builtin_type::void_t);
 
-    // if we have a register in R0 we need to spill it so emit a push instr
-    if(returns_value)
+
+    // if we have a register in R0 we need to save it so its not overwritten
+    if(returns_value && !return_struct)
     {
         emit(func.emitter,op_type::spill_rv);
     }
@@ -704,12 +807,15 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // restore callee saved values
     //emit(func.emitter,op_type::restore_regs);
 
-
-    // store the return value back into a reg (if its actually binded)
-    if(returns_value && dst_slot != NO_SLOT)
+    // normal return
+    if(!return_struct)
     {
-        // TODO: is this dst type correct?
-        compile_move(itl,func,dst_slot,RV_IR,func.return_type,func.return_type);
+        // store the return value back into a reg (if its actually binded)
+        if(returns_value && dst_slot != NO_SLOT)
+        {
+            // TODO: is this dst type correct?
+            compile_move(itl,func,dst_slot,RV_IR,func.return_type,func.return_type);
+        }
     }
 
     // result of expr is the return type
@@ -958,7 +1064,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 type.ptr_indirection += 1;
 
                 // actually  get the addr of the ptr
-                emit(func.emitter,op_type::addrof,slot,slot_idx(sym));
+                emit(func.emitter,op_type::addrof,slot,sym.slot);
                 return std::pair<Type,u32>{type,slot};
             }
 
@@ -970,7 +1076,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                     panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.c_str());
                 }
                 type.ptr_indirection -= 1;
-                return std::pair<Type,u32>{type,slot_idx(sym)};
+                return std::pair<Type,u32>{type,sym.slot};
             }
         }
 
@@ -1077,7 +1183,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
         const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[i],new_slot(func));
         if(!is_integer(subscript_type))
         {
-            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type));
+            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).c_str());
             return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
         }
 
@@ -1116,7 +1222,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
     // NOTE: this is assuming our array is fixed all the way through
     const auto data_slot = new_slot(func);
-    emit(func.emitter,op_type::load_arr_data,data_slot,slot_idx(arr));
+    emit(func.emitter,op_type::load_arr_data,data_slot,arr.slot);
     emit(func.emitter,op_type::arr_index,dst_slot,data_slot,last_slot);
 
 
@@ -1261,7 +1367,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
             check_assign(itl,sym.type,rtype);
 
-            compile_move(itl,func,slot_idx(sym),slot,sym.type,rtype);
+            compile_move(itl,func,sym.slot,slot,sym.type,rtype);
 
             // TODO: make sure that the silly code this gens
             // is cleaned up by the optimiser
@@ -1484,7 +1590,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
                 emit(func.emitter,op_type::mov_imm,slot,node->literal[i]);
                 check_assign(itl,base_type,rtype,false,true);
 
-                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),slot,*idx);
+                emit(func.emitter,op_type::init_arr_idx,array.slot,slot,*idx);
                 *idx = *idx + 1;
             }           
         }
@@ -1508,7 +1614,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
         // decl has too many dimensions
         if(depth >= array.type.degree)
         {
-            panic(itl,"array declaration for %S dimension exceeds type, expected: %d got %d\n",array.name.c_str(),array.type.degree,depth);
+            panic(itl,"array declaration for %s dimension exceeds type, expected: %d got %d\n",array.name.c_str(),array.type.degree,depth);
             return;
         }
 
@@ -1537,8 +1643,15 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
         if(node->nodes[i]->type == ast_type::initializer_list)
         {
             // TODO: we need a check to handle arrays of structs in here!
+            if(depth == array.type.degree - 1 && is_struct(contained_arr_type(array.type)))
+            {
+                unimplemented("struct initializer in array");
+            }
 
-            traverse_arr_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
+            else
+            {
+                traverse_arr_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
+            }
         }
 
         else
@@ -1559,7 +1672,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
                 const auto base_type = contained_arr_type(array.type);
                 check_assign(itl,base_type,first_type,false,true);
 
-                emit(func.emitter,op_type::init_arr_idx,slot_idx(array),first_reg,*idx);
+                emit(func.emitter,op_type::init_arr_idx,array.slot,first_reg,*idx);
                 *idx = *idx + 1;
 
                 for(i = 1; i < node_len; i++)
@@ -1567,7 +1680,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
                     auto [rtype,reg] = compile_oper(itl,func,node->nodes[i],new_slot(func));
                     check_assign(itl,base_type,rtype,false,true);
 
-                    emit(func.emitter,op_type::init_arr_idx,slot_idx(array),reg,*idx);
+                    emit(func.emitter,op_type::init_arr_idx,array.slot,reg,*idx);
                     *idx = *idx + 1;
                 }
             }
@@ -1587,7 +1700,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    emit(func.emitter,op_type::alloc_slot,slot_idx(array),0,0);
+    emit(func.emitter,op_type::alloc_slot,array.slot,0,0);
     ListNode* alloc = get_cur_end(func.emitter);
 
 
@@ -1622,13 +1735,12 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
     else
     {
         // we have the allocation information now complete it
-        alloc->opcode = Opcode(op_type::alloc_slot,slot_idx(array),size,count);
+        alloc->opcode = Opcode(op_type::alloc_slot,array.slot,size,count);
     }
 }
 
 
-// TODO: this will require some rework for nesting
-void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, Symbol& sym, const Struct& structure)
+void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure)
 {
     const u32 node_len = node->nodes.size();
     const u32 member_size = structure.members.size();
@@ -1639,7 +1751,6 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
         return;
     }
     
-
     for(u32 i = 0; i < structure.members.size(); i++)
     {
         const auto member = structure.members[i];
@@ -1654,18 +1765,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
         const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_slot(func));
         check_assign(itl,member.type,rtype);
 
-
-        // store back to the struct member
-
-        // TODO: we need to rework the IR to allow for nesting both with structs and arrays!
-        // probably just need to pass through a offset of the current struct we are doing
-        // and sucessivley add it with each depth
-        const u32 addr_slot = new_slot(func);
-        emit(func.emitter,op_type::addrof,addr_slot,slot_idx(sym));
-        const u32 ptr_slot = new_slot(func);
-        emit(func.emitter,op_type::add_imm,ptr_slot,addr_slot,member.offset);
-
-        do_ptr_store(itl,func,slot,ptr_slot,rtype);
+        do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
     } 
 }
 
@@ -1675,23 +1775,30 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
     const u32 count = gpr_count(structure.size);
-    emit(func.emitter,op_type::alloc_slot,slot_idx(sym),GPR_SIZE,count);
+    emit(func.emitter,op_type::alloc_slot,sym.slot,GPR_SIZE,count);
 
     if(line.nodes.size() == 2)
     {
         if(line.nodes[1]->type == ast_type::initializer_list)
         {
-            traverse_struct_initializer(itl,func,line.nodes[1],sym,structure);
+            // TODO: remove with the tracking reg allocator
+            Symbol addr_sym = Symbol("sghahsaghsa",Type(builtin_type::void_t),GPR_SIZE);
+            add_var(itl.symbol_table,addr_sym);
+
+            emit(func.emitter,op_type::addrof,addr_sym.slot,sym.slot);
+            traverse_struct_initializer(itl,func,line.nodes[1],addr_sym.slot,structure);
+
+            emit(func.emitter,op_type::free_slot,sym.slot);
         }
 
         else
         {
-            const auto [rtype,slot] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
+            const auto [rtype,slot] = compile_oper(itl,func,line.nodes[1],sym.slot);
 
             // oper is a single symbol and the move hasn't happened we need to explictly move it
-            if(slot_idx(sym) != slot)
+            if(sym.slot != slot)
             {
-                compile_move(itl,func,slot_idx(sym),slot,sym.type,rtype);
+                compile_move(itl,func,sym.slot,slot,sym.type,rtype);
             }
 
             check_assign(itl,sym.type,rtype,false,true);        
@@ -1740,15 +1847,15 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     // standard decl
     else if(line.nodes.size() == 2)
     {
-        emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
+        emit(func.emitter,op_type::alloc_slot,sym.slot);
 
         // normal assign
-        const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],slot_idx(sym));
+        const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],sym.slot);
 
         // oper is a single symbol and the move hasn't happened we need to explictly move it
-        if(slot_idx(sym) != reg)
+        if(sym.slot != reg)
         {
-            compile_move(itl,func,slot_idx(sym),reg,sym.type,rtype);
+            compile_move(itl,func,sym.slot,reg,sym.type,rtype);
         }
 
         check_assign(itl,ltype,rtype,false,true);         
@@ -1776,8 +1883,8 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     // add new symbol table entry
     const auto &sym = add_symbol(itl.symbol_table,name,type,size);
 
-    emit(func.emitter,op_type::alloc_slot,slot_idx(sym));
-    compile_move(itl,func,slot_idx(sym),reg,sym.type,type);
+    emit(func.emitter,op_type::alloc_slot,sym.slot);
+    compile_move(itl,func,sym.slot,reg,sym.type,type);
 }
 
 std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slot, const Type& type, const std::string& member_name)
@@ -1905,16 +2012,19 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
 
             const auto sym = sym_opt.value();
 
-            // TODO: we want the address the pointer points to here
-            // not the address of the pointer itself so deref it
+            // allready a pointer so just return the slot
+            // along with the derefed type
             if(is_pointer(sym.type))
             {
-                unimplemented("sym member access via pointer!");
+                auto type = sym.type;
+                type.ptr_indirection -= 1;
+
+                return std::pair<Type,u32>{type,sym.slot};
             }
 
 
             const u32 addr_slot = new_slot(func);
-            emit(func.emitter,op_type::addrof,addr_slot,slot_idx(sym));
+            emit(func.emitter,op_type::addrof,addr_slot,sym.slot);
 
             return std::pair<Type,u32>{sym.type,addr_slot};
         }
@@ -2047,7 +2157,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                     check_assign(itl,sym.type,rtype);
 
-                    compile_move(itl,func,slot_idx(sym),slot,sym.type,rtype);
+                    compile_move(itl,func,sym.slot,slot,sym.type,rtype);
                 }
                 break;
             }
@@ -2121,7 +2231,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
         const auto &sym = itl.symbol_table.slot_lookup[slot];
 
         // free the stack alloc for each var thats about to go out of scope
-        if(sym.arg_num == NON_ARG)
+        if(sym.arg_offset == NON_ARG)
         {
             if(is_array(sym.type))
             {
@@ -2129,7 +2239,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
                 if(size != RUNTIME_SIZE)
                 {
-                    emit(func.emitter,op_type::free_slot,slot_idx(sym),size,count);
+                    emit(func.emitter,op_type::free_slot,sym.slot,size,count);
                 }
             }
 
@@ -2138,12 +2248,12 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                 const auto structure = struct_from_type(itl.struct_table,sym.type);
 
                 const u32 count = gpr_count(structure.size);
-                emit(func.emitter,op_type::free_slot,slot_idx(sym),GPR_SIZE,count);                
+                emit(func.emitter,op_type::free_slot,sym.slot,GPR_SIZE,count);                
             }
 
             else
             {
-                emit(func.emitter,op_type::free_slot,slot_idx(sym));
+                emit(func.emitter,op_type::free_slot,sym.slot);
             } 
         }
     }
@@ -2172,7 +2282,8 @@ void compile_functions(Interloper &itl)
         // put each arg into scope
         for(auto &a : func.args)
         {
-            add_scope(itl.symbol_table,itl.symbol_table.slot_lookup[a]);
+            auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,a);
+            add_scope(itl.symbol_table,sym);
         }
 
 

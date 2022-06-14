@@ -1,4 +1,3 @@
-import "mem"
 
 struct Block
 {
@@ -7,9 +6,9 @@ struct Block
 };
 
 
-func get_block(x: u32, y: u32) Block
+func get_block() Block
 {
-    block : Block = {x,y};
+    block : Block = {1,2};
     return block;
 }
 
@@ -20,6 +19,5 @@ func sum_block(block: Block) u32
 
 func main() s32
 {   
-    block : Block = get_block(1,2);
-    return sum_block(block);
+    return sum_block(get_block());
 }

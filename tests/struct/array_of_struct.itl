@@ -6,11 +6,21 @@ struct Point
 }
 
 
-// TODO: for now just check this is parsed properly
 func main() s32
 {
-    x : Point[3];
+    point : Point[3] = 
+    {
+        {5,7},
+        {8,9},
+        {12,6},
+    };
 
+    ans: u32 = 0;
 
-    return 0;
+    for i : u32 = 0; i < x.len; i += 1
+    {
+        ans += point[i].y * point[i].x;
+    }
+
+    return ans;
 }

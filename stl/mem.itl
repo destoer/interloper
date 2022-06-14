@@ -1,0 +1,12 @@
+
+
+func memcpy(dst: u8@, src: u8@, size: u32)
+{
+    // just do a simple copy for now
+    for i: u32 = 0; i < size; i += 1
+    {
+        @dst = @src;
+        dst += 1;
+        src += 1;
+    }
+}

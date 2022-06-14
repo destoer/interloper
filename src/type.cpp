@@ -41,16 +41,6 @@ bool is_struct(u32 type_idx)
     return type_idx >= BUILTIN_TYPE_SIZE;
 }
 
-bool is_struct(const Type& t)
-{
-    return is_struct(t.type_idx);
-}
-
-bool is_builtin(const Type &t)
-{
-    return is_builtin(t.type_idx);
-}
-
 
 const char *base_type_name(Interloper& itl,u32 type_idx)
 {
@@ -100,7 +90,7 @@ bool is_simple_type(const Type &type)
     return !type.degree;
 }
 
-// just a plain type, i.e has no array anywhere in its definiton
+// i.e has no array anywhere in its definiton
 bool same_simple_type(const Type &type1, const Type &type2)
 {
     return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection); 
@@ -152,6 +142,11 @@ bool is_plain(const Type &t)
     return !is_pointer(t) && !is_array(t);
 }
 
+bool is_builtin(const Type &t)
+{
+    return is_builtin(t.type_idx);
+}
+
 bool is_plain_builtin(const Type &t)
 {
     return is_builtin(t) && is_plain(t);
@@ -182,6 +177,11 @@ bool is_signed(const Type &t)
 bool is_signed_integer(const Type &t)
 {
     return is_signed(t) && is_integer(t);
+}
+
+bool is_struct(const Type& t)
+{
+    return is_struct(t.type_idx) && is_plain(t);
 }
 
 u32 builtin_size(builtin_type t)
@@ -401,6 +401,13 @@ Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
 
     }
 
+    // pointer arithmetic is fine
+    else if(is_pointer(ltype) && is_integer(rtype))
+    {
+        return ltype;
+    }
+
+
     // one or more user defined
     else
     {
@@ -558,6 +565,14 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
         }
     }
 
+    else if(is_struct(ltype) && is_struct(rtype))
+    {
+        if(!same_simple_type(ltype,rtype))
+        {
+            panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+        }
+    }
+
     // check assign by ltype
     else
     {
@@ -640,14 +655,12 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
                     }
                 }
             }
-            
-
         }
 
 
         else
         {
-            unimplemented("check assign user defined type!\n");
+            panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
         }
     }
 }

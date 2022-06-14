@@ -106,6 +106,8 @@ enum class op_type
 
     // perform cleanup after a function call
     // free the stack space for args
+    alloc_stack,
+    free_stack,
     clean_args,
 
     // branch to end of if statement chain
@@ -226,7 +228,7 @@ static constexpr u32 SYMBOL_START = 0x80000000;
 // when we actually want to define some targets
 static constexpr u32 MACHINE_REG_SIZE = 4;
 
-static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x07000000;
+static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
 
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
