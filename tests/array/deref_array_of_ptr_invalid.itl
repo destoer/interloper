@@ -2,7 +2,7 @@
 // expected compile error
 func main() s32
 {
-    u32[?] buf = {1,2,3};
+    buf : u32[?] = {1,2,3};
 
     return @buf[0];
 }

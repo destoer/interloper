@@ -77,6 +77,7 @@ void clear(SymbolTable &sym_table)
     sym_table.label_lookup.clear();
     sym_table.slot_lookup.clear();
     sym_table.sym_count = 0;
+    sym_table.var_count = 0;
 }
 
 

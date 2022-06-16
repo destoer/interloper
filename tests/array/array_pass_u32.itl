@@ -1,14 +1,14 @@
 
 
 // expected compile error
-func foo(u32[] buf)
+func foo(buf: u32[])
 {
 
 }
 
 func main() s32
 {
-    u32 x;
+    x : u32;
 
     foo(x);
 }

@@ -1549,7 +1549,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
     }
 }
 
-void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbol& array, u32 depth, u32* idx)
+void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const u32 addr_slot, Type& type, u32 depth, u32* offset)
 {
     const u32 node_len = node->nodes.size();
 
@@ -1558,40 +1558,41 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
     {
         if(node->type == ast_type::string)
         {            
-            if(array.type.degree != 1)
+            if(type.degree != 1)
             {
-                panic(itl,"%s expected single dimensional array got %d\n",array.name.c_str(),array.type.degree);
+                panic(itl,"expected single dimensional array got %d\n",type.degree);
                 return;
             }
 
             // handle auto sizing
-            if(array.type.dimensions[0] == DEDUCE_SIZE)
+            if(type.dimensions[0] == DEDUCE_SIZE)
             {
-                array.type.dimensions[0] = node->literal.size();
+                type.dimensions[0] = node->literal.size();
             }
 
-            if(array.type.dimensions[0] == RUNTIME_SIZE)
+            if(type.dimensions[0] == RUNTIME_SIZE)
             {
                 unimplemented("string vla");
             }
 
-            if(array.type.dimensions[0] < node->literal.size())
+            if(type.dimensions[0] < node->literal.size())
             {
-                panic(itl,"%s expected array of atleast size %d got %d\n",array.name.c_str(),node->literal.size(),array.type.dimensions[0]);
+                panic(itl,"expected array of atleast size %d got %d\n",node->literal.size(),type.dimensions[0]);
             }
 
-            const auto base_type = contained_arr_type(array.type);
+            const auto base_type = contained_arr_type(type);
             const auto rtype = Type(builtin_type::u8_t);
 
 
             for(u32 i = 0; i < node->literal.size(); i++)
             {
-                const auto slot = new_tmp(func);
+                const u32 slot = new_tmp(func);
                 emit(func.emitter,op_type::mov_imm,slot,node->literal[i]);
                 check_assign(itl,base_type,rtype,false,true);
 
-                emit(func.emitter,op_type::init_arr_idx,array.slot,slot,*idx);
-                *idx = *idx + 1;
+                do_ptr_store(itl,func,slot,addr_slot,rtype,*offset);
+
+                *offset = *offset + 1;
             }           
         }
 
@@ -1612,30 +1613,30 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
         }
 
         // decl has too many dimensions
-        if(depth >= array.type.degree)
+        if(depth >= type.degree)
         {
-            panic(itl,"array declaration for %s dimension exceeds type, expected: %d got %d\n",array.name.c_str(),array.type.degree,depth);
+            panic(itl,"array declaration dimension exceeds type, expected: %d got %d\n",type.degree,depth);
             return;
         }
 
         // this just gets the first node size
-        if(array.type.dimensions[depth] == DEDUCE_SIZE)
+        if(type.dimensions[depth] == DEDUCE_SIZE)
         {
-            array.type.dimensions[depth] = node_len;
+            type.dimensions[depth] = node_len;
         }
 
-        else if(array.type.dimensions[depth] == RUNTIME_SIZE)
+        else if(type.dimensions[depth] == RUNTIME_SIZE)
         {
             unimplemented("VLA assign");
         }
 
-        const u32 count = array.type.dimensions[depth];
+        const u32 count = type.dimensions[depth];
 
         // type check the actual ammount is right
         // TODO: this should allow not specifing the full ammount but for now just keep it simple
         if(count != node_len)
         {
-            panic(itl,"array %s expects %d initializers got %d\n",array.name.c_str(),count,node_len);
+            panic(itl,"array expects %d initializers got %d\n",count,node_len);
         }        
 
         // descend each sub initializer until we hit one containing values
@@ -1643,14 +1644,14 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
         if(node->nodes[i]->type == ast_type::initializer_list)
         {
             // TODO: we need a check to handle arrays of structs in here!
-            if(depth == array.type.degree - 1 && is_struct(contained_arr_type(array.type)))
+            if(depth == type.degree - 1 && is_struct(contained_arr_type(type)))
             {
                 unimplemented("struct initializer in array");
             }
 
             else
             {
-                traverse_arr_initializer(itl,func,node->nodes[i],array,depth + 1,idx);
+                traverse_arr_initializer(itl,func,node->nodes[i],addr_slot,type,depth + 1,offset);
             }
         }
 
@@ -1663,25 +1664,27 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
             if(!is_array(first_type))
             {
                 // make sure this only happens at the max "depth" 
-                if(depth != array.type.degree - 1)
+                if(depth != type.degree - 1)
                 {
-                    panic(itl,"array %s should not be initialized with values at depth %d expected %d\n",array.name.c_str(),depth,array.type.degree - 1);
+                    panic(itl,"array should not be initialized with values at depth %d expected %d\n",depth,type.degree - 1);
                     return;
                 }
 
-                const auto base_type = contained_arr_type(array.type);
+                const auto base_type = contained_arr_type(type);
+                const u32 size = type_size(itl,base_type);
+
                 check_assign(itl,base_type,first_type,false,true);
 
-                emit(func.emitter,op_type::init_arr_idx,array.slot,first_reg,*idx);
-                *idx = *idx + 1;
+                do_ptr_store(itl,func,first_reg,addr_slot,base_type,*offset);
+                *offset = *offset + size;
 
                 for(i = 1; i < node_len; i++)
                 {
                     auto [rtype,reg] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
                     check_assign(itl,base_type,rtype,false,true);
 
-                    emit(func.emitter,op_type::init_arr_idx,array.slot,reg,*idx);
-                    *idx = *idx + 1;
+                    do_ptr_store(itl,func,reg,addr_slot,base_type,*offset);
+                    *offset = *offset + size;
                 }
             }
             
@@ -1696,11 +1699,15 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,Symbo
     }
 }
 
-void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symbol& array)
+void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, const Symbol& sym)
 {
+    // this reference will get invalidated under the current setup
+    // so pull the slot
+    const u32 slot = sym.slot;
+
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    emit(func.emitter,op_type::alloc_slot,array.slot,0,0);
+    emit(func.emitter,op_type::alloc_slot,slot,0,0);
     ListNode* alloc = get_cur_end(func.emitter);
 
 
@@ -1709,14 +1716,26 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, Symb
     // rather than runtime setup
     if(line.nodes.size() == 2)
     {
+        const u32 addr_slot = new_tmp(itl,GPR_SIZE);
+
+        // we have added a new sym this ref has moved
+        Symbol &array = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+
+
+        emit(func.emitter,op_type::addrof,addr_slot,slot);
+
+
         u32 idx = 0;
-        traverse_arr_initializer(itl,func,line.nodes[1],array,0,&idx);
+        traverse_arr_initializer(itl,func,line.nodes[1],addr_slot,array.type,0,&idx);
     }
 
     if(itl.error)
     {
         return;
     }
+
+
+    const Symbol &array = sym_from_slot(itl.symbol_table.slot_lookup,slot);
 
     const auto [size,count] = arr_size(itl,array.type);
 
@@ -1785,7 +1804,6 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
 
             emit(func.emitter,op_type::addrof,addr_slot,sym.slot);
             traverse_struct_initializer(itl,func,line.nodes[1],addr_slot,structure);
-            emit(func.emitter,op_type::free_slot,sym.slot);
         }
 
         else
@@ -1825,7 +1843,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto size = type_size(itl,ltype);
 
     // add new symbol table entry
-    auto &sym = add_symbol(itl.symbol_table,name,ltype,size);
+    Symbol &sym = add_symbol(itl.symbol_table,name,ltype,size);
 
 
 

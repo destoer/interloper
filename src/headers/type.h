@@ -188,12 +188,16 @@ struct Symbol
 
     b32 referenced;
 
+/*
+    need to think where we perorm the marking for this, because it has to be done after the optimisation pass
+
     u32 uses = 0;
 
     // NOTE: this uses absolute offsets
     // but we dont really care if they are broken by insertions during reg alloc 
     // because we only want to know when usage gap is largest
     Array<u32> usage = {};
+*/
 };
 
 
