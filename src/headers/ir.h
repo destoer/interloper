@@ -196,6 +196,13 @@ struct OpInfo
 
 extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
 
+static constexpr u32 SYMBOL_NO_SLOT = 0xffffffff;
+static constexpr u32 NON_ARG = 0xffffffff;
+
+static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
+static constexpr u32 PENDING_ALLOCATION = 0xf0000000;
+
+static constexpr u32 LOCATION_MEM = 0xffffffff;
 
 
 

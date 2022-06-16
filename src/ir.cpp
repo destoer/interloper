@@ -111,9 +111,23 @@ bool is_tmp(u32 r)
     return r < REG_FREE;
 }
 
-u32 new_slot(Function &func)
+u32 new_tmp(Function &func)
 {       
     return func.emitter.reg_count++;
+}
+
+// get back a longer lived tmp
+// stored internally as a symbol
+u32 new_tmp(Interloper& itl, u32 size)
+{
+    Symbol sym = Symbol("v" + std::to_string(itl.symbol_table.var_count),Type(builtin_type::void_t),size);
+
+    sym.slot = symbol(itl.symbol_table.slot_lookup.size());
+    itl.symbol_table.slot_lookup.push_back(sym);      
+
+    itl.symbol_table.var_count++;  
+
+    return sym.slot;
 }
 
 
@@ -131,7 +145,7 @@ void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 s
     }
     const auto &func_call = itl.function_table["memcpy"];
 
-    const u32 imm_slot = new_slot(func);
+    const u32 imm_slot = new_tmp(func);
     emit(func.emitter,op_type::mov_imm,imm_slot,size);
 
     emit(func.emitter,op_type::push_arg,imm_slot);
@@ -995,7 +1009,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             // load_arr_data
             // store <slot> <hard coded offset>
 
-            const u32 arr_slot = new_slot(func);
+            const u32 arr_slot = new_tmp(func);
 
             node->opcode = Opcode(op_type::addrof,arr_slot,opcode.v[0],alloc.stack_offset);
             allocate_and_rewrite(alloc,list,node,0,slot_lookup);
