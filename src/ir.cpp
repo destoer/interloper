@@ -738,12 +738,12 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
     const u32 dst = info.type[0] == arg_type::dst_reg? opcode.v[0] : REG_FREE;
 
     // free any temp's that are "source" registers as we are done with them
-    for(u32 r = 0; r < info.args; r++)
+    for(u32 a = 0; a < info.args; a++)
     {
-        const u32 reg = opcode.v[r];
+        const u32 reg = opcode.v[a];
 
         // NOTE: the registers are allocated now so we wont be getting back the slots
-        if(info.type[r] == arg_type::src_reg && is_tmp(alloc.regs[reg]) && reg != dst)
+        if(is_reg(reg) && info.type[a] == arg_type::src_reg && is_tmp(alloc.regs[reg]) && reg != dst)
         {
             free_tmp(alloc,reg);
         }
