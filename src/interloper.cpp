@@ -20,6 +20,8 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node);
 void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtype, AstNode *node);
 
+void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
+
 
 std::string get_program_name(const std::string &filename)
 {
@@ -1643,10 +1645,18 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
         // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
         if(node->nodes[i]->type == ast_type::initializer_list)
         {
+            const auto base_type = contained_arr_type(type);
+
             // TODO: we need a check to handle arrays of structs in here!
-            if(depth == type.degree - 1 && is_struct(contained_arr_type(type)))
+            if(depth == type.degree - 1 && is_struct(base_type))
             {
-                unimplemented("struct initializer in array");
+                const u32 size = type_size(itl,base_type);
+
+                const auto structure = struct_from_type(itl.struct_table,base_type);
+
+                traverse_struct_initializer(itl,func,node->nodes[i],addr_slot,structure,*offset);
+
+                *offset = *offset + size;
             }
 
             else
@@ -1737,7 +1747,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 
     const Symbol &array = sym_from_slot(itl.symbol_table.slot_lookup,slot);
 
-    const auto [size,count] = arr_size(itl,array.type);
+    auto [size,count] = arr_size(itl,array.type);
 
     if(count == RUNTIME_SIZE)
     {
@@ -1753,13 +1763,24 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 
     else
     {
-        // we have the allocation information now complete it
-        alloc->opcode = Opcode(op_type::alloc_slot,array.slot,size,count);
+        if(size > GPR_SIZE)
+        {
+            count = gpr_count(size * count);
+
+            // we have the allocation information now complete it
+            alloc->opcode = Opcode(op_type::alloc_slot,array.slot,GPR_SIZE,count);
+        }
+
+        else
+        {
+            // we have the allocation information now complete it
+            alloc->opcode = Opcode(op_type::alloc_slot,array.slot,size,count);
+        }
     }
 }
 
 
-void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure)
+void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset)
 {
     const u32 node_len = node->nodes.size();
     const u32 member_size = structure.members.size();
@@ -1784,7 +1805,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
         const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
         check_assign(itl,member.type,rtype);
 
-        do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
+        do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
     } 
 }
 
@@ -1955,6 +1976,35 @@ std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slo
     }
 }
 
+std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 slot,Type type, const std::string& member_name)
+{
+    // auto deref pointers
+    if(type.ptr_indirection == 1)
+    {
+        type.ptr_indirection -= 1;
+    }
+
+    // get offset for struct member
+    const auto member_opt = get_member(itl.struct_table,type,member_name);
+
+    if(!member_opt)
+    {
+        panic(itl,"No such member %s for type %s\n",member_name.c_str(),type_name(itl,type).c_str());
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+    }
+
+    const auto member = member_opt.value();
+
+
+    // TODO: ideally we would fold all this offseting but just do it naively for now
+
+    // emit the add operation
+    const u32 addr_slot = new_tmp(func);
+    emit(func.emitter,op_type::add_imm,addr_slot,slot,member.offset);
+
+    return std::pair<Type,u32>{member.type,addr_slot};    
+}
+
 
 // TODO: make sure this offset calc is optimised
 std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
@@ -1979,7 +2029,7 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
 
                 else
                 {
-                    unimplemented("member pointer access");
+                    return access_struct_member(itl,func,slot,type,member_name);
                 }
                 
             }
@@ -1992,25 +2042,7 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
             // actual struct member
             else
             {
-                // get offset for struct member
-                const auto member_opt = get_member(itl.struct_table,type,member_name);
-
-                if(!member_opt)
-                {
-                    panic(itl,"No such member %s for type %s\n",member_name.c_str(),type_name(itl,type).c_str());
-                    return std::pair<Type,u32>{Type(builtin_type::void_t),0};
-                }
-
-                const auto member = member_opt.value();
-
-
-                // TODO: ideally we would fold all this offseting but just do it naively for now
-
-                // emit the add operation
-                const u32 addr_slot = new_tmp(func);
-                emit(func.emitter,op_type::add_imm,addr_slot,slot,member.offset);
-
-                return std::pair<Type,u32>{member.type,addr_slot};
+                return access_struct_member(itl,func,slot,type,member_name);
             }
         }
 
@@ -2250,11 +2282,22 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
         {
             if(is_array(sym.type))
             {
-                const auto [size,count] = arr_size(itl,sym.type);
+                auto [size,count] = arr_size(itl,sym.type);
+
+
 
                 if(size != RUNTIME_SIZE)
                 {
-                    emit(func.emitter,op_type::free_slot,sym.slot,size,count);
+                    if(size > GPR_SIZE)
+                    {
+                        count = gpr_count(size * size);
+                        emit(func.emitter,op_type::free_slot,sym.slot,GPR_SIZE,count);
+                    }
+
+                    else
+                    {
+                        emit(func.emitter,op_type::free_slot,sym.slot,size,count);
+                    }
                 }
             }
 
