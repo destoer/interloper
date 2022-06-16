@@ -157,14 +157,6 @@ Struct struct_from_type(StructTable& struct_table, const Type& type);
 static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
 
 
-static constexpr u32 SYMBOL_NO_SLOT = 0xffffffff;
-static constexpr u32 NON_ARG = 0xffffffff;
-
-static constexpr u32 UNALLOCATED_OFFSET = 0xffffffff;
-static constexpr u32 PENDING_ALLOCATION = 0xf0000000;
-
-static constexpr u32 LOCATION_MEM = 0xffffffff;
-
 struct Symbol
 {
     Symbol() {}
@@ -195,6 +187,17 @@ struct Symbol
     u32 location;
 
     b32 referenced;
+
+/*
+    need to think where we perorm the marking for this, because it has to be done after the optimisation pass
+
+    u32 uses = 0;
+
+    // NOTE: this uses absolute offsets
+    // but we dont really care if they are broken by insertions during reg alloc 
+    // because we only want to know when usage gap is largest
+    Array<u32> usage = {};
+*/
 };
 
 
@@ -256,4 +259,6 @@ struct SymbolTable
     LabelLookup label_lookup;
 
     u32 sym_count = 0;
+
+    u32 var_count = 0;
 };

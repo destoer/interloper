@@ -15,6 +15,12 @@ void push_var(Array<T> &arr,Y v)
     arr.size += sizeof(v);
 }
 
+template<typename T>
+u32 count(Array<T> arr)
+{
+    return arr.size / sizeof(T);
+}
+
 // TODO: allow custom allocation for this
 
 // make sure there is enough left for the allocation we are doing

@@ -111,9 +111,23 @@ bool is_tmp(u32 r)
     return r < REG_FREE;
 }
 
-u32 new_slot(Function &func)
+u32 new_tmp(Function &func)
 {       
     return func.emitter.reg_count++;
+}
+
+// get back a longer lived tmp
+// stored internally as a symbol
+u32 new_tmp(Interloper& itl, u32 size)
+{
+    Symbol sym = Symbol("v" + std::to_string(itl.symbol_table.var_count),Type(builtin_type::void_t),size);
+
+    sym.slot = symbol(itl.symbol_table.slot_lookup.size());
+    itl.symbol_table.slot_lookup.push_back(sym);      
+
+    itl.symbol_table.var_count++;  
+
+    return sym.slot;
 }
 
 
@@ -131,7 +145,7 @@ void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 s
     }
     const auto &func_call = itl.function_table["memcpy"];
 
-    const u32 imm_slot = new_slot(func);
+    const u32 imm_slot = new_tmp(func);
     emit(func.emitter,op_type::mov_imm,imm_slot,size);
 
     emit(func.emitter,op_type::push_arg,imm_slot);
@@ -649,7 +663,7 @@ void rewrite_reg_internal(SlotLookup& slot_lookup,LocalAlloc& alloc,Opcode &opco
 
     if(is_sym(slot))
     {
-        const auto sym = sym_from_slot(slot_lookup,slot);
+        const auto& sym = sym_from_slot(slot_lookup,slot);
 
         opcode.v[reg] = sym.location;
     }
@@ -724,12 +738,12 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
     const u32 dst = info.type[0] == arg_type::dst_reg? opcode.v[0] : REG_FREE;
 
     // free any temp's that are "source" registers as we are done with them
-    for(u32 r = 0; r < info.args; r++)
+    for(u32 a = 0; a < info.args; a++)
     {
-        const u32 reg = opcode.v[r];
+        const u32 reg = opcode.v[a];
 
         // NOTE: the registers are allocated now so we wont be getting back the slots
-        if(info.type[r] == arg_type::src_reg && is_tmp(alloc.regs[reg]) && reg != dst)
+        if(is_reg(reg) && info.type[a] == arg_type::src_reg && is_tmp(alloc.regs[reg]) && reg != dst)
         {
             free_tmp(alloc,reg);
         }
@@ -954,12 +968,24 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             // specified size
             if(opcode.v[2])
             {
+                if(alloc.print_stack_allocation)
+                {
+                    printf("reclaiming stack space %s : (%d , %d)\n",sym.name.c_str(),opcode.v[1],opcode.v[2]);
+                }
+
                 alloc.size_count[opcode.v[1] >> 1] -= opcode.v[2];
             }
 
             // this var is done so we can reclaim the stack space
+            // TODO: this wont work if these go out of order due to tmp's
+            // for now we simply dont free them
             else if(sym.offset >= PENDING_ALLOCATION)
             {
+                if(alloc.print_stack_allocation)
+                {
+                    printf("reclaiming stack space %s : %d\n",sym.name.c_str(),sym.size);
+                }                
+
                 alloc.size_count[sym.size >> 1] -= 1;
             }
 
@@ -984,35 +1010,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             break;
         }
 
-        // TODO: assumes fixed size array
-        case op_type::init_arr_idx:
-        {
-            // init_arr_idx <arr> <slot> <index>
-            const auto &arr = sym_from_slot(slot_lookup,opcode.v[0]);
-            const u32 index = opcode.v[2];
-            const u32 var_slot = opcode.v[1];
 
-            // load_arr_data
-            // store <slot> <hard coded offset>
-
-            const u32 arr_slot = new_slot(func);
-
-            node->opcode = Opcode(op_type::addrof,arr_slot,opcode.v[0],alloc.stack_offset);
-            allocate_and_rewrite(alloc,list,node,0,slot_lookup);
-            
-
-            
-            // calc the offset we will use for the store
-            auto accessed_type = contained_arr_type(arr.type);
-            const auto size = type_size(itl,accessed_type);            
-
-            // as the index is an immdediate we can jsut calc this ahead of time
-            const u32 offset = index * size;
-
-            const auto opcode = store_ptr(var_slot,arr_slot,size,offset);
-
-            return insert_after(list,node,opcode);
-        } 
 
         case op_type::load_arr_data:
         {
@@ -1322,6 +1320,9 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
 void allocate_registers(Interloper& itl,Function &func)
 {
     auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation);
+
+    // figure out how long each sym lives
+    // mark_lifetimes(itl,func);
 
     if(alloc.print_reg_allocation)
     {

@@ -3,9 +3,9 @@
 
 func main() s32
 {
-    u32 vla;
+    vla : u32;
 
-    u32[3] buf = {1,2,3};
+    buf : u32[3] = {1,2,3};
 
     buf = vla;
 
