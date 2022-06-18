@@ -2007,6 +2007,7 @@ std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 sl
 
 
 // TODO: make sure this offset calc is optimised
+// TODO: this calc is scuffed for nested structs
 std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
     switch(node->type)

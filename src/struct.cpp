@@ -93,6 +93,7 @@ void parse_struct_declarations(Interloper& itl)
             member.type = get_type(itl,m->nodes[0]);
 
             // TODO: we dont handle the type being another struct here
+            // prevent struct collpasing into a black hole
 
             const u32 size = type_size(itl,member.type);
 
@@ -102,7 +103,9 @@ void parse_struct_declarations(Interloper& itl)
             // translate larger items, into several allocations on the final section
             if(size > GPR_SIZE)
             {
-                unimplemented("large size");
+                member.offset = size_count[GPR_SIZE >> 1];
+
+                size_count[GPR_SIZE >> 1] += gpr_count(size);
             }
 
             else

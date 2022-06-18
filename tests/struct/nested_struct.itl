@@ -1,3 +1,5 @@
+import "mem"
+
 
 struct Vec
 {
@@ -15,11 +17,20 @@ struct Player
 
 func make_player() Player
 {
+/*
     player : Player = 
     {
         {0,0},
         {4,5},
     };
+*/
+    player : Player;
+
+    player.pos.x = 0;
+    player.pos.y = 0;
+
+    player.vel.x = 4;
+    player.vel.y = 5;
 
     return player;
 } 
