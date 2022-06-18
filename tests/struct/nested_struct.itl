@@ -1,0 +1,38 @@
+
+struct Vec
+{
+    x : u32;
+    y : u32;
+}
+
+// TODO: for now just have them in order
+// so we dont require blocking
+struct Player
+{
+    pos : Vec;
+    vel : Vec;
+}
+
+func make_player() Player
+{
+    player : Player = 
+    {
+        {0,0},
+        {4,5},
+    };
+
+    return player;
+} 
+
+func update(player : Player@)
+{
+    player.pos.x += player.vel.x;
+    player.pos.y += player.vel.y;
+}
+
+func main() s32
+{
+    player : Player = make_player();
+
+    return player.pos.x * player.vel.y;
+}
