@@ -204,8 +204,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     return nullptr;
 }
 
-// TODO: this assumes this is one member deep
-// and wont work for more complicated expressions but just do it simple for now
+
 AstNode *member_access(Parser &parser, AstNode* expr_node)
 {
     // skip dot token
@@ -216,16 +215,37 @@ AstNode *member_access(Parser &parser, AstNode* expr_node)
         return nullptr;
     }
 
-
     // This has to be vague because we dont know any of the typing yet
-    auto access_member = ast_literal(ast_type::access_member, member_tok.literal);
-    access_member->nodes.push_back(expr_node);
+    AstNode* access_member = ast_literal(ast_type::access_member, member_tok.literal);
+
 
     // correct the state machine
     parser.expr_tok = next_token_expr(parser);
 
-    return access_member;    
+
+    // add expr node only to the inital member i.e (make it the bottom node)
+    // TODO: can we do better than this?
+    if(expr_node)
+    {
+        access_member->nodes.push_back(expr_node);
+        expr_node = nullptr;
+    }
+
+
+    if(parser.expr_tok.type == token_type::dot)
+    {
+        // index later nodes before we push any so that it later processed depth first
+        // i.e left most is at the bottom of the tree
+        AstNode* next = member_access(parser,expr_node);
+
+        next->nodes.push_back(access_member);
+
+        return next;
+    }
+
+    return access_member;
 }
+
 
 // unary operators
 AstNode *nud(Parser &parser,Token &t)
