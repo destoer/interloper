@@ -145,7 +145,9 @@ void parse_struct_declarations(Interloper& itl)
         for(auto &member : structure.members)
         {
             const u32 zone_offset = member.offset;
-            const u32 size = type_size(itl,member.type);
+            
+            u32 size = type_size(itl,member.type);
+            size = size > GPR_SIZE? GPR_SIZE : size;
 
             member.offset = alloc_start[size >> 1] + (zone_offset * size);
         }

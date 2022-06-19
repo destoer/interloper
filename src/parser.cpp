@@ -958,7 +958,7 @@ void print(const AstNode *root)
         return;
     }
 
-    if(root->type == ast_type::function)
+    if(root->type == ast_type::function || root->type == ast_type::struct_t)
     {
         printf("\n\n\n");
     }

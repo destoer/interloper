@@ -1978,7 +1978,7 @@ std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slo
 
 std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 slot,Type type, const std::string& member_name)
 {
-    // auto deref pointers
+    // auto deref pointer
     if(type.ptr_indirection == 1)
     {
         type.ptr_indirection -= 1;
