@@ -1803,7 +1803,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
                 unimplemented("struct array sub");
             }
 
-            else if(is_struct(member.type) && !is_pointer(member.type))
+            else if(is_struct(member.type))
             {
                 const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
                 traverse_struct_initializer(itl,func,node->nodes[i],addr_slot,sub_struct,offset + member.offset);
@@ -1816,6 +1816,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
             }
         }
 
+        // we have a list of plain values we can actually initialize
         else
         {
             // get the operand and type check it
@@ -1996,7 +1997,7 @@ std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slo
 
 std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 slot,Type type, const std::string& member_name)
 {
-    // auto deref pointer
+    // auto deref pointer (this wont work for pointers in the struct)
     if(type.ptr_indirection == 1)
     {
         type.ptr_indirection -= 1;

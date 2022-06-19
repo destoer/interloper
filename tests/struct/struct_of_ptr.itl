@@ -1,0 +1,33 @@
+
+struct Bar
+{
+    x : u32;
+    y : u32;
+}
+
+struct Foo
+{
+    ptr : Bar@;
+}
+
+
+struct Box
+{
+    ptr : u32@;
+}
+
+func main() s32
+{
+    // test modifation by struct ptr
+    bar : Bar = {2,5};
+    foo : Foo = {&bar};
+
+    foo.ptr.y = 7;
+
+/*
+    // test just as a pointer still works
+    x : u32 = 11;
+    v : Box = {&x};
+*/
+    return bar.y * bar.x /** @v.ptr*/;
+}
