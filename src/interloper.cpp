@@ -2409,7 +2409,6 @@ void compile_functions(Interloper &itl)
 // -> source line information on parse tree (impl assert)
 // NOTE: we should mark the top level decl with what file its from
 
-// -> make diagnostic information require command line flags
 // -> move ast to arena allocation (not urgent)
 // -> impl own Array, String, and HashMap structs (not urgent)
 // -> move tokenizer over to batching (not urgent)
@@ -2419,13 +2418,13 @@ void compile_functions(Interloper &itl)
 // -> impl a a smarter register allocator rather than just blindly spilling things
 // -> handle block args inside the reg allocator
 
-// -> dont include functions from parsing we dont actually use (how?)
 
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-// structs -> default_values -> tuples ->  global const's 
-// -> switch -> enum -> -> function_pointers
+// structs -> default_values -> tuples ->  
+// -> make imports not include uneeded funcs -> global const's 
+// -> switch -> enum -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> debugg memory guards -> ...
 
