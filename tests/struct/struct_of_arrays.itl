@@ -1,0 +1,35 @@
+
+
+struct Tri
+{
+    pos : Vec3[3];
+};
+
+struct Vec2
+{
+    x : s32;
+    y : s32;
+};
+
+
+func area(tri: Tri@) s32
+{
+    return 
+    (
+        (tri.pos[0].x * (tri.pos[1].y - tri.pos[2].y)) + 
+        (tri.pos[1].x * (tri.pos[2].y - tri.pos[0].y)) + 
+        (tri.pos[2].x * (tri.pos[0].y - tri.pos[1].y))
+    ) / 2;
+}
+
+func main() s32
+{
+    tri : Tri = 
+    {
+        {-3,5},
+        {-7,-5},
+        {3,6},
+    };
+
+    return area(tri);
+}
