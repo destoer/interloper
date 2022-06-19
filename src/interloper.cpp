@@ -1798,14 +1798,32 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
         // either sub struct OR array member initializer
         if(node->nodes[i]->type == ast_type::initializer_list)
         {
-            unimplemented("nested struct initializer");
-        }
-        
-        // get the operand and type check it
-        const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
-        check_assign(itl,member.type,rtype);
+            if(is_array(member.type))
+            {
+                unimplemented("struct array sub");
+            }
 
-        do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
+            else if(is_struct(member.type) && !is_pointer(member.type))
+            {
+                const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
+                traverse_struct_initializer(itl,func,node->nodes[i],addr_slot,sub_struct,offset + member.offset);
+            }
+
+            else
+            {
+                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.c_str(),type_name(itl,member.type).c_str());
+                return;
+            }
+        }
+
+        else
+        {
+            // get the operand and type check it
+            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
+            check_assign(itl,member.type,rtype);
+
+            do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
+        }
     } 
 }
 

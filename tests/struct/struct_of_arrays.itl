@@ -1,8 +1,10 @@
 
 
+// expected 28
+
 struct Tri
 {
-    pos : Vec3[3];
+    pos : Vec2[3];
 };
 
 struct Vec2
@@ -31,5 +33,5 @@ func main() s32
         {3,6},
     };
 
-    return area(tri);
+    return area(&tri);
 }
