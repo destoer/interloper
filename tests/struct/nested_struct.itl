@@ -45,5 +45,7 @@ func main() s32
 {
     player : Player = make_player();
 
-    return player.pos.x * player.vel.y;
+    update(&player);
+
+    return player.pos.x * player.pos.y;
 }
