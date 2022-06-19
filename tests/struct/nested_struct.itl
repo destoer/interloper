@@ -1,19 +1,18 @@
 import "mem"
 
 
+struct Player
+{
+    pos : Vec;
+    vel : Vec;
+}
+
 struct Vec
 {
     x : u32;
     y : u32;
 }
 
-// TODO: for now just have them in order
-// so we dont require blocking
-struct Player
-{
-    pos : Vec;
-    vel : Vec;
-}
 
 func make_player() Player
 {

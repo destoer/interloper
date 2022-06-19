@@ -75,110 +75,131 @@ std::optional<Member> get_member(StructTable& struct_table, const Type& type, co
     return std::optional<Member>(member);
 }
 
-void parse_struct_declarations(Interloper& itl)
+bool struct_exists(StructTable& struct_table, const std::string& name)
 {
-    for(const auto n : itl.struct_root->nodes)
+    return struct_table.table.count(name);
+}
+
+void parse_struct_decl(Interloper& itl, AstNode* node)
+{
+    if(struct_exists(itl.struct_table,node->literal))
     {
-        if(itl.struct_table.table.count(n->literal))
+        panic(itl,"redeclaration of struct: %s\n",node->literal.c_str());
+        return;
+    }
+
+    Struct structure;
+
+    structure.name = node->literal;
+
+    // we want to get how many sizes of each we have
+    // and then we can go back through and align the struct...
+
+    u32 size_count[3] = {0};
+
+    // TODO: need a vec with the original ordering
+    // and the map to point into it, to impl struct initializers
+
+    // parse out members
+    for(AstNode* m : node->nodes)
+    {
+        Member member;
+        member.name = m->literal;
+
+        AstNode* type_decl = m->nodes[0];
+
+        if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->literal))
         {
-            panic(itl,"redeclaration of struct: %s\n",n->literal.c_str());
+            // need to block until we get a decl,
+            // or we can try scan for it, im not sure which is better
+            unimplemented("out of order struct decl");
+        }
+
+        member.type = get_type(itl,m->nodes[0]);
+
+        // TODO: we dont handle the type being another struct here
+        // prevent struct collpasing into a black hole
+
+        const u32 size = type_size(itl,member.type);
+
+
+        // TODO: handle fixed sized arrays
+
+        // translate larger items, into several allocations on the final section
+        if(size > GPR_SIZE)
+        {
+            member.offset = size_count[GPR_SIZE >> 1];
+
+            size_count[GPR_SIZE >> 1] += gpr_count(size);
+        }
+
+        else
+        {
+            // cache the offset into its section
+            member.offset = size_count[size >> 1];
+
+            size_count[size >> 1] += 1;
+        }
+
+        const u32 loc = structure.members.size();
+
+        if(structure.member_map.count(member.name))
+        {
+            panic(itl,"%s : member %s redeclared\n",structure.name.c_str(),member.name.c_str());
             return;
         }
 
-        Struct structure;
 
-        structure.name = n->literal;
+        structure.member_map[member.name] = loc;
 
-        // we want to get how many sizes of each we have
-        // and then we can go back through and align the struct...
+        structure.members.push_back(member);
+    }
 
-        u32 size_count[3] = {0};
+    // TODO: handle not reordering the struct upon request
 
-        // TODO: need a vec with the original ordering
-        // and the map to point into it, to impl struct initializers
+    // handle alginment & get starting zonnes + total size
+    u32 alloc_start[3];
 
-        // parse out members
-        for(const auto m : n->nodes)
-        {
-            Member member;
-            member.name = m->literal;
-            member.type = get_type(itl,m->nodes[0]);
+    // bytes just start at offset zero (and being bytes dont need aligment)
+    alloc_start[0] = 0;
 
-            // TODO: we dont handle the type being another struct here
-            // prevent struct collpasing into a black hole
+    // get u16 start pos and align it on its own boudary
+    alloc_start[1] = size_count[0] * sizeof(u8);
+    align(alloc_start,sizeof(u16));
 
-            const u32 size = type_size(itl,member.type);
+    // get u32 start pos and align it on its own boudary
+    alloc_start[2] = alloc_start[1] + (size_count[1] * sizeof(u16));
+    align(alloc_start,sizeof(u32));
 
 
-            // TODO: handle fixed sized arrays
+    // iter back over every member and give its offset
+    for(auto &member : structure.members)
+    {
+        const u32 zone_offset = member.offset;
 
-            // translate larger items, into several allocations on the final section
-            if(size > GPR_SIZE)
-            {
-                member.offset = size_count[GPR_SIZE >> 1];
+        u32 size = type_size(itl,member.type);
+        size = size > GPR_SIZE? GPR_SIZE : size;
 
-                size_count[GPR_SIZE >> 1] += gpr_count(size);
-            }
+        member.offset = alloc_start[size >> 1] + (zone_offset * size);
+    }
 
-            else
-            {
-                // cache the offset into its section
-                member.offset = size_count[size >> 1];
+    // get the total structure size
+    structure.size = alloc_start[2] + (size_count[2] * sizeof(u32));
 
-                size_count[size >> 1] += 1;
-            }
-
-            const u32 loc = structure.members.size();
-
-            if(structure.member_map.count(member.name))
-            {
-                panic(itl,"%s : member %s redeclared\n",structure.name.c_str(),member.name.c_str());
-                return;
-            }
+    if(itl.print_types)
+    {
+        print_struct(itl,structure);
+    }
 
 
-            structure.member_map[member.name] = loc;
+    add_struct(itl.struct_table,structure);
 
-            structure.members.push_back(member);
-        }
+}
 
-        // TODO: handle not reordering the struct upon request
-
-        // handle alginment & get starting zonnes + total size
-        u32 alloc_start[3];
-
-        // bytes just start at offset zero (and being bytes dont need aligment)
-        alloc_start[0] = 0;
-
-        // get u16 start pos and align it on its own boudary
-        alloc_start[1] = size_count[0] * sizeof(u8);
-        align(alloc_start,sizeof(u16));
-
-        // get u32 start pos and align it on its own boudary
-        alloc_start[2] = alloc_start[1] + (size_count[1] * sizeof(u16));
-        align(alloc_start,sizeof(u32));
-
-
-        // iter back over every member and give its offset
-        for(auto &member : structure.members)
-        {
-            const u32 zone_offset = member.offset;
-
-            u32 size = type_size(itl,member.type);
-            size = size > GPR_SIZE? GPR_SIZE : size;
-
-            member.offset = alloc_start[size >> 1] + (zone_offset * size);
-        }
-
-        // get the total structure size
-        structure.size = alloc_start[2] + (size_count[2] * sizeof(u32));
-
-        if(itl.print_types)
-        {
-            print_struct(itl,structure);
-        }
-
-
-        add_struct(itl.struct_table,structure);
+void parse_struct_declarations(Interloper& itl)
+{
+    for(AstNode* n : itl.struct_root->nodes)
+    {
+        parse_struct_decl(itl,n);
     }
 }
