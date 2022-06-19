@@ -114,6 +114,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/point",2,false},
     {"tests/struct/array_of_struct",179,false},
     {"tests/struct/struct_of_arrays",28,false},
+    {"tests/struct/struct_redeclare",-1,true},
+    {"tests/struct/struct_member_redeclare",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

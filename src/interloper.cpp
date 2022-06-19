@@ -2444,6 +2444,7 @@ void destroy_itl(Interloper &itl)
 {
     destroy(itl.program);
     destroy(itl.const_pool);
+    destory(itl.struct_table);
     clear(itl.symbol_table);
     itl.function_table.clear();
 

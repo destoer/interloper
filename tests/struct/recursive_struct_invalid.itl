@@ -1,0 +1,21 @@
+// expected compile error 
+
+struct Box
+{
+    Foo : foo;
+}
+
+struct Bar
+{
+    Box : box;
+}
+
+struct Foo
+{
+    bar : Bar;
+}
+
+func main() s32
+{
+    return 0;
+}

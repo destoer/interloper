@@ -16,6 +16,8 @@ struct Box
     ptr : u32@;
 }
 
+// TODO: this gets a nice ol crash
+
 func main() s32
 {
     // test modifation by struct ptr

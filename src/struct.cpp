@@ -25,6 +25,12 @@ void add_struct(StructTable& struct_table, Struct& structure)
 }
 
 
+void destory(StructTable& struct_table)
+{
+    struct_table.lookup.clear();
+    struct_table.table.clear();
+}
+
 Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
 {
     // conv to slot
@@ -73,6 +79,12 @@ void parse_struct_declarations(Interloper& itl)
 {
     for(const auto n : itl.struct_root->nodes)
     {
+        if(itl.struct_table.table.count(n->literal))
+        {
+            panic(itl,"redeclaration of struct: %s\n",n->literal.c_str());
+            return;
+        }
+
         Struct structure;
 
         structure.name = n->literal;
@@ -118,7 +130,13 @@ void parse_struct_declarations(Interloper& itl)
 
             const u32 loc = structure.members.size();
 
-            // TODO: handle redefinitions
+            if(structure.member_map.count(member.name))
+            {
+                panic(itl,"%s : member %s redeclared\n",structure.name.c_str(),member.name.c_str());
+                return;
+            }
+
+
             structure.member_map[member.name] = loc;
 
             structure.members.push_back(member);
@@ -145,7 +163,7 @@ void parse_struct_declarations(Interloper& itl)
         for(auto &member : structure.members)
         {
             const u32 zone_offset = member.offset;
-            
+
             u32 size = type_size(itl,member.type);
             size = size > GPR_SIZE? GPR_SIZE : size;
 

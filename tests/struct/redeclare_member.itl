@@ -1,0 +1,13 @@
+
+// expected compile error
+
+struct Point 
+{
+    x : u32;
+    x : u32;
+}
+
+func main() s32 
+{
+    return 0;
+}
