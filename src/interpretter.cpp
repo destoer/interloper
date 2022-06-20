@@ -544,6 +544,15 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
             panic("attempted to execute out of bounds: %x : %x\n",regs[PC],interpretter.program.size);
         }
 
+        if((regs[PC] % sizeof(Opcode)) != 0)
+        {
+            const auto opcode = read_var<Opcode>(interpretter.program,regs[PC]);
+            disass_opcode_raw(opcode);
+            
+            print_regs(interpretter);
+            panic("attempted to execute mid instr: %x : %x\n",regs[PC],interpretter.program.size);            
+        }
+
         const auto opcode = read_var<Opcode>(interpretter.program,regs[PC]);
 
     #if 0
