@@ -2,12 +2,12 @@
 
 struct Box
 {
-    Foo : foo;
+    foo : Foo;
 }
 
 struct Bar
 {
-    Box : box;
+    box : Box;
 }
 
 struct Foo

@@ -19,7 +19,8 @@ struct Interloper
 
     // top level decl tree's
     AstNode *func_root = nullptr;
-    AstNode *struct_root = nullptr;
+
+    StructDefMap struct_def;
 
     AstNode *cur_line = nullptr;
 

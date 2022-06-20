@@ -2431,11 +2431,21 @@ void compile_functions(Interloper &itl)
 
 void destory_ast(Interloper& itl)
 {
+    // delete function def
     delete_tree(itl.func_root); 
     itl.func_root = nullptr;
-    
-    delete_tree(itl.struct_root);
-    itl.struct_root = nullptr;
+
+    // delete all the struct defintions
+    for(auto &[key,def] : itl.struct_def)
+    {
+        UNUSED(key);
+
+        delete_tree(def.root);
+        def.root = nullptr;
+    }
+
+    itl.struct_def.clear();
+
     
     itl.cur_line = nullptr;    
 }
@@ -2466,7 +2476,6 @@ void compile(Interloper &itl,const std::string& initial_filename)
     // parse intial input file
     {
         itl.func_root = ast_plain(ast_type::root);
-        itl.struct_root = ast_plain(ast_type::root);
 
         // build ast
         const b32 parser_error = parse(itl,initial_filename);
@@ -2482,7 +2491,13 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     if(itl.print_ast)
     {
-        print(itl.struct_root);
+        // print all struct defs
+        for(auto &[key,def] : itl.struct_def)
+        {
+            print(def.root);
+        }
+       
+        // print function defs
         print(itl.func_root);
     }
 
@@ -2493,6 +2508,7 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     if(itl.error)
     {
+        destroy_itl(itl);
         return;
     }
 

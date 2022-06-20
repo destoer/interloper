@@ -140,6 +140,24 @@ struct Struct
     u32 type_idx = 0;
 };
 
+enum class struct_state 
+{
+    not_checked,
+    checking,
+    checked,
+};
+
+struct AstNode;
+
+struct StructDef
+{
+    struct_state state;
+    AstNode* root;
+};
+
+using StructDefMap = std::map<std::string,StructDef>;
+
+
 
 using StructLookup = std::vector<Struct>;
 

@@ -80,6 +80,18 @@ bool struct_exists(StructTable& struct_table, const std::string& name)
     return struct_table.table.count(name);
 }
 
+void parse_struct_decl(Interloper& itl, AstNode* node);
+
+void parse_def(Interloper& itl, StructDef& def)
+{
+    // mark struct as being parsed so we can check for recursion
+    def.state = struct_state::checking;
+    parse_struct_decl(itl,def.root);
+
+    // mark as checked so thatt we know we dont have to recheck the decl
+    def.state = struct_state::checked;
+}
+
 void parse_struct_decl(Interloper& itl, AstNode* node)
 {
     if(struct_exists(itl.struct_table,node->literal))
@@ -108,11 +120,33 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
 
         AstNode* type_decl = m->nodes[0];
 
+        // member is struct that has nott had its defintion parsed yet
         if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->literal))
         {
-            // need to block until we get a decl,
-            // or we can try scan for it, im not sure which is better
-            unimplemented("out of order struct decl");
+            // no such definiton exists
+            if(!itl.struct_def.count(type_decl->literal))
+            {
+                panic(itl,"%s : member type %s is not defined\n",structure.name.c_str(),type_decl->literal.c_str());
+                return;
+            }
+
+            StructDef& def = itl.struct_def[type_decl->literal];
+
+            // if we attempt to check a partial defintion twice that the definitioon is recursive
+            if(def.state == struct_state::checking)
+            {
+                // TODO: relax this checking to allow indirections to the struct to be used 
+                panic(itl,"%s : is recursively defined via %s\n",structure.name.c_str(),type_decl->literal.c_str());
+                return;
+            }
+
+
+            parse_def(itl,def);
+
+            if(itl.error)
+            {
+                return;
+            }
         }
 
         member.type = get_type(itl,m->nodes[0]);
@@ -198,8 +232,13 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
 
 void parse_struct_declarations(Interloper& itl)
 {
-    for(AstNode* n : itl.struct_root->nodes)
+    for(auto &[key,def] : itl.struct_def)
     {
-        parse_struct_decl(itl,n);
+        UNUSED(key);
+
+        if(def.state == struct_state::not_checked)
+        {
+            parse_def(itl,def);
+        }
     }
 }
