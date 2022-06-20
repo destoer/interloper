@@ -117,6 +117,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/redeclare_member",-1,true},
     {"tests/struct/nested_struct",20,false},
     {"tests/struct/recursive_struct_invalid",-1,true},
+    {"tests/struct/struct_of_ptr",154,false},
     //{"tests/struct/struct_of_arrays",28,false},
 };
 

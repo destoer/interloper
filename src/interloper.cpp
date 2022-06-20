@@ -1112,6 +1112,23 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
             }
         }
 
+        case ast_type::access_member:
+        {
+            if(addrof)
+            {
+                unimplemented("struct member addrof");
+            }
+
+            // deref on struct member that is a ptr
+            else
+            {
+                auto [type,ptr_slot] = read_struct(itl,func,new_tmp(func),node);
+                type.ptr_indirection -= 1;
+
+                return std::pair<Type,u32>{type,ptr_slot};
+            }
+        }
+
         default:
         {
             print(node);
@@ -2000,9 +2017,16 @@ std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slo
 
 std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 slot,Type type, const std::string& member_name)
 {
-    // auto deref pointer (this wont work for pointers in the struct)
+    // auto deref pointer
     if(type.ptr_indirection == 1)
     {
+        const u32 ptr_slot = slot;
+
+        slot = new_tmp(func);
+
+        do_ptr_load(itl,func,slot,ptr_slot,type);
+
+        // now we are back to a straight pointer
         type.ptr_indirection -= 1;
     }
 
@@ -2101,7 +2125,12 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
 
         case ast_type::array_access:
         {
-            return index_arr(itl,func,node,new_tmp(func));
+            auto [type, addr_slot] = index_arr(itl,func,node,new_tmp(func));
+
+            // we return types in here as the accessed type
+            type.ptr_indirection -= 1;
+
+            return std::pair<Type,u32>{type,addr_slot};
         }
 
 
@@ -2122,8 +2151,6 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
     do_ptr_store(itl,func,src_slot,ptr_slot,accessed_type);
 }
 
-// TODO: for  fixed arrays we probably want to specialise a fake slot for returning out a fixed size length / data
-// and we probably just want something that says to free an IR slot and rely on the optimisier for removing the jank IR
 std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
 {
     const auto [accessed_type, ptr_slot] = compute_member_addr(itl,func,node);

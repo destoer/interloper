@@ -16,7 +16,7 @@ struct Box
     ptr : u32@;
 }
 
-// TODO: this gets a nice ol crash
+// expected 154
 
 func main() s32
 {
@@ -26,10 +26,10 @@ func main() s32
 
     foo.ptr.y = 7;
 
-/*
+
     // test just as a pointer still works
     x : u32 = 11;
     v : Box = {&x};
-*/
-    return bar.y * bar.x /** @v.ptr*/;
+
+    return bar.y * bar.x * @v.ptr;
 }
