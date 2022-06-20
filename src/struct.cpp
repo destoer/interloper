@@ -94,12 +94,6 @@ void parse_def(Interloper& itl, StructDef& def)
 
 void parse_struct_decl(Interloper& itl, AstNode* node)
 {
-    if(struct_exists(itl.struct_table,node->literal))
-    {
-        panic(itl,"redeclaration of struct: %s\n",node->literal.c_str());
-        return;
-    }
-
     Struct structure;
 
     structure.name = node->literal;

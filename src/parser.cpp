@@ -797,13 +797,19 @@ AstNode *func(Parser &parser)
     return f;
 }
 
-void struct_decl(StructDefMap& struct_def,Parser& parser)
+void struct_decl(Interloper& itl,Parser& parser)
 {
     const auto name = next_token(parser);
 
     if(name.type != token_type::symbol)
     {
         panic(parser,name,"expected name after struct decl got %s\n",tok_name(name.type));
+        return;
+    }
+
+    if(itl.struct_def.count(name.literal))
+    {
+        panic(itl,"struct %s redeclared\n",name.literal.c_str());
         return;
     }
 
@@ -835,7 +841,7 @@ void struct_decl(StructDefMap& struct_def,Parser& parser)
     // TODO: we now should check redefiniton here?
     StructDef definition = {struct_state::not_checked,struct_node};
 
-    struct_def[name.literal] = definition;
+    itl.struct_def[name.literal] = definition;
 }
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 100 * 1024;
@@ -932,7 +938,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
                 case token_type::struct_t:
                 {
 
-                    struct_decl(itl.struct_def,parser);
+                    struct_decl(itl,parser);
                     break;
                 }
 

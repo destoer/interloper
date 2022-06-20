@@ -113,11 +113,11 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/return_struct",3,false},
     {"tests/struct/point",2,false},
     {"tests/struct/array_of_struct",179,false},
-    {"tests/struct/struct_of_arrays",28,false},
-    {"tests/struct/struct_redeclare",-1,true},
-    {"tests/struct/struct_member_redeclare",-1,true},
+    {"tests/struct/redeclare_struct",-1,true},
+    {"tests/struct/redeclare_member",-1,true},
     {"tests/struct/nested_struct",20,false},
     {"tests/struct/recursive_struct_invalid",-1,true},
+    //{"tests/struct/struct_of_arrays",28,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
