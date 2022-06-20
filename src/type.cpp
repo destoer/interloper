@@ -327,7 +327,7 @@ std::string type_name(Interloper& itl,const Type &type)
 
     if(is_builtin(type))
     {
-        std::string plain = builtin_type_name(static_cast<builtin_type>(type.type_idx));
+        plain = builtin_type_name(static_cast<builtin_type>(type.type_idx));
     }
 
     else
