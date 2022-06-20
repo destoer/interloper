@@ -1840,9 +1840,12 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
     {
         if(line.nodes[1]->type == ast_type::initializer_list)
         {
+            // insertion will break our reference
+            const u32 sym_slot = sym.slot;
+
             const u32 addr_slot = new_tmp(itl,GPR_SIZE);
 
-            emit(func.emitter,op_type::addrof,addr_slot,sym.slot);
+            emit(func.emitter,op_type::addrof,addr_slot,sym_slot);
             traverse_struct_initializer(itl,func,line.nodes[1],addr_slot,structure);
         }
 
