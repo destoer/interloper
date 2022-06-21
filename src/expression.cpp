@@ -209,25 +209,41 @@ AstNode *member_access(Parser &parser, AstNode* expr_node)
 {
     // skip dot token
     auto member_tok = next_token_expr(parser);
-    if(member_tok.type != token_type::symbol)
+
+    AstNode* member_node = nullptr;
+
+    if(member_tok.type == token_type::symbol)
     {
+        // perform peeking for modifers
+        if(match(parser,token_type::sl_brace))
+        {
+            unimplemented("member array access");
+        }
+
+        // plain old member
+        else
+        {
+            member_node = ast_literal(ast_type::access_member, member_tok.literal);
+                
+            // correct the state machine
+            parser.expr_tok = next_token_expr(parser);
+        }
+    }
+
+    else
+    {
+
         panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.c_str(),tok_name(member_tok.type));
         return nullptr;
     }
 
-    // This has to be vague because we dont know any of the typing yet
-    AstNode* access_member = ast_literal(ast_type::access_member, member_tok.literal);
-
-
-    // correct the state machine
-    parser.expr_tok = next_token_expr(parser);
 
 
     // add expr node only to the inital member i.e (make it the bottom node)
     // TODO: can we do better than this?
     if(expr_node)
     {
-        access_member->nodes.push_back(expr_node);
+        member_node->nodes.push_back(expr_node);
         expr_node = nullptr;
     }
 
@@ -238,12 +254,12 @@ AstNode *member_access(Parser &parser, AstNode* expr_node)
         // i.e left most is at the bottom of the tree
         AstNode* next = member_access(parser,expr_node);
 
-        next->nodes.push_back(access_member);
+        next->nodes.push_back(member_node);
 
         return next;
     }
 
-    return access_member;
+    return member_node;
 }
 
 

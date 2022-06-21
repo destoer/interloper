@@ -317,3 +317,5 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     parser.line = token.line;
 }
 
+
+bool match(Parser &parser,token_type type);

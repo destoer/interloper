@@ -1,0 +1,36 @@
+
+func divide(v1: u32, v2: u32) (s32,bool)
+{
+    if(v2 != 0)
+    {
+        return (v1 / v2,false);
+    }
+
+    return (0, true);
+}
+
+
+// expected 15
+func main() s32 
+{
+    x : u32 = 5;
+
+    x, err : bool = divide(1,0);
+
+    if(err)
+    {
+        x, err = divide(30,2);
+
+        if(err)
+        {
+            return -1;
+        }
+
+        return x;
+    }
+
+    else
+    {
+        return -1;
+    }
+}

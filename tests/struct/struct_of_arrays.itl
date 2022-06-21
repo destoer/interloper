@@ -15,7 +15,7 @@ struct Vec2
 };
 
 
-func area(tri: Tri@) u32;
+func area(tri: Tri@) u32
 {
     return 
     (

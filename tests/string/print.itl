@@ -1,0 +1,7 @@
+import "basic"
+
+func main() s32 
+{
+    x : u32 = 5;
+    print("Hello there {}",x);
+}
