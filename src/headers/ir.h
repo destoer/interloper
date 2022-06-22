@@ -82,8 +82,6 @@ enum class op_type
 
     load_arr_len,
     load_arr_data,
-    arr_index,
-
 
     // DIRECTIVES
     // varabile on the stack is out of scope

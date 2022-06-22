@@ -1137,36 +1137,25 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
     }
 }
 
-
-std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+// indexes off a given type + ptr
+std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* node, const std::string& arr_name,
+     const Type& type, u32 ptr_slot, u32 dst_slot)
 {
-    const auto arr_name = node->literal;
 
-    const auto arr_opt = get_sym(itl.symbol_table,arr_name);
-
-    if(!arr_opt)
+    if(!is_array(type))
     {
-        panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.c_str());
-        return std::pair<Type,u32>{Type(builtin_type::void_t),0};       
-    }
-
-    const auto arr = arr_opt.value();
-
-    if(!is_array(arr.type))
-    {
-        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.c_str(),type_name(itl,arr.type).c_str());
+        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.c_str(),type_name(itl,type).c_str());
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
 
-    if(node->nodes.size() > arr.type.degree)
+    if(node->nodes.size() > type.degree)
     {
-        panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.c_str(),arr.type.degree,node->nodes.size());
+        panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.c_str(),type.degree,node->nodes.size());
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
-    
-    auto accessed_type = contained_arr_type(arr.type);
+    auto accessed_type = contained_arr_type(type);
    
     // preaccumlate the total size per index (easiest in reverse order)
     // i.e [1][0][0], [0][1][0], [0][0][1]
@@ -1174,12 +1163,12 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
     u32 offsets[MAX_ARR_SIZE];
 
-    offsets[arr.type.degree - 1] = type_size(itl,accessed_type);
+    offsets[type.degree - 1] = type_size(itl,accessed_type);
 
 
-    for(s32 i = arr.type.degree - 2; i >= 0; i--)
+    for(s32 i = type.degree - 2; i >= 0; i--)
     {
-        const u32 count = arr.type.dimensions[i];
+        const u32 count = type.dimensions[i];
 
         // TODO: for now we are just going to assume we are indexing a fixed size array
         if(count == RUNTIME_SIZE)
@@ -1189,12 +1178,12 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
         else
         {
-            offsets[i] = arr.type.dimensions[i + 1] * offsets[i + 1];
+            offsets[i] = type.dimensions[i + 1] * offsets[i + 1];
         }    
     }
 
     
-    u32 last_slot = 0;
+    u32 last_slot = ptr_slot;
 
     for(u32 i = 0; i < node->nodes.size(); i++)
     {
@@ -1207,7 +1196,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
         }
 
         /*
-        const u32 count = arr.type.dimensions[i];
+        const u32 count = type.dimensions[i];
 
         // this just works for single dimension VLA
         
@@ -1223,38 +1212,27 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
             const u32 mul_slot = new_tmp(func);
             emit(func.emitter,op_type::mul_imm,mul_slot,subscript_slot,size);   
-            
-            if(i != 0)
-            {
-                const u32 add_slot = new_tmp(func);
-                emit(func.emitter,op_type::add_reg,add_slot,last_slot,mul_slot);
 
-                last_slot = add_slot;
-            }
+            const bool last_index = i ==  node->nodes.size() - 1;
 
-            else
-            {
-                last_slot = mul_slot;
-            }
+            const u32 add_slot = last_index? dst_slot : new_tmp(func);
+            emit(func.emitter,op_type::add_reg,add_slot,last_slot,mul_slot);
+
+            last_slot = add_slot;
         }
     }
 
-    // NOTE: this is assuming our array is fixed all the way through
-    const auto data_slot = new_tmp(func);
-    emit(func.emitter,op_type::load_arr_data,data_slot,arr.slot);
-    emit(func.emitter,op_type::arr_index,dst_slot,data_slot,last_slot);
-
 
     // return pointer to sub array
-    if(node->nodes.size() < arr.type.degree)
+    if(node->nodes.size() < type.degree)
     {
-        auto sub_arr_type = arr.type;
+        auto sub_arr_type = type;
         
         // make it a sub array
         sub_arr_type.degree -= node->nodes.size();
 
         // move the dimensions back over itself
-        memcpy(&sub_arr_type.dimensions[0],&arr.type.dimensions[node->nodes.size()],sub_arr_type.degree * sizeof(arr.type.dimensions[0]));
+        memcpy(&sub_arr_type.dimensions[0],&type.dimensions[node->nodes.size()],sub_arr_type.degree * sizeof(type.dimensions[0]));
 
 
 
@@ -1268,7 +1246,28 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     {
         accessed_type.ptr_indirection += 1;
         return std::pair<Type,u32>{accessed_type,dst_slot};
+    }    
+}
+
+std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+{
+    const auto arr_name = node->literal;
+
+    const auto arr_opt = get_sym(itl.symbol_table,arr_name);
+
+    if(!arr_opt)
+    {
+        panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.c_str());
+        return std::pair<Type,u32>{Type(builtin_type::void_t),0};       
     }
+
+    const auto arr = arr_opt.value();
+
+    // get the initial data ptr
+    const u32 data_slot = new_tmp(func);
+    emit(func.emitter,op_type::load_arr_data,data_slot,arr.slot);
+
+    return index_arr_internal(itl,func,node,arr_name,arr.type,data_slot,dst_slot);
 }
 
 std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
@@ -2120,7 +2119,6 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
     // perform each member access
     for(AstNode* n : members->nodes)
     {
-        // parse out initail expr
         switch(n->type)
         {
             case ast_type::access_member:

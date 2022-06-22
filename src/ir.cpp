@@ -998,19 +998,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             return remove(list,node);
         }
 
-        // arrays
-        case op_type::arr_index:
-        {
-            // arr_index <dst>, <array_data_ptr>, <subscript_offset>
-            // add <dst>, <array_data_ptr>,<subcript_offset>
-            node->opcode = Opcode(op_type::add_reg,opcode.v[0],opcode.v[1],opcode.v[2]);
-            rewrite_opcode(itl,alloc,list,node);
-
-            node = node->next;
-            break;
-        }
-
-
 
         case op_type::load_arr_data:
         {
