@@ -1816,7 +1816,10 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
         {
             if(is_array(member.type))
             {
-                unimplemented("struct array sub");
+               u32 arr_offset = offset + member.offset;
+               auto type = member.type;
+
+               traverse_arr_initializer(itl,func,node->nodes[i],addr_slot,type,0, &arr_offset);
             }
 
             else if(is_struct(member.type))
@@ -2151,6 +2154,23 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
                 {
                     std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name);
                 }
+                break;
+            }
+
+            case ast_type::array_access:
+            {
+                std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,n->literal);
+
+/*
+std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* node, const std::string& arr_name,
+     const Type& type, u32 ptr_slot, u32 dst_slot)
+*/
+
+                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,n,n->literal,struct_type,struct_slot,new_tmp(func));
+
+                // deref of pointer
+                struct_type.ptr_indirection -= 1;
+
                 break;
             }
 

@@ -264,7 +264,7 @@ void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
         {
             printf("slot %x\n",slot);
             const auto &sym = sym_from_slot(slot_lookup,slot);
-            printf("reg r%d -> var %s\n",i,sym.name.c_str());
+            printf("reg r%d -> sym %s\n",i,sym.name.c_str());
         }
     }
 

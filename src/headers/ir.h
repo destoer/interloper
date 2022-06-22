@@ -230,7 +230,7 @@ static constexpr u32 SYMBOL_START = 0x80000000;
 // for now hardcode this to the limits of our vm
 // we will move this into a struct as part of a config
 // when we actually want to define some targets
-static constexpr u32 MACHINE_REG_SIZE = 4;
+static constexpr u32 MACHINE_REG_SIZE = 8;
 
 static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
 

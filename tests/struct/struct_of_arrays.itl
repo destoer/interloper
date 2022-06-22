@@ -5,7 +5,7 @@
 struct Tri
 {
     pos : Vec2[3];
-    area : u32;
+    area : s32;
 };
 
 struct Vec2
@@ -15,7 +15,7 @@ struct Vec2
 };
 
 
-func area(tri: Tri@) u32
+func area(tri: Tri@) s32
 {
     return 
     (
@@ -28,10 +28,7 @@ func area(tri: Tri@) u32
 func main() s32
 {
     tri : Tri = 
-    {
-        { {-3,5},{-7,-5},{3,6} },
-        {0},
-    }
+    {{ {-3,5},{-7,-5},{3,6}, }, 0};
 
     tri.area = area(&tri);
 

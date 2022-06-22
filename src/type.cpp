@@ -126,6 +126,7 @@ bool is_pointer(const Type &t)
 // as we want to hide to semantics of its representation so we can use it
 // like any other array, there may be a better way to acheive this
 
+
 bool is_fixed_array_pointer(const Type& t)
 {
     return is_pointer(t) && t.degree && t.dimensions[0] != RUNTIME_SIZE;
@@ -136,6 +137,12 @@ bool is_array(const Type &t)
 {
     return t.degree >= 1 && !is_pointer(t);
 }
+
+bool is_fixed_array(const Type& t)
+{
+    return is_array(t) && t.dimensions[0] != RUNTIME_SIZE;
+}
+
 
 bool is_plain(const Type &t)
 {
@@ -272,8 +279,8 @@ u32 type_max(Interloper& itl,const Type &type)
     }
 }
 
-// NOTE: when we we impl fixed size arrays the count should probably
-// return any initial size that it has and not just the initial size
+// NOTE: this should probably return any count before the runtime size...
+// along with where the first runtime size is
 
 // NOTE: this needs to be reworked to support deduced sizes
 

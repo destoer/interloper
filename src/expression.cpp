@@ -204,6 +204,23 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     return nullptr;
 }
 
+AstNode* array_index(Parser& parser,const std::string& name)
+{
+    AstNode* arr_access = ast_literal(ast_type::array_access,name);
+
+    while(parser.expr_tok.type == token_type::sl_brace)
+    {
+        consume_expr(parser,token_type::sl_brace);
+
+        AstNode* e = expression(parser,0);
+        arr_access->nodes.push_back(e);
+    
+        consume_expr(parser,token_type::sr_brace);
+    }
+
+    return arr_access;
+}
+
 
 AstNode *struct_access(Parser& parser, AstNode* expr_node)
 {
@@ -224,7 +241,9 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
             // perform peeking for modifers
             if(match(parser,token_type::sl_brace))
             {
-                unimplemented("member array access");
+                parser.expr_tok = next_token_expr(parser);
+                
+                member_root->nodes.push_back(array_index(parser,member_tok.literal));
             }
 
             // plain old member
@@ -383,17 +402,7 @@ AstNode *nud(Parser &parser,Token &t)
 
                 case token_type::sl_brace:
                 {
-                    auto arr_access = ast_literal(ast_type::array_access,t.literal);
-
-                    while(parser.expr_tok.type == token_type::sl_brace)
-                    {
-                        consume_expr(parser,token_type::sl_brace);
-
-                        const auto e = expression(parser,0);
-                        arr_access->nodes.push_back(e);
-                    
-                        consume_expr(parser,token_type::sr_brace);
-                    }
+                    AstNode* arr_access = array_index(parser,t.literal);
 
                     if(parser.expr_tok.type == token_type::dot)
                     {

@@ -126,10 +126,12 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
 
             StructDef& def = itl.struct_def[type_decl->literal];
 
-            // if we attempt to check a partial defintion twice that the definitioon is recursive
+            // if we attempt to check a partial defintion twice that the definition is recursive
             if(def.state == struct_state::checking)
             {
                 // TODO: relax this checking to allow indirections to the struct to be used 
+
+                // panic to prevent having our struct collpase into a black hole
                 panic(itl,"%s : is recursively defined via %s\n",structure.name.c_str(),type_decl->literal.c_str());
                 return;
             }
@@ -145,11 +147,22 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
 
         member.type = get_type(itl,m->nodes[0]);
 
-        // TODO: we dont handle the type being another struct here
-        // prevent struct collpasing into a black hole
+        // TODO: ensure array type cant use a deduced type size
 
-        const u32 size = type_size(itl,member.type);
 
+        u32 size;
+
+        if(is_fixed_array(member.type))
+        {
+            const auto [contained_size, count] = arr_size(itl,member.type);
+            size = contained_size * count;
+        }
+
+
+        else
+        {
+            size = type_size(itl,member.type);
+        }
 
         // TODO: handle fixed sized arrays
 
