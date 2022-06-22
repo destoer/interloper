@@ -304,7 +304,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
             return symbol(itl,node);
         }
 
-        case ast_type::access_member:
+        case ast_type::access_struct:
         {
             return read_struct(itl,func,dst_slot,node);
         }
@@ -1112,7 +1112,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
             }
         }
 
-        case ast_type::access_member:
+        case ast_type::access_struct:
         {
             if(addrof)
             {
@@ -2051,51 +2051,20 @@ std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 sl
     return std::pair<Type,u32>{member.type,addr_slot};    
 }
 
-
-// TODO: make sure this offset calc is optimised
-// TODO: this calc is scuffed for nested structs
 std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
-    switch(node->type)
+    AstNode* expr_node = node->nodes[0];
+
+    // Type is allways the accessed type of the current pointer
+    u32 struct_slot = -1;
+    Type struct_type;
+
+    // parse out initail expr
+    switch(expr_node->type)
     {
-        case ast_type::access_member:
-        {
-            const auto [type,slot] = compute_member_addr(itl,func,node->nodes[0]);
-
-            const auto member_name = node->literal;
-
-            // TODO: we want the address the pointer points to here
-            // not the address of the pointer itself so deref it
-            if(is_pointer(type))
-            {
-                // pointer to array
-                if(type.degree)
-                {
-                    return access_array_member(itl,func,slot,type,member_name);
-                }
-
-                else
-                {
-                    return access_struct_member(itl,func,slot,type,member_name);
-                }
-                
-            }
-
-            else if(is_array(type))
-            {
-                return access_array_member(itl,func,slot,type,member_name);
-            }
-
-            // actual struct member
-            else
-            {
-                return access_struct_member(itl,func,slot,type,member_name);
-            }
-        }
-
         case ast_type::symbol:
         {
-            const auto name = node->literal;
+            const auto name = expr_node->literal;
             const auto sym_opt = get_sym(itl.symbol_table,name);
 
             if(!sym_opt)
@@ -2110,39 +2079,95 @@ std::pair<Type,u32> compute_member_addr(Interloper& itl, Function& func, AstNode
             // along with the derefed type
             if(is_pointer(sym.type))
             {
-                auto type = sym.type;
-                type.ptr_indirection -= 1;
+                struct_type = sym.type;
+                struct_type.ptr_indirection -= 1;
 
-                return std::pair<Type,u32>{type,sym.slot};
+                struct_slot = sym.slot;
             }
 
+            else
+            {
+                struct_slot = new_tmp(func);
+                emit(func.emitter,op_type::addrof,struct_slot,sym.slot);
 
-            const u32 addr_slot = new_tmp(func);
-            emit(func.emitter,op_type::addrof,addr_slot,sym.slot);
+                struct_type = sym.type;
+            }
 
-            return std::pair<Type,u32>{sym.type,addr_slot};
+            break;        
         }
 
         case ast_type::array_access:
         {
-            auto [type, addr_slot] = index_arr(itl,func,node,new_tmp(func));
+            std::tie(struct_type, struct_slot) = index_arr(itl,func,expr_node,new_tmp(func));
 
             // we return types in here as the accessed type
-            type.ptr_indirection -= 1;
+            struct_type.ptr_indirection -= 1;
 
-            return std::pair<Type,u32>{type,addr_slot};
+            break;
         }
 
 
         default: 
         {
-            print(node); 
-            unimplemented("member node unimpl"); 
-            break;
+            panic(itl,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
+            return std::pair<Type,u32>{Type(builtin_type::void_t),0};
         }
     }
 
+
+    AstNode* members = node->nodes[1];
+
+    // perform each member access
+    for(AstNode* n : members->nodes)
+    {
+        // parse out initail expr
+        switch(n->type)
+        {
+            case ast_type::access_member:
+            {
+
+                const auto member_name = n->literal;
+
+                if(is_pointer(struct_type))
+                {
+                    // pointer to array
+                    if(struct_type.degree)
+                    {
+                       std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name);
+                    }
+
+                    else
+                    {
+                        std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name);
+                    }
+                    
+                }
+
+                else if(is_array(struct_type))
+                {
+                    std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name);
+                }
+
+                // actual struct member
+                else
+                {
+                    std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name);
+                }
+                break;
+            }
+
+            default: 
+            {
+                panic(itl,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
+                return std::pair<Type,u32>{Type(builtin_type::void_t),0};
+            }
+        }
+    }
+
+
+    return std::pair<Type,u32>{struct_type,struct_slot};
 }
+
 
 void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtype, AstNode *node)
 {
@@ -2224,7 +2249,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                         }
 
                         // write on struct member!
-                        case ast_type::access_member:
+                        case ast_type::access_struct:
                         {
                             write_struct(itl,func,slot,rtype,line.nodes[0]);
                             break;

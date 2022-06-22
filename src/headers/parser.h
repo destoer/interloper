@@ -77,6 +77,8 @@ enum class ast_type
     else_t,
 
     access_member,
+    access_members,
+    access_struct,
     member,
     array_access,
 
@@ -157,6 +159,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "else",
 
     "access_member",
+    "access_members",
+    "access_struct",
     "member",
     "array_access",
 

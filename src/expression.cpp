@@ -205,63 +205,49 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
 }
 
 
-AstNode *member_access(Parser &parser, AstNode* expr_node)
+AstNode *struct_access(Parser& parser, AstNode* expr_node)
 {
-    // skip dot token
-    auto member_tok = next_token_expr(parser);
+    AstNode* root = ast_plain(ast_type::access_struct);
 
-    AstNode* member_node = nullptr;
+    root->nodes.push_back(expr_node);
 
-    if(member_tok.type == token_type::symbol)
+    AstNode* member_root = ast_plain(ast_type::access_members);
+
+    root->nodes.push_back(member_root);
+
+    while(parser.expr_tok.type == token_type::dot)
     {
-        // perform peeking for modifers
-        if(match(parser,token_type::sl_brace))
+        const auto member_tok = next_token_expr(parser);
+
+        if(member_tok.type == token_type::symbol)
         {
-            unimplemented("member array access");
+            // perform peeking for modifers
+            if(match(parser,token_type::sl_brace))
+            {
+                unimplemented("member array access");
+            }
+
+            // plain old member
+            else
+            {
+                AstNode* member_node = ast_literal(ast_type::access_member, member_tok.literal);
+
+                member_root->nodes.push_back(member_node);
+                    
+                // correct the state machine
+                parser.expr_tok = next_token_expr(parser);
+            }
         }
 
-        // plain old member
         else
         {
-            member_node = ast_literal(ast_type::access_member, member_tok.literal);
-                
-            // correct the state machine
-            parser.expr_tok = next_token_expr(parser);
+            panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.c_str(),tok_name(member_tok.type));
+            return nullptr;            
         }
     }
 
-    else
-    {
-
-        panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.c_str(),tok_name(member_tok.type));
-        return nullptr;
-    }
-
-
-
-    // add expr node only to the inital member i.e (make it the bottom node)
-    // TODO: can we do better than this?
-    if(expr_node)
-    {
-        member_node->nodes.push_back(expr_node);
-        expr_node = nullptr;
-    }
-
-
-    if(parser.expr_tok.type == token_type::dot)
-    {
-        // index later nodes before we push any so that it later processed depth first
-        // i.e left most is at the bottom of the tree
-        AstNode* next = member_access(parser,expr_node);
-
-        next->nodes.push_back(member_node);
-
-        return next;
-    }
-
-    return member_node;
+    return root;
 }
-
 
 // unary operators
 AstNode *nud(Parser &parser,Token &t)
@@ -392,7 +378,7 @@ AstNode *nud(Parser &parser,Token &t)
 
                 case token_type::dot:
                 {
-                    return member_access(parser,ast_literal(ast_type::symbol,t.literal));
+                    return struct_access(parser,ast_literal(ast_type::symbol,t.literal));
                 }
 
                 case token_type::sl_brace:
@@ -411,7 +397,7 @@ AstNode *nud(Parser &parser,Token &t)
 
                     if(parser.expr_tok.type == token_type::dot)
                     {
-                        return member_access(parser,arr_access);
+                        return struct_access(parser,arr_access);
                     }
 
                     else
