@@ -2049,14 +2049,14 @@ std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 sl
 }
 
 // get back a complete pointer
-u32 collapse_offset(Function&func, u32 addr_slot, u32 &offset)
+u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset)
 {
-    if(offset)
+    if(*offset)
     {
         const u32 final_addr = new_tmp(func);
-        emit(func.emitter,op_type::add_imm,final_addr,addr_slot,offset);
+        emit(func.emitter,op_type::add_imm,final_addr,addr_slot,*offset);
 
-        offset = 0;
+        *offset = 0;
 
         return final_addr;
     }
@@ -2179,7 +2179,7 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
                 
                 std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,n->literal,&member_offset);
                 
-                struct_slot = collapse_offset(func,struct_slot,member_offset);
+                struct_slot = collapse_offset(func,struct_slot,&member_offset);
 
                 std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,n,n->literal,struct_type,struct_slot,new_tmp(func));
 
