@@ -45,6 +45,7 @@ enum class token_type
     bool_t,
 
     cast,
+    sizeof_t,
 
     import,
     struct_t,
@@ -159,6 +160,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::bool_t,"bool",-1},
 
     {token_type::cast,"cast",-1},
+    {token_type::sizeof_t,"sizeof",-1},
 
     {token_type::import,"import",-1},
     

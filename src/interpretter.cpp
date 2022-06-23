@@ -277,7 +277,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::push:
         {
             const u32 v = regs[opcode.v[0]];
-            regs[SP] -= sizeof(u32);
+            regs[SP] -= GPR_SIZE;
             write_mem<u32>(interpretter,regs[SP],v); 
             break;               
         }
@@ -285,7 +285,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::pop:
         {
             regs[opcode.v[0]] = read_mem<u32>(interpretter,regs[SP]);
-            regs[SP] += sizeof(u32);
+            regs[SP] += GPR_SIZE;
             break;
         }
 
@@ -298,7 +298,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                 { 
                     const u32 v = regs[r];
                     
-                    regs[SP] -= sizeof(u32);
+                    regs[SP] -= GPR_SIZE;
                     write_mem<u32>(interpretter,regs[SP],v); 
                 }
             }
@@ -312,7 +312,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                 if(is_set(opcode.v[0],r))
                 { 
                     regs[r] = read_mem<u32>(interpretter,regs[SP]);
-                    regs[SP] += sizeof(u32);
+                    regs[SP] += GPR_SIZE;
                 }
             }
             break;
@@ -322,7 +322,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             // push
             
-            regs[SP] -= sizeof(u32);
+            regs[SP] -= GPR_SIZE;
             write_mem<u32>(interpretter,regs[SP],regs[PC]);
 
             regs[PC] = opcode.v[0];
@@ -333,7 +333,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {              
             // pop pc
             regs[PC] = read_mem<u32>(interpretter,regs[SP]);
-            regs[SP] += sizeof(u32);
+            regs[SP] += GPR_SIZE;
             break;
         }
 

@@ -18,6 +18,7 @@ enum class ast_type
     string,
 
     cast,
+    sizeof_t,
     struct_t,
 
     ret,
@@ -103,6 +104,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "string",
 
     "cast",
+    "sizeof",
     "struct",
 
     "return",

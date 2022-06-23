@@ -1357,6 +1357,23 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             return new_type;
         }
 
+        case ast_type::sizeof_t:
+        {
+            // TODO: is it worth while adding this for type names?
+            const auto [type,slot] = compile_oper(itl,func,node->nodes[0],new_tmp(func));
+
+            // we only want the type of the expr
+            if(is_tmp(slot))
+            {
+                emit(func.emitter,op_type::free_reg,slot);
+            }
+
+            const u32 size = type_size(itl,type);
+            emit(func.emitter,op_type::mov_imm,dst_slot,size);
+
+            return Type(builtin_type::u32_t);
+        }
+
 
         case ast_type::plus:
         {

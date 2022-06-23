@@ -303,6 +303,18 @@ AstNode *nud(Parser &parser,Token &t)
             return ast_binary(type,right,ast_type::cast);    
         }
 
+        // sizeof(<expr>)
+        case token_type::sizeof_t:
+        {
+            consume_expr(parser,token_type::left_paren);
+
+            AstNode* e = expression(parser,0);
+
+            consume_expr(parser,token_type::right_paren);
+            
+            return ast_unary(e,ast_type::sizeof_t);    
+        }
+
         // array initializer
         case token_type::left_c_brace:
         {

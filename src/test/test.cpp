@@ -40,7 +40,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     // type
     {"tests/type/decl",255,false},
     {"tests/type/builtin_type",271,false},
-    //{"tests/type/sizeof",1,false},
+    {"tests/type/sizeof",1,false},
 
     // const
     {"tests/const/const_invalid_assign",-1,true},
