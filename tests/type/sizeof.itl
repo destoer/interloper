@@ -1,0 +1,31 @@
+
+
+struct Point
+{
+    x : u32;
+    y : u32;
+}
+
+func main() s32
+{
+    v1 : u8;
+    v2 : u16;
+    v3 : u32;
+
+    v4 : s8;
+    v5 : s16;
+    v6 : s32;
+
+    v7 : byte;
+
+    v8 : bool;
+
+    point : Point;
+
+    res1 : bool = sizeof(v1) == 1 && sizeof(v2) == 2 && sizeof(v3) == 4;
+    res2 : bool = sizeof(v4) == 1 && sizeof(v5) == 2 && sizeof(v6) == 4;
+    res3 : bool = sizeof(v7) == 1 && sizeof(v8) == 1 && sizeof(point) == 8;
+    res4 : bool = sizeof(point) == sizeof(Point);
+
+    return cast(s32,res1 && res2 && res3 && res4);
+}

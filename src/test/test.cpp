@@ -22,7 +22,6 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/basic/narrow",-1,true},
     {"tests/basic/assign",1190,false},
     {"tests/basic/unary",-11,false},
-    {"tests/basic/builtin_type",271,false},
     {"tests/basic/redeclare",-1,true},
     {"tests/basic/undeclared",-1,true},
     {"tests/basic/scope",16,false},
@@ -32,12 +31,16 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/basic/logical",1,false},
     {"tests/basic/invalid_sign_cmp",-1,true},
     {"tests/basic/u32_eq_s32",-1,true},
-    {"tests/basic/decl",255,false},
     {"tests/basic/invalid_compare",-1,true},
     {"tests/basic/arith_eq",294,false},
     {"tests/basic/mod",233168,false},
     {"tests/basic/shift",1,false},
     {"tests/basic/comment",0,false},
+
+    // type
+    {"tests/type/decl",255,false},
+    {"tests/type/builtin_type",271,false},
+    //{"tests/type/sizeof",1,false},
 
     // const
     {"tests/const/const_invalid_assign",-1,true},
