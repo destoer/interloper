@@ -14,13 +14,11 @@ void print_struct(Interloper& itl, const Struct& structure)
     printf("size: %d\n",structure.size);
 }
 
-void add_struct(StructTable& struct_table, Struct& structure)
+void add_struct(StructTable& struct_table, Struct& structure, u32 slot)
 {
-    const u32 slot = struct_table.lookup.size();
-
-    structure.type_idx = slot + BUILTIN_TYPE_SIZE;
-
-    struct_table.lookup.push_back(structure);
+    structure.type_idx = BUILTIN_TYPE_SIZE + slot;
+    struct_table.lookup[slot] = structure;
+    
     struct_table.table[structure.name] = slot;
 }
 
@@ -80,31 +78,38 @@ bool struct_exists(StructTable& struct_table, const std::string& name)
     return struct_table.table.count(name);
 }
 
-void parse_struct_decl(Interloper& itl, AstNode* node);
+void parse_struct_decl(Interloper& itl, StructDef& de);
 
 void parse_def(Interloper& itl, StructDef& def)
 {
     // mark struct as being parsed so we can check for recursion
     def.state = struct_state::checking;
-    parse_struct_decl(itl,def.root);
+    parse_struct_decl(itl,def);
 
     // mark as checked so thatt we know we dont have to recheck the decl
     def.state = struct_state::checked;
 }
 
-void parse_struct_decl(Interloper& itl, AstNode* node)
+void parse_struct_decl(Interloper& itl, StructDef& def)
 {
     Struct structure;
+    
+    // allocate a reserved slot for the struct
+    const u32 slot = itl.struct_table.lookup.size();
+    def.slot = slot;
 
+    itl.struct_table.lookup.push_back({});
+
+
+
+    AstNode* node = def.root;
+    
     structure.name = node->literal;
 
     // we want to get how many sizes of each we have
-    // and then we can go back through and align the struct...
+    // and then we can go back through and align the struct with them
 
     u32 size_count[3] = {0};
-
-    // TODO: need a vec with the original ordering
-    // and the map to point into it, to impl struct initializers
 
     // parse out members
     for(AstNode* m : node->nodes)
@@ -121,6 +126,7 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
             member.expr = m->nodes[1];
         }
 
+        u32 type_idx_override = INVALID_TYPE;
 
         // member is struct that has nott had its defintion parsed yet
         if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->literal))
@@ -137,23 +143,33 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
             // if we attempt to check a partial defintion twice that the definition is recursive
             if(def.state == struct_state::checking)
             {
-                // TODO: relax this checking to allow indirections to the struct to be used 
+                // if its a pointer we dont need the complete inormation yet as they are all alike
+                // so just override the type idx from the one reserved inside the def
+                if(def_has_indirection(type_decl))
+                {
+                    type_idx_override = BUILTIN_TYPE_SIZE + def.slot;
+                }
 
-                // panic to prevent having our struct collpase into a black hole
-                panic(itl,"%s : is recursively defined via %s\n",structure.name.c_str(),type_decl->literal.c_str());
-                return;
+                else
+                {
+                    // panic to prevent having our struct collpase into a black hole
+                    panic(itl,"%s : is recursively defined via %s\n",structure.name.c_str(),type_decl->literal.c_str());
+                    return;
+                }
             }
 
-
-            parse_def(itl,def);
-
-            if(itl.error)
+            else
             {
-                return;
+                parse_def(itl,def);
+
+                if(itl.error)
+                {
+                    return;
+                }
             }
         }
 
-        member.type = get_type(itl,m->nodes[0]);
+        member.type = get_type(itl,m->nodes[0],type_idx_override);
 
         // TODO: ensure array type cant use a deduced type size
 
@@ -241,7 +257,7 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
     }
 
 
-    add_struct(itl.struct_table,structure);
+    add_struct(itl.struct_table,structure,def.slot);
 
 }
 

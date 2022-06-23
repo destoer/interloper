@@ -156,6 +156,9 @@ struct StructDef
 {
     struct_state state;
     AstNode* root;
+
+    // current reserved struct slot
+    u32 slot;
 };
 
 using StructDefMap = std::map<std::string,StructDef>;

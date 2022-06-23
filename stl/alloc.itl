@@ -1,0 +1,21 @@
+
+
+struct Arena
+{
+    buf : byte[];
+
+    // how much of the arena have we used
+    len : u32;
+}
+
+/*
+func make_arena(buf : byte[]) Arena
+{
+    arena : Arena;
+
+    arena.len = 0;
+    arena.buf = buf;
+
+    return arena;
+}
+*/

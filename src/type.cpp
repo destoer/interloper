@@ -865,12 +865,46 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
 
 }
 
+// TODO: this is more restrictive than required atm
+bool def_has_indirection(AstNode *type_decl)
+{
+    for(auto n : type_decl->nodes)
+    {
+        switch(n->type)
+        {
+            // type is a constant
+            case ast_type::const_t:
+            {
+                break;
+            }
 
-Type get_type(Interloper &itl, AstNode *type_decl)
+            case ast_type::ptr_indirection:
+            {
+                return true;
+            }
+
+            case ast_type::arr_dimensions:
+            {
+                unimplemented("indirection check on array");
+            }
+
+            default: assert(false);
+        }
+    }
+
+    return false;  
+}
+
+Type get_type(Interloper &itl, AstNode *type_decl, u32 type_idx_override = INVALID_TYPE)
 {
     Type type;
 
-    if(type_decl->type_idx == STRUCT_IDX)
+    if(type_idx_override != INVALID_TYPE)
+    {
+        type.type_idx = type_idx_override;
+    }
+
+    else if(type_decl->type_idx == STRUCT_IDX)
     {
         const auto name = type_decl->literal;
 

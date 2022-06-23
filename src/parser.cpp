@@ -846,7 +846,7 @@ void struct_decl(Interloper& itl,Parser& parser)
     }
 
     // TODO: we now should check redefiniton here?
-    StructDef definition = {struct_state::not_checked,struct_node};
+    StructDef definition = {struct_state::not_checked,struct_node,0};
 
     itl.struct_def[name.literal] = definition;
 }
