@@ -192,7 +192,8 @@ AstNode *parse_type(Parser &parser)
 
     u32 type_idx = plain_type_idx(plain_tok);
 
-    if(type_idx == INVALID_TYPE)
+    // null cannot be obtained via normal means
+    if(type_idx == INVALID_TYPE || type_idx == u32(builtin_type::null_t))
     {
         panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
         return nullptr;
@@ -317,6 +318,12 @@ AstNode *declaration(Parser &parser)
 
 
     AstNode* type = parse_type(parser);
+
+    if(!type)
+    {
+        type_panic(parser);
+        return nullptr;
+    }
 
     //    [declare:name]
     // [type]   optional([eqauls])

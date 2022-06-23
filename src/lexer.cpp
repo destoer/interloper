@@ -168,6 +168,7 @@ std::unordered_map<std::string, token_type> keywords =
 
     {tok_name(token_type::false_t),token_type::false_t},
     {tok_name(token_type::true_t),token_type::true_t},
+    {tok_name(token_type::null_t),token_type::null_t},
 
     {tok_name(token_type::import),token_type::import},
     {tok_name(token_type::struct_t),token_type::struct_t},

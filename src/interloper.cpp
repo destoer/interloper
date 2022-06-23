@@ -459,17 +459,6 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
         } 
     }
 
-    // two bools is fine
-    else if(is_bool(t1) && is_bool(t2))
-    {
-
-    }
-
-    else
-    {
-        unimplemented("comparison on non integeral type!");
-    }
-
     // okay now then does a boolean operation make sense for this operator
     // with these types?
 
@@ -1517,6 +1506,16 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             return Type(builtin_type::bool_t);
         }
 
+        case ast_type::null_t:
+        {
+            emit(func.emitter,op_type::mov_imm,dst_slot,0);
+
+            Type type = Type(builtin_type::null_t);
+            type.ptr_indirection = 1;
+
+            return type;
+        }
+
 
         case ast_type::logical_not:
         {
@@ -1933,6 +1932,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
             }
 
             // TODO: handle nested struct membmer
+            // (basically we need to just recurse this method)
             else if(is_struct(member.type))
             {
 

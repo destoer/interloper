@@ -15,6 +15,8 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::bool_t, false, false ,1,  0, 1},
 
     {builtin_type::void_t, false, false, 0, 0, 0},
+
+    {builtin_type::null_t, false,false, GPR_SIZE,0,0},
 };
 
 
@@ -433,6 +435,50 @@ Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
     }
 }
 
+void type_check_pointer(Interloper& itl,const Type& ltype, const Type& rtype)
+{
+    if(ltype.ptr_indirection != rtype.ptr_indirection)
+    {
+        panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+        return;
+    }
+
+    if(ltype.degree != rtype.degree)
+    {
+        panic(itl,"expected pointer to array of degree %d got %d\n",ltype.degree,rtype.degree);
+        return;
+    }
+
+    for(u32 i = 0; i < ltype.degree; i++)
+    {
+        if(ltype.dimensions[i] != rtype.dimensions[i])
+        {
+            panic(itl,"(%d) expected pointer to array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
+            return;
+        }   
+    }
+
+    if(ltype.type_idx != rtype.type_idx)
+    {
+        // rtype of NULL is implictly converted 
+        if(is_builtin(rtype) && rtype.type_idx == u32(builtin_type::null_t))
+        {
+
+        }
+
+        // and any pointer is allowed to be assigned to a byte
+        else if(is_builtin(ltype) && ltype.type_idx == u32(builtin_type::byte_t))
+        {
+
+        }
+
+        else
+        {
+            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+        }
+    }    
+}
+
 void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtype)
 {
     UNUSED(itl);
@@ -465,11 +511,16 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
         }
     }
 
+    else if(is_pointer(ltype) && is_pointer(rtype))
+    {
+        type_check_pointer(itl,ltype,rtype);
+    }
+
     // one or more type is user defined
     // here probably the only valid thing is both are the same
     else
     {
-        unimplemented("check assign user defined type!\n");
+        unimplemented("check logical operation defined type!\n");
     }   
 }
 
@@ -596,9 +647,10 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
     {
         if(is_pointer(ltype))
         {
-            if(ltype.ptr_indirection != rtype.ptr_indirection)
+            type_check_pointer(itl,ltype,rtype);
+
+            if(itl.error)
             {
-                panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
                 return;
             }
         }

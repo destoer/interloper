@@ -360,6 +360,11 @@ AstNode *nud(Parser &parser,Token &t)
             return ast_plain(ast_type::true_t);
         }      
 
+        case token_type::null_t:
+        {
+            return ast_plain(ast_type::null_t);
+        }
+
         case token_type::symbol:
         {
             // look ahead extra tokens that would change the meaning of this

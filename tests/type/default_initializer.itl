@@ -20,13 +20,13 @@ func main() s32
 
     point : Point;
 
-    //ptr : u32@;
+    ptr : u32@;
 
     res1 : bool = v1 == 0 && v2 == 0 && v3 == 0;
     res2 : bool = v4 == 0 && v5 == 0 && v6 == 0;
     res3 : bool = v7 == 0 && v8 == false;
     res4 : bool = point.x == 0 && point.y == 0;
-    //res5 : bool = ptr == NULL;
+    res5 : bool = ptr == NULL;
 
     return cast(s32,res1 && res2 && res3 && res4);
 }

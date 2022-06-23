@@ -5,7 +5,7 @@
 
 
 // if type idx is >= to this then this is a custom defined type
-static constexpr u32 BUILTIN_TYPE_SIZE = 9;
+static constexpr u32 BUILTIN_TYPE_SIZE = 10;
 static constexpr u32 STRUCT_IDX = 0xf0000000;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
@@ -25,6 +25,8 @@ enum class builtin_type
     bool_t,
 
     void_t, 
+
+    null_t,
 };
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
@@ -42,6 +44,8 @@ static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
     "bool",
 
     "void",
+
+    "NULL",
 };
 
 struct BuiltinTypeInfo
@@ -64,13 +68,6 @@ struct BuiltinTypeInfo
 
 extern const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE];
 
-
-enum class contained_type
-{
-    plain,
-    array,
-    pointer,
-};
 
 
 static constexpr u32 MAX_ARR_SIZE = 4;

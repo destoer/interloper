@@ -1,0 +1,8 @@
+
+
+func main() s32 
+{
+    x : u32 = NULL;
+
+    return 0;
+}

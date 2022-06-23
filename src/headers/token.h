@@ -10,6 +10,7 @@ enum class token_type
 
     true_t,
     false_t,
+    null_t,
 
     semi_colon,
     colon,
@@ -123,6 +124,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::true_t,"true",0},
     {token_type::false_t,"false",0},
+    {token_type::null_t,"NULL",0},
 
     {token_type::semi_colon,";",0},
     {token_type::colon,":",0},

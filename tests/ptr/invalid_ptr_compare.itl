@@ -1,0 +1,14 @@
+
+
+func main() s32 
+{
+    v1 : u32@;
+    v2 : s32@;
+
+    if v1 == v2
+    {
+        return 1;
+    }
+
+    return 0;
+}

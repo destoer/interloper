@@ -69,6 +69,7 @@ enum class ast_type
 
     false_t,
     true_t,
+    null_t,
 
     for_block,
 
@@ -152,6 +153,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "false",
     "true",
+    "NULL",
 
     "for_block",
 
