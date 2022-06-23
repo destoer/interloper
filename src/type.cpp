@@ -10,6 +10,8 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::s16_t, true, true ,2,  static_cast<u32>(-(0xffff / 2)), (0xffff / 2)},
     {builtin_type::s32_t, true, true ,4,  static_cast<u32>(-(0xffffffff / 2)), (0xffffffff / 2)},
 
+    {builtin_type::byte_t, true, false, 1, 0, 0xff},
+
     {builtin_type::bool_t, false, false ,1,  0, 1},
 
     {builtin_type::void_t, false, false, 0, 0, 0},
@@ -786,6 +788,12 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
         {
             unimplemented("handle cast builtin illegal %s -> %s\n",type_name(itl,old_type).c_str(),type_name(itl,new_type).c_str());
         }
+    }
+
+    // cast does nothing just move the reg, its only acknowledgement your doing something screwy
+    else if(is_pointer(old_type) && is_pointer(new_type))
+    {
+        emit(emitter,op_type::mov_reg,dst_slot,src_slot);
     }
 
     // probably only pointers are gonna valid for casts here

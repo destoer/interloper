@@ -72,6 +72,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/ptr/deref_plain",-1,true},
     {"tests/ptr/ptr_to_ptr",1,true},
     {"tests/ptr/expected_ptr",-1,true},
+    {"tests/ptr/cast_ptr",1020,false},
 
     // wait for heap allocation
     //{"tests/ptr/ptr_to_array",3,false},

@@ -675,6 +675,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             {
                 auto [arg_type,reg] = compile_oper(itl,func,node->nodes[arg_idx],new_tmp(func));
 
+                // fixed sized array
                 if(is_fixed_array_pointer(arg_type))
                 {
                     const u32 len_slot = new_tmp(func);
@@ -691,6 +692,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
                 // push vla struct in reverse order
                 // This conversion is implicit
+                // TODO: this needs to handle conversions on multidimensional arrays
                 else if(is_runtime_size(arg.type,0))
                 {
                     const u32 len_slot = new_tmp(func);

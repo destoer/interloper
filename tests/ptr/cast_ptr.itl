@@ -1,0 +1,13 @@
+
+
+// expected 1020
+func main() s32 
+{
+    buf : byte[32];
+
+    ptr : u32@ = cast(u32@,&buf[0]);
+
+    @ptr = 0xffffffff;
+
+    return buf[0] + buf[1] + buf[2] + buf[3];
+}

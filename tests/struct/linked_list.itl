@@ -1,1 +1,21 @@
-// TODO:
+
+
+struct List
+{
+    start : ListNode@;
+    end : ListNode@;
+}
+
+struct ListNode
+{
+    v : u32;
+
+    next : ListNode@;
+    prev : ListNode@;
+}
+
+
+func main() s32 
+{
+    return 0;
+}
