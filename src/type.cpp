@@ -17,6 +17,13 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
+u32 default_value(const Type& type)
+{
+    UNUSED(type);
+    // NOTE: for now every default is zero
+    return 0;
+}
+
 Type type_array(builtin_type t, u32 size, bool is_const = false)
 {
     auto rtype = Type(t);

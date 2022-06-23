@@ -1906,6 +1906,31 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
         }
     }
 
+    else
+    {
+        // insertion will break our reference
+        const u32 sym_slot = sym.slot;
+
+        const u32 addr_slot = new_tmp(itl,GPR_SIZE);
+        emit(func.emitter,op_type::addrof,addr_slot,sym_slot);
+
+        for(const auto &member : structure.members)
+        {
+            if(member.expr)
+            {
+                unimplemented("default member explict");
+            }
+
+            else
+            {
+                const u32 tmp = new_tmp(func);
+                emit(func.emitter,op_type::mov_imm,tmp,default_value(member.type));
+
+                do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
+            }
+        }
+    }
+
     if(itl.error)
     {
         return;
@@ -1944,22 +1969,35 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
         compile_struct_decl(itl,func,line,sym);
     }
 
-    // handle right side expression (if present)
-    // standard decl
-    else if(line.nodes.size() == 2)
+    
+    // simple type
+    else 
     {
         emit(func.emitter,op_type::alloc_slot,sym.slot);
 
-        // normal assign
-        const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],sym.slot);
-
-        // oper is a single symbol and the move hasn't happened we need to explictly move it
-        if(sym.slot != reg)
+        // initalizer
+        if(line.nodes.size() == 2)
         {
-            compile_move(itl,func,sym.slot,reg,sym.type,rtype);
+            // normal assign
+            const auto [rtype,reg] = compile_oper(itl,func,line.nodes[1],sym.slot);
+
+            // oper is a single symbol and the move hasn't happened we need to explictly move it
+            if(sym.slot != reg)
+            {
+                compile_move(itl,func,sym.slot,reg,sym.type,rtype);
+            }
+
+            check_assign(itl,ltype,rtype,false,true);         
+
+            
         }
 
-        check_assign(itl,ltype,rtype,false,true);         
+        // default init
+        else
+        {
+            // NOTE: atm, all standard types use 0 for default, we may need something more flexible
+            emit(func.emitter,op_type::mov_imm,sym.slot,default_value(sym.type));
+        }
     } 
 }
 

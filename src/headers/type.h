@@ -119,14 +119,16 @@ struct Type
 
 };
 
+struct AstNode;
+
 // struct entry
-// TODO: how should we store default values?
-// should we just hold pointers to the initial definition and not delete the struct tree?
 struct Member
 {
     std::string name;
     u32 offset;
     Type type;
+
+    AstNode* expr = nullptr;
 };
 
 struct Struct

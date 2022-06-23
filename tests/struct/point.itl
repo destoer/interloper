@@ -19,13 +19,11 @@ func calc_gradient(v1: Point, v2: Point@) s32
     return (v2.y - v1.y) / (v2.x - v1.x);
 }
 
-
 func main() s32
 {
-
-    v1: Point = {2,5};
-    //v1 : Point; // test default values
-    v2 : Point = make_point(3,7);
+    // test default values
+    v1 : Point; 
+    v2 : Point = make_point(3,10);
 
     return calc_gradient(v1,&v2);  
 }

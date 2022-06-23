@@ -114,6 +114,14 @@ void parse_struct_decl(Interloper& itl, AstNode* node)
 
         AstNode* type_decl = m->nodes[0];
 
+
+        // init expr provided
+        if(m->nodes.size() == 2)
+        {
+            member.expr = m->nodes[1];
+        }
+
+
         // member is struct that has nott had its defintion parsed yet
         if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->literal))
         {

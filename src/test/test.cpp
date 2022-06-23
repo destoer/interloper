@@ -41,7 +41,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/type/decl",255,false},
     {"tests/type/builtin_type",271,false},
     {"tests/type/sizeof",1,false},
-    {"tests/type/defualt_initializer",1,false},
+    {"tests/type/default_initializer",1,false},
 
     // const
     {"tests/const/const_invalid_assign",-1,true},
@@ -116,7 +116,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_initializer",495,false},
     {"tests/struct/pass_struct",2,false},
     {"tests/struct/return_struct",3,false},
-    {"tests/struct/point",2,false},
+    {"tests/struct/point",5,false},
     {"tests/struct/array_of_struct",179,false},
     {"tests/struct/redeclare_struct",-1,true},
     {"tests/struct/redeclare_member",-1,true},
