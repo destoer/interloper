@@ -17,10 +17,12 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
+
 u32 default_value(const Type& type)
 {
     UNUSED(type);
     // NOTE: for now every default is zero
+    // and as such we dont bother doing any type checking either
     return 0;
 }
 

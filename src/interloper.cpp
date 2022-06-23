@@ -1918,7 +1918,30 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
         {
             if(member.expr)
             {
-                unimplemented("default member explict");
+                if(member.expr->type == ast_type::initializer_list)
+                {
+                    unimplemented("initializer list");
+                }
+
+                else
+                {
+                    const auto [rtype,slot] = compile_oper(itl,func,member.expr,new_tmp(func));
+                    check_assign(itl,member.type,rtype,false,true); 
+
+                    do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
+                }
+            }
+
+            // TODO: handle nested struct membmer
+            else if(is_struct(member.type))
+            {
+
+            }
+
+            // TODO: handle arrays
+            else if(is_array(member.type))
+            {
+
             }
 
             else
