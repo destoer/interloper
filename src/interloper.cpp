@@ -584,8 +584,13 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
 
         else
         {
-            print(itl.cur_line);
-            unimplemented("move large type %s = %s!\n",type_name(itl,dst_type).c_str(),type_name(itl,src_type).c_str());
+            const u32 src_ptr = new_tmp(func);
+            emit(func.emitter,op_type::addrof,src_ptr,src_slot);
+
+            const u32 dst_ptr = new_tmp(func);
+            emit(func.emitter,op_type::addrof,dst_ptr,dst_slot);
+
+            ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,dst_type));
         }
     }
 }

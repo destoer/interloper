@@ -799,6 +799,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
     {
         case op_type::addrof:
         {
+
+            if(is_tmp(opcode.v[1]))
+            {
+                unimplemented("addr taken on tmp");
+            }
+
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
 
