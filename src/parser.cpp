@@ -851,7 +851,7 @@ void struct_decl(Interloper& itl,Parser& parser)
     itl.struct_def[name.literal] = definition;
 }
 
-const u32 AST_ALLOC_DEFAULT_SIZE = 100 * 1024;
+const u32 AST_ALLOC_DEFAULT_SIZE = 1 * 1024 * 1024;
 
 std::vector<std::string> read_source_file(const std::string& filename)
 {

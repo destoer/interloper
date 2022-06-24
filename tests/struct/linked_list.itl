@@ -1,21 +1,37 @@
 import "basic"
+import "list"
 
-struct List
-{
-    start : ListNode@;
-    end : ListNode@;
-}
-
-struct ListNode
-{
-    v : u32;
-
-    next : ListNode@;
-    prev : ListNode@;
-}
-
-
+// expected 66
 func main() s32 
 {
-    return 0;
+    buf : byte[1024];
+    arena : Arena = make_arena(buf);
+
+    list : List = make_list(&arena);
+
+    num : u32[?] = {5,9,42,48,12,9,643};
+
+    for(i : u32 = 0; i < num.len; i += 1)
+    {
+        node : ListNode@ = append(&list,num[i]);
+
+        if(is_even(i))
+        {
+            remove(&list,node);
+        }
+    }
+
+    node : ListNode@ = list.start;
+
+    sum : u32 = 0;
+
+    for(node != NULL)
+    {
+        sum += node.v;
+
+        node = node.next;
+    }
+
+
+    return sum;
 }

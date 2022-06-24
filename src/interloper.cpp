@@ -21,7 +21,7 @@ std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, As
 void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtype, AstNode *node);
 
 void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
-
+std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node);
 
 std::string get_program_name(const std::string &filename)
 {
@@ -246,6 +246,25 @@ Type value(Function& func,AstNode *node, u32 dst_slot)
 }
 
 
+// get back a complete pointer
+u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset)
+{
+    if(*offset)
+    {
+        const u32 final_addr = new_tmp(func);
+        emit(func.emitter,op_type::add_imm,final_addr,addr_slot,*offset);
+
+        *offset = 0;
+
+        return final_addr;
+    }
+    
+    else
+    {
+        return addr_slot;
+    }
+}
+
 void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
 {
     const u32 size = type_size(itl,type);
@@ -278,7 +297,12 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 
     else
     {
-        unimplemented("struct write");
+        u32 src_ptr = new_tmp(func);
+        emit(func.emitter,op_type::addrof,src_ptr,dst_slot);
+
+        src_ptr = collapse_offset(func,src_ptr,&offset);        
+
+        ir_memcpy(itl,func,addr_slot,src_ptr,type_size(itl,type));        
     } 
 }
 
@@ -602,6 +626,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
     const auto &func_call = itl.function_table[node->literal];
 
+    //print_func_decl(itl,func_call);
+
     const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
 
 
@@ -640,7 +666,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
             // pass a static string (TODO: we need to add const and make sure that the arg is marked as it)
             // const_pool_addr <slot>, offset  to load the address
-            if(node->nodes[i]->type == ast_type::string)
+            if(node->nodes[arg_idx]->type == ast_type::string)
             {
                 const auto rtype = type_array(builtin_type::u8_t,node->nodes[arg_idx]->literal.size(),true);
                 check_assign(itl,arg.type,rtype,true);
@@ -1112,13 +1138,22 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
         {
             if(addrof)
             {
-                unimplemented("struct member addrof");
+                auto [type,ptr_slot,offset] = compute_member_addr(itl,func,node);
+                ptr_slot = collapse_offset(func,ptr_slot,&offset);
+
+                // make sure this ptr goes into the dst slot
+                emit(func.emitter,op_type::mov_reg,slot,ptr_slot);
+
+                // we actually want this as a pointer
+                type.ptr_indirection += 1;
+
+                return std::pair<Type,u32>{type,ptr_slot};
             }
 
             // deref on struct member that is a ptr
             else
             {
-                auto [type,ptr_slot] = read_struct(itl,func,new_tmp(func),node);
+                auto [type,ptr_slot] = read_struct(itl,func,slot,node);
                 type.ptr_indirection -= 1;
 
                 return std::pair<Type,u32>{type,ptr_slot};
@@ -2010,9 +2045,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
                 compile_move(itl,func,sym.slot,reg,sym.type,rtype);
             }
 
-            check_assign(itl,ltype,rtype,false,true);         
-
-            
+            check_assign(itl,ltype,rtype,false,true);             
         }
 
         // default init
@@ -2133,24 +2166,6 @@ std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 sl
     return std::pair<Type,u32>{member.type,slot};    
 }
 
-// get back a complete pointer
-u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset)
-{
-    if(*offset)
-    {
-        const u32 final_addr = new_tmp(func);
-        emit(func.emitter,op_type::add_imm,final_addr,addr_slot,*offset);
-
-        *offset = 0;
-
-        return final_addr;
-    }
-    
-    else
-    {
-        return addr_slot;
-    }
-}
 
 // return type, slot, offset
 std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
@@ -2265,6 +2280,14 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
                 std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,n->literal,&member_offset);
                 
                 struct_slot = collapse_offset(func,struct_slot,&member_offset);
+
+                if(is_runtime_size(struct_type,0))
+                {
+                    const u32 vla_ptr = new_tmp(func);
+                    // TODO: This can be better typed to a pointer
+                    do_ptr_load(itl,func,vla_ptr,struct_slot,Type(builtin_type::u32_t),0);
+                    struct_slot = vla_ptr;
+                }
 
                 std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,n,n->literal,struct_type,struct_slot,new_tmp(func));
 
@@ -2582,6 +2605,8 @@ void compile_functions(Interloper &itl)
 // -> source line information on parse tree (impl assert)
 // NOTE: we should mark the top level decl with what file its from
 
+// -> make imports not include uneeded funcs
+
 // -> move ast to arena allocation (not urgent)
 // -> impl own Array, String, and HashMap structs (not urgent)
 // -> move tokenizer over to batching (not urgent)
@@ -2595,8 +2620,7 @@ void compile_functions(Interloper &itl)
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-// structs -> default_values -> tuples ->  
-// -> make imports not include uneeded funcs -> global const's 
+// structs -> default_values -> tuples -> global const's 
 // -> switch -> enum -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> debugg memory guards -> ...
@@ -2635,7 +2659,7 @@ void destroy_itl(Interloper &itl)
     destory_allocator(itl.list_allocator);
 }
 
-static constexpr u32 LIST_INITIAL_SIZE = 10 * 1024;
+static constexpr u32 LIST_INITIAL_SIZE = 1 * 1024 * 1024;
 
 void compile(Interloper &itl,const std::string& initial_filename)
 {

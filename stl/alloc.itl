@@ -8,7 +8,7 @@ struct Arena
     len : u32;
 }
 
-/*
+
 func make_arena(buf : byte[]) Arena
 {
     arena : Arena;
@@ -18,4 +18,17 @@ func make_arena(buf : byte[]) Arena
 
     return arena;
 }
-*/
+
+func allocate(arena : Arena@, size : u32) byte@
+{
+    // allocation failed
+    if(arena.len + size >= arena.buf.len)
+    {
+        return NULL;
+    }
+
+    alloc_ptr : byte@ = &arena.buf[arena.len];
+    arena.len += size;
+
+    return alloc_ptr;    
+}
