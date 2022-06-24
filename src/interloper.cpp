@@ -2623,7 +2623,7 @@ void compile_functions(Interloper &itl)
 // structs -> default_values -> tuples -> global const's 
 // -> switch -> enum -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
-// unions -> debugg memory guards -> ...
+// unions -> marcro -> debugg memory guards -> ...
 
 void destory_ast(Interloper& itl)
 {

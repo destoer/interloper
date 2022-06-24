@@ -61,7 +61,6 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/func/redefine_func",-1,true},
     {"tests/func/recur",1,false},
 
-    
     // control flow
     {"tests/control_flow/if",25,false},
     {"tests/control_flow/else_if",45077,false},
@@ -128,7 +127,10 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_of_ptr",154,false},
     {"tests/struct/struct_of_arrays",28,false},
     {"tests/struct/struct_assign",6,false},
-    {"tests/struct/linked_list",66,false},
+
+    // stl
+    {"tests/stl/linked_list",66,false},
+    {"tests/stl/mem",0,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

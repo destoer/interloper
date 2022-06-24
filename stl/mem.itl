@@ -1,6 +1,6 @@
 
 
-func memcpy(dst: u8@, src: u8@, size: u32)
+func memcpy(dst: byte@, src: byte@, size: u32)
 {
     // just do a simple copy for now
     for i: u32 = 0; i < size; i += 1
@@ -9,4 +9,19 @@ func memcpy(dst: u8@, src: u8@, size: u32)
         dst += 1;
         src += 1;
     }
+}
+
+
+func memset(dst: byte@, size : u32, v : u8)
+{
+    for i: u32 = 0; i < size; i += 1
+    {
+        @dst = v;
+        dst += 1;
+    }    
+}
+
+func zero_mem(dst: byte@, size : u32)
+{
+    memset(dst,size,0);
 }

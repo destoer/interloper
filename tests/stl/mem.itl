@@ -1,0 +1,10 @@
+import "mem"
+
+func main() s32 
+{
+    x : u32[4] = {1,2,3,4};
+
+    zero_mem(&x[0],sizeof(x[0]) * x.len);
+
+    return x[0] + x[1] + x[2] + x[3];
+}
