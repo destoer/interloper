@@ -1,0 +1,10 @@
+
+// expected compile error
+
+func main() s32 
+{
+    byte_ptr : byte@;
+    int_ptr : u32@ = byte_ptr;
+
+    return 0;
+}

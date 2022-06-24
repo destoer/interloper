@@ -42,6 +42,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/type/builtin_type",271,false},
     {"tests/type/sizeof",1,false},
     {"tests/type/default_initializer",1,false},
+    {"tests/type/byte",0,false},
+    {"tests/type/byte_invalid",-1,true},
 
     // const
     {"tests/const/const_invalid_assign",-1,true},
