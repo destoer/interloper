@@ -6,14 +6,20 @@ char peek(u32 offset, const std::string &line)
     return offset < line.size()? line[offset] : '\0';
 }
 
-void insert_token(Lexer &lexer, token_type type, u32 offset = 0)
+void insert_token(Lexer &lexer, token_type type)
 {
-    lexer.tokens.push_back(Token(type,"",lexer.row,lexer.column + offset));
+    lexer.tokens.push_back(Token(type,"",lexer.row,lexer.column));
 }
 
-void insert_token(Lexer &lexer, token_type type, const std::string &literal)
+
+void insert_token(Lexer &lexer, token_type type, u32 col)
 {
-    lexer.tokens.push_back(Token(type,literal,lexer.row,lexer.column));
+    lexer.tokens.push_back(Token(type,"",lexer.row,col));
+}
+
+void insert_token(Lexer &lexer, token_type type, const std::string &literal, u32 col)
+{
+    lexer.tokens.push_back(Token(type,literal,lexer.row,col));
 }
 
 
@@ -122,6 +128,8 @@ bool verify_immediate(const std::string &line, std::string &literal)
 // true on error
 bool decode_imm(Lexer &lexer,const std::string &line)
 {
+    const u32 start_col = lexer.column;
+
     std::string literal = "";
 
 
@@ -136,7 +144,7 @@ bool decode_imm(Lexer &lexer,const std::string &line)
     // ignore one for the termination char
     lexer.column += literal.size() - 1;
 
-    insert_token(lexer,token_type::value,literal);   
+    insert_token(lexer,token_type::value,literal,start_col);   
     return false; 
 }
 
@@ -227,7 +235,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // equal
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_eq,1);
+                    insert_token(lexer,token_type::logical_eq);
                     lexer.column++;
                 }
                 
@@ -244,6 +252,8 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             // char literal
             case '\'':
             {
+                const u32 col = lexer.column;
+
                 const char c = peek(lexer.column+1,line);
 
                 if(c == '\0')
@@ -258,7 +268,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                     return true;
                 }
 
-                insert_token(lexer,token_type::char_t,std::string(1,c));
+                insert_token(lexer,token_type::char_t,std::string(1,c),col);
 
                 lexer.column += 2;
                 break;
@@ -267,6 +277,8 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             // string literal
             case '\"':
             {
+                const u32 start_col = lexer.column;
+
                 lexer.column++;
                 std::string str = "";
 
@@ -306,7 +318,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                     str += c;
                 }
 
-                insert_token(lexer,token_type::string,str);
+                insert_token(lexer,token_type::string,str,start_col);
                 break;
             }
 
@@ -329,7 +341,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             { 
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::times_eq,1);
+                    insert_token(lexer,token_type::times_eq,lexer.column + 1);
                     lexer.column++;
                 }
 
@@ -344,7 +356,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::plus_eq,1);
+                    insert_token(lexer,token_type::plus_eq,lexer.column + 1);
                     lexer.column++;
                 }
 
@@ -368,7 +380,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
                 else if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::minus_eq,1);
+                    insert_token(lexer,token_type::minus_eq,lexer.column + 1);
                     lexer.column++;
                 }                
 
@@ -385,7 +397,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // equal
                 if(peek(lexer.column+1,line) == '&')
                 {
-                    insert_token(lexer,token_type::logical_and,1);
+                    insert_token(lexer,token_type::logical_and,lexer.column + 1);
                     lexer.column++;
                 }
 
@@ -401,7 +413,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // logical or
                 if(peek(lexer.column+1,line) == '|')
                 {
-                    insert_token(lexer,token_type::logical_or,1);
+                    insert_token(lexer,token_type::logical_or,lexer.column + 1);
                     lexer.column++;
                 }
 
@@ -420,7 +432,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // not equal
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_ne,1);
+                    insert_token(lexer,token_type::logical_ne);
                     lexer.column++;
                 }
 
@@ -435,13 +447,13 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_le,1);
+                    insert_token(lexer,token_type::logical_le);
                     lexer.column++;
                 }
 
                 else if(peek(lexer.column+1,line) == '<')
                 {
-                    insert_token(lexer,token_type::shift_l,1);
+                    insert_token(lexer,token_type::shift_l);
                     lexer.column++;
                 }
 
@@ -456,13 +468,13 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::logical_ge,1);
+                    insert_token(lexer,token_type::logical_ge);
                     lexer.column++;
                 }
 
                 else if(peek(lexer.column+1,line) == '>')
                 {
-                    insert_token(lexer,token_type::shift_r,1);
+                    insert_token(lexer,token_type::shift_r);
                     lexer.column++;
                 }
 
@@ -486,7 +498,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
                 else if(peek(lexer.column+1,line) == '=')
                 {
-                    insert_token(lexer,token_type::divide_eq,1);
+                    insert_token(lexer,token_type::divide_eq);
                     lexer.column++;
                 }
 
@@ -506,6 +518,8 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             default:
             {
+                u32 start_col = lexer.column;
+
                 // potential symbol
                 if(isalpha(c) || c == '_')
                 {
@@ -526,12 +540,12 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                     // else its a symbol
                     if(is_keyword(literal))
                     {
-                        insert_token(lexer,keyword_token_type(literal));
+                        insert_token(lexer,keyword_token_type(literal),start_col);
                     }
 
                     else
                     {
-                        insert_token(lexer,token_type::symbol,literal);
+                        insert_token(lexer,token_type::symbol,literal,start_col);
                     }
 
                 }

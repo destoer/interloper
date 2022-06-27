@@ -877,7 +877,7 @@ void add_file(std::set<std::string>& file_set, std::vector<std::string>& stack, 
 
 bool parse(Interloper& itl, const std::string initial_filename)
 {
-    //print_tokens(parser.tokens);
+
     std::set<std::string> file_set;
     std::vector<std::string> file_stack;
 
@@ -903,6 +903,10 @@ bool parse(Interloper& itl, const std::string initial_filename)
             return true;
         }
         
+        print_tokens(parser.tokens);
+
+        exit(1);
+
         const auto size = parser.tokens.size();
 
         while(parser.tok_idx < size)
