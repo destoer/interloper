@@ -2671,7 +2671,8 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     // parse intial input file
     {
-        itl.func_root = ast_plain(ast_type::root);
+        Token root_tok = Token(token_type::eof,"root",0,0);
+        itl.func_root = ast_plain(ast_type::root,root_tok);
 
         // build ast
         const b32 parser_error = parse(itl,initial_filename);

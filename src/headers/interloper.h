@@ -64,6 +64,8 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     
     itl.error = true;
 
+    // TODO: replace with proper line printing
+    printf("line %d : %d\n",itl.cur_line->line + 1,itl.cur_line->col + 1);
     print(itl.cur_line);
 }
 

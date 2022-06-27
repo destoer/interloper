@@ -199,6 +199,7 @@ struct AstNode
     ast_type type;
     std::string literal;
     u32 line;
+    u32 col;
 
     // if we put anything in here
     // we need to make sure we add the copy into
@@ -240,27 +241,31 @@ AstNode* alloc_node()
     return new AstNode();
 }
 
-AstNode *ast_plain(ast_type type)
+AstNode *ast_plain(ast_type type, const Token& token)
 {
     AstNode* node = alloc_node();
     node->type = type;
     node->value = Value(0,false);
+    node->line = token.line;
+    node->col = token.col;
 
     return node;    
 }
 
-AstNode *ast_literal(ast_type type,const std::string &literal)
+AstNode *ast_literal(ast_type type,const std::string &literal, const Token& token)
 {
     AstNode* node = alloc_node();
     node->type = type;
     node->literal = literal;
     node->value = Value(0,false);
+    node->line = token.line;
+    node->col = token.col;
 
     return node;    
 }
 
 
-AstNode *ast_binary(AstNode *l, AstNode *r, ast_type type, std::string literal = "")
+AstNode *ast_binary(AstNode *l, AstNode *r, ast_type type, const Token& token, std::string literal = "")
 {
     AstNode* node = alloc_node();
 
@@ -268,25 +273,29 @@ AstNode *ast_binary(AstNode *l, AstNode *r, ast_type type, std::string literal =
     node->nodes.push_back(r);
     node->type = type;
     node->literal = literal;
-    node->value = Value(0,false);  
+    node->value = Value(0,false); 
+    node->line = token.line;
+    node->col = token.col;
 
     return node;  
 }
 
-AstNode *ast_unary(AstNode *l, ast_type type, std::string literal = "")
+AstNode *ast_unary(AstNode *l, ast_type type, const Token& token, std::string literal = "")
 {
     AstNode* node = alloc_node();
 
     node->nodes.push_back(l);
     node->type = type;
     node->literal = literal;
-    node->value = Value(0,false);  
+    node->value = Value(0,false); 
+    node->line = token.line;
+    node->col = token.col;
 
     return node;  
 }
 
 
-AstNode *ast_binary_value(AstNode *l, AstNode *r, Value value, std::string literal = "")
+AstNode *ast_binary_value(AstNode *l, AstNode *r, Value value, const Token& token, std::string literal = "")
 {
     AstNode* node = alloc_node();
 
@@ -294,18 +303,22 @@ AstNode *ast_binary_value(AstNode *l, AstNode *r, Value value, std::string liter
     node->nodes.push_back(r);
     node->type = ast_type::value;
     node->literal = literal;
-    node->value = value; 
+    node->value = value;
+    node->line = token.line;
+    node->col = token.col; 
 
     return node;  
 }
 
-AstNode *ast_value(Value value, std::string literal = "")
+AstNode *ast_value(Value value, const Token& token, std::string literal = "")
 {
     AstNode* node = alloc_node();
 
     node->type = ast_type::value;
     node->literal = literal;
-    node->value = value; 
+    node->value = value;
+    node->line = token.line;
+    node->col = token.col;
 
     return node;  
 }
