@@ -201,6 +201,9 @@ struct AstNode
     u32 line;
     u32 col;
 
+    // TODO: this should be only for top levle decl just leave it in all of them for now
+    std::string filename;
+
     // if we put anything in here
     // we need to make sure we add the copy into
     // copy_node
@@ -212,8 +215,6 @@ struct AstNode
         // type decl
         u32 type_idx;
     };
-
-    // TODO: should this even be a pointer?
 
 
     std::vector<AstNode *> nodes;
@@ -264,6 +265,35 @@ AstNode *ast_literal(ast_type type,const std::string &literal, const Token& toke
     return node;    
 }
 
+AstNode *ast_func(const std::string &literal, const std::string& filename, const Token& token)
+{
+    AstNode* node = alloc_node();
+    node->type = ast_type::function;
+
+    node->filename = filename;
+    node->literal = literal;
+    node->value = Value(0,false);
+
+    node->line = token.line;
+    node->col = token.col;
+
+    return node;
+}
+
+AstNode *ast_struct(const std::string &literal, const std::string& filename, const Token& token)
+{
+    AstNode* node = alloc_node();
+    node->type = ast_type::struct_t;
+
+    node->filename = filename;
+    node->literal = literal;
+    node->value = Value(0,false);
+
+    node->line = token.line;
+    node->col = token.col;
+
+    return node;
+}    
 
 AstNode *ast_binary(AstNode *l, AstNode *r, ast_type type, const Token& token, std::string literal = "")
 {

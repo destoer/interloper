@@ -22,7 +22,9 @@ struct Interloper
 
     StructDefMap struct_def;
 
-    AstNode *cur_line = nullptr;
+    AstNode *cur_expr = nullptr;
+    std::string cur_file = "";
+
 
     FuncTable function_table;
     // did the last compiled function have a return
@@ -56,17 +58,50 @@ void print(const AstNode *root);
 
 inline void panic(Interloper &itl,const char *fmt, ...)
 {
-    printf("error: ");
-    va_list args; 
-    va_start(args, fmt);
-    vprintf(fmt,args);
-    va_end(args);
+    if(itl.cur_expr)
+    {
+        const u32 line = itl.cur_expr->line;
+        const u32 col = itl.cur_expr->col;
+        const std::string filename = itl.cur_file;
+
+        printf("error: %s %d:%d: ",filename.c_str(),line + 1,col + 1);
+
+
+        va_list args; 
+        va_start(args, fmt);
+        vprintf(fmt,args);
+        va_end(args);
+
+        // this is slow, but we are about to terminate anyways
+        std::fstream fp{filename};
+
+        if(!fp)
+        {
+            printf("could not open file %s for error printing\n",filename.c_str());
+        }
+
+        std::string str;
+        for(u32 i = 0; i < line + 1; i++)
+        {
+            std::getline(fp,str);
+        }
+
+        printf("%s\n",str.c_str());
+    }
+
+    else 
+    {
+        printf("error: ");
+
+        va_list args; 
+        va_start(args, fmt);
+        vprintf(fmt,args);
+        va_end(args);
+    }
+
+    putchar('\n');
     
     itl.error = true;
-
-    // TODO: replace with proper line printing
-    printf("line %d : %d\n",itl.cur_line->line + 1,itl.cur_line->col + 1);
-    print(itl.cur_line);
 }
 
 std::string get_program_name(const std::string &filename);

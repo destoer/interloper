@@ -612,7 +612,7 @@ AstNode *statement(Parser &parser)
                     // we have an else if
                     if(peek(parser,0).type == token_type::if_t)
                     {
-                        
+                        consume(parser,token_type::if_t);
 
                         const auto else_if_stmt = ast_plain(ast_type::else_if_t,else_tok);
 
@@ -696,7 +696,7 @@ AstNode *block(Parser &parser)
     return b;
 }
 
-AstNode *func(Parser &parser)
+AstNode *func(Parser &parser, const std::string& filename)
 {
 
     // func_dec = func ident(arg...) return_type 
@@ -711,7 +711,7 @@ AstNode *func(Parser &parser)
         return nullptr;  
     }
 
-    AstNode *f = ast_literal(ast_type::function, func_name.literal,func_name);
+    AstNode *f = ast_func(func_name.literal,filename,func_name);
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
@@ -804,7 +804,7 @@ AstNode *func(Parser &parser)
     return f;
 }
 
-void struct_decl(Interloper& itl,Parser& parser)
+void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
 {
     const auto name = next_token(parser);
 
@@ -820,7 +820,7 @@ void struct_decl(Interloper& itl,Parser& parser)
         return;
     }
 
-    AstNode* struct_node = ast_literal(ast_type::struct_t,name.literal,name);
+    AstNode* struct_node = ast_struct(name.literal,filename,name);
 
     consume(parser,token_type::left_c_brace);
 
@@ -851,7 +851,7 @@ void struct_decl(Interloper& itl,Parser& parser)
     itl.struct_def[name.literal] = definition;
 }
 
-const u32 AST_ALLOC_DEFAULT_SIZE = 1 * 1024 * 1024;
+const u32 AST_ALLOC_DEFAULT_SIZE = 64 * 1024;
 
 std::vector<std::string> read_source_file(const std::string& filename)
 {
@@ -903,12 +903,12 @@ bool parse(Interloper& itl, const std::string initial_filename)
             return true;
         }
         
-        print_tokens(parser.tokens);
-
-        exit(1);
+        //print_tokens(parser.tokens);
 
         const auto size = parser.tokens.size();
 
+        // TODO: put an extra string in the top level decl of the ast
+        // so we know what file it came from
         while(parser.tok_idx < size)
         {
             const auto &t = next_token(parser);
@@ -942,14 +942,14 @@ bool parse(Interloper& itl, const std::string initial_filename)
                 // function declartion
                 case token_type::func:
                 {
-                    itl.func_root->nodes.push_back(func(parser));
+                    itl.func_root->nodes.push_back(func(parser,filename));
                     break;
                 }
 
                 case token_type::struct_t:
                 {
 
-                    struct_decl(itl,parser);
+                    struct_decl(itl,parser,filename);
                     break;
                 }
 
@@ -994,7 +994,7 @@ void print(const AstNode *root)
     printf(" %d ",depth);
     
     // TODO: remove the line printing here
-    printf(" %s : %s (%d:%d)\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str(),root->line+1,root->col+1);
+    printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str());
     depth += 1;
 
     for(const auto &n: root->nodes)
