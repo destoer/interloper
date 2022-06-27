@@ -104,6 +104,8 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
     AstNode* node = def.root;
     
+    itl.cur_file = node->filename;
+
     structure.name = node->literal;
 
     // we want to get how many sizes of each we have
@@ -168,6 +170,8 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
                 }
             }
         }
+
+        itl.cur_file = node->filename;
 
         member.type = get_type(itl,m->nodes[0],type_idx_override);
 

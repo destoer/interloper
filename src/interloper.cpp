@@ -100,6 +100,7 @@ void parse_function_declarations(Interloper& itl)
     {
         const auto &node = *n;
 
+        itl.cur_file = n->filename;
 
         const auto return_type = get_type(itl,node.nodes[0]);
         const auto name = node.literal;
@@ -313,6 +314,9 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
 {
     panic(node == nullptr,"nullptr in compile_oper");
+
+    // for error printing
+    itl.cur_expr = node;
 
     // test what the current node is
     switch(node->type)
@@ -2337,9 +2341,6 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
     for(auto l : node->nodes)
     {
-        // for error printing
-        itl.cur_line = l;
-
         const auto &line = *l;
 
         if(itl.error)
@@ -2542,6 +2543,7 @@ void compile_functions(Interloper &itl)
     for(const auto n: itl.func_root->nodes)
     {
         const auto &node = *n;
+        itl.cur_file = n->filename;
 
         
         // put arguments on the symbol table they are marked as args
@@ -2602,11 +2604,12 @@ void compile_functions(Interloper &itl)
 // general refactor
 // -> remove duplicate code
 
-// -> source line information on parse tree (impl assert)
-// NOTE: we should mark the top level decl with what file its from
 
 // -> make imports not include uneeded funcs
 
+
+
+// -> impl static assert
 // -> move ast to arena allocation (not urgent)
 // -> impl own Array, String, and HashMap structs (not urgent)
 // -> move tokenizer over to batching (not urgent)
@@ -2643,7 +2646,8 @@ void destory_ast(Interloper& itl)
     itl.struct_def.clear();
 
     
-    itl.cur_line = nullptr;    
+    itl.cur_expr = nullptr;
+    itl.cur_file = ""; 
 }
 
 void destroy_itl(Interloper &itl)
@@ -2659,7 +2663,7 @@ void destroy_itl(Interloper &itl)
     destory_allocator(itl.list_allocator);
 }
 
-static constexpr u32 LIST_INITIAL_SIZE = 1 * 1024 * 1024;
+static constexpr u32 LIST_INITIAL_SIZE = 32 * 1024;
 
 void compile(Interloper &itl,const std::string& initial_filename)
 {
@@ -2671,7 +2675,8 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     // parse intial input file
     {
-        itl.func_root = ast_plain(ast_type::root);
+        Token root_tok = Token(token_type::eof,"root",0,0);
+        itl.func_root = ast_plain(ast_type::root,root_tok);
 
         // build ast
         const b32 parser_error = parse(itl,initial_filename);

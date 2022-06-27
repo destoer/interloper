@@ -265,7 +265,8 @@ inline bool operator != (const Token &t1, const Token &t2)
 inline void print_token(const Token& t)
 {
     printf("type: %s\n",tok_name(t.type));
-    printf("literal: %s\n\n",t.literal.c_str());    
+    printf("literal: %s\n",t.literal.c_str());
+    printf("loc: (%d:%d)\n\n",t.line+1,t.col+1);    
 }
 
 inline void print_tokens(const std::vector<Token> &tokens)

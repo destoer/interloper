@@ -1,12 +1,11 @@
 
-// expected compile error
 
 func void_return()
 {
 
 }
 
-func main() : s32
+func main() s32
 {
     return void_return();
 }
