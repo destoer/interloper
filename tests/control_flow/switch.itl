@@ -1,0 +1,31 @@
+
+
+func main() s32 
+{
+    buf : u32[?] = {0,1,5,2,0,1,6,9,10};
+
+    ans : u32 = 0;
+
+    for i : u32 = 0; i < buf.len; i += 1
+    {
+        switch(buf[i])
+        {
+            case 0:
+            {
+                ans += 5;
+            }
+
+            case 1:
+            {
+                ans += 10;
+            }
+
+            default:
+            {
+                ans += 25;
+            }
+        }
+    }
+
+    return a;s
+}

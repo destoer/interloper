@@ -1,6 +1,4 @@
 
-import "basic"
-
 func main() s32
 {
     write_string("Go for broke\n");

@@ -17,9 +17,6 @@ struct Interloper
 
     Parser parser;
 
-    // top level decl tree's
-    AstNode *func_root = nullptr;
-
     StructDefMap struct_def;
 
     AstNode *cur_expr = nullptr;
@@ -27,6 +24,7 @@ struct Interloper
 
 
     FuncTable function_table;
+    std::vector<std::string> used_func;
     // did the last compiled function have a return
     b32 has_return;
 

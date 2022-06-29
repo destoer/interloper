@@ -1,4 +1,3 @@
-import "mem"
 
 func sum(arr: u8[]) u32
 {

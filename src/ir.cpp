@@ -143,7 +143,10 @@ void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 s
     {
         panic(itl,"[COMPILE]: memcpy is required for struct passing\n");
     }
-    const auto &func_call = itl.function_table["memcpy"];
+    Function &func_call = itl.function_table["memcpy"];
+
+    mark_used(itl,func_call);
+
 
     const u32 imm_slot = new_tmp(func);
     emit(func.emitter,op_type::mov_imm,imm_slot,size);

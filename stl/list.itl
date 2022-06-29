@@ -1,6 +1,5 @@
 
 // basic list impl (make this more flexible when we can)
-import "alloc"
 
 struct List
 {

@@ -696,7 +696,7 @@ AstNode *block(Parser &parser)
     return b;
 }
 
-AstNode *func(Parser &parser, const std::string& filename)
+void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
 {
 
     // func_dec = func ident(arg...) return_type 
@@ -708,7 +708,13 @@ AstNode *func(Parser &parser, const std::string& filename)
     if(func_name.type != token_type::symbol)
     {
         panic(parser,func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
-        return nullptr;  
+        return;
+    }
+
+    if(itl.function_table.count(func_name.literal))
+    {
+        panic(itl,"function %s has been declared twice!\n",func_name.literal.c_str());
+        return;
     }
 
     AstNode *f = ast_func(func_name.literal,filename,func_name);
@@ -727,7 +733,7 @@ AstNode *func(Parser &parser, const std::string& filename)
             delete_tree(a);
             delete_tree(f);
             panic(parser,paren,"unterminated function declaration!\n");
-            return nullptr;
+            return;
         }
 
         // for each arg pull type, name
@@ -740,7 +746,7 @@ AstNode *func(Parser &parser, const std::string& filename)
             delete_tree(a);
             delete_tree(f);
             panic(parser,lit_tok,"expected name for function arg\n");
-            return nullptr;
+            return;
         }
         
 
@@ -753,7 +759,7 @@ AstNode *func(Parser &parser, const std::string& filename)
             type_panic(parser);
             delete_tree(a);
             delete_tree(f);
-            return nullptr;
+            return;
         }
 
 
@@ -781,7 +787,6 @@ AstNode *func(Parser &parser, const std::string& filename)
         if(!return_type)
         {
             type_panic(parser);
-            return nullptr;
         }
     }
 
@@ -801,7 +806,8 @@ AstNode *func(Parser &parser, const std::string& filename)
     f->nodes.push_back(b);
     f->nodes.push_back(a);
 
-    return f;
+    // setup a unfinished def to finish up later
+    itl.function_table[func_name.literal] = new_func(func_name.literal,f);
 }
 
 void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
@@ -882,9 +888,13 @@ bool parse(Interloper& itl, const std::string initial_filename)
     std::vector<std::string> file_stack;
 
     add_file(file_set,file_stack,initial_filename);
+    
 
     // TODO: this should probably be a SHELL VAR but just hard code it for now
     const std::string stl_path = std::string("stl") + std::string(1,path_separator);
+
+    // import basic by default
+    add_file(file_set,file_stack,stl_path + "basic.itl");
 
     while(file_stack.size())
     {
@@ -942,7 +952,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
                 // function declartion
                 case token_type::func:
                 {
-                    itl.func_root->nodes.push_back(func(parser,filename));
+                    func_decl(itl,parser,filename);
                     break;
                 }
 

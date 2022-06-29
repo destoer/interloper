@@ -1,4 +1,4 @@
-import "mem"
+
 
 func main() s32 
 {

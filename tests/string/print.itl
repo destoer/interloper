@@ -1,4 +1,4 @@
-import "basic"
+
 
 func main() s32 
 {

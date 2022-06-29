@@ -1,6 +1,5 @@
 
 // expected 7
-import "basic"
 
 func main() s32
 {

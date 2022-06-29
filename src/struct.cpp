@@ -23,7 +23,7 @@ void add_struct(StructTable& struct_table, Struct& structure, u32 slot)
 }
 
 
-void destory(StructTable& struct_table)
+void destroy(StructTable& struct_table)
 {
     struct_table.lookup.clear();
     struct_table.table.clear();

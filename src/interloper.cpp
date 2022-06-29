@@ -96,21 +96,15 @@ void print_func_decl(Interloper& itl,const Function &func)
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
 void parse_function_declarations(Interloper& itl)
 {
-    for(const auto n : itl.func_root->nodes)
+    for(auto &[key,func] : itl.function_table )
     {
-        const auto &node = *n;
+        const AstNode& node = *func.root;
 
-        itl.cur_file = n->filename;
+        itl.cur_file = node.filename;
 
         const auto return_type = get_type(itl,node.nodes[0]);
         const auto name = node.literal;
         
-        if(itl.function_table.count(name))
-        {
-            panic(itl,"function %s has been declared twice!\n",name.c_str());
-            return;
-        }
-
         std::vector<u32> args;
 
         const auto decl = node.nodes[2];
@@ -159,22 +153,12 @@ void parse_function_declarations(Interloper& itl)
         }
 
 
-        const Function function(name,return_type,args,itl.symbol_table.label_lookup.size());
+        finalise_def(func,return_type,args,itl.symbol_table.label_lookup.size());
 
-
-        //print_func_decl(itl,function);
-
-        itl.function_table[name] = function;
 
         // add as a label as it this will be need to referenced by call instrs
         // in the ir to get the name back
         add_label(itl.symbol_table,name);
-    }
-
-    // ensure the entry function is defined
-    if(!itl.function_table.count("main"))
-    {
-        panic(itl,"main is not defined!\n");
     }
 }
 
@@ -612,6 +596,15 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     }
 }
 
+void mark_used(Interloper& itl, Function& func)
+{
+    if(!func.used)
+    {
+        itl.used_func.push_back(func.name);
+        func.used = true;
+    }
+}
+
 #include "intrin.cpp"
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
@@ -628,7 +621,12 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         panic(itl,"[COMPILE]: function %s is not declared\n",node->literal.c_str());
         return Type(builtin_type::void_t);
     }
-    const auto &func_call = itl.function_table[node->literal];
+
+    auto &func_call = itl.function_table[node->literal];
+    mark_used(itl,func_call);
+
+
+
 
     //print_func_decl(itl,func_call);
 
@@ -2540,17 +2538,23 @@ void compile_functions(Interloper &itl)
     // global scope
     new_scope(itl.symbol_table);
 
-    for(const auto n: itl.func_root->nodes)
+    // push the start func
+    mark_used(itl,itl.function_table["main"]);
+
+
+
+    for(u32 idx = 0; idx != itl.used_func.size(); idx++)
     {
-        const auto &node = *n;
-        itl.cur_file = n->filename;
+        Function& func = itl.function_table[itl.used_func[idx]];
+
+        const auto &node = *func.root;
+        itl.cur_file = node.filename;
 
         
         // put arguments on the symbol table they are marked as args
         // so we know to access them "above" to stack pointer
         new_scope(itl.symbol_table);
 
-        auto &func = itl.function_table[node.literal];
 
         func.emitter.reg_count = 0;
 
@@ -2605,14 +2609,13 @@ void compile_functions(Interloper &itl)
 // -> remove duplicate code
 
 
-// -> make imports not include uneeded funcs
-
+// speed improvements (we are parsing more code now so we need these)
+// -> move ast to arena allocation
+// -> impl own Array, String, and HashMap structs
+// -> move tokenizer over to batching
 
 
 // -> impl static assert
-// -> move ast to arena allocation (not urgent)
-// -> impl own Array, String, and HashMap structs (not urgent)
-// -> move tokenizer over to batching (not urgent)
 // -> improve const expressions
 // -> add global constants (and eventually globals but just leave this for now because we dont wanna handle allocating them)
 // -> update comments
@@ -2628,11 +2631,17 @@ void compile_functions(Interloper &itl)
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> marcro -> debugg memory guards -> ...
 
-void destory_ast(Interloper& itl)
+void destroy_ast(Interloper& itl)
 {
-    // delete function def
-    delete_tree(itl.func_root); 
-    itl.func_root = nullptr;
+    // delete all function def
+    for(auto &[key,func] : itl.function_table)
+    {
+        UNUSED(key);
+
+        delete_tree(func.root);
+        func.root = nullptr;
+    }
+
 
     // delete all the struct defintions
     for(auto &[key,def] : itl.struct_def)
@@ -2654,16 +2663,18 @@ void destroy_itl(Interloper &itl)
 {
     destroy(itl.program);
     destroy(itl.const_pool);
-    destory(itl.struct_table);
+    destroy(itl.struct_table);
     clear(itl.symbol_table);
+    
+    destroy_ast(itl);
+
     itl.function_table.clear();
+    itl.used_func.clear();
 
-    destory_ast(itl);
-
-    destory_allocator(itl.list_allocator);
+    destroy_allocator(itl.list_allocator);
 }
 
-static constexpr u32 LIST_INITIAL_SIZE = 32 * 1024;
+static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
 
 void compile(Interloper &itl,const std::string& initial_filename)
 {
@@ -2675,9 +2686,6 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     // parse intial input file
     {
-        Token root_tok = Token(token_type::eof,"root",0,0);
-        itl.func_root = ast_plain(ast_type::root,root_tok);
-
         // build ast
         const b32 parser_error = parse(itl,initial_filename);
 
@@ -2699,8 +2707,20 @@ void compile(Interloper &itl,const std::string& initial_filename)
         }
        
         // print function defs
-        print(itl.func_root);
+        for(auto &[key,func] : itl.function_table)
+        {
+            print(func.root);
+        }
     }
+
+    // ensure the entry function is defined
+    if(!itl.function_table.count("main"))
+    {
+        panic(itl,"main is not defined!\n");
+        destroy_itl(itl);
+        return;
+    }
+
 
     // parse out any of the top level decl we need
     parse_struct_declarations(itl);
@@ -2715,22 +2735,6 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     putchar('\n');
 
-    //  print function definitions
-/*
-    for(const auto &[key, f] : function_table)
-    {
-        printf("function: %s\n",f.name.c_str());
-        printf("returns: %s\n",type_name(f.return_type).c_str());
-
-        puts("args: ");
-        // args:
-        for(const auto &s: f.args)
-        {
-            printf("%s: %s\n",s.name.c_str(),type_name(s.type).c_str());
-        }
-        puts("\n\n");
-    }
-*/
 
     // go through each function and compile
     // how do we want to handle getting to the entry point / address allocation?
@@ -2741,7 +2745,7 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     // okay we dont need the parse tree anymore
     // free it
-    destory_ast(itl);
+    destroy_ast(itl);
 
     if(itl.error)
     {
@@ -2756,10 +2760,11 @@ void compile(Interloper &itl,const std::string& initial_filename)
         dump_ir_sym(itl);
     }
     
-    // perform register allocation
-    for(auto &[key, func]: itl.function_table)
+    // perform register allocation on used functions
+    for(const auto& name : itl.used_func)
     {
-        UNUSED(key);
+        Function& func = itl.function_table[name];
+
         allocate_registers(itl,func);
 
         if(itl.print_stack_allocation || itl.print_reg_allocation)

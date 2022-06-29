@@ -240,12 +240,6 @@ struct Label
 
 struct Function
 {
-    Function() {}
-
-    Function(const std::string &n, Type rt, std::vector<u32> a, u32 s) : name(n), return_type(rt), args(a), slot(s)
-    {}
-
-
     std::string name;
     Type return_type;
 
@@ -259,9 +253,35 @@ struct Function
     IrEmitter emitter;
 
     u32 slot;
+
+    AstNode* root = nullptr;
+
+    b32 used = false;
 };
 
 using FuncTable = std::unordered_map<std::string, Function>;
+
+
+void finalise_def(Function& func, Type rt, std::vector<u32> a, u32 s)
+{
+    func.return_type = rt;
+    func.args = a;
+    func.slot = s;
+}
+
+Function new_func(const std::string& name, AstNode *root)
+{
+    Function func;
+
+    func.name = name;
+    func.root = root;
+
+    return func;
+}
+
+struct Interloper;
+
+void mark_used(Interloper& itl, Function& func);
 
 
 // TODO: start by fixing all the compile errors

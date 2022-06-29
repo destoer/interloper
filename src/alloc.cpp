@@ -19,7 +19,7 @@ void reset_arena(Arena &arena)
     arena.len = 0;
 }
 
-void destory_arena(Arena &arena)
+void destroy_arena(Arena &arena)
 {
     if(arena.buf)
     {
@@ -56,9 +56,9 @@ ArenaAllocator make_allocator(u32 size)
     return allocator;
 }
 
-void destory_allocator(ArenaAllocator &allocator)
+void destroy_allocator(ArenaAllocator &allocator)
 {
-    destory_arena(allocator.arena);
+    destroy_arena(allocator.arena);
 }
 
 void* allocate(ArenaAllocator& allocator, u32 size)
