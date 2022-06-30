@@ -5,7 +5,19 @@ void type_panic(Parser &parser);
 AstNode *block(Parser &parser);
 
 
-// TODO: replace peek(parser,0); with match()
+const u32 AST_ALLOC_DEFAULT_SIZE = 64 * 1024;
+
+Parser make_parser(ArenaAllocator* allocator)
+{
+    Parser parser;
+    parser.allocator = allocator;
+
+    return parser;
+}
+
+
+
+
 
 // TODO: replace tree with pool allocation
 void delete_tree(AstNode *node)
@@ -22,7 +34,8 @@ void delete_tree(AstNode *node)
         n = nullptr;
     }
 
-    delete node;
+    // TODO: dont require this
+    node->~AstNode();
 }
 
 
@@ -90,14 +103,14 @@ bool match(Parser &parser,token_type type)
 }
 
 
-AstNode *copy_node(const AstNode *node)
+AstNode *copy_node(Parser& parser,const AstNode *node)
 {
     if(!node)
     {
         return nullptr;
     }
 
-    auto copy  = alloc_node();
+    auto copy  = alloc_node(parser);
 
     copy->type = node->type;
     copy->literal = node->literal;
@@ -123,7 +136,7 @@ AstNode *copy_node(const AstNode *node)
     {
         if(n)
         {
-            copy->nodes.push_back(copy_node(n));
+            copy->nodes.push_back(copy_node(parser,n));
         }
     }
 
@@ -212,13 +225,13 @@ AstNode *parse_type(Parser &parser)
     }
 
     // TODO: need to mark the idx for when have user defined types
-    auto type = ast_plain(ast_type::type,plain_tok);
+    auto type = ast_plain(parser,ast_type::type,plain_tok);
     type->type_idx = type_idx;
     
 
     if(is_const)
     {
-        type->nodes.push_back(ast_plain(ast_type::const_t,plain_tok));
+        type->nodes.push_back(ast_plain(parser,ast_type::const_t,plain_tok));
     }
 
     b32 quit = false;
@@ -238,7 +251,7 @@ AstNode *parse_type(Parser &parser)
                     ptr_indirection++;
                 }
 
-                auto ptr_node = ast_plain(ast_type::ptr_indirection,plain_tok);
+                auto ptr_node = ast_plain(parser,ast_type::ptr_indirection,plain_tok);
                 ptr_node->type_idx = ptr_indirection;
 
                 ptr_node->literal = std::to_string(ptr_indirection);
@@ -251,7 +264,7 @@ AstNode *parse_type(Parser &parser)
             // array decl
             case token_type::sl_brace:
             {
-                auto arr_decl = ast_plain(ast_type::arr_dimensions,plain_tok);
+                auto arr_decl = ast_plain(parser,ast_type::arr_dimensions,plain_tok);
 
                 while(peek(parser,0).type == token_type::sl_brace)
                 {
@@ -260,7 +273,7 @@ AstNode *parse_type(Parser &parser)
                     // var size
                     if(peek(parser,0).type == token_type::sr_brace)
                     {
-                        arr_decl->nodes.push_back(ast_plain(ast_type::arr_var_size,plain_tok));
+                        arr_decl->nodes.push_back(ast_plain(parser,ast_type::arr_var_size,plain_tok));
                         consume(parser,token_type::sr_brace);
                     }
 
@@ -271,7 +284,7 @@ AstNode *parse_type(Parser &parser)
                         {
                             consume(parser,token_type::qmark);
 
-                            const auto e = ast_plain(ast_type::arr_deduce_size,plain_tok);
+                            const auto e = ast_plain(parser,ast_type::arr_deduce_size,plain_tok);
                             arr_decl->nodes.push_back(e);
                         
                             consume(parser,token_type::sr_brace);
@@ -328,7 +341,7 @@ AstNode *declaration(Parser &parser)
     //    [declare:name]
     // [type]   optional([eqauls])
 
-    auto d = ast_literal(ast_type::declaration,s.literal,s);
+    auto d = ast_literal(parser,ast_type::declaration,s.literal,s);
     d->nodes.push_back(type);
 
     const auto eq = peek(parser,0);
@@ -383,7 +396,7 @@ AstNode *auto_decl(Parser &parser)
     // okay here we require an expression on the right side
     consume(parser,token_type::equal);
 
-    const auto d = ast_literal(ast_type::auto_decl,s.literal,s);
+    const auto d = ast_literal(parser,ast_type::auto_decl,s.literal,s);
 
     d->nodes.push_back(expr(parser,next_token(parser)));
 
@@ -404,7 +417,7 @@ AstNode *statement(Parser &parser)
 
         case token_type::ret:
         {
-            auto r = ast_plain(ast_type::ret,t);
+            auto r = ast_plain(parser,ast_type::ret,t);
 
             // return value is optional
             if(peek(parser,0) != token_type::semi_colon)
@@ -499,7 +512,7 @@ AstNode *statement(Parser &parser)
         // assume one cond for now
         case token_type::for_t:
         {
-            const auto for_block = ast_plain(ast_type::for_block,t);
+            const auto for_block = ast_plain(parser,ast_type::for_block,t);
 
             // allow statment to wrapped a in a set of parens
             const bool term_paren = peek(parser,0).type == token_type::left_paren;
@@ -590,9 +603,9 @@ AstNode *statement(Parser &parser)
         // else_if and else parsed out here
         case token_type::if_t:
         {
-            const auto if_block = ast_plain(ast_type::if_block,t);
+            const auto if_block = ast_plain(parser,ast_type::if_block,t);
 
-            const auto if_stmt = ast_plain(ast_type::if_t,t);
+            const auto if_stmt = ast_plain(parser,ast_type::if_t,t);
 
             // read out if expr and block
             if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
@@ -614,7 +627,7 @@ AstNode *statement(Parser &parser)
                     {
                         consume(parser,token_type::if_t);
 
-                        const auto else_if_stmt = ast_plain(ast_type::else_if_t,else_tok);
+                        const auto else_if_stmt = ast_plain(parser,ast_type::else_if_t,else_tok);
 
                         else_if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
                         else_if_stmt->nodes.push_back(block(parser));
@@ -625,7 +638,7 @@ AstNode *statement(Parser &parser)
                     // just a plain else
                     else
                     {
-                        const auto else_stmt = ast_plain(ast_type::else_t,else_tok);
+                        const auto else_stmt = ast_plain(parser,ast_type::else_t,else_tok);
 
                         // no expr for else
                         else_stmt->nodes.push_back(block(parser));
@@ -669,7 +682,7 @@ AstNode *block(Parser &parser)
     const auto tok = peek(parser,0);
     consume(parser,token_type::left_c_brace);
 
-    auto b = ast_plain(ast_type::block,tok);
+    auto b = ast_plain(parser,ast_type::block,tok);
 
     
     // parse out all our statements
@@ -717,12 +730,12 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
         return;
     }
 
-    AstNode *f = ast_func(func_name.literal,filename,func_name);
+    AstNode *f = ast_func(parser,func_name.literal,filename,func_name);
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
 
-    auto a = ast_plain(ast_type::function_args,func_name);
+    auto a = ast_plain(parser,ast_type::function_args,func_name);
 
     // parse out the function args
     // if  token is eof then we have a problem 
@@ -764,7 +777,7 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
 
 
         // add each declartion
-        auto d = ast_literal(ast_type::declaration,lit_tok.literal,lit_tok);
+        auto d = ast_literal(parser,ast_type::declaration,lit_tok.literal,lit_tok);
         d->nodes.push_back(type);
 
         a->nodes.push_back(d);
@@ -793,7 +806,7 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
     // void
     else
     {
-        return_type = ast_plain(ast_type::type,func_name);
+        return_type = ast_plain(parser,ast_type::type,func_name);
         return_type->type_idx = u32(builtin_type::void_t);
         return_type->literal = "void";
     }
@@ -826,7 +839,7 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
         return;
     }
 
-    AstNode* struct_node = ast_struct(name.literal,filename,name);
+    AstNode* struct_node = ast_struct(parser,name.literal,filename,name);
 
     consume(parser,token_type::left_c_brace);
 
@@ -857,7 +870,6 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
     itl.struct_def[name.literal] = definition;
 }
 
-const u32 AST_ALLOC_DEFAULT_SIZE = 64 * 1024;
 
 std::string read_source_file(const std::string& filename)
 {
@@ -902,7 +914,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
         const auto filename = file_stack.back(); file_stack.pop_back();
 
         // Parse out the file
-        Parser parser;
+        Parser parser = make_parser(&itl.ast_allocator);
 
 
         const std::string file = read_file(filename);
@@ -966,7 +978,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
                 default:
                 {
                     panic(parser,t,"unexpected top level token %s: %s\n",tok_name(t.type),t.literal.c_str());
-                    break;
+                    return true;
                 }
             }
 

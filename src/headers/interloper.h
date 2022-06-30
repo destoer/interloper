@@ -35,6 +35,8 @@ struct Interloper
     // TODO: move other structures to an arena
     ArenaAllocator list_allocator;
 
+    ArenaAllocator ast_allocator;
+
     // struct lookup
     StructTable struct_table;
 

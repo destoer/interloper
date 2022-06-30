@@ -232,19 +232,26 @@ struct Parser
     b32 terminate = false;
     token_type termination_type = token_type::eof;
 
+    ArenaAllocator* allocator;
+
     // error handling
     b32 error = false;
     s32 line = 0;
 };
 
-AstNode* alloc_node()
+AstNode* alloc_node(Parser& parser)
 {
-    return new AstNode();
+    void* ptr = allocate(*parser.allocator,sizeof(AstNode));
+
+    // for now placement new this
+    AstNode* node = new(ptr) AstNode();
+
+    return node;  
 }
 
-AstNode *ast_plain(ast_type type, const Token& token)
+AstNode *ast_plain(Parser& parser,ast_type type, const Token& token)
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
     node->type = type;
     node->value = Value(0,false);
     node->line = token.line;
@@ -253,9 +260,9 @@ AstNode *ast_plain(ast_type type, const Token& token)
     return node;    
 }
 
-AstNode *ast_literal(ast_type type,const std::string &literal, const Token& token)
+AstNode *ast_literal(Parser& parser,ast_type type,const std::string &literal, const Token& token)
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
     node->type = type;
     node->literal = literal;
     node->value = Value(0,false);
@@ -265,9 +272,9 @@ AstNode *ast_literal(ast_type type,const std::string &literal, const Token& toke
     return node;    
 }
 
-AstNode *ast_func(const std::string &literal, const std::string& filename, const Token& token)
+AstNode *ast_func(Parser& parser,const std::string &literal, const std::string& filename, const Token& token)
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
     node->type = ast_type::function;
 
     node->filename = filename;
@@ -280,9 +287,9 @@ AstNode *ast_func(const std::string &literal, const std::string& filename, const
     return node;
 }
 
-AstNode *ast_struct(const std::string &literal, const std::string& filename, const Token& token)
+AstNode *ast_struct(Parser& parser,const std::string &literal, const std::string& filename, const Token& token)
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
     node->type = ast_type::struct_t;
 
     node->filename = filename;
@@ -295,9 +302,9 @@ AstNode *ast_struct(const std::string &literal, const std::string& filename, con
     return node;
 }    
 
-AstNode *ast_binary(AstNode *l, AstNode *r, ast_type type, const Token& token, std::string literal = "")
+AstNode *ast_binary(Parser& parser,AstNode *l, AstNode *r, ast_type type, const Token& token, std::string literal = "")
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
 
     node->nodes.push_back(l);
     node->nodes.push_back(r);
@@ -310,9 +317,9 @@ AstNode *ast_binary(AstNode *l, AstNode *r, ast_type type, const Token& token, s
     return node;  
 }
 
-AstNode *ast_unary(AstNode *l, ast_type type, const Token& token, std::string literal = "")
+AstNode *ast_unary(Parser& parser,AstNode *l, ast_type type, const Token& token, std::string literal = "")
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
 
     node->nodes.push_back(l);
     node->type = type;
@@ -325,9 +332,9 @@ AstNode *ast_unary(AstNode *l, ast_type type, const Token& token, std::string li
 }
 
 
-AstNode *ast_binary_value(AstNode *l, AstNode *r, Value value, const Token& token, std::string literal = "")
+AstNode *ast_binary_value(Parser& parser,AstNode *l, AstNode *r, Value value, const Token& token, std::string literal = "")
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
 
     node->nodes.push_back(l);
     node->nodes.push_back(r);
@@ -340,9 +347,9 @@ AstNode *ast_binary_value(AstNode *l, AstNode *r, Value value, const Token& toke
     return node;  
 }
 
-AstNode *ast_value(Value value, const Token& token, std::string literal = "")
+AstNode *ast_value(Parser& parser,Value value, const Token& token, std::string literal = "")
 {
-    AstNode* node = alloc_node();
+    AstNode* node = alloc_node(parser);
 
     node->type = ast_type::value;
     node->literal = literal;

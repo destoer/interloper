@@ -102,14 +102,15 @@ void expr_test()
     puts("\nexpr tests\n");
 
     Lexer lexer;
-    Parser parser;
+
+    ArenaAllocator allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
 
     AstNode *expr_tree = nullptr;
 
 
-    for(uint32_t i = 0; i < EXPR_TESTS_SIZE; i++)
+    for(u32 i = 0; i < EXPR_TESTS_SIZE; i++)
     {
-        parser = {};
+        Parser parser = make_parser(&allocator);
         delete_tree(expr_tree);
 
         const auto &test = EXPR_TESTS[i];
@@ -165,4 +166,5 @@ void expr_test()
     puts("\nexpr tests done\n");
 
     delete_tree(expr_tree);
+    destroy_allocator(allocator);
 }
