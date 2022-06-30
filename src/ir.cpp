@@ -176,7 +176,7 @@ struct LocalAlloc
 
     // when this thing is used in the original IR
     // we need to know what actual reg we have allocated it into
-    std::map<u32,u32> ir_regs;
+    std::vector<u32> ir_regs;
 
     u32 free_regs;
 
@@ -213,7 +213,7 @@ struct LocalAlloc
     u32 stack_size;
 };
 
-LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation)
+LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,u32 tmp_count)
 {
     LocalAlloc alloc;
 
@@ -230,6 +230,9 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation)
         alloc.regs[i] = REG_FREE;
         alloc.free_list[i] = i;
     }
+
+
+    alloc.ir_regs.resize(tmp_count);
 
     memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
 
@@ -1315,7 +1318,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation);
+    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.emitter.reg_count);
 
     // figure out how long each sym lives
     // mark_lifetimes(itl,func);
