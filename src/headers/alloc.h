@@ -16,11 +16,14 @@ struct Arena
 };
 
 
+static constexpr u32 ARENA_ALLOC_SIZE = 32;
+
 // for now just have a single pool
 // and dont deal with it getting exhausted
 struct ArenaAllocator
 {
-    Arena arena;
+    Arena arena[ARENA_ALLOC_SIZE];
+    u32 size = 0;
 };
 
 void* allocate(ArenaAllocator& allocator, u32 size);

@@ -2609,10 +2609,9 @@ void compile_functions(Interloper &itl)
 // -> remove duplicate code
 
 
-// speed improvements (we are parsing more code now so we need these)
+// speed improvements:
 // -> move ast to arena allocation
 // -> impl own Array, String, and HashMap structs
-// -> move tokenizer over to batching
 
 
 // -> impl static assert
@@ -2626,7 +2625,7 @@ void compile_functions(Interloper &itl)
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-// structs -> default_values -> tuples -> global const's 
+// tuples -> global const's 
 // -> switch -> enum -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> marcro -> debugg memory guards -> ...
@@ -2674,7 +2673,7 @@ void destroy_itl(Interloper &itl)
     destroy_allocator(itl.list_allocator);
 }
 
-static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
+static constexpr u32 LIST_INITIAL_SIZE = 1 * 1024 * 1024;
 
 void compile(Interloper &itl,const std::string& initial_filename)
 {

@@ -47,27 +47,49 @@ void *allocate(Arena &arena,u32 size)
     return alloc_ptr;
 }
 
+bool add_arena(ArenaAllocator& allocator, u32 size)
+{
+    if(allocator.size == ARENA_ALLOC_SIZE)
+    {
+        return true;
+    }
+
+    allocator.arena[allocator.size++] = make_arena(size);
+    return false;
+}
+
 ArenaAllocator make_allocator(u32 size)
 {
     ArenaAllocator allocator;
 
-    allocator.arena = make_arena(size);
+    add_arena(allocator,size);
 
     return allocator;
 }
 
 void destroy_allocator(ArenaAllocator &allocator)
 {
-    destroy_arena(allocator.arena);
+    for(u32 i = 0; i < allocator.size; i++)
+    {
+        destroy_arena(allocator.arena[i]);
+    }
 }
 
 void* allocate(ArenaAllocator& allocator, u32 size)
 {
+    const u32 cur_arena = allocator.size - 1;
+
     // TODO: handle this failing and add a new area
-    if(allocator.arena.len + size >= allocator.arena.size)
+    if(allocator.arena[cur_arena].len + size >= allocator.arena[cur_arena].size)
     {
-        unimplemented("Arena OOM requested: %d %d:%d",size,allocator.arena.len,allocator.arena.size);
+        // next arena is double the size of the old
+        const u32 arena_size = (allocator.arena[cur_arena].size * 2);
+
+        if(add_arena(allocator,arena_size))
+        {
+            unimplemented("Arena OOM %d : %d : %d\n",cur_arena,ARENA_ALLOC_SIZE,size);
+        }
     }
 
-    return allocate(allocator.arena,size);
+    return allocate(allocator.arena[allocator.size - 1],size);
 }
