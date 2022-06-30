@@ -44,3 +44,5 @@ struct Array
     u32 size = 0;
     u32 capacity = 0;
 };
+
+void print_line(const std::string& filename,u32 line);

@@ -1,9 +1,9 @@
 #include <lexer.h>
 
 
-char peek(u32 offset, const std::string &line)
+char peek(u32 offset, const std::string &file)
 {
-    return offset < line.size()? line[offset] : '\0';
+    return offset < file.size()? file[offset] : '\0';
 }
 
 void insert_token(Lexer &lexer, token_type type)
@@ -25,20 +25,20 @@ void insert_token(Lexer &lexer, token_type type, const std::string &literal, u32
 
 
 template<typename F>
-bool verify_immediate_internal(const std::string &line, u32 &i, F lambda)
+bool verify_immediate_internal(const std::string &file, u32 &i, F lambda)
 {
-    const auto len = line.size();
+    const auto len = file.size();
 
     for(; i < len; i++)
     {
         // valid part of the value
-        if(lambda(line[i]))
+        if(lambda(file[i]))
         {
             continue;
         }
 
         // values cannot have these at the end!
-        else if(isalpha(line[i]))
+        else if(isalpha(file[i]))
         {
             return false;
         }
@@ -54,9 +54,9 @@ bool verify_immediate_internal(const std::string &line, u32 &i, F lambda)
 }
 
 
-bool verify_immediate(const std::string &line, std::string &literal)
+bool verify_immediate(const std::string &file, std::string &literal)
 {
-    const auto len = line.size();
+    const auto len = file.size();
 
     // an empty immediate aint much use to us
     if(!len)
@@ -66,7 +66,7 @@ bool verify_immediate(const std::string &line, std::string &literal)
 
     u32 i = 0;
 
-    const auto c = line[0];
+    const auto c = file[0];
 
     // allow - or +
     if(c == '-' || c == '+')
@@ -83,14 +83,14 @@ bool verify_immediate(const std::string &line, std::string &literal)
 
 
     // have prefix + one more digit at minimum
-    const auto prefix = i+2 < len?  line.substr(i,2) : "";
+    const auto prefix = i+2 < len?  file.substr(i,2) : "";
 
     // verify we have a valid hex number
     if(prefix == "0x")
     {
         // skip past the prefix
         i += 2;
-        valid = verify_immediate_internal(line,i,[](const char c) 
+        valid = verify_immediate_internal(file,i,[](const char c) 
         {
             return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
         });
@@ -101,7 +101,7 @@ bool verify_immediate(const std::string &line, std::string &literal)
     {
         // skip past the prefix
         i += 2;                
-        valid = verify_immediate_internal(line,i,[](const char c) 
+        valid = verify_immediate_internal(file,i,[](const char c) 
         {
             return c == '0' || c == '1';
         });
@@ -110,7 +110,7 @@ bool verify_immediate(const std::string &line, std::string &literal)
     // verify we have all digits
     else
     {
-        valid = verify_immediate_internal(line,i,[](const char c) 
+        valid = verify_immediate_internal(file,i,[](const char c) 
         {
             return c >= '0' && c <= '9';
         });
@@ -119,35 +119,40 @@ bool verify_immediate(const std::string &line, std::string &literal)
 
     if(valid)
     {
-        literal = line.substr(0,i);
+        literal = file.substr(0,i);
     }
 
     return valid;    
 }
 
+void advance(Lexer& lexer, s32 v = 1)
+{
+    lexer.column += v;
+    lexer.idx += v;
+}
+
 // true on error
-bool decode_imm(Lexer &lexer,const std::string &line)
+bool decode_imm(Lexer &lexer,const std::string &file)
 {
     const u32 start_col = lexer.column;
 
     std::string literal = "";
 
 
-    const auto success = verify_immediate(line.substr(lexer.column),literal);
+    const auto success = verify_immediate(file.substr(lexer.idx),literal);
 
     if(!success)
     {
-        printf("invalid immediate: %s\n",line.c_str());
+        printf("invalid immediate: %s\n",file.c_str());
         return true;
     }
 
     // ignore one for the termination char
-    lexer.column += literal.size() - 1;
+    advance(lexer,literal.size() - 1);
 
     insert_token(lexer,token_type::value,literal,start_col);   
     return false; 
 }
-
 
 
 
@@ -197,19 +202,32 @@ token_type keyword_token_type(const std::string &literal)
     return keywords[literal];
 }
 
-bool tokenize_line(Lexer &lexer,const std::string &line)
+
+bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
 {
-    const auto size = line.size();
-    for(lexer.column = 0; lexer.column < size; lexer.column++)
+    Lexer lexer;
+
+    lexer.row = 0;
+    lexer.column = 0;
+    lexer.tokens.clear();
+
+    const auto size = file.size();
+    for(lexer.idx = 0; lexer.idx < file.size(); advance(lexer))
     {
-        auto c = line[lexer.column];
+        auto c = file[lexer.idx];
 
         if(lexer.in_comment)
         {
-            if(c == '*' && peek(lexer.column+1,line) == '/')
+            if(c == '\n')
+            {
+                lexer.column = -1;
+                lexer.row++;                
+            }
+
+            else if(c == '*' && peek(lexer.idx+1,file) == '/')
             {
                 lexer.in_comment = false;
-                lexer.column++;
+                advance(lexer);
             }
 
             continue;
@@ -219,6 +237,12 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
         {
             case '\t': break;
             case ' ': break;
+            case '\n':
+            {
+                lexer.column = -1;
+                lexer.row++;
+                break;
+            }
 
             case '(': insert_token(lexer,token_type::left_paren); break;
 
@@ -233,10 +257,10 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             case '=': 
             {
                 // equal
-                if(peek(lexer.column+1,line) == '=')
+                if(peek(lexer.idx+1,file) == '=')
                 {
                     insert_token(lexer,token_type::logical_eq);
-                    lexer.column++;
+                    advance(lexer);
                 }
                 
                 else
@@ -254,7 +278,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 const u32 col = lexer.column;
 
-                const char c = peek(lexer.column+1,line);
+                const char c = peek(lexer.idx+1,file);
 
                 if(c == '\0')
                 {
@@ -262,7 +286,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                     return true;
                 }
 
-                if(peek(lexer.column+2,line) != '\'')
+                if(peek(lexer.idx+2,file) != '\'')
                 {
                     printf("unterminated char literal");
                     return true;
@@ -270,7 +294,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
                 insert_token(lexer,token_type::char_t,std::string(1,c),col);
 
-                lexer.column += 2;
+                advance(lexer,2);
                 break;
             }
 
@@ -279,25 +303,25 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             {
                 const u32 start_col = lexer.column;
 
-                lexer.column++;
+                advance(lexer);
                 std::string str = "";
 
-                while(lexer.column < size)
+                while(lexer.idx < size)
                 {  
-                    char c = line[lexer.column];
+                    char c = file[lexer.idx];
 
                     // escape sequence
                     if(c == '\\')
                     {
-                        char e = peek(lexer.column + 1,line);
+                        char e = peek(lexer.idx + 1,file);
 
                         switch(e)
                         {
-                            // linefeed
+                            // filefeed
                             case 'n':
                             {
                                 c = '\n';
-                                lexer.column++;
+                                advance(lexer);
                                 break;
                             }
 
@@ -314,7 +338,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                         break;
                     }
 
-                    lexer.column++;
+                    advance(lexer);
                     str += c;
                 }
 
@@ -339,10 +363,10 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case '*':
             { 
-                if(peek(lexer.column+1,line) == '=')
+                if(peek(lexer.idx+1,file) == '=')
                 {
-                    insert_token(lexer,token_type::times_eq,lexer.column + 1);
-                    lexer.column++;
+                    insert_token(lexer,token_type::times_eq);
+                    advance(lexer);
                 }
 
                 else
@@ -354,10 +378,10 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case '+':
             {
-                if(peek(lexer.column+1,line) == '=')
+                if(peek(lexer.idx+1,file) == '=')
                 {
-                    insert_token(lexer,token_type::plus_eq,lexer.column + 1);
-                    lexer.column++;
+                    insert_token(lexer,token_type::plus_eq);
+                    advance(lexer);
                 }
 
                 else
@@ -370,18 +394,18 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             case '-': 
             {
                 // parse out negative literal
-                if(isdigit(peek(lexer.column+1,line)))
+                if(isdigit(peek(lexer.idx+1,file)))
                 {
-                    if(decode_imm(lexer,line))
+                    if(decode_imm(lexer,file))
                     {
                         return true;
                     }
                 }
 
-                else if(peek(lexer.column+1,line) == '=')
+                else if(peek(lexer.idx+1,file) == '=')
                 {
-                    insert_token(lexer,token_type::minus_eq,lexer.column + 1);
-                    lexer.column++;
+                    insert_token(lexer,token_type::minus_eq);
+                    advance(lexer);
                 }                
 
                 else
@@ -395,10 +419,10 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             case '&':
             {
                 // equal
-                if(peek(lexer.column+1,line) == '&')
+                if(peek(lexer.idx+1,file) == '&')
                 {
-                    insert_token(lexer,token_type::logical_and,lexer.column + 1);
-                    lexer.column++;
+                    insert_token(lexer,token_type::logical_and);
+                    advance(lexer);
                 }
 
                 else
@@ -411,10 +435,10 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             case '|':
             {
                 // logical or
-                if(peek(lexer.column+1,line) == '|')
+                if(peek(lexer.idx+1,file) == '|')
                 {
-                    insert_token(lexer,token_type::logical_or,lexer.column + 1);
-                    lexer.column++;
+                    insert_token(lexer,token_type::logical_or);
+                    advance(lexer);
                 }
 
                 else
@@ -430,10 +454,10 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
             case '!':
             {
                 // not equal
-                if(peek(lexer.column+1,line) == '=')
+                if(peek(lexer.idx+1,file) == '=')
                 {
                     insert_token(lexer,token_type::logical_ne);
-                    lexer.column++;
+                    advance(lexer);
                 }
 
                 else
@@ -445,16 +469,16 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case '<':
             {
-                if(peek(lexer.column+1,line) == '=')
+                if(peek(lexer.idx+1,file) == '=')
                 {
                     insert_token(lexer,token_type::logical_le);
-                    lexer.column++;
+                    advance(lexer);
                 }
 
-                else if(peek(lexer.column+1,line) == '<')
+                else if(peek(lexer.idx+1,file) == '<')
                 {
                     insert_token(lexer,token_type::shift_l);
-                    lexer.column++;
+                    advance(lexer);
                 }
 
                 else
@@ -466,16 +490,16 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case '>':
             {
-                if(peek(lexer.column+1,line) == '=')
+                if(peek(lexer.idx+1,file) == '=')
                 {
                     insert_token(lexer,token_type::logical_ge);
-                    lexer.column++;
+                    advance(lexer);
                 }
 
-                else if(peek(lexer.column+1,line) == '>')
+                else if(peek(lexer.idx+1,file) == '>')
                 {
                     insert_token(lexer,token_type::shift_r);
-                    lexer.column++;
+                    advance(lexer);
                 }
 
 
@@ -490,23 +514,33 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
 
             case '/': 
             {
-                // we have comment this line is now done
-                if(peek(lexer.column+1,line) == '/')
+                // we have comment eat tokens until a newline
+                if(peek(lexer.idx+1,file) == '/')
                 {
-                    return false;
+                    while(lexer.idx < size)
+                    {
+                        if(file[lexer.idx] == '\n')
+                        {
+                            lexer.column = -1;
+                            lexer.row++;
+                            break;
+                        }
+
+                        advance(lexer);
+                    }
                 }
 
-                else if(peek(lexer.column+1,line) == '=')
+                else if(peek(lexer.idx+1,file) == '=')
                 {
                     insert_token(lexer,token_type::divide_eq);
-                    lexer.column++;
+                    advance(lexer);
                 }
 
-                // start of multiline comment
-                else if(peek(lexer.column+1,line) == '*')
+                // start of multifile comment
+                else if(peek(lexer.idx+1,file) == '*')
                 {
                     lexer.in_comment = true;
-                    lexer.column++;
+                    advance(lexer);
                 }
 
                 else
@@ -524,12 +558,13 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 if(isalpha(c) || c == '_')
                 {
                     std::string literal(1,c);
-                    while(lexer.column < size)
+                    while(lexer.idx < size)
                     {
-                        c = line[++lexer.column];
+                        advance(lexer);
+                        c = file[lexer.idx];
                         if(!isalnum(c) && c != '_')
                         {
-                            lexer.column--;
+                            advance(lexer,-1);
                             break;
                         }
                         literal += c;
@@ -557,7 +592,7 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
                 // 0
                 else if(isdigit(c))
                 {
-                    if(decode_imm(lexer,line))
+                    if(decode_imm(lexer,file))
                     {
                         return true;
                     }
@@ -573,29 +608,6 @@ bool tokenize_line(Lexer &lexer,const std::string &line)
         }
     }
 
-    return false;
-}
-
-
-bool tokenize(const std::vector<std::string> &file, std::vector<Token>& tokens_out)
-{
-    Lexer lexer;
-
-    lexer.row = 0;
-    lexer.column = 0;
-    lexer.tokens.clear();
-
-    for(const auto &line: file)
-    {
-        if(tokenize_line(lexer,line))
-        {
-            printf("%s",file[lexer.row].c_str());
-            printf("\nat: line %d col %d\n",lexer.row + 1,lexer.column + 1);
-            return true;
-        }
-
-        lexer.row += 1;
-    }
 
     tokens_out = std::move(lexer.tokens);
     return false;

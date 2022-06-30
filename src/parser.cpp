@@ -859,16 +859,16 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 64 * 1024;
 
-std::vector<std::string> read_source_file(const std::string& filename)
+std::string read_source_file(const std::string& filename)
 {
-    const std::vector<std::string> lines = read_string_lines(read_file(filename));
-    if(!lines.size())
+    std::string file = read_file(filename);
+    if(!file.size())
     {
         printf("no such file: %s\n",filename.c_str());
         exit(0);
     }    
 
-    return lines;
+    return file;
 }
 
 
@@ -905,9 +905,9 @@ bool parse(Interloper& itl, const std::string initial_filename)
         Parser parser;
 
 
-        auto lines = read_source_file(filename);
+        const std::string file = read_file(filename);
 
-        if(tokenize(lines,parser.tokens))
+        if(tokenize(file,parser.tokens))
         {
             printf("failed to tokenize file: %s\n",filename.c_str());
             return true;
@@ -973,7 +973,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
             if(parser.error)
             {
                 // print line number
-                printf("%s\n",lines[parser.line].c_str());
+                print_line(filename,parser.line);
                 return true;
             }
         }
@@ -1004,7 +1004,7 @@ void print(const AstNode *root)
     printf(" %d ",depth);
     
     // TODO: remove the line printing here
-    printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str());
+    printf(" %s : %s : (%d:%d)\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str(),root->line+1,root->col+1);
     depth += 1;
 
     for(const auto &n: root->nodes)

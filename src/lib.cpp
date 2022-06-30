@@ -20,23 +20,6 @@ bool contains(const std::string& str,const char* substr)
     return str.find(substr) != std::string::npos;
 }    
 
-std::vector<std::string> read_string_lines(const std::string &str)
-{
-    std::vector<std::string> out;
-
-    std::stringstream line_stream;
-
-    line_stream << str;
-
-    std::string line;
-    while(getline(line_stream,line))
-    {
-        out.push_back(line);
-    }
-
-    return out;
-}
-
 template<typename access_type>
 access_type handle_read(const u8 *buf, u32 idx)
 {
@@ -44,6 +27,28 @@ access_type handle_read(const u8 *buf, u32 idx)
     memcpy(&v,&buf[idx],sizeof(access_type));
     return v;
 }
+
+
+void print_line(const std::string& filename,u32 line)
+{
+    // this is slow, but we are about to terminate anyways
+    // when this is used
+    std::fstream fp{filename};
+
+    if(!fp)
+    {
+        printf("could not open file %s for error printing\n",filename.c_str());
+    }
+
+    std::string str;
+    for(u32 i = 0; i < line; i++)
+    {
+        std::getline(fp,str);
+    }
+
+    printf("%s\n",str.c_str());    
+}
+
 
 template<typename access_type>
 void handle_write(u8 *buf, u32 idx, access_type v)

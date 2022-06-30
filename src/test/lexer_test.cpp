@@ -92,17 +92,14 @@ void lexer_test()
     puts("\nrunning lexer tests\n");
 
 
-    // workaround to force tests through the same interface
-    std::vector<std::string> dummy(1);
-
     for(uint32_t i = 0; i < LEXER_TEST_SIZE; i++)
     {
         const auto &test = LEXER_TESTS[i];
-        dummy[0] = test.line;
+
 
         std::vector<Token> tokens;
 
-        const b32 lexer_error = tokenize(dummy,tokens);
+        const b32 lexer_error = tokenize(test.line,tokens);
 
         // lexer did or did not report an error when it should
         // or did not return enough tokens

@@ -104,9 +104,6 @@ void expr_test()
     Lexer lexer;
     Parser parser;
 
-    // silly workaround
-    std::vector<std::string> dummy(1);
-
     AstNode *expr_tree = nullptr;
 
 
@@ -116,8 +113,7 @@ void expr_test()
         delete_tree(expr_tree);
 
         const auto &test = EXPR_TESTS[i];
-        dummy[0] = test.expression;
-        b32 error = tokenize(dummy,parser.tokens);
+        b32 error = tokenize(test.expression,parser.tokens);
 
         // check that the expression even consists of valid tokens
         if(error)

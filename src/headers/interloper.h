@@ -70,21 +70,7 @@ inline void panic(Interloper &itl,const char *fmt, ...)
         vprintf(fmt,args);
         va_end(args);
 
-        // this is slow, but we are about to terminate anyways
-        std::fstream fp{filename};
-
-        if(!fp)
-        {
-            printf("could not open file %s for error printing\n",filename.c_str());
-        }
-
-        std::string str;
-        for(u32 i = 0; i < line + 1; i++)
-        {
-            std::getline(fp,str);
-        }
-
-        printf("%s\n",str.c_str());
+        print_line(filename,line+1);
     }
 
     else 
