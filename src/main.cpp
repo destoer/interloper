@@ -3,6 +3,8 @@
 #include "lib.cpp"
 #include "alloc.cpp"
 #include "array.cpp"
+#include "string.cpp"
+#include "hashtable.cpp"
 #include "interloper.cpp"
 #include "interpretter.cpp"
 #include "test/test.cpp"

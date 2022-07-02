@@ -1,7 +1,4 @@
 
-
-
-
 // insert at end as a var as a raw set of bytes into the Array
 template<typename T, typename Y>
 void push_var(Array<T> &arr,Y v)
@@ -23,6 +20,32 @@ u32 count(Array<T> arr)
 
 // TODO: allow custom allocation for this
 
+template<typename T>
+void reserve_mem(Array<T> &arr, u32 size)
+{
+    arr.capacity = size;
+    arr.data = (T*)realloc(arr.data,size);       
+}
+
+template<typename T>
+void resize(Array<T> &arr, u32 len)
+{
+    const u32 bytes = len * sizeof(T);
+
+    const u32 old_len = count(arr);
+
+    reserve_mem(arr,bytes);
+    arr.size = bytes;
+
+
+    // default initialize the new elements
+    for(u32 i = old_len; i < count(arr); i++)
+    {
+        arr.data[i] = {};
+    }
+}
+
+
 // make sure there is enough left for the allocation we are doing
 template<typename T>
 void reserve(Array<T> &arr, u32 size)
@@ -37,10 +60,8 @@ void reserve(Array<T> &arr, u32 size)
 
     else
     {   
-        // allocate double capacity to make insert quicker
         const u32 new_capacity = (arr.capacity + size) * 2;
-        arr.capacity = new_capacity;
-        arr.data = (T*)realloc(arr.data,new_capacity);
+        reserve_mem(arr,new_capacity);
     }
 }
 

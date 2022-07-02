@@ -24,13 +24,17 @@
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
+using u64 = uint64_t;
 
 using s8 = int8_t;
 using s16 = int16_t;
 using s32 = int32_t;
+using s64 = int64_t;
 
 using b32 = bool;
 using b8 = bool;
+
+using f32 = float;
 
 
 #define UNUSED(X) ((void)X)
@@ -38,9 +42,19 @@ using b8 = bool;
 template<typename T>
 struct Array
 {
+    T& operator [] (u32 i) 
+    { 
+        return this->data[i];
+    }
+
+    T operator [] (u32 i) const
+    { 
+        return this->data[i];
+    }
+
     T* data = nullptr;
 
-    // we dont need over 4GB for our purposes so just use a u32 and pack the struct
+    // in raw bytes
     u32 size = 0;
     u32 capacity = 0;
 };
