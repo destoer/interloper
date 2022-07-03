@@ -240,7 +240,7 @@ struct Token
     u32 col = 0;
 
     token_type type = token_type::eof;
-    std::string literal = {};
+    String literal = {};
 };
 
 
@@ -255,7 +255,7 @@ Token token_plain(token_type type, u32 line = 0, u32 col = 0)
     return token;
 }
 
-Token token_literal(token_type type,const std::string& literal, u32 line = 0, u32 col = 0)
+Token token_literal(token_type type,const String& literal, u32 line = 0, u32 col = 0)
 {
     Token token;
 
@@ -283,7 +283,7 @@ inline bool operator != (const Token &t1, const Token &t2)
 inline void print_token(const Token& t)
 {
     printf("type: %s\n",tok_name(t.type));
-    printf("literal: %s\n",t.literal.c_str());
+    printf("literal: %s\n",t.literal.buf);
     printf("loc: (%d:%d)\n\n",t.line+1,t.col+1);    
 }
 

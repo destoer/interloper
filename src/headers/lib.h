@@ -62,7 +62,7 @@ struct Array
 struct String;
 bool string_equal(const String& str1, const String& str2);
 u32 hash_string(const String& str);
-
+std::string std_string(const String& string);
 
 struct String
 {
@@ -77,7 +77,7 @@ struct String
         return this->buf[idx];
     }
 
-    bool operator== (const String& other)
+    bool operator== (const String& other) const
     {
         return string_equal(*this,other);
     }

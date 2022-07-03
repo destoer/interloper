@@ -42,3 +42,11 @@ u32 hash_string(const String& str)
 
     return hash;    
 }
+
+std::string std_string(const String& string)
+{
+    UNUSED(string);
+
+    // TODO: impl this
+    assert(false);
+}

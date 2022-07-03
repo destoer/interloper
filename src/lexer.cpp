@@ -17,7 +17,7 @@ void insert_token(Lexer &lexer, token_type type, u32 col)
     lexer.tokens.push_back(token_plain(type,lexer.row,col));
 }
 
-void insert_token(Lexer &lexer, token_type type, const std::string &literal, u32 col)
+void insert_token(Lexer &lexer, token_type type, const String &literal, u32 col)
 {
     lexer.tokens.push_back(token_literal(type,literal,lexer.row,col));
 }
@@ -135,8 +135,6 @@ void advance(Lexer& lexer, s32 v = 1)
 bool decode_imm(Lexer &lexer,const std::string &file)
 {
     const u32 start_col = lexer.column;
-
-    std::string literal = "";
 
 
     const auto success = verify_immediate(file.substr(lexer.idx),literal);

@@ -260,11 +260,11 @@ AstNode *ast_plain(Parser& parser,ast_type type, const Token& token)
     return node;    
 }
 
-AstNode *ast_literal(Parser& parser,ast_type type,const std::string &literal, const Token& token)
+AstNode *ast_literal(Parser& parser,ast_type type,const String &literal, const Token& token)
 {
     AstNode* node = alloc_node(parser);
     node->type = type;
-    node->literal = literal;
+    node->literal = std_string(literal);
     node->value = Value(0,false);
     node->line = token.line;
     node->col = token.col;
@@ -272,13 +272,13 @@ AstNode *ast_literal(Parser& parser,ast_type type,const std::string &literal, co
     return node;    
 }
 
-AstNode *ast_func(Parser& parser,const std::string &literal, const std::string& filename, const Token& token)
+AstNode *ast_func(Parser& parser,const String &literal, const String& filename, const Token& token)
 {
     AstNode* node = alloc_node(parser);
     node->type = ast_type::function;
 
-    node->filename = filename;
-    node->literal = literal;
+    node->filename = std_string(filename);
+    node->literal = std_string(literal);
     node->value = Value(0,false);
 
     node->line = token.line;
@@ -287,13 +287,13 @@ AstNode *ast_func(Parser& parser,const std::string &literal, const std::string& 
     return node;
 }
 
-AstNode *ast_struct(Parser& parser,const std::string &literal, const std::string& filename, const Token& token)
+AstNode *ast_struct(Parser& parser,const String &literal, const String& filename, const Token& token)
 {
     AstNode* node = alloc_node(parser);
     node->type = ast_type::struct_t;
 
-    node->filename = filename;
-    node->literal = literal;
+    node->filename = std_string(filename);
+    node->literal = std_string(literal);
     node->value = Value(0,false);
 
     node->line = token.line;
@@ -330,12 +330,12 @@ AstNode *ast_unary(Parser& parser,AstNode *l, ast_type type, const Token& token)
 }
 
 
-AstNode *ast_value(Parser& parser,Value value, const Token& token, std::string literal = "")
+AstNode *ast_value(Parser& parser,Value value, const Token& token, const String& literal)
 {
     AstNode* node = alloc_node(parser);
 
     node->type = ast_type::value;
-    node->literal = literal;
+    node->literal = std_string(literal);
     node->value = value;
     node->line = token.line;
     node->col = token.col;
