@@ -231,14 +231,6 @@ struct Token
 
     Token() {}
 
-    Token(token_type type, const std::string &literal = "", u32 line = 0, u32 col = 0)
-    {
-        this->type = type;
-        this->literal = literal;
-        this->line = line;
-        this->col = col;
-    }
-
 
     friend bool operator == (const Token &t1, const Token &t2);
     friend bool operator != (const Token &t1, const Token &t2);
@@ -248,8 +240,34 @@ struct Token
     u32 col = 0;
 
     token_type type = token_type::eof;
-    std::string literal;
+    std::string literal = {};
 };
+
+
+Token token_plain(token_type type, u32 line = 0, u32 col = 0)
+{
+    Token token;
+
+    token.type = type;
+    token.line = line;
+    token.col = col;
+    
+    return token;
+}
+
+Token token_literal(token_type type,const std::string& literal, u32 line = 0, u32 col = 0)
+{
+    Token token;
+
+    token.type = type;
+    token.line = line;
+    token.col = col;
+    token.literal = literal;
+    
+    return token;    
+}
+
+
 
 inline bool operator == (const Token &t1, const Token &t2)
 {

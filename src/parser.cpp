@@ -45,7 +45,7 @@ Token next_token(Parser &parser)
     {
         // TODO: make this return the actual file end
         // for row and col
-        return Token(token_type::eof,"",0,0);
+        return token_plain(token_type::eof,0,0);
     }
 
     return parser.tokens[parser.tok_idx++];  
@@ -65,7 +65,7 @@ Token peek(Parser &parser,u32 v)
     const auto idx = parser.tok_idx + v;
     if(idx >= parser.tokens.size())
     {
-        return Token(token_type::eof,"",0,0);
+        return token_plain(token_type::eof,0,0);
     }
 
     return parser.tokens[idx];
@@ -420,7 +420,7 @@ AstNode *statement(Parser &parser)
             auto r = ast_plain(parser,ast_type::ret,t);
 
             // return value is optional
-            if(peek(parser,0) != token_type::semi_colon)
+            if(peek(parser,0).type != token_type::semi_colon)
             {
                 r->nodes.push_back(expr(parser,next_token(parser)));
             }

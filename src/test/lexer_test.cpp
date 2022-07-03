@@ -18,23 +18,23 @@ LexerTest LEXER_TESTS[] =
 {
     {"2 + 2",false,
         {
-            Token(token_type::value,"2"),
-            Token(token_type::plus),
-            Token(token_type::value,"2")
+            token_literal(token_type::value,"2"),
+            token_plain(token_type::plus),
+            token_literal(token_type::value,"2")
         }
     },
 
     {"(6242 * 2) + 5 - 6",false,
         {
-            Token(token_type::left_paren),
-            Token(token_type::value,"6242"),
-            Token(token_type::times),
-            Token(token_type::value,"2"),
-            Token(token_type::right_paren),
-            Token(token_type::plus),
-            Token(token_type::value,"5"),
-            Token(token_type::minus),
-            Token(token_type::value,"6")
+            token_plain(token_type::left_paren),
+            token_literal(token_type::value,"6242"),
+            token_plain(token_type::times),
+            token_literal(token_type::value,"2"),
+            token_plain(token_type::right_paren),
+            token_plain(token_type::plus),
+            token_literal(token_type::value,"5"),
+            token_plain(token_type::minus),
+            token_literal(token_type::value,"6")
         }
     },
 
@@ -42,41 +42,41 @@ LexerTest LEXER_TESTS[] =
     // we dont really care if the program is well formed at this point
     {"{}();",false,
         {
-            Token(token_type::left_c_brace),
-            Token(token_type::right_c_brace),
-            Token(token_type::left_paren),
-            Token(token_type::right_paren),
-            Token(token_type::semi_colon)
+            token_plain(token_type::left_c_brace),
+            token_plain(token_type::right_c_brace),
+            token_plain(token_type::left_paren),
+            token_plain(token_type::right_paren),
+            token_plain(token_type::semi_colon)
         }
     },
 
     {"func s32 main()",false,
         {
-            Token(token_type::func),
-            Token(token_type::s32),
-            Token(token_type::symbol,"main"),
-            Token(token_type::left_paren),
-            Token(token_type::right_paren)
+            token_plain(token_type::func),
+            token_plain(token_type::s32),
+            token_literal(token_type::symbol,"main"),
+            token_plain(token_type::left_paren),
+            token_plain(token_type::right_paren)
         }
     },
 
     {"return x;",false,
         {
-            Token(token_type::ret),
-            Token(token_type::symbol,"x"),
-            Token(token_type::semi_colon)
+            token_plain(token_type::ret),
+            token_literal(token_type::symbol,"x"),
+            token_plain(token_type::semi_colon)
         }
     },
 
     {"ans = square(2);",false,
         {
-            Token(token_type::symbol,"ans"),
-            Token(token_type::equal),
-            Token(token_type::symbol,"square"),
-            Token(token_type::left_paren),
-            Token(token_type::value,"2"),
-            Token(token_type::right_paren),
-            Token(token_type::semi_colon)
+            token_literal(token_type::symbol,"ans"),
+            token_plain(token_type::equal),
+            token_literal(token_type::symbol,"square"),
+            token_plain(token_type::left_paren),
+            token_literal(token_type::value,"2"),
+            token_plain(token_type::right_paren),
+            token_plain(token_type::semi_colon)
         }
     },
 

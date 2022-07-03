@@ -59,4 +59,34 @@ struct Array
     u32 capacity = 0;
 };
 
+struct String;
+bool string_equal(const String& str1, const String& str2);
+u32 hash_string(const String& str);
+
+
+struct String
+{
+    char& operator[] (u32 idx)
+    {
+        return this->buf[idx];
+    }
+
+
+    char operator[] (u32 idx) const
+    {
+        return this->buf[idx];
+    }
+
+    bool operator== (const String& other)
+    {
+        return string_equal(*this,other);
+    }
+    
+
+    char* buf = nullptr;
+    u32 size = 0;
+};
+
+
+
 void print_line(const std::string& filename,u32 line);

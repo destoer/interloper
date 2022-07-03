@@ -1,30 +1,3 @@
-struct String;
-bool string_equal(const String& str1, const String& str2);
-u32 hash_string(const String& str);
-
-
-struct String
-{
-    char& operator[] (u32 idx)
-    {
-        return this->buf[idx];
-    }
-
-
-    char operator[] (u32 idx) const
-    {
-        return this->buf[idx];
-    }
-
-    bool operator== (const String& other)
-    {
-        return string_equal(*this,other);
-    }
-    
-
-    char* buf = nullptr;
-    u32 size = 0;
-};
 
 bool string_equal(const String& str1, const String& str2)
 {

@@ -8,18 +8,18 @@ char peek(u32 offset, const std::string &file)
 
 void insert_token(Lexer &lexer, token_type type)
 {
-    lexer.tokens.push_back(Token(type,"",lexer.row,lexer.column));
+    lexer.tokens.push_back(token_plain(type,lexer.row,lexer.column));
 }
 
 
 void insert_token(Lexer &lexer, token_type type, u32 col)
 {
-    lexer.tokens.push_back(Token(type,"",lexer.row,col));
+    lexer.tokens.push_back(token_plain(type,lexer.row,col));
 }
 
 void insert_token(Lexer &lexer, token_type type, const std::string &literal, u32 col)
 {
-    lexer.tokens.push_back(Token(type,literal,lexer.row,col));
+    lexer.tokens.push_back(token_literal(type,literal,lexer.row,col));
 }
 
 
@@ -159,6 +159,7 @@ bool decode_imm(Lexer &lexer,const std::string &file)
 
 // NOTE: sadly we cant define a "constant" std::map
 // do not modify this
+// TODO: look into using a perfect hash function for this
 std::unordered_map<std::string, token_type> keywords = 
 {
 
