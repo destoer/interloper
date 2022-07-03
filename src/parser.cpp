@@ -1016,7 +1016,8 @@ void print(const AstNode *root)
     printf(" %d ",depth);
     
     // TODO: remove the line printing here
-    printf(" %s : %s : (%d:%d)\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str(),root->line+1,root->col+1);
+    printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str());
+
     depth += 1;
 
     for(const auto &n: root->nodes)

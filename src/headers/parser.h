@@ -302,14 +302,13 @@ AstNode *ast_struct(Parser& parser,const std::string &literal, const std::string
     return node;
 }    
 
-AstNode *ast_binary(Parser& parser,AstNode *l, AstNode *r, ast_type type, const Token& token, std::string literal = "")
+AstNode *ast_binary(Parser& parser,AstNode *l, AstNode *r, ast_type type, const Token& token)
 {
     AstNode* node = alloc_node(parser);
 
     node->nodes.push_back(l);
     node->nodes.push_back(r);
     node->type = type;
-    node->literal = literal;
     node->value = Value(0,false); 
     node->line = token.line;
     node->col = token.col;
@@ -317,13 +316,12 @@ AstNode *ast_binary(Parser& parser,AstNode *l, AstNode *r, ast_type type, const 
     return node;  
 }
 
-AstNode *ast_unary(Parser& parser,AstNode *l, ast_type type, const Token& token, std::string literal = "")
+AstNode *ast_unary(Parser& parser,AstNode *l, ast_type type, const Token& token)
 {
     AstNode* node = alloc_node(parser);
 
     node->nodes.push_back(l);
     node->type = type;
-    node->literal = literal;
     node->value = Value(0,false); 
     node->line = token.line;
     node->col = token.col;
@@ -331,21 +329,6 @@ AstNode *ast_unary(Parser& parser,AstNode *l, ast_type type, const Token& token,
     return node;  
 }
 
-
-AstNode *ast_binary_value(Parser& parser,AstNode *l, AstNode *r, Value value, const Token& token, std::string literal = "")
-{
-    AstNode* node = alloc_node(parser);
-
-    node->nodes.push_back(l);
-    node->nodes.push_back(r);
-    node->type = ast_type::value;
-    node->literal = literal;
-    node->value = value;
-    node->line = token.line;
-    node->col = token.col; 
-
-    return node;  
-}
 
 AstNode *ast_value(Parser& parser,Value value, const Token& token, std::string literal = "")
 {
