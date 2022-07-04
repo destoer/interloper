@@ -90,5 +90,5 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     itl.error = true;
 }
 
-std::string get_program_name(const std::string &filename);
+std::string get_program_name(const String &filename);
 u32 eval_const_expr(const AstNode *node);

@@ -23,14 +23,14 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
 void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
 std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node);
 
-std::string get_program_name(const std::string &filename)
+std::string get_program_name(const String& filename)
 {
-    if(!contains(filename,"."))
+    if(!contains_ext(filename))
     {
-        return filename + ".itl";
+        return std_string(filename) + ".itl";
     }
 
-    return filename;
+    return std_string(filename);
 }
 
 

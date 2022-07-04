@@ -204,7 +204,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     return nullptr;
 }
 
-AstNode* array_index(Parser& parser,const std::string& name)
+AstNode* array_index(Parser& parser,const String& name)
 {
     AstNode* arr_access = ast_literal(parser,ast_type::array_access,name,parser.expr_tok);
 
@@ -260,7 +260,7 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
 
         else
         {
-            panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.c_str(),tok_name(member_tok.type));
+            panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.buf,tok_name(member_tok.type));
             return nullptr;            
         }
     }
@@ -336,8 +336,7 @@ AstNode *nud(Parser &parser,Token &t)
 
         case token_type::value:
         {
-            const auto value = read_value(t);
-            return ast_value(parser,value,t,t.literal);
+            return ast_value(parser,t.value,t);
         }
 
         case token_type::char_t:

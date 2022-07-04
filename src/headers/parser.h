@@ -172,13 +172,6 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "END"
 };
 
-struct Value
-{
-    Value(u32 value, bool s) : v(value), sign(s) {}
-
-    u32 v;
-    bool sign;
-};
 
 // TODO: guess we need a Array struct that we can allocate on
 // as well as a String if we want deletion on this to be fast
@@ -272,12 +265,12 @@ AstNode *ast_literal(Parser& parser,ast_type type,const String &literal, const T
     return node;    
 }
 
-AstNode *ast_func(Parser& parser,const String &literal, const String& filename, const Token& token)
+AstNode *ast_func(Parser& parser,const String &literal, const std::string& filename, const Token& token)
 {
     AstNode* node = alloc_node(parser);
     node->type = ast_type::function;
 
-    node->filename = std_string(filename);
+    node->filename = filename;
     node->literal = std_string(literal);
     node->value = Value(0,false);
 
@@ -287,12 +280,12 @@ AstNode *ast_func(Parser& parser,const String &literal, const String& filename, 
     return node;
 }
 
-AstNode *ast_struct(Parser& parser,const String &literal, const String& filename, const Token& token)
+AstNode *ast_struct(Parser& parser,const String &literal, const std::string& filename, const Token& token)
 {
     AstNode* node = alloc_node(parser);
     node->type = ast_type::struct_t;
 
-    node->filename = std_string(filename);
+    node->filename = filename;
     node->literal = std_string(literal);
     node->value = Value(0,false);
 
@@ -330,12 +323,12 @@ AstNode *ast_unary(Parser& parser,AstNode *l, ast_type type, const Token& token)
 }
 
 
-AstNode *ast_value(Parser& parser,Value value, const Token& token, const String& literal)
+AstNode *ast_value(Parser& parser,Value value, const Token& token)
 {
     AstNode* node = alloc_node(parser);
 
     node->type = ast_type::value;
-    node->literal = std_string(literal);
+    node->literal = ""; // TODO:
     node->value = value;
     node->line = token.line;
     node->col = token.col;

@@ -62,15 +62,19 @@ struct Array
 struct String;
 bool string_equal(const String& str1, const String& str2);
 u32 hash_string(const String& str);
+String make_static_string(const char* str);
+
+// TODO: get rid of this, its just while we shift over 
 std::string std_string(const String& string);
 
 struct String
 {
-    char& operator[] (u32 idx)
-    {
-        return this->buf[idx];
-    }
+    String() {}
 
+    String(const char* str)
+    {
+        make_static_string(str);
+    }
 
     char operator[] (u32 idx) const
     {
@@ -83,7 +87,7 @@ struct String
     }
     
 
-    char* buf = nullptr;
+    const char* buf = nullptr;
     u32 size = 0;
 };
 

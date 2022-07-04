@@ -226,6 +226,17 @@ inline const char *tok_name(token_type t)
     return TOKEN_INFO[static_cast<size_t>(t)].name;
 }
 
+
+
+struct Value
+{
+    Value(u32 value, bool s) : v(value), sign(s) {}
+
+    u32 v;
+    b32 sign;
+};
+
+
 struct Token
 {
 
@@ -238,9 +249,15 @@ struct Token
 
     u32 line = 0;
     u32 col = 0;
-
     token_type type = token_type::eof;
-    String literal = {};
+
+
+    union 
+    {
+        String literal;
+        Value value;
+        char character;
+    };
 };
 
 
@@ -267,6 +284,29 @@ Token token_literal(token_type type,const String& literal, u32 line = 0, u32 col
     return token;    
 }
 
+Token token_char(char c,u32 line = 0, u32 col = 0)
+{
+    Token token;
+
+    token.type = token_type::char_t;
+    token.line = line;
+    token.col = col;
+    token.character = c;
+
+    return token;
+}
+
+Token token_value(const Value& value, u32 line = 0, u32 col = 0)
+{
+    Token token;
+
+    token.type = token_type::value;
+    token.line = line;
+    token.col = col;
+    token.value = value;
+
+    return token;
+}
 
 
 inline bool operator == (const Token &t1, const Token &t2)

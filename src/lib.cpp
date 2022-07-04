@@ -15,9 +15,9 @@ std::string read_file(const std::string &filename)
     return "";
 }
 
-bool contains(const std::string& str,const char* substr) 
+bool contains_ext(const String& str) 
 {   
-    return str.find(substr) != std::string::npos;
+    return strchr(str.buf,'.') != NULL;
 }    
 
 template<typename access_type>

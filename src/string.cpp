@@ -21,10 +21,22 @@ String make_string(ArenaAllocator& allocator,const char* str, u32 size)
 {
     String string;
 
-    string.buf = (char*)allocate(allocator,size);
+    char* ptr  = (char*)allocate(allocator,size);
+    memcpy(ptr,str,size);
+
+    string.buf = ptr;
     string.size = size;
 
-    memcpy(string.buf,str,size);
+    return string;
+}
+
+// make a string from a static
+String make_static_string(const char* str)
+{
+    String string;
+
+    string.buf = str;
+    string.size = strlen(str);
 
     return string;
 }

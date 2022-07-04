@@ -73,16 +73,6 @@ Token peek(Parser &parser,u32 v)
 
 
 
-Value read_value(const Token &t)
-{
-    const u32 v = convert_imm(t.literal); 
-
-    // is this literal a -ve?
-    const bool sign = t.literal[0] == '-';
-
-    return Value(v,sign);
-}
-
 void consume(Parser &parser,token_type type)
 {
     const auto t = parser.tok_idx >= parser.tokens.size()? token_type::eof : parser.tokens[parser.tok_idx].type;
@@ -216,7 +206,7 @@ AstNode *parse_type(Parser &parser)
     
     if(type_idx == STRUCT_IDX)
     {   
-        type_literal = plain_tok.literal;
+        type_literal = std_string(plain_tok.literal);
     }
 
     else
@@ -724,9 +714,9 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
         return;
     }
 
-    if(itl.function_table.count(func_name.literal))
+    if(itl.function_table.count(std_string(func_name.literal)))
     {
-        panic(itl,"function %s has been declared twice!\n",func_name.literal.c_str());
+        panic(itl,"function %s has been declared twice!\n",func_name.literal.buf);
         return;
     }
 
@@ -820,7 +810,7 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
     f->nodes.push_back(a);
 
     // setup a unfinished def to finish up later
-    itl.function_table[func_name.literal] = new_func(func_name.literal,f);
+    itl.function_table[std_string(func_name.literal)] = new_func(std_string(func_name.literal),f);
 }
 
 void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
@@ -833,9 +823,9 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
         return;
     }
 
-    if(itl.struct_def.count(name.literal))
+    if(itl.struct_def.count(std_string(name.literal)))
     {
-        panic(itl,"struct %s redeclared\n",name.literal.c_str());
+        panic(itl,"struct %s redeclared\n",name.literal.buf);
         return;
     }
 
@@ -867,7 +857,7 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
     // TODO: we now should check redefiniton here?
     StructDef definition = {struct_state::not_checked,struct_node,0};
 
-    itl.struct_def[name.literal] = definition;
+    itl.struct_def[std_string(name.literal)] = definition;
 }
 
 
@@ -942,21 +932,21 @@ bool parse(Interloper& itl, const std::string initial_filename)
                 {
                     if(!match(parser,token_type::string))
                     {
-                        panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.c_str());
+                        panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
                         return true;
                     }
 
                     const auto name_tok = next_token(parser);
 
                     // stl file
-                    if(!contains(name_tok.literal,"."))
+                    if(!contains_ext(name_tok.literal))
                     {
-                        add_file(file_set,file_stack,get_program_name(stl_path + name_tok.literal));
+                        add_file(file_set,file_stack, stl_path + get_program_name(name_tok.literal));
                     }
 
                     else
                     {
-                        add_file(file_set,file_stack,name_tok.literal);
+                        add_file(file_set,file_stack,std_string(name_tok.literal));
                     }
                     break;
                 }
@@ -977,7 +967,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
 
                 default:
                 {
-                    panic(parser,t,"unexpected top level token %s: %s\n",tok_name(t.type),t.literal.c_str());
+                    panic(parser,t,"unexpected top level token %s: %s\n",tok_name(t.type),t.literal.buf);
                     return true;
                 }
             }
