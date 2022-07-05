@@ -268,6 +268,7 @@ Token token_plain(token_type type, u32 line = 0, u32 col = 0)
     token.type = type;
     token.line = line;
     token.col = col;
+    token.literal = {};
     
     return token;
 }
@@ -291,6 +292,7 @@ Token token_char(char c,u32 line = 0, u32 col = 0)
     token.type = token_type::char_t;
     token.line = line;
     token.col = col;
+    token.literal = {};
     token.character = c;
 
     return token;
@@ -323,7 +325,32 @@ inline bool operator != (const Token &t1, const Token &t2)
 inline void print_token(const Token& t)
 {
     printf("type: %s\n",tok_name(t.type));
-    printf("literal: %s\n",t.literal.buf);
+
+    switch(t.type)
+    {
+        case token_type::char_t:
+        {
+            printf("char %c\n",t.character);
+            break;
+        }
+
+        case token_type::value:
+        {
+            printf("value: %s%d\n",t.value.sign? "-"  : "",t.value.v);
+            break;
+        }
+
+        default:
+        {
+            if(t.literal.buf)
+            {
+                printf("literal: %s\n",t.literal.buf);
+            }
+            break;
+        }
+    }
+
+    
     printf("loc: (%d:%d)\n\n",t.line+1,t.col+1);    
 }
 

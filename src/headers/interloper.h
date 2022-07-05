@@ -32,10 +32,11 @@ struct Interloper
 
     Array<u8> const_pool;
 
-    // TODO: move other structures to an arena
+    // Arena's
     ArenaAllocator list_allocator;
-
     ArenaAllocator ast_allocator;
+    ArenaAllocator string_allocator;
+
 
     // struct lookup
     StructTable struct_table;

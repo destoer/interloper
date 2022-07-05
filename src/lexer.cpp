@@ -27,6 +27,11 @@ void insert_token_char(Lexer& lexer,char c, u32 col)
     lexer.tokens.push_back(token_char(c,lexer.row,col));
 }
 
+void insert_token_value(Lexer& lexer,const Value& value, u32 col)
+{
+    lexer.tokens.push_back(token_value(value,lexer.row,col));
+}
+
 
 template<typename F>
 bool verify_immediate_internal(const char* literal, u32 &i, u32 len, F lambda)
@@ -128,26 +133,19 @@ void advance(Lexer& lexer, s32 v = 1)
     lexer.idx += v;
 }
 
-/*
-
-Value read_value(const Token &t)
+// TODO: make sure the number fits in 32 bits
+u32 convert_imm(const String& str)
 {
-    const u32 v = convert_imm(t.literal); 
-
-    // is this literal a -ve?
-    const bool sign = t.literal[0] == '-';
-
-    return Value(v,sign);
+    return strtol(str.buf,NULL,0);
 }
 
-*/
+
 
 // true on error
 bool decode_imm(Lexer &lexer,const std::string &file)
 {
+    const u32 start_idx = lexer.idx;
     const u32 start_col = lexer.column;
-
-    UNUSED(start_col);
 
     const s32 len = verify_immediate(&file[lexer.idx],file.size() - lexer.idx);
 
@@ -157,12 +155,16 @@ bool decode_imm(Lexer &lexer,const std::string &file)
         return true;
     }
 
-    assert(false);
+    // get the value from the string
+    const u32 v = convert_imm(make_static_string(&file[start_idx],len));
+    const bool sign = file[start_idx] == '-';
 
-    // TODO: convert to a value in place and insert it
+    Value value = Value(v,sign);
 
-    // ignore one for the termination char
-    advance(lexer,len);
+    insert_token_value(lexer,value,start_col);
+
+    // ignore the terminator
+    advance(lexer,len - 1);
 
     return false; 
 }
@@ -217,13 +219,14 @@ token_type keyword_token_type(const String &literal)
 }
 
 
-bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
+bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vector<Token>& tokens_out)
 {
     Lexer lexer;
 
     lexer.row = 0;
     lexer.column = 0;
     lexer.tokens.clear();
+    lexer.string_allocator = string_allocator; 
 
     const auto size = file.size();
     for(lexer.idx = 0; lexer.idx < file.size(); advance(lexer))
@@ -570,6 +573,7 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
 
             default:
             {
+                u32 start_idx = lexer.idx;
                 u32 start_col = lexer.column;
 
                 // potential symbol
@@ -586,9 +590,8 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
                         }
                     }
 
-                    // TODO:
-                    assert(false);
-                    String literal;
+
+                    String literal = make_string(*lexer.string_allocator,&file[start_idx],(lexer.idx - start_idx) + 1);
 
 
                     // if its a keyword identify its type

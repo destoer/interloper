@@ -21,8 +21,11 @@ String make_string(ArenaAllocator& allocator,const char* str, u32 size)
 {
     String string;
 
-    char* ptr  = (char*)allocate(allocator,size);
+    char* ptr  = (char*)allocate(allocator,size + 1);
     memcpy(ptr,str,size);
+
+    // null term the string
+    ptr[size] = '\0';
 
     string.buf = ptr;
     string.size = size;
@@ -31,12 +34,12 @@ String make_string(ArenaAllocator& allocator,const char* str, u32 size)
 }
 
 // make a string from a static
-String make_static_string(const char* str)
+String make_static_string(const char* str, u32 size)
 {
     String string;
 
     string.buf = str;
-    string.size = strlen(str);
+    string.size = size;
 
     return string;
 }
@@ -57,8 +60,5 @@ u32 hash_string(const String& str)
 
 std::string std_string(const String& string)
 {
-    UNUSED(string);
-
-    // TODO: impl this
-    assert(false);
+    return std::string(string.buf,string.size);
 }

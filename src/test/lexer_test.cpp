@@ -92,6 +92,8 @@ void lexer_test()
     puts("\nrunning lexer tests\n");
 
 
+    ArenaAllocator string_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+
     for(uint32_t i = 0; i < LEXER_TEST_SIZE; i++)
     {
         const auto &test = LEXER_TESTS[i];
@@ -99,7 +101,7 @@ void lexer_test()
 
         std::vector<Token> tokens;
 
-        const b32 lexer_error = tokenize(test.line,tokens);
+        const b32 lexer_error = tokenize(test.line,&string_allocator,tokens);
 
         // lexer did or did not report an error when it should
         // or did not return enough tokens
@@ -113,7 +115,9 @@ void lexer_test()
 
             puts("expected: ");
             print_tokens(test.tokens);
-            exit(1);
+            
+            destroy_allocator(string_allocator);
+            return;
         }
 
         // check every last token matches
@@ -128,13 +132,17 @@ void lexer_test()
 
                 puts("expected: ");
                 print_tokens(test.tokens);
-                exit(1);              
+
+                destroy_allocator(string_allocator);
+                return;           
             }
         }
 
 
         printf("pass[%d]: %s\n",i,test.line);
     }
+
+    destroy_allocator(string_allocator);
 
     puts("\nlexer tests done\n");
 }

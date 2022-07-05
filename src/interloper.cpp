@@ -2652,9 +2652,8 @@ void destroy_ast(Interloper& itl)
     }
 
 
-    // TODO: eventually we want to be able to destroy the tree in one go but for now
-    // we have to destruct the vecs and strings
     destroy_allocator(itl.ast_allocator);
+    destroy_allocator(itl.string_allocator);
 
     itl.struct_def.clear();
 
@@ -2686,6 +2685,7 @@ void compile(Interloper &itl,const std::string& initial_filename)
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
+    itl.string_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.error = false;
 
 

@@ -103,18 +103,19 @@ void expr_test()
 
     Lexer lexer;
 
-    ArenaAllocator allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+    ArenaAllocator ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+    ArenaAllocator string_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
 
     AstNode *expr_tree = nullptr;
 
 
     for(u32 i = 0; i < EXPR_TESTS_SIZE; i++)
     {
-        Parser parser = make_parser(&allocator);
+        Parser parser = make_parser(&ast_allocator,&string_allocator);
         delete_tree(expr_tree);
 
         const auto &test = EXPR_TESTS[i];
-        b32 error = tokenize(test.expression,parser.tokens);
+        b32 error = tokenize(test.expression,&string_allocator,parser.tokens);
 
         // check that the expression even consists of valid tokens
         if(error)
@@ -166,5 +167,6 @@ void expr_test()
     puts("\nexpr tests done\n");
 
     delete_tree(expr_tree);
-    destroy_allocator(allocator);
+    destroy_allocator(ast_allocator);
+    destroy_allocator(string_allocator);
 }

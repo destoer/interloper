@@ -7,10 +7,11 @@ AstNode *block(Parser &parser);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 64 * 1024;
 
-Parser make_parser(ArenaAllocator* allocator)
+Parser make_parser(ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator)
 {
     Parser parser;
-    parser.allocator = allocator;
+    parser.allocator = ast_allocator;
+    parser.string_allocator = string_allocator;
 
     return parser;
 }
@@ -896,7 +897,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
     const std::string stl_path = std::string("stl") + std::string(1,path_separator);
 
     // import basic by default
-    add_file(file_set,file_stack,stl_path + "basic.itl");
+    // add_file(file_set,file_stack,stl_path + "basic.itl");
 
     while(file_stack.size())
     {
@@ -904,12 +905,12 @@ bool parse(Interloper& itl, const std::string initial_filename)
         const auto filename = file_stack.back(); file_stack.pop_back();
 
         // Parse out the file
-        Parser parser = make_parser(&itl.ast_allocator);
+        Parser parser = make_parser(&itl.ast_allocator,&itl.string_allocator);
 
 
         const std::string file = read_file(filename);
 
-        if(tokenize(file,parser.tokens))
+        if(tokenize(file,parser.string_allocator,parser.tokens))
         {
             printf("failed to tokenize file: %s\n",filename.c_str());
             return true;
@@ -967,7 +968,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
 
                 default:
                 {
-                    panic(parser,t,"unexpected top level token %s: %s\n",tok_name(t.type),t.literal.buf);
+                    panic(parser,t,"unexpected top level token %s: '%s'\n",tok_name(t.type),t.literal.buf);
                     return true;
                 }
             }
@@ -1005,8 +1006,21 @@ void print(const AstNode *root)
     }
     printf(" %d ",depth);
     
-    // TODO: remove the line printing here
-    printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str());
+    switch(root->type)
+    {
+        case ast_type::value:
+        {
+            printf(" value : %s%d\n",root->value.sign? "-"  : "",root->value.v);
+            break;
+        }
+
+        default:
+        {
+            printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str());
+            break;
+        }
+    }
+
 
     depth += 1;
 

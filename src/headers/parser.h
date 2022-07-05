@@ -226,6 +226,7 @@ struct Parser
     token_type termination_type = token_type::eof;
 
     ArenaAllocator* allocator;
+    ArenaAllocator* string_allocator;
 
     // error handling
     b32 error = false;

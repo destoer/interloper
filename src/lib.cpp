@@ -63,18 +63,6 @@ bool in_range(T v, T min, T max)
 }
 
 
-// TODO: make sure the number fits in 32 bits
-u32 convert_imm(const std::string &imm)
-{
-    if(imm.size() >= 3 && imm.substr(0,2) == "0b")
-    {
-        return static_cast<u32>(stoul(imm.substr(2),nullptr,2));
-    }
-
-    // stoi wont auto detect base for binary strings?
-    return static_cast<u32>(stoul(imm,nullptr,0));
-}
-
 u32 set_bit(u32 v, u32 bit)
 {
     return v | (1 << bit);
