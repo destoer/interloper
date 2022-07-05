@@ -17,31 +17,37 @@ void push_arena(ArenaAllocator& allocator, Array<T> &arr, T v)
 {
     const u32 size = sizeof(v);
 
-    Arena& arena = cur_arena(allocator);
+    const u32 free_size = arr.capacity - arr.size;
 
-    u8* arena_ptr = (u8*)arena.buf;
-
-    const u32 reserve = arena.size - arena.len;
-
-    // we have enough memory left on the end of the arena to just give it more memory
-    if((T*)&arena_ptr[arena.len] == &arr[arr.capacity] && size <= reserve)
+    // aquire more memory from the arena
+    if(free_size < size)
     {
-        reserve_end(arena,size);
-        arr.capacity += size;
-    }
+        Arena& arena = cur_arena(allocator);
 
-    // get back a new chunk that is large enough and move it
-    else
-    {
-        // allocate a new buffer large enough
-        const u32 new_capacity = (arr.capacity + size) * 2;
-        T* new_buf = (T*)allocate(allocator,new_capacity);
+        u8* arena_ptr = (u8*)arena.buf;
 
-        // copy over the old data
-        memcpy(new_buf,arr.data,arr.capacity);
-        arr.capacity = new_capacity;
+        const u32 reserve = arena.size - arena.len;
 
-        arr.data = new_buf;
+        // we have enough memory left on the end of the arena to just give it more memory
+        if((T*)&arena_ptr[arena.len] == &arr[arr.capacity] && size <= reserve)
+        {
+            reserve_end(arena,size);
+            arr.capacity += size;
+        }
+
+        // get back a new chunk that is large enough and move it
+        else
+        {
+            // allocate a new buffer large enough
+            const u32 new_capacity = (arr.capacity + size) * 2;
+            T* new_buf = (T*)allocate(allocator,new_capacity);
+
+            // copy over the old data
+            memcpy(new_buf,arr.data,arr.capacity);
+            arr.capacity = new_capacity;
+
+            arr.data = new_buf;
+        }   
     }
 
     handle_write(&arr.data[arr.size],v);
