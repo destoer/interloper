@@ -47,6 +47,12 @@ void *allocate(Arena &arena,u32 size)
     return alloc_ptr;
 }
 
+void reserve_end(Arena& arena,u32 size)
+{
+    arena.len += size;
+}
+
+
 bool add_arena(ArenaAllocator& allocator, u32 size)
 {
     if(allocator.size == ARENA_ALLOC_SIZE)
@@ -79,11 +85,12 @@ void* allocate(ArenaAllocator& allocator, u32 size)
 {
     const u32 cur_arena = allocator.size - 1;
 
-    // TODO: handle this failing and add a new area
     if(allocator.arena[cur_arena].len + size >= allocator.arena[cur_arena].size)
     {
-        // next arena is double the size of the old
-        const u32 arena_size = (allocator.arena[cur_arena].size * 2);
+        const u32 new_size = std::max(allocator.arena[cur_arena].size,size);
+        
+        // next arena is double the size of the old arena, or what we need
+        const u32 arena_size = new_size * 2;
 
         if(add_arena(allocator,arena_size))
         {
@@ -92,4 +99,23 @@ void* allocate(ArenaAllocator& allocator, u32 size)
     }
 
     return allocate(allocator.arena[allocator.size - 1],size);
+}
+
+u32 allocator_size(const ArenaAllocator& allocator)
+{
+    u32 size = 0;
+
+    for(u32 i = 0; i < allocator.size; i++)
+    {
+        size += allocator.arena[i].size;
+    }
+
+    return size;
+}
+
+
+
+Arena& cur_arena(ArenaAllocator& allocator)
+{
+    return allocator.arena[allocator.size - 1];
 }

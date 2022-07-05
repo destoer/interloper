@@ -2651,7 +2651,6 @@ void destroy_ast(Interloper& itl)
         def.root = nullptr;
     }
 
-
     destroy_allocator(itl.ast_allocator);
     destroy_allocator(itl.string_allocator);
 
@@ -2677,7 +2676,7 @@ void destroy_itl(Interloper &itl)
     destroy_allocator(itl.list_allocator);
 }
 
-static constexpr u32 LIST_INITIAL_SIZE = 64 * 1024;
+static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
 
 void compile(Interloper &itl,const std::string& initial_filename)
 {

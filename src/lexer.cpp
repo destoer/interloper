@@ -321,8 +321,8 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
                 const u32 start_col = lexer.column;
                 advance(lexer);
 
-                // TODO: dont require copying this
-                std::string str;
+
+                Array<char> buffer;
 
                 while(lexer.idx < size)
                 {  
@@ -357,11 +357,14 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
                     }
 
                     advance(lexer);
-                    str += c;
+                    push_arena(*lexer.string_allocator,buffer,c);
                 }
 
-                assert(false);
-                String literal;
+                // null term the string
+                push_arena(*lexer.string_allocator,buffer,'\0');
+
+                // create string fomr the array
+                String literal = make_string(buffer);
 
                 insert_token(lexer,token_type::string,literal,start_col);
                 break;

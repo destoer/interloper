@@ -17,6 +17,17 @@ bool string_equal(const String& str1, const String& str2)
     return true;    
 }
 
+// NOTE: expects array to be null terminated
+String make_string(Array<char>& arr)
+{
+    String string;
+
+    string.buf = arr.data;
+    string.size = arr.size - 1;
+
+    return string;
+}
+
 String make_string(ArenaAllocator& allocator,const char* str, u32 size)
 {
     String string;

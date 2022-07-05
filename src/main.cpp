@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
     }
 
 
-    
     compile(itl,get_program_name(filename));
 
     if(itl.error)

@@ -22,7 +22,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
 
     if(addr >= 0x20000000 && addr < 0x20000000 + interpretter.stack.size())
     {
-        return handle_read<access_type>(interpretter.stack.data(),addr - 0x20000000);
+        return handle_read<access_type>(&interpretter.stack[addr - 0x20000000]);
     }
 
     else
@@ -60,7 +60,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
 
     if(addr >= 0x20000000 && addr < 0x20000000 + interpretter.stack.size())
     {
-        handle_write<access_type>(interpretter.stack.data(),addr - 0x20000000,v);
+        handle_write<access_type>(&interpretter.stack[addr - 0x20000000],v);
     }
 
     else

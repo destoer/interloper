@@ -21,10 +21,10 @@ bool contains_ext(const String& str)
 }    
 
 template<typename access_type>
-access_type handle_read(const u8 *buf, u32 idx)
+access_type handle_read(const void *buf)
 {
     access_type v;
-    memcpy(&v,&buf[idx],sizeof(access_type));
+    memcpy(&v,buf,sizeof(access_type));
     return v;
 }
 
@@ -51,9 +51,9 @@ void print_line(const std::string& filename,u32 line)
 
 
 template<typename access_type>
-void handle_write(u8 *buf, u32 idx, access_type v)
+void handle_write(void *buf, access_type v)
 {
-    memcpy(&buf[idx],&v,sizeof(access_type));
+    memcpy(buf,&v,sizeof(access_type));
 }
 
 template<typename T>

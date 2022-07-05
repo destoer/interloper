@@ -5,7 +5,7 @@ void type_panic(Parser &parser);
 AstNode *block(Parser &parser);
 
 
-const u32 AST_ALLOC_DEFAULT_SIZE = 64 * 1024;
+const u32 AST_ALLOC_DEFAULT_SIZE = 16 * 1024;
 
 Parser make_parser(ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator)
 {
@@ -897,7 +897,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
     const std::string stl_path = std::string("stl") + std::string(1,path_separator);
 
     // import basic by default
-    // add_file(file_set,file_stack,stl_path + "basic.itl");
+    add_file(file_set,file_stack,stl_path + "basic.itl");
 
     while(file_stack.size())
     {
