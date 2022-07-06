@@ -120,7 +120,10 @@ u32 new_tmp(Function &func)
 // stored internally as a symbol
 u32 new_tmp(Interloper& itl, u32 size)
 {
-    Symbol sym = Symbol("v" + std::to_string(itl.symbol_table.var_count),Type(builtin_type::void_t),size);
+    char name[40];
+    sprintf(name,"v%d",itl.symbol_table.var_count);
+
+    Symbol sym = make_sym(itl.symbol_table,name,Type(builtin_type::void_t),size);
 
     sym.slot = symbol(itl.symbol_table.slot_lookup.size());
     itl.symbol_table.slot_lookup.push_back(sym);      
@@ -139,11 +142,14 @@ void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 s
 
     // emit a call to memcpy with args
     // check function is declared
-    if(!itl.function_table.count("memcpy"))
+
+    Function* func_def = lookup(itl.function_table,"memcpy");
+
+    if(!func_def)
     {
         panic(itl,"[COMPILE]: memcpy is required for struct passing\n");
     }
-    Function &func_call = itl.function_table["memcpy"];
+    Function &func_call = *func_def;
 
     mark_used(itl,func_call);
 
@@ -270,7 +276,7 @@ void print_alloc(LocalAlloc &alloc,SlotLookup &slot_lookup)
         {
             printf("slot %x\n",slot);
             const auto &sym = sym_from_slot(slot_lookup,slot);
-            printf("reg r%d -> sym %s\n",i,sym.name.c_str());
+            printf("reg r%d -> sym %s\n",i,sym.name.buf);
         }
     }
 
@@ -291,7 +297,7 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
 
     if(alloc.print_reg_allocation)
     {
-        printf("spill %s:%d\n",sym.name.c_str(),reg);
+        printf("spill %s:%d\n",sym.name.buf,reg);
     }
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
@@ -306,7 +312,7 @@ void spill_sym(LocalAlloc& alloc,List &list,ListNode *node,Symbol &sym, bool aft
             // TODO: handle structs
             assert(size <= sizeof(u32));
 
-            sym.offset = stack_reserve(alloc,size,1,sym.name.c_str());
+            sym.offset = stack_reserve(alloc,size,1,sym.name.buf);
         }
 
         // args need to be allocated later
@@ -442,7 +448,7 @@ void alloc_sym(SlotLookup &slot_lookup,LocalAlloc &alloc, List &list, ListNode* 
 
     if(alloc.print_reg_allocation)
     {
-        printf("symbol %s into reg r%d\n",sym.name.c_str(),reg);
+        printf("symbol %s into reg r%d\n",sym.name.buf,reg);
     }
 }
 
@@ -453,7 +459,7 @@ void alloc_sym_into_tmp(Symbol &sym,LocalAlloc &alloc, u32 tmp)
 
     if(alloc.print_reg_allocation)
     {
-        printf("symbol %s allocated into tmp t%d -> r%d\n",sym.name.c_str(),tmp,reg);
+        printf("symbol %s allocated into tmp t%d -> r%d\n",sym.name.buf,tmp,reg);
     }
 
     alloc.regs[reg] = sym.slot;
@@ -492,7 +498,7 @@ void free_sym(LocalAlloc &alloc, Symbol &sym)
 {
     if(alloc.print_reg_allocation)
     {
-        printf("freed sym %s from r%d\n",sym.name.c_str(),sym.location);
+        printf("freed sym %s from r%d\n",sym.name.buf,sym.location);
     }
 
     alloc.regs[sym.location] = REG_FREE;
@@ -521,7 +527,7 @@ void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,List &list, ListNode *nod
 
     if(alloc.print_reg_allocation)
     {
-        printf("reloading sym %s into r%d\n",sym.name.c_str(),sym.location);
+        printf("reloading sym %s into r%d\n",sym.name.buf,sym.location);
     }
 
     // we need to save the current stack offset here as by the time we load it 
@@ -910,7 +916,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             if(alloc.print_reg_allocation)
             {
-                printf("alloc slot: %s\n",sym.name.c_str());
+                printf("alloc slot: %s\n",sym.name.buf);
             }
 
             // if we have anything that wont just fit inside a reg
@@ -920,7 +926,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             if(size)
             {
                 node->opcode = Opcode(op_type::alloc,opcode.v[0],size,count);
-                sym.offset = stack_reserve(alloc,size,count,sym.name.c_str()); 
+                sym.offset = stack_reserve(alloc,size,count,sym.name.buf); 
 
                 node = node->next;     
             }
@@ -982,7 +988,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             {
                 if(alloc.print_stack_allocation)
                 {
-                    printf("reclaiming stack space %s : (%d , %d)\n",sym.name.c_str(),opcode.v[1],opcode.v[2]);
+                    printf("reclaiming stack space %s : (%d , %d)\n",sym.name.buf,opcode.v[1],opcode.v[2]);
                 }
 
                 alloc.size_count[opcode.v[1] >> 1] -= opcode.v[2];
@@ -995,7 +1001,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             {
                 if(alloc.print_stack_allocation)
                 {
-                    printf("reclaiming stack space %s : %d\n",sym.name.c_str(),sym.size);
+                    printf("reclaiming stack space %s : %d\n",sym.name.buf,sym.size);
                 }                
 
                 alloc.size_count[sym.size >> 1] -= 1;
@@ -1113,7 +1119,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                sym.offset = finish_alloc(alloc,sym.offset,opcode.v[1],sym.name.c_str());
+                sym.offset = finish_alloc(alloc,sym.offset,opcode.v[1],sym.name.buf);
             }
 
             return remove(list,node);
@@ -1176,7 +1182,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
                 // this is the first stack access so we need to compute the final posistion
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                sym.offset = finish_alloc(alloc,sym.offset,sym.size,sym.name.c_str());
+                sym.offset = finish_alloc(alloc,sym.offset,sym.size,sym.name.buf);
             }
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
@@ -1194,7 +1200,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // this is the first stack access so we need to compute the final posistion
             if(sym.offset >= PENDING_ALLOCATION)
             {
-                sym.offset = finish_alloc(alloc,sym.offset,sym.size,sym.name.c_str());
+                sym.offset = finish_alloc(alloc,sym.offset,sym.size,sym.name.buf);
             }
 
             // write value back out into mem
@@ -1307,7 +1313,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 
     {
         auto &sym = sym_from_slot(slot_lookup,slot);
 
-        //printf("%s : %x\n",sym.name.c_str(),sym.arg_offset);
+        //printf("%s : %x\n",sym.name.buf,sym.arg_offset);
 
         // alloc above the stack frame
         sym.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + sizeof(u32);
@@ -1325,7 +1331,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
     if(alloc.print_reg_allocation)
     {
-        printf("allocating registers for %s:\n\n",func.name.c_str());
+        printf("allocating registers for %s:\n\n",func.name.buf);
     }
 
     for(auto &block : func.emitter.program)
@@ -1412,7 +1418,7 @@ void dump_program(const Array<u8> &program,u32 size, std::map<u32,u32> &inv_labe
     {
         if(inv_label_lookup.count(pc))
         {
-            printf("0x%08x %s:\n",pc,label_lookup[inv_label_lookup[pc]].name.c_str());
+            printf("0x%08x %s:\n",pc,label_lookup[inv_label_lookup[pc]].name.buf);
         }
 
         printf("  0x%08x:\t ",pc);   
@@ -1437,42 +1443,47 @@ void emit_asm(Interloper &itl)
 
     // emit a dummy call to main
     // that will get filled in later once we know where main lives
-    insert_program(itl,Opcode(op_type::call,itl.function_table["main"].slot,0,0));
+    insert_program(itl,Opcode(op_type::call,lookup(itl.function_table,"main")->slot,0,0));
 
     // program exit
     insert_program(itl,Opcode(op_type::swi,SYSCALL_EXIT,0,0));
 
-    // dump ever function into one vector and record where it is in the function table
-    for(auto &[key, func]: itl.function_table)
+    // dump every function into one vector and record where it is in the function table
+    for(u32 b = 0; b < count(itl.function_table.buf); b++)
     {
-        UNUSED(key);
+        auto bucket = itl.function_table.buf[b];
 
-        // when we assembly to an actual arch we will 
-        // have to switch over to a byte array
-        itl.symbol_table.label_lookup[func.slot].offset = itl.program.size;
-
-
-        inv_label_lookup[itl.program.size] = func.slot;
-
-        for(u32 b = 0; b < func.emitter.program.size(); b++)
+        for(u32 i = 0; i < count(bucket); i++)
         {
-            const auto &block = func.emitter.program[b];
+            Function& func = bucket[i].v;
 
-            // resolve label addr.
-            itl.symbol_table.label_lookup[func.emitter.block_slot[b]].offset = itl.program.size;
+            // when we assembly to an actual arch we will 
+            // have to switch over to a byte array
+            itl.symbol_table.label_lookup[func.slot].offset = itl.program.size;
 
-            // prefer function name
-            if(b != 0)
+
+            inv_label_lookup[itl.program.size] = func.slot;
+
+            for(u32 b = 0; b < func.emitter.program.size(); b++)
             {
-                inv_label_lookup[itl.program.size] = func.emitter.block_slot[b];
-            }
+                const auto &block = func.emitter.program[b];
 
-            auto node = block.list.start;
-            while(node)
-            {
-                insert_program(itl,node->opcode);
-                node = node->next;
-            }
+                // resolve label addr.
+                itl.symbol_table.label_lookup[func.emitter.block_slot[b]].offset = itl.program.size;
+
+                // prefer function name
+                if(b != 0)
+                {
+                    inv_label_lookup[itl.program.size] = func.emitter.block_slot[b];
+                }
+
+                auto node = block.list.start;
+                while(node)
+                {
+                    insert_program(itl,node->opcode);
+                    node = node->next;
+                }
+            }   
         }
     }
 
@@ -1487,7 +1498,7 @@ void emit_asm(Interloper &itl)
     puts("\n\nlabels");
     for(const auto &label : itl.symbol_table.label_lookup)
     {
-        printf("label %s = %x\n",label.name.c_str(),label.offset);
+        printf("label %s = %x\n",label.name.buf,label.offset);
     }
     putchar('\n');
 */
@@ -1553,7 +1564,7 @@ std::string get_oper_sym(const SlotLookup *table,u32 v)
 
     else if(v >= SYMBOL_START && sym_to_idx(v) < table->size())
     {
-        return slot_lookup[sym_to_idx(v)].name;
+        return std_string(slot_lookup[sym_to_idx(v)].name);
     }
 
     return "t" + std::to_string(v);
@@ -1741,7 +1752,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
                         const auto labels = *label_lookup;
                         panic(opcode.v[0] >= labels.size(),"out of range label in branch");
 
-                        printf("%s %s\n",info.name,labels[opcode.v[0]].name.c_str());
+                        printf("%s %s\n",info.name,labels[opcode.v[0]].name.buf);
                     }
                     break;
                 }
@@ -1757,7 +1768,7 @@ void disass_opcode(const Opcode &opcode, const SlotLookup *table, const std::vec
                         const auto labels = *label_lookup;
                         panic(opcode.v[0] >= labels.size(),"out of range label in cond branch");
 
-                        printf("%s %s,%s\n",info.name,labels[opcode.v[0]].name.c_str(),get_oper(table,opcode.v[1]).c_str());
+                        printf("%s %s,%s\n",info.name,labels[opcode.v[0]].name.buf,get_oper(table,opcode.v[1]).c_str());
                     }
 
                     else
@@ -1797,7 +1808,7 @@ void disass_opcode_raw(const Opcode &opcode)
 
 void dump_ir(Function &func,const SlotLookup &slot_lookup,const LabelLookup &label_lookup)
 {
-    printf("%s:\n",func.name.c_str());
+    printf("%s:\n",func.name.buf);
 
     u32 l = 0;
     for(u32 b = 0; b < func.emitter.program.size(); b++)
@@ -1807,7 +1818,7 @@ void dump_ir(Function &func,const SlotLookup &slot_lookup,const LabelLookup &lab
     
         if(func.emitter.block_slot[b] != 0xffffffff)
         {
-            printf("%s:\n",label_lookup[func.emitter.block_slot[b]].name.c_str());
+            printf("%s:\n",label_lookup[func.emitter.block_slot[b]].name.buf);
         }
 
 

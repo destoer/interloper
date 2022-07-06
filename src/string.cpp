@@ -69,6 +69,19 @@ u32 hash_string(const String& str)
     return hash;    
 }
 
+String copy_string(ArenaAllocator& allocator, const String& in)
+{
+    char* ptr  = (char*)allocate(allocator,in.size + 1);
+    memcpy(ptr,in.buf,in.size + 1);
+
+    String string;
+
+    string.buf = ptr;
+    string.size = in.size;
+    
+    return string;
+}
+
 std::string std_string(const String& string)
 {
     return std::string(string.buf,string.size);

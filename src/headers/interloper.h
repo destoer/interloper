@@ -35,8 +35,10 @@ struct Interloper
     // Arena's
     ArenaAllocator list_allocator;
     ArenaAllocator ast_allocator;
-    ArenaAllocator string_allocator;
+    ArenaAllocator ast_string_allocator;
 
+    // for longer lived strings, e.g func defs symbol names etc
+    ArenaAllocator string_allocator;
 
     // struct lookup
     StructTable struct_table;

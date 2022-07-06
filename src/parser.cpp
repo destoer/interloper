@@ -203,11 +203,11 @@ AstNode *parse_type(Parser &parser)
         return nullptr;
     }
 
-    std::string type_literal;
+    String type_literal;
     
     if(type_idx == STRUCT_IDX)
     {   
-        type_literal = std_string(plain_tok.literal);
+        type_literal = plain_tok.literal;
     }
 
     else
@@ -244,8 +244,6 @@ AstNode *parse_type(Parser &parser)
 
                 auto ptr_node = ast_plain(parser,ast_type::ptr_indirection,plain_tok);
                 ptr_node->type_idx = ptr_indirection;
-
-                ptr_node->literal = std::to_string(ptr_indirection);
 
                 type->nodes.push_back(ptr_node);
                 break;
@@ -715,7 +713,7 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
         return;
     }
 
-    if(itl.function_table.count(std_string(func_name.literal)))
+    if(contains(itl.function_table,func_name.literal))
     {
         panic(itl,"function %s has been declared twice!\n",func_name.literal.buf);
         return;
@@ -810,8 +808,12 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
     f->nodes.push_back(b);
     f->nodes.push_back(a);
 
-    // setup a unfinished def to finish up later
-    itl.function_table[std_string(func_name.literal)] = new_func(std_string(func_name.literal),f);
+    // finally add the function def
+    Function func;
+    func.name = copy_string(itl.string_allocator,func_name.literal);
+    func.root = f;
+
+    add(itl.function_table,func.name,func);
 }
 
 void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
@@ -824,7 +826,7 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
         return;
     }
 
-    if(itl.struct_def.count(std_string(name.literal)))
+    if(contains(itl.struct_def,name.literal))
     {
         panic(itl,"struct %s redeclared\n",name.literal.buf);
         return;
@@ -858,7 +860,7 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
     // TODO: we now should check redefiniton here?
     StructDef definition = {struct_state::not_checked,struct_node,0};
 
-    itl.struct_def[std_string(name.literal)] = definition;
+    add(itl.struct_def,name.literal,definition);
 }
 
 
@@ -897,7 +899,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
     const std::string stl_path = std::string("stl") + std::string(1,path_separator);
 
     // import basic by default
-    add_file(file_set,file_stack,stl_path + "basic.itl");
+    // add_file(file_set,file_stack,stl_path + "basic.itl");
 
     while(file_stack.size())
     {
@@ -905,7 +907,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
         const auto filename = file_stack.back(); file_stack.pop_back();
 
         // Parse out the file
-        Parser parser = make_parser(&itl.ast_allocator,&itl.string_allocator);
+        Parser parser = make_parser(&itl.ast_allocator,&itl.ast_string_allocator);
 
 
         const std::string file = read_file(filename);
@@ -1006,6 +1008,7 @@ void print(const AstNode *root)
     }
     printf(" %d ",depth);
     
+    // TODO: have a better printing mechanism
     switch(root->type)
     {
         case ast_type::value:
@@ -1014,9 +1017,15 @@ void print(const AstNode *root)
             break;
         }
 
+        case ast_type::ptr_indirection:
+        {
+            printf(" ptr inirection : %d\n",root->type_idx);
+            break;
+        }
+
         default:
         {
-            printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.c_str());
+            printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],root->literal.buf);
             break;
         }
     }

@@ -1,6 +1,5 @@
 #pragma once
 #include <token.h>
-#include <alloc.h>
 
 
 struct Lexer

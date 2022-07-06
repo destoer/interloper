@@ -1,11 +1,11 @@
 void print_member(Interloper& itl,const Member& member)
 {
-    printf("\t%s -> %d : %s\n",member.name.c_str(),member.offset,type_name(itl,member.type).c_str());
+    printf("\t%s -> %d : %s\n",member.name.buf,member.offset,type_name(itl,member.type).c_str());
 }
 
 void print_struct(Interloper& itl, const Struct& structure)
 {
-    printf("struct %s\n{\n",structure.name.c_str());
+    printf("struct %s\n{\n",structure.name.buf);
     for(const auto &member : structure.members)
     {
         print_member(itl,member);
@@ -19,14 +19,14 @@ void add_struct(StructTable& struct_table, Struct& structure, u32 slot)
     structure.type_idx = BUILTIN_TYPE_SIZE + slot;
     struct_table.lookup[slot] = structure;
     
-    struct_table.table[structure.name] = slot;
+    add(struct_table.table,structure.name,slot);
 }
 
 
 void destroy(StructTable& struct_table)
 {
     struct_table.lookup.clear();
-    struct_table.table.clear();
+    destroy_table(struct_table.table);
 }
 
 Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
@@ -43,18 +43,19 @@ Struct struct_from_type(StructTable& struct_table, const Type& type)
 }   
 
 
-std::optional<Struct> get_struct(StructTable& struct_table, const std::string& name)
+std::optional<Struct> get_struct(StructTable& struct_table, const String& name)
 {
-    if(struct_table.table.count(name))
+    const u32* idx = lookup(struct_table.table,name);
+
+    if(idx)
     {
-        const u32 idx = struct_table.table[name];
-        return std::optional<Struct>(struct_table.lookup[idx]);
+        return std::optional<Struct>(struct_table.lookup[*idx]);
     }
 
     return std::nullopt;
 }
 
-std::optional<Member> get_member(StructTable& struct_table, const Type& type, const std::string& member_name)
+std::optional<Member> get_member(StructTable& struct_table, const Type& type, const String& member_name)
 {
     if(!is_struct(type))
     {
@@ -63,22 +64,23 @@ std::optional<Member> get_member(StructTable& struct_table, const Type& type, co
 
     auto structure = struct_from_type_idx(struct_table,type.type_idx);
 
-    if(!structure.member_map.count(member_name))
+    const u32* idx = lookup(structure.member_map,member_name);
+
+    if(!idx)
     {
         return std::nullopt;
     }
 
-    const u32 idx = structure.member_map[member_name];
-    const auto member = structure.members[idx];
+    const auto member = structure.members[*idx];
     return std::optional<Member>(member);
 }
 
-bool struct_exists(StructTable& struct_table, const std::string& name)
+bool struct_exists(StructTable& struct_table, const String& name)
 {
-    return struct_table.table.count(name);
+    return contains(struct_table.table,name);
 }
 
-void parse_struct_decl(Interloper& itl, StructDef& de);
+void parse_struct_decl(Interloper& itl, StructDef& def);
 
 void parse_def(Interloper& itl, StructDef& def)
 {
@@ -133,14 +135,16 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
         // member is struct that has nott had its defintion parsed yet
         if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->literal))
         {
+            StructDef *def_ptr = lookup(itl.struct_def,type_decl->literal);
+
             // no such definiton exists
-            if(!itl.struct_def.count(type_decl->literal))
+            if(!def_ptr)
             {
-                panic(itl,"%s : member type %s is not defined\n",structure.name.c_str(),type_decl->literal.c_str());
+                panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->literal.buf);
                 return;
             }
 
-            StructDef& def = itl.struct_def[type_decl->literal];
+            StructDef& def = *def_ptr;
 
             // if we attempt to check a partial defintion twice that the definition is recursive
             if(def.state == struct_state::checking)
@@ -155,7 +159,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
                 else
                 {
                     // panic to prevent having our struct collpase into a black hole
-                    panic(itl,"%s : is recursively defined via %s\n",structure.name.c_str(),type_decl->literal.c_str());
+                    panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->literal.buf);
                     return;
                 }
             }
@@ -212,15 +216,14 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
         const u32 loc = structure.members.size();
 
-        if(structure.member_map.count(member.name))
+
+        if(contains(structure.member_map,member.name))
         {
-            panic(itl,"%s : member %s redeclared\n",structure.name.c_str(),member.name.c_str());
+            panic(itl,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
             return;
         }
 
-
-        structure.member_map[member.name] = loc;
-
+        add(structure.member_map,member.name,loc);
         structure.members.push_back(member);
     }
 
@@ -267,13 +270,20 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
 void parse_struct_declarations(Interloper& itl)
 {
-    for(auto &[key,def] : itl.struct_def)
-    {
-        UNUSED(key);
+    auto &struct_def = itl.struct_def;
 
-        if(def.state == struct_state::not_checked)
+    for(u32 b = 0; b < struct_def.buf.size; b++)
+    {
+        auto& bucket = struct_def.buf[b];
+
+        for(u32 i = 0; i < bucket.size; i++)
         {
-            parse_def(itl,def);
+            auto &def = bucket[i].v;
+
+            if(def.state == struct_state::not_checked)
+            {
+                parse_def(itl,def);
+            }
         }
     }
 }

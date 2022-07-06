@@ -190,9 +190,10 @@ struct AstNode
 
     // node data
     ast_type type;
-    std::string literal;
     u32 line;
     u32 col;
+
+    String literal;
 
     // TODO: this should be only for top levle decl just leave it in all of them for now
     std::string filename;
@@ -258,7 +259,7 @@ AstNode *ast_literal(Parser& parser,ast_type type,const String &literal, const T
 {
     AstNode* node = alloc_node(parser);
     node->type = type;
-    node->literal = std_string(literal);
+    node->literal = literal;
     node->value = Value(0,false);
     node->line = token.line;
     node->col = token.col;
@@ -272,7 +273,7 @@ AstNode *ast_func(Parser& parser,const String &literal, const std::string& filen
     node->type = ast_type::function;
 
     node->filename = filename;
-    node->literal = std_string(literal);
+    node->literal = literal;
     node->value = Value(0,false);
 
     node->line = token.line;
@@ -287,7 +288,7 @@ AstNode *ast_struct(Parser& parser,const String &literal, const std::string& fil
     node->type = ast_type::struct_t;
 
     node->filename = filename;
-    node->literal = std_string(literal);
+    node->literal = literal;
     node->value = Value(0,false);
 
     node->line = token.line;

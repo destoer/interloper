@@ -1,4 +1,3 @@
-
 constexpr char path_separator = std::filesystem::path::preferred_separator;
 
 // read entire file into a string
@@ -130,3 +129,8 @@ void panic(bool cond, const char *fmt, ...)
     }
 } 
 
+
+#include "alloc.cpp"
+#include "array.cpp"
+#include "string.cpp"
+#include "hashtable.cpp"

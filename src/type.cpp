@@ -353,7 +353,7 @@ std::string type_name(Interloper& itl,const Type &type)
     else
     {
         const auto structure =  struct_from_type(itl.struct_table,type);
-        plain = structure.name;
+        plain = std_string(structure.name);
     }
 
     if(type.is_const)
@@ -917,7 +917,7 @@ Type get_type(Interloper &itl, AstNode *type_decl, u32 type_idx_override = INVAL
 
         else
         {
-            panic(itl,"no such struct %s\n",name.c_str());
+            panic(itl,"no such struct %s\n",name.buf);
             return type;
         }
     }
@@ -979,7 +979,7 @@ Type get_type(Interloper &itl, AstNode *type_decl, u32 type_idx_override = INVAL
             {
                 if(i >= MAX_ARR_SIZE)
                 {
-                    panic(itl,"array dimensions execeeded %s\n",type_decl->literal.c_str());
+                    panic(itl,"array dimensions execeeded %s\n",type_decl->literal.buf);
                     return type;
                 }
 

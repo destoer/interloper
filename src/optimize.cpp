@@ -2,15 +2,7 @@
 
 void optimise_ir(Interloper &itl)
 {
-    for(auto &[key,func] : itl.function_table)
-    {
-        UNUSED(key);
+    UNUSED(itl);
+    // TODO: implement this!
 
-        for(auto &block : func.emitter.program)
-        {     
-            UNUSED(block);
-
-            // TODO: implement this!
-        }
-    }
 }

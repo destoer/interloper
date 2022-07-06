@@ -2652,7 +2652,7 @@ void destroy_ast(Interloper& itl)
     }
 
     destroy_allocator(itl.ast_allocator);
-    destroy_allocator(itl.string_allocator);
+    destroy_allocator(itl.ast_string_allocator);
 
     itl.struct_def.clear();
 
@@ -2674,6 +2674,7 @@ void destroy_itl(Interloper &itl)
     itl.used_func.clear();
 
     destroy_allocator(itl.list_allocator);
+    destroy_allocator(itl.string_allocator);
 }
 
 static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
@@ -2683,9 +2684,13 @@ void compile(Interloper &itl,const std::string& initial_filename)
     printf("compiling file: %s\n",initial_filename.c_str());
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+    itl.ast_string_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+
+    itl.string_allocator = make_allocator(4 * 1024);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
-    itl.string_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.error = false;
+
+    itl.symbol_table.string_allocator = &itl.string_allocator;
 
 
     // parse intial input file

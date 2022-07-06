@@ -13,6 +13,21 @@ void push_var(Array<T> &arr,Y v)
 }
 
 template<typename T>
+u32 count(Array<T> arr)
+{
+    return arr.size / sizeof(T);
+}
+
+template<typename T>
+T pop(Array<T> &arr)
+{
+    const T v = arr.data[count[arr.size]];
+    arr.size -= sizeof(v);
+
+    return v;
+}
+
+template<typename T>
 void push_arena(ArenaAllocator& allocator, Array<T> &arr, T v)
 {
     const u32 size = sizeof(v);
@@ -55,13 +70,6 @@ void push_arena(ArenaAllocator& allocator, Array<T> &arr, T v)
     arr.size += size;
 }
 
-template<typename T>
-u32 count(Array<T> arr)
-{
-    return arr.size / sizeof(T);
-}
-
-// TODO: allow custom allocation for this
 
 template<typename T>
 void reserve_mem(Array<T> &arr, u32 size)

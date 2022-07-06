@@ -1,28 +1,5 @@
 
 template<typename T>
-struct HashNode
-{
-    String name;
-    T v;
-};
-
-
-
-template<typename T>
-using Bucket = Array<HashNode<T>>;
-
-template<typename T>
-struct HashTable
-{
-    u32 size = 0;
-
-    // NOTE: Must be sized at a power of two
-    Array<Bucket<T>> buf;
-};
-
-static constexpr u32 HASH_TABLE_DEFAULT_SIZE = 4096;
-
-template<typename T>
 HashTable<T> make_table()
 {
     HashTable<T> table;
@@ -78,6 +55,12 @@ T* lookup(HashTable<T> &table, const String& name)
     return nullptr;
 }
 
+
+template<typename T>
+bool contains(HashTable<T> &table, const String& name)
+{
+    return lookup(table,name) != nullptr;
+}
 
 template<typename T>
 void rehash(HashTable<T> &table, u32 table_size)
