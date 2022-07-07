@@ -232,9 +232,24 @@ struct Value
 {
     Value(u32 value, bool s) : v(value), sign(s) {}
 
+    friend bool operator == (const Value &t1, const Value &t2);
+    friend bool operator != (const Value &t1, const Value &t2);   
+
     u32 v;
     b32 sign;
 };
+
+
+inline bool operator == (const Value &v1, const Value &v2)
+{
+    return v1.v == v2.v && v1.sign == v2.sign;
+}
+
+
+inline bool operator != (const Value &v1, const Value &v2)
+{
+    return !operator==(v1,v2);
+}
 
 
 struct Token
@@ -313,7 +328,23 @@ Token token_value(const Value& value, u32 line = 0, u32 col = 0)
 
 inline bool operator == (const Token &t1, const Token &t2)
 {
-    return t1.type == t2.type && t1.literal == t2.literal;
+    switch(t1.type)
+    {
+        case token_type::value:
+        {
+            return t1.type == t2.type && t1.value == t2.value;
+        }
+
+        case token_type::char_t:
+        {
+            return t1.type == t2.type && t1.character == t2.character;
+        }
+
+        default:
+        {
+            return t1.type == t2.type && t1.literal == t2.literal;
+        }
+    }
 }
 
 

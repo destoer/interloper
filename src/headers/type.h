@@ -132,7 +132,7 @@ struct Struct
 {
     String name;
 
-    std::vector<Member> members;
+    Array<Member> members;
 
     // what do we hold?
     HashTable<u32> member_map;
@@ -236,7 +236,7 @@ struct Function
     // of slots for both normal vars so we know whats in the functions
 
     // gives slots into the main symbol table
-    std::vector<u32> args;
+    Array<u32> args;
     
     // IR code for function
     IrEmitter emitter;
@@ -251,7 +251,7 @@ struct Function
 using FuncTable = HashTable<Function>;
 
 
-void finalise_def(Function& func, Type rt, std::vector<u32> a, u32 s)
+void finalise_def(Function& func, Type rt, Array<u32> a, u32 s)
 {
     func.return_type = rt;
     func.args = a;

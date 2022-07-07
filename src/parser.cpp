@@ -899,7 +899,7 @@ bool parse(Interloper& itl, const std::string initial_filename)
     const std::string stl_path = std::string("stl") + std::string(1,path_separator);
 
     // import basic by default
-    // add_file(file_set,file_stack,stl_path + "basic.itl");
+    add_file(file_set,file_stack,stl_path + "basic.itl");
 
     while(file_stack.size())
     {

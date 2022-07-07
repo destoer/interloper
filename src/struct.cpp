@@ -6,10 +6,12 @@ void print_member(Interloper& itl,const Member& member)
 void print_struct(Interloper& itl, const Struct& structure)
 {
     printf("struct %s\n{\n",structure.name.buf);
-    for(const auto &member : structure.members)
+
+    for(u32 m = 0; m < count(structure.members); m++)
     {
-        print_member(itl,member);
+        print_member(itl,structure.members[m]);
     }
+
     printf("};\n");
     printf("size: %d\n",structure.size);
 }
@@ -23,10 +25,20 @@ void add_struct(StructTable& struct_table, Struct& structure, u32 slot)
 }
 
 
-void destroy(StructTable& struct_table)
+void destroy_struct_table(StructTable& struct_table)
 {
-    struct_table.lookup.clear();
+    // delete all struct defs
+    for(u32 s = 0; s < struct_table.lookup.size(); s++)
+    {   
+        auto& structure = struct_table.lookup[s];
+
+        destroy(structure.members);
+        destroy_table(structure.member_map);  
+    }
+
     destroy_table(struct_table.table);
+
+    struct_table.lookup.clear();
 }
 
 Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
@@ -109,6 +121,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
     itl.cur_file = node->filename;
 
     structure.name = node->literal;
+    structure.member_map = make_table<u32>();
 
     // we want to get how many sizes of each we have
     // and then we can go back through and align the struct with them
@@ -214,7 +227,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
             size_count[size >> 1] += 1;
         }
 
-        const u32 loc = structure.members.size();
+        const u32 loc = count(structure.members);
 
 
         if(contains(structure.member_map,member.name))
@@ -224,7 +237,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
         }
 
         add(structure.member_map,member.name,loc);
-        structure.members.push_back(member);
+        push_var(structure.members,member);
     }
 
     // TODO: handle not reordering the struct upon request
@@ -245,8 +258,10 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
 
     // iter back over every member and give its offset
-    for(auto &member : structure.members)
+    for(u32 m = 0; m < count(structure.members); m++)
     {
+        auto& member = structure.members[m];
+
         const u32 zone_offset = member.offset;
 
         u32 size = type_size(itl,member.type);
@@ -272,11 +287,11 @@ void parse_struct_declarations(Interloper& itl)
 {
     auto &struct_def = itl.struct_def;
 
-    for(u32 b = 0; b < struct_def.buf.size; b++)
+    for(u32 b = 0; b < count(struct_def.buf); b++)
     {
         auto& bucket = struct_def.buf[b];
 
-        for(u32 i = 0; i < bucket.size; i++)
+        for(u32 i = 0; i < count(bucket); i++)
         {
             auto &def = bucket[i].v;
 

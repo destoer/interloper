@@ -8,7 +8,7 @@ void push_var(Array<T> &arr,Y v)
     reserve(arr,size);
 
     // actually write in the data
-    handle_write(&arr.data[arr.size],v);
+    handle_write(&arr.data[count(arr)],v);
     arr.size += size;
 }
 
@@ -21,7 +21,7 @@ u32 count(Array<T> arr)
 template<typename T>
 T pop(Array<T> &arr)
 {
-    const T v = arr.data[count[arr.size]];
+    const T v = arr.data[count(arr) - 1];
     arr.size -= sizeof(v);
 
     return v;

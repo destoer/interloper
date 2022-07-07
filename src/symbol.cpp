@@ -4,13 +4,14 @@
 
 void new_scope(SymbolTable &sym_table)
 {
-    push_var<HashTable<u32>,HashTable<u32>>(sym_table.table,{});
+    push_var<HashTable<u32>,HashTable<u32>>(sym_table.table,make_table<u32>());
 }
 
 void destroy_scope(SymbolTable &sym_table)
 {
     sym_table.sym_count -= sym_table.table[count(sym_table.table) - 1].size;
-    pop(sym_table.table);
+    auto table = pop(sym_table.table);
+    destroy_table(table);
 }
 
 u32 sym_to_idx(u32 s)
@@ -107,6 +108,7 @@ void clear(SymbolTable &sym_table)
         destroy_table(sym_table.table[h]);
     }
 
+    destroy(sym_table.table);
 
     sym_table.label_lookup.clear();
     sym_table.slot_lookup.clear();

@@ -9,12 +9,12 @@ std::string get_oper_raw(const SlotLookup *table,u32 v);
 
 ListNode* get_cur_end(IrEmitter& emitter)
 {
-    return emitter.program[emitter.program.size()-1].list.end;    
+    return emitter.program[count(emitter.program)-1].list.end;    
 }
 
 List& get_cur_list(IrEmitter& emitter)
 {
-    return emitter.program[emitter.program.size()-1].list; 
+    return emitter.program[count(emitter.program)-1].list; 
 }
 
 // TODO: should this return the dst slot as a matter of convience?
@@ -28,7 +28,7 @@ void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    auto &list = emitter.program[emitter.program.size()-1].list;
+    auto &list = emitter.program[count(emitter.program)-1].list;
     append(list,opcode);
 }
 
@@ -77,10 +77,16 @@ Block make_block(block_type type,ArenaAllocator* list_allocator)
 
 void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot)
 {
-    emitter.program.push_back(make_block(type,list_allocator));
-    emitter.block_slot.push_back(slot);    
+    push_var(emitter.program,make_block(type,list_allocator));
+    push_var(emitter.block_slot,slot);    
 }
 
+
+void destroy_emitter(IrEmitter& emitter)
+{
+    destroy(emitter.program);
+    destroy(emitter.block_slot);
+}
 
 static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
 static constexpr u32 REG_TMP_START = 0x00000000;
@@ -1309,8 +1315,10 @@ void calc_allocation(LocalAlloc& alloc)
 // and when we push off determining stack size to a later pass
 void alloc_args(Function &func, LocalAlloc& alloc, SlotLookup &slot_lookup, u32 saved_regs_offset)
 {
-    for(auto slot : func.args)
+    for(u32 a = 0; a < count(func.args); a++)
     {
+        const u32 slot = func.args[a];
+
         auto &sym = sym_from_slot(slot_lookup,slot);
 
         //printf("%s : %x\n",sym.name.buf,sym.arg_offset);
@@ -1334,8 +1342,10 @@ void allocate_registers(Interloper& itl,Function &func)
         printf("allocating registers for %s:\n\n",func.name.buf);
     }
 
-    for(auto &block : func.emitter.program)
+    for(u32 b = 0; b < count(func.emitter.program); b++)
     {
+        auto& block = func.emitter.program[b];
+        
         List& list = block.list;
 
         ListNode *node = list.start;
@@ -1398,8 +1408,9 @@ void allocate_registers(Interloper& itl,Function &func)
     const auto callee_restore = Opcode(op_type::popm,saved_regs,0,0);
     const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_size);
 
-    for(auto &block : func.emitter.program)
+    for(u32 b = 0; b < count(func.emitter.program); b++)
     {
+        auto& block = func.emitter.program[b];
         List& list = block.list;
 
         ListNode *node = list.start;
@@ -1464,7 +1475,7 @@ void emit_asm(Interloper &itl)
 
             inv_label_lookup[itl.program.size] = func.slot;
 
-            for(u32 b = 0; b < func.emitter.program.size(); b++)
+            for(u32 b = 0; b < count(func.emitter.program); b++)
             {
                 const auto &block = func.emitter.program[b];
 
@@ -1811,7 +1822,7 @@ void dump_ir(Function &func,const SlotLookup &slot_lookup,const LabelLookup &lab
     printf("%s:\n",func.name.buf);
 
     u32 l = 0;
-    for(u32 b = 0; b < func.emitter.program.size(); b++)
+    for(u32 b = 0; b < count(func.emitter.program); b++)
     {   
         const auto &block = func.emitter.program[b];
         //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);

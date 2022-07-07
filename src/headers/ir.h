@@ -345,8 +345,8 @@ struct Block
 
 struct IrEmitter
 {
-    std::vector<Block> program;
-    std::vector<u32> block_slot;
+    Array<Block> program;
+    Array<u32> block_slot;
 
 
     // how many registers used in this expression
@@ -355,6 +355,8 @@ struct IrEmitter
 
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
 void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot = 0xffffffff); 
+
+void destroy_emitter(IrEmitter& emitter);
 
 void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
 void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);

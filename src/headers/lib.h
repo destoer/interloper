@@ -77,9 +77,6 @@ struct String
     u32 size = 0;
 };
 
-
-
-
 // array
 template<typename T>
 struct Array
@@ -106,8 +103,8 @@ struct Array
 template<typename T>
 struct HashNode
 {
-    String name;
-    T v;
+    String name = {};
+    T v = {};
 };
 
 
@@ -124,7 +121,7 @@ struct HashTable
     Array<Bucket<T>> buf;
 };
 
-static constexpr u32 HASH_TABLE_DEFAULT_SIZE = 4096;
+static constexpr u32 HASH_TABLE_DEFAULT_SIZE = 256;
 
 
 // allocator

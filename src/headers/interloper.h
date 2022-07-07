@@ -24,7 +24,7 @@ struct Interloper
 
 
     FuncTable function_table;
-    std::vector<std::string> used_func;
+    std::vector<String> used_func;
     // did the last compiled function have a return
     b32 has_return;
 

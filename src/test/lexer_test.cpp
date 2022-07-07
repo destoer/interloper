@@ -18,23 +18,23 @@ LexerTest LEXER_TESTS[] =
 {
     {"2 + 2",false,
         {
-            token_literal(token_type::value,"2"),
+            token_value(Value(2,false)),
             token_plain(token_type::plus),
-            token_literal(token_type::value,"2")
+            token_value(Value(2,false))
         }
     },
 
     {"(6242 * 2) + 5 - 6",false,
         {
             token_plain(token_type::left_paren),
-            token_literal(token_type::value,"6242"),
+            token_value(Value(6242,false)),
             token_plain(token_type::times),
-            token_literal(token_type::value,"2"),
+            token_value(Value(2,false)),
             token_plain(token_type::right_paren),
             token_plain(token_type::plus),
-            token_literal(token_type::value,"5"),
+            token_value(Value(5,false)),
             token_plain(token_type::minus),
-            token_literal(token_type::value,"6")
+            token_value(Value(6,false))
         }
     },
 
@@ -74,7 +74,7 @@ LexerTest LEXER_TESTS[] =
             token_plain(token_type::equal),
             token_literal(token_type::symbol,"square"),
             token_plain(token_type::left_paren),
-            token_literal(token_type::value,"2"),
+            token_value(Value(2,false)),
             token_plain(token_type::right_paren),
             token_plain(token_type::semi_colon)
         }
