@@ -208,6 +208,8 @@ struct AstNode
 
         // type decl
         u32 type_idx;
+
+        char character;
     };
 
 
@@ -266,6 +268,18 @@ AstNode *ast_literal(Parser& parser,ast_type type,const String &literal, const T
 
     return node;    
 }
+
+AstNode *ast_char(Parser& parser,const char character, const Token& token)
+{
+    AstNode* node = alloc_node(parser);
+    node->type = ast_type::char_t;
+    node->character = character;
+    node->line = token.line;
+    node->col = token.col;
+
+    return node;    
+}
+
 
 AstNode *ast_func(Parser& parser,const String &literal, const std::string& filename, const Token& token)
 {

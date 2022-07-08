@@ -337,7 +337,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::char_t:
         {
-            emit(func.emitter,op_type::mov_imm,dst_slot,node->literal[0]);
+            emit(func.emitter,op_type::mov_imm,dst_slot,node->character);
             return std::pair<Type,u32>{Type(builtin_type::u8_t),dst_slot};
         }
 
@@ -2706,8 +2706,8 @@ void destroy_ast(Interloper& itl)
 
 void destroy_itl(Interloper &itl)
 {
-    destroy(itl.program);
-    destroy(itl.const_pool);
+    destroy_arr(itl.program);
+    destroy_arr(itl.const_pool);
     clear(itl.symbol_table);
     
     destroy_ast(itl);

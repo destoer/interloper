@@ -1010,6 +1010,6 @@ Type get_type(Interloper &itl, AstNode *type_decl, u32 type_idx_override = INVAL
 
 void destroy_func(Function& func)
 {
-    destroy(func.args);
+    destroy_arr(func.args);
     destroy_emitter(func.emitter);
 }

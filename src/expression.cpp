@@ -341,7 +341,7 @@ AstNode *nud(Parser &parser,Token &t)
 
         case token_type::char_t:
         {
-            return ast_literal(parser,ast_type::char_t,t.literal,t);
+            return ast_char(parser,t.character,t);
         }
 
         case token_type::string:

@@ -108,7 +108,7 @@ void clear(SymbolTable &sym_table)
         destroy_table(sym_table.table[h]);
     }
 
-    destroy(sym_table.table);
+    destroy_arr(sym_table.table);
 
     sym_table.label_lookup.clear();
     sym_table.slot_lookup.clear();

@@ -84,8 +84,8 @@ void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type
 
 void destroy_emitter(IrEmitter& emitter)
 {
-    destroy(emitter.program);
-    destroy(emitter.block_slot);
+    destroy_arr(emitter.program);
+    destroy_arr(emitter.block_slot);
 }
 
 static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
@@ -1501,7 +1501,7 @@ void emit_asm(Interloper &itl)
 
     const u32 const_pool_loc = itl.program.size;
     push_mem(itl.program,itl.const_pool.data,itl.const_pool.size);
-    destroy(itl.const_pool);
+    destroy_arr(itl.const_pool);
 
 
     // label dump

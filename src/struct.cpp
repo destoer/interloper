@@ -25,6 +25,12 @@ void add_struct(StructTable& struct_table, Struct& structure, u32 slot)
 }
 
 
+void destroy_struct(Struct& structure)
+{
+    destroy_arr(structure.members);
+    destroy_table(structure.member_map);  
+}
+
 void destroy_struct_table(StructTable& struct_table)
 {
     // delete all struct defs
@@ -32,8 +38,7 @@ void destroy_struct_table(StructTable& struct_table)
     {   
         auto& structure = struct_table.lookup[s];
 
-        destroy(structure.members);
-        destroy_table(structure.member_map);  
+        destroy_struct(structure);
     }
 
     destroy_table(struct_table.table);
@@ -154,6 +159,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
             if(!def_ptr)
             {
                 panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->literal.buf);
+                destroy_struct(structure);
                 return;
             }
 
@@ -173,6 +179,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
                 {
                     // panic to prevent having our struct collpase into a black hole
                     panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->literal.buf);
+                    destroy_struct(structure);
                     return;
                 }
             }
@@ -183,6 +190,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
                 if(itl.error)
                 {
+                    destroy_struct(structure);
                     return;
                 }
             }
@@ -233,6 +241,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
         if(contains(structure.member_map,member.name))
         {
             panic(itl,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
+            destroy_struct(structure);
             return;
         }
 

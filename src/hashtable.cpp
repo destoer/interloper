@@ -18,11 +18,11 @@ void destroy_table(HashTable<T> &table)
 
         for(u32 j = 0; j < count(bucket); j++)
         {
-            destroy(bucket);
+            destroy_arr(bucket);
         }
     }    
 
-    destroy(table.buf);
+    destroy_arr(table.buf);
 }
 
 

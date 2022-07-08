@@ -197,7 +197,7 @@ struct Symbol
     // intialized during register allocation
 
     // where is it this is stored on the stack?
-    u32 offset = LOCATION_MEM;
+    u32 offset = UNALLOCATED_OFFSET;
 
     // where is this item stored?
     // is it in memory or is it in register?
