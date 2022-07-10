@@ -126,7 +126,7 @@ struct HashTable
 };
 
 static constexpr u32 HASH_TABLE_DEFAULT_SIZE = 256;
-
+static constexpr s32 INVALID_SLOT = -1;
 
 // allocator
 struct ArenaAllocator;

@@ -174,20 +174,7 @@ bool decode_imm(Lexer &lexer,const std::string &file)
 
 s32 keyword_lookup(const String& name)
 {
-    u32 slot = hash_slot(KEYWORD_TABLE_SIZE,name);
-
-    while(KEYWORD_TABLE[slot].name.size)
-    {
-        if(KEYWORD_TABLE[slot].name == name)
-        {
-            return slot;
-        }
-
-
-        slot = (slot + 1) & (KEYWORD_TABLE_SIZE - 1);
-    }
-
-    return -1;
+    return lookup_internal_hashtable(KEYWORD_TABLE,KEYWORD_TABLE_SIZE,name);
 }
 
 
@@ -574,7 +561,7 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
 
                     // if its a keyword identify its type
                     // else its a symbol
-                    if(slot != -1)
+                    if(slot != INVALID_SLOT)
                     {
                         insert_token(lexer,KEYWORD_TABLE[slot].v,start_col);
                     }

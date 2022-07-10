@@ -116,3 +116,25 @@ void add(HashTable<T> &table, const String& name, T v)
     push_var(bucket,node);
     table.size++;
 }
+
+
+
+// for constant internal chained hashtables, see gen_table.cpp
+template<typename T>
+s32 lookup_internal_hashtable(const HashNode<T> table[],u32 size,const String& name)
+{
+    u32 slot = hash_slot(size,name);
+
+    while(table[slot].name.size)
+    {
+        if(table[slot].name == name)
+        {
+            return slot;
+        }
+
+
+        slot = (slot + 1) & (size - 1);
+    }
+
+    return -1;    
+}

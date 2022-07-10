@@ -45,7 +45,10 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
     return Type(builtin_type::void_t);   
 }
 
-std::map<std::string,INTRIN_FUNC> intrin_table  = 
+static constexpr u32 INTRIN_TABLE_SIZE = 2;
+
+static constexpr HashNode<INTRIN_FUNC> INTRIN_TABLE[INTRIN_TABLE_SIZE] = 
 {
+    {"",nullptr},
     {"intrin_syscall",&intrin_syscall},
 };

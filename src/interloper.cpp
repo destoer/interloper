@@ -623,9 +623,11 @@ void mark_used(Interloper& itl, Function& func)
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
-    if(intrin_table.count(std_string(node->literal)))
+    s32 idx =  lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,node->literal);
+
+    if(idx != INVALID_SLOT)
     {
-        const auto handler = intrin_table[std_string(node->literal)];
+        const auto handler = INTRIN_TABLE[idx].v;
         return handler(itl,func,node,dst_slot);
     }
 

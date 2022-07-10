@@ -1,6 +1,6 @@
 static constexpr u32 KEYWORD_TABLE_SIZE = 64;
 
-HashNode<token_type> KEYWORD_TABLE[KEYWORD_TABLE_SIZE] = 
+static constexpr HashNode<token_type> KEYWORD_TABLE[KEYWORD_TABLE_SIZE] = 
 {
     {"",token_type::error},
     {"",token_type::error},

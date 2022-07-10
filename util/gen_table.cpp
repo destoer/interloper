@@ -38,6 +38,16 @@ const char* KEYWORD[][2] =
 
 const u32 KEYWORD_SIZE = sizeof(KEYWORD) / sizeof(KEYWORD[0]);
 
+
+const char* INTRIN[][2]  = 
+{
+    {"intrin_syscall","&intrin_syscall"},
+};
+
+
+const u32 INTRIN_SIZE = sizeof(INTRIN) / sizeof(INTRIN[0]);
+
+
 void gen_table(const char* key[][2],const char* name, const char* type, const char* error, u32 key_size)
 {
     const u32 table_size = bit_ceil(key_size) * 2;
@@ -81,7 +91,7 @@ void gen_table(const char* key[][2],const char* name, const char* type, const ch
 
     printf("collisions: %d\n",collision);
 
-    printf("HashNode<%s> %s_TABLE[%s_TABLE_SIZE] = \n{\n",type,name,name);
+    printf("static constexpr HashNode<%s> %s_TABLE[%s_TABLE_SIZE] = \n{\n",type,name,name);
 
     for(u32 i = 0; i < table_size; i++)
     {
@@ -102,4 +112,5 @@ void gen_table(const char* key[][2],const char* name, const char* type, const ch
 int main()
 {
     gen_table(KEYWORD,"KEYWORD","token_type","token_type::error",KEYWORD_SIZE);
+    gen_table(INTRIN,"INTRIN","INTRIN_FUNC","nullptr",INTRIN_SIZE);
 }
