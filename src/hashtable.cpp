@@ -27,9 +27,9 @@ void destroy_table(HashTable<T> &table)
 
 
 
-u32 hash_slot(u32 size, const String& name)
+u32 hash_slot(u32 size, const String& name, u32 hash_start = HASH_MAGIC)
 {
-    const u32 hash = hash_string(name);
+    const u32 hash = hash_string(name,hash_start);
     const u32 slot = hash & (size - 1);
 
     return slot;

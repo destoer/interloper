@@ -169,54 +169,27 @@ bool decode_imm(Lexer &lexer,const std::string &file)
     return false; 
 }
 
+#include "keyword_hashtable.cpp"
 
 
-
-// NOTE: sadly we cant define a "constant" std::map
-// do not modify this
-// TODO: look into using a perfect hash function for this
-std::unordered_map<std::string, token_type> keywords = 
+s32 keyword_lookup(const String& name)
 {
+    u32 slot = hash_slot(KEYWORD_TABLE_SIZE,name);
 
-    {tok_name(token_type::for_t), token_type::for_t},
-    {tok_name(token_type::if_t),token_type::if_t},
-    {tok_name(token_type::else_t),token_type::else_t},
+    while(KEYWORD_TABLE[slot].name.size)
+    {
+        if(KEYWORD_TABLE[slot].name == name)
+        {
+            return slot;
+        }
 
-    {tok_name(token_type::decl),token_type::decl},
-    {tok_name(token_type::const_t),token_type::const_t},
 
-    {tok_name(token_type::u8),token_type::u8},
-    {tok_name(token_type::u16),token_type::u16},
-    {tok_name(token_type::u32),token_type::u32},
+        slot = (slot + 1) & (KEYWORD_TABLE_SIZE - 1);
+    }
 
-    {tok_name(token_type::s8),token_type::s8},
-    {tok_name(token_type::s16),token_type::s16},
-    {tok_name(token_type::s32),token_type::s32},
-    {tok_name(token_type::byte_t),token_type::byte_t},
-    {tok_name(token_type::bool_t),token_type::bool_t},
-
-    {tok_name(token_type::false_t),token_type::false_t},
-    {tok_name(token_type::true_t),token_type::true_t},
-    {tok_name(token_type::null_t),token_type::null_t},
-
-    {tok_name(token_type::import),token_type::import},
-    {tok_name(token_type::struct_t),token_type::struct_t},
-
-    {tok_name(token_type::cast),token_type::cast},
-    {tok_name(token_type::sizeof_t),token_type::sizeof_t},
-    {tok_name(token_type::func),token_type::func},
-    {tok_name(token_type::ret),token_type::ret}
-};
-
-bool is_keyword(const String &literal)
-{
-    return keywords.count(std_string(literal));
+    return -1;
 }
 
-token_type keyword_token_type(const String &literal)
-{
-    return keywords[std_string(literal)];
-}
 
 
 bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vector<Token>& tokens_out)
@@ -576,8 +549,8 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
 
             default:
             {
-                u32 start_idx = lexer.idx;
-                u32 start_col = lexer.column;
+                const u32 start_idx = lexer.idx;
+                const u32 start_col = lexer.column;
 
                 // potential symbol
                 if(isalpha(c) || c == '_')
@@ -585,7 +558,7 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
                     while(lexer.idx < size)
                     {
                         advance(lexer);
-                        char x = file[lexer.idx];
+                        const char x = file[lexer.idx];
                         if(!isalnum(x) && x != '_')
                         {
                             advance(lexer,-1);
@@ -597,11 +570,13 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
                     String literal = make_string(*lexer.string_allocator,&file[start_idx],(lexer.idx - start_idx) + 1);
 
 
+                    const s32 slot = keyword_lookup(literal);
+
                     // if its a keyword identify its type
                     // else its a symbol
-                    if(is_keyword(literal))
+                    if(slot != -1)
                     {
-                        insert_token(lexer,keyword_token_type(literal),start_col);
+                        insert_token(lexer,KEYWORD_TABLE[slot].v,start_col);
                     }
 
                     else

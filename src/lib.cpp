@@ -1,3 +1,4 @@
+#include <lib.h>
 constexpr char path_separator = std::filesystem::path::preferred_separator;
 
 // read entire file into a string
@@ -88,6 +89,17 @@ u32 popcount(u32 v)
     return count;
 }
 
+
+constexpr u32 bit_ceil(u32 v)
+{
+    u32 ans = 1;
+    while(ans < v)
+    {
+        ans *= 2;
+    }
+
+    return ans;
+}
 
 #ifndef _MSC_VER
 __attribute__((noreturn))

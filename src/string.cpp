@@ -23,7 +23,7 @@ String make_string(Array<char>& arr)
     String string;
 
     string.buf = arr.data;
-    string.size = arr.size - 1;
+    string.size = count(arr) - 1;
 
     return string;
 }
@@ -56,17 +56,19 @@ String make_static_string(const char* str, u32 size)
 }
 
 
-// TODO: write a better hash func
-u32 hash_string(const String& str)
-{
-    u32 hash = 0;
 
+
+// TODO: is splatting chars across the hash with a random number good enough?
+static constexpr u32 HASH_MAGIC = 0x02579275;
+
+u32 hash_string(const String& str, u32 hash)
+{
     for(u32 i = 0; i < str.size; i++)
     {
-        hash += str[i] * (i + hash);
+        hash = (hash * HASH_MAGIC) ^ str[i];
     }
 
-    return hash;    
+    return hash; 
 }
 
 String copy_string(ArenaAllocator& allocator, const String& in)

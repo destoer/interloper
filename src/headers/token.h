@@ -307,7 +307,6 @@ Token token_char(char c,u32 line = 0, u32 col = 0)
     token.type = token_type::char_t;
     token.line = line;
     token.col = col;
-    token.literal = {};
     token.character = c;
 
     return token;

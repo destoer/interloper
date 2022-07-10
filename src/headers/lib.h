@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include <list>
 #include <string>
 #include <unordered_map>
 #include <map>
@@ -42,7 +41,7 @@ using f32 = float;
 // string
 struct String;
 bool string_equal(const String& str1, const String& str2);
-u32 hash_string(const String& str);
+u32 hash_string(const String& str, u32 hash);
 String make_static_string(const char* str, u32 len);
 
 // TODO: get rid of this, its just while we shift over 
@@ -52,9 +51,14 @@ struct String
 {
     String() {}
 
-    String(const char* str)
+    constexpr String(const char* str) 
     {
-        *this = make_static_string(str,strlen(str));
+        buf = str;
+
+        while(str[size])
+        {
+            size++;
+        }
     }
 
     char operator[] (u32 idx) const
