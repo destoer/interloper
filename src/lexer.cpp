@@ -1,9 +1,9 @@
 #include <lexer.h>
 
 
-char peek(u32 offset, const std::string &file)
+char peek(u32 offset, const String& file)
 {
-    return offset < file.size()? file[offset] : '\0';
+    return offset < file.size? file[offset] : '\0';
 }
 
 void insert_token(Lexer &lexer, token_type type)
@@ -34,9 +34,9 @@ void insert_token_value(Lexer& lexer,const Value& value, u32 col)
 
 
 template<typename F>
-bool verify_immediate_internal(const char* literal, u32 &i, u32 len, F lambda)
+bool read_immediate_internal(String& literal, u32 offset, F lambda)
 {
-    for(; i < len; i++)
+    for(u32 i = offset; i < literal.size; i++)
     {
         // valid part of the value
         if(lambda(literal[i]))
@@ -53,7 +53,9 @@ bool verify_immediate_internal(const char* literal, u32 &i, u32 len, F lambda)
         // we have  < ; + , etc stop parsing
         else 
         {
-            return true;
+            // clamp string to the actual literal length 
+            literal.size = i - 1;
+            break;
         }
     }
 
@@ -61,49 +63,48 @@ bool verify_immediate_internal(const char* literal, u32 &i, u32 len, F lambda)
 }
 
 
-s32 verify_immediate(const char* literal, u32 len)
+bool read_immediate(String& literal)
 {
     // an empty immediate aint much use to us
-    if(!len)
+    if(!literal.size)
     {
-        return -1;
+        return true;
     }
 
-    u32 i = 0;
+    u32 offset = 0;
 
     const auto c = literal[0];
 
     // allow - or +
     if(c == '-' || c == '+')
     {
-        i = 1;
+        offset = 1;
         // no digit after the sign is of no use
-        if(len == 1)
+        if(literal.size == 1)
         {
-            return -1;
+            return true;
         }
     }
 
     bool valid = false;
 
-
     // verify we have a valid hex number
-    if(strncmp(&literal[i],"0x",2) == 0)
+    if(string_equal(string_slice(literal,offset,2),"0x"))
     {
         // skip past the prefix
-        i += 2;
-        valid = verify_immediate_internal(literal,i,len - i,[](const char c) 
+        offset += 2;
+        valid = read_immediate_internal(literal,offset,[](const char c) 
         {
             return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
         });
     }
 
     // verify its ones or zeros
-    else if(strncmp(&literal[i],"0x",2) == 0)
+    else if(string_equal(string_slice(literal,offset,2),"0x"))
     {
         // skip past the prefix
-        i += 2;                
-        valid = verify_immediate_internal(literal,i,len - i,[](const char c) 
+        offset += 2;                
+        valid = read_immediate_internal(literal,offset,[](const char c) 
         {
             return c == '0' || c == '1';
         });
@@ -112,19 +113,14 @@ s32 verify_immediate(const char* literal, u32 len)
     // verify we have all digits
     else
     {
-        valid = verify_immediate_internal(literal,i,len - i,[](const char c) 
+        valid = read_immediate_internal(literal,offset,[](const char c) 
         {
             return c >= '0' && c <= '9';
         });
     }
     
 
-    if(!valid)
-    {
-        return -1;
-    }
-
-    return i;    
+    return !valid;
 }
 
 void advance(Lexer& lexer, s32 v = 1)
@@ -142,21 +138,25 @@ u32 convert_imm(const String& str)
 
 
 // true on error
-bool decode_imm(Lexer &lexer,const std::string &file)
+bool decode_imm(Lexer &lexer,const String& file)
 {
     const u32 start_idx = lexer.idx;
     const u32 start_col = lexer.column;
 
-    const s32 len = verify_immediate(&file[lexer.idx],file.size() - lexer.idx);
+    // get back out a literal for parsing
+    // TODO: make this use slicing on the string
+    String literal = string_slice(file,lexer.idx,file.size - lexer.idx);
+    const bool error = read_immediate(literal);
 
-    if(!len)
+    if(error)
     {
-        printf("invalid immediate: %s\n",file.c_str());
+        print_tokens(lexer.tokens);
+        puts("invalid immediate: ");
         return true;
     }
 
     // get the value from the string
-    const u32 v = convert_imm(make_static_string(&file[start_idx],len));
+    const u32 v = convert_imm(literal);
     const bool sign = file[start_idx] == '-';
 
     Value value = Value(v,sign);
@@ -164,7 +164,7 @@ bool decode_imm(Lexer &lexer,const std::string &file)
     insert_token_value(lexer,value,start_col);
 
     // ignore the terminator
-    advance(lexer,len - 1);
+    advance(lexer,literal.size);
 
     return false; 
 }
@@ -178,8 +178,8 @@ s32 keyword_lookup(const String& name)
 }
 
 
-
-bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vector<Token>& tokens_out)
+// TODO: change file to be a string, and just conv them all in
+bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<Token>& tokens_out)
 {
     Lexer lexer;
 
@@ -188,8 +188,8 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
     lexer.tokens.clear();
     lexer.string_allocator = string_allocator; 
 
-    const auto size = file.size();
-    for(lexer.idx = 0; lexer.idx < file.size(); advance(lexer))
+    const auto size = file.size;
+    for(lexer.idx = 0; lexer.idx < size; advance(lexer))
     {
         auto c = file[lexer.idx];
 
@@ -259,13 +259,13 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
 
                 if(c == '\0')
                 {
-                    printf("hit eof before char literal");
+                    puts("hit eof before char literal");
                     return true;
                 }
 
                 if(peek(lexer.idx+2,file) != '\'')
                 {
-                    printf("unterminated char literal");
+                    puts("unterminated char literal");
                     return true;
                 }
 
@@ -553,8 +553,7 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
                         }
                     }
 
-
-                    String literal = make_string(*lexer.string_allocator,&file[start_idx],(lexer.idx - start_idx) + 1);
+                    String literal = copy_string(*lexer.string_allocator,string_slice(file,start_idx,(lexer.idx - start_idx) + 1));
 
 
                     const s32 slot = keyword_lookup(literal);
@@ -588,7 +587,7 @@ bool tokenize(const std::string& file,ArenaAllocator* string_allocator, std::vec
 
                 else
                 {
-                    printf("unexpected char %c\n",c);
+                    printf("unexpected char '%c' : 0x%02x\n",c,c);
                     return true;
                 }
                 break;

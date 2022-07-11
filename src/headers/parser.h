@@ -196,7 +196,7 @@ struct AstNode
     String literal;
 
     // TODO: this should be only for top levle decl just leave it in all of them for now
-    std::string filename;
+    String filename;
 
     // if we put anything in here
     // we need to make sure we add the copy into
@@ -281,7 +281,7 @@ AstNode *ast_char(Parser& parser,const char character, const Token& token)
 }
 
 
-AstNode *ast_func(Parser& parser,const String &literal, const std::string& filename, const Token& token)
+AstNode *ast_func(Parser& parser,const String &literal, const String& filename, const Token& token)
 {
     AstNode* node = alloc_node(parser);
     node->type = ast_type::function;
@@ -296,7 +296,7 @@ AstNode *ast_func(Parser& parser,const String &literal, const std::string& filen
     return node;
 }
 
-AstNode *ast_struct(Parser& parser,const String &literal, const std::string& filename, const Token& token)
+AstNode *ast_struct(Parser& parser,const String &literal, const String& filename, const Token& token)
 {
     AstNode* node = alloc_node(parser);
     node->type = ast_type::struct_t;

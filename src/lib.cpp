@@ -1,19 +1,6 @@
 #include <lib.h>
 constexpr char path_separator = std::filesystem::path::preferred_separator;
 
-// read entire file into a string
-std::string read_file(const std::string &filename)
-{
-    std::ifstream fp{filename};
-
-    if(fp)
-    {
-        return std::string((std::istreambuf_iterator<char>(fp)),
-                    (std::istreambuf_iterator<char>()));
-    }
-
-    return "";
-}
 
 bool contains_ext(const String& str) 
 {   
@@ -29,24 +16,29 @@ access_type handle_read(const void *buf)
 }
 
 
-void print_line(const std::string& filename,u32 line)
+void print_line(const String& filename,u32 line)
 {
     // this is slow, but we are about to terminate anyways
     // when this is used
-    std::fstream fp{filename};
+    FILE *fp = fopen(filename.buf,"r");
 
     if(!fp)
     {
-        printf("could not open file %s for error printing\n",filename.c_str());
+        printf("could not open file %s for error printing\n",filename.buf);
     }
 
-    std::string str;
+    char buf[512] = {0};
     for(u32 i = 0; i < line; i++)
-    {
-        std::getline(fp,str);
+    {   
+        if(fgets(buf,sizeof(buf) - 2,fp))
+        {
+            break;
+        }
     }
 
-    printf("%s\n",str.c_str());    
+    fclose(fp);
+
+    printf("%s\n",buf);    
 }
 
 
@@ -146,3 +138,33 @@ void panic(bool cond, const char *fmt, ...)
 #include "array.cpp"
 #include "string.cpp"
 #include "hashtable.cpp"
+
+
+// read entire file into a string
+Array<char> read_file(const String &filename)
+{
+    FILE* fp = fopen(filename.buf,"rb");
+
+    Array<char> buf;
+
+    // file is invalid dont bother
+    if(!fp)
+    {
+        return buf;
+    }
+
+    // get the file len
+    fseek(fp, 0, SEEK_END);
+    const u32 len = ftell(fp); 
+    fseek(fp, 0, SEEK_SET); 
+
+    // allocate an appriopately sized buffer
+    // and read the whole file out
+    resize(buf,len + 1);
+    fread(buf.data,len,1,fp);
+
+    buf[len] = '\0';
+
+    fclose(fp);
+    return buf;
+}

@@ -23,16 +23,6 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
 void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
 std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node);
 
-std::string get_program_name(const String& filename)
-{
-    if(!contains_ext(filename))
-    {
-        return std_string(filename) + ".itl";
-    }
-
-    return std_string(filename);
-}
-
 
 void dump_ir_sym(Interloper &itl)
 {
@@ -2740,9 +2730,9 @@ void destroy_itl(Interloper &itl)
 static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
 static constexpr u32 STRING_INITIAL_SIZE = 4 * 1024;
 
-void compile(Interloper &itl,const std::string& initial_filename)
+void compile(Interloper &itl,const String& initial_filename)
 {
-    printf("compiling file: %s\n",initial_filename.c_str());
+    printf("compiling file: %s\n",initial_filename.buf);
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);

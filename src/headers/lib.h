@@ -78,6 +78,9 @@ struct String
     
 
     const char* buf = nullptr;
+
+    // NOTE: there is a extra null term on the buf
+    // after the size of C string compat
     u32 size = 0;
 };
 
@@ -158,4 +161,4 @@ void* allocate(ArenaAllocator& allocator, u32 size);
 
 
 
-void print_line(const std::string& filename,u32 line);
+void print_line(const String& filename,u32 line);

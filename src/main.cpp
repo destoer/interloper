@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
     }
 
 
-    compile(itl,get_program_name(filename));
+    compile(itl,filename);
 
     if(itl.error)
     {

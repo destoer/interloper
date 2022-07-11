@@ -680,7 +680,7 @@ AstNode *block(Parser &parser)
         if(match(parser,token_type::eof))
         {
             delete_tree(b);
-            panic(parser,tok,"unterminated block!");
+            panic(parser,tok,"unterminated block!\n");
             return nullptr;
         }
 
@@ -698,7 +698,7 @@ AstNode *block(Parser &parser)
     return b;
 }
 
-void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
+void func_decl(Interloper& itl, Parser &parser, const String& filename)
 {
 
     // func_dec = func ident(arg...) return_type 
@@ -816,7 +816,7 @@ void func_decl(Interloper& itl, Parser &parser, const std::string& filename)
     add(itl.function_table,func.name,func);
 }
 
-void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
+void struct_decl(Interloper& itl,Parser& parser, const String& filename)
 {
     const auto name = next_token(parser);
 
@@ -864,12 +864,12 @@ void struct_decl(Interloper& itl,Parser& parser, const std::string& filename)
 }
 
 
-std::string read_source_file(const std::string& filename)
+Array<char> read_source_file(const String& filename)
 {
-    std::string file = read_file(filename);
-    if(!file.size())
+    Array<char> file = read_file(filename);
+    if(count(file))
     {
-        printf("no such file: %s\n",filename.c_str());
+        printf("no such file: %s\n",filename.buf);
         exit(0);
     }    
 
@@ -877,114 +877,147 @@ std::string read_source_file(const std::string& filename)
 }
 
 
-void add_file(std::set<std::string>& file_set, std::vector<std::string>& stack, const std::string& filename)
+void add_file(HashTable<u32> &file_set, Array<String>& stack, const String& filename)
 {
-    if(!file_set.count(filename))
+    if(!contains(file_set,filename))
     {
-        file_set.insert(filename);
-        stack.push_back(filename);
+        add(file_set,filename,u32(0));
+        push_var(stack,filename);
     }
 }
 
-bool parse(Interloper& itl, const std::string initial_filename)
+String get_program_name(ArenaAllocator& allocator,const String& filename)
 {
-
-    std::set<std::string> file_set;
-    std::vector<std::string> file_stack;
-
-    add_file(file_set,file_stack,initial_filename);
-    
-
-    // TODO: this should probably be a SHELL VAR but just hard code it for now
-    const std::string stl_path = std::string("stl") + std::string(1,path_separator);
-
-    // import basic by default
-    add_file(file_set,file_stack,stl_path + "basic.itl");
-
-    while(file_stack.size())
+    if(!contains_ext(filename))
     {
-        // get the next filename to parse
-        const auto filename = file_stack.back(); file_stack.pop_back();
+        return cat_string(allocator,filename,".itl");
+    }
 
-        // Parse out the file
-        Parser parser = make_parser(&itl.ast_allocator,&itl.ast_string_allocator);
+    return filename;
+}
 
 
-        const std::string file = read_file(filename);
+bool parse_file(Interloper& itl,const String& file, const String& filename,const String& stl_path, HashTable<u32>& file_set, Array<String> &file_stack)
+{
+    // Parse out the file
+    Parser parser = make_parser(&itl.ast_allocator,&itl.ast_string_allocator);
 
-        if(tokenize(file,parser.string_allocator,parser.tokens))
-        {
-            printf("failed to tokenize file: %s\n",filename.c_str());
-            return true;
-        }
-        
-        //print_tokens(parser.tokens);
+    if(tokenize(file,parser.string_allocator,parser.tokens))
+    {
+        printf("failed to tokenize file: %s\n",filename.buf);
+        return true;
+    }
+    
+    //print_tokens(parser.tokens);
 
-        const auto size = parser.tokens.size();
+    const auto size = parser.tokens.size();
 
-        // TODO: put an extra string in the top level decl of the ast
-        // so we know what file it came from
-        while(parser.tok_idx < size)
-        {
-            const auto &t = next_token(parser);
+    // TODO: move this to a seperate loop to make freeing up crap ez
+    // TODO: put an extra string in the top level decl of the ast
+    // so we know what file it came from
+    while(parser.tok_idx < size)
+    {
+        const auto &t = next_token(parser);
 
-            // okay what is our "top level" token
-            switch(t.type)
-            { 
-                case token_type::import:
+        // okay what is our "top level" token
+        switch(t.type)
+        { 
+            case token_type::import:
+            {
+                if(!match(parser,token_type::string))
                 {
-                    if(!match(parser,token_type::string))
-                    {
-                        panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
-                        return true;
-                    }
-
-                    const auto name_tok = next_token(parser);
-
-                    // stl file
-                    if(!contains_ext(name_tok.literal))
-                    {
-                        add_file(file_set,file_stack, stl_path + get_program_name(name_tok.literal));
-                    }
-
-                    else
-                    {
-                        add_file(file_set,file_stack,std_string(name_tok.literal));
-                    }
-                    break;
-                }
-
-                // function declartion
-                case token_type::func:
-                {
-                    func_decl(itl,parser,filename);
-                    break;
-                }
-
-                case token_type::struct_t:
-                {
-
-                    struct_decl(itl,parser,filename);
-                    break;
-                }
-
-                default:
-                {
-                    panic(parser,t,"unexpected top level token %s: '%s'\n",tok_name(t.type),t.literal.buf);
+                    panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
                     return true;
                 }
+
+                const auto name_tok = next_token(parser);
+
+                // stl file
+                if(!contains_ext(name_tok.literal))
+                {
+                    add_file(file_set,file_stack, cat_string(itl.string_allocator,stl_path,get_program_name(itl.string_allocator,name_tok.literal)));
+                }
+
+                else
+                {
+                    add_file(file_set,file_stack,name_tok.literal);
+                }
+                break;
             }
 
-            if(parser.error)
+            // function declartion
+            case token_type::func:
             {
-                // print line number
-                print_line(filename,parser.line);
+                func_decl(itl,parser,filename);
+                break;
+            }
+
+            case token_type::struct_t:
+            {
+
+                struct_decl(itl,parser,filename);
+                break;
+            }
+
+            default:
+            {
+                panic(parser,t,"unexpected top level token %s: '%s'\n",tok_name(t.type),t.literal.buf);
                 return true;
             }
+        }
+
+        if(parser.error)
+        {
+            // print line number
+            print_line(filename,parser.line);
+            return true;
         }
     }
 
     return false;
+}
+
+bool parse(Interloper& itl, const String& initial_filename)
+{
+    // TODO: destruct these
+    Array<String> file_stack;
+    HashTable<u32> file_set = make_table<u32>();
+
+    // add the initial file
+    add_file(file_set,file_stack,get_program_name(itl.string_allocator,initial_filename));
+
+
+
+    // TODO: this should probably be a SHELL VAR but just hard code it for now
+    const String stl_path = make_static_string("stl/",strlen("stl/"));
+
+    // import basic by default
+    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
+
+
+    b32 error = false;
+
+    while(count(file_stack))
+    {
+        // get the next filename to parse
+        const String filename = pop(file_stack);
+
+        Array<char> file = read_file(filename);
+
+        error = parse_file(itl,make_string(file),filename,stl_path,file_set,file_stack);
+
+        destroy_arr(file);
+
+        if(error)
+        {
+            break;
+        }
+    }
+
+    destroy_arr(file_stack);
+    destroy_table(file_set);
+
+    return error;
 }
 
 void print(const AstNode *root)

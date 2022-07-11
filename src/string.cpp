@@ -17,7 +17,36 @@ bool string_equal(const String& str1, const String& str2)
     return true;    
 }
 
-// NOTE: expects array to be null terminated
+String string_offset(const String& str, u32 offset)
+{
+    String out;
+
+    out.buf = &str.buf[offset];
+    out.size -= offset;
+
+    return out;
+}
+
+String string_slice(const String& str, u32 offset, u32 len)
+{
+    String out;
+
+    out.buf = &str.buf[offset];
+
+    if((str.size - offset) >= len)
+    {
+        out.size = len;
+    }
+
+    else
+    {
+        out.size = 0;
+    }
+
+    return out;
+}
+
+// NOTE: expects array to have a null term at the end
 String make_string(Array<char>& arr)
 {
     String string;
@@ -74,13 +103,33 @@ u32 hash_string(const String& str, u32 hash)
 String copy_string(ArenaAllocator& allocator, const String& in)
 {
     char* ptr  = (char*)allocate(allocator,in.size + 1);
-    memcpy(ptr,in.buf,in.size + 1);
+    memcpy(ptr,in.buf,in.size);
+
+    ptr[in.size] = '\0';
 
     String string;
 
     string.buf = ptr;
     string.size = in.size;
+
+    return string;
+}
+
+String cat_string(ArenaAllocator& allocator, const String &v1, const String& v2)
+{
+    const u32 size = v1.size + v2.size;
+
+    char* ptr = (char*)allocate(allocator,size + 1);
+    memcpy(ptr,v1.buf,v1.size);
+    memcpy(&ptr[v1.size],v2.buf,v2.size);
+
+    ptr[size] = '\0';
+
+    String string;
     
+    string.buf = ptr;
+    string.size = size;
+
     return string;
 }
 

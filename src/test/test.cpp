@@ -154,7 +154,7 @@ void run_tests()
         
         const auto &test = PROGRAM_TEST[i];
         
-        compile(itl,get_program_name(test.name));
+        compile(itl,test.name);
 
         if(test.error && itl.error)
         {

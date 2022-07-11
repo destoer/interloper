@@ -20,7 +20,7 @@ struct Interloper
     StructDefMap struct_def;
 
     AstNode *cur_expr = nullptr;
-    std::string cur_file = "";
+    String cur_file = "";
 
 
     FuncTable function_table;
@@ -65,9 +65,9 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     {
         const u32 line = itl.cur_expr->line;
         const u32 col = itl.cur_expr->col;
-        const std::string filename = itl.cur_file;
+        const String filename = itl.cur_file;
 
-        printf("error: %s %d:%d: ",filename.c_str(),line + 1,col + 1);
+        printf("error: %s %d:%d: ",filename.buf,line + 1,col + 1);
 
 
         va_list args; 
@@ -93,5 +93,4 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     itl.error = true;
 }
 
-std::string get_program_name(const String &filename);
 u32 eval_const_expr(const AstNode *node);
