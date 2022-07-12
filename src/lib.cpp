@@ -1,59 +1,51 @@
-
+#include <lib.h>
 constexpr char path_separator = std::filesystem::path::preferred_separator;
 
-// read entire file into a string
-std::string read_file(const std::string &filename)
-{
-    std::ifstream fp{filename};
 
-    if(fp)
-    {
-        return std::string((std::istreambuf_iterator<char>(fp)),
-                    (std::istreambuf_iterator<char>()));
-    }
-
-    return "";
-}
-
-bool contains(const std::string& str,const char* substr) 
+bool contains_ext(const String& str) 
 {   
-    return str.find(substr) != std::string::npos;
+    return strchr(str.buf,'.') != NULL;
 }    
 
 template<typename access_type>
-access_type handle_read(const u8 *buf, u32 idx)
+access_type handle_read(const void *buf)
 {
     access_type v;
-    memcpy(&v,&buf[idx],sizeof(access_type));
+    memcpy(&v,buf,sizeof(access_type));
     return v;
 }
 
 
-void print_line(const std::string& filename,u32 line)
+void print_line(const String& filename,u32 line)
 {
     // this is slow, but we are about to terminate anyways
     // when this is used
-    std::fstream fp{filename};
+    FILE *fp = fopen(filename.buf,"r");
 
     if(!fp)
     {
-        printf("could not open file %s for error printing\n",filename.c_str());
+        printf("could not open file %s for error printing\n",filename.buf);
     }
 
-    std::string str;
+    char buf[512] = {0};
     for(u32 i = 0; i < line; i++)
-    {
-        std::getline(fp,str);
+    {   
+        if(fgets(buf,sizeof(buf) - 2,fp))
+        {
+            break;
+        }
     }
 
-    printf("%s\n",str.c_str());    
+    fclose(fp);
+
+    printf("%s\n",buf);    
 }
 
 
 template<typename access_type>
-void handle_write(u8 *buf, u32 idx, access_type v)
+void handle_write(void *buf, access_type v)
 {
-    memcpy(&buf[idx],&v,sizeof(access_type));
+    memcpy(buf,&v,sizeof(access_type));
 }
 
 template<typename T>
@@ -62,18 +54,6 @@ bool in_range(T v, T min, T max)
     return v >= min && v <= max;
 }
 
-
-// TODO: make sure the number fits in 32 bits
-u32 convert_imm(const std::string &imm)
-{
-    if(imm.size() >= 3 && imm.substr(0,2) == "0b")
-    {
-        return static_cast<u32>(stoul(imm.substr(2),nullptr,2));
-    }
-
-    // stoi wont auto detect base for binary strings?
-    return static_cast<u32>(stoul(imm,nullptr,0));
-}
 
 u32 set_bit(u32 v, u32 bit)
 {
@@ -101,6 +81,17 @@ u32 popcount(u32 v)
     return count;
 }
 
+
+constexpr u32 bit_ceil(u32 v)
+{
+    u32 ans = 1;
+    while(ans < v)
+    {
+        ans *= 2;
+    }
+
+    return ans;
+}
 
 #ifndef _MSC_VER
 __attribute__((noreturn))
@@ -142,3 +133,38 @@ void panic(bool cond, const char *fmt, ...)
     }
 } 
 
+
+#include "alloc.cpp"
+#include "array.cpp"
+#include "string.cpp"
+#include "hashtable.cpp"
+
+
+// read entire file into a string
+Array<char> read_file(const String &filename)
+{
+    FILE* fp = fopen(filename.buf,"rb");
+
+    Array<char> buf;
+
+    // file is invalid dont bother
+    if(!fp)
+    {
+        return buf;
+    }
+
+    // get the file len
+    fseek(fp, 0, SEEK_END);
+    const u32 len = ftell(fp); 
+    fseek(fp, 0, SEEK_SET); 
+
+    // allocate an appriopately sized buffer
+    // and read the whole file out
+    resize(buf,len + 1);
+    fread(buf.data,len,1,fp);
+
+    buf[len] = '\0';
+
+    fclose(fp);
+    return buf;
+}

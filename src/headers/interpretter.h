@@ -19,7 +19,7 @@ struct Interpretter
     Array<u8> program;
 
 
-    std::vector<u8> stack;
+    Array<u8> stack;
 };
 
 

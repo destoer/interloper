@@ -23,25 +23,20 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
 void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
 std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node);
 
-std::string get_program_name(const std::string &filename)
-{
-    if(!contains(filename,"."))
-    {
-        return filename + ".itl";
-    }
-
-    return filename;
-}
-
 
 void dump_ir_sym(Interloper &itl)
 {
-    for(auto &[key,func] : itl.function_table)
+    for(u32 b = 0; b < count(itl.function_table.buf); b++)
     {
-        UNUSED(key);
+        auto& bucket = itl.function_table.buf[b];
 
-        dump_ir(func,itl.symbol_table.slot_lookup,itl.symbol_table.label_lookup);
-    }    
+        for(u32 i = 0; i < count(bucket); i++)
+        {
+            auto& func = bucket[i].v;
+
+            dump_ir(func,itl.symbol_table);
+        }
+    }
 }
 
 u32 eval_const_expr(const AstNode *node)
@@ -79,16 +74,17 @@ u32 eval_const_expr(const AstNode *node)
 
 void print_func_decl(Interloper& itl,const Function &func)
 {
-    printf("func: %s\n",func.name.c_str());
+    printf("func: %s\n",func.name.buf);
 
-    for(auto slot : func.args)
+    for(u32 a = 0; a < count(func.args); a++)
     {
-        auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+        const u32 slot = func.args[a];
+        auto &sym = sym_from_slot(itl.symbol_table,slot);
 
         print(itl,sym); 
     }
 
-    printf("return type %s\n",type_name(itl,func.return_type).c_str());  
+    printf("return type %s\n",type_name(itl,func.return_type).buf);  
 }
 
 // scan the top level of the parse tree for functions
@@ -96,69 +92,77 @@ void print_func_decl(Interloper& itl,const Function &func)
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
 void parse_function_declarations(Interloper& itl)
 {
-    for(auto &[key,func] : itl.function_table )
+    
+
+    for(u32 b = 0; b < count(itl.function_table.buf); b++)
     {
-        const AstNode& node = *func.root;
+        auto& bucket = itl.function_table.buf[b];
 
-        itl.cur_file = node.filename;
-
-        const auto return_type = get_type(itl,node.nodes[0]);
-        const auto name = node.literal;
-        
-        std::vector<u32> args;
-
-        const auto decl = node.nodes[2];
-
-        // if we are returning out a struct we have a hidden pointer to return it out of in the first arg!
-        const b32 sfa = type_size(itl,return_type) > GPR_SIZE;
-
-        u32 arg_offset = 0;
-
-        if(sfa)
+        for(u32 i = 0; i < count(bucket); i++)
         {
-            Type ptr_type = return_type;
-            ptr_type.ptr_indirection += 1;
+            auto& func = bucket[i].v;
+            const AstNode& node = *func.root;
 
-            // add the var to slot lookup and link to function
-            // we will do a add_scope to put it into the scope later
-            Symbol sym = Symbol("_struct_ret_ptr",ptr_type,GPR_SIZE,arg_offset);
-            add_var(itl.symbol_table,sym);
+            itl.cur_file = node.filename;
 
-            args.push_back(sym.slot);     
+            const auto return_type = get_type(itl,node.nodes[0]);
+            const auto name = node.literal;
+            
+            Array<u32> args;
 
-            arg_offset += GPR_SIZE;
+            const auto decl = node.nodes[2];
+
+            // if we are returning out a struct we have a hidden pointer to return it out of in the first arg!
+            const b32 sfa = type_size(itl,return_type) > GPR_SIZE;
+
+            u32 arg_offset = 0;
+
+            if(sfa)
+            {
+                Type ptr_type = return_type;
+                ptr_type.ptr_indirection += 1;
+
+                // add the var to slot lookup and link to function
+                // we will do a add_scope to put it into the scope later
+                Symbol sym = make_sym(itl.symbol_table,"_struct_ret_ptr",ptr_type,GPR_SIZE,arg_offset);
+                add_var(itl.symbol_table,sym);
+
+                push_var(args,sym.slot);     
+
+                arg_offset += GPR_SIZE;
+            }
+
+            // rip every arg
+            for(const auto a : decl->nodes)
+            {
+                const auto name = a->literal;
+                const auto type = get_type(itl,a->nodes[0]);
+
+                const auto size = type_size(itl,type);
+
+                // add the var to slot lookup and link to function
+                // we will do a add_scope to put it into the scope later
+                Symbol sym = make_sym(itl.symbol_table,name,type,size,arg_offset);
+                add_var(itl.symbol_table,sym);
+
+                push_var(args,sym.slot);
+
+                // if size is below GPR just make it take that much
+                const u32 arg_size = sym.size < GPR_SIZE? 4 : size;
+
+                arg_offset += arg_size;
+
+                //printf("arg slot %s: %d : %d\n",sym.name.buf,sym.slot, args[args.size()-1]);
+            }
+
+
+            finalise_def(func,return_type,args,count(itl.symbol_table.label_lookup));
+
+
+            // add as a label as it this will be need to referenced by call instrs
+            // in the ir to get the name back
+            add_label(itl.symbol_table,name);
         }
-
-        // rip every arg
-        for(const auto a : decl->nodes)
-        {
-            const auto name = a->literal;
-            const auto type = get_type(itl,a->nodes[0]);
-
-            const auto size = type_size(itl,type);
-
-            // add the var to slot lookup and link to function
-            // we will do a add_scope to put it into the scope later
-            Symbol sym = Symbol(name,type,size,arg_offset);
-            add_var(itl.symbol_table,sym);
-
-            args.push_back(sym.slot);
-
-            // if size is below GPR just make it take that much
-            const u32 arg_size = sym.size < GPR_SIZE? 4 : size;
-
-            arg_offset += arg_size;
-
-            //printf("arg slot %s: %d : %d\n",sym.name.c_str(),sym.slot, args[args.size()-1]);
-        }
-
-
-        finalise_def(func,return_type,args,itl.symbol_table.label_lookup.size());
-
-
-        // add as a label as it this will be need to referenced by call instrs
-        // in the ir to get the name back
-        add_label(itl.symbol_table,name);
     }
 }
 
@@ -171,7 +175,7 @@ std::pair<Type,u32> symbol(Interloper &itl, AstNode *node)
     const auto sym_opt = get_sym(itl.symbol_table,name);
     if(!sym_opt)
     {
-        panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+        panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};
     }
 
@@ -323,7 +327,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::char_t:
         {
-            emit(func.emitter,op_type::mov_imm,dst_slot,node->literal[0]);
+            emit(func.emitter,op_type::mov_imm,dst_slot,node->character);
             return std::pair<Type,u32>{Type(builtin_type::u8_t),dst_slot};
         }
 
@@ -354,7 +358,7 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
     {
         if(type != op_type::sub_reg && type != op_type::add_reg)
         {
-            panic(itl,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).c_str(),type_name(itl,t2).c_str());
+            panic(itl,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
             return Type(builtin_type::void_t);
         }
 
@@ -392,7 +396,7 @@ Type compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32 
 
     if(!(is_integer(t1) && is_integer(t2)))
     {
-        panic(itl,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).c_str(),type_name(itl,t2).c_str());
+        panic(itl,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
         return Type(builtin_type::void_t);
     }
 
@@ -600,7 +604,7 @@ void mark_used(Interloper& itl, Function& func)
 {
     if(!func.used)
     {
-        itl.used_func.push_back(func.name);
+        push_var(itl.used_func,func.name);
         func.used = true;
     }
 }
@@ -609,20 +613,24 @@ void mark_used(Interloper& itl, Function& func)
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
-    if(intrin_table.count(node->literal))
+    s32 idx =  lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,node->literal);
+
+    if(idx != INVALID_SLOT)
     {
-        const auto handler = intrin_table[node->literal];
+        const auto handler = INTRIN_TABLE[idx].v;
         return handler(itl,func,node,dst_slot);
     }
 
+    Function* func_call_ptr = lookup(itl.function_table,node->literal);
+
     // check function is declared
-    if(!itl.function_table.count(node->literal))
+    if(!func_call_ptr)
     {
-        panic(itl,"[COMPILE]: function %s is not declared\n",node->literal.c_str());
+        panic(itl,"[COMPILE]: function %s is not declared\n",node->literal.buf);
         return Type(builtin_type::void_t);
     }
 
-    auto &func_call = itl.function_table[node->literal];
+    auto &func_call = *func_call_ptr;
     mark_used(itl,func_call);
 
 
@@ -636,9 +644,9 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     const s32 arg_offset = return_struct? 1 : 0;
 
     // check we have the right number of params
-    if((func_call.args.size() - arg_offset) != node->nodes.size())
+    if((count(func_call.args) - arg_offset) != node->nodes.size())
     {
-        panic(itl,"[COMPILE]: function call expected %d args got %d\n",func_call.args.size(),node->nodes.size());
+        panic(itl,"[COMPILE]: function call expected %d args got %d\n",count(func_call.args),node->nodes.size());
         return Type(builtin_type::void_t);
     }
 
@@ -656,9 +664,9 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
 
     // push args in reverse order and type check them
-    for(s32 i = func_call.args.size() - 1; i >= arg_offset; i--)
+    for(s32 i = count(func_call.args) - 1; i >= arg_offset; i--)
     {
-        const auto &arg =  sym_from_slot(itl.symbol_table.slot_lookup,func_call.args[i]);
+        const auto &arg =  sym_from_slot(itl.symbol_table,func_call.args[i]);
   
         const u32 arg_idx = i - arg_offset;
 
@@ -670,7 +678,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // const_pool_addr <slot>, offset  to load the address
             if(node->nodes[arg_idx]->type == ast_type::string)
             {
-                const auto rtype = type_array(builtin_type::u8_t,node->nodes[arg_idx]->literal.size(),true);
+                const auto rtype = type_array(builtin_type::u8_t,node->nodes[arg_idx]->literal.size,true);
                 check_assign(itl,arg.type,rtype,true);
                 
                 // push the len offset
@@ -679,7 +687,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 emit(func.emitter,op_type::push_arg,len_slot);
 
                 // push the data offset
-                const u32 static_offset = alloc_const_pool(itl,node->nodes[arg_idx]->literal.data(),rtype.dimensions[0],1);
+                const u32 static_offset = alloc_const_pool(itl,node->nodes[arg_idx]->literal.buf,rtype.dimensions[0],1);
 
                 const u32 addr_slot = new_tmp(func);
                 emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,CONST_POOL);
@@ -850,19 +858,22 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
 
 
-std::string label_name(u32 slot)
+String label_name(SymbolTable& table,u32 slot)
 {
-    return "L" + std::to_string(slot);
+    char name[40];
+    const u32 len = sprintf(name,"L%d",slot);
+
+    return make_string(*table.string_allocator,name,len);
 }
 
 u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 {
-    const u32 slot = itl.symbol_table.label_lookup.size();
+    const u32 slot = count(itl.symbol_table.label_lookup);
 
-    const u32 basic_block = func.emitter.program.size();
+    const u32 basic_block = count(func.emitter.program);
 
     new_block(&itl.list_allocator,func.emitter,type,slot);
-    add_label(itl.symbol_table,label_name(slot));
+    add_label(itl.symbol_table,label_name(itl.symbol_table,slot));
 
     // offset is the block offset until full resolution
     itl.symbol_table.label_lookup[slot].offset = basic_block;
@@ -874,11 +885,11 @@ u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 
 void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
-    const u32 start_block = func.emitter.program.size();
+    const u32 start_block = count(func.emitter.program);
 
     auto &blocks = func.emitter.program;
 
-    block_type old = blocks[blocks.size() - 1].type;
+    block_type old = blocks[count(blocks) - 1].type;
 
     for(u32 n = 0; n < node->nodes.size(); n++)
     {
@@ -899,19 +910,19 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
             if(!is_bool(t))
             {
-                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).c_str());
+                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).buf);
                 return;
             }
 
             // block for comparison branch
-            const u32 cur_block = blocks.size() - 1;
+            const u32 cur_block = count(blocks) - 1;
 
             // compile the body block
             new_basic_block(itl,func,if_stmt.type == ast_type::if_t? block_type::if_t : block_type::else_if_t);
             compile_block(itl,func,if_stmt.nodes[1]);
 
             // add branch over the block we just compiled
-            const u32 slot = itl.symbol_table.label_lookup.size();
+            const u32 slot = count(itl.symbol_table.label_lookup);
 
             append(blocks[cur_block].list,Opcode(op_type::bnc,slot,r,0));
 
@@ -927,7 +938,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
             else
             {
-                blocks[blocks.size() - 1].last = true;
+                blocks[count(blocks) - 1].last = true;
             }
         }
 
@@ -939,7 +950,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             new_basic_block(itl,func,block_type::else_t);
             compile_block(itl,func,if_stmt.nodes[0]);
 
-            blocks[blocks.size() - 1].last = true;
+            blocks[count(blocks) - 1].last = true;
         }
     }
 
@@ -953,7 +964,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     // add a unconditonal branch to the "exit block"
     // the last block is directly before the next and does not need one
 
-    for(u32 b = start_block; b < blocks.size() - 2; b++)
+    for(u32 b = start_block; b < count(blocks) - 2; b++)
     {
         auto &block = func.emitter.program[b];
 
@@ -969,7 +980,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     // scope for any var decls in the stmt
     new_scope(itl.symbol_table);
 
-    const u32 intial_block = func.emitter.program.size() - 1;
+    const u32 intial_block = count(func.emitter.program) - 1;
 
     // single statment
     const bool single_statement = node->nodes.size() == 2;
@@ -978,7 +989,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     const u32 block_expr_idx = single_statement? 1 : 3;
 
     auto &blocks = func.emitter.program;
-    block_type old = blocks[blocks.size() - 1].type;
+    block_type old = blocks[count(blocks) - 1].type;
 
     // compile the first stmt (ussualy an assign)
     if(!single_statement)
@@ -1020,7 +1031,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     if(!is_bool(t))
     {
-        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).c_str());
+        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).buf);
         return;
     }    
 
@@ -1063,7 +1074,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
             const auto sym_opt = get_sym(itl.symbol_table,name);
             if(!sym_opt)
             {
-                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return std::pair<Type,u32>{Type(builtin_type::void_t),0};
             }
 
@@ -1082,7 +1093,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                     // as the real one doesnt have a struct...
                     if(!is_runtime_size(sym.type.dimensions[0]))
                     {
-                        panic(itl,"cannot take pointer to fixed size array: %s\n",name.c_str());
+                        panic(itl,"cannot take pointer to fixed size array: %s\n",name.buf);
                         return std::pair<Type,u32>{Type(builtin_type::void_t),0};
                     }
                 }
@@ -1099,7 +1110,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
             {
                 if(!is_pointer(type))
                 {
-                    panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.c_str());
+                    panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.buf);
                 }
                 type.ptr_indirection -= 1;
                 return std::pair<Type,u32>{type,sym.slot};
@@ -1125,7 +1136,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 // contained type is not actually a pointer
                 if(!is_pointer(type))
                 {
-                    panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",node->literal.c_str());
+                    panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",node->literal.buf);
                     return std::pair<Type,u32>{Type(builtin_type::void_t),0};
                 }
 
@@ -1171,20 +1182,20 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 }
 
 // indexes off a given type + ptr
-std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* node, const std::string& arr_name,
+std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* node, const String& arr_name,
      const Type& type, u32 ptr_slot, u32 dst_slot)
 {
 
     if(!is_array(type))
     {
-        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.c_str(),type_name(itl,type).c_str());
+        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
 
     if(node->nodes.size() > type.degree)
     {
-        panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.c_str(),type.degree,node->nodes.size());
+        panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,type.degree,node->nodes.size());
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
@@ -1224,7 +1235,7 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
         const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
         if(!is_integer(subscript_type))
         {
-            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).c_str());
+            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
             return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
         }
 
@@ -1290,7 +1301,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
 
     if(!arr_opt)
     {
-        panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.c_str());
+        panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};       
     }
 
@@ -1427,7 +1438,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             const auto sym_opt = get_sym(itl.symbol_table,name);
             if(!sym_opt)
             {
-                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.c_str());
+                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return Type(builtin_type::void_t);
             }
 
@@ -1560,7 +1571,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
             if(!is_bool(t))
             {
-                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).c_str());
+                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
                 return Type(builtin_type::void_t);
             }
 
@@ -1645,7 +1656,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
             // handle auto sizing
             if(type.dimensions[0] == DEDUCE_SIZE)
             {
-                type.dimensions[0] = node->literal.size();
+                type.dimensions[0] = node->literal.size;
             }
 
             if(type.dimensions[0] == RUNTIME_SIZE)
@@ -1653,16 +1664,16 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
                 unimplemented("string vla");
             }
 
-            if(type.dimensions[0] < node->literal.size())
+            if(type.dimensions[0] < node->literal.size)
             {
-                panic(itl,"expected array of atleast size %d got %d\n",node->literal.size(),type.dimensions[0]);
+                panic(itl,"expected array of atleast size %d got %d\n",node->literal.size,type.dimensions[0]);
             }
 
             const auto base_type = contained_arr_type(type);
             const auto rtype = Type(builtin_type::u8_t);
 
 
-            for(u32 i = 0; i < node->literal.size(); i++)
+            for(u32 i = 0; i < node->literal.size; i++)
             {
                 const u32 slot = new_tmp(func);
                 emit(func.emitter,op_type::mov_imm,slot,node->literal[i]);
@@ -1805,7 +1816,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
         const u32 addr_slot = new_tmp(itl,GPR_SIZE);
 
         // we have added a new sym this ref has moved
-        Symbol &array = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+        Symbol &array = sym_from_slot(itl.symbol_table,slot);
 
 
         emit(func.emitter,op_type::addrof,addr_slot,slot);
@@ -1821,7 +1832,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
     }
 
 
-    const Symbol &array = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+    const Symbol &array = sym_from_slot(itl.symbol_table,slot);
 
     auto [size,count] = arr_size(itl,array.type);
 
@@ -1833,7 +1844,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
     // this has not been inited by traverse_arr_initializer
     else if(count == DEDUCE_SIZE)
     {
-        panic(itl,"auto sized array %s does not have an initializer\n",array.name.c_str());
+        panic(itl,"auto sized array %s does not have an initializer\n",array.name.buf);
         return;
     }
 
@@ -1859,7 +1870,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset)
 {
     const u32 node_len = node->nodes.size();
-    const u32 member_size = structure.members.size();
+    const u32 member_size = count(structure.members);
 
     if(node_len != member_size)
     {
@@ -1867,7 +1878,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
         return;
     }
     
-    for(u32 i = 0; i < structure.members.size(); i++)
+    for(u32 i = 0; i < count(structure.members); i++)
     {
         const auto member = structure.members[i];
     
@@ -1890,7 +1901,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
 
             else
             {
-                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.c_str(),type_name(itl,member.type).c_str());
+                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
                 return;
             }
         }
@@ -1912,8 +1923,8 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
-    const u32 count = gpr_count(structure.size);
-    emit(func.emitter,op_type::alloc_slot,sym.slot,GPR_SIZE,count);
+    const u32 reg_count = gpr_count(structure.size);
+    emit(func.emitter,op_type::alloc_slot,sym.slot,GPR_SIZE,reg_count);
 
     if(line.nodes.size() == 2)
     {
@@ -1950,8 +1961,10 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
         const u32 addr_slot = new_tmp(itl,GPR_SIZE);
         emit(func.emitter,op_type::addrof,addr_slot,sym_slot);
 
-        for(const auto &member : structure.members)
+        for(u32 m = 0; m < count(structure.members); m++)
         {
+            const auto& member = structure.members[m];
+
             if(member.expr)
             {
                 if(member.expr->type == ast_type::initializer_list)
@@ -2007,7 +2020,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto sym_opt = get_sym(itl.symbol_table,name);
     if(sym_opt)
     {
-        panic(itl,"redeclared symbol: %s:%s\n",name.c_str(),type_name(itl,sym_opt.value().type).c_str());
+        panic(itl,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_opt.value().type).buf);
         return;
     }
 
@@ -2066,7 +2079,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
 
     if(get_sym(itl.symbol_table,name))
     {
-        panic(itl,"redeclared symbol: %s\n",name.c_str());
+        panic(itl,"redeclared symbol: %s\n",name.buf);
         return;
     }
 
@@ -2084,7 +2097,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     compile_move(itl,func,sym.slot,reg,sym.type,type);
 }
 
-std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slot, const Type& type, const std::string& member_name,u32* offset)
+std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slot, const Type& type, const String& member_name,u32* offset)
 {
     const bool is_ptr = is_pointer(type);
 
@@ -2130,13 +2143,13 @@ std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slo
 
     else
     {
-        panic(itl,"unknown array member %s\n",member_name.c_str());
+        panic(itl,"unknown array member %s\n",member_name.buf);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};
     }
 }
 
 // returns the member + offset
-std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 slot, Type type, const std::string& member_name, u32* offset)
+std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 slot, Type type, const String& member_name, u32* offset)
 {
     // auto deref pointer
     if(type.ptr_indirection == 1)
@@ -2157,7 +2170,7 @@ std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 sl
 
     if(!member_opt)
     {
-        panic(itl,"No such member %s for type %s\n",member_name.c_str(),type_name(itl,type).c_str());
+        panic(itl,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};
     }
 
@@ -2188,7 +2201,7 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
 
             if(!sym_opt)
             {
-                panic(itl,"symbol %s used before declaration\n",name.c_str());
+                panic(itl,"symbol %s used before declaration\n",name.buf);
                 return std::tuple<Type,u32,u32>{Type(builtin_type::void_t),0,0};
             }            
 
@@ -2410,7 +2423,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                     const auto sym_opt = get_sym(itl.symbol_table,name);
                     if(!sym_opt)
                     {
-                        panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.c_str());
+                        panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
                         break;
                     }
 
@@ -2485,50 +2498,59 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
         }
     }
 
+    auto &table = itl.symbol_table.table[count(itl.symbol_table.table) - 1];
 
-    // scope is about to be destroyed reclaim the stack for every var that is no longer used
-    for(const auto &[key, slot] : itl.symbol_table.table[itl.symbol_table.table.size()-1])
-    { 
-        const auto &sym = itl.symbol_table.slot_lookup[slot];
+    for(u32 b = 0; b < count(table.buf); b++)
+    {
+        auto& bucket = table.buf[b];
 
-        // free the stack alloc for each var thats about to go out of scope
-        if(sym.arg_offset == NON_ARG)
+        for(u32 i = 0; i < count(bucket); i++)
         {
-            if(is_array(sym.type))
+            const u32 slot = bucket[i].v;
+
+            const auto& sym = itl.symbol_table.slot_lookup[slot];
+
+
+            // free the stack alloc for each var thats about to go out of scope
+            if(sym.arg_offset == NON_ARG)
             {
-                auto [size,count] = arr_size(itl,sym.type);
-
-
-
-                if(size != RUNTIME_SIZE)
+                if(is_array(sym.type))
                 {
-                    if(size > GPR_SIZE)
-                    {
-                        count = gpr_count(size * size);
-                        emit(func.emitter,op_type::free_slot,sym.slot,GPR_SIZE,count);
-                    }
+                    auto [size,count] = arr_size(itl,sym.type);
 
-                    else
+
+
+                    if(size != RUNTIME_SIZE)
                     {
-                        emit(func.emitter,op_type::free_slot,sym.slot,size,count);
+                        if(size > GPR_SIZE)
+                        {
+                            count = gpr_count(size * size);
+                            emit(func.emitter,op_type::free_slot,sym.slot,GPR_SIZE,count);
+                        }
+
+                        else
+                        {
+                            emit(func.emitter,op_type::free_slot,sym.slot,size,count);
+                        }
                     }
                 }
+
+                else if(is_struct(sym.type))
+                {
+                    const auto structure = struct_from_type(itl.struct_table,sym.type);
+
+                    const u32 count = gpr_count(structure.size);
+                    emit(func.emitter,op_type::free_slot,sym.slot,GPR_SIZE,count);                
+                }
+
+                else
+                {
+                    emit(func.emitter,op_type::free_slot,sym.slot);
+                } 
             }
-
-            else if(is_struct(sym.type))
-            {
-                const auto structure = struct_from_type(itl.struct_table,sym.type);
-
-                const u32 count = gpr_count(structure.size);
-                emit(func.emitter,op_type::free_slot,sym.slot,GPR_SIZE,count);                
-            }
-
-            else
-            {
-                emit(func.emitter,op_type::free_slot,sym.slot);
-            } 
         }
     }
+
 
     destroy_scope(itl.symbol_table);
 }
@@ -2539,13 +2561,13 @@ void compile_functions(Interloper &itl)
     new_scope(itl.symbol_table);
 
     // push the start func
-    mark_used(itl,itl.function_table["main"]);
+    mark_used(itl,*lookup(itl.function_table,String("main")));
 
 
 
-    for(u32 idx = 0; idx != itl.used_func.size(); idx++)
+    for(u32 idx = 0; idx != count(itl.used_func); idx++)
     {
-        Function& func = itl.function_table[itl.used_func[idx]];
+        Function& func = *lookup(itl.function_table,itl.used_func[idx]);
 
         const auto &node = *func.root;
         itl.cur_file = node.filename;
@@ -2559,9 +2581,11 @@ void compile_functions(Interloper &itl)
         func.emitter.reg_count = 0;
 
         // put each arg into scope
-        for(auto &a : func.args)
+        for(u32 a = 0; a < count(func.args); a++)
         {
-            auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,a);
+            const u32 slot = func.args[a];
+
+            auto &sym = sym_from_slot(itl.symbol_table,slot);
             add_scope(itl.symbol_table,sym);
         }
 
@@ -2633,30 +2657,39 @@ void compile_functions(Interloper &itl)
 void destroy_ast(Interloper& itl)
 {
     // delete all function def
-    for(auto &[key,func] : itl.function_table)
+    for(u32 b = 0; b < count(itl.function_table.buf); b++)
     {
-        UNUSED(key);
+        auto &bucket = itl.function_table.buf[b];
 
-        delete_tree(func.root);
-        func.root = nullptr;
+        for(u32 i = 0; i < count(bucket); i++)
+        {
+            auto& func = bucket[i].v;
+
+            delete_tree(func.root);
+            func.root = nullptr;
+        }
     }
 
 
     // delete all the struct defintions
-    for(auto &[key,def] : itl.struct_def)
+    for(u32 b = 0; b < count(itl.struct_def.buf); b++)
     {
-        UNUSED(key);
+        auto &bucket = itl.struct_def.buf[b];
 
-        delete_tree(def.root);
-        def.root = nullptr;
+        for(u32 i = 0; i < count(bucket); i++)
+        {
+            auto& def = bucket[i].v;
+
+            delete_tree(def.root);
+            def.root = nullptr;
+        }
     }
 
 
-    // TODO: eventually we want to be able to destroy the tree in one go but for now
-    // we have to destruct the vecs and strings
     destroy_allocator(itl.ast_allocator);
+    destroy_allocator(itl.ast_string_allocator);
 
-    itl.struct_def.clear();
+    destroy_table(itl.struct_def);
 
     
     itl.cur_expr = nullptr;
@@ -2665,28 +2698,54 @@ void destroy_ast(Interloper& itl)
 
 void destroy_itl(Interloper &itl)
 {
-    destroy(itl.program);
-    destroy(itl.const_pool);
-    destroy(itl.struct_table);
+    destroy_arr(itl.program);
+    destroy_arr(itl.const_pool);
     clear(itl.symbol_table);
     
     destroy_ast(itl);
 
-    itl.function_table.clear();
-    itl.used_func.clear();
+
+    // delete all functions
+    for(u32 b = 0; b < count(itl.function_table.buf); b++)
+    {
+        auto &bucket = itl.function_table.buf[b];
+
+        for(u32 i = 0; i < count(bucket); i++)
+        {
+            auto& func = bucket[i].v;
+            destroy_func(func);
+        }
+    }
+
+    destroy_table(itl.function_table);
+    destroy_arr(itl.used_func);
+
+    destroy_table(itl.struct_def);
+    destroy_struct_table(itl.struct_table);
 
     destroy_allocator(itl.list_allocator);
+    destroy_allocator(itl.string_allocator);
 }
 
-static constexpr u32 LIST_INITIAL_SIZE = 64 * 1024;
+static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
+static constexpr u32 STRING_INITIAL_SIZE = 4 * 1024;
 
-void compile(Interloper &itl,const std::string& initial_filename)
+void compile(Interloper &itl,const String& initial_filename)
 {
-    printf("compiling file: %s\n",initial_filename.c_str());
+    printf("compiling file: %s\n",initial_filename.buf);
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+    itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
+
+    itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
     itl.error = false;
+
+    itl.symbol_table.string_allocator = &itl.string_allocator;
+
+    itl.function_table = make_table<String,Function>();
+    itl.struct_def = make_table<String,StructDef>();
+    itl.struct_table.table = make_table<String,u32>();
 
 
     // parse intial input file
@@ -2706,20 +2765,34 @@ void compile(Interloper &itl,const std::string& initial_filename)
     if(itl.print_ast)
     {
         // print all struct defs
-        for(auto &[key,def] : itl.struct_def)
+        for(u32 b = 0; b < count(itl.struct_def.buf); b++)
         {
-            print(def.root);
+            auto &bucket = itl.struct_def.buf[b];
+
+            for(u32 i = 0; i < count(bucket); i++)
+            {
+                auto& def = bucket[i].v;
+                print(def.root);
+            }
         }
-       
+
+
         // print function defs
-        for(auto &[key,func] : itl.function_table)
+        for(u32 b = 0; b < count(itl.function_table.buf); b++)
         {
-            print(func.root);
+            auto &bucket = itl.function_table.buf[b];
+
+            for(u32 i = 0; i < count(bucket); i++)
+            {
+                auto& func = bucket[i].v;
+
+                print(func.root);
+            }
         }
     }
 
     // ensure the entry function is defined
-    if(!itl.function_table.count("main"))
+    if(!contains(itl.function_table,String("main")))
     {
         panic(itl,"main is not defined!\n");
         destroy_itl(itl);
@@ -2766,9 +2839,11 @@ void compile(Interloper &itl,const std::string& initial_filename)
     }
     
     // perform register allocation on used functions
-    for(const auto& name : itl.used_func)
+    for(u32 n = 0; n < count(itl.used_func); n++)
     {
-        Function& func = itl.function_table[name];
+        const auto& name = itl.used_func[n];
+
+        Function& func = *lookup(itl.function_table,name);
 
         allocate_registers(itl,func);
 

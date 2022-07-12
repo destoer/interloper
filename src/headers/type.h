@@ -121,7 +121,7 @@ struct AstNode;
 // struct entry
 struct Member
 {
-    std::string name;
+    String name;
     u32 offset;
     Type type;
 
@@ -130,12 +130,12 @@ struct Member
 
 struct Struct
 {
-    std::string name;
+    String name;
 
-    std::vector<Member> members;
+    Array<Member> members;
 
     // what do we hold?
-    std::map<std::string,u32> member_map;
+    HashTable<String,u32> member_map;
 
     // total size of the struct
     u32 size = 0;
@@ -161,56 +161,49 @@ struct StructDef
     u32 slot;
 };
 
-using StructDefMap = std::map<std::string,StructDef>;
+using StructDefMap = HashTable<String,StructDef>;
 
 
 
-using StructLookup = std::vector<Struct>;
+using StructLookup = Array<Struct>;
 
 struct StructTable
 {
-    std::unordered_map<std::string, u32> table;
+    HashTable<String,u32> table;
 
     StructLookup lookup;
 };
 
-std::optional<Struct> get_struct(StructTable& struct_table, const std::string& name);
+std::optional<Struct> get_struct(StructTable& struct_table, const String& name);
 Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx);
 Struct struct_from_type(StructTable& struct_table, const Type& type);
 
 static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
 
-
+// TODO: delete the constructor, and dont forget to copy strings when we make symbols
 struct Symbol
 {
-    Symbol() {}
-
-    Symbol(const std::string &n, Type t, u32 s, u32 a = NON_ARG) : name(n), type(t), size(s), arg_offset(a), 
-        slot(SYMBOL_NO_SLOT), offset(UNALLOCATED_OFFSET), location(LOCATION_MEM), referenced(false)
-    {}
-
-
-    std::string name;
+    String name;
     Type type;
 
     // cached sized of type
-    u32 size;
-    u32 arg_offset;
+    u32 size = 0;
+    u32 arg_offset = NON_ARG;
 
     // what slot does this symbol hold inside the ir?
-    u32 slot;
+    u32 slot = SYMBOL_NO_SLOT;
 
     
     // intialized during register allocation
 
     // where is it this is stored on the stack?
-    u32 offset;
+    u32 offset = UNALLOCATED_OFFSET;
 
     // where is this item stored?
     // is it in memory or is it in register?
-    u32 location;
+    u32 location = LOCATION_MEM;
 
-    b32 referenced;
+    b32 referenced = false;
 
 /*
     need to think where we perorm the marking for this, because it has to be done after the optimisation pass
@@ -225,29 +218,25 @@ struct Symbol
 };
 
 
+
+
 struct Label 
 {
-    Label(const std::string &name, u32 offset)
-    {
-        this->name = name;
-        this->offset = offset;
-    }
-
-    std::string name;
+    String name;
     u32 offset;  
 };
 
 
 struct Function
 {
-    std::string name;
+    String name;
     Type return_type;
 
     // TODO: if we need debugging information on local vars we need an array
     // of slots for both normal vars so we know whats in the functions
 
     // gives slots into the main symbol table
-    std::vector<u32> args;
+    Array<u32> args;
     
     // IR code for function
     IrEmitter emitter;
@@ -259,25 +248,16 @@ struct Function
     b32 used = false;
 };
 
-using FuncTable = std::unordered_map<std::string, Function>;
+using FuncTable = HashTable<String,Function>;
 
 
-void finalise_def(Function& func, Type rt, std::vector<u32> a, u32 s)
+void finalise_def(Function& func, Type rt, Array<u32> a, u32 s)
 {
     func.return_type = rt;
     func.args = a;
     func.slot = s;
 }
 
-Function new_func(const std::string& name, AstNode *root)
-{
-    Function func;
-
-    func.name = name;
-    func.root = root;
-
-    return func;
-}
 
 struct Interloper;
 
@@ -292,12 +272,12 @@ void mark_used(Interloper& itl, Function& func);
 // std::maps while we get it off the ground
 
 
-using SlotLookup = std::vector<Symbol>;
-using LabelLookup = std::vector<Label>;
+using SlotLookup = Array<Symbol>;
+using LabelLookup = Array<Label>;
 
 struct SymbolTable
 {
-    std::vector<std::unordered_map<std::string, u32>> table;
+    Array<HashTable<String,u32>> table;
 
     SlotLookup slot_lookup;
     LabelLookup label_lookup;
@@ -305,4 +285,6 @@ struct SymbolTable
     u32 sym_count = 0;
 
     u32 var_count = 0;
+
+    ArenaAllocator *string_allocator;
 };

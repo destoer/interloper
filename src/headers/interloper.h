@@ -13,18 +13,16 @@ struct Interloper
 
     b32 error;
 
-    Interpretter interpretter;
-
     Parser parser;
 
     StructDefMap struct_def;
 
     AstNode *cur_expr = nullptr;
-    std::string cur_file = "";
+    String cur_file = "";
 
 
-    FuncTable function_table;
-    std::vector<std::string> used_func;
+    HashTable<String,Function> function_table;
+    Array<String> used_func;
     // did the last compiled function have a return
     b32 has_return;
 
@@ -32,10 +30,13 @@ struct Interloper
 
     Array<u8> const_pool;
 
-    // TODO: move other structures to an arena
+    // Arena's
     ArenaAllocator list_allocator;
-
     ArenaAllocator ast_allocator;
+    ArenaAllocator ast_string_allocator;
+
+    // for longer lived strings, e.g func defs symbol names etc
+    ArenaAllocator string_allocator;
 
     // struct lookup
     StructTable struct_table;
@@ -62,9 +63,9 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     {
         const u32 line = itl.cur_expr->line;
         const u32 col = itl.cur_expr->col;
-        const std::string filename = itl.cur_file;
+        const String filename = itl.cur_file;
 
-        printf("error: %s %d:%d: ",filename.c_str(),line + 1,col + 1);
+        printf("error: %s %d:%d: ",filename.buf,line + 1,col + 1);
 
 
         va_list args; 
@@ -90,5 +91,4 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     itl.error = true;
 }
 
-std::string get_program_name(const std::string &filename);
 u32 eval_const_expr(const AstNode *node);

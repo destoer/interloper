@@ -1,6 +1,5 @@
 #pragma once
 #include <lib.h>
-#include <alloc.h>
 
 enum class op_type
 {
@@ -186,7 +185,7 @@ enum class arg_type
 struct OpInfo
 {
     op_group group;
-    const char *name;
+    String fmt_string;
     u32 args;
     arg_type type[3];
 };
@@ -247,7 +246,7 @@ static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
 static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 6;
 
 
-const char* SPECIAL_REG_NAMES[] = 
+const String SPECIAL_REG_NAMES[] = 
 {
     "sp",
     "pc",
@@ -257,6 +256,8 @@ const char* SPECIAL_REG_NAMES[] =
     "fixed_len",
     "null",
 };
+
+static constexpr u32 SP_NAME_IDX = 0;
 
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
 
@@ -279,11 +280,9 @@ static constexpr u32 GPR_SIZE = sizeof(u32);
 
 static constexpr u32 OP_SIZE = sizeof(Opcode);
 
-struct Symbol;
+
 struct SymbolTable;
-struct Label;
-using SlotLookup = std::vector<Symbol>;
-using LabelLookup = std::vector<Label>;
+
 
 
 // IR SYSCALLS
@@ -346,8 +345,8 @@ struct Block
 
 struct IrEmitter
 {
-    std::vector<Block> program;
-    std::vector<u32> block_slot;
+    Array<Block> program;
+    Array<u32> block_slot;
 
 
     // how many registers used in this expression
@@ -357,8 +356,9 @@ struct IrEmitter
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
 void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot = 0xffffffff); 
 
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
+void destroy_emitter(IrEmitter& emitter);
+
+void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
 void disass_opcode_raw(const Opcode &opcode);
 
 inline u32 symbol(u32 s)

@@ -26,13 +26,13 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 
     if(!is_trivial_copy(v1_type))
     {
-        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).c_str());
+        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
         return Type(builtin_type::void_t);  
     }
 
     if(!is_trivial_copy(v2_type))
     {
-        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).c_str());
+        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
         return Type(builtin_type::void_t);  
     }
 
@@ -45,7 +45,10 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
     return Type(builtin_type::void_t);   
 }
 
-std::map<std::string,INTRIN_FUNC> intrin_table  = 
+static constexpr u32 INTRIN_TABLE_SIZE = 2;
+
+static constexpr HashNode<String,INTRIN_FUNC> INTRIN_TABLE[INTRIN_TABLE_SIZE] = 
 {
+    {"",nullptr},
     {"intrin_syscall",&intrin_syscall},
 };

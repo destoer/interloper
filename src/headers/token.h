@@ -226,6 +226,32 @@ inline const char *tok_name(token_type t)
     return TOKEN_INFO[static_cast<size_t>(t)].name;
 }
 
+
+
+struct Value
+{
+    Value(u32 value, bool s) : v(value), sign(s) {}
+
+    friend bool operator == (const Value &t1, const Value &t2);
+    friend bool operator != (const Value &t1, const Value &t2);   
+
+    u32 v;
+    b32 sign;
+};
+
+
+inline bool operator == (const Value &v1, const Value &v2)
+{
+    return v1.v == v2.v && v1.sign == v2.sign;
+}
+
+
+inline bool operator != (const Value &v1, const Value &v2)
+{
+    return !operator==(v1,v2);
+}
+
+
 struct Token
 {
 
@@ -238,9 +264,15 @@ struct Token
 
     u32 line = 0;
     u32 col = 0;
-
     token_type type = token_type::eof;
-    std::string literal = {};
+
+
+    union 
+    {
+        String literal;
+        Value value;
+        char character;
+    };
 };
 
 
@@ -251,11 +283,12 @@ Token token_plain(token_type type, u32 line = 0, u32 col = 0)
     token.type = type;
     token.line = line;
     token.col = col;
+    token.literal = {};
     
     return token;
 }
 
-Token token_literal(token_type type,const std::string& literal, u32 line = 0, u32 col = 0)
+Token token_literal(token_type type,const String& literal, u32 line = 0, u32 col = 0)
 {
     Token token;
 
@@ -267,11 +300,50 @@ Token token_literal(token_type type,const std::string& literal, u32 line = 0, u3
     return token;    
 }
 
+Token token_char(char c,u32 line = 0, u32 col = 0)
+{
+    Token token;
+
+    token.type = token_type::char_t;
+    token.line = line;
+    token.col = col;
+    token.character = c;
+
+    return token;
+}
+
+Token token_value(const Value& value, u32 line = 0, u32 col = 0)
+{
+    Token token;
+
+    token.type = token_type::value;
+    token.line = line;
+    token.col = col;
+    token.value = value;
+
+    return token;
+}
 
 
 inline bool operator == (const Token &t1, const Token &t2)
 {
-    return t1.type == t2.type && t1.literal == t2.literal;
+    switch(t1.type)
+    {
+        case token_type::value:
+        {
+            return t1.type == t2.type && t1.value == t2.value;
+        }
+
+        case token_type::char_t:
+        {
+            return t1.type == t2.type && t1.character == t2.character;
+        }
+
+        default:
+        {
+            return t1.type == t2.type && t1.literal == t2.literal;
+        }
+    }
 }
 
 
@@ -283,14 +355,31 @@ inline bool operator != (const Token &t1, const Token &t2)
 inline void print_token(const Token& t)
 {
     printf("type: %s\n",tok_name(t.type));
-    printf("literal: %s\n",t.literal.c_str());
-    printf("loc: (%d:%d)\n\n",t.line+1,t.col+1);    
-}
 
-inline void print_tokens(const std::vector<Token> &tokens)
-{
-    for(const auto &t: tokens)
+    switch(t.type)
     {
-        print_token(t);
+        case token_type::char_t:
+        {
+            printf("char %c\n",t.character);
+            break;
+        }
+
+        case token_type::value:
+        {
+            printf("value: %s%d\n",t.value.sign? "-"  : "",t.value.v);
+            break;
+        }
+
+        default:
+        {
+            if(t.literal.buf)
+            {
+                printf("literal: %s\n",t.literal.buf);
+            }
+            break;
+        }
     }
+
+    
+    printf("loc: (%d:%d)\n\n",t.line+1,t.col+1);    
 }

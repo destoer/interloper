@@ -1,44 +1,60 @@
 #include <lexer.h>
 
 
-char peek(u32 offset, const std::string &file)
+void print_tokens(const Array<Token> &tokens)
 {
-    return offset < file.size()? file[offset] : '\0';
+    for(u32 t = 0; t < count(tokens); t++)
+    {
+        print_token(tokens[t]);
+    }
+}
+
+
+char peek(u32 offset, const String& file)
+{
+    return offset < file.size? file[offset] : '\0';
 }
 
 void insert_token(Lexer &lexer, token_type type)
 {
-    lexer.tokens.push_back(token_plain(type,lexer.row,lexer.column));
+    push_var(lexer.tokens,token_plain(type,lexer.row,lexer.column));
 }
 
 
 void insert_token(Lexer &lexer, token_type type, u32 col)
 {
-    lexer.tokens.push_back(token_plain(type,lexer.row,col));
+    push_var(lexer.tokens,token_plain(type,lexer.row,col));
 }
 
-void insert_token(Lexer &lexer, token_type type, const std::string &literal, u32 col)
+void insert_token(Lexer &lexer, token_type type, const String &literal, u32 col)
 {
-    lexer.tokens.push_back(token_literal(type,literal,lexer.row,col));
+    push_var(lexer.tokens,token_literal(type,literal,lexer.row,col));
 }
 
+void insert_token_char(Lexer& lexer,char c, u32 col)
+{
+    push_var(lexer.tokens,token_char(c,lexer.row,col));
+}
+
+void insert_token_value(Lexer& lexer,const Value& value, u32 col)
+{
+    push_var(lexer.tokens,token_value(value,lexer.row,col));
+}
 
 
 template<typename F>
-bool verify_immediate_internal(const std::string &file, u32 &i, F lambda)
+bool read_immediate_internal(String& literal, u32 offset, F lambda)
 {
-    const auto len = file.size();
-
-    for(; i < len; i++)
+    for(u32 i = offset; i < literal.size; i++)
     {
         // valid part of the value
-        if(lambda(file[i]))
+        if(lambda(literal[i]))
         {
             continue;
         }
 
         // values cannot have these at the end!
-        else if(isalpha(file[i]))
+        else if(isalpha(literal[i]))
         {
             return false;
         }
@@ -46,7 +62,9 @@ bool verify_immediate_internal(const std::string &file, u32 &i, F lambda)
         // we have  < ; + , etc stop parsing
         else 
         {
-            return true;
+            // clamp string to the actual literal length 
+            literal.size = i - 1;
+            break;
         }
     }
 
@@ -54,54 +72,48 @@ bool verify_immediate_internal(const std::string &file, u32 &i, F lambda)
 }
 
 
-bool verify_immediate(const std::string &file, std::string &literal)
+bool read_immediate(String& literal)
 {
-    const auto len = file.size();
-
     // an empty immediate aint much use to us
-    if(!len)
+    if(!literal.size)
     {
-        return false;
+        return true;
     }
 
-    u32 i = 0;
+    u32 offset = 0;
 
-    const auto c = file[0];
+    const auto c = literal[0];
 
     // allow - or +
     if(c == '-' || c == '+')
     {
-        i = 1;
+        offset = 1;
         // no digit after the sign is of no use
-        if(len == 1)
+        if(literal.size == 1)
         {
-            return false;
+            return true;
         }
     }
 
     bool valid = false;
 
-
-    // have prefix + one more digit at minimum
-    const auto prefix = i+2 < len?  file.substr(i,2) : "";
-
     // verify we have a valid hex number
-    if(prefix == "0x")
+    if(string_equal(string_slice(literal,offset,2),"0x"))
     {
         // skip past the prefix
-        i += 2;
-        valid = verify_immediate_internal(file,i,[](const char c) 
+        offset += 2;
+        valid = read_immediate_internal(literal,offset,[](const char c) 
         {
             return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
         });
     }
 
     // verify its ones or zeros
-    else if(prefix == "0b")
+    else if(string_equal(string_slice(literal,offset,2),"0x"))
     {
         // skip past the prefix
-        i += 2;                
-        valid = verify_immediate_internal(file,i,[](const char c) 
+        offset += 2;                
+        valid = read_immediate_internal(literal,offset,[](const char c) 
         {
             return c == '0' || c == '1';
         });
@@ -110,19 +122,14 @@ bool verify_immediate(const std::string &file, std::string &literal)
     // verify we have all digits
     else
     {
-        valid = verify_immediate_internal(file,i,[](const char c) 
+        valid = read_immediate_internal(literal,offset,[](const char c) 
         {
             return c >= '0' && c <= '9';
         });
     }
     
 
-    if(valid)
-    {
-        literal = file.substr(0,i);
-    }
-
-    return valid;    
+    return !valid;
 }
 
 void advance(Lexer& lexer, s32 v = 1)
@@ -131,89 +138,70 @@ void advance(Lexer& lexer, s32 v = 1)
     lexer.idx += v;
 }
 
-// true on error
-bool decode_imm(Lexer &lexer,const std::string &file)
+// TODO: make sure the number fits in 32 bits
+u32 convert_imm(const String& str)
 {
+    return strtol(str.buf,NULL,0);
+}
+
+
+
+// true on error
+bool decode_imm(Lexer &lexer,const String& file)
+{
+    const u32 start_idx = lexer.idx;
     const u32 start_col = lexer.column;
 
-    std::string literal = "";
+    // get back out a literal for parsing
+    // TODO: make this use slicing on the string
+    String literal = string_slice(file,lexer.idx,file.size - lexer.idx);
+    const bool error = read_immediate(literal);
 
-
-    const auto success = verify_immediate(file.substr(lexer.idx),literal);
-
-    if(!success)
+    if(error)
     {
-        printf("invalid immediate: %s\n",file.c_str());
+        print_tokens(lexer.tokens);
+        puts("invalid immediate: ");
         return true;
     }
 
-    // ignore one for the termination char
-    advance(lexer,literal.size() - 1);
+    // get the value from the string
+    const u32 v = convert_imm(literal);
+    const bool sign = file[start_idx] == '-';
 
-    insert_token(lexer,token_type::value,literal,start_col);   
+    Value value = Value(v,sign);
+
+    insert_token_value(lexer,value,start_col);
+
+    // ignore the terminator
+    advance(lexer,literal.size);
+
     return false; 
 }
 
+#include "keyword_hashtable.cpp"
 
 
-
-// NOTE: sadly we cant define a "constant" std::map
-// do not modify this
-// TODO: look into using a perfect hash function for this
-std::unordered_map<std::string, token_type> keywords = 
+s32 keyword_lookup(const String& name)
 {
-
-    {tok_name(token_type::for_t), token_type::for_t},
-    {tok_name(token_type::if_t),token_type::if_t},
-    {tok_name(token_type::else_t),token_type::else_t},
-
-    {tok_name(token_type::decl),token_type::decl},
-    {tok_name(token_type::const_t),token_type::const_t},
-
-    {tok_name(token_type::u8),token_type::u8},
-    {tok_name(token_type::u16),token_type::u16},
-    {tok_name(token_type::u32),token_type::u32},
-
-    {tok_name(token_type::s8),token_type::s8},
-    {tok_name(token_type::s16),token_type::s16},
-    {tok_name(token_type::s32),token_type::s32},
-    {tok_name(token_type::byte_t),token_type::byte_t},
-    {tok_name(token_type::bool_t),token_type::bool_t},
-
-    {tok_name(token_type::false_t),token_type::false_t},
-    {tok_name(token_type::true_t),token_type::true_t},
-    {tok_name(token_type::null_t),token_type::null_t},
-
-    {tok_name(token_type::import),token_type::import},
-    {tok_name(token_type::struct_t),token_type::struct_t},
-
-    {tok_name(token_type::cast),token_type::cast},
-    {tok_name(token_type::sizeof_t),token_type::sizeof_t},
-    {tok_name(token_type::func),token_type::func},
-    {tok_name(token_type::ret),token_type::ret}
-};
-
-bool is_keyword(const std::string &literal)
-{
-    return keywords.count(literal);
+    return lookup_internal_hashtable(KEYWORD_TABLE,KEYWORD_TABLE_SIZE,name);
 }
 
-token_type keyword_token_type(const std::string &literal)
+void destroy_lexer(Lexer& lexer)
 {
-    return keywords[literal];
+    destroy_arr(lexer.tokens);
 }
 
-
-bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
+// TODO: change file to be a string, and just conv them all in
+bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
 {
     Lexer lexer;
 
     lexer.row = 0;
     lexer.column = 0;
-    lexer.tokens.clear();
+    lexer.string_allocator = string_allocator; 
 
-    const auto size = file.size();
-    for(lexer.idx = 0; lexer.idx < file.size(); advance(lexer))
+    const auto size = file.size;
+    for(lexer.idx = 0; lexer.idx < size; advance(lexer))
     {
         auto c = file[lexer.idx];
 
@@ -283,17 +271,19 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
 
                 if(c == '\0')
                 {
-                    printf("hit eof before char literal");
+                    puts("hit eof before char literal");
+                    destroy_lexer(lexer);
                     return true;
                 }
 
                 if(peek(lexer.idx+2,file) != '\'')
                 {
-                    printf("unterminated char literal");
+                    puts("unterminated char literal");
+                    destroy_lexer(lexer);
                     return true;
                 }
 
-                insert_token(lexer,token_type::char_t,std::string(1,c),col);
+                insert_token_char(lexer,c,col);
 
                 advance(lexer,2);
                 break;
@@ -303,9 +293,10 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
             case '\"':
             {
                 const u32 start_col = lexer.column;
-
                 advance(lexer);
-                std::string str = "";
+
+
+                StringBuffer buffer;
 
                 while(lexer.idx < size)
                 {  
@@ -329,6 +320,7 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
                             default:
                             {
                                 printf("unknown escape sequnce \\%c\n",e);
+                                destroy_lexer(lexer);
                                 return true;
                             }
                         }
@@ -340,10 +332,16 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
                     }
 
                     advance(lexer);
-                    str += c;
+                    push_char(*lexer.string_allocator,buffer,c);
                 }
 
-                insert_token(lexer,token_type::string,str,start_col);
+                // null term the string
+                push_char(*lexer.string_allocator,buffer,'\0');
+
+                // create string fomr the array
+                String literal = make_string(buffer);
+
+                insert_token(lexer,token_type::string,literal,start_col);
                 break;
             }
 
@@ -399,6 +397,7 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
                 {
                     if(decode_imm(lexer,file))
                     {
+                        destroy_lexer(lexer);
                         return true;
                     }
                 }
@@ -553,30 +552,33 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
 
             default:
             {
-                u32 start_col = lexer.column;
+                const u32 start_idx = lexer.idx;
+                const u32 start_col = lexer.column;
 
                 // potential symbol
                 if(isalpha(c) || c == '_')
                 {
-                    std::string literal(1,c);
                     while(lexer.idx < size)
                     {
                         advance(lexer);
-                        c = file[lexer.idx];
-                        if(!isalnum(c) && c != '_')
+                        const char x = file[lexer.idx];
+                        if(!isalnum(x) && x != '_')
                         {
                             advance(lexer,-1);
                             break;
                         }
-                        literal += c;
                     }
 
+                    String literal = copy_string(*lexer.string_allocator,string_slice(file,start_idx,(lexer.idx - start_idx) + 1));
+
+
+                    const s32 slot = keyword_lookup(literal);
 
                     // if its a keyword identify its type
                     // else its a symbol
-                    if(is_keyword(literal))
+                    if(slot != INVALID_SLOT)
                     {
-                        insert_token(lexer,keyword_token_type(literal),start_col);
+                        insert_token(lexer,KEYWORD_TABLE[slot].v,start_col);
                     }
 
                     else
@@ -595,13 +597,15 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
                 {
                     if(decode_imm(lexer,file))
                     {
+                        destroy_lexer(lexer);
                         return true;
                     }
                 }
 
                 else
                 {
-                    printf("unexpected char %c\n",c);
+                    printf("unexpected char '%c' : 0x%02x\n",c,c);
+                    destroy_lexer(lexer);
                     return true;
                 }
                 break;
@@ -610,6 +614,6 @@ bool tokenize(const std::string& file, std::vector<Token>& tokens_out)
     }
 
 
-    tokens_out = std::move(lexer.tokens);
+    tokens_out = lexer.tokens;
     return false;
 }

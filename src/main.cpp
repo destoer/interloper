@@ -1,13 +1,9 @@
 #include <interloper.h>
 
 #include "lib.cpp"
-#include "alloc.cpp"
-#include "array.cpp"
-#include "string.cpp"
-#include "hashtable.cpp"
 #include "interloper.cpp"
 #include "interpretter.cpp"
-#include "test/test.cpp"
+#include "test.cpp"
 
 
 
@@ -57,7 +53,7 @@ int main(int argc, char *argv[])
     }
 
     // run tests
-    if(std::string(argv[1]) == "-t")
+    if(string_equal(argv[1],"-t"))
     {
         run_tests();
         return 0;
@@ -94,16 +90,16 @@ int main(int argc, char *argv[])
     }
 
 
-    
-    compile(itl,get_program_name(filename));
+    compile(itl,filename);
 
     if(itl.error)
     {
         return 1;
     }
 
-    
-    run(itl.interpretter,itl.program);
+    Interpretter interpretter = make_interpretter();
+    run(interpretter,itl.program);
 
     destroy_itl(itl);
+    destroy_interpretter(interpretter);
 }

@@ -1,102 +1,102 @@
 const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 {
-    {op_group::reg_t,"mov",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"add",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"sub",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"mul",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"div",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"mod",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"mov %r, %r    ",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"add %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"sub %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"mul %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"div %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"mod %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
 
-    {op_group::reg_t,"lsl",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"asr",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"lsr",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"lsl %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"asr %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"lsr %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    {op_group::reg_t,"xor",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"or",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"and",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"not",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"xor %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"or %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"and %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"not %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::reg_t,"sxb",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"sxh",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"sxb %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"sxh %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::imm_t,"mov",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
-    {op_group::imm_t,"add",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::imm_t,"sub",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::imm_t,"mul",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"mov %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"add %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"sub %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"mul %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
-    {op_group::imm_t,"and",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::imm_t,"xor",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"and %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"xor %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
-    {op_group::load_t,"lb",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"lh",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"lw",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::load_t,"lb %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::load_t,"lh %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::load_t,"lw %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
-    {op_group::load_t,"lsb",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"lsh",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::load_t,"lsb %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::load_t,"lsh %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
-    {op_group::store_t,"sb",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::store_t,"sh",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::store_t,"sw",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::store_t,"sb %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::store_t,"sh %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::store_t,"sw %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
 
-    {op_group::load_t,"lea",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::load_t,"lea %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
-    {op_group::reg_t,"push",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"pop",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"push %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"pop %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
-    {op_group::regm_t, "pushm",1,{arg_type::imm,arg_type::none,arg_type::none}},
-    {op_group::regm_t, "popm", 1,{arg_type::imm,arg_type::none,arg_type::none}},
+    {op_group::regm_t, "pushm %m",1,{arg_type::imm,arg_type::none,arg_type::none}},
+    {op_group::regm_t, "popm %m", 1,{arg_type::imm,arg_type::none,arg_type::none}},
 
-    {op_group::branch_t,"call",1,{arg_type::label,arg_type::none,arg_type::none}},
+    {op_group::branch_t,"call %a",1,{arg_type::label,arg_type::none,arg_type::none}},
     {op_group::implicit_t,"ret",0,{arg_type::none,arg_type::none,arg_type::none}},
 
-    {op_group::imm_t,"swi",1,{arg_type::imm,arg_type::none,arg_type::none}},
+    {op_group::imm_t,"swi %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     // compare unsigned
-    {op_group::imm_t,"cmpugt",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::reg_t,"cmpult",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpule",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpugt",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpuge",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::imm_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::reg_t,"cmpult %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpule %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpuge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
 
     // compare signed
-    {op_group::imm_t,"cmpsgt",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::reg_t,"cmpslt",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpsle",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpsgt",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpsge",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::imm_t,"cmpsgt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::reg_t,"cmpslt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpsle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpsgt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpsge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
     // dont care about sign for equality
-    {op_group::reg_t,"cmpeq",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpne",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    {op_group::branch_t,"bnc",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
-    {op_group::branch_t,"bc",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
-    {op_group::branch_t,"b",1,{arg_type::label,arg_type::none,arg_type::none}},
+    {op_group::branch_t,"bnc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
+    {op_group::branch_t,"bc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
+    {op_group::branch_t,"b %a",1,{arg_type::label,arg_type::none,arg_type::none}},
 
-    {op_group::reg_t,"load_arr_len",2,{arg_type::directive,arg_type::directive,arg_type::none}},
-    {op_group::reg_t,"load_arr_data",2,{arg_type::directive,arg_type::directive,arg_type::none}},
+    {op_group::reg_t,"load_arr_len %r, %r",2,{arg_type::directive,arg_type::directive,arg_type::none}},
+    {op_group::reg_t,"load_arr_data %r, %r",2,{arg_type::directive,arg_type::directive,arg_type::none}},
 
     // directives
-    {op_group::slot_t,"alloc_slot",3,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::slot_t,"free_slot",3,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::slot_t,"alloc",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::slot_t,"alloc_slot %r, %x, %x",3,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::slot_t,"free_slot %r, %x, %X",3,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::slot_t,"alloc %r",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
     {op_group::slot_t,"alloc_vla",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
-    {op_group::imm_t,"buf_alloc",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::imm_t,"buf_alloc %r, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     // stores required information when room is exhausted on opcodes
-    {op_group::slot_t,"state_dump",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::slot_t,"state_dump %x, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
-    {op_group::reg_t,"push_arg",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"push_arg %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     // perform cleanup after a function call
     // free the stack space for args
     // restore callee saved registers
-    {op_group::imm_t, "alloc_stack",1,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::imm_t, "free_stack",1,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::imm_t,"clean_args",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::imm_t, "alloc_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::imm_t, "free_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::imm_t, "clean_args %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"exit_block",0,{arg_type::none,arg_type::none,arg_type::none}},
 
@@ -104,17 +104,17 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::implicit_t,"spill_rv",0,{arg_type::none,arg_type::none,arg_type::none}},
 
-    {op_group::reg_t,"spill",2,{arg_type::directive,arg_type::directive,arg_type::none}},
-    {op_group::reg_t,"load",2,{arg_type::directive,arg_type::directive,arg_type::none}},
+    {op_group::reg_t,"spill %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
+    {op_group::reg_t,"load %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
 
-    {op_group::imm_t,"addrof",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::imm_t,"addrof %r, %r, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     {op_group::implicit_t,"save_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::implicit_t,"restore_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
 
-    {op_group::slot_t,"pool_addr",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::slot_t,"pool_addr %r, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
-    {op_group::slot_t,"free_reg",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::slot_t,"free_reg %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     // not used
     {op_group::implicit_t,"END",0,{arg_type::none,arg_type::none,arg_type::none}},
