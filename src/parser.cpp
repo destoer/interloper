@@ -1014,6 +1014,13 @@ bool parse(Interloper& itl, const String& initial_filename)
 
         Array<char> file = read_file(filename);
 
+        if(!count(file))
+        {
+            printf("file %s does not exist\n",filename.buf);
+            error = true;
+            break;
+        }
+
         error = parse_file(itl,make_string(file),filename,stl_path,file_set,file_stack);
 
         destroy_arr(file);
