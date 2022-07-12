@@ -358,8 +358,7 @@ void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type
 
 void destroy_emitter(IrEmitter& emitter);
 
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table);
-void disass_opcode_sym(const Opcode &opcode, const SlotLookup &table, const LabelLookup &label_lookup);
+void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
 void disass_opcode_raw(const Opcode &opcode);
 
 inline u32 symbol(u32 s)

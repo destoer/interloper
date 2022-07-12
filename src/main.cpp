@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     }
 
     // run tests
-    if(std::string(argv[1]) == "-t")
+    if(string_equal(argv[1],"-t"))
     {
         run_tests();
         return 0;

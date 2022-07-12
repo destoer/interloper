@@ -20,9 +20,9 @@ u32 sym_to_idx(u32 s)
 }
 
 
-Symbol& sym_from_slot(SlotLookup &slot_lookup, u32 slot)
+Symbol& sym_from_slot(SymbolTable &table, u32 slot)
 {
-    return slot_lookup[sym_to_idx(slot)]; 
+    return table.slot_lookup[sym_to_idx(slot)]; 
 }
 
 
@@ -89,7 +89,7 @@ Symbol &add_symbol(SymbolTable &sym_table,const String &name, const Type &type, 
 
     add_scope(sym_table,sym);
 
-    return sym_from_slot(sym_table.slot_lookup,sym.slot);
+    return sym_from_slot(sym_table,sym.slot);
 }
 
 void add_label(SymbolTable &sym_table,const String &name)

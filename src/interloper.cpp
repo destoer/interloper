@@ -34,7 +34,7 @@ void dump_ir_sym(Interloper &itl)
         {
             auto& func = bucket[i].v;
 
-            dump_ir(func,itl.symbol_table.slot_lookup,itl.symbol_table.label_lookup);
+            dump_ir(func,itl.symbol_table);
         }
     }
 }
@@ -79,7 +79,7 @@ void print_func_decl(Interloper& itl,const Function &func)
     for(u32 a = 0; a < count(func.args); a++)
     {
         const u32 slot = func.args[a];
-        auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+        auto &sym = sym_from_slot(itl.symbol_table,slot);
 
         print(itl,sym); 
     }
@@ -666,7 +666,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // push args in reverse order and type check them
     for(s32 i = count(func_call.args) - 1; i >= arg_offset; i--)
     {
-        const auto &arg =  sym_from_slot(itl.symbol_table.slot_lookup,func_call.args[i]);
+        const auto &arg =  sym_from_slot(itl.symbol_table,func_call.args[i]);
   
         const u32 arg_idx = i - arg_offset;
 
@@ -1816,7 +1816,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
         const u32 addr_slot = new_tmp(itl,GPR_SIZE);
 
         // we have added a new sym this ref has moved
-        Symbol &array = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+        Symbol &array = sym_from_slot(itl.symbol_table,slot);
 
 
         emit(func.emitter,op_type::addrof,addr_slot,slot);
@@ -1832,7 +1832,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
     }
 
 
-    const Symbol &array = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+    const Symbol &array = sym_from_slot(itl.symbol_table,slot);
 
     auto [size,count] = arr_size(itl,array.type);
 
@@ -2585,7 +2585,7 @@ void compile_functions(Interloper &itl)
         {
             const u32 slot = func.args[a];
 
-            auto &sym = sym_from_slot(itl.symbol_table.slot_lookup,slot);
+            auto &sym = sym_from_slot(itl.symbol_table,slot);
             add_scope(itl.symbol_table,sym);
         }
 
