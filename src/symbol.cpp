@@ -25,6 +25,12 @@ Symbol& sym_from_slot(SymbolTable &table, u32 slot)
     return table.slot_lookup[sym_to_idx(slot)]; 
 }
 
+const Symbol& sym_from_slot(const SymbolTable &table, u32 slot)
+{
+    return table.slot_lookup[sym_to_idx(slot)]; 
+}
+
+
 
 std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)
 {

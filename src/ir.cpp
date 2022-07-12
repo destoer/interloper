@@ -1557,17 +1557,192 @@ void emit_asm(Interloper &itl)
 }
 
 
+void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char specifier, u32 slot)
+{
+    switch(specifier)
+    {
+        case 'r':
+        {
+            
+            if(is_special_reg(slot))
+            {
+                const u32 idx = slot - SPECIAL_PURPOSE_REG_START;
+                push_mem(buffer,SPECIAL_REG_NAMES[idx].buf,SPECIAL_REG_NAMES[idx].size);
+            }
 
+            // print a sym
+            else if(is_sym(slot))
+            {
+                const auto& sym = sym_from_slot(table,slot);
+                const String& name = sym.name;
+
+                push_mem(buffer,name.buf,name.size);
+            }
+
+
+            // print a tmp
+            else
+            {
+                char name[40];
+                const u32 len = sprintf(name,"t%d",slot);
+
+                push_mem(buffer,name,len);
+            }
+
+
+            break;
+        }
+
+
+        // hex constant
+        case 'x':
+        {
+            char name[40];
+            const u32 len = sprintf(name,"0x%x",slot);
+
+            push_mem(buffer,name,len);
+            break;
+        }
+
+        // address
+        case 'a':
+        {
+            const String& name = table.label_lookup[slot].name;
+            push_mem(buffer,name.buf,name.size);
+            break;
+        }
+
+        // ignore printing the fmt
+        default:
+        {
+            break;
+        }
+    }    
+}
+
+void fmt_raw_specifier(Array<char> &buffer, char specifier, u32 slot)
+{
+    switch(specifier)
+    {
+        // raw register
+        case 'r':
+        {
+            if(slot == SP)
+            {
+                push_mem(buffer,SPECIAL_REG_NAMES[SP_NAME_IDX].buf,SPECIAL_REG_NAMES[SP_NAME_IDX].size);
+            }
+
+            else
+            {
+                char name[40];
+                const u32 len = sprintf(name,"r%d",slot);
+
+                push_mem(buffer,name,len);
+            }
+
+
+            break;
+        }
+
+        // labeles act as address here
+        case 'a':
+        case 'x':
+        {
+            char name[40];
+            const u32 len = sprintf(name,"0x%x",slot);
+
+            push_mem(buffer,name,len);
+            break;
+        }
+
+        // regm
+        case 'm':
+        {
+            char name[128];
+
+            push_var(buffer,'{');
+
+            u32 count = 0;
+
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                if(is_set(slot,r))
+                {
+                    const u32 len = sprintf(name,"%sr%d",count != 0? "," : "",r);
+                    push_mem(buffer,name,len);
+                    count++;
+                }
+            }
+
+            push_var(buffer,'}');
+        }
+
+        // ignore printing the fmt
+        default:
+        {
+            break;
+        }
+    }    
+}
+
+void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
+{
+    const auto& info = OPCODE_TABLE[u32(opcode.op)];
+    const auto& fmt_string = info.fmt_string;
+
+    Array<char> buffer;
+
+    u32 args = 0;
+
+    for(u32 i = 0; i < fmt_string.size; )
+    {
+        if(fmt_string[i] == '%')
+        {
+            if(args == 3)
+            {
+                panic("execeed opcode arg printing");
+            }
+
+            const char specifier = fmt_string[i + 1];
+
+            if(table)
+            {
+                fmt_sym_specifier(buffer,*table,specifier,opcode.v[args++]);
+            }
+
+            else
+            {
+                fmt_raw_specifier(buffer,specifier,opcode.v[args++]);
+            }
+
+            i += 2;
+        }
+
+        else
+        {
+            push_var(buffer,fmt_string[i++]);
+        }
+    }
+
+    // null term the buffer
+    push_var(buffer,'\0');
+
+    printf("%s\n",buffer.data);
+
+
+    destroy_arr(buffer);
+}
 
 // TODO: use table of fmt strings to print this
+// just figure out symbol printing first and then generalise it
 void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table)
 {
-    UNUSED(opcode); UNUSED(table);
+    disass_opcode_internal(opcode,&table);
 }
 
 void disass_opcode_raw(const Opcode &opcode)
 {
-    UNUSED(opcode);
+    disass_opcode_internal(opcode,nullptr);
 }
 
 

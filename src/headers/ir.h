@@ -185,7 +185,7 @@ enum class arg_type
 struct OpInfo
 {
     op_group group;
-    const char *name;
+    String fmt_string;
     u32 args;
     arg_type type[3];
 };
@@ -246,7 +246,7 @@ static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
 static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 6;
 
 
-const char* SPECIAL_REG_NAMES[] = 
+const String SPECIAL_REG_NAMES[] = 
 {
     "sp",
     "pc",
@@ -256,6 +256,8 @@ const char* SPECIAL_REG_NAMES[] =
     "fixed_len",
     "null",
 };
+
+static constexpr u32 SP_NAME_IDX = 0;
 
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
 
