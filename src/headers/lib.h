@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include <map>
 #include <sstream>
 #include <fstream>
 #include <functional>
@@ -104,25 +103,25 @@ struct Array
 
 
 // hash table
-template<typename T>
+template<typename Key,typename T>
 struct HashNode
 {
-    String name = {};
+    Key key = {};
     T v = {};
 };
 
 
 
-template<typename T>
-using Bucket = Array<HashNode<T>>;
+template<typename Key,typename T>
+using Bucket = Array<HashNode<Key,T>>;
 
-template<typename T>
+template<typename Key,typename T>
 struct HashTable
 {
     u32 size = 0;
 
     // NOTE: Must be sized at a power of two
-    Array<Bucket<T>> buf;
+    Array<Bucket<Key,T>> buf;
 };
 
 static constexpr u32 HASH_TABLE_DEFAULT_SIZE = 256;

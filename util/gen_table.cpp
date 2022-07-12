@@ -91,7 +91,7 @@ void gen_table(const char* key[][2],const char* name, const char* type, const ch
 
     printf("collisions: %d\n",collision);
 
-    printf("static constexpr HashNode<%s> %s_TABLE[%s_TABLE_SIZE] = \n{\n",type,name,name);
+    printf("static constexpr HashNode<String,%s> %s_TABLE[%s_TABLE_SIZE] = \n{\n",type,name,name);
 
     for(u32 i = 0; i < table_size; i++)
     {

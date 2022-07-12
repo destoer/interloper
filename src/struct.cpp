@@ -125,7 +125,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
     itl.cur_file = node->filename;
 
     structure.name = node->literal;
-    structure.member_map = make_table<u32>();
+    structure.member_map = make_table<String,u32>();
 
     // we want to get how many sizes of each we have
     // and then we can go back through and align the struct with them

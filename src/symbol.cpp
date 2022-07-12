@@ -4,7 +4,7 @@
 
 void new_scope(SymbolTable &sym_table)
 {
-    push_var<HashTable<u32>,HashTable<u32>>(sym_table.table,make_table<u32>());
+    push_var<HashTable<String,u32>,HashTable<String,u32>>(sym_table.table,make_table<String,u32>());
 }
 
 void destroy_scope(SymbolTable &sym_table)

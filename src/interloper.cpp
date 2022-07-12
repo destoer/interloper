@@ -2561,7 +2561,7 @@ void compile_functions(Interloper &itl)
     new_scope(itl.symbol_table);
 
     // push the start func
-    mark_used(itl,*lookup(itl.function_table,"main"));
+    mark_used(itl,*lookup(itl.function_table,String("main")));
 
 
 
@@ -2743,9 +2743,9 @@ void compile(Interloper &itl,const String& initial_filename)
 
     itl.symbol_table.string_allocator = &itl.string_allocator;
 
-    itl.function_table = make_table<Function>();
-    itl.struct_def = make_table<StructDef>();
-    itl.struct_table.table = make_table<u32>();
+    itl.function_table = make_table<String,Function>();
+    itl.struct_def = make_table<String,StructDef>();
+    itl.struct_table.table = make_table<String,u32>();
 
 
     // parse intial input file
@@ -2792,7 +2792,7 @@ void compile(Interloper &itl,const String& initial_filename)
     }
 
     // ensure the entry function is defined
-    if(!contains(itl.function_table,"main"))
+    if(!contains(itl.function_table,String("main")))
     {
         panic(itl,"main is not defined!\n");
         destroy_itl(itl);

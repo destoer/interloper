@@ -47,7 +47,7 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 
 static constexpr u32 INTRIN_TABLE_SIZE = 2;
 
-static constexpr HashNode<INTRIN_FUNC> INTRIN_TABLE[INTRIN_TABLE_SIZE] = 
+static constexpr HashNode<String,INTRIN_FUNC> INTRIN_TABLE[INTRIN_TABLE_SIZE] = 
 {
     {"",nullptr},
     {"intrin_syscall",&intrin_syscall},

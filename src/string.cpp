@@ -100,6 +100,16 @@ u32 hash_string(const String& str, u32 hash)
     return hash; 
 }
 
+
+u32 hash_slot(u32 size, const String& name)
+{
+    const u32 hash = hash_string(name,HASH_MAGIC);
+    const u32 slot = hash & (size - 1);
+
+    return slot;
+}
+
+
 String copy_string(ArenaAllocator& allocator, const String& in)
 {
     char* ptr  = (char*)allocate(allocator,in.size + 1);

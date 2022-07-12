@@ -135,7 +135,7 @@ struct Struct
     Array<Member> members;
 
     // what do we hold?
-    HashTable<u32> member_map;
+    HashTable<String,u32> member_map;
 
     // total size of the struct
     u32 size = 0;
@@ -161,7 +161,7 @@ struct StructDef
     u32 slot;
 };
 
-using StructDefMap = HashTable<StructDef>;
+using StructDefMap = HashTable<String,StructDef>;
 
 
 
@@ -169,7 +169,7 @@ using StructLookup = Array<Struct>;
 
 struct StructTable
 {
-    HashTable<u32> table;
+    HashTable<String,u32> table;
 
     StructLookup lookup;
 };
@@ -248,7 +248,7 @@ struct Function
     b32 used = false;
 };
 
-using FuncTable = HashTable<Function>;
+using FuncTable = HashTable<String,Function>;
 
 
 void finalise_def(Function& func, Type rt, Array<u32> a, u32 s)
@@ -277,7 +277,7 @@ using LabelLookup = Array<Label>;
 
 struct SymbolTable
 {
-    Array<HashTable<u32>> table;
+    Array<HashTable<String,u32>> table;
 
     SlotLookup slot_lookup;
     LabelLookup label_lookup;

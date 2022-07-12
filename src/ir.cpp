@@ -146,7 +146,7 @@ void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 s
     // emit a call to memcpy with args
     // check function is declared
 
-    Function* func_def = lookup(itl.function_table,"memcpy");
+    Function* func_def = lookup(itl.function_table,String("memcpy"));
 
     if(!func_def)
     {
@@ -1422,13 +1422,13 @@ void allocate_registers(Interloper& itl,Function &func)
 }
 
 // NOTE: pass in a size, so we only print the code section
-void dump_program(const Array<u8> &program,u32 size, std::map<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
+void dump_program(const Array<u8> &program,u32 size, HashTable<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
 {
     for(u32 pc = 0; pc < size; pc += sizeof(Opcode))
     {
-        if(inv_label_lookup.count(pc))
+        if(contains(inv_label_lookup,pc))
         {
-            printf("0x%08x %s:\n",pc,label_lookup[inv_label_lookup[pc]].name.buf);
+            printf("0x%08x %s:\n",pc,label_lookup[*lookup(inv_label_lookup,pc)].name.buf);
         }
 
         printf("  0x%08x:\t ",pc);   
@@ -1445,7 +1445,7 @@ void insert_program(Interloper& itl, const Opcode& opcode)
 
 void emit_asm(Interloper &itl)
 {
-    std::map<u32,u32> inv_label_lookup;
+    HashTable<u32,u32> inv_label_lookup = make_table<u32,u32>();
 
 
     // TODO: we want to make this be a start function defined inside the stl
@@ -1453,7 +1453,7 @@ void emit_asm(Interloper &itl)
 
     // emit a dummy call to main
     // that will get filled in later once we know where main lives
-    insert_program(itl,Opcode(op_type::call,lookup(itl.function_table,"main")->slot,0,0));
+    insert_program(itl,Opcode(op_type::call,lookup(itl.function_table,String("main"))->slot,0,0));
 
     // program exit
     insert_program(itl,Opcode(op_type::swi,SYSCALL_EXIT,0,0));
@@ -1471,8 +1471,7 @@ void emit_asm(Interloper &itl)
             // have to switch over to a byte array
             itl.symbol_table.label_lookup[func.slot].offset = itl.program.size;
 
-
-            inv_label_lookup[itl.program.size] = func.slot;
+            add(inv_label_lookup,itl.program.size,func.slot);
 
             for(u32 b = 0; b < count(func.emitter.program); b++)
             {
@@ -1484,7 +1483,7 @@ void emit_asm(Interloper &itl)
                 // prefer function name
                 if(b != 0)
                 {
-                    inv_label_lookup[itl.program.size] = func.emitter.block_slot[b];
+                    add(inv_label_lookup,itl.program.size,func.emitter.block_slot[b]);
                 }
 
                 auto node = block.list.start;
@@ -1556,6 +1555,8 @@ void emit_asm(Interloper &itl)
     {
         dump_program(itl.program,const_pool_loc,inv_label_lookup,itl.symbol_table.label_lookup);
     }
+
+    destroy_table(inv_label_lookup);
 }
 
 
