@@ -7,7 +7,7 @@ struct Lexer
     s32 column = 0;
     s32 row = 0;
     u32 idx;
-    std::vector<Token> tokens;
+    Array<Token> tokens;
 
     ArenaAllocator* string_allocator;
 

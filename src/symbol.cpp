@@ -75,8 +75,8 @@ Symbol make_sym(SymbolTable& table,const char* name, const Type& type, u32 size,
 // add symbol to slot lookup
 void add_var(SymbolTable &sym_table,Symbol &sym)
 {
-    sym.slot = symbol(sym_table.slot_lookup.size());
-    sym_table.slot_lookup.push_back(sym);    
+    sym.slot = symbol(count(sym_table.slot_lookup));
+    push_var(sym_table.slot_lookup,sym);    
 }
 
 // add symbol to the scope table
@@ -90,8 +90,8 @@ Symbol &add_symbol(SymbolTable &sym_table,const String &name, const Type &type, 
 {
     auto sym = make_sym(sym_table,name,type,size);
 
-    sym.slot = symbol(sym_table.slot_lookup.size());
-    sym_table.slot_lookup.push_back(sym);  
+    sym.slot = symbol(count(sym_table.slot_lookup));
+    push_var(sym_table.slot_lookup,sym);
 
     add_scope(sym_table,sym);
 
@@ -104,7 +104,7 @@ void add_label(SymbolTable &sym_table,const String &name)
     label.name = copy_string(*sym_table.string_allocator,name);
     label.offset = 0;
 
-    sym_table.label_lookup.push_back(label);
+    push_var(sym_table.label_lookup,label);
 }
 
 void clear(SymbolTable &sym_table)
@@ -115,9 +115,9 @@ void clear(SymbolTable &sym_table)
     }
 
     destroy_arr(sym_table.table);
+    destroy_arr(sym_table.slot_lookup);
+    destroy_arr(sym_table.label_lookup);
 
-    sym_table.label_lookup.clear();
-    sym_table.slot_lookup.clear();
     sym_table.sym_count = 0;
     sym_table.var_count = 0;
 }
@@ -131,7 +131,7 @@ bool is_arg(const Symbol &sym)
 void print(Interloper& itl,const Symbol&sym)
 {
     printf("name: %s\n",sym.name.buf);
-    printf("type: %s\n",type_name(itl,sym.type).c_str());
+    printf("type: %s\n",type_name(itl,sym.type).buf);
     printf("slot: %x\n",sym.slot);
     printf("arg_offset: %x\n",sym.arg_offset);
     printf("offset: %x\n",sym.offset);
@@ -140,8 +140,8 @@ void print(Interloper& itl,const Symbol&sym)
 
 void dump_slots(Interloper& itl,SlotLookup &slot_lookup)
 {
-    for(const auto &sym: slot_lookup)
+    for(u32 i = 0; i < count(slot_lookup); i++)
     {
-        print(itl,sym);
+        print(itl,slot_lookup[i]);
     }
 }

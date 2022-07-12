@@ -47,12 +47,12 @@ String string_slice(const String& str, u32 offset, u32 len)
 }
 
 // NOTE: expects array to have a null term at the end
-String make_string(Array<char>& arr)
+String make_string(StringBuffer& buffer)
 {
     String string;
 
-    string.buf = arr.data;
-    string.size = count(arr) - 1;
+    string.buf = buffer.data;
+    string.size = count(buffer) - 1;
 
     return string;
 }

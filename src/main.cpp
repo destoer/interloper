@@ -3,7 +3,7 @@
 #include "lib.cpp"
 #include "interloper.cpp"
 #include "interpretter.cpp"
-#include "test/test.cpp"
+#include "test.cpp"
 
 
 
@@ -97,8 +97,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    
-    run(itl.interpretter,itl.program);
+    Interpretter interpretter = make_interpretter();
+    run(interpretter,itl.program);
 
     destroy_itl(itl);
+    destroy_interpretter(interpretter);
 }

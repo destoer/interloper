@@ -128,8 +128,8 @@ u32 new_tmp(Interloper& itl, u32 size)
 
     Symbol sym = make_sym(itl.symbol_table,name,Type(builtin_type::void_t),size);
 
-    sym.slot = symbol(itl.symbol_table.slot_lookup.size());
-    itl.symbol_table.slot_lookup.push_back(sym);      
+    sym.slot = symbol(count(itl.symbol_table.slot_lookup));
+    push_var(itl.symbol_table.slot_lookup,sym);      
 
     itl.symbol_table.var_count++;  
 
@@ -185,7 +185,7 @@ struct LocalAlloc
 
     // when this thing is used in the original IR
     // we need to know what actual reg we have allocated it into
-    std::vector<u32> ir_regs;
+    Array<u32> ir_regs;
 
     u32 free_regs;
 
@@ -241,7 +241,7 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,
     }
 
 
-    alloc.ir_regs.resize(tmp_count);
+    resize(alloc.ir_regs,tmp_count);
 
     memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
 
@@ -1416,7 +1416,9 @@ void allocate_registers(Interloper& itl,Function &func)
             node = rewrite_directives(itl,alloc,list,node,callee_restore,stack_clean,insert_callee_saves);
         }
     }
-    
+
+
+    destroy_arr(alloc.ir_regs);
 }
 
 // NOTE: pass in a size, so we only print the code section
@@ -1727,7 +1729,7 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
     // null term the buffer
     push_var(buffer,'\0');
 
-    printf("%s\n",buffer.data);
+    puts(buffer.data);
 
 
     destroy_arr(buffer);

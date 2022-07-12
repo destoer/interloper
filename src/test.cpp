@@ -1,7 +1,5 @@
 #include <interloper.h>
 
-#include "expr.cpp"
-#include "lexer_test.cpp"
 
 struct ProgramTest
 {
@@ -142,12 +140,11 @@ void run_tests()
     puts("running tests....");
     auto start = std::chrono::system_clock::now();
 
-    lexer_test();
-    expr_test();
 
     puts("\nprogram tests\n");
 
     Interloper itl;
+    Interpretter interpretter = make_interpretter();
     for(u32 i = 0; i < PROGRAM_TEST_SIZE; i++)
     {
         destroy_itl(itl);
@@ -169,7 +166,7 @@ void run_tests()
         }
 
 
-        const auto r = run(itl.interpretter,itl.program);      
+        const auto r = run(interpretter,itl.program);      
 
 
         if(test.expected != r)
@@ -182,6 +179,7 @@ void run_tests()
     }
 
     destroy_itl(itl);
+    destroy_interpretter(interpretter);
 
     puts("\nfinished testing\n");
     auto current = std::chrono::system_clock::now();

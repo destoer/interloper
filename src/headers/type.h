@@ -165,7 +165,7 @@ using StructDefMap = HashTable<StructDef>;
 
 
 
-using StructLookup = std::vector<Struct>;
+using StructLookup = Array<Struct>;
 
 struct StructTable
 {
@@ -272,8 +272,8 @@ void mark_used(Interloper& itl, Function& func);
 // std::maps while we get it off the ground
 
 
-using SlotLookup = std::vector<Symbol>;
-using LabelLookup = std::vector<Label>;
+using SlotLookup = Array<Symbol>;
+using LabelLookup = Array<Label>;
 
 struct SymbolTable
 {

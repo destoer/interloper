@@ -20,7 +20,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
-    if(addr >= 0x20000000 && addr < 0x20000000 + interpretter.stack.size())
+    if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
     {
         return handle_read<access_type>(&interpretter.stack[addr - 0x20000000]);
     }
@@ -41,7 +41,7 @@ void* get_vm_ptr(Interpretter& interpretter,u32 addr, u32 size)
         return &interpretter.program.data[addr];
     }
 
-    if(addr >= 0x20000000 && addr + size < 0x20000000 + interpretter.stack.size())
+    if(addr >= 0x20000000 && addr + size < 0x20000000 + count(interpretter.stack))
     {
         return &interpretter.stack[addr - 0x20000000];
     }
@@ -58,7 +58,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
-    if(addr >= 0x20000000 && addr < 0x20000000 + interpretter.stack.size())
+    if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
     {
         handle_write<access_type>(&interpretter.stack[addr - 0x20000000],v);
     }
@@ -509,15 +509,29 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
 void reset(Interpretter& interpretter)
 {
-    interpretter.stack.resize(STACK_SIZE);
-    std::fill(interpretter.stack.begin(),interpretter.stack.end(),0);
-
     memset(interpretter.regs,0,sizeof(interpretter.regs));
 
     interpretter.regs[PC] = 0;
-    interpretter.regs[SP] = 0x20000000 + interpretter.stack.size();
+    interpretter.regs[SP] = 0x20000000 + count(interpretter.stack);
 
-    interpretter.quit = false;
+    interpretter.quit = false;    
+}
+
+Interpretter make_interpretter()
+{
+    Interpretter interpretter;
+
+    resize(interpretter.stack,STACK_SIZE);
+    memset(interpretter.stack.data,0,interpretter.stack.size);
+
+    reset(interpretter);
+
+    return interpretter;
+}
+
+void destroy_interpretter(Interpretter& interpretter)
+{
+    destroy_arr(interpretter.stack);
 }
 
 s32 run(Interpretter& interpretter,const Array<u8>& program)
@@ -525,8 +539,8 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
     //puts("BOOP!"); exit(1);
 
     printf("starting progam execution: %x bytes long\n",program.size);
-    reset(interpretter);
     
+    reset(interpretter);
 
     auto &regs = interpretter.regs;
 

@@ -42,7 +42,7 @@ void delete_tree(AstNode *node)
 
 Token next_token(Parser &parser)
 {
-    if(parser.tok_idx >= parser.tokens.size())
+    if(parser.tok_idx >= count(parser.tokens))
     {
         // TODO: make this return the actual file end
         // for row and col
@@ -64,7 +64,7 @@ void prev_token(Parser &parser)
 Token peek(Parser &parser,u32 v)
 {
     const auto idx = parser.tok_idx + v;
-    if(idx >= parser.tokens.size())
+    if(idx >= count(parser.tokens))
     {
         return token_plain(token_type::eof,0,0);
     }
@@ -76,7 +76,7 @@ Token peek(Parser &parser,u32 v)
 
 void consume(Parser &parser,token_type type)
 {
-    const auto t = parser.tok_idx >= parser.tokens.size()? token_type::eof : parser.tokens[parser.tok_idx].type;
+    const auto t = parser.tok_idx >= count(parser.tokens)? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     if(t != type)
     {
@@ -88,7 +88,7 @@ void consume(Parser &parser,token_type type)
 
 bool match(Parser &parser,token_type type)
 {
-    const auto t = parser.tok_idx >= parser.tokens.size()? token_type::eof : parser.tokens[parser.tok_idx].type;
+    const auto t = parser.tok_idx >= count(parser.tokens)? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     return t == type;
 }
@@ -897,6 +897,11 @@ String get_program_name(ArenaAllocator& allocator,const String& filename)
 }
 
 
+void destroy_parser(Parser& parser)
+{
+    destroy_arr(parser.tokens);
+}
+
 bool parse_file(Interloper& itl,const String& file, const String& filename,const String& stl_path, HashTable<u32>& file_set, Array<String> &file_stack)
 {
     // Parse out the file
@@ -905,12 +910,13 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
     if(tokenize(file,parser.string_allocator,parser.tokens))
     {
         printf("failed to tokenize file: %s\n",filename.buf);
+        destroy_arr(parser.tokens);
         return true;
     }
     
     //print_tokens(parser.tokens);
 
-    const auto size = parser.tokens.size();
+    const auto size = count(parser.tokens);
 
     // TODO: move this to a seperate loop to make freeing up crap ez
     // TODO: put an extra string in the top level decl of the ast
@@ -927,6 +933,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
                 if(!match(parser,token_type::string))
                 {
                     panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
+                    destroy_arr(parser.tokens);
                     return true;
                 }
 
@@ -962,6 +969,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
             default:
             {
                 panic(parser,t,"unexpected top level token %s: '%s'\n",tok_name(t.type),t.literal.buf);
+                destroy_arr(parser.tokens);
                 return true;
             }
         }
@@ -970,10 +978,12 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         {
             // print line number
             print_line(filename,parser.line);
+            destroy_arr(parser.tokens);
             return true;
         }
     }
 
+    destroy_arr(parser.tokens);
     return false;
 }
 

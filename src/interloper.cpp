@@ -84,7 +84,7 @@ void print_func_decl(Interloper& itl,const Function &func)
         print(itl,sym); 
     }
 
-    printf("return type %s\n",type_name(itl,func.return_type).c_str());  
+    printf("return type %s\n",type_name(itl,func.return_type).buf);  
 }
 
 // scan the top level of the parse tree for functions
@@ -156,7 +156,7 @@ void parse_function_declarations(Interloper& itl)
             }
 
 
-            finalise_def(func,return_type,args,itl.symbol_table.label_lookup.size());
+            finalise_def(func,return_type,args,count(itl.symbol_table.label_lookup));
 
 
             // add as a label as it this will be need to referenced by call instrs
@@ -358,7 +358,7 @@ Type compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type
     {
         if(type != op_type::sub_reg && type != op_type::add_reg)
         {
-            panic(itl,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).c_str(),type_name(itl,t2).c_str());
+            panic(itl,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
             return Type(builtin_type::void_t);
         }
 
@@ -396,7 +396,7 @@ Type compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32 
 
     if(!(is_integer(t1) && is_integer(t2)))
     {
-        panic(itl,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).c_str(),type_name(itl,t2).c_str());
+        panic(itl,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
         return Type(builtin_type::void_t);
     }
 
@@ -604,7 +604,7 @@ void mark_used(Interloper& itl, Function& func)
 {
     if(!func.used)
     {
-        itl.used_func.push_back(func.name);
+        push_var(itl.used_func,func.name);
         func.used = true;
     }
 }
@@ -868,7 +868,7 @@ String label_name(SymbolTable& table,u32 slot)
 
 u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 {
-    const u32 slot = itl.symbol_table.label_lookup.size();
+    const u32 slot = count(itl.symbol_table.label_lookup);
 
     const u32 basic_block = count(func.emitter.program);
 
@@ -910,7 +910,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
             if(!is_bool(t))
             {
-                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).c_str());
+                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).buf);
                 return;
             }
 
@@ -922,7 +922,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             compile_block(itl,func,if_stmt.nodes[1]);
 
             // add branch over the block we just compiled
-            const u32 slot = itl.symbol_table.label_lookup.size();
+            const u32 slot = count(itl.symbol_table.label_lookup);
 
             append(blocks[cur_block].list,Opcode(op_type::bnc,slot,r,0));
 
@@ -1031,7 +1031,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     if(!is_bool(t))
     {
-        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).c_str());
+        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).buf);
         return;
     }    
 
@@ -1188,7 +1188,7 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
 
     if(!is_array(type))
     {
-        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).c_str());
+        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
@@ -1235,7 +1235,7 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
         const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
         if(!is_integer(subscript_type))
         {
-            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).c_str());
+            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
             return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
         }
 
@@ -1571,7 +1571,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
             if(!is_bool(t))
             {
-                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).c_str());
+                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
                 return Type(builtin_type::void_t);
             }
 
@@ -1901,7 +1901,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
 
             else
             {
-                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).c_str());
+                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
                 return;
             }
         }
@@ -2020,7 +2020,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
     const auto sym_opt = get_sym(itl.symbol_table,name);
     if(sym_opt)
     {
-        panic(itl,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_opt.value().type).c_str());
+        panic(itl,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_opt.value().type).buf);
         return;
     }
 
@@ -2170,7 +2170,7 @@ std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 sl
 
     if(!member_opt)
     {
-        panic(itl,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).c_str());
+        panic(itl,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};
     }
 
@@ -2565,7 +2565,7 @@ void compile_functions(Interloper &itl)
 
 
 
-    for(u32 idx = 0; idx != itl.used_func.size(); idx++)
+    for(u32 idx = 0; idx != count(itl.used_func); idx++)
     {
         Function& func = *lookup(itl.function_table,itl.used_func[idx]);
 
@@ -2718,7 +2718,7 @@ void destroy_itl(Interloper &itl)
     }
 
     destroy_table(itl.function_table);
-    itl.used_func.clear();
+    destroy_arr(itl.used_func);
 
     destroy_table(itl.struct_def);
     destroy_struct_table(itl.struct_table);
@@ -2839,8 +2839,10 @@ void compile(Interloper &itl,const String& initial_filename)
     }
     
     // perform register allocation on used functions
-    for(const auto& name : itl.used_func)
+    for(u32 n = 0; n < count(itl.used_func); n++)
     {
+        const auto& name = itl.used_func[n];
+
         Function& func = *lookup(itl.function_table,name);
 
         allocate_registers(itl,func);

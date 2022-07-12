@@ -1,6 +1,6 @@
 void print_member(Interloper& itl,const Member& member)
 {
-    printf("\t%s -> %d : %s\n",member.name.buf,member.offset,type_name(itl,member.type).c_str());
+    printf("\t%s -> %d : %s\n",member.name.buf,member.offset,type_name(itl,member.type).buf);
 }
 
 void print_struct(Interloper& itl, const Struct& structure)
@@ -34,7 +34,7 @@ void destroy_struct(Struct& structure)
 void destroy_struct_table(StructTable& struct_table)
 {
     // delete all struct defs
-    for(u32 s = 0; s < struct_table.lookup.size(); s++)
+    for(u32 s = 0; s < count(struct_table.lookup); s++)
     {   
         auto& structure = struct_table.lookup[s];
 
@@ -42,8 +42,7 @@ void destroy_struct_table(StructTable& struct_table)
     }
 
     destroy_table(struct_table.table);
-
-    struct_table.lookup.clear();
+    destroy_arr(struct_table.lookup);
 }
 
 Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
@@ -114,10 +113,10 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
     Struct structure;
     
     // allocate a reserved slot for the struct
-    const u32 slot = itl.struct_table.lookup.size();
+    const u32 slot = count(itl.struct_table.lookup);
     def.slot = slot;
 
-    itl.struct_table.lookup.push_back({});
+    resize(itl.struct_table.lookup,count(itl.struct_table.lookup) + 1);
 
 
 

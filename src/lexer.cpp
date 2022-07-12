@@ -1,6 +1,15 @@
 #include <lexer.h>
 
 
+void print_tokens(const Array<Token> &tokens)
+{
+    for(u32 t = 0; t < count(tokens); t++)
+    {
+        print_token(tokens[t]);
+    }
+}
+
+
 char peek(u32 offset, const String& file)
 {
     return offset < file.size? file[offset] : '\0';
@@ -8,28 +17,28 @@ char peek(u32 offset, const String& file)
 
 void insert_token(Lexer &lexer, token_type type)
 {
-    lexer.tokens.push_back(token_plain(type,lexer.row,lexer.column));
+    push_var(lexer.tokens,token_plain(type,lexer.row,lexer.column));
 }
 
 
 void insert_token(Lexer &lexer, token_type type, u32 col)
 {
-    lexer.tokens.push_back(token_plain(type,lexer.row,col));
+    push_var(lexer.tokens,token_plain(type,lexer.row,col));
 }
 
 void insert_token(Lexer &lexer, token_type type, const String &literal, u32 col)
 {
-    lexer.tokens.push_back(token_literal(type,literal,lexer.row,col));
+    push_var(lexer.tokens,token_literal(type,literal,lexer.row,col));
 }
 
 void insert_token_char(Lexer& lexer,char c, u32 col)
 {
-    lexer.tokens.push_back(token_char(c,lexer.row,col));
+    push_var(lexer.tokens,token_char(c,lexer.row,col));
 }
 
 void insert_token_value(Lexer& lexer,const Value& value, u32 col)
 {
-    lexer.tokens.push_back(token_value(value,lexer.row,col));
+    push_var(lexer.tokens,token_value(value,lexer.row,col));
 }
 
 
@@ -177,15 +186,18 @@ s32 keyword_lookup(const String& name)
     return lookup_internal_hashtable(KEYWORD_TABLE,KEYWORD_TABLE_SIZE,name);
 }
 
+void destroy_lexer(Lexer& lexer)
+{
+    destroy_arr(lexer.tokens);
+}
 
 // TODO: change file to be a string, and just conv them all in
-bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<Token>& tokens_out)
+bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
 {
     Lexer lexer;
 
     lexer.row = 0;
     lexer.column = 0;
-    lexer.tokens.clear();
     lexer.string_allocator = string_allocator; 
 
     const auto size = file.size;
@@ -260,12 +272,14 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
                 if(c == '\0')
                 {
                     puts("hit eof before char literal");
+                    destroy_lexer(lexer);
                     return true;
                 }
 
                 if(peek(lexer.idx+2,file) != '\'')
                 {
                     puts("unterminated char literal");
+                    destroy_lexer(lexer);
                     return true;
                 }
 
@@ -282,7 +296,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
                 advance(lexer);
 
 
-                Array<char> buffer;
+                StringBuffer buffer;
 
                 while(lexer.idx < size)
                 {  
@@ -306,6 +320,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
                             default:
                             {
                                 printf("unknown escape sequnce \\%c\n",e);
+                                destroy_lexer(lexer);
                                 return true;
                             }
                         }
@@ -317,11 +332,11 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
                     }
 
                     advance(lexer);
-                    push_arena(*lexer.string_allocator,buffer,c);
+                    push_char(*lexer.string_allocator,buffer,c);
                 }
 
                 // null term the string
-                push_arena(*lexer.string_allocator,buffer,'\0');
+                push_char(*lexer.string_allocator,buffer,'\0');
 
                 // create string fomr the array
                 String literal = make_string(buffer);
@@ -382,6 +397,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
                 {
                     if(decode_imm(lexer,file))
                     {
+                        destroy_lexer(lexer);
                         return true;
                     }
                 }
@@ -581,6 +597,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
                 {
                     if(decode_imm(lexer,file))
                     {
+                        destroy_lexer(lexer);
                         return true;
                     }
                 }
@@ -588,6 +605,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
                 else
                 {
                     printf("unexpected char '%c' : 0x%02x\n",c,c);
+                    destroy_lexer(lexer);
                     return true;
                 }
                 break;
@@ -596,6 +614,6 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, std::vector<T
     }
 
 
-    tokens_out = std::move(lexer.tokens);
+    tokens_out = lexer.tokens;
     return false;
 }

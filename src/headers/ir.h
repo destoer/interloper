@@ -280,11 +280,9 @@ static constexpr u32 GPR_SIZE = sizeof(u32);
 
 static constexpr u32 OP_SIZE = sizeof(Opcode);
 
-struct Symbol;
+
 struct SymbolTable;
-struct Label;
-using SlotLookup = std::vector<Symbol>;
-using LabelLookup = std::vector<Label>;
+
 
 
 // IR SYSCALLS

@@ -331,35 +331,43 @@ std::pair<u32,u32> arr_size(Interloper&itl,const Type& arr_type)
     return std::pair<u32,u32>{size,count};
 }
 
-std::string fmt_index(u32 index)
+String fmt_index(Interloper& itl,u32 index)
 {
     if(index == RUNTIME_SIZE)
     {
-        return "[]";
+        return make_string(itl.string_allocator,"[]",2);
     }
 
-    return "[" + std::to_string(index) +  "]";
+    char buf[32];
+    const u32 len = sprintf(buf,"[%d]",index);
+
+    return make_string(itl.string_allocator,buf,len);
 }
 
-std::string type_name(Interloper& itl,const Type &type)
+String type_name(Interloper& itl,const Type &type)
 {
-    std::string plain;
+    StringBuffer buffer;
+
+    if(type.is_const)
+    {
+        push_string(itl.string_allocator,buffer,"const ");
+    }
+
+    String plain;
 
     if(is_builtin(type))
     {
-        plain = builtin_type_name(static_cast<builtin_type>(type.type_idx));
+        plain = builtin_type_name(builtin_type(type.type_idx));
     }
 
     else
     {
         const auto structure =  struct_from_type(itl.struct_table,type);
-        plain = std_string(structure.name);
+        plain = structure.name;
     }
 
-    if(type.is_const)
-    {
-        plain = "const " + plain;
-    }
+    push_string(itl.string_allocator,buffer,plain);
+
 
     // TODO: this type printing does not handle nesting
 
@@ -368,12 +376,12 @@ std::string type_name(Interloper& itl,const Type &type)
     {
         for(u32 i = 0; i < type.degree; i++)
         {
-            plain = plain + fmt_index(type.dimensions[i]);
+            push_string(itl.string_allocator,buffer,fmt_index(itl,type.dimensions[i]));
         }  
 
         for(u32 i = 0; i < type.ptr_indirection; i++)
         {
-            plain = plain + "@";
+            push_string(itl.string_allocator,buffer,"@");
         } 
     }
 
@@ -382,16 +390,18 @@ std::string type_name(Interloper& itl,const Type &type)
     {
         for(u32 i = 0; i < type.ptr_indirection; i++)
         {
-            plain = plain + "@";
+            push_string(itl.string_allocator,buffer,"@");
         } 
 
         for(u32 i = 0; i < type.degree; i++)
         {
-            plain = plain + fmt_index(type.dimensions[i]);
+            push_string(itl.string_allocator,buffer,fmt_index(itl,type.dimensions[i]));
         }       
     }
     
-    return plain;
+    push_char(itl.string_allocator,buffer,'\0');
+
+    return make_string(buffer);
 }
 
 // TODO: do we want to pass the operation in here for when we support overloading?
@@ -415,7 +425,7 @@ Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
         // something else
         else
         {
-            panic(itl,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            panic(itl,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return Type(builtin_type::void_t);
         }
 
@@ -439,7 +449,7 @@ void type_check_pointer(Interloper& itl,const Type& ltype, const Type& rtype)
 {
     if(ltype.ptr_indirection != rtype.ptr_indirection)
     {
-        panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+        panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         return;
     }
 
@@ -474,7 +484,7 @@ void type_check_pointer(Interloper& itl,const Type& ltype, const Type& rtype)
 
         else
         {
-            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }    
 }
@@ -494,7 +504,7 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
         {
             if(is_signed(rtype) != is_signed(ltype))
             {
-                panic(itl,"logical comparision on different signs %s and %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"logical comparision on different signs %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
         }
 
@@ -507,7 +517,7 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
         // something else
         else
         {
-            panic(itl,"logical operation undefined for %s and %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            panic(itl,"logical operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }
 
@@ -547,7 +557,7 @@ void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_a
             // if the ltype is const and the rtype is not this is illegal
             else if(!ltype.is_const)
             {
-                panic(itl,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                 return;
             }
         }
@@ -558,13 +568,13 @@ void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_a
             // only valid given an initialisation
             if(ltype.is_const && !is_initializer)
             {
-                panic(itl,"cannot to const: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"cannot to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
             // ltype is not const, fine given that the rtype is a value type
             else if(!is_value_type(rtype))
             {
-                panic(itl,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }  
         }
     }
@@ -575,7 +585,7 @@ void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_a
         // if its an arg or initalizer its fine
         if(!is_initializer && !is_arg)
         {
-            panic(itl,"cannot assign to const: %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            panic(itl,"cannot assign to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
         }
     }
@@ -605,14 +615,14 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             // would narrow (assign is illegal)
             if(builtin_size(builtin_l) < builtin_size(builtin_r))
             {
-                panic(itl,"narrowing conversion %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"narrowing conversion %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
             // unsigned cannot assign to signed
             // TODO: do we want to be this pedantic with integer conversions?
             if(!is_signed(builtin_l) && is_signed(builtin_r))
             {
-                panic(itl,"unsigned = signed (%s = %s)\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"unsigned = signed (%s = %s)\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
         }
 
@@ -623,12 +633,12 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             // void is not assignable!
             if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
             {
-                panic(itl,"void assign %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"void assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
             else
             {
-                unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }           
         }
     }
@@ -637,7 +647,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
     {
         if(!same_simple_type(ltype,rtype))
         {
-            panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }
 
@@ -660,7 +670,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             // must be the same
             if(!is_array(rtype))
             {
-                panic(itl,"expected array of %s got %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                panic(itl,"expected array of %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                 return;
             }
 
@@ -707,7 +717,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             {
                 if(!is_runtime_size(ltype.dimensions[0]))
                 {
-                    panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+                    panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                     return;
                 }
             }
@@ -729,7 +739,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
 
         else
         {
-            panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).c_str(),type_name(itl,rtype).c_str());
+            panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }
 }
@@ -846,7 +856,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
 
         else
         {
-            unimplemented("handle cast builtin illegal %s -> %s\n",type_name(itl,old_type).c_str(),type_name(itl,new_type).c_str());
+            unimplemented("handle cast builtin illegal %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
         }
     }
 

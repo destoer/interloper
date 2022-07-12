@@ -383,11 +383,3 @@ inline void print_token(const Token& t)
     
     printf("loc: (%d:%d)\n\n",t.line+1,t.col+1);    
 }
-
-inline void print_tokens(const std::vector<Token> &tokens)
-{
-    for(const auto &t: tokens)
-    {
-        print_token(t);
-    }
-}

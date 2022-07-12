@@ -1,9 +1,6 @@
 #pragma once
 #include <vector>
-#include <string>
-#include <unordered_map>
 #include <map>
-#include <set>
 #include <sstream>
 #include <fstream>
 #include <functional>
@@ -93,7 +90,7 @@ struct Array
         return this->data[i];
     }
 
-    T operator [] (u32 i) const
+    const T& operator [] (u32 i) const
     { 
         return this->data[i];
     }

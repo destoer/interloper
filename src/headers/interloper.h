@@ -13,8 +13,6 @@ struct Interloper
 
     b32 error;
 
-    Interpretter interpretter;
-
     Parser parser;
 
     StructDefMap struct_def;
@@ -24,7 +22,7 @@ struct Interloper
 
 
     FuncTable function_table;
-    std::vector<String> used_func;
+    Array<String> used_func;
     // did the last compiled function have a return
     b32 has_return;
 
