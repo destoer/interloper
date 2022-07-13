@@ -150,12 +150,12 @@ enum class struct_state
     checked,
 };
 
-struct AstNode;
+struct StructNode;
 
 struct StructDef
 {
     struct_state state;
-    AstNode* root;
+    StructNode* root;
 
     // current reserved struct slot
     u32 slot;
@@ -227,6 +227,7 @@ struct Label
 };
 
 
+struct FuncNode;
 struct Function
 {
     String name;
@@ -243,12 +244,10 @@ struct Function
 
     u32 slot;
 
-    AstNode* root = nullptr;
+    FuncNode* root = nullptr;
 
     b32 used = false;
 };
-
-using FuncTable = HashTable<String,Function>;
 
 
 void finalise_def(Function& func, Type rt, Array<u32> a, u32 s)

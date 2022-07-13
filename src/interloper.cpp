@@ -1060,7 +1060,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
-
+/*
 // TODO: this needs a cleanup
 // TODO: does it make sense to use the same function for both the @ and & operator?
 std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof)
@@ -1180,7 +1180,10 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
         }
     }
 }
+*/
 
+
+#if 0
 // indexes off a given type + ptr
 std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* node, const String& arr_name,
      const Type& type, u32 ptr_slot, u32 dst_slot)
@@ -1292,7 +1295,9 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
         return std::pair<Type,u32>{accessed_type,dst_slot};
     }    
 }
+#endif
 
+/*
 std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     const auto arr_name = node->literal;
@@ -1357,6 +1362,7 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,const Type& write_ty
         check_assign(itl,type,write_type);
     }
 }
+*/
 
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
@@ -1370,7 +1376,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
    
     switch(node->type)
     {
-
+/*
         case ast_type::addrof:
         {
             // want this to also get an addr but we want the actual ptr_count to go up...
@@ -1410,7 +1416,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
             return Type(builtin_type::u32_t);
         }
-
+*/
 
         case ast_type::plus:
         {
@@ -1637,7 +1643,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         }
     }
 }
-
+/*
 void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const u32 addr_slot, Type& type, u32 depth, u32* offset)
 {
     const u32 node_len = node->nodes.size();
@@ -2009,7 +2015,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
         return;
     }
 }
-
+*/
 
 void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 {
@@ -2034,12 +2040,14 @@ void compile_decl(Interloper &itl,Function &func, const AstNode &line)
 
     if(is_array(sym.type))
     {
-        compile_arr_decl(itl,func,line,sym);
+        //compile_arr_decl(itl,func,line,sym);
+        assert(false);
     }
 
     else if(is_struct(sym.type))
     {
-        compile_struct_decl(itl,func,line,sym);
+        assert(false);
+        //compile_struct_decl(itl,func,line,sym);
     }
 
     
@@ -2097,6 +2105,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line)
     compile_move(itl,func,sym.slot,reg,sym.type,type);
 }
 
+/*
 std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slot, const Type& type, const String& member_name,u32* offset)
 {
     const bool is_ptr = is_pointer(type);
@@ -2346,6 +2355,8 @@ std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, As
     return std::pair<Type,u32>{accessed_type,dst_slot};
 }
 
+*/
+
 void compile_block(Interloper &itl,Function &func,AstNode *node)
 {
     new_scope(itl.symbol_table);
@@ -2386,6 +2397,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                 {
                     switch(line.nodes[0]->type)
                     {
+                    /*
                         case ast_type::deref:
                         {
                             const auto [type,addr_slot] = load_addr(itl,func,line.nodes[0]->nodes[0],new_tmp(func),false);
@@ -2406,7 +2418,7 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
                             write_struct(itl,func,slot,rtype,line.nodes[0]);
                             break;
                         }
-
+                    */
                         default:
                         {
                             print(line.nodes[0]);

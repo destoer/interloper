@@ -875,36 +875,13 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
 }
 
 // TODO: this is more restrictive than required atm
-bool def_has_indirection(AstNode *type_decl)
+bool def_has_indirection(TypeNode *type_decl)
 {
-    for(auto n : type_decl->nodes)
-    {
-        switch(n->type)
-        {
-            // type is a constant
-            case ast_type::const_t:
-            {
-                break;
-            }
-
-            case ast_type::ptr_indirection:
-            {
-                return true;
-            }
-
-            case ast_type::arr_dimensions:
-            {
-                unimplemented("indirection check on array");
-            }
-
-            default: assert(false);
-        }
-    }
-
-    return false;  
+    UNUSED(type_decl);
+    assert(false);
 }
 
-Type get_type(Interloper &itl, AstNode *type_decl, u32 type_idx_override = INVALID_TYPE)
+Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVALID_TYPE)
 {
     Type type;
 
@@ -915,7 +892,7 @@ Type get_type(Interloper &itl, AstNode *type_decl, u32 type_idx_override = INVAL
 
     else if(type_decl->type_idx == STRUCT_IDX)
     {
-        const auto name = type_decl->literal;
+        const auto name = type_decl->name;
 
         const auto struct_opt = get_struct(itl.struct_table,name);
 
@@ -937,83 +914,8 @@ Type get_type(Interloper &itl, AstNode *type_decl, u32 type_idx_override = INVAL
         type.type_idx = type_decl->type_idx;
     }
 
-    // not a plain plain type
-    if(type_decl->nodes.size())
-    {
-        AstNode *arr_decl = nullptr;
-        AstNode *ptr_decl = nullptr;
 
-        for(auto n : type_decl->nodes)
-        {
-            switch(n->type)
-            {
-                // type is a constant
-                case ast_type::const_t:
-                {
-                    type.is_const = true;
-                    break;
-                }
-
-                case ast_type::ptr_indirection:
-                {
-                    ptr_decl = n;
-                    break;
-                }
-
-                case ast_type::arr_dimensions:
-                {
-                    if(ptr_decl)
-                    {
-                        type.contains_ptr = true;
-                    }
-                    arr_decl = n;
-                    break;
-                }
-
-                default: assert(false);
-            }
-        }
-
-        // parse out pointer indirection
-        if(ptr_decl)
-        {
-            type.ptr_indirection = ptr_decl->type_idx;
-        }
-
-        // parse out array dimensions
-        if(arr_decl)
-        {
-            type.degree = arr_decl->nodes.size();
-            
-            for(u32 i = 0; i < type.degree; i++)
-            {
-                if(i >= MAX_ARR_SIZE)
-                {
-                    panic(itl,"array dimensions execeeded %s\n",type_decl->literal.buf);
-                    return type;
-                }
-
-                auto n = arr_decl->nodes[i];
-
-                // variable size
-                if(n->type == ast_type::arr_var_size)
-                {
-                    type.dimensions[i] = RUNTIME_SIZE;
-                }
-
-                else if(n->type == ast_type::arr_deduce_size)
-                {
-                    type.dimensions[i] = DEDUCE_SIZE;
-                }
-
-                // fixed size: const expr
-                else
-                {
-                    type.dimensions[i] = eval_const_expr(n);
-                }
-            }
-        }
-    }
+    // TODO: handle pointers etc
 
     return type;
 }

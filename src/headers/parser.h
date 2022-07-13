@@ -9,7 +9,6 @@ enum class ast_type
     block,
 
     function,
-    function_args,
     function_call,
 
     value,
@@ -23,6 +22,7 @@ enum class ast_type
 
     ret,
 
+    // TODO: we dont need some of these now
     type,
     ptr_indirection,
     arr_dimensions,
@@ -96,7 +96,6 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
 
     "function",
-    "function_args",
     "function_call",
 
     "value",
@@ -173,47 +172,126 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 };
 
 
-// TODO: guess we need a Array struct that we can allocate on
-// as well as a String if we want deletion on this to be fast
-// with a Arena Allocator
+enum class ast_fmt
+{
+    plain,
+    binary,
+    unary,
+    literal,
+    value,
+    function,
+    struct_t,
+    char_t,
+    type,
+    declaration,
+    auto_decl,
+    block,
+};
 
-
-// TODO: Optimise the memory usage on this
-// and 80 byte struct is way to much for this
 
 struct AstNode
 {
-    AstNode()
-    {
-        value = Value(0,false);
-    }
-
     // node data
     ast_type type;
+    ast_fmt fmt;
     u32 line;
     u32 col;
+};
 
+struct BinNode
+{
+    AstNode node;
+
+    AstNode* left = nullptr;
+    AstNode* right = nullptr;
+};
+
+
+struct LiteralNode
+{
+    AstNode node;
     String literal;
+};
 
-    // TODO: this should be only for top levle decl just leave it in all of them for now
+struct UnaryNode
+{
+    AstNode node;
+
+    AstNode* next = nullptr;
+};
+
+struct ValueNode
+{
+    AstNode node;
+
+    Value value;
+};
+
+struct CharNode
+{
+    AstNode node;
+
+    char character;
+};
+
+struct TypeNode
+{
+    AstNode node;
+
+    String name;
+    u32 type_idx;
+    
+    bool is_const;
+};
+
+
+struct DeclNode
+{
+    AstNode node;
+
+    String name;
+    TypeNode* type = nullptr;
+    AstNode* expr = nullptr;
+};
+
+struct BlockNode
+{
+    AstNode node;
+
+    Array<AstNode*> statements;
+};
+
+
+struct FuncNode
+{
+    AstNode node;
+
+    String name;
     String filename;
 
-    // if we put anything in here
-    // we need to make sure we add the copy into
-    // copy_node
-    union
-    {
-        // ast_type::value
-        Value value;
-
-        // type decl
-        u32 type_idx;
-
-        char character;
-    };
+    TypeNode* return_type = nullptr;
+    BlockNode* block = nullptr;
+    Array<DeclNode*> args;
+};
 
 
-    std::vector<AstNode *> nodes;
+struct StructNode
+{
+    AstNode node;
+
+    String name;
+    String filename;
+    Array<DeclNode*> members;
+};
+
+
+
+struct AutoDeclNode
+{
+    AstNode node;
+
+    String name;
+    AstNode* expr = nullptr;
 };
 
 
@@ -236,122 +314,135 @@ struct Parser
     s32 line = 0;
 };
 
-AstNode* alloc_node(Parser& parser)
+
+template<typename T>
+T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
 {
-    void* ptr = allocate(*parser.allocator,sizeof(AstNode));
+    AstNode* node = (AstNode*)allocate(*parser.allocator,sizeof(T));
 
-    // for now placement new this
-    AstNode* node = new(ptr) AstNode();
+    // default init the actual type
+    T* ret_node = (T*)node;
+    *ret_node = {};
 
-    return node;  
+    node->type = type;
+    node->fmt = fmt;
+    node->line = token.line;
+    node->col = token.col;
+
+    return ret_node;
 }
 
 AstNode *ast_plain(Parser& parser,ast_type type, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
-    node->type = type;
-    node->value = Value(0,false);
-    node->line = token.line;
-    node->col = token.col;
+    AstNode* node = alloc_node<AstNode>(parser,type,ast_fmt::plain,token);
 
     return node;    
 }
 
 AstNode *ast_literal(Parser& parser,ast_type type,const String &literal, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
-    node->type = type;
-    node->literal = literal;
-    node->value = Value(0,false);
-    node->line = token.line;
-    node->col = token.col;
+    LiteralNode* literal_node = alloc_node<LiteralNode>(parser,type,ast_fmt::literal,token);
 
-    return node;    
+    literal_node->literal = literal;
+
+    return (AstNode*)literal_node;    
 }
 
 AstNode *ast_char(Parser& parser,const char character, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
-    node->type = ast_type::char_t;
-    node->character = character;
-    node->line = token.line;
-    node->col = token.col;
+    CharNode* char_node = alloc_node<CharNode>(parser,ast_type::char_t,ast_fmt::char_t,token);
 
-    return node;    
+    char_node->character = character;
+
+    return (AstNode*)char_node;    
 }
 
 
-AstNode *ast_func(Parser& parser,const String &literal, const String& filename, const Token& token)
+AstNode *ast_func(Parser& parser,const String &name, const String& filename, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
-    node->type = ast_type::function;
+    FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
 
-    node->filename = filename;
-    node->literal = literal;
-    node->value = Value(0,false);
+    func_node->name = name;
+    func_node->filename = filename;
 
-    node->line = token.line;
-    node->col = token.col;
-
-    return node;
+    return (AstNode*)func_node;
 }
 
-AstNode *ast_struct(Parser& parser,const String &literal, const String& filename, const Token& token)
+AstNode *ast_struct(Parser& parser,const String &name, const String& filename, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
-    node->type = ast_type::struct_t;
+    StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,ast_fmt::struct_t,token);
 
-    node->filename = filename;
-    node->literal = literal;
-    node->value = Value(0,false);
+    struct_node->name = name;
+    struct_node->filename = filename;
 
-    node->line = token.line;
-    node->col = token.col;
-
-    return node;
+    return (AstNode*)struct_node;
 }    
 
 AstNode *ast_binary(Parser& parser,AstNode *l, AstNode *r, ast_type type, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
+    BinNode* bin_node = alloc_node<BinNode>(parser,type,ast_fmt::binary,token);
 
-    node->nodes.push_back(l);
-    node->nodes.push_back(r);
-    node->type = type;
-    node->value = Value(0,false); 
-    node->line = token.line;
-    node->col = token.col;
+    bin_node->left = l;
+    bin_node->right = r;
 
-    return node;  
+    return (AstNode*)bin_node;  
 }
 
-AstNode *ast_unary(Parser& parser,AstNode *l, ast_type type, const Token& token)
+AstNode *ast_unary(Parser& parser,AstNode *next, ast_type type, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
+    UnaryNode* unary_node = alloc_node<UnaryNode>(parser,type,ast_fmt::unary,token);
 
-    node->nodes.push_back(l);
-    node->type = type;
-    node->value = Value(0,false); 
-    node->line = token.line;
-    node->col = token.col;
+    unary_node->next = next;
 
-    return node;  
+    return (AstNode*)unary_node;  
 }
 
 
 AstNode *ast_value(Parser& parser,Value value, const Token& token)
 {
-    AstNode* node = alloc_node(parser);
+    ValueNode* value_node = alloc_node<ValueNode>(parser,ast_type::value,ast_fmt::value,token);
 
-    node->type = ast_type::value;
-    node->literal = ""; // TODO:
-    node->value = value;
-    node->line = token.line;
-    node->col = token.col;
+    value_node->value = value;
 
-    return node;  
+    return (AstNode*)value_node;  
 }
 
+AstNode* ast_type_decl(Parser& parser, const String& name, const Token& token)
+{
+    TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,ast_fmt::type,token);
+
+    type_node->name = name;
+
+    return (AstNode*)type_node;        
+}
+
+
+AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, const Token& token)
+{
+    DeclNode* decl_node = alloc_node<DeclNode>(parser,ast_type::declaration,ast_fmt::declaration,token);
+
+    decl_node->name = name;
+    decl_node->type = type;
+
+    return (AstNode*)decl_node;        
+}
+
+AstNode* ast_auto_decl(Parser& parser, const String& name, AstNode* expr, const Token& token)
+{
+    AutoDeclNode* decl_node = alloc_node<AutoDeclNode>(parser,ast_type::auto_decl,ast_fmt::auto_decl,token);
+
+    decl_node->name = name;
+    decl_node->expr = expr;
+
+    return (AstNode*)decl_node;        
+}
+
+AstNode* ast_block(Parser& parser, const Token& token)
+{
+    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::block,ast_fmt::block,token);
+
+    return (AstNode*)block_node;
+}
 
 
 

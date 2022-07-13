@@ -230,14 +230,13 @@ inline const char *tok_name(token_type t)
 
 struct Value
 {
-    Value(u32 value, bool s) : v(value), sign(s) {}
-
     friend bool operator == (const Value &t1, const Value &t2);
     friend bool operator != (const Value &t1, const Value &t2);   
 
-    u32 v;
-    b32 sign;
+    u32 v = 0;
+    b32 sign = false;
 };
+
 
 
 inline bool operator == (const Value &v1, const Value &v2)

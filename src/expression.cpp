@@ -8,7 +8,7 @@ AstNode *expr(Parser &parser,const Token &t);
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
-AstNode *parse_type(Parser &parser);
+TypeNode *parse_type(Parser &parser);
 AstNode *copy_node(Parser& parser,const AstNode *node);
 
 Token next_token_expr(Parser &parser)
@@ -204,6 +204,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     return nullptr;
 }
 
+/*
 AstNode* array_index(Parser& parser,const String& name)
 {
     AstNode* arr_access = ast_literal(parser,ast_type::array_access,name,parser.expr_tok);
@@ -267,12 +268,15 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
 
     return root;
 }
+*/
+
 
 // unary operators
 AstNode *nud(Parser &parser,Token &t)
 {
     switch(t.type)
     {
+    /*
         // cast(<type>,<expr>)
         case token_type::cast:
         {
@@ -333,7 +337,7 @@ AstNode *nud(Parser &parser,Token &t)
             
             return init;
         }
-
+    */
         case token_type::value:
         {
             return ast_value(parser,t.value,t);
@@ -373,6 +377,8 @@ AstNode *nud(Parser &parser,Token &t)
                 // function call
                 case token_type::left_paren:
                 {
+                    assert(false);
+                /*
                     consume_expr(parser,token_type::left_paren);
 
                     auto func_call = ast_literal(parser,ast_type::function_call,t.literal,t);
@@ -409,15 +415,19 @@ AstNode *nud(Parser &parser,Token &t)
                     }
 
                     return func_call;
+                */
                 }
-
+            
                 case token_type::dot:
-                {
-                    return struct_access(parser,ast_literal(parser,ast_type::symbol,t.literal,t));
+                {   
+                    assert(false);
+                    //return struct_access(parser,ast_literal(parser,ast_type::symbol,t.literal,t));
                 }
 
                 case token_type::sl_brace:
                 {
+                    assert(false);
+                /*
                     AstNode* arr_access = array_index(parser,t.literal);
 
                     if(parser.expr_tok.type == token_type::dot)
@@ -429,7 +439,9 @@ AstNode *nud(Parser &parser,Token &t)
                     {
                         return arr_access;
                     }
+                */
                 }
+            
 
                 default:
                 {
