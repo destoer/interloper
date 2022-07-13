@@ -377,11 +377,10 @@ AstNode *nud(Parser &parser,Token &t)
                 // function call
                 case token_type::left_paren:
                 {
-                    assert(false);
-                /*
+                
                     consume_expr(parser,token_type::left_paren);
 
-                    auto func_call = ast_literal(parser,ast_type::function_call,t.literal,t);
+                    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,t.literal,t);
 
 
 
@@ -399,7 +398,7 @@ AstNode *nud(Parser &parser,Token &t)
                     {
                         auto expr = expression(parser,0);
 
-                        func_call->nodes.push_back(expr);
+                        push_var(func_call->args,expr);
 
                         // no more args terminate the call
                         if(parser.expr_tok.type != token_type::comma)
@@ -414,8 +413,7 @@ AstNode *nud(Parser &parser,Token &t)
                         }
                     }
 
-                    return func_call;
-                */
+                    return (AstNode*)func_call;
                 }
             
                 case token_type::dot:

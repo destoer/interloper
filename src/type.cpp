@@ -220,9 +220,9 @@ u32 builtin_min(builtin_type t)
 }
 
 
-builtin_type cast_builtin(Type &type)
+builtin_type cast_builtin(const Type &type)
 {
-    return static_cast<builtin_type>(type.type_idx);
+    return builtin_type(type.type_idx);
 }
 
 

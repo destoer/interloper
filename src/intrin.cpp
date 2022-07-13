@@ -11,7 +11,9 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     UNUSED(dst_slot);
     
-    const u32 arg_size = node->nodes.size();
+    FuncCallNode* func_call = (FuncCallNode*)node;
+
+    const u32 arg_size = count(func_call->args);
 
     if(arg_size != 3)
     {
@@ -21,8 +23,8 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
     emit(func.emitter,op_type::save_regs);
 
 
-    const auto [v1_type,v1_reg] = compile_oper(itl,func,node->nodes[1],R0_IR);
-    const auto [v2_type,v2_reg] = compile_oper(itl,func,node->nodes[2],R1_IR);
+    const auto [v1_type,v1_reg] = compile_oper(itl,func,func_call->args[1],R0_IR);
+    const auto [v2_type,v2_reg] = compile_oper(itl,func,func_call->args[2],R1_IR);
 
     if(!is_trivial_copy(v1_type))
     {
@@ -36,7 +38,7 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
         return Type(builtin_type::void_t);  
     }
 
-    const u32 syscall_number = eval_const_expr(node->nodes[0]);
+    const u32 syscall_number = eval_const_expr(func_call->args[0]);
     emit(func.emitter,op_type::swi,syscall_number);
 
 

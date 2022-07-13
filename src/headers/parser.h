@@ -186,6 +186,24 @@ enum class ast_fmt
     declaration,
     auto_decl,
     block,
+    function_call,
+};
+
+inline const char *FMT_NAMES[] =
+{
+    "plain",
+    "binary",
+    "unary",
+    "literal",
+    "value",
+    "function",
+    "struct",
+    "char",
+    "type",
+    "declaration",
+    "auto_decl",
+    "block",
+    "function_call",
 };
 
 
@@ -292,6 +310,14 @@ struct AutoDeclNode
 
     String name;
     AstNode* expr = nullptr;
+};
+
+struct FuncCallNode
+{
+    AstNode node;
+
+    String name;
+    Array<AstNode*> args;
 };
 
 
@@ -439,11 +465,19 @@ AstNode* ast_auto_decl(Parser& parser, const String& name, AstNode* expr, const 
 
 AstNode* ast_block(Parser& parser, const Token& token)
 {
-    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::block,ast_fmt::block,token);
+    AstNode* node = (AstNode*)alloc_node<BlockNode>(parser,ast_type::block,ast_fmt::block,token);
 
-    return (AstNode*)block_node;
+    return node;
 }
 
+AstNode* ast_call(Parser& parser, const String& name, const Token& token)
+{
+    FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,ast_fmt::function_call,token);
+
+    func_call->name = name;
+
+    return (AstNode*)func_call;
+}
 
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
