@@ -9,7 +9,6 @@ Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
 TypeNode *parse_type(Parser &parser);
-AstNode *copy_node(Parser& parser,const AstNode *node);
 
 Token next_token_expr(Parser &parser)
 {
@@ -59,7 +58,7 @@ AstNode *oper_eq(Parser &parser,AstNode *left,Token t,ast_type oper)
     auto e = expression(parser,lbp(parser,t)-1);
 
     // sugar as <sym> = <sym> + <expr>
-    auto e2 = ast_binary(parser,copy_node(parser,left),e,oper,t);
+    auto e2 = ast_binary(parser,left,e,oper,t);
 
     auto n = ast_binary(parser,left,e2,ast_type::equal,t);
 
@@ -276,7 +275,7 @@ AstNode *nud(Parser &parser,Token &t)
 {
     switch(t.type)
     {
-    /*
+    
         // cast(<type>,<expr>)
         case token_type::cast:
         {
@@ -287,7 +286,7 @@ AstNode *nud(Parser &parser,Token &t)
             // to correct the tok idx
             parser.tok_idx -= 1;
 
-            auto type = parse_type(parser);
+            AstNode* type = (AstNode*)parse_type(parser);
 
             if(!type)
             {
@@ -306,7 +305,7 @@ AstNode *nud(Parser &parser,Token &t)
             
             return ast_binary(parser,type,right,ast_type::cast,t);    
         }
-
+    
         // sizeof(<expr>)
         case token_type::sizeof_t:
         {
@@ -318,7 +317,7 @@ AstNode *nud(Parser &parser,Token &t)
             
             return ast_unary(parser,e,ast_type::sizeof_t,t);    
         }
-
+    /*
         // array initializer
         case token_type::left_c_brace:
         {

@@ -2,7 +2,7 @@
 #include "expression.cpp"
 
 void type_panic(Parser &parser);
-AstNode *block(Parser &parser);
+BlockNode *block(Parser &parser);
 
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 16 * 1024;
@@ -80,13 +80,6 @@ bool match(Parser &parser,token_type type)
     const auto t = parser.tok_idx >= count(parser.tokens)? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     return t == type;
-}
-
-
-AstNode *copy_node(Parser& parser,const AstNode *node)
-{
-    UNUSED(parser); UNUSED(node);
-    assert(false);
 }
 
 
@@ -441,13 +434,13 @@ AstNode *statement(Parser &parser)
             // block expects to see the left c brace
             parser.tok_idx--;
 
-            return block(parser);
+            return (AstNode*)block(parser);
         }
-/*
+
         // assume one cond for now
         case token_type::for_t:
         {
-            const auto for_block = ast_plain(parser,ast_type::for_block,t);
+            ForNode* for_node = (ForNode*)ast_for(parser,t);
 
             // allow statment to wrapped a in a set of parens
             const bool term_paren = peek(parser,0).type == token_type::left_paren;
@@ -464,8 +457,7 @@ AstNode *statement(Parser &parser)
             if(peek(parser,0).type == token_type::decl)
             {
                 consume(parser,token_type::decl);
-                for_block->nodes.push_back(auto_decl(parser));
-                terminator = token_type::semi_colon;                 
+                for_node->initializer = auto_decl(parser);              
             }
 
             // standard decl
@@ -474,80 +466,70 @@ AstNode *statement(Parser &parser)
                 // decl 
                 if(peek(parser,1).type == token_type::colon)
                 {
-                    for_block->nodes.push_back(declaration(parser));
-                    terminator = token_type::semi_colon; 
+                    for_node->initializer = declaration(parser);
                 }
 
                 // standard stmt
                 else
                 {
-                    for_block->nodes.push_back(expr_terminate(parser,first_term,terminator)); 
+                    for_node->initializer = expr_terminate(parser,first_term,terminator); 
                 }
             }
 
 
             // for(s32 x = 5; x > 0; x -= 1) (multiple statement)
-            if(terminator == token_type::semi_colon)
+
+            for_node->cond = expr_terminate(parser,token_type::semi_colon); 
+
+            // allow paren terminator followed by a '{'
+            if(term_paren)
             {
-                for_block->nodes.push_back(expr_terminate(parser,token_type::semi_colon)); 
-
-                // allow paren terminator followed by a '{'
-                if(term_paren)
+                for_node->post = expr_terminate(parser,token_type::right_paren);
+                auto next = peek(parser,0);
+                if(next.type != token_type::left_c_brace)
                 {
-                    for_block->nodes.push_back(expr_terminate(parser,token_type::right_paren));
-                    auto next = peek(parser,0);
-                    if(next.type != token_type::left_c_brace)
-                    {
-                        panic(parser,next,"invalid single for statement terminator: %s\n",tok_name(next.type));
-                        return nullptr;                        
-                    }
-                }
-
-                // statement was not wrapped by parens
-                // expect brace to end it
-                else
-                {
-                    for_block->nodes.push_back(expr_terminate(parser,token_type::left_c_brace));
-                    prev_token(parser);
-                }  
-            }
-
-             // for(x > 0) (single statement)
-            else
-            {
-                // allow paren terminator
-                if(terminator == token_type::right_paren && term_paren)
-                {
-                    terminator = peek(parser,0).type;
-                }
-
-                if(terminator != token_type::left_c_brace)
-                {
-                    panic(parser,peek(parser,0),"invalid single if statement terminator: %s\n",tok_name(terminator));
+                    panic(parser,next,"invalid single for statement terminator: %s\n",tok_name(next.type));
                     return nullptr;                        
                 }
             }
 
+            // statement was not wrapped by parens
+            // expect brace to end it
+            else
+            {
+                for_node->post = expr_terminate(parser,token_type::left_c_brace);
+                prev_token(parser);
+            }  
+            
 
             // for stmt parsed now compile the actual block
-            for_block->nodes.push_back(block(parser));
+            for_node->block = block(parser);
 
-            return for_block;
+            return (AstNode*)for_node;
+        }
+
+        case token_type::while_t:
+        {
+            AstNode* while_expr = expr_terminate(parser,token_type::left_c_brace); prev_token(parser); 
+            AstNode* while_body = (AstNode*)block(parser);
+
+            AstNode* while_stmt = ast_binary(parser,while_expr,while_body,ast_type::while_block,t);
+
+            return while_stmt;
         }
 
         // else_if and else parsed out here
         case token_type::if_t:
         {
-            const auto if_block = ast_plain(parser,ast_type::if_block,t);
+            BlockNode* if_block = (BlockNode*)ast_if_block(parser,t);
 
-            const auto if_stmt = ast_plain(parser,ast_type::if_t,t);
 
-            // read out if expr and block
-            if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
-            if_stmt->nodes.push_back(block(parser));
+            AstNode* if_expr = expr_terminate(parser,token_type::left_c_brace); prev_token(parser); 
+            AstNode* if_body = (AstNode*)block(parser);
 
-           
-            if_block->nodes.push_back(if_stmt);
+            BinNode *if_stmt = (BinNode*)ast_binary(parser,if_expr,if_body,ast_type::if_t,t);
+
+            push_var(if_block->statements,if_stmt);
             
             bool done = false;
             
@@ -562,23 +544,21 @@ AstNode *statement(Parser &parser)
                     {
                         consume(parser,token_type::if_t);
 
-                        const auto else_if_stmt = ast_plain(parser,ast_type::else_if_t,else_tok);
+                        AstNode* else_if_expr = expr_terminate(parser,token_type::left_c_brace); prev_token(parser); 
+                        AstNode* else_if_body = (AstNode*)block(parser);
 
-                        else_if_stmt->nodes.push_back(expr_terminate(parser,token_type::left_c_brace)); prev_token(parser); 
-                        else_if_stmt->nodes.push_back(block(parser));
+                        BinNode* else_if_stmt = (BinNode*)ast_binary(parser,else_if_expr,else_if_body,ast_type::else_if_t,else_tok);
 
-                        if_block->nodes.push_back(else_if_stmt);
+                        push_var(if_block->statements,else_if_stmt);
                     }
 
                     // just a plain else
                     else
                     {
-                        const auto else_stmt = ast_plain(parser,ast_type::else_t,else_tok);
+                        AstNode* else_body = (AstNode*)block(parser);
+                        AstNode *else_stmt = ast_unary(parser,else_body,ast_type::else_t,else_tok);
 
-                        // no expr for else
-                        else_stmt->nodes.push_back(block(parser));
-
-                        if_block->nodes.push_back(else_stmt);
+                        push_var(if_block->statements,else_stmt);
 
                         done = true;
                     }
@@ -590,9 +570,9 @@ AstNode *statement(Parser &parser)
                     done = true;
                 }
             }
-            return if_block;
+            return (AstNode*)if_block;
         }
-*/
+
         // dont care
         case token_type::semi_colon:
         {
@@ -609,7 +589,7 @@ AstNode *statement(Parser &parser)
     return nullptr;
 }
 
-AstNode *block(Parser &parser)
+BlockNode *block(Parser &parser)
 {
     // now parse out the block
 
@@ -634,14 +614,14 @@ AstNode *block(Parser &parser)
 
         if(parser.error)
         {
-            return (AstNode*)b;
+            return b;
         }
     }
     
 
     consume(parser,token_type::right_c_brace);
 
-    return (AstNode*)b;
+    return b;
 }
 
 
@@ -740,7 +720,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
         f->return_type->type_idx = u32(builtin_type::void_t);
     }
 
-    f->block = (BlockNode*)block(parser); 
+    f->block = block(parser); 
 
 
     // finally add the function def

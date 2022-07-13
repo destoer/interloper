@@ -72,6 +72,7 @@ enum class ast_type
     null_t,
 
     for_block,
+    while_block,
 
     if_block,
     if_t,
@@ -155,6 +156,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "NULL",
 
     "for_block",
+    "while_block",
 
     "if_block",
     "if",
@@ -187,6 +189,7 @@ enum class ast_fmt
     auto_decl,
     block,
     function_call,
+    for_block,
 };
 
 inline const char *FMT_NAMES[] =
@@ -204,6 +207,7 @@ inline const char *FMT_NAMES[] =
     "auto_decl",
     "block",
     "function_call",
+    "for",
 };
 
 
@@ -318,6 +322,17 @@ struct FuncCallNode
 
     String name;
     Array<AstNode*> args;
+};
+
+struct ForNode
+{
+    AstNode node;
+
+    AstNode* initializer;
+    AstNode* cond;
+    AstNode* post;
+
+    BlockNode* block;
 };
 
 
@@ -470,6 +485,13 @@ AstNode* ast_block(Parser& parser, const Token& token)
     return node;
 }
 
+AstNode* ast_if_block(Parser& parser, const Token& token)
+{
+    AstNode* node = (AstNode*)alloc_node<BlockNode>(parser,ast_type::if_block,ast_fmt::block,token);
+
+    return node;
+}
+
 AstNode* ast_call(Parser& parser, const String& name, const Token& token)
 {
     FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,ast_fmt::function_call,token);
@@ -477,6 +499,13 @@ AstNode* ast_call(Parser& parser, const String& name, const Token& token)
     func_call->name = name;
 
     return (AstNode*)func_call;
+}
+
+AstNode* ast_for(Parser& parser, const Token& token)
+{
+    AstNode* node = (AstNode*)alloc_node<ForNode>(parser,ast_type::for_block,ast_fmt::for_block,token);
+
+    return node;
 }
 
 

@@ -9,11 +9,11 @@
 
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
-void compile_auto_decl(Interloper &itl,Function &func, const AstNode &line);
+void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
-void compile_decl(Interloper &itl,Function &func, const AstNode &line);
-void compile_block(Interloper &itl,Function &func,AstNode *node);
+void compile_decl(Interloper &itl,Function &func, const AstNode *line);
+void compile_block(Interloper &itl,Function &func,BlockNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot);
 
@@ -939,7 +939,6 @@ u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 }
 
 
-/*
 void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
     const u32 start_block = count(func.emitter.program);
@@ -948,12 +947,16 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
     block_type old = blocks[count(blocks) - 1].type;
 
-    for(u32 n = 0; n < node->nodes.size(); n++)
-    {
-        const auto &if_stmt = *node->nodes[n];
+    BlockNode* if_block = (BlockNode*)node;
 
-        if(if_stmt.type != ast_type::else_t)
+    for(u32 n = 0; n < count(if_block->statements); n++)
+    {
+        const auto type = if_block->statements[n]->type;
+
+        if(type != ast_type::else_t)
         {
+            BinNode* if_stmt = (BinNode*)if_block->statements[n];
+
 
             if(n != 0)
             {
@@ -963,7 +966,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             }
 
             // compile the compare expr for conditon
-            const auto [t,r] = compile_oper(itl,func,if_stmt.nodes[0],new_tmp(func));
+            const auto [t,r] = compile_oper(itl,func,if_stmt->left,new_tmp(func));
 
             if(!is_bool(t))
             {
@@ -975,8 +978,8 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             const u32 cur_block = count(blocks) - 1;
 
             // compile the body block
-            new_basic_block(itl,func,if_stmt.type == ast_type::if_t? block_type::if_t : block_type::else_if_t);
-            compile_block(itl,func,if_stmt.nodes[1]);
+            new_basic_block(itl,func,if_stmt->node.type == ast_type::if_t? block_type::if_t : block_type::else_if_t);
+            compile_block(itl,func,(BlockNode*)if_stmt->right);
 
             // add branch over the block we just compiled
             const u32 slot = count(itl.symbol_table.label_lookup);
@@ -985,7 +988,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
 
             // not the last statment (branch is not require)
-            if(n != node->nodes.size() - 1)
+            if(n != count(if_block->statements) - 1)
             {
                 // emit a directive so we know to insert a branch
                 // to the exit block here once we know how many blocks
@@ -1003,9 +1006,11 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         // and by definition this is the last statement
         else 
         {
+            UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n];
+
             // create block for body
             new_basic_block(itl,func,block_type::else_t);
-            compile_block(itl,func,if_stmt.nodes[0]);
+            compile_block(itl,func,(BlockNode*)else_stmt->next);
 
             blocks[count(blocks) - 1].last = true;
         }
@@ -1032,6 +1037,37 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     }
 }
 
+void compile_while_block(Interloper &itl,Function &func,AstNode *node)
+{
+    const u32 intial_block = count(func.emitter.program) - 1;
+
+
+    auto &blocks = func.emitter.program;
+    block_type old = blocks[count(blocks) - 1].type;
+
+    BinNode* while_node = (BinNode*)node;
+
+    // compile cond
+    const auto [t,stmt_cond_reg] = compile_oper(itl,func,while_node->left,new_tmp(func));
+
+    // compile the body
+    const u32 cur = new_basic_block(itl,func,block_type::while_t);
+
+    // compile body
+    compile_block(itl,func,(BlockNode*)while_node->right); 
+
+
+    u32 loop_cond_reg;
+    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left,new_tmp(func));
+    emit(func.emitter,op_type::bc,cur,loop_cond_reg);
+
+    const u32 exit_block = new_basic_block(itl,func,old);
+
+    // emit branch over the loop body in initial block
+    // if cond is not met
+    append(func.emitter.program[intial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));    
+}
+
 void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 {
     // scope for any var decls in the stmt
@@ -1039,52 +1075,47 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     const u32 intial_block = count(func.emitter.program) - 1;
 
-    // single statment
-    const bool single_statement = node->nodes.size() == 2;
-
-    const u32 cond_expr_idx = single_statement? 0 : 1;
-    const u32 block_expr_idx = single_statement? 1 : 3;
 
     auto &blocks = func.emitter.program;
     block_type old = blocks[count(blocks) - 1].type;
 
+    ForNode* for_node = (ForNode*)node;
+
     // compile the first stmt (ussualy an assign)
-    if(!single_statement)
+
+
+    const auto type = for_node->initializer->type;
+
+    // handle this being a declaration
+    switch(type)
     {
-        assert(node->nodes.size() == 4);
-
-        const auto type = node->nodes[0]->type;
-
-        // handle this being a declaration
-        switch(type)
+        case ast_type::auto_decl:
         {
-            case ast_type::auto_decl:
-            {
-                compile_auto_decl(itl,func,*node->nodes[0]);
-                break;
-            }
-
-            case ast_type::declaration:
-            {
-                compile_decl(itl,func,*node->nodes[0]);
-                break;
-            }
-
-
-            default:
-            {
-                compile_expression(itl,func,node->nodes[0],new_tmp(func));
-                break;
-            }
+            compile_auto_decl(itl,func,for_node->initializer);
+            break;
         }
 
-        if(itl.error)
+        case ast_type::declaration:
         {
-            return;
+            compile_decl(itl,func,for_node->initializer);
+            break;
+        }
+
+
+        default:
+        {
+            compile_expression(itl,func,for_node->initializer,new_tmp(func));
+            break;
         }
     }
 
-    const auto [t,stmt_cond_reg] = compile_oper(itl,func,node->nodes[cond_expr_idx],new_tmp(func));
+    if(itl.error)
+    {
+        return;
+    }
+    
+
+    const auto [t,stmt_cond_reg] = compile_oper(itl,func,for_node->cond,new_tmp(func));
 
     if(!is_bool(t))
     {
@@ -1096,16 +1127,14 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     // compile the body
     const u32 cur = new_basic_block(itl,func,block_type::for_t);
     
-    compile_block(itl,func,node->nodes[block_expr_idx]);    
+    compile_block(itl,func,for_node->block);    
 
     // compile loop end stmt
-    if(!single_statement)
-    {
-        compile_expression(itl,func,node->nodes[2],new_tmp(func));
-    }
+    compile_expression(itl,func,for_node->post,new_tmp(func));
+    
 
     u32 loop_cond_reg;
-    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,node->nodes[cond_expr_idx],new_tmp(func));
+    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,for_node->cond,new_tmp(func));
     emit(func.emitter,op_type::bc,cur,loop_cond_reg);
 
     const u32 exit_block = new_basic_block(itl,func,old);
@@ -1116,7 +1145,6 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     destroy_scope(itl.symbol_table);
 }
-*/
 
 /*
 // TODO: this needs a cleanup
@@ -1448,20 +1476,14 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             do_ptr_load(itl,func,dst_slot,slot,type);
             return type;
         }
-
-        case ast_type::cast:
-        {
-            const auto [old_type,slot] = compile_oper(itl,func,node->nodes[1],new_tmp(func));
-            const auto new_type = get_type(itl,node->nodes[0]);
-
-            handle_cast(itl,func.emitter,dst_slot,slot,old_type,new_type);
-            return new_type;
-        }
+*/
 
         case ast_type::sizeof_t:
         {
+            UnaryNode* unary_node = (UnaryNode*)node;
+
             // TODO: is it worth while adding this for type names?
-            const auto [type,slot] = compile_oper(itl,func,node->nodes[0],new_tmp(func));
+            const auto [type,slot] = compile_oper(itl,func,unary_node->next,new_tmp(func));
 
             // we only want the type of the expr
             if(is_tmp(slot))
@@ -1474,7 +1496,18 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
             return Type(builtin_type::u32_t);
         }
-*/
+
+        case ast_type::cast:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            const auto [old_type,slot] = compile_oper(itl,func,bin_node->right,new_tmp(func));
+            const auto new_type = get_type(itl,(TypeNode*)bin_node->left);
+
+            handle_cast(itl,func.emitter,dst_slot,slot,old_type,new_type);
+            return new_type;
+        }
+
 
         case ast_type::plus:
         {
@@ -2430,11 +2463,9 @@ std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, As
 
 */
 
-void compile_block(Interloper &itl,Function &func,AstNode *node)
+void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
     new_scope(itl.symbol_table);
-
-    BlockNode* block_node = (BlockNode*)node;
 
     const u32 size = count(block_node->statements);
     for(u32 s = 0; s < size; s++)
@@ -2567,22 +2598,26 @@ void compile_block(Interloper &itl,Function &func,AstNode *node)
 
             case ast_type::block:
             {
-                compile_block(itl,func,line);
+                compile_block(itl,func,(BlockNode*)line);
                 break;
             }
 
 
             case ast_type::if_block:
             {
-                assert(false);
-                //compile_if_block(itl,func,l);
+                compile_if_block(itl,func,line);
                 break;
             }
 
             case ast_type::for_block:
             {
-                assert(false);
-                //compile_for_block(itl,func,l);
+                compile_for_block(itl,func,line);
+                break;
+            }
+
+            case ast_type::while_block:
+            {
+                compile_while_block(itl,func,line);
                 break;
             }
 
@@ -2692,7 +2727,7 @@ void compile_functions(Interloper &itl)
 
 
         // parse out each line of the function
-        compile_block(itl,func,(AstNode*)node.block);
+        compile_block(itl,func,node.block);
 
         destroy_scope(itl.symbol_table);
 

@@ -299,6 +299,7 @@ enum class block_type
     else_t,
     chain_cmp_t,
     for_t,
+    while_t,
     body_t,
 };
 
@@ -309,6 +310,7 @@ inline const char *block_names[] =
     "else",
     "chain_cmp",
     "for",
+    "while",
     "body",
 };
 

@@ -88,6 +88,7 @@ enum class token_type
 
 
     for_t,
+    while_t,
 
     if_t,
     else_t,
@@ -206,6 +207,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::logical_ge,">=",12},
 
     {token_type::for_t,"for",-1},
+    {token_type::while_t,"while",-1},
 
     {token_type::if_t,"if",-1},
     {token_type::else_t,"else",-1},

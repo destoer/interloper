@@ -6,7 +6,7 @@ func main() s32
 
     y : s32 = 1;
 
-    for(x > 0)
+    while x > 0
     {
         y *= 2;
 
