@@ -1146,7 +1146,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
-/*
+
 // TODO: this needs a cleanup
 // TODO: does it make sense to use the same function for both the @ and & operator?
 std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof)
@@ -1156,7 +1156,9 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
     {
         case ast_type::symbol:
         {
-            const auto name = node->literal;
+            LiteralNode* sym_node = (LiteralNode*)node;
+
+            const auto name = sym_node->literal;
             const auto sym_opt = get_sym(itl.symbol_table,name);
             if(!sym_opt)
             {
@@ -1202,7 +1204,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 return std::pair<Type,u32>{type,sym.slot};
             }
         }
-
+/*
         case ast_type::array_access:
         {
             if(addrof)
@@ -1258,7 +1260,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 return std::pair<Type,u32>{type,ptr_slot};
             }
         }
-
+*/
         default:
         {
             print(node);
@@ -1266,7 +1268,6 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
         }
     }
 }
-*/
 
 
 #if 0
@@ -1462,21 +1463,23 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
    
     switch(node->type)
     {
-/*
         case ast_type::addrof:
         {
+            UnaryNode* addrof_node = (UnaryNode*)node;
+
             // want this to also get an addr but we want the actual ptr_count to go up...
-            const auto [type,slot] = load_addr(itl,func,node->nodes[0],dst_slot,true);
+            const auto [type,slot] = load_addr(itl,func,addrof_node->next,dst_slot,true);
             return type;
         }
 
         case ast_type::deref:
         {
-            const auto [type,slot] = load_addr(itl,func,node->nodes[0],new_tmp(func),false);
+            UnaryNode* deref_node = (UnaryNode*)node;
+
+            const auto [type,slot] = load_addr(itl,func,deref_node->next,new_tmp(func),false);
             do_ptr_load(itl,func,dst_slot,slot,type);
             return type;
         }
-*/
 
         case ast_type::sizeof_t:
         {
@@ -2497,23 +2500,25 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             // assignment
             case ast_type::equal:
             {
-                BinNode* bin_node = (BinNode*)line;
-                const auto [rtype,slot] = compile_oper(itl,func,bin_node->right,new_tmp(func));
+                BinNode* assign_node = (BinNode*)line;
+                const auto [rtype,slot] = compile_oper(itl,func,assign_node->right,new_tmp(func));
 
 
-                if(bin_node->left->type != ast_type::symbol)
+                if(assign_node->left->type != ast_type::symbol)
                 {
-                    switch(bin_node->left->type)
+                    switch(assign_node->left->type)
                     {
-                    /*
+                    
                         case ast_type::deref:
                         {
-                            const auto [type,addr_slot] = load_addr(itl,func,line.nodes[0]->nodes[0],new_tmp(func),false);
+                            UnaryNode* deref_node = (UnaryNode*)assign_node->left;
+
+                            const auto [type,addr_slot] = load_addr(itl,func,deref_node->next,new_tmp(func),false);
                             check_assign(itl,type,rtype);
                             do_ptr_store(itl,func,slot,addr_slot,type);
                             break;                        
                         }
-
+                    /*
                         case ast_type::array_access:
                         {
                             write_arr(itl,func,line.nodes[0],rtype,slot);
@@ -2529,7 +2534,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     */
                         default:
                         {
-                            print(bin_node->left);
+                            print(assign_node->left);
                             unimplemented("non plain assign");
                             break;
                         }
@@ -2538,9 +2543,9 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 
                 else
                 {
-                    LiteralNode* lit_node = (LiteralNode*)bin_node->left;
+                    LiteralNode* sym_node = (LiteralNode*)assign_node->left;
 
-                    const auto name = lit_node->literal;
+                    const auto name = sym_node->literal;
 
                     const auto sym_opt = get_sym(itl.symbol_table,name);
                     if(!sym_opt)

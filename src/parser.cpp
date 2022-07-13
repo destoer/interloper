@@ -5,7 +5,7 @@ void type_panic(Parser &parser);
 BlockNode *block(Parser &parser);
 
 
-const u32 AST_ALLOC_DEFAULT_SIZE = 16 * 1024;
+const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
 Parser make_parser(ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator)
 {
@@ -178,21 +178,12 @@ TypeNode *parse_type(Parser &parser)
             // pointer decl
             case token_type::deref:
             {
-                assert(false);
-        /*
-                u32 ptr_indirection = 0;
                 while(peek(parser,0).type == token_type::deref)
                 {
                     next_token(parser);
-                    ptr_indirection++;
+                    type->ptr_indirection++;
                 }
-
-                auto ptr_node = ast_plain(parser,ast_type::ptr_indirection,plain_tok);
-                ptr_node->type_idx = ptr_indirection;
-
-                type->nodes.push_back(ptr_node);
                 break;
-        */
             }
 
 

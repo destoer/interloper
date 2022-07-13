@@ -914,6 +914,13 @@ Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVA
         type.type_idx = type_decl->type_idx;
     }
 
+    type.ptr_indirection = type_decl->ptr_indirection;
+    type.contains_ptr = type_decl->contains_ptr;
+
+    if(type_decl->arr_dimensions)
+    {
+        assert(false);
+    }
 
     // TODO: handle pointers etc
 

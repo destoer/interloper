@@ -190,6 +190,7 @@ enum class ast_fmt
     block,
     function_call,
     for_block,
+    record,
 };
 
 inline const char *FMT_NAMES[] =
@@ -208,12 +209,12 @@ inline const char *FMT_NAMES[] =
     "block",
     "function_call",
     "for",
+    "record",
 };
 
 
 struct AstNode
 {
-    // node data
     ast_type type;
     ast_fmt fmt;
     u32 line;
@@ -261,9 +262,14 @@ struct TypeNode
     AstNode node;
 
     String name;
+
+    b32 is_const;
     u32 type_idx;
+
     
-    bool is_const;
+    b32 contains_ptr = false;
+    u32 ptr_indirection = 0;
+    AstNode* arr_dimensions = nullptr;
 };
 
 
@@ -333,6 +339,13 @@ struct ForNode
     AstNode* post;
 
     BlockNode* block;
+};
+
+struct RecordNode
+{
+    AstNode node;
+
+    Array<AstNode*> nodes;
 };
 
 
@@ -504,6 +517,14 @@ AstNode* ast_call(Parser& parser, const String& name, const Token& token)
 AstNode* ast_for(Parser& parser, const Token& token)
 {
     AstNode* node = (AstNode*)alloc_node<ForNode>(parser,ast_type::for_block,ast_fmt::for_block,token);
+
+    return node;
+}
+
+
+AstNode* ast_record(Parser& parser,ast_type type, const Token& token)
+{
+    AstNode* node = (AstNode*)alloc_node<RecordNode>(parser,type,ast_fmt::record,token);
 
     return node;
 }
