@@ -20,7 +20,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node);
 void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtype, AstNode *node);
 
-void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
+void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
 std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node);
 
 
@@ -350,10 +350,7 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::access_struct:
         {
-            assert(false);
-        /*
             return read_struct(itl,func,dst_slot,node);
-        */
         }
 
         case ast_type::char_t:
@@ -364,12 +361,9 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
             return std::pair<Type,u32>{Type(builtin_type::u8_t),dst_slot};
         }
 
-        case ast_type::array_access:
+        case ast_type::index:
         {
-            assert(false);
-        /*
             return read_arr(itl,func,node,dst_slot);
-        */
         }
 
         // compile an expr
@@ -1204,8 +1198,8 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 return std::pair<Type,u32>{type,sym.slot};
             }
         }
-/*
-        case ast_type::array_access:
+
+        case ast_type::index:
         {
             if(addrof)
             {
@@ -1214,6 +1208,8 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 
             else
             {
+                IndexNode* index_node = (IndexNode*)node;
+
                 auto [type,addr_slot] = index_arr(itl,func,node,slot);
 
                 // actually load the pointer with ptr_load
@@ -1224,7 +1220,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 // contained type is not actually a pointer
                 if(!is_pointer(type))
                 {
-                    panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",node->literal.buf);
+                    panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",index_node->name.buf);
                     return std::pair<Type,u32>{Type(builtin_type::void_t),0};
                 }
 
@@ -1260,7 +1256,7 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
                 return std::pair<Type,u32>{type,ptr_slot};
             }
         }
-*/
+
         default:
         {
             print(node);
@@ -1270,9 +1266,9 @@ std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 s
 }
 
 
-#if 0
+
 // indexes off a given type + ptr
-std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* node, const String& arr_name,
+std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      const Type& type, u32 ptr_slot, u32 dst_slot)
 {
 
@@ -1282,10 +1278,11 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
+    const u32 indexes = count(index_node->indexes);
 
-    if(node->nodes.size() > type.degree)
+    if(indexes > type.degree)
     {
-        panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,type.degree,node->nodes.size());
+        panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,type.degree,indexes);
         return std::pair<Type,u32>{Type(builtin_type::void_t),0};  
     }
 
@@ -1319,10 +1316,10 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
     
     u32 last_slot = ptr_slot;
 
-    for(u32 i = 0; i < node->nodes.size(); i++)
+    for(u32 i = 0; i < indexes; i++)
     {
 
-        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
+        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[i],new_tmp(func));
         if(!is_integer(subscript_type))
         {
             panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
@@ -1347,7 +1344,7 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
             const u32 mul_slot = new_tmp(func);
             emit(func.emitter,op_type::mul_imm,mul_slot,subscript_slot,size);   
 
-            const bool last_index = i ==  node->nodes.size() - 1;
+            const bool last_index = i ==  indexes - 1;
 
             const u32 add_slot = last_index? dst_slot : new_tmp(func);
             emit(func.emitter,op_type::add_reg,add_slot,last_slot,mul_slot);
@@ -1358,15 +1355,15 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
 
 
     // return pointer to sub array
-    if(node->nodes.size() < type.degree)
+    if(indexes < type.degree)
     {
         auto sub_arr_type = type;
         
         // make it a sub array
-        sub_arr_type.degree -= node->nodes.size();
+        sub_arr_type.degree -= indexes;
 
         // move the dimensions back over itself
-        memcpy(&sub_arr_type.dimensions[0],&type.dimensions[node->nodes.size()],sub_arr_type.degree * sizeof(type.dimensions[0]));
+        memcpy(&sub_arr_type.dimensions[0],&type.dimensions[indexes],sub_arr_type.degree * sizeof(type.dimensions[0]));
 
 
 
@@ -1382,12 +1379,13 @@ std::pair<Type,u32> index_arr_internal(Interloper& itl, Function &func,AstNode* 
         return std::pair<Type,u32>{accessed_type,dst_slot};
     }    
 }
-#endif
 
-/*
+
 std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
-    const auto arr_name = node->literal;
+    IndexNode* index_node = (IndexNode*)node;
+
+    const auto arr_name = index_node->name;
 
     const auto arr_opt = get_sym(itl.symbol_table,arr_name);
 
@@ -1403,7 +1401,7 @@ std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32
     const u32 data_slot = new_tmp(func);
     emit(func.emitter,op_type::load_arr_data,data_slot,arr.slot);
 
-    return index_arr_internal(itl,func,node,arr_name,arr.type,data_slot,dst_slot);
+    return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
 }
 
 std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
@@ -1449,7 +1447,6 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,const Type& write_ty
         check_assign(itl,type,write_type);
     }
 }
-*/
 
 
 Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
@@ -1566,6 +1563,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         // TODO: do we want to allow other uses of this?
         case ast_type::initializer_list:
         {
+            print(node);
             unimplemented("array initializer");
         }
 
@@ -1748,16 +1746,19 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
         }
     }
 }
-/*
+
+
 void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const u32 addr_slot, Type& type, u32 depth, u32* offset)
 {
-    const u32 node_len = node->nodes.size();
-
     // just a straight assign
-    if(!node_len)
+    if(node->type != ast_type::initializer_list)
     {
         if(node->type == ast_type::string)
-        {            
+        {      
+
+            LiteralNode* literal_node = (LiteralNode*)node;
+            const String literal = literal_node->literal;
+
             if(type.degree != 1)
             {
                 panic(itl,"expected single dimensional array got %d\n",type.degree);
@@ -1767,7 +1768,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
             // handle auto sizing
             if(type.dimensions[0] == DEDUCE_SIZE)
             {
-                type.dimensions[0] = node->literal.size;
+                type.dimensions[0] = literal.size;
             }
 
             if(type.dimensions[0] == RUNTIME_SIZE)
@@ -1775,19 +1776,20 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
                 unimplemented("string vla");
             }
 
-            if(type.dimensions[0] < node->literal.size)
+            if(type.dimensions[0] < literal.size)
             {
-                panic(itl,"expected array of atleast size %d got %d\n",node->literal.size,type.dimensions[0]);
+                panic(itl,"expected array of atleast size %d got %d\n",literal.size,type.dimensions[0]);
             }
 
             const auto base_type = contained_arr_type(type);
             const auto rtype = Type(builtin_type::u8_t);
 
 
-            for(u32 i = 0; i < node->literal.size; i++)
+
+            for(u32 i = 0; i < literal.size; i++)
             {
                 const u32 slot = new_tmp(func);
-                emit(func.emitter,op_type::mov_imm,slot,node->literal[i]);
+                emit(func.emitter,op_type::mov_imm,slot,literal[i]);
                 check_assign(itl,base_type,rtype,false,true);
 
                 do_ptr_store(itl,func,slot,addr_slot,rtype,*offset);
@@ -1804,6 +1806,9 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
         return;
     }
 
+    RecordNode* list = (RecordNode*)node;
+
+    const u32 node_len = count(list->nodes);
 
     for(u32 i = 0; i < node_len; i++)
     {
@@ -1841,7 +1846,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 
         // descend each sub initializer until we hit one containing values
         // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
-        if(node->nodes[i]->type == ast_type::initializer_list)
+        if(list->nodes[i]->type == ast_type::initializer_list)
         {
             const auto base_type = contained_arr_type(type);
 
@@ -1852,20 +1857,20 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 
                 const auto structure = struct_from_type(itl.struct_table,base_type);
 
-                traverse_struct_initializer(itl,func,node->nodes[i],addr_slot,structure,*offset);
+                traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],addr_slot,structure,*offset);
 
                 *offset = *offset + size;
             }
 
             else
             {
-                traverse_arr_initializer(itl,func,node->nodes[i],addr_slot,type,depth + 1,offset);
+                traverse_arr_initializer(itl,func,list->nodes[i],addr_slot,type,depth + 1,offset);
             }
         }
 
         else
         {
-            auto [first_type,first_reg] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
+            auto [first_type,first_reg] = compile_oper(itl,func,list->nodes[i],new_tmp(func));
 
             
             // we have values!!
@@ -1888,7 +1893,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 
                 for(i = 1; i < node_len; i++)
                 {
-                    auto [rtype,reg] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
+                    auto [rtype,reg] = compile_oper(itl,func,list->nodes[i],new_tmp(func));
                     check_assign(itl,base_type,rtype,false,true);
 
                     do_ptr_store(itl,func,reg,addr_slot,base_type,*offset);
@@ -1907,7 +1912,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
     }
 }
 
-void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, const Symbol& sym)
+void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, const Symbol& sym)
 {
     // this reference will get invalidated under the current setup
     // so pull the slot
@@ -1922,7 +1927,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
     // has an initalizer
     // TODO: need to handle dumping this as a constant if the array is constant
     // rather than runtime setup
-    if(line.nodes.size() == 2)
+    if(decl_node->expr)
     {
         const u32 addr_slot = new_tmp(itl,GPR_SIZE);
 
@@ -1934,7 +1939,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 
 
         u32 idx = 0;
-        traverse_arr_initializer(itl,func,line.nodes[1],addr_slot,array.type,0,&idx);
+        traverse_arr_initializer(itl,func,decl_node->expr,addr_slot,array.type,0,&idx);
     }
 
     if(itl.error)
@@ -1978,9 +1983,9 @@ void compile_arr_decl(Interloper& itl, Function& func, const AstNode &line, cons
 }
 
 
-void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node, const u32 addr_slot, const Struct& structure, u32 offset)
+void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, const u32 addr_slot, const Struct& structure, u32 offset)
 {
-    const u32 node_len = node->nodes.size();
+    const u32 node_len = count(node->nodes);
     const u32 member_size = count(structure.members);
 
     if(node_len != member_size)
@@ -2007,7 +2012,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
             else if(is_struct(member.type))
             {
                 const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-                traverse_struct_initializer(itl,func,node->nodes[i],addr_slot,sub_struct,offset + member.offset);
+                traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_slot,sub_struct,offset + member.offset);
             }
 
             else
@@ -2029,17 +2034,16 @@ void traverse_struct_initializer(Interloper& itl, Function& func, AstNode* node,
     } 
 }
 
-
-void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, Symbol& sym)
+void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
     const u32 reg_count = gpr_count(structure.size);
     emit(func.emitter,op_type::alloc_slot,sym.slot,GPR_SIZE,reg_count);
 
-    if(line.nodes.size() == 2)
+    if(decl_node->expr)
     {
-        if(line.nodes[1]->type == ast_type::initializer_list)
+        if(decl_node->expr->type == ast_type::initializer_list)
         {
             // insertion will break our reference
             const u32 sym_slot = sym.slot;
@@ -2047,12 +2051,12 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
             const u32 addr_slot = new_tmp(itl,GPR_SIZE);
 
             emit(func.emitter,op_type::addrof,addr_slot,sym_slot);
-            traverse_struct_initializer(itl,func,line.nodes[1],addr_slot,structure);
+            traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
         }
 
         else
         {
-            const auto [rtype,slot] = compile_oper(itl,func,line.nodes[1],sym.slot);
+            const auto [rtype,slot] = compile_oper(itl,func,decl_node->expr,sym.slot);
 
             // oper is a single symbol and the move hasn't happened we need to explictly move it
             if(sym.slot != slot)
@@ -2064,6 +2068,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
         }
     }
 
+    // default construction
     else
     {
         // insertion will break our reference
@@ -2120,7 +2125,6 @@ void compile_struct_decl(Interloper& itl, Function& func, const AstNode &line, S
         return;
     }
 }
-*/
 
 void compile_decl(Interloper &itl,Function &func, const AstNode *line)
 {
@@ -2147,20 +2151,19 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line)
 
     if(is_array(sym.type))
     {
-        //compile_arr_decl(itl,func,line,sym);
-        assert(false);
+        compile_arr_decl(itl,func,decl_node,sym);
     }
 
     else if(is_struct(sym.type))
     {
-        assert(false);
-        //compile_struct_decl(itl,func,line,sym);
+        compile_struct_decl(itl,func,decl_node,sym);
     }
 
     
     // simple type
     else 
     {
+
         emit(func.emitter,op_type::alloc_slot,sym.slot);
 
         // initalizer
@@ -2214,7 +2217,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     compile_move(itl,func,sym.slot,reg,sym.type,type);
 }
 
-/*
+
 std::pair<Type,u32> access_array_member(Interloper& itl, Function& func, u32 slot, const Type& type, const String& member_name,u32* offset)
 {
     const bool is_ptr = is_pointer(type);
@@ -2303,7 +2306,9 @@ std::pair<Type,u32> access_struct_member(Interloper& itl, Function& func, u32 sl
 // return type, slot, offset
 std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
-    AstNode* expr_node = node->nodes[0];
+    BinNode* member_root =(BinNode*)node;
+
+    AstNode* expr_node = member_root->left;
 
     // Type is allways the accessed type of the current pointer
     u32 struct_slot = -1;
@@ -2314,7 +2319,9 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
     {
         case ast_type::symbol:
         {
-            const auto name = expr_node->literal;
+            LiteralNode* sym_node = (LiteralNode*)expr_node;
+
+            const auto name = sym_node->literal;
             const auto sym_opt = get_sym(itl.symbol_table,name);
 
             if(!sym_opt)
@@ -2346,13 +2353,13 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
             break;        
         }
 
-        case ast_type::array_access:
+        case ast_type::index:
         {
+        
             std::tie(struct_type, struct_slot) = index_arr(itl,func,expr_node,new_tmp(func));
 
             // we return types in here as the accessed type
             struct_type.ptr_indirection -= 1;
-
             break;
         }
 
@@ -2365,19 +2372,21 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
     }
 
 
-    AstNode* members = node->nodes[1];
+    RecordNode* members = (RecordNode*)member_root->right;
 
     u32 member_offset = 0;
 
     // perform each member access
-    for(AstNode* n : members->nodes)
+    for(u32 m = 0; m < count(members->nodes); m++)
     {
+        AstNode *n = members->nodes[m];
+
         switch(n->type)
         {
             case ast_type::access_member:
             {
-
-                const auto member_name = n->literal;
+                LiteralNode* member_node = (LiteralNode*)n;
+                const auto member_name = member_node->literal;
 
                 if(is_pointer(struct_type))
                 {
@@ -2407,10 +2416,12 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
                 break;
             }
 
-            case ast_type::array_access:
+            case ast_type::index:
             {
-                
-                std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,n->literal,&member_offset);
+            
+                IndexNode* index_node = (IndexNode*)n;
+
+                std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,index_node->name,&member_offset);
                 
                 struct_slot = collapse_offset(func,struct_slot,&member_offset);
 
@@ -2422,11 +2433,10 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
                     struct_slot = vla_ptr;
                 }
 
-                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,n,n->literal,struct_type,struct_slot,new_tmp(func));
+                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot,new_tmp(func));
 
                 // deref of pointer
                 struct_type.ptr_indirection -= 1;
-
                 break;
             }
 
@@ -2463,8 +2473,6 @@ std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, As
     do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type,offset);
     return std::pair<Type,u32>{accessed_type,dst_slot};
 }
-
-*/
 
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
@@ -2518,20 +2526,20 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             do_ptr_store(itl,func,slot,addr_slot,type);
                             break;                        
                         }
-                    /*
-                        case ast_type::array_access:
+                    
+                        case ast_type::index:
                         {
-                            write_arr(itl,func,line.nodes[0],rtype,slot);
+                            write_arr(itl,func,assign_node->left,rtype,slot);
                             break;
                         }
-
+                    
                         // write on struct member!
                         case ast_type::access_struct:
                         {
-                            write_struct(itl,func,slot,rtype,line.nodes[0]);
+                            write_struct(itl,func,slot,rtype,assign_node->left);
                             break;
                         }
-                    */
+                    
                         default:
                         {
                             print(assign_node->left);
@@ -2790,35 +2798,15 @@ void compile_functions(Interloper &itl)
 
 void destroy_ast(Interloper& itl)
 {
-    // delete all function def
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
+    // TODO: should we just allocate the arrays with our own allocator
+    // instead of malloc so we can just destruct the entire heap?
+    // we need to figure out how to impl one anyways
+    for(u32 i = 0; i < count(itl.ast_arrays); i++)
     {
-        auto &bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& func = bucket[i].v;
-
-            delete_tree((AstNode*)func.root);
-            func.root = nullptr;
-        }
+       free(*itl.ast_arrays[i]);
     }
 
-
-    // delete all the struct defintions
-    for(u32 b = 0; b < count(itl.struct_def.buf); b++)
-    {
-        auto &bucket = itl.struct_def.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& def = bucket[i].v;
-
-            delete_tree((AstNode*)def.root);
-            def.root = nullptr;
-        }
-    }
-
+    destroy_arr(itl.ast_arrays);
 
     destroy_allocator(itl.ast_allocator);
     destroy_allocator(itl.ast_string_allocator);

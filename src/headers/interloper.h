@@ -35,6 +35,8 @@ struct Interloper
     ArenaAllocator ast_allocator;
     ArenaAllocator ast_string_allocator;
 
+    AstPointers ast_arrays;
+    
     // for longer lived strings, e.g func defs symbol names etc
     ArenaAllocator string_allocator;
 

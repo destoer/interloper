@@ -83,7 +83,7 @@ enum class ast_type
     access_members,
     access_struct,
     member,
-    array_access,
+    index,
 
     END
 };
@@ -167,7 +167,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "access_members",
     "access_struct",
     "member",
-    "array_access",
+    "index",
 
     // should not be used...
     "END"
@@ -191,6 +191,7 @@ enum class ast_fmt
     function_call,
     for_block,
     record,
+    index,
 };
 
 inline const char *FMT_NAMES[] =
@@ -210,6 +211,7 @@ inline const char *FMT_NAMES[] =
     "function_call",
     "for",
     "record",
+    "index",
 };
 
 
@@ -257,6 +259,13 @@ struct CharNode
     char character;
 };
 
+struct RecordNode
+{
+    AstNode node;
+
+    Array<AstNode*> nodes;
+};
+
 struct TypeNode
 {
     AstNode node;
@@ -269,9 +278,17 @@ struct TypeNode
     
     b32 contains_ptr = false;
     u32 ptr_indirection = 0;
-    AstNode* arr_dimensions = nullptr;
+    RecordNode* arr_decl = nullptr;
 };
 
+
+struct IndexNode 
+{
+    AstNode node;
+
+    String name;
+    Array<AstNode*> indexes;
+};
 
 struct DeclNode
 {
@@ -341,13 +358,8 @@ struct ForNode
     BlockNode* block;
 };
 
-struct RecordNode
-{
-    AstNode node;
 
-    Array<AstNode*> nodes;
-};
-
+using AstPointers = Array<void***>;
 
 struct Parser
 {
@@ -362,12 +374,17 @@ struct Parser
 
     ArenaAllocator* allocator;
     ArenaAllocator* string_allocator;
+    AstPointers* ast_arrays;
+    
+
+    String cur_file;
 
     // error handling
     b32 error = false;
     s32 line = 0;
 };
 
+void add_ast_pointer(Parser& parser, void* pointer);
 
 template<typename T>
 T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
@@ -416,6 +433,8 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
 {
     FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
 
+    add_ast_pointer(parser,&func_node->args.data);
+
     func_node->name = name;
     func_node->filename = filename;
 
@@ -425,6 +444,8 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
 AstNode *ast_struct(Parser& parser,const String &name, const String& filename, const Token& token)
 {
     StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,ast_fmt::struct_t,token);
+
+    add_ast_pointer(parser,&struct_node->members.data);
 
     struct_node->name = name;
     struct_node->filename = filename;
@@ -493,21 +514,27 @@ AstNode* ast_auto_decl(Parser& parser, const String& name, AstNode* expr, const 
 
 AstNode* ast_block(Parser& parser, const Token& token)
 {
-    AstNode* node = (AstNode*)alloc_node<BlockNode>(parser,ast_type::block,ast_fmt::block,token);
+    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::block,ast_fmt::block,token);
 
-    return node;
+    add_ast_pointer(parser,&block_node->statements.data);
+
+    return (AstNode*)block_node;
 }
 
 AstNode* ast_if_block(Parser& parser, const Token& token)
 {
-    AstNode* node = (AstNode*)alloc_node<BlockNode>(parser,ast_type::if_block,ast_fmt::block,token);
+    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::if_block,ast_fmt::block,token);
 
-    return node;
+    add_ast_pointer(parser,&block_node->statements.data);
+
+    return (AstNode*)block_node;
 }
 
 AstNode* ast_call(Parser& parser, const String& name, const Token& token)
 {
     FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,ast_fmt::function_call,token);
+
+    add_ast_pointer(parser,&func_call->args.data);
 
     func_call->name = name;
 
@@ -524,9 +551,23 @@ AstNode* ast_for(Parser& parser, const Token& token)
 
 AstNode* ast_record(Parser& parser,ast_type type, const Token& token)
 {
-    AstNode* node = (AstNode*)alloc_node<RecordNode>(parser,type,ast_fmt::record,token);
+    RecordNode* record_node = alloc_node<RecordNode>(parser,type,ast_fmt::record,token);
 
-    return node;
+    add_ast_pointer(parser,&record_node->nodes.data);
+
+    return (AstNode*)record_node;
+}
+
+
+AstNode* ast_index(Parser& parser,const String &name, const Token& token)
+{
+    IndexNode* index_node = alloc_node<IndexNode>(parser,ast_type::index,ast_fmt::index,token);
+
+    add_ast_pointer(parser,&index_node->indexes.data);
+
+    index_node->name = name;
+
+    return (AstNode*)index_node;
 }
 
 
@@ -536,7 +577,7 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     va_start(args, fmt);
     vprintf(fmt,args);
     va_end(args);
-    printf("at: line %d col %d\n\n",token.line + 1,token.col + 1);
+    printf("at: %s line %d col %d\n\n",parser.cur_file.buf,token.line + 1,token.col + 1);
     
     parser.error = true;
     parser.line = token.line;

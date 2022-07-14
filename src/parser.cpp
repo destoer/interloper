@@ -7,27 +7,21 @@ BlockNode *block(Parser &parser);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
-Parser make_parser(ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator)
+Parser make_parser(const String& cur_file,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
 {
     Parser parser;
     parser.allocator = ast_allocator;
     parser.string_allocator = string_allocator;
+    parser.cur_file = cur_file;
+    parser.ast_arrays = ast_arrays;
 
     return parser;
 }
 
-
-
-
-
-// TODO: replace tree with pool allocation
-void delete_tree(AstNode *node)
+void add_ast_pointer(Parser& parser, void* pointer)
 {
-    // TODO:
-    UNUSED(node);
-    return;
+    push_var(*parser.ast_arrays,pointer);
 }
-
 
 Token next_token(Parser &parser)
 {
@@ -190,10 +184,7 @@ TypeNode *parse_type(Parser &parser)
             // array decl
             case token_type::sl_brace:
             {
-                assert(false);
-
-            /*
-                auto arr_decl = ast_plain(parser,ast_type::arr_dimensions,plain_tok);
+                RecordNode* arr_decl = (RecordNode*)ast_record(parser,ast_type::arr_dimensions,plain_tok);
 
                 while(peek(parser,0).type == token_type::sl_brace)
                 {
@@ -202,7 +193,7 @@ TypeNode *parse_type(Parser &parser)
                     // var size
                     if(peek(parser,0).type == token_type::sr_brace)
                     {
-                        arr_decl->nodes.push_back(ast_plain(parser,ast_type::arr_var_size,plain_tok));
+                        push_var(arr_decl->nodes,ast_plain(parser,ast_type::arr_var_size,plain_tok));
                         consume(parser,token_type::sr_brace);
                     }
 
@@ -214,28 +205,26 @@ TypeNode *parse_type(Parser &parser)
                             consume(parser,token_type::qmark);
 
                             const auto e = ast_plain(parser,ast_type::arr_deduce_size,plain_tok);
-                            arr_decl->nodes.push_back(e);
+                            push_var(arr_decl->nodes,e);
                         
                             consume(parser,token_type::sr_brace);
                         }
 
                         else
                         {
-                            arr_decl->nodes.push_back(expr_terminate(parser,token_type::sr_brace));
+                            push_var(arr_decl->nodes,expr_terminate(parser,token_type::sr_brace));
                         }
                     }
                 }
 
-                type->nodes.push_back(arr_decl);
-
+                type->arr_decl = arr_decl;
+                type->contains_ptr = type->ptr_indirection != 0;
                 break;
-            */
             }
 
             default: quit = true; break;
         }
     }
-
 
 
     return type;
@@ -295,7 +284,6 @@ AstNode *declaration(Parser &parser)
 
         default:
         {
-            delete_tree((AstNode*)decl);
             panic(parser,eq,"malformed declartion: %s\n",tok_name(eq.type));
             break;
         }
@@ -345,8 +333,10 @@ AstNode *statement(Parser &parser)
                 AstNode* e = expr(parser,next_token(parser));
                 return ast_unary(parser,e,ast_type::ret,t);
             }
+
             else
             {
+                consume(parser,token_type::semi_colon);
                 return ast_plain(parser,ast_type::ret,t);
             }
         }
@@ -596,7 +586,6 @@ BlockNode *block(Parser &parser)
     {
         if(match(parser,token_type::eof))
         {
-            delete_tree((AstNode*)b);
             panic(parser,tok,"unterminated block!\n");
             return nullptr;
         }
@@ -649,7 +638,6 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
     {
         if(match(parser,token_type::eof))
         {
-            delete_tree((AstNode*)f);
             panic(parser,paren,"unterminated function declaration!\n");
             return;
         }
@@ -661,7 +649,6 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
 
         if(lit_tok.type != token_type::symbol)
         {
-            delete_tree((AstNode*)f);
             panic(parser,lit_tok,"expected name for function arg\n");
             return;
         }
@@ -674,7 +661,6 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
         if(!type)
         {
             type_panic(parser);
-            delete_tree((AstNode*)f);
             return;
         }
 
@@ -810,7 +796,7 @@ void destroy_parser(Parser& parser)
 bool parse_file(Interloper& itl,const String& file, const String& filename,const String& stl_path, HashTable<String,u32>& file_set, Array<String> &file_stack)
 {
     // Parse out the file
-    Parser parser = make_parser(&itl.ast_allocator,&itl.ast_string_allocator);
+    Parser parser = make_parser(filename,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
 
     if(tokenize(file,parser.string_allocator,parser.tokens))
     {
@@ -907,7 +893,7 @@ bool parse(Interloper& itl, const String& initial_filename)
     const String stl_path = make_static_string("stl/",strlen("stl/"));
 
     // import basic by default
-    //add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
+    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
 
 
     b32 error = false;
@@ -942,11 +928,242 @@ bool parse(Interloper& itl, const String& initial_filename)
     return error;
 }
 
-// TODO:
+
+void print_depth(int depth)
+{
+    for(int i = 0; i < depth; i++)
+    { 
+        printf(" -");
+    }
+    printf(" %d ",depth);    
+}
+
 void print(const AstNode *root)
 {
     if(!root)
     {
         return;
     }
+
+
+    if(root->type == ast_type::function || root->type == ast_type::struct_t)
+    {
+        printf("\n\n\n");
+    }
+
+
+    static int depth = 0;
+    
+    depth += 1;
+
+    print_depth(depth);
+
+    switch(root->fmt)
+    {
+        case ast_fmt::plain:
+        {
+            printf(" %s\n",AST_NAMES[static_cast<size_t>(root->type)]);
+            break;
+        }
+
+        case ast_fmt::binary:
+        {
+            printf(" %s\n",AST_NAMES[static_cast<size_t>(root->type)]);
+
+            BinNode* bin_node = (BinNode*)root;
+
+            print(bin_node->left);
+            print(bin_node->right);
+
+            break;
+        }
+
+        case ast_fmt::unary:
+        {
+            printf(" %s\n",AST_NAMES[static_cast<size_t>(root->type)]);
+
+            UnaryNode* unary_node = (UnaryNode*)root;
+
+            print(unary_node->next);
+            break;
+        }
+
+        case ast_fmt::literal:
+        {
+            LiteralNode* literal_node = (LiteralNode*)root;
+
+            printf(" %s : %s\n",AST_NAMES[static_cast<size_t>(root->type)],literal_node->literal.buf);
+            break;
+        }
+
+        case ast_fmt::value:
+        {
+            ValueNode* value_node = (ValueNode*)root;
+
+            printf("value: %s%d\n",value_node->value.sign? "-" : "",value_node->value.v);
+            break;
+        }
+
+
+        case ast_fmt::function:
+        {
+            FuncNode* func_node = (FuncNode*)root;
+
+            printf("function %s:%s\n",func_node->filename.buf,func_node->name.buf);
+
+            for(u32 a = 0; a < count(func_node->args); a++)
+            {
+                print((AstNode*)func_node->args[a]);
+            }            
+
+            print((AstNode*)func_node->block);
+
+            print((AstNode*)func_node->return_type);
+            break;
+        }
+
+        case ast_fmt::struct_t:
+        {
+            StructNode* struct_node = (StructNode*) root;
+
+            printf("struct %s:%s\n",struct_node->filename.buf,struct_node->name.buf);
+
+            for(u32 m = 0; m < count(struct_node->members); m++)
+            {
+                print((AstNode*)struct_node->members[m]);
+            }                        
+
+            break;
+        }
+
+        case ast_fmt::char_t:
+        {
+            CharNode* char_node = (CharNode*)root;
+            
+            printf("char: '%c' : %d\n",char_node->character,char_node->character);
+
+            break;
+        }
+
+        case ast_fmt::type:
+        {
+            TypeNode* type_decl = (TypeNode*)root;
+            printf("type: %s ", type_decl->is_const? "const" : "");
+
+            const u32 dimensions = type_decl->arr_decl? count(type_decl->arr_decl->nodes) : 0;
+
+
+            if(!type_decl->contains_ptr)
+            {
+                print_str("[]",dimensions);
+                print_str("@",type_decl->ptr_indirection);
+            }
+
+            // could be array of pointers
+            else
+            {
+                print_str("@",type_decl->ptr_indirection);
+                print_str("[]",dimensions);
+            } 
+
+
+            printf("%s\n",type_decl->name.buf);
+            
+            if(type_decl->arr_decl)
+            {
+                print((AstNode*)type_decl->arr_decl);
+            }
+            break;
+        }
+
+        case ast_fmt::declaration:
+        {
+            DeclNode* decl_node = (DeclNode*)root;
+
+            printf("decl : %s\n",decl_node->name.buf);
+
+            print((AstNode*)decl_node->type);
+            print(decl_node->expr);
+            break;
+        }
+
+        case ast_fmt::auto_decl:
+        {
+            assert(false);
+            break;
+        }
+
+        case ast_fmt::block:
+        {
+            printf("block\n");
+            BlockNode* block_node = (BlockNode*)root;
+
+            for(u32 s = 0; s < count(block_node->statements); s++)
+            {
+                print((AstNode*)block_node->statements[s]);
+            }                        
+
+            break;
+        }
+
+        case ast_fmt::function_call:
+        {
+            FuncCallNode* func_call = (FuncCallNode*)root;
+
+            printf("function call : %s\n",func_call->name.buf);
+
+            for(u32 a = 0; a < count(func_call->args); a++)
+            {
+                print(func_call->args[a]);
+            }                                    
+
+            break;
+        }
+
+        case ast_fmt::for_block:
+        {
+            printf("for\n");
+
+            ForNode* for_node = (ForNode*)root;
+
+            print(for_node->initializer);
+            print(for_node->cond);
+            print(for_node->post);
+
+            print((AstNode*)for_node->block);
+
+            break;
+        }
+
+        case ast_fmt::record:
+        {
+            printf("%s\n",AST_NAMES[static_cast<size_t>(root->type)]);
+
+
+            RecordNode* record_node = (RecordNode*)root;
+
+            for(u32 n = 0; n < count(record_node->nodes); n++)
+            {
+                print(record_node->nodes[n]);
+            }                 
+
+            break;
+        }
+
+        case ast_fmt::index:
+        {
+            printf("index\n");
+
+            IndexNode* index_node = (IndexNode*)root;
+
+            for(u32 i = 0; i < count(index_node->indexes); i++)
+            {
+                print(index_node->indexes[i]);
+            }
+
+            break;
+        }
+    }
+
+    depth -= 1;
 }

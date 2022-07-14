@@ -369,8 +369,6 @@ String type_name(Interloper& itl,const Type &type)
     push_string(itl.string_allocator,buffer,plain);
 
 
-    // TODO: this type printing does not handle nesting
-
     // could be pointer to an array
     if(!type.contains_ptr)
     {
@@ -877,8 +875,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
 // TODO: this is more restrictive than required atm
 bool def_has_indirection(TypeNode *type_decl)
 {
-    UNUSED(type_decl);
-    assert(false);
+    return type_decl->ptr_indirection || type_decl->arr_decl != nullptr;
 }
 
 Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVALID_TYPE)
@@ -916,10 +913,41 @@ Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVA
 
     type.ptr_indirection = type_decl->ptr_indirection;
     type.contains_ptr = type_decl->contains_ptr;
+    type.is_const = type_decl->is_const;
 
-    if(type_decl->arr_dimensions)
+    RecordNode* arr_decl = type_decl->arr_decl;
+
+    if(arr_decl)
     {
-        assert(false);
+        type.degree = count(arr_decl->nodes);
+        
+        for(u32 i = 0; i < type.degree; i++)
+        {
+            if(i >= MAX_ARR_SIZE)
+            {
+                panic(itl,"array dimensions execeeded %s\n",type_decl->name.buf);
+                return type;
+            }
+
+            auto n = arr_decl->nodes[i];
+
+            // variable size
+            if(n->type == ast_type::arr_var_size)
+            {
+                type.dimensions[i] = RUNTIME_SIZE;
+            }
+
+            else if(n->type == ast_type::arr_deduce_size)
+            {
+                type.dimensions[i] = DEDUCE_SIZE;
+            }
+
+            // fixed size: const expr
+            else
+            {
+                type.dimensions[i] = eval_const_expr(n);
+            }
+        }        
     }
 
     // TODO: handle pointers etc
