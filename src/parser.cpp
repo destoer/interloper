@@ -314,6 +314,20 @@ AstNode *auto_decl(Parser &parser)
 }
 
 
+AstNode* opt_block(Parser& parser)
+{
+    BlockNode* block_node = nullptr;
+    
+    // block is optional
+    if(match(parser,token_type::left_c_brace))
+    {
+        // read out the block
+        block_node = block(parser);
+    }
+
+    return (AstNode*)block_node;
+}
+
 AstNode *statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -554,6 +568,55 @@ AstNode *statement(Parser &parser)
             return (AstNode*)if_block;
         }
 
+        case token_type::switch_t:
+        {
+            AstNode* e = expr_terminate(parser,token_type::left_c_brace);
+            SwitchNode* switch_node = (SwitchNode*)ast_switch(parser,e,t);
+
+            // while we havent exhaused every case
+            while(!match(parser,token_type::right_c_brace))
+            {
+                const auto case_tok = peek(parser,0);
+
+
+                if(case_tok.type == token_type::default_t)
+                {
+                    if(switch_node->default_statement)
+                    {
+                        panic(parser,case_tok,"Cannot have two default statements in switch statement\n");
+                    }
+
+                    consume(parser,token_type::default_t);
+                    consume(parser,token_type::colon);
+
+                    AstNode* block_node = opt_block(parser);
+                    switch_node->default_statement = (UnaryNode*)ast_unary(parser,block_node,ast_type::default_t,case_tok);      
+                }
+
+                else
+                {
+                    // read out the case
+                    consume(parser,token_type::case_t);
+                    AstNode* case_node = expr_terminate(parser,token_type::colon);
+
+                    AstNode* block_node = opt_block(parser);
+
+                    BinNode* case_statement = (BinNode*)ast_binary(parser,case_node,block_node,ast_type::case_t,case_tok);
+                    push_var(switch_node->statements,case_statement);
+                }
+
+                
+                if(parser.error)
+                {
+                    return nullptr;
+                }
+            }
+
+            consume(parser,token_type::right_c_brace);
+
+            return (AstNode*)switch_node;
+        }
+
         // dont care
         case token_type::semi_colon:
         {
@@ -562,7 +625,7 @@ AstNode *statement(Parser &parser)
 
         default:
         {
-            panic(parser,t,"statement: unexpected token %s\n",tok_name(t.type));
+            panic(parser,t,"statement: unexpected token '%s' : %d\n",tok_name(t.type));
             break;
         }
     }
@@ -1152,14 +1215,32 @@ void print(const AstNode *root)
 
         case ast_fmt::index:
         {
-            printf("index\n");
-
             IndexNode* index_node = (IndexNode*)root;
+
+            printf("index: %s\n",index_node->name.buf);
 
             for(u32 i = 0; i < count(index_node->indexes); i++)
             {
                 print(index_node->indexes[i]);
             }
+
+            break;
+        }
+
+        case ast_fmt::switch_t:
+        {
+            printf("switch\n");
+
+            SwitchNode* switch_node = (SwitchNode*)root;
+
+            print((AstNode*)switch_node->expr);
+
+            for(u32 s = 0; s < count(switch_node->statements); s++)
+            {
+                print((AstNode*)switch_node->statements[s]);
+            }
+
+            print((AstNode*)switch_node->default_statement);
 
             break;
         }

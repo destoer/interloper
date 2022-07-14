@@ -1140,6 +1140,13 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
+// TODO: handle duplicate cases
+void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
+{
+    UNUSED(itl); UNUSED(func); UNUSED(node);
+
+    unimplemented("compile switch statement");
+}
 
 // TODO: this needs a cleanup
 // TODO: does it make sense to use the same function for both the @ and & operator?
@@ -2634,9 +2641,16 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 break;
             }
 
+            case ast_type::switch_t:
+            {
+                compile_switch_block(itl,func,line);
+                break;
+            }
+
             default:
             {
-                panic(itl,"[COMPILE] unexpected token\n");
+                panic(itl,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);
+                break;
             }
         }
     }

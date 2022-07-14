@@ -35,6 +35,9 @@ const char* KEYWORD[][2] =
     {tok_name(token_type::sizeof_t),"token_type::sizeof_t"},
     {tok_name(token_type::func),"token_type::func"},
     {tok_name(token_type::ret),"token_type::ret"},
+    {tok_name(token_type::switch_t),"token_type::switch_t"},
+    {tok_name(token_type::case_t),"token_type::case_t"},
+    {tok_name(token_type::default_t),"token_type::default_t"},
 };
 
 const u32 KEYWORD_SIZE = sizeof(KEYWORD) / sizeof(KEYWORD[0]);

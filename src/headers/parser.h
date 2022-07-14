@@ -78,6 +78,9 @@ enum class ast_type
     if_t,
     else_if_t,
     else_t,
+    switch_t,
+    case_t,
+    default_t,
 
     access_member,
     access_members,
@@ -162,6 +165,9 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "if",
     "else if",
     "else",
+    "switch",
+    "case",
+    "default",
 
     "access_member",
     "access_members",
@@ -192,6 +198,7 @@ enum class ast_fmt
     for_block,
     record,
     index,
+    switch_t,
 };
 
 inline const char *FMT_NAMES[] =
@@ -212,6 +219,7 @@ inline const char *FMT_NAMES[] =
     "for",
     "record",
     "index",
+    "switch",
 };
 
 
@@ -358,6 +366,15 @@ struct ForNode
     BlockNode* block;
 };
 
+
+struct SwitchNode
+{
+    AstNode node;
+
+    AstNode* expr;
+    Array<BinNode*> statements;
+    UnaryNode* default_statement;
+};
 
 using AstPointers = Array<void***>;
 
@@ -570,6 +587,17 @@ AstNode* ast_index(Parser& parser,const String &name, const Token& token)
     return (AstNode*)index_node;
 }
 
+
+AstNode* ast_switch(Parser& parser, AstNode* expr, const Token& token)
+{
+    SwitchNode* switch_node = alloc_node<SwitchNode>(parser,ast_type::switch_t,ast_fmt::switch_t,token);
+    
+    switch_node->expr = expr;
+
+    add_ast_pointer(parser,&switch_node->statements.data);
+
+    return (AstNode*)switch_node;
+}
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 {

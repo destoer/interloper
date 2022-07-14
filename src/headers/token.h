@@ -92,6 +92,9 @@ enum class token_type
 
     if_t,
     else_t,
+    switch_t,
+    case_t,
+    default_t,
 
     error,
 
@@ -211,6 +214,9 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::if_t,"if",-1},
     {token_type::else_t,"else",-1},
+    {token_type::switch_t,"switch",-1},
+    {token_type::case_t,"case",-1},
+    {token_type::default_t,"default",-1},
 
     
 
