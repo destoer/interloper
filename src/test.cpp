@@ -67,7 +67,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/control_flow/nested_if",575,false},
     {"tests/control_flow/for",32,false},
     {"tests/control_flow/for_outer_decl",32,false},
-    {"tests/control_flow/for_single",32,false},
+    {"tests/control_flow/while",32,false},
 
     // pointers
     // TODO: impl pointer casting (wait for coerce operation)

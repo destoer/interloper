@@ -24,7 +24,7 @@ func main() s32
 
     sum : u32 = 0;
 
-    for(node != NULL)
+    while(node != NULL)
     {
         sum += node.v;
 

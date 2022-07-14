@@ -9,6 +9,7 @@ const char* KEYWORD[][2] =
     {tok_name(token_type::for_t),"token_type::for_t"},
     {tok_name(token_type::if_t),"token_type::if_t"},
     {tok_name(token_type::else_t),"token_type::else_t"},
+    {tok_name(token_type::while_t),"token_type::while_t"},
 
     {tok_name(token_type::decl),"token_type::decl"},
     {tok_name(token_type::const_t),"token_type::const_t"},
@@ -50,7 +51,7 @@ const u32 INTRIN_SIZE = sizeof(INTRIN) / sizeof(INTRIN[0]);
 
 void gen_table(const char* key[][2],const char* name, const char* type, const char* error, u32 key_size)
 {
-    const u32 table_size = bit_ceil(key_size) * 2;
+    const u32 table_size = bit_ceil(key_size) * 4;
 
     static constexpr u32 SLOT_EMPTY = 0xffffffff;
 

@@ -168,7 +168,7 @@ bool decode_imm(Lexer &lexer,const String& file)
     const u32 v = convert_imm(literal);
     const bool sign = file[start_idx] == '-';
 
-    Value value = Value(v,sign);
+    const Value value = {v,sign};
 
     insert_token_value(lexer,value,start_col);
 

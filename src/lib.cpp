@@ -54,7 +54,6 @@ bool in_range(T v, T min, T max)
     return v >= min && v <= max;
 }
 
-
 u32 set_bit(u32 v, u32 bit)
 {
     return v | (1 << bit);
@@ -91,6 +90,14 @@ constexpr u32 bit_ceil(u32 v)
     }
 
     return ans;
+}
+
+void print_str(const char* str, u32 count)
+{
+    for(u32 i = 0; i < count; i++)
+    {
+        printf("%s",str);
+    }
 }
 
 #ifndef _MSC_VER

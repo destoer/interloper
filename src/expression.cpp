@@ -8,8 +8,7 @@ AstNode *expr(Parser &parser,const Token &t);
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
-AstNode *parse_type(Parser &parser);
-AstNode *copy_node(Parser& parser,const AstNode *node);
+TypeNode *parse_type(Parser &parser);
 
 Token next_token_expr(Parser &parser)
 {
@@ -59,7 +58,7 @@ AstNode *oper_eq(Parser &parser,AstNode *left,Token t,ast_type oper)
     auto e = expression(parser,lbp(parser,t)-1);
 
     // sugar as <sym> = <sym> + <expr>
-    auto e2 = ast_binary(parser,copy_node(parser,left),e,oper,t);
+    auto e2 = ast_binary(parser,left,e,oper,t);
 
     auto n = ast_binary(parser,left,e2,ast_type::equal,t);
 
@@ -204,33 +203,29 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     return nullptr;
 }
 
+
 AstNode* array_index(Parser& parser,const String& name)
 {
-    AstNode* arr_access = ast_literal(parser,ast_type::array_access,name,parser.expr_tok);
+    IndexNode* arr_access = (IndexNode*)ast_index(parser,name,parser.expr_tok);
 
     while(parser.expr_tok.type == token_type::sl_brace)
     {
         consume_expr(parser,token_type::sl_brace);
 
         AstNode* e = expression(parser,0);
-        arr_access->nodes.push_back(e);
+        push_var(arr_access->indexes,e);
     
         consume_expr(parser,token_type::sr_brace);
     }
 
-    return arr_access;
+    return (AstNode*)arr_access;
 }
-
 
 AstNode *struct_access(Parser& parser, AstNode* expr_node)
 {
-    AstNode* root = ast_plain(parser,ast_type::access_struct,parser.expr_tok);
+    RecordNode* member_root = (RecordNode*)ast_record(parser,ast_type::access_members,parser.expr_tok);
 
-    root->nodes.push_back(expr_node);
-
-    AstNode* member_root = ast_plain(parser,ast_type::access_members,parser.expr_tok);
-
-    root->nodes.push_back(member_root);
+    BinNode* root = (BinNode*)ast_binary(parser,expr_node,(AstNode*)member_root,ast_type::access_struct,parser.expr_tok);
 
     while(parser.expr_tok.type == token_type::dot)
     {
@@ -242,8 +237,7 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
             if(match(parser,token_type::sl_brace))
             {
                 parser.expr_tok = next_token_expr(parser);
-                
-                member_root->nodes.push_back(array_index(parser,member_tok.literal));
+                push_var(member_root->nodes,array_index(parser,member_tok.literal));
             }
 
             // plain old member
@@ -251,7 +245,7 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
             {
                 AstNode* member_node = ast_literal(parser,ast_type::access_member, member_tok.literal,member_tok);
 
-                member_root->nodes.push_back(member_node);
+                push_var(member_root->nodes,member_node);
                     
                 // correct the state machine
                 parser.expr_tok = next_token_expr(parser);
@@ -265,14 +259,16 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
         }
     }
 
-    return root;
+    return (AstNode*)root;
 }
+
 
 // unary operators
 AstNode *nud(Parser &parser,Token &t)
 {
     switch(t.type)
     {
+    
         // cast(<type>,<expr>)
         case token_type::cast:
         {
@@ -283,7 +279,7 @@ AstNode *nud(Parser &parser,Token &t)
             // to correct the tok idx
             parser.tok_idx -= 1;
 
-            auto type = parse_type(parser);
+            AstNode* type = (AstNode*)parse_type(parser);
 
             if(!type)
             {
@@ -302,7 +298,7 @@ AstNode *nud(Parser &parser,Token &t)
             
             return ast_binary(parser,type,right,ast_type::cast,t);    
         }
-
+    
         // sizeof(<expr>)
         case token_type::sizeof_t:
         {
@@ -314,14 +310,14 @@ AstNode *nud(Parser &parser,Token &t)
             
             return ast_unary(parser,e,ast_type::sizeof_t,t);    
         }
-
+    
         // array initializer
         case token_type::left_c_brace:
         {
-            auto init = ast_plain(parser,ast_type::initializer_list,t);
+            RecordNode* init = (RecordNode*)ast_record(parser,ast_type::initializer_list,t);
             while(parser.expr_tok.type != token_type::right_c_brace)
             {
-                init->nodes.push_back(expression(parser,0));
+                push_var(init->nodes,expression(parser,0));
 
                 if(parser.expr_tok.type != token_type::right_c_brace)
                 {
@@ -331,9 +327,9 @@ AstNode *nud(Parser &parser,Token &t)
 
             consume_expr(parser,token_type::right_c_brace);
             
-            return init;
+            return (AstNode*)init;
         }
-
+    
         case token_type::value:
         {
             return ast_value(parser,t.value,t);
@@ -373,9 +369,10 @@ AstNode *nud(Parser &parser,Token &t)
                 // function call
                 case token_type::left_paren:
                 {
+                
                     consume_expr(parser,token_type::left_paren);
 
-                    auto func_call = ast_literal(parser,ast_type::function_call,t.literal,t);
+                    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,t.literal,t);
 
 
 
@@ -393,7 +390,7 @@ AstNode *nud(Parser &parser,Token &t)
                     {
                         auto expr = expression(parser,0);
 
-                        func_call->nodes.push_back(expr);
+                        push_var(func_call->args,expr);
 
                         // no more args terminate the call
                         if(parser.expr_tok.type != token_type::comma)
@@ -408,11 +405,11 @@ AstNode *nud(Parser &parser,Token &t)
                         }
                     }
 
-                    return func_call;
+                    return (AstNode*)func_call;
                 }
-
+            
                 case token_type::dot:
-                {
+                {   
                     return struct_access(parser,ast_literal(parser,ast_type::symbol,t.literal,t));
                 }
 
@@ -430,6 +427,7 @@ AstNode *nud(Parser &parser,Token &t)
                         return arr_access;
                     }
                 }
+            
 
                 default:
                 {
@@ -564,8 +562,6 @@ AstNode *expr_terminate(Parser &parser,token_type t)
     if(parser.expr_tok.type != t || !parser.terminate)
     {
         panic(parser,parser.expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(parser.expr_tok.type),tok_name(t));
-        delete e;
-        return nullptr;
     }
 
     parser.terminate = false;

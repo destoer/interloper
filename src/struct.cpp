@@ -120,11 +120,11 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
 
 
-    AstNode* node = def.root;
+    StructNode* node = def.root;
     
     itl.cur_file = node->filename;
 
-    structure.name = node->literal;
+    structure.name = node->name;
     structure.member_map = make_table<String,u32>();
 
     // we want to get how many sizes of each we have
@@ -133,31 +133,30 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
     u32 size_count[3] = {0};
 
     // parse out members
-    for(AstNode* m : node->nodes)
+    for(u32 i = 0; i < count(node->members); i++)
     {
+        DeclNode* m = node->members[i];
+
         Member member;
-        member.name = m->literal;
+        member.name = m->name;
 
-        AstNode* type_decl = m->nodes[0];
+        TypeNode* type_decl = m->type;
 
+        // copy the init expr
+        member.expr = m->expr;
 
-        // init expr provided
-        if(m->nodes.size() == 2)
-        {
-            member.expr = m->nodes[1];
-        }
 
         u32 type_idx_override = INVALID_TYPE;
 
         // member is struct that has nott had its defintion parsed yet
-        if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->literal))
+        if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->name))
         {
-            StructDef *def_ptr = lookup(itl.struct_def,type_decl->literal);
+            StructDef *def_ptr = lookup(itl.struct_def,type_decl->name);
 
             // no such definiton exists
             if(!def_ptr)
             {
-                panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->literal.buf);
+                panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->name.buf);
                 destroy_struct(structure);
                 return;
             }
@@ -177,7 +176,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
                 else
                 {
                     // panic to prevent having our struct collpase into a black hole
-                    panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->literal.buf);
+                    panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->name.buf);
                     destroy_struct(structure);
                     return;
                 }
@@ -197,7 +196,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
         itl.cur_file = node->filename;
 
-        member.type = get_type(itl,m->nodes[0],type_idx_override);
+        member.type = get_type(itl,type_decl,type_idx_override);
 
         // TODO: ensure array type cant use a deduced type size
 
