@@ -1111,7 +1111,7 @@ void print(const AstNode *root)
         case ast_fmt::type:
         {
             TypeNode* type_decl = (TypeNode*)root;
-            printf("type: %s ", type_decl->is_const? "const" : "");
+            printf("type: %s %s", type_decl->is_const? "const" : "",type_decl->name.buf);
 
             const u32 dimensions = type_decl->arr_decl? count(type_decl->arr_decl->nodes) : 0;
 
@@ -1128,9 +1128,8 @@ void print(const AstNode *root)
                 print_str("@",type_decl->ptr_indirection);
                 print_str("[]",dimensions);
             } 
-
-
-            printf("%s\n",type_decl->name.buf);
+            
+            putchar('\n');
             
             if(type_decl->arr_decl)
             {

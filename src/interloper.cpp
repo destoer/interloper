@@ -1145,6 +1145,12 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
     UNUSED(itl); UNUSED(func); UNUSED(node);
 
+    // TODO: we need to sort these cases, and look for duplicates in the process
+  
+
+    // TODO: check if this can be impl with a jump table
+
+
     unimplemented("compile switch statement");
 }
 
