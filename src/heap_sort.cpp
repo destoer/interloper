@@ -22,12 +22,12 @@ void swap(T& v1, T& v2)
 }
 
 template<typename T, typename F>
-void heapify(Array<T>& heap, u32 idx, u32 len, F GREATER_THAN_FUNC)
+void heapify(Array<T>& heap, u32 idx, u32 len, F CMP_FUNC)
 {
 	// while we are larger than parent swap
-	if(idx != 0 && GREATER_THAN_FUNC(heap[idx],heap[parent(idx)]))
+	if(idx != 0 && CMP_FUNC(heap[idx],heap[parent(idx)]))
 	{
-        while(idx != 0 && GREATER_THAN_FUNC(heap[idx],heap[parent(idx)]))
+        while(idx != 0 && CMP_FUNC(heap[idx],heap[parent(idx)]))
         {
             const auto parent_idx = parent(idx);
 		    swap(heap[idx],heap[parent_idx]);
@@ -40,29 +40,29 @@ void heapify(Array<T>& heap, u32 idx, u32 len, F GREATER_THAN_FUNC)
     {
         while(idx <= len)
         {
-            size_t max = idx;
+            size_t target = idx;
             const auto l = left(idx);
             const auto r = right(idx);
 
-            // swap idx with smallest if its not allready
-            if(l < len && GREATER_THAN_FUNC(heap[l],heap[max]))
+            // swap idx with targer if its not allready
+            if(l < len && CMP_FUNC(heap[l],heap[target]))
             {
-                max = l;
+                target = l;
             }
             
-            if(r < len &&  GREATER_THAN_FUNC(heap[r],heap[max]))
+            if(r < len &&  CMP_FUNC(heap[r],heap[target]))
             {
-                max = r;
+                target = r;
             }
             
-            // if we aernt the smallest
-            if(max != idx)
+            // not allready in the right place
+            if(target != idx)
             {
-                swap(heap[max],heap[idx]);
-                idx = max;
+                swap(heap[target],heap[idx]);
+                idx = target;
             }
 
-            // we were the smallest so max heap is fixed
+            // we are allready in the right place we are done!
             else
             {
                 break;
@@ -72,14 +72,14 @@ void heapify(Array<T>& heap, u32 idx, u32 len, F GREATER_THAN_FUNC)
 }
 
 template<typename T, typename F>
-void heap_sort(Array<T>& arr,F GREATER_THAN_FUNC)
+void heap_sort(Array<T>& arr,F CMP_FUNC)
 {
     const u32 size = count(arr);
 
     // setup the heap
     for(s32 i = (size / 2) - 1; i >= 0; i--)
     {
-        heapify(arr,i,size,GREATER_THAN_FUNC);
+        heapify(arr,i,size,CMP_FUNC);
     }
 
     
@@ -90,6 +90,6 @@ void heap_sort(Array<T>& arr,F GREATER_THAN_FUNC)
         swap(arr[0],arr[i]);
 
         // heap property is now violated fix it
-        heapify(arr,0,i,GREATER_THAN_FUNC);
+        heapify(arr,0,i,CMP_FUNC);
     }
 }
