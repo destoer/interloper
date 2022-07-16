@@ -199,6 +199,7 @@ enum class ast_fmt
     record,
     index,
     switch_t,
+    case_t,
 };
 
 inline const char *FMT_NAMES[] =
@@ -220,6 +221,7 @@ inline const char *FMT_NAMES[] =
     "record",
     "index",
     "switch",
+    "case",
 };
 
 
@@ -366,13 +368,21 @@ struct ForNode
     BlockNode* block;
 };
 
+struct CaseNode
+{
+    // final value
+    u32 value;
+
+    AstNode* statement;
+    BlockNode* block;
+};
 
 struct SwitchNode
 {
     AstNode node;
 
     AstNode* expr;
-    Array<BinNode*> statements;
+    Array<CaseNode*> statements;
     UnaryNode* default_statement;
 };
 
@@ -597,6 +607,16 @@ AstNode* ast_switch(Parser& parser, AstNode* expr, const Token& token)
     add_ast_pointer(parser,&switch_node->statements.data);
 
     return (AstNode*)switch_node;
+}
+
+AstNode* ast_case(Parser& parser, AstNode* expr, BlockNode* block, const Token& token)
+{
+    CaseNode* case_node = alloc_node<CaseNode>(parser,ast_type::case_t,ast_fmt::case_t,token);
+    
+    case_node->statement = expr;
+    case_node->block = block;
+
+    return (AstNode*)case_node;
 }
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)

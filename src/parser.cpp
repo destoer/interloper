@@ -599,9 +599,9 @@ AstNode *statement(Parser &parser)
                     consume(parser,token_type::case_t);
                     AstNode* case_node = expr_terminate(parser,token_type::colon);
 
-                    AstNode* block_node = opt_block(parser);
+                    BlockNode* block_node = (BlockNode*)opt_block(parser);
 
-                    BinNode* case_statement = (BinNode*)ast_binary(parser,case_node,block_node,ast_type::case_t,case_tok);
+                    CaseNode* case_statement = (CaseNode*)ast_case(parser,case_node,block_node,case_tok);
                     push_var(switch_node->statements,case_statement);
                 }
 
@@ -1240,6 +1240,18 @@ void print(const AstNode *root)
             }
 
             print((AstNode*)switch_node->default_statement);
+
+            break;
+        }
+
+        case ast_fmt::case_t:
+        {
+            printf("case\n");
+
+            CaseNode* case_node = (CaseNode*)root;
+
+            print((AstNode*)case_node->statement);
+            print((AstNode*)case_node->block);
 
             break;
         }

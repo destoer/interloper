@@ -145,7 +145,7 @@ void panic(bool cond, const char *fmt, ...)
 #include "array.cpp"
 #include "string.cpp"
 #include "hashtable.cpp"
-
+#include "heap_sort.cpp"
 
 // read entire file into a string
 Array<char> read_file(const String &filename)

@@ -1145,13 +1145,69 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
     UNUSED(itl); UNUSED(func); UNUSED(node);
 
-    // TODO: we need to sort these cases, and look for duplicates in the process
-  
-
-    // TODO: check if this can be impl with a jump table
+    SwitchNode* switch_node = (SwitchNode*)node;
 
 
-    unimplemented("compile switch statement");
+    const u32 size = count(switch_node->statements);
+
+    // collapse all the values of the statements now we have parsed everything
+    // NOTE: we cant do this as the ast is built, as we want to allow usage of values that are defined "out of order"
+    for(u32 i = 0; i < size; i++)
+    {
+        CaseNode* case_node = switch_node->statements[i];
+        case_node->value = eval_const_expr(case_node->statement);
+    }
+
+    // sort the statements, so we can pull out the gaps
+    // and binary search them if we need to when emiting the statement dispatcher
+    heap_sort(switch_node->statements,[](const CaseNode* v1, const CaseNode* v2)
+    {
+        return v1->value > v2->value;
+    });
+
+
+    u32 gap = 0;
+
+    // gap check all the statements and figure out 
+    // if they are close enough to encode as a binary table
+    // or if a binary search should be employed instead
+    for(u32 i = 0; i < size - 1; i++)
+    {
+        const u32 cur_gap = switch_node->statements[i + 1]->value - switch_node->statements[i]->value;
+
+        // these statements have no gap, this means they are duplicated
+        if(cur_gap == 0)
+        {
+            panic(itl,"duplicate case %s\n",switch_node->statements[i]->value);
+            return;
+        }
+
+        gap += cur_gap;
+    }
+
+    // get the number of extra gaps
+    gap -= size - 1;
+
+    // TODO: measure what a good value for this is
+    static constexpr u32 GAP_LIM = 64;
+
+
+    // TODO: support doing a hybrid approach, of dividing into binary tree searching
+    // on jump tables
+
+
+    // use a jump table
+    if(gap < GAP_LIM)
+    {
+        unimplemented("jump table");
+    }
+
+
+    // use a binary search
+    else
+    {
+        unimplemented("binary search");
+    }
 }
 
 // TODO: this needs a cleanup

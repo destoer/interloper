@@ -15,16 +15,16 @@ func main() s32
                 ans += 5;
             }
 
+            case 2:
+            {
+                ans *= 5;
+            }
+
             case 1:
             {
                 ans += 10;
             }
 
-            case 2:
-            {
-                ans *= 5;
-            }
-        
             default:
             {
                 ans += 25;
