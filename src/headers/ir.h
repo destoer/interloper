@@ -154,7 +154,11 @@ static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 
 
 // POOL
-static constexpr u32 CONST_POOL = 1;
+enum class pool_type 
+{
+    string_literal,
+    label,
+};
 
 
 // what kind of opcode is this?
@@ -341,6 +345,8 @@ struct Block
 
     block_type type;
 
+    u32 slot;
+
     // is considered the last block in a set of control flow
     bool last;
 };
@@ -348,8 +354,6 @@ struct Block
 struct IrEmitter
 {
     Array<Block> program;
-    Array<u32> block_slot;
-
 
     // how many registers used in this expression
     u32 reg_count;

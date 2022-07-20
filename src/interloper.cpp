@@ -741,7 +741,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 const u32 static_offset = alloc_const_pool(itl,lit_node->literal.buf,rtype.dimensions[0],1);
 
                 const u32 addr_slot = new_tmp(func);
-                emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,CONST_POOL);
+                emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,u32(pool_type::string_literal));
                 emit(func.emitter,op_type::push_arg,addr_slot);
 
                 arg_clean += 2;
@@ -935,7 +935,7 @@ u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 
 void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
-    const u32 start_block = count(func.emitter.program);
+    const u32 start_block = cur_block(func);
 
     auto &blocks = func.emitter.program;
 
@@ -1033,7 +1033,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
 void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 {
-    const u32 intial_block = count(func.emitter.program) - 1;
+    const u32 initial_block = cur_block(func);
 
 
     auto &blocks = func.emitter.program;
@@ -1059,7 +1059,7 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    append(func.emitter.program[intial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));    
+    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));    
 }
 
 void compile_for_block(Interloper &itl,Function &func,AstNode *node)
@@ -1067,7 +1067,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     // scope for any var decls in the stmt
     new_scope(itl.symbol_table);
 
-    const u32 intial_block = count(func.emitter.program) - 1;
+    const u32 initial_block = cur_block(func);
 
 
     auto &blocks = func.emitter.program;
@@ -1135,7 +1135,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    append(func.emitter.program[intial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
+    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
 
     destroy_scope(itl.symbol_table);
 }
@@ -1189,7 +1189,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     gap -= size - 1;
 
     // TODO: measure what a good value for this is
-    static constexpr u32 GAP_LIM = 64;
+    static constexpr u32 JUMP_TABLE_LIMIT = 64;
 
 
     // TODO: support doing a hybrid approach, of dividing into binary tree searching
@@ -1197,8 +1197,30 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
     // use a jump table
-    if(gap < GAP_LIM)
+    if(gap < JUMP_TABLE_LIMIT)
     {
+        // get the table limits i.e min max
+        const u32 size = count(switch_node->statements);
+
+        const s32 min = switch_node->statements[0]->value;
+        const s32 max = switch_node->statements[size - 1]->value;
+
+        printf("table: %d:%d:%d\n",size,min,max);
+
+
+        // reserve space for the table inside the constant pool
+        
+        // emit the dispatch on the table
+
+        // compile each block,
+        // with default last
+
+        // finally go back and populate the jump table with the label offsets
+        // preinit everything to default
+
+        // then fill out the statements
+
+
         unimplemented("jump table");
     }
 
@@ -3055,4 +3077,6 @@ void compile(Interloper &itl,const String& initial_filename)
     // for now we will just collect the emitter IR
     // and resolve labels
     emit_asm(itl);
+
+    printf("OK\n\n");
 }

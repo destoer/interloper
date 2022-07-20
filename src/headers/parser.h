@@ -373,6 +373,9 @@ struct CaseNode
     // final value
     u32 value;
 
+    // what block did this get compiled into?
+    u32 label;
+
     AstNode* statement;
     BlockNode* block;
 };

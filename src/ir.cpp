@@ -61,28 +61,32 @@ Opcode load_ptr(u32 dst_slot, u32 addr_slot,u32 offset, u32 size, bool is_signed
     }
 }
 
-Block make_block(block_type type,ArenaAllocator* list_allocator)
+Block make_block(block_type type,u32 slot,ArenaAllocator* list_allocator)
 {
     Block block;
 
     block.type = type;
     block.last = false;
     block.list = make_list(list_allocator);
+    block.slot = slot;
 
     return block;
 }
 
 void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot)
 {
-    push_var(emitter.program,make_block(type,list_allocator));
-    push_var(emitter.block_slot,slot);    
+    push_var(emitter.program,make_block(type,slot,list_allocator)); 
+}
+
+u32 cur_block(Function& func)
+{
+    return count(func.emitter.program) - 1;
 }
 
 
 void destroy_emitter(IrEmitter& emitter)
 {
     destroy_arr(emitter.program);
-    destroy_arr(emitter.block_slot);
 }
 
 static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
@@ -1467,8 +1471,7 @@ void emit_asm(Interloper &itl)
         {
             Function& func = bucket[i].v;
 
-            // when we assembly to an actual arch we will 
-            // have to switch over to a byte array
+
             itl.symbol_table.label_lookup[func.slot].offset = itl.program.size;
 
             add(inv_label_lookup,itl.program.size,func.slot);
@@ -1478,14 +1481,15 @@ void emit_asm(Interloper &itl)
                 const auto &block = func.emitter.program[b];
 
                 // resolve label addr.
-                itl.symbol_table.label_lookup[func.emitter.block_slot[b]].offset = itl.program.size;
+                itl.symbol_table.label_lookup[block.slot].offset = itl.program.size;
 
-                // prefer function name
+                // if this is the first block prefer function name
                 if(b != 0)
                 {
-                    add(inv_label_lookup,itl.program.size,func.emitter.block_slot[b]);
+                    add(inv_label_lookup,itl.program.size,block.slot);
                 }
 
+                // dump every opcode into the final program
                 auto node = block.list.start;
                 while(node)
                 {
@@ -1497,26 +1501,16 @@ void emit_asm(Interloper &itl)
     }
 
 
+    // add the constant pool, into the final program
     const u32 const_pool_loc = itl.program.size;
     push_mem(itl.program,itl.const_pool.data,itl.const_pool.size);
     destroy_arr(itl.const_pool);
 
 
-    // label dump
-/*
-    puts("\n\nlabels");
-    for(const auto &label : itl.symbol_table.label_lookup)
-    {
-        printf("label %s = %x\n",label.name.buf,label.offset);
-    }
-    putchar('\n');
-*/
-    
-    // "link" the program and resolve all the labels we now have the absolute
-    // posistions for
     // TODO: how do we want to labels for a mov i.e
     // x = @some_function;
-
+    
+    // "link" the program and resolve the labels
     for(u32 i = 0; i < const_pool_loc; i += sizeof(Opcode))
     {
         auto opcode = read_var<Opcode>(itl.program,i);
@@ -1532,15 +1526,21 @@ void emit_asm(Interloper &itl)
         // resolve pools
         else if(opcode.op == op_type::pool_addr)
         {
-            const u32 pool = opcode.v[2];
+            const pool_type pool = pool_type(opcode.v[2]);
             const u32 offset = opcode.v[1];
 
             switch(pool)
             {
-                case CONST_POOL:
+                case pool_type::string_literal:
                 {
-                    // TODO: this needs to deal with the pro
                     opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + offset,0);
+                    break;
+                }
+
+                // Resolve all the addresses within 
+                case pool_type::label:
+                {
+                    unimplemented("label pool");
                     break;
                 }
 
@@ -1759,9 +1759,9 @@ void dump_ir(Function &func,SymbolTable& table)
         const auto &block = func.emitter.program[b];
         //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
     
-        if(func.emitter.block_slot[b] != 0xffffffff)
+        if(block.slot != 0xffffffff)
         {
-            printf("%s:\n",table.label_lookup[func.emitter.block_slot[b]].name.buf);
+            printf("%s:\n",table.label_lookup[block.slot].name.buf);
         }
 
 
