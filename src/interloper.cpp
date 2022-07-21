@@ -33,6 +33,8 @@ void dump_ir_sym(Interloper &itl)
     }
 }
 
+// TODO: we want to overhaul this with a more general mechanism for getting values
+// by running code at compile time, but just use this for now
 u32 eval_const_expr(const AstNode *node)
 {
     assert(node);
@@ -731,7 +733,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 emit(func.emitter,op_type::push_arg,len_slot);
 
                 // push the data offset
-                const u32 static_offset = alloc_const_pool(itl,pool_type::string_literal,lit_node->literal.buf,rtype.dimensions[0]);
+                const u32 static_offset = push_const_pool(itl,pool_type::string_literal,lit_node->literal.buf,rtype.dimensions[0]);
 
                 const u32 addr_slot = new_tmp(func);
                 emit(func.emitter,op_type::pool_addr,addr_slot,static_offset);
@@ -1202,7 +1204,12 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // reserve space for the table inside the constant pool
-        
+        const u32 static_offset = reserve_const_pool(itl,pool_type::label,GPR_SIZE * range);
+
+        const u32 addr_slot = new_tmp(func);
+        emit(func.emitter,op_type::pool_addr,addr_slot,static_offset);
+
+
         // emit the dispatch on the table
 
         // compile each block,

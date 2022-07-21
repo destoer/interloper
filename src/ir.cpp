@@ -797,7 +797,7 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
 }
 
 
-u32 alloc_const_pool(Interloper& itl, pool_type type, const void* data,u32 size)
+u32 push_const_pool(Interloper& itl, pool_type type, const void* data,u32 size)
 {
     PoolSection section;
 
@@ -811,6 +811,22 @@ u32 alloc_const_pool(Interloper& itl, pool_type type, const void* data,u32 size)
 
     return section.offset;
 }
+
+u32 reserve_const_pool(Interloper& itl, pool_type type, u32 size)
+{
+    PoolSection section;
+
+    section.type = type;
+    section.offset = itl.const_pool.size;
+    section.size = size;
+
+    // add section information + reserve inside the pool
+    push_var(itl.pool_sections,section);
+    resize(itl.const_pool,count(itl.const_pool) + size);
+
+    return section.offset;    
+}
+
 
 
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List &list, ListNode *node)
