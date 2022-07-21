@@ -98,6 +98,18 @@ void push_mem(Array<T>& arr, const void* data, u32 size)
 }
 
 template<typename T>
+void push_mem(Array<T>& arr, const String& str)
+{
+    push_mem(arr,str.buf,str.size);
+}
+
+template<typename T>
+void push_mem(Array<T>& arr, const Array<T>& buf)
+{
+    push_mem(arr,buf.data,buf.size);
+}
+
+template<typename T>
 void destroy_arr(Array<T> &arr)
 {
     if(arr.data)

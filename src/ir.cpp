@@ -1511,7 +1511,7 @@ void emit_asm(Interloper &itl)
 
     // add the constant pool, into the final program
     const u32 const_pool_loc = itl.program.size;
-    push_mem(itl.program,itl.const_pool.data,itl.const_pool.size);
+    push_mem(itl.program,itl.const_pool);
 
     // clean up the mem from the constt pool
     destroy_arr(itl.const_pool);
@@ -1581,7 +1581,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
             if(is_special_reg(slot))
             {
                 const u32 idx = slot - SPECIAL_PURPOSE_REG_START;
-                push_mem(buffer,SPECIAL_REG_NAMES[idx].buf,SPECIAL_REG_NAMES[idx].size);
+                push_mem(buffer,SPECIAL_REG_NAMES[idx]);
             }
 
             // print a sym
@@ -1590,7 +1590,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
                 const auto& sym = sym_from_slot(table,slot);
                 const String& name = sym.name;
 
-                push_mem(buffer,name.buf,name.size);
+                push_mem(buffer,name);
             }
 
 
@@ -1622,7 +1622,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
         case 'a':
         {
             const String& name = table.label_lookup[slot].name;
-            push_mem(buffer,name.buf,name.size);
+            push_mem(buffer,name);
             break;
         }
 
@@ -1643,7 +1643,7 @@ void fmt_raw_specifier(Array<char> &buffer, char specifier, u32 slot)
         {
             if(slot == SP)
             {
-                push_mem(buffer,SPECIAL_REG_NAMES[SP_NAME_IDX].buf,SPECIAL_REG_NAMES[SP_NAME_IDX].size);
+                push_mem(buffer,SPECIAL_REG_NAMES[SP_NAME_IDX]);
             }
 
             else
