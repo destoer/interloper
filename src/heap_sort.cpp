@@ -91,7 +91,7 @@ void heap_sort(Array<T>& arr,F CMP_FUNC)
         heapify(arr,i,size,CMP_FUNC);
     }
 
-    verify(arr,0,size,CMP_FUNC);
+    //verify(arr,0,size,CMP_FUNC);
 
     
     for(s32 i = size - 1; i > 0; i--)
