@@ -26,16 +26,10 @@ std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, As
 
 void dump_ir_sym(Interloper &itl)
 {
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
+    for(u32 f = 0; f < count(itl.used_func); f++)
     {
-        auto& bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& func = bucket[i].v;
-
-            dump_ir(func,itl.symbol_table);
-        }
+        Function& func = *lookup(itl.function_table,itl.used_func[f]);
+        dump_ir(func,itl.symbol_table);
     }
 }
 
@@ -723,8 +717,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         {
             assert(arg.type.degree == 1);
 
-            // pass a static string (TODO: we need to add const and make sure that the arg is marked as it)
-            // const_pool_addr <slot>, offset  to load the address
+            // pass a static string, being puttingg it as const data in the program
             if(call_node->args[arg_idx]->type == ast_type::string)
             {
                 LiteralNode* lit_node = (LiteralNode*)call_node->args[arg_idx];
