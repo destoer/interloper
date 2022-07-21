@@ -1200,12 +1200,12 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     if(gap < JUMP_TABLE_LIMIT)
     {
         // get the table limits i.e min max
-        const u32 size = count(switch_node->statements);
-
         const s32 min = switch_node->statements[0]->value;
         const s32 max = switch_node->statements[size - 1]->value;
+        const u32 range = (max - min) + 1;
 
-        printf("table: %d:%d:%d\n",size,min,max);
+
+        printf("table: %d:%d : %d:%d\n",range,size,min,max);
 
 
         // reserve space for the table inside the constant pool

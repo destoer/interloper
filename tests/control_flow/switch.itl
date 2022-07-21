@@ -10,7 +10,7 @@ func main() s32
     {
         switch(buf[i])
         {
-            case 0:
+            case 1:
             {
                 ans += 5;
             }
@@ -25,6 +25,11 @@ func main() s32
                 ans += 10;
             }
 
+            case 9:
+            {
+                ans -= 2;
+            }
+            
             default:
             {
                 if(buf[i] & 1)
