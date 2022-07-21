@@ -738,10 +738,10 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                 emit(func.emitter,op_type::push_arg,len_slot);
 
                 // push the data offset
-                const u32 static_offset = alloc_const_pool(itl,lit_node->literal.buf,rtype.dimensions[0],1);
+                const u32 static_offset = alloc_const_pool(itl,pool_type::string_literal,lit_node->literal.buf,rtype.dimensions[0]);
 
                 const u32 addr_slot = new_tmp(func);
-                emit(func.emitter,op_type::pool_addr,addr_slot,static_offset,u32(pool_type::string_literal));
+                emit(func.emitter,op_type::pool_addr,addr_slot,static_offset);
                 emit(func.emitter,op_type::push_arg,addr_slot);
 
                 arg_clean += 2;
@@ -2920,6 +2920,7 @@ void destroy_itl(Interloper &itl)
 {
     destroy_arr(itl.program);
     destroy_arr(itl.const_pool);
+    destroy_arr(itl.pool_sections);
     clear(itl.symbol_table);
     
     destroy_ast(itl);

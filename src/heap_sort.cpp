@@ -24,7 +24,6 @@ void swap(T& v1, T& v2)
 template<typename T, typename F>
 void verify(const Array<T>& heap,u32 i, u32 len, F CMP_FUNC)
 {
-
     for(; i < len; i++)
     {
         const u32 r = right(i);

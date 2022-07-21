@@ -161,6 +161,15 @@ enum class pool_type
 };
 
 
+struct PoolSection
+{
+    u32 offset;
+    u32 size;
+
+    pool_type type;
+};
+
+
 // what kind of opcode is this?
 // NOTE: when we add indirect branches we need it under a seperate group
 enum class op_group

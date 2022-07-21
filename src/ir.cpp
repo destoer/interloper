@@ -797,13 +797,19 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
 }
 
 
-u32 alloc_const_pool(Interloper& itl, const void* data,u32 count,u32 size)
+u32 alloc_const_pool(Interloper& itl, pool_type type, const void* data,u32 size)
 {
-    const u32 pos = itl.const_pool.size;
+    PoolSection section;
 
-    const u32 bytes = count * size;
-    push_mem(itl.const_pool,data,bytes);
-    return pos;
+    section.type = type;
+    section.offset = itl.const_pool.size;
+    section.size = size;
+
+    // add section information + data to the pool
+    push_var(itl.pool_sections,section);
+    push_mem(itl.const_pool,data,size);
+
+    return section.offset;
 }
 
 
@@ -1462,7 +1468,7 @@ void emit_asm(Interloper &itl)
     // program exit
     insert_program(itl,Opcode(op_type::swi,SYSCALL_EXIT,0,0));
 
-    // dump every function into one vector and record where it is in the function table
+    // resolve all our labels, dump all our machine code into a buffer
     for(u32 b = 0; b < count(itl.function_table.buf); b++)
     {
         auto bucket = itl.function_table.buf[b];
@@ -1500,11 +1506,16 @@ void emit_asm(Interloper &itl)
         }
     }
 
+    // TODO: add any data required into the const pool before adding it to the program
+
 
     // add the constant pool, into the final program
     const u32 const_pool_loc = itl.program.size;
     push_mem(itl.program,itl.const_pool.data,itl.const_pool.size);
+
+    // clean up the mem from the constt pool
     destroy_arr(itl.const_pool);
+    destroy_arr(itl.pool_sections);
 
 
     // TODO: how do we want to labels for a mov i.e

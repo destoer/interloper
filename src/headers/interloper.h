@@ -28,6 +28,7 @@ struct Interloper
 
     SymbolTable symbol_table;
 
+    Array<PoolSection> pool_sections;
     Array<u8> const_pool;
 
     // Arena's
