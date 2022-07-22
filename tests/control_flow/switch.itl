@@ -32,7 +32,7 @@ func main() s32
             
             default:
             {
-                if(buf[i] & 1)
+                if(is_set(buf[i],0))
                 {
                     ans += 35;
                 }

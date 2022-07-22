@@ -103,9 +103,11 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::implicit_t,"placeholder",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"spill_rv",0,{arg_type::none,arg_type::none,arg_type::none}},
-
     {op_group::reg_t,"spill %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
+    {op_group::implicit_t,"spill_all",0,{arg_type::none,arg_type::none,arg_type::none}},
+
     {op_group::reg_t,"load %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
+    
 
     {op_group::imm_t,"addrof %r, %r, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 

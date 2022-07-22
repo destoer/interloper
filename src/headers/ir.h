@@ -113,8 +113,9 @@ enum class op_type
     placeholder,
 
     spill_rv,
-
     spill,
+    spill_all,
+    
     load,
 
     addrof,
@@ -314,6 +315,7 @@ enum class block_type
     for_t,
     while_t,
     body_t,
+    case_t,
 };
 
 inline const char *block_names[] =
@@ -369,6 +371,7 @@ struct IrEmitter
 };
 
 void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
+void emit_block(IrEmitter &emitter,u32 block,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
 void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot = 0xffffffff); 
 
 void destroy_emitter(IrEmitter& emitter);

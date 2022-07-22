@@ -4,14 +4,15 @@
 #include "list.cpp"
 
 
-ListNode* get_cur_end(IrEmitter& emitter)
-{
-    return emitter.program[count(emitter.program)-1].list.end;    
-}
 
 List& get_cur_list(IrEmitter& emitter)
 {
     return emitter.program[count(emitter.program)-1].list; 
+}
+
+ListNode* get_cur_end(IrEmitter& emitter)
+{
+    return get_cur_list(emitter).end;    
 }
 
 // TODO: should this return the dst slot as a matter of convience?
@@ -21,13 +22,21 @@ void emit(IrEmitter &emitter,const Opcode& opcode)
     append(list,opcode);
 }
 
-void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
+void emit_block(IrEmitter& emitter, u32 block, op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    auto &list = emitter.program[count(emitter.program)-1].list;
-    append(list,opcode);
+    auto &list = emitter.program[block].list;
+    append(list,opcode);    
 }
+
+
+void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
+{
+    emit_block(emitter,count(emitter.program)-1,op,v1,v2,v3);
+}
+
+
 
 u32 gpr_count(u32 size)
 {
@@ -66,7 +75,6 @@ Block make_block(block_type type,u32 slot,ArenaAllocator* list_allocator)
     Block block;
 
     block.type = type;
-    block.last = false;
     block.list = make_list(list_allocator);
     block.slot = slot;
 
@@ -1007,6 +1015,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         }
 
 
+        case op_type::spill_all:
+        {
+            spill_all(alloc,itl.symbol_table,list,node,false);  
+            return remove(list,node);
+        }
+
         // TODO: this needs to have its size emitted directly inside the opcode
         case op_type::free_slot:
         {
@@ -1375,17 +1389,6 @@ void allocate_registers(Interloper& itl,Function &func)
         while(node)
         {
             node = allocate_opcode(itl,func,alloc,list,node);
-        }
-
-        // block is directly falls to the next one we need to spill regs
-        // TODO: fix register allocation so we dont have to spill everyhting across basic blocks
-        if(block.last)
-        {
-            if(alloc.print_reg_allocation)
-            {
-                puts("spilling last");
-            }
-            spill_all(alloc,itl.symbol_table,list,list.end,true);
         }
     }
 
@@ -1800,11 +1803,6 @@ void dump_ir(Function &func,SymbolTable& table)
             node = node->next;
         }
 
-        if(block.last)
-        {
-            printf("\tspill_last\n");
-        }
-        
         l++;
     }
 

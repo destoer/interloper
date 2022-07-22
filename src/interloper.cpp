@@ -14,6 +14,7 @@ std::pair<Type, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 
 std::pair<Type, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_decl(Interloper &itl,Function &func, const AstNode *line);
 void compile_block(Interloper &itl,Function &func,BlockNode *node);
+u32 compile_basic_block(Interloper &itl,Function &func,BlockNode *node, block_type type);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot);
 
@@ -964,16 +965,17 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             }
 
             // block for comparison branch
-            const u32 cur_block = count(blocks) - 1;
+            // cant emit yet as we dont know how large the block is
+            const u32 cmp_block = cur_block(func);
 
             // compile the body block
-            new_basic_block(itl,func,if_stmt->node.type == ast_type::if_t? block_type::if_t : block_type::else_if_t);
-            compile_block(itl,func,(BlockNode*)if_stmt->right);
+            const block_type type = if_stmt->node.type == ast_type::if_t? block_type::if_t : block_type::else_if_t;
+            compile_basic_block(itl,func,(BlockNode*)if_stmt->right,type);
 
             // add branch over the block we just compiled
             const u32 slot = count(itl.symbol_table.label_lookup);
 
-            append(blocks[cur_block].list,Opcode(op_type::bnc,slot,r,0));
+            emit_block(func.emitter,cmp_block,op_type::bnc,slot,r);
 
 
             // not the last statment (branch is not require)
@@ -987,7 +989,9 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
             else
             {
-                blocks[count(blocks) - 1].last = true;
+                // TODO: we have to spill all here to make sure reg allocation works correctly
+                // fix register allocation so we dont have to spill everyhting across basic blocks
+                emit(func.emitter,op_type::spill_all);
             }
         }
 
@@ -996,12 +1000,11 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         else 
         {
             UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n];
+            compile_basic_block(itl,func,(BlockNode*)else_stmt->next,block_type::else_t);
 
-            // create block for body
-            new_basic_block(itl,func,block_type::else_t);
-            compile_block(itl,func,(BlockNode*)else_stmt->next);
-
-            blocks[count(blocks) - 1].last = true;
+            // TODO: we have to spill all here to make sure reg allocation works correctly
+            // fix register allocation so we dont have to spill everyhting across basic blocks
+            emit(func.emitter,op_type::spill_all);
         }
     }
 
@@ -1039,11 +1042,8 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     // compile cond
     const auto [t,stmt_cond_reg] = compile_oper(itl,func,while_node->left,new_tmp(func));
 
-    // compile the body
-    const u32 cur = new_basic_block(itl,func,block_type::while_t);
-
     // compile body
-    compile_block(itl,func,(BlockNode*)while_node->right); 
+    const u32 cur = compile_basic_block(itl,func,(BlockNode*)while_node->right,block_type::while_t); 
 
 
     u32 loop_cond_reg;
@@ -1114,9 +1114,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 
     // compile the body
-    const u32 cur = new_basic_block(itl,func,block_type::for_t);
-    
-    compile_block(itl,func,for_node->block);    
+    const u32 cur = compile_basic_block(itl,func,for_node->block,block_type::for_t);    
 
     // compile loop end stmt
     compile_expression(itl,func,for_node->post,new_tmp(func));
@@ -1135,7 +1133,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
-// TODO: handle duplicate cases
+
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
     UNUSED(itl); UNUSED(func); UNUSED(node);
@@ -1180,6 +1178,11 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         gap += cur_gap;
     }
 
+    auto &blocks = func.emitter.program;
+    block_type old = blocks[count(blocks) - 1].type;
+
+
+
     // get the number of extra gaps
     gap -= size - 1;
 
@@ -1200,27 +1203,65 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const u32 range = (max - min) + 1;
 
 
-        printf("table: %d:%d : %d:%d\n",range,size,min,max);
+        // compile the actual switch expr
+        const auto [rtype,expr_slot] = compile_oper(itl,func,switch_node->expr,new_tmp(func));
 
+
+        // TODO: relax this to allow strings
+        if(!is_integer(rtype))
+        {
+            panic(itl,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
+            return;
+        }
+
+
+
+        // save our cur block so we can emit the dispatch later
+        // we need to do it after because we dont know how large the blocks are
+        const u32 dispatch_block = cur_block(func);
 
         // reserve space for the table inside the constant pool
         const u32 static_offset = reserve_const_pool(itl,pool_type::label,GPR_SIZE * range);
 
-        const u32 addr_slot = new_tmp(func);
-        emit(func.emitter,op_type::pool_addr,addr_slot,static_offset);
 
+        // compile each stmt block
+        for(u32 i = 0; i < size; i++)
+        {
+            CaseNode* case_node = switch_node->statements[i];
+            compile_basic_block(itl,func,case_node->block,block_type::case_t);
+        }
 
-        // emit the dispatch on the table
+        // then default
+        compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next,block_type::case_t);
 
-        // compile each block,
-        // with default last
+        // TODO:
+        // Add jumps from every stmt to the exit block!
+        const u32 exit_block = new_basic_block(itl,func,old);
+        UNUSED(exit_block);
+        
 
+        // TODO:
         // finally go back and populate the jump table with the label offsets
         // preinit everything to default
 
-        // then fill out the statements
+        // then fill the table out with the actual cases
 
 
+        // finally emit the dispatch on the table
+        const u32 switch_slot = new_tmp(func);
+        emit_block(func.emitter,dispatch_block,op_type::sub_imm,switch_slot,expr_slot,min);
+
+        // TODO:
+        // out of range, branch to default
+
+        // TODO:
+        // in range dispatch on the jump table
+        const u32 addr_slot = new_tmp(func);
+        emit_block(func.emitter,dispatch_block,op_type::pool_addr,addr_slot,static_offset);
+
+
+        
+        dump_ir_sym(itl);
         unimplemented("jump table");
     }
 
@@ -2565,6 +2606,15 @@ std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, As
     return std::pair<Type,u32>{accessed_type,dst_slot};
 }
 
+
+u32 compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node, block_type type)
+{
+    const u32 block_slot = new_basic_block(itl,func,type);
+    compile_block(itl,func,block_node);
+
+    return block_slot;
+}
+
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
     new_scope(itl.symbol_table);
@@ -2792,7 +2842,6 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
         }
     }
 
-
     destroy_scope(itl.symbol_table);
 }
 
@@ -2834,11 +2883,9 @@ void compile_functions(Interloper &itl)
 
         itl.has_return = false;
 
-        new_basic_block(itl,func,block_type::body_t);
-
 
         // parse out each line of the function
-        compile_block(itl,func,node.block);
+        compile_basic_block(itl,func,node.block,block_type::body_t);
 
         destroy_scope(itl.symbol_table);
 
