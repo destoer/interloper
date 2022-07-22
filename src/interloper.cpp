@@ -1010,7 +1010,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
     // TODO: is this being a body fine or does it need to take whatever the intial block was?
     // create the exit block, for new code
-    const u32 exit_block = new_basic_block(itl,func,old);
+    const u32 exit_label = new_basic_block(itl,func,old);
 
 
 
@@ -1024,7 +1024,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
         if(block.list.end->opcode.op == op_type::exit_block)
         {
-            block.list.end->opcode = Opcode(op_type::b,exit_block,0,0);
+            block.list.end->opcode = Opcode(op_type::b,exit_label,0,0);
         }
     }
 }
@@ -1050,11 +1050,11 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left,new_tmp(func));
     emit(func.emitter,op_type::bc,cur,loop_cond_reg);
 
-    const u32 exit_block = new_basic_block(itl,func,old);
+    const u32 exit_label = new_basic_block(itl,func,old);
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));    
+    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_label,stmt_cond_reg,0));    
 }
 
 void compile_for_block(Interloper &itl,Function &func,AstNode *node)
@@ -1124,11 +1124,11 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,for_node->cond,new_tmp(func));
     emit(func.emitter,op_type::bc,cur,loop_cond_reg);
 
-    const u32 exit_block = new_basic_block(itl,func,old);
+    const u32 exit_label = new_basic_block(itl,func,old);
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_block,stmt_cond_reg,0));
+    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_label,stmt_cond_reg,0));
 
     destroy_scope(itl.symbol_table);
 }
@@ -1215,29 +1215,64 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         }
 
 
+        // save our cur block so we can emit the default block dispatch later
+        const u32 range_block = cur_block(func);
 
-        // save our cur block so we can emit the dispatch later
-        // we need to do it after because we dont know how large the blocks are
-        const u32 dispatch_block = cur_block(func);
+        // finally emit the dispatch on the table now we know where to exit if the table bounds get execeeded
+        const u32 switch_slot = new_tmp(itl,GPR_SIZE);
+        emit(func.emitter,op_type::sub_imm,switch_slot,expr_slot,min);
+
+
+        // out of range, branch to default
+        const u32 default_cmp = new_tmp(func);
+        emit(func.emitter,op_type::cmpugt_imm,default_cmp,switch_slot,max);
+
+
+
 
         // reserve space for the table inside the constant pool
         const u32 static_offset = reserve_const_pool(itl,pool_type::label,GPR_SIZE * range);
+        UNUSED(static_offset);
 
+        // emit the switch table dispatch
+        new_basic_block(itl,func,old);
+
+        // mulitply to get a jump table index
+        const u32 table_index = new_tmp(func);
+        emit(func.emitter,op_type::mul_imm,table_index,switch_slot,GPR_SIZE);
+
+        // TODO: emit the final dispatch
+
+
+
+        // finally compile all the blocks, and populate the jump table
 
         // compile each stmt block
         for(u32 i = 0; i < size; i++)
         {
             CaseNode* case_node = switch_node->statements[i];
-            compile_basic_block(itl,func,case_node->block,block_type::case_t);
+            case_node->label = compile_basic_block(itl,func,case_node->block,block_type::case_t);
+            case_node->end_block = cur_block(func);
         }
 
-        // then default
-        compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next,block_type::case_t);
+        // TODO: allow default to be optional
 
-        // TODO:
+        // then default
+        // NOTE: as default is allways the last block it does not need to have a jump to the exit
+        const u32 default_label = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next,block_type::case_t);
+
+
+        // we have default posisiton now we can emit the branch for the range checking failing
+        emit_block(func.emitter,range_block,op_type::bc,default_label,default_cmp);
+
         // Add jumps from every stmt to the exit block!
-        const u32 exit_block = new_basic_block(itl,func,old);
-        UNUSED(exit_block);
+        const u32 exit_label = new_basic_block(itl,func,old);
+        for(u32 i = 0; i < size; i++)
+        {
+            CaseNode* case_node = switch_node->statements[i];
+            emit_block(func.emitter,case_node->end_block,op_type::b,exit_label);
+        }
+
         
 
         // TODO:
@@ -1247,20 +1282,6 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // then fill the table out with the actual cases
 
 
-        // finally emit the dispatch on the table
-        const u32 switch_slot = new_tmp(func);
-        emit_block(func.emitter,dispatch_block,op_type::sub_imm,switch_slot,expr_slot,min);
-
-        // TODO:
-        // out of range, branch to default
-
-        // TODO:
-        // in range dispatch on the jump table
-        const u32 addr_slot = new_tmp(func);
-        emit_block(func.emitter,dispatch_block,op_type::pool_addr,addr_slot,static_offset);
-
-
-        
         dump_ir_sym(itl);
         unimplemented("jump table");
     }
@@ -2606,13 +2627,13 @@ std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, As
     return std::pair<Type,u32>{accessed_type,dst_slot};
 }
 
-
+// returns label for cur block
 u32 compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node, block_type type)
 {
-    const u32 block_slot = new_basic_block(itl,func,type);
+    const u32 label_slot = new_basic_block(itl,func,type);
     compile_block(itl,func,block_node);
 
-    return block_slot;
+    return label_slot;
 }
 
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)

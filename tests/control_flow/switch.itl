@@ -32,6 +32,8 @@ func main() s32
             
             default:
             {
+                ans += 6;
+
                 if(is_set(buf[i],0))
                 {
                     ans += 35;
@@ -41,6 +43,8 @@ func main() s32
                 {
                     ans += 25;
                 }
+
+                ans += 5;
             }
         }
     }
