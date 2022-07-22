@@ -745,7 +745,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
 // start here
 // we need to implement proper stores and loads 
 // for each type first
-void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,const Type &old_type, const Type &new_type)
+void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const Type &old_type, const Type &new_type)
 {
     UNUSED(itl);
 
@@ -784,13 +784,13 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
                 {
                     case builtin_type::s8_t: 
                     {
-                        emit(emitter,op_type::sxb,dst_slot,src_slot);
+                        emit(func,op_type::sxb,dst_slot,src_slot);
                         break;
                     }
 
                     case builtin_type::s16_t:
                     {
-                        emit(emitter,op_type::sxh,dst_slot,src_slot);
+                        emit(func,op_type::sxh,dst_slot,src_slot);
                         break;
                     }
 
@@ -806,13 +806,13 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
                 {
                     case 1: 
                     {
-                        emit(emitter,op_type::and_imm,dst_slot,src_slot,0xff);
+                        emit(func,op_type::and_imm,dst_slot,src_slot,0xff);
                         break;
                     }
 
                     case 2:  
                     {
-                        emit(emitter,op_type::and_imm,dst_slot,src_slot,0xffff);
+                        emit(func,op_type::and_imm,dst_slot,src_slot,0xffff);
                         break;
                     }
 
@@ -823,7 +823,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
             // cast doesnt do anything but move into a tmp so the IR doesnt break
             else
             {
-                emit(emitter,op_type::mov_reg,dst_slot,src_slot);
+                emit(func,op_type::mov_reg,dst_slot,src_slot);
             }
 
         }
@@ -833,7 +833,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
         {
             // do nothing 0 and 1 are fine as integers
             // we do want this to require a cast though so conversions have to be explicit
-            emit(emitter,op_type::mov_reg,dst_slot,src_slot);
+            emit(func,op_type::mov_reg,dst_slot,src_slot);
         } 
 
         // integer to bool
@@ -842,13 +842,13 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
         {
             if(is_signed(builtin_old))
             {
-                emit(emitter,op_type::cmpsgt_imm,dst_slot,src_slot,0);
+                emit(func,op_type::cmpsgt_imm,dst_slot,src_slot,0);
             }
 
             // unsigned
             else
             {
-                emit(emitter,op_type::cmpugt_imm,dst_slot,src_slot,0);
+                emit(func,op_type::cmpugt_imm,dst_slot,src_slot,0);
             }
         }        
 
@@ -861,7 +861,7 @@ void handle_cast(Interloper& itl,IrEmitter &emitter, u32 dst_slot,u32 src_slot,c
     // cast does nothing just move the reg, its only acknowledgement your doing something screwy
     else if(is_pointer(old_type) && is_pointer(new_type))
     {
-        emit(emitter,op_type::mov_reg,dst_slot,src_slot);
+        emit(func,op_type::mov_reg,dst_slot,src_slot);
     }
 
     // probably only pointers are gonna valid for casts here

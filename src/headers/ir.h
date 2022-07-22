@@ -370,11 +370,15 @@ struct IrEmitter
     u32 reg_count;
 };
 
-void emit(IrEmitter &emitter,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void emit_block(IrEmitter &emitter,u32 block,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot = 0xffffffff); 
+struct Function;
+
+void emit(Function& func,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
+void emit_block(Function &func,u32 block,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
+void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot = 0xffffffff); 
+u32 emit_res(Function& func,op_type op, u32 v2 = 0, u32 v3 = 0);
 
 void destroy_emitter(IrEmitter& emitter);
+
 
 void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
 void disass_opcode_raw(const Opcode &opcode);

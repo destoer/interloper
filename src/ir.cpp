@@ -15,27 +15,46 @@ ListNode* get_cur_end(IrEmitter& emitter)
     return get_cur_list(emitter).end;    
 }
 
-// TODO: should this return the dst slot as a matter of convience?
-void emit(IrEmitter &emitter,const Opcode& opcode)
+
+u32 new_tmp(Function &func)
+{       
+    return func.emitter.reg_count++;
+}
+
+void emit(Function& func,const Opcode& opcode)
 {
-    auto &list = get_cur_list(emitter);
+    auto &list = get_cur_list(func.emitter);
     append(list,opcode);
 }
 
-void emit_block(IrEmitter& emitter, u32 block, op_type op, u32 v1, u32 v2, u32 v3)
+void emit_block(Function& func, u32 block, op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    auto &list = emitter.program[block].list;
+    auto &list = func.emitter.program[block].list;
     append(list,opcode);    
 }
 
 
-void emit(IrEmitter &emitter,op_type op, u32 v1, u32 v2, u32 v3)
+u32 cur_block(Function& func)
 {
-    emit_block(emitter,count(emitter.program)-1,op,v1,v2,v3);
+    return count(func.emitter.program) - 1;
 }
 
+
+void emit(Function& func,op_type op, u32 v1, u32 v2, u32 v3)
+{
+    emit_block(func,cur_block(func),op,v1,v2,v3);
+}
+
+// emit an opcode, and give back a new dst as a tmp
+u32 emit_res(Function& func, op_type op, u32 v2, u32 v3)
+{
+    const u32 tmp = new_tmp(func);
+    emit(func,op,tmp,v2,v3);
+
+    return tmp;
+}
 
 
 u32 gpr_count(u32 size)
@@ -81,14 +100,9 @@ Block make_block(block_type type,u32 slot,ArenaAllocator* list_allocator)
     return block;
 }
 
-void new_block(ArenaAllocator* list_allocator,IrEmitter &emitter,block_type type, u32 slot)
+void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot)
 {
-    push_var(emitter.program,make_block(type,slot,list_allocator)); 
-}
-
-u32 cur_block(Function& func)
-{
-    return count(func.emitter.program) - 1;
+    push_var(func.emitter.program,make_block(type,slot,list_allocator)); 
 }
 
 
@@ -124,11 +138,6 @@ bool is_special_reg(u32 r)
 bool is_tmp(u32 r)
 {
     return r < REG_FREE;
-}
-
-u32 new_tmp(Function &func)
-{       
-    return func.emitter.reg_count++;
 }
 
 // get back a longer lived tmp
@@ -169,17 +178,16 @@ void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 s
     mark_used(itl,func_call);
 
 
-    const u32 imm_slot = new_tmp(func);
-    emit(func.emitter,op_type::mov_imm,imm_slot,size);
+    const u32 imm_slot = emit_res(func,op_type::mov_imm,size);
 
-    emit(func.emitter,op_type::push_arg,imm_slot);
-    emit(func.emitter,op_type::push_arg,src_slot);
-    emit(func.emitter,op_type::push_arg,dst_slot);
+    emit(func,op_type::push_arg,imm_slot);
+    emit(func,op_type::push_arg,src_slot);
+    emit(func,op_type::push_arg,dst_slot);
 
-    emit(func.emitter,op_type::spill_rv);
-    emit(func.emitter,op_type::call,func_call.slot);
+    emit(func,op_type::spill_rv);
+    emit(func,op_type::call,func_call.slot);
 
-    emit(func.emitter,op_type::clean_args,3);
+    emit(func,op_type::clean_args,3);
 }
 
 
