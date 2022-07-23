@@ -1117,8 +1117,6 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
-    UNUSED(itl); UNUSED(func); UNUSED(node);
-
     SwitchNode* switch_node = (SwitchNode*)node;
 
 
@@ -1245,7 +1243,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // NOTE: as default is allways the last block it does not need to have a jump to the exit
-        u32 default_label;
+        u32 default_label = 0;
 
 
         // if there is no default then our exit label is the end
@@ -2968,7 +2966,7 @@ void compile_functions(Interloper &itl)
 // tuples -> global const's 
 // enum -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
-// unions -> marcro -> debugg memory guards -> ...
+// discriminated unions -> marcro -> debugg memory guards -> ...
 
 void destroy_ast(Interloper& itl)
 {

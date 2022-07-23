@@ -1,0 +1,31 @@
+enum scale  
+{
+    small,
+    meduim,
+    large,
+}
+
+
+func get_scale(v : u32) scale
+{
+    if v < 10
+    {
+        return scale::small;
+    }
+
+    else if(v < 1000)
+    {
+        return scale::med;
+    }
+
+    else
+    {
+        return scale::large;
+    }
+} 
+
+
+func main() s32
+{
+    return get_scale(0) == scale::small && get_scale(50) == scale::med && get_scale(25252) == scale::large;
+}
