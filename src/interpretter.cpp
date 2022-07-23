@@ -20,6 +20,11 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
+    if(addr < interpretter.program.size)
+    {
+        return handle_read<access_type>(&interpretter.program[addr]);
+    }
+
     if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
     {
         return handle_read<access_type>(&interpretter.stack[addr - 0x20000000]);
@@ -440,6 +445,12 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
+        case op_type::b_reg:
+        {
+            regs[PC] = regs[opcode.v[0]];
+            break;
+        }
+
         // system call
         case op_type::swi:
         {
@@ -560,14 +571,14 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
 
         if((regs[PC] % sizeof(Opcode)) != 0)
         {
-            const auto opcode = read_var<Opcode>(interpretter.program,regs[PC]);
+            const auto opcode = read_mem<Opcode>(interpretter.program,regs[PC]);
             disass_opcode_raw(opcode);
             
             print_regs(interpretter);
             panic("attempted to execute mid instr: %x : %x\n",regs[PC],interpretter.program.size);            
         }
 
-        const auto opcode = read_var<Opcode>(interpretter.program,regs[PC]);
+        const auto opcode = read_mem<Opcode>(interpretter.program,regs[PC]);
 
     #if 0
         printf("%08x: ",regs[PC]);

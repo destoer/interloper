@@ -78,6 +78,7 @@ enum class op_type
     bnc,
     bc,
     b,
+    b_reg,
 
     load_arr_len,
     load_arr_data,
@@ -171,8 +172,6 @@ struct PoolSection
 };
 
 
-// what kind of opcode is this?
-// NOTE: when we add indirect branches we need it under a seperate group
 enum class op_group
 {
     reg_t,
@@ -182,6 +181,7 @@ enum class op_group
     store_t,
     implicit_t,
     branch_t,
+    branch_reg_t,
     slot_t,
 };
 

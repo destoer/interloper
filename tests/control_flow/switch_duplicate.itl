@@ -1,0 +1,20 @@
+// expected compile error
+func main() s32 
+{
+    i : u32 = 0;
+
+    switch(i)
+    {
+        case 0:
+        {
+
+        }
+
+        case 0:
+        {
+
+        }
+    }
+
+    return 0;
+}

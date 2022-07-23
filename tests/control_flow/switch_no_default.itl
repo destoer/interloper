@@ -1,5 +1,4 @@
-
-// expected 447
+// expected 73
 func main() s32 
 {
     buf : s32[?] = {-1,1,5,2,12,0,6,9,10};
@@ -28,25 +27,6 @@ func main() s32
             case 9:
             {
                 ans -= 2;
-            }
-            
-            default:
-            {
-                ans += 6;
-
-                // 46
-                if(is_set(cast(u32,buf[i]),0))
-                {
-                    ans += 35;
-                }
-
-                // 36
-                else
-                {
-                    ans += 25;
-                }
-
-                ans += 5;
             }
         }
     }

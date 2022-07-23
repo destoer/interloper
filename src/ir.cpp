@@ -1470,7 +1470,7 @@ void dump_program(const Array<u8> &program,u32 size, HashTable<u32,u32> &inv_lab
 
         printf("  0x%08x:\t ",pc);   
 
-        const auto opcode = read_var<Opcode>(program,pc);
+        const Opcode opcode = read_mem<Opcode>(program,pc);
         disass_opcode_raw(opcode);
     }
 }
@@ -1533,7 +1533,34 @@ void emit_asm(Interloper &itl)
         }
     }
 
-    // TODO: add any data required into the const pool before adding it to the program
+    // add any data required into the const pool before adding it to the program
+    for(u32 i = 0; i < count(itl.pool_sections); i++)
+    {
+        const PoolSection& pool = itl.pool_sections[i];
+
+        switch(pool.type)
+        {
+            case pool_type::label:
+            {
+                static_assert(GPR_SIZE == sizeof(u32));
+
+                const u32 offset = pool.offset;
+                const u32 size = pool.size;
+
+                // rewrite final label posistions
+                for(u32 addr = offset; addr < size + offset; addr += GPR_SIZE)
+                {
+                    const u32 label = read_mem<u32>(itl.const_pool,addr);
+
+                    //printf("table: %d -> %x\n",label,itl.symbol_table.label_lookup[label].offset);
+
+                    write_mem<u32>(itl.const_pool, addr, itl.symbol_table.label_lookup[label].offset);
+                }                
+            }
+
+            case pool_type::string_literal: break;
+        }
+    }
 
 
     // add the constant pool, into the final program
@@ -1551,14 +1578,14 @@ void emit_asm(Interloper &itl)
     // "link" the program and resolve the labels
     for(u32 i = 0; i < const_pool_loc; i += sizeof(Opcode))
     {
-        auto opcode = read_var<Opcode>(itl.program,i);
+        auto opcode = read_mem<Opcode>(itl.program,i);
 
         // handle all the branch labels
         // TODO: this probably needs to be changed for when we have call <reg>
         if(OPCODE_TABLE[u32(opcode.op)].group == op_group::branch_t)
         {
             opcode.v[0] = itl.symbol_table.label_lookup[opcode.v[0]].offset;
-            write_var(itl.program,i,opcode);
+            write_mem(itl.program,i,opcode);
         }
 
         // resolve pools
@@ -1585,7 +1612,7 @@ void emit_asm(Interloper &itl)
                 default: panic("unknown pool %d\n",pool);
             }
 
-            write_var(itl.program,i,opcode);
+            write_mem(itl.program,i,opcode);
         }
     }
 

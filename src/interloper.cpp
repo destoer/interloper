@@ -1152,7 +1152,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // these statements have no gap, this means they are duplicated
         if(cur_gap == 0)
         {
-            panic(itl,"duplicate case %s\n",switch_node->statements[i]->value);
+            panic(itl,"duplicate case %d\n",switch_node->statements[i]->value);
             return;
         }
 
@@ -1205,23 +1205,31 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // out of range, branch to default
-        const u32 default_cmp = emit_res(func,op_type::cmpugt_imm,switch_slot,max);
+        const u32 default_cmp = emit_res(func,op_type::cmpugt_imm,switch_slot,max - min);
 
-
-        // reserve space for the table inside the constant pool
-        const u32 static_offset = reserve_const_pool(itl,pool_type::label,GPR_SIZE * range);
-        UNUSED(static_offset);
+        // NOTE: branch is emitted later as we dont know where it goes yet
 
         // emit the switch table dispatch
         new_basic_block(itl,func,old);
 
         // mulitply to get a jump table index
         const u32 table_index = emit_res(func,op_type::mul_imm,switch_slot,GPR_SIZE);
-        UNUSED(table_index);
 
-        // TODO: emit the final dispatch
+        
+        // reserve space for the table inside the constant pool
+        const u32 static_offset = reserve_const_pool(itl,pool_type::label,GPR_SIZE * range);
+        const u32 table_addr = emit_res(func,op_type::pool_addr,static_offset);
+
+        // get address in the tabel we want
+        const u32 final_offset = emit_res(func,op_type::add_reg,table_addr,table_index);
+
+        // load the address out of the jump table
+        const u32 target = new_tmp(func);
+        emit(func,load_ptr(target, final_offset,0, GPR_SIZE,false));
 
 
+        // branch on it
+        emit(func,op_type::b_reg,target);
 
         // finally compile all the blocks, and populate the jump table
 
@@ -1233,35 +1241,69 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             case_node->end_block = cur_block(func);
         }
 
-        // TODO: allow default to be optional
 
-        // then default
+
+
         // NOTE: as default is allways the last block it does not need to have a jump to the exit
-        const u32 default_label = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next,block_type::case_t);
+        u32 default_label;
+
+
+        // if there is no default then our exit label is the end
+        if(switch_node->default_statement)
+        {
+            default_label = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next,block_type::case_t);
+        
+
+            // TODO: improve reg alloc to handle branching
+            emit(func,op_type::spill_all);
+        }
+
+        // create a exit block for every case to jump to when its done
+        const u32 exit_label = new_basic_block(itl,func,old);
+
+        // if there is no explicit default the default is just after the switch ends
+        if(!switch_node->default_statement)
+        {
+            default_label = exit_label;
+        }
 
 
         // we have default posisiton now we can emit the branch for the range checking failing
         emit_block(func,range_block,op_type::bc,default_label,default_cmp);
 
-        // Add jumps from every stmt to the exit block!
-        const u32 exit_label = new_basic_block(itl,func,old);
-        for(u32 i = 0; i < size; i++)
-        {
-            CaseNode* case_node = switch_node->statements[i];
-            emit_block(func,case_node->end_block,op_type::b,exit_label);
-        }
+
+
+        // populate the jump table
+        u32 case_idx = 0;
 
         
+        for(u32 i = 0; i < range; i++)
+        {
+            const u32 addr = i * GPR_SIZE;
 
-        // TODO:
-        // finally go back and populate the jump table with the label offsets
-        // preinit everything to default
+            // this is a non default case
+            CaseNode* case_node = switch_node->statements[case_idx];
 
-        // then fill the table out with the actual cases
+            static_assert(GPR_SIZE == sizeof(u32));
 
+            if(case_node->value - min == i)
+            {
+                //printf("case %d -> %d\n",i,case_node->label);
 
-        dump_ir_sym(itl);
-        unimplemented("jump table");
+                write_mem<u32>(itl.const_pool, addr, case_node->label);
+                case_idx++;
+
+                // add jump to the exit block
+                emit_block(func,case_node->end_block,op_type::b,exit_label);
+            }
+
+            else
+            {
+                //printf("case %d -> default(%d)\n",i,default_label);
+
+                write_mem<u32>(itl.const_pool, addr, default_label);
+            }
+        }
     }
 
 
@@ -2910,14 +2952,7 @@ void compile_functions(Interloper &itl)
 
 
 
-// general refactor
-// -> remove duplicate code
-
-
-// speed improvements:
-// -> move ast to arena allocation
-// -> impl own Array, String, and HashMap structs
-
+// -> add tagging to error's so we can check we get the correct kind of failure on tests
 
 // -> impl static assert
 // -> improve const expressions
@@ -2931,7 +2966,7 @@ void compile_functions(Interloper &itl)
 
 // feature plan:
 // tuples -> global const's 
-// -> switch -> enum -> function_pointers
+// enum -> function_pointers
 // -> early stl  -> labels ->  compile time execution ->
 // unions -> marcro -> debugg memory guards -> ...
 

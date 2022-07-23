@@ -53,7 +53,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"swi %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     // compare unsigned
-    {op_group::imm_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"cmpugt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::reg_t,"cmpult %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpule %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
@@ -74,6 +74,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::branch_t,"bnc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
     {op_group::branch_t,"bc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
     {op_group::branch_t,"b %a",1,{arg_type::label,arg_type::none,arg_type::none}},
+    {op_group::branch_reg_t,"b %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
 
     {op_group::reg_t,"load_arr_len %r, %r",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     {op_group::reg_t,"load_arr_data %r, %r",2,{arg_type::directive,arg_type::directive,arg_type::none}},

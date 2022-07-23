@@ -74,17 +74,22 @@ void reserve(Array<T> &arr, u32 size)
 }
 
 
-// raw mem read and writes over the array
 template<typename T, typename Y>
-T read_var(const Array<Y> &arr, u32 idx)
+void write_mem(Array<Y> &arr, u32 idx, T v)
 {
-    return handle_read<T>(&arr.data[idx]);
+    u8* addr = (u8*)arr.data + idx;
+    memcpy(addr,&v,sizeof(v));
 }
 
 template<typename T, typename Y>
-void write_var(Array<Y> &arr, u32 idx, T v)
+T read_mem(const Array<Y> &arr, u32 idx)
 {
-    return handle_write(&arr.data[idx],v);
+    T v;
+
+    const u8* addr = (u8*)arr.data + idx;
+    memcpy(&v,addr,sizeof(v));
+
+    return v;
 }
 
 // insert raw memory block into the array
@@ -93,7 +98,9 @@ void push_mem(Array<T>& arr, const void* data, u32 size)
 {
     reserve(arr,size);
 
-    memcpy(&arr.data[arr.size],data,size);
+    u8* addr = (u8*)arr.data + arr.size;
+    memcpy(addr,data,size);
+
     arr.size += size;
 }
 
