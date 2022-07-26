@@ -262,6 +262,99 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
     return (AstNode*)root;
 }
 
+AstNode* nud_sym(Parser& parser, const Token& t)
+{
+    // look ahead extra tokens that would change the meaning of this
+    switch(parser.expr_tok.type)
+    {
+        // function call
+        case token_type::left_paren:
+        {
+        
+            consume_expr(parser,token_type::left_paren);
+
+            FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,t.literal,t);
+
+
+
+            // keep reading args till we run out of commas
+            bool done = false;
+
+            // empty call we are done
+            if(parser.expr_tok.type == token_type::right_paren)
+            {
+                done = true;
+                consume_expr(parser,token_type::right_paren);
+            }
+
+            while(!done)
+            {
+                auto expr = expression(parser,0);
+
+                push_var(func_call->args,expr);
+
+                // no more args terminate the call
+                if(parser.expr_tok.type != token_type::comma)
+                {
+                    consume_expr(parser,token_type::right_paren);
+                    done = true;
+                }
+
+                else
+                {
+                    consume_expr(parser,token_type::comma);
+                }
+            }
+
+            return (AstNode*)func_call;
+        }
+    
+        case token_type::dot:
+        {   
+            return struct_access(parser,ast_literal(parser,ast_type::symbol,t.literal,t));
+        }
+
+        case token_type::sl_brace:
+        {
+            AstNode* arr_access = array_index(parser,t.literal);
+
+            if(parser.expr_tok.type == token_type::dot)
+            {
+                return struct_access(parser,arr_access);
+            }
+
+            else
+            {
+                return arr_access;
+            }
+        }
+    
+
+        // TODO: for now this is just for hanlding enums
+        case token_type::scope:
+        {
+            consume_expr(parser,token_type::scope);
+
+            if(parser.expr_tok.type != token_type::symbol)
+            {
+                panic(parser,parser.expr_tok,"expected name after scope, got %s\n",tok_name(parser.expr_tok.type));
+                return nullptr;
+            }
+
+            const auto cur = parser.expr_tok;
+            parser.expr_tok = next_token_expr(parser);
+
+            return ast_scope(parser,nud_sym(parser,cur),t.literal,t);
+        }
+
+        default:
+        {
+            // plain symbol
+            return ast_literal(parser,ast_type::symbol,t.literal,t);
+        }
+        break;
+    }   
+}
 
 // unary operators
 AstNode *nud(Parser &parser,Token &t)
@@ -362,88 +455,7 @@ AstNode *nud(Parser &parser,Token &t)
 
         case token_type::symbol:
         {
-            // look ahead extra tokens that would change the meaning of this
-
-            switch(parser.expr_tok.type)
-            {
-                // function call
-                case token_type::left_paren:
-                {
-                
-                    consume_expr(parser,token_type::left_paren);
-
-                    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,t.literal,t);
-
-
-
-                    // keep reading args till we run out of commas
-                    bool done = false;
-
-                    // empty call we are done
-                    if(parser.expr_tok.type == token_type::right_paren)
-                    {
-                        done = true;
-                        consume_expr(parser,token_type::right_paren);
-                    }
-
-                    while(!done)
-                    {
-                        auto expr = expression(parser,0);
-
-                        push_var(func_call->args,expr);
-
-                        // no more args terminate the call
-                        if(parser.expr_tok.type != token_type::comma)
-                        {
-                            consume_expr(parser,token_type::right_paren);
-                            done = true;
-                        }
-
-                        else
-                        {
-                            consume_expr(parser,token_type::comma);
-                        }
-                    }
-
-                    return (AstNode*)func_call;
-                }
-            
-                case token_type::dot:
-                {   
-                    return struct_access(parser,ast_literal(parser,ast_type::symbol,t.literal,t));
-                }
-
-                case token_type::sl_brace:
-                {
-                    AstNode* arr_access = array_index(parser,t.literal);
-
-                    if(parser.expr_tok.type == token_type::dot)
-                    {
-                        return struct_access(parser,arr_access);
-                    }
-
-                    else
-                    {
-                        return arr_access;
-                    }
-                }
-            
-
-                // TODO: for now this is just for hanlding enums
-                case token_type::scope:
-                {
-                    consume_expr(parser,token_type::scope);
-
-                    return ast_scope(parser,expression(parser,0),t.literal,t);
-                }
-
-                default:
-                {
-                    // plain symbol
-                    return ast_literal(parser,ast_type::symbol,t.literal,t);
-                }
-                break;
-            }
+            return nud_sym(parser,t);
         }
 
         case token_type::minus:
