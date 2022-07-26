@@ -50,6 +50,8 @@ enum class token_type
 
     import,
     struct_t,
+    enum_t,
+    scope,
 
     func,
     ret,
@@ -171,6 +173,9 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::import,"import",-1},
     
     {token_type::struct_t,"struct",-1},
+    {token_type::enum_t,"enum",-1},
+    {token_type::scope,"::",-1},
+
 
     {token_type::func,"func",-1},
     {token_type::ret,"return",-1},

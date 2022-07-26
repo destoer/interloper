@@ -131,6 +131,9 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_of_arrays",28,false},
     {"tests/struct/struct_assign",6,false},
 
+    // TODO: get this working when we overhaul our reg allocator
+    //{"tests/struct/return_struct_tmp",3,false}.
+
     // stl
     {"tests/stl/linked_list",66,false},
     {"tests/stl/mem",0,false},

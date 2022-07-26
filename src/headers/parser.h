@@ -639,3 +639,4 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 
 
 bool match(Parser &parser,token_type type);
+void consume(Parser &parser,token_type type);

@@ -44,6 +44,7 @@ struct Interloper
     // struct lookup
     StructTable struct_table;
 
+    HashTable<String,Enum> enum_table;
 
     // compilier config
 

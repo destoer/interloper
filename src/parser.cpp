@@ -1,5 +1,6 @@
 #include <interloper.h>
 #include "expression.cpp"
+#include "enum.cpp"
 
 void type_panic(Parser &parser);
 BlockNode *block(Parser &parser);
@@ -915,8 +916,13 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
             case token_type::struct_t:
             {
-
                 struct_decl(itl,parser,filename);
+                break;
+            }
+
+            case token_type::enum_t:
+            {
+                enum_decl(itl,parser,filename);
                 break;
             }
 

@@ -3017,6 +3017,7 @@ void destroy_itl(Interloper &itl)
 
     destroy_table(itl.struct_def);
     destroy_struct_table(itl.struct_table);
+    destroy_enum_table(itl.enum_table);
 
     destroy_allocator(itl.list_allocator);
     destroy_allocator(itl.string_allocator);
@@ -3041,6 +3042,7 @@ void compile(Interloper &itl,const String& initial_filename)
     itl.function_table = make_table<String,Function>();
     itl.struct_def = make_table<String,StructDef>();
     itl.struct_table.table = make_table<String,u32>();
+    itl.enum_table = make_table<String,Enum>();
 
 
     // parse intial input file

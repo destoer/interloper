@@ -3,7 +3,6 @@
 #include <ir.h>
 
 
-
 // if type idx is >= to this then this is a custom defined type
 static constexpr u32 BUILTIN_TYPE_SIZE = 10;
 static constexpr u32 STRUCT_IDX = 0xf0000000;
@@ -115,6 +114,23 @@ struct Type
     b32 is_const = false;
 
 };
+
+
+struct EnumMember
+{
+    String name;
+    u32 value;
+};
+
+struct Enum
+{
+    String name;
+    String filename;
+
+    HashTable<String,EnumMember> member_map;
+};
+
+
 
 struct AstNode;
 

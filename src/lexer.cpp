@@ -356,7 +356,20 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
 
             case ';': insert_token(lexer,token_type::semi_colon); break;
 
-            case ':': insert_token(lexer,token_type::colon); break;
+            case ':': 
+            {
+                if(peek(lexer.idx+1,file) == ':')
+                {
+                    insert_token(lexer,token_type::scope);
+                    advance(lexer);
+                }
+
+                else 
+                {
+                    insert_token(lexer,token_type::colon); 
+                }
+                break;
+            }
 
             case '@': insert_token(lexer,token_type::deref); break;
 
