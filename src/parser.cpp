@@ -1261,6 +1261,18 @@ void print(const AstNode *root)
 
             break;
         }
+
+        case ast_fmt::scope:
+        {
+            printf("scope: ");
+
+            ScopeNode* scope_node = (ScopeNode*)root;
+
+            printf("%s\n",scope_node->scope.buf);
+            print(scope_node->expr);
+
+            break;
+        }
     }
 
     depth -= 1;

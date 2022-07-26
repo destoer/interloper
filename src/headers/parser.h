@@ -19,6 +19,7 @@ enum class ast_type
     cast,
     sizeof_t,
     struct_t,
+    scope,
 
     ret,
 
@@ -110,6 +111,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "cast",
     "sizeof",
     "struct",
+    "scope",
 
     "return",
 
@@ -200,6 +202,7 @@ enum class ast_fmt
     index,
     switch_t,
     case_t,
+    scope,
 };
 
 inline const char *FMT_NAMES[] =
@@ -222,6 +225,7 @@ inline const char *FMT_NAMES[] =
     "index",
     "switch",
     "case",
+    "scope",
 };
 
 
@@ -390,6 +394,18 @@ struct SwitchNode
     AstNode* expr;
     Array<CaseNode*> statements;
     UnaryNode* default_statement;
+};
+
+
+struct ScopeNode 
+{
+    AstNode* node;
+
+    // TODO: this should probably be an array
+    // when we add scopes
+    String scope;
+
+    AstNode* expr;
 };
 
 using AstPointers = Array<void***>;
@@ -624,6 +640,17 @@ AstNode* ast_case(Parser& parser, AstNode* expr, BlockNode* block, const Token& 
 
     return (AstNode*)case_node;
 }
+
+AstNode* ast_scope(Parser& parser, AstNode* expr, String scope, const Token& token)
+{
+    ScopeNode* scope_node = alloc_node<ScopeNode>(parser,ast_type::scope,ast_fmt::scope,token);
+    
+    scope_node->expr = expr;
+    scope_node->scope = scope;
+
+    return (AstNode*)scope_node;
+}
+
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 {

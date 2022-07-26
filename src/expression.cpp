@@ -429,6 +429,14 @@ AstNode *nud(Parser &parser,Token &t)
                 }
             
 
+                // TODO: for now this is just for hanlding enums
+                case token_type::scope:
+                {
+                    consume_expr(parser,token_type::scope);
+
+                    return ast_scope(parser,expression(parser,0),t.literal,t);
+                }
+
                 default:
                 {
                     // plain symbol
