@@ -399,7 +399,7 @@ struct SwitchNode
 
 struct ScopeNode 
 {
-    AstNode* node;
+    AstNode node;
 
     // TODO: this should probably be an array
     // when we add scopes

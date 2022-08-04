@@ -30,7 +30,7 @@ void print_line(const String& filename,u32 line)
     char buf[512] = {0};
     for(u32 i = 0; i < line; i++)
     {   
-        if(fgets(buf,sizeof(buf) - 2,fp))
+        if(!fgets(buf,sizeof(buf) - 2,fp))
         {
             break;
         }

@@ -102,7 +102,7 @@ u32 plain_type_idx(const Token &tok)
     // we might not know what this is yet so we will resolve the idx properly later...
     else if(tok.type == token_type::symbol)
     {
-        return STRUCT_IDX;
+        return USER_TYPE;
     }
 
     else
@@ -148,7 +148,7 @@ TypeNode *parse_type(Parser &parser)
 
     String type_literal;
     
-    if(type_idx == STRUCT_IDX)
+    if(type_idx == USER_TYPE)
     {   
         type_literal = plain_tok.literal;
     }

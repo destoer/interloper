@@ -453,6 +453,8 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 {
     BinNode* bin_node = (BinNode*)node;
 
+    print(node);
+
     auto [t1,v1] = compile_oper(itl,func,bin_node->left,new_tmp(func));
     auto [t2,v2] = compile_oper(itl,func,bin_node->right,new_tmp(func));
 
@@ -1906,10 +1908,52 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             return compile_function_call(itl,func,node,dst_slot);
         }
 
+        case ast_type::scope:
+        {
+            // TODO: this assumes an enum, when we add scoping
+            // just check if the last scope happens to be an enum
+
+            ScopeNode* scope_node = (ScopeNode*)node;
+
+            if(enum_exists(itl.enum_table,scope_node->scope))
+            {
+                const String &enum_name = scope_node->scope;
+
+                auto enumeration = get_enum(itl.enum_table,enum_name).value();
+
+                if(scope_node->expr->type != ast_type::symbol)
+                {
+                    panic(itl,"expected enum member of enum %s",enum_name.buf);
+                    return Type(builtin_type::void_t);;
+                }
+
+                LiteralNode *member_node = (LiteralNode*)scope_node->expr;
+
+
+                EnumMember* enum_member = lookup(enumeration.member_map,member_node->literal);
+
+                if(!enum_member)
+                {
+                    panic(itl,"enum %s no such member %s\n",enum_name.buf,member_node->literal);
+                }
+
+                // emit mov on the enum value
+                emit_res(func,op_type::mov_imm,enum_member->value);
+
+                return make_enum_type(enumeration);
+            }
+
+            else 
+            {
+                // TODO: this wont print a full scope
+                panic(itl,"no such scope %s\n",scope_node->scope.buf);
+                return Type(builtin_type::void_t);;
+            }
+        }
 
         default:
         {
-            panic(itl,"[COMPILE]: invalid expression\n");
+            panic(itl,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
             return Type(builtin_type::void_t);
         }
     }
@@ -2663,6 +2707,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             return;
         }
 
+        itl.cur_expr = line;
+
         switch(line->type)
         {
             // variable declaration
@@ -2959,6 +3005,7 @@ void compile_functions(Interloper &itl)
 // -> impl a a smarter register allocator rather than just blindly spilling things
 // -> handle block args inside the reg allocator
 
+// -> add enum kind, to type , struct, builtin, enum to make type handling easier
 
 // TODO: basic type checking for returning pointers to local's
 
@@ -3042,7 +3089,7 @@ void compile(Interloper &itl,const String& initial_filename)
     itl.function_table = make_table<String,Function>();
     itl.struct_def = make_table<String,StructDef>();
     itl.struct_table.table = make_table<String,u32>();
-    itl.enum_table = make_table<String,Enum>();
+    itl.enum_table.table = make_table<String,u32>();
 
 
     // parse intial input file

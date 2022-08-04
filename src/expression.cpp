@@ -357,7 +357,7 @@ AstNode* nud_sym(Parser& parser, const Token& t)
 }
 
 // unary operators
-AstNode *nud(Parser &parser,Token &t)
+AstNode *nud(Parser &parser, const Token &t)
 {
     switch(t.type)
     {

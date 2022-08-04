@@ -1,9 +1,4 @@
 #pragma once
-#include <vector>
-#include <sstream>
-#include <fstream>
-#include <functional>
-#include <algorithm>
 #include <filesystem>
 #include <optional>
 #include <chrono>
@@ -40,8 +35,6 @@ bool string_equal(const String& str1, const String& str2);
 u32 hash_string(const String& str, u32 hash);
 String make_static_string(const char* str, u32 len);
 
-// TODO: get rid of this, its just while we shift over 
-std::string std_string(const String& string);
 
 struct String
 {
@@ -85,12 +78,12 @@ template<typename T>
 struct Array
 {
     T& operator [] (u32 i) 
-    { 
+    {
         return this->data[i];
     }
 
     const T& operator [] (u32 i) const
-    { 
+    {
         return this->data[i];
     }
 

@@ -49,9 +49,18 @@ bool is_builtin(u32 type_idx)
     return type_idx < BUILTIN_TYPE_SIZE;
 }
 
+static constexpr u32 STRUCT_START = BUILTIN_TYPE_SIZE;
+static constexpr u32 ENUM_START = 0xe0000000;
+
+
+bool is_enum(u32 type_idx)
+{
+    return type_idx >= ENUM_START;
+}
+
 bool is_struct(u32 type_idx)
 {
-    return type_idx >= BUILTIN_TYPE_SIZE;
+    return type_idx >= STRUCT_START && !is_enum(type_idx);
 }
 
 
@@ -204,6 +213,11 @@ bool is_struct(const Type& t)
     return is_struct(t.type_idx) && is_plain(t);
 }
 
+bool is_enum(const Type& t)
+{
+    return is_enum(t.type_idx) && is_plain(t);
+}
+
 u32 builtin_size(builtin_type t)
 {
     return builtin_type_info[static_cast<u32>(t)].size;
@@ -252,12 +266,19 @@ u32 type_size(Interloper& itl,const Type &type)
         return GPR_SIZE;
     }
 
+    else if(is_enum(type))
+    {
+        return GPR_SIZE;
+    }
+
     // user defined type
-    else
+    else if(is_struct(type))
     {
         const auto& structure = struct_from_type_idx(itl.struct_table,type.type_idx);
         return structure.size;
     }
+
+    unimplemented("unhandled type size");
 }
 
 u32 type_min(Interloper& itl,const Type &type)
@@ -360,10 +381,21 @@ String type_name(Interloper& itl,const Type &type)
         plain = builtin_type_name(builtin_type(type.type_idx));
     }
 
-    else
+    else if(is_struct(type))
     {
         const auto structure =  struct_from_type(itl.struct_table,type);
         plain = structure.name;
+    }
+
+    else if(is_enum(type))
+    {
+        const auto enumeration = enum_from_type(itl.enum_table,type);
+        plain = enumeration.name;
+    }
+
+    else 
+    {
+        unimplemented("unknown type name");
     }
 
     push_string(itl.string_allocator,buffer,plain);
@@ -524,11 +556,10 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
         type_check_pointer(itl,ltype,rtype);
     }
 
-    // one or more type is user defined
-    // here probably the only valid thing is both are the same
-    else
+    // no matching operator
+    else 
     {
-        unimplemented("check logical operation defined type!\n");
+        panic(itl,"logical operation on user defined type: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
     }   
 }
 
@@ -887,7 +918,7 @@ Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVA
         type.type_idx = type_idx_override;
     }
 
-    else if(type_decl->type_idx == STRUCT_IDX)
+    else if(type_decl->type_idx == USER_TYPE)
     {
         const auto name = type_decl->name;
 
@@ -901,8 +932,20 @@ Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVA
 
         else
         {
-            panic(itl,"no such struct %s\n",name.buf);
-            return type;
+            // check for enum
+            const auto enum_opt = get_enum(itl.enum_table,name);
+
+            if(enum_opt)
+            {
+                const auto enumeration = enum_opt.value();
+                type.type_idx = enumeration.type_idx;
+            }
+
+            else
+            {
+                panic(itl,"no such struct %s\n",name.buf);
+                return type;
+            }
         }
     }
 

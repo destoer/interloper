@@ -5,7 +5,7 @@
 
 // if type idx is >= to this then this is a custom defined type
 static constexpr u32 BUILTIN_TYPE_SIZE = 10;
-static constexpr u32 STRUCT_IDX = 0xf0000000;
+static constexpr u32 USER_TYPE = 0xf0000000;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
 // NOTE: expects to be defined in same order as tokens
@@ -128,9 +128,23 @@ struct Enum
     String filename;
 
     HashTable<String,EnumMember> member_map;
+
+    u32 type_idx;
 };
 
 
+using EnumLookup = Array<Enum>;
+
+struct EnumTable
+{
+    HashTable<String,u32> table;
+
+    EnumLookup lookup;
+};
+
+std::optional<Enum> get_enum(EnumTable& enum_table, const String& name);
+Enum enum_from_type_idx(EnumTable& enum_table, u32 type_idx);
+Enum enum_from_type(EnumTable& enum_table, const Type& type);
 
 struct AstNode;
 

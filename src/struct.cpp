@@ -18,7 +18,7 @@ void print_struct(Interloper& itl, const Struct& structure)
 
 void add_struct(StructTable& struct_table, Struct& structure, u32 slot)
 {
-    structure.type_idx = BUILTIN_TYPE_SIZE + slot;
+    structure.type_idx = STRUCT_START + slot;
     struct_table.lookup[slot] = structure;
     
     add(struct_table.table,structure.name,slot);
@@ -48,7 +48,7 @@ void destroy_struct_table(StructTable& struct_table)
 Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
 {
     // conv to slot
-    const u32 slot = type_idx - BUILTIN_TYPE_SIZE;
+    const u32 slot = type_idx - STRUCT_START;
 
     return struct_table.lookup[slot];
 }
@@ -149,7 +149,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
         u32 type_idx_override = INVALID_TYPE;
 
         // member is struct that has nott had its defintion parsed yet
-        if(type_decl->type_idx == STRUCT_IDX && !struct_exists(itl.struct_table,type_decl->name))
+        if(type_decl->type_idx == USER_TYPE && !struct_exists(itl.struct_table,type_decl->name))
         {
             StructDef *def_ptr = lookup(itl.struct_def,type_decl->name);
 
