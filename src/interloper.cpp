@@ -453,8 +453,6 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
 {
     BinNode* bin_node = (BinNode*)node;
 
-    print(node);
-
     auto [t1,v1] = compile_oper(itl,func,bin_node->left,new_tmp(func));
     auto [t2,v2] = compile_oper(itl,func,bin_node->right,new_tmp(func));
 
@@ -540,7 +538,7 @@ Type compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op t
         case logic_op::cmplt_reg: case logic_op::cmple_reg: case logic_op::cmpgt_reg:
         case logic_op::cmpge_reg: case logic_op::cmpeq_reg: case logic_op::cmpne_reg:
         {
-            check_logical_operation(itl,t1,t2);
+            check_logical_operation(itl,t1,t2,type);
             break;
         }
 
@@ -1938,7 +1936,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
                 }
 
                 // emit mov on the enum value
-                emit_res(func,op_type::mov_imm,enum_member->value);
+                emit(func,op_type::mov_imm,dst_slot,enum_member->value);
 
                 return make_enum_type(enumeration);
             }
@@ -2671,6 +2669,29 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
 
 std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
 {
+#if 0
+    // are we accessing traits on a type name?
+    BinNode* member_root = (BinNode*)node;
+    AstNode* expr_node = member_root->left;
+
+    if(expr_node->type == ast_type::symbol)
+    {
+        LiteralNode* sym_node = (LiteralNode*)expr_node;
+        const auto name = sym_node->literal;
+
+        TypeDecl* type_decl = lookup(itl.type_decl,name);
+
+        if(type_decl)
+        {
+            unimplemented("type trait");
+        }
+
+        // this is a normal symbol
+    }
+#endif
+
+
+
     const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
 
     // len access on fixed sized array

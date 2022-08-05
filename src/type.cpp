@@ -519,7 +519,7 @@ void type_check_pointer(Interloper& itl,const Type& ltype, const Type& rtype)
     }    
 }
 
-void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtype)
+void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtype, logic_op type)
 {
     UNUSED(itl);
 
@@ -554,6 +554,21 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
     else if(is_pointer(ltype) && is_pointer(rtype))
     {
         type_check_pointer(itl,ltype,rtype);
+    }
+
+    else if(is_enum(ltype) && is_enum(rtype))
+    {
+        if(type != logic_op::cmpeq_reg && type != logic_op::cmpne_reg)
+        {
+            panic(itl,"comparision on enums is only defined for '==' and '!='");
+            return;
+        }
+
+        if(ltype.type_idx != rtype.type_idx)
+        {
+            panic(itl,"expected enum of the same type for comparsions %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
+        }
     }
 
     // no matching operator
@@ -887,6 +902,18 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
         {
             unimplemented("handle cast builtin illegal %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
         }
+    }
+
+    // cast from enum to int is fine
+    else if(is_enum(old_type) && is_integer(new_type))
+    {
+        emit(func,op_type::mov_reg,dst_slot,src_slot);
+    }
+
+    // as is integer to enum
+    else if(is_integer(old_type) && is_enum(new_type))
+    {
+        emit(func,op_type::mov_reg,dst_slot,src_slot);
     }
 
     // cast does nothing just move the reg, its only acknowledgement your doing something screwy

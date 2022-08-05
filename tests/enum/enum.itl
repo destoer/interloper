@@ -24,24 +24,16 @@ func get_scale(v: u32) scale
     }
 } 
 
-
+// expected 1
 func main() s32
 {
     res1: bool =  get_scale(0) == scale::small && get_scale(50) == scale::med && get_scale(25252) == scale::large;
 
-    //res2: bool = cast(u32,scale::small) == 0 && cast(u32,scale::med) == 1 && cast(u32,scale::large) == 2;
+    res2: bool = cast(u32,scale::small) == 0 && cast(u32,scale::med) == 1 && cast(u32,scale::large) == 2;
 
-    //res3: bool = scale.size == 3;
+    //res3: bool = scale.len == 3;
 
-    ans: bool = res1 /*&& res2 && res3*/;
+    ans: bool = res1 && res2/* && res3*/;
 
-    if(ans)
-    {
-        return 0;
-    }
-
-    else 
-    {
-        return 1;
-    }
+    return cast(u32,ans);
 }

@@ -83,6 +83,22 @@ inline int conv_builtin_type(builtin_type t)
 }
 
 
+enum class type_kind
+{
+    builtin,
+    enum_t,
+    struct_t,
+};
+
+
+struct TypeDecl
+{
+    String name;
+    type_kind kind;
+    u32 type_idx;
+};
+
+
 struct Type
 {
     // TODO: remove these
