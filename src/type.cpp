@@ -792,7 +792,10 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
 // for each type first
 void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const Type &old_type, const Type &new_type)
 {
-    UNUSED(itl);
+    if(itl.error)
+    {
+        return;
+    }
 
     // we dont care if we have the same type
     // i.e this cast does nothing
