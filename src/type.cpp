@@ -50,6 +50,8 @@ bool is_builtin(u32 type_idx)
 }
 
 
+bool is_enum(const Type& t);
+
 bool is_enum(u32 type_idx)
 {
     return type_idx >= ENUM_START;
@@ -181,7 +183,7 @@ bool is_plain_builtin(const Type &t)
 
 bool is_trivial_copy(const Type &t)
 {
-    return is_pointer(t) || is_plain_builtin(t);
+    return is_pointer(t) || is_plain_builtin(t) || is_enum(t);
 }
 
 

@@ -1,0 +1,39 @@
+
+enum scale
+{
+    small,
+    med,
+    large,    
+}
+
+// expected 10
+
+func main() s32 
+{
+    buf : scale[?] = {scale::small,scale::med,scale::large,scale::med};
+
+    ans : s32 = 0;
+
+    for i : u32 = 0; i < scale.len; i += 1
+    {
+        switch(scale[i])
+        {
+            case scale::small:
+            {
+                ans += 4;
+            }
+
+            case scale::med:
+            {
+                ans *= 2;
+            }
+
+            case scale::large:
+            {
+                ans -= 3;
+            }
+        }
+    }
+
+    return ans;
+}

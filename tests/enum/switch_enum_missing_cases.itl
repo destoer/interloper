@@ -1,0 +1,26 @@
+
+enum scale
+{
+    small,
+    med,
+    large,    
+}
+
+// expected compile error
+
+func main() s32 
+{
+    ans : s32 = 0;
+
+    decl v = scale::small;
+
+    switch(v)
+    {
+        case scale::med:
+        {
+            ans += 5;
+        }
+    }
+
+    return ans;
+}
