@@ -343,6 +343,37 @@ std::pair<Type,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u
 
         case ast_type::access_struct:
         {
+            // are we accessing type info on a type name?
+            BinNode* member_root = (BinNode*)node;
+            AstNode* expr_node = member_root->left;
+
+            if(expr_node->type == ast_type::symbol)
+            {
+                RecordNode* members = (RecordNode*)member_root->right;
+
+                // potential type info access
+                if(count(members->nodes) == 1 && members->nodes[0]->type == ast_type::access_member)
+                {
+
+                    LiteralNode* sym_node = (LiteralNode*)expr_node;
+                    const auto name = sym_node->literal;
+
+                    TypeDecl* type_decl = lookup(itl.type_table,name);
+
+                    if(type_decl)
+                    {
+                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
+
+                        const auto type = access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
+
+                        return std::pair<Type,u32>{type,dst_slot};
+                    }
+
+                }
+
+            }
+
+            
             return read_struct(itl,func,dst_slot,node);
         }
 
@@ -2669,29 +2700,6 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
 
 std::pair<Type,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
 {
-#if 0
-    // are we accessing traits on a type name?
-    BinNode* member_root = (BinNode*)node;
-    AstNode* expr_node = member_root->left;
-
-    if(expr_node->type == ast_type::symbol)
-    {
-        LiteralNode* sym_node = (LiteralNode*)expr_node;
-        const auto name = sym_node->literal;
-
-        TypeDecl* type_decl = lookup(itl.type_decl,name);
-
-        if(type_decl)
-        {
-            unimplemented("type trait");
-        }
-
-        // this is a normal symbol
-    }
-#endif
-
-
-
     const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
 
     // len access on fixed sized array
@@ -3086,6 +3094,7 @@ void destroy_itl(Interloper &itl)
     destroy_table(itl.struct_def);
     destroy_struct_table(itl.struct_table);
     destroy_enum_table(itl.enum_table);
+    destroy_table(itl.type_table);
 
     destroy_allocator(itl.list_allocator);
     destroy_allocator(itl.string_allocator);
@@ -3094,24 +3103,41 @@ void destroy_itl(Interloper &itl)
 static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
 static constexpr u32 STRING_INITIAL_SIZE = 4 * 1024;
 
+
+void setup_type_table(Interloper& itl)
+{
+    // TODO: remove the need for these, and just have them ripped directly 
+    // from the idx
+    itl.struct_table.table = make_table<String,u32>();
+    itl.enum_table.table = make_table<String,u32>();
+
+    itl.type_table = make_table<String,TypeDecl>();
+
+    // add all the builtin types  
+    for(u32 i = 0; i < BUILTIN_TYPE_SIZE; i++)
+    {
+        add_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin);
+    }
+}
+
 void compile(Interloper &itl,const String& initial_filename)
 {
     printf("compiling file: %s\n",initial_filename.buf);
+
+    itl.error = false;
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
 
     itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
-    itl.error = false;
 
     itl.symbol_table.string_allocator = &itl.string_allocator;
 
     itl.function_table = make_table<String,Function>();
     itl.struct_def = make_table<String,StructDef>();
-    itl.struct_table.table = make_table<String,u32>();
-    itl.enum_table.table = make_table<String,u32>();
 
+    setup_type_table(itl);
 
     // parse intial input file
     {

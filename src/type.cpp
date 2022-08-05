@@ -1030,3 +1030,54 @@ void destroy_func(Function& func)
     destroy_arr(func.args);
     destroy_emitter(func.emitter);
 }
+
+void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
+{
+    TypeDecl type_decl;
+
+    type_decl.type_idx = type_idx;
+    type_decl.name = name;
+    type_decl.kind = kind;
+
+    add(itl.type_table,type_decl.name,type_decl);    
+}
+
+Type access_type_info(Interloper& itl, Function& func, u32 dst_slot, const TypeDecl& type_decl, const String& member_name)
+{
+    switch(type_decl.kind)
+    {
+        case type_kind::builtin:
+        {
+            unimplemented("builtin type info");
+            return Type(builtin_type::void_t);
+        }
+
+        case type_kind::struct_t:
+        {
+            unimplemented("struct type info");
+            return Type(builtin_type::void_t);
+        }
+
+        case type_kind::enum_t:
+        {
+            if(member_name == "len")
+            {
+                const auto enumeration = enum_from_type_idx(itl.enum_table, type_decl.type_idx + ENUM_START);
+
+                const u32 enum_len = enumeration.member_map.size;
+
+                emit(func,op_type::mov_imm,dst_slot,enum_len);
+
+                return Type(builtin_type::u32_t);
+            }
+
+            else
+            {
+                panic(itl,"unknown type info for enum %s\n",type_decl.name.buf);
+                return Type(builtin_type::void_t);
+            }
+        }
+    }
+
+    assert(false);
+}

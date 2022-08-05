@@ -16,12 +16,15 @@ void print_struct(Interloper& itl, const Struct& structure)
     printf("size: %d\n",structure.size);
 }
 
-void add_struct(StructTable& struct_table, Struct& structure, u32 slot)
+void add_struct(Interloper& itl, Struct& structure, u32 slot)
 {
     structure.type_idx = STRUCT_START + slot;
-    struct_table.lookup[slot] = structure;
+    itl.struct_table.lookup[slot] = structure;
     
-    add(struct_table.table,structure.name,slot);
+    // TODO: remove the need for this table
+    add(itl.struct_table.table,structure.name,slot);
+
+    add_type_decl(itl,slot,structure.name,type_kind::struct_t);
 }
 
 
@@ -286,7 +289,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
     }
 
 
-    add_struct(itl.struct_table,structure,def.slot);
+    add_struct(itl,structure,def.slot);
 
 }
 

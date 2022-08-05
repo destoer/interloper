@@ -137,6 +137,10 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     // stl
     {"tests/stl/linked_list",66,false},
     {"tests/stl/mem",0,false},
+
+
+    // enum
+    {"tests/enum/enum",1,false},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

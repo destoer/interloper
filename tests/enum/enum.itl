@@ -31,9 +31,9 @@ func main() s32
 
     res2: bool = cast(u32,scale::small) == 0 && cast(u32,scale::med) == 1 && cast(u32,scale::large) == 2;
 
-    //res3: bool = scale.len == 3;
+    res3: bool = scale.len == 3;
 
-    ans: bool = res1 && res2/* && res3*/;
+    ans: bool = res1 && res2 && res3;
 
     return cast(u32,ans);
 }

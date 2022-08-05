@@ -98,8 +98,11 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
     const u32 slot = count(itl.enum_table.lookup);
     enumeration.type_idx = slot + ENUM_START;
 
+    // TODO: remove this table
     add(itl.enum_table.table,enumeration.name,slot);
     push_var(itl.enum_table.lookup,enumeration);
+
+    add_type_decl(itl,slot,enumeration.name,type_kind::enum_t);
 
     if(itl.print_types)
     {

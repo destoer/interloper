@@ -41,9 +41,9 @@ struct Interloper
     // for longer lived strings, e.g func defs symbol names etc
     ArenaAllocator string_allocator;
 
-    // struct lookup
+    // Type lookup
+    HashTable<String,TypeDecl> type_table;
     StructTable struct_table;
-
     EnumTable enum_table;
 
     // compilier config
