@@ -1944,11 +1944,13 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
 
             ScopeNode* scope_node = (ScopeNode*)node;
 
-            if(enum_exists(itl.enum_table,scope_node->scope))
+            TypeDecl* type_decl = lookup(itl.type_table,scope_node->scope);
+
+            if(type_decl && type_decl->kind == type_kind::enum_t)
             {
                 const String &enum_name = scope_node->scope;
 
-                auto enumeration = get_enum(itl.enum_table,enum_name).value();
+                auto enumeration = itl.enum_table[type_decl->type_idx];
 
                 if(scope_node->expr->type != ast_type::symbol)
                 {
@@ -1964,6 +1966,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
                 if(!enum_member)
                 {
                     panic(itl,"enum %s no such member %s\n",enum_name.buf,member_node->literal);
+                    return Type(builtin_type::void_t);
                 }
 
                 // emit mov on the enum value
@@ -1976,7 +1979,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             {
                 // TODO: this wont print a full scope
                 panic(itl,"no such scope %s\n",scope_node->scope.buf);
-                return Type(builtin_type::void_t);;
+                return Type(builtin_type::void_t);
             }
         }
 
@@ -3034,8 +3037,6 @@ void compile_functions(Interloper &itl)
 // -> impl a a smarter register allocator rather than just blindly spilling things
 // -> handle block args inside the reg allocator
 
-// -> add enum kind, to type , struct, builtin, enum to make type handling easier
-
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
@@ -3091,6 +3092,7 @@ void destroy_itl(Interloper &itl)
     destroy_table(itl.function_table);
     destroy_arr(itl.used_func);
 
+    // destroy typing tables
     destroy_table(itl.struct_def);
     destroy_struct_table(itl.struct_table);
     destroy_enum_table(itl.enum_table);
@@ -3106,11 +3108,6 @@ static constexpr u32 STRING_INITIAL_SIZE = 4 * 1024;
 
 void setup_type_table(Interloper& itl)
 {
-    // TODO: remove the need for these, and just have them ripped directly 
-    // from the idx
-    itl.struct_table.table = make_table<String,u32>();
-    itl.enum_table.table = make_table<String,u32>();
-
     itl.type_table = make_table<String,TypeDecl>();
 
     // add all the builtin types  

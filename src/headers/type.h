@@ -91,6 +91,29 @@ enum class type_kind
 };
 
 
+static constexpr u32 STRUCT_START = BUILTIN_TYPE_SIZE;
+static constexpr u32 ENUM_START = 0xe0000000;
+
+
+static constexpr u32 KIND_SIZE = 3;
+
+
+inline const char* KIND_NAMES[KIND_SIZE] = 
+{
+    "builtin",
+    "enum",
+    "struct",
+};
+
+static constexpr u32 TYPE_ENCODE_TABLE[KIND_SIZE] = 
+{
+    0,
+    ENUM_START,
+    STRUCT_START,
+};
+
+
+
 struct TypeDecl
 {
     String name;
@@ -149,17 +172,10 @@ struct Enum
 };
 
 
-using EnumLookup = Array<Enum>;
+using EnumTable = Array<Enum>;
 
-struct EnumTable
-{
-    HashTable<String,u32> table;
-
-    EnumLookup lookup;
-};
 
 std::optional<Enum> get_enum(EnumTable& enum_table, const String& name);
-Enum enum_from_type_idx(EnumTable& enum_table, u32 type_idx);
 Enum enum_from_type(EnumTable& enum_table, const Type& type);
 
 struct AstNode;
@@ -211,17 +227,7 @@ using StructDefMap = HashTable<String,StructDef>;
 
 
 
-using StructLookup = Array<Struct>;
-
-struct StructTable
-{
-    HashTable<String,u32> table;
-
-    StructLookup lookup;
-};
-
-std::optional<Struct> get_struct(StructTable& struct_table, const String& name);
-Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx);
+using StructTable = Array<Struct>;
 Struct struct_from_type(StructTable& struct_table, const Type& type);
 
 static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);

@@ -19,11 +19,8 @@ void print_struct(Interloper& itl, const Struct& structure)
 void add_struct(Interloper& itl, Struct& structure, u32 slot)
 {
     structure.type_idx = STRUCT_START + slot;
-    itl.struct_table.lookup[slot] = structure;
+    itl.struct_table[slot] = structure;
     
-    // TODO: remove the need for this table
-    add(itl.struct_table.table,structure.name,slot);
-
     add_type_decl(itl,slot,structure.name,type_kind::struct_t);
 }
 
@@ -37,42 +34,22 @@ void destroy_struct(Struct& structure)
 void destroy_struct_table(StructTable& struct_table)
 {
     // delete all struct defs
-    for(u32 s = 0; s < count(struct_table.lookup); s++)
+    for(u32 s = 0; s < count(struct_table); s++)
     {   
-        auto& structure = struct_table.lookup[s];
-
+        auto& structure = struct_table[s];
         destroy_struct(structure);
     }
 
-    destroy_table(struct_table.table);
-    destroy_arr(struct_table.lookup);
+    destroy_arr(struct_table);
 }
 
-Struct struct_from_type_idx(StructTable& struct_table, u32 type_idx)
-{
-    // conv to slot
-    const u32 slot = type_idx - STRUCT_START;
-
-    return struct_table.lookup[slot];
-}
 
 Struct struct_from_type(StructTable& struct_table, const Type& type)
 {
-    return struct_from_type_idx(struct_table,type.type_idx);
+    return struct_table[type.type_idx - STRUCT_START];
 }   
 
 
-std::optional<Struct> get_struct(StructTable& struct_table, const String& name)
-{
-    const u32* idx = lookup(struct_table.table,name);
-
-    if(idx)
-    {
-        return std::optional<Struct>(struct_table.lookup[*idx]);
-    }
-
-    return std::nullopt;
-}
 
 std::optional<Member> get_member(StructTable& struct_table, const Type& type, const String& member_name)
 {
@@ -81,7 +58,7 @@ std::optional<Member> get_member(StructTable& struct_table, const Type& type, co
         return std::nullopt;
     }
 
-    auto structure = struct_from_type_idx(struct_table,type.type_idx);
+    auto structure = struct_from_type(struct_table,type);
 
     const u32* idx = lookup(structure.member_map,member_name);
 
@@ -94,9 +71,16 @@ std::optional<Member> get_member(StructTable& struct_table, const Type& type, co
     return std::optional<Member>(member);
 }
 
-bool struct_exists(StructTable& struct_table, const String& name)
+bool struct_exists(Interloper& itl, const String& name)
 {
-    return contains(struct_table.table,name);
+    TypeDecl* type_decl = lookup(itl.type_table,name);
+
+    if(!type_decl)
+    {
+        return false;
+    }
+
+    return type_decl->kind == type_kind::struct_t;
 }
 
 void parse_struct_decl(Interloper& itl, StructDef& def);
@@ -116,10 +100,10 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
     Struct structure;
     
     // allocate a reserved slot for the struct
-    const u32 slot = count(itl.struct_table.lookup);
+    const u32 slot = count(itl.struct_table);
     def.slot = slot;
 
-    resize(itl.struct_table.lookup,count(itl.struct_table.lookup) + 1);
+    resize(itl.struct_table,count(itl.struct_table) + 1);
 
 
 
@@ -152,7 +136,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
         u32 type_idx_override = INVALID_TYPE;
 
         // member is struct that has nott had its defintion parsed yet
-        if(type_decl->type_idx == USER_TYPE && !struct_exists(itl.struct_table,type_decl->name))
+        if(type_decl->type_idx == USER_TYPE && !struct_exists(itl,type_decl->name))
         {
             StructDef *def_ptr = lookup(itl.struct_def,type_decl->name);
 

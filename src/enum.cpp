@@ -5,13 +5,12 @@ void destroy_enum(Enum& enumeration)
 
 void destroy_enum_table(EnumTable &enum_table)
 {
-    for(u32 e = 0; e < count(enum_table.lookup); e++)
+    for(u32 e = 0; e < count(enum_table); e++)
     {
-        destroy_enum(enum_table.lookup[e]); 
+        destroy_enum(enum_table[e]); 
     } 
 
-    destroy_table(enum_table.table); 
-    destroy_arr(enum_table.lookup);  
+    destroy_arr(enum_table);  
 }
 
 
@@ -53,9 +52,11 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
     enumeration.filename = filename;
     enumeration.member_map = make_table<String,EnumMember>();
 
-    if(contains(itl.enum_table.table,enumeration.name))
+    TypeDecl* type_decl = lookup(itl.type_table,enumeration.name);
+
+    if(type_decl)
     {
-        panic(itl,"Enum %s redefined %s\n",enumeration.name.buf);
+        panic(itl,"%s %s redefined as enum\n",KIND_NAMES[u32(type_decl->kind)],enumeration.name.buf);
         destroy_enum(enumeration);
         return;
     }
@@ -95,13 +96,10 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 
     consume(parser,token_type::right_c_brace);
 
-    const u32 slot = count(itl.enum_table.lookup);
+    const u32 slot = count(itl.enum_table);
     enumeration.type_idx = slot + ENUM_START;
 
-    // TODO: remove this table
-    add(itl.enum_table.table,enumeration.name,slot);
-    push_var(itl.enum_table.lookup,enumeration);
-
+    push_var(itl.enum_table,enumeration);
     add_type_decl(itl,slot,enumeration.name,type_kind::enum_t);
 
     if(itl.print_types)
@@ -110,38 +108,13 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
     }
 }
 
-Enum enum_from_type_idx(EnumTable& enum_table, u32 type_idx)
-{
-    // conv to slot
-    const u32 slot = type_idx - ENUM_START;
-
-    return enum_table.lookup[slot];
-}
 
 Enum enum_from_type(EnumTable& enum_table, const Type& type)
 {
-    return enum_from_type_idx(enum_table,type.type_idx);
+    return enum_table[type.type_idx - ENUM_START];
 }   
 
 
-
-std::optional<Enum> get_enum(EnumTable& enum_table, const String& name)
-{
-    const u32* idx = lookup(enum_table.table,name);
-
-    if(idx)
-    {
-        return std::optional<Enum>(enum_table.lookup[*idx]);
-    }
-
-    return std::nullopt;
-}
-
-
-bool enum_exists(EnumTable& enum_table, const String& name)
-{
-    return contains(enum_table.table,name);
-}
 
 Type make_enum_type(Enum& enumeration)
 {

@@ -49,9 +49,6 @@ bool is_builtin(u32 type_idx)
     return type_idx < BUILTIN_TYPE_SIZE;
 }
 
-static constexpr u32 STRUCT_START = BUILTIN_TYPE_SIZE;
-static constexpr u32 ENUM_START = 0xe0000000;
-
 
 bool is_enum(u32 type_idx)
 {
@@ -274,7 +271,7 @@ u32 type_size(Interloper& itl,const Type &type)
     // user defined type
     else if(is_struct(type))
     {
-        const auto& structure = struct_from_type_idx(itl.struct_table,type.type_idx);
+        const auto& structure = struct_from_type(itl.struct_table,type);
         return structure.size;
     }
 
@@ -949,31 +946,15 @@ Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVA
     {
         const auto name = type_decl->name;
 
-        const auto struct_opt = get_struct(itl.struct_table,name);
+        TypeDecl* user_type = lookup(itl.type_table,name);
 
-        if(struct_opt)
+        if(!user_type)
         {
-            const auto structure = struct_opt.value();
-            type.type_idx = structure.type_idx;
+            panic(itl,"no type named %s\n",name.buf);
+            return type;
         }
 
-        else
-        {
-            // check for enum
-            const auto enum_opt = get_enum(itl.enum_table,name);
-
-            if(enum_opt)
-            {
-                const auto enumeration = enum_opt.value();
-                type.type_idx = enumeration.type_idx;
-            }
-
-            else
-            {
-                panic(itl,"no such struct %s\n",name.buf);
-                return type;
-            }
-        }
+        type.type_idx = user_type->type_idx + TYPE_ENCODE_TABLE[u32(user_type->kind)];   
     }
 
     else
@@ -1062,7 +1043,7 @@ Type access_type_info(Interloper& itl, Function& func, u32 dst_slot, const TypeD
         {
             if(member_name == "len")
             {
-                const auto enumeration = enum_from_type_idx(itl.enum_table, type_decl.type_idx + ENUM_START);
+                const auto enumeration = itl.enum_table[type_decl.type_idx];
 
                 const u32 enum_len = enumeration.member_map.size;
 
