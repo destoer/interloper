@@ -1,0 +1,17 @@
+// expected compile error
+
+enum foo
+{
+    v1,
+}
+
+enum foo
+{
+    v2,
+} 
+
+
+func main() s32
+{
+    return 0;
+} 

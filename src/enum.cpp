@@ -56,7 +56,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 
     if(type_decl)
     {
-        panic(itl,"%s %s redefined as enum\n",KIND_NAMES[u32(type_decl->kind)],enumeration.name.buf);
+        panic(itl,"%s %s redeclared as enum\n",KIND_NAMES[u32(type_decl->kind)],enumeration.name.buf);
         destroy_enum(enumeration);
         return;
     }

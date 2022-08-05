@@ -142,8 +142,3 @@ String cat_string(ArenaAllocator& allocator, const String &v1, const String& v2)
 
     return string;
 }
-
-std::string std_string(const String& string)
-{
-    return std::string(string.buf,string.size);
-}

@@ -97,6 +97,15 @@ void parse_def(Interloper& itl, StructDef& def)
 
 void parse_struct_decl(Interloper& itl, StructDef& def)
 {
+    StructNode* node = def.root;
+
+    TypeDecl* user_type = lookup(itl.type_table,node->name);
+    if(user_type)
+    {
+        panic(itl,"%s %s redeclared as struct\n",KIND_NAMES[u32(user_type->kind)],node->name.buf);
+        return;
+    }
+
     Struct structure;
     
     // allocate a reserved slot for the struct
@@ -106,9 +115,6 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
     resize(itl.struct_table,count(itl.struct_table) + 1);
 
 
-
-    StructNode* node = def.root;
-    
     itl.cur_file = node->filename;
 
     structure.name = node->name;

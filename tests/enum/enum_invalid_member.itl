@@ -1,0 +1,12 @@
+// expected compile error
+
+enum foo
+{
+    v1,
+}
+
+
+func main() s32
+{
+    return cast(u32,foo::v2);
+}

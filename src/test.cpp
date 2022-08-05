@@ -141,6 +141,9 @@ static constexpr ProgramTest PROGRAM_TEST[] =
 
     // enum
     {"tests/enum/enum",1,false},
+    {"tests/enum/enum_invalid_member",-1,true},
+    {"tests/enum/enum_redeclare_member",-1,true},
+    {"tests/enum/enum_redeclare",-1,true},
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
