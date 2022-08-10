@@ -38,7 +38,7 @@ Type intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
         return Type(builtin_type::void_t);  
     }
 
-    const u32 syscall_number = eval_const_expr(func_call->args[0]);
+    const u32 syscall_number = eval_int_expr(func_call->args[0]);
     emit(func,op_type::swi,syscall_number);
 
 

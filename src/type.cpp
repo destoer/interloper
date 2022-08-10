@@ -1001,7 +1001,7 @@ Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVA
             // fixed size: const expr
             else
             {
-                type.dimensions[i] = eval_const_expr(n);
+                type.dimensions[i] = eval_int_expr(n);
             }
         }        
     }

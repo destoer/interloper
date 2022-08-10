@@ -36,7 +36,7 @@ void dump_ir_sym(Interloper &itl)
 
 // TODO: we want to overhaul this with a more general mechanism for getting values
 // by running code at compile time, but just use this for now
-u32 eval_const_expr(const AstNode *node)
+u32 eval_int_expr(const AstNode *node)
 {
     assert(node);
 
@@ -52,29 +52,29 @@ u32 eval_const_expr(const AstNode *node)
         {
             BinNode* bin_node = (BinNode*)node;
 
-            return eval_const_expr(bin_node->left) * eval_const_expr(bin_node->right);
+            return eval_int_expr(bin_node->left) * eval_int_expr(bin_node->right);
         }
 
         case ast_type::plus:
         {
             BinNode* bin_node = (BinNode*)node;
 
-            return eval_const_expr(bin_node->left) + eval_const_expr(bin_node->right);
+            return eval_int_expr(bin_node->left) + eval_int_expr(bin_node->right);
         }
 
         case ast_type::minus: 
         {
             BinNode* bin_node = (BinNode*)node;
 
-            return eval_const_expr(bin_node->left) - eval_const_expr(bin_node->right);
+            return eval_int_expr(bin_node->left) - eval_int_expr(bin_node->right);
         }
 
         case ast_type::divide:
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const u32 v1 = eval_const_expr(bin_node->left);
-            const u32 v2 = eval_const_expr(bin_node->right);
+            const u32 v1 = eval_int_expr(bin_node->left);
+            const u32 v2 = eval_int_expr(bin_node->right);
 
             if(v2 == 0)
             {
@@ -1145,6 +1145,12 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
+/*
+std::pair<Type, void*> exec_constant(Interloper& itl,AstNode* node)
+{
+
+}
+*/
 
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
@@ -1153,13 +1159,101 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
     const u32 size = count(switch_node->statements);
 
+
+    enum class switch_kind
+    {
+        integer,
+        enum_t,
+    };
+
+    switch_kind switch_type;
+
+    // used for checking enums match
+    u32 type_idx = 0;
+    
+
+    if(size == 0)
+    {
+        panic(itl,"Switch statement has no cases");
+        return;
+    }
+
+    CaseNode* first_case = (CaseNode*)switch_node->statements[0];
+    
     // collapse all the values of the statements now we have parsed everything
     // NOTE: we cant do this as the ast is built, as we want to allow usage of values that are defined "out of order"
-    for(u32 i = 0; i < size; i++)
+    switch(first_case->statement->type)
     {
-        CaseNode* case_node = switch_node->statements[i];
-        case_node->value = eval_const_expr(case_node->statement);
+        // enum
+        case ast_type::scope:
+        {
+            ScopeNode* first_stmt = (ScopeNode*)first_case->statement;
+
+            TypeDecl* type_decl = lookup(itl.type_table,first_stmt->scope);
+
+            if(!(type_decl && type_decl->kind == type_kind::enum_t))
+            {
+                // case is not an enum
+                panic(itl,"case is not an emum %s\n",first_stmt->scope.buf);
+                return;
+            }
+
+            type_idx = type_decl->type_idx;
+            Enum& enumeration = itl.enum_table[type_idx];
+
+
+            for(u32 i = 0; i < size; i++)
+            {
+                CaseNode* case_node = switch_node->statements[i];
+
+
+                // check we have a matching enum
+                if(case_node->statement->type != ast_type::scope)
+                {
+                    panic(itl,"switch: one or more cases are not an enum\n");
+                    return;
+                }
+
+                ScopeNode* scope_node = (ScopeNode*)case_node->statement;
+
+                if(first_stmt->scope != scope_node->scope)
+                {
+                    panic(itl,"differing enums %s : %s in switch statement\n",first_stmt->scope.buf,scope_node->scope.buf);
+                    return;
+                }
+
+
+                // pull the member value
+                LiteralNode *member_node = (LiteralNode*)scope_node->expr;
+                EnumMember* enum_member = lookup(enumeration.member_map,member_node->literal);
+
+                if(!enum_member)
+                {
+                    panic(itl,"enum %s no such member %s\n",scope_node->scope.buf,member_node->literal);
+                    return;
+                }
+
+                case_node->value = enum_member->value;          
+            }            
+
+            switch_type = switch_kind::enum_t;
+            break;
+        }
+
+        // integer expression
+        default:
+        {
+            for(u32 i = 0; i < size; i++)
+            {
+                CaseNode* case_node = switch_node->statements[i];
+                case_node->value = eval_int_expr(case_node->statement);                
+            }
+
+            switch_type = switch_kind::integer;
+            break;            
+        }
     }
+
 
     // sort the statements, so we can pull out the gaps
     // and binary search them if we need to when emiting the statement dispatcher
@@ -1167,6 +1261,14 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     {
         return v1->value > v2->value;
     });
+
+    // check every statement on a enum has a handler
+    if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != itl.enum_table[type_idx].member_map.size)
+    {
+        // TODO: print the missing cases
+        panic(itl,"switch on enum %s missing cases:\n",itl.enum_table[type_idx].name.buf);
+        return;     
+    }
 
 
     u32 gap = 0;
@@ -1216,14 +1318,30 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // compile the actual switch expr
         const auto [rtype,expr_slot] = compile_oper(itl,func,switch_node->expr,new_tmp(func));
 
-
-        // TODO: relax this to allow strings
-        if(!is_integer(rtype))
+        // type check the switch stmt
+        switch(switch_type)
         {
-            panic(itl,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
-            return;
-        }
+            case switch_kind::integer:
+            {
+                if(!is_integer(rtype))
+                {
+                    panic(itl,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
+                    return;
+                }
+                break;
+            }
 
+            // TODO:
+            case switch_kind::enum_t:
+            {
+                if(!is_enum(rtype) || rtype.type_idx - ENUM_START != type_idx)
+                {
+                    panic(itl,"expected enum of type %s got %s\n",itl.enum_table[type_idx].name.buf,type_name(itl,rtype));
+                    return;
+                }
+                break;
+            }
+        }
 
         // save our cur block so we can emit the default block dispatch later
         const u32 range_block = cur_block(func);

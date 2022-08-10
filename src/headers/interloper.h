@@ -43,6 +43,7 @@ struct Interloper
 
     // Type lookup
     HashTable<String,TypeDecl> type_table;
+    
     StructTable struct_table;
     EnumTable enum_table;
 
@@ -95,4 +96,4 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     itl.error = true;
 }
 
-u32 eval_const_expr(const AstNode *node);
+u32 eval_int_expr(const AstNode *node);
