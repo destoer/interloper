@@ -328,7 +328,7 @@ struct FuncNode
     String name;
     String filename;
 
-    TypeNode* return_type = nullptr;
+    Array<TypeNode*> return_type;
     BlockNode* block = nullptr;
     Array<DeclNode*> args;
 };
@@ -483,6 +483,7 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
     FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
 
     add_ast_pointer(parser,&func_node->args.data);
+    add_ast_pointer(parser,&func_node->return_type.data);
 
     func_node->name = name;
     func_node->filename = filename;

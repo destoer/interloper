@@ -3,10 +3,10 @@ func divide(v1: u32, v2: u32) (s32,bool)
 {
     if(v2 != 0)
     {
-        return (v1 / v2,false);
+        return v1 / v2,false;
     }
 
-    return (0, true);
+    return 0, true;
 }
 
 

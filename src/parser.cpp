@@ -343,10 +343,33 @@ AstNode *statement(Parser &parser)
         case token_type::ret:
         {
             // return value is optional
-            if(peek(parser,0).type != token_type::semi_colon)
+            if(!match(parser,token_type::semi_colon))
             {
-                AstNode* e = expr(parser,next_token(parser));
-                return ast_unary(parser,e,ast_type::ret,t);
+                RecordNode* record = (RecordNode*)ast_record(parser,ast_type::ret,t);
+
+
+                // can be more than one expr (comma seperated)
+                do 
+                {
+                    if(match(parser,token_type::comma))
+                    {
+                        consume(parser,token_type::comma);
+                    }
+
+
+                    AstNode* e = expr(parser,next_token(parser));
+
+                    if(!e)
+                    {
+                        panic(parser,t,"malformed tuple return");
+                        return nullptr;
+                    }
+
+                    push_var(record->nodes,e);
+
+                } while(match(parser,token_type::comma));
+
+                return (AstNode*)record;
             }
 
             else
@@ -744,21 +767,57 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
     consume(parser,token_type::right_paren);
 
 
-    if(!match(parser,token_type::left_c_brace))
+    if(match(parser,token_type::left_paren))
     {
-        f->return_type = parse_type(parser);
+        consume(parser,token_type::left_paren);
 
-        if(!f->return_type)
+        while(!match(parser,token_type::right_paren))
+        {
+            if(match(parser,token_type::eof))
+            {
+                panic(parser,paren,"unterminated function declaration!\n");
+                return;
+            }
+            
+            TypeNode* return_type = parse_type(parser);
+
+            if(!return_type)
+            {
+                type_panic(parser);
+                return;
+            }
+
+            push_var(f->return_type,return_type);
+
+            if(!match(parser,token_type::right_paren))
+            {
+                consume(parser,token_type::comma);
+            }
+        }
+
+        consume(parser,token_type::right_paren);
+    }
+
+    // single type
+    else if(!match(parser,token_type::left_c_brace))
+    {
+        TypeNode* return_type = parse_type(parser);
+
+        if(!return_type)
         {
             type_panic(parser);
         }
+
+        push_var(f->return_type,return_type);
     }
 
     // void
     else
     {
-        f->return_type = (TypeNode*)ast_type_decl(parser,"void",func_name); 
-        f->return_type->type_idx = u32(builtin_type::void_t);
+        TypeNode* return_type = (TypeNode*)ast_type_decl(parser,"void",func_name); 
+        return_type->type_idx = u32(builtin_type::void_t);
+
+        push_var(f->return_type,return_type);
     }
 
     f->block = block(parser); 
@@ -957,7 +1016,6 @@ bool parse(Interloper& itl, const String& initial_filename)
     add_file(file_set,file_stack,get_program_name(itl.string_allocator,initial_filename));
 
 
-
     // TODO: this should probably be a SHELL VAR but just hard code it for now
     const String stl_path = make_static_string("stl/",strlen("stl/"));
 
@@ -1087,7 +1145,10 @@ void print(const AstNode *root)
 
             print((AstNode*)func_node->block);
 
-            print((AstNode*)func_node->return_type);
+            for(u32 r = 0; r < count(func_node->return_type); r++)
+            {
+                print((AstNode*)func_node->return_type[r]);
+            }
             break;
         }
 

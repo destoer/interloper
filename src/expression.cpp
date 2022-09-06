@@ -611,5 +611,12 @@ AstNode *expr(Parser &parser,const Token &t)
         panic(parser,parser.expr_tok,"unterminated bracket: ");
     }
 
+    // didnt specify a terminator walk back the idx
+    // TODO: is this good enough to handle tokens like ',' ?
+    if(!parser.terminate && parser.expr_tok.type != token_type::semi_colon)
+    {
+        parser.tok_idx--;
+    }
+
     return e;
 }

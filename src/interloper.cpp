@@ -123,7 +123,13 @@ void parse_function_declarations(Interloper& itl)
 
             itl.cur_file = node.filename;
 
-            const auto return_type = get_type(itl,node.return_type);
+            const auto return_type = get_type(itl,node.return_type[0]);
+
+            if(count(node.return_type) > 1)
+            {
+                unimplemented("tuple return");
+            }
+
             const auto name = node.name;
             
             Array<u32> args;
@@ -1145,7 +1151,8 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
-/*
+/* TODO:
+// compiles a statement and gets back a compile time value + type of the expr
 std::pair<Type, void*> exec_constant(Interloper& itl,AstNode* node)
 {
 
@@ -2946,24 +2953,35 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             case ast_type::ret:
             {
                 // returns a value
-                if(line->fmt == ast_fmt::unary)
+                if(line->fmt == ast_fmt::record)
                 {
-                    UnaryNode* unary_node = (UnaryNode*)line;
+                    RecordNode* record_node = (RecordNode*)line;
 
-                    const auto [rtype,v1] = compile_oper(itl,func,unary_node->next,RV_IR);
-    
-                    if(v1 != RV_IR)
+                    // single return
+                    if(count(record_node->nodes) == 1)
                     {
-                        compile_move(itl,func,RV_IR,v1,func.return_type,rtype);
+                        const auto [rtype,v1] = compile_oper(itl,func,record_node->nodes[0],RV_IR);
+        
+                        if(v1 != RV_IR)
+                        {
+                            compile_move(itl,func,RV_IR,v1,func.return_type,rtype);
+                        }
+
+
+                        if(itl.error)
+                        {
+                            break;
+                        }
+
+                        check_assign(itl,func.return_type,rtype);
                     }
 
-
-                    if(itl.error)
+                    // multiple return
+                    else
                     {
-                        break;
+                        unimplemented("tuple return");
                     }
-
-                    check_assign(itl,func.return_type,rtype);
+                
                 }
 
                 emit(func,op_type::ret);
