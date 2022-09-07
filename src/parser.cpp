@@ -517,6 +517,7 @@ AstNode *statement(Parser &parser)
 
                         switch(delim.type)
                         {
+                            // keep going
                             case token_type::comma:
                             {
                                 break;
@@ -531,10 +532,11 @@ AstNode *statement(Parser &parser)
                                 // func_call()
 
                                 assert(false);
+                                done = true;
                                 break;
                             }
 
-                            // this is busted!
+                            // something has gone wrong
                             default: 
                             {
                                 panic(parser,t,"malformed tuple statement ");
@@ -558,7 +560,7 @@ AstNode *statement(Parser &parser)
         case token_type::left_c_brace:
         {
             // block expects to see the left c brace
-            parser.tok_idx--;
+            prev_token(parser);
 
             return (AstNode*)block(parser);
         }

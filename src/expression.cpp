@@ -262,7 +262,8 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
     return (AstNode*)root;
 }
 
-
+// TODO: modify these routines to make them easy to call from the external state machine
+// then implementing tuples should not require too much more work...
 AstNode* nud_sym(Parser& parser, const Token& t)
 {
     // look ahead extra tokens that would change the meaning of this

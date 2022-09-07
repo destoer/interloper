@@ -23,8 +23,6 @@ func basic() bool
     // basic 
     x, err = divide(1,0);
 
-    basic : bool = false;
-
     if(err)
     {
         x, err = divide(30,2);
@@ -54,6 +52,31 @@ func structure() bool
 }
 */
 
+/*
+func array() bool
+{
+    arr : u32[2];
+
+    arr[1], arr[0] = numbers();
+
+    return arr[0] == 10 && arr[1] == 5;
+}
+*/
+
+/*
+func pointer() bool
+{
+    x : u32 = 0;
+    y : u32 = 0;
+
+    ptr : u32@ = &x;
+
+    @ptr, y = numbers();
+
+    return x == 5 && y == 10;
+}
+
+*/
 
 // expected 1
 func main() s32 
