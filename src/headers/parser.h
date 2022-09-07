@@ -417,7 +417,6 @@ struct Parser
     // pratt parser
     Token expr_tok;
     u32 tok_idx = 0;
-    u32 brace_count = 0;
     b32 terminate = false;
     token_type termination_type = token_type::eof;
 
@@ -669,3 +668,9 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 bool match(Parser &parser,token_type type);
 void consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
+void prev_token(Parser &parser);
+AstNode* func_call(Parser& parser,const Token& t);
+AstNode* arr_access(Parser& parser, const Token& t);
+AstNode *struct_access(Parser& parser, AstNode* expr_node,const Token& t);
+AstNode* array_index(Parser& parser,const Token& t);
+AstNode* var(Parser& parser, const Token& sym_tok);

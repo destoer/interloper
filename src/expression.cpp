@@ -10,24 +10,6 @@ Value read_value(const Token &t);
 void type_panic(Parser &parser);
 TypeNode *parse_type(Parser &parser);
 
-Token next_token_expr(Parser &parser)
-{
-    const auto tok = next_token(parser);
-    
-    // easiest just to jam a state machine in here
-    if(tok.type == token_type::left_paren)
-    {
-        parser.brace_count += 1;
-    }
-
-    else if(tok.type == token_type::right_paren)
-    {
-        parser.brace_count -= 1;
-    }
-
-    return tok;    
-}
-
 void consume_expr(Parser &parser,token_type type)
 {
     if(type != parser.expr_tok.type)
@@ -35,7 +17,7 @@ void consume_expr(Parser &parser,token_type type)
         panic(parser,parser.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(parser.expr_tok.type));
     }
 
-    parser.expr_tok = next_token_expr(parser);
+    parser.expr_tok = next_token(parser);
 }
 
 s32 lbp(Parser &parser,const Token &t)
@@ -204,66 +186,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
 }
 
 
-AstNode* array_index(Parser& parser,const String& name)
-{
-    IndexNode* arr_access = (IndexNode*)ast_index(parser,name,parser.expr_tok);
 
-    while(parser.expr_tok.type == token_type::sl_brace)
-    {
-        consume_expr(parser,token_type::sl_brace);
-
-        AstNode* e = expression(parser,0);
-        push_var(arr_access->indexes,e);
-    
-        consume_expr(parser,token_type::sr_brace);
-    }
-
-    return (AstNode*)arr_access;
-}
-
-AstNode *struct_access(Parser& parser, AstNode* expr_node)
-{
-    RecordNode* member_root = (RecordNode*)ast_record(parser,ast_type::access_members,parser.expr_tok);
-
-    BinNode* root = (BinNode*)ast_binary(parser,expr_node,(AstNode*)member_root,ast_type::access_struct,parser.expr_tok);
-
-    while(parser.expr_tok.type == token_type::dot)
-    {
-        const auto member_tok = next_token_expr(parser);
-
-        if(member_tok.type == token_type::symbol)
-        {
-            // perform peeking for modifers
-            if(match(parser,token_type::sl_brace))
-            {
-                parser.expr_tok = next_token_expr(parser);
-                push_var(member_root->nodes,array_index(parser,member_tok.literal));
-            }
-
-            // plain old member
-            else
-            {
-                AstNode* member_node = ast_literal(parser,ast_type::access_member, member_tok.literal,member_tok);
-
-                push_var(member_root->nodes,member_node);
-                    
-                // correct the state machine
-                parser.expr_tok = next_token_expr(parser);
-            }
-        }
-
-        else
-        {
-            panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.buf,tok_name(member_tok.type));
-            return nullptr;            
-        }
-    }
-
-    return (AstNode*)root;
-}
-
-// TODO: modify these routines to make them easy to call from the external state machine
-// then implementing tuples should not require too much more work...
 AstNode* nud_sym(Parser& parser, const Token& t)
 {
     // look ahead extra tokens that would change the meaning of this
@@ -272,43 +195,13 @@ AstNode* nud_sym(Parser& parser, const Token& t)
         // function call
         case token_type::left_paren:
         {
-        
-            consume_expr(parser,token_type::left_paren);
+            // correct the state machine
+            prev_token(parser);
 
-            FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,t.literal,t);
+            AstNode* call = func_call(parser,t); 
+            parser.expr_tok = next_token(parser);
 
-
-
-            // keep reading args till we run out of commas
-            bool done = false;
-
-            // empty call we are done
-            if(parser.expr_tok.type == token_type::right_paren)
-            {
-                done = true;
-                consume_expr(parser,token_type::right_paren);
-            }
-
-            while(!done)
-            {
-                auto expr = expression(parser,0);
-
-                push_var(func_call->args,expr);
-
-                // no more args terminate the call
-                if(parser.expr_tok.type != token_type::comma)
-                {
-                    consume_expr(parser,token_type::right_paren);
-                    done = true;
-                }
-
-                else
-                {
-                    consume_expr(parser,token_type::comma);
-                }
-            }
-
-            return (AstNode*)func_call;
+            return call;
         }
     
 
@@ -324,35 +217,20 @@ AstNode* nud_sym(Parser& parser, const Token& t)
             }
 
             const auto cur = parser.expr_tok;
-            parser.expr_tok = next_token_expr(parser);
+            parser.expr_tok = next_token(parser);
 
             return ast_scope(parser,nud_sym(parser,cur),t.literal,t);
-        }
-
-        case token_type::dot:
-        {   
-            return struct_access(parser,ast_literal(parser,ast_type::symbol,t.literal,t));
-        }
-
-        case token_type::sl_brace:
-        {
-            AstNode* arr_access = array_index(parser,t.literal);
-
-            if(parser.expr_tok.type == token_type::dot)
-            {
-                return struct_access(parser,arr_access);
-            }
-
-            else
-            {
-                return arr_access;
-            }
         }
 
 
         default:
         {
-           return ast_literal(parser,ast_type::symbol,t.literal,t);
+            prev_token(parser);
+            AstNode* node = var(parser,t);
+
+            parser.expr_tok = next_token(parser);
+
+            return node;
         }
         break;
     }   
@@ -383,7 +261,7 @@ AstNode *nud(Parser &parser, const Token &t)
             }
 
             // correct our state machine
-            parser.expr_tok = next_token_expr(parser);
+            parser.expr_tok = next_token(parser);
 
             consume_expr(parser,token_type::comma);
 
@@ -517,7 +395,7 @@ AstNode *nud(Parser &parser, const Token &t)
 AstNode *expression(Parser &parser,s32 rbp)
 {
     auto cur = parser.expr_tok;
-    parser.expr_tok = next_token_expr(parser);
+    parser.expr_tok = next_token(parser);
 
     auto left = nud(parser,cur);
 
@@ -535,7 +413,7 @@ AstNode *expression(Parser &parser,s32 rbp)
     while(rbp < lbp(parser,parser.expr_tok))
     {
         cur = parser.expr_tok;
-        parser.expr_tok = next_token_expr(parser);
+        parser.expr_tok = next_token(parser);
         left = led(parser,cur,left);
 
         if(parser.terminate)
@@ -592,32 +470,15 @@ AstNode *expr_terminate(Parser &parser,token_type t)
 
 AstNode *expr(Parser &parser,const Token &t)
 {
-    parser.brace_count = 0;
     parser.expr_tok = t;
 
-    if(parser.expr_tok.type == token_type::left_paren)
-    {
-        parser.brace_count += 1;
-    }
-
-    else if(parser.expr_tok.type == token_type::right_paren)
-    {
-        parser.brace_count -= 1;
-    }
-
     const auto e = expression(parser,0);
-
-    // non closed brace, where specified terminator is not a right_paren
-    if(parser.brace_count != 0 && !(parser.terminate && parser.expr_tok.type == token_type::right_paren))
-    {
-        panic(parser,parser.expr_tok,"unterminated bracket: ");
-    }
 
     // didnt specify a terminator walk back the idx
     // TODO: is this good enough to handle tokens like ',' ?
     if(!parser.terminate && parser.expr_tok.type != token_type::semi_colon)
     {
-        parser.tok_idx--;
+        prev_token(parser);
     }
 
     return e;

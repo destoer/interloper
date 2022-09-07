@@ -329,7 +329,79 @@ AstNode* opt_block(Parser& parser)
     return (AstNode*)block_node;
 }
 
-// var than we can directly assign (currently used for tuples)
+
+AstNode *struct_access(Parser& parser, AstNode* expr_node,const Token& t)
+{
+    RecordNode* member_root = (RecordNode*)ast_record(parser,ast_type::access_members,t);
+
+    BinNode* root = (BinNode*)ast_binary(parser,expr_node,(AstNode*)member_root,ast_type::access_struct,t);
+
+    while(match(parser,token_type::dot))
+    {
+        consume(parser,token_type::dot);
+
+        const auto member_tok = next_token(parser);
+
+        if(member_tok.type == token_type::symbol)
+        {
+            // perform peeking for modifers
+            if(match(parser,token_type::sl_brace))
+            {
+                push_var(member_root->nodes,array_index(parser,member_tok));
+            }
+
+            // plain old member
+            else
+            {
+                AstNode* member_node = ast_literal(parser,ast_type::access_member, member_tok.literal,member_tok);
+
+                push_var(member_root->nodes,member_node);
+            }
+        }
+
+        else
+        {
+            panic(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.buf,tok_name(member_tok.type));
+            return nullptr;            
+        }
+    }
+
+    return (AstNode*)root;
+}
+
+
+AstNode* array_index(Parser& parser,const Token& t)
+{
+    IndexNode* arr_access = (IndexNode*)ast_index(parser,t.literal,t);
+
+    while(match(parser,token_type::sl_brace))
+    {
+        consume(parser,token_type::sl_brace);
+
+        AstNode* e = expr(parser,next_token(parser));
+        push_var(arr_access->indexes,e);
+    
+        consume(parser,token_type::sr_brace);
+    }
+
+    return (AstNode*)arr_access;
+}
+
+AstNode* arr_access(Parser& parser, const Token& t)
+{
+    AstNode* arr_access = array_index(parser,t);
+
+    if(match(parser,token_type::dot))
+    {
+        return struct_access(parser,arr_access,t);
+    }
+
+    else
+    {
+        return arr_access;
+    }
+}
+
 AstNode* var(Parser& parser, const Token& sym_tok)
 {
     const Token next = peek(parser,0);
@@ -338,24 +410,12 @@ AstNode* var(Parser& parser, const Token& sym_tok)
     {
         case token_type::dot:
         {   
-            consume(parser,token_type::dot);
-            return struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok));
+            return struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
         }
 
         case token_type::sl_brace:
         {
-            consume(parser,token_type::sl_brace);
-            AstNode* arr_access = array_index(parser,sym_tok.literal);
-
-            if(parser.expr_tok.type == token_type::dot)
-            {
-                return struct_access(parser,arr_access);
-            }
-
-            else
-            {
-                return arr_access;
-            }
+            return arr_access(parser,sym_tok);
         }
 
 
@@ -364,6 +424,45 @@ AstNode* var(Parser& parser, const Token& sym_tok)
            return ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok);
         }
     }
+}
+
+AstNode* func_call(Parser& parser,const Token& t)
+{
+    consume(parser,token_type::left_paren);
+
+    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,t.literal,t);
+
+
+    // keep reading args till we run out of commas
+    b32 done = false;
+
+    // empty call we are done
+    if(match(parser,token_type::right_paren))
+    {
+        consume(parser,token_type::right_paren);
+        done = true;
+    }
+
+    while(!done)
+    {
+        AstNode* node = expr(parser,next_token(parser));
+
+        push_var(func_call->args,node);
+
+        // no more args terminate the call
+        if(!match(parser,token_type::comma))
+        {
+            consume(parser,token_type::right_paren);
+            done = true;
+        }
+
+        else
+        {
+            consume(parser,token_type::comma);
+        }
+    }
+
+    return (AstNode*)func_call;
 }
 
 AstNode *statement(Parser &parser)
