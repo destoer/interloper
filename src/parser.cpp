@@ -329,6 +329,43 @@ AstNode* opt_block(Parser& parser)
     return (AstNode*)block_node;
 }
 
+// var than we can directly assign (currently used for tuples)
+AstNode* var(Parser& parser, const Token& sym_tok)
+{
+    const Token next = peek(parser,0);
+
+    switch(next.type)
+    {
+        case token_type::dot:
+        {   
+            consume(parser,token_type::dot);
+            return struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok));
+        }
+
+        case token_type::sl_brace:
+        {
+            consume(parser,token_type::sl_brace);
+            AstNode* arr_access = array_index(parser,sym_tok.literal);
+
+            if(parser.expr_tok.type == token_type::dot)
+            {
+                return struct_access(parser,arr_access);
+            }
+
+            else
+            {
+                return arr_access;
+            }
+        }
+
+
+        default:
+        {
+           return ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok);
+        }
+    }
+}
+
 AstNode *statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -393,7 +430,6 @@ AstNode *statement(Parser &parser)
             return expr(parser,t);
         }
 
-        // TODO: detect a declartion with a user defined type
         case token_type::symbol:
         {
             const auto t2 = peek(parser,0);
@@ -438,6 +474,77 @@ AstNode *statement(Parser &parser)
                     return expr(parser,t);
                 }
 
+
+                /*
+
+                    x, y = foo(); 
+                    @x, @y = foo();
+                    x[0], x[1] = foo();
+                    point.x, point.y = foo();
+                */
+                // tuple assign
+                case token_type::comma:
+                {
+                    b32 done = false;
+                    
+                    prev_token(parser);
+
+                    // generalise this so we can pick up on a ',' being a "terminator"
+                    // in other expressions
+                    while(!done)
+                    {
+                        const auto sym_tok = next_token(parser);
+
+                        AstNode* expr = nullptr;
+
+                        switch(sym_tok.type)
+                        {
+                            case token_type::symbol:
+                            {
+                                expr = var(parser,sym_tok);
+                                break;
+                            }
+
+                            default:
+                            {
+                                unimplemented("tuple assignment attempted on non symbol");
+                            }
+                        }
+
+                        print(expr);
+
+                        const auto delim = next_token(parser);
+
+                        switch(delim.type)
+                        {
+                            case token_type::comma:
+                            {
+                                break;
+                            }
+
+                            // end of the stmt
+                            case token_type::equal:
+                            {
+                                // info required...
+                                // Array<AstNode*>
+                                // ast_equal
+                                // func_call()
+
+                                assert(false);
+                                break;
+                            }
+
+                            // this is busted!
+                            default: 
+                            {
+                                panic(parser,t,"malformed tuple statement ");
+                                return nullptr;
+                            }
+                        }
+                    }
+
+                    unimplemented("boop");
+                }
 
                 default:
                 {
@@ -649,7 +756,7 @@ AstNode *statement(Parser &parser)
 
         default:
         {
-            panic(parser,t,"statement: unexpected token '%s' : %d\n",tok_name(t.type));
+            panic(parser,t,"statement: unexpected token '%s' : %d\n",tok_name(t.type),u32(t.type));
             break;
         }
     }

@@ -9,28 +9,59 @@ func divide(v1: u32, v2: u32) (s32,bool)
     return 0, true;
 }
 
+func numbers() (s32,s32)
+{
+    return 5, 10;
+}
 
-// expected 15
-func main() s32 
+
+func basic() bool
 {
     x : u32 = 5;
+    err : bool = false;
 
-    x, err : bool = divide(1,0);
+    // basic 
+    x, err = divide(1,0);
+
+    basic : bool = false;
 
     if(err)
     {
         x, err = divide(30,2);
 
-        if(err)
-        {
-            return -1;
-        }
-
-        return x;
+        return !err && x == 15;
     }
 
-    else
-    {
-        return -1;
-    }
+    return false;
+}
+
+
+
+/*
+struct Point
+{
+    x : s32;
+    y : s32;
+}
+
+func structure() bool
+{
+    Point point;
+
+    point.x, point.y = numbers();
+
+    return point.x == 5 && point.y == 10;
+}
+*/
+
+
+// expected 1
+func main() s32 
+{
+    test1 : bool = basic();
+
+    // every test passed?
+    pass : bool = test1;
+
+    return cast(s32,pass);
 }

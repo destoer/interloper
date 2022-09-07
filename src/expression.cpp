@@ -91,7 +91,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
         }
 
         case token_type::equal:
-        { 
+        {
             // right precedence rbp = lbp -1 so that things on the right 
             // are sen as sub expressions
             return ast_binary(parser,left,expression(parser,lbp(parser,t)-1),ast_type::equal,t);  
@@ -262,6 +262,7 @@ AstNode *struct_access(Parser& parser, AstNode* expr_node)
     return (AstNode*)root;
 }
 
+
 AstNode* nud_sym(Parser& parser, const Token& t)
 {
     // look ahead extra tokens that would change the meaning of this
@@ -309,6 +310,24 @@ AstNode* nud_sym(Parser& parser, const Token& t)
             return (AstNode*)func_call;
         }
     
+
+        // TODO: for now this is just for hanlding enums
+        case token_type::scope:
+        {
+            consume_expr(parser,token_type::scope);
+
+            if(parser.expr_tok.type != token_type::symbol)
+            {
+                panic(parser,parser.expr_tok,"expected name after scope, got %s\n",tok_name(parser.expr_tok.type));
+                return nullptr;
+            }
+
+            const auto cur = parser.expr_tok;
+            parser.expr_tok = next_token_expr(parser);
+
+            return ast_scope(parser,nud_sym(parser,cur),t.literal,t);
+        }
+
         case token_type::dot:
         {   
             return struct_access(parser,ast_literal(parser,ast_type::symbol,t.literal,t));
@@ -328,29 +347,11 @@ AstNode* nud_sym(Parser& parser, const Token& t)
                 return arr_access;
             }
         }
-    
 
-        // TODO: for now this is just for hanlding enums
-        case token_type::scope:
-        {
-            consume_expr(parser,token_type::scope);
-
-            if(parser.expr_tok.type != token_type::symbol)
-            {
-                panic(parser,parser.expr_tok,"expected name after scope, got %s\n",tok_name(parser.expr_tok.type));
-                return nullptr;
-            }
-
-            const auto cur = parser.expr_tok;
-            parser.expr_tok = next_token_expr(parser);
-
-            return ast_scope(parser,nud_sym(parser,cur),t.literal,t);
-        }
 
         default:
         {
-            // plain symbol
-            return ast_literal(parser,ast_type::symbol,t.literal,t);
+           return ast_literal(parser,ast_type::symbol,t.literal,t);
         }
         break;
     }   
