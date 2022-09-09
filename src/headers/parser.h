@@ -44,6 +44,8 @@ enum class ast_type
     minus,
     divide,
     mod,
+
+    tuple_assign,
     
     shift_l,
     shift_r,
@@ -133,6 +135,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "/",
     "%",
 
+    "tuple_assign",
+
     "<<",
     ">>",
 
@@ -203,6 +207,7 @@ enum class ast_fmt
     switch_t,
     case_t,
     scope,
+    tuple_assign,
 };
 
 inline const char *FMT_NAMES[] =
@@ -226,6 +231,7 @@ inline const char *FMT_NAMES[] =
     "switch",
     "case",
     "scope",
+    "tuple_assign",
 };
 
 
@@ -406,6 +412,15 @@ struct ScopeNode
     String scope;
 
     AstNode* expr;
+};
+
+
+struct TupleAssignNode
+{
+    AstNode node;
+
+    Array<AstNode*> symbols;
+    FuncCallNode* func_call;
 };
 
 using AstPointers = Array<void***>;
@@ -651,6 +666,15 @@ AstNode* ast_scope(Parser& parser, AstNode* expr, String scope, const Token& tok
     return (AstNode*)scope_node;
 }
 
+
+AstNode* ast_tuple_assign(Parser& parser, const Token& token)
+{
+    TupleAssignNode* tuple_node = alloc_node<TupleAssignNode>(parser,ast_type::tuple_assign,ast_fmt::tuple_assign,token);
+
+    add_ast_pointer(parser,&tuple_node->symbols.data);
+
+    return (AstNode*)tuple_node;
+}
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 {

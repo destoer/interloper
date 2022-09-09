@@ -574,13 +574,7 @@ AstNode *statement(Parser &parser)
                 }
 
 
-                /*
 
-                    x, y = foo(); 
-                    @x, @y = foo();
-                    x[0], x[1] = foo();
-                    point.x, point.y = foo();
-                */
                 // tuple assign
                 case token_type::comma:
                 {
@@ -588,19 +582,21 @@ AstNode *statement(Parser &parser)
                     
                     prev_token(parser);
 
+                    TupleAssignNode* tuple_node = (TupleAssignNode*)ast_tuple_assign(parser,t);
+
                     // generalise this so we can pick up on a ',' being a "terminator"
                     // in other expressions
                     while(!done)
                     {
                         const auto sym_tok = next_token(parser);
 
-                        AstNode* expr = nullptr;
+                        AstNode* sym_node = nullptr;
 
                         switch(sym_tok.type)
                         {
                             case token_type::symbol:
                             {
-                                expr = var(parser,sym_tok);
+                                sym_node = var(parser,sym_tok);
                                 break;
                             }
 
@@ -610,7 +606,7 @@ AstNode *statement(Parser &parser)
                             }
                         }
 
-                        print(expr);
+                        push_var(tuple_node->symbols,sym_node);
 
                         const auto delim = next_token(parser);
 
@@ -625,12 +621,7 @@ AstNode *statement(Parser &parser)
                             // end of the stmt
                             case token_type::equal:
                             {
-                                // info required...
-                                // Array<AstNode*>
-                                // ast_equal
-                                // func_call()
-
-                                assert(false);
+                                tuple_node->func_call = (FuncCallNode*)func_call(parser,next_token(parser));
                                 done = true;
                                 break;
                             }
@@ -644,7 +635,7 @@ AstNode *statement(Parser &parser)
                         }
                     }
 
-                    unimplemented("boop");
+                    return (AstNode*)tuple_node;
                 }
 
                 default:
@@ -1541,6 +1532,20 @@ void print(const AstNode *root)
             print(scope_node->expr);
 
             break;
+        }
+
+        case ast_fmt::tuple_assign:
+        {
+            puts("tuple assign");
+
+            TupleAssignNode* tuple_node = (TupleAssignNode*)root;
+
+            for(u32 s = 0; s < count(tuple_node->symbols); s++)
+            {
+                print(tuple_node->symbols[s]);
+            }
+
+            print((AstNode*)tuple_node->func_call);
         }
     }
 
