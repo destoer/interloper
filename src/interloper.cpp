@@ -102,8 +102,38 @@ void print_func_decl(Interloper& itl,const Function &func)
         print(itl,sym); 
     }
 
-    printf("return type %s\n",type_name(itl,func.return_type).buf);  
+    for(u32 r = 0; r < count(func.return_type); r++)
+    {
+        printf("return type %s\n",type_name(itl,func.return_type[r]).buf);
+    }
 }
+
+
+// add hidden arg pointers for return
+u32 add_hidden_return(Interloper& itl, const String& name, const Type& return_type, Array<u32>& args ,u32 arg_offset)
+{
+    Type ptr_type = return_type;
+    ptr_type.ptr_indirection += 1;
+
+    Symbol sym = make_sym(itl.symbol_table,name,ptr_type,GPR_SIZE,arg_offset);
+    add_var(itl.symbol_table,sym);
+
+    push_var(args,sym.slot);     
+
+    arg_offset += GPR_SIZE;
+
+    return arg_offset;     
+}
+
+
+void finalise_def(Function& func, Array<Type> rt, Array<u32> a, u32 hidden_args, u32 s)
+{
+    func.return_type = rt;
+    func.args = a;
+    func.slot = s;
+    func.hidden_args = hidden_args;
+}
+
 
 // scan the top level of the parse tree for functions
 // and grab the entire signature
@@ -123,38 +153,46 @@ void parse_function_declarations(Interloper& itl)
 
             itl.cur_file = node.filename;
 
-            const auto return_type = get_type(itl,node.return_type[0]);
-
-            if(count(node.return_type) > 1)
-            {
-                unimplemented("tuple return");
-            }
-
-            const auto name = node.name;
-            
+            // parse out out the return type
             Array<u32> args;
-
-            const auto decl = node.args;
-
-            // if we are returning out a struct we have a hidden pointer to return it out of in the first arg!
-            const b32 sfa = type_size(itl,return_type) > GPR_SIZE;
-
             u32 arg_offset = 0;
+            u32 hidden_args = 0;
 
-            if(sfa)
+            Array<Type> return_type;
+
+
+            // NOTE: void return's will have a void type
+            if(count(node.return_type) == 1)
             {
-                Type ptr_type = return_type;
-                ptr_type.ptr_indirection += 1;
+                push_var(return_type,get_type(itl,node.return_type[0]));
 
-                // add the var to slot lookup and link to function
-                // we will do a add_scope to put it into the scope later
-                Symbol sym = make_sym(itl.symbol_table,"_struct_ret_ptr",ptr_type,GPR_SIZE,arg_offset);
-                add_var(itl.symbol_table,sym);
-
-                push_var(args,sym.slot);     
-
-                arg_offset += GPR_SIZE;
+                // we are returning a struct add a hidden pointer as first arg
+                if(type_size(itl,return_type[0]) > GPR_SIZE)
+                {
+                    arg_offset = add_hidden_return(itl,"_struct_ret_ptr",return_type[0],args,arg_offset);
+                    hidden_args++;
+                }   
             }
+
+            // tuple return
+            else if(count(node.return_type) > 1)
+            {
+                for(u32 a = 0; a < count(node.return_type); a++)
+                {
+                    push_var(return_type,get_type(itl,node.return_type[a]));
+
+                    char name[40];
+                    sprintf(name,"_tuple_ret_0x%x",a);
+
+                    arg_offset = add_hidden_return(itl,name,return_type[a],args,arg_offset);
+
+                    hidden_args++;
+                }
+            }
+
+            // handle args
+            const auto name = node.name;
+            const auto decl = node.args;
 
             // rip every arg
             for(u32 i = 0; i < count(decl); i++)
@@ -182,7 +220,7 @@ void parse_function_declarations(Interloper& itl)
             }
 
 
-            finalise_def(func,return_type,args,count(itl.symbol_table.label_lookup));
+            finalise_def(func,return_type,args,hidden_args,count(itl.symbol_table.label_lookup));
 
 
             // add as a label as it this will be need to referenced by call instrs
@@ -684,6 +722,7 @@ void mark_used(Interloper& itl, Function& func)
 
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
+    // TODO: this needs to check if its a tuple and parse it out of a seperate section
     FuncCallNode* call_node = (FuncCallNode*)node;
 
     s32 idx =  lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,call_node->name);
@@ -711,17 +750,23 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
     //print_func_decl(itl,func_call);
 
-    const bool return_struct = type_size(itl,func_call.return_type) > GPR_SIZE;
-
-
-    const s32 arg_offset = return_struct? 1 : 0;
+    const s32 hidden_args = func_call.hidden_args;
 
     // check we have the right number of params
-    if((count(func_call.args) - arg_offset) != count(call_node->args))
+    if((count(func_call.args) - hidden_args) != count(call_node->args))
     {
         panic(itl,"[COMPILE]: function call expected %d args got %d\n",count(func_call.args),count(call_node->args));
         return Type(builtin_type::void_t);
     }
+
+    // check this function call is valid for tuples!
+    // TODO: start here
+    if(count(func_call.return_type) > 1)
+    {
+        unimplemented("type check tuple bind size");
+    }
+
+
 
     // for now we are just going with callee saved
     // if we eventually mix caller and callee saved so we can have the called func overwrite values
@@ -737,11 +782,11 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
 
     // push args in reverse order and type check them
-    for(s32 i = count(func_call.args) - 1; i >= arg_offset; i--)
+    for(s32 i = count(func_call.args) - 1; i >= hidden_args; i--)
     {
         const auto &arg =  sym_from_slot(itl.symbol_table,func_call.args[i]);
   
-        const u32 arg_idx = i - arg_offset;
+        const u32 arg_idx = i - hidden_args;
 
         if(is_array(arg.type))
         {
@@ -851,39 +896,59 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         }
     }
 
-    // push hidden arg for a struct return if we need it
+    // push hidden args 
 
-   
-    if(return_struct)
+    // TODO: start here
+    if(hidden_args)
     {
-        if(dst_slot == NO_SLOT)
+        if(dst_slot == TUPLE_SLOT)
         {
-            unimplemented("no_slot: binding on large return type");
+            unimplemented("call tuple");
+        /*
+            // okay how do we wanna structure getting tuple info off of this?
+            // do we want to look at the node?
+            // 
+            for(s32 a = count(return_slots); a >= 0; a--)
+            {
+                const u32 arg_slot = return_slots[a];
+
+
+            }
+        */
+
         }
 
-        else if(is_sym(dst_slot))
-        {
-            arg_clean += 1;
-
-            const u32 addr = emit_res(func,op_type::addrof,dst_slot);
-            
-            emit(func,op_type::push_arg,addr);
-        }
-
+        // single arg -> use the dst slot
         else
         {
-            unimplemented("tmp: large binding on return type");
+            if(dst_slot == NO_SLOT)
+            {
+                unimplemented("no_slot: binding on large return type");
+            }
+
+            else if(is_sym(dst_slot))
+            {
+                arg_clean += 1;
+
+                const u32 addr = emit_res(func,op_type::addrof,dst_slot);
+                emit(func,op_type::push_arg,addr);
+            }
+
+            else
+            {
+                unimplemented("tmp: large binding on return type");
+            }
         }
     }
 
 
 
-
-    const bool returns_value = func_call.return_type.type_idx != u32(builtin_type::void_t);
+    // NOTE: func struct will hold a void value if it has nothing
+    const bool returns_value = func_call.return_type[0].type_idx != u32(builtin_type::void_t);
 
 
     // if we have a register in R0 we need to save it so its not overwritten
-    if(returns_value && !return_struct)
+    if(returns_value && !hidden_args)
     {
         emit(func,op_type::spill_rv);
     }
@@ -906,19 +971,28 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     // restore callee saved values
     //emit(func,op_type::restore_regs);
 
+
     // normal return
-    if(!return_struct)
+    // store the return value back into a reg (if its actually binded)
+    if(returns_value && dst_slot != NO_SLOT && !hidden_args)
     {
-        // store the return value back into a reg (if its actually binded)
-        if(returns_value && dst_slot != NO_SLOT)
-        {
-            // TODO: is this dst type correct?
-            compile_move(itl,func,dst_slot,RV_IR,func.return_type,func.return_type);
-        }
+        // TODO: is this dst type correct?
+        compile_move(itl,func,dst_slot,RV_IR,func.return_type[0],func.return_type[0]);
+    }
+    
+
+    
+    if(count(func_call.return_type) == 1)
+    {
+        // result of expr is the return type
+        return func_call.return_type[0];
     }
 
-    // result of expr is the return type
-    return func_call.return_type;    
+    // tuple 
+    else
+    {
+        return raw_type(TUPLE_TYPE);
+    }    
 }
 
 
@@ -2964,7 +3038,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
         
                         if(v1 != RV_IR)
                         {
-                            compile_move(itl,func,RV_IR,v1,func.return_type,rtype);
+                            compile_move(itl,func,RV_IR,v1,func.return_type[0],rtype);
                         }
 
 
@@ -2973,7 +3047,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             break;
                         }
 
-                        check_assign(itl,func.return_type,rtype);
+                        check_assign(itl,func.return_type[0],rtype);
                     }
 
                     // multiple return
@@ -3141,7 +3215,7 @@ void compile_functions(Interloper &itl)
         {
             // is a void function this is fine
             // we just need to emit the ret at the end 
-            if(func.return_type.type_idx == u32(builtin_type::void_t))
+            if(func.return_type[0].type_idx == u32(builtin_type::void_t))
             {
                 emit(func,op_type::ret);
             }

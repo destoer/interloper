@@ -6,6 +6,7 @@
 // if type idx is >= to this then this is a custom defined type
 static constexpr u32 BUILTIN_TYPE_SIZE = 10;
 static constexpr u32 USER_TYPE = 0xf0000000;
+static constexpr u32 TUPLE_TYPE = 0xfffffffe;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
 // NOTE: expects to be defined in same order as tokens
@@ -154,6 +155,14 @@ struct Type
 
 };
 
+Type raw_type(u32 idx)
+{
+    Type type;
+    type.type_idx = idx;
+
+    return type;
+}
+
 
 struct EnumMember
 {
@@ -283,7 +292,9 @@ struct FuncNode;
 struct Function
 {
     String name;
-    Type return_type;
+    Array<Type> return_type;
+
+    u32 hidden_args = 0;
 
     // TODO: if we need debugging information on local vars we need an array
     // of slots for both normal vars so we know whats in the functions
@@ -300,14 +311,6 @@ struct Function
 
     b32 used = false;
 };
-
-
-void finalise_def(Function& func, Type rt, Array<u32> a, u32 s)
-{
-    func.return_type = rt;
-    func.args = a;
-    func.slot = s;
-}
 
 
 struct Interloper;

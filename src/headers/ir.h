@@ -258,6 +258,7 @@ static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
 
 // dont perform any moves
 static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 TUPLE_SLOT = SPECIAL_PURPOSE_REG_START + 7;
 
 
 const String SPECIAL_REG_NAMES[] = 
