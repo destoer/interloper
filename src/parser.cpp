@@ -622,6 +622,7 @@ AstNode *statement(Parser &parser)
                             case token_type::equal:
                             {
                                 tuple_node->func_call = (FuncCallNode*)func_call(parser,next_token(parser));
+                                consume(parser,token_type::semi_colon);
                                 done = true;
                                 break;
                             }
@@ -1266,8 +1267,12 @@ void print_depth(int depth)
 
 void print(const AstNode *root)
 {
+    static int depth = 0;
+
     if(!root)
     {
+        print_depth(depth + 1);
+        puts("EMPTY");
         return;
     }
 
@@ -1278,8 +1283,6 @@ void print(const AstNode *root)
     }
 
 
-    static int depth = 0;
-    
     depth += 1;
 
     print_depth(depth);

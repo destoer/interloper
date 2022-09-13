@@ -1,0 +1,11 @@
+
+// expected 5
+func main() s32
+{
+    x : s32 = 0;
+    x_ptr : s32@ = &x;
+
+    x = 5;
+
+    return @x_ptr;
+}

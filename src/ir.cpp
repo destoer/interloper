@@ -550,7 +550,7 @@ void reload_sym(Symbol &sym,u32 slot,LocalAlloc &alloc,List &list, ListNode *nod
 
     if(alloc.print_reg_allocation)
     {
-        printf("reloading sym %s into r%d\n",sym.name.buf,sym.location);
+        printf("reloading sym %s into r%d from offset %x\n",sym.name.buf,sym.location,sym.offset);
     }
 
     // we need to save the current stack offset here as by the time we load it 
@@ -646,7 +646,9 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
             // spill the register as soon as it is written
             else if(sym.referenced)
             {
+                printf("name: %s\n",sym.name.buf);
                 unimplemented("sym dst pointer spill");
+                //spill_sym(alloc,list,node,sym);
             }
         }
 
@@ -803,7 +805,7 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
 
     if(alloc.print_stack_allocation)
     {
-        printf("intial offset allocated %s: (%x,%x) -> %x\n",name,size,count,cur);
+        printf("initial offset allocated %s: (%x,%x) -> %x\n",name,size,count,cur);
     }
 
     alloc.size_count[idx] += count;

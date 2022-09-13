@@ -1014,6 +1014,7 @@ Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVA
 void destroy_func(Function& func)
 {
     destroy_arr(func.args);
+    destroy_arr(func.return_type);
     destroy_emitter(func.emitter);
 }
 

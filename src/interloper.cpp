@@ -181,7 +181,7 @@ void parse_function_declarations(Interloper& itl)
                 {
                     push_var(return_type,get_type(itl,node.return_type[a]));
 
-                    char name[40];
+                    char name[40] = {0};
                     sprintf(name,"_tuple_ret_0x%x",a);
 
                     arg_offset = add_hidden_return(itl,name,return_type[a],args,arg_offset);
@@ -720,12 +720,21 @@ void mark_used(Interloper& itl, Function& func)
 
 #include "intrin.cpp"
 
+// used for both tuples and ordinary function calls
 Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
-    // TODO: this needs to check if its a tuple and parse it out of a seperate section
-    FuncCallNode* call_node = (FuncCallNode*)node;
+    TupleAssignNode* tuple_node = nullptr;
 
-    s32 idx =  lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,call_node->name);
+    // is this used for tuple binding?
+    if(node->type == ast_type::tuple_assign)
+    {
+        tuple_node = (TupleAssignNode*)node;
+    }
+
+    // NOTE: if this is a multiple return the function call is a child node
+    FuncCallNode* call_node = tuple_node? tuple_node->func_call : (FuncCallNode*)node;
+
+    s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,call_node->name);
 
     if(idx != INVALID_SLOT)
     {
@@ -759,11 +768,27 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         return Type(builtin_type::void_t);
     }
 
-    // check this function call is valid for tuples!
-    // TODO: start here
+
+    // check calls on functions with multiple returns are valid
+    if(tuple_node && count(func_call.return_type) == 1)
+    {
+        panic(itl,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
+        return Type(builtin_type::void_t);
+    }
+
     if(count(func_call.return_type) > 1)
     {
-        unimplemented("type check tuple bind size");
+        if(!tuple_node)
+        {
+            panic(itl,"Attempted to call multiple return function nested in a expression\n");
+            return Type(builtin_type::void_t);
+        }
+
+        if(count(func_call.return_type) != count(tuple_node->symbols))
+        {
+            panic(itl,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",count(tuple_node->symbols),count(call_node->args));
+            return Type(builtin_type::void_t);
+        }
     }
 
 
@@ -792,7 +817,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
         {
             assert(arg.type.degree == 1);
 
-            // pass a static string, being puttingg it as const data in the program
+            // pass a static string, by inserting as const data in the program
             if(call_node->args[arg_idx]->type == ast_type::string)
             {
                 LiteralNode* lit_node = (LiteralNode*)call_node->args[arg_idx];
@@ -898,27 +923,54 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
     // push hidden args 
 
-    // TODO: start here
     if(hidden_args)
     {
-        if(dst_slot == TUPLE_SLOT)
+        // pass in tuple dst
+        if(tuple_node)
         {
-            unimplemented("call tuple");
-        /*
             // okay how do we wanna structure getting tuple info off of this?
             // do we want to look at the node?
             // 
-            for(s32 a = count(return_slots); a >= 0; a--)
+            for(s32 a = count(tuple_node->symbols) - 1; a >= 0; a--)
             {
-                const u32 arg_slot = return_slots[a];
+                const AstNode* var_node = tuple_node->symbols[a];
 
+                switch(var_node->type)
+                {
+                    case ast_type::symbol:
+                    {
+                        const LiteralNode *sym_node = (LiteralNode*)var_node;
 
+                        const auto sym_opt = get_sym(itl.symbol_table,sym_node->literal);
+
+                        if(!sym_opt)
+                        {
+                            panic(itl,"symbol %s used before declaration\n",sym_node->literal.buf);
+                            return Type(builtin_type::void_t);
+                        }
+
+                        const auto &sym = sym_opt.value();
+
+                        const u32 addr_slot = emit_res(func,op_type::addrof,sym.slot);
+                        emit(func,op_type::push_arg,addr_slot);
+
+                        break;
+                    }
+
+                    default:
+                    {
+                        panic(itl,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
+                        return Type(builtin_type::void_t);
+                    }
+                }
+
+                arg_clean++;
             }
-        */
 
         }
 
-        // single arg -> use the dst slot
+        // single arg (for struct returns) 
+        // use the dst slot
         else
         {
             if(dst_slot == NO_SLOT)
@@ -928,7 +980,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
             else if(is_sym(dst_slot))
             {
-                arg_clean += 1;
+                arg_clean++;
 
                 const u32 addr = emit_res(func,op_type::addrof,dst_slot);
                 emit(func,op_type::push_arg,addr);
@@ -981,7 +1033,8 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
     }
     
 
-    
+    // give back the function's return type
+
     if(count(func_call.return_type) == 1)
     {
         // result of expr is the return type
@@ -2939,7 +2992,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
         }
 
         itl.cur_expr = line;
-
+    
         switch(line->type)
         {
             // variable declaration
@@ -3053,7 +3106,26 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // multiple return
                     else
                     {
-                        unimplemented("tuple return");
+                        if(count(record_node->nodes) != count(func.return_type))
+                        {
+                            panic(itl,"Invalid number of return parameters for function %s : %d != %d\n",
+                                func.name.buf,count(record_node->nodes),count(func.return_type));
+                            
+                            return;
+                        }
+                        
+
+                        for(u32 r = 0; r < count(func.return_type); r++)
+                        {
+                            // void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
+                            // NOTE: Pointers are in the first set of args i.e the hidden ones
+                            const auto [rtype, ret_slot] = compile_oper(itl,func,record_node->nodes[r],new_tmp(func));
+
+                            // check each param
+                            check_assign(itl,func.return_type[r],rtype);
+
+                            do_ptr_store(itl,func,ret_slot,func.args[r],func.return_type[r]);
+                        }
                     }
                 
                 }
@@ -3100,6 +3172,12 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             case ast_type::switch_t:
             {
                 compile_switch_block(itl,func,line);
+                break;
+            }
+
+            case ast_type::tuple_assign:
+            {
+                compile_function_call(itl,func,line,NO_SLOT);
                 break;
             }
 
