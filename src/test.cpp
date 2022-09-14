@@ -82,6 +82,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/ptr/null",1,false},
     {"tests/ptr/invalid_ptr_compare",-1,true},
     {"tests/ptr/null_invalid",-1,true},
+    {"tests/ptr/alias",5,true},
 
     // wait for heap allocation
     //{"tests/ptr/ptr_to_array",3,false},

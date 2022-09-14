@@ -1,4 +1,10 @@
 
+// TODO: fix this, i think we will just force reloads on registers
+// whenever they are read
+// and spills whenever they are written? <--- this is the one that is not implemented properly
+// and i think its the reason tuples are getting busted
+// we need to next impl the print() and then reg alloc
+
 // expected 5
 func main() s32
 {

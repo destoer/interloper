@@ -642,14 +642,6 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
                     alloc_sym(table,alloc,list,node,sym);
                 }
             }
-
-            // spill the register as soon as it is written
-            else if(sym.referenced)
-            {
-                printf("name: %s\n",sym.name.buf);
-                unimplemented("sym dst pointer spill");
-                //spill_sym(alloc,list,node,sym);
-            }
         }
 
         else if(is_tmp(slot))
@@ -756,11 +748,25 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
     handle_allocation(itl.symbol_table,alloc,list,node);
 
     auto &opcode = node->opcode;
+    const u32 dst_slot = opcode.v[0];
 
     // rewrite each slot to its allocated register
     rewrite_regs(itl.symbol_table,alloc,opcode);
 
+    
     const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    // handle aliasing on dst
+    // TODO: replace with something less conservative
+    if(info.type[0] == arg_type::dst_reg && is_sym(dst_slot))
+    {
+        auto& sym = sym_from_slot(itl.symbol_table,dst_slot);
+
+        if(sym.referenced)
+        {
+            spill_sym(alloc,list,node,sym,true);
+        }
+    }
 
     // branch is happening spill everything
     // TODO: revisit this with a proper reg alloc method
