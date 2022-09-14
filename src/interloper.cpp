@@ -23,7 +23,7 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, const Type& rtyp
 
 void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0);
 std::tuple<Type,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node);
-
+std::pair<Type,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof);
 
 void dump_ir_sym(Interloper &itl)
 {
@@ -933,7 +933,7 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             // 
             for(s32 a = count(tuple_node->symbols) - 1; a >= 0; a--)
             {
-                const AstNode* var_node = tuple_node->symbols[a];
+                AstNode* var_node = tuple_node->symbols[a];
 
                 switch(var_node->type)
                 {
@@ -955,6 +955,34 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
                         emit(func,op_type::push_arg,addr_slot);
 
                         break;
+                    }
+
+                    case ast_type::access_struct:
+                    {
+                        // get the addr and push it
+                        auto [type,ptr_slot,offset] = compute_member_addr(itl,func,var_node);
+                        ptr_slot = collapse_offset(func,ptr_slot,&offset);
+
+                        emit(func,op_type::push_arg,ptr_slot);
+                        break;
+                    }
+
+                    case ast_type::index:
+                    {
+                        auto [type,ptr_slot] = index_arr(itl,func,var_node,new_tmp(func));
+
+                        emit(func,op_type::push_arg,ptr_slot);
+                        break;
+                    }
+
+                    case ast_type::deref:
+                    {
+                        UnaryNode* deref_node = (UnaryNode*)var_node;
+
+                        const auto [type,ptr_slot] = load_addr(itl,func,deref_node->next,new_tmp(func),false);
+
+                        emit(func,op_type::push_arg,ptr_slot);
+                        break;                     
                     }
 
                     default:

@@ -21,11 +21,11 @@ func basic() bool
     err : bool = false;
 
     // basic 
-    x, err = divide(1,0);
+    [x, err] = divide(1,0);
 
     if(err && x == 0)
     {
-        x, err = divide(30,2);
+        [x, err] = divide(30,2);
 
         return !err && x == 15;
     }
@@ -35,7 +35,7 @@ func basic() bool
 
 
 
-/*
+
 struct Point
 {
     x : s32;
@@ -44,26 +44,25 @@ struct Point
 
 func structure() bool
 {
-    Point point;
+    point : Point;
 
-    point.x, point.y = numbers();
+    [point.x, point.y] = numbers();
 
     return point.x == 5 && point.y == 10;
 }
-*/
 
-/*
+
+
 func array() bool
 {
     arr : u32[2];
 
-    arr[1], arr[0] = numbers();
+    [arr[1], arr[0]] = numbers();
 
     return arr[0] == 10 && arr[1] == 5;
 }
-*/
 
-/*
+
 func pointer() bool
 {
     x : u32 = 0;
@@ -71,20 +70,24 @@ func pointer() bool
 
     ptr : u32@ = &x;
 
-    @ptr, y = numbers();
+    [@ptr, y] = numbers();
 
     return x == 5 && y == 10;
 }
-
-*/
 
 // expected 1
 func main() s32 
 { 
     test1 : bool = basic();
 
+    test2 : bool = structure();
+
+    test3 : bool = array();
+
+    test4 : bool = pointer();
+
     // every test passed?
-    pass : bool = test1;
+    pass : bool = test1 && test2 && test3;
 
     return cast(s32,pass);
 }

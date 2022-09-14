@@ -315,6 +315,79 @@ AstNode *auto_decl(Parser &parser)
 }
 
 
+AstNode* tuple_assign(Parser& parser, const Token& t)
+{
+    b32 done = false;
+
+
+    TupleAssignNode* tuple_node = (TupleAssignNode*)ast_tuple_assign(parser,t);
+
+    // generalise this so we can pick up on a ',' being a "terminator"
+    // in other expressions
+    while(!done)
+    {
+        const auto sym_tok = next_token(parser);
+
+        AstNode* sym_node = nullptr;
+
+        switch(sym_tok.type)
+        {
+            case token_type::symbol:
+            {
+                sym_node = var(parser,sym_tok);
+                break;
+            }
+
+            case token_type::deref:
+            {
+                const Token deref_tok = next_token(parser);
+
+                sym_node = ast_unary(parser,var(parser,deref_tok),ast_type::deref,sym_tok);
+                break;
+            }
+
+            default:
+            {
+                panic(parser,t,"tuple assignment attempted on non symbol: %s\n",tok_name(sym_tok.type));
+                return nullptr;
+            }
+        }
+
+        push_var(tuple_node->symbols,sym_node);
+
+        const auto delim = next_token(parser);
+
+        switch(delim.type)
+        {
+            // keep going
+            case token_type::comma:
+            {
+                break;
+            }
+
+            // end of tuple
+            case token_type::sr_brace:
+            {
+                consume(parser,token_type::equal);
+
+                tuple_node->func_call = (FuncCallNode*)func_call(parser,next_token(parser));
+                consume(parser,token_type::semi_colon);
+                done = true;
+                break;
+            }
+
+            // something has gone wrong
+            default: 
+            {
+                panic(parser,t,"malformed tuple statement ");
+                return nullptr;
+            }
+        }
+    }
+
+    return (AstNode*)tuple_node;    
+}
+
 AstNode* opt_block(Parser& parser)
 {
     BlockNode* block_node = nullptr;
@@ -529,6 +602,13 @@ AstNode *statement(Parser &parser)
             return expr(parser,t);
         }
 
+
+        // tuple assign
+        case token_type::sl_brace:
+        {
+            return tuple_assign(parser, t);
+        }
+
         case token_type::symbol:
         {
             const auto t2 = peek(parser,0);
@@ -573,71 +653,6 @@ AstNode *statement(Parser &parser)
                     return expr(parser,t);
                 }
 
-
-
-                // tuple assign
-                case token_type::comma:
-                {
-                    b32 done = false;
-                    
-                    prev_token(parser);
-
-                    TupleAssignNode* tuple_node = (TupleAssignNode*)ast_tuple_assign(parser,t);
-
-                    // generalise this so we can pick up on a ',' being a "terminator"
-                    // in other expressions
-                    while(!done)
-                    {
-                        const auto sym_tok = next_token(parser);
-
-                        AstNode* sym_node = nullptr;
-
-                        switch(sym_tok.type)
-                        {
-                            case token_type::symbol:
-                            {
-                                sym_node = var(parser,sym_tok);
-                                break;
-                            }
-
-                            default:
-                            {
-                                unimplemented("tuple assignment attempted on non symbol");
-                            }
-                        }
-
-                        push_var(tuple_node->symbols,sym_node);
-
-                        const auto delim = next_token(parser);
-
-                        switch(delim.type)
-                        {
-                            // keep going
-                            case token_type::comma:
-                            {
-                                break;
-                            }
-
-                            // end of the stmt
-                            case token_type::equal:
-                            {
-                                tuple_node->func_call = (FuncCallNode*)func_call(parser,next_token(parser));
-                                consume(parser,token_type::semi_colon);
-                                done = true;
-                                break;
-                            }
-
-                            // something has gone wrong
-                            default: 
-                            {
-                                panic(parser,t,"malformed tuple statement ");
-                                return nullptr;
-                            }
-                        }
-                    }
-
-                    return (AstNode*)tuple_node;
-                }
 
                 default:
                 {
