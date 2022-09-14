@@ -6,8 +6,14 @@ func main() s32
     // test normal strings
     print("Hello there!\n");
 
-    // test formatting
-    print("BOOP:  {}, {}, {}, {}\n",x,false,-55,&x);
+    // test formatting basic types
+    //print("BOOP:  {}, {}, {}, {}, {}\n",x,false,-55);
+
+    // test pointer formatting
+
+    // test string formatting
+
+    // TODO: array and struct formatting
 
     return 0;
 }

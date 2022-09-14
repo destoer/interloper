@@ -1,6 +1,6 @@
 // expected 6
 
-func sum(arr: u32[]) u32
+func sum(arr: u32[3]) u32
 {
     ans: u32 = 0;
 

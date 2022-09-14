@@ -1,0 +1,16 @@
+
+// NOTE ... is sugar for Any[]
+func sum_int(args : ...) s32
+{
+    return 0;
+}
+
+// expected 117
+func main() s32
+{
+    x : s8 = 5;
+    y : s16 = 7:
+    z : s32 = 105;
+
+    return sum_int(x,y,z);
+}

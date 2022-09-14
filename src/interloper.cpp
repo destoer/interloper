@@ -815,8 +815,6 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
 
         if(is_array(arg.type))
         {
-            assert(arg.type.degree == 1);
-
             // pass a static string, by inserting as const data in the program
             if(call_node->args[arg_idx]->type == ast_type::string)
             {
