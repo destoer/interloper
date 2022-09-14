@@ -2136,7 +2136,7 @@ Type compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slo
             }
 
             // xor can invert our boolean which is either 1 or 0
-            emit(func,op_type::xor_imm,reg,reg,1);
+            emit(func,op_type::xor_imm,dst_slot,reg,1);
             return t;
         }
 

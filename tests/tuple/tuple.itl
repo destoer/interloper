@@ -23,7 +23,7 @@ func basic() bool
     // basic 
     x, err = divide(1,0);
 
-    if(err)
+    if(err && x == 0)
     {
         x, err = divide(30,2);
 
@@ -80,7 +80,7 @@ func pointer() bool
 
 // expected 1
 func main() s32 
-{
+{ 
     test1 : bool = basic();
 
     // every test passed?

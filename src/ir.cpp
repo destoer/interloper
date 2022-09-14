@@ -764,6 +764,12 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
 
         if(sym.referenced)
         {
+
+            if(alloc.print_reg_allocation)
+            {
+                printf("spilling alaised dst %s\n",sym.name.buf);
+            }
+
             spill_sym(alloc,list,node,sym,true);
         }
     }
