@@ -981,12 +981,12 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
 
     consume(parser,token_type::right_paren);
 
-
-    if(match(parser,token_type::left_paren))
+    // tuple type
+    if(match(parser,token_type::sl_brace))
     {
-        consume(parser,token_type::left_paren);
+        consume(parser,token_type::sl_brace);
 
-        while(!match(parser,token_type::right_paren))
+        while(!match(parser,token_type::sr_brace))
         {
             if(match(parser,token_type::eof))
             {
@@ -1004,13 +1004,13 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
 
             push_var(f->return_type,return_type);
 
-            if(!match(parser,token_type::right_paren))
+            if(!match(parser,token_type::sr_brace))
             {
                 consume(parser,token_type::comma);
             }
         }
 
-        consume(parser,token_type::right_paren);
+        consume(parser,token_type::sr_brace);
     }
 
     // single type

@@ -1,5 +1,5 @@
 
-func divide(v1: u32, v2: u32) (s32,bool)
+func divide(v1: u32, v2: u32) [s32,bool]
 {
     if(v2 != 0)
     {
@@ -9,7 +9,7 @@ func divide(v1: u32, v2: u32) (s32,bool)
     return 0, true;
 }
 
-func numbers() (s32,s32)
+func numbers() [s32,s32]
 {
     return 5, 10;
 }
