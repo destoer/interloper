@@ -1,16 +1,8 @@
+
+// expected compile error, 
 func sum(arr : u32[][])
 {
-    ans : u32 = 0;
 
-    for(i : u32 = 0; i < arr.len; i += 1)
-    {
-        for(j : u32 = 0; j < arr[i].len; j += 1)
-        {
-            ans += arr[i][j];
-        }
-    }
-
-    return ans;
 }
 
 func main()

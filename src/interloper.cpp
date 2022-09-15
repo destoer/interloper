@@ -840,6 +840,9 @@ Type compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst
             {
                 auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx],new_tmp(func));
 
+
+                // TODO: handle conversions for multidimensional arrays into VLA'S
+
                 // fixed sized array
                 if(is_fixed_array_pointer(arg_type))
                 {

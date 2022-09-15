@@ -736,47 +736,64 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             }
 
 
-            // when we conv them the rule is to push struct convs to a vla
-            // until we hit the end or something that is allready a vla
-            // as it will allready hold it in the correct from 
 
-            // dimension assign
-            // assign to var size, have to be equal or a runtime size
-            // [][] = [][3]
-            // [][3] = [][3]
-            // [][] = [][]
-            // [][] = [3][3] 
+            
+            // for 1d arrays these are fine
+            // [] = [3]
+            // [] = []
+            
+            // this is illegal
+            // [3] = []
 
-
-            // for arg passing only
-            // valid
-            // [3] = [3]
-
-
-            // we need to make sure we cant
-            // assign to static arrays?
-            // wait do we actually care....
-            if(!is_arg)
+            if(ltype.degree == 1)
             {
-                if(!is_runtime_size(ltype.dimensions[0]))
+                // for args fixed to fixed is fine!
+                if(is_arg)
                 {
-                    panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-                    return;
+                    if(!is_runtime_size(ltype.dimensions[0]) && is_runtime_size(rtype.dimensions[0]))
+                    {
+                        panic(itl,"cannot pass vla as fixed array %d : %d\n",ltype.dimensions[0],rtype.dimensions[0]);
+                        return;
+                    }
+                }
+
+                // if runtime size its fine
+                else if(!is_runtime_size(ltype.dimensions[0]))
+                {
+                    if(ltype.dimensions[0] != rtype.dimensions[0])
+                    {
+                        panic(itl,"[%d] expected array of size %d got %d\n",0,ltype.dimensions[0],rtype.dimensions[0]);
+                        return;
+                    }                        
                 }
             }
 
-            for(u32 i = 0; i < ltype.degree; i++)
+            // multi dimenstional
+            else
             {
-                // any assignment is valid if the dst is a vla
-                if(!is_runtime_size(ltype.dimensions[i]))
+                // every dimension must be identical
+                for(u32 i = 0; i < ltype.degree; i++)
                 {
                     if(ltype.dimensions[i] != rtype.dimensions[i])
                     {
-                        panic(itl,"(%d) expected array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
+                        if(!is_runtime_size(ltype.dimensions[i]) && is_runtime_size(rtype.dimensions[i]))
+                        {
+                            panic(itl,"cannot assign vla to multidimensional fixed sized array\n");
+                            return;
+                        }
+
+                        else if(is_runtime_size(ltype.dimensions[i]) && !is_runtime_size(rtype.dimensions[i]))
+                        {
+                            panic(itl,"cannot assign multidimensional fixed sized array to vla\n");
+                            return;
+                        }
+
+                        panic(itl,"[%d] expected array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
                         return;
                     }
                 }
             }
+            
         }
 
 

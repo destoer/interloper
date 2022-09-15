@@ -125,35 +125,41 @@ struct TypeDecl
 
 struct Type
 {
-    // TODO: remove these
-    Type()
-    {
+    u32 type_idx;
 
-    }
-
-    // plain builtin type
-    Type(builtin_type t) : type_idx(conv_builtin_type(t))
-    {
-        
-    }
-
-    u32 type_idx = 0;
-
-    u32 ptr_indirection = 0;
-
-    // array definiton
-
-    // either a number of RUNTIME_SIZE i.e variable length
-    u32 dimensions[MAX_ARR_SIZE] = {0};
-    u32 degree = 0;
-
-    // array of pointers as opposed to a pointer to an array
-    b32 contains_ptr = false;
-
-    // type specifiers
-    b32 is_const = false;
-
+    // specifiers
+    b32 is_const;
 };
+
+
+struct PointerType
+{
+    Type type;
+    Type* contained_type;
+};
+
+struct StructType
+{
+    Type type;
+    Struct* structure;
+};
+
+
+struct ArrayType
+{
+    Type type;
+    Type* contained_type;
+
+    // RUNTIME_SIZE or its fixed length
+    s32 size;
+};
+
+
+static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
+static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
+static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;
+
+
 
 Type raw_type(u32 idx)
 {
