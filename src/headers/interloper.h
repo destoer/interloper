@@ -41,6 +41,9 @@ struct Interloper
     // for longer lived strings, e.g func defs symbol names etc
     ArenaAllocator string_allocator;
 
+    // allocating all things types!
+    ArenaAllocator type_allocator;
+
     // Type lookup
     HashTable<String,TypeDecl> type_table;
     

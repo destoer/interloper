@@ -1,6 +1,6 @@
 #include <interloper.h>
 #include "expression.cpp"
-#include "enum.cpp"
+//#include "enum.cpp"
 
 void type_panic(Parser &parser);
 BlockNode *block(Parser &parser);
@@ -1188,18 +1188,6 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
                 break;
             }
 
-            case token_type::struct_t:
-            {
-                struct_decl(itl,parser,filename);
-                break;
-            }
-
-            case token_type::enum_t:
-            {
-                enum_decl(itl,parser,filename);
-                break;
-            }
-
             default:
             {
                 panic(parser,t,"unexpected top level token %s: '%s'\n",tok_name(t.type),t.literal.buf);
@@ -1235,7 +1223,7 @@ bool parse(Interloper& itl, const String& initial_filename)
     const String stl_path = make_static_string("stl/",strlen("stl/"));
 
     // import basic by default
-    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
+    //add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
 
 
     b32 error = false;

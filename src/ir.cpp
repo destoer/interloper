@@ -147,7 +147,7 @@ u32 new_tmp(Interloper& itl, u32 size)
     char name[40];
     sprintf(name,"v%d",itl.symbol_table.var_count);
 
-    Symbol sym = make_sym(itl.symbol_table,name,Type(builtin_type::void_t),size);
+    Symbol sym = make_sym(itl.symbol_table,name,make_builtin_type(itl,builtin_type::void_t),size);
 
     sym.slot = symbol(count(itl.symbol_table.slot_lookup));
     push_var(itl.symbol_table.slot_lookup,sym);      
@@ -1284,45 +1284,14 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         // arrays
         case op_type::load_arr_data:
         {
-
-            const s32 stack_offset = opcode.v[2];
-            auto &sym = sym_from_slot(table,opcode.v[1]);
-
-            if(is_runtime_size(sym.type,0))
-            {
-                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + 0,GPR_SIZE,false);
-            }
-
-            // static array
-            else
-            {
-                node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
-            }
-
-            node = node->next;
+            assert(false);
             break;
         }
 
 
         case op_type::load_arr_len:
         {
-            auto &sym = sym_from_slot(table,opcode.v[1]);
-            const s32 stack_offset = opcode.v[2];            
-
-            if(is_runtime_size(sym.type,0))
-            {
-                // TODO: this assumes GPR_SIZE is 4
-                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
-            }
-
-            else
-            {
-                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
-            }
-
-
-            node = node->next;
-            break;
+            assert(false);
         }
 
         default: node = node->next; break;

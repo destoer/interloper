@@ -33,7 +33,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/basic/arith_eq",294,false},
     {"tests/basic/mod",233168,false},
     {"tests/basic/shift",1,false},
-    {"tests/basic/comment",0,false},
+  /*  {"tests/basic/comment",0,false},
 
     // type
     {"tests/type/decl",255,false},
@@ -51,7 +51,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/const/const_assign_value.itl",5,false},
     {"tests/const/const_invalid_ptr_assign.itl",-1,true},
     {"tests/const/const_array_index_invalid.itl",-1,true},
-
+*/
     // func
     {"tests/func/func",7,false},
     {"tests/func/no_main",-1,true},
@@ -68,10 +68,13 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/control_flow/for",32,false},
     {"tests/control_flow/for_outer_decl",32,false},
     {"tests/control_flow/while",32,false},
+/*
     {"tests/control_flow/switch_no_default",73,false},
     {"tests/control_flow/switch",447,false},
     {"tests/control_flow/switch_duplicate",-1,true},
+*/
 
+/*
     // pointers
     // TODO: impl pointer casting (wait for coerce operation)
     {"tests/ptr/pointer",-2,false},
@@ -104,14 +107,14 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/array/array_of_ptr",6,false},
     {"tests/array/deref_array_of_ptr_invalid",-1,true},
     {"tests/array/array_multi_fixed_size.itl",7200,false},
-
+*/
     // TODO: type check array initalizer assignemnts
 
     // wait for heap allocation
     //{"tests/array/array_assign_vla",3,false},
     //{"tests/array/array_assign_vla_fixed",-1,true},
     
-
+/*
     // strings
     {"tests/string/char_array",7,false},
     {"tests/string/write_string",0,false},
@@ -148,6 +151,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
 
     // tuple
     {"tests/tuple/tuple",1,false},
+*/
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
