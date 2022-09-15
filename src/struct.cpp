@@ -44,14 +44,16 @@ void destroy_struct_table(StructTable& struct_table)
 }
 
 
-Struct struct_from_type(StructTable& struct_table, const Type& type)
+Struct struct_from_type(StructTable& struct_table, const Type* type)
 {
-    return struct_table[type.type_idx - STRUCT_START];
+    StructType* struct_type = (StructType*)type;
+
+    return struct_table[struct_type->struct_idx];
 }   
 
 
 
-std::optional<Member> get_member(StructTable& struct_table, const Type& type, const String& member_name)
+std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name)
 {
     if(!is_struct(type))
     {

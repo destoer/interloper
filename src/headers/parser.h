@@ -23,11 +23,11 @@ enum class ast_type
 
     ret,
 
-    // TODO: we dont need some of these now
     type,
     ptr_indirection,
     arr_dimensions,
     arr_var_size,
+    arr_fixed,
     initializer_list,
     arr_deduce_size,
     const_t,
@@ -121,6 +121,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "ptr_indirection",
     "arr_dimensions",
     "arr_var_size",
+    "arr_fixed",
     "intializer_list",
     "deduced_arr_size",
     "const",
@@ -286,6 +287,8 @@ struct RecordNode
     Array<AstNode*> nodes;
 };
 
+
+
 struct TypeNode
 {
     AstNode node;
@@ -295,10 +298,7 @@ struct TypeNode
     b32 is_const;
     u32 type_idx;
 
-    
-    b32 contains_ptr = false;
-    u32 ptr_indirection = 0;
-    RecordNode* arr_decl = nullptr;
+    Array<AstNode*> compound_type;
 };
 
 
@@ -551,6 +551,8 @@ AstNode* ast_type_decl(Parser& parser, const String& name, const Token& token)
     TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,ast_fmt::type,token);
 
     type_node->name = name;
+
+    add_ast_pointer(parser,&type_node->compound_type.data);
 
     return (AstNode*)type_node;        
 }

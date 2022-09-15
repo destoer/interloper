@@ -92,13 +92,6 @@ constexpr u32 bit_ceil(u32 v)
     return ans;
 }
 
-void print_str(const char* str, u32 count)
-{
-    for(u32 i = 0; i < count; i++)
-    {
-        printf("%s",str);
-    }
-}
 
 #ifndef _MSC_VER
 __attribute__((noreturn))

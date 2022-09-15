@@ -5,7 +5,7 @@
 #include "parser.cpp"
 #include "optimize.cpp"
 #include "ir.cpp"
-//#include "struct.cpp"
+#include "struct.cpp"
 
 
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
@@ -28,7 +28,7 @@ void dump_ir_sym(Interloper &itl)
 
 // TODO: we want to overhaul this with a more general mechanism for getting values
 // by running code at compile time, but just use this for now
-u32 eval_int_expr(const AstNode *node)
+u32 eval_int_expr(AstNode *node)
 {
     assert(node);
 
@@ -142,7 +142,7 @@ void parse_function_declarations(Interloper& itl)
                 push_var(return_type,get_type(itl,node.return_type[0]));
 
                 // we are returning a struct add a hidden pointer as first arg
-                if(type_size(return_type[0]) > GPR_SIZE)
+                if(type_size(itl,return_type[0]) > GPR_SIZE)
                 {
                     assert(false);
                 }   
@@ -166,7 +166,7 @@ void parse_function_declarations(Interloper& itl)
                 const auto name = a->name;
                 const auto type = get_type(itl,a->type);
 
-                const auto size = type_size(type);
+                const auto size = type_size(itl,type);
 
                 // add the var to slot lookup and link to function
                 // we will do a add_scope to put it into the scope later
@@ -285,9 +285,9 @@ u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset)
     }
 }
 
-void do_ptr_load(Function &func,u32 dst_slot,u32 addr_slot, const Type*& type, u32 offset = 0)
+void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset = 0)
 {
-    const u32 size = type_size(type);
+    const u32 size = type_size(itl,type);
 
     if(size <= sizeof(u32))
     {
@@ -306,9 +306,9 @@ void do_ptr_load(Function &func,u32 dst_slot,u32 addr_slot, const Type*& type, u
 }
 
 
-void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type*& type, u32 offset = 0)
+void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset = 0)
 {
-    const u32 size = type_size(type);
+    const u32 size = type_size(itl,type);
 
     if(size <= sizeof(u32))
     {
@@ -320,7 +320,7 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
         u32 src_ptr = emit_res(func,op_type::addrof,dst_slot);
         src_ptr = collapse_offset(func,src_ptr,&offset);        
 
-        ir_memcpy(itl,func,addr_slot,src_ptr,type_size(type));        
+        ir_memcpy(itl,func,addr_slot,src_ptr,type_size(itl,type));        
     } 
 }
 
@@ -561,7 +561,7 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
         {
             const u32 ptr = emit_res(func,op_type::addrof,src_slot);
 
-            ir_memcpy(itl,func,func.args[0],ptr,type_size(dst_type));
+            ir_memcpy(itl,func,func.args[0],ptr,type_size(itl,dst_type));
         } 
 
         else
@@ -569,7 +569,7 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
             const u32 src_ptr = emit_res(func,op_type::addrof,src_slot);
             const u32 dst_ptr = emit_res(func,op_type::addrof,dst_slot);
 
-            ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(dst_type));
+            ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,dst_type));
         }
     }
 }
@@ -1338,7 +1338,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
                 emit(func,op_type::free_reg,slot);
             }
 
-            const u32 size = type_size(type);
+            const u32 size = type_size(itl,type);
             emit(func,op_type::mov_imm,dst_slot,size);
 
             return make_builtin_type(itl,builtin_type::u32_t);
@@ -1610,7 +1610,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line)
         return;
     }
 
-    const auto size = type_size(ltype);
+    const auto size = type_size(itl,ltype);
 
     // add new symbol table entry
     Symbol &sym = add_symbol(itl.symbol_table,name,ltype,size);
@@ -1677,7 +1677,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 
     // add the symbol
 
-    const auto size = type_size(type);
+    const auto size = type_size(itl,type);
 
     // add new symbol table entry
     const auto &sym = add_symbol(itl.symbol_table,name,type,size);

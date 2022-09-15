@@ -143,13 +143,13 @@ struct PointerType
 struct StructType
 {
     Type type;
-    Struct* structure;
+    u32 struct_idx;
 };
 
 struct EnumType
 {
     Type type;
-    Enum* enumeration;
+    u32 enum_idx;
 };
 
 
@@ -207,7 +207,7 @@ struct Member
 {
     String name;
     u32 offset;
-    Type type;
+    Type *type;
 
     AstNode* expr = nullptr;
 };
@@ -250,7 +250,7 @@ using StructDefMap = HashTable<String,StructDef>;
 
 
 using StructTable = Array<Struct>;
-Struct struct_from_type(StructTable& struct_table, const Type& type);
+Struct struct_from_type(StructTable& struct_table, const Type* type);
 
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u32_t;
 

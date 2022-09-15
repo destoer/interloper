@@ -69,6 +69,13 @@ b32 is_trivial_copy(const Type *type)
     return is_builtin(type) || is_pointer(type) || is_enum(type);
 }
 
+// for arrays
+b32 is_runtime_size(const Type* type)
+{
+    const ArrayType* array_type = (ArrayType*)type;
+
+    return array_type->size == RUNTIME_SIZE;
+}
 
 b32 is_fixed_array_pointer(const Type* type)
 {
@@ -88,6 +95,28 @@ b32 is_fixed_array_pointer(const Type* type)
     return false;
 }
 
+
+b32 is_plain(const Type *type)
+{
+    return !is_pointer(type) && !is_array(type);
+}
+
+b32 is_value_type(const Type* type)
+{
+    return is_plain(type);
+}
+
+b32 is_fixed_array(const Type* type)
+{
+    if(is_array(type))
+    {
+        return !is_runtime_size(type);
+    }
+
+    return false;
+}
+
+
 u32 builtin_size(builtin_type t)
 {
     return builtin_type_info[u32(t)].size;
@@ -104,9 +133,52 @@ u32 builtin_min(builtin_type t)
 }
 
 
-u32 type_size(const Type *type)
+u32 type_size(Interloper& itl,const Type *type)
 {
-    UNUSED(type);
+    if(is_builtin(type))
+    {
+        return builtin_size(builtin_type(type->type_idx));
+    }
+
+    else if(is_pointer(type))
+    {
+        return GPR_SIZE;
+    }
+    
+    // TODO: this doesnt handle VLA
+    else if(is_array(type))
+    {
+        if(is_runtime_size(type))
+        {
+            return GPR_SIZE * 2;
+        }
+
+        return GPR_SIZE;
+    }
+
+    else if(is_enum(type))
+    {
+        return GPR_SIZE;
+    }
+
+    // user defined type
+    else if(is_struct(type))
+    {
+        const auto& structure = struct_from_type(itl.struct_table,type);
+        return structure.size;
+    }
+
+    unimplemented("unhandled type size");
+}
+
+// NOTE: this should probably return any count before the runtime size...
+// along with where the first runtime size is
+
+// NOTE: this needs to be reworked to support deduced sizes
+
+std::pair<u32,u32> arr_size(Interloper&itl,const Type* arr_type)
+{
+    UNUSED(itl); UNUSED(arr_type);
     assert(false);
 }
 
@@ -148,17 +220,85 @@ String type_name(Interloper& itl,const Type *type)
     assert(false);
 }
 
-Type* get_type(Interloper& itl, TypeNode* type_node)
+Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE)
 {
-    UNUSED(itl); UNUSED(type_node);
-    assert(false);
+    u32 type_idx = 0;
+
+    if(struct_idx_override != INVALID_TYPE)
+    {
+        type_idx = STRUCT;
+        // add the structure nonsense!
+        assert(false);
+    }
+
+    else if(type_decl->type_idx == USER_TYPE)
+    {
+        assert(false);
+    }
+
+    else
+    {
+        type_idx = type_decl->type_idx;
+    }
+
+    Type* type = make_raw_type(itl,type_idx);
+
+    type->is_const = type_decl->is_const;
+
+    // arrays, pointers
+    for(u32 c = 0; c < count(type_decl->compound_type); c++)
+    {
+        assert(false);
+    }
+
+    return type;
 }
 
-// TODO: do we want to pass the operation in here for when we support overloading?
-Type* effective_arith_type(Interloper& itl,const Type *ltype, const Type *rtype)
+// TODO: this is more restrictive than required atm
+b32 def_has_indirection(TypeNode *type_decl)
 {
-    UNUSED(itl); UNUSED(ltype); UNUSED(rtype);
-    assert(false);
+    return count(type_decl->compound_type);
+}
+
+
+
+// TODO: do we want to pass the operation in here for when we support overloading?
+Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
+{
+    // builtin type
+    if(is_builtin(rtype) && is_builtin(ltype))
+    {
+        // both integers
+        if(is_integer(rtype) && is_integer(ltype))
+        {
+            const auto builtin_r = builtin_type(rtype->type_idx);
+            const auto builtin_l = builtin_type(ltype->type_idx);
+
+            // return the larger size of the type (promotion)
+            return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype; 
+        }
+
+        // something else
+        else
+        {
+            panic(itl,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return make_builtin_type(itl,builtin_type::void_t);
+        }
+
+    }
+
+    // pointer arithmetic is fine
+    else if(is_pointer(ltype) && is_integer(rtype))
+    {
+        return ltype;
+    }
+
+
+    // one or more user defined
+    else
+    {
+        unimplemented("user defined type arithmetic!\n");       
+    }
 }
 
 void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtype, logic_op type)
@@ -167,11 +307,114 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
     assert(false);
 }
 
+void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
+{
+    // handle const
+    // TODO: this does not typecheck arrays yet
+    if(rtype->is_const)
+    {
+        if(is_arg)
+        {
+            // if both are value types this is fine as its just a copy
+            if(is_value_type(rtype) && is_value_type(rtype))
+            {
+
+            }
+
+            // if the ltype is const and the rtype is not this is illegal
+            else if(!ltype->is_const)
+            {
+                panic(itl,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return;
+            }
+        }
+
+        else
+        {
+            // ltype is const
+            // only valid given an initialisation
+            if(ltype->is_const && !is_initializer)
+            {
+                panic(itl,"cannot to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            }
+
+            // ltype is not const, fine given that the rtype is a value type
+            else if(!is_value_type(rtype))
+            {
+                panic(itl,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            }  
+        }
+    }
+
+    
+    else if(ltype->is_const)
+    {
+        // if its an arg or initalizer its fine
+        if(!is_initializer && !is_arg)
+        {
+            panic(itl,"cannot assign to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
+        }
+    }
+}
+
 void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_arg = false, bool is_initializer = false)
 {
-    UNUSED(itl); UNUSED(ltype); UNUSED(rtype);
-    UNUSED(is_arg); UNUSED(is_initializer);
-    assert(false);
+    // check const first
+    check_const(itl,ltype,rtype,is_arg,is_initializer);
+
+
+
+    // both are builtin
+    if(is_builtin(rtype) && is_builtin(ltype))
+    {
+        const auto builtin_r = builtin_type(rtype->type_idx);
+        const auto builtin_l = builtin_type(ltype->type_idx);
+
+        // both integers
+        if(is_integer(ltype) && is_integer(rtype))
+        {
+            // would narrow (assign is illegal)
+            if(builtin_size(builtin_l) < builtin_size(builtin_r))
+            {
+                panic(itl,"narrowing conversion %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            }
+
+            // unsigned cannot assign to signed
+            // TODO: do we want to be this pedantic with integer conversions?
+            if(!is_signed(ltype) && is_signed(rtype))
+            {
+                panic(itl,"unsigned = signed (%s = %s)\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            }
+        }
+
+        // something else (probably by here we only want the same types to be allowed)
+        // i.e when we add a boolean type or pointers etc
+        else
+        {
+            // void is not assignable!
+            if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
+            {
+                panic(itl,"void assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            }
+
+            else
+            {
+                unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            }           
+        }
+    }
+
+    else if(is_struct(ltype) && is_struct(rtype))
+    {
+        assert(false);
+    }
+
+    // check assign by ltype
+    else
+    {
+        assert(false);
+    }
 }
 
 void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const Type *old_type, const Type *new_type)
