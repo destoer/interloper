@@ -6,9 +6,9 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::u16_t, true, false ,2, 0, 0xffff},
     {builtin_type::u32_t, true, false ,4, 0, 0xffffffff},
 
-    {builtin_type::s8_t, true, true, 1, static_cast<u32>(-(0xff / 2)), (0xff / 2)},
-    {builtin_type::s16_t, true, true ,2,  static_cast<u32>(-(0xffff / 2)), (0xffff / 2)},
-    {builtin_type::s32_t, true, true ,4,  static_cast<u32>(-(0xffffffff / 2)), (0xffffffff / 2)},
+    {builtin_type::s8_t, true, true, 1, u32(-(0xff / 2)), (0xff / 2)},
+    {builtin_type::s16_t, true, true ,2,  u32(-(0xffff / 2)), (0xffff / 2)},
+    {builtin_type::s32_t, true, true ,4,  u32(-(0xffffffff / 2)), (0xffffffff / 2)},
 
     {builtin_type::byte_t, true, false, 1, 0, 0xff},
 
@@ -132,6 +132,15 @@ u32 builtin_min(builtin_type t)
     return builtin_type_info[u32(t)].min;
 }
 
+const char *builtin_type_name(builtin_type t)
+{
+    return TYPE_NAMES[static_cast<size_t>(t)];
+}
+
+builtin_type cast_builtin(const Type *type)
+{
+    return builtin_type(type->type_idx);
+}
 
 u32 type_size(Interloper& itl,const Type *type)
 {
@@ -214,10 +223,56 @@ Type* make_builtin_type(Interloper& itl, builtin_type type)
 }
 
 
+
 String type_name(Interloper& itl,const Type *type)
 {
-    UNUSED(itl); UNUSED(type);
-    assert(false);
+    StringBuffer prefix;
+
+    StringBuffer compound;
+
+    if(type->is_const)
+    {
+        push_string(itl.string_allocator,prefix,"const ");
+    }
+
+    String plain;
+
+    b32 done = false;
+
+    while(!done)
+    {
+        switch(type->type_idx)
+        {
+            case POINTER: assert(false);
+
+            case STRUCT: assert(false);
+
+            case ENUM: assert(false);
+
+            case ARRAY: assert(false);
+
+            // builtin
+            default:
+            {
+                plain = builtin_type_name(builtin_type(type->type_idx));
+                done = true;
+                break;
+            }
+        }
+
+    }
+
+    push_string(itl.string_allocator,prefix,plain);
+
+    // null term both strings
+    push_char(itl.string_allocator,prefix,'\0');
+    push_char(itl.string_allocator,compound,'\0');
+
+
+    // produce the final string!
+    String name = cat_string(itl.string_allocator,make_string(prefix),make_string(compound));
+
+    return name;
 }
 
 Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE)
@@ -303,8 +358,61 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
 
 void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtype, logic_op type)
 {
-    UNUSED(itl); UNUSED(ltype); UNUSED(rtype); UNUSED(type);
-    assert(false);
+    UNUSED(itl);
+
+    // both are builtin
+    if(is_builtin(rtype) && is_builtin(ltype))
+    {
+        const auto builtin_r = builtin_type(rtype->type_idx);
+        const auto builtin_l = builtin_type(ltype->type_idx);
+
+        // both integers 
+        if(is_integer(rtype) && is_integer(ltype))
+        {
+            if(is_signed(rtype) != is_signed(ltype))
+            {
+                panic(itl,"logical comparision on different signs %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            }
+        }
+
+        // both bool
+        else if(builtin_r == builtin_type::bool_t && builtin_l == builtin_type::bool_t)
+        {
+            
+        }
+
+        // something else
+        else
+        {
+            panic(itl,"logical operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        }
+    }
+
+    else if(is_pointer(ltype) && is_pointer(rtype))
+    {
+        assert(false);
+    }
+
+    else if(is_enum(ltype) && is_enum(rtype))
+    {
+        if(type != logic_op::cmpeq_reg && type != logic_op::cmpne_reg)
+        {
+            panic(itl,"comparision on enums is only defined for '==' and '!='");
+            return;
+        }
+
+        if(ltype->type_idx != rtype->type_idx)
+        {
+            panic(itl,"expected enum of the same type for comparsions %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
+        }
+    }
+
+    // no matching operator
+    else 
+    {
+        panic(itl,"logical operation on user defined type: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+    }   
 }
 
 void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
@@ -398,6 +506,12 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_
                 panic(itl,"void assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
+            // same type is fine
+            else if(builtin_r == builtin_l)
+            {
+
+            }
+
             else
             {
                 unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
@@ -424,8 +538,130 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
         return;
     }
 
-    assert(false);
-    UNUSED(itl); UNUSED(func); UNUSED(dst_slot); UNUSED(src_slot); UNUSED(old_type); UNUSED(new_type);
+    // handle side effects of the cast
+    // builtin type
+    if(is_plain(old_type) && is_plain(new_type))
+    {
+        const auto builtin_old = builtin_type(old_type->type_idx);
+        const auto builtin_new = builtin_type(new_type->type_idx);
+
+        // integer
+        if(is_integer(old_type) && is_integer(new_type))
+        {
+            // TODO: make sure this is optimised out
+
+            // unsigned -> larger type
+            // zero extend 
+            // (this is done by default)
+            
+            
+            // signed -> larger type
+            // sign extend
+            if(is_signed(old_type) && is_signed(new_type) && 
+                builtin_size(builtin_old) < builtin_size(builtin_new))
+            {
+                switch(builtin_old)
+                {
+                    case builtin_type::s8_t: 
+                    {
+                        emit(func,op_type::sxb,dst_slot,src_slot);
+                        break;
+                    }
+
+                    case builtin_type::s16_t:
+                    {
+                        emit(func,op_type::sxh,dst_slot,src_slot);
+                        break;
+                    }
+
+                    default: panic("invalid signed integer upcast");
+                }
+            }
+
+            // larger type -> smaller type
+            // truncate value (mask)
+            else if(builtin_size(builtin_old) > builtin_size(builtin_new))
+            {
+                switch(builtin_size(builtin_new))
+                {
+                    case 1: 
+                    {
+                        emit(func,op_type::and_imm,dst_slot,src_slot,0xff);
+                        break;
+                    }
+
+                    case 2:  
+                    {
+                        emit(func,op_type::and_imm,dst_slot,src_slot,0xffff);
+                        break;
+                    }
+
+                    default: panic("invalid signed integer downcast");
+                }
+            }
+
+            // cast doesnt do anything but move into a tmp so the IR doesnt break
+            else
+            {
+                emit(func,op_type::mov_reg,dst_slot,src_slot);
+            }
+
+        }
+
+        // bool to integer
+        else if(builtin_old == builtin_type::bool_t && is_integer(new_type))
+        {
+            // do nothing 0 and 1 are fine as integers
+            // we do want this to require a cast though so conversions have to be explicit
+            emit(func,op_type::mov_reg,dst_slot,src_slot);
+        } 
+
+        // integer to bool
+        // if integer is > 0, its true else false
+        else if(is_integer(old_type) && builtin_new == builtin_type::bool_t)
+        {
+            if(is_signed(old_type))
+            {
+                emit(func,op_type::cmpsgt_imm,dst_slot,src_slot,0);
+            }
+
+            // unsigned
+            else
+            {
+                emit(func,op_type::cmpugt_imm,dst_slot,src_slot,0);
+            }
+        }        
+
+        else
+        {
+            unimplemented("handle cast builtin illegal %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
+        }
+    }
+
+    // cast from enum to int is fine
+    else if(is_enum(old_type) && is_integer(new_type))
+    {
+        emit(func,op_type::mov_reg,dst_slot,src_slot);
+    }
+
+    // as is integer to enum
+    else if(is_integer(old_type) && is_enum(new_type))
+    {
+        emit(func,op_type::mov_reg,dst_slot,src_slot);
+    }
+
+    // cast does nothing just move the reg, its only acknowledgement your doing something screwy
+    else if(is_pointer(old_type) && is_pointer(new_type))
+    {
+        emit(func,op_type::mov_reg,dst_slot,src_slot);
+    }
+
+    // probably only pointers are gonna valid for casts here
+    else
+    {
+        unimplemented("handle cast user defined type!\n");        
+    }
+
 }
 
 void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)

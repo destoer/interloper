@@ -437,20 +437,81 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32
 }
 
 
+b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u32 v)
+{
+    // unsigned value against signed value
+    // if one side is signed and the other unsigned
+    // allow comparision if the unsigned is a static value that
+    // the signed side can represent
+    if(!is_signed(value) && is_signed(oper))
+    {
+        // value is within range of operand value
+        // change value to a the signed type
+        if(v <= builtin_max(cast_builtin(oper)))
+        {
+            return true;
+        }
+
+        else
+        {
+            panic(itl,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+        }
+    }
+
+    // value is outside the range of the other type
+    else if(is_signed(value) == is_signed(oper))
+    {
+        if(builtin_size(cast_builtin(value)) > builtin_size(cast_builtin(oper)))
+        {
+            panic(itl,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+        }
+    }
+
+    return false;
+}
+
 // handles <, <=, >, >=, &&, ||, ==, !=
 Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type, u32 dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
-    auto [t1,v1] = compile_oper(itl,func,bin_node->left,new_tmp(func));
-    auto [t2,v2] = compile_oper(itl,func,bin_node->right,new_tmp(func));
+    auto [type_left,v1] = compile_oper(itl,func,bin_node->left,new_tmp(func));
+    auto [type_right,v2] = compile_oper(itl,func,bin_node->right,new_tmp(func));
 
 
 
     // if one side is a value do type checking
-    if(is_integer(t1) && is_integer(t2))
+    if(is_integer(type_left) && is_integer(type_right))
     {
-        assert(false);
+        if(bin_node->left->type == ast_type::value || bin_node->right->type == ast_type::value)
+        {
+            if(bin_node->left->type == ast_type::value)
+            {
+                ValueNode* value_node = (ValueNode*)bin_node->left;
+                const u32 v = value_node->value.v;
+
+                const b32 coerce = check_static_cmp(itl,type_left,type_right,v);
+
+                if(coerce)
+                {
+                    type_left = type_right;
+                }
+            }
+
+            // right is a constant
+            else
+            {
+                ValueNode* value_node = (ValueNode*)bin_node->right;
+                const u32 v = value_node->value.v;
+
+                const b32 coerce = check_static_cmp(itl,type_right,type_left,v);
+
+                if(coerce)
+                {
+                    type_right = type_left;
+                }
+            }
+        } 
     }
 
     // okay now then does a boolean operation make sense for this operator
@@ -464,7 +525,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
 
         case logic_op::or_reg: case logic_op::and_reg:
         {
-            if(!is_bool(t1) && is_bool(t2))
+            if(!is_bool(type_left) && is_bool(type_right))
             {
                 panic(itl,"operations || and && are only defined on bools\n");
             }
@@ -478,7 +539,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
         case logic_op::cmplt_reg: case logic_op::cmple_reg: case logic_op::cmpgt_reg:
         case logic_op::cmpge_reg: case logic_op::cmpeq_reg: case logic_op::cmpne_reg:
         {
-            check_logical_operation(itl,t1,t2,type);
+            check_logical_operation(itl,type_left,type_right,type);
             break;
         }
 
@@ -504,7 +565,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
 
         // TODO: fixme this should only be done when we know we have a builtin type
         // else we dont care
-        const b32 sign = is_signed(t1);
+        const b32 sign = is_signed(type_left);
 
         // if we have gotten this far the sign of both are the same
         const op_type op = LOGIC_OPCODE[sign][u32(type)];
