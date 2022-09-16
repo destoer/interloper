@@ -212,16 +212,25 @@ Type* alloc_type(Interloper& itl, u32 type_idx, b32 is_const)
 }
 
 
-Type* make_raw_type(Interloper& itl, u32 type)
+Type* make_raw(Interloper& itl, u32 type)
 {
     return alloc_type<Type>(itl,type,false);
 }
 
-Type* make_builtin_type(Interloper& itl, builtin_type type)
+Type* make_builtin(Interloper& itl, builtin_type type)
 {
     return alloc_type<Type>(itl,u32(type),false);
 }
 
+
+Type* make_pointer(Interloper& itl,Type* contained_type)
+{
+    PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,POINTER,false);
+
+    pointer_type->contained_type = contained_type;
+
+    return (Type*)pointer_type;
+}
 
 
 String type_name(Interloper& itl,const Type *type)
@@ -243,7 +252,14 @@ String type_name(Interloper& itl,const Type *type)
     {
         switch(type->type_idx)
         {
-            case POINTER: assert(false);
+            case POINTER:
+            {
+                push_char(itl.string_allocator,compound,'@');
+
+                PointerType* pointer_type = (PointerType*)type;
+                type = pointer_type->contained_type;
+                break;
+            }
 
             case STRUCT: assert(false);
 
@@ -296,14 +312,30 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         type_idx = type_decl->type_idx;
     }
 
-    Type* type = make_raw_type(itl,type_idx);
+    Type* type = make_raw(itl,type_idx);
 
     type->is_const = type_decl->is_const;
 
     // arrays, pointers
     for(u32 c = 0; c < count(type_decl->compound_type); c++)
     {
-        assert(false);
+        AstNode* node = type_decl->compound_type[c];
+
+        switch(node->type)
+        {
+            // pointer to current type
+            case ast_type::ptr_indirection:
+            {
+                type = make_pointer(itl,type);
+                break;
+            }
+
+            default:
+            {
+                panic(itl,"invalid type specifier: %s\n",AST_NAMES[u32(node->type)]);
+                return make_builtin(itl,builtin_type::void_t);
+            }
+        }
     }
 
     return type;
@@ -337,7 +369,7 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
         else
         {
             panic(itl,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            return make_builtin_type(itl,builtin_type::void_t);
+            return make_builtin(itl,builtin_type::void_t);
         }
 
     }
@@ -466,6 +498,116 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
     }
 }
 
+b32 plain_type_equal(const Type* ltype, const Type* rtype)
+{
+    switch(ltype->type_idx)
+    {
+        case STRUCT:
+        {
+            assert(false);
+        }
+
+        case ENUM:
+        {
+            assert(false);
+        }
+
+        default:
+        {
+            return ltype->type_idx == rtype->type_idx;
+        }
+    }
+}
+
+
+const Type* deref_pointer(const Type* type)
+{
+    const PointerType* pointer_type = (PointerType*)type;
+    return pointer_type->contained_type;
+}
+
+Type* deref_pointer(Type* type)
+{
+    PointerType* pointer_type = (PointerType*)type;
+    return pointer_type->contained_type;
+}
+
+
+void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
+{
+    UNUSED(itl);
+
+
+    b32 indirection = true;
+
+    // descend until we hit the base type
+    // check they are equal at each step
+    while(indirection)
+    {
+        // types are mismatched we are done
+        if(ltype->type_idx != rtype->type_idx)
+        {
+            indirection = false;
+        }
+
+        else
+        {
+            switch(ltype->type_idx)
+            {
+                case POINTER:
+                {
+                    ltype = deref_pointer(ltype);
+                    rtype = deref_pointer(rtype);
+
+                    break;
+                }
+
+                case ARRAY:
+                {
+                    assert(false);
+                }
+
+                // is a standard type, struct, enum, builtin etc2
+                default:
+                {
+                    indirection = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(!is_plain(ltype) || !is_plain(rtype))
+    {
+        panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+    }
+
+    // anything else
+    else
+    {
+        // anything of NULL is implictly converted
+        if(rtype->type_idx == u32(builtin_type::null_t))
+        {
+
+        }
+
+        // anything against a ltype of byte is fine!
+        else if(ltype->type_idx == u32(builtin_type::byte_t))
+        {
+
+        }
+
+        // if base types still aernt equal we have a problem!
+        else if(!plain_type_equal(ltype,rtype))
+        {
+            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        }
+    }
+}
+
+
+
+
 void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_arg = false, bool is_initializer = false)
 {
     // check const first
@@ -527,7 +669,26 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_
     // check assign by ltype
     else
     {
-        assert(false);
+        if(is_pointer(ltype))
+        {
+            type_check_pointer(itl,ltype,rtype);
+
+            if(itl.error)
+            {
+                return;
+            }
+        }
+
+        else if(is_array(ltype))
+        {
+            assert(false);
+        }
+
+
+        else
+        {
+            panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        }
     }
 }
 

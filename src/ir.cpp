@@ -147,7 +147,7 @@ u32 new_tmp(Interloper& itl, u32 size)
     char name[40];
     sprintf(name,"v%d",itl.symbol_table.var_count);
 
-    Symbol sym = make_sym(itl.symbol_table,name,make_builtin_type(itl,builtin_type::void_t),size);
+    Symbol sym = make_sym(itl.symbol_table,name,make_builtin(itl,builtin_type::void_t),size);
 
     sym.slot = symbol(count(itl.symbol_table.slot_lookup));
     push_var(itl.symbol_table.slot_lookup,sym);      

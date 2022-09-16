@@ -33,13 +33,13 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/basic/arith_eq",294,false},
     {"tests/basic/mod",233168,false},
     {"tests/basic/shift",1,false},
-  /*  {"tests/basic/comment",0,false},
+   {"tests/basic/comment",0,false},
 
     // type
     {"tests/type/decl",255,false},
     {"tests/type/builtin_type",271,false},
-    {"tests/type/sizeof",1,false},
-    {"tests/type/default_initializer",1,false},
+    //{"tests/type/sizeof",1,false},
+    //{"tests/type/default_initializer",1,false},
     {"tests/type/byte",0,false},
     {"tests/type/byte_invalid",-1,true},
 
@@ -50,8 +50,8 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/const/const_valid.itl",10,false},
     {"tests/const/const_assign_value.itl",5,false},
     {"tests/const/const_invalid_ptr_assign.itl",-1,true},
-    {"tests/const/const_array_index_invalid.itl",-1,true},
-*/
+    //{"tests/const/const_array_index_invalid.itl",-1,true},
+
     // func
     {"tests/func/func",7,false},
     {"tests/func/no_main",-1,true},

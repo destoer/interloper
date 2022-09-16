@@ -206,7 +206,7 @@ std::pair<Type*,u32> symbol(Interloper &itl, AstNode *node)
     if(!sym_opt)
     {
         panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-        return std::pair<Type*,u32>{make_builtin_type(itl,builtin_type::void_t),0};
+        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
     }
 
     const auto &sym = sym_opt.value();
@@ -228,18 +228,18 @@ Type* value(Interloper& itl,Function& func,AstNode *node, u32 dst_slot)
         // what is the smallest storage type that this will fit inside?
         if(in_range(v,s32(builtin_min(builtin_type::s8_t)),s32(builtin_max(builtin_type::s8_t))))
         {
-            return  make_builtin_type(itl,builtin_type::s8_t);
+            return  make_builtin(itl,builtin_type::s8_t);
         }
 
         else if(in_range(v,s32(builtin_min(builtin_type::s16_t)),s32(builtin_max(builtin_type::s16_t))))
         {
-            return make_builtin_type(itl,builtin_type::s16_t);
+            return make_builtin(itl,builtin_type::s16_t);
         }
 
         //else if(v,s32(builtin_min(builtin_type::s32_t)),s32(builtin_max(builtin_type::s32_t)))
         else
         {
-            return make_builtin_type(itl,builtin_type::s32_t);
+            return make_builtin(itl,builtin_type::s32_t);
         }
     }
 
@@ -251,18 +251,18 @@ Type* value(Interloper& itl,Function& func,AstNode *node, u32 dst_slot)
         // what is the smallest storage type that this will fit inside?
         if(in_range(v,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
         {
-            return  make_builtin_type(itl,builtin_type::u8_t);
+            return  make_builtin(itl,builtin_type::u8_t);
         }
 
         else if(in_range(v,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
         {
-            return make_builtin_type(itl,builtin_type::u16_t);
+            return make_builtin(itl,builtin_type::u16_t);
         }
 
         //else if(in_range(v,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t))
         else
         {
-            return make_builtin_type(itl,builtin_type::u32_t);
+            return make_builtin(itl,builtin_type::u32_t);
         }
     }    
 }
@@ -355,7 +355,7 @@ std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, 
             CharNode* char_node = (CharNode*)node;
 
             emit(func,op_type::mov_imm,dst_slot,char_node->character);
-            return std::pair<Type*,u32>{make_builtin_type(itl,builtin_type::u8_t),dst_slot};
+            return std::pair<Type*,u32>{make_builtin(itl,builtin_type::u8_t),dst_slot};
         }
 
 
@@ -409,7 +409,7 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32
     if(!(is_integer(t1) && is_integer(t2)))
     {
         panic(itl,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
-        return make_builtin_type(itl,builtin_type::void_t);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
     if(right)
@@ -492,6 +492,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
 
                 const b32 coerce = check_static_cmp(itl,type_left,type_right,v);
 
+                // within range coerce value type to variable type
                 if(coerce)
                 {
                     type_left = type_right;
@@ -504,8 +505,10 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
                 ValueNode* value_node = (ValueNode*)bin_node->right;
                 const u32 v = value_node->value.v;
 
+                
                 const b32 coerce = check_static_cmp(itl,type_right,type_left,v);
 
+                // within range coerce value type to variable type
                 if(coerce)
                 {
                     type_right = type_left;
@@ -575,13 +578,13 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
         // so afer this we no longer need it
         emit(func,op,dst_slot,v1,v2);
 
-        return make_builtin_type(itl,builtin_type::bool_t);
+        return make_builtin(itl,builtin_type::bool_t);
     }
 
     // operation is not valid for given types..
     else
     {
-        return make_builtin_type(itl,builtin_type::void_t);
+        return make_builtin(itl,builtin_type::void_t);
     }
 }
 
@@ -674,7 +677,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
     if(!func_call_ptr)
     {
         panic(itl,"[COMPILE]: function %s is not declared\n",call_node->name.buf);
-        return make_builtin_type(itl,builtin_type::void_t);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
     auto &func_call = *func_call_ptr;
@@ -691,7 +694,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
     if((count(func_call.args) - hidden_args) != count(call_node->args))
     {
         panic(itl,"[COMPILE]: function call expected %d args got %d\n",count(func_call.args),count(call_node->args));
-        return make_builtin_type(itl,builtin_type::void_t);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
 
@@ -699,7 +702,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
     if(tuple_node && count(func_call.return_type) == 1)
     {
         panic(itl,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
-        return make_builtin_type(itl,builtin_type::void_t);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
     if(count(func_call.return_type) > 1)
@@ -707,13 +710,13 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
         if(!tuple_node)
         {
             panic(itl,"Attempted to call multiple return function nested in a expression\n");
-            return make_builtin_type(itl,builtin_type::void_t);
+            return make_builtin(itl,builtin_type::void_t);
         }
 
         if(count(func_call.return_type) != count(tuple_node->symbols))
         {
             panic(itl,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",count(tuple_node->symbols),count(call_node->args));
-            return make_builtin_type(itl,builtin_type::void_t);
+            return make_builtin(itl,builtin_type::void_t);
         }
     }
 
@@ -825,7 +828,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
     // tuple 
     else
     {
-        return make_raw_type(itl,TUPLE);
+        return make_raw(itl,TUPLE);
     }    
 }
 
@@ -1373,18 +1376,105 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 }
 
 
+// TODO: this needs a cleanup
+// TODO: does it make sense to use the same function for both the @ and & operator?
+std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof)
+{
+    // figure out what the addr is
+    switch(node->type)
+    {
+        case ast_type::symbol:
+        {
+            LiteralNode* sym_node = (LiteralNode*)node;
+
+            const auto name = sym_node->literal;
+            const auto sym_opt = get_sym(itl.symbol_table,name);
+            if(!sym_opt)
+            {
+                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+                return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+            }
+
+            const auto &sym = sym_opt.value();
+
+            if(addrof)
+            {
+                if(is_array(sym.type))
+                {
+                    assert(false);
+                }
+
+                Type* pointer_type = make_pointer(itl,sym.type);
+
+                // actually  get the addr of the ptr
+                emit(func,op_type::addrof,slot,sym.slot);
+                return std::pair<Type*,u32>{pointer_type,slot};
+            }
+
+            // deref
+            else
+            {
+                if(!is_pointer(sym.type))
+                {
+                    panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.buf);
+                }
+
+                PointerType* pointer_type = (PointerType*)sym.type;
+
+                Type* contained_type = pointer_type->contained_type;
+
+                return std::pair<Type*,u32>{contained_type,sym.slot};
+            }
+        }
+
+        case ast_type::index:
+        {
+            assert(false);
+        }
+
+        case ast_type::access_struct:
+        {
+            assert(false);
+        }
+
+        default:
+        {
+            print(node);
+            unimplemented("load_addr expr");
+        }
+    }
+}
+
 
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
 {
     if(!node)
     {
         panic("nullptr in compile_expression");
-        return make_builtin_type(itl,builtin_type::void_t);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
    
     switch(node->type)
     {
+
+        case ast_type::addrof:
+        {
+            UnaryNode* addrof_node = (UnaryNode*)node;
+
+            // want this to also get an addr but we want the actual ptr_count to go up...
+            const auto [type,slot] = load_addr(itl,func,addrof_node->next,dst_slot,true);
+            return type;
+        }
+
+        case ast_type::deref:
+        {
+            UnaryNode* deref_node = (UnaryNode*)node;
+
+            const auto [type,slot] = load_addr(itl,func,deref_node->next,new_tmp(func),false);
+            do_ptr_load(itl,func,dst_slot,slot,type);
+            return type;            
+        }
 
         case ast_type::sizeof_t:
         {
@@ -1402,7 +1492,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
             const u32 size = type_size(itl,type);
             emit(func,op_type::mov_imm,dst_slot,size);
 
-            return make_builtin_type(itl,builtin_type::u32_t);
+            return make_builtin(itl,builtin_type::u32_t);
         }
 
         case ast_type::cast:
@@ -1449,7 +1539,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
             if(!sym_opt)
             {
                 panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-                return make_builtin_type(itl,builtin_type::void_t);
+                return make_builtin(itl,builtin_type::void_t);
             }
 
             const auto &sym = sym_opt.value();
@@ -1559,13 +1649,13 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
         case ast_type::false_t:
         {
             emit(func,op_type::mov_imm,dst_slot,0);
-            return make_builtin_type(itl,builtin_type::bool_t);
+            return make_builtin(itl,builtin_type::bool_t);
         }
 
         case ast_type::true_t:
         {
             emit(func,op_type::mov_imm,dst_slot,1);
-            return make_builtin_type(itl,builtin_type::bool_t);
+            return make_builtin(itl,builtin_type::bool_t);
         }
 
         case ast_type::null_t:
@@ -1583,7 +1673,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
             if(!is_bool(t))
             {
                 panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
-                return make_builtin_type(itl,builtin_type::void_t);
+                return make_builtin(itl,builtin_type::void_t);
             }
 
             // xor can invert our boolean which is either 1 or 0
@@ -1648,7 +1738,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
         default:
         {
             panic(itl,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
-            return make_builtin_type(itl,builtin_type::void_t);
+            return make_builtin(itl,builtin_type::void_t);
         }
     }
 }
@@ -1799,7 +1889,38 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                 if(assign_node->left->type != ast_type::symbol)
                 {
-                    assert(false);
+                    switch(assign_node->left->type)
+                    {
+                        case ast_type::deref:
+                        {
+                            UnaryNode* deref_node = (UnaryNode*)assign_node->left;
+
+                            const auto [type,addr_slot] = load_addr(itl,func,deref_node->next,new_tmp(func),false);
+                            check_assign(itl,type,rtype);
+                            do_ptr_store(itl,func,slot,addr_slot,type);
+                            break;                        
+                        }
+                    
+                        case ast_type::index:
+                        {
+                            assert(false);
+                            break;
+                        }
+                    
+                        // write on struct member!
+                        case ast_type::access_struct:
+                        {
+                            assert(false);
+                            break;
+                        }
+                    
+                        default:
+                        {
+                            print(assign_node->left);
+                            unimplemented("non plain assign");
+                            break;
+                        }
+                    }
                 }
                 
                 else

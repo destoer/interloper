@@ -137,18 +137,21 @@ struct Type
 struct PointerType
 {
     Type type;
+
     Type* contained_type;
 };
 
 struct StructType
 {
     Type type;
+
     u32 struct_idx;
 };
 
 struct EnumType
 {
     Type type;
+
     u32 enum_idx;
 };
 
@@ -157,8 +160,8 @@ struct EnumType
 struct ArrayType
 {
     Type type;
-    Type* contained_type;
 
+    Type* contained_type;
 
     //  RUNTIME_SIZE or current size!
     u32 size;

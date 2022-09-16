@@ -173,7 +173,9 @@ TypeNode *parse_type(Parser &parser)
             // pointer decl
             case token_type::deref:
             {
-                push_var(type->compound_type,ast_type::ptr_indirection);
+                consume(parser,token_type::deref);
+
+                push_var(type->compound_type,ast_plain(parser,ast_type::ptr_indirection,plain_tok));
                 break;
             }
 
@@ -217,10 +219,13 @@ TypeNode *parse_type(Parser &parser)
                 break;
             }
 
-            default: quit = true; break;
+            default: 
+            {
+                quit = true; 
+                break;
+            }
         }
     }
-
 
     return type;
 }

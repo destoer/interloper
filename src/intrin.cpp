@@ -29,13 +29,13 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
     if(!is_trivial_copy(v1_type))
     {
         panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
-        return make_builtin_type(itl,builtin_type::void_t);   
+        return make_builtin(itl,builtin_type::void_t);   
     }
 
     if(!is_trivial_copy(v2_type))
     {
         panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
-        return make_builtin_type(itl,builtin_type::void_t);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
     const u32 syscall_number = eval_int_expr(func_call->args[0]);
@@ -44,7 +44,7 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 
 
     emit(func,op_type::restore_regs);
-    return make_builtin_type(itl,builtin_type::void_t);   
+    return make_builtin(itl,builtin_type::void_t);   
 }
 
 static constexpr u32 INTRIN_TABLE_SIZE = 2;
