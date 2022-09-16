@@ -19,6 +19,8 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::null_t, false,false, GPR_SIZE,0,0},
 };
 
+void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype);
+
 b32 is_builtin(const Type* type)
 {
     return type->type_idx < BUILTIN_TYPE_SIZE;
@@ -437,7 +439,7 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
 
     else if(is_pointer(ltype) && is_pointer(rtype))
     {
-        assert(false);
+        type_check_pointer(itl,ltype,rtype);
     }
 
     else if(is_enum(ltype) && is_enum(rtype))

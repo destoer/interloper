@@ -74,14 +74,14 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/control_flow/switch_duplicate",-1,true},
 */
 
-/*
+
     // pointers
     // TODO: impl pointer casting (wait for coerce operation)
     {"tests/ptr/pointer",-2,false},
     {"tests/ptr/deref_plain",-1,true},
     {"tests/ptr/ptr_to_ptr",1,true},
     {"tests/ptr/expected_ptr",-1,true},
-    {"tests/ptr/cast_ptr",1020,false},
+    //{"tests/ptr/cast_ptr",1020,false},
     {"tests/ptr/null",1,false},
     {"tests/ptr/invalid_ptr_compare",-1,true},
     {"tests/ptr/null_invalid",-1,true},
@@ -94,7 +94,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
 
 
 
-
+/*
     // arrays
     {"tests/array/array",1061,false},
     {"tests/array/array_size",16,false},

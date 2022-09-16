@@ -1417,6 +1417,7 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
                 if(!is_pointer(sym.type))
                 {
                     panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.buf);
+                    return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
                 }
 
                 PointerType* pointer_type = (PointerType*)sym.type;
@@ -1660,7 +1661,11 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
 
         case ast_type::null_t:
         {
-            assert(false);
+            emit(func,op_type::mov_imm,dst_slot,0);
+
+            Type* plain = make_builtin(itl,builtin_type::null_t);
+
+            return make_pointer(itl,plain);
         }
 
 
