@@ -180,6 +180,21 @@ u32 type_size(Interloper& itl,const Type *type)
     unimplemented("unhandled type size");
 }
 
+
+const Type* deref_pointer(const Type* type)
+{
+    const PointerType* pointer_type = (PointerType*)type;
+    return pointer_type->contained_type;
+}
+
+Type* deref_pointer(Type* type)
+{
+    PointerType* pointer_type = (PointerType*)type;
+    return pointer_type->contained_type;
+}
+
+
+
 // NOTE: this should probably return any count before the runtime size...
 // along with where the first runtime size is
 
@@ -447,7 +462,8 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
     }   
 }
 
-void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
+
+void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
 {
     // handle const
     // TODO: this does not typecheck arrays yet
@@ -455,20 +471,15 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
     {
         if(is_arg)
         {
-            // if both are value types this is fine as its just a copy
-            if(is_value_type(rtype) && is_value_type(rtype))
-            {
-
-            }
-
-            // if the ltype is const and the rtype is not this is illegal
-            else if(!ltype->is_const)
+            // if the ltype is not const and the rtype is not this is illegal
+            if(!ltype->is_const)
             {
                 panic(itl,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                 return;
             }
         }
 
+        // assign
         else
         {
             // ltype is const
@@ -478,8 +489,8 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
                 panic(itl,"cannot to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
-            // ltype is not const, fine given that the rtype is a value type
-            else if(!is_value_type(rtype))
+            // ltype is not const illegal
+            else
             {
                 panic(itl,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }  
@@ -494,6 +505,63 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
         {
             panic(itl,"cannot assign to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
+        }
+    }
+}
+
+// NOTE: this is expected to be called after main sets of type checking
+// so types should atleast be the same fmt at every level
+void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
+{
+    b32 done = false;
+
+    // value types can be copied if only the rype is const
+    if(is_value_type(rtype) && is_value_type(ltype))
+    {
+        // can be copied fine
+        if(rtype->is_const && !ltype->is_const)
+        {
+            return;
+        }
+    }
+
+
+    // check const specifiers at every level
+    while(!done)
+    {
+        switch(ltype->type_idx)
+        {
+            case ARRAY:
+            {
+                assert(false);
+            }
+
+            case POINTER:
+            {
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+
+                // check sub types
+                ltype = deref_pointer(ltype);
+                rtype = deref_pointer(rtype);
+                break;
+            }
+
+            case STRUCT:
+            {
+                assert(false);
+            }
+
+            case ENUM:
+            {
+                assert(false);
+            }
+
+            // check end type
+            default:
+            {
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                done = true;
+            }
         }
     }
 }
@@ -519,18 +587,6 @@ b32 plain_type_equal(const Type* ltype, const Type* rtype)
     }
 }
 
-
-const Type* deref_pointer(const Type* type)
-{
-    const PointerType* pointer_type = (PointerType*)type;
-    return pointer_type->contained_type;
-}
-
-Type* deref_pointer(Type* type)
-{
-    PointerType* pointer_type = (PointerType*)type;
-    return pointer_type->contained_type;
-}
 
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
@@ -610,9 +666,6 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 
 void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_arg = false, bool is_initializer = false)
 {
-    // check const first
-    check_const(itl,ltype,rtype,is_arg,is_initializer);
-
 
 
     // both are builtin
@@ -689,6 +742,13 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_
         {
             panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
+    }
+
+
+    if(!itl.error)
+    {
+        // we know this will descend properly so check const!
+        check_const(itl,ltype,rtype,is_arg,is_initializer);
     }
 }
 
