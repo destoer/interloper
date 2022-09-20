@@ -72,11 +72,16 @@ b32 is_trivial_copy(const Type *type)
 }
 
 // for arrays
-b32 is_runtime_size(const Type* type)
+b32 is_runtime_size(const ArrayType* type)
 {
     const ArrayType* array_type = (ArrayType*)type;
 
     return array_type->size == RUNTIME_SIZE;
+}
+
+b32 is_runtime_size(const Type* type)
+{
+    return is_runtime_size((ArrayType*)type);
 }
 
 b32 is_fixed_array_pointer(const Type* type)
@@ -195,16 +200,148 @@ Type* deref_pointer(Type* type)
     return pointer_type->contained_type;
 }
 
-
-
-// NOTE: this should probably return any count before the runtime size...
-// along with where the first runtime size is
-
-// NOTE: this needs to be reworked to support deduced sizes
-
-std::pair<u32,u32> arr_size(Interloper&itl,const Type* arr_type)
+const Type* index_arr(const Type* type)
 {
-    UNUSED(itl); UNUSED(arr_type);
+    ArrayType* array_type = (ArrayType*)type;
+    return array_type->contained_type;
+}
+
+Type* index_arr(Type* type)
+{
+    ArrayType* array_type = (ArrayType*)type;
+    return array_type->contained_type;
+}
+
+const Type* get_plain_type(const Type* type)
+{
+    for(;;)
+    {
+        switch(type->type_idx)
+        {
+            case ARRAY:
+            {
+                type = index_arr(type);
+                break;
+            }
+
+            case POINTER:
+            {
+                type = deref_pointer(type);
+                break;
+            }
+
+            default:
+            {
+                return type; 
+            }
+        }
+    }
+
+    assert(false);
+}
+
+
+u32 accumulate_count(u32 count, u32 size)
+{
+    // if count is zero we are just getting started
+    return count == 0? size : count * size;
+}
+
+u32 init_arr_sub_sizes_internal(Interloper& itl, Symbol& sym,Type* type, b32 mark_sym)
+{
+    /* 
+        on way down mark sym count, & when the bottom is reached mark the size
+        return up the sub size and mark it across each level of the type
+
+
+        do this for any sub indirecitons i.e pointers VLA's but at that point stop marking the symbol
+    */
+
+
+    switch(type->type_idx)
+    {
+        case ARRAY:
+        {
+            ArrayType* array_type = (ArrayType*)type;
+                
+            // VLA
+            if(is_runtime_size(type))
+            {
+                assert(false);
+                // do sub array but stop updating the symbol information...
+                // 
+
+                // return final size
+                // initialize sym size
+
+
+
+            }
+
+            // fixed size
+            else
+            {
+                // accumulate the counter
+                if(mark_sym)
+                {
+                    sym.count = accumulate_count(sym.count,array_type->size);
+                }
+
+                array_type->sub_size = init_arr_sub_sizes_internal(itl,sym,index_arr(type),mark_sym);
+                return array_type->sub_size * array_type->size;
+            }
+        }
+
+        
+        case POINTER:
+        {
+            // do for sub types, but stop updating symbol info
+
+            // return final size
+            // initialize sym size
+
+
+            assert(false);
+        }
+
+        // plain var mark size and return it!
+        default:
+        {
+            const u32 size = type_size(itl,type);
+
+            if(mark_sym)
+            {
+                sym.size = size;
+            }
+
+            return size;
+        }
+
+    }
+}
+
+
+void init_arr_sub_sizes(Interloper&itl, Symbol& sym,Type* type)
+{
+    init_arr_sub_sizes_internal(itl, sym,type,true);
+}
+
+
+// size of elemenent, + count
+std::pair<u32,u32> arr_alloc_size(const Symbol& sym)
+{
+    if(sym.count == 0)
+    {
+        return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
+    }
+
+    return std::pair<u32,u32>{sym.size,sym.count};
+}
+
+// total block size of the array
+u32 arr_size(const Type* type)
+{
+    UNUSED(type);
     assert(false);
 }
 
@@ -249,6 +386,16 @@ Type* make_pointer(Interloper& itl,Type* contained_type)
     return (Type*)pointer_type;
 }
 
+
+Type* make_array(Interloper& itl, Type* contained_type, u32 size)
+{
+    ArrayType* array_type = (ArrayType*)alloc_type<ArrayType>(itl,ARRAY,false);
+
+    array_type->size = size;
+    array_type->contained_type = contained_type;
+
+    return (Type*)array_type;
+}
 
 String type_name(Interloper& itl,const Type *type)
 {
@@ -344,6 +491,17 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             case ast_type::ptr_indirection:
             {
                 type = make_pointer(itl,type);
+                break;
+            }
+
+
+            case ast_type::arr_fixed:
+            {
+                UnaryNode* unary_node = (UnaryNode*)node;
+
+                const u32 size = eval_int_expr(unary_node->next);
+
+                type = make_array(itl,type,size);
                 break;
             }
 

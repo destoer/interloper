@@ -1751,6 +1751,68 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
 
 
 
+void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
+{
+    // this reference will get invalidated under the current setup
+    // so pull the slot
+    const u32 slot = sym.slot;
+
+    // This allocation needs to happen before we initialize the array but we dont have all the information yet
+    // so we need to finish it up later
+    emit(func,op_type::alloc_slot,slot,0,0);
+    ListNode* alloc = get_cur_end(func.emitter);
+
+
+    // has an initalizer
+    // TODO: need to handle dumping this as a constant if the array is constant
+    // rather than runtime setup
+    if(decl_node->expr)
+    {
+        assert(false);
+    }
+
+    if(itl.error)
+    {
+        return;
+    }
+
+    init_arr_sub_sizes(itl,sym,sym.type);
+
+
+    const Symbol &array = sym_from_slot(itl.symbol_table,slot);
+
+    auto [size,count] = arr_alloc_size(array);
+
+    if(count == RUNTIME_SIZE)
+    {
+        unimplemented("DECL VLA");
+    }
+
+    // this has not been inited by traverse_arr_initializer
+    else if(count == DEDUCE_SIZE)
+    {
+        panic(itl,"auto sized array %s does not have an initializer\n",array.name.buf);
+        return;
+    }
+
+    else
+    {
+        if(size > GPR_SIZE)
+        {
+            count = gpr_count(size * count);
+
+            // we have the allocation information now complete it
+            alloc->opcode = Opcode(op_type::alloc_slot,array.slot,GPR_SIZE,count);
+        }
+
+        else
+        {
+            // we have the allocation information now complete it
+            alloc->opcode = Opcode(op_type::alloc_slot,array.slot,size,count);
+        }
+    }
+}
+
 void compile_decl(Interloper &itl,Function &func, const AstNode *line)
 {
     // get entry into symbol table
@@ -1776,7 +1838,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line)
 
     if(is_array(sym.type))
     {
-        assert(false);
+        compile_arr_decl(itl,func,decl_node,sym);
     }
 
     else if(is_struct(sym.type))

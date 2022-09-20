@@ -200,10 +200,8 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
         if(is_fixed_array(member.type))
         {
-            const auto [contained_size, count] = arr_size(itl,member.type);
-            size = contained_size * count;
+            size = arr_size(member.type);
         }
-
 
         else
         {

@@ -163,13 +163,14 @@ struct ArrayType
 
     Type* contained_type;
 
-    //  RUNTIME_SIZE or current size!
+    // RUNTIME_SIZE or current size!
     u32 size;
 
-    // total size of its immediate next
-    // so indexing can be done for nesting
+    
+    // size of indexing array
     u32 sub_size;
 };
+
 
 
 static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
@@ -263,8 +264,16 @@ struct Symbol
     String name;
     Type* type;
 
-    // cached sized of type
+
+    // size of plain type
+    // i.e in an array this will hold the size of the contained type
     u32 size = 0;
+
+    // how many elements there are
+    // (zero unless there is a fixed array for now)
+    u32 count = 0;
+
+
     u32 arg_offset = NON_ARG;
 
     // what slot does this symbol hold inside the ir?

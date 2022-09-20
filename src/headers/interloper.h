@@ -99,4 +99,4 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     itl.error = true;
 }
 
-u32 eval_int_expr(const AstNode *node);
+u32 eval_int_expr(AstNode *node);
