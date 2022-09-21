@@ -285,7 +285,7 @@ u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset)
     }
 }
 
-void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset = 0)
+void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset)
 {
     const u32 size = type_size(itl,type);
 
@@ -306,7 +306,7 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 }
 
 
-void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset = 0)
+void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset)
 {
     const u32 size = type_size(itl,type);
 
@@ -357,6 +357,41 @@ std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, 
             emit(func,op_type::mov_imm,dst_slot,char_node->character);
             return std::pair<Type*,u32>{make_builtin(itl,builtin_type::u8_t),dst_slot};
         }
+
+        case ast_type::access_struct:
+        {
+            // are we accessing type info on a type name?
+            BinNode* member_root = (BinNode*)node;
+            AstNode* expr_node = member_root->left;
+
+            if(expr_node->type == ast_type::symbol)
+            {
+                RecordNode* members = (RecordNode*)member_root->right;
+
+                // potential type info access
+                if(count(members->nodes) == 1 && members->nodes[0]->type == ast_type::access_member)
+                {
+                    LiteralNode* sym_node = (LiteralNode*)expr_node;
+                    const auto name = sym_node->literal;
+
+                    TypeDecl* type_decl = lookup(itl.type_table,name);
+
+                    if(type_decl)
+                    {
+                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
+
+                        auto type = access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
+
+                        return std::pair<Type*,u32>{type,dst_slot};
+                    }
+                }
+
+            }
+
+            
+            return read_struct(itl,func,dst_slot,node);            
+        }
+
 
 
         // compile an expr
@@ -2124,7 +2159,21 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             {
                 if(is_array(sym.type))
                 {
-                    assert(false);
+                    auto [size,count] = arr_alloc_size(sym);
+
+                    if(size != RUNTIME_SIZE)
+                    {
+                        if(size > GPR_SIZE)
+                        {
+                            count = gpr_count(size * size);
+                            emit(func,op_type::free_slot,sym.slot,GPR_SIZE,count);
+                        }
+
+                        else
+                        {
+                            emit(func,op_type::free_slot,sym.slot,size,count);
+                        }
+                    }                   
                 }
 
                 else if(is_struct(sym.type))

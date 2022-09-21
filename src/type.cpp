@@ -312,6 +312,7 @@ u32 init_arr_sub_sizes_internal(Interloper& itl, Symbol& sym,Type* type, b32 mar
             if(mark_sym)
             {
                 sym.size = size;
+                mark_sym = false;
             }
 
             return size;
@@ -341,8 +342,14 @@ std::pair<u32,u32> arr_alloc_size(const Symbol& sym)
 // total block size of the array
 u32 arr_size(const Type* type)
 {
-    UNUSED(type);
-    assert(false);
+    const ArrayType* array_type = (ArrayType*)type;
+
+    if(array_type->size == RUNTIME_SIZE)
+    {
+        return RUNTIME_SIZE;
+    }
+
+    return array_type->size * array_type->sub_size;
 }
 
 
@@ -1043,6 +1050,47 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
         unimplemented("handle cast user defined type!\n");        
     }
 
+}
+
+
+Type* access_type_info(Interloper& itl, Function& func, u32 dst_slot, const TypeDecl& type_decl, const String& member_name)
+{
+    switch(type_decl.kind)
+    {
+        case type_kind::builtin:
+        {
+            unimplemented("builtin type info");
+            return make_builtin(itl,builtin_type::void_t);
+        }
+
+        case type_kind::struct_t:
+        {
+            unimplemented("struct type info");
+            return make_builtin(itl,builtin_type::void_t);
+        }
+
+        case type_kind::enum_t:
+        {
+            if(member_name == "len")
+            {
+                const auto enumeration = itl.enum_table[type_decl.type_idx];
+
+                const u32 enum_len = enumeration.member_map.size;
+
+                emit(func,op_type::mov_imm,dst_slot,enum_len);
+
+                return make_builtin(itl,builtin_type::u32_t);
+            }
+
+            else
+            {
+                panic(itl,"unknown type info for enum %s\n",type_decl.name.buf);
+                return make_builtin(itl,builtin_type::void_t);
+            }
+        }
+    }
+
+    assert(false);
 }
 
 void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
