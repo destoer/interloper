@@ -200,6 +200,11 @@ Type* deref_pointer(Type* type)
     return pointer_type->contained_type;
 }
 
+Type* index_arr(ArrayType* array_type)
+{
+    return array_type->contained_type;
+}
+
 const Type* index_arr(const Type* type)
 {
     ArrayType* array_type = (ArrayType*)type;

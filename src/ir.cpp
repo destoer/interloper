@@ -1284,7 +1284,21 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         // arrays
         case op_type::load_arr_data:
         {
-            assert(false);
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(table,opcode.v[1]);
+
+            if(is_runtime_size(sym.type))
+            {
+                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + 0,GPR_SIZE,false);
+            }
+
+            // static array
+            else
+            {
+                node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.offset + stack_offset);
+            }
+
+            node = node->next;
             break;
         }
 

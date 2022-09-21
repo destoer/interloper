@@ -16,6 +16,9 @@ u32 compile_basic_block(Interloper &itl,Function &func,BlockNode *node, block_ty
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot);
 
+void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
+std::pair<Type*, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+
 
 void dump_ir_sym(Interloper &itl)
 {
@@ -392,7 +395,10 @@ std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, 
             return read_struct(itl,func,dst_slot,node);            
         }
 
-
+        case ast_type::index:
+        {
+            return read_arr(itl,func,node,dst_slot);
+        }
 
         // compile an expr
         default:
@@ -2005,7 +2011,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     
                         case ast_type::index:
                         {
-                            assert(false);
+                            write_arr(itl,func,assign_node->left,rtype,slot);
                             break;
                         }
                     
@@ -2191,6 +2197,166 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
     destroy_scope(itl.symbol_table);
 }
+
+
+
+
+
+
+// indexes off a given type + ptr
+std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+     Type* type, u32 ptr_slot, u32 dst_slot)
+{
+
+    if(!is_array(type))
+    {
+        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
+        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};  
+    }
+
+    const u32 indexes = count(index_node->indexes);
+
+    u32 last_slot = ptr_slot;
+
+    
+    ArrayType* array_type = (ArrayType*)type;
+
+    Type* accessed_type = nullptr;
+
+    for(u32 i = 0; i < indexes; i++)
+    {
+
+        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[i],new_tmp(func));
+        if(!is_integer(subscript_type))
+        {
+            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
+            return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};  
+        }
+
+        /*
+        const u32 count = type.dimensions[i];
+        // this just works for single dimension VLA
+        
+        if(count == RUNTIME_SIZE)
+        {
+            unimplemented("index VLA");
+        }
+        else
+        */
+        {
+            const u32 size = array_type->sub_size;
+
+            const u32 mul_slot = emit_res(func,op_type::mul_imm,subscript_slot,size);   
+
+            const bool last_index = i ==  indexes - 1;
+
+            const u32 add_slot = last_index? dst_slot : new_tmp(func);
+            emit(func,op_type::add_reg,add_slot,last_slot,mul_slot);
+
+            last_slot = add_slot;
+
+
+            // goto next subscript
+            if(is_array(array_type->contained_type))
+            {
+                array_type = (ArrayType*)index_arr(array_type);
+            }
+
+            // we aernt indexing an array
+            else
+            {
+                // this is the last index i.e it is fine to get back a contained type
+                // that is plain!
+                if(last_index)
+                {
+                    accessed_type = index_arr(array_type);
+                }
+
+                else 
+                {
+                    panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
+                    return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};                          
+                }
+            } 
+        }
+    }
+
+
+    // return pointer to accessed type
+    return std::pair<Type*,u32>{make_pointer(itl,accessed_type),dst_slot}; 
+}
+
+
+std::pair<Type*, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+{
+    IndexNode* index_node = (IndexNode*)node;
+
+    const auto arr_name = index_node->name;
+
+    const auto arr_opt = get_sym(itl.symbol_table,arr_name);
+
+    if(!arr_opt)
+    {
+        panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
+        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};       
+    }
+
+    const auto arr = arr_opt.value();
+
+    // get the initial data ptr
+    const u32 data_slot = emit_res(func,op_type::load_arr_data,arr.slot);
+
+    return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
+}
+
+std::pair<Type*, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+{
+    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp(func));
+
+    // fixed array needs conversion by host
+    if(is_fixed_array_pointer(type))
+    {
+        return std::pair<Type*,u32>{type,addr_slot};
+    }
+
+    type = deref_pointer(type);
+
+    do_ptr_load(itl,func,dst_slot,addr_slot,type);
+
+
+    return std::pair<Type*,u32>{type,dst_slot};
+}
+
+
+// TODO: our type checking for our array assigns has to be done out here to ensure locals are type checked correctly
+void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot)
+{
+    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp(func));
+
+
+    // convert fixed size pointer..
+    if(is_fixed_array_pointer(write_type))
+    {
+        unimplemented("convert fixed size pointer");
+    }
+
+    else
+    {
+        // deref of pointer
+        type = deref_pointer(type);
+
+        do_ptr_store(itl,func,slot,addr_slot,type);
+
+        check_assign(itl,type,write_type);
+    }
+}
+
+
+
+
+
+
+
 
 void compile_functions(Interloper &itl)
 {
