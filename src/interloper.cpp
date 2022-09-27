@@ -73,7 +73,7 @@ u32 eval_int_expr(AstNode *node)
 
             if(v2 == 0)
             {
-                panic("division by zero in eval const expr");
+                crash_and_burn("division by zero in eval const expr");
             }
 
             return v1 / v2;
@@ -333,7 +333,10 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 // to decide what to actually do with operands
 std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
 {
-    panic(node == nullptr,"nullptr in compile_oper");
+    if(!node)
+    {
+        crash_and_burn("nullptr in compile_oper");
+    }
 
     // for error printing
     itl.cur_expr = node;
@@ -590,7 +593,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
         // this shouldunt happen
         default: 
         {
-            panic("%d is not a logical operation\n",s32(type));
+            crash_and_burn("%d is not a logical operation\n",s32(type));
         }
     }
 
@@ -1492,7 +1495,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
 {
     if(!node)
     {
-        panic("nullptr in compile_expression");
+        crash_and_burn("nullptr in compile_expression");
         return make_builtin(itl,builtin_type::void_t);
     }
 

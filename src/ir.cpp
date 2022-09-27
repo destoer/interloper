@@ -442,7 +442,7 @@ u32 alloc_internal(SymbolTable& table,LocalAlloc &alloc,List &list, ListNode* no
         {
             disass_opcode_sym(opcode,table);
             print_alloc(alloc,table);
-            panic("failed to allocate register!");
+            crash_and_burn("failed to allocate register!");
         }
     }
 
@@ -662,7 +662,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
 
 void save_rv(LocalAlloc &alloc,List &list,ListNode* node,SymbolTable& table,u32 tmp)
 {
-    //panic("need to realloc tmp");
+    //crash_and_burn("need to realloc tmp");
     
 
     // get a new register
@@ -710,7 +710,7 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
             case R0_IR: opcode.v[reg] = R0; break;
             case R1_IR: opcode.v[reg] = R1; break;
 
-            default: panic("unhandled special reg %x\n",slot); break;
+            default: crash_and_burn("unhandled special reg %x\n",slot); break;
         }
     }
 
@@ -1173,7 +1173,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::state_dump:
         {
-            panic("unused state opcode");
+            crash_and_burn("unused state opcode");
         }
 
 
@@ -1606,7 +1606,7 @@ void emit_asm(Interloper &itl)
                     break;
                 }
 
-                default: panic("unknown pool %d\n",pool);
+                default: crash_and_burn("unknown pool %d\n",pool);
             }
 
             write_mem(itl.program,i,opcode);
@@ -1765,7 +1765,7 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
         {
             if(args == 3)
             {
-                panic("execeed opcode arg printing");
+                crash_and_burn("execeed opcode arg printing");
             }
 
             const char specifier = fmt_string[i + 1];

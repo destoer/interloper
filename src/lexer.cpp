@@ -226,6 +226,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
         {
             case '\t': break;
             case ' ': break;
+            case '\r': break;
             case '\n':
             {
                 lexer.column = -1;

@@ -33,7 +33,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     else
     {
         print_regs(interpretter);
-        panic("%x: out of bounds read at %x\n",interpretter.regs[PC] - sizeof(Opcode),addr);
+        crash_and_burn("%x: out of bounds read at %x\n",interpretter.regs[PC] - sizeof(Opcode),addr);
     }
 }
 
@@ -71,7 +71,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     else
     {
         print_regs(interpretter);
-        panic("%08x: out of bounds write at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),addr,v);
+        crash_and_burn("%08x: out of bounds write at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),addr,v);
     }
 }
 
@@ -156,7 +156,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             if(regs[opcode.v[2]] == 0)
             {
                 print_regs(interpretter);
-                panic("division by zero at %08x\n",regs[PC]);
+                crash_and_burn("division by zero at %08x\n",regs[PC]);
             }
 
             regs[opcode.v[0]] = regs[opcode.v[1]] / regs[opcode.v[2]];
@@ -168,7 +168,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             if(regs[opcode.v[2]] == 0)
             {
                 print_regs(interpretter);
-                panic("mod by zero at %08x\n",regs[PC]);
+                crash_and_burn("mod by zero at %08x\n",regs[PC]);
             }
 
             regs[opcode.v[0]] = regs[opcode.v[1]] % regs[opcode.v[2]];
@@ -469,7 +469,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
                     if(!ptr)
                     {
-                        panic("out of bounds print at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
+                        crash_and_burn("out of bounds print at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
                         return;
                     }
 
@@ -513,7 +513,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::END:
         {
             print_regs(interpretter);
-            panic("directive not removed!?");
+            crash_and_burn("directive not removed!?");
         }
 
     }    
@@ -566,7 +566,7 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
         if(regs[PC] + sizeof(Opcode) > program.size)
         {
             print_regs(interpretter);
-            panic("attempted to execute out of bounds: %x : %x\n",regs[PC],interpretter.program.size);
+            crash_and_burn("attempted to execute out of bounds: %x : %x\n",regs[PC],interpretter.program.size);
         }
 
         if((regs[PC] % sizeof(Opcode)) != 0)
@@ -575,7 +575,7 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
             disass_opcode_raw(opcode);
             
             print_regs(interpretter);
-            panic("attempted to execute mid instr: %x : %x\n",regs[PC],interpretter.program.size);            
+            crash_and_burn("attempted to execute mid instr: %x : %x\n",regs[PC],interpretter.program.size);            
         }
 
         const auto opcode = read_mem<Opcode>(interpretter.program,regs[PC]);

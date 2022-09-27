@@ -34,7 +34,7 @@ Config parse_flags(const char* flags)
             case 's': cfg.print_stack_allocation = true; break;
             case 'c': cfg.print_types = true; break;
 
-            default: panic("unknown flag: %c\n",flags[i]); 
+            default: crash_and_burn("unknown flag: %c\n",flags[i]); 
         }
 
         i++;

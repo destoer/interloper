@@ -967,7 +967,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
                         break;
                     }
 
-                    default: panic("invalid signed integer upcast");
+                    default: crash_and_burn("invalid signed integer upcast");
                 }
             }
 
@@ -989,7 +989,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
                         break;
                     }
 
-                    default: panic("invalid signed integer downcast");
+                    default: crash_and_burn("invalid signed integer downcast");
                 }
             }
 
