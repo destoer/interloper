@@ -103,6 +103,12 @@ b32 is_fixed_array_pointer(const Type* type)
 }
 
 
+b32 is_string(const Type* type)
+{
+    UNUSED(type);
+    assert(false);
+}
+
 b32 is_plain(const Type *type)
 {
     return !is_pointer(type) && !is_array(type);
@@ -217,6 +223,19 @@ Type* index_arr(Type* type)
     return array_type->contained_type;
 }
 
+// gives back first type that isn't an array
+Type* contained_arr_type(ArrayType* array_type)
+{
+    while(is_array(array_type->contained_type))
+    {
+        array_type = (ArrayType*)array_type->contained_type;
+    }
+
+    return array_type->contained_type;
+}
+
+
+// gives back the absolute bottom type
 const Type* get_plain_type(const Type* type)
 {
     for(;;)
@@ -514,6 +533,15 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 const u32 size = eval_int_expr(unary_node->next);
 
                 type = make_array(itl,type,size);
+                break;
+            }
+
+            // TODO: if we allready have a indireciton that aint flat, i.e a vla or pointer
+            // this aint legal!
+            case ast_type::arr_deduce_size:
+            {
+                type = make_array(itl,type,DEDUCE_SIZE);
+
                 break;
             }
 
