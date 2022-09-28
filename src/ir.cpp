@@ -1305,7 +1305,25 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::load_arr_len:
         {
-            assert(false);
+            auto &sym = sym_from_slot(table,opcode.v[1]);
+            const s32 stack_offset = opcode.v[2];            
+
+            if(is_runtime_size(sym.type))
+            {
+                // TODO: this assumes GPR_SIZE is 4
+                node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
+            }
+
+            else
+            {
+                ArrayType* array_type = (ArrayType*)sym.type;
+
+                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],array_type->size,0);
+            }
+
+
+            node = node->next;
+            break;
         }
 
         default: node = node->next; break;

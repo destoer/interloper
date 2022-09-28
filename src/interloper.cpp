@@ -788,7 +788,53 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
 
         if(is_array(arg.type))
         {
-            assert(false);
+            // pass a static string, by inserting as const data in the program
+            if(call_node->args[arg_idx]->type == ast_type::string)
+            {
+                assert(false);
+            }
+
+            else
+            {
+                auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx],new_tmp(func));
+
+                // fixed sized array
+                if(is_fixed_array_pointer(arg_type))
+                {
+                    ArrayType* array_type = (ArrayType*)deref_pointer(arg_type);
+
+                    const u32 len_slot = emit_res(func,op_type::mov_imm,array_type->size);
+                    emit(func,op_type::push_arg,len_slot);
+
+                    emit(func,op_type::push_arg,reg);
+
+                    // no longer care about the ptr
+                    arg_type = (Type*)array_type;
+
+                    arg_clean += 2;                    
+                }
+
+                // push vla struct in reverse order
+                // This conversion is implicit
+                // TODO: this needs to handle conversions on multidimensional arrays
+                else if(is_runtime_size(arg.type))
+                {
+                    const u32 len_slot = emit_res(func,op_type::load_arr_len,reg,0);
+                    emit(func,op_type::push_arg,len_slot);
+
+                    const u32 data_slot = emit_res(func,op_type::load_arr_data,reg,0);
+                    emit(func,op_type::push_arg,data_slot);
+
+                    arg_clean += 2;  
+                }
+
+                else
+                {
+                    unimplemented("pass fixed size");
+                }
+
+                check_assign(itl,arg.type,arg_type,true);
+            }
         }
 
 

@@ -525,6 +525,13 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 break;
             }
 
+            case ast_type::arr_var_size:
+            {
+                type = make_array(itl,type,RUNTIME_SIZE);
+
+                break;
+            }
+
 
             case ast_type::arr_fixed:
             {
@@ -863,11 +870,8 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 
 
 
-
-void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_arg = false, bool is_initializer = false)
+void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 {
-
-
     // both are builtin
     if(is_builtin(rtype) && is_builtin(ltype))
     {
@@ -918,6 +922,14 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_
     {
         assert(false);
     }
+}
+
+void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_arg = false, b32 is_initializer = false)
+{
+    if(is_plain(rtype) && is_plain(ltype))
+    {
+        check_assign_plain(itl,ltype,rtype);
+    }
 
     // check assign by ltype
     else
@@ -934,8 +946,90 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, bool is_
 
         else if(is_array(ltype))
         {
-            assert(false);
+            // type idx along with the indirection, and contain type
+            // must be the same
+            if(!is_array(rtype))
+            {
+                panic(itl,"expected array of %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return;
+            }
+
+            b32 done = false;
+
+            while(!done)
+            {
+                if(ltype->type_idx != rtype->type_idx)
+                {
+                    panic(itl,"expected array of underlying type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                    return;
+                }
+
+                switch(ltype->type_idx)
+                {
+                    case ARRAY:
+                    {
+                        ArrayType* array_ltype = (ArrayType*)ltype;
+                        ArrayType* array_rtype = (ArrayType*)rtype;
+
+                        // when we conv them the rule is to push struct convs to a vla
+                        // until we hit the end or something that is allready a vla
+                        // as it will allready hold it in the correct from 
+
+                        // dimension assign
+                        // assign to var size, have to be equal or a runtime size
+                        // [][] = [][3]
+                        // [][3] = [][3]
+                        // [][] = [][]
+                        // [][] = [3][3] 
+
+
+                        // for arg passing only
+                        // valid
+                        // [3] = [3]
+
+                        if(!is_arg)
+                        {
+                            if(!is_runtime_size(ltype))
+                            {
+                                panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                                return;
+                            }
+                        }
+
+                        // any assignment is valid if the dst is a vla
+                        if(!is_runtime_size(ltype))
+                        {
+                            if(array_ltype->size != array_rtype->size)
+                            {
+                                panic(itl,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
+                                return;
+                            }
+                        }    
+
+                        ltype = index_arr(ltype);
+                        rtype = index_arr(rtype);                                       
+                        
+                        break;
+                    }
+
+                    case POINTER:
+                    {
+                        assert(false);
+                    }
+
+                    default:
+                    {
+                        done = true;
+                    }
+                }
+            }
+
+            // finally type check the base type!
+            check_assign_plain(itl,ltype,rtype);
+
+
         }
+
 
 
         else
