@@ -52,9 +52,10 @@ struct Interloper
 
     // compilier config
 
-    // TODO: make this be a flag
     b32 print_ast = false;
     b32 print_ir = false;
+    b32 print_tokens = false;
+
 
     b32 print_reg_allocation = false;
     b32 print_stack_allocation = false; 

@@ -1142,8 +1142,11 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         return true;
     }
     
-    //print_tokens(parser.tokens);
-
+    if(itl.print_tokens)
+    {
+        print_tokens(parser.tokens);
+    }
+    
     const auto size = count(parser.tokens);
 
     // TODO: move this to a seperate loop to make freeing up crap ez
