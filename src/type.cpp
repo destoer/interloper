@@ -271,14 +271,16 @@ u32 accumulate_count(u32 count, u32 size)
     return count == 0? size : count * size;
 }
 
-u32 init_arr_sub_sizes_internal(Interloper& itl, Symbol& sym,Type* type, b32 mark_sym)
+void init_arr_sub_sizes(Interloper&itl,Type* type);
+
+u32 init_arr_sub_sizes_internal(Interloper& itl, Type* type)
 {
     /* 
-        on way down mark sym count, & when the bottom is reached mark the size
+        decsned until the bottom is reached mark the size
         return up the sub size and mark it across each level of the type
 
 
-        do this for any sub indirecitons i.e pointers VLA's but at that point stop marking the symbol
+        do this for any sub indirecitons i.e pointers VLA's
     */
 
 
@@ -291,27 +293,14 @@ u32 init_arr_sub_sizes_internal(Interloper& itl, Symbol& sym,Type* type, b32 mar
             // VLA
             if(is_runtime_size(type))
             {
-                assert(false);
-                // do sub array but stop updating the symbol information...
-                // 
-
-                // return final size
-                // initialize sym size
-
-
-
+                array_type->sub_size = init_arr_sub_sizes_internal(itl,index_arr(type));
+                return GPR_SIZE * 2;
             }
 
             // fixed size
             else
             {
-                // accumulate the counter
-                if(mark_sym)
-                {
-                    sym.count = accumulate_count(sym.count,array_type->size);
-                }
-
-                array_type->sub_size = init_arr_sub_sizes_internal(itl,sym,index_arr(type),mark_sym);
+                array_type->sub_size = init_arr_sub_sizes_internal(itl,index_arr(type));
                 return array_type->sub_size * array_type->size;
             }
         }
@@ -319,36 +308,73 @@ u32 init_arr_sub_sizes_internal(Interloper& itl, Symbol& sym,Type* type, b32 mar
         
         case POINTER:
         {
-            // do for sub types, but stop updating symbol info
+            PointerType* pointer_type = (PointerType*)type; 
 
-            // return final size
-            // initialize sym size
+            // do for sub type
+            if(is_array(pointer_type->contained_type))
+            {
+                init_arr_sub_sizes(itl,pointer_type->contained_type);
+            }
 
-
-            assert(false);
+            return GPR_SIZE;
         }
 
         // plain var mark size and return it!
         default:
         {
             const u32 size = type_size(itl,type);
-
-            if(mark_sym)
-            {
-                sym.size = size;
-                mark_sym = false;
-            }
-
             return size;
         }
-
     }
 }
 
 
-void init_arr_sub_sizes(Interloper&itl, Symbol& sym,Type* type)
+void init_arr_sub_sizes(Interloper&itl,Type* type)
 {
-    init_arr_sub_sizes_internal(itl, sym,type,true);
+    init_arr_sub_sizes_internal(itl,type);
+}
+
+// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
+void init_arr_allocation(Interloper& itl, Symbol& sym)
+{
+    UNUSED(itl);
+
+    b32 done = false;
+    
+    Type* type = sym.type;
+
+    while(!done)
+    {
+        switch(type->type_idx)
+        {
+            case POINTER:
+            {
+                sym.size = GPR_SIZE;
+
+                // whatever is pointed too is responsible for handling its own allocation
+                // because it comes from somewhere else we are done!
+                done = true;
+                break;
+            }
+
+            case ARRAY:
+            {
+                ArrayType* array_type = (ArrayType*)type;
+
+                sym.count = accumulate_count(sym.count,array_type->size);
+                type = index_arr(type);
+                break;
+            }
+
+            default:
+            {
+                sym.size = type_size(itl,type);
+
+                done = true;
+                break;
+            }
+        }
+    }
 }
 
 
@@ -428,6 +454,20 @@ Type* make_array(Interloper& itl, Type* contained_type, u32 size)
     return (Type*)array_type;
 }
 
+
+String fmt_index(Interloper& itl,u32 index)
+{
+    if(index == RUNTIME_SIZE)
+    {
+        return make_string(itl.string_allocator,"[]",2);
+    }
+
+    char buf[32];
+    const u32 len = sprintf(buf,"[%d]",index);
+
+    return make_string(itl.string_allocator,buf,len);
+}
+
 String type_name(Interloper& itl,const Type *type)
 {
     StringBuffer prefix;
@@ -460,7 +500,14 @@ String type_name(Interloper& itl,const Type *type)
 
             case ENUM: assert(false);
 
-            case ARRAY: assert(false);
+            case ARRAY:
+            {
+                ArrayType* array_type = (ArrayType*)type;
+
+                push_string(itl.string_allocator,compound,fmt_index(itl,array_type->size));
+                type = array_type->contained_type;
+                break;
+            }
 
             // builtin
             default:
@@ -512,7 +559,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
     type->is_const = type_decl->is_const;
 
     // arrays, pointers
-    for(u32 c = 0; c < count(type_decl->compound_type); c++)
+    for(s32 c = count(type_decl->compound_type) - 1; c >= 0; c--)
     {
         AstNode* node = type_decl->compound_type[c];
 
@@ -532,7 +579,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 break;
             }
 
-
+            // TODO: we need to revise the decl order on this!
             case ast_type::arr_fixed:
             {
                 UnaryNode* unary_node = (UnaryNode*)node;
@@ -559,6 +606,12 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             }
         }
     }
+
+    if(is_array(type))
+    {
+        init_arr_sub_sizes(itl,type);
+    }
+
 
     return type;
 }

@@ -1,13 +1,5 @@
 #include <interloper.h>
 
-#include "lexer.cpp"
-#include "symbol.cpp"
-#include "parser.cpp"
-#include "optimize.cpp"
-#include "ir.cpp"
-#include "struct.cpp"
-
-
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 void compile_decl(Interloper &itl,Function &func, const AstNode *line);
@@ -18,6 +10,16 @@ std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, 
 
 void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
 std::pair<Type*, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+std::pair<Type*, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+
+
+
+#include "lexer.cpp"
+#include "symbol.cpp"
+#include "parser.cpp"
+#include "optimize.cpp"
+#include "ir.cpp"
+#include "struct.cpp"
 
 
 void dump_ir_sym(Interloper &itl)
@@ -1520,7 +1522,36 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
 
         case ast_type::index:
         {
-            assert(false);
+            if(addrof)
+            {
+                return index_arr(itl,func,node,slot);
+            }
+
+            else
+            {
+                IndexNode* index_node = (IndexNode*)node;
+
+
+                auto [type,addr_slot] = index_arr(itl,func,node,slot);
+
+                // actually load the pointer with ptr_load
+                type = deref_pointer(type);
+
+                const u32 ptr_slot = new_tmp(func);
+                do_ptr_load(itl,func,ptr_slot,addr_slot,type);
+
+                // contained type is not actually a pointer
+                if(!is_pointer(type))
+                {
+                    panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",index_node->name.buf);
+                    return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+                }
+
+                // okay now just index out the final type
+                type = deref_pointer(type);
+
+                return std::pair<Type*,u32>{type,ptr_slot};
+            }
         }
 
         case ast_type::access_struct:
@@ -1839,15 +1870,8 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
 }
 
 
-void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const u32 addr_slot, ArrayType* type, u32 depth, u32* offset)
+void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const u32 addr_slot, ArrayType* type, u32* offset)
 {
-    if(depth >= count(list->nodes))
-    {
-        panic(itl,"array declaration dimension exceeds type, %s : %d\n",type_name(itl,(Type*)type).buf,depth);
-        return;
-    }
-
-    
     if(itl.error)
     {
         return;
@@ -1866,55 +1890,56 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
         unimplemented("VLA assign");
     }
 
-    const u32 count = type->size;
-
-    // type check the actual ammount is right
-    // TODO: this should allow not specifing the full ammount but for now just keep it simple
-    if(count != node_len)
+    // next type is a sub array
+    if(is_array(type->contained_type))
     {
-        panic(itl,"array expects %d initializers got %d\n",count,node_len);
-    }        
+        ArrayType* next_arr = (ArrayType*)type->contained_type;
 
-    // descend each sub initializer until we hit one containing values
-    // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
-    if(list->nodes[depth]->type == ast_type::initializer_list)
-    {
-        // TODO: we need a check to handle arrays of structs in here!
-        if(is_struct(type->contained_type))
+        const u32 count = type->size;
+
+        // type check the actual ammount is right
+        // TODO: this should allow not specifing the full ammount but for now just keep it simple
+        if(count != node_len)
+        {
+            panic(itl,"array %s expects %d initializers got %d\n",type_name(itl,(Type*)type).buf,count,node_len);
+            return;
+        }        
+
+        for(u32 n = 0; n < node_len; n++)
+        {
+            // descend each sub initializer until we hit one containing values
+            // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
+            if(list->nodes[n]->type == ast_type::initializer_list)
+            {
+                traverse_arr_initializer_internal(itl,func,(RecordNode*)list->nodes[n],addr_slot,next_arr,offset);
+            }
+
+            // handle an array (this should fufill the current "depth req in its entirety")
+            else
+            {
+                unimplemented("arr initializer with array");            
+            }
+        }
+
+    }
+
+    // we are getting to the value assigns!
+    else
+    {  
+        Type* base_type = type->contained_type;
+
+        const u32 size = type_size(itl,base_type);
+
+        // seperate loop incase we need to handle initializers
+        if(is_struct(base_type))
         {
             assert(false);
         }
 
+        // normal types
         else
         {
-            traverse_arr_initializer_internal(itl,func,list,addr_slot,type,depth + 1,offset);
-        }
-    }
-
-    else
-    {
-        auto [first_type,first_reg] = compile_oper(itl,func,list->nodes[depth],new_tmp(func));
-
-        
-        // we have values!!
-        if(!is_array(first_type))
-        {
-            // make sure this only happens at the max "depth" 
-            if(!is_plain(type->contained_type))
-            {
-                panic(itl,"array of type %s initialized with valeus at early depth %d\n",type_name(itl,(Type*)type).buf,depth);
-                return;
-            }
-
-            const auto base_type = type->contained_type;
-            const u32 size = type_size(itl,base_type);
-
-            check_assign(itl,base_type,first_type,false,true);
-
-            do_ptr_store(itl,func,first_reg,addr_slot,base_type,*offset);
-            *offset = *offset + size;
-
-            for(u32 i = 1; i < node_len; i++)
+            for(u32 i = 0; i < node_len; i++)
             {
                 auto [rtype,reg] = compile_oper(itl,func,list->nodes[i],new_tmp(func));
                 check_assign(itl,base_type,rtype,false,true);
@@ -1922,15 +1947,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                 do_ptr_store(itl,func,reg,addr_slot,base_type,*offset);
                 *offset = *offset + size;
             }
-        }
-        
-
-        // handle an array (this should fufill the current "depth req in its entirety")
-        else
-        {
-            unimplemented("arr initializer with array");
-        }
-        
+        }           
     }   
 }
 
@@ -1994,7 +2011,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
     RecordNode* list = (RecordNode*)node;
 
     u32 idx = 0;
-    traverse_arr_initializer_internal(itl,func,list,addr_slot,(ArrayType*)type,0,&idx);
+    traverse_arr_initializer_internal(itl,func,list,addr_slot,(ArrayType*)type,&idx);
 }
 
 
@@ -2031,10 +2048,11 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         return;
     }
 
-    init_arr_sub_sizes(itl,sym,sym.type);
+    
 
+    Symbol &array = sym_from_slot(itl.symbol_table,slot);
 
-    const Symbol &array = sym_from_slot(itl.symbol_table,slot);
+    init_arr_allocation(itl,array);
 
     auto [size,count] = arr_alloc_size(array);
 
@@ -2474,9 +2492,15 @@ std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNod
             if(is_array(array_type->contained_type))
             {
                 array_type = (ArrayType*)index_arr(array_type);
+
+                if(last_index)
+                {
+                    accessed_type = (Type*)array_type;
+                }
+
             }
 
-            // we aernt indexing an array
+            // this last index will give us our actual values
             else
             {
                 // this is the last index i.e it is fine to get back a contained type
@@ -2494,7 +2518,6 @@ std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNod
             } 
         }
     }
-
 
     // return pointer to accessed type
     return std::pair<Type*,u32>{make_pointer(itl,accessed_type),dst_slot}; 

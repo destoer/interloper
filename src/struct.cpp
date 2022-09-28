@@ -400,7 +400,7 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
 
     // Type is allways the accessed type of the current pointer
     u32 struct_slot = -1;
-    Type* struct_type;
+    Type* struct_type = nullptr;
 
     // parse out initail expr
     switch(expr_node->type)
@@ -439,7 +439,10 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
 
         case ast_type::index:
         {
-            assert(false);
+            std::tie(struct_type, struct_slot) = index_arr(itl,func,expr_node,new_tmp(func));
+
+            // we return types in here as the accessed type
+            struct_type = deref_pointer(struct_type);
             break;
         }
 
