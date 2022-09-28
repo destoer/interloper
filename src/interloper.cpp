@@ -1905,24 +1905,28 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
                 return;
             }
 
+
+            ArrayType* array_type = (ArrayType*)type;
+
+
             // handle auto sizing
-            if(type.dimensions[0] == DEDUCE_SIZE)
+            if(array_type->size == DEDUCE_SIZE)
             {
-                type.dimensions[0] = literal.size;
+                array_type->size = literal.size;
             }
 
-            if(type.dimensions[0] == RUNTIME_SIZE)
+            if(array_type->size == RUNTIME_SIZE)
             {
                 unimplemented("string vla");
             }
 
-            if(type.dimensions[0] < literal.size)
+            if(array_type->size < literal.size)
             {
-                panic(itl,"expected array of atleast size %d got %d\n",literal.size,type.dimensions[0]);
+                panic(itl,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
             }
 
-            const auto base_type = contained_arr_type(type);
-            const auto rtype = Type(builtin_type::u8_t);
+            const auto base_type = array_type->contained_type;
+            const auto rtype = make_builtin(itl,builtin_type::u8_t);
 
             for(u32 i = 0; i < literal.size; i++)
             {
@@ -1944,7 +1948,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
     RecordNode* list = (RecordNode*)node;
 
     u32 idx = 0;
-    traverse_arr_initializer_internal(itl,func,list,addr_slot,(ArrayType*)array.type,0,&idx);
+    traverse_arr_initializer_internal(itl,func,list,addr_slot,(ArrayType*)type,0,&idx);
 }
 
 
