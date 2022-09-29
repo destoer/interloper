@@ -119,7 +119,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/string/char_array",7,false},
     {"tests/string/write_string",0,false},
     {"tests/string/write_string_static",0,false},
-
+*/
     // structs
     {"tests/struct/struct",495,false},
     {"tests/struct/struct_initializer",495,false},
@@ -137,7 +137,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
 
     // TODO: get this working when we overhaul our reg allocator
     //{"tests/struct/return_struct_tmp",3,false}.
-
+/*
     // stl
     {"tests/stl/linked_list",66,false},
     {"tests/stl/mem",0,false},

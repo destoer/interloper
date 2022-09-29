@@ -1190,9 +1190,15 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
                 break;
             }
 
+            case token_type::struct_t:
+            {
+                struct_decl(itl,parser,filename);
+                break;
+            }
+
             default:
             {
-                panic(parser,t,"unexpected top level token %s: '%s'\n",tok_name(t.type),t.literal.buf);
+                panic(parser,t,"unexpected top level token %s(%d): '%s'\n",tok_name(t.type),u32(t.type),t.literal.buf);
                 destroy_arr(parser.tokens);
                 return true;
             }
@@ -1225,7 +1231,7 @@ bool parse(Interloper& itl, const String& initial_filename)
     const String stl_path = make_static_string("stl/",strlen("stl/"));
 
     // import basic by default
-    //add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
+    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
 
 
     b32 error = false;

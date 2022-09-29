@@ -443,6 +443,15 @@ Type* make_pointer(Interloper& itl,Type* contained_type)
     return (Type*)pointer_type;
 }
 
+Type* make_struct(Interloper& itl, u32 struct_idx)
+{
+    StructType* struct_type = (StructType*)alloc_type<StructType>(itl,STRUCT,false);
+
+    struct_type->struct_idx = struct_idx;
+
+    return (Type*)struct_type;
+}
+
 
 Type* make_array(Interloper& itl, Type* contained_type, u32 size)
 {
@@ -535,26 +544,34 @@ String type_name(Interloper& itl,const Type *type)
 
 Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE)
 {
-    u32 type_idx = 0;
+    Type* type = nullptr;
 
     if(struct_idx_override != INVALID_TYPE)
     {
-        type_idx = STRUCT;
         // add the structure nonsense!
         assert(false);
     }
 
     else if(type_decl->type_idx == USER_TYPE)
     {
-        assert(false);
+        const auto name = type_decl->name;
+
+        TypeDecl* user_type = lookup(itl.type_table,name);
+
+        if(!user_type)
+        {
+            panic(itl,"no type named %s\n",name.buf);
+            return make_builtin(itl,builtin_type::void_t);
+        }
+
+        type = make_struct(itl,user_type->type_idx);        
     }
 
     else
     {
-        type_idx = type_decl->type_idx;
+        type = make_raw(itl,type_decl->type_idx);
     }
 
-    Type* type = make_raw(itl,type_idx);
 
     type->is_const = type_decl->is_const;
 

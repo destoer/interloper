@@ -534,3 +534,99 @@ std::pair<Type*,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, A
     do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type,offset);
     return std::pair<Type*,u32>{accessed_type,dst_slot};
 }
+
+
+void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
+{
+    const auto structure = struct_from_type(itl.struct_table,sym.type);
+
+    const u32 reg_count = gpr_count(structure.size);
+    emit(func,op_type::alloc_slot,sym.slot,GPR_SIZE,reg_count);
+
+    if(decl_node->expr)
+    {
+        if(decl_node->expr->type == ast_type::initializer_list)
+        {
+            // insertion will break our reference
+            const u32 sym_slot = sym.slot;
+
+            const u32 addr_slot = new_tmp(itl,GPR_SIZE);
+
+            emit(func,op_type::addrof,addr_slot,sym_slot);
+
+            assert(false);
+
+            //traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
+        }
+
+        else
+        {
+            const auto [rtype,slot] = compile_oper(itl,func,decl_node->expr,sym.slot);
+
+            // oper is a single symbol and the move hasn't happened we need to explictly move it
+            if(sym.slot != slot)
+            {
+                compile_move(itl,func,sym.slot,slot,sym.type,rtype);
+            }
+
+            check_assign(itl,sym.type,rtype,false,true);        
+        }
+    }
+
+    // default construction
+    else
+    {
+        // insertion will break our reference
+        const u32 sym_slot = sym.slot;
+
+        const u32 addr_slot = new_tmp(itl,GPR_SIZE);
+        emit(func,op_type::addrof,addr_slot,sym_slot);
+
+        for(u32 m = 0; m < count(structure.members); m++)
+        {
+            const auto& member = structure.members[m];
+
+            if(member.expr)
+            {
+                if(member.expr->type == ast_type::initializer_list)
+                {
+                    unimplemented("initializer list");
+                }
+
+                else
+                {
+                    const auto [rtype,slot] = compile_oper(itl,func,member.expr,new_tmp(func));
+                    check_assign(itl,member.type,rtype,false,true); 
+
+                    do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
+                }
+            }
+
+            // TODO: handle nested struct membmer
+            // (basically we need to just recurse this method)
+            else if(is_struct(member.type))
+            {
+
+            }
+
+            // TODO: handle arrays
+            else if(is_array(member.type))
+            {
+
+            }
+
+            else
+            {
+                const u32 tmp = new_tmp(func);
+                emit(func,op_type::mov_imm,tmp,default_value(member.type));
+
+                do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
+            }
+        }
+    }
+
+    if(itl.error)
+    {
+        return;
+    }
+}

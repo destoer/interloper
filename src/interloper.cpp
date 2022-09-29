@@ -12,7 +12,7 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u3
 std::pair<Type*, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 std::pair<Type*, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 
-
+void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, const Type* dst_type, const Type* src_type);
 
 #include "lexer.cpp"
 #include "symbol.cpp"
@@ -115,6 +115,24 @@ void finalise_def(Function& func, Array<Type*> rt, Array<u32> a, u32 hidden_args
 }
 
 
+// add hidden arg pointers for return
+u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Array<u32>& args ,u32 arg_offset)
+{
+    Type* ptr_type = make_pointer(itl,return_type);
+
+    Symbol sym = make_sym(itl.symbol_table,name,ptr_type,GPR_SIZE,arg_offset);
+    add_var(itl.symbol_table,sym);
+
+    push_var(args,sym.slot);     
+
+    arg_offset += GPR_SIZE;
+
+    return arg_offset;     
+}
+
+
+
+
 // scan the top level of the parse tree for functions
 // and grab the entire signature
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
@@ -149,14 +167,25 @@ void parse_function_declarations(Interloper& itl)
                 // we are returning a struct add a hidden pointer as first arg
                 if(type_size(itl,return_type[0]) > GPR_SIZE)
                 {
-                    assert(false);
+                    arg_offset = add_hidden_return(itl,"_struct_ret_ptr",return_type[0],args,arg_offset);
+                    hidden_args++;
                 }   
             }
 
             // tuple return
             else if(count(node.return_type) > 1)
             {
-                assert(false);
+                for(u32 a = 0; a < count(node.return_type); a++)
+                {
+                    push_var(return_type,get_type(itl,node.return_type[a]));
+
+                    char name[40] = {0};
+                    sprintf(name,"_tuple_ret_0x%x",a);
+
+                    arg_offset = add_hidden_return(itl,name,return_type[a],args,arg_offset);
+
+                    hidden_args++;
+                }
             }
 
             // handle args
@@ -2116,7 +2145,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line)
 
     else if(is_struct(sym.type))
     {
-        assert(false);
+        compile_struct_decl(itl,func,decl_node,sym);
     }
 
     
@@ -2250,7 +2279,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                         // write on struct member!
                         case ast_type::access_struct:
                         {
-                            assert(false);
+                            write_struct(itl,func,slot,rtype,assign_node->left);
                             break;
                         }
                     
@@ -2416,7 +2445,10 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                 else if(is_struct(sym.type))
                 {
-                    assert(false);
+                    const auto structure = struct_from_type(itl.struct_table,sym.type);
+
+                    const u32 count = gpr_count(structure.size);
+                    emit(func,op_type::free_slot,sym.slot,GPR_SIZE,count);     
                 }
 
                 else
@@ -2731,11 +2763,9 @@ void destroy_itl(Interloper &itl)
     destroy_arr(itl.used_func);
 
     // destroy typing tables
-#if 0
     destroy_table(itl.struct_def);
     destroy_struct_table(itl.struct_table);
-    destroy_enum_table(itl.enum_table);
-#endif
+    //destroy_enum_table(itl.enum_table);
     destroy_table(itl.type_table);
 
     destroy_allocator(itl.list_allocator);
@@ -2829,11 +2859,9 @@ void compile(Interloper &itl,const String& initial_filename)
         return;
     }
 
-#if 0
+
     // parse out any of the top level decl we need
     parse_struct_declarations(itl);
-#endif
-
     parse_function_declarations(itl);
 
     if(itl.error)
