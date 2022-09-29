@@ -18,7 +18,7 @@ void print_struct(Interloper& itl, const Struct& structure)
 
 void add_struct(Interloper& itl, Struct& structure, u32 slot)
 {
-    structure.type_idx = STRUCT_START + slot;
+    structure.type_idx = slot;
     itl.struct_table[slot] = structure;
     
     add_type_decl(itl,slot,structure.name,type_kind::struct_t);
@@ -165,7 +165,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
                 // so just override the type idx from the one reserved inside the def
                 if(def_has_indirection(type_decl))
                 {
-                    type_idx_override = BUILTIN_TYPE_SIZE + def.slot;
+                    type_idx_override = def.slot;
                 }
 
                 else
@@ -371,7 +371,14 @@ std::pair<Type*,u32> access_struct_member(Interloper& itl, Function& func, u32 s
     // auto deref pointer
     if(is_pointer(type))
     {
-        assert(false);
+        const u32 ptr_slot = slot;
+        slot = new_tmp(func);
+
+        do_ptr_load(itl,func,slot,ptr_slot,type,*offset);
+        *offset = 0;
+
+        // now we are back to a straight pointer
+        type = deref_pointer(type);
     }
 
     // get offset for struct member
@@ -424,13 +431,13 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
             // along with the derefed type
             if(is_pointer(sym.type))
             {
-                assert(false);
+                struct_type = deref_pointer(sym.type);
+                struct_slot = sym.slot;
             }
 
             else
             {
                 struct_slot = emit_res(func,op_type::addrof,sym.slot);
-
                 struct_type = sym.type;
             }
 
@@ -473,7 +480,19 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
 
                 if(is_pointer(struct_type))
                 {
-                    assert(false);
+                    PointerType* pointer_type = (PointerType*)struct_type;
+
+                    // pointer to array
+                    if(is_array(pointer_type->contained_type))
+                    {
+                       std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                    }
+
+                    else
+                    {
+                        std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                    }
+                    
                 }
 
                 else if(is_array(struct_type))
@@ -491,7 +510,24 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
 
             case ast_type::index:
             {
-                assert(false);
+                IndexNode* index_node = (IndexNode*)n;
+
+                std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,index_node->name,&member_offset);
+                
+                struct_slot = collapse_offset(func,struct_slot,&member_offset);
+
+                if(is_runtime_size(struct_type))
+                {
+                    const u32 vla_ptr = new_tmp(func);
+                    // TODO: This can be better typed to a pointer
+                    do_ptr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,builtin_type::u32_t),0);
+                    struct_slot = vla_ptr;
+                }
+
+                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot,new_tmp(func));
+
+                // deref of pointer
+                struct_type = deref_pointer(struct_type);
                 break;
             }
 
@@ -536,6 +572,57 @@ std::pair<Type*,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, A
 }
 
 
+void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0)
+{
+    const u32 node_len = count(node->nodes);
+    const u32 member_size = count(structure.members);
+
+    if(node_len != member_size)
+    {
+        panic(itl,"arr initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        return;
+    }
+    
+    for(u32 i = 0; i < count(structure.members); i++)
+    {
+        const auto member = structure.members[i];
+    
+        // either sub struct OR array member initializer
+        if(node->nodes[i]->type == ast_type::initializer_list)
+        {
+            if(is_array(member.type))
+            {
+               u32 arr_offset = offset + member.offset;
+               auto type = member.type;
+
+               traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],addr_slot,(ArrayType*)type,&arr_offset);
+            }
+
+            else if(is_struct(member.type))
+            {
+                const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
+                traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_slot,sub_struct,offset + member.offset);
+            }
+
+            else
+            {
+                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
+                return;
+            }
+        }
+
+        // we have a list of plain values we can actually initialize
+        else
+        {
+            // get the operand and type check it
+            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
+            check_assign(itl,member.type,rtype);
+
+            do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
+        }
+    } 
+}
+
 void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
@@ -554,9 +641,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
             emit(func,op_type::addrof,addr_slot,sym_slot);
 
-            assert(false);
-
-            //traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
+            traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
         }
 
         else

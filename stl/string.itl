@@ -1,5 +1,12 @@
 
 
+/*
+todo: add these type aliases
+
+type_alias c8 = u8;
+type_alias str = c8[]
+*/
+
 // TODO: make a proper alias for char, even though we dont want care about it being strongly type checked
 func to_lower(char: u8) u8
 {
@@ -10,3 +17,6 @@ func to_lower(char: u8) u8
 
     return char;
 }
+
+
+//func print(fmt: const str, ...)

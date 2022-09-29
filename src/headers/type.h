@@ -91,10 +91,6 @@ enum class type_kind
 };
 
 
-static constexpr u32 STRUCT_START = BUILTIN_TYPE_SIZE;
-static constexpr u32 ENUM_START = 0xe0000000;
-
-
 static constexpr u32 KIND_SIZE = 3;
 
 
@@ -103,13 +99,6 @@ inline const char* KIND_NAMES[KIND_SIZE] =
     "builtin",
     "enum",
     "struct",
-};
-
-static constexpr u32 TYPE_ENCODE_TABLE[KIND_SIZE] = 
-{
-    0,
-    ENUM_START,
-    STRUCT_START,
 };
 
 
@@ -202,7 +191,7 @@ using EnumTable = Array<Enum>;
 
 
 std::optional<Enum> get_enum(EnumTable& enum_table, const String& name);
-Enum enum_from_type(EnumTable& enum_table, const Type& type);
+Enum enum_from_type(EnumTable& enum_table, const Type* type);
 
 struct AstNode;
 

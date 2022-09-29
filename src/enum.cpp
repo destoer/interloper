@@ -97,7 +97,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
     consume(parser,token_type::right_c_brace);
 
     const u32 slot = count(itl.enum_table);
-    enumeration.type_idx = slot + ENUM_START;
+    enumeration.type_idx = slot;
 
     push_var(itl.enum_table,enumeration);
     add_type_decl(itl,slot,enumeration.name,type_kind::enum_t);
@@ -109,18 +109,16 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 }
 
 
-Enum enum_from_type(EnumTable& enum_table, const Type& type)
+Enum enum_from_type(EnumTable& enum_table, const Type* type)
 {
-    return enum_table[type.type_idx - ENUM_START];
+    EnumType* enum_type = (EnumType*)type;
+
+    return enum_table[enum_type->enum_idx];
 }   
 
 
 
-Type make_enum_type(Enum& enumeration)
+Type* make_enum_type(Interloper& itl,Enum& enumeration)
 {
-    Type type;
-
-    type.type_idx = enumeration.type_idx;
-
-    return type;
+    return make_enum(itl,enumeration.type_idx);
 }

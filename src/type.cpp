@@ -105,13 +105,24 @@ b32 is_fixed_array_pointer(const Type* type)
 
 b32 is_string(const Type* type)
 {
-    UNUSED(type);
-    assert(false);
+    if(is_array(type))
+    {
+        const ArrayType* array_type = (ArrayType*)type;
+
+        return array_type->contained_type->type_idx == u32(builtin_type::u8_t);
+    }
+
+    return false;
 }
 
 b32 is_plain(const Type *type)
 {
     return !is_pointer(type) && !is_array(type);
+}
+
+b32 is_plain_builtin(const Type* type)
+{
+    return is_plain(type) && is_builtin(type);
 }
 
 b32 is_value_type(const Type* type)
@@ -428,9 +439,9 @@ Type* make_raw(Interloper& itl, u32 type)
     return alloc_type<Type>(itl,type,false);
 }
 
-Type* make_builtin(Interloper& itl, builtin_type type)
+Type* make_builtin(Interloper& itl, builtin_type type, b32 is_const = false)
 {
-    return alloc_type<Type>(itl,u32(type),false);
+    return alloc_type<Type>(itl,u32(type),is_const);
 }
 
 
@@ -450,6 +461,15 @@ Type* make_struct(Interloper& itl, u32 struct_idx)
     struct_type->struct_idx = struct_idx;
 
     return (Type*)struct_type;
+}
+
+Type* make_enum(Interloper& itl, u32 enum_idx)
+{
+    EnumType* enum_type = (EnumType*)alloc_type<EnumType>(itl,ENUM,false);
+
+    enum_type->enum_idx = enum_idx;
+
+    return (Type*)enum_type;
 }
 
 
@@ -505,9 +525,21 @@ String type_name(Interloper& itl,const Type *type)
                 break;
             }
 
-            case STRUCT: assert(false);
+            case STRUCT: 
+            {
+                const auto structure =  struct_from_type(itl.struct_table,type);
+                plain = structure.name;
+                done = true;
+                break;                
+            }
 
-            case ENUM: assert(false);
+            case ENUM: 
+            {
+                const auto enumeration = enum_from_type(itl.enum_table,type);
+                plain = enumeration.name;  
+                done = true;
+                break;              
+            }
 
             case ARRAY:
             {
@@ -542,14 +574,18 @@ String type_name(Interloper& itl,const Type *type)
     return name;
 }
 
+void print_type(Interloper& itl, const Type* type)
+{
+    printf("type: %s\n",type_name(itl,type).buf);
+}
+
 Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE)
 {
     Type* type = nullptr;
 
     if(struct_idx_override != INVALID_TYPE)
     {
-        // add the structure nonsense!
-        assert(false);
+        type = make_struct(itl,struct_idx_override);
     }
 
     else if(type_decl->type_idx == USER_TYPE)
@@ -564,7 +600,22 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             return make_builtin(itl,builtin_type::void_t);
         }
 
-        type = make_struct(itl,user_type->type_idx);        
+        switch(user_type->kind)
+        {
+            case type_kind::struct_t:
+            {
+                type = make_struct(itl,user_type->type_idx); 
+                break;
+            }
+
+            case type_kind::enum_t:
+            {
+                type = make_enum(itl,user_type->type_idx);
+                break;
+            }
+
+            default: assert(false);
+        }       
     }
 
     else
@@ -825,12 +876,16 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
 
             case STRUCT:
             {
-                assert(false);
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                done = true;
+                break;
             }
 
             case ENUM:
             {
-                assert(false);
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                done = true;
+                break;
             }
 
             // check end type
@@ -838,6 +893,7 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
             {
                 check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
                 done = true;
+                break;
             }
         }
     }
@@ -849,7 +905,10 @@ b32 plain_type_equal(const Type* ltype, const Type* rtype)
     {
         case STRUCT:
         {
-            assert(false);
+            StructType* struct_ltype = (StructType*)ltype;
+            StructType* struct_rtype = (StructType*)rtype;
+
+            return struct_ltype->struct_idx == struct_rtype->struct_idx;
         }
 
         case ENUM:
@@ -990,7 +1049,14 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 
     else if(is_struct(ltype) && is_struct(rtype))
     {
-        assert(false);
+        StructType* struct_ltype = (StructType*)ltype;
+        StructType* struct_rtype = (StructType*)rtype;
+
+        if(struct_ltype->struct_idx != struct_rtype->struct_idx)
+        {
+            panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
+        }
     }
 }
 
@@ -1125,7 +1191,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
 
     // handle side effects of the cast
     // builtin type
-    if(is_plain(old_type) && is_plain(new_type))
+    if(is_plain_builtin(old_type) && is_plain_builtin(new_type))
     {
         const auto builtin_old = builtin_type(old_type->type_idx);
         const auto builtin_new = builtin_type(new_type->type_idx);
