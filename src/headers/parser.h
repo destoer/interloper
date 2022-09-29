@@ -20,6 +20,7 @@ enum class ast_type
     sizeof_t,
     struct_t,
     scope,
+    type_alias,
 
     ret,
 
@@ -114,6 +115,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "sizeof",
     "struct",
     "scope",
+    "type_alias",
 
     "return",
 
@@ -209,6 +211,7 @@ enum class ast_fmt
     case_t,
     scope,
     tuple_assign,
+    type_alias,
 };
 
 inline const char *FMT_NAMES[] =
@@ -233,6 +236,7 @@ inline const char *FMT_NAMES[] =
     "case",
     "scope",
     "tuple_assign",
+    "type_alias",
 };
 
 
@@ -349,6 +353,16 @@ struct StructNode
     Array<DeclNode*> members;
 };
 
+
+struct AliasNode 
+{
+    AstNode node;
+
+    String name;
+    String filename;
+
+    TypeNode* type;
+};
 
 
 struct AutoDeclNode
@@ -677,6 +691,18 @@ AstNode* ast_tuple_assign(Parser& parser, const Token& token)
 
     return (AstNode*)tuple_node;
 }
+
+AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const String& filename, const Token& token)
+{
+    AliasNode* alias_node = alloc_node<AliasNode>(parser,ast_type::type_alias,ast_fmt::type_alias,token);
+
+    alias_node->filename = filename;
+    alias_node->name = literal;
+    alias_node->type = type;
+
+    return (AstNode*)alias_node;
+}
+
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 {

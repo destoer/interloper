@@ -21,6 +21,8 @@ struct Interloper
     String cur_file = "";
 
 
+    Array<AliasNode*> alias_def;
+
     HashTable<String,Function> function_table;
     Array<String> used_func;
     // did the last compiled function have a return
@@ -49,6 +51,7 @@ struct Interloper
     
     StructTable struct_table;
     EnumTable enum_table;
+    AliasTable alias_table;
 
     // compilier config
 

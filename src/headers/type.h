@@ -88,10 +88,11 @@ enum class type_kind
     builtin,
     enum_t,
     struct_t,
+    alias_t,
 };
 
 
-static constexpr u32 KIND_SIZE = 3;
+static constexpr u32 KIND_SIZE = 4;
 
 
 inline const char* KIND_NAMES[KIND_SIZE] = 
@@ -99,6 +100,7 @@ inline const char* KIND_NAMES[KIND_SIZE] =
     "builtin",
     "enum",
     "struct",
+    "alias",
 };
 
 
@@ -246,6 +248,17 @@ using StructTable = Array<Struct>;
 Struct struct_from_type(StructTable& struct_table, const Type* type);
 
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u32_t;
+
+
+struct TypeAlias
+{
+    String name;
+    String filename;
+
+    Type* type;
+};
+
+using AliasTable = Array<TypeAlias>;
 
 // TODO: delete the constructor, and dont forget to copy strings when we make symbols
 struct Symbol

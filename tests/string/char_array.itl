@@ -3,7 +3,7 @@
 
 func main() s32
 {
-    str : u8[?] = "Hello there";
+    str : c8[?] = "Hello there";
 
     set : u32 = 0;
 

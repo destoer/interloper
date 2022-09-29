@@ -142,10 +142,53 @@ u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Ar
 }
 
 
+TypeAlias make_alias(const String& name, const String& filename, Type* type)
+{
+    TypeAlias alias;
+    alias.name = name;
+    alias.filename = filename;
+    alias.type = type;
+
+    return alias;
+}
 
 
-// scan the top level of the parse tree for functions
-// and grab the entire signature
+void parse_alias_declarations(Interloper& itl)
+{
+    for(u32 a = 0; a < count(itl.alias_def); a++)
+    {
+        AliasNode* node = itl.alias_def[a];
+
+        if(contains(itl.type_table,node->name))
+        {
+            panic(itl,"Type with alias name %s : is allready used!\n",node->name.buf);
+            return;
+        }
+
+        Type* type = get_complete_type(itl,node->type);
+
+        if(itl.error)
+        {
+            return;
+        }
+
+        if(itl.print_types)
+        {
+            printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
+        }
+
+        const u32 slot = count(itl.alias_table);
+
+        const TypeAlias alias = make_alias(node->name,node->filename,type);
+
+        // add the alias
+        push_var(itl.alias_table,alias);
+
+        add_type_decl(itl,slot,node->name,type_kind::alias_t);
+    }
+}
+
+
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
 void parse_function_declarations(Interloper& itl)
 {
@@ -173,7 +216,7 @@ void parse_function_declarations(Interloper& itl)
             // NOTE: void return's will have a void type
             if(count(node.return_type) == 1)
             {
-                push_var(return_type,get_type(itl,node.return_type[0]));
+                push_var(return_type,get_complete_type(itl,node.return_type[0]));
 
                 // we are returning a struct add a hidden pointer as first arg
                 if(type_size(itl,return_type[0]) > GPR_SIZE)
@@ -188,7 +231,7 @@ void parse_function_declarations(Interloper& itl)
             {
                 for(u32 a = 0; a < count(node.return_type); a++)
                 {
-                    push_var(return_type,get_type(itl,node.return_type[a]));
+                    push_var(return_type,get_complete_type(itl,node.return_type[a]));
 
                     char name[40] = {0};
                     sprintf(name,"_tuple_ret_0x%x",a);
@@ -209,7 +252,7 @@ void parse_function_declarations(Interloper& itl)
                 const auto a = decl[i];
 
                 const auto name = a->name;
-                const auto type = get_type(itl,a->type);
+                const auto type = get_complete_type(itl,a->type);
 
                 const auto size = type_size(itl,type);
 
@@ -2996,6 +3039,7 @@ void destroy_ast(Interloper& itl)
     destroy_allocator(itl.ast_string_allocator);
 
     destroy_table(itl.struct_def);
+    destroy_arr(itl.alias_def);
 
     
     itl.cur_expr = nullptr;
@@ -3028,10 +3072,10 @@ void destroy_itl(Interloper &itl)
     destroy_arr(itl.used_func);
 
     // destroy typing tables
-    destroy_table(itl.struct_def);
     destroy_struct_table(itl.struct_table);
     destroy_enum_table(itl.enum_table);
     destroy_table(itl.type_table);
+    destroy_arr(itl.alias_table);
 
     destroy_allocator(itl.list_allocator);
     destroy_allocator(itl.string_allocator);
@@ -3127,7 +3171,11 @@ void compile(Interloper &itl,const String& initial_filename)
 
     // parse out any of the top level decl we need
     parse_struct_declarations(itl);
+    parse_alias_declarations(itl);
+
+
     parse_function_declarations(itl);
+    
 
     if(itl.error)
     {

@@ -579,7 +579,7 @@ void print_type(Interloper& itl, const Type* type)
     printf("type: %s\n",type_name(itl,type).buf);
 }
 
-Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE)
+Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
     Type* type = nullptr;
 
@@ -611,6 +611,14 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             case type_kind::enum_t:
             {
                 type = make_enum(itl,user_type->type_idx);
+                break;
+            }
+
+            case type_kind::alias_t:
+            {
+                TypeAlias alias = itl.alias_table[user_type->type_idx];
+
+                type = alias.type;
                 break;
             }
 
@@ -662,6 +670,12 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             // this aint legal!
             case ast_type::arr_deduce_size:
             {
+                if(complete_type)
+                {
+                    panic(itl,"type is constant and cannot be deduced by assign\n");
+                    return make_builtin(itl,builtin_type::void_t);
+                }
+
                 type = make_array(itl,type,DEDUCE_SIZE);
 
                 break;
@@ -682,6 +696,12 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
 
     return type;
+}
+
+// get back a type that does not need further deduction i.e no size deduction
+Type* get_complete_type(Interloper& itl, TypeNode* type_decl)
+{
+    return get_type(itl,type_decl,INVALID_TYPE,true);
 }
 
 // TODO: this is more restrictive than required atm
@@ -1350,6 +1370,13 @@ Type* access_type_info(Interloper& itl, Function& func, u32 dst_slot, const Type
                 panic(itl,"unknown type info for enum %s\n",type_decl.name.buf);
                 return make_builtin(itl,builtin_type::void_t);
             }
+        }
+
+        // TODO: if this is plain type pass back the type info for the underlying type
+        // else fail
+        case type_kind::alias_t:
+        {
+            assert(false);
         }
     }
 

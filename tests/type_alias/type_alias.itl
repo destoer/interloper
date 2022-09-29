@@ -1,0 +1,2 @@
+// okay for now we are just not going to worry about using type aliasing in struct decl
+// but how do we allow it because it becomes a giant dependency mess

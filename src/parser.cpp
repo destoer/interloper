@@ -906,6 +906,30 @@ BlockNode *block(Parser &parser)
 }
 
 
+void type_alias(Interloper& itl, Parser &parser, const String& filename)
+{
+    // type_alias literal '=' type ';'
+    const auto token = next_token(parser);
+
+    
+    if(token.type == token_type::symbol)
+    {
+        consume(parser,token_type::equal);
+        TypeNode* rtype = parse_type(parser);
+
+        AliasNode* alias_node = (AliasNode*)ast_alias(parser,rtype,token.literal,filename,token);
+    
+        consume(parser,token_type::semi_colon);
+
+        push_var(itl.alias_def,alias_node);
+    }
+
+    else 
+    {
+        panic(parser,token,"expected symbol for type alias name got %s\n",tok_name(token.type));
+    }
+}
+
 void func_decl(Interloper& itl, Parser &parser, const String& filename)
 {
 
@@ -1199,6 +1223,12 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
             case token_type::enum_t:
             {
                 enum_decl(itl,parser,filename);
+                break;
+            }
+
+            case token_type::type_alias:
+            {
+                type_alias(itl,parser,filename);
                 break;
             }
 
@@ -1548,6 +1578,17 @@ void print(const AstNode *root)
             }
 
             print((AstNode*)tuple_node->func_call);
+            break;
+        }
+
+        case ast_fmt::type_alias:
+        {
+            AliasNode* alias_node = (AliasNode*)root;
+
+            printf("type alias %s\n",alias_node->name.buf);
+
+            print((AstNode*)alias_node->type);
+            break;
         }
     }
 
