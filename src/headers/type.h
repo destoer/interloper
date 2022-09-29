@@ -6,7 +6,6 @@
 // if type idx is >= to this then this is a custom defined type
 static constexpr u32 BUILTIN_TYPE_SIZE = 10;
 static constexpr u32 USER_TYPE = 0xf0000000;
-static constexpr u32 TUPLE_TYPE = 0xfffffffe;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
 // NOTE: expects to be defined in same order as tokens
@@ -92,10 +91,6 @@ enum class type_kind
 };
 
 
-static constexpr u32 STRUCT_START = BUILTIN_TYPE_SIZE;
-static constexpr u32 ENUM_START = 0xe0000000;
-
-
 static constexpr u32 KIND_SIZE = 3;
 
 
@@ -106,14 +101,10 @@ inline const char* KIND_NAMES[KIND_SIZE] =
     "struct",
 };
 
-static constexpr u32 TYPE_ENCODE_TABLE[KIND_SIZE] = 
-{
-    0,
-    ENUM_START,
-    STRUCT_START,
-};
 
 
+struct Enum;
+struct Struct;
 
 struct TypeDecl
 {
@@ -125,43 +116,58 @@ struct TypeDecl
 
 struct Type
 {
-    // TODO: remove these
-    Type()
-    {
+    u32 type_idx;
 
-    }
-
-    // plain builtin type
-    Type(builtin_type t) : type_idx(conv_builtin_type(t))
-    {
-        
-    }
-
-    u32 type_idx = 0;
-
-    u32 ptr_indirection = 0;
-
-    // array definiton
-
-    // either a number of RUNTIME_SIZE i.e variable length
-    u32 dimensions[MAX_ARR_SIZE] = {0};
-    u32 degree = 0;
-
-    // array of pointers as opposed to a pointer to an array
-    b32 contains_ptr = false;
-
-    // type specifiers
-    b32 is_const = false;
-
+    // specifiers
+    b32 is_const;
 };
 
-Type raw_type(u32 idx)
+
+struct PointerType
 {
     Type type;
-    type.type_idx = idx;
 
-    return type;
-}
+    Type* contained_type;
+};
+
+struct StructType
+{
+    Type type;
+
+    u32 struct_idx;
+};
+
+struct EnumType
+{
+    Type type;
+
+    u32 enum_idx;
+};
+
+
+
+struct ArrayType
+{
+    Type type;
+
+    Type* contained_type;
+
+    // RUNTIME_SIZE or current size!
+    u32 size;
+
+    
+    // size of indexing array
+    u32 sub_size;
+};
+
+
+
+static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
+static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
+static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;
+static constexpr u32 ENUM = BUILTIN_TYPE_SIZE + 4;
+static constexpr u32 TUPLE = BUILTIN_TYPE_SIZE + 5;
+
 
 
 struct EnumMember
@@ -185,7 +191,7 @@ using EnumTable = Array<Enum>;
 
 
 std::optional<Enum> get_enum(EnumTable& enum_table, const String& name);
-Enum enum_from_type(EnumTable& enum_table, const Type& type);
+Enum enum_from_type(EnumTable& enum_table, const Type* type);
 
 struct AstNode;
 
@@ -194,7 +200,7 @@ struct Member
 {
     String name;
     u32 offset;
-    Type type;
+    Type *type;
 
     AstNode* expr = nullptr;
 };
@@ -237,18 +243,26 @@ using StructDefMap = HashTable<String,StructDef>;
 
 
 using StructTable = Array<Struct>;
-Struct struct_from_type(StructTable& struct_table, const Type& type);
+Struct struct_from_type(StructTable& struct_table, const Type* type);
 
-static const Type GPR_SIZE_TYPE = Type(builtin_type::u32_t);
+static const builtin_type GPR_SIZE_TYPE = builtin_type::u32_t;
 
 // TODO: delete the constructor, and dont forget to copy strings when we make symbols
 struct Symbol
 {
     String name;
-    Type type;
+    Type* type;
 
-    // cached sized of type
+
+    // size of plain type
+    // i.e in an array this will hold the size of the contained type
     u32 size = 0;
+
+    // how many elements there are
+    // (zero unless there is a fixed array for now)
+    u32 count = 0;
+
+
     u32 arg_offset = NON_ARG;
 
     // what slot does this symbol hold inside the ir?
@@ -292,7 +306,7 @@ struct FuncNode;
 struct Function
 {
     String name;
-    Array<Type> return_type;
+    Array<Type*> return_type;
 
     u32 hidden_args = 0;
 

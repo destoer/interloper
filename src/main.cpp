@@ -11,6 +11,7 @@ struct Config
 {
     b32 print_ast = false;
     b32 print_ir = false;
+    b32 print_tokens = false;
 
     b32 print_reg_allocation = false;
     b32 print_stack_allocation = false;
@@ -33,8 +34,9 @@ Config parse_flags(const char* flags)
             case 'r': cfg.print_reg_allocation = true; break;
             case 's': cfg.print_stack_allocation = true; break;
             case 'c': cfg.print_types = true; break;
+            case 'l': cfg.print_tokens = true; break;
 
-            default: panic("unknown flag: %c\n",flags[i]); 
+            default: crash_and_burn("unknown flag: %c\n",flags[i]); 
         }
 
         i++;
@@ -73,6 +75,8 @@ int main(int argc, char *argv[])
         // move over our config
         itl.print_ast = cfg.print_ast;
         itl.print_ir = cfg.print_ir;
+        itl.print_tokens = cfg.print_tokens;
+
         itl.print_reg_allocation = cfg.print_reg_allocation;
         itl.print_stack_allocation = cfg.print_stack_allocation;
         itl.print_types = cfg.print_types;

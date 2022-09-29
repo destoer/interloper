@@ -147,7 +147,7 @@ u32 new_tmp(Interloper& itl, u32 size)
     char name[40];
     sprintf(name,"v%d",itl.symbol_table.var_count);
 
-    Symbol sym = make_sym(itl.symbol_table,name,Type(builtin_type::void_t),size);
+    Symbol sym = make_sym(itl.symbol_table,name,make_builtin(itl,builtin_type::void_t),size);
 
     sym.slot = symbol(count(itl.symbol_table.slot_lookup));
     push_var(itl.symbol_table.slot_lookup,sym);      
@@ -442,7 +442,7 @@ u32 alloc_internal(SymbolTable& table,LocalAlloc &alloc,List &list, ListNode* no
         {
             disass_opcode_sym(opcode,table);
             print_alloc(alloc,table);
-            panic("failed to allocate register!");
+            crash_and_burn("failed to allocate register!");
         }
     }
 
@@ -662,7 +662,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
 
 void save_rv(LocalAlloc &alloc,List &list,ListNode* node,SymbolTable& table,u32 tmp)
 {
-    //panic("need to realloc tmp");
+    //crash_and_burn("need to realloc tmp");
     
 
     // get a new register
@@ -710,7 +710,7 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
             case R0_IR: opcode.v[reg] = R0; break;
             case R1_IR: opcode.v[reg] = R1; break;
 
-            default: panic("unhandled special reg %x\n",slot); break;
+            default: crash_and_burn("unhandled special reg %x\n",slot); break;
         }
     }
 
@@ -1173,7 +1173,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::state_dump:
         {
-            panic("unused state opcode");
+            crash_and_burn("unused state opcode");
         }
 
 
@@ -1284,11 +1284,10 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         // arrays
         case op_type::load_arr_data:
         {
-
             const s32 stack_offset = opcode.v[2];
             auto &sym = sym_from_slot(table,opcode.v[1]);
 
-            if(is_runtime_size(sym.type,0))
+            if(is_runtime_size(sym.type))
             {
                 node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + 0,GPR_SIZE,false);
             }
@@ -1309,7 +1308,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             auto &sym = sym_from_slot(table,opcode.v[1]);
             const s32 stack_offset = opcode.v[2];            
 
-            if(is_runtime_size(sym.type,0))
+            if(is_runtime_size(sym.type))
             {
                 // TODO: this assumes GPR_SIZE is 4
                 node->opcode = load_ptr(opcode.v[0],SP,sym.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
@@ -1317,7 +1316,9 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
             else
             {
-                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],sym.type.dimensions[0],0);
+                ArrayType* array_type = (ArrayType*)sym.type;
+
+                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],array_type->size,0);
             }
 
 
@@ -1623,7 +1624,7 @@ void emit_asm(Interloper &itl)
                     break;
                 }
 
-                default: panic("unknown pool %d\n",pool);
+                default: crash_and_burn("unknown pool %d\n",pool);
             }
 
             write_mem(itl.program,i,opcode);
@@ -1782,7 +1783,7 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
         {
             if(args == 3)
             {
-                panic("execeed opcode arg printing");
+                crash_and_burn("execeed opcode arg printing");
             }
 
             const char specifier = fmt_string[i + 1];

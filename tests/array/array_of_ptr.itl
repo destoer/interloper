@@ -8,7 +8,7 @@ func main() s32
     y : u32 = 0;
     z : u32 = 0;
 
-    buf : u32@[3] = {&x,&y,&z};
+    buf : u32[3]@ = {&x,&y,&z};
 
     for(i : u32 = 0; i < buf.len; i += 1)
     {

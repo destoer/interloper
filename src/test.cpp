@@ -68,9 +68,12 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/control_flow/for",32,false},
     {"tests/control_flow/for_outer_decl",32,false},
     {"tests/control_flow/while",32,false},
+
     {"tests/control_flow/switch_no_default",73,false},
     {"tests/control_flow/switch",447,false},
     {"tests/control_flow/switch_duplicate",-1,true},
+
+
 
     // pointers
     // TODO: impl pointer casting (wait for coerce operation)
@@ -145,9 +148,11 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/enum/enum_invalid_member",-1,true},
     {"tests/enum/enum_redeclare_member",-1,true},
     {"tests/enum/enum_redeclare",-1,true},
+    {"tests/enum/switch_enum",10,false},
 
     // tuple
     {"tests/tuple/tuple",1,false},
+
 };
 
 static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);

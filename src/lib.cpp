@@ -92,13 +92,6 @@ constexpr u32 bit_ceil(u32 v)
     return ans;
 }
 
-void print_str(const char* str, u32 count)
-{
-    for(u32 i = 0; i < count; i++)
-    {
-        printf("%s",str);
-    }
-}
 
 #ifndef _MSC_VER
 __attribute__((noreturn))
@@ -117,7 +110,7 @@ void unimplemented(const char *fmt, ...)
 #ifndef _MSC_VER
 __attribute__((noreturn))
 #endif
-void panic(const char *fmt, ...)
+void crash_and_burn(const char *fmt, ...)
 {
     printf("panic: ");
     va_list args; 
@@ -127,18 +120,6 @@ void panic(const char *fmt, ...)
     putchar('\n');
     exit(1);     
 }
-
-
-void panic(bool cond, const char *fmt, ...)
-{
-    if(cond)
-    {  
-        va_list args;
-        va_start(args,fmt);
-        panic(fmt,args);
-        va_end(args);      
-    }
-} 
 
 
 #include "alloc.cpp"

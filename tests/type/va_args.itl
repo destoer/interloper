@@ -1,6 +1,6 @@
 
 // NOTE ... is sugar for Any[]
-func sum_int(args : ...) s32
+func print_type(args : ...) s32
 {
     return 0;
 }

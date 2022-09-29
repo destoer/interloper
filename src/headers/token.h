@@ -366,7 +366,7 @@ inline bool operator != (const Token &t1, const Token &t2)
 
 inline void print_token(const Token& t)
 {
-    printf("type: %s\n",tok_name(t.type));
+    printf("type: '%s' (%d)\n",tok_name(t.type), u32(t.type));
 
     switch(t.type)
     {

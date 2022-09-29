@@ -41,6 +41,9 @@ struct Interloper
     // for longer lived strings, e.g func defs symbol names etc
     ArenaAllocator string_allocator;
 
+    // allocating all things types!
+    ArenaAllocator type_allocator;
+
     // Type lookup
     HashTable<String,TypeDecl> type_table;
     
@@ -49,9 +52,10 @@ struct Interloper
 
     // compilier config
 
-    // TODO: make this be a flag
     b32 print_ast = false;
     b32 print_ir = false;
+    b32 print_tokens = false;
+
 
     b32 print_reg_allocation = false;
     b32 print_stack_allocation = false; 
@@ -96,4 +100,4 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     itl.error = true;
 }
 
-u32 eval_int_expr(const AstNode *node);
+u32 eval_int_expr(AstNode *node);

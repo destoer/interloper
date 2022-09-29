@@ -173,11 +173,9 @@ TypeNode *parse_type(Parser &parser)
             // pointer decl
             case token_type::deref:
             {
-                while(peek(parser,0).type == token_type::deref)
-                {
-                    next_token(parser);
-                    type->ptr_indirection++;
-                }
+                consume(parser,token_type::deref);
+
+                push_var(type->compound_type,ast_plain(parser,ast_type::ptr_indirection,plain_tok));
                 break;
             }
 
@@ -185,8 +183,6 @@ TypeNode *parse_type(Parser &parser)
             // array decl
             case token_type::sl_brace:
             {
-                RecordNode* arr_decl = (RecordNode*)ast_record(parser,ast_type::arr_dimensions,plain_tok);
-
                 while(peek(parser,0).type == token_type::sl_brace)
                 {
                     consume(parser,token_type::sl_brace);
@@ -194,7 +190,7 @@ TypeNode *parse_type(Parser &parser)
                     // var size
                     if(peek(parser,0).type == token_type::sr_brace)
                     {
-                        push_var(arr_decl->nodes,ast_plain(parser,ast_type::arr_var_size,plain_tok));
+                        push_var(type->compound_type,ast_plain(parser,ast_type::arr_var_size,plain_tok));
                         consume(parser,token_type::sr_brace);
                     }
 
@@ -206,27 +202,30 @@ TypeNode *parse_type(Parser &parser)
                             consume(parser,token_type::qmark);
 
                             const auto e = ast_plain(parser,ast_type::arr_deduce_size,plain_tok);
-                            push_var(arr_decl->nodes,e);
+                            push_var(type->compound_type,e);
                         
                             consume(parser,token_type::sr_brace);
                         }
 
                         else
                         {
-                            push_var(arr_decl->nodes,expr_terminate(parser,token_type::sr_brace));
+                            AstNode* e = ast_unary(parser,expr_terminate(parser,token_type::sr_brace), ast_type::arr_fixed, plain_tok);
+
+                            push_var(type->compound_type,e);
                         }
                     }
                 }
 
-                type->arr_decl = arr_decl;
-                type->contains_ptr = type->ptr_indirection != 0;
                 break;
             }
 
-            default: quit = true; break;
+            default: 
+            {
+                quit = true; 
+                break;
+            }
         }
     }
-
 
     return type;
 }
@@ -1143,8 +1142,11 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         return true;
     }
     
-    //print_tokens(parser.tokens);
-
+    if(itl.print_tokens)
+    {
+        print_tokens(parser.tokens);
+    }
+    
     const auto size = count(parser.tokens);
 
     // TODO: move this to a seperate loop to make freeing up crap ez
@@ -1202,7 +1204,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
             default:
             {
-                panic(parser,t,"unexpected top level token %s: '%s'\n",tok_name(t.type),t.literal.buf);
+                panic(parser,t,"unexpected top level token %s(%d): '%s'\n",tok_name(t.type),u32(t.type),t.literal.buf);
                 destroy_arr(parser.tokens);
                 return true;
             }
@@ -1395,29 +1397,11 @@ void print(const AstNode *root)
         case ast_fmt::type:
         {
             TypeNode* type_decl = (TypeNode*)root;
-            printf("type: %s %s", type_decl->is_const? "const" : "",type_decl->name.buf);
+            printf("type: %s %s\n", type_decl->is_const? "const" : "",type_decl->name.buf);
 
-            const u32 dimensions = type_decl->arr_decl? count(type_decl->arr_decl->nodes) : 0;
-
-
-            if(!type_decl->contains_ptr)
+            for(u32 c = 0; c < count(type_decl->compound_type); c++)
             {
-                print_str("[]",dimensions);
-                print_str("@",type_decl->ptr_indirection);
-            }
-
-            // could be array of pointers
-            else
-            {
-                print_str("@",type_decl->ptr_indirection);
-                print_str("[]",dimensions);
-            } 
-            
-            putchar('\n');
-            
-            if(type_decl->arr_decl)
-            {
-                print((AstNode*)type_decl->arr_decl);
+                print(type_decl->compound_type[c]);
             }
             break;
         }

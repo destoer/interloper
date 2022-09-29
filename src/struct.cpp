@@ -18,7 +18,7 @@ void print_struct(Interloper& itl, const Struct& structure)
 
 void add_struct(Interloper& itl, Struct& structure, u32 slot)
 {
-    structure.type_idx = STRUCT_START + slot;
+    structure.type_idx = slot;
     itl.struct_table[slot] = structure;
     
     add_type_decl(itl,slot,structure.name,type_kind::struct_t);
@@ -44,14 +44,16 @@ void destroy_struct_table(StructTable& struct_table)
 }
 
 
-Struct struct_from_type(StructTable& struct_table, const Type& type)
+Struct struct_from_type(StructTable& struct_table, const Type* type)
 {
-    return struct_table[type.type_idx - STRUCT_START];
+    StructType* struct_type = (StructType*)type;
+
+    return struct_table[struct_type->struct_idx];
 }   
 
 
 
-std::optional<Member> get_member(StructTable& struct_table, const Type& type, const String& member_name)
+std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name)
 {
     if(!is_struct(type))
     {
@@ -163,7 +165,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
                 // so just override the type idx from the one reserved inside the def
                 if(def_has_indirection(type_decl))
                 {
-                    type_idx_override = BUILTIN_TYPE_SIZE + def.slot;
+                    type_idx_override = def.slot;
                 }
 
                 else
@@ -198,10 +200,8 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
         if(is_fixed_array(member.type))
         {
-            const auto [contained_size, count] = arr_size(itl,member.type);
-            size = contained_size * count;
+            size = arr_size(member.type);
         }
-
 
         else
         {
@@ -300,5 +300,418 @@ void parse_struct_declarations(Interloper& itl)
                 parse_def(itl,def);
             }
         }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+std::pair<Type*,u32> access_array_member(Interloper& itl, Function& func, u32 slot, Type* type, const String& member_name,u32* offset)
+{
+    const bool is_ptr = is_pointer(type);
+
+    if(member_name == "len")
+    {
+        if(!is_runtime_size(type))
+        {
+            // TODO: have the optimiser clean up dead code
+            emit(func,op_type::free_reg,slot);
+            return std::pair<Type*,u32>{type,ACCESS_FIXED_LEN_REG};
+        }
+
+        // vla
+        else
+        {
+            if(!is_ptr)
+            {
+                *offset += GPR_SIZE;
+                return std::pair<Type*,u32>{make_builtin(itl,builtin_type::u32_t),slot};
+            }
+
+            else
+            {
+                unimplemented("vla len by ptr");
+            }
+        }
+    }
+
+    else if(member_name == "data")
+    {
+        if(!is_ptr)
+        {
+            // this should probably be better typed
+            return std::pair<Type*,u32>{make_builtin(itl,GPR_SIZE_TYPE),slot};
+        }
+
+        else
+        {
+            unimplemented("data by ptr");
+        }
+    }
+
+
+    else
+    {
+        panic(itl,"unknown array member %s\n",member_name.buf);
+        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+    }
+}
+
+// returns the member + offset
+std::pair<Type*,u32> access_struct_member(Interloper& itl, Function& func, u32 slot, Type* type, const String& member_name, u32* offset)
+{
+    UNUSED(func);
+
+    // auto deref pointer
+    if(is_pointer(type))
+    {
+        const u32 ptr_slot = slot;
+        slot = new_tmp(func);
+
+        do_ptr_load(itl,func,slot,ptr_slot,type,*offset);
+        *offset = 0;
+
+        // now we are back to a straight pointer
+        type = deref_pointer(type);
+    }
+
+    // get offset for struct member
+    const auto member_opt = get_member(itl.struct_table,type,member_name);
+
+    if(!member_opt)
+    {
+        panic(itl,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
+        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+    }
+
+    const auto member = member_opt.value();
+
+    *offset += member.offset;
+
+    return std::pair<Type*,u32>{member.type,slot};    
+}
+
+
+// return type, slot, offset
+std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+{
+    BinNode* member_root =(BinNode*)node;
+
+    AstNode* expr_node = member_root->left;
+
+    // Type is allways the accessed type of the current pointer
+    u32 struct_slot = -1;
+    Type* struct_type = nullptr;
+
+    // parse out initail expr
+    switch(expr_node->type)
+    {
+        case ast_type::symbol:
+        {
+            LiteralNode* sym_node = (LiteralNode*)expr_node;
+
+            const auto name = sym_node->literal;
+            const auto sym_opt = get_sym(itl.symbol_table,name);
+
+            if(!sym_opt)
+            {
+                panic(itl,"symbol %s used before declaration\n",name.buf);
+                return std::tuple<Type*,u32,u32>{make_builtin(itl,builtin_type::void_t),0,0};
+            }            
+
+            const auto sym = sym_opt.value();
+
+            // allready a pointer so just return the slot
+            // along with the derefed type
+            if(is_pointer(sym.type))
+            {
+                struct_type = deref_pointer(sym.type);
+                struct_slot = sym.slot;
+            }
+
+            else
+            {
+                struct_slot = emit_res(func,op_type::addrof,sym.slot);
+                struct_type = sym.type;
+            }
+
+            break;        
+        }
+
+        case ast_type::index:
+        {
+            std::tie(struct_type, struct_slot) = index_arr(itl,func,expr_node,new_tmp(func));
+
+            // we return types in here as the accessed type
+            struct_type = deref_pointer(struct_type);
+            break;
+        }
+
+
+        default: 
+        {
+            panic(itl,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
+            return std::tuple<Type*,u32,u32>{make_builtin(itl,builtin_type::void_t),0,0};
+        }
+    }
+
+
+    RecordNode* members = (RecordNode*)member_root->right;
+
+    u32 member_offset = 0;
+
+    // perform each member access
+    for(u32 m = 0; m < count(members->nodes); m++)
+    {
+        AstNode *n = members->nodes[m];
+
+        switch(n->type)
+        {
+            case ast_type::access_member:
+            {
+                LiteralNode* member_node = (LiteralNode*)n;
+                const auto member_name = member_node->literal;
+
+                if(is_pointer(struct_type))
+                {
+                    PointerType* pointer_type = (PointerType*)struct_type;
+
+                    // pointer to array
+                    if(is_array(pointer_type->contained_type))
+                    {
+                       std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                    }
+
+                    else
+                    {
+                        std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                    }
+                    
+                }
+
+                else if(is_array(struct_type))
+                {
+                    std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                }
+
+                // actual struct member
+                else
+                {
+                    std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                }   
+                break;
+            }
+
+            case ast_type::index:
+            {
+                IndexNode* index_node = (IndexNode*)n;
+
+                std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,index_node->name,&member_offset);
+                
+                struct_slot = collapse_offset(func,struct_slot,&member_offset);
+
+                if(is_runtime_size(struct_type))
+                {
+                    const u32 vla_ptr = new_tmp(func);
+                    // TODO: This can be better typed to a pointer
+                    do_ptr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,builtin_type::u32_t),0);
+                    struct_slot = vla_ptr;
+                }
+
+                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot,new_tmp(func));
+
+                // deref of pointer
+                struct_type = deref_pointer(struct_type);
+                break;
+            }
+
+            default: 
+            {
+                panic(itl,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
+                return std::tuple<Type*,u32,u32>{make_builtin(itl,builtin_type::void_t),0,0};
+            }
+        }
+    }
+
+    return std::tuple<Type*,u32,u32>{struct_type,struct_slot,member_offset};
+}
+
+
+void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset = 0);
+void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset = 0);
+
+void write_struct(Interloper& itl,Function& func, u32 src_slot, Type* rtype, AstNode *node)
+{
+    const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
+    check_assign(itl,accessed_type,rtype);
+    do_ptr_store(itl,func,src_slot,ptr_slot,accessed_type, offset);
+}
+
+
+std::pair<Type*,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
+{
+    const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
+
+    // len access on fixed sized array
+    if(ptr_slot == ACCESS_FIXED_LEN_REG)
+    {
+        const ArrayType* array_type = (ArrayType*)accessed_type;
+
+        emit(func,op_type::mov_imm,dst_slot,array_type->size);
+        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::u32_t),dst_slot};
+    }
+
+    do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type,offset);
+    return std::pair<Type*,u32>{accessed_type,dst_slot};
+}
+
+
+void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, const u32 addr_slot, const Struct& structure, u32 offset = 0)
+{
+    const u32 node_len = count(node->nodes);
+    const u32 member_size = count(structure.members);
+
+    if(node_len != member_size)
+    {
+        panic(itl,"arr initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        return;
+    }
+    
+    for(u32 i = 0; i < count(structure.members); i++)
+    {
+        const auto member = structure.members[i];
+    
+        // either sub struct OR array member initializer
+        if(node->nodes[i]->type == ast_type::initializer_list)
+        {
+            if(is_array(member.type))
+            {
+               u32 arr_offset = offset + member.offset;
+               auto type = member.type;
+
+               traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],addr_slot,(ArrayType*)type,&arr_offset);
+            }
+
+            else if(is_struct(member.type))
+            {
+                const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
+                traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_slot,sub_struct,offset + member.offset);
+            }
+
+            else
+            {
+                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
+                return;
+            }
+        }
+
+        // we have a list of plain values we can actually initialize
+        else
+        {
+            // get the operand and type check it
+            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
+            check_assign(itl,member.type,rtype);
+
+            do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
+        }
+    } 
+}
+
+void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
+{
+    const auto structure = struct_from_type(itl.struct_table,sym.type);
+
+    const u32 reg_count = gpr_count(structure.size);
+    emit(func,op_type::alloc_slot,sym.slot,GPR_SIZE,reg_count);
+
+    if(decl_node->expr)
+    {
+        if(decl_node->expr->type == ast_type::initializer_list)
+        {
+            // insertion will break our reference
+            const u32 sym_slot = sym.slot;
+
+            const u32 addr_slot = new_tmp(itl,GPR_SIZE);
+
+            emit(func,op_type::addrof,addr_slot,sym_slot);
+
+            traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
+        }
+
+        else
+        {
+            const auto [rtype,slot] = compile_oper(itl,func,decl_node->expr,sym.slot);
+
+            // oper is a single symbol and the move hasn't happened we need to explictly move it
+            if(sym.slot != slot)
+            {
+                compile_move(itl,func,sym.slot,slot,sym.type,rtype);
+            }
+
+            check_assign(itl,sym.type,rtype,false,true);        
+        }
+    }
+
+    // default construction
+    else
+    {
+        // insertion will break our reference
+        const u32 sym_slot = sym.slot;
+
+        const u32 addr_slot = new_tmp(itl,GPR_SIZE);
+        emit(func,op_type::addrof,addr_slot,sym_slot);
+
+        for(u32 m = 0; m < count(structure.members); m++)
+        {
+            const auto& member = structure.members[m];
+
+            if(member.expr)
+            {
+                if(member.expr->type == ast_type::initializer_list)
+                {
+                    unimplemented("initializer list");
+                }
+
+                else
+                {
+                    const auto [rtype,slot] = compile_oper(itl,func,member.expr,new_tmp(func));
+                    check_assign(itl,member.type,rtype,false,true); 
+
+                    do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
+                }
+            }
+
+            // TODO: handle nested struct membmer
+            // (basically we need to just recurse this method)
+            else if(is_struct(member.type))
+            {
+
+            }
+
+            // TODO: handle arrays
+            else if(is_array(member.type))
+            {
+
+            }
+
+            else
+            {
+                const u32 tmp = new_tmp(func);
+                emit(func,op_type::mov_imm,tmp,default_value(member.type));
+
+                do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
+            }
+        }
+    }
+
+    if(itl.error)
+    {
+        return;
     }
 }

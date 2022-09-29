@@ -6,9 +6,9 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::u16_t, true, false ,2, 0, 0xffff},
     {builtin_type::u32_t, true, false ,4, 0, 0xffffffff},
 
-    {builtin_type::s8_t, true, true, 1, static_cast<u32>(-(0xff / 2)), (0xff / 2)},
-    {builtin_type::s16_t, true, true ,2,  static_cast<u32>(-(0xffff / 2)), (0xffff / 2)},
-    {builtin_type::s32_t, true, true ,4,  static_cast<u32>(-(0xffffffff / 2)), (0xffffffff / 2)},
+    {builtin_type::s8_t, true, true, 1, u32(-(0xff / 2)), (0xff / 2)},
+    {builtin_type::s16_t, true, true ,2,  u32(-(0xffff / 2)), (0xffff / 2)},
+    {builtin_type::s32_t, true, true ,4,  u32(-(0xffffffff / 2)), (0xffffffff / 2)},
 
     {builtin_type::byte_t, true, false, 1, 0, 0xff},
 
@@ -19,234 +19,158 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::null_t, false,false, GPR_SIZE,0,0},
 };
 
+void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype);
 
-u32 default_value(const Type& type)
+b32 is_builtin(const Type* type)
 {
-    UNUSED(type);
-    // NOTE: for now every default is zero
-    // and as such we dont bother doing any type checking either
-    return 0;
+    return type->type_idx < BUILTIN_TYPE_SIZE;
 }
 
-Type type_array(builtin_type t, u32 size, bool is_const = false)
+b32 is_integer(const Type* type)
 {
-    auto rtype = Type(t);
-    rtype.degree = 1;
-    rtype.dimensions[0] = size;
-    rtype.is_const = is_const;
-
-    return rtype;   
+    return is_builtin(type) && builtin_type_info[type->type_idx].is_integer;
 }
 
+b32 is_signed(const Type *type)
+{
+    return is_builtin(type) && builtin_type_info[type->type_idx].is_signed;
+}
+
+b32 is_signed_integer(const Type *type)
+{
+    return is_signed(type) && is_integer(type);
+}
+
+b32 is_array(const Type* type)
+{
+    return type->type_idx == ARRAY;
+}
+
+b32 is_struct(const Type* type)
+{
+    return type->type_idx == STRUCT;
+}
+
+b32 is_enum(const Type* type)
+{
+    return type->type_idx == ENUM;
+}
+
+b32 is_pointer(const Type* type)
+{
+    return type->type_idx == POINTER;
+}
+
+b32 is_bool(const Type* type)
+{
+    return type->type_idx == u32(builtin_type::bool_t);
+}
+
+b32 is_trivial_copy(const Type *type)
+{
+    return is_builtin(type) || is_pointer(type) || is_enum(type);
+}
+
+// for arrays
+b32 is_runtime_size(const ArrayType* type)
+{
+    const ArrayType* array_type = (ArrayType*)type;
+
+    return array_type->size == RUNTIME_SIZE;
+}
+
+b32 is_runtime_size(const Type* type)
+{
+    return is_runtime_size((ArrayType*)type);
+}
+
+b32 is_fixed_array_pointer(const Type* type)
+{
+    if(is_pointer(type))
+    {
+        const PointerType* pointer = (PointerType*)type;
+
+        const Type* contained_type = pointer->contained_type;
+
+        if(is_array(contained_type))
+        {
+            const ArrayType* array = (ArrayType*)contained_type;
+            return array->size != RUNTIME_SIZE;
+        }
+    }
+
+    return false;
+}
+
+
+b32 is_string(const Type* type)
+{
+    if(is_array(type))
+    {
+        const ArrayType* array_type = (ArrayType*)type;
+
+        return array_type->contained_type->type_idx == u32(builtin_type::u8_t);
+    }
+
+    return false;
+}
+
+b32 is_plain(const Type *type)
+{
+    return !is_pointer(type) && !is_array(type);
+}
+
+b32 is_plain_builtin(const Type* type)
+{
+    return is_plain(type) && is_builtin(type);
+}
+
+b32 is_value_type(const Type* type)
+{
+    return is_plain(type);
+}
+
+b32 is_fixed_array(const Type* type)
+{
+    if(is_array(type))
+    {
+        return !is_runtime_size(type);
+    }
+
+    return false;
+}
+
+
+u32 builtin_size(builtin_type t)
+{
+    return builtin_type_info[u32(t)].size;
+}
+
+u32 builtin_max(builtin_type t)
+{
+    return builtin_type_info[u32(t)].max;
+}
+
+u32 builtin_min(builtin_type t)
+{
+    return builtin_type_info[u32(t)].min;
+}
 
 const char *builtin_type_name(builtin_type t)
 {
     return TYPE_NAMES[static_cast<size_t>(t)];
 }
 
-bool is_builtin(u32 type_idx)
+builtin_type cast_builtin(const Type *type)
 {
-    return type_idx < BUILTIN_TYPE_SIZE;
+    return builtin_type(type->type_idx);
 }
 
-
-bool is_enum(const Type& t);
-
-bool is_enum(u32 type_idx)
+u32 type_size(Interloper& itl,const Type *type)
 {
-    return type_idx >= ENUM_START;
-}
-
-bool is_struct(u32 type_idx)
-{
-    return type_idx >= STRUCT_START && !is_enum(type_idx);
-}
-
-
-const char *base_type_name(Interloper& itl,u32 type_idx)
-{
-    UNUSED(itl);
-
-    if(is_builtin(type_idx))
+    if(is_builtin(type))
     {
-        return builtin_type_name(builtin_type(type_idx));
-    }
-
-    else
-    {
-        unimplemented("user defined type base name");
-    }
-}
-
-
-builtin_type conv_type_idx(int type_idx)
-{
-    return static_cast<builtin_type>(type_idx);
-}
-
-b32 is_runtime_size(const Type& type, u32 idx)
-{
-    return type.dimensions[idx] >= RUNTIME_SIZE;
-}
-
-b32 is_runtime_size(u32 size)
-{
-    return size >= RUNTIME_SIZE;
-}
-
-// NOTE: we can have a runtime sized array
-// but still have an initial on it
-u32 initial_runtime_size(u32 size)
-{
-    return size - RUNTIME_SIZE;
-}
-
-u32 make_runtime_size(u32 size)
-{
-    return size + RUNTIME_SIZE;
-}
-
-bool is_simple_type(const Type &type)
-{
-    return !type.degree;
-}
-
-// i.e has no array anywhere in its definiton
-bool same_simple_type(const Type &type1, const Type &type2)
-{
-    return (type1.type_idx == type2.type_idx) && (type1.ptr_indirection == type2.ptr_indirection); 
-}
-
-// get the base type the array holds
-// i.e u32@ or u32
-// not u32[]
-Type contained_arr_type(const Type &type)
-{
-    Type accessed_type = type;
-    accessed_type.degree = 0;
-
-    return accessed_type;
-}
-
-
-// pointer is active if not contained by an array
-// of any kind
-bool pointer_active(const Type &t)
-{
-    return t.degree == 0 || !t.contains_ptr;
-}
-
-bool is_pointer(const Type &t)
-{
-    return t.ptr_indirection && pointer_active(t); 
-}
-
-// NOTE: we use this to signify we are taking a fixed sized array
-// from something else and want to assign it to a vla etc
-// (under normal circumstances you should not be able to access to a pointer of this kind)
-// as we want to hide to semantics of its representation so we can use it
-// like any other array, there may be a better way to acheive this
-
-
-bool is_fixed_array_pointer(const Type& t)
-{
-    return is_pointer(t) && t.degree && t.dimensions[0] != RUNTIME_SIZE;
-}
-
-
-bool is_array(const Type &t)
-{
-    return t.degree >= 1 && !is_pointer(t);
-}
-
-bool is_fixed_array(const Type& t)
-{
-    return is_array(t) && t.dimensions[0] != RUNTIME_SIZE;
-}
-
-
-bool is_plain(const Type &t)
-{
-    return !is_pointer(t) && !is_array(t);
-}
-
-bool is_builtin(const Type &t)
-{
-    return is_builtin(t.type_idx);
-}
-
-bool is_plain_builtin(const Type &t)
-{
-    return is_builtin(t) && is_plain(t);
-}
-
-
-bool is_trivial_copy(const Type &t)
-{
-    return is_pointer(t) || is_plain_builtin(t) || is_enum(t);
-}
-
-
-bool is_bool(const Type &t)
-{
-    return is_plain_builtin(t) && conv_type_idx(t.type_idx) == builtin_type::bool_t;
-}
-
-bool is_integer(const Type &t)
-{
-    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_integer;
-}
-
-bool is_signed(const Type &t)
-{
-    return is_plain_builtin(t) && builtin_type_info[t.type_idx].is_signed;
-}
-
-bool is_signed_integer(const Type &t)
-{
-    return is_signed(t) && is_integer(t);
-}
-
-bool is_struct(const Type& t)
-{
-    return is_struct(t.type_idx) && is_plain(t);
-}
-
-bool is_enum(const Type& t)
-{
-    return is_enum(t.type_idx) && is_plain(t);
-}
-
-u32 builtin_size(builtin_type t)
-{
-    return builtin_type_info[static_cast<u32>(t)].size;
-}
-
-u32 builtin_max(builtin_type t)
-{
-    return builtin_type_info[static_cast<u32>(t)].max;
-}
-
-u32 builtin_min(builtin_type t)
-{
-    return builtin_type_info[static_cast<u32>(t)].min;
-}
-
-
-builtin_type cast_builtin(const Type &type)
-{
-    return builtin_type(type.type_idx);
-}
-
-
-u32 type_size(Interloper& itl,const Type &type)
-{
-    UNUSED(itl);
-
-    if(is_plain_builtin(type))
-    {
-        // assume plain type for now i.e no pointers etc
-        return builtin_size(static_cast<builtin_type>(type.type_idx));
+        return builtin_size(builtin_type(type->type_idx));
     }
 
     else if(is_pointer(type))
@@ -257,7 +181,7 @@ u32 type_size(Interloper& itl,const Type &type)
     // TODO: this doesnt handle VLA
     else if(is_array(type))
     {
-        if(is_runtime_size(type,0))
+        if(is_runtime_size(type))
         {
             return GPR_SIZE * 2;
         }
@@ -280,76 +204,285 @@ u32 type_size(Interloper& itl,const Type &type)
     unimplemented("unhandled type size");
 }
 
-u32 type_min(Interloper& itl,const Type &type)
+
+const Type* deref_pointer(const Type* type)
+{
+    const PointerType* pointer_type = (PointerType*)type;
+    return pointer_type->contained_type;
+}
+
+Type* deref_pointer(Type* type)
+{
+    PointerType* pointer_type = (PointerType*)type;
+    return pointer_type->contained_type;
+}
+
+Type* index_arr(ArrayType* array_type)
+{
+    return array_type->contained_type;
+}
+
+const Type* index_arr(const Type* type)
+{
+    ArrayType* array_type = (ArrayType*)type;
+    return array_type->contained_type;
+}
+
+Type* index_arr(Type* type)
+{
+    ArrayType* array_type = (ArrayType*)type;
+    return array_type->contained_type;
+}
+
+// gives back first type that isn't an array
+Type* contained_arr_type(ArrayType* array_type)
+{
+    while(is_array(array_type->contained_type))
+    {
+        array_type = (ArrayType*)array_type->contained_type;
+    }
+
+    return array_type->contained_type;
+}
+
+
+// gives back the absolute bottom type
+const Type* get_plain_type(const Type* type)
+{
+    for(;;)
+    {
+        switch(type->type_idx)
+        {
+            case ARRAY:
+            {
+                type = index_arr(type);
+                break;
+            }
+
+            case POINTER:
+            {
+                type = deref_pointer(type);
+                break;
+            }
+
+            default:
+            {
+                return type; 
+            }
+        }
+    }
+
+    assert(false);
+}
+
+
+u32 accumulate_count(u32 count, u32 size)
+{
+    // if count is zero we are just getting started
+    return count == 0? size : count * size;
+}
+
+void init_arr_sub_sizes(Interloper&itl,Type* type);
+
+u32 init_arr_sub_sizes_internal(Interloper& itl, Type* type)
+{
+    /* 
+        decsned until the bottom is reached mark the size
+        return up the sub size and mark it across each level of the type
+
+
+        do this for any sub indirecitons i.e pointers VLA's
+    */
+
+
+    switch(type->type_idx)
+    {
+        case ARRAY:
+        {
+            ArrayType* array_type = (ArrayType*)type;
+                
+            // VLA
+            if(is_runtime_size(type))
+            {
+                array_type->sub_size = init_arr_sub_sizes_internal(itl,index_arr(type));
+                return GPR_SIZE * 2;
+            }
+
+            // fixed size
+            else
+            {
+                array_type->sub_size = init_arr_sub_sizes_internal(itl,index_arr(type));
+                return array_type->sub_size * array_type->size;
+            }
+        }
+
+        
+        case POINTER:
+        {
+            PointerType* pointer_type = (PointerType*)type; 
+
+            // do for sub type
+            if(is_array(pointer_type->contained_type))
+            {
+                init_arr_sub_sizes(itl,pointer_type->contained_type);
+            }
+
+            return GPR_SIZE;
+        }
+
+        // plain var mark size and return it!
+        default:
+        {
+            const u32 size = type_size(itl,type);
+            return size;
+        }
+    }
+}
+
+
+void init_arr_sub_sizes(Interloper&itl,Type* type)
+{
+    init_arr_sub_sizes_internal(itl,type);
+}
+
+// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
+void init_arr_allocation(Interloper& itl, Symbol& sym)
 {
     UNUSED(itl);
 
-    if(is_plain_builtin(type))
-    {
-        // assume plain type for now i.e no pointers etc
-        return builtin_min(static_cast<builtin_type>(type.type_idx));
-    }
+    b32 done = false;
+    
+    Type* type = sym.type;
 
-    else
+    while(!done)
     {
-        unimplemented("user defined type min\n");
+        switch(type->type_idx)
+        {
+            case POINTER:
+            {
+                sym.size = GPR_SIZE;
+
+                // whatever is pointed too is responsible for handling its own allocation
+                // because it comes from somewhere else we are done!
+                done = true;
+                break;
+            }
+
+            case ARRAY:
+            {
+                ArrayType* array_type = (ArrayType*)type;
+
+                sym.count = accumulate_count(sym.count,array_type->size);
+                type = index_arr(type);
+                break;
+            }
+
+            default:
+            {
+                sym.size = type_size(itl,type);
+
+                done = true;
+                break;
+            }
+        }
     }
 }
 
-u32 type_max(Interloper& itl,const Type &type)
+
+// size of elemenent, + count
+std::pair<u32,u32> arr_alloc_size(const Symbol& sym)
 {
-    UNUSED(itl);
-
-    if(is_plain_builtin(type))
+    if(sym.count == 0)
     {
-        // assume plain type for now i.e no pointers etc
-        return builtin_max(static_cast<builtin_type>(type.type_idx));
+        return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
     }
 
-    else
-    {
-        unimplemented("user defined type max\n");
-    }
+    return std::pair<u32,u32>{sym.size,sym.count};
 }
 
-// NOTE: this should probably return any count before the runtime size...
-// along with where the first runtime size is
-
-// NOTE: this needs to be reworked to support deduced sizes
-
-std::pair<u32,u32> arr_size(Interloper&itl,const Type& arr_type)
+// total block size of the array
+u32 arr_size(const Type* type)
 {
-    u32 count = arr_type.dimensions[0];
-    for(u32 i = 0; i < arr_type.degree; i++)
+    const ArrayType* array_type = (ArrayType*)type;
+
+    if(array_type->size == RUNTIME_SIZE)
     {
-        if(arr_type.dimensions[i] == DEDUCE_SIZE)
-        {
-            return std::pair<u32,u32>{DEDUCE_SIZE,DEDUCE_SIZE};
-        }
-
-        else if(is_runtime_size(arr_type,i))
-        {
-            return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
-        }
-
-
-        // accumulate the count
-        if(i == 0)
-        {
-            count = arr_type.dimensions[i];
-        }
-
-        else
-        {
-            count *= arr_type.dimensions[i];
-        }
+        return RUNTIME_SIZE;
     }
 
-    const auto contained_type = contained_arr_type(arr_type);
-    const u32 size = type_size(itl,contained_type);
-
-    return std::pair<u32,u32>{size,count};
+    return array_type->size * array_type->sub_size;
 }
+
+
+u32 default_value(const Type* type)
+{
+    UNUSED(type);
+    // NOTE: for now every default is zero
+    // and as such we dont bother doing any type checking either
+    return 0;
+}
+
+// type creation helpers
+template<typename T>
+Type* alloc_type(Interloper& itl, u32 type_idx, b32 is_const)
+{
+    Type* type = (Type*)allocate(itl.type_allocator,sizeof(T));
+    type->type_idx = type_idx;
+    type->is_const = is_const;
+
+    return type;
+}
+
+
+Type* make_raw(Interloper& itl, u32 type)
+{
+    return alloc_type<Type>(itl,type,false);
+}
+
+Type* make_builtin(Interloper& itl, builtin_type type, b32 is_const = false)
+{
+    return alloc_type<Type>(itl,u32(type),is_const);
+}
+
+
+Type* make_pointer(Interloper& itl,Type* contained_type)
+{
+    PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,POINTER,false);
+
+    pointer_type->contained_type = contained_type;
+
+    return (Type*)pointer_type;
+}
+
+Type* make_struct(Interloper& itl, u32 struct_idx)
+{
+    StructType* struct_type = (StructType*)alloc_type<StructType>(itl,STRUCT,false);
+
+    struct_type->struct_idx = struct_idx;
+
+    return (Type*)struct_type;
+}
+
+Type* make_enum(Interloper& itl, u32 enum_idx)
+{
+    EnumType* enum_type = (EnumType*)alloc_type<EnumType>(itl,ENUM,false);
+
+    enum_type->enum_idx = enum_idx;
+
+    return (Type*)enum_type;
+}
+
+
+Type* make_array(Interloper& itl, Type* contained_type, u32 size)
+{
+    ArrayType* array_type = (ArrayType*)alloc_type<ArrayType>(itl,ARRAY,false);
+
+    array_type->size = size;
+    array_type->contained_type = contained_type;
+
+    return (Type*)array_type;
+}
+
 
 String fmt_index(Interloper& itl,u32 index)
 {
@@ -364,88 +497,212 @@ String fmt_index(Interloper& itl,u32 index)
     return make_string(itl.string_allocator,buf,len);
 }
 
-String type_name(Interloper& itl,const Type &type)
+String type_name(Interloper& itl,const Type *type)
 {
-    StringBuffer buffer;
+    StringBuffer prefix;
 
-    if(type.is_const)
+    StringBuffer compound;
+
+    if(type->is_const)
     {
-        push_string(itl.string_allocator,buffer,"const ");
+        push_string(itl.string_allocator,prefix,"const ");
     }
 
     String plain;
 
-    if(is_builtin(type))
+    b32 done = false;
+
+    while(!done)
     {
-        plain = builtin_type_name(builtin_type(type.type_idx));
-    }
-
-    else if(is_struct(type))
-    {
-        const auto structure =  struct_from_type(itl.struct_table,type);
-        plain = structure.name;
-    }
-
-    else if(is_enum(type))
-    {
-        const auto enumeration = enum_from_type(itl.enum_table,type);
-        plain = enumeration.name;
-    }
-
-    else 
-    {
-        unimplemented("unknown type name");
-    }
-
-    push_string(itl.string_allocator,buffer,plain);
-
-
-    // could be pointer to an array
-    if(!type.contains_ptr)
-    {
-        for(u32 i = 0; i < type.degree; i++)
+        switch(type->type_idx)
         {
-            push_string(itl.string_allocator,buffer,fmt_index(itl,type.dimensions[i]));
-        }  
+            case POINTER:
+            {
+                push_char(itl.string_allocator,compound,'@');
 
-        for(u32 i = 0; i < type.ptr_indirection; i++)
-        {
-            push_string(itl.string_allocator,buffer,"@");
-        } 
+                PointerType* pointer_type = (PointerType*)type;
+                type = pointer_type->contained_type;
+                break;
+            }
+
+            case STRUCT: 
+            {
+                const auto structure =  struct_from_type(itl.struct_table,type);
+                plain = structure.name;
+                done = true;
+                break;                
+            }
+
+            case ENUM: 
+            {
+                const auto enumeration = enum_from_type(itl.enum_table,type);
+                plain = enumeration.name;  
+                done = true;
+                break;              
+            }
+
+            case ARRAY:
+            {
+                ArrayType* array_type = (ArrayType*)type;
+
+                push_string(itl.string_allocator,compound,fmt_index(itl,array_type->size));
+                type = array_type->contained_type;
+                break;
+            }
+
+            // builtin
+            default:
+            {
+                plain = builtin_type_name(builtin_type(type->type_idx));
+                done = true;
+                break;
+            }
+        }
+
     }
 
-    // could be array of pointers
-    else
-    {
-        for(u32 i = 0; i < type.ptr_indirection; i++)
-        {
-            push_string(itl.string_allocator,buffer,"@");
-        } 
+    push_string(itl.string_allocator,prefix,plain);
 
-        for(u32 i = 0; i < type.degree; i++)
-        {
-            push_string(itl.string_allocator,buffer,fmt_index(itl,type.dimensions[i]));
-        }       
-    }
-    
-    push_char(itl.string_allocator,buffer,'\0');
+    // null term both strings
+    push_char(itl.string_allocator,prefix,'\0');
+    push_char(itl.string_allocator,compound,'\0');
 
-    return make_string(buffer);
+
+    // produce the final string!
+    String name = cat_string(itl.string_allocator,make_string(prefix),make_string(compound));
+
+    return name;
 }
 
-// TODO: do we want to pass the operation in here for when we support overloading?
-Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
+void print_type(Interloper& itl, const Type* type)
 {
-    UNUSED(itl);
+    printf("type: %s\n",type_name(itl,type).buf);
+}
 
+Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE)
+{
+    Type* type = nullptr;
+
+    if(struct_idx_override != INVALID_TYPE)
+    {
+        type = make_struct(itl,struct_idx_override);
+    }
+
+    else if(type_decl->type_idx == USER_TYPE)
+    {
+        const auto name = type_decl->name;
+
+        TypeDecl* user_type = lookup(itl.type_table,name);
+
+        if(!user_type)
+        {
+            panic(itl,"no type named %s\n",name.buf);
+            return make_builtin(itl,builtin_type::void_t);
+        }
+
+        switch(user_type->kind)
+        {
+            case type_kind::struct_t:
+            {
+                type = make_struct(itl,user_type->type_idx); 
+                break;
+            }
+
+            case type_kind::enum_t:
+            {
+                type = make_enum(itl,user_type->type_idx);
+                break;
+            }
+
+            default: assert(false);
+        }       
+    }
+
+    else
+    {
+        type = make_raw(itl,type_decl->type_idx);
+    }
+
+
+    type->is_const = type_decl->is_const;
+
+    // arrays, pointers
+    for(s32 c = count(type_decl->compound_type) - 1; c >= 0; c--)
+    {
+        AstNode* node = type_decl->compound_type[c];
+
+        switch(node->type)
+        {
+            // pointer to current type
+            case ast_type::ptr_indirection:
+            {
+                type = make_pointer(itl,type);
+                break;
+            }
+
+            case ast_type::arr_var_size:
+            {
+                type = make_array(itl,type,RUNTIME_SIZE);
+
+                break;
+            }
+
+            // TODO: we need to revise the decl order on this!
+            case ast_type::arr_fixed:
+            {
+                UnaryNode* unary_node = (UnaryNode*)node;
+
+                const u32 size = eval_int_expr(unary_node->next);
+
+                type = make_array(itl,type,size);
+                break;
+            }
+
+            // TODO: if we allready have a indireciton that aint flat, i.e a vla or pointer
+            // this aint legal!
+            case ast_type::arr_deduce_size:
+            {
+                type = make_array(itl,type,DEDUCE_SIZE);
+
+                break;
+            }
+
+            default:
+            {
+                panic(itl,"invalid type specifier: %s\n",AST_NAMES[u32(node->type)]);
+                return make_builtin(itl,builtin_type::void_t);
+            }
+        }
+    }
+
+    if(is_array(type))
+    {
+        init_arr_sub_sizes(itl,type);
+    }
+
+
+    return type;
+}
+
+// TODO: this is more restrictive than required atm
+b32 def_has_indirection(TypeNode *type_decl)
+{
+    return count(type_decl->compound_type);
+}
+
+
+
+// TODO: do we want to pass the operation in here for when we support overloading?
+Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
+{
     // builtin type
-    if(is_plain_builtin(rtype) && is_plain_builtin(ltype))
+    if(is_builtin(rtype) && is_builtin(ltype))
     {
         // both integers
         if(is_integer(rtype) && is_integer(ltype))
         {
-            const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
-            const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
+            const auto builtin_r = builtin_type(rtype->type_idx);
+            const auto builtin_l = builtin_type(ltype->type_idx);
 
             // return the larger size of the type (promotion)
             return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype; 
@@ -455,7 +712,7 @@ Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
         else
         {
             panic(itl,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            return Type(builtin_type::void_t);
+            return make_builtin(itl,builtin_type::void_t);
         }
 
     }
@@ -474,59 +731,15 @@ Type effective_arith_type(Interloper& itl,const Type &ltype, const Type &rtype)
     }
 }
 
-void type_check_pointer(Interloper& itl,const Type& ltype, const Type& rtype)
-{
-    if(ltype.ptr_indirection != rtype.ptr_indirection)
-    {
-        panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-        return;
-    }
-
-    if(ltype.degree != rtype.degree)
-    {
-        panic(itl,"expected pointer to array of degree %d got %d\n",ltype.degree,rtype.degree);
-        return;
-    }
-
-    for(u32 i = 0; i < ltype.degree; i++)
-    {
-        if(ltype.dimensions[i] != rtype.dimensions[i])
-        {
-            panic(itl,"(%d) expected pointer to array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
-            return;
-        }   
-    }
-
-    if(ltype.type_idx != rtype.type_idx)
-    {
-        // rtype of NULL is implictly converted 
-        if(is_builtin(rtype) && rtype.type_idx == u32(builtin_type::null_t))
-        {
-
-        }
-
-        // and any pointer is allowed to be assigned to a byte
-        else if(is_builtin(ltype) && ltype.type_idx == u32(builtin_type::byte_t))
-        {
-
-        }
-
-        else
-        {
-            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-        }
-    }    
-}
-
-void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtype, logic_op type)
+void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtype, logic_op type)
 {
     UNUSED(itl);
 
     // both are builtin
-    if(is_plain_builtin(rtype) && is_plain_builtin(ltype))
+    if(is_builtin(rtype) && is_builtin(ltype))
     {
-        const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
-        const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
+        const auto builtin_r = builtin_type(rtype->type_idx);
+        const auto builtin_l = builtin_type(ltype->type_idx);
 
         // both integers 
         if(is_integer(rtype) && is_integer(ltype))
@@ -563,7 +776,7 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
             return;
         }
 
-        if(ltype.type_idx != rtype.type_idx)
+        if(ltype->type_idx != rtype->type_idx)
         {
             panic(itl,"expected enum of the same type for comparsions %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
@@ -578,44 +791,34 @@ void check_logical_operation(Interloper& itl,const Type &ltype, const Type &rtyp
 }
 
 
-bool is_value_type(const Type& type)
-{
-    return is_plain(type);
-}
-
-void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_arg, bool is_initializer)
+void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
 {
     // handle const
     // TODO: this does not typecheck arrays yet
-    if(rtype.is_const)
+    if(rtype->is_const)
     {
         if(is_arg)
         {
-            // if both are value types this is fine as its just a copy
-            if(is_value_type(rtype) && is_value_type(rtype))
-            {
-
-            }
-
-            // if the ltype is const and the rtype is not this is illegal
-            else if(!ltype.is_const)
+            // if the ltype is not const and the rtype is not this is illegal
+            if(!ltype->is_const)
             {
                 panic(itl,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                 return;
             }
         }
 
+        // assign
         else
         {
             // ltype is const
             // only valid given an initialisation
-            if(ltype.is_const && !is_initializer)
+            if(ltype->is_const && !is_initializer)
             {
                 panic(itl,"cannot to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
-            // ltype is not const, fine given that the rtype is a value type
-            else if(!is_value_type(rtype))
+            // ltype is not const illegal
+            else
             {
                 panic(itl,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }  
@@ -623,7 +826,7 @@ void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_a
     }
 
     
-    else if(ltype.is_const)
+    else if(ltype->is_const)
     {
         // if its an arg or initalizer its fine
         if(!is_initializer && !is_arg)
@@ -634,23 +837,175 @@ void check_const(Interloper&itl, const Type& ltype, const Type& rtype, bool is_a
     }
 }
 
-void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_arg = false, bool is_initializer = false)
+// NOTE: this is expected to be called after main sets of type checking
+// so types should atleast be the same fmt at every level
+void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
 {
-    // check const first
-    check_const(itl,ltype,rtype,is_arg,is_initializer);
+    b32 done = false;
 
-
-    // if we have the same types we dont care
-    if(is_simple_type(ltype) && is_simple_type(rtype) && same_simple_type(ltype,rtype))
+    // value types can be copied if only the rype is const
+    if(is_value_type(rtype) && is_value_type(ltype))
     {
-        return;
+        // can be copied fine
+        if(rtype->is_const && !ltype->is_const)
+        {
+            return;
+        }
     }
 
-    // both are builtin
-    if(is_plain_builtin(rtype) && is_plain_builtin(ltype))
+
+    // check const specifiers at every level
+    while(!done)
     {
-        const auto builtin_r = static_cast<builtin_type>(rtype.type_idx);
-        const auto builtin_l = static_cast<builtin_type>(ltype.type_idx);
+        switch(ltype->type_idx)
+        {
+            case ARRAY:
+            {
+                assert(false);
+            }
+
+            case POINTER:
+            {
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+
+                // check sub types
+                ltype = deref_pointer(ltype);
+                rtype = deref_pointer(rtype);
+                break;
+            }
+
+            case STRUCT:
+            {
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                done = true;
+                break;
+            }
+
+            case ENUM:
+            {
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                done = true;
+                break;
+            }
+
+            // check end type
+            default:
+            {
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                done = true;
+                break;
+            }
+        }
+    }
+}
+
+b32 plain_type_equal(const Type* ltype, const Type* rtype)
+{
+    switch(ltype->type_idx)
+    {
+        case STRUCT:
+        {
+            StructType* struct_ltype = (StructType*)ltype;
+            StructType* struct_rtype = (StructType*)rtype;
+
+            return struct_ltype->struct_idx == struct_rtype->struct_idx;
+        }
+
+        case ENUM:
+        {
+            assert(false);
+        }
+
+        default:
+        {
+            return ltype->type_idx == rtype->type_idx;
+        }
+    }
+}
+
+
+
+void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
+{
+    UNUSED(itl);
+
+
+    b32 indirection = true;
+
+    // descend until we hit the base type
+    // check they are equal at each step
+    while(indirection)
+    {
+        // types are mismatched we are done
+        if(ltype->type_idx != rtype->type_idx)
+        {
+            indirection = false;
+        }
+
+        else
+        {
+            switch(ltype->type_idx)
+            {
+                case POINTER:
+                {
+                    ltype = deref_pointer(ltype);
+                    rtype = deref_pointer(rtype);
+
+                    break;
+                }
+
+                case ARRAY:
+                {
+                    assert(false);
+                }
+
+                // is a standard type, struct, enum, builtin etc2
+                default:
+                {
+                    indirection = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(!is_plain(ltype) || !is_plain(rtype))
+    {
+        panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+    }
+
+    // anything else
+    else
+    {
+        // anything of NULL is implictly converted
+        if(rtype->type_idx == u32(builtin_type::null_t))
+        {
+
+        }
+
+        // anything against a ltype of byte is fine!
+        else if(ltype->type_idx == u32(builtin_type::byte_t))
+        {
+
+        }
+
+        // if base types still aernt equal we have a problem!
+        else if(!plain_type_equal(ltype,rtype))
+        {
+            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        }
+    }
+}
+
+
+
+void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
+{
+    // both are builtin
+    if(is_builtin(rtype) && is_builtin(ltype))
+    {
+        const auto builtin_r = builtin_type(rtype->type_idx);
+        const auto builtin_l = builtin_type(ltype->type_idx);
 
         // both integers
         if(is_integer(ltype) && is_integer(rtype))
@@ -663,7 +1018,7 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
 
             // unsigned cannot assign to signed
             // TODO: do we want to be this pedantic with integer conversions?
-            if(!is_signed(builtin_l) && is_signed(builtin_r))
+            if(!is_signed(ltype) && is_signed(rtype))
             {
                 panic(itl,"unsigned = signed (%s = %s)\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
@@ -679,6 +1034,12 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
                 panic(itl,"void assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
+            // same type is fine
+            else if(builtin_r == builtin_l)
+            {
+
+            }
+
             else
             {
                 unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
@@ -688,10 +1049,22 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
 
     else if(is_struct(ltype) && is_struct(rtype))
     {
-        if(!same_simple_type(ltype,rtype))
+        StructType* struct_ltype = (StructType*)ltype;
+        StructType* struct_rtype = (StructType*)rtype;
+
+        if(struct_ltype->struct_idx != struct_rtype->struct_idx)
         {
             panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
         }
+    }
+}
+
+void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_arg = false, b32 is_initializer = false)
+{
+    if(is_plain(rtype) && is_plain(ltype))
+    {
+        check_assign_plain(itl,ltype,rtype);
     }
 
     // check assign by ltype
@@ -717,67 +1090,82 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
                 return;
             }
 
-            if(ltype.type_idx != rtype.type_idx)
+            b32 done = false;
+
+            while(!done)
             {
-                panic(itl,"expected array of underlying type %s got %s\n",base_type_name(itl,ltype.type_idx),base_type_name(itl,rtype.type_idx));
-                return;
-            }
-
-            if(ltype.ptr_indirection != rtype.ptr_indirection)
-            {
-                panic(itl,"expected pointer of indirection %d got %d\n",ltype.ptr_indirection,rtype.ptr_indirection);
-                return;
-            }
-
-            if(ltype.degree != rtype.degree)
-            {
-                panic(itl,"expected array of degree %d got %d\n",ltype.degree,rtype.degree);
-                return;
-            }
-
-
-            // when we conv them the rule is to push struct convs to a vla
-            // until we hit the end or something that is allready a vla
-            // as it will allready hold it in the correct from 
-
-            // dimension assign
-            // assign to var size, have to be equal or a runtime size
-            // [][] = [][3]
-            // [][3] = [][3]
-            // [][] = [][]
-            // [][] = [3][3] 
-
-
-            // for arg passing only
-            // valid
-            // [3] = [3]
-
-
-            // we need to make sure we cant
-            // assign to static arrays?
-            // wait do we actually care....
-            if(!is_arg)
-            {
-                if(!is_runtime_size(ltype.dimensions[0]))
+                if(ltype->type_idx != rtype->type_idx)
                 {
-                    panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                    panic(itl,"expected array of underlying type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                     return;
                 }
-            }
 
-            for(u32 i = 0; i < ltype.degree; i++)
-            {
-                // any assignment is valid if the dst is a vla
-                if(!is_runtime_size(ltype.dimensions[i]))
+                switch(ltype->type_idx)
                 {
-                    if(ltype.dimensions[i] != rtype.dimensions[i])
+                    case ARRAY:
                     {
-                        panic(itl,"(%d) expected array of size %d got %d\n",i,ltype.dimensions[i],rtype.dimensions[i]);
-                        return;
+                        ArrayType* array_ltype = (ArrayType*)ltype;
+                        ArrayType* array_rtype = (ArrayType*)rtype;
+
+                        // when we conv them the rule is to push struct convs to a vla
+                        // until we hit the end or something that is allready a vla
+                        // as it will allready hold it in the correct from 
+
+                        // dimension assign
+                        // assign to var size, have to be equal or a runtime size
+                        // [][] = [][3]
+                        // [][3] = [][3]
+                        // [][] = [][]
+                        // [][] = [3][3] 
+
+
+                        // for arg passing only
+                        // valid
+                        // [3] = [3]
+
+                        if(!is_arg)
+                        {
+                            if(!is_runtime_size(ltype))
+                            {
+                                panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                                return;
+                            }
+                        }
+
+                        // any assignment is valid if the dst is a vla
+                        if(!is_runtime_size(ltype))
+                        {
+                            if(array_ltype->size != array_rtype->size)
+                            {
+                                panic(itl,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
+                                return;
+                            }
+                        }    
+
+                        ltype = index_arr(ltype);
+                        rtype = index_arr(rtype);                                       
+                        
+                        break;
+                    }
+
+                    case POINTER:
+                    {
+                        assert(false);
+                    }
+
+                    default:
+                    {
+                        done = true;
                     }
                 }
             }
+
+            // finally type check the base type!
+            check_assign_plain(itl,ltype,rtype);
+
+
         }
+
 
 
         else
@@ -785,33 +1173,28 @@ void check_assign(Interloper& itl,const Type &ltype, const Type &rtype, bool is_
             panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }
+
+
+    if(!itl.error)
+    {
+        // we know this will descend properly so check const!
+        check_const(itl,ltype,rtype,is_arg,is_initializer);
+    }
 }
 
-// start here
-// we need to implement proper stores and loads 
-// for each type first
-void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const Type &old_type, const Type &new_type)
+void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const Type *old_type, const Type *new_type)
 {
     if(itl.error)
     {
         return;
     }
 
-    // we dont care if we have the same type
-    // i.e this cast does nothing
-    if(is_simple_type(old_type) && is_simple_type(new_type) && same_simple_type(old_type,new_type))
-    {
-        return;
-    }
-
-
-
     // handle side effects of the cast
     // builtin type
     if(is_plain_builtin(old_type) && is_plain_builtin(new_type))
     {
-        const auto builtin_old = static_cast<builtin_type>(old_type.type_idx);
-        const auto builtin_new = static_cast<builtin_type>(new_type.type_idx);
+        const auto builtin_old = builtin_type(old_type->type_idx);
+        const auto builtin_new = builtin_type(new_type->type_idx);
 
         // integer
         if(is_integer(old_type) && is_integer(new_type))
@@ -842,7 +1225,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
                         break;
                     }
 
-                    default: panic("invalid signed integer upcast");
+                    default: crash_and_burn("invalid signed integer upcast");
                 }
             }
 
@@ -864,7 +1247,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
                         break;
                     }
 
-                    default: panic("invalid signed integer downcast");
+                    default: crash_and_burn("invalid signed integer downcast");
                 }
             }
 
@@ -877,7 +1260,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
         }
 
         // bool to integer
-        else if(builtin_old == builtin_type::bool_t && is_integer(builtin_new))
+        else if(builtin_old == builtin_type::bool_t && is_integer(new_type))
         {
             // do nothing 0 and 1 are fine as integers
             // we do want this to require a cast though so conversions have to be explicit
@@ -886,9 +1269,9 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
 
         // integer to bool
         // if integer is > 0, its true else false
-        else if(is_integer(builtin_old) && builtin_new == builtin_type::bool_t)
+        else if(is_integer(old_type) && builtin_new == builtin_type::bool_t)
         {
-            if(is_signed(builtin_old))
+            if(is_signed(old_type))
             {
                 emit(func,op_type::cmpsgt_imm,dst_slot,src_slot,0);
             }
@@ -932,90 +1315,45 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
 
 }
 
-// TODO: this is more restrictive than required atm
-bool def_has_indirection(TypeNode *type_decl)
+
+Type* access_type_info(Interloper& itl, Function& func, u32 dst_slot, const TypeDecl& type_decl, const String& member_name)
 {
-    return type_decl->ptr_indirection || type_decl->arr_decl != nullptr;
-}
-
-Type get_type(Interloper &itl, TypeNode *type_decl, u32 type_idx_override = INVALID_TYPE)
-{
-    Type type;
-
-    if(type_idx_override != INVALID_TYPE)
+    switch(type_decl.kind)
     {
-        type.type_idx = type_idx_override;
-    }
-
-    else if(type_decl->type_idx == USER_TYPE)
-    {
-        const auto name = type_decl->name;
-
-        TypeDecl* user_type = lookup(itl.type_table,name);
-
-        if(!user_type)
+        case type_kind::builtin:
         {
-            panic(itl,"no type named %s\n",name.buf);
-            return type;
+            unimplemented("builtin type info");
+            return make_builtin(itl,builtin_type::void_t);
         }
 
-        type.type_idx = user_type->type_idx + TYPE_ENCODE_TABLE[u32(user_type->kind)];   
-    }
-
-    else
-    {
-        type.type_idx = type_decl->type_idx;
-    }
-
-    type.ptr_indirection = type_decl->ptr_indirection;
-    type.contains_ptr = type_decl->contains_ptr;
-    type.is_const = type_decl->is_const;
-
-    RecordNode* arr_decl = type_decl->arr_decl;
-
-    if(arr_decl)
-    {
-        type.degree = count(arr_decl->nodes);
-        
-        for(u32 i = 0; i < type.degree; i++)
+        case type_kind::struct_t:
         {
-            if(i >= MAX_ARR_SIZE)
+            unimplemented("struct type info");
+            return make_builtin(itl,builtin_type::void_t);
+        }
+
+        case type_kind::enum_t:
+        {
+            if(member_name == "len")
             {
-                panic(itl,"array dimensions execeeded %s\n",type_decl->name.buf);
-                return type;
+                const auto enumeration = itl.enum_table[type_decl.type_idx];
+
+                const u32 enum_len = enumeration.member_map.size;
+
+                emit(func,op_type::mov_imm,dst_slot,enum_len);
+
+                return make_builtin(itl,builtin_type::u32_t);
             }
 
-            auto n = arr_decl->nodes[i];
-
-            // variable size
-            if(n->type == ast_type::arr_var_size)
-            {
-                type.dimensions[i] = RUNTIME_SIZE;
-            }
-
-            else if(n->type == ast_type::arr_deduce_size)
-            {
-                type.dimensions[i] = DEDUCE_SIZE;
-            }
-
-            // fixed size: const expr
             else
             {
-                type.dimensions[i] = eval_int_expr(n);
+                panic(itl,"unknown type info for enum %s\n",type_decl.name.buf);
+                return make_builtin(itl,builtin_type::void_t);
             }
-        }        
+        }
     }
 
-    // TODO: handle pointers etc
-
-    return type;
-}
-
-void destroy_func(Function& func)
-{
-    destroy_arr(func.args);
-    destroy_arr(func.return_type);
-    destroy_emitter(func.emitter);
+    assert(false);
 }
 
 void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
@@ -1029,42 +1367,11 @@ void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind 
     add(itl.type_table,type_decl.name,type_decl);    
 }
 
-Type access_type_info(Interloper& itl, Function& func, u32 dst_slot, const TypeDecl& type_decl, const String& member_name)
+
+
+void destroy_func(Function& func)
 {
-    switch(type_decl.kind)
-    {
-        case type_kind::builtin:
-        {
-            unimplemented("builtin type info");
-            return Type(builtin_type::void_t);
-        }
-
-        case type_kind::struct_t:
-        {
-            unimplemented("struct type info");
-            return Type(builtin_type::void_t);
-        }
-
-        case type_kind::enum_t:
-        {
-            if(member_name == "len")
-            {
-                const auto enumeration = itl.enum_table[type_decl.type_idx];
-
-                const u32 enum_len = enumeration.member_map.size;
-
-                emit(func,op_type::mov_imm,dst_slot,enum_len);
-
-                return Type(builtin_type::u32_t);
-            }
-
-            else
-            {
-                panic(itl,"unknown type info for enum %s\n",type_decl.name.buf);
-                return Type(builtin_type::void_t);
-            }
-        }
-    }
-
-    assert(false);
+    destroy_arr(func.args);
+    destroy_arr(func.return_type);
+    destroy_emitter(func.emitter);
 }

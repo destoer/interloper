@@ -181,7 +181,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
     }
 
     // should not be reached
-    panic("led fell through!?");
+    crash_and_burn("led fell through!?");
     return nullptr;
 }
 

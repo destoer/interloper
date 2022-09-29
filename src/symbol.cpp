@@ -48,7 +48,7 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)
 }
 
 
-Symbol make_sym(SymbolTable& table,const String& name, const Type& type, u32 size, u32 arg = NON_ARG)
+Symbol make_sym(SymbolTable& table,const String& name, Type* type, u32 size, u32 arg = NON_ARG)
 {
     Symbol symbol = {};
     symbol.name = copy_string(*table.string_allocator,name);
@@ -59,7 +59,7 @@ Symbol make_sym(SymbolTable& table,const String& name, const Type& type, u32 siz
     return symbol;
 }
 
-Symbol make_sym(SymbolTable& table,const char* name, const Type& type, u32 size, u32 arg = NON_ARG)
+Symbol make_sym(SymbolTable& table,const char* name, Type* type, u32 size, u32 arg = NON_ARG)
 {
     Symbol symbol = {};
     symbol.name = make_string(*table.string_allocator,name,strlen(name));
@@ -86,7 +86,7 @@ void add_scope(SymbolTable &sym_table, Symbol &sym)
     sym_table.sym_count++;
 }    
 
-Symbol &add_symbol(SymbolTable &sym_table,const String &name, const Type &type, u32 size)
+Symbol &add_symbol(SymbolTable &sym_table,const String &name, Type *type, u32 size)
 {
     auto sym = make_sym(sym_table,name,type,size);
 
