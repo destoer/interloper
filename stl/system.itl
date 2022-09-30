@@ -6,7 +6,7 @@ func write_string(str: const string)
 }
 
 
-func exit(exit_code: u32)
+func exit(exit_code: s32)
 {
     intrin_syscall(0,exit_code,0);
 }

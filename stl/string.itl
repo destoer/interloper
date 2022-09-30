@@ -19,3 +19,21 @@ func to_lower(char: c8) c8
 
 
 //func print(fmt: const str, ...)
+
+// TODO: switch this over to format string
+// TODO: add line and file info? (what mechanism should be used for this)
+func unimplemented(str: string)
+{
+    write_string("unimplemented: ");
+    write_string(str);
+    
+    exit(1);
+}
+
+func crash_and_burn(str: string)
+{
+    write_string("crash and burn: ");
+    write_string(str);
+
+    exit(1);
+}

@@ -2947,7 +2947,7 @@ void compile_functions(Interloper &itl)
 
     // push the start func
     mark_used(itl,*lookup(itl.function_table,String("main")));
-
+    mark_used(itl,*lookup(itl.function_table,String("start")));
 
 
     for(u32 idx = 0; idx != count(itl.used_func); idx++)
@@ -3163,13 +3163,22 @@ void compile(Interloper &itl,const String& initial_filename)
         }
     }
 
-    // ensure the entry function is defined
+    // ensure the entry functions are defined
     if(!contains(itl.function_table,String("main")))
     {
         panic(itl,"main is not defined!\n");
         destroy_itl(itl);
         return;
     }
+
+    // ensure the entry function is defined
+    if(!contains(itl.function_table,String("start")))
+    {
+        panic(itl,"start is not defined!\n");
+        destroy_itl(itl);
+        return;
+    }
+
 
 
     parse_function_declarations(itl);

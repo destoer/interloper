@@ -1500,15 +1500,12 @@ void emit_asm(Interloper &itl)
     HashTable<u32,u32> inv_label_lookup = make_table<u32,u32>();
 
 
-    // TODO: we want to make this be a start function defined inside the stl
-    // so we can swap it easily with something that does more finicky things later
 
-    // emit a dummy call to main
-    // that will get filled in later once we know where main lives
-    insert_program(itl,Opcode(op_type::call,lookup(itl.function_table,String("main"))->slot,0,0));
 
-    // program exit
-    insert_program(itl,Opcode(op_type::swi,SYSCALL_EXIT,0,0));
+    // emit a dummy call to start
+    // that will get filled in later once we know where it is
+    insert_program(itl,Opcode(op_type::call,lookup(itl.function_table,String("start"))->slot,0,0));
+
 
     // resolve all our labels, dump all our machine code into a buffer
     for(u32 b = 0; b < count(itl.function_table.buf); b++)
