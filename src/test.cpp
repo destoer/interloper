@@ -150,6 +150,9 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/enum/enum_redeclare",-1,true},
     {"tests/enum/switch_enum",10,false},
 
+    // type alias
+    {"tests/type_alias/type_alias",65,false},
+
     // tuple
     {"tests/tuple/tuple",1,false},
 
