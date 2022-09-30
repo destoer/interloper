@@ -6,7 +6,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line);
 void compile_block(Interloper &itl,Function &func,BlockNode *node);
 u32 compile_basic_block(Interloper &itl,Function &func,BlockNode *node, block_type type);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
-std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot);
+std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
 void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
 std::pair<Type*, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
@@ -406,10 +406,10 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 }
 
 
-// this should handle grabbing values and symbols
-// if it can see a symbol or a value it wont call compile_expression (it is up to caller)
-// to decide what to actually do with operands
-std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, u32 dst_slot)
+// for compiling operands i.e we dont care where it goes as long as we get something!
+// i.e inside operators, function args, the call is responsible for making sure it goes in the right place
+// NOTE: this returns out fixed array pointers and may require conversion by caller!
+std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node)
 {
     if(!node)
     {
@@ -419,71 +419,26 @@ std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node, 
     // for error printing
     itl.cur_expr = node;
 
-    // test what the current node is
+
     switch(node->type)
     {
-        case ast_type::value:
-        {
-            const auto t1 = value(itl,func,node,dst_slot);
-            return std::pair<Type*,u32>{t1,dst_slot};
-        }
-
+        // just want symbol name out without copying it
         case ast_type::symbol:
         {
             return symbol(itl,node);
         }
 
-
-        case ast_type::char_t:
-        {
-            CharNode* char_node = (CharNode*)node;
-
-            emit(func,op_type::mov_imm,dst_slot,char_node->character);
-            return std::pair<Type*,u32>{make_builtin(itl,builtin_type::u8_t),dst_slot};
-        }
-
-        case ast_type::access_struct:
-        {
-            // are we accessing type info on a type name?
-            BinNode* member_root = (BinNode*)node;
-            AstNode* expr_node = member_root->left;
-
-            if(expr_node->type == ast_type::symbol)
-            {
-                RecordNode* members = (RecordNode*)member_root->right;
-
-                // potential type info access
-                if(count(members->nodes) == 1 && members->nodes[0]->type == ast_type::access_member)
-                {
-                    LiteralNode* sym_node = (LiteralNode*)expr_node;
-                    const auto name = sym_node->literal;
-
-                    TypeDecl* type_decl = lookup(itl.type_table,name);
-
-                    if(type_decl)
-                    {
-                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
-
-                        auto type = access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
-
-                        return std::pair<Type*,u32>{type,dst_slot};
-                    }
-                }
-
-            }
-
-            
-            return read_struct(itl,func,dst_slot,node);            
-        }
-
+        // may get a back a fixed array as a oper and we want to do a conversion on it
         case ast_type::index:
         {
-            return read_arr(itl,func,node,dst_slot);
+            return read_arr(itl,func,node,new_tmp(func));
         }
 
         // compile an expr
         default:
         {
+            const u32 dst_slot = new_tmp(func);
+
             const auto t1 = compile_expression(itl,func,node,dst_slot);
             return std::pair<Type*,u32>{t1,dst_slot};
         }
@@ -496,8 +451,8 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type typ
 {
     BinNode* bin_node = (BinNode*)node;
 
-    const auto [t1,v1] = compile_oper(itl,func,bin_node->left,new_tmp(func));
-    const auto [t2,v2] = compile_oper(itl,func,bin_node->right,new_tmp(func));
+    const auto [t1,v1] = compile_oper(itl,func,bin_node->left);
+    const auto [t2,v2] = compile_oper(itl,func,bin_node->right);
 
     // pointer arith adds the size of the underlying type
     if(is_pointer(t1) && is_integer(t2))
@@ -535,8 +490,8 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32
 {
     BinNode* bin_node = (BinNode*)node;
 
-    const auto [t1,v1] = compile_oper(itl,func,bin_node->left,new_tmp(func));
-    const auto [t2,v2] = compile_oper(itl,func,bin_node->right,new_tmp(func));
+    const auto [t1,v1] = compile_oper(itl,func,bin_node->left);
+    const auto [t2,v2] = compile_oper(itl,func,bin_node->right);
 
     if(!(is_integer(t1) && is_integer(t2)))
     {
@@ -607,8 +562,8 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
 {
     BinNode* bin_node = (BinNode*)node;
 
-    auto [type_left,v1] = compile_oper(itl,func,bin_node->left,new_tmp(func));
-    auto [type_right,v2] = compile_oper(itl,func,bin_node->right,new_tmp(func));
+    auto [type_left,v1] = compile_oper(itl,func,bin_node->left);
+    auto [type_right,v2] = compile_oper(itl,func,bin_node->right);
 
 
 
@@ -901,7 +856,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
 
             else
             {
-                auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx],new_tmp(func));
+                auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
                 // fixed sized array
                 if(is_fixed_array_pointer(arg_type))
@@ -947,7 +902,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
         {
            const auto structure = struct_from_type(itl.struct_table,arg.type);
 
-            const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx],new_tmp(func));
+            const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
             check_assign(itl,arg.type,arg_type,true);
 
 
@@ -971,7 +926,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
         else
         {
             // builtin type
-            const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx],new_tmp(func));
+            const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
 
             // type check the arg
@@ -1193,7 +1148,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             }
 
             // compile the compare expr for conditon
-            const auto [t,r] = compile_oper(itl,func,if_stmt->left,new_tmp(func));
+            const auto [t,r] = compile_oper(itl,func,if_stmt->left);
 
             if(!is_bool(t))
             {
@@ -1277,14 +1232,20 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     BinNode* while_node = (BinNode*)node;
 
     // compile cond
-    const auto [t,stmt_cond_reg] = compile_oper(itl,func,while_node->left,new_tmp(func));
+    const auto [t,stmt_cond_reg] = compile_oper(itl,func,while_node->left);
+
+    if(!is_bool(t))
+    {
+        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).buf);
+        return;
+    }    
 
     // compile body
     const u32 cur = compile_basic_block(itl,func,(BlockNode*)while_node->right,block_type::while_t); 
 
 
     u32 loop_cond_reg;
-    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left,new_tmp(func));
+    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left);
     emit(func,op_type::bc,cur,loop_cond_reg);
 
     const u32 exit_label = new_basic_block(itl,func,old);
@@ -1341,7 +1302,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     }
     
 
-    const auto [t,stmt_cond_reg] = compile_oper(itl,func,for_node->cond,new_tmp(func));
+    const auto [t,stmt_cond_reg] = compile_oper(itl,func,for_node->cond);
 
     if(!is_bool(t))
     {
@@ -1358,7 +1319,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     
 
     u32 loop_cond_reg;
-    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,for_node->cond,new_tmp(func));
+    std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,for_node->cond);
     emit(func,op_type::bc,cur,loop_cond_reg);
 
     const u32 exit_label = new_basic_block(itl,func,old);
@@ -1542,7 +1503,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // compile the actual switch expr
-        const auto [rtype,expr_slot] = compile_oper(itl,func,switch_node->expr,new_tmp(func));
+        const auto [rtype,expr_slot] = compile_oper(itl,func,switch_node->expr);
 
         // type check the switch stmt
         switch(switch_type)
@@ -1802,10 +1763,10 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
             // deref on struct member that is a ptr
             else
             {
-                auto [type,ptr_slot] = read_struct(itl,func,slot,node);
+                auto type = read_struct(itl,func,slot,node);
                 type = deref_pointer(type);
 
-                return std::pair<Type*,u32>{type,ptr_slot};
+                return std::pair<Type*,u32>{type,slot};
             }
         }
 
@@ -1830,6 +1791,77 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
     switch(node->type)
     {
 
+        case ast_type::value:
+        {
+            const auto t1 = value(itl,func,node,dst_slot);
+            return t1;
+        }
+
+        case ast_type::symbol:
+        {
+            const auto [type, slot] = symbol(itl,node);
+            
+            compile_move(itl,func,dst_slot,slot,type,type);
+            return type;
+        }
+
+
+        case ast_type::char_t:
+        {
+            CharNode* char_node = (CharNode*)node;
+
+            emit(func,op_type::mov_imm,dst_slot,char_node->character);
+            return make_builtin(itl,builtin_type::u8_t);
+        }
+
+        case ast_type::access_struct:
+        {
+            // are we accessing type info on a type name?
+            BinNode* member_root = (BinNode*)node;
+            AstNode* expr_node = member_root->left;
+
+            if(expr_node->type == ast_type::symbol)
+            {
+                RecordNode* members = (RecordNode*)member_root->right;
+
+                // potential type info access
+                if(count(members->nodes) == 1 && members->nodes[0]->type == ast_type::access_member)
+                {
+                    LiteralNode* sym_node = (LiteralNode*)expr_node;
+                    const auto name = sym_node->literal;
+
+                    TypeDecl* type_decl = lookup(itl.type_table,name);
+
+                    if(type_decl)
+                    {
+                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
+
+                        auto type = access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
+
+                        return type;
+                    }
+                }
+
+            }
+
+            
+            return read_struct(itl,func,dst_slot,node);           
+        }
+
+        case ast_type::index:
+        {
+            const auto [type, slot] = read_arr(itl,func,node,dst_slot);
+
+            // i think the best thing to do is to just conv it to a vla in the dst slot
+            // because there is no other valid option inside a arbitary context
+            if(is_fixed_array_pointer(type))
+            {
+                unimplemented("fixed array pointer in expression");
+            }
+
+            return type;
+        }
+
         case ast_type::addrof:
         {
             UnaryNode* addrof_node = (UnaryNode*)node;
@@ -1853,7 +1885,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
             UnaryNode* unary_node = (UnaryNode*)node;
 
             // TODO: is it worth while adding this for type names?
-            const auto [type,slot] = compile_oper(itl,func,unary_node->next,new_tmp(func));
+            const auto [type,slot] = compile_oper(itl,func,unary_node->next);
 
             // we only want the type of the expr
             if(is_tmp(slot))
@@ -1871,7 +1903,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [old_type,slot] = compile_oper(itl,func,bin_node->right,new_tmp(func));
+            const auto [old_type,slot] = compile_oper(itl,func,bin_node->right);
             const auto new_type = get_type(itl,(TypeNode*)bin_node->left);
 
             handle_cast(itl,func,dst_slot,slot,old_type,new_type);
@@ -1901,7 +1933,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [rtype,slot] = compile_oper(itl,func,bin_node->right,dst_slot);
+            const auto rtype = compile_expression(itl,func,bin_node->right,dst_slot);
 
             LiteralNode* lit_node = (LiteralNode*)bin_node->left;
 
@@ -1918,14 +1950,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
 
             check_assign(itl,sym.type,rtype);
 
-            compile_move(itl,func,sym.slot,slot,sym.type,rtype);
-
-            // TODO: make sure that the silly code this gens
-            // is cleaned up by the optimiser
-            if(dst_slot != slot)
-            {
-                compile_move(itl,func,dst_slot,slot,sym.type,rtype);
-            }
+            compile_move(itl,func,sym.slot,dst_slot,sym.type,rtype);
 
             return sym.type;        
         }
@@ -1961,7 +1986,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
                 UnaryNode* unary_node = (UnaryNode*)node;
 
                 // negate by doing 0 - v
-                const auto [t,dst] = compile_oper(itl,func,unary_node->next,dst_slot);
+                const auto [t,dst] = compile_oper(itl,func,unary_node->next);
 
 
                 // TODO: make sure our optimiser sees through this
@@ -1997,7 +2022,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
         {
             UnaryNode* unary_node = (UnaryNode*)node;
 
-            const auto [t,reg] = compile_oper(itl,func,unary_node->next,dst_slot);
+            const auto [t,reg] = compile_oper(itl,func,unary_node->next);
 
             // TODO: do we need to check this is integer?
 
@@ -2044,7 +2069,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
         {
             UnaryNode* unary_node = (UnaryNode*)node;
 
-            const auto [t,reg] = compile_oper(itl,func,unary_node->next,dst_slot);
+            const auto [t,reg] = compile_oper(itl,func,unary_node->next);
 
             if(!is_bool(t))
             {
@@ -2237,7 +2262,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                 // allready finished struct
                 else
                 {
-                    auto [rtype,reg] = compile_oper(itl,func,list->nodes[i],new_tmp(func));
+                    auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
                     check_assign(itl,base_type,rtype,false,true);
 
                     do_ptr_store(itl,func,reg,addr_slot,base_type,*offset);
@@ -2252,7 +2277,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
         {
             for(u32 i = 0; i < node_len; i++)
             {
-                auto [rtype,reg] = compile_oper(itl,func,list->nodes[i],new_tmp(func));
+                auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
                 check_assign(itl,base_type,rtype,false,true);
 
                 do_ptr_store(itl,func,reg,addr_slot,base_type,*offset);
@@ -2441,14 +2466,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line)
         if(decl_node->expr)
         {
             // normal assign
-            const auto [rtype,reg] = compile_oper(itl,func,decl_node->expr,sym.slot);
-
-            // oper is a single symbol and the move hasn't happened we need to explictly move it
-            if(sym.slot != reg)
-            {
-                compile_move(itl,func,sym.slot,reg,sym.type,rtype);
-            }
-
+            const auto rtype = compile_expression(itl,func,decl_node->expr,sym.slot);
             check_assign(itl,ltype,rtype,false,true);             
         }
 
@@ -2474,8 +2492,8 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
         return;
     }
 
-    
-    const auto [type,reg] = compile_oper(itl,func,auto_decl->expr,new_tmp(func));
+    // TODO: this should just be compile_expresison
+    const auto [type,reg] = compile_oper(itl,func,auto_decl->expr);
 
     // add the symbol
 
@@ -2535,7 +2553,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             case ast_type::equal:
             {
                 BinNode* assign_node = (BinNode*)line;
-                const auto [rtype,slot] = compile_oper(itl,func,assign_node->right,new_tmp(func));
+                const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
 
 
                 if(assign_node->left->type != ast_type::symbol)
@@ -2607,14 +2625,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // single return
                     if(count(record_node->nodes) == 1)
                     {
-                        const auto [rtype,v1] = compile_oper(itl,func,record_node->nodes[0],RV_IR);
+                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],RV_IR);
         
-                        if(v1 != RV_IR)
-                        {
-                            compile_move(itl,func,RV_IR,v1,func.return_type[0],rtype);
-                        }
-
-
                         if(itl.error)
                         {
                             break;
@@ -2639,7 +2651,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                         {
                             // void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
                             // NOTE: Pointers are in the first set of args i.e the hidden ones
-                            const auto [rtype, ret_slot] = compile_oper(itl,func,record_node->nodes[r],new_tmp(func));
+                            const auto [rtype, ret_slot] = compile_oper(itl,func,record_node->nodes[r]);
 
                             // check each param
                             check_assign(itl,func.return_type[r],rtype);
@@ -2791,7 +2803,7 @@ std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNod
     for(u32 i = 0; i < indexes; i++)
     {
 
-        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[i],new_tmp(func));
+        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[i]);
         if(!is_integer(subscript_type))
         {
             panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
@@ -2879,7 +2891,7 @@ std::pair<Type*, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u3
     return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
 }
 
-std::pair<Type*, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+std::pair<Type*,u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_tmp(func));
 

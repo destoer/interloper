@@ -543,7 +543,7 @@ void write_struct(Interloper& itl,Function& func, u32 src_slot, Type* rtype, Ast
 }
 
 
-std::pair<Type*,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
+Type* read_struct(Interloper& itl,Function& func, u32 dst_slot, AstNode *node)
 {
     const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
 
@@ -553,11 +553,11 @@ std::pair<Type*,u32> read_struct(Interloper& itl,Function& func, u32 dst_slot, A
         const ArrayType* array_type = (ArrayType*)accessed_type;
 
         emit(func,op_type::mov_imm,dst_slot,array_type->size);
-        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::u32_t),dst_slot};
+        return make_builtin(itl,builtin_type::u32_t);
     }
 
     do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type,offset);
-    return std::pair<Type*,u32>{accessed_type,dst_slot};
+    return accessed_type;
 }
 
 
@@ -604,7 +604,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
         else
         {
             // get the operand and type check it
-            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i],new_tmp(func));
+            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i]);
             check_assign(itl,member.type,rtype);
 
             do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
@@ -635,14 +635,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
         else
         {
-            const auto [rtype,slot] = compile_oper(itl,func,decl_node->expr,sym.slot);
-
-            // oper is a single symbol and the move hasn't happened we need to explictly move it
-            if(sym.slot != slot)
-            {
-                compile_move(itl,func,sym.slot,slot,sym.type,rtype);
-            }
-
+            const auto rtype = compile_expression(itl,func,decl_node->expr,sym.slot);
             check_assign(itl,sym.type,rtype,false,true);        
         }
     }
@@ -669,7 +662,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
                 else
                 {
-                    const auto [rtype,slot] = compile_oper(itl,func,member.expr,new_tmp(func));
+                    const auto [rtype,slot] = compile_oper(itl,func,member.expr);
                     check_assign(itl,member.type,rtype,false,true); 
 
                     do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);

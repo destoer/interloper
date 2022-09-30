@@ -1,0 +1,9 @@
+
+// expected 5
+func main() s32
+{
+    write_string("goodbye world!");
+    exit(5);
+
+    return 0;
+}
