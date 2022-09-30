@@ -73,33 +73,22 @@ std::optional<Member> get_member(StructTable& struct_table, const Type* type, co
     return std::optional<Member>(member);
 }
 
-bool struct_exists(Interloper& itl, const String& name)
-{
-    TypeDecl* type_decl = lookup(itl.type_table,name);
 
-    if(!type_decl)
-    {
-        return false;
-    }
+void parse_struct_decl(Interloper& itl, TypeDef& def);
 
-    return type_decl->kind == type_kind::struct_t;
-}
-
-void parse_struct_decl(Interloper& itl, StructDef& def);
-
-void parse_def(Interloper& itl, StructDef& def)
+void parse_struct_def(Interloper& itl, TypeDef& def)
 {
     // mark struct as being parsed so we can check for recursion
-    def.state = struct_state::checking;
+    def.state = def_state::checking;
     parse_struct_decl(itl,def);
 
-    // mark as checked so thatt we know we dont have to recheck the decl
-    def.state = struct_state::checked;
+    // mark as checked so that we know we dont have to recheck the decl
+    def.state = def_state::checked;
 }
 
-void parse_struct_decl(Interloper& itl, StructDef& def)
+void parse_struct_decl(Interloper& itl, TypeDef& def)
 {
-    StructNode* node = def.root;
+    StructNode* node = (StructNode*)def.root;
 
     TypeDecl* user_type = lookup(itl.type_table,node->name);
     if(user_type)
@@ -144,9 +133,9 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
         u32 type_idx_override = INVALID_TYPE;
 
         // member is struct that has nott had its defintion parsed yet
-        if(type_decl->type_idx == USER_TYPE && !struct_exists(itl,type_decl->name))
+        if(!type_exists(itl,type_decl->name))
         {
-            StructDef *def_ptr = lookup(itl.struct_def,type_decl->name);
+            TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
 
             // no such definiton exists
             if(!def_ptr)
@@ -156,10 +145,10 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
                 return;
             }
 
-            StructDef& def = *def_ptr;
+            TypeDef& def = *def_ptr;
 
             // if we attempt to check a partial defintion twice that the definition is recursive
-            if(def.state == struct_state::checking)
+            if(def.state == def_state::checking)
             {
                 // if its a pointer we dont need the complete inormation yet as they are all alike
                 // so just override the type idx from the one reserved inside the def
@@ -191,7 +180,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
         itl.cur_file = node->filename;
 
-        member.type = get_type(itl,type_decl,type_idx_override);
+        member.type = get_type(itl,type_decl,type_idx_override,true);
 
         // TODO: ensure array type cant use a deduced type size
 
@@ -285,7 +274,7 @@ void parse_struct_decl(Interloper& itl, StructDef& def)
 
 void parse_struct_declarations(Interloper& itl)
 {
-    auto &struct_def = itl.struct_def;
+    auto &struct_def = itl.type_def;
 
     for(u32 b = 0; b < count(struct_def.buf); b++)
     {
@@ -295,7 +284,7 @@ void parse_struct_declarations(Interloper& itl)
         {
             auto &def = bucket[i].v;
 
-            if(def.state == struct_state::not_checked)
+            if(def.state == def_state::not_checked)
             {
                 parse_def(itl,def);
             }

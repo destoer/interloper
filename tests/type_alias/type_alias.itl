@@ -1,2 +1,57 @@
 // okay for now we are just not going to worry about using type aliasing in struct decl
 // but how do we allow it because it becomes a giant dependency mess
+
+/* 
+
+can i just have a centralised definition map and extend my solution from structs
+so if we have a partial defintion we just go complete it?
+
+enum class def_kind
+{
+    enum,
+    struct,
+    alias,
+};
+
+enum class def_state
+{
+    not_checked,
+    checking,
+    checked,
+};
+
+TypeDefMap
+{
+    def_kind type;
+    u32 slot;
+
+    def_state state;
+};
+
+StructDefTable
+EnumDefTable
+AliasDefTable
+
+*/
+
+
+type_alias BarBuf = Bar[10];
+
+struct Foo
+{
+    x : c8 = 'A';
+    buf : BarBuf;
+};
+
+struct Bar
+{
+    y : s32;
+}
+
+// expected 65
+func main() s32 
+{
+    Foo foo;
+
+    return foo.x;
+}

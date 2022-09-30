@@ -17,5 +17,7 @@ struct Foo
 
 func main() s32
 {
+    b : Box;
+
     return 0;
 }

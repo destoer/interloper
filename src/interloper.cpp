@@ -153,40 +153,33 @@ TypeAlias make_alias(const String& name, const String& filename, Type* type)
 }
 
 
-void parse_alias_declarations(Interloper& itl)
+void parse_alias_def(Interloper& itl, TypeDef& def)
 {
-    for(u32 a = 0; a < count(itl.alias_def); a++)
+    AliasNode* node = (AliasNode*)def.root;
+
+    Type* type = get_complete_type(itl,node->type);
+
+    if(itl.error)
     {
-        AliasNode* node = itl.alias_def[a];
-
-        if(contains(itl.type_table,node->name))
-        {
-            panic(itl,"Type with alias name %s : is allready used!\n",node->name.buf);
-            return;
-        }
-
-        Type* type = get_complete_type(itl,node->type);
-
-        if(itl.error)
-        {
-            return;
-        }
-
-        if(itl.print_types)
-        {
-            printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
-        }
-
-        const u32 slot = count(itl.alias_table);
-
-        const TypeAlias alias = make_alias(node->name,node->filename,type);
-
-        // add the alias
-        push_var(itl.alias_table,alias);
-
-        add_type_decl(itl,slot,node->name,type_kind::alias_t);
+        return;
     }
+
+    if(itl.print_types)
+    {
+        printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
+    }
+
+    const u32 slot = count(itl.alias_table);
+
+    const TypeAlias alias = make_alias(node->name,node->filename,type);
+
+    // add the alias
+    push_var(itl.alias_table,alias);
+
+    add_type_decl(itl,slot,node->name,type_kind::alias_t);   
 }
+
+
 
 
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
@@ -3038,10 +3031,8 @@ void destroy_ast(Interloper& itl)
     destroy_allocator(itl.ast_allocator);
     destroy_allocator(itl.ast_string_allocator);
 
-    destroy_table(itl.struct_def);
-    destroy_arr(itl.alias_def);
+    destroy_table(itl.type_def);
 
-    
     itl.cur_expr = nullptr;
     itl.cur_file = ""; 
 }
@@ -3113,7 +3104,7 @@ void compile(Interloper &itl,const String& initial_filename)
     itl.symbol_table.string_allocator = &itl.string_allocator;
 
     itl.function_table = make_table<String,Function>();
-    itl.struct_def = make_table<String,StructDef>();
+    itl.type_def = make_table<String,TypeDef>();
 
     setup_type_table(itl);
 
@@ -3133,15 +3124,15 @@ void compile(Interloper &itl,const String& initial_filename)
 
     if(itl.print_ast)
     {
-        // print all struct defs
-        for(u32 b = 0; b < count(itl.struct_def.buf); b++)
+        // print all type defs
+        for(u32 b = 0; b < count(itl.type_def.buf); b++)
         {
-            auto &bucket = itl.struct_def.buf[b];
+            auto &bucket = itl.type_def.buf[b];
 
             for(u32 i = 0; i < count(bucket); i++)
             {
                 auto& def = bucket[i].v;
-                print((AstNode*)def.root);
+                print(def.root);
             }
         }
 
@@ -3167,11 +3158,6 @@ void compile(Interloper &itl,const String& initial_filename)
         destroy_itl(itl);
         return;
     }
-
-
-    // parse out any of the top level decl we need
-    parse_struct_declarations(itl);
-    parse_alias_declarations(itl);
 
 
     parse_function_declarations(itl);

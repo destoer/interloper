@@ -115,6 +115,36 @@ struct TypeDecl
     u32 type_idx;
 };
 
+enum class def_kind
+{
+    enum_t,
+    struct_t,
+    alias_t,
+};
+
+enum class def_state
+{
+    not_checked,
+    checking,
+    checked,
+};
+
+struct AstNode;
+
+struct TypeDef
+{
+    String name;
+    String filename;
+
+    def_kind kind;
+    def_state state;
+
+    // what is the slot in the type table about to be?
+    u32 slot;
+
+    // the defintion root -> depends on the type!
+    AstNode* root;
+};
 
 struct Type
 {
@@ -228,20 +258,6 @@ enum class struct_state
     checking,
     checked,
 };
-
-struct StructNode;
-
-struct StructDef
-{
-    struct_state state;
-    StructNode* root;
-
-    // current reserved struct slot
-    u32 slot;
-};
-
-using StructDefMap = HashTable<String,StructDef>;
-
 
 
 using StructTable = Array<Struct>;

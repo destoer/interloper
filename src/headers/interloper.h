@@ -15,13 +15,8 @@ struct Interloper
 
     Parser parser;
 
-    StructDefMap struct_def;
-
     AstNode *cur_expr = nullptr;
     String cur_file = "";
-
-
-    Array<AliasNode*> alias_def;
 
     HashTable<String,Function> function_table;
     Array<String> used_func;
@@ -48,7 +43,11 @@ struct Interloper
 
     // Type lookup
     HashTable<String,TypeDecl> type_table;
-    
+
+    // type definitions
+    HashTable<String,TypeDef> type_def;
+
+
     StructTable struct_table;
     EnumTable enum_table;
     AliasTable alias_table;

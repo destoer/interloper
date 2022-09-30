@@ -9,5 +9,6 @@ struct Point
 
 func main() s32 
 {
-    return 0;
+    p : Point;
+    return p.x;
 }

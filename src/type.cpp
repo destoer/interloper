@@ -20,6 +20,7 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 };
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype);
+void parse_def(Interloper& itl, TypeDef& def);
 
 b32 is_builtin(const Type* type)
 {
@@ -594,10 +595,33 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
         TypeDecl* user_type = lookup(itl.type_table,name);
 
+        // currently type does not exist
         if(!user_type)
         {
-            panic(itl,"no type named %s\n",name.buf);
-            return make_builtin(itl,builtin_type::void_t);
+            // look if there is a defintion for this type!
+            // if there is not then we have an error
+            TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
+
+            // no such definiton exists
+            if(!def_ptr)
+            {
+                panic(itl,"no type named %s\n",name.buf);
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
+            // okay attempt to parse the def
+            TypeDef& def = *def_ptr;
+            parse_def(itl,def);
+
+            // def parsing failed in some fashion just bail out
+            // there are no options left
+            if(itl.error)
+            {
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
+            // okay now we have the type
+            user_type = lookup(itl.type_table,name);
         }
 
         switch(user_type->kind)
@@ -1394,6 +1418,68 @@ void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind 
     add(itl.type_table,type_decl.name,type_decl);    
 }
 
+
+void add_type_def(Interloper& itl, def_kind kind,AstNode* root, const String& name, const String& filename)
+{
+    TypeDef def;
+
+    def.name = name;
+    def.filename = filename;
+    def.root = root;
+    def.kind = kind;
+    def.state = def_state::not_checked;
+
+    add(itl.type_def,def.name,def);
+}
+
+b32 type_exists(Interloper& itl, const String& name)
+{
+    return contains(itl.type_table,name);
+}
+
+
+void parse_struct_def(Interloper& itl, TypeDef& def);
+void parse_alias_def(Interloper& itl, TypeDef& def);
+
+void parse_def(Interloper& itl, TypeDef& def)
+{
+    if(def.state == def_state::not_checked)
+    {
+        // mark as checking to lock this against recursion!
+        def.state = def_state::checking;
+
+        switch(def.kind)
+        {
+            case def_kind::struct_t:
+            {
+                parse_struct_def(itl,def);
+                break;
+            }
+
+            case def_kind::alias_t:
+            {
+                parse_alias_def(itl,def);
+                break;
+            }
+
+            // NOTE: for now there is no need to parse enums late so this just stays the same
+            case def_kind::enum_t: 
+            {
+                assert(false);
+                break;
+            }
+        }
+
+        def.state = def_state::checked;
+    }
+
+    else
+    {
+        // TODO: add huertsics to scan for where!
+        panic(itl,"type %s is recursively defined\n",def.name.buf);
+        return;
+    }
+}
 
 
 void destroy_func(Function& func)

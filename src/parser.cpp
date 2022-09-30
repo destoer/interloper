@@ -917,11 +917,19 @@ void type_alias(Interloper& itl, Parser &parser, const String& filename)
         consume(parser,token_type::equal);
         TypeNode* rtype = parse_type(parser);
 
-        AliasNode* alias_node = (AliasNode*)ast_alias(parser,rtype,token.literal,filename,token);
+        const String& name = token.literal;
+
+        if(contains(itl.type_def,name))
+        {
+            panic(itl,"type %s redeclared as alias\n",name.buf);
+            return;
+        }
+
+        AstNode* alias_node = ast_alias(parser,rtype,name,filename,token);
     
         consume(parser,token_type::semi_colon);
 
-        push_var(itl.alias_def,alias_node);
+        add_type_def(itl, def_kind::alias_t,alias_node, name, filename);
     }
 
     else 
@@ -1079,9 +1087,9 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
         return;
     }
 
-    if(contains(itl.struct_def,name.literal))
+    if(contains(itl.type_def,name.literal))
     {
-        panic(itl,"struct %s redeclared\n",name.literal.buf);
+        panic(itl,"type %s redeclared as struct\n",name.literal.buf);
         return;
     }
 
@@ -1110,10 +1118,8 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
         consume(parser,token_type::semi_colon);
     }
 
-    // TODO: we now should check redefiniton here?
-    StructDef definition = {struct_state::not_checked,struct_node,0};
 
-    add(itl.struct_def,name.literal,definition);
+    add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, filename);
 }
 
 Array<char> read_source_file(const String& filename)
