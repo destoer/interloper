@@ -1,0 +1,23 @@
+
+/*
+    store above the entire stack?
+    and find a nice way to encode this in the IR
+    so its clear that this access is screwy and should not be cached in registers
+*/
+
+x : u32 = 5;
+
+func modify()
+{
+    x = 10;
+}
+
+// expected 15
+func main() s32
+{
+    decl y = x;
+
+    modify();
+
+    return y + x;
+}

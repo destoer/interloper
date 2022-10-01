@@ -1,0 +1,26 @@
+/*
+// NOTE ... is sugar for Any[]
+func print_types(args: ...)
+{
+
+}
+*/
+
+
+func print_type(any: Any) 
+{
+
+}
+
+
+// expected 117
+func main() s32
+{
+    x : s8 = 5;
+    y : s16 = 7;
+    z : s32 = 105;
+
+    print_type(x);
+
+    return 0;
+}

@@ -3013,18 +3013,21 @@ void compile_functions(Interloper &itl)
 
 // -> add tagging to error's so we can check we get the correct kind of failure on tests
 
+// -> add globals
+// -> improve inserting static data 
+// -> rtti
+// -> va_args
+// -> print
+// -> impl a a smarter register allocator rather than just blindly spilling things
+
 // -> impl static assert
 // -> improve const expressions
-// -> add global constants (and eventually globals but just leave this for now because we dont wanna handle allocating them)
-// -> update comments
-// -> impl a a smarter register allocator rather than just blindly spilling things
 // -> handle block args inside the reg allocator
 
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-// tuples -> global const's 
-// enum -> function_pointers
+// function_pointers
 // -> early stl  -> labels ->  compile time execution ->
 // discriminated unions -> marcro -> debugg memory guards -> ...
 

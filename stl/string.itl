@@ -1,8 +1,5 @@
 
 
-// string type aliases
-type_alias c8 = u8;
-type_alias string = c8[];
 
 // NOTE:
 // will probably call the extentable one string_buffer

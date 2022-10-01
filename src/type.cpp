@@ -1102,6 +1102,23 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
             return;
         }
     }
+
+    else if(is_enum(ltype) && is_enum(rtype))
+    {
+        EnumType* enum_ltype = (EnumType*)ltype;
+        EnumType* enum_rtype = (EnumType*)rtype;
+
+        if(enum_ltype->enum_idx != enum_rtype->enum_idx)
+        {
+            panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
+        }        
+    }
+
+    else
+    {
+        panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+    }
 }
 
 void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_arg = false, b32 is_initializer = false)

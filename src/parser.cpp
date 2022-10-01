@@ -65,7 +65,7 @@ void consume(Parser &parser,token_type type)
     if(t != type)
     {
         const auto tok = next_token(parser);
-        panic(parser,tok,"expected %s got %s\n", tok_name(type),tok_name(t));
+        panic(parser,tok,"expected '%s' got %s\n", tok_name(type),tok_name(t));
     }
     parser.tok_idx += 1;
 }

@@ -1,0 +1,59 @@
+// string type aliases
+type_alias c8 = u8;
+type_alias string = c8[];
+
+
+//RUNTIME_SIZE : const u32 = 0xfffffff0;
+
+struct Type
+{
+    type_idx : const u32;
+
+    // specifiers
+    is_const : const bool;
+};
+
+
+struct PointerType
+{
+    type : const Type;
+
+    contained_type : const Type@;
+};
+
+struct StructType
+{
+    type : const Type;
+
+    struct_idx : const u32;
+};
+
+struct EnumType
+{
+    type : const Type;
+
+    enum_idx : const u32;
+};
+
+
+
+struct ArrayType
+{
+    type : const Type;
+
+    contained_type : const Type@;
+
+    // RUNTIME_SIZE or current size!
+    size : const u32;
+
+    
+    // size of indexing array
+    sub_size : const u32;
+};
+
+
+struct Any
+{
+    data: byte@;
+    type: const Type@;
+};
