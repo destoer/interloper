@@ -19,6 +19,7 @@ struct Interloper
     String cur_file = "";
 
     HashTable<String,Function> function_table;
+    Array<DeclNode*> global_def;
     Array<String> used_func;
     // did the last compiled function have a return
     b32 has_return;

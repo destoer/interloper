@@ -98,6 +98,14 @@ Symbol &add_symbol(SymbolTable &sym_table,const String &name, Type *type, u32 si
     return sym_from_slot(sym_table,sym.slot);
 }
 
+Symbol& add_global(SymbolTable &sym_table,const String &name, Type *type, u32 size)
+{
+    Symbol& sym = add_symbol(sym_table,name,type,size);
+    sym.location = LOCATION_GLOBAL;
+
+    return sym;
+}
+
 void add_label(SymbolTable &sym_table,const String &name)
 {
     Label label;

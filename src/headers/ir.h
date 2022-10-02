@@ -213,7 +213,7 @@ static constexpr u32 UNALLOCATED_OFFSET = 0xe0000000;
 static constexpr u32 PENDING_ALLOCATION = 0xf0000000;
 
 static constexpr u32 LOCATION_MEM = 0xffffffff;
-
+static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
 
 struct Opcode

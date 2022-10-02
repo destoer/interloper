@@ -1068,13 +1068,8 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
 
     f->block = block(parser); 
 
-
     // finally add the function def
-    Function func;
-    func.name = copy_string(itl.string_allocator,func_name.literal);
-    func.root = f;
-
-    add(itl.function_table,func.name,func);
+    add_func(itl,func_name.literal,f);
 }
 
 void struct_decl(Interloper& itl,Parser& parser, const String& filename)
@@ -1235,6 +1230,24 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
             case token_type::type_alias:
             {
                 type_alias(itl,parser,filename);
+                break;
+            }
+
+            case token_type::symbol:
+            {
+                if(match(parser,token_type::colon))
+                {
+                    prev_token(parser);
+                    push_var(itl.global_def,(DeclNode*)declaration(parser));
+                }
+
+                else
+                {
+                    panic(parser,t,"expected global variable declaration\n");
+                    destroy_arr(parser.tokens);
+                    return true;
+                }
+
                 break;
             }
 

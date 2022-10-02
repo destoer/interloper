@@ -1,10 +1,5 @@
 
-/*
-    store above the entire stack?
-    and find a nice way to encode this in the IR
-    so its clear that this access is screwy and should not be cached in registers
-*/
-
+// globals are stored above the stack
 x : u32 = 5;
 
 func modify()

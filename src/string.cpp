@@ -73,6 +73,11 @@ String make_string(ArenaAllocator& allocator,const char* str, u32 size)
     return string;
 }
 
+String make_string(ArenaAllocator& allocator,const char* str)
+{
+    return make_string(allocator,str,strlen(str));
+}
+
 // make a string from a static
 String make_static_string(const char* str, u32 size)
 {
