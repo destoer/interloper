@@ -19,6 +19,11 @@ void mark_used(Interloper& itl, Function& func)
     }
 }
 
+void mark_used(Interloper& itl, const String& name)
+{
+    mark_used(itl,*lookup(itl.function_table,name));
+}
+
 #include "intrin.cpp"
 
 
@@ -582,38 +587,14 @@ void compile_functions(Interloper &itl)
 {
     // global scope
     new_scope(itl.symbol_table);
-/*
-    // add global init func 
-    // TODO: make it easier to just add dummy func's
-    // overhaul the existing func API
-    // i.e a add_func
-    // and finalise_func that require less manaul arg passing
-    // function out compile func api so we can call into it if the decl requires it..
-    Function global_func;
-    global_func.name = make_string(itl.string_allocator,"global_init");
-    add(itl.function_table,global_func.name,global_func);
 
-    for(u32 g = 0; g < count(itl.global_def); g++)
-    {
-        compile_decl(itl,global_func,(AstNode*)itl.global_def[g],true);
-
-        
-        // compilee off any used functions right now
-        // to prevent variables being used unitialized
-
-    }
-
-    mark_used(itl,*lookup(itl.function_table,String("global_init")));
-*/
 
 
     // TODO: we need to hide these functions from access via general calling code
     // they should probably get namespaced when we have access to them...
-    mark_used(itl,*lookup(itl.function_table,String("main")));
-    mark_used(itl,*lookup(itl.function_table,String("start")));
+    mark_used(itl,"main");
+    mark_used(itl,"start");
     
-
-
     for(u32 idx = 0; idx != count(itl.used_func); idx++)
     {
         Function& func = *lookup(itl.function_table,itl.used_func[idx]);
@@ -623,3 +604,18 @@ void compile_functions(Interloper &itl)
     destroy_scope(itl.symbol_table); 
 }
 
+void check_func_exists(Interloper& itl, const String& name)
+{
+    // ensure the entry functions are defined
+    if(!contains(itl.function_table,name))
+    {
+        panic(itl,"%s is not defined!\n",name.buf);
+        return;
+    }    
+}
+
+void check_startup_func(Interloper& itl)
+{
+    check_func_exists(itl,"main");
+    check_func_exists(itl,"start");
+}

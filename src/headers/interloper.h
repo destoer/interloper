@@ -13,8 +13,6 @@ struct Interloper
 
     b32 error;
 
-    Parser parser;
-
     AstNode *cur_expr = nullptr;
     String cur_file = "";
 

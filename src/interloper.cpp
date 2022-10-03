@@ -2188,22 +2188,14 @@ void compile(Interloper &itl,const String& initial_filename)
         }
     }
 
-    // ensure the entry functions are defined
-    if(!contains(itl.function_table,String("main")))
+
+    check_startup_func(itl);
+
+    if(itl.error)
     {
-        panic(itl,"main is not defined!\n");
         destroy_itl(itl);
         return;
     }
-
-    // ensure the entry function is defined
-    if(!contains(itl.function_table,String("start")))
-    {
-        panic(itl,"start is not defined!\n");
-        destroy_itl(itl);
-        return;
-    }
-
 
 
     parse_function_declarations(itl);
@@ -2231,6 +2223,7 @@ void compile(Interloper &itl,const String& initial_filename)
 
     if(itl.error)
     {
+        destroy_itl(itl);
         return;
     }
 

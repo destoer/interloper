@@ -1235,6 +1235,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
             case token_type::symbol:
             {
+                // TODO: impl globals
                 if(match(parser,token_type::colon))
                 {
                     prev_token(parser);
