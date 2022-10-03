@@ -69,6 +69,12 @@ void print(const AstNode *root);
 
 inline void panic(Interloper &itl,const char *fmt, ...)
 {
+    // dont bother reporting multiple error's
+    if(itl.error)
+    {
+        return;
+    }
+
     if(itl.cur_expr)
     {
         const u32 line = itl.cur_expr->line;
