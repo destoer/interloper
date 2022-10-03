@@ -2112,7 +2112,7 @@ void destroy_itl(Interloper &itl)
 
 static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
 static constexpr u32 STRING_INITIAL_SIZE = 4 * 1024;
-static constexpr u32 TYPE_INITIAL_SIZE = 16 * 1024;
+static constexpr u32 TYPE_INITIAL_SIZE =  4 * 1024;
 
 void setup_type_table(Interloper& itl)
 {
