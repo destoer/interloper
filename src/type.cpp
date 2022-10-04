@@ -346,60 +346,6 @@ void init_arr_sub_sizes(Interloper&itl,Type* type)
     init_arr_sub_sizes_internal(itl,type);
 }
 
-// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
-void init_arr_allocation(Interloper& itl, Symbol& sym)
-{
-    UNUSED(itl);
-
-    b32 done = false;
-    
-    Type* type = sym.type;
-
-    while(!done)
-    {
-        switch(type->type_idx)
-        {
-            case POINTER:
-            {
-                sym.reg.size = GPR_SIZE;
-
-                // whatever is pointed too is responsible for handling its own allocation
-                // because it comes from somewhere else we are done!
-                done = true;
-                break;
-            }
-
-            case ARRAY:
-            {
-                ArrayType* array_type = (ArrayType*)type;
-
-                sym.reg.count = accumulate_count(sym.reg.count,array_type->size);
-                type = index_arr(type);
-                break;
-            }
-
-            default:
-            {
-                sym.reg.size = type_size(itl,type);
-
-                done = true;
-                break;
-            }
-        }
-    }
-}
-
-
-// size of elemenent, + count
-std::pair<u32,u32> arr_alloc_size(const Symbol& sym)
-{
-    if(sym.reg.count == 0)
-    {
-        return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
-    }
-
-    return std::pair<u32,u32>{sym.reg.size,sym.reg.count};
-}
 
 // total block size of the array
 u32 arr_size(const Type* type)

@@ -126,8 +126,6 @@ enum class op_type
 
     pool_addr,
 
-    free_reg,
-
     // just c++ things not used
     END,
 };
@@ -250,8 +248,10 @@ struct Reg
     // what slot does this symbol hold inside the ir?
     u32 slot = SYMBOL_NO_SLOT;
 
-    // how much memory does this thing use
+    // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
+    // i.e this is for stack allocation to get actual var sizes use type_size();
     u32 size = 0;
+    u32 count = 0;
 
     // intialized during register allocation
 
@@ -406,8 +406,6 @@ struct IrEmitter
 {
     Array<Block> program;
 
-    // how many registers used in this expression
-    u32 reg_count;
 };
 
 struct Function;
@@ -415,7 +413,7 @@ struct Function;
 void emit(Function& func,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
 void emit_block(Function &func,u32 block,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
 void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot = 0xffffffff); 
-u32 emit_res(Function& func,op_type op, u32 v2 = 0, u32 v3 = 0);
+u32 emit_res(Function& func, op_type op, u32 v2, u32 v3 = 0);
 
 void destroy_emitter(IrEmitter& emitter);
 

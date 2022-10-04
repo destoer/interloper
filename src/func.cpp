@@ -72,7 +72,7 @@ u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Ar
     Symbol sym = make_sym(itl.symbol_table,name,ptr_type,GPR_SIZE,arg_offset);
     add_var(itl.symbol_table,sym);
 
-    push_var(args,sym.slot);     
+    push_var(args,sym.reg.slot);     
 
     arg_offset += GPR_SIZE;
 
@@ -313,7 +313,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
 
                         const auto &sym = sym_opt.value();
 
-                        const u32 addr_slot = emit_res(func,op_type::addrof,sym.slot);
+                        const u32 addr_slot = addrof(func,sym.reg);
                         emit(func,op_type::push_arg,addr_slot);
 
                         break;
@@ -331,7 +331,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
 
                     case ast_type::index:
                     {
-                        auto [type,ptr_slot] = index_arr(itl,func,var_node,new_tmp(func));
+                        auto [type,ptr_slot] = index_arr(itl,func,var_node,new_tmp_ptr(func));
 
                         emit(func,op_type::push_arg,ptr_slot);
                         break;
@@ -341,7 +341,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
                     {
                         UnaryNode* deref_node = (UnaryNode*)var_node;
 
-                        const auto [type,ptr_slot] = load_addr(itl,func,deref_node->next,new_tmp(func),false);
+                        const auto [type,ptr_slot] = load_addr(itl,func,deref_node->next,new_tmp_ptr(func),false);
 
                         emit(func,op_type::push_arg,ptr_slot);
                         break;                     
@@ -378,8 +378,11 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
 
             else
             {
-                print_func_decl(itl,func_call);
-                unimplemented("tmp: large binding on return type");
+                // TODO: this might need an explicit allocation
+                alloc_slot(func,func.registers[dst_slot]);
+                
+                const u32 addr = emit_res(func,op_type::addrof,dst_slot);
+                emit(func,op_type::push_arg,addr);
             }
         }
     }
@@ -512,10 +515,10 @@ void parse_function_declarations(Interloper& itl)
                 Symbol sym = make_sym(itl.symbol_table,name,type,size,arg_offset);
                 add_var(itl.symbol_table,sym);
 
-                push_var(args,sym.slot);
+                push_var(args,sym.reg.slot);
 
                 // if size is below GPR just make it take that much
-                const u32 arg_size = sym.size < GPR_SIZE? 4 : size;
+                const u32 arg_size = sym.reg.size < GPR_SIZE? 4 : size;
 
                 arg_offset += arg_size;
 
@@ -539,8 +542,6 @@ void compile_function(Interloper& itl, Function& func)
     // so we know to access them "above" to stack pointer
     new_scope(itl.symbol_table);
 
-
-    func.emitter.reg_count = 0;
 
     // put each arg into scope
     for(u32 a = 0; a < count(func.args); a++)

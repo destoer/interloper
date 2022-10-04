@@ -27,9 +27,6 @@ struct Interloper
     Array<PoolSection> pool_sections;
     Array<u8> const_pool;
 
-
-    Array<Reg> registers;
-
     // Arena's
     ArenaAllocator list_allocator;
     ArenaAllocator ast_allocator;

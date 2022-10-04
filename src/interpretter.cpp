@@ -497,7 +497,6 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::alloc_slot:
         case op_type::alloc:
         case op_type::free_slot:
-        case op_type::free_reg:
         case op_type::save_regs:
         case op_type::restore_regs:
         case op_type::exit_block:

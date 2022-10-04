@@ -303,14 +303,14 @@ void parse_struct_declarations(Interloper& itl)
 
 std::pair<Type*,u32> access_array_member(Interloper& itl, Function& func, u32 slot, Type* type, const String& member_name,u32* offset)
 {
+    UNUSED(func);
+
     const bool is_ptr = is_pointer(type);
 
     if(member_name == "len")
     {
         if(!is_runtime_size(type))
         {
-            // TODO: have the optimiser clean up dead code
-            emit(func,op_type::free_reg,slot);
             return std::pair<Type*,u32>{type,ACCESS_FIXED_LEN_REG};
         }
 
@@ -355,13 +355,11 @@ std::pair<Type*,u32> access_array_member(Interloper& itl, Function& func, u32 sl
 // returns the member + offset
 std::pair<Type*,u32> access_struct_member(Interloper& itl, Function& func, u32 slot, Type* type, const String& member_name, u32* offset)
 {
-    UNUSED(func);
-
     // auto deref pointer
     if(is_pointer(type))
     {
         const u32 ptr_slot = slot;
-        slot = new_tmp(func);
+        slot = new_tmp(func,GPR_SIZE);
 
         do_ptr_load(itl,func,slot,ptr_slot,type,*offset);
         *offset = 0;
@@ -435,7 +433,7 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
 
         case ast_type::index:
         {
-            std::tie(struct_type, struct_slot) = index_arr(itl,func,expr_node,new_tmp(func));
+            std::tie(struct_type, struct_slot) = index_arr(itl,func,expr_node,new_tmp_ptr(func));
 
             // we return types in here as the accessed type
             struct_type = deref_pointer(struct_type);
@@ -507,13 +505,13 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
 
                 if(is_runtime_size(struct_type))
                 {
-                    const u32 vla_ptr = new_tmp(func);
+                    const u32 vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
                     do_ptr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,builtin_type::u32_t),0);
                     struct_slot = vla_ptr;
                 }
 
-                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot,new_tmp(func));
+                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot,new_tmp_ptr(func));
 
                 // deref of pointer
                 struct_type = deref_pointer(struct_type);
@@ -616,26 +614,20 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
-    const u32 reg_count = gpr_count(structure.size);
-    emit(func,op_type::alloc_slot,sym.slot,GPR_SIZE,reg_count);
+    alloc_slot(func,sym.reg);
 
     if(decl_node->expr)
     {
         if(decl_node->expr->type == ast_type::initializer_list)
         {
-            // insertion will break our reference
-            const u32 sym_slot = sym.slot;
-
-            const u32 addr_slot = new_tmp(itl,GPR_SIZE);
-
-            emit(func,op_type::addrof,addr_slot,sym_slot);
+            const u32 addr_slot = addrof(func,sym.reg);
 
             traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
         }
 
         else
         {
-            const auto rtype = compile_expression(itl,func,decl_node->expr,sym.slot);
+            const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
             check_assign(itl,sym.type,rtype,false,true);        
         }
     }
@@ -643,11 +635,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     // default construction
     else
     {
-        // insertion will break our reference
-        const u32 sym_slot = sym.slot;
-
-        const u32 addr_slot = new_tmp(itl,GPR_SIZE);
-        emit(func,op_type::addrof,addr_slot,sym_slot);
+        const u32 addr_slot = addrof(func,sym.reg);
 
         for(u32 m = 0; m < count(structure.members); m++)
         {
@@ -684,8 +672,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
             else
             {
-                const u32 tmp = new_tmp(func);
-                emit(func,op_type::mov_imm,tmp,default_value(member.type));
+                const u32 tmp = mov_imm(func,default_value(member.type));
 
                 do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
             }

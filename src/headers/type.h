@@ -312,6 +312,9 @@ struct Function
     // gives slots into the main symbol table
     Array<u32> args;
     
+    // tmp's in the function
+    Array<Reg> registers;
+
     // IR code for function
     IrEmitter emitter;
 

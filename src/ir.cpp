@@ -2,92 +2,9 @@
 #include <op_table.inl>
 
 #include "list.cpp"
+#include "emitter.cpp"
+#include "link.cpp"
 
-
-
-List& get_cur_list(IrEmitter& emitter)
-{
-    return emitter.program[count(emitter.program)-1].list; 
-}
-
-ListNode* get_cur_end(IrEmitter& emitter)
-{
-    return get_cur_list(emitter).end;    
-}
-
-
-u32 new_tmp(Function &func)
-{       
-    return func.emitter.reg_count++;
-}
-
-void emit(Function& func,const Opcode& opcode)
-{
-    auto &list = get_cur_list(func.emitter);
-    append(list,opcode);
-}
-
-void emit_block(Function& func, u32 block, op_type op, u32 v1, u32 v2, u32 v3)
-{
-    Opcode opcode(op,v1,v2,v3);
-
-    auto &list = func.emitter.program[block].list;
-    append(list,opcode);    
-}
-
-
-u32 cur_block(Function& func)
-{
-    return count(func.emitter.program) - 1;
-}
-
-
-void emit(Function& func,op_type op, u32 v1, u32 v2, u32 v3)
-{
-    emit_block(func,cur_block(func),op,v1,v2,v3);
-}
-
-// emit an opcode, and give back a new dst as a tmp
-u32 emit_res(Function& func, op_type op, u32 v2, u32 v3)
-{
-    const u32 tmp = new_tmp(func);
-    emit(func,op,tmp,v2,v3);
-
-    return tmp;
-}
-
-
-u32 gpr_count(u32 size)
-{
-    return size / GPR_SIZE;
-}
-
-Opcode store_ptr(u32 dst_slot, u32 addr_slot, u32 size, u32 offset)
-{
-    static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-    return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
-}
-
-// this function only supports up to 32 bit reads atm
-static_assert(GPR_SIZE == sizeof(u32));
-
-Opcode load_ptr(u32 dst_slot, u32 addr_slot,u32 offset, u32 size, bool is_signed)
-{
-    if(is_signed)
-    {
-        // word is register size (we dont need to extend it)
-        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);       
-    }
-
-    // "plain data"
-    // just move by size
-    else
-    {
-        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-        return Opcode(instr[size >> 1],dst_slot,addr_slot,offset);
-    }
-}
 
 Block make_block(block_type type,u32 slot,ArenaAllocator* list_allocator)
 {
@@ -110,66 +27,6 @@ void destroy_emitter(IrEmitter& emitter)
 {
     destroy_arr(emitter.program);
 }
-
-static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
-static constexpr u32 REG_TMP_START = 0x00000000;
-
-bool is_sym(u32 s)
-{
-    return s >= SYMBOL_START;
-}
-
-u32 tmp(u32 ir_reg)
-{
-    return ir_reg + REG_TMP_START;
-}
-
-// dont correct special regs
-bool is_reg(u32 r)
-{
-    return r < MACHINE_REG_SIZE;
-}
-
-bool is_special_reg(u32 r)
-{
-    return r >= SPECIAL_PURPOSE_REG_START && r <= SPECIAL_PURPOSE_REG_START + SPECIAL_REG_SIZE;
-}
-
-bool is_tmp(u32 r)
-{
-    return r < REG_FREE;
-}
-
-// get back a longer lived tmp
-// stored internally as a symbol
-u32 new_tmp(Interloper& itl, u32 size)
-{
-    UNUSED(itl); UNUSED(size);
-    assert(false);
-}
-
-u32 slot_to_idx(u32 slot)
-{
-    return is_sym(slot)? sym_to_idx(slot) : slot;
-}
-
-Reg make_reg(reg_kind kind,u32 size, u32 slot)
-{
-    Reg reg;
-    reg.kind = kind;
-    reg.size = size;
-    reg.slot = slot;
-
-    return reg;
-}
-
-void print(const Reg& reg)
-{
-    printf("offset: %x\n",reg.offset);
-    printf("location: %x\n\n",reg.location);    
-    printf("slot: %x\n",reg.slot);
-}
-
 
 void ir_memcpy(Interloper&itl, Function& func, u32 dst_slot, u32 src_slot, u32 size)
 {
@@ -215,10 +72,6 @@ struct LocalAlloc
     // is this free or does it hold a var?
     u32 regs[MACHINE_REG_SIZE];  
 
-    // when this thing is used in the original IR
-    // we need to know what actual reg we have allocated it into
-    Array<u32> ir_regs;
-
     u32 free_regs;
 
     // free list for register allocator
@@ -254,7 +107,7 @@ struct LocalAlloc
     u32 stack_size;
 };
 
-LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,u32 tmp_count)
+LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation)
 {
     LocalAlloc alloc;
 
@@ -272,8 +125,6 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,
         alloc.free_list[i] = i;
     }
 
-
-    resize(alloc.ir_regs,tmp_count);
 
     memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
 
@@ -340,34 +191,121 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
 }
 
 
-u32 push_const_pool(Interloper& itl, pool_type type, const void* data,u32 size)
+void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNode *node)
 {
-    PoolSection section;
+    UNUSED(table); UNUSED(list); UNUSED(alloc);
 
-    section.type = type;
-    section.offset = itl.const_pool.size;
-    section.size = size;
+    const auto opcode = node->opcode;
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
 
-    // add section information + data to the pool
-    push_var(itl.pool_sections,section);
-    push_mem(itl.const_pool,data,size);
 
-    return section.offset;
+    // make sure our src var's are loaded
+    // mark if any are tmp's we can reuse to allocate the dst
+    for(u32 a = 0; a < info.args; a++)
+    {
+        // only interested in registers
+        if(info.type[a] != arg_type::src_reg)
+        {
+            continue;
+        }
+
+        if(is_sym(opcode.v[a]))
+        {
+            assert(false);
+        }
+        
+        
+        else if(is_tmp(opcode.v[a]))
+        {
+            assert(false);
+        }
+    }
+
+
+    const u32 slot = opcode.v[0];
+
+    // handle allocation of dst
+    if(info.type[0] == arg_type::dst_reg)
+    {
+        if(is_sym(slot))
+        {
+            assert(false);
+        }
+
+        else if(is_tmp(slot))
+        {
+            assert(false);
+        }
+    }
 }
 
-u32 reserve_const_pool(Interloper& itl, pool_type type, u32 size)
+
+
+// NOTE: use this to force rewrites of directives
+void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
-    PoolSection section;
+    UNUSED(alloc); UNUSED(table);
 
-    section.type = type;
-    section.offset = itl.const_pool.size;
-    section.size = size;
+    const u32 slot = opcode.v[reg];
 
-    // add section information + reserve inside the pool
-    push_var(itl.pool_sections,section);
-    resize(itl.const_pool,count(itl.const_pool) + size);
+    if(is_sym(slot))
+    {
+        assert(false);
+    }
 
-    return section.offset;    
+
+    // dont rewrite any special purpose reg
+    // NOTE: for now assume this is running under the interpretter
+    // so its converted to our interrpetter regs and not a hardware target
+    else if(is_special_reg(slot))
+    {
+        switch(slot)
+        {
+            case SP_IR: opcode.v[reg] = SP; break;
+            case RV_IR: opcode.v[reg] = RV; break;
+            case R0_IR: opcode.v[reg] = R0; break;
+            case R1_IR: opcode.v[reg] = R1; break;
+
+            default: crash_and_burn("unhandled special reg %x\n",slot); break;
+        }
+    }
+
+    else
+    {
+        assert(false);
+    }          
+}
+
+void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
+{
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    
+
+    if(info.type[reg] == arg_type::src_reg || info.type[reg] == arg_type::dst_reg)
+    {
+        rewrite_reg_internal(table,alloc,opcode,reg);
+    }
+}
+
+void rewrite_regs(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode)
+{   
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    for(u32 r = 0; r < info.args; r++)
+    {
+        rewrite_reg(table,alloc,opcode,r);
+    }
+}
+
+
+void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node)
+{
+    // allocate the registers
+    handle_allocation(itl.symbol_table,alloc,list,node);
+
+    // rewrite each slot to its allocated register
+    rewrite_regs(itl.symbol_table,alloc,node->opcode);
 }
 
 
@@ -376,7 +314,95 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 {
     UNUSED(func); UNUSED(itl); UNUSED(alloc); UNUSED(list); UNUSED(node);
 
-    assert(false);
+    auto &table = itl.symbol_table;
+    const auto &opcode = node->opcode;
+
+    UNUSED(table); UNUSED(opcode);
+
+    switch(node->opcode.op)
+    {
+        case op_type::addrof:
+        {
+            assert(false);
+        }
+
+        // have to do opcode rewriting by here to make sure hte offset is applied after any reloads occur
+        case op_type::push_arg:
+        {
+            assert(false);
+        }
+
+        case op_type::clean_args:
+        {
+            assert(false);
+        }
+
+        case op_type::alloc_stack:
+        {
+            assert(false);
+        }
+
+        case op_type::free_stack:
+        {
+            assert(false);
+        }
+
+        case op_type::alloc_slot:
+        {
+            assert(false);
+        }
+
+        case op_type::restore_regs:
+        {
+            assert(false);
+        }
+
+        // make sure the return value has nothing important when calling functions
+        case op_type::spill_rv:
+        {
+            assert(false);
+        }
+
+
+        case op_type::spill_all:
+        {
+            assert(false);
+        }
+
+        // TODO: this needs to have its size emitted directly inside the opcode
+        case op_type::free_slot:
+        {
+            assert(false);
+        }
+
+
+        case op_type::load_arr_data:
+        {
+            assert(false);
+        }
+
+        // TODO: this probably needs to be reworked for multi dimensional arrays
+        case op_type::load_arr_len:
+        {
+            assert(false);
+        }
+
+        // pools
+        case op_type::pool_addr:
+        {
+            assert(false);
+        }
+
+
+        default:
+        {
+            rewrite_opcode(itl,alloc,list,node);
+            node = node->next;
+            break; 
+        }
+    }
+
+    return node;
 }
 
 u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size, const char* name)
@@ -462,7 +488,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SymbolTable& table, u32 saved
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.emitter.reg_count);
+    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation);
 
     // figure out how long each sym lives
     // mark_lifetimes(itl,func);
@@ -538,172 +564,6 @@ void allocate_registers(Interloper& itl,Function &func)
             node = rewrite_directives(itl,alloc,list,node,callee_restore,stack_clean,insert_callee_saves);
         }
     }
-
-
-    destroy_arr(alloc.ir_regs);
-}
-
-// NOTE: pass in a size, so we only print the code section
-void dump_program(const Array<u8> &program,u32 size, HashTable<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
-{
-    for(u32 pc = 0; pc < size; pc += sizeof(Opcode))
-    {
-        if(contains(inv_label_lookup,pc))
-        {
-            printf("0x%08x %s:\n",pc,label_lookup[*lookup(inv_label_lookup,pc)].name.buf);
-        }
-
-        printf("  0x%08x:\t ",pc);   
-
-        const Opcode opcode = read_mem<Opcode>(program,pc);
-        disass_opcode_raw(opcode);
-    }
-}
-
-void insert_program(Interloper& itl, const Opcode& opcode)
-{
-    push_var(itl.program,opcode);
-}
-
-void emit_asm(Interloper &itl)
-{
-    HashTable<u32,u32> inv_label_lookup = make_table<u32,u32>();
-
-
-
-
-    // emit a dummy call to start
-    // that will get filled in later once we know where it is
-    insert_program(itl,Opcode(op_type::call,lookup(itl.function_table,String("start"))->slot,0,0));
-
-
-    // resolve all our labels, dump all our machine code into a buffer
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
-    {
-        auto bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            Function& func = bucket[i].v;
-
-
-            itl.symbol_table.label_lookup[func.slot].offset = itl.program.size;
-
-            add(inv_label_lookup,itl.program.size,func.slot);
-
-            for(u32 b = 0; b < count(func.emitter.program); b++)
-            {
-                const auto &block = func.emitter.program[b];
-
-                // resolve label addr.
-                itl.symbol_table.label_lookup[block.slot].offset = itl.program.size;
-
-                // if this is the first block prefer function name
-                if(b != 0)
-                {
-                    add(inv_label_lookup,itl.program.size,block.slot);
-                }
-
-                // dump every opcode into the final program
-                auto node = block.list.start;
-                while(node)
-                {
-                    insert_program(itl,node->opcode);
-                    node = node->next;
-                }
-            }   
-        }
-    }
-
-    // add any data required into the const pool before adding it to the program
-    for(u32 i = 0; i < count(itl.pool_sections); i++)
-    {
-        const PoolSection& pool = itl.pool_sections[i];
-
-        switch(pool.type)
-        {
-            case pool_type::label:
-            {
-                static_assert(GPR_SIZE == sizeof(u32));
-
-                const u32 offset = pool.offset;
-                const u32 size = pool.size;
-
-                // rewrite final label posistions
-                for(u32 addr = offset; addr < size + offset; addr += GPR_SIZE)
-                {
-                    const u32 label = read_mem<u32>(itl.const_pool,addr);
-
-                    //printf("table: %d -> %x\n",label,itl.symbol_table.label_lookup[label].offset);
-
-                    write_mem<u32>(itl.const_pool, addr, itl.symbol_table.label_lookup[label].offset);
-                }                
-            }
-
-            case pool_type::string_literal: break;
-        }
-    }
-
-
-    // add the constant pool, into the final program
-    const u32 const_pool_loc = itl.program.size;
-    push_mem(itl.program,itl.const_pool);
-
-    // clean up the mem from the constt pool
-    destroy_arr(itl.const_pool);
-    destroy_arr(itl.pool_sections);
-
-
-    // TODO: how do we want to labels for a mov i.e
-    // x = @some_function;
-    
-    // "link" the program and resolve the labels
-    for(u32 i = 0; i < const_pool_loc; i += sizeof(Opcode))
-    {
-        auto opcode = read_mem<Opcode>(itl.program,i);
-
-        // handle all the branch labels
-        // TODO: this probably needs to be changed for when we have call <reg>
-        if(OPCODE_TABLE[u32(opcode.op)].group == op_group::branch_t)
-        {
-            opcode.v[0] = itl.symbol_table.label_lookup[opcode.v[0]].offset;
-            write_mem(itl.program,i,opcode);
-        }
-
-        // resolve pools
-        else if(opcode.op == op_type::pool_addr)
-        {
-            const pool_type pool = pool_type(opcode.v[2]);
-            const u32 offset = opcode.v[1];
-
-            switch(pool)
-            {
-                case pool_type::string_literal:
-                {
-                    opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + offset,0);
-                    break;
-                }
-
-                // Resolve all the addresses within 
-                case pool_type::label:
-                {
-                    unimplemented("label pool");
-                    break;
-                }
-
-                default: crash_and_burn("unknown pool %d\n",pool);
-            }
-
-            write_mem(itl.program,i,opcode);
-        }
-    }
-
-    if(itl.print_ir)
-    {
-        dump_program(itl.program,const_pool_loc,inv_label_lookup,itl.symbol_table.label_lookup);
-    }
-
-    destroy_table(inv_label_lookup);
 }
 
 
