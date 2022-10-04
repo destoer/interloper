@@ -48,60 +48,49 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)
 }
 
 
-Symbol make_sym(SymbolTable& table,const String& name, Type* type, u32 size, u32 arg = NON_ARG)
+Symbol make_sym(SymbolTable& table,const String& name, Type* type, u32 size,u32 arg = NON_ARG)
 {
+    const u32 slot = symbol(count(table.slot_lookup));
+
     Symbol symbol = {};
     symbol.name = copy_string(*table.string_allocator,name);
     symbol.type = type;
-    symbol.size = size;
     symbol.arg_offset = arg;
+    symbol.reg = make_reg(reg_kind::local,size,slot);
 
     return symbol;
 }
 
-Symbol make_sym(SymbolTable& table,const char* name, Type* type, u32 size, u32 arg = NON_ARG)
-{
-    Symbol symbol = {};
-    symbol.name = make_string(*table.string_allocator,name,strlen(name));
-    symbol.type = type;
-    symbol.size = size;
-    symbol.arg_offset = arg;
-
-    return symbol;
-}
 
 
 
 // add symbol to slot lookup
 void add_var(SymbolTable &sym_table,Symbol &sym)
 {
-    sym.slot = symbol(count(sym_table.slot_lookup));
     push_var(sym_table.slot_lookup,sym);    
 }
 
 // add symbol to the scope table
 void add_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    add(sym_table.table[count(sym_table.table) - 1],sym.name, sym_to_idx(sym.slot));
+    add(sym_table.table[count(sym_table.table) - 1],sym.name, sym_to_idx(sym.reg.slot));
     sym_table.sym_count++;
 }    
 
 Symbol &add_symbol(SymbolTable &sym_table,const String &name, Type *type, u32 size)
 {
     auto sym = make_sym(sym_table,name,type,size);
-
-    sym.slot = symbol(count(sym_table.slot_lookup));
     push_var(sym_table.slot_lookup,sym);
 
     add_scope(sym_table,sym);
 
-    return sym_from_slot(sym_table,sym.slot);
+    return sym_from_slot(sym_table,sym.reg.slot);
 }
 
 Symbol& add_global(SymbolTable &sym_table,const String &name, Type *type, u32 size)
 {
     Symbol& sym = add_symbol(sym_table,name,type,size);
-    sym.location = LOCATION_GLOBAL;
+    sym.reg.location = LOCATION_GLOBAL;
 
     return sym;
 }
@@ -136,14 +125,12 @@ bool is_arg(const Symbol &sym)
     return sym.arg_offset != NON_ARG;
 }
 
-void print(Interloper& itl,const Symbol&sym)
+void print(Interloper& itl,const Symbol& sym)
 {
     printf("name: %s\n",sym.name.buf);
     printf("type: %s\n",type_name(itl,sym.type).buf);
-    printf("slot: %x\n",sym.slot);
     printf("arg_offset: %x\n",sym.arg_offset);
-    printf("offset: %x\n",sym.offset);
-    printf("location: %x\n\n",sym.location);
+    print(sym.reg);
 }
 
 void dump_slots(Interloper& itl,SlotLookup &slot_lookup)

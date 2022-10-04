@@ -421,12 +421,12 @@ std::tuple<Type*,u32,u32> compute_member_addr(Interloper& itl, Function& func, A
             if(is_pointer(sym.type))
             {
                 struct_type = deref_pointer(sym.type);
-                struct_slot = sym.slot;
+                struct_slot = sym.reg.slot;
             }
 
             else
             {
-                struct_slot = emit_res(func,op_type::addrof,sym.slot);
+                struct_slot = emit_res(func,op_type::addrof,sym.reg.slot);
                 struct_type = sym.type;
             }
 

@@ -361,7 +361,7 @@ void init_arr_allocation(Interloper& itl, Symbol& sym)
         {
             case POINTER:
             {
-                sym.size = GPR_SIZE;
+                sym.reg.size = GPR_SIZE;
 
                 // whatever is pointed too is responsible for handling its own allocation
                 // because it comes from somewhere else we are done!
@@ -373,14 +373,14 @@ void init_arr_allocation(Interloper& itl, Symbol& sym)
             {
                 ArrayType* array_type = (ArrayType*)type;
 
-                sym.count = accumulate_count(sym.count,array_type->size);
+                sym.reg.count = accumulate_count(sym.reg.count,array_type->size);
                 type = index_arr(type);
                 break;
             }
 
             default:
             {
-                sym.size = type_size(itl,type);
+                sym.reg.size = type_size(itl,type);
 
                 done = true;
                 break;
@@ -393,12 +393,12 @@ void init_arr_allocation(Interloper& itl, Symbol& sym)
 // size of elemenent, + count
 std::pair<u32,u32> arr_alloc_size(const Symbol& sym)
 {
-    if(sym.count == 0)
+    if(sym.reg.count == 0)
     {
         return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
     }
 
-    return std::pair<u32,u32>{sym.size,sym.count};
+    return std::pair<u32,u32>{sym.reg.size,sym.reg.count};
 }
 
 // total block size of the array

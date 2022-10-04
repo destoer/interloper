@@ -236,6 +236,46 @@ struct Opcode
     u32 v[3];
 };
 
+enum class reg_kind
+{
+    local,
+    global,
+    tmp,
+};
+
+struct Reg
+{
+    reg_kind kind;
+
+    // what slot does this symbol hold inside the ir?
+    u32 slot = SYMBOL_NO_SLOT;
+
+    // how much memory does this thing use
+    u32 size = 0;
+
+    // intialized during register allocation
+
+    // where is it this is stored on the stack?
+    u32 offset = UNALLOCATED_OFFSET;
+
+    // where is this item stored?
+    // is it in memory or is it in register?
+    u32 location = LOCATION_MEM;
+
+
+
+    // how many times has this currently been used?
+    u32 uses = 0;
+
+    // NOTE: this uses absolute offsets
+    // but we dont really care if they are broken by insertions during reg alloc 
+    // because we only want to know when usage gap is largest
+    Array<u32> usage = {};
+};
+
+Reg make_reg(reg_kind kind,u32 size, u32 slot);
+void print(const Reg& reg);
+
 // standard symbols
 static constexpr u32 SYMBOL_START = 0x80000000;
 

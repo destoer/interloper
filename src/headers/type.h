@@ -282,43 +282,10 @@ struct Symbol
     String name;
     Type* type;
 
-
-    // size of plain type
-    // i.e in an array this will hold the size of the contained type
-    u32 size = 0;
-
-    // how many elements there are
-    // (zero unless there is a fixed array for now)
-    u32 count = 0;
-
+    Reg reg;
 
     u32 arg_offset = NON_ARG;
-
-    // what slot does this symbol hold inside the ir?
-    u32 slot = SYMBOL_NO_SLOT;
-
-    
-    // intialized during register allocation
-
-    // where is it this is stored on the stack?
-    u32 offset = UNALLOCATED_OFFSET;
-
-    // where is this item stored?
-    // is it in memory or is it in register?
-    u32 location = LOCATION_MEM;
-
     b32 referenced = false;
-
-/*
-    need to think where we perorm the marking for this, because it has to be done after the optimisation pass
-
-    u32 uses = 0;
-
-    // NOTE: this uses absolute offsets
-    // but we dont really care if they are broken by insertions during reg alloc 
-    // because we only want to know when usage gap is largest
-    Array<u32> usage = {};
-*/
 };
 
 

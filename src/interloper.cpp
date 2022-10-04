@@ -267,6 +267,35 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
     } 
 }
 
+void alloc_slot(Function& func, const Reg& reg, u32 size, u32 count)
+{
+    if(size > GPR_SIZE)
+    {
+        count = gpr_count(size * count);
+        emit(func,op_type::alloc_slot,reg.slot,GPR_SIZE,count);
+    }
+
+    else
+    {
+        emit(func,op_type::alloc_slot,reg.slot,size,count);
+    }
+}
+
+void free_slot(Function& func, const Reg& reg, const u32 size, const u32 count)
+{
+    if(size > GPR_SIZE)
+    {
+        const u32 count = gpr_count(reg.size * reg.count);
+        emit(func,op_type::free_slot,reg.slot,GPR_SIZE,count);
+    }
+
+    else
+    {
+        emit(func,op_type::free_slot,reg.slot,reg.size,reg.count);
+    }
+}
+
+
 
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
@@ -1714,8 +1743,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
     // simple type
     else 
     {
-
-        emit(func,op_type::alloc_slot,sym.slot);
+        alloc_slot(func,sym.reg,sym.reg.size,0);
 
         // initalizer
         if(decl_node->expr)
@@ -1757,7 +1785,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     // add new symbol table entry
     const auto &sym = add_symbol(itl.symbol_table,name,type,size);
 
-    emit(func,op_type::alloc_slot,sym.slot);
+    alloc_slot(func,sym.reg);
     compile_move(itl,func,sym.slot,reg,sym.type,type);
 }
 
@@ -1996,19 +2024,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 {
                     auto [size,count] = arr_alloc_size(sym);
 
-                    if(size != RUNTIME_SIZE)
-                    {
-                        if(size > GPR_SIZE)
-                        {
-                            count = gpr_count(size * size);
-                            emit(func,op_type::free_slot,sym.slot,GPR_SIZE,count);
-                        }
-
-                        else
-                        {
-                            emit(func,op_type::free_slot,sym.slot,size,count);
-                        }
-                    }                   
+                    free_slot(func,reg,size,count);                   
                 }
 
                 else if(is_struct(sym.type))
@@ -2016,12 +2032,12 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
                     const u32 count = gpr_count(structure.size);
-                    emit(func,op_type::free_slot,sym.slot,GPR_SIZE,count);     
+                    free_slot(func,sym.reg,GPR_sIZE,count);    
                 }
 
                 else
                 {
-                    emit(func,op_type::free_slot,sym.slot);
+                    free_slot(func,sym.reg,0,0);
                 } 
             }
         }
