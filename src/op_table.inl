@@ -81,7 +81,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     // directives
     {op_group::slot_t,"alloc_slot %r, %x, %x",3,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::slot_t,"free_slot %r, %x, %X",3,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::slot_t,"free_slot %r, %x, %x",3,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::slot_t,"alloc %r",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
     {op_group::slot_t,"alloc_vla",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
