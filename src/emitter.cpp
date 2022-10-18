@@ -20,7 +20,7 @@ Opcode store_ptr(u32 dst_slot, u32 addr_slot, u32 size, u32 offset)
 // this function only supports up to 32 bit reads atm
 static_assert(GPR_SIZE == sizeof(u32));
 
-Opcode load_ptr(u32 dst_slot, u32 addr_slot,u32 offset, u32 size, bool is_signed)
+Opcode load_ptr(u32 dst_slot, u32 addr_slot,u32 offset, u32 size, b32 is_signed)
 {
     if(is_signed)
     {
@@ -94,7 +94,7 @@ u32 emit_res(Function& func, op_type op, u32 v2, u32 v3)
 static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
 static constexpr u32 REG_TMP_START = 0x00000000;
 
-bool is_sym(u32 s)
+b32 is_sym(u32 s)
 {
     return s >= SYMBOL_START;
 }
@@ -105,19 +105,19 @@ u32 tmp(u32 ir_reg)
 }
 
 // dont correct special regs
-bool is_reg(u32 r)
+b32 is_reg(u32 r)
 {
     return r < MACHINE_REG_SIZE;
 }
 
-bool is_special_reg(u32 r)
+b32 is_special_reg(u32 r)
 {
     return r >= SPECIAL_PURPOSE_REG_START && r <= SPECIAL_PURPOSE_REG_START + SPECIAL_REG_SIZE;
 }
 
-bool is_tmp(u32 r)
+b32 is_tmp(u32 r)
 {
-    return r < REG_FREE;
+    return r < SYMBOL_START;
 }
 
 

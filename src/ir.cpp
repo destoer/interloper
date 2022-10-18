@@ -87,6 +87,10 @@ struct LocalAlloc
     b32 print_reg_allocation = false;
     b32 print_stack_allocation = false;
 
+    // allcation info of tmp's for current function
+    Array<Reg> tmp_regs;
+
+
     // stack allocation
 
     // how much has our stack been screwed up by function calls etc
@@ -107,7 +111,7 @@ struct LocalAlloc
     u32 stack_size;
 };
 
-LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation)
+LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation, Array<Reg> tmp)
 {
     LocalAlloc alloc;
 
@@ -125,6 +129,7 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation)
         alloc.free_list[i] = i;
     }
 
+    alloc.tmp_regs = tmp;
 
     memset(alloc.stack_alloc,0,sizeof(alloc.stack_alloc));
 
@@ -191,10 +196,59 @@ u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
 }
 
 
+Reg& reg_from_slot(u32 slot, SymbolTable& table, LocalAlloc& alloc)
+{
+    // bind the allocation info into the slot
+    if(is_tmp(slot))
+    {
+        return alloc.tmp_regs[slot];
+    }
+
+    // sym
+    else
+    {
+        auto& sym = sym_from_slot(table,slot);
+        return sym.reg;
+    }    
+}
+
+
+void alloc_internal(u32 slot, SymbolTable& table,LocalAlloc &alloc,List &list, ListNode* node)
+{
+    UNUSED(slot); UNUSED(table); UNUSED(alloc); UNUSED(list); UNUSED(node);
+
+    u32 reg = REG_FREE;
+
+    // if there is a free register remove from free list
+    // and give to alloc
+    if(alloc.free_regs)
+    {
+        // allocate a register
+        reg = alloc.free_list[--alloc.free_regs];
+
+        // mark as used by the function
+        alloc.use_count += !is_set(alloc.used_regs,reg);
+        alloc.used_regs = set_bit(alloc.used_regs,reg);
+    }
+
+    // Find a reg to trash or spill
+    else
+    {
+        assert(false);
+    }
+
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
+    ir_reg.location = reg;
+}
+
+b32 is_allocated(u32 slot, SymbolTable& table,LocalAlloc& alloc)
+{
+    const auto& ir_reg = reg_from_slot(slot,table,alloc);
+    return ir_reg.location != LOCATION_MEM;
+}
+
 void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNode *node)
 {
-    UNUSED(table); UNUSED(list); UNUSED(alloc);
-
     const auto opcode = node->opcode;
     const auto info = OPCODE_TABLE[u32(opcode.op)];
 
@@ -204,37 +258,23 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
     for(u32 a = 0; a < info.args; a++)
     {
         // only interested in registers
-        if(info.type[a] != arg_type::src_reg)
+        if(info.type[a] != arg_type::src_reg && info.type[a] != arg_type::dst_reg)
         {
             continue;
         }
 
-        if(is_sym(opcode.v[a]))
-        {
-            assert(false);
-        }
+        const u32 slot = opcode.v[a];
         
-        
-        else if(is_tmp(opcode.v[a]))
+        // special purpose ir reg dont allocate
+        if(is_special_reg(slot))
         {
-            assert(false);
-        }
-    }
-
-
-    const u32 slot = opcode.v[0];
-
-    // handle allocation of dst
-    if(info.type[0] == arg_type::dst_reg)
-    {
-        if(is_sym(slot))
-        {
-            assert(false);
+            continue;
         }
 
-        else if(is_tmp(slot))
+        if(!is_allocated(slot,table,alloc))
         {
-            assert(false);
+            // okay what should we do here to make sure this is allocated?
+            alloc_internal(slot, table, alloc, list, node);
         }
     }
 }
@@ -244,20 +284,12 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
 // NOTE: use this to force rewrites of directives
 void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
-    UNUSED(alloc); UNUSED(table);
-
     const u32 slot = opcode.v[reg];
-
-    if(is_sym(slot))
-    {
-        assert(false);
-    }
-
 
     // dont rewrite any special purpose reg
     // NOTE: for now assume this is running under the interpretter
     // so its converted to our interrpetter regs and not a hardware target
-    else if(is_special_reg(slot))
+    if(is_special_reg(slot))
     {
         switch(slot)
         {
@@ -268,12 +300,13 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
 
             default: crash_and_burn("unhandled special reg %x\n",slot); break;
         }
-    }
+    } 
 
     else
     {
-        assert(false);
-    }          
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
+        opcode.v[reg] = ir_reg.location;
+    }         
 }
 
 void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
@@ -349,7 +382,9 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
         case op_type::alloc_slot:
         {
-            assert(false);
+            // TODO: how should we decide if structs go into memory or not?
+            node = node->next;
+            break;
         }
 
         case op_type::restore_regs:
@@ -358,6 +393,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         }
 
         // make sure the return value has nothing important when calling functions
+        // TODO: start here, (make the spill code is the same across both reg types!)
         case op_type::spill_rv:
         {
             assert(false);
@@ -372,7 +408,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         // TODO: this needs to have its size emitted directly inside the opcode
         case op_type::free_slot:
         {
-            assert(false);
+            node = node->next;
+            break;
         }
 
 
@@ -424,8 +461,90 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 {
     UNUSED(itl); UNUSED(alloc); UNUSED(list); UNUSED(node); UNUSED(callee_restore);
     UNUSED(stack_clean); UNUSED(insert_callee_saves);
-    assert(false);
- 
+
+    const auto opcode = node->opcode;
+
+    switch(node->opcode.op)
+    {
+
+        case op_type::mov_reg:
+        {
+            // remove dead stores (still need to perform reg correction)
+            // so it has to be done in the 2nd pass
+            if(opcode.op == op_type::mov_reg && opcode.v[0] == opcode.v[1])
+            {
+                return remove(list,node);
+            }
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::state_dump:
+        {
+            crash_and_burn("unused state opcode");
+        }
+
+
+        case op_type::alloc:
+        {
+            assert(false);
+        }
+
+        case op_type::ret:
+        {
+            ListNode *tmp = node;
+
+            if(alloc.stack_size)
+            {
+                tmp = insert_at(list,tmp,stack_clean);
+            }
+
+            if(insert_callee_saves)
+            {
+                tmp = insert_at(list,tmp,callee_restore);
+            }
+
+            node = node->next;
+            break;
+        }
+
+        // reload a reg
+        case op_type::load:
+        {
+            assert(false);
+        }
+
+        case op_type::addrof:
+        {
+            assert(false);
+        }
+
+        case op_type::spill:
+        {
+            assert(false);
+        }
+
+        // arrays
+        case op_type::load_arr_data:
+        {
+            assert(false);
+        }
+
+
+        case op_type::load_arr_len:
+        {
+            assert(false);
+        }
+
+        default: 
+        {
+            node = node->next; 
+            break;
+        }
+    }
+
+    return node;
 }
 
 void align(u32 *alloc, u32 alignment)
@@ -488,7 +607,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SymbolTable& table, u32 saved
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation);
+    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers);
 
     // figure out how long each sym lives
     // mark_lifetimes(itl,func);
