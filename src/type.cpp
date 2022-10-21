@@ -1449,5 +1449,6 @@ void destroy_func(Function& func)
 {
     destroy_arr(func.args);
     destroy_arr(func.return_type);
+    destroy_arr(func.registers);
     destroy_emitter(func.emitter);
 }

@@ -158,6 +158,11 @@ void print_alloc(LocalAlloc &alloc,SymbolTable& table)
     {
         const u32 slot = alloc.regs[i];
 
+        if(slot == REG_FREE)
+        {
+            continue;
+        }
+
         if(is_tmp(slot))
         {
             printf("reg r%d -> temp t%d\n",i,slot);
@@ -239,6 +244,21 @@ void alloc_internal(u32 slot, SymbolTable& table,LocalAlloc &alloc,List &list, L
 
     auto& ir_reg = reg_from_slot(slot,table,alloc);
     ir_reg.location = reg;
+
+
+    if(alloc.print_reg_allocation)
+    {
+        if(is_sym(slot))
+        {
+            auto& sym = sym_from_slot(table,slot);
+            printf("symbol %s allocated into reg r%d\n",sym.name.buf,reg);
+        }
+
+        else
+        {
+            printf("tmp t%d allocated into reg r%d\n",slot,reg);
+        }
+    }
 }
 
 b32 is_allocated(u32 slot, SymbolTable& table,LocalAlloc& alloc)
@@ -342,15 +362,85 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
 }
 
 
+void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after = false)
+{
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+    // no need to spill
+    if(ir_reg.location == LOCATION_MEM)
+    {
+        return;
+    }
+
+    const u32 reg = ir_reg.location;
+    const u32 size = ir_reg.size * ir_reg.count;
+
+    // TODO: handle structs
+    assert(size <= sizeof(u32));
+
+    // we have not spilled this value on the stack yet we need to actually allocate its posistion
+
+    if(ir_reg.offset == UNALLOCATED_OFFSET)
+    {
+        if(is_sym(slot))
+        {
+            auto& sym = sym_from_slot(table,slot);
+
+            if(alloc.print_reg_allocation)
+            {
+                printf("spill %s:%d\n",sym.name.buf,reg);
+            }
+
+
+            // only allocate the local vars by here
+            if(!is_arg(sym))
+            {
+                ir_reg.offset = stack_reserve(alloc,size,1,sym.name.buf);
+            }
+        }
+
+        else
+        {
+            if(alloc.print_reg_allocation)
+            {
+                printf("spill t%d:%d\n",slot,reg);
+            }
+
+            // by defintion a tmp has to be local
+            // TODO: fmt this tmp
+            ir_reg.offset = stack_reserve(alloc,size,1,"t");
+        }
+    }
+    
+    // TODO: how do we know if a variable has not been modified
+    // i.e it is a ready only copy and has not been modifed so we dont actually need to write it back
+    const auto opcode = Opcode(op_type::spill,reg,ir_reg.slot,alloc.stack_offset);
+
+    if(!after)
+    {
+        insert_at(list,node,opcode); 
+    }
+
+    else 
+    {
+        insert_after(list,node,opcode);
+    }
+
+    // register is back in memory!
+    ir_reg.location = LOCATION_MEM;
+    alloc.regs[reg] = REG_FREE;
+    alloc.free_list[alloc.free_regs++] = reg;    
+}
+
 
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List &list, ListNode *node)
 {
-    UNUSED(func); UNUSED(itl); UNUSED(alloc); UNUSED(list); UNUSED(node);
-
     auto &table = itl.symbol_table;
     const auto &opcode = node->opcode;
 
-    UNUSED(table); UNUSED(opcode);
+    UNUSED(func);
+
+    UNUSED(opcode);
 
     switch(node->opcode.op)
     {
@@ -362,12 +452,36 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         // have to do opcode rewriting by here to make sure hte offset is applied after any reloads occur
         case op_type::push_arg:
         {
-            assert(false);
+            node->opcode =  Opcode(op_type::push,opcode.v[0],0,0);
+
+            // adjust opcode for reg alloc
+            rewrite_opcode(itl,alloc,list,node);
+
+            // varaibles now have to be accessed at a different offset
+            // until this is corrected by clean call
+            alloc.stack_offset += GPR_SIZE;
+
+            node = node->next;
+            break;
         }
 
         case op_type::clean_args:
         {
-            assert(false);
+            // clean up args
+            const auto stack_clean = GPR_SIZE * opcode.v[0];
+
+            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
+            alloc.stack_offset -= stack_clean; 
+
+            rewrite_regs(itl.symbol_table,alloc,node->opcode);
+
+            if(alloc.print_stack_allocation)
+            {
+                printf("clean args: %x\n",stack_clean);
+            }
+
+            node = node->next;
+            break;
         }
 
         case op_type::alloc_stack:
@@ -383,20 +497,46 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         case op_type::alloc_slot:
         {
             // TODO: how should we decide if structs go into memory or not?
+            return remove(list,node);
+            break;
+        }
+
+
+
+        // TODO: we should probably only save regs we use but this is just easy for now
+        case op_type::save_regs:
+        {
+            node->opcode = Opcode(op_type::pushm,0xffffffff,0,0);
+            alloc.stack_offset += GPR_SIZE * MACHINE_REG_SIZE;
+
             node = node->next;
             break;
         }
 
+
+        // TODO: make this only restore active regs....
         case op_type::restore_regs:
         {
-            assert(false);
+            node->opcode = Opcode(op_type::popm,0xffffffff,0,0);
+            alloc.stack_offset -= GPR_SIZE * MACHINE_REG_SIZE;
+
+            node = node->next;
+            break;
         }
 
         // make sure the return value has nothing important when calling functions
-        // TODO: start here, (make the spill code is the same across both reg types!)
         case op_type::spill_rv:
         {
-            assert(false);
+            const u32 slot = alloc.regs[RV];
+
+            // if we have a reg here
+            if(slot != REG_FREE)
+            {
+                spill(slot,alloc,table,list,node);
+            }
+
+            return remove(list,node);
+            break;
         }
 
 
@@ -408,7 +548,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         // TODO: this needs to have its size emitted directly inside the opcode
         case op_type::free_slot:
         {
-            node = node->next;
+            return remove(list,node);
             break;
         }
 
