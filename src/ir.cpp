@@ -68,7 +68,6 @@ static_assert(MACHINE_REG_SIZE <= 32);
 struct LocalAlloc
 {
     // register allocation
-
     // is this free or does it hold a var?
     u32 regs[MACHINE_REG_SIZE];  
 
@@ -81,6 +80,9 @@ struct LocalAlloc
     // for now we are going to just callee save every register
     u32 used_regs;
     u32 use_count;
+
+    // what instruction are we on?
+    u32 pc = 0;
 
 
     // debug (TODO: make this a command line flag)
@@ -122,6 +124,7 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,
     alloc.free_regs = MACHINE_REG_SIZE;
     alloc.use_count = 0;
     alloc.used_regs = 0;
+    alloc.pc = 0;
 
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
@@ -217,11 +220,67 @@ Reg& reg_from_slot(u32 slot, SymbolTable& table, LocalAlloc& alloc)
     }    
 }
 
+void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after = false);
 
-void alloc_internal(u32 slot, SymbolTable& table,LocalAlloc &alloc,List &list, ListNode* node)
+u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
 {
-    UNUSED(slot); UNUSED(table); UNUSED(alloc); UNUSED(list); UNUSED(node);
+    // scan every reg
+    // if we find one that has its last use
+    // use it
+    
 
+    u32 max_gap = 0;
+    u32 max_reg = REG_FREE;
+
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        const u32 slot = alloc.regs[r];
+
+        if(is_tmp(slot) || is_sym(slot))
+        {
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+            // this is the last use of this var we can just free it
+            if(ir_reg.uses == count(ir_reg.usage) - 1)
+            {
+                if(is_sym(ir_reg.slot))
+                {
+                    auto& sym = sym_from_slot(table,slot);
+
+                    // symbol has been aliased -> spill it
+                    if(sym.referenced)
+                    {
+                        assert(false);
+                    }
+
+                    ir_reg.location = LOCATION_MEM;
+                }
+
+
+                return r;
+            }
+
+            else
+            {
+                const u32 cur_gap = ir_reg.usage[ir_reg.uses + 1] - alloc.pc;
+
+                if(cur_gap > max_gap)
+                {
+                    max_gap = cur_gap;
+                    max_reg = r;
+                }
+            }
+        }
+    }
+
+    assert(max_reg != REG_FREE);
+
+    spill(alloc.regs[max_reg],alloc,table,list,node);
+    return max_reg;
+}
+
+void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,List &list, ListNode* node)
+{
     u32 reg = REG_FREE;
 
     // if there is a free register remove from free list
@@ -236,16 +295,20 @@ void alloc_internal(u32 slot, SymbolTable& table,LocalAlloc &alloc,List &list, L
         alloc.used_regs = set_bit(alloc.used_regs,reg);
     }
 
-    // Find a reg to trash or spill
+    // evict a register to make space
     else
     {
-        assert(false);
+        
+        reg = trash_reg(table,alloc,list,node);
     }
 
-    auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+    const u32 slot = ir_reg.slot;
+
     ir_reg.location = reg;
+    alloc.regs[reg] = slot;
 
-
+   
     if(alloc.print_reg_allocation)
     {
         if(is_sym(slot))
@@ -291,11 +354,16 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
             continue;
         }
 
-        if(!is_allocated(slot,table,alloc))
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+        // is this thing allocated?
+        if(ir_reg.location == LOCATION_MEM)
         {
             // okay what should we do here to make sure this is allocated?
-            alloc_internal(slot, table, alloc, list, node);
+            alloc_internal(ir_reg, table, alloc, list, node);
         }
+
+        ir_reg.uses++;
     }
 }
 
@@ -362,7 +430,7 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
 }
 
 
-void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after = false)
+void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
 
@@ -745,12 +813,81 @@ void alloc_args(Function &func, LocalAlloc& alloc, SymbolTable& table, u32 saved
 }
 
 
+void dump_reg(Reg& reg)
+{
+    const char* KIND_NAMES[] = {"local","global","tmp"};
+    printf("kind: %s\n",KIND_NAMES[u32(reg.kind)]);
+    printf("slot: 0x%x\n",reg.slot);
+
+    printf("size: %d\n",reg.size);
+    printf("count: %d\n",reg.count);
+
+    printf("offset: 0x%x\n",reg.offset);
+    printf("locaiton: 0x%x\n",reg.location);
+
+    printf("uses: %d\n",reg.uses);
+
+    for(u32 i = 0; i < count(reg.usage); i++)
+    {
+        printf("use[%d] -> %d\n",i,reg.usage[i]);
+    }
+}
+
+void mark_lifetimes(Function& func,LocalAlloc& alloc, SymbolTable& table)
+{
+    for(u32 b = 0; b < count(func.emitter.program); b++)
+    {
+        auto& block = func.emitter.program[b];
+        
+        List& list = block.list;
+
+        ListNode *node = list.start;
+
+        u32 pc = 0;
+
+        while(node)
+        {
+            const auto opcode = node->opcode;
+
+            const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+
+            // make sure our src var's are loaded
+            // mark if any are tmp's we can reuse to allocate the dst
+            for(u32 a = 0; a < info.args; a++)
+            {
+                // only interested in registers
+                if(info.type[a] != arg_type::src_reg && info.type[a] != arg_type::dst_reg)
+                {
+                    continue;
+                }
+
+                const u32 slot = opcode.v[a];
+
+                if(is_special_reg(slot))
+                {
+                    continue;
+                }
+
+
+                auto& reg = reg_from_slot(slot,table,alloc);
+                push_var(reg.usage,pc);
+
+            }
+
+            node = node->next;
+            pc++;
+        }
+    }    
+}
+
+
 void allocate_registers(Interloper& itl,Function &func)
 {
     auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers);
 
     // figure out how long each sym lives
-    // mark_lifetimes(itl,func);
+    mark_lifetimes(func,alloc,itl.symbol_table);
 
     if(alloc.print_reg_allocation)
     {
@@ -767,6 +904,7 @@ void allocate_registers(Interloper& itl,Function &func)
         while(node)
         {
             node = allocate_opcode(itl,func,alloc,list,node);
+            alloc.pc++;
         }
     }
 
