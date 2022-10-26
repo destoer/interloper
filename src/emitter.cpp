@@ -145,6 +145,9 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot)
 
     reg.slot = slot;
 
+    reg.offset = PENDING_ALLOCATION;
+    reg.location = LOCATION_MEM;
+
     return reg;
 }
 

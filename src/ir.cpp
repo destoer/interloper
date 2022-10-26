@@ -173,7 +173,6 @@ void print_alloc(LocalAlloc &alloc,SymbolTable& table)
 
         else if(is_sym(slot))
         {
-            printf("slot %x\n",slot);
             const auto &sym = sym_from_slot(table,slot);
             printf("reg r%d -> sym %s\n",i,sym.name.buf);
         }
@@ -241,11 +240,16 @@ u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
             // this is the last use of this var we can just free it
-            if(ir_reg.uses == count(ir_reg.usage) - 1)
+            if(ir_reg.uses == count(ir_reg.usage))
             {
                 if(is_sym(ir_reg.slot))
                 {
                     auto& sym = sym_from_slot(table,slot);
+
+                    if(alloc.print_reg_allocation)
+                    {
+                        printf("freed symbol %s from reg r%d\n",sym.name.buf,r);
+                    }
 
                     // symbol has been aliased -> spill it
                     if(sym.referenced)
@@ -254,6 +258,15 @@ u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
                     }
 
                     ir_reg.location = LOCATION_MEM;
+                }
+
+
+                else
+                {
+                    if(alloc.print_reg_allocation)
+                    {
+                        printf("freed tmp t%d from reg r%d\n",slot,r);
+                    }                 
                 }
 
 
@@ -650,17 +663,26 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
     return node;
 }
 
-u32 finish_alloc(LocalAlloc& alloc,u32 offset,u32 size, const char* name)
+u32 finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 {
     if(alloc.print_stack_allocation)
     {
-        printf("final offset %s = %x -> (%x,%x)\n",name,size,offset,offset - PENDING_ALLOCATION);
+        if(is_sym(reg.slot))
+        {
+            auto& sym = sym_from_slot(table,reg.slot);
+            printf("final offset %s = %x -> (%x,%x)\n",sym.name.buf,reg.size,reg.offset,reg.offset - PENDING_ALLOCATION);
+        }
+
+        else
+        {
+            printf("final offset t%d = %x -> (%x,%x)\n",reg.slot,reg.size,reg.offset,reg.offset - PENDING_ALLOCATION);
+        }
     }
 
-    assert(offset >= PENDING_ALLOCATION && offset != UNALLOCATED_OFFSET);
+    assert(reg.offset >= PENDING_ALLOCATION && reg.offset != UNALLOCATED_OFFSET);
 
-    const u32 idx = offset - PENDING_ALLOCATION;  
-    return alloc.stack_alloc[size >> 1] + (idx * size);     
+    const u32 idx = reg.offset - PENDING_ALLOCATION;  
+    return alloc.stack_alloc[reg.size >> 1] + (idx * reg.size);     
 }
 
 // 2nd pass of rewriting on the IR
@@ -730,7 +752,27 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
         case op_type::spill:
         {
-            assert(false);
+            auto& reg = reg_from_slot(opcode.v[1],itl.symbol_table,alloc);
+
+            const s32 stack_offset = opcode.v[2];
+
+            // this is the first stack access so we need to compute the final posistion
+            if(reg.offset >= PENDING_ALLOCATION)
+            {
+                finish_alloc(reg,itl.symbol_table,alloc);
+            }
+
+            // write value back out into mem
+            // TODO: are these offsets aligned? 
+
+            // TODO: we need to not bother storing these back if the varaible spilled has not been modified
+            // and is just used as a const for a calc (how do we impl this?)
+
+            static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+            node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],SP,reg.offset + stack_offset);   
+
+            node = node->next;
+            break;                    
         }
 
         // arrays
