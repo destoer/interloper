@@ -221,6 +221,51 @@ Reg& reg_from_slot(u32 slot, SymbolTable& table, LocalAlloc& alloc)
 
 void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after = false);
 
+void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
+{
+    // this register is allready in memory
+    if(ir_reg.location == LOCATION_MEM)
+    {
+        return;
+    }
+
+    const u32 reg = ir_reg.location;
+
+    if(is_sym(ir_reg.slot))
+    {
+        auto& sym = sym_from_slot(table,ir_reg.slot);
+        if(alloc.print_reg_allocation)
+        {
+            printf("freed symbol %s from reg r%d\n",sym.name.buf,reg);
+        }
+
+        if(sym.referenced)
+        {
+            assert(false);
+        }
+    }
+
+
+    else
+    {
+        if(alloc.print_reg_allocation)
+        {
+            printf("freed tmp t%d from reg r%d\n",ir_reg.slot,reg);
+        }               
+    }
+
+    ir_reg.location = LOCATION_MEM;
+
+    // add back to the free list
+    alloc.regs[reg] = REG_FREE;
+    alloc.free_list[alloc.free_regs++] = reg; 
+}
+
+u32 alloc_reg(LocalAlloc& alloc)
+{
+    return alloc.free_list[--alloc.free_regs];
+}
+
 u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
 {
     // scan every reg
@@ -240,48 +285,23 @@ u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
             // this is the last use of this var we can just free it
+            // TODO: we should be able to bring this out of the loop if we rearrange the rewriting pass
             if(ir_reg.uses == count(ir_reg.usage))
             {
-                if(is_sym(ir_reg.slot))
-                {
-                    auto& sym = sym_from_slot(table,slot);
-
-                    if(alloc.print_reg_allocation)
-                    {
-                        printf("freed symbol %s from reg r%d\n",sym.name.buf,r);
-                    }
-
-                    // symbol has been aliased -> spill it
-                    if(sym.referenced)
-                    {
-                        assert(false);
-                    }
-
-                    ir_reg.location = LOCATION_MEM;
-                }
-
-
-                else
-                {
-                    if(alloc.print_reg_allocation)
-                    {
-                        printf("freed tmp t%d from reg r%d\n",slot,r);
-                    }                 
-                }
-
-
-                return r;
+                free_reg(ir_reg,table,alloc);
+                return alloc_reg(alloc);
             }
 
             else
             {
+                // we haven't found something that can be freed yet...
                 const u32 cur_gap = ir_reg.usage[ir_reg.uses + 1] - alloc.pc;
 
                 if(cur_gap > max_gap)
                 {
                     max_gap = cur_gap;
                     max_reg = r;
-                }
+                } 
             }
         }
     }
@@ -300,8 +320,7 @@ void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,List &list
     // and give to alloc
     if(alloc.free_regs)
     {
-        // allocate a register
-        reg = alloc.free_list[--alloc.free_regs];
+        reg = alloc_reg(alloc);
 
         // mark as used by the function
         alloc.use_count += !is_set(alloc.used_regs,reg);
@@ -337,11 +356,6 @@ void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,List &list
     }
 }
 
-b32 is_allocated(u32 slot, SymbolTable& table,LocalAlloc& alloc)
-{
-    const auto& ir_reg = reg_from_slot(slot,table,alloc);
-    return ir_reg.location != LOCATION_MEM;
-}
 
 void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNode *node)
 {
@@ -406,6 +420,8 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
     else
     {
         auto& ir_reg = reg_from_slot(slot,table,alloc);
+        assert(ir_reg.location != LOCATION_MEM);
+
         opcode.v[reg] = ir_reg.location;
     }         
 }
@@ -663,7 +679,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
     return node;
 }
 
-u32 finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
+void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 {
     if(alloc.print_stack_allocation)
     {
@@ -681,8 +697,11 @@ u32 finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 
     assert(reg.offset >= PENDING_ALLOCATION && reg.offset != UNALLOCATED_OFFSET);
 
+    // what pos in the block does this reg have?
     const u32 idx = reg.offset - PENDING_ALLOCATION;  
-    return alloc.stack_alloc[reg.size >> 1] + (idx * reg.size);     
+    
+    // actually allocate the offset
+    reg.offset = alloc.stack_alloc[reg.size >> 1] + (idx * reg.size);     
 }
 
 // 2nd pass of rewriting on the IR
