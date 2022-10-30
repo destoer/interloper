@@ -68,7 +68,7 @@ u32 new_tmp(Function& func, u32 size)
 {
     const u32 slot = count(func.registers);
 
-    const auto reg = make_reg(reg_kind::tmp,size,slot);
+    const auto reg = make_reg(reg_kind::tmp,size,slot,false);
     push_var(func.registers,reg);
 
     return slot;
@@ -126,7 +126,7 @@ u32 slot_to_idx(u32 slot)
     return is_sym(slot)? sym_to_idx(slot) : slot;
 }
 
-Reg make_reg(reg_kind kind,u32 size, u32 slot)
+Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
 {
     Reg reg;
     reg.kind = kind;
@@ -143,10 +143,13 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot)
         reg.size = size;
     }
 
-    reg.slot = slot;
 
-    reg.offset = PENDING_ALLOCATION;
-    reg.location = LOCATION_MEM;
+    if(is_signed)
+    {
+        reg.flags |= SIGNED_FLAG;
+    }
+
+    reg.slot = slot;
 
     return reg;
 }

@@ -182,19 +182,15 @@ void print_alloc(LocalAlloc &alloc,SymbolTable& table)
 
 }
 
+
 // NOTE: this just reserves stack space,
 // calc allocation must be called (done before 2nd directive pass)
 // then finish_alloc to give the actual offset
-u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char* name)
+u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count)
 {
     const u32 idx = size >> 1;
-
     const u32 cur = alloc.size_count[idx];
 
-    if(alloc.print_stack_allocation)
-    {
-        printf("initial offset allocated %s: (%x,%x) -> %x\n",name,size,count,cur);
-    }
 
     alloc.size_count[idx] += count;
     alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
@@ -234,11 +230,9 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
     if(is_sym(ir_reg.slot))
     {
         auto& sym = sym_from_slot(table,ir_reg.slot);
-        if(alloc.print_reg_allocation)
-        {
-            printf("freed symbol %s from reg r%d\n",sym.name.buf,reg);
-        }
 
+        log(alloc.print_reg_allocation,"freed symbol %s from reg r%d\n",sym.name.buf,reg);
+    
         if(sym.referenced)
         {
             assert(false);
@@ -248,10 +242,7 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 
     else
     {
-        if(alloc.print_reg_allocation)
-        {
-            printf("freed tmp t%d from reg r%d\n",ir_reg.slot,reg);
-        }               
+        log(alloc.print_reg_allocation,"freed tmp t%d from reg r%d\n",ir_reg.slot,reg);               
     }
 
     ir_reg.location = LOCATION_MEM;
@@ -268,11 +259,6 @@ u32 alloc_reg(LocalAlloc& alloc)
 
 u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
 {
-    // scan every reg
-    // if we find one that has its last use
-    // use it
-    
-
     u32 max_gap = 0;
     u32 max_reg = REG_FREE;
 
@@ -284,6 +270,10 @@ u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
         {
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
+            // TODO: this needs to be out of the loop
+            // atleast the free part part which destroy's where a var is
+            // because otherwhise it can lose required inforatmion in t he middle of an instruction
+#if 0
             // this is the last use of this var we can just free it
             // TODO: we should be able to bring this out of the loop if we rearrange the rewriting pass
             if(ir_reg.uses == count(ir_reg.usage))
@@ -293,10 +283,15 @@ u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
             }
 
             else
+#endif
             {
                 // we haven't found something that can be freed yet...
                 const u32 cur_gap = ir_reg.usage[ir_reg.uses + 1] - alloc.pc;
 
+                // Find what reg will not be used for the longest
+                // NOTE: we can probably improve what factors are at play here
+                // e.g the number of accesses to come
+                // this is just nice and simple
                 if(cur_gap > max_gap)
                 {
                     max_gap = cur_gap;
@@ -386,10 +381,20 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
         // is this thing allocated?
         if(ir_reg.location == LOCATION_MEM)
         {
-            // okay what should we do here to make sure this is allocated?
+            // reallocate the register
             alloc_internal(ir_reg, table, alloc, list, node);
+
+            // if its a src we need to reload it from spill
+            if(info.type[a] == arg_type::src_reg)
+            {
+                // we need to save the current stack offset here 
+                // as by the time we load it it may be different
+                const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot,alloc.stack_offset);
+                insert_at(list,node,opcode); 
+            }
         }
 
+        // Can this break if its not on a distinct pass?
         ir_reg.uses++;
     }
 }
@@ -420,7 +425,7 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
     else
     {
         auto& ir_reg = reg_from_slot(slot,table,alloc);
-        assert(ir_reg.location != LOCATION_MEM);
+        assert(ir_reg.location < MACHINE_REG_SIZE);
 
         opcode.v[reg] = ir_reg.location;
     }         
@@ -483,29 +488,27 @@ void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* no
         {
             auto& sym = sym_from_slot(table,slot);
 
-            if(alloc.print_reg_allocation)
-            {
-                printf("spill %s:%d\n",sym.name.buf,reg);
-            }
+            log(alloc.print_reg_allocation,"spill %s:%d\n",sym.name.buf,reg);
 
 
             // only allocate the local vars by here
             if(!is_arg(sym))
             {
-                ir_reg.offset = stack_reserve(alloc,size,1,sym.name.buf);
+                ir_reg.offset = stack_reserve(alloc,size,1);
+
+                log(alloc.print_stack_allocation,"initial offset allocated %s: [%x] -> %x\n",sym.name.buf,size,ir_reg.offset - PENDING_ALLOCATION);
             }
         }
 
         else
         {
-            if(alloc.print_reg_allocation)
-            {
-                printf("spill t%d:%d\n",slot,reg);
-            }
+            log(alloc.print_reg_allocation,"spill t%d:%d\n",slot,reg);
 
             // by defintion a tmp has to be local
             // TODO: fmt this tmp
-            ir_reg.offset = stack_reserve(alloc,size,1,"t");
+            ir_reg.offset = stack_reserve(alloc,size,1);
+
+            log(alloc.print_stack_allocation,"initial offset allocated t%d: [%x] -> %x\n",slot,size,ir_reg.offset - PENDING_ALLOCATION);
         }
     }
     
@@ -572,11 +575,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
             rewrite_regs(itl.symbol_table,alloc,node->opcode);
 
-            if(alloc.print_stack_allocation)
-            {
-                printf("clean args: %x\n",stack_clean);
-            }
-
+            log(alloc.print_stack_allocation,"clean args: %x\n",stack_clean);
+    
             node = node->next;
             break;
         }
@@ -761,7 +761,31 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
         // reload a reg
         case op_type::load:
         {
-            assert(false);
+            auto& reg = reg_from_slot(opcode.v[1],itl.symbol_table,alloc);
+            const s32 stack_offset = opcode.v[2];
+
+
+            // reload the spilled var 
+            if(reg.flags & SIGNED_FLAG)
+            {
+                // word is register size (we dont need to extend it)
+                static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+
+                // this here does not otherwhise need rewriting so we will emit SP directly
+                node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],SP,reg.offset + stack_offset);        
+            }
+
+            // "plain data"
+            // just move by size
+            else
+            {
+                static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+
+                node->opcode =  Opcode(instr[reg.size >> 1],opcode.v[0],SP,reg.offset + stack_offset);
+            }
+            
+            node = node->next;
+            break;
         }
 
         case op_type::addrof:
@@ -950,10 +974,7 @@ void allocate_registers(Interloper& itl,Function &func)
     // figure out how long each sym lives
     mark_lifetimes(func,alloc,itl.symbol_table);
 
-    if(alloc.print_reg_allocation)
-    {
-        printf("allocating registers for %s:\n\n",func.name.buf);
-    }
+    log(alloc.print_reg_allocation,"allocating registers for %s:\n\n",func.name.buf);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {

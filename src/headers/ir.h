@@ -241,6 +241,8 @@ enum class reg_kind
     tmp,
 };
 
+static constexpr u32 SIGNED_FLAG = 1 << 0;
+
 struct Reg
 {
     reg_kind kind;
@@ -262,7 +264,7 @@ struct Reg
     // is it in memory or is it in register?
     u32 location = LOCATION_MEM;
 
-
+    u32 flags = 0;
 
     // how many times has this currently been used?
     u32 uses = 0;
@@ -273,7 +275,7 @@ struct Reg
     Array<u32> usage = {};
 };
 
-Reg make_reg(reg_kind kind,u32 size, u32 slot);
+Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed);
 void print(const Reg& reg);
 
 // standard symbols

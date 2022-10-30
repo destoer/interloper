@@ -56,7 +56,10 @@ Symbol make_sym(SymbolTable& table,const String& name, Type* type, u32 size,u32 
     symbol.name = copy_string(*table.string_allocator,name);
     symbol.type = type;
     symbol.arg_offset = arg;
-    symbol.reg = make_reg(reg_kind::local,size,slot);
+
+    b32 s = is_signed(type);
+
+    symbol.reg = make_reg(reg_kind::local,size,slot,s);
 
     return symbol;
 }

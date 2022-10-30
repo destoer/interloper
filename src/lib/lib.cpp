@@ -126,6 +126,18 @@ void crash_and_burn(const char *fmt, ...)
 }
 
 
+void log(b32 cond,const char *fmt, ...)
+{
+    if(cond)
+    {
+        va_list args; 
+        va_start(args, fmt);
+        vprintf(fmt,args);
+        va_end(args);
+    }
+}
+
+
 #include "alloc.cpp"
 #include "array.cpp"
 #include "string.cpp"
