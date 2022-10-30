@@ -257,7 +257,7 @@ u32 alloc_reg(LocalAlloc& alloc)
     return alloc.free_list[--alloc.free_regs];
 }
 
-u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
+void trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
 {
     u32 max_gap = 0;
     u32 max_reg = REG_FREE;
@@ -273,13 +273,12 @@ u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
             // TODO: this needs to be out of the loop
             // atleast the free part part which destroy's where a var is
             // because otherwhise it can lose required inforatmion in t he middle of an instruction
-#if 0
+#if 1
             // this is the last use of this var we can just free it
             // TODO: we should be able to bring this out of the loop if we rearrange the rewriting pass
             if(ir_reg.uses == count(ir_reg.usage))
             {
                 free_reg(ir_reg,table,alloc);
-                return alloc_reg(alloc);
             }
 
             else
@@ -304,30 +303,26 @@ u32 trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
     assert(max_reg != REG_FREE);
 
     spill(alloc.regs[max_reg],alloc,table,list,node);
-    return max_reg;
 }
 
 void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,List &list, ListNode* node)
 {
     u32 reg = REG_FREE;
 
-    // if there is a free register remove from free list
-    // and give to alloc
-    if(alloc.free_regs)
-    {
-        reg = alloc_reg(alloc);
-
-        // mark as used by the function
-        alloc.use_count += !is_set(alloc.used_regs,reg);
-        alloc.used_regs = set_bit(alloc.used_regs,reg);
-    }
-
     // evict a register to make space
-    else
+    if(!alloc.free_regs)
     {
-        
-        reg = trash_reg(table,alloc,list,node);
+        trash_reg(table,alloc,list,node);
     }
+
+    // give back a register from the free list
+    reg = alloc_reg(alloc);
+
+    // mark as used by the function
+    alloc.use_count += !is_set(alloc.used_regs,reg);
+    alloc.used_regs = set_bit(alloc.used_regs,reg);
+
+
 
 
     const u32 slot = ir_reg.slot;
