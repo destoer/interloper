@@ -270,33 +270,18 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node
         {
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
-            // TODO: this needs to be out of the loop
-            // atleast the free part part which destroy's where a var is
-            // because otherwhise it can lose required inforatmion in t he middle of an instruction
-#if 1
-            // this is the last use of this var we can just free it
-            // TODO: we should be able to bring this out of the loop if we rearrange the rewriting pass
-            if(ir_reg.uses == count(ir_reg.usage))
-            {
-                free_reg(ir_reg,table,alloc);
-            }
+            // we haven't found something that can be freed yet...
+            const u32 cur_gap = ir_reg.usage[ir_reg.uses + 1] - alloc.pc;
 
-            else
-#endif
+            // Find what reg will not be used for the longest
+            // NOTE: we can probably improve what factors are at play here
+            // e.g the number of accesses to come
+            // this is just nice and simple
+            if(cur_gap > max_gap)
             {
-                // we haven't found something that can be freed yet...
-                const u32 cur_gap = ir_reg.usage[ir_reg.uses + 1] - alloc.pc;
-
-                // Find what reg will not be used for the longest
-                // NOTE: we can probably improve what factors are at play here
-                // e.g the number of accesses to come
-                // this is just nice and simple
-                if(cur_gap > max_gap)
-                {
-                    max_gap = cur_gap;
-                    max_reg = r;
-                } 
-            }
+                max_gap = cur_gap;
+                max_reg = r;
+            }    
         }
     }
 
@@ -347,51 +332,108 @@ void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,List &list
 }
 
 
+void allocate_slot(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node, Reg& ir_reg, b32 is_src)
+{
+    // is this thing allocated?
+    if(ir_reg.location == LOCATION_MEM)
+    {
+        // reallocate the register
+        alloc_internal(ir_reg, table, alloc, list, node);
+
+        // if its a src we need to reload it from spill
+        if(is_src)
+        {
+            // we need to save the current stack offset here 
+            // as by the time we load it it may be different
+            const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot,alloc.stack_offset);
+            insert_at(list,node,opcode); 
+        }
+    }   
+}
+
 void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNode *node)
 {
     const auto opcode = node->opcode;
     const auto info = OPCODE_TABLE[u32(opcode.op)];
 
+    // keep track of freeable regs
+    u32 dead_slot[3] = {0};
+    u32 dead_count = 0;
 
     // make sure our src var's are loaded
     // mark if any are tmp's we can reuse to allocate the dst
-    for(u32 a = 0; a < info.args; a++)
+    for(u32 a = 1; a < info.args; a++)
     {
-        // only interested in registers
-        if(info.type[a] != arg_type::src_reg && info.type[a] != arg_type::dst_reg)
+        // only interested in src registers
+        if(info.type[a] != arg_type::src_reg)
         {
             continue;
         }
 
-        const u32 slot = opcode.v[a];
-        
+        const u32 slot = node->opcode.v[a];
+
         // special purpose ir reg dont allocate
         if(is_special_reg(slot))
         {
+            rewrite_reg(table,alloc,node->opcode,a);
             continue;
         }
 
+
         auto& ir_reg = reg_from_slot(slot,table,alloc);
 
-        // is this thing allocated?
-        if(ir_reg.location == LOCATION_MEM)
-        {
-            // reallocate the register
-            alloc_internal(ir_reg, table, alloc, list, node);
+        allocate_slot(table,alloc,list,node,ir_reg,info.type[a] == arg_type::src_reg);
 
-            // if its a src we need to reload it from spill
-            if(info.type[a] == arg_type::src_reg)
-            {
-                // we need to save the current stack offset here 
-                // as by the time we load it it may be different
-                const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot,alloc.stack_offset);
-                insert_at(list,node,opcode); 
-            }
+        // rewrite the register
+        rewrite_reg(table,alloc,node->opcode,a); 
+
+
+        // mark any regs no longer used for cleanup
+        if(++ir_reg.uses == count(ir_reg.usage))
+        {
+            dead_slot[dead_count++] = slot;
+        }
+    }
+
+    // free any regs that are never used again
+    while(dead_count)
+    {
+        const u32 slot = dead_slot[--dead_count];
+
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
+        free_reg(ir_reg,table,alloc);
+    }
+
+
+    // alloc the first slot
+    // NOTE: this is done seperately in case we can reuse src slots as the dst
+    const u32 dst_slot = node->opcode.v[0];
+
+    if(info.type[0] == arg_type::src_reg || info.type[0] == arg_type::dst_reg)
+    {
+        // special purpose ir reg dont allocate
+        if(is_special_reg(dst_slot))
+        {
+            rewrite_reg(table,alloc,node->opcode,0);
         }
 
-        // Can this break if its not on a distinct pass?
-        ir_reg.uses++;
+        else
+        {
+            auto& ir_reg = reg_from_slot(dst_slot,table,alloc);
+
+            allocate_slot(table,alloc,list,node,ir_reg,info.type[0] == arg_type::src_reg);
+
+            // rewrite the register
+            rewrite_reg(table,alloc,node->opcode,0); 
+
+            // dst slot is never used?
+            if(++ir_reg.uses == count(ir_reg.usage))
+            {
+                free_reg(ir_reg,table,alloc);
+            }
+        }
     }
+
 }
 
 
@@ -453,9 +495,6 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
 {
     // allocate the registers
     handle_allocation(itl.symbol_table,alloc,list,node);
-
-    // rewrite each slot to its allocated register
-    rewrite_regs(itl.symbol_table,alloc,node->opcode);
 }
 
 
