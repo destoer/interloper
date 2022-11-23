@@ -1,5 +1,7 @@
 
 
+using namespace destoer;
+
 void add_func(Interloper& itl, const String& name, FuncNode* root)
 {
     Function func;

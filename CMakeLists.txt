@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 file(GLOB src_files
 	"src/*.h"
 	"src/main.cpp"
+	"destoer-lib/src/destoer-lib.cpp"
 )
 
 if(WIN32)
@@ -21,4 +22,5 @@ endif()
 
 include_directories("src/headers")
 include_directories("src/")
+include_directories("destoer-lib/src")
 add_executable(interloper ${src_files})

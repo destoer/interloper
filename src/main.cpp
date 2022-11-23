@@ -1,6 +1,6 @@
 #include <interloper.h>
 
-#include "lib/lib.cpp"
+#include <destoer.cpp>
 #include "interloper.cpp"
 #include "interpretter.cpp"
 #include "test.cpp"
