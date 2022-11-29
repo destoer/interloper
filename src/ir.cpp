@@ -217,6 +217,30 @@ Reg& reg_from_slot(u32 slot, SymbolTable& table, LocalAlloc& alloc)
 
 void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after = false);
 
+b32 is_var(u32 slot)
+{
+    return is_tmp(slot) || is_sym(slot);
+}
+
+void spill_all(LocalAlloc &alloc, SymbolTable& table, List& list, ListNode* node, bool after)
+{
+    if(alloc.print_reg_allocation)
+    {
+        puts("spilling everything"); 
+    }
+    
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        const u32 slot = alloc.regs[r];
+
+        if(is_var(slot))
+        {
+            spill(slot,alloc,table,list,node,after);
+        }        
+    }
+}
+
+
 void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 {
     // this register is allready in memory
@@ -266,7 +290,7 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node
     {
         const u32 slot = alloc.regs[r];
 
-        if(is_tmp(slot) || is_sym(slot))
+        if(is_var(slot))
         {
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
@@ -673,7 +697,9 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
         case op_type::spill_all:
         {
-            assert(false);
+            spill_all(alloc,itl.symbol_table,list,node,false);
+            return remove(list,node);
+            break;
         }
 
         // TODO: this needs to have its size emitted directly inside the opcode

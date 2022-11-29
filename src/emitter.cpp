@@ -90,8 +90,8 @@ u32 emit_res(Function& func, op_type op, u32 v2, u32 v3)
 }
 
 
-
 static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
+static constexpr u32 TMP_END = REG_FREE - 1;
 static constexpr u32 REG_TMP_START = 0x00000000;
 
 b32 is_sym(u32 s)
@@ -117,7 +117,7 @@ b32 is_special_reg(u32 r)
 
 b32 is_tmp(u32 r)
 {
-    return r < SYMBOL_START;
+    return r < TMP_END;
 }
 
 
