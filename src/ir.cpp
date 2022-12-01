@@ -519,6 +519,16 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node
 {
     // allocate the registers
     handle_allocation(itl.symbol_table,alloc,list,node);
+#if 1
+    // TODO: with the new allocation mechanism we should be able to get rid of this
+    // it is just more convient to get it back up to parity first and then remove this
+    const auto info = OPCODE_TABLE[u32(node->opcode.op)];
+
+    if(info.group == op_group::branch_t)
+    {
+        spill_all(alloc,itl.symbol_table,list,node,false);        
+    }
+#endif
 }
 
 
