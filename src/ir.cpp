@@ -420,13 +420,17 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
     }
 
     // free any regs that are never used again
-    // BUG: this break's inside loops how do we fix it?
+    // TODO: this break's inside loops how do we fix it?
     while(dead_count)
     {
         const u32 slot = dead_slot[--dead_count];
 
+        // we can just cheat and spill regs for now but this kinda defeats the point
+        spill(slot,alloc,table,list,node);
+/*
         auto& ir_reg = reg_from_slot(slot,table,alloc);
         free_reg(ir_reg,table,alloc);
+*/
     }
 
 
