@@ -425,12 +425,19 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
     {
         const u32 slot = dead_slot[--dead_count];
 
-        // we can just cheat and spill regs for now but this kinda defeats the point
-        spill(slot,alloc,table,list,node);
-/*
-        auto& ir_reg = reg_from_slot(slot,table,alloc);
-        free_reg(ir_reg,table,alloc);
-*/
+        // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
+        if(!is_tmp(slot))
+        {
+            spill(slot,alloc,table,list,node);
+        }
+
+        // tmp's are fine to delete under any circumstance because they will not live beyond the block
+        // (also they clog the output alot)
+        else
+        {
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
+            free_reg(ir_reg,table,alloc);
+        }
     }
 
 
