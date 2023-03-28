@@ -420,15 +420,22 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
     }
 
     // free any regs that are never used again
-    // TODO: this break's inside loops how do we fix it?
     while(dead_count)
     {
         const u32 slot = dead_slot[--dead_count];
 
         // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
-        if(!is_tmp(slot))
+        if(is_sym(slot))
         {
-            spill(slot,alloc,table,list,node);
+            //auto &sym = sym_from_slot(table,slot);
+
+            // if a pointer is taken to this, 
+            // or a its inside a loop its not defined in
+            // TODO: 
+            //if(sym.referenced || (block.in_loop && sym.block_def != block.slot))
+            {
+                spill(slot,alloc,table,list,node);
+            }
         }
 
         // tmp's are fine to delete under any circumstance because they will not live beyond the block

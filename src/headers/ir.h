@@ -400,8 +400,9 @@ struct Block
 
     u32 slot;
 
-    // is considered the last block in a set of control flow
-    bool last;
+    b32 in_loop = false;
+
+    Array<u32> exit;
 };
 
 struct IrEmitter

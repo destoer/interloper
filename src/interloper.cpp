@@ -619,7 +619,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
     auto &blocks = func.emitter.program;
 
-    block_type old = blocks[count(blocks) - 1].type;
+    block_type old = blocks[start_block].type;
 
     BlockNode* if_block = (BlockNode*)node;
 
@@ -719,7 +719,7 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 
 
     auto &blocks = func.emitter.program;
-    block_type old = blocks[count(blocks) - 1].type;
+    block_type old = blocks[initial_block].type;
 
     BinNode* while_node = (BinNode*)node;
 
@@ -744,7 +744,7 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_label,stmt_cond_reg,0));    
+    emit_block(func,initial_block,op_type::bnc,exit_label,stmt_cond_reg);    
 }
 
 void compile_for_block(Interloper &itl,Function &func,AstNode *node)
@@ -756,7 +756,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 
     auto &blocks = func.emitter.program;
-    block_type old = blocks[count(blocks) - 1].type;
+    block_type old = blocks[initial_block].type;
 
     ForNode* for_node = (ForNode*)node;
 
@@ -818,7 +818,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     // emit branch over the loop body in initial block
     // if cond is not met
-    append(func.emitter.program[initial_block].list,Opcode(op_type::bnc,exit_label,stmt_cond_reg,0));
+    emit_block(func,initial_block,op_type::bnc,exit_label,stmt_cond_reg);
 
     destroy_scope(itl.symbol_table);
 }
@@ -970,7 +970,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     }
 
     auto &blocks = func.emitter.program;
-    block_type old = blocks[count(blocks) - 1].type;
+    block_type old = blocks[cur_block(func)].type;
 
 
 
