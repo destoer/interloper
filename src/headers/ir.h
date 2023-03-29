@@ -391,6 +391,7 @@ struct List
 };
 List make_list(ArenaAllocator* allocator);
 
+static constexpr u32 INVALID_BLOCK = 0xffff'ffff;
 
 struct Block
 {
@@ -400,7 +401,7 @@ struct Block
 
     u32 slot;
 
-    b32 in_loop = false;
+    u32 loop_nesting = 0;
 
     Array<u32> exit;
 };

@@ -215,14 +215,14 @@ Reg& reg_from_slot(u32 slot, SymbolTable& table, LocalAlloc& alloc)
     }    
 }
 
-void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after = false);
+void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,Block &block,ListNode* node, b32 after = false);
 
 b32 is_var(u32 slot)
 {
     return is_tmp(slot) || is_sym(slot);
 }
 
-void spill_all(LocalAlloc &alloc, SymbolTable& table, List& list, ListNode* node, bool after)
+void spill_all(LocalAlloc &alloc, SymbolTable& table, Block& block, ListNode* node, bool after)
 {
     if(alloc.print_reg_allocation)
     {
@@ -235,7 +235,7 @@ void spill_all(LocalAlloc &alloc, SymbolTable& table, List& list, ListNode* node
 
         if(is_var(slot))
         {
-            spill(slot,alloc,table,list,node,after);
+            spill(slot,alloc,table,block,node,after);
         }        
     }
 }
@@ -257,10 +257,7 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 
         log(alloc.print_reg_allocation,"freed symbol %s from reg r%d\n",sym.name.buf,reg);
     
-        if(sym.referenced)
-        {
-            assert(false);
-        }
+        assert(!sym.referenced);
     }
 
 
@@ -281,7 +278,7 @@ u32 alloc_reg(LocalAlloc& alloc)
     return alloc.free_list[--alloc.free_regs];
 }
 
-void trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node)
+void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node)
 {
     u32 max_gap = 0;
     u32 max_reg = REG_FREE;
@@ -311,17 +308,17 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node
 
     assert(max_reg != REG_FREE);
 
-    spill(alloc.regs[max_reg],alloc,table,list,node);
+    spill(alloc.regs[max_reg],alloc,table,block,node);
 }
 
-void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,List &list, ListNode* node)
+void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& block, ListNode* node)
 {
     u32 reg = REG_FREE;
 
     // evict a register to make space
     if(!alloc.free_regs)
     {
-        trash_reg(table,alloc,list,node);
+        trash_reg(table,alloc,block,node);
     }
 
     // give back a register from the free list
@@ -356,13 +353,13 @@ void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,List &list
 }
 
 
-void allocate_slot(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* node, Reg& ir_reg, b32 is_src)
+void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg, b32 is_src)
 {
     // is this thing allocated?
     if(ir_reg.location == LOCATION_MEM)
     {
         // reallocate the register
-        alloc_internal(ir_reg, table, alloc, list, node);
+        alloc_internal(ir_reg, table, alloc, block, node);
 
         // if its a src we need to reload it from spill
         if(is_src)
@@ -370,12 +367,12 @@ void allocate_slot(SymbolTable& table, LocalAlloc& alloc, List& list, ListNode* 
             // we need to save the current stack offset here 
             // as by the time we load it it may be different
             const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot,alloc.stack_offset);
-            insert_at(list,node,opcode); 
+            insert_at(block.list,node,opcode); 
         }
     }   
 }
 
-void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNode *node)
+void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
 {
     const auto opcode = node->opcode;
     const auto info = OPCODE_TABLE[u32(opcode.op)];
@@ -406,7 +403,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
 
         auto& ir_reg = reg_from_slot(slot,table,alloc);
 
-        allocate_slot(table,alloc,list,node,ir_reg,info.type[a] == arg_type::src_reg);
+        allocate_slot(table,alloc,block,node,ir_reg,info.type[a] == arg_type::src_reg);
 
         // rewrite the register
         rewrite_reg(table,alloc,node->opcode,a); 
@@ -430,16 +427,24 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
             //auto &sym = sym_from_slot(table,slot);
 
             // if a pointer is taken to this, 
-            // or a its inside a loop its not defined in
-            // TODO: 
-            //if(sym.referenced || (block.in_loop && sym.block_def != block.slot))
+            // or a its last use is in a loop it is defined outside of
+            // then we need to spill it as it might be used again
+            //if(sym.referenced || (block.loop_nesting != 0 && sym.loop_nesting < block.loop_nesting))
             {
-                spill(slot,alloc,table,list,node);
+                spill(slot,alloc,table,block,node);
             }
+
+            /*
+            // No way to access it, get rid of the reg
+            else
+            {
+                auto& ir_reg = reg_from_slot(slot,table,alloc);
+                free_reg(ir_reg,table,alloc);
+            }
+            */
         }
 
         // tmp's are fine to delete under any circumstance because they will not live beyond the block
-        // (also they clog the output alot)
         else
         {
             auto& ir_reg = reg_from_slot(slot,table,alloc);
@@ -464,7 +469,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,List &list, ListNod
         {
             auto& ir_reg = reg_from_slot(dst_slot,table,alloc);
 
-            allocate_slot(table,alloc,list,node,ir_reg,info.type[0] == arg_type::src_reg);
+            allocate_slot(table,alloc,block,node,ir_reg,info.type[0] == arg_type::src_reg);
 
             // rewrite the register
             rewrite_reg(table,alloc,node->opcode,0); 
@@ -534,24 +539,14 @@ void rewrite_regs(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode)
 }
 
 
-void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,List &list, ListNode *node)
+void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,Block &block, ListNode *node)
 {
     // allocate the registers
-    handle_allocation(itl.symbol_table,alloc,list,node);
-#if 1
-    // TODO: with the new allocation mechanism we should be able to get rid of this
-    // it is just more convient to get it back up to parity first and then remove this
-    const auto info = OPCODE_TABLE[u32(node->opcode.op)];
-
-    if(info.group == op_group::branch_t)
-    {
-        spill_all(alloc,itl.symbol_table,list,node,false);        
-    }
-#endif
+    handle_allocation(itl.symbol_table,alloc,block,node);
 }
 
 
-void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* node, b32 after)
+void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, b32 after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
 
@@ -605,12 +600,12 @@ void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* no
 
     if(!after)
     {
-        insert_at(list,node,opcode); 
+        insert_at(block.list,node,opcode); 
     }
 
     else 
     {
-        insert_after(list,node,opcode);
+        insert_after(block.list,node,opcode);
     }
 
     // register is back in memory!
@@ -620,7 +615,7 @@ void spill(u32 slot,LocalAlloc& alloc,SymbolTable& table,List &list,ListNode* no
 }
 
 
-ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List &list, ListNode *node)
+ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block &block, ListNode *node)
 {
     auto &table = itl.symbol_table;
     const auto &opcode = node->opcode;
@@ -642,7 +637,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             node->opcode =  Opcode(op_type::push,opcode.v[0],0,0);
 
             // adjust opcode for reg alloc
-            rewrite_opcode(itl,alloc,list,node);
+            rewrite_opcode(itl,alloc,block,node);
 
             // varaibles now have to be accessed at a different offset
             // until this is corrected by clean call
@@ -681,7 +676,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
         case op_type::alloc_slot:
         {
             // TODO: how should we decide if structs go into memory or not?
-            return remove(list,node);
+            return remove(block.list,node);
             break;
         }
 
@@ -716,25 +711,25 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
             // if we have a reg here
             if(slot != REG_FREE)
             {
-                spill(slot,alloc,table,list,node);
+                spill(slot,alloc,table,block,node);
             }
 
-            return remove(list,node);
+            return remove(block.list,node);
             break;
         }
 
 
         case op_type::spill_all:
         {
-            spill_all(alloc,itl.symbol_table,list,node,false);
-            return remove(list,node);
+            spill_all(alloc,itl.symbol_table,block,node,false);
+            return remove(block.list,node);
             break;
         }
 
         // TODO: this needs to have its size emitted directly inside the opcode
         case op_type::free_slot:
         {
-            return remove(list,node);
+            return remove(block.list,node);
             break;
         }
 
@@ -759,7 +754,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,List 
 
         default:
         {
-            rewrite_opcode(itl,alloc,list,node);
+            rewrite_opcode(itl,alloc,block,node);
             node = node->next;
             break; 
         }
@@ -794,10 +789,10 @@ void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 }
 
 // 2nd pass of rewriting on the IR
-ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListNode *node,const Opcode& callee_restore,
+ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, ListNode *node,const Opcode& callee_restore,
     const Opcode& stack_clean, bool insert_callee_saves)
 {
-    UNUSED(itl); UNUSED(alloc); UNUSED(list); UNUSED(node); UNUSED(callee_restore);
+    UNUSED(itl); UNUSED(alloc); UNUSED(block); UNUSED(node); UNUSED(callee_restore);
     UNUSED(stack_clean); UNUSED(insert_callee_saves);
 
     const auto opcode = node->opcode;
@@ -811,7 +806,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
             // so it has to be done in the 2nd pass
             if(opcode.op == op_type::mov_reg && opcode.v[0] == opcode.v[1])
             {
-                return remove(list,node);
+                return remove(block.list,node);
             }
 
             node = node->next;
@@ -835,12 +830,12 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,List &list, ListN
 
             if(alloc.stack_size)
             {
-                tmp = insert_at(list,tmp,stack_clean);
+                tmp = insert_at(block.list,tmp,stack_clean);
             }
 
             if(insert_callee_saves)
             {
-                tmp = insert_at(list,tmp,callee_restore);
+                tmp = insert_at(block.list,tmp,callee_restore);
             }
 
             node = node->next;
@@ -1069,14 +1064,18 @@ void allocate_registers(Interloper& itl,Function &func)
     {
         auto& block = func.emitter.program[b];
         
-        List& list = block.list;
+        ListNode *node = block.list.start;
 
-        ListNode *node = list.start;
+        
         while(node)
         {
-            node = allocate_opcode(itl,func,alloc,list,node);
+            node = allocate_opcode(itl,func,alloc,block,node);
             alloc.pc++;
         }
+
+        // block has ended spill variables still live
+        // TODO: we want to get rid of this when we properly trace vars
+        spill_all(alloc,itl.symbol_table,block,block.list.end,false);
     }
 
     calc_allocation(alloc);
@@ -1124,12 +1123,12 @@ void allocate_registers(Interloper& itl,Function &func)
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
-        List& list = block.list;
 
-        ListNode *node = list.start;
+        auto node = block.list.start;
+
         while(node)
         {
-            node = rewrite_directives(itl,alloc,list,node,callee_restore,stack_clean,insert_callee_saves);
+            node = rewrite_directives(itl,alloc,block,node,callee_restore,stack_clean,insert_callee_saves);
         }
     }
 }
