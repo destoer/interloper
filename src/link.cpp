@@ -85,12 +85,12 @@ void emit_asm(Interloper &itl)
                 const auto &block = func.emitter.program[b];
 
                 // resolve label addr.
-                itl.symbol_table.label_lookup[block.slot].offset = itl.program.size;
+                itl.symbol_table.label_lookup[block.label_slot].offset = itl.program.size;
 
                 // if this is the first block prefer function name
                 if(b != 0)
                 {
-                    add(inv_label_lookup,itl.program.size,block.slot);
+                    add(inv_label_lookup,itl.program.size,block.label_slot);
                 }
 
                 // dump every opcode into the final program

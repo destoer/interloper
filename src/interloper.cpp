@@ -599,17 +599,17 @@ String label_name(SymbolTable& table,u32 slot)
 
 u32 new_basic_block(Interloper &itl,Function &func, block_type type)
 {
-    const u32 slot = count(itl.symbol_table.label_lookup);
+    const u32 label_slot = count(itl.symbol_table.label_lookup);
 
-    const u32 basic_block = count(func.emitter.program);
+    const u32 block_slot = count(func.emitter.program);
 
-    new_block(&itl.list_allocator,func,type,slot);
-    add_label(itl.symbol_table,label_name(itl.symbol_table,slot));
+    new_block(&itl.list_allocator,func,type,label_slot);
+    add_label(itl.symbol_table,label_name(itl.symbol_table,label_slot));
 
     // offset is the block offset until full resolution
-    itl.symbol_table.label_lookup[slot].offset = basic_block;
+    itl.symbol_table.label_lookup[label_slot].offset = block_slot;
 
-    return slot;   
+    return label_slot;   
 }
 
 

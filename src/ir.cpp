@@ -6,13 +6,13 @@
 #include "link.cpp"
 
 
-Block make_block(block_type type,u32 slot,ArenaAllocator* list_allocator)
+Block make_block(block_type type,u32 label_slot,ArenaAllocator* list_allocator)
 {
     Block block;
 
     block.type = type;
     block.list = make_list(list_allocator);
-    block.slot = slot;
+    block.label_slot = label_slot;
 
     return block;
 }
@@ -1333,11 +1333,9 @@ void dump_ir(Function &func,SymbolTable& table)
         const auto &block = func.emitter.program[b];
         //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
     
-        if(block.slot != 0xffffffff)
-        {
-            printf("%s:\n",table.label_lookup[block.slot].name.buf);
-        }
 
+        printf("%s:\n",table.label_lookup[block.label_slot].name.buf);
+        
 
         auto node = block.list.start;
         while(node)

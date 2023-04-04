@@ -399,7 +399,8 @@ struct Block
 
     block_type type;
 
-    u32 slot;
+    // what is the corresponding label for this block?
+    u32 label_slot;
 
     u32 loop_nesting = 0;
 
@@ -416,7 +417,7 @@ struct Function;
 
 void emit(Function& func,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
 void emit_block(Function &func,u32 block,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot = 0xffffffff); 
+void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot); 
 u32 emit_res(Function& func, op_type op, u32 v2, u32 v3 = 0);
 
 void destroy_emitter(IrEmitter& emitter);
