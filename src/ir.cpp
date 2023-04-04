@@ -1075,7 +1075,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         // block has ended spill variables still live
         // TODO: we want to get rid of this when we properly trace vars
-        spill_all(alloc,itl.symbol_table,block,block.list.end,false);
+        spill_all(alloc,itl.symbol_table,block,block.list.end,true);
     }
 
     calc_allocation(alloc);

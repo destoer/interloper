@@ -181,6 +181,19 @@ void emit(Function& func,op_type op, u32 v1, u32 v2, u32 v3)
     emit_block(func,cur_block(func),op,v1,v2,v3);
 }
 
+void add_exit(Function& func,u32 block_slot, u32 exit)
+{
+    auto &block = func.emitter.program[block_slot];
+
+    push_var(block.exit,exit);
+}
+
+void cond_branch_exit(Function& func, u32 block_slot, u32 target, u32 fallthrough)
+{
+    add_exit(func,block_slot,target);
+    add_exit(func,block_slot,fallthrough);
+}
+
 u32 addrof(Function& func,const Reg& reg)
 {
     const u32 dst = emit_res(func,op_type::addrof,reg.slot);

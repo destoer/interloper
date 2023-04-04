@@ -673,9 +673,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
             else
             {
-                // TODO: we have to spill all here to make sure reg allocation works correctly
-                // fix register allocation so we dont have to spill everyhting across basic blocks
-                emit(func,op_type::spill_all);
+                
             }
         }
 
@@ -685,10 +683,6 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         {
             UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n];
             compile_basic_block(itl,func,(BlockNode*)else_stmt->next,block_type::else_t);
-
-            // TODO: we have to spill all here to make sure reg allocation works correctly
-            // fix register allocation so we dont have to spill everyhting across basic blocks
-            emit(func,op_type::spill_all);
         }
     }
 
@@ -1087,10 +1081,6 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         if(switch_node->default_statement)
         {
             default_label = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next,block_type::case_t);
-        
-
-            // TODO: improve reg alloc to handle branching
-            emit(func,op_type::spill_all);
         }
 
         // create a exit block for every case to jump to when its done
