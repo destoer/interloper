@@ -1,33 +1,32 @@
 #include <interloper.h>
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
-std::pair<Type*, u32> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
+Type* compile_expression(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
+std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 global = false);
 void compile_block(Interloper &itl,Function &func,BlockNode *node);
-u32 compile_basic_block(Interloper &itl,Function &func,BlockNode *node, block_type type);
+LabelSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node, block_type type);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
-std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node);
+std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
 void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
-std::pair<Type*, u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
-std::pair<Type*, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
-void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const u32 addr_slot, ArrayType* type, u32* offset);
-std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
-     Type* type, u32 ptr_slot, u32 dst_slot);
+std::pair<Type*, SymSlot> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
+void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const SymSlot addr_slot, ArrayType* type, u32* offset);
+std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+     Type* type, SymSlot ptr_slot, SymSlot dst_slot);
 
 
 
-void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, const Type* dst_type, const Type* src_type);
+void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
 
-std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof);
-void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset);
-u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset);
+std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, bool addrof);
+void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset);
+SymSlot collapse_offset(Function&func, SymSlot addr_slot, u32 *offset);
 
 void add_func(Interloper& itl, const String& name, FuncNode* root);
 
 void alloc_slot(Function& func, const Reg& reg);
-
 
 #include "lexer.cpp"
 #include "symbol.cpp"
@@ -143,7 +142,7 @@ void parse_alias_def(Interloper& itl, TypeDef& def)
 
 
 
-std::pair<Type*,u32> symbol(Interloper &itl, AstNode *node)
+std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node)
 {
     LiteralNode* lit_node = (LiteralNode*)node;
 
@@ -153,16 +152,16 @@ std::pair<Type*,u32> symbol(Interloper &itl, AstNode *node)
     if(!sym_opt)
     {
         panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
     }
 
     const auto &sym = sym_opt.value();
 
-    return std::pair<Type*,u32>{sym.type,sym.reg.slot};
+    return std::pair{sym.type,sym.reg.slot};
 }
 
 
-Type* value(Interloper& itl,Function& func,AstNode *node, u32 dst_slot)
+Type* value(Interloper& itl,Function& func,AstNode *node, SymSlot dst_slot)
 {
     ValueNode* value_node = (ValueNode*)node;
     Value value = value_node->value;
@@ -216,11 +215,11 @@ Type* value(Interloper& itl,Function& func,AstNode *node, u32 dst_slot)
 
 
 // get back a complete pointer
-u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset)
+SymSlot collapse_offset(Function&func, SymSlot addr_slot, u32 *offset)
 {
     if(*offset)
     {
-        const u32 final_addr = emit_res(func,op_type::add_imm,addr_slot,*offset);
+        const SymSlot final_addr = emit_res(func,op_type::add_imm,addr_slot,*offset);
         *offset = 0;
 
         return final_addr;
@@ -232,7 +231,7 @@ u32 collapse_offset(Function&func, u32 addr_slot, u32 *offset)
     }
 }
 
-void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset)
+void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset)
 {
     const u32 size = type_size(itl,type);
 
@@ -253,7 +252,7 @@ void do_ptr_load(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, cons
 }
 
 
-void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type* type, u32 offset)
+void do_ptr_store(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset)
 {
     const u32 size = type_size(itl,type);
 
@@ -264,7 +263,7 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 
     else
     {
-        u32 src_ptr = emit_res(func,op_type::addrof,dst_slot);
+        SymSlot src_ptr = emit_res(func,op_type::addrof,dst_slot);
         src_ptr = collapse_offset(func,src_ptr,&offset);        
 
         ir_memcpy(itl,func,addr_slot,src_ptr,type_size(itl,type));        
@@ -275,7 +274,7 @@ void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, con
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
-std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node)
+std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *node)
 {
     if(!node)
     {
@@ -310,7 +309,7 @@ std::pair<Type*,u32> compile_oper(Interloper& itl,Function &func,AstNode *node)
 
 
 
-Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type, u32 dst_slot)
+Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type, SymSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
@@ -329,7 +328,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type typ
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
 
-        const u32 offset_slot = emit_res(func,op_type::mul_imm,v2,type_size(itl,contained_type));
+        const SymSlot offset_slot = emit_res(func,op_type::mul_imm,v2,type_size(itl,contained_type));
         emit(func,type,dst_slot,v1,offset_slot);
     }
 
@@ -349,7 +348,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type typ
 }
 
 
-Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, u32 dst_slot)
+Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, SymSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
@@ -421,7 +420,7 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u32 v
 }
 
 // handles <, <=, >, >=, &&, ||, ==, !=
-Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type, u32 dst_slot)
+Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type, SymSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
@@ -543,7 +542,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
 
 //  we dont want the 2nd stage IR handling how things need to be copied
 // as it does not have the information required easily accessible
-void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, const Type* dst_type, const Type* src_type)
+void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type)
 {
     UNUSED(itl);
     // check the operation is even legal
@@ -571,17 +570,17 @@ void compile_move(Interloper &itl, Function &func, u32 dst_slot, u32 src_slot, c
     else
     {
         // copy out the strucutre using the hidden pointer in the first arg
-        if(dst_slot == RV_IR)
+        if(dst_slot.handle == RV_IR)
         {
-            const u32 ptr = emit_res(func,op_type::addrof,src_slot);
+            const SymSlot ptr = emit_res(func,op_type::addrof,src_slot);
 
             ir_memcpy(itl,func,func.args[0],ptr,type_size(itl,dst_type));
         } 
 
         else
         {
-            const u32 src_ptr = emit_res(func,op_type::addrof,src_slot);
-            const u32 dst_ptr = emit_res(func,op_type::addrof,dst_slot);
+            const SymSlot src_ptr = emit_res(func,op_type::addrof,src_slot);
+            const SymSlot dst_ptr = emit_res(func,op_type::addrof,dst_slot);
 
             ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,dst_type));
         }
@@ -597,17 +596,17 @@ String label_name(SymbolTable& table,u32 slot)
     return make_string(*table.string_allocator,name,len);
 }
 
-u32 new_basic_block(Interloper &itl,Function &func, block_type type)
+LabelSlot new_basic_block(Interloper &itl,Function &func, block_type type)
 {
-    const u32 label_slot = count(itl.symbol_table.label_lookup);
+    const u32 label_count = count(itl.symbol_table.label_lookup);
 
     const u32 block_slot = count(func.emitter.program);
 
+    const LabelSlot label_slot = add_label(itl.symbol_table,label_name(itl.symbol_table,label_count));
     new_block(&itl.list_allocator,func,type,label_slot);
-    add_label(itl.symbol_table,label_name(itl.symbol_table,label_slot));
 
-    // offset is the block offset until full resolution
-    itl.symbol_table.label_lookup[label_slot].offset = block_slot;
+    // offset is the block slot until full resolution
+    itl.symbol_table.label_lookup[label_slot.handle].offset = block_slot;
 
     return label_slot;   
 }
@@ -657,9 +656,11 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             compile_basic_block(itl,func,(BlockNode*)if_stmt->right,type);
 
             // add branch over the block we just compiled
-            const u32 slot = count(itl.symbol_table.label_lookup);
+            const u32 label_slot_handle = count(itl.symbol_table.label_lookup);
 
-            emit_block(func,cmp_block,op_type::bnc,slot,r);
+            LabelSlot label_slot = label_from_idx(label_slot_handle);
+
+            emit_block(func,cmp_block,op_type::bnc,label_slot,r);
 
 
             // not the last statment (branch is not require)
@@ -688,7 +689,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
     // TODO: is this being a body fine or does it need to take whatever the intial block was?
     // create the exit block, for new code
-    const u32 exit_label = new_basic_block(itl,func,old);
+    const LabelSlot exit_label = new_basic_block(itl,func,old);
 
 
 
@@ -702,7 +703,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
         if(block.list.end->opcode.op == op_type::exit_block)
         {
-            block.list.end->opcode = Opcode(op_type::b,exit_label,0,0);
+            block.list.end->opcode = Opcode(op_type::b,exit_label.handle,0,0);
         }
     }
 }
@@ -727,14 +728,14 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     }    
 
     // compile body
-    const u32 cur = compile_basic_block(itl,func,(BlockNode*)while_node->right,block_type::while_t); 
+    const LabelSlot cur_label = compile_basic_block(itl,func,(BlockNode*)while_node->right,block_type::while_t); 
 
 
-    u32 loop_cond_reg;
+    SymSlot loop_cond_reg;
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left);
-    emit(func,op_type::bc,cur,loop_cond_reg);
+    emit(func,op_type::bc,cur_label,loop_cond_reg);
 
-    const u32 exit_label = new_basic_block(itl,func,old);
+    const LabelSlot exit_label = new_basic_block(itl,func,old);
 
     // emit branch over the loop body in initial block
     // if cond is not met
@@ -798,17 +799,17 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 
     // compile the body
-    const u32 cur = compile_basic_block(itl,func,for_node->block,block_type::for_t);    
+    const LabelSlot cur = compile_basic_block(itl,func,for_node->block,block_type::for_t);    
 
     // compile loop end stmt
     compile_expression_tmp(itl,func,for_node->post);
     
 
-    u32 loop_cond_reg;
+    SymSlot loop_cond_reg;
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,for_node->cond);
     emit(func,op_type::bc,cur,loop_cond_reg);
 
-    const u32 exit_label = new_basic_block(itl,func,old);
+    const LabelSlot exit_label = new_basic_block(itl,func,old);
 
     // emit branch over the loop body in initial block
     // if cond is not met
@@ -1029,12 +1030,12 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const u32 range_block = cur_block(func);
 
         // finally emit the dispatch on the table now we know where to exit if the table bounds get execeeded
-        const u32 switch_slot = new_tmp(func,GPR_SIZE);
+        const SymSlot switch_slot = new_tmp(func,GPR_SIZE);
         emit(func,op_type::sub_imm,switch_slot,expr_slot,min);
 
 
         // out of range, branch to default
-        const u32 default_cmp = emit_res(func,op_type::cmpugt_imm,switch_slot,max - min);
+        const SymSlot default_cmp = emit_res(func,op_type::cmpugt_imm,switch_slot,max - min);
 
         // NOTE: branch is emitted later as we dont know where it goes yet
 
@@ -1042,18 +1043,18 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         new_basic_block(itl,func,old);
 
         // mulitply to get a jump table index
-        const u32 table_index = emit_res(func,op_type::mul_imm,switch_slot,GPR_SIZE);
+        const SymSlot table_index = emit_res(func,op_type::mul_imm,switch_slot,GPR_SIZE);
 
         
         // reserve space for the table inside the constant pool
         const u32 static_offset = reserve_const_pool(itl,pool_type::label,GPR_SIZE * range);
-        const u32 table_addr = emit_res(func,op_type::pool_addr,static_offset);
+        const SymSlot table_addr = emit_res(func,op_type::pool_addr,static_offset);
 
         // get address in the tabel we want
-        const u32 final_offset = emit_res(func,op_type::add_reg,table_addr,table_index);
+        const SymSlot final_offset = emit_res(func,op_type::add_reg,table_addr,table_index);
 
         // load the address out of the jump table
-        const u32 target = new_tmp_ptr(func);
+        const SymSlot target = new_tmp_ptr(func);
         emit(func,load_ptr(target, final_offset,0, GPR_SIZE,false));
 
 
@@ -1074,7 +1075,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // NOTE: as default is allways the last block it does not need to have a jump to the exit
-        u32 default_label = 0;
+        LabelSlot default_label;
 
 
         // if there is no default then our exit label is the end
@@ -1084,7 +1085,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         }
 
         // create a exit block for every case to jump to when its done
-        const u32 exit_label = new_basic_block(itl,func,old);
+        const LabelSlot exit_label = new_basic_block(itl,func,old);
 
         // if there is no explicit default the default is just after the switch ends
         if(!switch_node->default_statement)
@@ -1115,7 +1116,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             {
                 //printf("case %d -> %d\n",i,case_node->label);
 
-                write_mem<u32>(itl.const_pool, addr, case_node->label);
+                write_mem<LabelSlot>(itl.const_pool, addr, case_node->label);
                 case_idx++;
 
                 // add jump to the exit block
@@ -1126,7 +1127,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             {
                 //printf("case %d -> default(%d)\n",i,default_label);
 
-                write_mem<u32>(itl.const_pool, addr, default_label);
+                write_mem<LabelSlot>(itl.const_pool, addr, default_label);
             }
         }
     }
@@ -1142,7 +1143,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 // TODO: this needs a cleanup
 // TODO: does it make sense to use the same function for both the @ and & operator?
-std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 slot, bool addrof)
+std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, bool addrof)
 {
     // figure out what the addr is
     switch(node->type)
@@ -1156,7 +1157,7 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
             if(!sym_opt)
             {
                 panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-                return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
             }
 
             const auto &sym = sym_opt.value();
@@ -1172,7 +1173,7 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
 
                 // actually  get the addr of the ptr
                 emit(func,op_type::addrof,slot,sym.reg.slot);
-                return std::pair<Type*,u32>{pointer_type,slot};
+                return std::pair{pointer_type,slot};
             }
 
             // deref
@@ -1181,14 +1182,14 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
                 if(!is_pointer(sym.type))
                 {
                     panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.buf);
-                    return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+                    return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
                 }
 
                 PointerType* pointer_type = (PointerType*)sym.type;
 
                 Type* contained_type = pointer_type->contained_type;
 
-                return std::pair<Type*,u32>{contained_type,sym.reg.slot};
+                return std::pair{contained_type,sym.reg.slot};
             }
         }
 
@@ -1209,20 +1210,20 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
                 // actually load the pointer with ptr_load
                 type = deref_pointer(type);
 
-                const u32 ptr_slot = new_tmp_ptr(func);
+                const SymSlot ptr_slot = new_tmp_ptr(func);
                 do_ptr_load(itl,func,ptr_slot,addr_slot,type);
 
                 // contained type is not actually a pointer
                 if(!is_pointer(type))
                 {
                     panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",index_node->name.buf);
-                    return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};
+                    return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
                 }
 
                 // okay now just index out the final type
                 type = deref_pointer(type);
 
-                return std::pair<Type*,u32>{type,ptr_slot};
+                return std::pair{type,ptr_slot};
             }
         }
 
@@ -1239,7 +1240,7 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
                 // we actually want this as a pointer
                 type = make_pointer(itl,type);
 
-                return std::pair<Type*,u32>{type,ptr_slot};
+                return std::pair{type,ptr_slot};
             }
 
             // deref on struct member that is a ptr
@@ -1248,7 +1249,7 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
                 auto type = read_struct(itl,func,slot,node);
                 type = deref_pointer(type);
 
-                return std::pair<Type*,u32>{type,slot};
+                return std::pair{type,slot};
             }
         }
 
@@ -1261,7 +1262,7 @@ std::pair<Type*,u32> load_addr(Interloper &itl,Function &func,AstNode *node,u32 
 }
 
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_slot)
+Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot dst_slot)
 {
     if(!node)
     {
@@ -1467,7 +1468,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,u32 dst_sl
 
 
                 // TODO: make sure our optimiser sees through this
-                const u32 slot = emit_res(func,op_type::mov_imm,0);
+                const SymSlot slot = emit_res(func,op_type::mov_imm,0);
                 emit(func,op_type::sub_reg,dst,slot,dst);
                 
                 return t;
@@ -1719,18 +1720,18 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
     } 
 }
 
-std::pair<Type*, u32> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
+std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
     // assume a size then refine it with expr result
-    const u32 dst_slot = new_tmp(func,GPR_SIZE);
+    const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
 
     Type* type = compile_expression(itl,func,node,dst_slot);
 
     const u32 size = type_size(itl,type);
 
-    func.registers[dst_slot].size = size;
+    func.registers[dst_slot.handle].size = size;
 
-    return std::pair<Type*,u32>{type,dst_slot};
+    return std::pair{type,dst_slot};
 }
 
 
@@ -1765,9 +1766,9 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 
 
 // returns label for cur block
-u32 compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node, block_type type)
+LabelSlot compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node, block_type type)
 {
-    const u32 label_slot = new_basic_block(itl,func,type);
+    const LabelSlot label_slot = new_basic_block(itl,func,type);
     compile_block(itl,func,block_node);
 
     return label_slot;
@@ -1882,7 +1883,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // single return
                     if(count(record_node->nodes) == 1)
                     {
-                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],RV_IR);
+                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],sym_from_idx(RV_IR));
         
                         if(itl.error)
                         {
@@ -1928,7 +1929,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,func,line,NO_SLOT);
+                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
                 break;
             }            
 
@@ -1966,7 +1967,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,func,line,NO_SLOT);
+                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
                 break;
             }
 
@@ -1986,9 +1987,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
         for(u32 i = 0; i < count(bucket); i++)
         {
-            const u32 slot = bucket[i].v;
-
-            const auto& sym = itl.symbol_table.slot_lookup[slot];
+            const auto& sym = sym_from_slot(itl.symbol_table,bucket[i].v);
 
             // free the stack alloc for each var thats about to go out of scope
             if(sym.arg_offset == NON_ARG)

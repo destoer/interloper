@@ -4,7 +4,7 @@
 
 void new_scope(SymbolTable &sym_table)
 {
-    push_var<HashTable<String,u32>,HashTable<String,u32>>(sym_table.table,make_table<String,u32>());
+    push_var<HashTable<String,SymSlot>,HashTable<String,SymSlot>>(sym_table.table,make_table<String,SymSlot>());
 }
 
 void destroy_scope(SymbolTable &sym_table)
@@ -14,18 +14,18 @@ void destroy_scope(SymbolTable &sym_table)
     destroy_table(table);
 }
 
-u32 sym_to_idx(u32 s)
+u32 sym_to_idx(SymSlot s)
 {
-    return s - SYMBOL_START;
+    return s.handle - SYMBOL_START;
 }
 
 
-Symbol& sym_from_slot(SymbolTable &table, u32 slot)
+Symbol& sym_from_slot(SymbolTable &table, SymSlot slot)
 {
     return table.slot_lookup[sym_to_idx(slot)]; 
 }
 
-const Symbol& sym_from_slot(const SymbolTable &table, u32 slot)
+const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
 {
     return table.slot_lookup[sym_to_idx(slot)]; 
 }
@@ -36,11 +36,12 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)
 {
     for(s32 i = count(sym_table.table) - 1; i >= 0; i--)
     {
-        const u32* idx = lookup(sym_table.table[i],sym);
+        const SymSlot* slot = lookup(sym_table.table[i],sym);
 
-        if(idx)
+        if(slot)
         {
-            return std::optional<Symbol>(sym_table.slot_lookup[*idx]);
+            auto sym = sym_from_slot(sym_table,*slot);
+            return std::optional(sym);
         }
     }
 
@@ -76,7 +77,7 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 // add symbol to the scope table
 void add_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    add(sym_table.table[count(sym_table.table) - 1],sym.name, sym_to_idx(sym.reg.slot));
+    add(sym_table.table[count(sym_table.table) - 1],sym.name, sym.reg.slot);
     sym_table.sym_count++;
 }    
 
@@ -98,13 +99,25 @@ Symbol& add_global(SymbolTable &sym_table,const String &name, Type *type, u32 si
     return sym;
 }
 
-void add_label(SymbolTable &sym_table,const String &name)
+LabelSlot label_from_idx(u32 handle)
+{
+    LabelSlot slot;
+    slot.handle = handle;
+
+    return slot;
+}
+
+LabelSlot add_label(SymbolTable &sym_table,const String &name)
 {
     Label label;
     label.name = copy_string(*sym_table.string_allocator,name);
     label.offset = 0;
 
+    const u32 slot = count(sym_table.label_lookup);
+
     push_var(sym_table.label_lookup,label);
+
+    return label_from_idx(slot);
 }
 
 void clear(SymbolTable &sym_table)
@@ -142,4 +155,14 @@ void dump_slots(Interloper& itl,SlotLookup &slot_lookup)
     {
         print(itl,slot_lookup[i]);
     }
+}
+
+Label& label_from_slot(LabelLookup& lookup, LabelSlot slot)
+{
+    return lookup[slot.handle];
+}
+
+const Label& label_from_slot(const LabelLookup& lookup, LabelSlot slot)
+{
+    return lookup[slot.handle];
 }

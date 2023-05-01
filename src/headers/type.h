@@ -310,7 +310,7 @@ struct Function
     // of slots for both normal vars so we know whats in the functions
 
     // gives slots into the main symbol table
-    Array<u32> args;
+    Array<SymSlot> args;
     
     // tmp's in the function
     Array<Reg> registers;
@@ -318,7 +318,7 @@ struct Function
     // IR code for function
     IrEmitter emitter;
 
-    u32 slot;
+    LabelSlot label_slot;
 
     FuncNode* root = nullptr;
 
@@ -331,22 +331,18 @@ struct Interloper;
 void mark_used(Interloper& itl, Function& func);
 
 
-// TODO: start by fixing all the compile errors
-// for using a var alloc
-
-// then actually try the symbol table impl
-// maybe i will wrap it up internally inside just two
-// std::maps while we get it off the ground
-
-
 using SlotLookup = Array<Symbol>;
 using LabelLookup = Array<Label>;
 
 struct SymbolTable
 {
-    Array<HashTable<String,u32>> table;
+    Array<HashTable<String,SymSlot>> table;
 
     SlotLookup slot_lookup;
+
+    // offset is the block slot until full resolution
+    // after label resolution this holds the address of the label
+    // I.e the address of the block
     LabelLookup label_lookup;
 
     u32 sym_count = 0;

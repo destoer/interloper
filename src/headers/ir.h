@@ -202,9 +202,51 @@ struct OpInfo
     arg_type type[3];
 };
 
+
+enum class slot_type
+{
+    symbol,
+    label,
+    block,
+};
+
+static constexpr u32 INVALID_HANDLE = 0xffff'ffff;
+
+template<slot_type type>
+struct Slot
+{
+    u32 handle = INVALID_HANDLE;
+};
+
+
+template<slot_type type>
+u32 hash_slot(u32 size, Slot<type> v)
+{
+    // TODO: impl a better integer hash func
+    const u32 hash = v.handle;
+    const u32 slot = hash & (size - 1); 
+
+    return slot;
+}
+
+
+static constexpr u32 SYMBOL_NO_SLOT = 0xffff'ffff;
+using SymSlot = Slot<slot_type::symbol>;
+
+SymSlot sym_from_idx(u32 idx)
+{
+    return {idx};
+}
+
+static constexpr SymSlot SYM_ERROR = {SYMBOL_NO_SLOT};
+
+
+using LabelSlot = Slot<slot_type::label>;
+
+using BlockSlot = Slot<slot_type::block>;
+
 extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
 
-static constexpr u32 SYMBOL_NO_SLOT = 0xffffffff;
 static constexpr u32 NON_ARG = 0xffffffff;
 
 static constexpr u32 UNALLOCATED_OFFSET = 0xe0000000;
@@ -248,7 +290,7 @@ struct Reg
     reg_kind kind;
 
     // what slot does this symbol hold inside the ir?
-    u32 slot = SYMBOL_NO_SLOT;
+    SymSlot slot = {SYMBOL_NO_SLOT};
 
     // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
     // i.e this is for stack allocation to get actual var sizes use type_size();
@@ -297,6 +339,8 @@ static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
 static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
+
+static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
 // dont perform any moves
 static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 6;
@@ -400,7 +444,7 @@ struct Block
     block_type type;
 
     // what is the corresponding label for this block?
-    u32 label_slot;
+    LabelSlot label_slot;
 
     u32 loop_nesting = 0;
 
@@ -415,13 +459,25 @@ struct IrEmitter
 
 struct Function;
 
-void emit(Function& func,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void emit_block(Function &func,u32 block,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot); 
-u32 emit_res(Function& func, op_type op, u32 v2, u32 v3 = 0);
+void emit(Function& func,op_type op, u32 imm);
+void emit(Function& func,op_type op, SymSlot v1, SymSlot v2, u32 imm);
+void emit(Function& func,op_type op, SymSlot v1, u32 imm);
+void emit(Function& func,op_type op, SymSlot v1, u32 v2, u32 v3);
+void emit(Function &func,op_type op,LabelSlot v1, SymSlot v2);
+
+void emit(Function& func,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
+void emit_block(Function &func,u32 block,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
+void emit_block(Function &func,u32 block,op_type op,LabelSlot v1, SymSlot v2 = {});
+
+void emit(Function& func,op_type op, LabelSlot v1);
+
+
+SymSlot emit_res(Function& func, op_type op, SymSlot v2 = {}, SymSlot v3 = {});
+SymSlot emit_res(Function& func, op_type op, SymSlot v2, u32 v3);
 
 void destroy_emitter(IrEmitter& emitter);
 
+void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot); 
 
 void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
 void disass_opcode_raw(const Opcode &opcode);

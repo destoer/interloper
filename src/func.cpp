@@ -38,7 +38,7 @@ void print_func_decl(Interloper& itl,const Function &func)
 
     for(u32 a = 0; a < count(func.args); a++)
     {
-        const u32 slot = func.args[a];
+        const SymSlot slot = func.args[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
 
         print(itl,sym); 
@@ -51,23 +51,21 @@ void print_func_decl(Interloper& itl,const Function &func)
 }
 
 
-void finalise_def(Interloper& itl,Function& func, Array<Type*> rt, Array<u32> a, u32 hidden_args)
+void finalise_def(Interloper& itl,Function& func, Array<Type*> rt, Array<SymSlot> a, u32 hidden_args)
 {
-    const u32 slot = count(itl.symbol_table.label_lookup);
-
     func.return_type = rt;
     func.args = a;
-    func.slot = slot;
-    func.hidden_args = hidden_args;
 
     // add as a label as it this will be need to referenced by call instrs
     // in the ir to get the name back
-    add_label(itl.symbol_table,func.name);
+    func.label_slot = add_label(itl.symbol_table,func.name);
+
+    func.hidden_args = hidden_args;
 }
 
 
 // add hidden arg pointers for return
-u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Array<u32>& args ,u32 arg_offset)
+u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Array<SymSlot>& args ,u32 arg_offset)
 {
     Type* ptr_type = make_pointer(itl,return_type);
 
@@ -83,7 +81,7 @@ u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Ar
 
 
 // used for both tuples and ordinary function calls
-Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     TupleAssignNode* tuple_node = nullptr;
 
@@ -188,13 +186,13 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
                 check_assign(itl,arg.type,rtype,true);
                 
                 // push the len offset
-                const u32 len_slot = emit_res(func,op_type::mov_imm,size);
+                const SymSlot len_slot = emit_res(func,op_type::mov_imm,size);
                 emit(func,op_type::push_arg,len_slot);
 
                 // push the data offset
                 const u32 static_offset = push_const_pool(itl,pool_type::string_literal,lit_node->literal.buf,size);
 
-                const u32 addr_slot = emit_res(func,op_type::pool_addr,static_offset);
+                const SymSlot addr_slot = emit_res(func,op_type::pool_addr,static_offset);
                 emit(func,op_type::push_arg,addr_slot);
 
                 arg_clean += 2;
@@ -209,7 +207,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
                 {
                     ArrayType* array_type = (ArrayType*)deref_pointer(arg_type);
 
-                    const u32 len_slot = emit_res(func,op_type::mov_imm,array_type->size);
+                    const SymSlot len_slot = emit_res(func,op_type::mov_imm,array_type->size);
                     emit(func,op_type::push_arg,len_slot);
 
                     emit(func,op_type::push_arg,reg);
@@ -225,10 +223,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
                 // TODO: this needs to handle conversions on multidimensional arrays
                 else if(is_runtime_size(arg.type))
                 {
-                    const u32 len_slot = emit_res(func,op_type::load_arr_len,reg,0);
+                    const SymSlot len_slot = emit_res(func,op_type::load_arr_len,reg);
                     emit(func,op_type::push_arg,len_slot);
 
-                    const u32 data_slot = emit_res(func,op_type::load_arr_data,reg,0);
+                    const SymSlot data_slot = emit_res(func,op_type::load_arr_data,reg);
                     emit(func,op_type::push_arg,data_slot);
 
                     arg_clean += 2;  
@@ -259,8 +257,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
             emit(func,op_type::alloc_stack,structure.size);
 
             // need to save SP as it will get pushed last
-            const u32 dst = emit_res(func,op_type::mov_reg,SP_IR);
-            const u32 ptr = emit_res(func,op_type::addrof,reg);
+            const SymSlot dst = emit_res(func,op_type::mov_reg,SP_IR);
+            const SymSlot ptr = emit_res(func,op_type::addrof,reg);
 
             ir_memcpy(itl,func,dst,ptr,structure.size);
 
@@ -315,7 +313,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
 
                         const auto &sym = sym_opt.value();
 
-                        const u32 addr_slot = addrof(func,sym.reg);
+                        const SymSlot addr_slot = addrof(func,sym.reg);
                         emit(func,op_type::push_arg,addr_slot);
 
                         break;
@@ -365,7 +363,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
         // use the dst slot
         else
         {
-            if(dst_slot == NO_SLOT)
+            if(dst_slot.handle == NO_SLOT)
             {
                 unimplemented("no_slot: binding on large return type");
             }
@@ -374,16 +372,16 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
             {
                 arg_clean++;
 
-                const u32 addr = emit_res(func,op_type::addrof,dst_slot);
+                const SymSlot addr = emit_res(func,op_type::addrof,dst_slot);
                 emit(func,op_type::push_arg,addr);
             }
 
             else
             {
                 // TODO: this might need an explicit allocation
-                alloc_slot(func,func.registers[dst_slot]);
+                alloc_slot(func,func.registers[dst_slot.handle]);
                 
-                const u32 addr = emit_res(func,op_type::addrof,dst_slot);
+                const SymSlot addr = emit_res(func,op_type::addrof,dst_slot);
                 emit(func,op_type::push_arg,addr);
             }
         }
@@ -405,7 +403,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
     // emit call to label slot
     // the actual address will have to resolved as the last compile step
     // once we know the size of all the code
-    emit(func,op_type::call,func_call.slot);
+    emit(func,op_type::call,func_call.label_slot);
 
 
     // clean up args after the function call
@@ -422,10 +420,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, u32 ds
 
     // normal return
     // store the return value back into a reg (if its actually binded)
-    if(returns_value && dst_slot != NO_SLOT && !hidden_args)
+    if(returns_value && dst_slot.handle != NO_SLOT && !hidden_args)
     {
         // TODO: is this dst type correct?
-        compile_move(itl,func,dst_slot,RV_IR,func.return_type[0],func.return_type[0]);
+        compile_move(itl,func,dst_slot,sym_from_idx(RV_IR),func.return_type[0],func.return_type[0]);
     }
     
 
@@ -463,7 +461,7 @@ void parse_function_declarations(Interloper& itl)
             itl.cur_file = node.filename;
 
             // parse out out the return type
-            Array<u32> args;
+            Array<SymSlot> args;
             u32 arg_offset = 0;
             u32 hidden_args = 0;
 
@@ -548,7 +546,7 @@ void compile_function(Interloper& itl, Function& func)
     // put each arg into scope
     for(u32 a = 0; a < count(func.args); a++)
     {
-        const u32 slot = func.args[a];
+        const SymSlot slot = func.args[a];
 
         auto &sym = sym_from_slot(itl.symbol_table,slot);
         add_scope(itl.symbol_table,sym);

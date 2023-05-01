@@ -17,7 +17,7 @@ file(GLOB src_files
 if(WIN32)
 
 else()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Werror -fno-exceptions  -fno-rtti  -fomit-frame-pointer -Wall -Wextra -O0")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Werror -fno-exceptions  -fno-rtti  -fomit-frame-pointer -Wall -Wextra -O0 -fmax-errors=15")
 endif()
 
 include_directories("src/headers")

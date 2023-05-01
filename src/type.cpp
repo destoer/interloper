@@ -1189,7 +1189,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
     }
 }
 
-void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const Type *old_type, const Type *new_type)
+void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_slot,const Type *old_type, const Type *new_type)
 {
     if(itl.error)
     {
@@ -1323,7 +1323,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
 }
 
 
-Type* access_type_info(Interloper& itl, Function& func, u32 dst_slot, const TypeDecl& type_decl, const String& member_name)
+Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
 {
     switch(type_decl.kind)
     {

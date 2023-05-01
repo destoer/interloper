@@ -37,13 +37,14 @@ u32 reserve_const_pool(Interloper& itl, pool_type type, u32 size)
 
 
 // NOTE: pass in a size, so we only print the code section
-void dump_program(const Array<u8> &program,u32 size, HashTable<u32,u32> &inv_label_lookup, LabelLookup &label_lookup)
+void dump_program(const Array<u8> &program,u32 size, HashTable<u32,LabelSlot> &inv_label_lookup, LabelLookup &label_lookup)
 {
     for(u32 pc = 0; pc < size; pc += sizeof(Opcode))
     {
         if(contains(inv_label_lookup,pc))
         {
-            printf("0x%08x %s:\n",pc,label_lookup[*lookup(inv_label_lookup,pc)].name.buf);
+            const auto label = label_from_slot(label_lookup,*lookup(inv_label_lookup,pc));
+            printf("0x%08x %s:\n",pc,label.name.buf);
         }
 
         printf("  0x%08x:\t ",pc);   
@@ -56,14 +57,16 @@ void dump_program(const Array<u8> &program,u32 size, HashTable<u32,u32> &inv_lab
 
 void emit_asm(Interloper &itl)
 {
-    HashTable<u32,u32> inv_label_lookup = make_table<u32,u32>();
+    HashTable<u32,LabelSlot> inv_label_lookup = make_table<u32,LabelSlot>();
 
 
 
+
+    LabelSlot start_label = lookup(itl.function_table,String("start"))->label_slot;
 
     // emit a dummy call to start
     // that will get filled in later once we know where it is
-    insert_program(itl,Opcode(op_type::call,lookup(itl.function_table,String("start"))->slot,0,0));
+    insert_program(itl,Opcode(op_type::call,start_label.handle,0,0));
 
 
     // resolve all our labels, dump all our machine code into a buffer
@@ -76,16 +79,16 @@ void emit_asm(Interloper &itl)
             Function& func = bucket[i].v;
 
 
-            itl.symbol_table.label_lookup[func.slot].offset = itl.program.size;
+            itl.symbol_table.label_lookup[func.label_slot.handle].offset = itl.program.size;
 
-            add(inv_label_lookup,itl.program.size,func.slot);
+            add(inv_label_lookup,itl.program.size,func.label_slot);
 
             for(u32 b = 0; b < count(func.emitter.program); b++)
             {
                 const auto &block = func.emitter.program[b];
 
                 // resolve label addr.
-                itl.symbol_table.label_lookup[block.label_slot].offset = itl.program.size;
+                itl.symbol_table.label_lookup[block.label_slot.handle].offset = itl.program.size;
 
                 // if this is the first block prefer function name
                 if(b != 0)

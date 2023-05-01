@@ -398,7 +398,7 @@ struct CaseNode
     u32 value;
 
     // what label does this statement have
-    u32 label;
+    LabelSlot label;
 
     // end block of the case
     u32 end_block;
