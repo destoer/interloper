@@ -614,11 +614,10 @@ LabelSlot new_basic_block(Interloper &itl,Function &func, block_type type)
 
 void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
-    const u32 start_block = cur_block(func);
+    const BlockSlot start_block = cur_block(func);
 
-    auto &blocks = func.emitter.program;
-
-    block_type old = blocks[start_block].type;
+    const Block& cur = block_from_slot(func,start_block);
+    block_type old = cur.type;
 
     BlockNode* if_block = (BlockNode*)node;
 
@@ -649,7 +648,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
             // block for comparison branch
             // cant emit yet as we dont know how large the block is
-            const u32 cmp_block = cur_block(func);
+            const BlockSlot cmp_block = cur_block(func);
 
             // compile the body block
             const block_type type = if_stmt->node.type == ast_type::if_t? block_type::if_t : block_type::else_if_t;
@@ -692,12 +691,15 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     const LabelSlot exit_label = new_basic_block(itl,func,old);
 
 
+    // TODO: we want to function of adding an exit block
+
 
     // for every body block bar the last we just added
     // add a unconditonal branch to the "exit block"
     // the last block is directly before the next and does not need one
+    auto &blocks = func.emitter.program;
 
-    for(u32 b = start_block; b < count(blocks) - 2; b++)
+    for(u32 b = start_block.handle; b < count(blocks) - 2; b++)
     {
         auto &block = func.emitter.program[b];
 
@@ -710,11 +712,10 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
 void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 {
-    const u32 initial_block = cur_block(func);
+    const BlockSlot initial_block = cur_block(func);
 
-
-    auto &blocks = func.emitter.program;
-    block_type old = blocks[initial_block].type;
+    auto &initial = block_from_slot(func,initial_block);
+    block_type old = initial.type;
 
     BinNode* while_node = (BinNode*)node;
 
@@ -747,11 +748,11 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     // scope for any var decls in the stmt
     new_scope(itl.symbol_table);
 
-    const u32 initial_block = cur_block(func);
+    const BlockSlot initial_block = cur_block(func);
 
 
-    auto &blocks = func.emitter.program;
-    block_type old = blocks[initial_block].type;
+    auto &initial = block_from_slot(func,initial_block);
+    block_type old = initial.type;
 
     ForNode* for_node = (ForNode*)node;
 
@@ -964,8 +965,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         gap += cur_gap;
     }
 
-    auto &blocks = func.emitter.program;
-    block_type old = blocks[cur_block(func)].type;
+    block_type old = block_from_slot(func,cur_block(func)).type;
 
 
 
@@ -1027,7 +1027,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         }
 
         // save our cur block so we can emit the default block dispatch later
-        const u32 range_block = cur_block(func);
+        const BlockSlot range_block = cur_block(func);
 
         // finally emit the dispatch on the table now we know where to exit if the table bounds get execeeded
         const SymSlot switch_slot = new_tmp(func,GPR_SIZE);

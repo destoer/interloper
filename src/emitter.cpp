@@ -152,18 +152,32 @@ void print(const Reg& reg)
     printf("slot: %x\n",reg.slot.handle);
 }
 
-u32 cur_block(Function& func)
+BlockSlot block_from_idx(u32 v)
 {
-    return count(func.emitter.program) - 1;
+    BlockSlot slot;
+
+    slot.handle = v;
+
+    return slot;
 }
 
+BlockSlot cur_block(Function& func)
+{
+    return block_from_idx(count(func.emitter.program) - 1);
+}
+
+Block& block_from_slot(Function& func, BlockSlot slot)
+{
+    return func.emitter.program[slot.handle];
+}
 
 // Emitter overloads
-void emit_block_internal(Function& func, u32 block, op_type op, u32 v1, u32 v2, u32 v3)
+void emit_block_internal(Function& func, BlockSlot block_slot, op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    auto &list = func.emitter.program[block].list;
+    auto& block = block_from_slot(func,block_slot);
+    auto &list = block.list;
     append(list,opcode);    
 }
 
@@ -205,12 +219,12 @@ void emit(Function &func,op_type op,LabelSlot v1, SymSlot v2)
 }
 
 
-void emit_block(Function &func,u32 block,op_type op, SymSlot v1, SymSlot v2, SymSlot v3)
+void emit_block(Function &func,BlockSlot block,op_type op, SymSlot v1, SymSlot v2, SymSlot v3)
 {
     emit_block_internal(func,block,op,v1.handle,v2.handle,v3.handle);
 }
 
-void emit_block(Function &func,u32 block,op_type op,LabelSlot v1, SymSlot v2)
+void emit_block(Function &func,BlockSlot block,op_type op,LabelSlot v1, SymSlot v2)
 {
     emit_block_internal(func,block,op,v1.handle,v2.handle,0);
 }

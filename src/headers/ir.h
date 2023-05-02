@@ -466,8 +466,8 @@ void emit(Function& func,op_type op, SymSlot v1, u32 v2, u32 v3);
 void emit(Function &func,op_type op,LabelSlot v1, SymSlot v2);
 
 void emit(Function& func,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
-void emit_block(Function &func,u32 block,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
-void emit_block(Function &func,u32 block,op_type op,LabelSlot v1, SymSlot v2 = {});
+void emit_block(Function &func,BlockSlot block,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
+void emit_block(Function &func,BlockSlot block,op_type op,LabelSlot v1, SymSlot v2 = {});
 
 void emit(Function& func,op_type op, LabelSlot v1);
 

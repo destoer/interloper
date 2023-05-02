@@ -401,7 +401,7 @@ struct CaseNode
     LabelSlot label;
 
     // end block of the case
-    u32 end_block;
+    BlockSlot end_block;
 
     AstNode* statement;
     BlockNode* block;
