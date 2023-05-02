@@ -674,7 +674,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
             else
             {
-                
+
             }
         }
 

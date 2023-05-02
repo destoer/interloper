@@ -1076,9 +1076,22 @@ void allocate_registers(Interloper& itl,Function &func)
             alloc.pc++;
         }
 
-        // block has ended spill variables still live
-        // TODO: we want to get rid of this when we properly trace vars
-        spill_all(alloc,itl.symbol_table,block,block.list.end,true);
+        auto opcode = block.list.end->opcode;
+
+        const auto& ENTRY = OPCODE_TABLE[u32(opcode.op)];  
+
+        // block has ended spill variables still live 
+        // TODO: we want to get rid of this with a proper global allocator...
+        if(ENTRY.group == op_group::branch_t)
+        {
+            spill_all(alloc,itl.symbol_table,block,block.list.end,false);
+        }
+
+        else
+        {
+            // fall through spill after data has been written out
+            spill_all(alloc,itl.symbol_table,block,block.list.end,true);
+        }
     }
 
     calc_allocation(alloc);
