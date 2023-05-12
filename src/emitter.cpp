@@ -213,16 +213,18 @@ void emit(Function& func,op_type op, SymSlot v1, u32 v2, u32 v3)
     emit_internal(func,op,v1.handle,v2,v3);
 }
 
+void emit_block(Function &func,BlockSlot block,op_type op, SymSlot v1, SymSlot v2, SymSlot v3)
+{
+    emit_block_internal(func,block,op,v1.handle,v2.handle,v3.handle);
+}
+
+#if 1
+
 void emit(Function &func,op_type op,LabelSlot v1, SymSlot v2)
 {
     emit_internal(func,op,v1.handle,v2.handle,0);
 }
 
-
-void emit_block(Function &func,BlockSlot block,op_type op, SymSlot v1, SymSlot v2, SymSlot v3)
-{
-    emit_block_internal(func,block,op,v1.handle,v2.handle,v3.handle);
-}
 
 void emit_block(Function &func,BlockSlot block,op_type op,LabelSlot v1, SymSlot v2)
 {
@@ -233,6 +235,13 @@ void emit(Function& func,op_type op, LabelSlot v1)
 {
     emit_internal(func,op,v1.handle,0,0);
 }
+
+void emit_block(Function& func,BlockSlot block,op_type op, LabelSlot v1)
+{
+    emit_block_internal(func,block,op,v1.handle,0,0);
+}
+
+#endif
 
 
 // emit an opcode, and give back a new dst as a tmp

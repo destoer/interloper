@@ -1117,10 +1117,10 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
     add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, filename);
 }
 
-Array<char> read_source_file(const String& filename)
+StringBuffer read_source_file(const String& filename)
 {
-    Array<char> file = read_file(filename);
-    if(count(file))
+    auto [file,err] = read_str_buf(filename);
+    if(err)
     {
         printf("no such file: %s\n",filename.buf);
         exit(0);
@@ -1299,9 +1299,9 @@ bool parse(Interloper& itl, const String& initial_filename)
         // get the next filename to parse
         const String filename = pop(file_stack);
 
-        Array<char> file = read_file(filename);
+        auto [file,err] = read_str_buf(filename);
 
-        if(!count(file))
+        if(err)
         {
             printf("file %s does not exist\n",filename.buf);
             error = true;
