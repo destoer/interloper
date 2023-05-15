@@ -1,0 +1,25 @@
+// expected 45077
+
+func test(x: s32) s32
+{
+    x = x + 5;
+
+    // parens are optional
+    if x < 0
+    {
+        x = 0x8000;
+    }
+
+    else if(x >= 0)
+    {
+        x = 0x5000;
+        return x;
+    }
+
+    return x + 6;
+}
+
+func main() s32
+{
+    return test(0) + test(1) + test(-1) + test(-5000);
+}

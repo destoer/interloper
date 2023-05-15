@@ -394,16 +394,13 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
 
     // if we have a register in R0 we need to save it so its not overwritten
-    if(returns_value && !hidden_args)
-    {
-        emit(func,op_type::spill_rv);
-    }
+    const b32 save_regs = returns_value && !hidden_args;
 
 
     // emit call to label slot
     // the actual address will have to resolved as the last compile step
     // once we know the size of all the code
-    emit(func,op_type::call,func_call.label_slot);
+    emit_call(func,func_call.label_slot,save_regs);
 
 
     // clean up args after the function call

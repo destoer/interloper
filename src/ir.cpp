@@ -3,6 +3,7 @@
 
 #include "list.cpp"
 #include "emitter.cpp"
+#include "cfg.cpp"
 #include "link.cpp"
 
 
@@ -53,8 +54,7 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
     emit(func,op_type::push_arg,src_slot);
     emit(func,op_type::push_arg,dst_slot);
 
-    emit(func,op_type::spill_rv);
-    emit(func,op_type::call,func_call.label_slot);
+    emit_call(func,func_call.label_slot,true);
 
     emit(func,op_type::clean_args,3);
 }
@@ -429,7 +429,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
             // if a pointer is taken to this, 
             // or a its last use is in a loop it is defined outside of
             // then we need to spill it as it might be used again
-            //if(sym.referenced || (block.loop_nesting != 0 && sym.loop_nesting < block.loop_nesting))
+            //if(sym.referenced || )
             {
                 spill(slot,alloc,table,block,node);
             }

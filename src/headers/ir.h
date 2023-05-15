@@ -446,8 +446,6 @@ struct Block
     // what is the corresponding label for this block?
     LabelSlot label_slot;
 
-    u32 loop_nesting = 0;
-
     Array<u32> exit;
 };
 

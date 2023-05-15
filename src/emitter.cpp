@@ -270,20 +270,6 @@ SymSlot emit_res(Function& func, op_type op, u32 v2)
     return tmp;
 }
 
-
-void add_exit(Function& func,u32 block_slot, u32 exit)
-{
-    auto &block = func.emitter.program[block_slot];
-
-    push_var(block.exit,exit);
-}
-
-void cond_branch_exit(Function& func, u32 block_slot, u32 target, u32 fallthrough)
-{
-    add_exit(func,block_slot,target);
-    add_exit(func,block_slot,fallthrough);
-}
-
 SymSlot addrof(Function& func,const Reg& reg)
 {
     return emit_res(func,op_type::addrof,reg.slot);

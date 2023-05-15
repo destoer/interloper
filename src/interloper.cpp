@@ -621,78 +621,79 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
     BlockNode* if_block = (BlockNode*)node;
 
+    LabelSlot exit_label;
+
     for(u32 n = 0; n < count(if_block->statements); n++)
     {
-        const auto type = if_block->statements[n]->type;
+        BinNode* if_stmt = (BinNode*)if_block->statements[n];
 
-        if(type != ast_type::else_t)
+        // compile the compare expr for conditon
+        const auto [t,r] = compile_oper(itl,func,if_stmt->left);
+
+        if(!is_bool(t))
         {
-            BinNode* if_stmt = (BinNode*)if_block->statements[n];
+            panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).buf);
+            return;
+        }
 
+        // block for comparison branch
+        // cant emit yet as we dont know how may blocks the if statement we are jumping over is yet
+        const BlockSlot cmp_block = cur_block(func);
 
-            if(n != 0)
+        // compile the body block
+        const block_type type = if_stmt->node.type == ast_type::if_t? block_type::if_t : block_type::else_if_t;
+        compile_basic_block(itl,func,(BlockNode*)if_stmt->right,type);
+
+        // not the last statment 
+        if(n != count(if_block->statements) - 1)
+        {
+            // TODO: i think we need to rework this...
+            // emit a directive so we know to insert a branch
+            // to the exit block here once we know how many blocks
+            // there are
+            emit(func,op_type::exit_block);
+            
+            if(if_block->statements[n+1]->type == ast_type::else_t)
             {
-                // create new block for compare
-                // TODO: should this have hte type of the initial node or no?
-                new_basic_block(itl,func,block_type::chain_cmp_t);
-            }
+                // else stmt has no expr so its in the first node
+                // and by definition this is the last statement
+                UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n+1];
+                const LabelSlot label_slot = compile_basic_block(itl,func,(BlockNode*)else_stmt->next,block_type::else_t);
 
-            // compile the compare expr for conditon
-            const auto [t,r] = compile_oper(itl,func,if_stmt->left);
+                // add branch over the body we compiled earlier to the else stmt
+                emit_block(func,cmp_block,op_type::bnc,label_slot,r);
 
-            if(!is_bool(t))
-            {
-                panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).buf);
-                return;
-            }
-
-            // block for comparison branch
-            // cant emit yet as we dont know how large the block is
-            const BlockSlot cmp_block = cur_block(func);
-
-            // compile the body block
-            const block_type type = if_stmt->node.type == ast_type::if_t? block_type::if_t : block_type::else_if_t;
-            compile_basic_block(itl,func,(BlockNode*)if_stmt->right,type);
-
-            // add branch over the block we just compiled
-            const u32 label_slot_handle = count(itl.symbol_table.label_lookup);
-
-            LabelSlot label_slot = label_from_idx(label_slot_handle);
-
-            emit_block(func,cmp_block,op_type::bnc,label_slot,r);
-
-
-            // not the last statment (branch is not require)
-            if(n != count(if_block->statements) - 1)
-            {
-                // emit a directive so we know to insert a branch
-                // to the exit block here once we know how many blocks
-                // there are
-                emit(func,op_type::exit_block);
+                exit_label = new_basic_block(itl,func,old);
+                break;
             }
 
             else
             {
+                // create new block for compare for the next node
+                // TODO: should this have hte type of the initial node or no?
+                const LabelSlot label_slot = new_basic_block(itl,func,block_type::chain_cmp_t);
 
+                // add branch over the body we compiled earlier
+                emit_block(func,cmp_block,op_type::bnc,label_slot,r);
             }
         }
 
-        // else stmt has no expr so its in the first node
-        // and by definition this is the last statement
-        else 
+        // Final block, this exit is done via a fallthrough
+        else
         {
-            UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n];
-            compile_basic_block(itl,func,(BlockNode*)else_stmt->next,block_type::else_t);
+            exit_label = new_basic_block(itl,func,old);
+
+            // single if stmt
+            if(n == 0)
+            {
+                emit_block(func,cmp_block,op_type::bnc,exit_label,r);
+            }          
         }
     }
 
-    // TODO: is this being a body fine or does it need to take whatever the intial block was?
-    // create the exit block, for new code
-    const LabelSlot exit_label = new_basic_block(itl,func,old);
-
-
     // TODO: we want to function of adding an exit block
 
+    dump_ir_sym(itl);
 
     // for every body block bar the last we just added
     // add a unconditonal branch to the "exit block"
