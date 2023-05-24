@@ -1052,6 +1052,11 @@ void allocate_registers(Interloper& itl,Function &func)
         
         ListNode *node = block.list.start;
 
+        // ignore empty blocks
+        if(!node)
+        {
+            continue;
+        }
         
         while(node)
         {

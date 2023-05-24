@@ -1,4 +1,4 @@
-// expected 45077
+// expected 94214
 
 func test(x: s32) s32
 {
