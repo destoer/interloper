@@ -697,7 +697,7 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     SymSlot loop_cond_reg;
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left);
 
-    const BlockSlot exit_block = add_fall(itl,func,while_block);
+    const BlockSlot exit_block = new_basic_block(itl,func);
 
     // keep looping to while block if cond is true
     emit_cond_branch(func,end_block,while_block,exit_block,loop_cond_reg,true);
@@ -770,7 +770,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     SymSlot loop_cond_reg;
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,for_node->cond);
 
-    const BlockSlot exit_block = add_fall(itl,func,for_block);
+    const BlockSlot exit_block = new_basic_block(itl,func);
 
     emit_cond_branch(func,end_block,for_block,exit_block,loop_cond_reg,true);
 
@@ -1950,12 +1950,12 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
         for(u32 i = 0; i < count(bucket); i++)
         {
-            const auto& sym = sym_from_slot(itl.symbol_table,bucket[i].v);
+            auto& sym = sym_from_slot(itl.symbol_table,bucket[i].v);
 
             // free the stack alloc for each var thats about to go out of scope
             if(sym.arg_offset == NON_ARG)
             {
-                free_slot(func,sym.reg);
+                free_sym(func,sym);
             }
         }
     }

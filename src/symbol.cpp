@@ -57,6 +57,7 @@ Symbol make_sym(SymbolTable& table,const String& name, Type* type, u32 size,u32 
     symbol.name = copy_string(*table.string_allocator,name);
     symbol.type = type;
     symbol.arg_offset = arg;
+    symbol.scope_end = block_from_idx(0xffff'ffff);
 
     b32 s = is_signed(type);
 

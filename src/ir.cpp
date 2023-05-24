@@ -400,6 +400,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
     }
 
     // free any regs that are never used again
+    // TODO: for globals we might have to get creative
     while(dead_count)
     {
         const SymSlot slot = dead_slot[--dead_count];
@@ -407,24 +408,38 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
         // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
         if(is_sym(slot))
         {
-            //auto &sym = sym_from_slot(table,slot);
+            auto &sym = sym_from_slot(table,slot);
+
+            b32 used_beyond_loop = false;
+
+            for(u32 e = 0; e < count(block.links); e++)
+            {
+                const BlockSlot edge_slot = block.links[e];
+
+                // reachable from self
+                // scope extends beyond this last use
+                if(edge_slot.handle == block.block_slot.handle && sym.scope_end.handle > block.block_slot.handle)
+                {
+                    used_beyond_loop = true;
+                    break;
+                }
+            }
 
             // if a pointer is taken to this, 
-            // or a its last use is in a loop it is defined outside of
-            // then we need to spill it as it might be used again
-            //if(sym.referenced || )
+            // or if we are in a loop and a sym scope extends past loop
+            if(sym.referenced || used_beyond_loop)
             {
                 spill(slot,alloc,table,block,node);
             }
 
-            /*
+            
             // No way to access it, get rid of the reg
             else
             {
                 auto& ir_reg = reg_from_slot(slot,table,alloc);
                 free_reg(ir_reg,table,alloc);
             }
-            */
+        
         }
 
         // tmp's are fine to delete under any circumstance because they will not live beyond the block

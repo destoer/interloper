@@ -432,7 +432,13 @@ struct Block
     // what is the corresponding label for this block?
     LabelSlot label_slot;
 
+    // What is our own slot?
+    BlockSlot block_slot;
+
     Array<BlockSlot> exit;
+
+    // what blocks are reachable from this block?
+    Array<BlockSlot> links;
 };
 
 struct IrEmitter
@@ -442,6 +448,10 @@ struct IrEmitter
 };
 
 struct Function;
+
+BlockSlot block_from_idx(u32 v);
+BlockSlot cur_block(Function& func);
+Block& block_from_slot(Function& func, BlockSlot slot);
 
 void emit(Function& func,op_type op, u32 imm);
 void emit(Function& func,op_type op, SymSlot v1, SymSlot v2, u32 imm);

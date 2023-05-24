@@ -574,11 +574,12 @@ void compile_function(Interloper& itl, Function& func)
         }
     }
 
-
     if(itl.error)
     {
         return;
-    }    
+    }
+
+    connect_flow_graph(itl,func);    
 }
 
 void compile_functions(Interloper &itl)

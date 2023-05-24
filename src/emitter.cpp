@@ -53,6 +53,11 @@ void free_slot(Function& func, const Reg& reg)
     emit(func,op_type::free_slot,reg.slot,reg.size,reg.count);
 }
 
+void free_sym(Function& func, Symbol& sym)
+{
+    free_slot(func,sym.reg);
+    sym.scope_end = cur_block(func);
+}
 
 void emit(Function& func,const Opcode& opcode)
 {
@@ -150,25 +155,6 @@ void print(const Reg& reg)
     printf("offset: %x\n",reg.offset);
     printf("location: %x\n\n",reg.location);    
     printf("slot: %x\n",reg.slot.handle);
-}
-
-BlockSlot block_from_idx(u32 v)
-{
-    BlockSlot slot;
-
-    slot.handle = v;
-
-    return slot;
-}
-
-BlockSlot cur_block(Function& func)
-{
-    return block_from_idx(count(func.emitter.program) - 1);
-}
-
-Block& block_from_slot(Function& func, BlockSlot slot)
-{
-    return func.emitter.program[slot.handle];
 }
 
 // Emitter overloads
