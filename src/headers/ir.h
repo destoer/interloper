@@ -392,18 +392,6 @@ static constexpr u32 SYSCALL_WRITE_STRING = SYSCALL_EXIT + 1;
 
 static constexpr u32 STACK_SIZE = 32 * 1024;
 
-enum class block_type
-{   
-    if_t,
-    else_if_t,
-    else_t,
-    chain_cmp_t,
-    for_t,
-    while_t,
-    body_t,
-    case_t,
-};
-
 inline const char *block_names[] =
 {
     "if",
@@ -441,12 +429,10 @@ struct Block
 {
     List list;
 
-    block_type type;
-
     // what is the corresponding label for this block?
     LabelSlot label_slot;
 
-    Array<u32> exit;
+    Array<BlockSlot> exit;
 };
 
 struct IrEmitter
@@ -470,8 +456,6 @@ SymSlot emit_res(Function& func, op_type op, SymSlot v2 = {}, SymSlot v3 = {});
 SymSlot emit_res(Function& func, op_type op, SymSlot v2, u32 v3);
 
 void destroy_emitter(IrEmitter& emitter);
-
-void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot); 
 
 void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
 void disass_opcode_raw(const Opcode &opcode);

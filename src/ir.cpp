@@ -7,23 +7,6 @@
 #include "link.cpp"
 
 
-Block make_block(block_type type,LabelSlot label_slot,ArenaAllocator* list_allocator)
-{
-    Block block;
-
-    block.type = type;
-    block.list = make_list(list_allocator);
-    block.label_slot = label_slot;
-
-    return block;
-}
-
-void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, LabelSlot label_slot)
-{
-    push_var(func.emitter.program,make_block(type,label_slot,list_allocator)); 
-}
-
-
 void destroy_emitter(IrEmitter& emitter)
 {
     destroy_arr(emitter.program);

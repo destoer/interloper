@@ -555,7 +555,7 @@ void compile_function(Interloper& itl, Function& func)
 
 
     // parse out each line of the function
-    compile_basic_block(itl,func,node.block,block_type::body_t);
+    compile_basic_block(itl,func,node.block);
 
     destroy_scope(itl.symbol_table);
 

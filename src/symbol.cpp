@@ -113,11 +113,11 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
     label.name = copy_string(*sym_table.string_allocator,name);
     label.offset = 0;
 
-    const u32 slot = count(sym_table.label_lookup);
+    const u32 handle = count(sym_table.label_lookup);
 
     push_var(sym_table.label_lookup,label);
 
-    return label_from_idx(slot);
+    return label_from_idx(handle);
 }
 
 void clear(SymbolTable &sym_table)

@@ -5,7 +5,7 @@ std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 global = false);
 void compile_block(Interloper &itl,Function &func,BlockNode *node);
-LabelSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node, block_type type);
+BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
@@ -588,40 +588,12 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 }
 
 
-String label_name(SymbolTable& table,u32 slot)
-{
-    char name[40];
-    const u32 len = sprintf(name,"L%d",slot);
-
-    return make_string(*table.string_allocator,name,len);
-}
-
-LabelSlot new_basic_block(Interloper &itl,Function &func, block_type type)
-{
-    const u32 label_count = count(itl.symbol_table.label_lookup);
-
-    const u32 block_slot = count(func.emitter.program);
-
-    const LabelSlot label_slot = add_label(itl.symbol_table,label_name(itl.symbol_table,label_count));
-    new_block(&itl.list_allocator,func,type,label_slot);
-
-    // offset is the block slot until full resolution
-    itl.symbol_table.label_lookup[label_slot.handle].offset = block_slot;
-
-    return label_slot;   
-}
-
-
 void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
-    const BlockSlot start_block = cur_block(func);
-
-    const Block& cur = block_from_slot(func,start_block);
-    block_type old = cur.type;
-
     BlockNode* if_block = (BlockNode*)node;
 
-    LabelSlot exit_label;
+    BlockSlot start_block = cur_block(func);
+    BlockSlot exit_block;
 
     for(u32 n = 0; n < count(if_block->statements); n++)
     {
@@ -641,29 +613,25 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         const BlockSlot cmp_block = cur_block(func);
 
         // compile the body block
-        const block_type type = if_stmt->node.type == ast_type::if_t? block_type::if_t : block_type::else_if_t;
-        compile_basic_block(itl,func,(BlockNode*)if_stmt->right,type);
+        const BlockSlot body_slot = compile_basic_block(itl,func,(BlockNode*)if_stmt->right);
 
         // not the last statment 
         if(n != count(if_block->statements) - 1)
         {
-            // TODO: i think we need to rework this...
-            // emit a directive so we know to insert a branch
-            // to the exit block here once we know how many blocks
-            // there are
+            // indicate we need to jump the exit block
             emit(func,op_type::exit_block);
-            
+
             if(if_block->statements[n+1]->type == ast_type::else_t)
             {
                 // else stmt has no expr so its in the first node
-                // and by definition this is the last statement
+                // and by definition this is the last statement with no cond so we have to explictly splice a jump to it
                 UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n+1];
-                const LabelSlot label_slot = compile_basic_block(itl,func,(BlockNode*)else_stmt->next,block_type::else_t);
+                const BlockSlot else_slot = compile_basic_block(itl,func,(BlockNode*)else_stmt->next);
 
-                // add branch over the body we compiled earlier to the else stmt
-                emit_block(func,cmp_block,op_type::bnc,label_slot,r);
+                // add branch over body we compiled to else statement
+                emit_cond_branch(func,cmp_block,else_slot,body_slot,r,false);
 
-                exit_label = new_basic_block(itl,func,old);
+                exit_block = add_fall(itl,func,else_slot);
                 break;
             }
 
@@ -671,33 +639,27 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             {
                 // create new block for compare for the next node
                 // TODO: should this have hte type of the initial node or no?
-                const LabelSlot label_slot = new_basic_block(itl,func,block_type::chain_cmp_t);
+                const BlockSlot chain_slot = new_basic_block(itl,func);
 
                 // add branch over the body we compiled earlier
-                emit_block(func,cmp_block,op_type::bnc,label_slot,r);
+                emit_cond_branch(func,cmp_block,chain_slot,body_slot,r,false);
             }
         }
 
         // Final block, this exit is done via a fallthrough
         else
         {
-            exit_label = new_basic_block(itl,func,old);
+            exit_block = add_fall(itl,func,body_slot);
 
             // single if stmt
             if(n == 0)
             {
-                emit_block(func,cmp_block,op_type::bnc,exit_label,r);
+                emit_cond_branch(func,cmp_block,exit_block,body_slot,r,false);
             }          
         }
     }
 
-    // TODO: we want to function of adding an exit block
-
-    dump_ir_sym(itl);
-
-    // for every body block bar the last we just added
-    // add a unconditonal branch to the "exit block"
-    // the last block is directly before the next and does not need one
+    // now we have to exit block add in every exit
     auto &blocks = func.emitter.program;
 
     for(u32 b = start_block.handle; b < count(blocks) - 2; b++)
@@ -706,7 +668,8 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
         if(block.list.end->opcode.op == op_type::exit_block)
         {
-            block.list.end->opcode = Opcode(op_type::b,exit_label.handle,0,0);
+            remove(block.list,block.list.end);
+            emit_branch(func,block_from_idx(b),exit_block);
         }
     }
 }
@@ -714,9 +677,6 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 {
     const BlockSlot initial_block = cur_block(func);
-
-    auto &initial = block_from_slot(func,initial_block);
-    block_type old = initial.type;
 
     BinNode* while_node = (BinNode*)node;
 
@@ -730,18 +690,20 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     }    
 
     // compile body
-    const LabelSlot cur_label = compile_basic_block(itl,func,(BlockNode*)while_node->right,block_type::while_t); 
+    const BlockSlot while_block = compile_basic_block(itl,func,(BlockNode*)while_node->right); 
 
+    const BlockSlot end_block = cur_block(func);
 
     SymSlot loop_cond_reg;
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left);
-    emit(func,op_type::bc,cur_label,loop_cond_reg);
 
-    const LabelSlot exit_label = new_basic_block(itl,func,old);
+    const BlockSlot exit_block = add_fall(itl,func,while_block);
 
-    // emit branch over the loop body in initial block
-    // if cond is not met
-    emit_block(func,initial_block,op_type::bnc,exit_label,stmt_cond_reg);    
+    // keep looping to while block if cond is true
+    emit_cond_branch(func,end_block,while_block,exit_block,loop_cond_reg,true);
+
+    // emit branch over the loop body in initial block if cond is not met
+    emit_cond_branch(func,initial_block,exit_block,while_block,stmt_cond_reg,false);   
 }
 
 void compile_for_block(Interloper &itl,Function &func,AstNode *node)
@@ -750,10 +712,6 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     new_scope(itl.symbol_table);
 
     const BlockSlot initial_block = cur_block(func);
-
-
-    auto &initial = block_from_slot(func,initial_block);
-    block_type old = initial.type;
 
     ForNode* for_node = (ForNode*)node;
 
@@ -801,21 +759,23 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
 
     // compile the body
-    const LabelSlot cur = compile_basic_block(itl,func,for_node->block,block_type::for_t);    
+    const BlockSlot for_block = compile_basic_block(itl,func,for_node->block);    
 
     // compile loop end stmt
     compile_expression_tmp(itl,func,for_node->post);
     
+    const BlockSlot end_block = cur_block(func);
+
 
     SymSlot loop_cond_reg;
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,for_node->cond);
-    emit(func,op_type::bc,cur,loop_cond_reg);
 
-    const LabelSlot exit_label = new_basic_block(itl,func,old);
+    const BlockSlot exit_block = add_fall(itl,func,for_block);
 
-    // emit branch over the loop body in initial block
-    // if cond is not met
-    emit_block(func,initial_block,op_type::bnc,exit_label,stmt_cond_reg);
+    emit_cond_branch(func,end_block,for_block,exit_block,loop_cond_reg,true);
+
+    // emit branch over the loop body in initial block if cond is not met
+    emit_cond_branch(func,initial_block,exit_block,for_block,stmt_cond_reg,false);
 
     destroy_scope(itl.symbol_table);
 }
@@ -966,9 +926,6 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         gap += cur_gap;
     }
 
-    block_type old = block_from_slot(func,cur_block(func)).type;
-
-
 
     // get the number of extra gaps
     gap -= size - 1;
@@ -1041,7 +998,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // NOTE: branch is emitted later as we dont know where it goes yet
 
         // emit the switch table dispatch
-        new_basic_block(itl,func,old);
+        const BlockSlot dispatch_block = new_basic_block(itl,func);
 
         // mulitply to get a jump table index
         const SymSlot table_index = emit_res(func,op_type::mul_imm,switch_slot,GPR_SIZE);
@@ -1068,7 +1025,11 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         for(u32 i = 0; i < size; i++)
         {
             CaseNode* case_node = switch_node->statements[i];
-            case_node->label = compile_basic_block(itl,func,case_node->block,block_type::case_t);
+
+            const BlockSlot case_slot = compile_basic_block(itl,func,case_node->block);
+            const Block& case_block = block_from_slot(func,case_slot);
+            case_node->label = case_block.label_slot;
+
             case_node->end_block = cur_block(func);
         }
 
@@ -1076,27 +1037,27 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // NOTE: as default is allways the last block it does not need to have a jump to the exit
-        LabelSlot default_label;
+        BlockSlot default_block;
 
 
         // if there is no default then our exit label is the end
         if(switch_node->default_statement)
         {
-            default_label = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next,block_type::case_t);
+            default_block = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next);
         }
 
         // create a exit block for every case to jump to when its done
-        const LabelSlot exit_label = new_basic_block(itl,func,old);
+        const BlockSlot exit_label = new_basic_block(itl,func);
 
         // if there is no explicit default the default is just after the switch ends
         if(!switch_node->default_statement)
         {
-            default_label = exit_label;
+            default_block = exit_label;
         }
 
 
         // we have default posisiton now we can emit the branch for the range checking failing
-        emit_block(func,range_block,op_type::bc,default_label,default_cmp);
+        emit_cond_branch(func,range_block,default_block,dispatch_block,default_cmp,true);
 
 
 
@@ -1104,6 +1065,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         u32 case_idx = 0;
 
         
+        const LabelSlot default_label = block_from_slot(func,default_block).label_slot; 
+
         for(u32 i = 0; i < range; i++)
         {
             const u32 addr = i * GPR_SIZE;
@@ -1121,7 +1084,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                 case_idx++;
 
                 // add jump to the exit block
-                emit_block(func,case_node->end_block,op_type::b,exit_label);
+                emit_branch(func,case_node->end_block,exit_label);
             }
 
             else
@@ -1766,13 +1729,12 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 }
 
 
-// returns label for cur block
-LabelSlot compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node, block_type type)
+BlockSlot compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node)
 {
-    const LabelSlot label_slot = new_basic_block(itl,func,type);
+    const BlockSlot block_slot = new_basic_block(itl,func);
     compile_block(itl,func,block_node);
 
-    return label_slot;
+    return block_slot;
 }
 
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
