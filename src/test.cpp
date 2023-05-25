@@ -53,7 +53,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/const/const_array_index_invalid.itl",-1,true},
 
     // func
-    {"tests/func/func",7,false},
+    {"tests/func/func",9,false},
     {"tests/func/no_main",-1,true},
     {"tests/func/invalid_args",-1,true},
     {"tests/func/void_return",255,false},

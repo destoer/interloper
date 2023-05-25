@@ -73,6 +73,7 @@ struct LocalAlloc
     b32 print_stack_allocation = false;
 
     // allcation info of tmp's for current function
+    // NOTE: this is owned by the func and we dont have to free it
     Array<Reg> tmp_regs;
 
 
@@ -94,6 +95,8 @@ struct LocalAlloc
 
     // what is the total ammount of space that this functions stack requires!
     u32 stack_size;
+
+    Array<SymSlot> pending_allocation;
 };
 
 LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation, Array<Reg> tmp)
@@ -127,7 +130,13 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,
     return alloc;
 }
 
-u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count, const char *name);
+void destroy_local_alloc(LocalAlloc& alloc)
+{
+    
+
+    destroy_arr(alloc.pending_allocation);
+}
+
 
 void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg);
 
@@ -166,22 +175,6 @@ void print_alloc(LocalAlloc &alloc,SymbolTable& table)
 }
 
 
-// NOTE: this just reserves stack space,
-// calc allocation must be called (done before 2nd directive pass)
-// then finish_alloc to give the actual offset
-u32 stack_reserve(LocalAlloc& alloc, u32 size, u32 count)
-{
-    const u32 idx = size >> 1;
-    const u32 cur = alloc.size_count[idx];
-
-
-    alloc.size_count[idx] += count;
-    alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
-
-    return cur + PENDING_ALLOCATION;    
-}
-
-
 Reg& reg_from_slot(SymSlot slot, SymbolTable& table, LocalAlloc& alloc)
 {
     // bind the allocation info into the slot
@@ -196,6 +189,54 @@ Reg& reg_from_slot(SymSlot slot, SymbolTable& table, LocalAlloc& alloc)
         auto& sym = sym_from_slot(table,slot);
         return sym.reg;
     }    
+}
+
+
+b32 pending_stack_alloc(Reg& ir_reg)
+{
+    return ir_reg.offset >= PENDING_ALLOCATION;
+}
+
+// NOTE: this just reserves stack space,
+// finish_stack_alloc has to be called first before usage
+u32 stack_reserve_internal(LocalAlloc& alloc, u32 size, u32 count)
+{
+    const u32 idx = size >> 1;
+    const u32 cur = alloc.size_count[idx];
+
+
+    alloc.size_count[idx] += count;
+    alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
+
+    return cur + PENDING_ALLOCATION;    
+}
+
+void stack_reserve_reg(LocalAlloc& alloc, Reg& ir_reg)
+{
+    ir_reg.offset = stack_reserve_internal(alloc,ir_reg.size,ir_reg.count);
+
+    // mark this so we can finalise these later
+    push_var(alloc.pending_allocation,ir_reg.slot);
+}
+
+void stack_reserve_slot(LocalAlloc& alloc,SymbolTable table, SymSlot slot)
+{
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+    if(is_sym(slot))
+    {
+        auto& sym = sym_from_slot(table,slot);
+
+        log(alloc.print_stack_allocation,"initial offset allocated %s: [%x] -> %x\n",sym.name.buf,ir_reg.size,ir_reg.offset - PENDING_ALLOCATION);    
+    }
+
+    else
+    {
+        // by defintion a tmp has to be local
+        log(alloc.print_stack_allocation,"initial offset allocated t%d: [%x] -> %x\n",slot.handle,ir_reg.size,ir_reg.offset - PENDING_ALLOCATION);
+    }
+
+    stack_reserve_reg(alloc,ir_reg);    
 }
 
 void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block &block,ListNode* node, b32 after = false);
@@ -557,7 +598,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     const u32 reg = ir_reg.location;
     const u32 size = ir_reg.size * ir_reg.count;
 
-    // TODO: handle structs
+    // TODO: handle if structs aernt always in emory
     assert(size <= sizeof(u32));
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
@@ -574,9 +615,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
             // only allocate the local vars by here
             if(!is_arg(sym))
             {
-                ir_reg.offset = stack_reserve(alloc,size,1);
-
-                log(alloc.print_stack_allocation,"initial offset allocated %s: [%x] -> %x\n",sym.name.buf,size,ir_reg.offset - PENDING_ALLOCATION);
+                stack_reserve_reg(alloc,ir_reg);
             }
         }
 
@@ -586,9 +625,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
 
             // by defintion a tmp has to be local
             // TODO: fmt this tmp
-            ir_reg.offset = stack_reserve(alloc,size,1);
-
-            log(alloc.print_stack_allocation,"initial offset allocated t%d: [%x] -> %x\n",slot.handle,size,ir_reg.offset - PENDING_ALLOCATION);
+            stack_reserve_reg(alloc,ir_reg);
         }
     }
     
@@ -613,6 +650,17 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
 }
 
 
+void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, ListNode* node,u32 reg)
+{
+    const SymSlot slot = sym_from_idx(node->opcode.v[reg]);
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+    // Never a source as this is an initial alloc
+    allocate_slot(table,alloc,block,node,ir_reg,false);
+    rewrite_reg_internal(table,alloc,node->opcode,reg);         
+}
+
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block &block, ListNode *node)
 {
     auto &table = itl.symbol_table;
@@ -626,7 +674,30 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
     {
         case op_type::addrof:
         {
-            assert(false);
+            const SymSlot slot = sym_from_idx(opcode.v[1]);
+
+            assert(!is_tmp(slot));
+
+            // -> <addrof> <alloced reg> <slot> <stack offset>
+            // -> lea <alloced reg> <sp + whatever>
+
+            // mark the var as having a pointer taken to it
+            auto &sym = sym_from_slot(table,slot);
+            sym.referenced = true;
+
+            // okay apply the stack offset, and let the register allocator deal with it
+            // we will get the actual address using it later
+            node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
+            
+            // just rewrite the 1st reg we dont want the address of the 2nd
+            allocate_and_rewrite(table,alloc,block,node,0);
+
+
+            // spill the var that has had a pointer taken to it so we know its in memory
+            spill(slot,alloc,table,block,node);
+
+            node = node->next;
+            break;            
         }
 
         // have to do opcode rewriting by here to make sure hte offset is applied after any reloads occur
@@ -673,8 +744,21 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
         case op_type::alloc_slot:
         {
-            // TODO: how should we decide if structs go into memory or not?
-            return remove(block.list,node);
+            const SymSlot slot = sym_from_idx(opcode.v[0]);
+            auto &sym = sym_from_slot(table,slot);
+
+            if(alloc.print_reg_allocation)
+            {
+                printf("alloc slot: %s\n",sym.name.buf);
+            }
+
+            // TODO: should we just have an explicit tag to know to immediatly dump this into mem?
+            if(sym.reg.size * sym.reg.count > GPR_SIZE)
+            {
+                stack_reserve_reg(alloc,sym.reg);    
+            }
+
+            node = remove(block.list,node);
             break;
         }
 
@@ -713,7 +797,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             }
 
             return remove(block.list,node);
-            break;
         }
 
 
@@ -816,12 +899,6 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             crash_and_burn("unused state opcode");
         }
 
-
-        case op_type::alloc:
-        {
-            assert(false);
-        }
-
         case op_type::ret:
         {
             ListNode *tmp = node;
@@ -872,9 +949,16 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             break;
         }
 
+        // this can only be taken on a sym
         case op_type::addrof:
         {
-            assert(false);
+            const s32 stack_offset = opcode.v[2];
+            auto &sym = sym_from_slot(itl.symbol_table,sym_from_idx(opcode.v[1]));
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.reg.offset + stack_offset);
+
+            node = node->next;
+            break;
         }
 
         case op_type::spill:
@@ -883,12 +967,6 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             auto& reg = reg_from_slot(slot,itl.symbol_table,alloc);
 
             const s32 stack_offset = opcode.v[2];
-
-            // this is the first stack access so we need to compute the final posistion
-            if(reg.offset >= PENDING_ALLOCATION)
-            {
-                finish_alloc(reg,itl.symbol_table,alloc);
-            }
 
             // write value back out into mem
             // TODO: are these offsets aligned? 
@@ -963,7 +1041,21 @@ void calc_allocation(LocalAlloc& alloc)
         printf("stack size: %d\n",alloc.stack_size);
     }
 }
-    
+
+
+void finish_stack_alloc(SymbolTable& table, LocalAlloc& alloc)
+{
+    calc_allocation(alloc);
+
+    for(u32 r = 0; r < count(alloc.pending_allocation); r++)
+    {
+        const SymSlot slot = alloc.pending_allocation[r];
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+        finish_alloc(ir_reg,table,alloc);
+    }
+}
+
 // TODO: need to rethink this when we do register passing
 // and when we push off determining stack size to a later pass
 void alloc_args(Function &func, LocalAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
@@ -1097,7 +1189,8 @@ void allocate_registers(Interloper& itl,Function &func)
         }
     }
 
-    calc_allocation(alloc);
+    // Figure out how large a stack we need and put everything on it
+    finish_stack_alloc(itl.symbol_table,alloc);
 
     if(alloc.print_reg_allocation)
     {
@@ -1150,6 +1243,8 @@ void allocate_registers(Interloper& itl,Function &func)
             node = rewrite_directives(itl,alloc,block,node,callee_restore,stack_clean,insert_callee_saves);
         }
     }
+
+    destroy_local_alloc(alloc);
 }
 
 

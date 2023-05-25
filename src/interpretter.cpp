@@ -495,7 +495,6 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::alloc_stack:
         case op_type::pool_addr:
         case op_type::alloc_slot:
-        case op_type::alloc:
         case op_type::free_slot:
         case op_type::save_regs:
         case op_type::restore_regs:

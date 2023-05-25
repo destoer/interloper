@@ -45,12 +45,12 @@ u32 gpr_count(u32 size)
 
 void alloc_slot(Function& func, const Reg& reg)
 {
-    emit(func,op_type::alloc_slot,reg.slot,reg.size,reg.count);
+    emit(func,op_type::alloc_slot,reg.slot);
 }
 
 void free_slot(Function& func, const Reg& reg)
 {
-    emit(func,op_type::free_slot,reg.slot,reg.size,reg.count);
+    emit(func,op_type::free_slot,reg.slot);
 }
 
 void free_sym(Function& func, Symbol& sym)

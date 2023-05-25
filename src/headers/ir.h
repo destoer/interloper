@@ -88,7 +88,6 @@ enum class op_type
     // so we can reclaim allocation on the stack
     alloc_slot,
     free_slot,
-    alloc,
 
     alloc_vla,
 
