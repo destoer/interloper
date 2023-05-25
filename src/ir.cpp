@@ -281,6 +281,7 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 
         log(alloc.print_reg_allocation,"freed symbol %s from reg r%d\n",sym.name.buf,reg);
     
+        // TODO: how do we handle this
         assert(!sym.referenced);
     }
 
@@ -452,6 +453,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
             auto &sym = sym_from_slot(table,slot);
 
             b32 used_beyond_loop = false;
+            UNUSED(used_beyond_loop);
 
             for(u32 e = 0; e < count(block.links); e++)
             {
@@ -459,6 +461,8 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
 
                 // reachable from self
                 // scope extends beyond this last use
+                
+                // TODO: this doesnt work properly switch
                 if(edge_slot.handle == block.block_slot.handle && sym.scope_end.handle > block.block_slot.handle)
                 {
                     used_beyond_loop = true;
@@ -473,14 +477,13 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
                 spill(slot,alloc,table,block,node);
             }
 
-            
+             
             // No way to access it, get rid of the reg
             else
             {
                 auto& ir_reg = reg_from_slot(slot,table,alloc);
                 free_reg(ir_reg,table,alloc);
             }
-        
         }
 
         // tmp's are fine to delete under any circumstance because they will not live beyond the block

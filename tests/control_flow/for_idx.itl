@@ -1,0 +1,13 @@
+// expected 10
+
+func main() s32
+{
+    ans : s32 = 0;
+
+    for(i : s32 = 0; i < 5; i += 1)
+    {
+        ans += i;
+    }
+
+    return ans;
+} 
