@@ -734,12 +734,37 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
         case op_type::alloc_stack:
         {
-            assert(false);
+            const u32 size = opcode.v[0];
+            node->opcode = Opcode(op_type::sub_imm,SP_IR,SP_IR,size);
+            alloc.stack_offset += size;
+
+            rewrite_regs(itl.symbol_table,alloc,node->opcode);
+
+            if(alloc.print_stack_allocation)
+            {
+                printf("allocate stack %x\n",size);
+            }
+
+
+            node = node->next;
+            break;
         }
 
         case op_type::free_stack:
         {
-            assert(false);
+            const u32 size = opcode.v[0];
+            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,size);
+            alloc.stack_offset -= size;
+
+            rewrite_regs(itl.symbol_table,alloc,node->opcode);
+
+            if(alloc.print_stack_allocation)
+            {
+                printf("free stack %x\n",size);
+            }
+
+            node = node->next;
+            break;
         }
 
         case op_type::alloc_slot:
@@ -804,32 +829,49 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         {
             spill_all(alloc,itl.symbol_table,block,node,false);
             return remove(block.list,node);
-            break;
         }
 
         // TODO: this needs to have its size emitted directly inside the opcode
         case op_type::free_slot:
         {
             return remove(block.list,node);
-            break;
         }
 
 
         case op_type::load_arr_data:
         {
-            assert(false);
+            // we dont have the information for this yet so we have to fill it in later
+            // load_arr_data <dst>, <sym>, <stack_offset>
+
+            node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
+
+            // only want to allocate the dst,
+            // we need to use the sym as a "slot" later
+            allocate_and_rewrite(itl.symbol_table,alloc,block,node,0);                
+   
+            node = node->next;
+            break;
         }
 
         // TODO: this probably needs to be reworked for multi dimensional arrays
         case op_type::load_arr_len:
         {
-            assert(false);
+            // load_arr_len <dst> <symbol>, <stack_offset>
+            node->opcode = Opcode(op_type::load_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
+            allocate_and_rewrite(itl.symbol_table,alloc,block,node,0);                
+   
+            node = node->next;
+            break;
         }
 
-        // pools
+        // pools (NOTE: we resolve this during linking)
         case op_type::pool_addr:
         {
-            assert(false);
+            // pool_addr <dst>, <offset>, <pool>
+            allocate_and_rewrite(itl.symbol_table,alloc,block,node,0);   
+
+            node = node->next;
+            break;
         }
 
 
@@ -984,13 +1026,52 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
         // arrays
         case op_type::load_arr_data:
         {
-            assert(false);
+            const s32 stack_offset = opcode.v[2];
+
+            const SymSlot arr_slot = sym_from_idx(opcode.v[1]);
+            auto &sym = sym_from_slot(itl.symbol_table,arr_slot);
+
+            if(is_runtime_size(sym.type))
+            {
+                const SymSlot dst_slot = sym_from_idx(opcode.v[0]);
+                node->opcode = load_ptr(dst_slot,SP_REG,sym.reg.offset + stack_offset + 0,GPR_SIZE,false);
+            }
+
+            // static array
+            else
+            {
+                node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.reg.offset + stack_offset);
+            }
+
+            node = node->next;
+            break;
         }
 
 
         case op_type::load_arr_len:
         {
-            assert(false);
+            const SymSlot arr_slot = sym_from_idx(opcode.v[1]);
+            auto &sym = sym_from_slot(itl.symbol_table,arr_slot);
+
+            const s32 stack_offset = opcode.v[2];            
+
+            if(is_runtime_size(sym.type))
+            {
+                // TODO: this assumes GPR_SIZE is 4
+                const SymSlot dst_slot = sym_from_idx(opcode.v[0]);
+                node->opcode = load_ptr(dst_slot,SP_REG,sym.reg.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
+            }
+
+            else
+            {
+                ArrayType* array_type = (ArrayType*)sym.type;
+
+                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],array_type->size,0);
+            }
+
+
+            node = node->next;
+            break;
         }
 
         default: 

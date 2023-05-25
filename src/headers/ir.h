@@ -372,6 +372,8 @@ static constexpr u32 R1 = 1;
 
 static constexpr u32 PROGRAM_ORG = 0;
 
+static constexpr SymSlot SP_REG = {SP};
+
 
 static constexpr u32 GPR_SIZE = sizeof(u32);
 
