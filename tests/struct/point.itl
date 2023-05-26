@@ -1,4 +1,4 @@
-
+// expected 5
 
 struct Point
 {

@@ -2,8 +2,10 @@
 
 func memcpy(dst: byte@, src: byte@, size: u32)
 {
+    end : const byte@ = dst + size;
+
     // just do a simple copy for now
-    for i: u32 = 0; i < size; i += 1
+    while(dst != end)
     {
         @dst = @src;
         dst += 1;
@@ -14,7 +16,9 @@ func memcpy(dst: byte@, src: byte@, size: u32)
 
 func memset(dst: byte@, size : u32, v : u8)
 {
-    for i: u32 = 0; i < size; i += 1
+    end : const byte@ = dst + size;
+
+    while(dst != end)
     {
         @dst = v;
         dst += 1;

@@ -397,6 +397,54 @@ void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode
     }   
 }
 
+void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot slot, b32 is_dst)
+{
+    // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
+    if(is_sym(slot))
+    {
+        auto &sym = sym_from_slot(table,slot);
+
+        b32 used_beyond_loop = false;
+        UNUSED(used_beyond_loop);
+
+        for(u32 e = 0; e < count(block.links); e++)
+        {
+            const BlockSlot edge_slot = block.links[e];
+
+            // reachable from self
+            // scope extends beyond this last use
+            
+            if(edge_slot.handle == block.block_slot.handle && sym.scope_end.handle > block.block_slot.handle)
+            {
+                used_beyond_loop = true;
+                break;
+            }
+        }
+
+        // if a pointer is taken to this, 
+        // or if we are in a loop and a sym scope extends past loop
+        if(sym.referenced || used_beyond_loop)
+        {
+            spill(slot,alloc,table,block,node,is_dst);
+        }
+
+            
+        // No way to access it, get rid of the reg
+        else
+        {
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
+            free_reg(ir_reg,table,alloc);
+        }
+    }
+
+    // tmp's are fine to delete under any circumstance because they will not live beyond the block
+    else
+    {
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
+        free_reg(ir_reg,table,alloc);
+    }    
+}
+
 void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
 {
     const auto opcode = node->opcode;
@@ -447,50 +495,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
     {
         const SymSlot slot = dead_slot[--dead_count];
 
-        // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
-        if(is_sym(slot))
-        {
-            auto &sym = sym_from_slot(table,slot);
-
-            b32 used_beyond_loop = false;
-            UNUSED(used_beyond_loop);
-
-            for(u32 e = 0; e < count(block.links); e++)
-            {
-                const BlockSlot edge_slot = block.links[e];
-
-                // reachable from self
-                // scope extends beyond this last use
-                
-                if(edge_slot.handle == block.block_slot.handle && sym.scope_end.handle > block.block_slot.handle)
-                {
-                    used_beyond_loop = true;
-                    break;
-                }
-            }
-
-            // if a pointer is taken to this, 
-            // or if we are in a loop and a sym scope extends past loop
-            if(sym.referenced || used_beyond_loop)
-            {
-                spill(slot,alloc,table,block,node);
-            }
-
-             
-            // No way to access it, get rid of the reg
-            else
-            {
-                auto& ir_reg = reg_from_slot(slot,table,alloc);
-                free_reg(ir_reg,table,alloc);
-            }
-        }
-
-        // tmp's are fine to delete under any circumstance because they will not live beyond the block
-        else
-        {
-            auto& ir_reg = reg_from_slot(slot,table,alloc);
-            free_reg(ir_reg,table,alloc);
-        }
+        clean_dead_reg(table,alloc,block,node,slot,false);
     }
 
 
@@ -515,30 +520,11 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
             // rewrite the register
             rewrite_reg(table,alloc,node->opcode,0); 
 
-            // dst slot is never used?
+            // this is last usage, 
+            // note because of pointers this may not be dead usage
             if(++ir_reg.uses == count(ir_reg.usage))
             {
-                if(is_sym(dst_slot))
-                {
-                    auto& sym = sym_from_slot(table,dst_slot);
-
-
-                    if(!sym.referenced)
-                    {
-                        free_reg(ir_reg,table,alloc);
-                    }
-
-                    // pointer is taken to this, spill at as it may be accessed by alias
-                    else
-                    {
-                        spill(dst_slot,alloc,table,block,node);
-                    }
-                }
-
-                else
-                {
-                    free_reg(ir_reg,table,alloc);
-                }
+                clean_dead_reg(table,alloc,block,node,dst_slot,true);
             }
         }
     }
@@ -705,6 +691,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             // mark the var as having a pointer taken to it
             auto &sym = sym_from_slot(table,slot);
+
+            // TODO: we need to push aliasing handling up to the generator it should not be handled here...
             sym.referenced = true;
 
             // okay apply the stack offset, and let the register allocator deal with it
