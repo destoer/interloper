@@ -462,7 +462,6 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
                 // reachable from self
                 // scope extends beyond this last use
                 
-                // TODO: this doesnt work properly switch
                 if(edge_slot.handle == block.block_slot.handle && sym.scope_end.handle > block.block_slot.handle)
                 {
                     used_beyond_loop = true;

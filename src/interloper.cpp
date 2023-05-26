@@ -1047,12 +1047,18 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         }
 
         // create a exit block for every case to jump to when its done
-        const BlockSlot exit_label = new_basic_block(itl,func);
+        const BlockSlot exit_block = new_basic_block(itl,func);
 
         // if there is no explicit default the default is just after the switch ends
         if(!switch_node->default_statement)
         {
-            default_block = exit_label;
+            default_block = exit_block;
+        }
+
+        else
+        {
+            // default falls through to exit
+            add_block_exit(func,default_block,exit_block);
         }
 
 
@@ -1084,7 +1090,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                 case_idx++;
 
                 // add jump to the exit block
-                emit_branch(func,case_node->end_block,exit_label);
+                emit_branch(func,case_node->end_block,exit_block);
             }
 
             else
