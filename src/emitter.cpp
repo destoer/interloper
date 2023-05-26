@@ -230,14 +230,9 @@ SymSlot emit_res(Function& func, op_type op, u32 v2)
     return tmp;
 }
 
-SymSlot addrof(Function& func,const Reg& reg)
+SymSlot addrof(Function& func,SymSlot slot)
 {
-    return emit_res(func,op_type::addrof,reg.slot);
-}
-
-SymSlot load_arr_data(Function& func,const Reg& reg)
-{
-    return emit_res(func,op_type::load_arr_data,reg.slot);
+    return emit_res(func,op_type::addrof,slot);
 }
 
 SymSlot mov_imm(Function& func,u32 v)

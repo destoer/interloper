@@ -80,9 +80,6 @@ enum class op_type
     b,
     b_reg,
 
-    load_arr_len,
-    load_arr_data,
-
     // DIRECTIVES
     // varabile on the stack is out of scope
     // so we can reclaim allocation on the stack

@@ -424,7 +424,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
             else
             {
-                struct_slot = addrof(func,sym.reg);
+                struct_slot = addrof(func,sym.reg.slot);
                 struct_type = sym.type;
             }
 
@@ -620,7 +620,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     {
         if(decl_node->expr->type == ast_type::initializer_list)
         {
-            const SymSlot addr_slot = addrof(func,sym.reg);
+            const SymSlot addr_slot = addrof(func,sym.reg.slot);
 
             traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
         }
@@ -635,7 +635,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     // default construction
     else
     {
-        const SymSlot addr_slot = addrof(func,sym.reg);
+        const SymSlot addr_slot = addrof(func,sym.reg.slot);
 
         for(u32 m = 0; m < count(structure.members); m++)
         {

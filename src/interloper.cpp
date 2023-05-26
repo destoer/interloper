@@ -28,6 +28,11 @@ void add_func(Interloper& itl, const String& name, FuncNode* root);
 
 void alloc_slot(Function& func, const Reg& reg);
 
+SymSlot load_arr_data(Function& func,const Symbol& sym);
+SymSlot load_arr_len(Function& func,const Symbol& sym);
+SymSlot load_arr_data(Function& func,SymSlot slot, const Type* type);
+SymSlot load_arr_len(Function& func,SymSlot slot, const Type* type);
+
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"

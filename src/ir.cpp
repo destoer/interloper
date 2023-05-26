@@ -59,6 +59,10 @@ struct LocalAlloc
     // free list for register allocator
     u32 free_list[MACHINE_REG_SIZE];
 
+    // keep track of freeable regs
+    SymSlot dead_slot[MACHINE_REG_SIZE] = {0};
+    u32 dead_count = 0;
+
     // bitset of which regs this functions needs to use
     // for now we are going to just callee save every register
     u32 used_regs;
@@ -410,7 +414,8 @@ void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode
     }   
 }
 
-void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot slot, b32 is_dst)
+// TODO: how should this behave for globals?
+void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot slot)
 {
     // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
     if(is_sym(slot))
@@ -438,7 +443,7 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
         // or if we are in a loop and a sym scope extends past loop
         if(sym.referenced || used_beyond_loop)
         {
-            spill(slot,alloc,table,block,node,is_dst);
+            spill(slot,alloc,table,block,node);
         }
 
             
@@ -457,101 +462,6 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
         free_reg(ir_reg,table,alloc);
     }    
 }
-
-void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
-{
-    const auto opcode = node->opcode;
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
-
-    // keep track of freeable regs
-    SymSlot dead_slot[3] = {0};
-    u32 dead_count = 0;
-
-    // make sure our src var's are loaded
-    // mark if any are tmp's we can reuse to allocate the dst
-    for(u32 a = 1; a < info.args; a++)
-    {
-        // only interested in src registers
-        if(info.type[a] != arg_type::src_reg)
-        {
-            continue;
-        }
-
-        const SymSlot slot = sym_from_idx(node->opcode.v[a]);
-
-        // special purpose ir reg dont allocate
-        if(is_special_reg(slot))
-        {
-            rewrite_reg(table,alloc,node->opcode,a);
-            continue;
-        }
-
-
-        auto& ir_reg = reg_from_slot(slot,table,alloc);
-
-        allocate_slot(table,alloc,block,node,ir_reg,info.type[a] == arg_type::src_reg);
-
-        // rewrite the register
-        rewrite_reg(table,alloc,node->opcode,a); 
-
-
-        // mark any regs no longer used for cleanup
-        if(++ir_reg.uses == count(ir_reg.usage))
-        {
-            dead_slot[dead_count++] = slot;
-        }
-    }
-
-    // free any regs that are never used again
-    // TODO: for globals we might have to get creative
-    while(dead_count)
-    {
-        const SymSlot slot = dead_slot[--dead_count];
-
-        clean_dead_reg(table,alloc,block,node,slot,false);
-    }
-
-
-    // alloc the first slot
-    // NOTE: this is done seperately in case we can reuse src slots as the dst
-    const SymSlot dst_slot = sym_from_idx(node->opcode.v[0]);
-    const b32 is_dst = info.type[0] == arg_type::dst_reg;
-
-    if(info.type[0] == arg_type::src_reg || is_dst)
-    {
-        // special purpose ir reg dont allocate
-        if(is_special_reg(dst_slot))
-        {
-            rewrite_reg(table,alloc,node->opcode,0);
-        }
-
-        else
-        {
-            auto& ir_reg = reg_from_slot(dst_slot,table,alloc);
-
-            // ir reg has been used as a dst mark it as dirty
-            if(is_dst)
-            {
-                ir_reg.dirty = true;
-            }
-            
-            allocate_slot(table,alloc,block,node,ir_reg,info.type[0] == arg_type::src_reg);
-
-            // rewrite the register
-            rewrite_reg(table,alloc,node->opcode,0); 
-
-            // this is last usage, 
-            // note because of pointers this may not be dead usage
-            if(++ir_reg.uses == count(ir_reg.usage))
-            {
-                clean_dead_reg(table,alloc,block,node,dst_slot,true);
-            }
-        }
-    }
-
-}
-
-
 
 // NOTE: use this to force rewrites of directives
 void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
@@ -587,8 +497,6 @@ void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
     const auto info = OPCODE_TABLE[u32(opcode.op)];
 
-    
-
     if(info.type[reg] == arg_type::src_reg || info.type[reg] == arg_type::dst_reg)
     {
         rewrite_reg_internal(table,alloc,opcode,reg);
@@ -604,6 +512,86 @@ void rewrite_regs(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode)
         rewrite_reg(table,alloc,opcode,r);
     }
 }
+
+
+void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, ListNode* node,u32 reg)
+{
+    const auto opcode = node->opcode;
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    const SymSlot slot = sym_from_idx(node->opcode.v[reg]);
+
+    // special purpose ir reg dont allocate just rewrite it
+    if(is_special_reg(slot))
+    {
+        rewrite_reg(table,alloc,node->opcode,reg);
+        return;
+    }
+
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+    const b32 is_src = info.type[reg] == arg_type::src_reg;
+    const b32 is_dst = info.type[reg] == arg_type::dst_reg;
+
+    // Never a source as this is an initial alloc
+    allocate_slot(table,alloc,block,node,ir_reg,is_src);
+    rewrite_reg_internal(table,alloc,node->opcode,reg);
+
+    // is this is a dst we need to write this back when spilled
+    if(is_dst)
+    {
+        ir_reg.dirty = true;
+    }
+
+    // if this is its last use schedule it for cleanup
+    if(++ir_reg.uses == count(ir_reg.usage))
+    {
+        alloc.dead_slot[alloc.dead_count++] = slot;
+    }         
+}
+
+void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
+{
+    while(alloc.dead_count)
+    {
+        const SymSlot slot = alloc.dead_slot[--alloc.dead_count];
+
+        clean_dead_reg(table,alloc,block,node,slot);
+    }    
+}
+
+void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
+{
+    const auto opcode = node->opcode;
+    const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+    // make sure our src var's are loaded
+    // mark if any are dead we can reuse to allocate the dst
+    for(u32 a = 1; a < info.args; a++)
+    {
+        // only interested in src registers
+        if(info.type[a] != arg_type::src_reg)
+        {
+            continue;
+        }
+
+        allocate_and_rewrite(table,alloc,block,node,a);
+    }
+
+    // free any regs that are never used again
+    clean_dead_regs(table,alloc,block,node);
+    
+    // alloc the first slot
+    // NOTE: this is done seperately in case we can reuse src slots as the dst
+    const b32 is_dst = info.type[0] == arg_type::dst_reg;
+    const b32 is_src = info.type[0] == arg_type::src_reg;
+
+    if(is_src || is_dst)
+    {
+        allocate_and_rewrite(table,alloc,block,node,0);
+    }
+}
+
 
 
 void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,Block &block, ListNode *node)
@@ -636,7 +624,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
         {
             auto& sym = sym_from_slot(table,slot);
 
-            log(alloc.print_reg_allocation,"spill %s:%d\n",sym.name.buf,reg);
+            log(alloc.print_reg_allocation,"spill %s from reg r%d\n",sym.name.buf,reg);
 
 
             // only allocate the local vars by here
@@ -648,7 +636,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
 
         else
         {
-            log(alloc.print_reg_allocation,"spill t%d:%d\n",slot.handle,reg);
+            log(alloc.print_reg_allocation,"spill t%d from reg r%d\n",slot.handle,reg);
 
             // by defintion a tmp has to be local
             // TODO: fmt this tmp
@@ -675,17 +663,6 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     }
 
     free_reg_internal(alloc,ir_reg);
-}
-
-
-void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, ListNode* node,u32 reg)
-{
-    const SymSlot slot = sym_from_idx(node->opcode.v[reg]);
-    auto& ir_reg = reg_from_slot(slot,table,alloc);
-
-    // Never a source as this is an initial alloc
-    allocate_slot(table,alloc,block,node,ir_reg,false);
-    rewrite_reg_internal(table,alloc,node->opcode,reg);         
 }
 
 
@@ -718,10 +695,9 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
             node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
-            
+
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(table,alloc,block,node,0);
-
 
             // spill the var that has had a pointer taken to it so we know its in memory
             spill(slot,alloc,table,block,node);
@@ -883,32 +859,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         }
 
 
-        case op_type::load_arr_data:
-        {
-            // we dont have the information for this yet so we have to fill it in later
-            // load_arr_data <dst>, <sym>, <stack_offset>
-
-            node->opcode = Opcode(op_type::load_arr_data,opcode.v[0],opcode.v[1],alloc.stack_offset);
-
-            // only want to allocate the dst,
-            // we need to use the sym as a "slot" later
-            allocate_and_rewrite(itl.symbol_table,alloc,block,node,0);                
-   
-            node = node->next;
-            break;
-        }
-
-        // TODO: this probably needs to be reworked for multi dimensional arrays
-        case op_type::load_arr_len:
-        {
-            // load_arr_len <dst> <symbol>, <stack_offset>
-            node->opcode = Opcode(op_type::load_arr_len,opcode.v[0],opcode.v[1],alloc.stack_offset);
-            allocate_and_rewrite(itl.symbol_table,alloc,block,node,0);                
-   
-            node = node->next;
-            break;
-        }
-
         // pools (NOTE: we resolve this during linking)
         case op_type::pool_addr:
         {
@@ -1066,57 +1016,6 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
             node = node->next;
             break;                    
-        }
-
-        // arrays
-        case op_type::load_arr_data:
-        {
-            const s32 stack_offset = opcode.v[2];
-
-            const SymSlot arr_slot = sym_from_idx(opcode.v[1]);
-            auto &sym = sym_from_slot(itl.symbol_table,arr_slot);
-
-            if(is_runtime_size(sym.type))
-            {
-                const SymSlot dst_slot = sym_from_idx(opcode.v[0]);
-                node->opcode = load_ptr(dst_slot,SP_REG,sym.reg.offset + stack_offset + 0,GPR_SIZE,false);
-            }
-
-            // static array
-            else
-            {
-                node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.reg.offset + stack_offset);
-            }
-
-            node = node->next;
-            break;
-        }
-
-
-        case op_type::load_arr_len:
-        {
-            const SymSlot arr_slot = sym_from_idx(opcode.v[1]);
-            auto &sym = sym_from_slot(itl.symbol_table,arr_slot);
-
-            const s32 stack_offset = opcode.v[2];            
-
-            if(is_runtime_size(sym.type))
-            {
-                // TODO: this assumes GPR_SIZE is 4
-                const SymSlot dst_slot = sym_from_idx(opcode.v[0]);
-                node->opcode = load_ptr(dst_slot,SP_REG,sym.reg.offset + stack_offset + GPR_SIZE,GPR_SIZE,false);
-            }
-
-            else
-            {
-                ArrayType* array_type = (ArrayType*)sym.type;
-
-                node->opcode = Opcode(op_type::mov_imm,opcode.v[0],array_type->size,0);
-            }
-
-
-            node = node->next;
-            break;
         }
 
         default: 
@@ -1294,6 +1193,9 @@ void allocate_registers(Interloper& itl,Function &func)
         while(node)
         {
             node = allocate_opcode(itl,func,alloc,block,node);
+
+            // free any regs that are now dead
+            clean_dead_regs(itl.symbol_table,alloc,block,node);
             alloc.pc++;
         }
 

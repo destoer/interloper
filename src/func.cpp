@@ -223,10 +223,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 // TODO: this needs to handle conversions on multidimensional arrays
                 else if(is_runtime_size(arg.type))
                 {
-                    const SymSlot len_slot = emit_res(func,op_type::load_arr_len,reg);
+                    const SymSlot len_slot = load_arr_len(func,reg,arg_type);
                     emit(func,op_type::push_arg,len_slot);
 
-                    const SymSlot data_slot = emit_res(func,op_type::load_arr_data,reg);
+                    const SymSlot data_slot = load_arr_data(func,reg,arg_type);
                     emit(func,op_type::push_arg,data_slot);
 
                     arg_clean += 2;  
@@ -313,7 +313,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                         const auto &sym = sym_opt.value();
 
-                        const SymSlot addr_slot = addrof(func,sym.reg);
+                        const SymSlot addr_slot = addrof(func,sym.reg.slot);
                         emit(func,op_type::push_arg,addr_slot);
 
                         break;
