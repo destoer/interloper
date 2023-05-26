@@ -1,5 +1,38 @@
 #include <interloper.h>
 
+void trace_add(Trace& trace, u64 src, u64 dst);
+
+void reset_trace(Trace& trace)
+{
+    trace.idx = 0;
+    memset(trace.history_target,0,sizeof(trace.history_target));
+    memset(trace.history_source,0,sizeof(trace.history_source));    
+}
+
+void trace_add(Trace& trace, u64 src, u64 dst)
+{
+    trace.history_source[trace.idx] = src;
+    trace.history_target[trace.idx] = dst;
+    trace.idx = (trace.idx + 1) & 0xf;    
+}
+
+void print_trace(Trace& trace)
+{        
+    printf("pc trace:\n");
+    for(int i = 0; i < 0x10; i++)
+    {
+        const auto offset = (trace.idx + i) & 0xf;
+        printf("%d: %08lx -> %08lx\n",i,trace.history_source[offset],trace.history_target[offset]);
+    }
+}
+
+void write_pc(Interpretter& interpretter, u64 target)
+{
+    trace_add(interpretter.trace,interpretter.regs[PC] - sizeof(Opcode),target);
+
+    interpretter.regs[PC] = target;
+}
+
 // TODO: add a basic debugger to this
 
 void print_regs(Interpretter& interpretter)
@@ -330,14 +363,16 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             regs[SP] -= GPR_SIZE;
             write_mem<u32>(interpretter,regs[SP],regs[PC]);
 
-            regs[PC] = opcode.v[0];
+            write_pc(interpretter,opcode.v[0]);
             break;
         }
 
         case op_type::ret:
         {              
             // pop pc
-            regs[PC] = read_mem<u32>(interpretter,regs[SP]);
+            const u32 target = read_mem<u32>(interpretter,regs[SP]);
+            write_pc(interpretter,target);
+
             regs[SP] += GPR_SIZE;
             break;
         }
@@ -424,7 +459,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             if(!regs[opcode.v[1]])
             {
-                regs[PC] = opcode.v[0];
+                write_pc(interpretter,opcode.v[0]);
             }
             break;
         }
@@ -433,7 +468,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             if(regs[opcode.v[1]])
             {
-                regs[PC] = opcode.v[0];
+                write_pc(interpretter,opcode.v[0]);
             }
             break;
         }
@@ -441,13 +476,13 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::b:
         {
-            regs[PC] = opcode.v[0];
+            write_pc(interpretter,opcode.v[0]);
             break;
         }
 
         case op_type::b_reg:
         {
-            regs[PC] = regs[opcode.v[0]];
+            write_pc(interpretter,regs[opcode.v[0]]);
             break;
         }
 
@@ -522,7 +557,9 @@ void reset(Interpretter& interpretter)
     interpretter.regs[PC] = 0;
     interpretter.regs[SP] = 0x20000000 + count(interpretter.stack);
 
-    interpretter.quit = false;    
+    interpretter.quit = false;
+
+    reset_trace(interpretter.trace);
 }
 
 Interpretter make_interpretter()
@@ -562,12 +599,14 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
         if(regs[PC] + sizeof(Opcode) > program.size)
         {
             print_regs(interpretter);
+            print_trace(interpretter.trace);
             crash_and_burn("attempted to execute out of bounds: %x : %x\n",regs[PC],interpretter.program.size);
         }
 
         if((regs[PC] % sizeof(Opcode)) != 0)
         {            
             print_regs(interpretter);
+            print_trace(interpretter.trace);
             crash_and_burn("attempted to execute mid instr: %x : %x\n",regs[PC],interpretter.program.size);            
         }
 

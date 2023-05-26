@@ -3,6 +3,14 @@
 #include <destoer.h>
 
 
+
+struct Trace
+{
+    u64 idx;
+    u64 history_target[0x10] = {0};
+    u64 history_source[0x10] = {0};
+};
+
 // memory map 
 //  0x10000000 -> program memory
 //  0x20000000 + stack size -> stack
@@ -20,6 +28,8 @@ struct Interpretter
 
 
     Array<u8> stack;
+
+    Trace trace;
 };
 
 
