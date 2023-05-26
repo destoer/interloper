@@ -264,6 +264,16 @@ void spill_all(LocalAlloc &alloc, SymbolTable& table, Block& block, ListNode* no
     }
 }
 
+void free_reg_internal(LocalAlloc& alloc, Reg& ir_reg)
+{
+    const u32 reg = ir_reg.location;
+
+    ir_reg.location = LOCATION_MEM;
+
+    // add back to the free list
+    alloc.regs[reg] = sym_from_idx(REG_FREE);
+    alloc.free_list[alloc.free_regs++] = reg;     
+}
 
 void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 {
@@ -291,11 +301,8 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
         log(alloc.print_reg_allocation,"freed tmp t%d from reg r%d\n",ir_reg.slot,reg);               
     }
 
-    ir_reg.location = LOCATION_MEM;
 
-    // add back to the free list
-    alloc.regs[reg] = sym_from_idx(REG_FREE);
-    alloc.free_list[alloc.free_regs++] = reg; 
+    free_reg_internal(alloc,ir_reg);
 }
 
 u32 alloc_reg(LocalAlloc& alloc)
@@ -377,6 +384,15 @@ void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& blo
     }
 }
 
+void reload_slot(LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg)
+{
+    // we need to save the current stack offset here 
+    // as by the time we load it it may be different
+    const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot.handle,alloc.stack_offset);
+    insert_at(block.list,node,opcode); 
+
+    ir_reg.dirty = false;    
+}
 
 void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg, b32 is_src)
 {
@@ -389,10 +405,7 @@ void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode
         // if its a src we need to reload it from spill
         if(is_src)
         {
-            // we need to save the current stack offset here 
-            // as by the time we load it it may be different
-            const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot.handle,alloc.stack_offset);
-            insert_at(block.list,node,opcode); 
+            reload_slot(alloc,block,node,ir_reg);
         }
     }   
 }
@@ -502,8 +515,9 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
     // alloc the first slot
     // NOTE: this is done seperately in case we can reuse src slots as the dst
     const SymSlot dst_slot = sym_from_idx(node->opcode.v[0]);
+    const b32 is_dst = info.type[0] == arg_type::dst_reg;
 
-    if(info.type[0] == arg_type::src_reg || info.type[0] == arg_type::dst_reg)
+    if(info.type[0] == arg_type::src_reg || is_dst)
     {
         // special purpose ir reg dont allocate
         if(is_special_reg(dst_slot))
@@ -515,6 +529,12 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
         {
             auto& ir_reg = reg_from_slot(dst_slot,table,alloc);
 
+            // ir reg has been used as a dst mark it as dirty
+            if(is_dst)
+            {
+                ir_reg.dirty = true;
+            }
+            
             allocate_slot(table,alloc,block,node,ir_reg,info.type[0] == arg_type::src_reg);
 
             // rewrite the register
@@ -592,7 +612,6 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,Block &block, ListNode *no
     handle_allocation(itl.symbol_table,alloc,block,node);
 }
 
-
 void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, b32 after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
@@ -636,25 +655,26 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
             stack_reserve_reg(alloc,ir_reg);
         }
     }
-    
-    // TODO: how do we know if a variable has not been modified
-    // i.e it is a ready only copy and has not been modifed so we dont actually need to write it back
-    const auto opcode = Opcode(op_type::spill,reg,ir_reg.slot.handle,alloc.stack_offset);
 
-    if(!after)
+    // if the value has only been used as a source and not modifed then we can just treat this as a free_reg
+    if(ir_reg.dirty)
     {
-        insert_at(block.list,node,opcode); 
+        const auto opcode = Opcode(op_type::spill,reg,ir_reg.slot.handle,alloc.stack_offset);
+
+        if(!after)
+        {
+            insert_at(block.list,node,opcode); 
+        }
+
+        else 
+        {
+            insert_after(block.list,node,opcode);
+        }
+
+        ir_reg.dirty = false;
     }
 
-    else 
-    {
-        insert_after(block.list,node,opcode);
-    }
-
-    // register is back in memory!
-    ir_reg.location = LOCATION_MEM;
-    alloc.regs[reg] = sym_from_idx(REG_FREE);
-    alloc.free_list[alloc.free_regs++] = reg;    
+    free_reg_internal(alloc,ir_reg);
 }
 
 

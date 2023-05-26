@@ -310,6 +310,8 @@ struct Reg
     // how many times has this currently been used?
     u32 uses = 0;
 
+    b32 dirty = false;
+
     // NOTE: this uses absolute offsets
     // but we dont really care if they are broken by insertions during reg alloc 
     // because we only want to know when usage gap is largest
