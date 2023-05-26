@@ -518,7 +518,27 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
             // dst slot is never used?
             if(++ir_reg.uses == count(ir_reg.usage))
             {
-                free_reg(ir_reg,table,alloc);
+                if(is_sym(dst_slot))
+                {
+                    auto& sym = sym_from_slot(table,dst_slot);
+
+
+                    if(!sym.referenced)
+                    {
+                        free_reg(ir_reg,table,alloc);
+                    }
+
+                    // pointer is taken to this, spill at as it may be accessed by alias
+                    else
+                    {
+                        spill(dst_slot,alloc,table,block,node);
+                    }
+                }
+
+                else
+                {
+                    free_reg(ir_reg,table,alloc);
+                }
             }
         }
     }
@@ -833,9 +853,24 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             return remove(block.list,node);
         }
 
-        // TODO: this needs to have its size emitted directly inside the opcode
+        // scope has elapsed any resources can be reclaimed
         case op_type::free_slot:
         {
+            const SymSlot slot = sym_from_idx(opcode.v[0]);
+            auto& sym = sym_from_slot(table,slot);
+
+
+            if(sym.reg.offset != UNALLOCATED_OFFSET)
+            {
+                if(alloc.print_stack_allocation)
+                {
+                    printf("reclaiming stack space %s : (%d , %d)\n",sym.name.buf,sym.reg.size,sym.reg.count);
+                }
+
+                alloc.size_count[sym.reg.size >> 1] -= sym.reg.count;
+            }
+
+
             return remove(block.list,node);
         }
 
