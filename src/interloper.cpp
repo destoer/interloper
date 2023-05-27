@@ -656,11 +656,8 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         {
             exit_block = add_fall(itl,func,body_slot);
 
-            // single if stmt
-            if(n == 0)
-            {
-                emit_cond_branch(func,cmp_block,exit_block,body_slot,r,false);
-            }          
+            // if cond not met just branch into exit block
+            emit_cond_branch(func,cmp_block,exit_block,body_slot,r,false);          
         }
     }
 

@@ -711,7 +711,7 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     vprintf(fmt,args);
     va_end(args);
     printf("at: %s line %d col %d\n\n",parser.cur_file.buf,token.line + 1,token.col + 1);
-    
+
     parser.error = true;
     parser.line = token.line;
 }

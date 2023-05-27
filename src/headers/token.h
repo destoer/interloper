@@ -338,7 +338,6 @@ Token token_value(const Value& value, u32 line = 0, u32 col = 0)
     return token;
 }
 
-
 inline bool operator == (const Token &t1, const Token &t2)
 {
     switch(t1.type)

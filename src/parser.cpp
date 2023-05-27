@@ -1254,7 +1254,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
             default:
             {
-                panic(parser,t,"unexpected top level token %s(%d): '%s'\n",tok_name(t.type),u32(t.type),t.literal.buf);
+                panic(parser,t,"unexpected top level token %s(%d)'\n",tok_name(t.type),u32(t.type));
                 destroy_arr(parser.tokens);
                 return true;
             }

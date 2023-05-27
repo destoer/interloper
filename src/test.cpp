@@ -64,7 +64,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     // control flow
     {"tests/control_flow/if",25,false},
     {"tests/control_flow/else_if",45077,false},
-    {"tests/control_flow/else_if_no_else",94214,false},
+    {"tests/control_flow/else_if_no_else",94220,false},
     {"tests/control_flow/else_empty",7,false},
     {"tests/control_flow/nested_if",575,false},
     {"tests/control_flow/for",32,false},
