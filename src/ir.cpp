@@ -888,12 +888,12 @@ void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
         if(is_sym(reg.slot))
         {
             auto& sym = sym_from_slot(table,reg.slot);
-            printf("final offset %s = %x -> (%x,%x)\n",sym.name.buf,reg.size,reg.offset,reg.offset - PENDING_ALLOCATION);
+            printf("final offset %s = (%x,%x) -> (%x,%x)\n",sym.name.buf,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
         }
 
         else
         {
-            printf("final offset t%d = %x -> (%x,%x)\n",reg.slot.handle,reg.size,reg.offset,reg.offset - PENDING_ALLOCATION);
+            printf("final offset t%d = (%x,%x) -> (%x,%x)\n",reg.slot.handle,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
         }
     }
 
