@@ -943,9 +943,15 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             if(alloc.stack_size)
             {
                 tmp = insert_at(block.list,tmp,stack_clean);
+
+                // make sure callee restore comes after stack clean
+                if(insert_callee_saves)
+                {
+                    insert_after(block.list,tmp,callee_restore);
+                }
             }
 
-            if(insert_callee_saves)
+            else if(insert_callee_saves)
             {
                 tmp = insert_at(block.list,tmp,callee_restore);
             }
