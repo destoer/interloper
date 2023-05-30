@@ -597,7 +597,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
     const b32 is_src = info.type[0] == arg_type::src_reg;
 
     // regs can be freed early
-    // NOTE: this cannot happen on a dst
+    // NOTE: this cannot happen on a src
     // because otherwhise a reload will be inserted before
     // the current instruction that clobbers the var we have just rewritten
     if(is_dst)
