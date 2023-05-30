@@ -195,6 +195,14 @@ Reg& reg_from_slot(SymSlot slot, SymbolTable& table, LocalAlloc& alloc)
     }    
 }
 
+void print_uses(Reg& ir_reg)
+{
+    for(u32 i = 0; i < count(ir_reg.usage); i++)
+    {
+        printf("use: %x\n",ir_reg.usage[i]);
+    }    
+}
+
 
 b32 pending_stack_alloc(Reg& ir_reg)
 {
@@ -302,6 +310,9 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 
     else
     {
+    #if 0
+        print_uses(ir_reg);
+    #endif
         log(alloc.print_reg_allocation,"freed tmp t%d from reg r%d\n",ir_reg.slot,reg);               
     }
 
@@ -578,13 +589,22 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
         allocate_and_rewrite(table,alloc,block,node,a);
     }
 
-    // free any regs that are never used again
-    clean_dead_regs(table,alloc,block,node);
+
     
     // alloc the first slot
     // NOTE: this is done seperately in case we can reuse src slots as the dst
     const b32 is_dst = info.type[0] == arg_type::dst_reg;
     const b32 is_src = info.type[0] == arg_type::src_reg;
+
+    // regs can be freed early
+    // NOTE: this cannot happen on a dst
+    // because otherwhise a reload will be inserted before
+    // the current instruction that clobbers the var we have just rewritten
+    if(is_dst)
+    {
+        // free any regs that are never used again
+        clean_dead_regs(table,alloc,block,node);        
+    }
 
     if(is_src || is_dst)
     {
@@ -881,6 +901,18 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
     return node;
 }
 
+
+b32 pending_stack_allocation(Reg& reg)
+{
+    return reg.offset >= PENDING_ALLOCATION && reg.offset != UNALLOCATED_OFFSET;
+}
+
+
+b32 is_stack_allocated(Reg& reg)
+{
+    return reg.offset < PENDING_ALLOCATION;
+}
+
 void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 {
     if(alloc.print_stack_allocation)
@@ -897,7 +929,7 @@ void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
         }
     }
 
-    assert(reg.offset >= PENDING_ALLOCATION && reg.offset != UNALLOCATED_OFFSET);
+    assert(pending_stack_allocation(reg));
 
     // what pos in the block does this reg have?
     const u32 idx = reg.offset - PENDING_ALLOCATION;  
@@ -997,6 +1029,8 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
         {
             const s32 stack_offset = opcode.v[2];
             auto &sym = sym_from_slot(itl.symbol_table,sym_from_idx(opcode.v[1]));
+
+            assert(is_stack_allocated(sym.reg));
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.reg.offset + stack_offset);
 

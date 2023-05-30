@@ -10,7 +10,8 @@ func number() s32
 
 func square(x: s32) s32
 {
-    return x * x;
+    x = x * x;
+    return x;
 }
 
 
