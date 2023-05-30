@@ -614,7 +614,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
-    alloc_slot(func,sym.reg);
+    alloc_slot(func,sym.reg,true);
 
     if(decl_node->expr)
     {

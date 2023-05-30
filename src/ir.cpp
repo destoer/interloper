@@ -803,8 +803,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 printf("alloc slot: %s\n",sym.name.buf);
             }
 
-            // TODO: should we just have an explicit tag to know to immediatly dump this into mem?
-            if(sym.reg.size * sym.reg.count > GPR_SIZE)
+            // explictly force a stack alloc now
+            if(opcode.v[1])
             {
                 stack_reserve_reg(alloc,sym.reg);    
             }
@@ -901,16 +901,20 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
     return node;
 }
 
+b32 is_stack_unallocated(Reg& reg)
+{
+    return reg.offset == UNALLOCATED_OFFSET;
+}
 
 b32 pending_stack_allocation(Reg& reg)
 {
-    return reg.offset >= PENDING_ALLOCATION && reg.offset != UNALLOCATED_OFFSET;
+    return reg.offset >= PENDING_ALLOCATION && !is_stack_unallocated(reg);
 }
 
 
 b32 is_stack_allocated(Reg& reg)
 {
-    return reg.offset < PENDING_ALLOCATION;
+    return !pending_stack_allocation(reg) && !is_stack_unallocated(reg);
 }
 
 void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)

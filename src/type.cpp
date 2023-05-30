@@ -889,6 +889,11 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
     }
 }
 
+b32 is_plain_type(const Type* type)
+{
+    return !is_array(type) && !is_struct(type);
+}
+
 b32 plain_type_equal(const Type* ltype, const Type* rtype)
 {
     switch(ltype->type_idx)

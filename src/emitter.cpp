@@ -43,9 +43,9 @@ u32 gpr_count(u32 size)
     return size / GPR_SIZE;
 }
 
-void alloc_slot(Function& func, const Reg& reg)
+void alloc_slot(Function& func, const Reg& reg, b32 force_alloc)
 {
-    emit(func,op_type::alloc_slot,reg.slot);
+    emit(func,op_type::alloc_slot,reg.slot,force_alloc);
 }
 
 void free_slot(Function& func, const Reg& reg)

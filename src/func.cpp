@@ -379,7 +379,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             else
             {
                 // TODO: this might need an explicit allocation
-                alloc_slot(func,func.registers[dst_slot.handle]);
+                alloc_slot(func,func.registers[dst_slot.handle],true);
                 
                 const SymSlot addr = emit_res(func,op_type::addrof,dst_slot);
                 emit(func,op_type::push_arg,addr);

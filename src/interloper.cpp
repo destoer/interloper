@@ -26,7 +26,7 @@ SymSlot collapse_offset(Function&func, SymSlot addr_slot, u32 *offset);
 
 void add_func(Interloper& itl, const String& name, FuncNode* root);
 
-void alloc_slot(Function& func, const Reg& reg);
+void alloc_slot(Function& func, const Reg& reg, b32 force_alloc);
 
 SymSlot load_arr_data(Function& func,const Symbol& sym);
 SymSlot load_arr_len(Function& func,const Symbol& sym);
@@ -1673,7 +1673,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
     // simple type
     else 
     {
-        alloc_slot(func,sym.reg);
+        alloc_slot(func,sym.reg,false);
 
         // initalizer
         if(decl_node->expr)
@@ -1732,7 +1732,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     // add new symbol table entry
     const auto &sym = add_symbol(itl.symbol_table,name,type,size);
 
-    alloc_slot(func,sym.reg);
+    alloc_slot(func,sym.reg,is_plain_type(type));
     compile_move(itl,func,sym.reg.slot,reg,sym.type,type);
 }
 
