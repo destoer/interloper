@@ -230,9 +230,21 @@ SymSlot emit_res(Function& func, op_type op, u32 v2)
     return tmp;
 }
 
-SymSlot addrof(Function& func,SymSlot slot)
+void addrof(SymbolTable& table,Function &func, SymSlot dst, SymSlot slot)
 {
-    return emit_res(func,op_type::addrof,slot);
+    auto& reg = reg_from_slot(table,func,slot);
+
+    reg.aliased = true;
+
+    emit(func,op_type::addrof,dst,slot);
+}
+
+SymSlot addrof_res(SymbolTable& table,Function& func,SymSlot slot)
+{
+    const SymSlot tmp = new_tmp(func,GPR_SIZE);
+    addrof(table,func,tmp,slot);
+
+    return tmp;
 }
 
 SymSlot mov_imm(Function& func,u32 v)

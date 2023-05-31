@@ -28,10 +28,10 @@ void add_func(Interloper& itl, const String& name, FuncNode* root);
 
 void alloc_slot(Function& func, const Reg& reg, b32 force_alloc);
 
-SymSlot load_arr_data(Function& func,const Symbol& sym);
-SymSlot load_arr_len(Function& func,const Symbol& sym);
-SymSlot load_arr_data(Function& func,SymSlot slot, const Type* type);
-SymSlot load_arr_len(Function& func,SymSlot slot, const Type* type);
+SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
+SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
+SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type);
+SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type);
 
 #include "lexer.cpp"
 #include "symbol.cpp"
@@ -268,7 +268,7 @@ void do_ptr_store(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_s
 
     else
     {
-        SymSlot src_ptr = emit_res(func,op_type::addrof,dst_slot);
+        SymSlot src_ptr = addrof_res(itl.symbol_table,func,dst_slot);
         src_ptr = collapse_offset(func,src_ptr,&offset);        
 
         ir_memcpy(itl,func,addr_slot,src_ptr,type_size(itl,type));        
@@ -577,15 +577,15 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
         // copy out the strucutre using the hidden pointer in the first arg
         if(dst_slot.handle == RV_IR)
         {
-            const SymSlot ptr = emit_res(func,op_type::addrof,src_slot);
+            const SymSlot ptr = addrof_res(itl.symbol_table,func,src_slot);
 
             ir_memcpy(itl,func,func.args[0],ptr,type_size(itl,dst_type));
         } 
 
         else
         {
-            const SymSlot src_ptr = emit_res(func,op_type::addrof,src_slot);
-            const SymSlot dst_ptr = emit_res(func,op_type::addrof,dst_slot);
+            const SymSlot src_ptr = addrof_res(itl.symbol_table,func,src_slot);
+            const SymSlot dst_ptr = addrof_res(itl.symbol_table,func,dst_slot);
 
             ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,dst_type));
         }
@@ -1115,7 +1115,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 // TODO: this needs a cleanup
 // TODO: does it make sense to use the same function for both the @ and & operator?
-std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, bool addrof)
+std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, b32 take_addr)
 {
     // figure out what the addr is
     switch(node->type)
@@ -1134,7 +1134,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
             const auto &sym = sym_opt.value();
 
-            if(addrof)
+            if(take_addr)
             {
                 if(is_array(sym.type))
                 {
@@ -1144,7 +1144,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
                 Type* pointer_type = make_pointer(itl,sym.type);
 
                 // actually  get the addr of the ptr
-                emit(func,op_type::addrof,slot,sym.reg.slot);
+                addrof(itl.symbol_table,func,slot,sym.reg.slot);
                 return std::pair{pointer_type,slot};
             }
 
@@ -1167,7 +1167,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
         case ast_type::index:
         {
-            if(addrof)
+            if(take_addr)
             {
                 return index_arr(itl,func,node,slot);
             }
@@ -1201,7 +1201,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
         case ast_type::access_struct:
         {
-            if(addrof)
+            if(take_addr)
             {
                 auto [type,ptr_slot,offset] = compute_member_addr(itl,func,node);
                 ptr_slot = collapse_offset(func,ptr_slot,&offset);

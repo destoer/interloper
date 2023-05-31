@@ -223,10 +223,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 // TODO: this needs to handle conversions on multidimensional arrays
                 else if(is_runtime_size(arg.type))
                 {
-                    const SymSlot len_slot = load_arr_len(func,reg,arg_type);
+                    const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
                     emit(func,op_type::push_arg,len_slot);
 
-                    const SymSlot data_slot = load_arr_data(func,reg,arg_type);
+                    const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
                     emit(func,op_type::push_arg,data_slot);
 
                     arg_clean += 2;  
@@ -258,7 +258,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
             // need to save SP as it will get pushed last
             const SymSlot dst = emit_res(func,op_type::mov_reg,SP_IR);
-            const SymSlot ptr = emit_res(func,op_type::addrof,reg);
+            const SymSlot ptr = addrof_res(itl.symbol_table,func,reg);
 
             ir_memcpy(itl,func,dst,ptr,structure.size);
 
@@ -313,7 +313,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                         const auto &sym = sym_opt.value();
 
-                        const SymSlot addr_slot = addrof(func,sym.reg.slot);
+                        const SymSlot addr_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
                         emit(func,op_type::push_arg,addr_slot);
 
                         break;
@@ -372,7 +372,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             {
                 arg_clean++;
 
-                const SymSlot addr = emit_res(func,op_type::addrof,dst_slot);
+                const SymSlot addr = addrof_res(itl.symbol_table,func,dst_slot);
                 emit(func,op_type::push_arg,addr);
             }
 
@@ -381,7 +381,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 // TODO: this might need an explicit allocation
                 alloc_slot(func,func.registers[dst_slot.handle],true);
                 
-                const SymSlot addr = emit_res(func,op_type::addrof,dst_slot);
+                const SymSlot addr = addrof_res(itl.symbol_table,func,dst_slot);
                 emit(func,op_type::push_arg,addr);
             }
         }

@@ -287,7 +287,6 @@ struct Symbol
     Reg reg;
 
     u32 arg_offset = NON_ARG;
-    b32 referenced = false;
 };
 
 

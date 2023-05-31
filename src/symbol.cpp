@@ -30,6 +30,18 @@ const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
     return table.slot_lookup[sym_to_idx(slot)]; 
 }
 
+Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
+{
+    if(!is_tmp(slot))
+    {
+        return sym_from_slot(table,slot).reg;
+    }
+
+    else
+    {
+        return func.registers[slot.handle];
+    }
+}
 
 
 std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)

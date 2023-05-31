@@ -295,6 +295,8 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
         return;
     }
 
+    assert(!ir_reg.aliased);
+
     const u32 reg = ir_reg.location;
 
     if(is_sym(ir_reg.slot))
@@ -302,9 +304,6 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
         auto& sym = sym_from_slot(table,ir_reg.slot);
 
         log(alloc.print_reg_allocation,"freed symbol %s from reg r%d\n",sym.name.buf,reg);
-    
-        // TODO: how do we handle this
-        assert(!sym.referenced);
     }
 
 
@@ -452,7 +451,7 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
 
         // if a pointer is taken to this, 
         // or if we are in a loop and a sym scope extends past loop
-        if(sym.referenced || used_beyond_loop)
+        if(sym.reg.aliased || used_beyond_loop)
         {
             spill(slot,alloc,table,block,node);
         }
@@ -705,12 +704,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
-
-            // mark the var as having a pointer taken to it
-            auto &sym = sym_from_slot(table,slot);
-
-            // TODO: we need to push aliasing handling up to the generator it should not be handled here...
-            sym.referenced = true;
 
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later

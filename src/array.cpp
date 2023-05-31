@@ -88,9 +88,9 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
 // TODO: these multidimensional handwave vla's
 
-SymSlot load_arr_data(Function& func,SymSlot slot, const Type* type)
+SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type)
 {
-    const SymSlot addr = addrof(func,slot);
+    const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
 
     if(is_runtime_size(type))
     {
@@ -107,13 +107,13 @@ SymSlot load_arr_data(Function& func,SymSlot slot, const Type* type)
     }
 }
 
-SymSlot load_arr_len(Function& func,SymSlot slot, const Type* type)
+SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type)
 {
     UNUSED(slot);
 
     if(is_runtime_size(type))
     {
-        const SymSlot addr = addrof(func,slot);
+        const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
 
         const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
         emit(func,load_ptr(dst_slot,addr,GPR_SIZE,GPR_SIZE,false));
@@ -126,14 +126,14 @@ SymSlot load_arr_len(Function& func,SymSlot slot, const Type* type)
     return emit_res(func,op_type::mov_imm,array_type->size);   
 }
 
-SymSlot load_arr_data(Function& func,const Symbol& sym)
+SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym)
 {
-    return load_arr_data(func,sym.reg.slot,sym.type);
+    return load_arr_data(itl,func,sym.reg.slot,sym.type);
 }
 
-SymSlot load_arr_len(Function& func,const Symbol& sym)
+SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
 {
-    return load_arr_len(func,sym.reg.slot,sym.type);
+    return load_arr_len(itl,func,sym.reg.slot,sym.type);
 }
 
 std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
@@ -154,7 +154,7 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 
     
     // get the initial data ptr
-    const SymSlot data_slot = load_arr_data(func,arr);
+    const SymSlot data_slot = load_arr_data(itl,func,arr);
 
     return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
 }
@@ -440,7 +440,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     // rather than runtime setup
     if(decl_node->expr)
     {
-        const SymSlot addr_slot = addrof(func,array.reg.slot);
+        const SymSlot addr_slot = addrof_res(itl.symbol_table,func,array.reg.slot);
         traverse_arr_initializer(itl,func,decl_node->expr,addr_slot,array.type);
     }
 

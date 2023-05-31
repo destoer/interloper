@@ -309,6 +309,8 @@ struct Reg
 
     b32 dirty = false;
 
+    b32 aliased = false;
+
     // NOTE: this uses absolute offsets
     // but we dont really care if they are broken by insertions during reg alloc 
     // because we only want to know when usage gap is largest
@@ -469,6 +471,8 @@ void destroy_emitter(IrEmitter& emitter);
 
 void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
 void disass_opcode_raw(const Opcode &opcode);
+
+b32 is_tmp(SymSlot s);
 
 inline u32 symbol(u32 s)
 {
