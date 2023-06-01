@@ -1,0 +1,23 @@
+
+
+struct Point
+{
+    x : s32 = 0;
+    y : s32 = 0;
+}
+
+// expected 10
+
+func main() s32 
+{
+    p : Point;
+
+    ptr = &p.x;
+
+    for(i : s32 = 0; i < 10; i++)
+    {
+        @ptr++;
+    }
+
+    return @ptr;
+}

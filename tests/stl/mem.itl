@@ -1,4 +1,5 @@
 
+// expected 0
 
 func main() s32 
 {

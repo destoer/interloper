@@ -1,5 +1,5 @@
 
-// expected 7
+// expected 9
 
 
 func number() s32
@@ -10,19 +10,24 @@ func number() s32
 
 func square(x: s32) s32
 {
-    return x * x;
+    x = x * x;
+    return x;
 }
 
 
 func main() s32
 {
     x : s32 = square(number());
+    
+    tmp : s32 = 2;
 
-    return sub(x,3 * 3,2);
+    return sub(x,3 * 3,tmp) + tmp;
 }
 
 
-func sub(x: s32,y: s32, factor: s32) s32
+func sub(x: s32,y: s32, tmp: s32) s32
 {
-    return x - (y * 2);
+    // no reason to pass this in, we just need to make sure it works correctly
+    tmp = x - (y * 2);
+    return tmp;
 }

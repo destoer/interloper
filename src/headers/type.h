@@ -1,5 +1,5 @@
 #pragma once
-#include <lib.h>
+#include <destoer.h>
 #include <ir.h>
 
 
@@ -282,43 +282,11 @@ struct Symbol
     String name;
     Type* type;
 
+    BlockSlot scope_end;
 
-    // size of plain type
-    // i.e in an array this will hold the size of the contained type
-    u32 size = 0;
-
-    // how many elements there are
-    // (zero unless there is a fixed array for now)
-    u32 count = 0;
-
+    Reg reg;
 
     u32 arg_offset = NON_ARG;
-
-    // what slot does this symbol hold inside the ir?
-    u32 slot = SYMBOL_NO_SLOT;
-
-    
-    // intialized during register allocation
-
-    // where is it this is stored on the stack?
-    u32 offset = UNALLOCATED_OFFSET;
-
-    // where is this item stored?
-    // is it in memory or is it in register?
-    u32 location = LOCATION_MEM;
-
-    b32 referenced = false;
-
-/*
-    need to think where we perorm the marking for this, because it has to be done after the optimisation pass
-
-    u32 uses = 0;
-
-    // NOTE: this uses absolute offsets
-    // but we dont really care if they are broken by insertions during reg alloc 
-    // because we only want to know when usage gap is largest
-    Array<u32> usage = {};
-*/
 };
 
 
@@ -343,12 +311,15 @@ struct Function
     // of slots for both normal vars so we know whats in the functions
 
     // gives slots into the main symbol table
-    Array<u32> args;
+    Array<SymSlot> args;
     
+    // tmp's in the function
+    Array<Reg> registers;
+
     // IR code for function
     IrEmitter emitter;
 
-    u32 slot;
+    LabelSlot label_slot;
 
     FuncNode* root = nullptr;
 
@@ -361,22 +332,18 @@ struct Interloper;
 void mark_used(Interloper& itl, Function& func);
 
 
-// TODO: start by fixing all the compile errors
-// for using a var alloc
-
-// then actually try the symbol table impl
-// maybe i will wrap it up internally inside just two
-// std::maps while we get it off the ground
-
-
 using SlotLookup = Array<Symbol>;
 using LabelLookup = Array<Label>;
 
 struct SymbolTable
 {
-    Array<HashTable<String,u32>> table;
+    Array<HashTable<String,SymSlot>> table;
 
     SlotLookup slot_lookup;
+
+    // offset is the block slot until full resolution
+    // after label resolution this holds the address of the label
+    // I.e the address of the block
     LabelLookup label_lookup;
 
     u32 sym_count = 0;

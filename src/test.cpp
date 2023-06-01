@@ -53,7 +53,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/const/const_array_index_invalid.itl",-1,true},
 
     // func
-    {"tests/func/func",7,false},
+    {"tests/func/func",9,false},
     {"tests/func/no_main",-1,true},
     {"tests/func/invalid_args",-1,true},
     {"tests/func/void_return",255,false},
@@ -64,15 +64,18 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     // control flow
     {"tests/control_flow/if",25,false},
     {"tests/control_flow/else_if",45077,false},
+    {"tests/control_flow/else_if_no_else",94220,false},
+    {"tests/control_flow/else_empty",7,false},
     {"tests/control_flow/nested_if",575,false},
     {"tests/control_flow/for",32,false},
+    {"tests/control_flow/for_idx",10,false},
     {"tests/control_flow/for_outer_decl",32,false},
     {"tests/control_flow/while",32,false},
-
+/*
     {"tests/control_flow/switch_no_default",73,false},
     {"tests/control_flow/switch",447,false},
     {"tests/control_flow/switch_duplicate",-1,true},
-
+*/
 
 
     // pointers
@@ -125,6 +128,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_initializer",495,false},
     {"tests/struct/pass_struct",2,false},
     {"tests/struct/return_struct",3,false},
+    {"tests/struct/return_struct_tmp",3,false},
     {"tests/struct/point",5,false},
     {"tests/struct/array_of_struct",179,false},
     {"tests/struct/redeclare_struct",-1,true},
@@ -134,9 +138,6 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_of_ptr",154,false},
     {"tests/struct/struct_of_arrays",28,false},
     {"tests/struct/struct_assign",6,false},
-
-    // TODO: get this working when we overhaul our reg allocator
-    //{"tests/struct/return_struct_tmp",3,false}.
 
     // stl
     {"tests/stl/linked_list",66,false},

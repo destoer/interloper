@@ -1,13 +1,13 @@
 
 
-using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 
 b32 is_gpr_size(const Type* type)
 {
     return is_trivial_copy(type);
 }
 
-Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     UNUSED(dst_slot);
     
@@ -23,8 +23,8 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
     emit(func,op_type::save_regs);
 
 
-    const auto v1_type = compile_expression(itl,func,func_call->args[1],R0_IR);
-    const auto v2_type = compile_expression(itl,func,func_call->args[2],R1_IR);
+    const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
+    const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R1_IR));
 
     if(!is_trivial_copy(v1_type))
     {

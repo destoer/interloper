@@ -1,7 +1,15 @@
 #pragma once
 
-#include <lib.h>
+#include <destoer.h>
 
+
+
+struct Trace
+{
+    u64 idx;
+    u64 history_target[0x10] = {0};
+    u64 history_source[0x10] = {0};
+};
 
 // memory map 
 //  0x10000000 -> program memory
@@ -20,6 +28,8 @@ struct Interpretter
 
 
     Array<u8> stack;
+
+    Trace trace;
 };
 
 

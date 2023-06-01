@@ -1,17 +1,17 @@
 // indexes off a given type + ptr
-std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
-     Type* type, u32 ptr_slot, u32 dst_slot)
+std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+     Type* type, SymSlot ptr_slot, SymSlot dst_slot)
 {
 
     if(!is_array(type))
     {
         panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
-        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};  
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
     }
 
     const u32 indexes = count(index_node->indexes);
 
-    u32 last_slot = ptr_slot;
+    SymSlot last_slot = ptr_slot;
 
     
     ArrayType* array_type = (ArrayType*)type;
@@ -25,7 +25,7 @@ std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNod
         if(!is_integer(subscript_type))
         {
             panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
-            return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};  
+            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
         }
 
         /*
@@ -41,11 +41,11 @@ std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNod
         {
             const u32 size = array_type->sub_size;
 
-            const u32 mul_slot = emit_res(func,op_type::mul_imm,subscript_slot,size);   
+            const SymSlot mul_slot = emit_res(func,op_type::mul_imm,subscript_slot,size);   
 
-            const bool last_index = i ==  indexes - 1;
+            const bool last_index = i == indexes - 1;
 
-            const u32 add_slot = last_index? dst_slot : new_tmp(func);
+            const SymSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
             emit(func,op_type::add_reg,add_slot,last_slot,mul_slot);
 
             last_slot = add_slot;
@@ -76,18 +76,67 @@ std::pair<Type*,u32> index_arr_internal(Interloper& itl, Function &func,IndexNod
                 else 
                 {
                     panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
-                    return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};                          
+                    return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                          
                 }
             } 
         }
     }
 
     // return pointer to accessed type
-    return std::pair<Type*,u32>{make_pointer(itl,accessed_type),dst_slot}; 
+    return std::pair{make_pointer(itl,accessed_type),dst_slot}; 
 }
 
+// TODO: these multidimensional handwave vla's
 
-std::pair<Type*, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type)
+{
+    const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
+
+    if(is_runtime_size(type))
+    {
+        const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
+        emit(func,load_ptr(dst_slot,addr,0,GPR_SIZE,false));
+
+        return dst_slot;
+    }
+
+    // fixed size, array data is just its addr
+    else
+    {
+        return addr;
+    }
+}
+
+SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type)
+{
+    UNUSED(slot);
+
+    if(is_runtime_size(type))
+    {
+        const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
+
+        const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
+        emit(func,load_ptr(dst_slot,addr,GPR_SIZE,GPR_SIZE,false));
+
+        return dst_slot;
+    }
+
+    ArrayType* array_type = (ArrayType*)type;
+
+    return emit_res(func,op_type::mov_imm,array_type->size);   
+}
+
+SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym)
+{
+    return load_arr_data(itl,func,sym.reg.slot,sym.type);
+}
+
+SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
+{
+    return load_arr_len(itl,func,sym.reg.slot,sym.type);
+}
+
+std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     IndexNode* index_node = (IndexNode*)node;
 
@@ -98,25 +147,26 @@ std::pair<Type*, u32> index_arr(Interloper &itl,Function &func,AstNode *node, u3
     if(!arr_opt)
     {
         panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
-        return std::pair<Type*,u32>{make_builtin(itl,builtin_type::void_t),0};       
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};       
     }
 
     const auto arr = arr_opt.value();
 
+    
     // get the initial data ptr
-    const u32 data_slot = emit_res(func,op_type::load_arr_data,arr.slot);
+    const SymSlot data_slot = load_arr_data(itl,func,arr);
 
     return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
 }
 
-std::pair<Type*,u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot)
+std::pair<Type*,SymSlot> read_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
-    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp(func));
+    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
 
     // fixed array needs conversion by host
     if(is_fixed_array_pointer(type))
     {
-        return std::pair<Type*,u32>{type,addr_slot};
+        return std::pair{type,addr_slot};
     }
 
     type = deref_pointer(type);
@@ -124,14 +174,14 @@ std::pair<Type*,u32> read_arr(Interloper &itl,Function &func,AstNode *node, u32 
     do_ptr_load(itl,func,dst_slot,addr_slot,type);
 
 
-    return std::pair<Type*,u32>{type,dst_slot};
+    return std::pair{type,dst_slot};
 }
 
 
 // TODO: our type checking for our array assigns has to be done out here to ensure locals are type checked correctly
-void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot)
+void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, SymSlot slot)
 {
-    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp(func));
+    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
 
 
     // convert fixed size pointer..
@@ -151,7 +201,7 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u3
     }
 }
 
-void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const u32 addr_slot, ArrayType* type, u32* offset)
+void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const SymSlot addr_slot, ArrayType* type, u32* offset)
 {
     if(itl.error)
     {
@@ -252,7 +302,68 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
     }   
 }
 
-void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const u32 addr_slot, Type* type)
+// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
+void init_arr_allocation(Interloper& itl, Symbol& sym)
+{
+    UNUSED(itl);
+
+    b32 done = false;
+    
+    Type* type = sym.type;
+
+    while(!done)
+    {
+        switch(type->type_idx)
+        {
+            case POINTER:
+            {
+                sym.reg.size = GPR_SIZE;
+
+                // whatever is pointed too is responsible for handling its own allocation
+                // because it comes from somewhere else we are done!
+                done = true;
+                break;
+            }
+
+            case ARRAY:
+            {
+                ArrayType* array_type = (ArrayType*)type;
+
+                if(is_runtime_size(array_type))
+                {
+                    // TODO: make sure that the allocation information does not go into alloc slot
+                    unimplemented("arr alloc size");
+                }
+
+                else
+                {
+                    sym.reg.count = accumulate_count(sym.reg.count,array_type->size);
+                    type = index_arr(type);
+                }
+                break;
+            }
+
+            default:
+            {
+                sym.reg.size = type_size(itl,type);
+
+                done = true;
+                break;
+            }
+        }
+    }
+
+
+    if(sym.reg.size > GPR_SIZE)
+    {
+        sym.reg.count = gpr_count(sym.reg.count * sym.reg.size);
+        sym.reg.size = GPR_SIZE;
+    }   
+
+}
+
+
+void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const SymSlot addr_slot, Type* type)
 {
     // just a straight assign
     if(node->type != ast_type::initializer_list)
@@ -294,7 +405,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 
             for(u32 i = 0; i < literal.size; i++)
             {
-                const u32 slot = emit_res(func,op_type::mov_imm,literal[i]);
+                const SymSlot slot = emit_res(func,op_type::mov_imm,literal[i]);
                 check_assign(itl,base_type,rtype,false,true);
 
                 do_ptr_store(itl,func,slot,addr_slot,rtype,i);
@@ -316,15 +427,11 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 }
 
 
-void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
+void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& array)
 {
-    // this reference will get invalidated under the current setup
-    // so pull the slot
-    const u32 slot = sym.slot;
-
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    emit(func,op_type::alloc_slot,slot,0,0);
+    emit(func,op_type::alloc_slot,array.reg.slot,0,0);
     ListNode* alloc = get_cur_end(func.emitter);
 
 
@@ -333,14 +440,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     // rather than runtime setup
     if(decl_node->expr)
     {
-        const u32 addr_slot = new_tmp(itl,GPR_SIZE);
-
-        // we have added a new sym this ref has moved
-        Symbol &array = sym_from_slot(itl.symbol_table,slot);
-
-
-        emit(func,op_type::addrof,addr_slot,slot);
-
+        const SymSlot addr_slot = addrof_res(itl.symbol_table,func,array.reg.slot);
         traverse_arr_initializer(itl,func,decl_node->expr,addr_slot,array.type);
     }
 
@@ -349,21 +449,16 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         return;
     }
 
-    
-
-    Symbol &array = sym_from_slot(itl.symbol_table,slot);
 
     init_arr_allocation(itl,array);
 
-    auto [size,count] = arr_alloc_size(array);
-
-    if(count == RUNTIME_SIZE)
+    if(array.reg.count == RUNTIME_SIZE)
     {
         unimplemented("DECL VLA");
     }
 
     // this has not been inited by traverse_arr_initializer
-    else if(count == DEDUCE_SIZE)
+    else if(array.reg.count == DEDUCE_SIZE)
     {
         panic(itl,"auto sized array %s does not have an initializer\n",array.name.buf);
         return;
@@ -371,18 +466,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 
     else
     {
-        if(size > GPR_SIZE)
-        {
-            count = gpr_count(size * count);
-
-            // we have the allocation information now complete it
-            alloc->opcode = Opcode(op_type::alloc_slot,array.slot,GPR_SIZE,count);
-        }
-
-        else
-        {
-            // we have the allocation information now complete it
-            alloc->opcode = Opcode(op_type::alloc_slot,array.slot,size,count);
-        }
+        // we have the allocation information now complete it
+        alloc->opcode = Opcode(op_type::alloc_slot,array.reg.slot.handle,array.reg.size,array.reg.count);
     }
 }

@@ -1117,10 +1117,10 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
     add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, filename);
 }
 
-Array<char> read_source_file(const String& filename)
+StringBuffer read_source_file(const String& filename)
 {
-    Array<char> file = read_file(filename);
-    if(count(file))
+    auto [file,err] = read_str_buf(filename);
+    if(err)
     {
         printf("no such file: %s\n",filename.buf);
         exit(0);
@@ -1254,7 +1254,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
             default:
             {
-                panic(parser,t,"unexpected top level token %s(%d): '%s'\n",tok_name(t.type),u32(t.type),t.literal.buf);
+                panic(parser,t,"unexpected top level token %s(%d)'\n",tok_name(t.type),u32(t.type));
                 destroy_arr(parser.tokens);
                 return true;
             }
@@ -1289,6 +1289,8 @@ bool parse(Interloper& itl, const String& initial_filename)
     // import basic by default
     add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
 
+    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"internal.itl"));
+
 
     b32 error = false;
 
@@ -1297,9 +1299,9 @@ bool parse(Interloper& itl, const String& initial_filename)
         // get the next filename to parse
         const String filename = pop(file_stack);
 
-        Array<char> file = read_file(filename);
+        auto [file,err] = read_str_buf(filename);
 
-        if(!count(file))
+        if(err)
         {
             printf("file %s does not exist\n",filename.buf);
             error = true;

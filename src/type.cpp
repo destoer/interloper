@@ -346,60 +346,6 @@ void init_arr_sub_sizes(Interloper&itl,Type* type)
     init_arr_sub_sizes_internal(itl,type);
 }
 
-// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
-void init_arr_allocation(Interloper& itl, Symbol& sym)
-{
-    UNUSED(itl);
-
-    b32 done = false;
-    
-    Type* type = sym.type;
-
-    while(!done)
-    {
-        switch(type->type_idx)
-        {
-            case POINTER:
-            {
-                sym.size = GPR_SIZE;
-
-                // whatever is pointed too is responsible for handling its own allocation
-                // because it comes from somewhere else we are done!
-                done = true;
-                break;
-            }
-
-            case ARRAY:
-            {
-                ArrayType* array_type = (ArrayType*)type;
-
-                sym.count = accumulate_count(sym.count,array_type->size);
-                type = index_arr(type);
-                break;
-            }
-
-            default:
-            {
-                sym.size = type_size(itl,type);
-
-                done = true;
-                break;
-            }
-        }
-    }
-}
-
-
-// size of elemenent, + count
-std::pair<u32,u32> arr_alloc_size(const Symbol& sym)
-{
-    if(sym.count == 0)
-    {
-        return std::pair<u32,u32>{RUNTIME_SIZE,RUNTIME_SIZE};
-    }
-
-    return std::pair<u32,u32>{sym.size,sym.count};
-}
 
 // total block size of the array
 u32 arr_size(const Type* type)
@@ -943,6 +889,11 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
     }
 }
 
+b32 is_plain_type(const Type* type)
+{
+    return !is_array(type) && !is_struct(type);
+}
+
 b32 plain_type_equal(const Type* ltype, const Type* rtype)
 {
     switch(ltype->type_idx)
@@ -1243,7 +1194,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
     }
 }
 
-void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const Type *old_type, const Type *new_type)
+void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_slot,const Type *old_type, const Type *new_type)
 {
     if(itl.error)
     {
@@ -1377,7 +1328,7 @@ void handle_cast(Interloper& itl,Function& func, u32 dst_slot,u32 src_slot,const
 }
 
 
-Type* access_type_info(Interloper& itl, Function& func, u32 dst_slot, const TypeDecl& type_decl, const String& member_name)
+Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
 {
     switch(type_decl.kind)
     {
@@ -1503,5 +1454,6 @@ void destroy_func(Function& func)
 {
     destroy_arr(func.args);
     destroy_arr(func.return_type);
+    destroy_arr(func.registers);
     destroy_emitter(func.emitter);
 }

@@ -1,5 +1,7 @@
 #pragma once
-#include <lib.h>
+#include <destoer.h>
+using namespace destoer;
+
 #include <token.h>
 #include <lexer.h>
 #include <parser.h>

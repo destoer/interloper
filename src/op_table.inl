@@ -76,13 +76,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::branch_t,"b %a",1,{arg_type::label,arg_type::none,arg_type::none}},
     {op_group::branch_reg_t,"b %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
 
-    {op_group::reg_t,"load_arr_len %r, %r",2,{arg_type::directive,arg_type::directive,arg_type::none}},
-    {op_group::reg_t,"load_arr_data %r, %r",2,{arg_type::directive,arg_type::directive,arg_type::none}},
-
     // directives
-    {op_group::slot_t,"alloc_slot %r, %x, %x",3,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::slot_t,"free_slot %r, %x, %X",3,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::slot_t,"alloc %r",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::slot_t,"alloc_slot %r, %x",2,{arg_type::directive,arg_type::imm,arg_type::none}},
+    {op_group::slot_t,"free_slot %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::slot_t,"alloc_vla",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     {op_group::imm_t,"buf_alloc %r, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
@@ -90,7 +86,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // stores required information when room is exhausted on opcodes
     {op_group::slot_t,"state_dump %x, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
-    {op_group::reg_t,"push_arg %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"push_arg %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
 
     // perform cleanup after a function call
     // free the stack space for args
@@ -110,14 +106,13 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"load %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     
 
-    {op_group::imm_t,"addrof %r, %r, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
+    {op_group::imm_t,"addrof %r, %r, %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
 
     {op_group::implicit_t,"save_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::implicit_t,"restore_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
 
-    {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
+    {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::dst_reg,arg_type::directive,arg_type::none}},
 
-    {op_group::slot_t,"free_reg %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     // not used
     {op_group::implicit_t,"END",0,{arg_type::none,arg_type::none,arg_type::none}},

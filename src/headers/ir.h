@@ -1,5 +1,5 @@
 #pragma once
-#include <lib.h>
+#include <destoer.h>
 
 enum class op_type
 {
@@ -80,15 +80,11 @@ enum class op_type
     b,
     b_reg,
 
-    load_arr_len,
-    load_arr_data,
-
     // DIRECTIVES
     // varabile on the stack is out of scope
     // so we can reclaim allocation on the stack
     alloc_slot,
     free_slot,
-    alloc,
 
     alloc_vla,
 
@@ -125,8 +121,6 @@ enum class op_type
     restore_regs,
 
     pool_addr,
-
-    free_reg,
 
     // just c++ things not used
     END,
@@ -204,9 +198,51 @@ struct OpInfo
     arg_type type[3];
 };
 
+
+enum class slot_type
+{
+    symbol,
+    label,
+    block,
+};
+
+static constexpr u32 INVALID_HANDLE = 0xffff'ffff;
+
+template<slot_type type>
+struct Slot
+{
+    u32 handle = INVALID_HANDLE;
+};
+
+
+template<slot_type type>
+u32 hash_slot(u32 size, Slot<type> v)
+{
+    // TODO: impl a better integer hash func
+    const u32 hash = v.handle;
+    const u32 slot = hash & (size - 1); 
+
+    return slot;
+}
+
+
+static constexpr u32 SYMBOL_NO_SLOT = 0xffff'ffff;
+using SymSlot = Slot<slot_type::symbol>;
+
+SymSlot sym_from_idx(u32 idx)
+{
+    return {idx};
+}
+
+static constexpr SymSlot SYM_ERROR = {SYMBOL_NO_SLOT};
+
+
+using LabelSlot = Slot<slot_type::label>;
+
+using BlockSlot = Slot<slot_type::block>;
+
 extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
 
-static constexpr u32 SYMBOL_NO_SLOT = 0xffffffff;
 static constexpr u32 NON_ARG = 0xffffffff;
 
 static constexpr u32 UNALLOCATED_OFFSET = 0xe0000000;
@@ -236,6 +272,54 @@ struct Opcode
     u32 v[3];
 };
 
+enum class reg_kind
+{
+    local,
+    global,
+    tmp,
+};
+
+static constexpr u32 SIGNED_FLAG = 1 << 0;
+
+struct Reg
+{
+    reg_kind kind;
+
+    // what slot does this symbol hold inside the ir?
+    SymSlot slot = {SYMBOL_NO_SLOT};
+
+    // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
+    // i.e this is for stack allocation to get actual var sizes use type_size();
+    u32 size = 0;
+    u32 count = 0;
+
+    // intialized during register allocation
+
+    // where is it this is stored on the stack?
+    u32 offset = UNALLOCATED_OFFSET;
+
+    // where is this item stored?
+    // is it in memory or is it in register?
+    u32 location = LOCATION_MEM;
+
+    u32 flags = 0;
+
+    // how many times has this currently been used?
+    u32 uses = 0;
+
+    b32 dirty = false;
+
+    b32 aliased = false;
+
+    // NOTE: this uses absolute offsets
+    // but we dont really care if they are broken by insertions during reg alloc 
+    // because we only want to know when usage gap is largest
+    Array<u32> usage = {};
+};
+
+Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed);
+void print(const Reg& reg);
+
 // standard symbols
 static constexpr u32 SYMBOL_START = 0x80000000;
 
@@ -255,6 +339,8 @@ static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
 static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
+
+static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
 // dont perform any moves
 static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 6;
@@ -287,6 +373,8 @@ static constexpr u32 R1 = 1;
 
 static constexpr u32 PROGRAM_ORG = 0;
 
+static constexpr SymSlot SP_REG = {SP};
+
 
 static constexpr u32 GPR_SIZE = sizeof(u32);
 
@@ -305,18 +393,6 @@ static constexpr u32 SYSCALL_WRITE_STRING = SYSCALL_EXIT + 1;
 
 
 static constexpr u32 STACK_SIZE = 32 * 1024;
-
-enum class block_type
-{   
-    if_t,
-    else_if_t,
-    else_t,
-    chain_cmp_t,
-    for_t,
-    while_t,
-    body_t,
-    case_t,
-};
 
 inline const char *block_names[] =
 {
@@ -349,39 +425,54 @@ struct List
 };
 List make_list(ArenaAllocator* allocator);
 
+static constexpr u32 INVALID_BLOCK = 0xffff'ffff;
 
 struct Block
 {
     List list;
 
-    block_type type;
+    // what is the corresponding label for this block?
+    LabelSlot label_slot;
 
-    u32 slot;
+    // What is our own slot?
+    BlockSlot block_slot;
 
-    // is considered the last block in a set of control flow
-    bool last;
+    Array<BlockSlot> exit;
+
+    // what blocks are reachable from this block?
+    Array<BlockSlot> links;
 };
 
 struct IrEmitter
 {
     Array<Block> program;
 
-    // how many registers used in this expression
-    u32 reg_count;
 };
 
 struct Function;
 
-void emit(Function& func,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void emit_block(Function &func,u32 block,op_type op, u32 v1 = 0, u32 v2 = 0, u32 v3 = 0);
-void new_block(ArenaAllocator* list_allocator,Function& func,block_type type, u32 slot = 0xffffffff); 
-u32 emit_res(Function& func,op_type op, u32 v2 = 0, u32 v3 = 0);
+BlockSlot block_from_idx(u32 v);
+BlockSlot cur_block(Function& func);
+Block& block_from_slot(Function& func, BlockSlot slot);
+
+void emit(Function& func,op_type op, u32 imm);
+void emit(Function& func,op_type op, SymSlot v1, SymSlot v2, u32 imm);
+void emit(Function& func,op_type op, SymSlot v1, u32 imm);
+void emit(Function& func,op_type op, SymSlot v1, u32 v2, u32 v3);
+
+void emit(Function& func,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
+void emit_block(Function &func,BlockSlot block,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
+
+
+SymSlot emit_res(Function& func, op_type op, SymSlot v2 = {}, SymSlot v3 = {});
+SymSlot emit_res(Function& func, op_type op, SymSlot v2, u32 v3);
 
 void destroy_emitter(IrEmitter& emitter);
 
-
 void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
 void disass_opcode_raw(const Opcode &opcode);
+
+b32 is_tmp(SymSlot s);
 
 inline u32 symbol(u32 s)
 {

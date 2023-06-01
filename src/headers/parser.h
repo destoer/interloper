@@ -1,5 +1,5 @@
 #pragma once
-#include <lib.h>
+#include <destoer.h>
 #include <token.h>
 #include <type.h>
 
@@ -398,10 +398,10 @@ struct CaseNode
     u32 value;
 
     // what label does this statement have
-    u32 label;
+    LabelSlot label;
 
     // end block of the case
-    u32 end_block;
+    BlockSlot end_block;
 
     AstNode* statement;
     BlockNode* block;
@@ -711,7 +711,7 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     vprintf(fmt,args);
     va_end(args);
     printf("at: %s line %d col %d\n\n",parser.cur_file.buf,token.line + 1,token.col + 1);
-    
+
     parser.error = true;
     parser.line = token.line;
 }
