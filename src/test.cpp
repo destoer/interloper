@@ -128,6 +128,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_initializer",495,false},
     {"tests/struct/pass_struct",2,false},
     {"tests/struct/return_struct",3,false},
+    {"tests/struct/return_struct_tmp",3,false},
     {"tests/struct/point",5,false},
     {"tests/struct/array_of_struct",179,false},
     {"tests/struct/redeclare_struct",-1,true},
@@ -137,9 +138,6 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_of_ptr",154,false},
     {"tests/struct/struct_of_arrays",28,false},
     {"tests/struct/struct_assign",6,false},
-
-    // TODO: get this working when we overhaul our reg allocator
-    //{"tests/struct/return_struct_tmp",3,false}.
 
     // stl
     {"tests/stl/linked_list",66,false},

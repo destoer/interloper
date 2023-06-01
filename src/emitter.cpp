@@ -122,11 +122,8 @@ u32 slot_to_idx(SymSlot slot)
     return is_sym(slot)? sym_to_idx(slot) : slot.handle;
 }
 
-Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
+void assign_reg_size(Reg& reg, u32 size)
 {
-    Reg reg;
-    reg.kind = kind;
-
     if(size > GPR_SIZE)
     {
         reg.size = GPR_SIZE;
@@ -137,8 +134,15 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
     {
         reg.count = 1; 
         reg.size = size;
-    }
+    }    
+}
 
+Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
+{
+    Reg reg;
+    reg.kind = kind;
+
+    assign_reg_size(reg,size);
 
     if(is_signed)
     {

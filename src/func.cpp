@@ -378,7 +378,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
             else
             {
-                // TODO: this might need an explicit allocation
+                arg_clean++;
+
                 alloc_slot(func,func.registers[dst_slot.handle],true);
                 
                 const SymSlot addr = addrof_res(itl.symbol_table,func,dst_slot);

@@ -309,8 +309,6 @@ struct Reg
 
     b32 dirty = false;
 
-    // TODO: do we actually need this inside t he tmp's
-    // or should this just be for symbols only?
     b32 aliased = false;
 
     // NOTE: this uses absolute offsets

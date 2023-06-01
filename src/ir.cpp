@@ -700,8 +700,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         {
             const SymSlot slot = sym_from_idx(opcode.v[1]);
 
-            assert(!is_tmp(slot));
-
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
 
@@ -789,17 +787,27 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         case op_type::alloc_slot:
         {
             const SymSlot slot = sym_from_idx(opcode.v[0]);
-            auto &sym = sym_from_slot(table,slot);
+            auto& reg = reg_from_slot(slot,table,alloc);
+            
 
             if(alloc.print_reg_allocation)
             {
-                printf("alloc slot: %s\n",sym.name.buf);
+                if(is_sym(slot))
+                {
+                    auto& sym = sym_from_slot(table,slot);
+                    printf("alloc slot: %s\n",sym.name.buf);
+                }
+
+                else
+                {
+                    printf("alloc slot: t%d\n",reg.slot.handle);
+                }
             }
 
             // explictly force a stack alloc now
             if(opcode.v[1])
             {
-                stack_reserve_reg(alloc,sym.reg);    
+                stack_reserve_reg(alloc,reg);    
             }
 
             node = remove(block.list,node);
@@ -851,6 +859,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         }
 
         // scope has elapsed any resources can be reclaimed
+        // TODO: should this support registers?
         case op_type::free_slot:
         {
             const SymSlot slot = sym_from_idx(opcode.v[0]);
@@ -1021,15 +1030,16 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             break;
         }
 
-        // this can only be taken on a sym
         case op_type::addrof:
         {
             const s32 stack_offset = opcode.v[2];
-            auto &sym = sym_from_slot(itl.symbol_table,sym_from_idx(opcode.v[1]));
+            const SymSlot slot = sym_from_idx(opcode.v[1]);
 
-            assert(is_stack_allocated(sym.reg));
+            auto &reg = reg_from_slot(slot,itl.symbol_table,alloc);
 
-            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,sym.reg.offset + stack_offset);
+            assert(is_stack_allocated(reg));
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,reg.offset + stack_offset);
 
             node = node->next;
             break;

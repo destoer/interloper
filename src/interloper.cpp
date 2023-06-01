@@ -1701,7 +1701,7 @@ std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,
 
     const u32 size = type_size(itl,type);
 
-    func.registers[dst_slot.handle].size = size;
+    assign_reg_size(func.registers[dst_slot.handle],size);
 
     return std::pair{type,dst_slot};
 }
