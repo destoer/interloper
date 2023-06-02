@@ -1007,8 +1007,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
         
         // reserve space for the table inside the constant pool
-        const u32 static_offset = reserve_const_pool(itl,pool_type::label,GPR_SIZE * range);
-        const SymSlot table_addr = emit_res(func,op_type::pool_addr,static_offset);
+        const PoolSlot pool_slot = reserve_const_pool_section(itl.const_pool,pool_type::jump_table,GPR_SIZE * range);
+        const SymSlot table_addr = pool_addr(func,pool_slot);
 
         // get address in the tabel we want
         const SymSlot final_offset = emit_res(func,op_type::add_reg,table_addr,table_index);
@@ -1084,22 +1084,24 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
             static_assert(GPR_SIZE == sizeof(u32));
 
+            // current jump table entry matches case
             if(case_node->value - min == i)
             {
                 //printf("case %d -> %d\n",i,case_node->label);
 
-                write_mem<LabelSlot>(itl.const_pool, addr, case_node->label);
+                write_const_pool_label(itl.const_pool,pool_slot, addr, case_node->label);
                 case_idx++;
 
                 // add jump to the exit block
                 emit_branch(func,case_node->end_block,exit_block);
             }
 
+            // as statements as sorted this means there is no match emit default
             else
             {
                 //printf("case %d -> default(%d)\n",i,default_label);
 
-                write_mem<LabelSlot>(itl.const_pool, addr, default_label);
+                write_const_pool_label(itl.const_pool,pool_slot, addr, default_label);
             }
         }
     }
@@ -2018,8 +2020,7 @@ void destroy_ast(Interloper& itl)
 void destroy_itl(Interloper &itl)
 {
     destroy_arr(itl.program);
-    destroy_arr(itl.const_pool);
-    destroy_arr(itl.pool_sections);
+    destroy_const_pool(itl.const_pool);
     clear(itl.symbol_table);
     
     destroy_ast(itl);

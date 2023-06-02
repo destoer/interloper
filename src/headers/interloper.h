@@ -7,6 +7,7 @@ using namespace destoer;
 #include <parser.h>
 #include <type.h>
 #include <ir.h>
+#include <pool.h>
 #include <interpretter.h>
 
 struct Interloper
@@ -26,8 +27,7 @@ struct Interloper
 
     SymbolTable symbol_table;
 
-    Array<PoolSection> pool_sections;
-    Array<u8> const_pool;
+    ConstPool const_pool;
 
     // Arena's
     ArenaAllocator list_allocator;

@@ -5,36 +5,6 @@ void insert_program(Interloper& itl, const Opcode& opcode)
 }
 
 
-u32 push_const_pool(Interloper& itl, pool_type type, const void* data,u32 size)
-{
-    PoolSection section;
-
-    section.type = type;
-    section.offset = itl.const_pool.size;
-    section.size = size;
-
-    // add section information + data to the pool
-    push_var(itl.pool_sections,section);
-    push_mem(itl.const_pool,data,size);
-
-    return section.offset;
-}
-
-u32 reserve_const_pool(Interloper& itl, pool_type type, u32 size)
-{
-    PoolSection section;
-
-    section.type = type;
-    section.offset = itl.const_pool.size;
-    section.size = size;
-
-    // add section information + reserve inside the pool
-    push_var(itl.pool_sections,section);
-    resize(itl.const_pool,count(itl.const_pool) + size);
-
-    return section.offset;    
-}
-
 
 // NOTE: pass in a size, so we only print the code section
 void dump_program(const Array<u8> &program,u32 size, HashTable<u32,LabelSlot> &inv_label_lookup, LabelLookup &label_lookup)
@@ -107,43 +77,38 @@ void emit_asm(Interloper &itl)
         }
     }
 
-    // add any data required into the const pool before adding it to the program
-    for(u32 i = 0; i < count(itl.pool_sections); i++)
+    // get raw pool data to rewrite its contents
+    auto& pool_data = itl.const_pool.buf;
+
+    for(u32 i = 0; i < count(itl.const_pool.sections); i++)
     {
-        const PoolSection& pool = itl.pool_sections[i];
+        const PoolSection& section = itl.const_pool.sections[i];
+        const u32 section_offset = section.offset;
 
-        switch(pool.type)
+        // rewrite all labels
+        for(u32 l = 0; l < count(section.label); l++)
         {
-            case pool_type::label:
-            {
-                static_assert(GPR_SIZE == sizeof(u32));
+            static_assert(GPR_SIZE == sizeof(u32));
 
-                const u32 offset = pool.offset;
-                const u32 size = pool.size;
+            const u32 label_offset = section.label[l];
+            const u32 addr = label_offset + section_offset;
 
-                // rewrite final label posistions
-                for(u32 addr = offset; addr < size + offset; addr += GPR_SIZE)
-                {
-                    const u32 label = read_mem<u32>(itl.const_pool,addr);
+            // read out the label handle so we can write back the offset
+            const u32 label_handle = read_mem<u32>(pool_data,addr);
 
-                    //printf("table: %d -> %x\n",label,itl.symbol_table.label_lookup[label].offset);
+            write_mem<u32>(pool_data, addr, itl.symbol_table.label_lookup[label_handle].offset);
+        }
 
-                    write_mem<u32>(itl.const_pool, addr, itl.symbol_table.label_lookup[label].offset);
-                }                
-            }
-
-            case pool_type::string_literal: break;
+        // rewrite all pointers
+        for(u32 p = 0; p < count(section.pool_pointer); p++)
+        {
+            assert(false);
         }
     }
 
-
     // add the constant pool, into the final program
     const u32 const_pool_loc = itl.program.size;
-    push_mem(itl.program,itl.const_pool);
-
-    // clean up the mem from the constt pool
-    destroy_arr(itl.const_pool);
-    destroy_arr(itl.pool_sections);
+    push_mem(itl.program,pool_data);
 
 
     // TODO: how do we want to labels for a mov i.e
@@ -165,30 +130,20 @@ void emit_asm(Interloper &itl)
         // resolve pools
         else if(opcode.op == op_type::pool_addr)
         {
-            const pool_type pool = pool_type(opcode.v[2]);
-            const u32 offset = opcode.v[1];
+            const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[1]);
+            auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-            switch(pool)
-            {
-                case pool_type::string_literal:
-                {
-                    opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + offset,0);
-                    break;
-                }
-
-                // Resolve all the addresses within 
-                case pool_type::label:
-                {
-                    unimplemented("label pool");
-                    break;
-                }
-
-                default: crash_and_burn("unknown pool %d\n",pool);
-            }
+            printf("section: %x\n",section.offset);
+            opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + section.offset,0);
 
             write_mem(itl.program,i,opcode);
         }
     }
+
+
+    // clean up the mem from the const pool
+    destroy_const_pool(itl.const_pool);
+
 
     if(itl.print_ir)
     {

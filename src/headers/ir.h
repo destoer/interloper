@@ -149,23 +149,6 @@ static constexpr u32 LOGIC_OP_SIZE = 9;
 static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 
 
-// POOL
-enum class pool_type 
-{
-    string_literal,
-    label,
-};
-
-
-struct PoolSection
-{
-    u32 offset;
-    u32 size;
-
-    pool_type type;
-};
-
-
 enum class op_group
 {
     reg_t,
@@ -204,6 +187,7 @@ enum class slot_type
     symbol,
     label,
     block,
+    pool,
 };
 
 static constexpr u32 INVALID_HANDLE = 0xffff'ffff;

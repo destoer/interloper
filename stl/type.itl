@@ -14,43 +14,35 @@ struct Type
 };
 
 
-struct PointerType
+/*
+struct PointerType (type : const Type)
 {
-    type : const Type;
-
     contained_type : const Type@;
 };
 
-struct StructType
+struct StructType (type : const Type)
 {
-    type : const Type;
-
     struct_idx : const u32;
 };
 
-struct EnumType
+struct EnumType (type : const Type)
 {
-    type : const Type;
-
     enum_idx : const u32;
 };
 
 
 
-struct ArrayType
+struct ArrayType (type : const Type)
 {
-    type : const Type;
-
     contained_type : const Type@;
 
     // RUNTIME_SIZE or current size!
     size : const u32;
-
-    
+  
     // size of indexing array
     sub_size : const u32;
 };
-
+*/
 
 struct Any
 {

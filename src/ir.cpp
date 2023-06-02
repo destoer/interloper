@@ -4,6 +4,7 @@
 #include "list.cpp"
 #include "emitter.cpp"
 #include "cfg.cpp"
+#include "pool.cpp"
 #include "link.cpp"
 
 

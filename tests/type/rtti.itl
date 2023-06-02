@@ -1,0 +1,14 @@
+
+// check passed type is what is expected for passed value..
+/*
+func builtin_type(any : Any, expected : builitn_type) bool
+{
+
+    return true;
+}
+*/
+
+func main() s32
+{
+    return 0;
+}

@@ -190,9 +190,9 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 emit(func,op_type::push_arg,len_slot);
 
                 // push the data offset
-                const u32 static_offset = push_const_pool(itl,pool_type::string_literal,lit_node->literal.buf,size);
+                const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
 
-                const SymSlot addr_slot = emit_res(func,op_type::pool_addr,static_offset);
+                const SymSlot addr_slot = pool_addr(func,pool_slot);
                 emit(func,op_type::push_arg,addr_slot);
 
                 arg_clean += 2;
