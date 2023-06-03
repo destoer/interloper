@@ -1,0 +1,15 @@
+
+// expected 8
+struct Foo
+{
+    v1 : u32;
+    v2 : u8;
+    v3 : u16; 
+    v4 : u8;
+};
+
+func main() s32 
+{
+    foo : Foo;
+    return sizeof(foo);
+}

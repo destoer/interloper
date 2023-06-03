@@ -42,6 +42,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/type/default_initializer",1,false},
     {"tests/type/byte",0,false},
     {"tests/type/byte_invalid",-1,true},
+    {"tests/type/struct_punning",11,false},
 
     // const
     {"tests/const/const_invalid_assign",-1,true},
@@ -138,6 +139,7 @@ static constexpr ProgramTest PROGRAM_TEST[] =
     {"tests/struct/struct_of_ptr",154,false},
     {"tests/struct/struct_of_arrays",28,false},
     {"tests/struct/struct_assign",6,false},
+    {"tests/struct/reorder",8,false},
 
     // stl
     {"tests/stl/linked_list",66,false},
