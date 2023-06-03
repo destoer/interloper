@@ -256,6 +256,11 @@ SymSlot mov_imm(Function& func,u32 v)
     return emit_res(func,op_type::mov_imm,v);
 }
 
+void push_arg(Function& func, SymSlot src)
+{
+    emit(func,op_type::push_arg,src);
+}
+
 SymSlot pool_addr(Function& func, PoolSlot slot)
 {
     return emit_res(func,op_type::pool_addr,slot.handle);

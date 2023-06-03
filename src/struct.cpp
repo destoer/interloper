@@ -332,34 +332,6 @@ void parse_struct_decl(Interloper& itl, TypeDef& def)
 
 }
 
-void parse_struct_declarations(Interloper& itl)
-{
-    auto &struct_def = itl.type_def;
-
-    for(u32 b = 0; b < count(struct_def.buf); b++)
-    {
-        auto& bucket = struct_def.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto &def = bucket[i].v;
-
-            if(def.state == def_state::not_checked)
-            {
-                parse_def(itl,def);
-            }
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
 
 std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, SymSlot slot, Type* type, const String& member_name,u32* offset)
 {

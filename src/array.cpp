@@ -123,7 +123,7 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
 
     ArrayType* array_type = (ArrayType*)type;
 
-    return emit_res(func,op_type::mov_imm,array_type->size);   
+    return mov_imm(func,array_type->size);   
 }
 
 SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym)
@@ -405,7 +405,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 
             for(u32 i = 0; i < literal.size; i++)
             {
-                const SymSlot slot = emit_res(func,op_type::mov_imm,literal[i]);
+                const SymSlot slot = mov_imm(func,literal[i]);
                 check_assign(itl,base_type,rtype,false,true);
 
                 do_ptr_store(itl,func,slot,addr_slot,rtype,i);

@@ -32,11 +32,11 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
     mark_used(itl,func_call);
 
 
-    const SymSlot imm_slot = emit_res(func,op_type::mov_imm,size);
+    const SymSlot imm_slot = mov_imm(func,size);
 
-    emit(func,op_type::push_arg,imm_slot);
-    emit(func,op_type::push_arg,src_slot);
-    emit(func,op_type::push_arg,dst_slot);
+    push_arg(func,imm_slot);
+    push_arg(func,src_slot);
+    push_arg(func,dst_slot);
 
     emit_call(func,func_call.label_slot,true);
 

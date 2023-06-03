@@ -186,14 +186,14 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 check_assign(itl,arg.type,rtype,true);
                 
                 // push the len offset
-                const SymSlot len_slot = emit_res(func,op_type::mov_imm,size);
-                emit(func,op_type::push_arg,len_slot);
+                const SymSlot len_slot = mov_imm(func,size);
+                push_arg(func,len_slot);
 
                 // push the data offset
                 const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
 
                 const SymSlot addr_slot = pool_addr(func,pool_slot);
-                emit(func,op_type::push_arg,addr_slot);
+                push_arg(func,addr_slot);
 
                 arg_clean += 2;
             }
@@ -207,10 +207,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 {
                     ArrayType* array_type = (ArrayType*)deref_pointer(arg_type);
 
-                    const SymSlot len_slot = emit_res(func,op_type::mov_imm,array_type->size);
-                    emit(func,op_type::push_arg,len_slot);
+                    const SymSlot len_slot = mov_imm(func,array_type->size);
+                    push_arg(func,len_slot);
 
-                    emit(func,op_type::push_arg,reg);
+                    push_arg(func,reg);
 
                     // no longer care about the ptr
                     arg_type = (Type*)array_type;
@@ -224,10 +224,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 else if(is_runtime_size(arg.type))
                 {
                     const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
-                    emit(func,op_type::push_arg,len_slot);
+                    push_arg(func,len_slot);
 
                     const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
-                    emit(func,op_type::push_arg,data_slot);
+                    push_arg(func,data_slot);
 
                     arg_clean += 2;  
                 }
@@ -277,7 +277,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             check_assign(itl,arg.type,arg_type,true);
 
             // finally push the arg
-            emit(func,op_type::push_arg,reg);
+            push_arg(func,reg);
 
             arg_clean++;
         }
@@ -314,7 +314,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                         const auto &sym = sym_opt.value();
 
                         const SymSlot addr_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
-                        emit(func,op_type::push_arg,addr_slot);
+                        push_arg(func,addr_slot);
 
                         break;
                     }
@@ -325,7 +325,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                         auto [type,ptr_slot,offset] = compute_member_addr(itl,func,var_node);
                         ptr_slot = collapse_offset(func,ptr_slot,&offset);
 
-                        emit(func,op_type::push_arg,ptr_slot);
+                        push_arg(func,ptr_slot);
                         break;
                     }
 
@@ -333,7 +333,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                     {
                         auto [type,ptr_slot] = index_arr(itl,func,var_node,new_tmp_ptr(func));
 
-                        emit(func,op_type::push_arg,ptr_slot);
+                        push_arg(func,ptr_slot);
                         break;
                     }
 
@@ -343,7 +343,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                         const auto [type,ptr_slot] = load_addr(itl,func,deref_node->next,new_tmp_ptr(func),false);
 
-                        emit(func,op_type::push_arg,ptr_slot);
+                        push_arg(func,ptr_slot);
                         break;                     
                     }
 
@@ -373,7 +373,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 arg_clean++;
 
                 const SymSlot addr = addrof_res(itl.symbol_table,func,dst_slot);
-                emit(func,op_type::push_arg,addr);
+                push_arg(func,addr);
             }
 
             else
@@ -383,7 +383,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 alloc_slot(func,func.registers[dst_slot.handle],true);
                 
                 const SymSlot addr = addrof_res(itl.symbol_table,func,dst_slot);
-                emit(func,op_type::push_arg,addr);
+                push_arg(func,addr);
             }
         }
     }

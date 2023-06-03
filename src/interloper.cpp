@@ -1441,7 +1441,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
 
                 // TODO: make sure our optimiser sees through this
-                const SymSlot slot = emit_res(func,op_type::mov_imm,0);
+                const SymSlot slot = mov_imm(func,0);
                 emit(func,op_type::sub_reg,dst,slot,dst);
                 
                 return t;
