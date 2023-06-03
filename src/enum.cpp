@@ -38,7 +38,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 
     if(name_tok.type != token_type::symbol)
     {
-        panic(itl,"Expected symbol for enum name got %s\n",tok_name(name_tok.type));
+        panic(itl,itl_error::missing_name,"Expected symbol for enum name got %s\n",tok_name(name_tok.type));
         return;
     }
 
@@ -56,7 +56,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 
     if(type_decl)
     {
-        panic(itl,"%s %s redeclared as enum\n",KIND_NAMES[u32(type_decl->kind)],enumeration.name.buf);
+        panic(itl,itl_error::redeclaration,"%s %s redeclared as enum\n",KIND_NAMES[u32(type_decl->kind)],enumeration.name.buf);
         destroy_enum(enumeration);
         return;
     }
@@ -69,7 +69,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 
         if(member_tok.type != token_type::symbol)
         {
-            panic(itl,"Expected symbol for enum %s member got %s\n",enumeration.name.buf,tok_name(member_tok.type));
+            panic(itl,itl_error::missing_name,"Expected symbol for enum %s member got %s\n",enumeration.name.buf,tok_name(member_tok.type));
             destroy_enum(enumeration);
             return;
         }
@@ -82,7 +82,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 
         if(contains(enumeration.member_map,member.name))
         {
-            panic(itl,"Enum %s member %s redefined!\n",enumeration.name.buf,member.name.buf);
+            panic(itl,itl_error::redeclaration,"Enum %s member %s redefined!\n",enumeration.name.buf,member.name.buf);
             destroy_enum(enumeration);
             return;
         }

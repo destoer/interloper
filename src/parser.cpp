@@ -922,7 +922,7 @@ void type_alias(Interloper& itl, Parser &parser, const String& filename)
 
         if(contains(itl.type_def,name))
         {
-            panic(itl,"type %s redeclared as alias\n",name.buf);
+            panic(itl,itl_error::redeclaration,"type %s redeclared as alias\n",name.buf);
             return;
         }
 
@@ -956,7 +956,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
 
     if(contains(itl.function_table,func_name.literal))
     {
-        panic(itl,"function %s has been declared twice!\n",func_name.literal.buf);
+        panic(itl,itl_error::redeclaration,"function %s has been declared twice!\n",func_name.literal.buf);
         return;
     }
 
@@ -1085,7 +1085,7 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
 
     if(contains(itl.type_def,name.literal))
     {
-        panic(itl,"type %s redeclared as struct\n",name.literal.buf);
+        panic(itl,itl_error::redeclaration,"type %s redeclared as struct\n",name.literal.buf);
         return;
     }
 
@@ -1267,6 +1267,12 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
                 destroy_arr(parser.tokens);
                 return true;
             }
+        }
+
+        if(itl.error)
+        {
+            destroy_arr(parser.tokens);
+            return true;
         }
 
         if(parser.error)

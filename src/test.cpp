@@ -20,57 +20,57 @@ struct ProgramErrorTest
 static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] = 
 {
     // basic
-    {"tests/basic/narrow",itl_error::none},
-    {"tests/basic/redeclare",itl_error::none},
-    {"tests/basic/undeclared",itl_error::none},
-    {"tests/basic/out_of_scope",itl_error::none},
-    {"tests/basic/void_assign",itl_error::none},
-    {"tests/basic/invalid_sign_cmp",itl_error::none},
-    {"tests/basic/u32_eq_s32",itl_error::none},
-    {"tests/basic/invalid_compare",itl_error::none},
+    {"tests/basic/narrow",itl_error::int_type_error},
+    {"tests/basic/redeclare",itl_error::redeclaration},
+    {"tests/basic/undeclared",itl_error::undeclared},
+    {"tests/basic/out_of_scope",itl_error::undeclared}, // TODO: should we add analysis for scope drops on this?
+    {"tests/basic/void_assign",itl_error::undefined_type_oper},
+    {"tests/basic/invalid_sign_cmp",itl_error::int_type_error},
+    {"tests/basic/u32_eq_s32",itl_error::int_type_error},
+    {"tests/basic/invalid_compare",itl_error::out_of_bounds},
 
     // type
-    {"tests/type/byte_invalid",itl_error::none},
+    {"tests/type/byte_invalid",itl_error::pointer_type_error},
 
     // const
-    {"tests/const/const_invalid_assign",itl_error::none},
-    {"tests/const/const_pass_invalid_ptr.itl",itl_error::none},
-    {"tests/const/const_invalid_ptr_assign.itl",itl_error::none},
-    {"tests/const/const_array_index_invalid.itl",itl_error::none},
+    {"tests/const/const_invalid_assign",itl_error::const_type_error},
+    {"tests/const/const_pass_invalid_ptr.itl",itl_error::const_type_error},
+    {"tests/const/const_invalid_ptr_assign.itl",itl_error::const_type_error},
+    {"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
 
     // func
-    {"tests/func/no_main",itl_error::none},
-    {"tests/func/invalid_args",itl_error::none},
-    {"tests/func/redefine_func",itl_error::none},
+    {"tests/func/no_main",itl_error::undeclared},
+    {"tests/func/invalid_args",itl_error::missing_args},
+    {"tests/func/redefine_func",itl_error::redeclaration},
 
     // control_flow
-    {"tests/control_flow/switch_duplicate",itl_error::none},
+    {"tests/control_flow/switch_duplicate",itl_error::redeclaration},
 
     // pointers
-    {"tests/ptr/deref_plain",itl_error::none},
-    {"tests/ptr/expected_ptr",itl_error::none},
-    {"tests/ptr/invalid_ptr_compare",itl_error::none},
-    {"tests/ptr/null_invalid",itl_error::none},
+    {"tests/ptr/deref_plain",itl_error::pointer_type_error},
+    {"tests/ptr/expected_ptr",itl_error::pointer_type_error},
+    {"tests/ptr/invalid_ptr_compare",itl_error::pointer_type_error},
+    {"tests/ptr/null_invalid",itl_error::mismatched_args},
 
     // arrays
-    {"tests/array/array_pass_u32",itl_error::none},
-    {"tests/array/array_mismatched_type",itl_error::none},
-    {"tests/array/deref_array_of_ptr_invalid",itl_error::none},
+    {"tests/array/array_pass_u32",itl_error::array_type_error},
+    {"tests/array/array_mismatched_type",itl_error::array_type_error},
+    {"tests/array/deref_array_of_ptr_invalid",itl_error::pointer_type_error},
 
     // strings
 
     // structs
-    {"tests/struct/redeclare_struct",itl_error::none},
-    {"tests/struct/redeclare_member",itl_error::none},
-    {"tests/struct/recursive_struct_invalid",itl_error::none},
+    {"tests/struct/redeclare_struct",itl_error::redeclaration},
+    {"tests/struct/redeclare_member",itl_error::redeclaration},
+    {"tests/struct/recursive_struct_invalid",itl_error::black_hole},
 
     // stl
 
 
     // enum
-    {"tests/enum/enum_invalid_member",itl_error::none},
-    {"tests/enum/enum_redeclare_member",itl_error::none},
-    {"tests/enum/enum_redeclare",itl_error::none},
+    {"tests/enum/enum_invalid_member",itl_error::enum_type_error},
+    {"tests/enum/enum_redeclare_member",itl_error::redeclaration},
+    {"tests/enum/enum_redeclare",itl_error::redeclaration},
 
     // type alias
 
@@ -246,7 +246,7 @@ void run_tests()
 
         if(itl.error_code != test.error)
         {
-            printf("Fail %s expected error code %s got %s\n",test.name,ERROR_NAME[u32(itl.error_code)],ERROR_NAME[u32(test.error)]);
+            printf("Fail %s expected error code %s got %s\n",test.name,ERROR_NAME[u32(test.error)],ERROR_NAME[u32(itl.error_code)]);
             return;
         }
 

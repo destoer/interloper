@@ -17,7 +17,7 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
 
     if(arg_size != 3)
     {
-        panic(itl,"expected 3 args for intrin_syscall got %d\n",arg_size);
+        panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
     emit(func,op_type::save_regs);
@@ -28,13 +28,13 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
 
     if(!is_trivial_copy(v1_type))
     {
-        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
+        panic(itl,itl_error::mismatched_args,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
         return make_builtin(itl,builtin_type::void_t);   
     }
 
     if(!is_trivial_copy(v2_type))
     {
-        panic(itl,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
+        panic(itl,itl_error::mismatched_args,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
         return make_builtin(itl,builtin_type::void_t);
     }
 

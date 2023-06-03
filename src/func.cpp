@@ -107,7 +107,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     // check function is declared
     if(!func_call_ptr)
     {
-        panic(itl,"[COMPILE]: function %s is not declared\n",call_node->name.buf);
+        panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",call_node->name.buf);
         return make_builtin(itl,builtin_type::void_t);
     }
 
@@ -124,7 +124,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     // check we have the right number of params
     if((count(func_call.args) - hidden_args) != count(call_node->args))
     {
-        panic(itl,"[COMPILE]: function call expected %d args got %d\n",count(func_call.args),count(call_node->args));
+        panic(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",count(func_call.args),count(call_node->args));
         return make_builtin(itl,builtin_type::void_t);
     }
 
@@ -132,7 +132,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     // check calls on functions with multiple returns are valid
     if(tuple_node && count(func_call.return_type) == 1)
     {
-        panic(itl,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
+        panic(itl,itl_error::tuple_mismatch,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
         return make_builtin(itl,builtin_type::void_t);
     }
 
@@ -140,13 +140,13 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     {
         if(!tuple_node)
         {
-            panic(itl,"Attempted to call multiple return function nested in a expression\n");
+            panic(itl,itl_error::tuple_mismatch,"Attempted to call multiple return function nested in a expression\n");
             return make_builtin(itl,builtin_type::void_t);
         }
 
         if(count(func_call.return_type) != count(tuple_node->symbols))
         {
-            panic(itl,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",count(tuple_node->symbols),count(call_node->args));
+            panic(itl,itl_error::tuple_mismatch,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",count(tuple_node->symbols),count(call_node->args));
             return make_builtin(itl,builtin_type::void_t);
         }
     }
@@ -307,7 +307,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                         if(!sym_opt)
                         {
-                            panic(itl,"symbol %s used before declaration\n",sym_node->literal.buf);
+                            panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
                             return make_builtin(itl,builtin_type::void_t);
                         }
 
@@ -349,7 +349,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                     default:
                     {
-                        panic(itl,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
+                        panic(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
                         return make_builtin(itl,builtin_type::void_t);
                     }
                 }
@@ -571,7 +571,7 @@ void compile_function(Interloper& itl, Function& func)
 
         else
         {
-            panic(itl,"[COMPILE]: non void function without a return\n");
+            panic(itl,itl_error::missing_return,"[COMPILE]: non void function without a return\n");
         }
     }
 
@@ -609,7 +609,7 @@ void check_func_exists(Interloper& itl, const String& name)
     // ensure the entry functions are defined
     if(!contains(itl.function_table,name))
     {
-        panic(itl,"%s is not defined!\n",name.buf);
+        panic(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
         return;
     }    
 }

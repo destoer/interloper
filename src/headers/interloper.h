@@ -13,11 +13,55 @@ using namespace destoer;
 enum class itl_error
 {
     none,
+    parse_error,
+    array_type_error,
+    int_type_error,
+    bool_type_error,
+    string_type_error,
+    enum_type_error,
+    pointer_type_error,
+    out_of_bounds,
+    undeclared,
+    missing_initializer,
+    missing_name,
+    redeclaration,
+    missing_args,
+    tuple_mismatch,
+    missing_return,
+    invalid_expr,
+    invalid_statement,
+    mismatched_args,
+    black_hole,
+    struct_error,
+    undefined_type_oper,
+    const_type_error,
 };
 
 static const char* ERROR_NAME[] = 
 {
     "none",
+    "parse error",
+    "array type error",
+    "int type error",
+    "bool type error",
+    "string type error",
+    "enum type error",
+    "pointer type error",
+    "out of bounds",
+    "not declared",
+    "missing initializer",
+    "missing name",
+    "redeclaration",
+    "missing args",
+    "tuple mismatch",
+    "missing return",
+    "invalid expr",
+    "invalid statement",
+    "mismatched args",
+    "black hole",
+    "struct error",
+    "undefined type operation",
+    "const type error"
 };
 
 struct Interloper
@@ -80,7 +124,7 @@ struct Interloper
 
 void print(const AstNode *root);
 
-inline void panic(Interloper &itl,const char *fmt, ...)
+inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
 {
     // dont bother reporting multiple error's
     if(itl.error)
@@ -118,6 +162,7 @@ inline void panic(Interloper &itl,const char *fmt, ...)
     putchar('\n');
     
     itl.error = true;
+    itl.error_code = error;
 }
 
 u32 eval_int_expr(AstNode *node);

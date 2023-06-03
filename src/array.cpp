@@ -5,7 +5,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
     if(!is_array(type))
     {
-        panic(itl,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
+        panic(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
     }
 
@@ -24,7 +24,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
         const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[i]);
         if(!is_integer(subscript_type))
         {
-            panic(itl,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
+            panic(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
             return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
         }
 
@@ -75,7 +75,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
                 else 
                 {
-                    panic(itl,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
+                    panic(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
                     return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                          
                 }
             } 
@@ -146,7 +146,7 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 
     if(!arr_opt)
     {
-        panic(itl,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
+        panic(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};       
     }
 
@@ -232,7 +232,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
         // TODO: this should allow not specifing the full ammount but for now just keep it simple
         if(count != node_len)
         {
-            panic(itl,"array %s expects %d initializers got %d\n",type_name(itl,(Type*)type).buf,count,node_len);
+            panic(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d\n",type_name(itl,(Type*)type).buf,count,node_len);
             return;
         }        
 
@@ -376,7 +376,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 
             if(!is_string(type))
             {
-                panic(itl,"expected string got %s\n",type_name(itl,type).buf);
+                panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,type).buf);
                 return;
             }
 
@@ -397,7 +397,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
 
             if(array_type->size < literal.size)
             {
-                panic(itl,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
+                panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
             }
 
             const auto base_type = array_type->contained_type;
@@ -460,7 +460,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     // this has not been inited by traverse_arr_initializer
     else if(array.reg.count == DEDUCE_SIZE)
     {
-        panic(itl,"auto sized array %s does not have an initializer\n",array.name.buf);
+        panic(itl,itl_error::missing_initializer,"auto sized array %s does not have an initializer\n",array.name.buf);
         return;
     }
 

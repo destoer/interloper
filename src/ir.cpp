@@ -25,7 +25,7 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
 
     if(!func_def)
     {
-        panic(itl,"[COMPILE]: memcpy is required for struct passing\n");
+        panic(itl,itl_error::undeclared,"[COMPILE]: memcpy is required for struct passing\n");
     }
     Function &func_call = *func_def;
 

@@ -586,7 +586,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
         if(!user_type)
         {
-            panic(itl,"no such type %s\n",type_decl->name);
+            panic(itl,itl_error::undeclared,"no such type %s\n",type_decl->name);
             return make_builtin(itl,builtin_type::void_t);
         }
 
@@ -662,7 +662,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             {
                 if(complete_type)
                 {
-                    panic(itl,"type is constant and cannot be deduced by assign\n");
+                    panic(itl,itl_error::mismatched_args,"type is constant and cannot be deduced by assign\n");
                     return make_builtin(itl,builtin_type::void_t);
                 }
 
@@ -673,7 +673,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
             default:
             {
-                panic(itl,"invalid type specifier: %s\n",AST_NAMES[u32(node->type)]);
+                panic(itl,itl_error::invalid_expr,"invalid type specifier: %s\n",AST_NAMES[u32(node->type)]);
                 return make_builtin(itl,builtin_type::void_t);
             }
         }
@@ -721,7 +721,7 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
         // something else
         else
         {
-            panic(itl,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return make_builtin(itl,builtin_type::void_t);
         }
 
@@ -756,7 +756,7 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
         {
             if(is_signed(rtype) != is_signed(ltype))
             {
-                panic(itl,"logical comparision on different signs %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::int_type_error,"logical comparision on different signs %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
         }
 
@@ -769,7 +769,7 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
         // something else
         else
         {
-            panic(itl,"logical operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::undefined_type_oper,"logical operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }
 
@@ -782,13 +782,13 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
     {
         if(type != logic_op::cmpeq_reg && type != logic_op::cmpne_reg)
         {
-            panic(itl,"comparision on enums is only defined for '==' and '!='");
+            panic(itl,itl_error::enum_type_error,"comparision on enums is only defined for '==' and '!='");
             return;
         }
 
         if(ltype->type_idx != rtype->type_idx)
         {
-            panic(itl,"expected enum of the same type for comparsions %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::enum_type_error,"expected enum of the same type for comparsions %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
         }
     }
@@ -796,7 +796,7 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
     // no matching operator
     else 
     {
-        panic(itl,"logical operation on user defined type: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        panic(itl,itl_error::undefined_type_oper,"logical operation on user defined type: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
     }   
 }
 
@@ -812,7 +812,7 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
             // if the ltype is not const and the rtype is not this is illegal
             if(!ltype->is_const)
             {
-                panic(itl,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::const_type_error,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                 return;
             }
         }
@@ -824,13 +824,13 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
             // only valid given an initialisation
             if(ltype->is_const && !is_initializer)
             {
-                panic(itl,"cannot to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::const_type_error,"cannot to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
             // ltype is not const illegal
             else
             {
-                panic(itl,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::const_type_error,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }  
         }
     }
@@ -841,7 +841,7 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
         // if its an arg or initalizer its fine
         if(!is_initializer && !is_arg)
         {
-            panic(itl,"cannot assign to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::const_type_error,"cannot assign to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
         }
     }
@@ -986,7 +986,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 
     if(!is_plain(ltype) || !is_plain(rtype))
     {
-        panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
     }
 
     // anything else
@@ -1007,7 +1007,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
         // if base types still aernt equal we have a problem!
         else if(!plain_type_equal(ltype,rtype))
         {
-            panic(itl,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }
 }
@@ -1028,14 +1028,14 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
             // would narrow (assign is illegal)
             if(builtin_size(builtin_l) < builtin_size(builtin_r))
             {
-                panic(itl,"narrowing conversion %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::int_type_error,"narrowing conversion %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
             // unsigned cannot assign to signed
             // TODO: do we want to be this pedantic with integer conversions?
             if(!is_signed(ltype) && is_signed(rtype))
             {
-                panic(itl,"unsigned = signed (%s = %s)\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::int_type_error,"unsigned = signed (%s = %s)\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
         }
 
@@ -1046,7 +1046,7 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
             // void is not assignable!
             if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
             {
-                panic(itl,"void assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::undefined_type_oper,"void assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
 
             // same type is fine
@@ -1069,7 +1069,7 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 
         if(struct_ltype->struct_idx != struct_rtype->struct_idx)
         {
-            panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::struct_error,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
         }
     }
@@ -1081,14 +1081,14 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 
         if(enum_ltype->enum_idx != enum_rtype->enum_idx)
         {
-            panic(itl,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::struct_error,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
         }        
     }
 
     else
     {
-        panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        panic(itl,itl_error::undefined_type_oper,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
     }
 }
 
@@ -1118,7 +1118,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
             // must be the same
             if(!is_array(rtype))
             {
-                panic(itl,"expected array of %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::array_type_error,"expected array of %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                 return;
             }
 
@@ -1128,7 +1128,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
             {
                 if(ltype->type_idx != rtype->type_idx)
                 {
-                    panic(itl,"expected array of underlying type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                    panic(itl,itl_error::array_type_error,"expected array of underlying type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                     return;
                 }
 
@@ -1159,7 +1159,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
                         {
                             if(!is_runtime_size(ltype))
                             {
-                                panic(itl,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                                panic(itl,itl_error::array_type_error,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                                 return;
                             }
                         }
@@ -1169,7 +1169,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
                         {
                             if(array_ltype->size != array_rtype->size)
                             {
-                                panic(itl,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
+                                panic(itl,itl_error::array_type_error,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
                                 return;
                             }
                         }    
@@ -1202,7 +1202,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
 
         else
         {
-            panic(itl,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::mismatched_args,"cannot assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }
     }
 
@@ -1388,7 +1388,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
 
             else
             {
-                panic(itl,"unknown type info for enum %s\n",type_decl.name.buf);
+                panic(itl,itl_error::enum_type_error,"unknown type info for enum %s\n",type_decl.name.buf);
                 return make_builtin(itl,builtin_type::void_t);
             }
         }
@@ -1473,7 +1473,7 @@ void parse_def(Interloper& itl, TypeDef& def)
     else
     {
         // TODO: add huertsics to scan for where!
-        panic(itl,"type %s is recursively defined\n",def.name.buf);
+        panic(itl,itl_error::black_hole,"type %s is recursively defined\n",def.name.buf);
         return;
     }
 }

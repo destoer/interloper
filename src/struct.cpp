@@ -127,7 +127,7 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
         // no such definiton exists
         if(!def_ptr)
         {
-            panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->name.buf);
+            panic(itl,itl_error::undeclared,"%s : member type %s is not defined\n",structure.name.buf,type_decl->name.buf);
             destroy_struct(structure);
             return 0;
         }
@@ -147,7 +147,7 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
             else
             {
                 // panic to prevent having our struct collpase into a black hole
-                panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->name.buf);
+                panic(itl,itl_error::black_hole,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->name.buf);
                 destroy_struct(structure);
                 return 0;
             }
@@ -206,7 +206,7 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
 
     if(contains(structure.member_map,member.name))
     {
-        panic(itl,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
+        panic(itl,itl_error::redeclaration,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
         destroy_struct(structure);
         return 0;
     }
@@ -281,7 +281,7 @@ void parse_struct_decl(Interloper& itl, TypeDef& def)
     TypeDecl* user_type = lookup(itl.type_table,node->name);
     if(user_type)
     {
-        panic(itl,"%s %s redeclared as struct\n",KIND_NAMES[u32(user_type->kind)],node->name.buf);
+        panic(itl,itl_error::redeclaration,"%s %s redeclared as struct\n",KIND_NAMES[u32(user_type->kind)],node->name.buf);
         return;
     }
 
@@ -379,7 +379,7 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
 
     else
     {
-        panic(itl,"unknown array member %s\n",member_name.buf);
+        panic(itl,itl_error::undeclared,"unknown array member %s\n",member_name.buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
     }
 }
@@ -405,7 +405,7 @@ std::pair<Type*,SymSlot> access_struct_member(Interloper& itl, Function& func, S
 
     if(!member_opt)
     {
-        panic(itl,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
+        panic(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
     }
 
@@ -440,7 +440,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
             if(!sym_opt)
             {
-                panic(itl,"symbol %s used before declaration\n",name.buf);
+                panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
                 return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
             }            
 
@@ -475,7 +475,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
         default: 
         {
-            panic(itl,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
+            panic(itl,itl_error::struct_error,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
             return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
         }
     }
@@ -552,7 +552,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
             default: 
             {
-                panic(itl,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
+                panic(itl,itl_error::undeclared,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
                 return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
             }
         }
@@ -598,7 +598,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
 
     if(node_len != member_size)
     {
-        panic(itl,"arr initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        panic(itl,itl_error::undeclared,"arr initlizier missing initlizer expected %d got %d\n",member_size,node_len);
         return;
     }
     
@@ -625,7 +625,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
 
             else
             {
-                panic(itl,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
+                panic(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
                 return;
             }
         }

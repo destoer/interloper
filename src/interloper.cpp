@@ -156,7 +156,7 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node)
     const auto sym_opt = get_sym(itl.symbol_table,name);
     if(!sym_opt)
     {
-        panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+        panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
     }
 
@@ -326,7 +326,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type typ
     {
         if(type != op_type::sub_reg && type != op_type::add_reg)
         {
-            panic(itl,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
+            panic(itl,itl_error::int_type_error,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
             return make_builtin(itl,builtin_type::void_t);
         }
 
@@ -362,7 +362,7 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, Sym
 
     if(!(is_integer(t1) && is_integer(t2)))
     {
-        panic(itl,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
+        panic(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
         return make_builtin(itl,builtin_type::void_t);
     }
 
@@ -408,7 +408,7 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u32 v
 
         else
         {
-            panic(itl,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            panic(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
         }
     }
 
@@ -417,7 +417,7 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u32 v
     {
         if(builtin_size(cast_builtin(value)) > builtin_size(cast_builtin(oper)))
         {
-            panic(itl,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            panic(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
         }
     }
 
@@ -484,7 +484,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
         {
             if(!is_bool(type_left) && is_bool(type_right))
             {
-                panic(itl,"operations || and && are only defined on bools\n");
+                panic(itl,itl_error::bool_type_error,"operations || and && are only defined on bools\n");
             }
             break;
         }
@@ -609,7 +609,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
         if(!is_bool(t))
         {
-            panic(itl,"expected bool got %s in if condition\n",type_name(itl,t).buf);
+            panic(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,t).buf);
             return;
         }
 
@@ -687,7 +687,7 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 
     if(!is_bool(t))
     {
-        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).buf);
+        panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,t).buf);
         return;
     }    
 
@@ -755,7 +755,7 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
 
     if(!is_bool(t))
     {
-        panic(itl,"expected bool got %s in for condition\n",type_name(itl,t).buf);
+        panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,t).buf);
         return;
     }    
 
@@ -812,7 +812,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
     if(size == 0)
     {
-        panic(itl,"Switch statement has no cases");
+        panic(itl,itl_error::missing_args,"Switch statement has no cases");
         return;
     }
 
@@ -832,7 +832,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             if(!(type_decl && type_decl->kind == type_kind::enum_t))
             {
                 // case is not an enum
-                panic(itl,"case is not an emum %s\n",first_stmt->scope.buf);
+                panic(itl,itl_error::enum_type_error,"case is not an emum %s\n",first_stmt->scope.buf);
                 return;
             }
 
@@ -848,7 +848,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                 // check we have a matching enum
                 if(case_node->statement->type != ast_type::scope)
                 {
-                    panic(itl,"switch: one or more cases are not an enum\n");
+                    panic(itl,itl_error::enum_type_error,"switch: one or more cases are not an enum\n");
                     return;
                 }
 
@@ -856,7 +856,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
                 if(first_stmt->scope != scope_node->scope)
                 {
-                    panic(itl,"differing enums %s : %s in switch statement\n",first_stmt->scope.buf,scope_node->scope.buf);
+                    panic(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",first_stmt->scope.buf,scope_node->scope.buf);
                     return;
                 }
 
@@ -867,7 +867,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
                 if(!enum_member)
                 {
-                    panic(itl,"enum %s no such member %s\n",scope_node->scope.buf,member_node->literal);
+                    panic(itl,itl_error::enum_type_error,"enum %s no such member %s\n",scope_node->scope.buf,member_node->literal);
                     return;
                 }
 
@@ -904,7 +904,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != itl.enum_table[type_idx].member_map.size)
     {
         // TODO: print the missing cases
-        panic(itl,"switch on enum %s missing cases:\n",itl.enum_table[type_idx].name.buf);
+        panic(itl,itl_error::undeclared,"switch on enum %s missing cases:\n",itl.enum_table[type_idx].name.buf);
         return;     
     }
 
@@ -921,7 +921,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // these statements have no gap, this means they are duplicated
         if(cur_gap == 0)
         {
-            panic(itl,"duplicate case %d\n",switch_node->statements[i]->value);
+            panic(itl,itl_error::redeclaration,"duplicate case %d\n",switch_node->statements[i]->value);
             return;
         }
 
@@ -959,7 +959,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             {
                 if(!is_integer(rtype))
                 {
-                    panic(itl,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
+                    panic(itl,itl_error::int_type_error,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
                     return;
                 }
                 break;
@@ -972,14 +972,14 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                     EnumType* enum_type = (EnumType*)rtype;
                     if(enum_type->enum_idx != type_idx)
                     {
-                        panic(itl,"expected enum of type %s got %s\n",itl.enum_table[type_idx].name.buf,type_name(itl,rtype));
+                        panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",itl.enum_table[type_idx].name.buf,type_name(itl,rtype));
                         return;                        
                     }
                 }
 
                 else
                 {
-                    panic(itl,"expected enum of type %s got %s\n",itl.enum_table[type_idx].name.buf,type_name(itl,rtype));
+                    panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",itl.enum_table[type_idx].name.buf,type_name(itl,rtype));
                     return;                    
                 }
                 break;
@@ -1130,7 +1130,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
             const auto sym_opt = get_sym(itl.symbol_table,name);
             if(!sym_opt)
             {
-                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
             }
 
@@ -1155,7 +1155,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
             {
                 if(!is_pointer(sym.type))
                 {
-                    panic(itl,"[COMPILE]: symbol '%s' is not a pointer\n",name.buf);
+                    panic(itl,itl_error::pointer_type_error,"[COMPILE]: symbol '%s' is not a pointer\n",name.buf);
                     return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
                 }
 
@@ -1190,7 +1190,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
                 // contained type is not actually a pointer
                 if(!is_pointer(type))
                 {
-                    panic(itl,"[COMPILE]: array '%s' does not contain a pointer\n",index_node->name.buf);
+                    panic(itl,itl_error::pointer_type_error,"[COMPILE]: array '%s' does not contain a pointer\n",index_node->name.buf);
                     return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
                 }
 
@@ -1393,7 +1393,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             const auto sym_opt = get_sym(itl.symbol_table,name);
             if(!sym_opt)
             {
-                panic(itl,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return make_builtin(itl,builtin_type::void_t);
             }
 
@@ -1524,7 +1524,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
             if(!is_bool(t))
             {
-                panic(itl,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
+                panic(itl,itl_error::bool_type_error,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
                 return make_builtin(itl,builtin_type::void_t);
             }
 
@@ -1599,7 +1599,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
                 if(scope_node->expr->type != ast_type::symbol)
                 {
-                    panic(itl,"expected enum member of enum %s",enum_name.buf);
+                    panic(itl,itl_error::enum_type_error,"expected enum member of enum %s",enum_name.buf);
                     return make_builtin(itl,builtin_type::void_t);
                 }
 
@@ -1610,7 +1610,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
                 if(!enum_member)
                 {
-                    panic(itl,"enum %s no such member %s\n",enum_name.buf,member_node->literal);
+                    panic(itl,itl_error::enum_type_error,"enum %s no such member %s\n",enum_name.buf,member_node->literal);
                     return make_builtin(itl,builtin_type::void_t);
                 }
 
@@ -1620,17 +1620,19 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 return make_enum_type(itl,enumeration);
             }
 
+            // TODO: we dont have namespacing
             else 
             {
+                assert(false);
                 // TODO: this wont print a full scope
-                panic(itl,"no such scope %s\n",scope_node->scope.buf);
+                panic(itl,itl_error::none,"no such scope %s\n",scope_node->scope.buf);
                 return make_builtin(itl,builtin_type::void_t);
             }
         }
 
         default:
         {
-            panic(itl,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
+            panic(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
             return make_builtin(itl,builtin_type::void_t);
         }
     }
@@ -1648,7 +1650,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
     const auto sym_opt = get_sym(itl.symbol_table,name);
     if(sym_opt)
     {
-        panic(itl,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_opt.value().type).buf);
+        panic(itl,itl_error::redeclaration,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_opt.value().type).buf);
         return;
     }
 
@@ -1719,7 +1721,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 
     if(get_sym(itl.symbol_table,name))
     {
-        panic(itl,"redeclared symbol: %s\n",name.buf);
+        panic(itl,itl_error::redeclaration,"redeclared symbol: %s\n",name.buf);
         return;
     }
 
@@ -1831,7 +1833,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     const auto sym_opt = get_sym(itl.symbol_table,name);
                     if(!sym_opt)
                     {
-                        panic(itl,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
+                        panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
                         break;
                     }
 
@@ -1870,7 +1872,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     {
                         if(count(record_node->nodes) != count(func.return_type))
                         {
-                            panic(itl,"Invalid number of return parameters for function %s : %d != %d\n",
+                            panic(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
                                 func.name.buf,count(record_node->nodes),count(func.return_type));
                             
                             return;
@@ -1945,7 +1947,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             default:
             {
-                panic(itl,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);
+                panic(itl,itl_error::invalid_statement,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);
                 break;
             }
         }
@@ -2092,10 +2094,15 @@ void compile(Interloper &itl,const String& initial_filename)
         // build ast
         const b32 parser_error = parse(itl,initial_filename);
 
-    
         if(parser_error)
         {
-            itl.error = true;
+            // flag as generic parse error
+            if(itl.error_code == itl_error::none)
+            {
+                itl.error = true;
+                itl.error_code = itl_error::parse_error;
+            }
+
             destroy_itl(itl);
             return;
         }
