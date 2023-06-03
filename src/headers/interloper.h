@@ -10,11 +10,22 @@ using namespace destoer;
 #include <pool.h>
 #include <interpretter.h>
 
+enum class itl_error
+{
+    none,
+};
+
+static const char* ERROR_NAME[] = 
+{
+    "none",
+};
+
 struct Interloper
 {
     Array<u8> program;
 
     b32 error;
+    itl_error error_code;
 
     AstNode *cur_expr = nullptr;
     String cur_file = "";

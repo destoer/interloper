@@ -1,167 +1,203 @@
 #include <interloper.h>
 
 
-struct ProgramTest
+struct ProgramCorrectTest
 {
     const char *name;
     s32 expected;
-    bool error;
+};
+
+struct ProgramErrorTest
+{
+    const char *name;
+    itl_error error;
 };
 
 //TODO:
 // tests for void return
 // and for no return from non void
 
-static constexpr ProgramTest PROGRAM_TEST[] = 
+static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] = 
 {
     // basic
-    {"tests/basic/first",9,false},
-    {"tests/basic/arith",31,false},
-    {"tests/basic/narrow",-1,true},
-    {"tests/basic/assign",1190,false},
-    {"tests/basic/unary",-11,false},
-    {"tests/basic/redeclare",-1,true},
-    {"tests/basic/undeclared",-1,true},
-    {"tests/basic/scope",16,false},
-    {"tests/basic/out_of_scope",-1,true},
-    {"tests/basic/void_assign",-1,true},
-    {"tests/basic/bitwise",-713,false},
-    {"tests/basic/logical",1,false},
-    {"tests/basic/invalid_sign_cmp",-1,true},
-    {"tests/basic/u32_eq_s32",-1,true},
-    {"tests/basic/invalid_compare",-1,true},
-    {"tests/basic/arith_eq",294,false},
-    {"tests/basic/mod",233168,false},
-    {"tests/basic/shift",1,false},
-    {"tests/basic/comment",0,false},
+    {"tests/basic/narrow",itl_error::none},
+    {"tests/basic/redeclare",itl_error::none},
+    {"tests/basic/undeclared",itl_error::none},
+    {"tests/basic/out_of_scope",itl_error::none},
+    {"tests/basic/void_assign",itl_error::none},
+    {"tests/basic/invalid_sign_cmp",itl_error::none},
+    {"tests/basic/u32_eq_s32",itl_error::none},
+    {"tests/basic/invalid_compare",itl_error::none},
 
     // type
-    {"tests/type/decl",255,false},
-    {"tests/type/builtin_type",271,false},
-    {"tests/type/sizeof",1,false},
-    {"tests/type/default_initializer",1,false},
-    {"tests/type/byte",0,false},
-    {"tests/type/byte_invalid",-1,true},
-    {"tests/type/struct_punning",11,false},
+    {"tests/type/byte_invalid",itl_error::none},
 
     // const
-    {"tests/const/const_invalid_assign",-1,true},
-    {"tests/const/const_pass_copy.itl",100,false},
-    {"tests/const/const_pass_invalid_ptr.itl",-1,true},
-    {"tests/const/const_valid.itl",10,false},
-    {"tests/const/const_assign_value.itl",5,false},
-    {"tests/const/const_invalid_ptr_assign.itl",-1,true},
-    {"tests/const/const_array_index_invalid.itl",-1,true},
+    {"tests/const/const_invalid_assign",itl_error::none},
+    {"tests/const/const_pass_invalid_ptr.itl",itl_error::none},
+    {"tests/const/const_invalid_ptr_assign.itl",itl_error::none},
+    {"tests/const/const_array_index_invalid.itl",itl_error::none},
 
     // func
-    {"tests/func/func",9,false},
-    {"tests/func/no_main",-1,true},
-    {"tests/func/invalid_args",-1,true},
-    {"tests/func/void_return",255,false},
-    {"tests/func/void_no_return",0,false},
-    {"tests/func/redefine_func",-1,true},
-    {"tests/func/recur",1,false},
+    {"tests/func/no_main",itl_error::none},
+    {"tests/func/invalid_args",itl_error::none},
+    {"tests/func/redefine_func",itl_error::none},
+
+    // control_flow
+    {"tests/control_flow/switch_duplicate",itl_error::none},
+
+    // pointers
+    {"tests/ptr/deref_plain",itl_error::none},
+    {"tests/ptr/expected_ptr",itl_error::none},
+    {"tests/ptr/invalid_ptr_compare",itl_error::none},
+    {"tests/ptr/null_invalid",itl_error::none},
+
+    // arrays
+    {"tests/array/array_pass_u32",itl_error::none},
+    {"tests/array/array_mismatched_type",itl_error::none},
+    {"tests/array/deref_array_of_ptr_invalid",itl_error::none},
+
+    // strings
+
+    // structs
+    {"tests/struct/redeclare_struct",itl_error::none},
+    {"tests/struct/redeclare_member",itl_error::none},
+    {"tests/struct/recursive_struct_invalid",itl_error::none},
+
+    // stl
+
+
+    // enum
+    {"tests/enum/enum_invalid_member",itl_error::none},
+    {"tests/enum/enum_redeclare_member",itl_error::none},
+    {"tests/enum/enum_redeclare",itl_error::none},
+
+    // type alias
+
+    // tuple
+};
+
+static constexpr u32 PROGRAM_ERROR_TEST_SIZE = sizeof(PROGRAM_ERROR_TEST) / sizeof(ProgramErrorTest);
+
+static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] = 
+{
+    // basic
+    {"tests/basic/first",9},
+    {"tests/basic/arith",31},
+    {"tests/basic/assign",1190},
+    {"tests/basic/unary",-11},
+    {"tests/basic/scope",16},
+    {"tests/basic/bitwise",-713},
+    {"tests/basic/logical",1},
+    {"tests/basic/arith_eq",294},
+    {"tests/basic/mod",233168},
+    {"tests/basic/shift",1},
+    {"tests/basic/comment",0},
+
+    // type
+    {"tests/type/decl",255},
+    {"tests/type/builtin_type",271},
+    {"tests/type/sizeof",1},
+    {"tests/type/default_initializer",1},
+    {"tests/type/byte",0},
+    {"tests/type/struct_punning",11},
+
+    // const
+    {"tests/const/const_pass_copy.itl",100},
+    {"tests/const/const_valid.itl",10},
+    {"tests/const/const_assign_value.itl",5},
+
+    // func
+    {"tests/func/func",9},
+    {"tests/func/void_return",255},
+    {"tests/func/void_no_return",0},
+    {"tests/func/recur",1},
 
     // control flow
-    {"tests/control_flow/if",25,false},
-    {"tests/control_flow/else_if",45077,false},
-    {"tests/control_flow/else_if_no_else",94220,false},
-    {"tests/control_flow/else_empty",7,false},
-    {"tests/control_flow/nested_if",575,false},
-    {"tests/control_flow/for",32,false},
-    {"tests/control_flow/for_idx",10,false},
-    {"tests/control_flow/for_outer_decl",32,false},
-    {"tests/control_flow/while",32,false},
-/*
-    {"tests/control_flow/switch_no_default",73,false},
-    {"tests/control_flow/switch",447,false},
-    {"tests/control_flow/switch_duplicate",-1,true},
-*/
+    {"tests/control_flow/if",25},
+    {"tests/control_flow/else_if",45077},
+    {"tests/control_flow/else_if_no_else",94220},
+    {"tests/control_flow/else_empty",7},
+    {"tests/control_flow/nested_if",575},
+    {"tests/control_flow/for",32},
+    {"tests/control_flow/for_idx",10},
+    {"tests/control_flow/for_outer_decl",32},
+    {"tests/control_flow/while",32},
+
+    {"tests/control_flow/switch_no_default",73},
+    {"tests/control_flow/switch",447},
 
 
     // pointers
     // TODO: impl pointer casting (wait for coerce operation)
-    {"tests/ptr/pointer",-2,false},
-    {"tests/ptr/deref_plain",-1,true},
-    {"tests/ptr/ptr_to_ptr",1,true},
-    {"tests/ptr/expected_ptr",-1,true},
-    {"tests/ptr/cast_ptr",1020,false},
-    {"tests/ptr/null",1,false},
-    {"tests/ptr/invalid_ptr_compare",-1,true},
-    {"tests/ptr/null_invalid",-1,true},
-    {"tests/ptr/alias",5,true},
+    {"tests/ptr/pointer",-2},
+    {"tests/ptr/cast_ptr",1020},
+    {"tests/ptr/ptr_to_ptr",1,},
+    {"tests/ptr/null",1},
+    {"tests/ptr/alias",5},
 
     // wait for heap allocation
-    //{"tests/ptr/ptr_to_array",3,false},
-    //{"tests/ptr/ptr_to_fixed_array",-1,true},
-    //{"tests/ptr/ptr_to_array_member",4,false},
+    //{"tests/ptr/ptr_to_array",3},
+    //{"tests/ptr/ptr_to_fixed_array",itl_error::none},
+    //{"tests/ptr/ptr_to_array_member",4},
 
 
 
 
     // arrays
-    {"tests/array/array",1061,false},
-    {"tests/array/array_size",16,false},
-    {"tests/array/array_initializer",16,false},
-    {"tests/array/array_conv",6,false},
-    {"tests/array/array_pass_u32",-1,true},
-    {"tests/array/array_auto_size",16,false},
-    {"tests/array/array_mismatched_type",-1,true},
-    {"tests/array/array_take_pointer",5,false},
-    {"tests/array/array_of_ptr",6,false},
-    {"tests/array/deref_array_of_ptr_invalid",-1,true},
-    {"tests/array/array_multi_fixed_size.itl",7200,false},
+    {"tests/array/array",1061},
+    {"tests/array/array_size",16},
+    {"tests/array/array_initializer",16},
+    {"tests/array/array_conv",6},
+    {"tests/array/array_auto_size",16},
+    {"tests/array/array_take_pointer",5},
+    {"tests/array/array_of_ptr",6},
+    {"tests/array/array_multi_fixed_size.itl",7200},
 
     // TODO: type check array initalizer assignemnts
 
     // wait for heap allocation
-    //{"tests/array/array_assign_vla",3,false},
-    //{"tests/array/array_assign_vla_fixed",-1,true},
+    //{"tests/array/array_assign_vla",3},
+    //{"tests/array/array_assign_vla_fixed",itl_error::none},
     
 
     // strings
-    {"tests/string/char_array",7,false},
-    {"tests/string/write_string",0,false},
-    {"tests/string/write_string_static",0,false},
+    {"tests/string/char_array",7},
+    {"tests/string/write_string",0},
+    {"tests/string/write_string_static",0},
 
     // structs
-    {"tests/struct/struct",495,false},
-    {"tests/struct/struct_initializer",495,false},
-    {"tests/struct/pass_struct",2,false},
-    {"tests/struct/return_struct",3,false},
-    {"tests/struct/return_struct_tmp",3,false},
-    {"tests/struct/point",5,false},
-    {"tests/struct/array_of_struct",179,false},
-    {"tests/struct/redeclare_struct",-1,true},
-    {"tests/struct/redeclare_member",-1,true},
-    {"tests/struct/nested_struct",20,false},
-    {"tests/struct/recursive_struct_invalid",-1,true},
-    {"tests/struct/struct_of_ptr",154,false},
-    {"tests/struct/struct_of_arrays",28,false},
-    {"tests/struct/struct_assign",6,false},
-    {"tests/struct/reorder",8,false},
+    {"tests/struct/struct",495},
+    {"tests/struct/struct_initializer",495},
+    {"tests/struct/pass_struct",2},
+    {"tests/struct/return_struct",3},
+    {"tests/struct/return_struct_tmp",3},
+    {"tests/struct/point",5},
+    {"tests/struct/array_of_struct",179},
+    {"tests/struct/nested_struct",20},
+    {"tests/struct/struct_of_ptr",154},
+    {"tests/struct/struct_of_arrays",28},
+    {"tests/struct/struct_assign",6},
+    {"tests/struct/reorder",8},
 
     // stl
-    {"tests/stl/linked_list",66,false},
-    {"tests/stl/mem",0,false},
+    {"tests/stl/linked_list",66},
+    {"tests/stl/mem",0},
 
 
     // enum
-    {"tests/enum/enum",1,false},
-    {"tests/enum/enum_invalid_member",-1,true},
-    {"tests/enum/enum_redeclare_member",-1,true},
-    {"tests/enum/enum_redeclare",-1,true},
-    {"tests/enum/switch_enum",10,false},
+    {"tests/enum/enum",1},
+    {"tests/enum/switch_enum",10},
 
     // type alias
-    {"tests/type_alias/type_alias",65,false},
+    {"tests/type_alias/type_alias",65},
 
     // tuple
-    {"tests/tuple/tuple",1,false},
+    {"tests/tuple/tuple",1},
 
 };
 
-static constexpr u32 PROGRAM_TEST_SIZE = sizeof(PROGRAM_TEST) / sizeof(ProgramTest);
+static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);
 
 void run_tests()
 {
@@ -173,26 +209,19 @@ void run_tests()
 
     Interloper itl;
     Interpretter interpretter = make_interpretter();
-    for(u32 i = 0; i < PROGRAM_TEST_SIZE; i++)
+    for(u32 i = 0; i < PROGRAM_CORRECT_TEST_SIZE; i++)
     {
         destroy_itl(itl);
         
-        const auto &test = PROGRAM_TEST[i];
+        const auto &test = PROGRAM_CORRECT_TEST[i];
         
         compile(itl,test.name);
 
-        if(test.error && itl.error)
+        if(itl.error)
         {
-            printf("Pass %s\n",test.name);
-            continue;
-        }
-
-        else if(itl.error && !test.error)
-        {
-            printf("Fail %s error does not match %d != %d\n",test.name,test.error,itl.error);
+            printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.error_code)]);
             return;
         }
-
 
         const auto r = run(interpretter,itl.program);      
 
@@ -200,6 +229,24 @@ void run_tests()
         if(test.expected != r)
         {
             printf("Fail %s return code does not match %d != %d\n",test.name,test.expected,r);
+            return;
+        }
+
+        printf("Pass: %s\n",test.name);
+    }
+
+
+    for(u32 i = 0; i < PROGRAM_ERROR_TEST_SIZE; i++)
+    {
+        destroy_itl(itl);
+        
+        const auto &test = PROGRAM_ERROR_TEST[i];
+        
+        compile(itl,test.name);
+
+        if(itl.error_code != test.error)
+        {
+            printf("Fail %s expected error code %s got %s\n",test.name,ERROR_NAME[u32(itl.error_code)],ERROR_NAME[u32(test.error)]);
             return;
         }
 

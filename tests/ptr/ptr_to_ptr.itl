@@ -1,19 +1,19 @@
 
 // expected 1
-func swap(s32 @@v1, s32 @@v2)
+func swap(v1 : s32@@, v2 : s32@@)
 {
     decl tmp = @v1;
     @v1 = @v2;
     @v2 = tmp;
 }
 
-func s32 main()
+func main() s32
 {
-    s32 x = 1;
-    s32 y = 2;
+    x : s32 = 1;
+    y : s32 = 2;
 
-    s32 @y_ptr = &y;
-    s32 @x_ptr = &x;
+    y_ptr : s32@ = &y;
+    x_ptr : s32@ = &x;
 
     swap(&x_ptr,&y_ptr);
 

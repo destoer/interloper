@@ -2071,6 +2071,7 @@ void compile(Interloper &itl,const String& initial_filename)
     printf("compiling file: %s\n",initial_filename.buf);
 
     itl.error = false;
+    itl.error_code = itl_error::none;
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
