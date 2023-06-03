@@ -526,6 +526,49 @@ void print_type(Interloper& itl, const Type* type)
     printf("type: %s\n",type_name(itl,type).buf);
 }
 
+// NOTE: 
+// to be used externally when attempting to find a type decl
+// dont look it up in the type table directly as the definition might not
+// have been parsed yet
+TypeDecl* lookup_type(Interloper& itl,const String& name)
+{
+    TypeDecl* user_type = lookup(itl.type_table,name);
+
+    // currently type does not exist
+    // attempt to parse the def
+    if(!user_type)
+    {
+        // look if there is a defintion for this type!
+        // if there is not then we have an error
+        TypeDef *def_ptr = lookup(itl.type_def,name);
+
+        // no such definiton exists
+        // NOTE: this is allowed to not panic the 
+        // caller is expected to check the pointer and not just
+        // compiler error state
+        if(!def_ptr)
+        {
+            return nullptr;
+        }
+
+        // okay attempt to parse the def
+        TypeDef& def = *def_ptr;
+        parse_def(itl,def);
+
+        // def parsing failed in some fashion just bail out
+        // there are no options left
+        if(itl.error)
+        {
+            return nullptr;
+        }
+
+        // okay now we have the type
+        user_type = lookup(itl.type_table,name);
+    }
+
+    return user_type;
+}
+
 Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
     Type* type = nullptr;
@@ -539,35 +582,12 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
     {
         const auto name = type_decl->name;
 
-        TypeDecl* user_type = lookup(itl.type_table,name);
+        TypeDecl* user_type = lookup_type(itl,name);
 
-        // currently type does not exist
         if(!user_type)
         {
-            // look if there is a defintion for this type!
-            // if there is not then we have an error
-            TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
-
-            // no such definiton exists
-            if(!def_ptr)
-            {
-                panic(itl,"no type named %s\n",name.buf);
-                return make_builtin(itl,builtin_type::void_t);
-            }
-
-            // okay attempt to parse the def
-            TypeDef& def = *def_ptr;
-            parse_def(itl,def);
-
-            // def parsing failed in some fashion just bail out
-            // there are no options left
-            if(itl.error)
-            {
-                return make_builtin(itl,builtin_type::void_t);
-            }
-
-            // okay now we have the type
-            user_type = lookup(itl.type_table,name);
+            panic(itl,"no such type %s\n",type_decl->name);
+            return make_builtin(itl,builtin_type::void_t);
         }
 
         switch(user_type->kind)
@@ -1340,7 +1360,16 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
 
         case type_kind::struct_t:
         {
-            unimplemented("struct type info");
+            if(member_name == "size")
+            {
+                const auto& structure = itl.struct_table[type_decl.type_idx];
+                const u32 size = structure.size;
+
+                emit(func,op_type::mov_imm,dst_slot,size);
+
+                return make_builtin(itl,builtin_type::u32_t);
+            }
+
             return make_builtin(itl,builtin_type::void_t);
         }
 

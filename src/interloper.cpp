@@ -827,7 +827,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         {
             ScopeNode* first_stmt = (ScopeNode*)first_case->statement;
 
-            TypeDecl* type_decl = lookup(itl.type_table,first_stmt->scope);
+            TypeDecl* type_decl = lookup_type(itl,first_stmt->scope);
 
             if(!(type_decl && type_decl->kind == type_kind::enum_t))
             {
@@ -1287,7 +1287,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                     LiteralNode* sym_node = (LiteralNode*)expr_node;
                     const auto name = sym_node->literal;
 
-                    TypeDecl* type_decl = lookup(itl.type_table,name);
+                    TypeDecl* type_decl = lookup_type(itl,name);
 
                     if(type_decl)
                     {
@@ -1298,7 +1298,6 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                         return type;
                     }
                 }
-
             }
 
             
@@ -1341,7 +1340,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         {
             UnaryNode* unary_node = (UnaryNode*)node;
 
-            // TODO: is it worth while adding this for type names?
+            // TODO: should this work with type names?
             const auto [type,slot] = compile_oper(itl,func,unary_node->next);
 
 
@@ -1590,7 +1589,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
             ScopeNode* scope_node = (ScopeNode*)node;
 
-            TypeDecl* type_decl = lookup(itl.type_table,scope_node->scope);
+            TypeDecl* type_decl = lookup_type(itl,scope_node->scope);
 
             if(type_decl && type_decl->kind == type_kind::enum_t)
             {

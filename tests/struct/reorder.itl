@@ -10,6 +10,5 @@ struct Foo
 
 func main() s32 
 {
-    foo : Foo;
-    return sizeof(foo);
+    return Foo.size;
 }
