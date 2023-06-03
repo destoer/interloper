@@ -86,149 +86,119 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     def.state = def_state::checked;
 }
 
-void parse_struct_decl(Interloper& itl, TypeDef& def)
+
+void add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, const String& filename)
 {
-    StructNode* node = (StructNode*)def.root;
+    Member member;
+    member.name = m->name;
 
-    TypeDecl* user_type = lookup(itl.type_table,node->name);
-    if(user_type)
+    TypeNode* type_decl = m->type;
+
+    // copy the init expr
+    member.expr = m->expr;
+
+
+    u32 type_idx_override = INVALID_TYPE;
+
+    // member is struct that has not had its defintion parsed yet
+    if(!type_exists(itl,type_decl->name))
     {
-        panic(itl,"%s %s redeclared as struct\n",KIND_NAMES[u32(user_type->kind)],node->name.buf);
-        return;
-    }
+        TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
 
-    Struct structure;
-    
-    // allocate a reserved slot for the struct
-    const u32 slot = count(itl.struct_table);
-    def.slot = slot;
-
-    resize(itl.struct_table,count(itl.struct_table) + 1);
-
-
-    itl.cur_file = node->filename;
-
-    structure.name = node->name;
-    structure.member_map = make_table<String,u32>();
-
-    // we want to get how many sizes of each we have
-    // and then we can go back through and align the struct with them
-
-    u32 size_count[3] = {0};
-
-    // parse out members
-    for(u32 i = 0; i < count(node->members); i++)
-    {
-        DeclNode* m = node->members[i];
-
-        Member member;
-        member.name = m->name;
-
-        TypeNode* type_decl = m->type;
-
-        // copy the init expr
-        member.expr = m->expr;
-
-
-        u32 type_idx_override = INVALID_TYPE;
-
-        // member is struct that has nott had its defintion parsed yet
-        if(!type_exists(itl,type_decl->name))
+        // no such definiton exists
+        if(!def_ptr)
         {
-            TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
-
-            // no such definiton exists
-            if(!def_ptr)
-            {
-                panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->name.buf);
-                destroy_struct(structure);
-                return;
-            }
-
-            TypeDef& def = *def_ptr;
-
-            // if we attempt to check a partial defintion twice that the definition is recursive
-            if(def.state == def_state::checking)
-            {
-                // if its a pointer we dont need the complete inormation yet as they are all alike
-                // so just override the type idx from the one reserved inside the def
-                if(def_has_indirection(type_decl))
-                {
-                    type_idx_override = def.slot;
-                }
-
-                else
-                {
-                    // panic to prevent having our struct collpase into a black hole
-                    panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->name.buf);
-                    destroy_struct(structure);
-                    return;
-                }
-            }
-
-            else
-            {
-                parse_def(itl,def);
-
-                if(itl.error)
-                {
-                    destroy_struct(structure);
-                    return;
-                }
-            }
-        }
-
-        itl.cur_file = node->filename;
-
-        member.type = get_type(itl,type_decl,type_idx_override,true);
-
-        // TODO: ensure array type cant use a deduced type size
-
-
-        u32 size;
-
-        if(is_fixed_array(member.type))
-        {
-            size = arr_size(member.type);
-        }
-
-        else
-        {
-            size = type_size(itl,member.type);
-        }
-
-        // TODO: handle fixed sized arrays
-
-        // translate larger items, into several allocations on the final section
-        if(size > GPR_SIZE)
-        {
-            member.offset = size_count[GPR_SIZE >> 1];
-
-            size_count[GPR_SIZE >> 1] += gpr_count(size);
-        }
-
-        else
-        {
-            // cache the offset into its section
-            member.offset = size_count[size >> 1];
-
-            size_count[size >> 1] += 1;
-        }
-
-        const u32 loc = count(structure.members);
-
-
-        if(contains(structure.member_map,member.name))
-        {
-            panic(itl,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
+            panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->name.buf);
             destroy_struct(structure);
             return;
         }
 
-        add(structure.member_map,member.name,loc);
-        push_var(structure.members,member);
+        TypeDef& def = *def_ptr;
+
+        // if we attempt to check a partial defintion twice that the definition is recursive
+        if(def.state == def_state::checking)
+        {
+            // if its a pointer we dont need the complete inormation yet as they are all alike
+            // so just override the type idx from the one reserved inside the def
+            if(def_has_indirection(type_decl))
+            {
+                type_idx_override = def.slot;
+            }
+
+            else
+            {
+                // panic to prevent having our struct collpase into a black hole
+                panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->name.buf);
+                destroy_struct(structure);
+                return;
+            }
+        }
+
+        else
+        {
+            parse_def(itl,def);
+
+            if(itl.error)
+            {
+                destroy_struct(structure);
+                return;
+            }
+        }
     }
 
+    itl.cur_file = filename;
+
+    member.type = get_type(itl,type_decl,type_idx_override,true);
+
+    // TODO: ensure array type cant use a deduced type size
+
+
+    u32 size;
+
+    if(is_fixed_array(member.type))
+    {
+        size = arr_size(member.type);
+    }
+
+    else
+    {
+        size = type_size(itl,member.type);
+    }
+
+    // TODO: handle fixed sized arrays
+
+    // translate larger items, into several allocations on the final section
+    if(size > GPR_SIZE)
+    {
+        member.offset = size_count[GPR_SIZE >> 1];
+
+        size_count[GPR_SIZE >> 1] += gpr_count(size);
+    }
+
+    else
+    {
+        // cache the offset into its section
+        member.offset = size_count[size >> 1];
+
+        size_count[size >> 1] += 1;
+    }
+
+    const u32 loc = count(structure.members);
+
+
+    if(contains(structure.member_map,member.name))
+    {
+        panic(itl,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
+        destroy_struct(structure);
+        return;
+    }
+
+    add(structure.member_map,member.name,loc);
+    push_var(structure.members,member);    
+}
+
+void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count)
+{
     // TODO: handle not reordering the struct upon request
 
     // handle alginment & get starting zonnes + total size
@@ -261,6 +231,44 @@ void parse_struct_decl(Interloper& itl, TypeDef& def)
 
     // get the total structure size
     structure.size = alloc_start[2] + (size_count[2] * sizeof(u32));
+}
+
+void parse_struct_decl(Interloper& itl, TypeDef& def)
+{
+    StructNode* node = (StructNode*)def.root;
+
+    TypeDecl* user_type = lookup(itl.type_table,node->name);
+    if(user_type)
+    {
+        panic(itl,"%s %s redeclared as struct\n",KIND_NAMES[u32(user_type->kind)],node->name.buf);
+        return;
+    }
+
+    Struct structure;
+    
+    // allocate a reserved slot for the struct
+    const u32 slot = count(itl.struct_table);
+    def.slot = slot;
+
+    resize(itl.struct_table,count(itl.struct_table) + 1);
+
+
+    structure.name = node->name;
+    structure.member_map = make_table<String,u32>();
+
+    // we want to get how many sizes of each we have
+    // and then we can go back through and align the struct with them
+
+    u32 size_count[3] = {0};
+
+    // parse out members
+    for(u32 i = 0; i < count(node->members); i++)
+    {
+        add_member(itl,structure,node->members[i],size_count,node->filename);
+    }
+
+
+    finalise_member_offsets(itl,structure,size_count);
 
     if(itl.print_types)
     {
