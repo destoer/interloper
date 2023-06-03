@@ -233,7 +233,7 @@ TypeNode *parse_type(Parser &parser)
 
 
 
-AstNode *declaration(Parser &parser)
+AstNode *declaration(Parser &parser, token_type terminator)
 {
     // declartion
     // symbol ':' type ( ';' | '=' expression ';')
@@ -266,13 +266,6 @@ AstNode *declaration(Parser &parser)
 
     switch(eq.type)
     {
-        // declartion without assigment
-        case token_type::semi_colon:
-        {
-            consume(parser,token_type::semi_colon);
-            break;
-        }
-
         // declartion with assingment
         case token_type::equal:
         {
@@ -284,7 +277,15 @@ AstNode *declaration(Parser &parser)
 
         default:
         {
-            panic(parser,eq,"malformed declartion: %s\n",tok_name(eq.type));
+            if(eq.type == terminator)
+            {
+                consume(parser,terminator);
+            }
+
+            else
+            {
+                panic(parser,eq,"malformed declartion: %s expected terminator %s\n",tok_name(eq.type),tok_name(terminator));
+            }
             break;
         }
     }
@@ -618,7 +619,7 @@ AstNode *statement(Parser &parser)
                 case token_type::colon:
                 {
                     prev_token(parser);
-                    return declaration(parser);    
+                    return declaration(parser,token_type::semi_colon);    
                 }
 
                 // assignment expr
@@ -699,7 +700,7 @@ AstNode *statement(Parser &parser)
                 // decl 
                 if(peek(parser,1).type == token_type::colon)
                 {
-                    for_node->initializer = declaration(parser);
+                    for_node->initializer = declaration(parser,token_type::semi_colon);
                 }
 
                 // standard stmt
@@ -1090,11 +1091,19 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
 
     StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,filename,name);
 
+    // Does this struct have a forced first member?
+    if(match(parser,token_type::left_paren))
+    {
+        consume(parser,token_type::left_paren);
+
+        struct_node->forced_first = (DeclNode*)declaration(parser,token_type::right_paren);
+    }
+
     consume(parser,token_type::left_c_brace);
 
     while(!match(parser,token_type::right_c_brace))
     {
-        DeclNode* decl = (DeclNode*)declaration(parser);
+        DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
 
         if(!decl)
         {
@@ -1239,7 +1248,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
                 if(match(parser,token_type::colon))
                 {
                     prev_token(parser);
-                    push_var(itl.global_def,(DeclNode*)declaration(parser));
+                    push_var(itl.global_def,(DeclNode*)declaration(parser,token_type::semi_colon));
                 }
 
                 else

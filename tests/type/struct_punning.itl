@@ -1,0 +1,39 @@
+
+
+struct Bar
+{
+    is_foo : bool;
+    x : u32;
+}
+
+struct Foo (bar : Bar)
+{
+    y : u32;
+}
+
+func sum_struct(bar : const Bar@) s32
+{
+    return bar.x;
+}
+
+func make_bar(x : u32) Bar
+{
+    bar : Bar = {false,x};
+
+    return bar;
+}
+
+func make_foo(x : u32, y : u32) Foo
+{
+    foo : Foo = {{true,x},y};
+
+    return foo;
+}
+
+func main() s32
+{
+    foo : Foo = make_foo(3,2);
+    bar : Bar = make_bar(5);
+
+    return sum_struct(&foo.bar) + sum_struct(&bar);
+}

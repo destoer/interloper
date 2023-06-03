@@ -351,6 +351,8 @@ struct StructNode
     String name;
     String filename;
     Array<DeclNode*> members;
+    // is there a member forced to be first in the memory layout?
+    DeclNode* forced_first = nullptr;
 };
 
 
