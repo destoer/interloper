@@ -1278,7 +1278,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         if(parser.error)
         {
             // print line number
-            print_line(filename,parser.line);
+            print_line(filename,parser.line + 1);
             destroy_arr(parser.tokens);
             return true;
         }

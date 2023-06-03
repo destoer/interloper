@@ -397,6 +397,12 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
                     advance(lexer);
                 }
 
+                else if(peek(lexer.idx+1,file) == '+')
+                {
+                    insert_token(lexer,token_type::increment);
+                    advance(lexer);
+                }
+
                 else
                 {
                     insert_token(lexer,token_type::plus); 
@@ -406,8 +412,15 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
 
             case '-': 
             {
+                if(peek(lexer.idx+1,file) == '-')
+                {
+                    insert_token(lexer,token_type::decrement);
+                    advance(lexer);
+                }
+
+
                 // parse out negative literal
-                if(isdigit(peek(lexer.idx+1,file)))
+                else if(isdigit(peek(lexer.idx+1,file)))
                 {
                     if(decode_imm(lexer,file))
                     {
@@ -424,7 +437,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
 
                 else
                 {
-                    insert_token(lexer,token_type::minus); break;
+                    insert_token(lexer,token_type::minus);
                 }
                 break;
             }

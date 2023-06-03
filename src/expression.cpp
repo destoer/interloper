@@ -399,7 +399,7 @@ AstNode *expression(Parser &parser,s32 rbp)
 
     auto left = nud(parser,cur);
 
-    if(parser.terminate)
+    if(parser.terminate || parser.error)
     {
         return left;
     }
@@ -416,7 +416,7 @@ AstNode *expression(Parser &parser,s32 rbp)
         parser.expr_tok = next_token(parser);
         left = led(parser,cur,left);
 
-        if(parser.terminate)
+        if(parser.terminate || parser.error)
         {
             return left;
         }
