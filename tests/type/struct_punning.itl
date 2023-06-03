@@ -8,11 +8,18 @@ struct Bar
 
 struct Foo (bar : Bar)
 {
-    y : u32;
+    y : u8;
 }
 
 func sum_struct(bar : const Bar@) s32
 {
+    if(bar.is_foo)
+    {
+        foo : Foo@ = cast(Foo@,bar);
+
+        return foo.bar.x * foo.y;
+    }
+
     return bar.x;
 }
 
@@ -23,7 +30,7 @@ func make_bar(x : u32) Bar
     return bar;
 }
 
-func make_foo(x : u32, y : u32) Foo
+func make_foo(x : u32, y : u8) Foo
 {
     foo : Foo = {{true,x},y};
 

@@ -86,8 +86,27 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     def.state = def_state::checked;
 }
 
+static constexpr u32 OFFSET_FORCED_FIRST = 0xffff'ffff;
 
-void add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, const String& filename)
+u32 compute_member_size(Interloper& itl,const Type* type)
+{
+    u32 size;
+
+    if(is_fixed_array(type))
+    {
+        size = arr_size(type);
+    }
+
+    else
+    {
+        size = type_size(itl,type);
+    }
+
+    return size;    
+}
+
+// returns member loc
+u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, const String& filename, b32 forced_first)
 {
     Member member;
     member.name = m->name;
@@ -110,7 +129,7 @@ void add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, 
         {
             panic(itl,"%s : member type %s is not defined\n",structure.name.buf,type_decl->name.buf);
             destroy_struct(structure);
-            return;
+            return 0;
         }
 
         TypeDef& def = *def_ptr;
@@ -130,7 +149,7 @@ void add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, 
                 // panic to prevent having our struct collpase into a black hole
                 panic(itl,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->name.buf);
                 destroy_struct(structure);
-                return;
+                return 0;
             }
         }
 
@@ -141,7 +160,7 @@ void add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, 
             if(itl.error)
             {
                 destroy_struct(structure);
-                return;
+                return 0;
             }
         }
     }
@@ -153,34 +172,33 @@ void add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, 
     // TODO: ensure array type cant use a deduced type size
 
 
-    u32 size;
-
-    if(is_fixed_array(member.type))
+    if(forced_first)
     {
-        size = arr_size(member.type);
+        member.offset = OFFSET_FORCED_FIRST;
     }
 
+    // normal member decl
     else
     {
-        size = type_size(itl,member.type);
-    }
+        const u32 size = compute_member_size(itl,member.type);
 
-    // TODO: handle fixed sized arrays
+        // TODO: handle fixed sized arrays
 
-    // translate larger items, into several allocations on the final section
-    if(size > GPR_SIZE)
-    {
-        member.offset = size_count[GPR_SIZE >> 1];
+        // translate larger items, into several allocations on the final section
+        if(size > GPR_SIZE)
+        {
+            member.offset = size_count[GPR_SIZE >> 1];
 
-        size_count[GPR_SIZE >> 1] += gpr_count(size);
-    }
+            size_count[GPR_SIZE >> 1] += gpr_count(size);
+        }
 
-    else
-    {
-        // cache the offset into its section
-        member.offset = size_count[size >> 1];
+        else
+        {
+            // cache the offset into its section
+            member.offset = size_count[size >> 1];
 
-        size_count[size >> 1] += 1;
+            size_count[size >> 1] += 1;
+        }
     }
 
     const u32 loc = count(structure.members);
@@ -190,14 +208,16 @@ void add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, 
     {
         panic(itl,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
         destroy_struct(structure);
-        return;
+        return 0;
     }
 
     add(structure.member_map,member.name,loc);
-    push_var(structure.members,member);    
+    push_var(structure.members,member); 
+
+    return loc;   
 }
 
-void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count)
+void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count, s32 forced_first)
 {
     // TODO: handle not reordering the struct upon request
 
@@ -206,6 +226,19 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
 
     // bytes just start at offset zero (and being bytes dont need aligment)
     alloc_start[0] = 0;
+
+    // insert this as the first set of data in the byte section
+    if(forced_first != -1)
+    {
+        auto& member = structure.members[forced_first];
+        const u32 size = compute_member_size(itl,member.type);
+        
+        // include allocation for this member
+        size_count[0] += size;
+
+        // usual byte start offset by our insertion at front
+        alloc_start[0] = size;
+    }
 
     // get u16 start pos and align it on its own boudary
     alloc_start[1] = size_count[0] * sizeof(u8);
@@ -226,7 +259,15 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
         u32 size = type_size(itl,member.type);
         size = size > GPR_SIZE? GPR_SIZE : size;
 
-        member.offset = alloc_start[size >> 1] + (zone_offset * size);
+        if(member.offset == OFFSET_FORCED_FIRST)
+        {
+            member.offset = 0;
+        }
+
+        else 
+        {
+            member.offset = alloc_start[size >> 1] + (zone_offset * size);
+        }
     }
 
     // get the total structure size
@@ -258,17 +299,28 @@ void parse_struct_decl(Interloper& itl, TypeDef& def)
 
     // we want to get how many sizes of each we have
     // and then we can go back through and align the struct with them
-
     u32 size_count[3] = {0};
+
+    s32 forced_first_loc = -1;
+
+    // force this to be at the first location in mem
+    if(node->forced_first)
+    {
+        forced_first_loc = add_member(itl,structure,node->forced_first,size_count,node->filename,true);
+    }
 
     // parse out members
     for(u32 i = 0; i < count(node->members); i++)
     {
-        add_member(itl,structure,node->members[i],size_count,node->filename);
+        if(itl.error)
+        {
+            return;
+        }
+
+        add_member(itl,structure,node->members[i],size_count,node->filename,false);
     }
 
-
-    finalise_member_offsets(itl,structure,size_count);
+    finalise_member_offsets(itl,structure,size_count,forced_first_loc);
 
     if(itl.print_types)
     {
