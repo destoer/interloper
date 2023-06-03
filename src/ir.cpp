@@ -1240,11 +1240,11 @@ void allocate_registers(Interloper& itl,Function &func)
         
         while(node)
         {
-            // free any regs that are now dead from the last opcode
-            clean_dead_regs(itl.symbol_table,alloc,block,node);
-
             node = allocate_opcode(itl,func,alloc,block,node);
             alloc.pc++;
+
+            // free any regs that are now dead from the last opcode
+            clean_dead_regs(itl.symbol_table,alloc,block,node);
         }
 
         auto opcode = block.list.end->opcode;

@@ -14,7 +14,7 @@ struct Type
 };
 
 
-/*
+
 struct PointerType (type : const Type)
 {
     contained_type : const Type@;
@@ -31,7 +31,6 @@ struct EnumType (type : const Type)
 };
 
 
-
 struct ArrayType (type : const Type)
 {
     contained_type : const Type@;
@@ -42,7 +41,6 @@ struct ArrayType (type : const Type)
     // size of indexing array
     sub_size : const u32;
 };
-*/
 
 struct Any
 {
