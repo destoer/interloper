@@ -426,7 +426,7 @@ void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode
 }
 
 // TODO: how should this behave for globals?
-void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot slot)
+void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot slot, b32 after)
 {
     // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
     if(is_sym(slot))
@@ -454,7 +454,7 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
         // or if we are in a loop and a sym scope extends past loop
         if(sym.reg.aliased || used_beyond_loop)
         {
-            spill(slot,alloc,table,block,node);
+            spill(slot,alloc,table,block,node,after);
         }
 
             
@@ -561,13 +561,13 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
     }         
 }
 
-void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
+void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node, b32 after = false)
 {
     while(alloc.dead_count)
     {
         const SymSlot slot = alloc.dead_slot[--alloc.dead_count];
 
-        clean_dead_reg(table,alloc,block,node,slot);
+        clean_dead_reg(table,alloc,block,node,slot,after);
     }    
 }
 
@@ -1240,11 +1240,11 @@ void allocate_registers(Interloper& itl,Function &func)
         
         while(node)
         {
-            node = allocate_opcode(itl,func,alloc,block,node);
-            alloc.pc++;
-
             // free any regs that are now dead from the last opcode
             clean_dead_regs(itl.symbol_table,alloc,block,node);
+
+            node = allocate_opcode(itl,func,alloc,block,node);
+            alloc.pc++;
         }
 
         auto opcode = block.list.end->opcode;
@@ -1255,11 +1255,18 @@ void allocate_registers(Interloper& itl,Function &func)
         // TODO: we want to get rid of this with a proper global allocator...
         if(ENTRY.group == op_group::branch_t)
         {
+            // free any regs dead on the last opcode
+            clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,false);
+
             spill_all(alloc,itl.symbol_table,block,block.list.end,false);
         }
 
         else
         {
+            // free any regs dead on the last opcode
+            clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,true);
+
+
             // fall through spill after data has been written out
             spill_all(alloc,itl.symbol_table,block,block.list.end,true);
         }
