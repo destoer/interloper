@@ -28,7 +28,28 @@ s32 lbp(Parser &parser,const Token &t)
 
     if(bp == -1)
     {
-        panic(parser,t,"lbp: illegal token: %s\n",tok_name(t.type));
+        switch(t.type)
+        {
+            case token_type::increment:
+            {
+                panic(parser,t,"increment operator not supported\n");
+                break;
+            }
+
+            case token_type::decrement:
+            {
+                panic(parser,t,"decrement operator not supported\n");
+                break;
+            }
+
+            default:
+            {
+                panic(parser,t,"lbp: illegal token: %s\n",tok_name(t.type));
+                break;
+            }
+        }
+
+        
     }
 
     return bp;
