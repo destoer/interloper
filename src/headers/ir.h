@@ -302,6 +302,7 @@ struct Reg
 };
 
 Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed);
+void destroy_reg(Reg& ir_reg);
 void print(const Reg& reg);
 
 // standard symbols

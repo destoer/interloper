@@ -218,23 +218,32 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                     arg_clean += 2;                    
                 }
 
-                // push vla struct in reverse order
-                // This conversion is implicit
-                // TODO: this needs to handle conversions on multidimensional arrays
-                else if(is_runtime_size(arg.type))
+                else if(is_array(arg_type))
                 {
-                    const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
-                    push_arg(func,len_slot);
+                    // push vla struct in reverse order
+                    // This conversion is implicit
+                    // TODO: this needs to handle conversions on multidimensional arrays
+                    if(is_runtime_size(arg.type))
+                    {
+                        const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
+                        push_arg(func,len_slot);
 
-                    const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
-                    push_arg(func,data_slot);
+                        const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
+                        push_arg(func,data_slot);
 
-                    arg_clean += 2;  
+                        arg_clean += 2;  
+                    }
+
+                    else
+                    {
+                        unimplemented("pass fixed size");
+                    }
                 }
 
                 else
                 {
-                    unimplemented("pass fixed size");
+                    panic(itl,itl_error::array_type_error,"Expected array for arg got type %s\n",type_name(itl,arg_type));
+                    return make_builtin(itl,builtin_type::void_t);
                 }
 
                 check_assign(itl,arg.type,arg_type,true);

@@ -154,6 +154,11 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
     return reg;
 }
 
+void destroy_reg(Reg& ir_reg)
+{
+    destroy_arr(ir_reg.usage);
+}
+
 void print(const Reg& reg)
 {
     printf("offset: %x\n",reg.offset);

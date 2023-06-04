@@ -133,7 +133,7 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
     return label_from_idx(handle);
 }
 
-void clear(SymbolTable &sym_table)
+void destroy_sym_table(SymbolTable &sym_table)
 {
     for(u32 h = 0; h < count(sym_table.table); h++)
     {
@@ -141,6 +141,13 @@ void clear(SymbolTable &sym_table)
     }
 
     destroy_arr(sym_table.table);
+
+    for(u32 s = 0; s < count(sym_table.slot_lookup); s++)
+    {
+        auto& sym = sym_table.slot_lookup[s];
+        destroy_reg(sym.reg);
+    }
+
     destroy_arr(sym_table.slot_lookup);
     destroy_arr(sym_table.label_lookup);
 

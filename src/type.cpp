@@ -426,6 +426,7 @@ Type* make_array(Interloper& itl, Type* contained_type, u32 size)
 
     array_type->size = size;
     array_type->contained_type = contained_type;
+    array_type->sub_size = 0;
 
     return (Type*)array_type;
 }
@@ -1483,6 +1484,12 @@ void destroy_func(Function& func)
 {
     destroy_arr(func.args);
     destroy_arr(func.return_type);
+
+    for(u32 r = 0; r < count(func.registers); r++)
+    {
+        destroy_reg(func.registers[r]);
+    }
+
     destroy_arr(func.registers);
     destroy_emitter(func.emitter);
 }

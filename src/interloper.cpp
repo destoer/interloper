@@ -2022,7 +2022,7 @@ void destroy_itl(Interloper &itl)
 {
     destroy_arr(itl.program);
     destroy_const_pool(itl.const_pool);
-    clear(itl.symbol_table);
+    destroy_sym_table(itl.symbol_table);
     
     destroy_ast(itl);
 

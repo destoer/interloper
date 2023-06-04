@@ -10,6 +10,14 @@
 
 void destroy_emitter(IrEmitter& emitter)
 {
+    for(u32 b = 0; b < count(emitter.program); b++)
+    {
+        auto& block = emitter.program[b];
+
+        destroy_arr(block.exit);
+        destroy_arr(block.links);
+    }
+
     destroy_arr(emitter.program);
 }
 
@@ -198,6 +206,8 @@ Reg& reg_from_slot(SymSlot slot, SymbolTable& table, LocalAlloc& alloc)
 
 void print_uses(Reg& ir_reg)
 {
+    printf("cur use: %d\n",ir_reg.uses);
+
     for(u32 i = 0; i < count(ir_reg.usage); i++)
     {
         printf("use: %x\n",ir_reg.usage[i]);
@@ -296,8 +306,6 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
         return;
     }
 
-    assert(!ir_reg.aliased);
-
     const u32 reg = ir_reg.location;
 
     if(is_sym(ir_reg.slot))
@@ -316,6 +324,7 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
         log(alloc.print_reg_allocation,"freed tmp t%d from reg r%d\n",ir_reg.slot,reg);               
     }
 
+    assert(!ir_reg.aliased);
 
     free_reg_internal(alloc,ir_reg);
 }
@@ -324,6 +333,8 @@ u32 alloc_reg(LocalAlloc& alloc)
 {
     return alloc.free_list[--alloc.free_regs];
 }
+
+void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node, b32 after = false);
 
 void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node)
 {
@@ -339,7 +350,7 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* no
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
             // we haven't found something that can be freed yet...
-            const u32 cur_gap = ir_reg.usage[ir_reg.uses + 1] - alloc.pc;
+            const u32 cur_gap = ir_reg.usage[ir_reg.uses] - alloc.pc;
 
             // Find what reg will not be used for the longest
             // NOTE: we can probably improve what factors are at play here
@@ -548,6 +559,8 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
     allocate_slot(table,alloc,block,node,ir_reg,is_src);
     rewrite_reg_internal(table,alloc,node->opcode,reg);
 
+    ir_reg.uses++;
+
     // is this is a dst we need to write this back when spilled
     if(is_dst)
     {
@@ -555,13 +568,13 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
     }
 
     // if this is its last use schedule it for cleanup
-    if(++ir_reg.uses == count(ir_reg.usage))
+    if(ir_reg.uses == count(ir_reg.usage))
     {
         alloc.dead_slot[alloc.dead_count++] = slot;
     }         
 }
 
-void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node, b32 after = false)
+void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node, b32 after)
 {
     while(alloc.dead_count)
     {
@@ -1207,7 +1220,6 @@ void mark_lifetimes(Function& func,LocalAlloc& alloc, SymbolTable& table)
 
                 auto& reg = reg_from_slot(slot,table,alloc);
                 push_var(reg.usage,pc);
-
             }
 
             node = node->next;

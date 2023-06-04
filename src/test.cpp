@@ -205,6 +205,8 @@ void run_tests()
     auto start = std::chrono::system_clock::now();
 
 
+    b32 fail = false;
+
     puts("\nprogram tests\n");
 
     Interloper itl;
@@ -220,7 +222,8 @@ void run_tests()
         if(itl.error)
         {
             printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.error_code)]);
-            return;
+            fail = true;
+            break;
         }
 
         const auto r = run(interpretter,itl.program);      
@@ -229,28 +232,32 @@ void run_tests()
         if(test.expected != r)
         {
             printf("Fail %s return code does not match %d != %d\n",test.name,test.expected,r);
-            return;
+            fail = true;
+            break;
         }
 
         printf("Pass: %s\n",test.name);
     }
 
-
-    for(u32 i = 0; i < PROGRAM_ERROR_TEST_SIZE; i++)
+    if(!fail)
     {
-        destroy_itl(itl);
-        
-        const auto &test = PROGRAM_ERROR_TEST[i];
-        
-        compile(itl,test.name);
-
-        if(itl.error_code != test.error)
+        for(u32 i = 0; i < PROGRAM_ERROR_TEST_SIZE; i++)
         {
-            printf("Fail %s expected error code %s got %s\n",test.name,ERROR_NAME[u32(test.error)],ERROR_NAME[u32(itl.error_code)]);
-            return;
-        }
+            destroy_itl(itl);
+            
+            const auto &test = PROGRAM_ERROR_TEST[i];
+            
+            compile(itl,test.name);
 
-        printf("Pass: %s\n",test.name);
+            if(itl.error_code != test.error)
+            {
+                printf("Fail %s expected error code %s got %s\n",test.name,ERROR_NAME[u32(test.error)],ERROR_NAME[u32(itl.error_code)]);
+                fail = true;
+                break;
+            }
+
+            printf("Pass: %s\n",test.name);
+        }
     }
 
     destroy_itl(itl);
