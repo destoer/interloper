@@ -271,7 +271,7 @@ AstNode *declaration(Parser &parser, token_type terminator)
         {
             consume(parser,token_type::equal);
             
-            decl->expr = expr(parser,next_token(parser));
+            decl->expr = statement_terminate(parser);
             break;
         }
 
@@ -308,7 +308,7 @@ AstNode *auto_decl(Parser &parser)
     // okay here we require an expression on the right side
     consume(parser,token_type::equal);
 
-    AstNode* e = expr(parser,next_token(parser));
+    AstNode* e = statement_terminate(parser);
     AstNode* decl = (AstNode*)ast_auto_decl(parser,s.literal,e,s);
 
     return decl;    
@@ -599,7 +599,8 @@ AstNode *statement(Parser &parser)
                 break;
             }
 
-            return expr(parser,t);
+            prev_token(parser);
+            return statement_terminate(parser);
         }
 
 
@@ -629,7 +630,8 @@ AstNode *statement(Parser &parser)
                 case token_type::times_eq:
                 case token_type::equal:
                 {
-                    return expr(parser,t);
+                    prev_token(parser);
+                    return statement_terminate(parser);
                 }
 
                 // check for brackets
@@ -638,19 +640,22 @@ AstNode *statement(Parser &parser)
                 // function call
                 case token_type::left_paren:
                 {
-                    return expr(parser,t);
+                    prev_token(parser);
+                    return statement_terminate(parser);
                 }
 
                 // array access
                 case token_type::sl_brace:
                 {
-                    return expr(parser,t);
+                    prev_token(parser);
+                    return statement_terminate(parser);
                 }
 
                 // expr for member access?
                 case token_type::dot:
                 {
-                    return expr(parser,t);
+                    prev_token(parser);
+                    return statement_terminate(parser);
                 }
 
 
@@ -710,10 +715,9 @@ AstNode *statement(Parser &parser)
                 }
             }
 
-
             // for(s32 x = 5; x > 0; x -= 1) (multiple statement)
 
-            for_node->cond = expr_terminate(parser,token_type::semi_colon); 
+            for_node->cond = statement_terminate(parser); 
 
             // allow paren terminator followed by a '{'
             if(term_paren)
@@ -735,7 +739,6 @@ AstNode *statement(Parser &parser)
                 prev_token(parser);
             }  
             
-
             // for stmt parsed now compile the actual block
             for_node->block = block(parser);
 

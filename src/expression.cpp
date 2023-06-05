@@ -44,7 +44,7 @@ s32 lbp(Parser &parser,const Token &t)
 
             default:
             {
-                panic(parser,t,"lbp: illegal token: %s\n",tok_name(t.type));
+                panic(parser,t,"unexpected token in expression: %s\n",tok_name(t.type));
                 break;
             }
         }
@@ -447,24 +447,36 @@ AstNode *expression(Parser &parser,s32 rbp)
 }
 
 
-AstNode *expr_terminate_internal(Parser &parser,token_type t)
+AstNode *expr_terminate_internal(Parser &parser,token_type t, b32 must_terminate = false)
 {
+    const b32 terminate_old = parser.terminate;
+    const token_type term_type_old = parser.termination_type;
+
     // make pratt parser terminate as soon as it sees
     // this token
     parser.termination_type = t;
 
     auto e = expr(parser,next_token(parser));
 
-    parser.termination_type = token_type::eof;
+    // expression must terminate on this token
+    if(!parser.terminate && must_terminate)
+    {
+        panic(parser,parser.expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(parser.expr_tok.type),tok_name(t));
+        return nullptr;
+    }
+
+
+    parser.termination_type = term_type_old;
+    parser.terminate = terminate_old;
 
     return e;
 }
 
 
+// Can optionally terminate, caller must check
 AstNode *expr_terminate(Parser &parser,token_type t, token_type &term)
 {
     auto e = expr_terminate_internal(parser,t);
-    parser.terminate = false;
 
     // what token did we terminate on?
     term = parser.expr_tok.type;
@@ -476,17 +488,13 @@ AstNode *expr_terminate(Parser &parser,token_type t, token_type &term)
 // panic on failure to terminate with token
 AstNode *expr_terminate(Parser &parser,token_type t)
 {
-    auto e = expr_terminate_internal(parser,t);
-    
+    return expr_terminate_internal(parser,t,true);
+}
 
-    // expression must terminate on this token
-    if(parser.expr_tok.type != t || !parser.terminate)
-    {
-        panic(parser,parser.expr_tok,"invalid expr ended with '%s' should end with '%s'\n",tok_name(parser.expr_tok.type),tok_name(t));
-    }
 
-    parser.terminate = false;
-    return e;
+AstNode *statement_terminate(Parser& parser)
+{
+    return expr_terminate(parser,token_type::semi_colon);
 }
 
 AstNode *expr(Parser &parser,const Token &t)

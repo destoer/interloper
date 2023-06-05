@@ -708,6 +708,12 @@ AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const St
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 {
+    // further reporting becomes pointless past a single parser error
+    if(parser.error)
+    {
+        return;
+    }
+
     va_list args; 
     va_start(args, fmt);
     vprintf(fmt,args);
