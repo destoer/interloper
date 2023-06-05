@@ -28,6 +28,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/basic/invalid_sign_cmp",itl_error::int_type_error},
     {"tests/basic/u32_eq_s32",itl_error::int_type_error},
     {"tests/basic/invalid_compare",itl_error::out_of_bounds},
+    {"tests/basic/invalid_literal",itl_error::lexer_error},
 
     // type
     {"tests/type/byte_invalid",itl_error::pointer_type_error},

@@ -83,6 +83,9 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
     }
 
     // return pointer to accessed type
+    // NOTE: this can give out a fixed array pointer.
+    // this needs conversion by the host into a VLA, this is not obtainable by
+    // taking a pointer to an array,
     return std::pair{make_pointer(itl,accessed_type),dst_slot}; 
 }
 

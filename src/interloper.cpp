@@ -2096,7 +2096,7 @@ void compile(Interloper &itl,const String& initial_filename)
 
         if(parser_error)
         {
-            // flag as generic parse error
+            // flag as generic parser error
             if(itl.error_code == itl_error::none)
             {
                 itl.error = true;

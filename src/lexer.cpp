@@ -159,8 +159,6 @@ bool decode_imm(Lexer &lexer,const String& file)
 
     if(error)
     {
-        print_tokens(lexer.tokens);
-        puts("invalid immediate: ");
         return true;
     }
 
@@ -191,8 +189,22 @@ void destroy_lexer(Lexer& lexer)
     destroy_arr(lexer.tokens);
 }
 
+void panic(Lexer& lexer, const String& filename, const char* fmt, ...)
+{
+    printf("lexer error: %s %d:%d: ",filename.buf,lexer.row+1,lexer.column+1);
+
+    va_list args; 
+    va_start(args, fmt);
+    vprintf(fmt,args);
+    va_end(args);
+
+    putchar('\n');
+
+    print_line(filename,lexer.row+1);   
+}
+
 // TODO: change file to be a string, and just conv them all in
-bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
+b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
 {
     Lexer lexer;
 
@@ -272,14 +284,14 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
 
                 if(c == '\0')
                 {
-                    puts("hit eof before char literal");
                     destroy_lexer(lexer);
+                    panic(lexer,file_name,"eof hit in middle of char literal");
                     return true;
                 }
 
                 if(peek(lexer.idx+2,file) != '\'')
                 {
-                    puts("unterminated char literal");
+                    panic(lexer,file_name,"unterminated char literal");
                     destroy_lexer(lexer);
                     return true;
                 }
@@ -320,8 +332,8 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
 
                             default:
                             {
-                                printf("unknown escape sequnce \\%c\n",e);
                                 destroy_lexer(lexer);
+                                panic(lexer,file_name,"unterminated char literal");
                                 return true;
                             }
                         }
@@ -425,6 +437,7 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
                     if(decode_imm(lexer,file))
                     {
                         destroy_lexer(lexer);
+                        panic(lexer,file_name,"malformed integer literal");
                         return true;
                     }
                 }
@@ -625,13 +638,14 @@ bool tokenize(const String& file,ArenaAllocator* string_allocator, Array<Token>&
                     if(decode_imm(lexer,file))
                     {
                         destroy_lexer(lexer);
+                        panic(lexer,file_name,"malformed integer literal");
                         return true;
                     }
                 }
 
                 else
                 {
-                    printf("unexpected char '%c' : 0x%02x\n",c,c);
+                    panic(lexer,file_name,"unexpected char '%c",c);
                     destroy_lexer(lexer);
                     return true;
                 }

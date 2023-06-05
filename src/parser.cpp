@@ -1169,10 +1169,11 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
     // Parse out the file
     Parser parser = make_parser(filename,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
 
-    if(tokenize(file,parser.string_allocator,parser.tokens))
+    if(tokenize(file,filename,parser.string_allocator,parser.tokens))
     {
-        printf("failed to tokenize file: %s\n",filename.buf);
         destroy_arr(parser.tokens);
+        itl.error = true;
+        itl.error_code = itl_error::lexer_error;
         return true;
     }
     

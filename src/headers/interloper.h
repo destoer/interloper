@@ -13,6 +13,7 @@ using namespace destoer;
 enum class itl_error
 {
     none,
+    lexer_error,
     parse_error,
     array_type_error,
     int_type_error,
@@ -41,6 +42,7 @@ static const char* ERROR_NAME[] =
 {
     "none",
     "parse error",
+    "lexer error",
     "array type error",
     "int type error",
     "bool type error",
