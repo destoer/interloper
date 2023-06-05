@@ -138,14 +138,13 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::semi_colon,";",-1},
     {token_type::colon,":",-1},
 
-    // TODO: } and ) should not be zero's we need to impl a explict terminator for them
     {token_type::left_c_brace,"{",-1},
     {token_type::right_c_brace,"}",-1},
 
     {token_type::left_paren,"(",-1},
     {token_type::right_paren,")",-1},
 
-    {token_type::comma,",",0},
+    {token_type::comma,",",-1},
 
     {token_type::equal,"=",2},
     {token_type::plus_eq,"+=",2},
@@ -193,7 +192,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::decrement,"--",-1},
 
     {token_type::sl_brace,"[",30},
-    {token_type::sr_brace,"]",0},
+    {token_type::sr_brace,"]",-1},
 
     {token_type::dot,".",-1},
     {token_type::qmark,"?",-1},
