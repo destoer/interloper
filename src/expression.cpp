@@ -5,6 +5,7 @@ AstNode *expr(Parser &parser,const Token &t);
 
 
 AstNode* expr_terminate_in_expr(Parser& parser, token_type type);
+std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser, token_type type);
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
@@ -311,22 +312,31 @@ AstNode *nud(Parser &parser, const Token &t)
             return ast_unary(parser,e,ast_type::sizeof_t,t);    
         }
     
-        // array initializer
+        // initializer list
         case token_type::left_c_brace:
         {
             RecordNode* init = (RecordNode*)ast_record(parser,ast_type::initializer_list,t);
-            while(parser.expr_tok.type != token_type::right_c_brace)
-            {
-                push_var(init->nodes,expression(parser,0));
+            b32 done = false;
 
-                if(parser.expr_tok.type != token_type::right_c_brace)
+            while(!done)
+            {
+                if(parser.error)
                 {
-                    consume_expr(parser,token_type::comma);
+                    return nullptr;
                 }
+
+                auto [e,term_seen] = expr_list_in_expr(parser,token_type::right_c_brace);
+                done = term_seen; 
+
+                push_var(init->nodes,e);
             }
 
-            consume_expr(parser,token_type::right_c_brace);
-            
+            // allow trailing comma 
+            if(parser.expr_tok.type == token_type::comma && match(parser,token_type::right_c_brace))
+            {
+                next_expr_token(parser);
+            }
+
             return (AstNode*)init;
         }
     
@@ -450,13 +460,6 @@ AstNode *expr(Parser &parser,const Token &t)
 
     const auto e = expression(parser,0);
 
-    // didnt specify a terminator walk back the idx
-    // TODO: is this good enough to handle tokens like ',' ?
-    if(!parser.terminate && parser.expr_tok.type != token_type::semi_colon)
-    {
-        prev_token(parser);
-    }
-
     return e;
 }
 
@@ -534,4 +537,15 @@ AstNode* expr_terminate_in_expr(Parser& parser, token_type type)
     next_expr_token(parser);
 
     return e;
+}
+
+std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser, token_type type)
+{
+    AstNode* e = expr_terminate_internal(parser,parser.expr_tok,type,true,true);
+
+    const b32 seen_list_term = parser.expr_tok.type == type;
+
+    next_expr_token(parser);
+
+    return std::pair{e,seen_list_term};    
 }
