@@ -451,10 +451,8 @@ AstNode* array_index(Parser& parser,const Token& t)
     {
         consume(parser,token_type::sl_brace);
 
-        AstNode* e = expr(parser,next_token(parser));
+        AstNode* e = expr_terminate(parser,token_type::sr_brace);
         push_var(arr_access->indexes,e);
-    
-        consume(parser,token_type::sr_brace);
     }
 
     return (AstNode*)arr_access;
@@ -518,21 +516,12 @@ AstNode* func_call(Parser& parser,const Token& t)
 
     while(!done)
     {
-        AstNode* node = expr(parser,next_token(parser));
+        auto [node,term_seen] = expr_list(parser,token_type::right_paren);
 
         push_var(func_call->args,node);
 
         // no more args terminate the call
-        if(!match(parser,token_type::comma))
-        {
-            consume(parser,token_type::right_paren);
-            done = true;
-        }
-
-        else
-        {
-            consume(parser,token_type::comma);
-        }
+        done = term_seen;
     }
 
     return (AstNode*)func_call;
@@ -556,17 +545,13 @@ AstNode *statement(Parser &parser)
             {
                 RecordNode* record = (RecordNode*)ast_record(parser,ast_type::ret,t);
 
+                b32 done = false;
 
                 // can be more than one expr (comma seperated)
-                do 
+                while(!done)
                 {
-                    if(match(parser,token_type::comma))
-                    {
-                        consume(parser,token_type::comma);
-                    }
-
-
-                    AstNode* e = expr(parser,next_token(parser));
+                    auto [e,term_seen] = expr_list(parser,token_type::semi_colon);
+                    done = term_seen;
 
                     if(!e)
                     {
@@ -575,8 +560,9 @@ AstNode *statement(Parser &parser)
                     }
 
                     push_var(record->nodes,e);
+                }
 
-                } while(match(parser,token_type::comma));
+                
 
                 return (AstNode*)record;
             }
@@ -683,8 +669,6 @@ AstNode *statement(Parser &parser)
 
             // allow statment to wrapped a in a set of parens
             const bool term_paren = peek(parser,0).type == token_type::left_paren;
-            const token_type first_term = term_paren? token_type::right_paren : token_type::left_c_brace;
-            token_type terminator;
 
             // ignore the first paren
             if(term_paren)
@@ -711,7 +695,7 @@ AstNode *statement(Parser &parser)
                 // standard stmt
                 else
                 {
-                    for_node->initializer = expr_terminate(parser,first_term,terminator); 
+                    for_node->initializer = statement_terminate(parser);
                 }
             }
 

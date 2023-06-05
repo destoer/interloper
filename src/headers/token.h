@@ -135,15 +135,15 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::false_t,"false",0},
     {token_type::null_t,"NULL",0},
 
-    {token_type::semi_colon,";",0},
-    {token_type::colon,":",0},
+    {token_type::semi_colon,";",-1},
+    {token_type::colon,":",-1},
 
     // TODO: } and ) should not be zero's we need to impl a explict terminator for them
     {token_type::left_c_brace,"{",-1},
     {token_type::right_c_brace,"}",0},
 
     {token_type::left_paren,"(",-1},
-    {token_type::right_paren,")",0},
+    {token_type::right_paren,")",-1},
 
     {token_type::comma,",",0},
 

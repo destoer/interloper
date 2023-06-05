@@ -4,7 +4,7 @@ func main() s32
 {
     y : s32 = 1;
 
-    for(decl x = 5; x > 0; x -= 1)
+    for(decl x = 5; x > 0 x -= 1)
     {
         z : s32 = y * 2;
         y = z;

@@ -449,6 +449,7 @@ struct Parser
     Token expr_tok;
     u32 tok_idx = 0;
     b32 terminate = false;
+    b32 list_terminate = false;
     token_type termination_type = token_type::eof;
 
     ArenaAllocator* allocator;
