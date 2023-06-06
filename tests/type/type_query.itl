@@ -1,0 +1,10 @@
+
+// expected 1
+func main() s32
+{
+    res1 : bool = u32.size == 4;
+
+    res : bool = res1;
+
+    return cast(s32,res);
+}

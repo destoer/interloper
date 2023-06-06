@@ -1304,6 +1304,13 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             return read_struct(itl,func,dst_slot,node);           
         }
 
+        case ast_type::builtin_type_info:
+        {
+            BuiltinAccessNode* builtin = (BuiltinAccessNode*)node;
+
+            return access_builtin_type_info(itl,func,dst_slot,builtin->type,builtin->field);
+        }
+
         case ast_type::index:
         {
             const auto [type, slot] = read_arr(itl,func,node,dst_slot);

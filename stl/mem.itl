@@ -29,3 +29,19 @@ func zero_mem(dst: byte@, size : u32)
 {
     memset(dst,size,0);
 }
+
+// TODO: await generics
+/*
+func handle_write<T>(dst: byte@, v : const T)
+{
+    memcpy(dst,&t,T.size);
+}
+
+func handle_read<T>(src: const byte@) T
+{
+    v : T;
+    memcpy(&t,src,T.size);
+
+    return v;
+}
+*/

@@ -266,12 +266,38 @@ AstNode* nud_sym(Parser& parser, const Token& t)
     }   
 }
 
+AstNode* builtin_type_info_access(Parser& parser,builtin_type type)
+{
+    const Token t = parser.expr_tok;
+
+    if(parser.expr_tok.type == token_type::dot)
+    {
+        next_expr_token(parser);
+
+        if(parser.expr_tok.type == token_type::symbol)
+        {
+            const String literal = parser.expr_tok.literal;
+
+            next_expr_token(parser);
+            return ast_builtin_access(parser,type,literal,t);
+        }
+    }
+
+    panic(parser,parser.expr_tok,"expected member access after builtin type, got %s\n",tok_name(parser.expr_tok.type));
+    return nullptr;   
+}
+
 // unary operators
 AstNode *nud(Parser &parser, const Token &t)
 {
     switch(t.type)
     {
     
+        case token_type::u32:
+        {
+            return builtin_type_info_access(parser,builtin_type::u32_t);
+        }
+
         // cast(<type>,<expr>)
         case token_type::cast:
         {

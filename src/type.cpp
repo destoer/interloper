@@ -1349,14 +1349,29 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
 }
 
 
+Type* access_builtin_type_info(Interloper& itl, Function& func, SymSlot dst_slot, builtin_type type, const String& member_name)
+{
+    const BuiltinTypeInfo& info = builtin_type_info[u32(type)];
+
+    if(member_name == "size")
+    {
+        emit(func,op_type::mov_imm,dst_slot,info.size);
+        return make_builtin(itl,builtin_type::u32_t);
+    }
+
+    panic(itl,itl_error::undefined_type_oper,"unknown type info for builtin type %s.%s\n",TYPE_NAMES[u32(type)],member_name.buf);
+    return make_builtin(itl,builtin_type::void_t);
+}
+
 Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
 {
     switch(type_decl.kind)
     {
         case type_kind::builtin:
         {
-            unimplemented("builtin type info");
-            return make_builtin(itl,builtin_type::void_t);
+            builtin_type type = builtin_type(type_decl.type_idx);
+
+            return access_builtin_type_info(itl,func,dst_slot,type,member_name);
         }
 
         case type_kind::struct_t:

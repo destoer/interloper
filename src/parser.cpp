@@ -1615,6 +1615,14 @@ void print(const AstNode *root)
             print((AstNode*)alias_node->type);
             break;
         }
+
+        case ast_fmt::builtin_type_info:
+        {
+            BuiltinAccessNode* builtin_node = (BuiltinAccessNode*)root;
+
+            printf("builtin type access: %s.%s\n",TYPE_NAMES[u32(builtin_node->type)],builtin_node->field.buf);
+            break;
+        }
     }
 
     depth -= 1;

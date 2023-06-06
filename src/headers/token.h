@@ -159,7 +159,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::u8,"u8",-1},
     {token_type::u16,"u16",-1},
-    {token_type::u32,"u32",-1},
+    {token_type::u32,"u32",0},
 
     {token_type::s8,"s8",-1},
     {token_type::s16,"s16",-1},

@@ -92,6 +92,8 @@ enum class ast_type
     member,
     index,
 
+    builtin_type_info,
+
     END
 };
 
@@ -184,6 +186,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "member",
     "index",
 
+    "builtin_type_info",
+
     // should not be used...
     "END"
 };
@@ -212,6 +216,7 @@ enum class ast_fmt
     scope,
     tuple_assign,
     type_alias,
+    builtin_type_info,
 };
 
 inline const char *FMT_NAMES[] =
@@ -237,6 +242,7 @@ inline const char *FMT_NAMES[] =
     "scope",
     "tuple_assign",
     "type_alias",
+    "builtin_type_info",
 };
 
 
@@ -261,6 +267,14 @@ struct LiteralNode
 {
     AstNode node;
     String literal;
+};
+
+struct BuiltinAccessNode
+{
+    AstNode node;
+
+    builtin_type type;
+    String field;
 };
 
 struct UnaryNode
@@ -705,6 +719,16 @@ AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const St
     alias_node->type = type;
 
     return (AstNode*)alias_node;
+}
+
+AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& field,const Token& token)
+{
+    BuiltinAccessNode* builtin_access = alloc_node<BuiltinAccessNode>(parser,ast_type::builtin_type_info,ast_fmt::builtin_type_info,token);
+
+    builtin_access->type = type;
+    builtin_access->field = field;
+
+    return (AstNode*)builtin_access;
 }
 
 

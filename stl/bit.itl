@@ -10,7 +10,7 @@ func hamming_weight(set: u32) u32
     sum : u32 = 0;
 
     // TODO: add way to query internal type limits
-    for(i : u32 = 0; i < 32; i += 1)
+    for(i : u32 = 0; i < (u32.size * 8); i += 1)
     {
         sum += cast(u32,is_set(set,i));
     }
