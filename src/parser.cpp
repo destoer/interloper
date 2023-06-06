@@ -284,7 +284,7 @@ AstNode *declaration(Parser &parser, token_type terminator)
 
             else
             {
-                panic(parser,eq,"malformed declartion: %s expected terminator %s\n",tok_name(eq.type),tok_name(terminator));
+                panic(parser,eq,"malformed declartion: got %s expected terminator %s\n",tok_name(eq.type),tok_name(terminator));
             }
             break;
         }

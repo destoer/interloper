@@ -1,14 +1,26 @@
 
 // check passed type is what is expected for passed value..
-/*
-func builtin_type(any : Any, expected : builitn_type) bool
-{
 
-    return true;
+func check_builtin_type(any : Any, expected : builtin_type) bool
+{
+    type : const Type@ = any.type;
+
+    if(is_builtin(type.type_idx))
+    {
+        decl actual = cast(builtin_type,type_idx);
+        return actual == expected;
+    }
+
+    return false;
 }
-*/
 
 func main() s32
 {
-    return 0;
+    res1 : bool = check_builtin_type(cast(u32,1),builtin_type::u32_t);
+
+    // did every test pass?
+    res : bool = res;
+    ans : s32 = cast(u32,res);
+
+    return ans;
 }

@@ -2,6 +2,29 @@
 type_alias c8 = u8;
 type_alias string = c8[];
 
+enum builtin_type
+{
+    u8_t,
+    u16_t,
+    u32_t,
+
+    s8_t,
+    s16_t,
+    s32_t,
+
+    byte_t,
+
+    bool_t,
+
+    void_t, 
+
+    null_t,
+}
+
+func is_builtin(type_idx : u32) bool
+{
+    return type_idx < builtin_type.len;
+}
 
 //RUNTIME_SIZE : const u32 = 0xfffffff0;
 

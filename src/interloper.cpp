@@ -1976,14 +1976,11 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
 
 
-// -> add tagging to error's so we can check we get the correct kind of failure on tests
-
 // -> add globals
 // -> improve inserting static data 
 // -> rtti
 // -> va_args
 // -> print
-// -> impl a a smarter register allocator rather than just blindly spilling things
 
 // -> impl static assert
 // -> improve const expressions
