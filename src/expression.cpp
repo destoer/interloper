@@ -53,7 +53,7 @@ s32 lbp(Parser &parser,const Token &t)
 
             default:
             {
-                panic(parser,t,"unexpected token in %s expression: %s\n",parser.expression_name.buf,tok_name(t.type));
+                panic(parser,t,"unexpected token %s in %s\n",tok_name(t.type),parser.expression_name.buf);
                 break;
             }
         }

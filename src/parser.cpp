@@ -710,7 +710,7 @@ AstNode *statement(Parser &parser)
                 auto next = peek(parser,0);
                 if(next.type != token_type::left_c_brace)
                 {
-                    panic(parser,next,"invalid single for statement terminator: %s\n",tok_name(next.type));
+                    panic(parser,next,"invalid single for statement terminator: %s expected {\n",tok_name(next.type));
                     return nullptr;                        
                 }
             }
