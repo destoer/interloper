@@ -1,11 +1,9 @@
 #include <interloper.h>
 
 AstNode *expression(Parser &parser,s32 rbp);
-AstNode *expr(Parser &parser,const Token &t);
 
-
-AstNode* expr_terminate_in_expr(Parser& parser, token_type type);
-std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser, token_type type);
+AstNode* expr_terminate_in_expr(Parser& parser,const String& expression_name, token_type type);
+std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,const String& expression_name, token_type type);
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
@@ -55,7 +53,7 @@ s32 lbp(Parser &parser,const Token &t)
 
             default:
             {
-                panic(parser,t,"unexpected token in expression: %s\n",tok_name(t.type));
+                panic(parser,t,"unexpected token in %s expression: %s\n",parser.expression_name.buf,tok_name(t.type));
                 break;
             }
         }
@@ -207,7 +205,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
 
         default:
         {
-            panic(parser,t,"led: unexpected token %s\n",tok_name(t.type));
+            panic(parser,t,"led: unexpected token %s in %s\n",tok_name(t.type),parser.expression_name.buf);
             return nullptr;
         }        
     }
@@ -297,7 +295,7 @@ AstNode *nud(Parser &parser, const Token &t)
 
             consume_expr(parser,token_type::comma);
 
-            const auto right = expr_terminate_in_expr(parser,token_type::right_paren);
+            const auto right = expr_terminate_in_expr(parser,"cast",token_type::right_paren);
 
             return ast_binary(parser,type,right,ast_type::cast,t);    
         }
@@ -307,7 +305,7 @@ AstNode *nud(Parser &parser, const Token &t)
         {
             consume_expr(parser,token_type::left_paren);
 
-            AstNode* e = expr_terminate_in_expr(parser,token_type::right_paren);
+            AstNode* e = expr_terminate_in_expr(parser,"sizeof",token_type::right_paren);
 
             return ast_unary(parser,e,ast_type::sizeof_t,t);    
         }
@@ -325,7 +323,7 @@ AstNode *nud(Parser &parser, const Token &t)
                     return nullptr;
                 }
 
-                auto [e,term_seen] = expr_list_in_expr(parser,token_type::right_c_brace);
+                auto [e,term_seen] = expr_list_in_expr(parser,"initializer list",token_type::right_c_brace);
                 done = term_seen; 
 
                 push_var(init->nodes,e);
@@ -398,7 +396,7 @@ AstNode *nud(Parser &parser, const Token &t)
 
         case token_type::left_paren:
         {
-            const auto expr = expr_terminate_in_expr(parser,token_type::right_paren);
+            const auto expr = expr_terminate_in_expr(parser,"brackets",token_type::right_paren);
             return expr;
         }
 
@@ -415,7 +413,7 @@ AstNode *nud(Parser &parser, const Token &t)
 
         default:
         {
-            panic(parser,t,"nud: unexpected token %s\n",tok_name(t.type));
+            panic(parser,t,"nud: unexpected token %s in %s\n",tok_name(t.type),parser.expression_name.buf);
             break;
         }
     }
@@ -454,16 +452,10 @@ AstNode *expression(Parser &parser,s32 rbp)
     return left;
 }
 
-AstNode *expr(Parser &parser,const Token &t, const String& expression_name)
-{
-    parser.expr_tok = t;
 
-    const auto e = expression(parser,0);
 
-    return e;
-}
-
-AstNode *expr_terminate_internal(Parser &parser,const Token& token,token_type t, b32 must_terminate = false, b32 list_terminate = false)
+AstNode *expr_terminate_internal(Parser &parser,const String& expression_name,const Token& token,token_type t, 
+    b32 must_terminate = false, b32 list_terminate = false)
 {
     //printf("Expression termination on %s\n",tok_name(t));
 
@@ -471,6 +463,7 @@ AstNode *expr_terminate_internal(Parser &parser,const Token& token,token_type t,
     const b32 terminate_old = parser.terminate;
     const token_type term_type_old = parser.termination_type;
     const b32 list_terminate_old = parser.list_terminate;
+    const String expression_name_old = parser.expression_name;
 
     // make pratt parser terminate as soon as it sees
     // this token
@@ -478,12 +471,17 @@ AstNode *expr_terminate_internal(Parser &parser,const Token& token,token_type t,
     parser.list_terminate = list_terminate;
     parser.terminate = false;
 
-    auto e = expr(parser,token);
+    // get our expression
+    parser.expr_tok = token;
+    parser.expression_name = expression_name;
+
+    const auto e = expression(parser,0);
 
     // expression must terminate on this token
     if(!parser.terminate && must_terminate)
     {
-        panic(parser,parser.expr_tok,"expression should terminate with '%s' terminated with '%s'\n",tok_name(t),tok_name(parser.expr_tok.type));
+        panic(parser,parser.expr_tok,"%s should terminate with '%s' terminated with '%s'\n",parser.expression_name.buf,
+            tok_name(t),tok_name(parser.expr_tok.type));
         return nullptr;
     }
 
@@ -491,15 +489,16 @@ AstNode *expr_terminate_internal(Parser &parser,const Token& token,token_type t,
     parser.termination_type = term_type_old;
     parser.terminate = terminate_old;
     parser.list_terminate = list_terminate_old;
+    parser.expression_name = expression_name_old;
 
     return e;
 }
 
 
 // Can optionally terminate, caller must check
-AstNode *expr_terminate(Parser &parser,token_type t, token_type &term)
+AstNode *expr_terminate(Parser &parser,const String& expression_name,token_type t, token_type &term)
 {
-    auto e = expr_terminate_internal(parser,next_token(parser),t);
+    auto e = expr_terminate_internal(parser,expression_name,next_token(parser),t);
 
     // what token did we terminate on?
     term = parser.expr_tok.type;
@@ -509,20 +508,20 @@ AstNode *expr_terminate(Parser &parser,token_type t, token_type &term)
 
 
 // panic on failure to terminate with token
-AstNode *expr_terminate(Parser &parser,token_type t)
+AstNode *expr_terminate(Parser &parser,const String& expression_name,token_type t)
 {
-    return expr_terminate_internal(parser,next_token(parser),t,true);
+    return expr_terminate_internal(parser,expression_name,next_token(parser),t,true);
 }
 
 
-AstNode *statement_terminate(Parser& parser)
+AstNode *statement_terminate(Parser& parser,const String& expression_name)
 {
-    return expr_terminate(parser,token_type::semi_colon);
+    return expr_terminate(parser,expression_name,token_type::semi_colon);
 }
 
-std::pair<AstNode*,b32> expr_list(Parser& parser, token_type type)
+std::pair<AstNode*,b32> expr_list(Parser& parser,const String& expression_name, token_type type)
 {
-    AstNode* e = expr_terminate_internal(parser,next_token(parser),type,true,true);
+    AstNode* e = expr_terminate_internal(parser,expression_name,next_token(parser),type,true,true);
 
     const b32 seen_list_term = parser.expr_tok.type == type;
 
@@ -530,18 +529,18 @@ std::pair<AstNode*,b32> expr_list(Parser& parser, token_type type)
 }
 
 // for use inside the parser so the state machine does not have to be messed with
-AstNode* expr_terminate_in_expr(Parser& parser, token_type type)
+AstNode* expr_terminate_in_expr(Parser& parser,const String& expression_name, token_type type)
 {
-    AstNode* e = expr_terminate_internal(parser,parser.expr_tok,type,true);
+    AstNode* e = expr_terminate_internal(parser,expression_name,parser.expr_tok,type,true);
 
     next_expr_token(parser);
 
     return e;
 }
 
-std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser, token_type type)
+std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,const String& expression_name, token_type type)
 {
-    AstNode* e = expr_terminate_internal(parser,parser.expr_tok,type,true,true);
+    AstNode* e = expr_terminate_internal(parser,expression_name,parser.expr_tok,type,true,true);
 
     const b32 seen_list_term = parser.expr_tok.type == type;
 

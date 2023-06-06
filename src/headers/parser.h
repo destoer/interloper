@@ -456,6 +456,7 @@ struct Parser
     ArenaAllocator* string_allocator;
     AstPointers* ast_arrays;
     
+    String expression_name;
 
     String cur_file;
 

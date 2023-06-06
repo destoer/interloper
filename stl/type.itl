@@ -26,6 +26,14 @@ func is_builtin(type_idx : u32) bool
     return type_idx < builtin_type.len;
 }
 
+/*
+// TODO: we need function overloading for this
+func is_builtin(type : const Type@) bool
+{
+    return is_builtin(type.type_idx);
+}
+*/
+
 //RUNTIME_SIZE : const u32 = 0xfffffff0;
 
 struct Type

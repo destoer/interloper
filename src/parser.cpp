@@ -209,7 +209,7 @@ TypeNode *parse_type(Parser &parser)
 
                         else
                         {
-                            AstNode* e = ast_unary(parser,expr_terminate(parser,token_type::sr_brace), ast_type::arr_fixed, plain_tok);
+                            AstNode* e = ast_unary(parser,expr_terminate(parser,"array declaration",token_type::sr_brace), ast_type::arr_fixed, plain_tok);
 
                             push_var(type->compound_type,e);
                         }
@@ -271,7 +271,7 @@ AstNode *declaration(Parser &parser, token_type terminator)
         {
             consume(parser,token_type::equal);
             
-            decl->expr = statement_terminate(parser);
+            decl->expr = statement_terminate(parser,"declaration");
             break;
         }
 
@@ -308,7 +308,7 @@ AstNode *auto_decl(Parser &parser)
     // okay here we require an expression on the right side
     consume(parser,token_type::equal);
 
-    AstNode* e = statement_terminate(parser);
+    AstNode* e = statement_terminate(parser,"auto declaration");
     AstNode* decl = (AstNode*)ast_auto_decl(parser,s.literal,e,s);
 
     return decl;    
@@ -451,7 +451,7 @@ AstNode* array_index(Parser& parser,const Token& t)
     {
         consume(parser,token_type::sl_brace);
 
-        AstNode* e = expr_terminate(parser,token_type::sr_brace);
+        AstNode* e = expr_terminate(parser,"array indexing",token_type::sr_brace);
         push_var(arr_access->indexes,e);
     }
 
@@ -516,7 +516,7 @@ AstNode* func_call(Parser& parser,const Token& t)
 
     while(!done)
     {
-        auto [node,term_seen] = expr_list(parser,token_type::right_paren);
+        auto [node,term_seen] = expr_list(parser,"function call",token_type::right_paren);
 
         push_var(func_call->args,node);
 
@@ -550,7 +550,7 @@ AstNode *statement(Parser &parser)
                 // can be more than one expr (comma seperated)
                 while(!done)
                 {
-                    auto [e,term_seen] = expr_list(parser,token_type::semi_colon);
+                    auto [e,term_seen] = expr_list(parser,"return",token_type::semi_colon);
                     done = term_seen;
 
                     if(!e)
@@ -586,7 +586,7 @@ AstNode *statement(Parser &parser)
             }
 
             prev_token(parser);
-            return statement_terminate(parser);
+            return statement_terminate(parser,"pointer deference");
         }
 
 
@@ -617,7 +617,7 @@ AstNode *statement(Parser &parser)
                 case token_type::equal:
                 {
                     prev_token(parser);
-                    return statement_terminate(parser);
+                    return statement_terminate(parser,"assignment");
                 }
 
                 // check for brackets
@@ -627,21 +627,21 @@ AstNode *statement(Parser &parser)
                 case token_type::left_paren:
                 {
                     prev_token(parser);
-                    return statement_terminate(parser);
+                    return statement_terminate(parser,"function call");
                 }
 
                 // array access
                 case token_type::sl_brace:
                 {
                     prev_token(parser);
-                    return statement_terminate(parser);
+                    return statement_terminate(parser,"array access");
                 }
 
                 // expr for member access?
                 case token_type::dot:
                 {
                     prev_token(parser);
-                    return statement_terminate(parser);
+                    return statement_terminate(parser,"struct access");
                 }
 
 
@@ -695,18 +695,18 @@ AstNode *statement(Parser &parser)
                 // standard stmt
                 else
                 {
-                    for_node->initializer = statement_terminate(parser);
+                    for_node->initializer = statement_terminate(parser,"for initializer statement");
                 }
             }
 
             // for(s32 x = 5; x > 0; x -= 1) (multiple statement)
 
-            for_node->cond = statement_terminate(parser); 
+            for_node->cond = statement_terminate(parser,"for condition"); 
 
             // allow paren terminator followed by a '{'
             if(term_paren)
             {
-                for_node->post = expr_terminate(parser,token_type::right_paren);
+                for_node->post = expr_terminate(parser,"for post statement",token_type::right_paren);
                 auto next = peek(parser,0);
                 if(next.type != token_type::left_c_brace)
                 {
@@ -719,7 +719,7 @@ AstNode *statement(Parser &parser)
             // expect brace to end it
             else
             {
-                for_node->post = expr_terminate(parser,token_type::left_c_brace);
+                for_node->post = expr_terminate(parser,"for post statement",token_type::left_c_brace);
                 prev_token(parser);
             }  
             
@@ -731,7 +731,7 @@ AstNode *statement(Parser &parser)
 
         case token_type::while_t:
         {
-            AstNode* while_expr = expr_terminate(parser,token_type::left_c_brace); prev_token(parser); 
+            AstNode* while_expr = expr_terminate(parser,"while condition statement",token_type::left_c_brace); prev_token(parser); 
             AstNode* while_body = (AstNode*)block(parser);
 
             AstNode* while_stmt = ast_binary(parser,while_expr,while_body,ast_type::while_block,t);
@@ -745,7 +745,7 @@ AstNode *statement(Parser &parser)
             BlockNode* if_block = (BlockNode*)ast_if_block(parser,t);
 
 
-            AstNode* if_expr = expr_terminate(parser,token_type::left_c_brace); prev_token(parser); 
+            AstNode* if_expr = expr_terminate(parser,"if condtion statement",token_type::left_c_brace); prev_token(parser); 
             AstNode* if_body = (AstNode*)block(parser);
 
             BinNode *if_stmt = (BinNode*)ast_binary(parser,if_expr,if_body,ast_type::if_t,t);
@@ -765,7 +765,7 @@ AstNode *statement(Parser &parser)
                     {
                         consume(parser,token_type::if_t);
 
-                        AstNode* else_if_expr = expr_terminate(parser,token_type::left_c_brace); prev_token(parser); 
+                        AstNode* else_if_expr = expr_terminate(parser,"else if condition statement",token_type::left_c_brace); prev_token(parser); 
                         AstNode* else_if_body = (AstNode*)block(parser);
 
                         BinNode* else_if_stmt = (BinNode*)ast_binary(parser,else_if_expr,else_if_body,ast_type::else_if_t,else_tok);
@@ -796,7 +796,7 @@ AstNode *statement(Parser &parser)
 
         case token_type::switch_t:
         {
-            AstNode* e = expr_terminate(parser,token_type::left_c_brace);
+            AstNode* e = expr_terminate(parser,"switch statement",token_type::left_c_brace);
             SwitchNode* switch_node = (SwitchNode*)ast_switch(parser,e,t);
 
             // while we havent exhaused every case
@@ -823,7 +823,7 @@ AstNode *statement(Parser &parser)
                 {
                     // read out the case
                     consume(parser,token_type::case_t);
-                    AstNode* case_node = expr_terminate(parser,token_type::colon);
+                    AstNode* case_node = expr_terminate(parser,"switch case",token_type::colon);
 
                     BlockNode* block_node = (BlockNode*)opt_block(parser);
 
