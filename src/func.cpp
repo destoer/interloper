@@ -173,7 +173,12 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
   
         const u32 arg_idx = i - hidden_args;
 
-        if(is_array(arg.type))
+        if(is_any(itl,arg.type))
+        {
+            assert(false);
+        }
+
+        else if(is_array(arg.type))
         {
             // pass a static string, by inserting as const data in the program
             if(call_node->args[arg_idx]->type == ast_type::string)

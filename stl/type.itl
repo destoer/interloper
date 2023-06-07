@@ -75,6 +75,6 @@ struct ArrayType (type : const Type)
 
 struct Any
 {
-    data: byte@;
+    data: const byte@;
     type: const Type@;
 };

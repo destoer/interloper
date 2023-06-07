@@ -1420,6 +1420,19 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
     assert(false);
 }
 
+b32 is_any(Interloper& itl, const Type* type)
+{
+    if(is_struct(type))
+    {
+        const auto& structure = struct_from_type(itl.struct_table,type);
+
+        // TODO: should this be compiler defined?
+        return structure.name == "Any";
+    }
+
+    return false;
+}
+
 void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
 {
     TypeDecl type_decl;
