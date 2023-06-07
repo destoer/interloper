@@ -68,10 +68,6 @@ struct BuiltinTypeInfo
 extern const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE];
 
 
-
-static constexpr u32 MAX_ARR_SIZE = 4;
-static constexpr u32 ARRAY_LEN_OFFSET = 1;
-
 // is runtime but has an initial stack allocation
 static constexpr u32 RUNTIME_SIZE = 0xfffffff0;
 static constexpr u32 DEDUCE_SIZE = RUNTIME_SIZE + 1;
@@ -175,7 +171,6 @@ struct EnumType
 
     u32 enum_idx;
 };
-
 
 
 struct ArrayType
@@ -352,3 +347,5 @@ struct SymbolTable
 
     ArenaAllocator *string_allocator;
 };
+
+std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);

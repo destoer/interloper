@@ -86,6 +86,8 @@ enum class op_type
     alloc_slot,
     free_slot,
 
+    alloc_fixed_array,
+    free_fixed_array,
     alloc_vla,
 
     // allocate and store offset inside a var

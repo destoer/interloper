@@ -53,9 +53,19 @@ void free_slot(Function& func, const Reg& reg)
     emit(func,op_type::free_slot,reg.slot);
 }
 
-void free_sym(Function& func, Symbol& sym)
+void free_sym(Interloper& itl,Function& func, Symbol& sym)
 {
-    free_slot(func,sym.reg);
+    if(is_fixed_array(sym.type))
+    {
+        auto [size,count] = calc_arr_allocation(itl,sym);
+        emit(func,op_type::free_fixed_array,sym.reg.slot,size,count);
+    }
+
+    else
+    {
+        free_slot(func,sym.reg);
+    }
+
     sym.scope_end = cur_block(func);
 }
 
