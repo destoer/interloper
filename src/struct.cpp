@@ -575,7 +575,7 @@ void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype,
 
 Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *node)
 {
-    const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
+    auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
 
     // len access on fixed sized array
     if(ptr_slot.handle == ACCESS_FIXED_LEN_REG)
@@ -584,6 +584,14 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
 
         emit(func,op_type::mov_imm,dst_slot,array_type->size);
         return make_builtin(itl,builtin_type::u32_t);
+    }
+
+    // let caller handle reads
+    if(is_fixed_array(accessed_type))
+    {
+        const SymSlot addr = collapse_offset(func,ptr_slot,&offset);
+        emit(func,op_type::mov_reg,dst_slot,addr);
+        return accessed_type;
     }
 
     do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type,offset);

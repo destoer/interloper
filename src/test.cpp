@@ -151,6 +151,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_size",16},
     {"tests/array/array_initializer",16},
     {"tests/array/array_conv",6},
+    {"tests/array/array_conv_struct",6},
     {"tests/array/array_auto_size",16},
     {"tests/array/array_take_pointer",5},
     {"tests/array/array_of_ptr",6},

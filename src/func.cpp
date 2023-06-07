@@ -229,7 +229,49 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
         else if(is_array(arg.type))
         {
-            assert(false);
+            // pass a static string, by inserting as const data in the program
+            if(call_node->args[arg_idx]->type == ast_type::string)
+            {
+                LiteralNode* lit_node = (LiteralNode*)call_node->args[arg_idx];
+
+                const u32 size = lit_node->literal.size;
+
+                const auto rtype = make_array(itl,make_builtin(itl,builtin_type::u8_t,true),size);
+                check_assign(itl,arg.type,rtype,true);
+                
+                // push the len offset
+                const SymSlot len_slot = mov_imm(func,size);
+                push_arg(func,len_slot);
+
+                // push the data offset
+                const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
+
+                const SymSlot addr_slot = pool_addr(func,pool_slot);
+                push_arg(func,addr_slot);
+
+                arg_clean += 2;
+            }
+
+            else
+            {
+                auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
+
+                check_assign(itl,arg.type,arg_type,true); 
+
+                if(itl.error)
+                {
+                    return make_builtin(itl,builtin_type::void_t);;
+                }
+
+                // push in reverse order let our internal functions handle vla conversion
+                const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
+                push_arg(func,len_slot);
+
+                const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
+                push_arg(func,data_slot);
+
+                arg_clean += 2;  
+            }    
         }
 
         else if(is_struct(arg.type))

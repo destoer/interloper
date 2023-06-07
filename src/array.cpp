@@ -169,14 +169,12 @@ std::pair<Type*,SymSlot> read_arr(Interloper &itl,Function &func,AstNode *node, 
     type = deref_pointer(type);
 
     // fixed array needs conversion by host
-    if(is_fixed_array_pointer(type))
+    if(is_fixed_array(type))
     {
         return std::pair{type,addr_slot};
     }
 
     do_ptr_load(itl,func,dst_slot,addr_slot,type);
-
-
     return std::pair{type,dst_slot};
 }
 
