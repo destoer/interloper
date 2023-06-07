@@ -93,20 +93,20 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
 SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type)
 {
-    const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
-
     if(is_runtime_size(type))
     {
+        const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
+
         const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
         emit(func,load_ptr(dst_slot,addr,0,GPR_SIZE,false));
 
         return dst_slot;
     }
 
-    // fixed size, array data is just its addr
+    // fixed size, array ptr is stored in its own slot!
     else
     {
-        return addr;
+        return slot;
     }
 }
 
@@ -166,17 +166,15 @@ std::pair<Type*,SymSlot> read_arr(Interloper &itl,Function &func,AstNode *node, 
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
 
+    type = deref_pointer(type);
+
     // fixed array needs conversion by host
-    if(is_fixed_array_pointer(type))
+    if(is_fixed_array(type))
     {
         return std::pair{type,addr_slot};
     }
 
-    type = deref_pointer(type);
-
     do_ptr_load(itl,func,dst_slot,addr_slot,type);
-
-
     return std::pair{type,dst_slot};
 }
 
@@ -188,9 +186,9 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, Sy
 
 
     // convert fixed size pointer..
-    if(is_fixed_array_pointer(write_type))
+    if(is_array(write_type))
     {
-        unimplemented("convert fixed size pointer");
+        unimplemented("array write");
     }
 
     else
@@ -305,14 +303,17 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
     }   
 }
 
+
 // for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
-void init_arr_allocation(Interloper& itl, Symbol& sym)
+std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
 {
     UNUSED(itl);
 
     b32 done = false;
     
     Type* type = sym.type;
+    u32 count = 0;
+    u32 size = 0;
 
     while(!done)
     {
@@ -320,7 +321,7 @@ void init_arr_allocation(Interloper& itl, Symbol& sym)
         {
             case POINTER:
             {
-                sym.reg.size = GPR_SIZE;
+                size = GPR_SIZE;
 
                 // whatever is pointed too is responsible for handling its own allocation
                 // because it comes from somewhere else we are done!
@@ -340,7 +341,7 @@ void init_arr_allocation(Interloper& itl, Symbol& sym)
 
                 else
                 {
-                    sym.reg.count = accumulate_count(sym.reg.count,array_type->size);
+                    count = accumulate_count(count,array_type->size);
                     type = index_arr(type);
                 }
                 break;
@@ -348,7 +349,7 @@ void init_arr_allocation(Interloper& itl, Symbol& sym)
 
             default:
             {
-                sym.reg.size = type_size(itl,type);
+                size = type_size(itl,type);
 
                 done = true;
                 break;
@@ -356,13 +357,13 @@ void init_arr_allocation(Interloper& itl, Symbol& sym)
         }
     }
 
-
-    if(sym.reg.size > GPR_SIZE)
+    if(size > GPR_SIZE)
     {
-        sym.reg.count = gpr_count(sym.reg.count * sym.reg.size);
-        sym.reg.size = GPR_SIZE;
+        count = gpr_count(count * size);
+        size = GPR_SIZE;
     }   
 
+    return std::pair{size,count};
 }
 
 
@@ -443,7 +444,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     // rather than runtime setup
     if(decl_node->expr)
     {
-        const SymSlot addr_slot = addrof_res(itl.symbol_table,func,array.reg.slot);
+        const SymSlot addr_slot = load_arr_data(itl,func,array);
         traverse_arr_initializer(itl,func,decl_node->expr,addr_slot,array.type);
     }
 
@@ -451,9 +452,6 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     {
         return;
     }
-
-
-    init_arr_allocation(itl,array);
 
     if(array.reg.count == RUNTIME_SIZE)
     {
@@ -469,7 +467,9 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 
     else
     {
+        const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
+
         // we have the allocation information now complete it
-        alloc->opcode = Opcode(op_type::alloc_slot,array.reg.slot.handle,array.reg.size,array.reg.count);
+        alloc->opcode = Opcode(op_type::alloc_fixed_array,array.reg.slot.handle,arr_size,arr_count);
     }
 }

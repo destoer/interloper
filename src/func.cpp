@@ -205,11 +205,6 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             // finally the any struct
             // TODO: we should store things less than GPR_SIZE directly in the pointer...
             // store our any struct
-            if(is_fixed_array_pointer(arg_type))
-            {
-                assert(false);
-            }
-
             if(is_array(arg_type))
             {
                 assert(false);
@@ -261,54 +256,23 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             {
                 auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-                // fixed sized array
-                if(is_fixed_array_pointer(arg_type))
+                check_assign(itl,arg.type,arg_type,true); 
+
+                if(itl.error)
                 {
-                    ArrayType* array_type = (ArrayType*)deref_pointer(arg_type);
-
-                    const SymSlot len_slot = mov_imm(func,array_type->size);
-                    push_arg(func,len_slot);
-
-                    push_arg(func,reg);
-
-                    // no longer care about the ptr
-                    arg_type = (Type*)array_type;
-
-                    arg_clean += 2;                    
+                    return make_builtin(itl,builtin_type::void_t);;
                 }
 
-                else if(is_array(arg_type))
-                {
-                    // push vla struct in reverse order
-                    // This conversion is implicit
-                    // TODO: this needs to handle conversions on multidimensional arrays
-                    if(is_runtime_size(arg.type))
-                    {
-                        const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
-                        push_arg(func,len_slot);
+                // push in reverse order let our internal functions handle vla conversion
+                const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
+                push_arg(func,len_slot);
 
-                        const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
-                        push_arg(func,data_slot);
+                const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
+                push_arg(func,data_slot);
 
-                        arg_clean += 2;  
-                    }
-
-                    else
-                    {
-                        unimplemented("pass fixed size");
-                    }
-                }
-
-                else
-                {
-                    panic(itl,itl_error::array_type_error,"Expected array for arg got type %s\n",type_name(itl,arg_type));
-                    return make_builtin(itl,builtin_type::void_t);
-                }
-
-                check_assign(itl,arg.type,arg_type,true);
-            }
+                arg_clean += 2;  
+            }    
         }
-
 
         else if(is_struct(arg.type))
         {

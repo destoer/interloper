@@ -552,16 +552,9 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
     UNUSED(itl);
     // check the operation is even legal
 
-    
-    // convert fixed size pointer..
-    if(is_fixed_array_pointer(src_type))
-    {
-        unimplemented("convert fixed size pointer");
-    }
-
     // can be moved by a simple data copy 
     // NOTE: we use this here so we dont have to care about the underyling type if its a pointer
-    else if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
+    if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
     {
         emit(func,op_type::mov_reg,dst_slot,src_slot);
     }
@@ -1315,13 +1308,6 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         {
             const auto [type, slot] = read_arr(itl,func,node,dst_slot);
 
-            // i think the best thing to do is to just conv it to a vla in the dst slot
-            // because there is no other valid option inside a arbitary context
-            if(is_fixed_array_pointer(type))
-            {
-                unimplemented("fixed array pointer in expression");
-            }
-
             return type;
         }
 
@@ -1973,7 +1959,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             // free the stack alloc for each var thats about to go out of scope
             if(sym.arg_offset == NON_ARG)
             {
-                free_sym(func,sym);
+                free_sym(itl,func,sym);
             }
         }
     }

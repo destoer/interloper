@@ -74,6 +74,16 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
 // our bitset can only store 32 regs
 static_assert(MACHINE_REG_SIZE <= 32);
 
+struct ArrayAllocation
+{
+    SymSlot slot;
+    u32 stack_offset;
+    u32 offset;
+    u32 size;
+    u32 count;
+};
+
+
 // is this how we want it?
 // or should we just pass stuff through one by one?
 struct LocalAlloc
@@ -110,6 +120,8 @@ struct LocalAlloc
 
 
     // stack allocation
+    Array<ArrayAllocation> array_allocation;
+
 
     // how much has our stack been screwed up by function calls etc
     // so how much do we need to offset accesses to varaibles
@@ -164,8 +176,7 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,
 
 void destroy_local_alloc(LocalAlloc& alloc)
 {
-    
-
+    destroy_arr(alloc.array_allocation);
     destroy_arr(alloc.pending_allocation);
 }
 
@@ -253,6 +264,28 @@ u32 stack_reserve_internal(LocalAlloc& alloc, u32 size, u32 count)
     return cur + PENDING_ALLOCATION;    
 }
 
+u32 allocate_stack_array(LocalAlloc& alloc,SymbolTable& table ,SymSlot slot, u32 size, u32 alloc_count)
+{
+    ArrayAllocation allocation;
+    allocation.slot = slot;
+    allocation.size = size;
+    allocation.count = alloc_count;
+    allocation.stack_offset = alloc.stack_offset;
+    allocation.offset = stack_reserve_internal(alloc,size,alloc_count);
+
+    const u32 idx = count(alloc.array_allocation);
+
+    if(alloc.print_stack_allocation)
+    {
+        auto& sym = sym_from_slot(table,slot);
+        printf("initial array stack offset: %s [%x,%x] -> %x\n",sym.name.buf,size,alloc_count,allocation.offset - PENDING_ALLOCATION);
+    }
+
+    push_var(alloc.array_allocation,allocation);
+
+    return idx;
+}
+
 void stack_reserve_reg(LocalAlloc& alloc, Reg& ir_reg)
 {
     ir_reg.offset = stack_reserve_internal(alloc,ir_reg.size,ir_reg.count);
@@ -269,13 +302,13 @@ void stack_reserve_slot(LocalAlloc& alloc,SymbolTable table, SymSlot slot)
     {
         auto& sym = sym_from_slot(table,slot);
 
-        log(alloc.print_stack_allocation,"initial offset allocated %s: [%x] -> %x\n",sym.name.buf,ir_reg.size,ir_reg.offset - PENDING_ALLOCATION);    
+        log(alloc.print_stack_allocation,"initial offset allocated %s: [%x,%x] -> %x\n",sym.name.buf,ir_reg.size,ir_reg.count,ir_reg.offset - PENDING_ALLOCATION);    
     }
 
     else
     {
         // by defintion a tmp has to be local
-        log(alloc.print_stack_allocation,"initial offset allocated t%d: [%x] -> %x\n",slot.handle,ir_reg.size,ir_reg.offset - PENDING_ALLOCATION);
+        log(alloc.print_stack_allocation,"initial offset allocated t%d: [%x,%x] -> %x\n",slot.handle,ir_reg.size,ir_reg.count,ir_reg.offset - PENDING_ALLOCATION);
     }
 
     stack_reserve_reg(alloc,ir_reg);    
@@ -847,6 +880,23 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;
         }
 
+        case op_type::alloc_fixed_array:
+        {
+            const u32 size = opcode.v[1];
+            const u32 count = opcode.v[2];
+
+            const SymSlot slot = sym_from_idx(opcode.v[0]);
+
+            const u32 offset = allocate_stack_array(alloc,table,slot,size,count);
+            
+            node->opcode = Opcode(op_type::alloc_fixed_array,opcode.v[0],offset,0);
+
+            allocate_and_rewrite(table,alloc,block,node,0);
+
+            node = node->next;
+            break;
+        }
+
 
 
         // TODO: we should probably only save regs we use but this is just easy for now
@@ -914,6 +964,24 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         }
 
 
+        case op_type::free_fixed_array:
+        {
+            const SymSlot slot = sym_from_idx(opcode.v[0]);
+            auto& sym = sym_from_slot(table,slot);  
+
+            const u32 size = opcode.v[1];
+            const u32 count = opcode.v[2];
+
+            if(alloc.print_stack_allocation)
+            {
+                printf("reclaiming stack space from arr %s : (%d , %d)\n",sym.name.buf,size,count);
+            }
+
+            alloc.size_count[size >> 1] -= count;
+            
+            return remove(block.list,node);          
+        }
+
         // pools (NOTE: we resolve this during linking)
         case op_type::pool_addr:
         {
@@ -952,6 +1020,17 @@ b32 is_stack_allocated(Reg& reg)
     return !pending_stack_allocation(reg) && !is_stack_unallocated(reg);
 }
 
+u32 finalise_offset(LocalAlloc& alloc,u32 offset, u32 size)
+{
+    // what pos in the block does this reg have?
+    const u32 idx = offset - PENDING_ALLOCATION;  
+    
+    // actually allocate the offset
+    offset = alloc.stack_alloc[size >> 1] + (idx * size); 
+
+    return offset;   
+}
+
 void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 {
     if(alloc.print_stack_allocation)
@@ -959,22 +1038,18 @@ void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
         if(is_sym(reg.slot))
         {
             auto& sym = sym_from_slot(table,reg.slot);
-            printf("final offset %s = (%x,%x) -> (%x,%x)\n",sym.name.buf,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
+            printf("final offset %s = [%x,%x] -> (%x,%x)\n",sym.name.buf,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
         }
 
         else
         {
-            printf("final offset t%d = (%x,%x) -> (%x,%x)\n",reg.slot.handle,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
+            printf("final offset t%d = [%x,%x] -> (%x,%x)\n",reg.slot.handle,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
         }
     }
 
     assert(pending_stack_allocation(reg));
 
-    // what pos in the block does this reg have?
-    const u32 idx = reg.offset - PENDING_ALLOCATION;  
-    
-    // actually allocate the offset
-    reg.offset = alloc.stack_alloc[reg.size >> 1] + (idx * reg.size);     
+    reg.offset = finalise_offset(alloc,reg.offset,reg.size); 
 }
 
 // 2nd pass of rewriting on the IR
@@ -1073,6 +1148,27 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             assert(is_stack_allocated(reg));
 
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,reg.offset + stack_offset);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::alloc_fixed_array:
+        {
+            const u32 idx = node->opcode.v[1];
+
+            ArrayAllocation &allocation = alloc.array_allocation[idx];
+
+            allocation.offset = finalise_offset(alloc,allocation.offset,allocation.size);
+
+            if(alloc.print_stack_allocation)
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,allocation.slot);
+                printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
+            }
+
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,allocation.offset + allocation.stack_offset);
 
             node = node->next;
             break;
