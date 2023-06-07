@@ -11,10 +11,10 @@ ListNode* get_cur_end(IrEmitter& emitter)
 
 
 
-Opcode store_ptr(SymSlot dst_slot, SymSlot addr_slot, u32 size, u32 offset)
+Opcode store_ptr(SymSlot src_slot, SymSlot addr_slot, u32 offset, u32 size)
 {
     static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-    return Opcode(instr[size >> 1],dst_slot.handle,addr_slot.handle,offset);
+    return Opcode(instr[size >> 1],src_slot.handle,addr_slot.handle,offset);
 }
 
 // this function only supports up to 32 bit reads atm

@@ -562,7 +562,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 }
 
 
-void do_ptr_store(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
+void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
 void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
 
 void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype, AstNode *node)

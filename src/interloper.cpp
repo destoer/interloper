@@ -257,18 +257,18 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 }
 
 
-void do_ptr_store(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset)
+void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_slot, const Type* type, u32 offset)
 {
     const u32 size = type_size(itl,type);
 
     if(size <= sizeof(u32))
     {
-        emit(func,store_ptr(dst_slot,addr_slot,size,offset));  
+        emit(func,store_ptr(src_slot,addr_slot,offset,size));  
     }
 
     else
     {
-        SymSlot src_ptr = addrof_res(itl.symbol_table,func,dst_slot);
+        SymSlot src_ptr = addrof_res(itl.symbol_table,func,src_slot);
         src_ptr = collapse_offset(func,src_ptr,&offset);        
 
         ir_memcpy(itl,func,addr_slot,src_ptr,type_size(itl,type));        

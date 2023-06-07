@@ -26,29 +26,48 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
     // because this alot of boilerplate
 
-    // emit a call to memcpy with args
-    // check function is declared
+    static constexpr u32 COPY_LIMIT = 20;
 
-    Function* func_def = lookup(itl.function_table,String("memcpy"));
-
-    if(!func_def)
+    // multiple of 4 and under the copy limit
+    if(size < COPY_LIMIT && (size & 3) == 0) 
     {
-        panic(itl,itl_error::undeclared,"[COMPILE]: memcpy is required for struct passing\n");
+        const auto tmp = new_tmp(func, 4);
+
+        const u32 count = size / 4;
+
+        for(u32 i = 0; i < count; i++)
+        {
+            emit(func,load_ptr(tmp,src_slot,i * 4,4,false));
+            emit(func,store_ptr(tmp,dst_slot,i * 4,4));
+        }    
     }
-    Function &func_call = *func_def;
 
-    mark_used(itl,func_call);
+    else 
+    {
+        // emit a call to memcpy with args
+        // check function is declared
+
+        Function* func_def = lookup(itl.function_table,String("memcpy"));
+
+        if(!func_def)
+        {
+            panic(itl,itl_error::undeclared,"[COMPILE]: memcpy is required for struct passing\n");
+        }
+        Function &func_call = *func_def;
+
+        mark_used(itl,func_call);
 
 
-    const SymSlot imm_slot = mov_imm(func,size);
+        const SymSlot imm_slot = mov_imm(func,size);
 
-    push_arg(func,imm_slot);
-    push_arg(func,src_slot);
-    push_arg(func,dst_slot);
+        push_arg(func,imm_slot);
+        push_arg(func,src_slot);
+        push_arg(func,dst_slot);
 
-    emit_call(func,func_call.label_slot,true);
+        emit_call(func,func_call.label_slot,true);
 
-    emit(func,op_type::clean_args,3);
+        emit(func,op_type::clean_args,3);
+    }
 }
 
 
