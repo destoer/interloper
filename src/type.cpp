@@ -1433,6 +1433,20 @@ b32 is_any(Interloper& itl, const Type* type)
     return false;
 }
 
+Struct& any_struct(Interloper& itl)
+{
+    TypeDecl* type_decl = lookup_type(itl,"Any");
+
+    return itl.struct_table[type_decl->type_idx];
+}
+
+
+SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
+{
+    UNUSED(itl); UNUSED(func); UNUSED(type);
+    assert(false);
+}
+
 void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
 {
     TypeDecl type_decl;

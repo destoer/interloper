@@ -75,6 +75,9 @@ struct ArrayType (type : const Type)
 
 struct Any
 {
+    // NOTE: this can store < GPR_SIZE types directly
+    // and as such should be accessed with a helper...
     data: const byte@;
+
     type: const Type@;
 };

@@ -80,6 +80,16 @@ u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Ar
 }
 
 
+u32 promote_size(u32 size)
+{
+    if(size < 4)
+    {
+        return 4;
+    }
+
+    return size;
+}
+
 // used for both tuples and ordinary function calls
 Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
@@ -175,7 +185,51 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
         if(is_any(itl,arg.type))
         {
+            // compile our arg and figure out what we have
+            auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
+
+            auto& structure = any_struct(itl);
+
+            
+            // aquire a copy of the typing information from the const pool
+            const SymSlot rtti_ptr = aquire_rtti(itl,func,arg_type); 
+            
+            // allocate room for var + any struct on the stack
+            const u32 arg_size = type_size(itl,arg_type);
+            const u32 size = promote_size(arg_size) + structure.size;
+
+            // alloc the struct size for our copy
+            emit(func,op_type::alloc_stack,size);
+
+
+            // finally the any struct
+            // TODO: we should store things less than GPR_SIZE directly in the pointer...
+            // store our any struct
+            if(is_fixed_array_pointer(arg_type))
+            {
+                assert(false);
+            }
+
+            if(is_array(arg_type))
+            {
+                assert(false);
+            }
+
+            else if(is_struct(arg_type))
+            {
+                assert(false);
+            }
+
+
+            else
+            {
+                assert(false);
+            }
+
+            UNUSED(arg_type); UNUSED(reg); UNUSED(structure); UNUSED(rtti_ptr);
             assert(false);
+
+            arg_clean += size / GPR_SIZE;
         }
 
         else if(is_array(arg.type))
