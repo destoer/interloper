@@ -44,7 +44,7 @@ void destroy_struct_table(StructTable& struct_table)
 }
 
 
-Struct struct_from_type(StructTable& struct_table, const Type* type)
+Struct& struct_from_type(StructTable& struct_table, const Type* type)
 {
     StructType* struct_type = (StructType*)type;
 
@@ -52,16 +52,8 @@ Struct struct_from_type(StructTable& struct_table, const Type* type)
 }   
 
 
-
-std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name)
+std::optional<Member> get_member(Struct& structure,const String& member_name)
 {
-    if(!is_struct(type))
-    {
-        return std::nullopt;
-    }
-
-    auto structure = struct_from_type(struct_table,type);
-
     const u32* idx = lookup(structure.member_map,member_name);
 
     if(!idx)
@@ -70,7 +62,19 @@ std::optional<Member> get_member(StructTable& struct_table, const Type* type, co
     }
 
     const auto member = structure.members[*idx];
-    return std::optional<Member>(member);
+    return std::optional<Member>(member);    
+}
+
+std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name)
+{
+    if(!is_struct(type))
+    {
+        return std::nullopt;
+    }
+
+    auto& structure = struct_from_type(struct_table,type);
+
+    return get_member(structure,member_name);
 }
 
 
@@ -416,6 +420,20 @@ std::pair<Type*,SymSlot> access_struct_member(Interloper& itl, Function& func, S
     return std::pair{member.type,slot};    
 }
 
+
+// NOTE: this will just panic if the member name if invalid
+std::optional<u32> member_offset(Struct& structure, const String& name)
+{
+    auto member_opt = get_member(structure,name);
+    if(!member_opt)
+    {
+        return std::nullopt;
+    }
+
+    auto member = member_opt.value();
+
+    return std::optional{member.offset};
+}
 
 // return type, slot, offset
 std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)

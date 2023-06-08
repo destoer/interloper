@@ -185,21 +185,37 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
         if(is_any(itl,arg.type))
         {
+            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+
             // compile our arg and figure out what we have
             auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-            auto& structure = any_struct(itl);
+            const auto& rtti = itl.rtti_cache; 
 
-            
             // aquire a copy of the typing information from the const pool
             const SymSlot rtti_ptr = aquire_rtti(itl,func,arg_type); 
             
             // allocate room for var + any struct on the stack
             const u32 arg_size = type_size(itl,arg_type);
-            const u32 size = promote_size(arg_size) + structure.size;
+
+            u32 size = rtti.any_struct_size;
+
+            // cannot embed directly into the data pointer...
+            // TODO: this needs a stronger check
+            if(arg_size > GPR_SIZE)
+            {
+                size += promote_size(arg_size);
+                assert(false);
+            }
+
+            // how does this play at 64 bit?
+            static_assert(GPR_SIZE == 4);
+
 
             // alloc the struct size for our copy
             emit(func,op_type::alloc_stack,size);
+
+            UNUSED(rtti_ptr);
 
 
             // finally the any struct
@@ -215,14 +231,15 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 assert(false);
             }
 
-
+            // trivial copy < GPR_SIZE
             else
             {
-                assert(false);
-            }
+                // store data
+                emit(func,store_ptr(reg,SP_SLOT,rtti.any_data_offset,GPR_SIZE));
 
-            UNUSED(arg_type); UNUSED(reg); UNUSED(structure); UNUSED(rtti_ptr);
-            assert(false);
+                // store type struct
+                emit(func,store_ptr(rtti_ptr,SP_SLOT,rtti.any_type_offset,GPR_SIZE));                
+            }
 
             arg_clean += size / GPR_SIZE;
         }
@@ -644,10 +661,4 @@ void check_func_exists(Interloper& itl, const String& name)
         panic(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
         return;
     }    
-}
-
-void check_startup_func(Interloper& itl)
-{
-    check_func_exists(itl,"main");
-    check_func_exists(itl,"start");
 }

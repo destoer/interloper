@@ -2,6 +2,9 @@
 type_alias c8 = u8;
 type_alias string = c8[];
 
+
+//RUNTIME_SIZE : const u32 = 0xfffffff0;
+
 enum builtin_type
 {
     u8_t,
@@ -16,25 +19,11 @@ enum builtin_type
 
     bool_t,
 
-    void_t, 
-
     null_t,
 }
 
-func is_builtin(type_idx : u32) bool
-{
-    return type_idx < builtin_type.len;
-}
-
-/*
-// TODO: we need function overloading for this
-func is_builtin(type : const Type@) bool
-{
-    return is_builtin(type.type_idx);
-}
-*/
-
-//RUNTIME_SIZE : const u32 = 0xfffffff0;
+// NOTE: these structs are directly interfaced with by the compiler
+// editing cause rtti to fail to compile
 
 struct Type
 {
@@ -43,8 +32,6 @@ struct Type
     // specifiers
     is_const : const bool;
 };
-
-
 
 struct PointerType (type : const Type)
 {
@@ -62,22 +49,26 @@ struct EnumType (type : const Type)
 };
 
 
-struct ArrayType (type : const Type)
-{
-    contained_type : const Type@;
-
-    // RUNTIME_SIZE or current size!
-    size : const u32;
-  
-    // size of indexing array
-    sub_size : const u32;
-};
-
 struct Any
 {
-    // NOTE: this can store < GPR_SIZE types directly
-    // and as such should be accessed with a helper...
-    data: const byte@;
+    // NOTE: for types < GPR_SIZE they are written directly into the pointer
+    // use the helper functions to get at the data
+    data : const byte@;
 
-    type: const Type@;
+    type : const Type@;
 };
+
+
+func is_builtin(type_idx : u32) bool
+{
+    return type_idx < builtin_type.len;
+}
+
+/*
+// TODO: we need function overloading for this
+func is_builtin(type : const Type@) bool
+{
+    return is_builtin(type.type_idx);
+}
+*/
+

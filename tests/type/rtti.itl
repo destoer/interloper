@@ -7,7 +7,7 @@ func check_builtin_type(any : Any, expected : builtin_type) bool
 
     if(is_builtin(type.type_idx))
     {
-        decl actual = cast(builtin_type,type_idx);
+        decl actual = cast(builtin_type,type.type_idx);
         return actual == expected;
     }
 
@@ -17,9 +17,21 @@ func check_builtin_type(any : Any, expected : builtin_type) bool
 func main() s32
 {
     res1 : bool = check_builtin_type(cast(u32,1),builtin_type::u32_t);
+    res2 : bool = check_builtin_type(cast(u16,2),builtin_type::u16_t);
+    res3 : bool = check_builtin_type(cast(u8,3),builtin_type::u8_t);
+
+    res4 : bool = check_builtin_type(cast(s32,4),builtin_type::s32_t);
+    res5 : bool = check_builtin_type(cast(s16,5),builtin_type::s16_t);
+    res6 : bool = check_builtin_type(cast(s8,6),builtin_type::s8_t);
+
+    res7 : bool = check_builtin_type(cast(byte,7),builtin_type::byte_t);
+
+    res8 : bool = check_builtin_type(true,builtin_type::bool_t);
+
+    
 
     // did every test pass?
-    res : bool = res;
+    res : bool = res1 && res2 && res3 && res4 && res5 && res6 && res7;
     ans : s32 = cast(u32,res);
 
     return ans;

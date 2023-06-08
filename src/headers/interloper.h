@@ -36,6 +36,7 @@ enum class itl_error
     struct_error,
     undefined_type_oper,
     const_type_error,
+    rtti_error,
 };
 
 static const char* ERROR_NAME[] = 
@@ -63,7 +64,8 @@ static const char* ERROR_NAME[] =
     "black hole",
     "struct error",
     "undefined type operation",
-    "const type error"
+    "const type error",
+    "rtti error",
 };
 
 struct Interloper
@@ -109,18 +111,22 @@ struct Interloper
     StructTable struct_table;
     EnumTable enum_table;
     AliasTable alias_table;
+    RttiCache rtti_cache;
 
     // compilier config
 
+    // diagnostic
     b32 print_ast = false;
     b32 print_ir = false;
     b32 print_tokens = false;
-
-
+    
     b32 print_reg_allocation = false;
     b32 print_stack_allocation = false; 
 
     b32 print_types = false;
+
+    // compiler options
+    b32 rtti_enable = true;
 };
 
 
@@ -165,6 +171,18 @@ inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
     
     itl.error = true;
     itl.error_code = error;
+}
+
+void itl_warning(const char* fmt, ...)
+{
+    printf("warning: ");
+
+    va_list args; 
+    va_start(args, fmt);
+    vprintf(fmt,args);
+    va_end(args);
+
+    putchar('\n');    
 }
 
 u32 eval_int_expr(AstNode *node);

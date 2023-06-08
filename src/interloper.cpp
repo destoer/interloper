@@ -39,6 +39,7 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
 #include "optimize.cpp"
 #include "ir.cpp"
 #include "struct.cpp"
+#include "rtti.cpp"
 #include "func.cpp"
 #include "array.cpp"
 
@@ -2058,6 +2059,17 @@ void setup_type_table(Interloper& itl)
     }
 }
 
+void check_startup_defs(Interloper& itl)
+{   
+    if(itl.rtti_enable)
+    {
+        cache_rtti_structs(itl);
+    }
+
+    check_func_exists(itl,"main");
+    check_func_exists(itl,"start");
+}
+
 void compile(Interloper &itl,const String& initial_filename)
 {
     printf("compiling file: %s\n",initial_filename.buf);
@@ -2128,7 +2140,7 @@ void compile(Interloper &itl,const String& initial_filename)
     }
 
 
-    check_startup_func(itl);
+    check_startup_defs(itl);
 
     if(itl.error)
     {
@@ -2152,7 +2164,6 @@ void compile(Interloper &itl,const String& initial_filename)
     // go through each function and compile
     // how do we want to handle getting to the entry point / address allocation?
     // do we want a "label" for each function? 
-
     compile_functions(itl);
 
 

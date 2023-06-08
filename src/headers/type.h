@@ -23,9 +23,13 @@ enum class builtin_type
 
     bool_t,
 
-    void_t, 
+    
+    // NOTE: used internally by compiler -> not accessible via RTTI
+    // keep on the end
 
     null_t,
+
+    void_t, 
 };
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
@@ -42,9 +46,9 @@ static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
 
     "bool",
 
-    "void",
-
     "NULL",
+
+    "void",
 };
 
 struct BuiltinTypeInfo
@@ -110,6 +114,13 @@ struct TypeDecl
     type_kind kind;
     u32 type_idx;
 };
+
+static constexpr u32 INVALID_TYPE_IDX = 0xffff'ffff;
+
+b32 invalid_type_idx(u32 type_idx)
+{
+    return type_idx == INVALID_TYPE_IDX;
+}
 
 enum class def_kind
 {
@@ -187,6 +198,31 @@ struct ArrayType
     u32 sub_size;
 };
 
+// cache for rtti, these contain offsets and struct idx for all rtti structs
+// NOTE: These are pulled from the defs in the type.itl file rather than having the compiler insert them
+// so that any struct differences as a result of compile target is handled for us
+struct RttiCache
+{
+    b32 struct_cached = false;
+
+    // any cache
+    u32 any_idx = 0;
+    u32 any_data_offset = 0;
+    u32 any_type_offset = 0;
+    u32 any_struct_size = 0;
+
+    // type struct cache
+    u32 type_struct_size = 0;
+    u32 is_const_offset = 0;
+    u32 type_idx_offset = 0;
+
+    u32 array_idx = 0;
+
+    u32 enum_idx = 0;
+
+    u32 struct_idx = 0;
+};
+
 
 
 static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
@@ -256,7 +292,7 @@ enum class struct_state
 
 
 using StructTable = Array<Struct>;
-Struct struct_from_type(StructTable& struct_table, const Type* type);
+Struct& struct_from_type(StructTable& struct_table, const Type* type);
 
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u32_t;
 

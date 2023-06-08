@@ -139,7 +139,7 @@ TypeNode *parse_type(Parser &parser)
 
     u32 type_idx = plain_type_idx(plain_tok);
 
-    // null cannot be obtained via normal means
+
     if(type_idx == INVALID_TYPE || type_idx == u32(builtin_type::null_t))
     {
         panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));

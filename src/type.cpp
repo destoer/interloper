@@ -14,9 +14,9 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 
     {builtin_type::bool_t, false, false ,1,  0, 1},
 
-    {builtin_type::void_t, false, false, 0, 0, 0},
-
     {builtin_type::null_t, false,false, GPR_SIZE,0,0},
+
+    {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype);
@@ -445,16 +445,19 @@ String fmt_index(Interloper& itl,u32 index)
     return make_string(itl.string_allocator,buf,len);
 }
 
+void push_const_name(Interloper& itl, StringBuffer& buffer, const Type* type)
+{
+    if(type->is_const)
+    {
+        push_string(itl.string_allocator,buffer,"const ");
+    }
+}
+
 String type_name(Interloper& itl,const Type *type)
 {
     StringBuffer prefix;
 
     StringBuffer compound;
-
-    if(type->is_const)
-    {
-        push_string(itl.string_allocator,prefix,"const ");
-    }
 
     String plain;
 
@@ -466,6 +469,7 @@ String type_name(Interloper& itl,const Type *type)
         {
             case POINTER:
             {
+                push_const_name(itl,compound,type);
                 push_char(itl.string_allocator,compound,'@');
 
                 PointerType* pointer_type = (PointerType*)type;
@@ -475,6 +479,8 @@ String type_name(Interloper& itl,const Type *type)
 
             case STRUCT: 
             {
+                push_const_name(itl,prefix,type);
+
                 const auto structure =  struct_from_type(itl.struct_table,type);
                 plain = structure.name;
                 done = true;
@@ -483,6 +489,8 @@ String type_name(Interloper& itl,const Type *type)
 
             case ENUM: 
             {
+                push_const_name(itl,prefix,type);
+
                 const auto enumeration = enum_from_type(itl.enum_table,type);
                 plain = enumeration.name;  
                 done = true;
@@ -491,6 +499,8 @@ String type_name(Interloper& itl,const Type *type)
 
             case ARRAY:
             {
+                push_const_name(itl,compound,type);
+
                 ArrayType* array_type = (ArrayType*)type;
 
                 push_string(itl.string_allocator,compound,fmt_index(itl,array_type->size));
@@ -501,6 +511,8 @@ String type_name(Interloper& itl,const Type *type)
             // builtin
             default:
             {
+                push_const_name(itl,prefix,type);
+
                 plain = builtin_type_name(builtin_type(type->type_idx));
                 done = true;
                 break;
@@ -802,55 +814,35 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
 }
 
 
-void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
+void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_arg, b32 is_initializer, b32 was_pointer)
 {
-    // handle const
-    // TODO: this does not typecheck arrays yet
-    if(rtype->is_const)
+    if(ltype->is_const)
     {
-        if(is_arg)
+        // can only assign for arg or initalizer everything
+        // unless this is a pointer, if so it is legal as long as the ltype of the contained type is const
+        if(!is_initializer && !is_arg && !was_pointer)
         {
-            // if the ltype is not const and the rtype is not this is illegal
-            if(!ltype->is_const)
-            {
-                panic(itl,itl_error::const_type_error,"cannot pass const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-                return;
-            }
-        }
-
-        // assign
-        else
-        {
-            // ltype is const
-            // only valid given an initialisation
-            if(ltype->is_const && !is_initializer)
-            {
-                panic(itl,itl_error::const_type_error,"cannot to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            }
-
-            // ltype is not const illegal
-            else
-            {
-                panic(itl,itl_error::const_type_error,"cannot assign const ref to mut ref: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            }  
-        }
-    }
-
-    
-    else if(ltype->is_const)
-    {
-        // if its an arg or initalizer its fine
-        if(!is_initializer && !is_arg)
-        {
-            panic(itl,itl_error::const_type_error,"cannot assign to const: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::const_type_error,"cannot assign rtype to const ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
         }
     }
+
+    if(rtype->is_const)
+    {
+        // ltype must be const too
+        if(!ltype->is_const)
+        {
+            panic(itl,itl_error::const_type_error,"cannot const rtype to ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;            
+        }
+    }
+
+    // neither is const is fine in any context
 }
 
 // NOTE: this is expected to be called after main sets of type checking
 // so types should atleast be the same fmt at every level
-void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_arg, bool is_initializer)
+void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_arg, b32 is_initializer)
 {
     b32 done = false;
 
@@ -864,6 +856,9 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
         }
     }
 
+    // TODO: how does this play with heavily nested types?
+    // was a pointer in the type "above"
+    b32 was_pointer = false;
 
     // check const specifiers at every level
     while(!done)
@@ -873,28 +868,33 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
             case ARRAY:
             {
                 assert(false);
+
+                was_pointer = false;
+                break;
             }
 
             case POINTER:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
 
                 // check sub types
                 ltype = deref_pointer(ltype);
                 rtype = deref_pointer(rtype);
+
+                was_pointer = true;
                 break;
             }
 
             case STRUCT:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
                 done = true;
                 break;
             }
 
             case ENUM:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
                 done = true;
                 break;
             }
@@ -902,7 +902,7 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, bool is_a
             // check end type
             default:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer);
+                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
                 done = true;
                 break;
             }
@@ -1420,32 +1420,6 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
     assert(false);
 }
 
-b32 is_any(Interloper& itl, const Type* type)
-{
-    if(is_struct(type))
-    {
-        const auto& structure = struct_from_type(itl.struct_table,type);
-
-        // TODO: should this be compiler defined?
-        return structure.name == "Any";
-    }
-
-    return false;
-}
-
-Struct& any_struct(Interloper& itl)
-{
-    TypeDecl* type_decl = lookup_type(itl,"Any");
-
-    return itl.struct_table[type_decl->type_idx];
-}
-
-
-SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
-{
-    UNUSED(itl); UNUSED(func); UNUSED(type);
-    assert(false);
-}
 
 void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
 {

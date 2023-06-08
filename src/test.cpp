@@ -105,9 +105,10 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/type/type_query",1},
 
     // const
-    {"tests/const/const_pass_copy.itl",100},
-    {"tests/const/const_valid.itl",10},
-    {"tests/const/const_assign_value.itl",5},
+    {"tests/const/const_pass_copy",100},
+    {"tests/const/const_valid",10},
+    {"tests/const/const_assign_value",5},
+    {"tests/const/const_ptr_ptr",0},
 
     // func
     {"tests/func/func",9},
@@ -254,7 +255,7 @@ void run_tests()
 
             if(itl.error_code != test.error)
             {
-                printf("Fail %s expected error code %s got %s\n",test.name,ERROR_NAME[u32(test.error)],ERROR_NAME[u32(itl.error_code)]);
+                printf("Fail %s expected error code '%s' got '%s'\n",test.name,ERROR_NAME[u32(test.error)],ERROR_NAME[u32(itl.error_code)]);
                 fail = true;
                 break;
             }

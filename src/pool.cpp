@@ -42,16 +42,15 @@ PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
     return slot;
 }
 
-void write_const_pool(ConstPool& pool, PoolSlot slot, u32 offset, const void* data,u32 size)
+void write_const_pool(ConstPool& pool, PoolSection& section, u32 offset, const void* data,u32 size)
 {
-    const auto& section = pool_section_from_slot(pool,slot);
     memcpy(&pool.buf[section.offset + offset],data,size);
 }
 
 template<typename T>
-void write_const_pool(ConstPool& pool, PoolSlot slot, u32 offset,const T& data)
+void write_const_pool(ConstPool& pool, PoolSection& section, u32 offset,const T& data)
 {
-    write_const_pool(pool,slot,offset,&data,sizeof(data));
+    write_const_pool(pool,section,offset,&data,sizeof(data));
 }
 
 void write_const_pool_label(ConstPool& pool, PoolSlot slot, u32 offset,LabelSlot label_slot)
@@ -61,17 +60,27 @@ void write_const_pool_label(ConstPool& pool, PoolSlot slot, u32 offset,LabelSlot
     push_var(section.label,offset);
 
     // write the label in
-    write_const_pool(pool,slot,offset,label_slot.handle);
+    write_const_pool(pool,section,offset,label_slot.handle);
 }
+
+/*
+template<typename T>
+void write_const_pool_struct(ConstPool& pool, PoolSlot slot, const String& name, const T& data)
+{
+
+}
+*/
+
 
 // create a pool section and push the data to it
 PoolSlot push_const_pool(ConstPool& pool, pool_type type, const void* data,u32 size)
 {
     // create section
     const auto slot = reserve_const_pool_section(pool,type,size);
+    auto& section = pool_section_from_slot(pool,slot);
 
     // copy the data into the pool
-    write_const_pool(pool,slot,0,data,size);
+    write_const_pool(pool,section,0,data,size);
 
     return slot;
 }
