@@ -97,7 +97,7 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
 {
     const auto& rtti = itl.rtti_cache;
 
-    // TODO: for now we ignore trying unique the typing information to save space..
+    // TODO: for now we wont bother trying to unique this
 
     switch(type->type_idx)
     {
@@ -148,11 +148,74 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
 }
 
 
-
-
 SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
 {
     const PoolSlot pool_slot = make_rtti(itl,type);
 
     return pool_addr(func,pool_slot);
+}
+
+u32 promote_size(u32 size)
+{
+    if(size < GPR_SIZE)
+    {
+        return GPR_SIZE;
+    }
+
+    return size;
+}
+
+// any struct + sizeof type total
+u32 any_size(Interloper &itl, const Type* type)
+{
+    u32 size = itl.rtti_cache.any_struct_size;
+
+    // how does this play at 64 bit?
+    static_assert(GPR_SIZE == sizeof(u32));
+
+    // cannot embed directly into the data pointer...
+    if(!is_trivial_copy(type))
+    {
+        const u32 arg_size = type_size(itl,type);
+
+        size += promote_size(arg_size);
+    }
+
+    return size;    
+}
+
+void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, const SymSlot src, const Type* type)
+{
+    auto& rtti = itl.rtti_cache;
+
+    // aquire a copy of the typing information from the const pool
+    const SymSlot rtti_ptr = aquire_rtti(itl,func,type); 
+
+    if(is_trivial_copy(type))
+    {
+        // store data
+        emit(func,store_ptr(src,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE));
+
+        // store type struct
+        emit(func,store_ptr(rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE));                
+    } 
+
+    // finally the any struct
+    // TODO: we should store things less than GPR_SIZE directly in the pointer...
+    // store our any struct
+    else if(is_array(type))
+    {
+        assert(false);
+    }
+
+    else if(is_struct(type))
+    {
+        assert(false);
+    }
+    
+    // should never happen
+    else
+    {
+        assert(false);
+    }
 }

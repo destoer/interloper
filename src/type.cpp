@@ -16,6 +16,8 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 
     {builtin_type::null_t, false,false, GPR_SIZE,0,0},
 
+    // internal
+
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
@@ -946,6 +948,25 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
     UNUSED(itl);
 
 
+    // any ptr rtype is compatible with byte ptr ltype
+    if(ltype->type_idx == POINTER && rtype->type_idx == POINTER)
+    {
+        const Type* base_type_ltype = deref_pointer(ltype);
+        const Type* base_type_rtype = deref_pointer(rtype);
+
+        if(base_type_ltype->type_idx == u32(builtin_type::byte_t))
+        {
+            return;
+        }
+
+        // anything of NULL is implictly converted
+        if(base_type_rtype->type_idx == u32(builtin_type::null_t))
+        {
+            return;
+        }
+    }
+
+
     b32 indirection = true;
 
     // descend until we hit the base type
@@ -993,20 +1014,8 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
     // anything else
     else
     {
-        // anything of NULL is implictly converted
-        if(rtype->type_idx == u32(builtin_type::null_t))
-        {
-
-        }
-
-        // anything against a ltype of byte is fine!
-        else if(ltype->type_idx == u32(builtin_type::byte_t))
-        {
-
-        }
-
         // if base types still aernt equal we have a problem!
-        else if(!plain_type_equal(ltype,rtype))
+        if(!plain_type_equal(ltype,rtype))
         {
             panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }

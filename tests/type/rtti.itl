@@ -14,7 +14,7 @@ func check_builtin_type(any : Any, expected : builtin_type) bool
     return false;
 }
 
-func main() s32
+func check_builtin() bool
 {
     res1 : bool = check_builtin_type(cast(u32,1),builtin_type::u32_t);
     res2 : bool = check_builtin_type(cast(u16,2),builtin_type::u16_t);
@@ -28,10 +28,18 @@ func main() s32
 
     res8 : bool = check_builtin_type(true,builtin_type::bool_t);
 
+    // not equal
+    res9 : bool = !check_builtin_type(true,builtin_type::u32_t);
     
-
     // did every test pass?
-    res : bool = res1 && res2 && res3 && res4 && res5 && res6 && res7;
+    res : bool = res1 && res2 && res3 && res4 && res5 && res6 && res7 && res8 && res9;
+
+    return res;
+}
+
+func main() s32
+{
+    res : bool = check_builtin();
     ans : s32 = cast(u32,res);
 
     return ans;
