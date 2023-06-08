@@ -138,7 +138,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/cast_ptr",1020},
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
-    {"tests/ptr/alias",5},
+    {"tests/ptr/alias",1},
 
     // wait for heap allocation
     //{"tests/ptr/ptr_to_array",3},

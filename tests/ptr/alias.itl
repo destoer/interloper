@@ -1,5 +1,5 @@
 
-// expected 5
+// expected 1
 func main() s32
 {
     x : s32 = 0;
@@ -7,5 +7,15 @@ func main() s32
 
     x = 5;
 
-    return @x_ptr;
+    // test x is spilled when written to before a pointer is read from
+    res1 : bool = @x_ptr == 5;
+
+    @x_ptr = 6;
+
+    // test x is reloaded before being read when a pointer is written to
+    res2 : bool = x == 6;
+    
+    decl res = res1 && res2;
+
+    return cast(s32,res);
 }
