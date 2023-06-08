@@ -37,9 +37,32 @@ func check_builtin() bool
     return res;
 }
 
+/*
+func check_ptr(any : Any, expected : builtin_type) bool
+{
+    return true;
+}
+
+func check_pointer() bool
+{
+    x : u32 = 5;
+    ptr : u32@  = &x;
+
+    res1 : bool = check_ptr(ptr,builtin_type::u32_t);
+
+    res : bool = res1;
+
+    return res;
+}
+*/
+
 func main() s32
 {
-    res : bool = check_builtin();
+    res1 : bool = check_builtin();
+    //res2 : bool = check_pointer();
+
+    decl res = res1;
+
     ans : s32 = cast(u32,res);
 
     return ans;
