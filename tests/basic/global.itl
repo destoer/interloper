@@ -2,9 +2,16 @@
 // globals are stored above the stack
 x : u32 = 5;
 
+func modify_nested()
+{
+    x = x + x;
+}
+
 func modify()
 {
     x = 10;
+
+    modify_nested();
 }
 
 // expected 15
