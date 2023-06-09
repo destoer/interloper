@@ -56,9 +56,13 @@ func check_pointer() bool
     x : u32 = 5;
     ptr : u32@  = &x;
 
-    res1 : bool = check_ptr(ptr,itl_type::u32_t);
+    y : s32 = 5;
+    ptr_false : s32@ = &y;
 
-    res : bool = res1;
+    res1 : bool = check_ptr(ptr,itl_type::u32_t);
+    res2 : bool = !check_ptr(ptr_false,itl_type::u32_t);
+
+    res : bool = res1 && res2;
 
     return res;
 }
