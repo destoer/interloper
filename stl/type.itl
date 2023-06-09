@@ -44,6 +44,17 @@ struct PointerType (type : const Type)
     contained_type : const Type@;
 };
 
+struct ArrayType (type : const Type)
+{
+    contained_type : const Type@;
+
+    // RUNTIME_SIZE or current size!
+    size : u32;
+
+    // size of indexing array
+    sub_size : u32;
+};
+
 struct StructType (type : const Type)
 {
     struct_idx : const u32;
