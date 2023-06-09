@@ -69,14 +69,6 @@ void free_sym(Interloper& itl,Function& func, Symbol& sym)
     sym.scope_end = cur_block(func);
 }
 
-void emit(Function& func,const Opcode& opcode)
-{
-    auto &list = get_cur_list(func.emitter);
-    append(list,opcode);
-}
-
-
-
 // get back a longer lived tmp
 // stored internally as a symbol
 SymSlot new_tmp(Function& func, u32 size)
@@ -176,14 +168,25 @@ void print(const Reg& reg)
     printf("slot: %x\n",reg.slot.handle);
 }
 
+// NOTE: this is the bottom level emitter
+void emit_block_internal(Function& func,BlockSlot block_slot, const Opcode& opcode)
+{
+    auto& block = block_from_slot(func,block_slot);
+    auto &list = block.list;
+    append(list,opcode);    
+}
+
 // Emitter overloads
 void emit_block_internal(Function& func, BlockSlot block_slot, op_type op, u32 v1, u32 v2, u32 v3)
 {
     Opcode opcode(op,v1,v2,v3);
 
-    auto& block = block_from_slot(func,block_slot);
-    auto &list = block.list;
-    append(list,opcode);    
+    emit_block_internal(func,block_slot,opcode); 
+}
+
+void emit(Function& func,const Opcode& opcode)
+{
+    emit_block_internal(func,cur_block(func),opcode);
 }
 
 void emit_internal(Function& func,op_type op, u32 v1, u32 v2, u32 v3)

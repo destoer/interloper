@@ -1,4 +1,7 @@
-
+// TODO: 
+// figure out how to put these in with normal symbols slots
+//  and mark them for special access that we perform rewriting on inside the 1st stage ir
+// because we need something generic
 
 
 std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node)
@@ -112,8 +115,7 @@ void compile_constant_expression(Interloper& itl, ConstSym& sym, AstNode* node)
 
 
 
-// TODO: figure out how to put these in with normal symbols and access them specially
-// because we need something generic
+
 void compile_constant(Interloper& itl, GlobalDeclNode* node)
 {
     // TODO: when we support using const vars in expr
