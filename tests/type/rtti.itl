@@ -1,14 +1,13 @@
 
 // check passed type is what is expected for passed value..
 
-func check_builtin_type(any : Any, expected : builtin_type) bool
+func check_builtin_type(any : Any, expected : itl_type) bool
 {
     type : const Type@ = any.type;
 
     if(is_builtin(type.type_idx))
     {
-        decl actual = cast(builtin_type,type.type_idx);
-        return actual == expected;
+        return type.type_idx == expected;
     }
 
     return false;
@@ -16,20 +15,20 @@ func check_builtin_type(any : Any, expected : builtin_type) bool
 
 func check_builtin() bool
 {
-    res1 : bool = check_builtin_type(cast(u32,1),builtin_type::u32_t);
-    res2 : bool = check_builtin_type(cast(u16,2),builtin_type::u16_t);
-    res3 : bool = check_builtin_type(cast(u8,3),builtin_type::u8_t);
+    res1 : bool = check_builtin_type(cast(u32,1),itl_type::u32_t);
+    res2 : bool = check_builtin_type(cast(u16,2),itl_type::u16_t);
+    res3 : bool = check_builtin_type(cast(u8,3),itl_type::u8_t);
 
-    res4 : bool = check_builtin_type(cast(s32,4),builtin_type::s32_t);
-    res5 : bool = check_builtin_type(cast(s16,5),builtin_type::s16_t);
-    res6 : bool = check_builtin_type(cast(s8,6),builtin_type::s8_t);
+    res4 : bool = check_builtin_type(cast(s32,4),itl_type::s32_t);
+    res5 : bool = check_builtin_type(cast(s16,5),itl_type::s16_t);
+    res6 : bool = check_builtin_type(cast(s8,6),itl_type::s8_t);
 
-    res7 : bool = check_builtin_type(cast(byte,7),builtin_type::byte_t);
+    res7 : bool = check_builtin_type(cast(byte,7),itl_type::byte_t);
 
-    res8 : bool = check_builtin_type(true,builtin_type::bool_t);
+    res8 : bool = check_builtin_type(true,itl_type::bool_t);
 
     // not equal
-    res9 : bool = !check_builtin_type(true,builtin_type::u32_t);
+    res9 : bool = !check_builtin_type(true,itl_type::u32_t);
     
     // did every test pass?
     res : bool = res1 && res2 && res3 && res4 && res5 && res6 && res7 && res8 && res9;
@@ -37,10 +36,19 @@ func check_builtin() bool
     return res;
 }
 
-/*
-func check_ptr(any : Any, expected : builtin_type) bool
+
+func check_ptr(any : Any, expected : itl_type) bool
 {
-    return true;
+    type : const Type@ = any.type;
+
+    if(type.type_idx == itl_type::pointer_t)
+    {
+        decl contained_type = deref_pointer(type);
+
+        return expected == contained_type.type_idx;
+    }
+
+    return false;
 }
 
 func check_pointer() bool
@@ -48,20 +56,19 @@ func check_pointer() bool
     x : u32 = 5;
     ptr : u32@  = &x;
 
-    res1 : bool = check_ptr(ptr,builtin_type::u32_t);
+    res1 : bool = check_ptr(ptr,itl_type::u32_t);
 
     res : bool = res1;
 
     return res;
 }
-*/
 
 func main() s32
 {
     res1 : bool = check_builtin();
-    //res2 : bool = check_pointer();
+    res2 : bool = check_pointer();
 
-    decl res = res1;
+    decl res = res1 && res2;
 
     ans : s32 = cast(u32,res);
 

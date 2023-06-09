@@ -80,6 +80,20 @@ void cache_rtti_structs(Interloper& itl)
     rtti.is_const_offset = cache_offset(itl,type_struct,"is_const");
     rtti.type_idx_offset = cache_offset(itl,type_struct,"type_idx");
     rtti.type_struct_size = type_struct.size;
+
+
+    const u32 pointer_struct_idx = cache_struct(itl,"PointerType");
+
+    if(invalid_type_idx(pointer_struct_idx))
+    {
+        return;
+    }
+
+    auto& pointer_struct = itl.struct_table[pointer_struct_idx];
+    rtti.pointer_contained_offset = cache_offset(itl,pointer_struct,"contained_type");
+    rtti.pointer_struct_size = pointer_struct.size;
+
+
 /*
     rtti.array_idx = cache_struct(itl,"ArrayType");
 
@@ -107,12 +121,24 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             break;
         }
 
-        // TODO: how will recursive pushing work exactly?
-        // test with a pointer!
         case POINTER:
         {
-            assert(false);
-            break;
+            // get contained type
+            const PointerType* pointer_type = (PointerType*)type;
+            const PoolSlot contained_type = make_rtti(itl,pointer_type->contained_type);
+
+            // reserve room for pointer type
+            const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.pointer_struct_size);
+            auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+            // push in base type
+            write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
+            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,POINTER_RTTI);            
+
+            // push in pointer type
+            write_const_pool_pointer(itl.const_pool,section,rtti.pointer_contained_offset,contained_type);
+
+            return slot;
         }
 
         case ENUM:
@@ -139,7 +165,6 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
 
             return slot;
-        
         }
     }
 

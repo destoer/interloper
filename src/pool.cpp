@@ -53,15 +53,31 @@ void write_const_pool(ConstPool& pool, PoolSection& section, u32 offset,const T&
     write_const_pool(pool,section,offset,&data,sizeof(data));
 }
 
+void write_const_pool_label(ConstPool& pool, PoolSection& section, u32 offset, LabelSlot label_slot)
+{
+    // mark where label is going so it can resolved later
+    push_var(section.label,offset);
+
+    // write the label in
+    write_const_pool(pool,section,offset,label_slot.handle);    
+}
+
 void write_const_pool_label(ConstPool& pool, PoolSlot slot, u32 offset,LabelSlot label_slot)
 {
     // mark where label is going so it can resolved later
     auto& section = pool_section_from_slot(pool,slot);
-    push_var(section.label,offset);
 
-    // write the label in
-    write_const_pool(pool,section,offset,label_slot.handle);
+    write_const_pool_label(pool,section,offset,label_slot);
 }
+
+void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,PoolSlot pool_slot)
+{
+    push_var(section.pool_pointer,offset);
+
+    // write the pool slot in
+    write_const_pool(pool,section,offset,pool_slot.handle);
+}
+
 
 /*
 template<typename T>

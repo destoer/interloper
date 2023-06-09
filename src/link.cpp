@@ -80,6 +80,8 @@ void emit_asm(Interloper &itl)
     // get raw pool data to rewrite its contents
     auto& pool_data = itl.const_pool.buf;
 
+    const u32 const_pool_loc = itl.program.size;
+
     for(u32 i = 0; i < count(itl.const_pool.sections); i++)
     {
         const PoolSection& section = itl.const_pool.sections[i];
@@ -88,7 +90,8 @@ void emit_asm(Interloper &itl)
         // rewrite all labels
         for(u32 l = 0; l < count(section.label); l++)
         {
-            static_assert(GPR_SIZE == sizeof(u32));
+            // assumes 32bit handles
+            static_assert(sizeof(LabelSlot) == sizeof(u32));
 
             const u32 label_offset = section.label[l];
             const u32 addr = label_offset + section_offset;
@@ -102,12 +105,17 @@ void emit_asm(Interloper &itl)
         // rewrite all pointers
         for(u32 p = 0; p < count(section.pool_pointer); p++)
         {
-            assert(false);
+            const u32 pointer_offset = section.pool_pointer[p];
+            const u32 addr = pointer_offset + section_offset;
+
+            const u32 pool_handle = read_mem<u32>(pool_data,addr);
+            auto& section = pool_section_from_slot(itl.const_pool,pool_slot_from_idx(pool_handle));
+
+            write_mem<u32>(pool_data,addr,section.offset + const_pool_loc);
         }
     }
 
     // add the constant pool, into the final program
-    const u32 const_pool_loc = itl.program.size;
     push_mem(itl.program,pool_data);
 
 

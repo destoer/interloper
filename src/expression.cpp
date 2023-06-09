@@ -317,7 +317,8 @@ AstNode *nud(Parser &parser, const Token &t)
             }
 
             // correct our state machine
-            next_expr_token(parser);
+            // NOTE: we bypass the normal function here because commas require special handling
+            parser.expr_tok = next_token(parser);
 
             consume_expr(parser,token_type::comma);
 

@@ -23,14 +23,26 @@ enum class builtin_type
 
     bool_t,
 
-    
+    null_t,
+
     // NOTE: used internally by compiler -> not accessible via RTTI
     // keep on the end
 
-    null_t,
-
     void_t, 
 };
+
+static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
+static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
+static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;
+static constexpr u32 ENUM = BUILTIN_TYPE_SIZE + 4;
+static constexpr u32 TUPLE = BUILTIN_TYPE_SIZE + 5;
+
+static constexpr u32 RTTI_BUILTIN_SIZE = BUILTIN_TYPE_SIZE - 1;
+
+static constexpr u32 POINTER_RTTI = RTTI_BUILTIN_SIZE;
+static constexpr u32 ARRAY_RTTI = RTTI_BUILTIN_SIZE + 1;
+static constexpr u32 STRUCT_RTTI = RTTI_BUILTIN_SIZE + 3;
+static constexpr u32 ENUM_RTTI = RTTI_BUILTIN_SIZE + 4;
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
 {
@@ -216,21 +228,16 @@ struct RttiCache
     u32 is_const_offset = 0;
     u32 type_idx_offset = 0;
 
+    // pointer struct cache
+    u32 pointer_contained_offset = 0;
+    u32 pointer_struct_size = 0;
+
     u32 array_idx = 0;
 
     u32 enum_idx = 0;
 
     u32 struct_idx = 0;
 };
-
-
-
-static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
-static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
-static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;
-static constexpr u32 ENUM = BUILTIN_TYPE_SIZE + 4;
-static constexpr u32 TUPLE = BUILTIN_TYPE_SIZE + 5;
-
 
 
 struct EnumMember
