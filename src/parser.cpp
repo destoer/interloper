@@ -117,7 +117,11 @@ TypeNode *parse_type(Parser &parser)
     // parse out any specifiers
     auto specifier = peek(parser,0);
 
+    // const on base type
     b32 is_const = false;
+
+    // const all the way down e.g both pointer and pointed type are read only
+    b32 is_constant = false;
 
     switch(specifier.type)
     {
@@ -125,6 +129,13 @@ TypeNode *parse_type(Parser &parser)
         {
             next_token(parser);
             is_const = true;
+            break;
+        }
+
+        case token_type::constant_t:
+        {
+            next_token(parser);
+            is_constant = true;
             break;
         }
 
@@ -161,6 +172,7 @@ TypeNode *parse_type(Parser &parser)
     TypeNode* type = (TypeNode*)ast_type_decl(parser,type_literal,plain_tok);
     type->type_idx = type_idx;
     type->is_const = is_const;
+    type->is_constant = is_constant;
 
 
     b32 quit = false;
@@ -295,7 +307,7 @@ AstNode *declaration(Parser &parser, token_type terminator)
 
 AstNode *auto_decl(Parser &parser)
 {
-    // decl symbol = expr;
+    // symbol := expr;
     const auto s = next_token(parser);
 
     if(s.type != token_type::symbol)
@@ -304,9 +316,7 @@ AstNode *auto_decl(Parser &parser)
         return nullptr;
     }
 
-    
-    // okay here we require an expression on the right side
-    consume(parser,token_type::equal);
+    consume(parser,token_type::decl);
 
     AstNode* e = statement_terminate(parser,"auto declaration");
     AstNode* decl = (AstNode*)ast_auto_decl(parser,s.literal,e,s);
@@ -533,11 +543,6 @@ AstNode *statement(Parser &parser)
 
     switch(t.type)
     {
-        case token_type::decl:
-        {
-            return auto_decl(parser);
-        }
-
         case token_type::ret:
         {
             // return value is optional
@@ -609,6 +614,12 @@ AstNode *statement(Parser &parser)
                     return declaration(parser,token_type::semi_colon);    
                 }
 
+                case token_type::decl:
+                {
+                    prev_token(parser);
+                    return auto_decl(parser);
+                }
+
                 // assignment expr
                 case token_type::plus_eq:
                 case token_type::minus_eq:
@@ -676,28 +687,26 @@ AstNode *statement(Parser &parser)
                 consume(parser,token_type::left_paren);
             }
 
-            // auto decl
-            if(peek(parser,0).type == token_type::decl)
+            
+            // handle first stmt
+            // decl 
+            if(peek(parser,1).type == token_type::colon)
             {
-                consume(parser,token_type::decl);
-                for_node->initializer = auto_decl(parser);              
+                for_node->initializer = declaration(parser,token_type::semi_colon);
             }
 
-            // standard decl
+            // auto decl
+            else if(peek(parser,1).type == token_type::decl)
+            {
+                for_node->initializer = auto_decl(parser);  
+            }
+
+            // standard stmt
             else
             {
-                // decl 
-                if(peek(parser,1).type == token_type::colon)
-                {
-                    for_node->initializer = declaration(parser,token_type::semi_colon);
-                }
-
-                // standard stmt
-                else
-                {
-                    for_node->initializer = statement_terminate(parser,"for initializer statement");
-                }
+                for_node->initializer = statement_terminate(parser,"for initializer statement");
             }
+            
 
             // for(s32 x = 5; x > 0; x -= 1) (multiple statement)
 
@@ -1230,23 +1239,15 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
                 break;
             }
 
-            case token_type::symbol:
+            // global constant
+            case token_type::constant_t:
             {
-                // TODO: impl globals
-                if(match(parser,token_type::colon))
-                {
-                    prev_token(parser);
-                    push_var(itl.global_def,(DeclNode*)declaration(parser,token_type::semi_colon));
-                }
+                DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
 
-                else
-                {
-                    panic(parser,t,"expected global variable declaration\n");
-                    destroy_arr(parser.tokens);
-                    return true;
-                }
+                GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,true,filename,t);
 
-                break;
+                push_var(itl.constant_decl,const_decl);
+                break; 
             }
 
             default:
@@ -1475,6 +1476,14 @@ void print(const AstNode *root)
         case ast_fmt::auto_decl:
         {
             assert(false);
+            break;
+        }
+
+        case ast_fmt::global_declaration:
+        {
+            GlobalDeclNode* global_node = (GlobalDeclNode*)root;
+            printf("global %s decl:\n",global_node->is_const? "const" : "");
+            print((AstNode*)global_node->decl);
             break;
         }
 

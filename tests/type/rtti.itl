@@ -39,11 +39,11 @@ func check_builtin() bool
 
 func check_ptr(any : Any, expected : itl_type) bool
 {
-    type : const Type@ = any.type;
+    type := any.type;
 
-    if(type.type_idx == itl_type::pointer_t)
+    if(is_pointer(type))
     {
-        decl contained_type = deref_pointer(type);
+        contained_type := deref_pointer(type);
 
         return expected == contained_type.type_idx;
     }
@@ -67,12 +67,31 @@ func check_pointer() bool
     return res;
 }
 
+func test_array(any : Any, expected_len : u32)
+{
+    type : const Type@ = any.type;
+
+    if(is_array(type))
+    {
+        array_type := cast(const ArrayType@,type);
+
+        return array_type.size == expected_len;
+    }
+
+    return false;
+}
+
+func check_array() bool
+{
+
+}
+
 func main() s32
 {
     res1 : bool = check_builtin();
     res2 : bool = check_pointer();
 
-    decl res = res1 && res2;
+    res := res1 && res2;
 
     ans : s32 = cast(u32,res);
 

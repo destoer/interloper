@@ -2,7 +2,7 @@
 
 func main() s32
 {
-    decl x = 255;
+    x := 255;
 
     return x;
 }

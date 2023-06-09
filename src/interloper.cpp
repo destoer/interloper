@@ -42,6 +42,7 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
 #include "rtti.cpp"
 #include "func.cpp"
 #include "array.cpp"
+//#include "constant.cpp"
 
 
 void dump_ir_sym(Interloper &itl)
@@ -172,51 +173,8 @@ Type* value(Interloper& itl,Function& func,AstNode *node, SymSlot dst_slot)
     ValueNode* value_node = (ValueNode*)node;
     Value value = value_node->value;
 
-    if(value.sign)
-    {
-        const s32 v = s32(value.v);
-        emit(func,op_type::mov_imm,dst_slot,v);
-
-        // what is the smallest storage type that this will fit inside?
-        if(in_range(v,s32(builtin_min(builtin_type::s8_t)),s32(builtin_max(builtin_type::s8_t))))
-        {
-            return  make_builtin(itl,builtin_type::s8_t);
-        }
-
-        else if(in_range(v,s32(builtin_min(builtin_type::s16_t)),s32(builtin_max(builtin_type::s16_t))))
-        {
-            return make_builtin(itl,builtin_type::s16_t);
-        }
-
-        //else if(v,s32(builtin_min(builtin_type::s32_t)),s32(builtin_max(builtin_type::s32_t)))
-        else
-        {
-            return make_builtin(itl,builtin_type::s32_t);
-        }
-    }
-
-    else
-    {
-        const u32 v = value.v;
-        emit(func,op_type::mov_imm,dst_slot,v);
-
-        // what is the smallest storage type that this will fit inside?
-        if(in_range(v,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
-        {
-            return  make_builtin(itl,builtin_type::u8_t);
-        }
-
-        else if(in_range(v,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
-        {
-            return make_builtin(itl,builtin_type::u16_t);
-        }
-
-        //else if(in_range(v,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t))
-        else
-        {
-            return make_builtin(itl,builtin_type::u32_t);
-        }
-    }    
+    emit(func,op_type::mov_imm,dst_slot,value.v);
+    return value_type(itl,value);    
 }
 
 
@@ -1858,7 +1816,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             break;
                         }
 
-                        check_assign(itl,func.return_type[0],rtype);
+                        check_assign(itl,func.return_type[0],rtype,false,true);
                     }
 
                     // multiple return
@@ -2014,6 +1972,7 @@ void destroy_itl(Interloper &itl)
     destroy_arr(itl.program);
     destroy_const_pool(itl.const_pool);
     destroy_sym_table(itl.symbol_table);
+    destroy_arr(itl.constant_decl);
     
     destroy_ast(itl);
 
@@ -2160,6 +2119,14 @@ void compile(Interloper &itl,const String& initial_filename)
 
     putchar('\n');
 
+/*
+    NOTE: see todo in file, we dont have the means to impl this generally yet
+    go solve aliasing problems first as its roadbloack is similar problem that we dont need
+    new code for
+
+    // compile all our constant values 
+    compile_constants(itl);
+*/
 
     // go through each function and compile
     // how do we want to handle getting to the entry point / address allocation?

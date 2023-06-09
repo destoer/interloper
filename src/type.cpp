@@ -385,9 +385,9 @@ Type* alloc_type(Interloper& itl, u32 type_idx, b32 is_const)
 }
 
 
-Type* make_raw(Interloper& itl, u32 type)
+Type* make_raw(Interloper& itl, u32 type, b32 is_constant = false)
 {
-    return alloc_type<Type>(itl,type,false);
+    return alloc_type<Type>(itl,type,is_constant);
 }
 
 Type* make_builtin(Interloper& itl, builtin_type type, b32 is_const = false)
@@ -396,27 +396,27 @@ Type* make_builtin(Interloper& itl, builtin_type type, b32 is_const = false)
 }
 
 
-Type* make_pointer(Interloper& itl,Type* contained_type)
+Type* make_pointer(Interloper& itl,Type* contained_type, b32 is_constant = false)
 {
-    PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,POINTER,false);
+    PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,POINTER,is_constant);
 
     pointer_type->contained_type = contained_type;
 
     return (Type*)pointer_type;
 }
 
-Type* make_struct(Interloper& itl, u32 struct_idx)
+Type* make_struct(Interloper& itl, u32 struct_idx, b32 is_constant = false)
 {
-    StructType* struct_type = (StructType*)alloc_type<StructType>(itl,STRUCT,false);
+    StructType* struct_type = (StructType*)alloc_type<StructType>(itl,STRUCT,is_constant);
 
     struct_type->struct_idx = struct_idx;
 
     return (Type*)struct_type;
 }
 
-Type* make_enum(Interloper& itl, u32 enum_idx)
+Type* make_enum(Interloper& itl, u32 enum_idx, b32 is_constant = false)
 {
-    EnumType* enum_type = (EnumType*)alloc_type<EnumType>(itl,ENUM,false);
+    EnumType* enum_type = (EnumType*)alloc_type<EnumType>(itl,ENUM,is_constant);
 
     enum_type->enum_idx = enum_idx;
 
@@ -424,9 +424,9 @@ Type* make_enum(Interloper& itl, u32 enum_idx)
 }
 
 
-Type* make_array(Interloper& itl, Type* contained_type, u32 size)
+Type* make_array(Interloper& itl, Type* contained_type, u32 size, b32 is_constant = false)
 {
-    ArrayType* array_type = (ArrayType*)alloc_type<ArrayType>(itl,ARRAY,false);
+    ArrayType* array_type = (ArrayType*)alloc_type<ArrayType>(itl,ARRAY,is_constant);
 
     array_type->size = size;
     array_type->contained_type = contained_type;
@@ -449,11 +449,11 @@ String fmt_index(Interloper& itl,u32 index)
     return make_string(itl.string_allocator,buf,len);
 }
 
-void push_const_name(Interloper& itl, StringBuffer& buffer, const Type* type)
+void push_const_name(Interloper& itl, StringBuffer& buffer, const Type* type, const String& string)
 {
     if(type->is_const)
     {
-        push_string(itl.string_allocator,buffer,"const ");
+        push_string(itl.string_allocator,buffer,string);
     }
 }
 
@@ -473,7 +473,7 @@ String type_name(Interloper& itl,const Type *type)
         {
             case POINTER:
             {
-                push_const_name(itl,compound,type);
+                push_const_name(itl,compound,type," const");
                 push_char(itl.string_allocator,compound,'@');
 
                 PointerType* pointer_type = (PointerType*)type;
@@ -483,7 +483,7 @@ String type_name(Interloper& itl,const Type *type)
 
             case STRUCT: 
             {
-                push_const_name(itl,prefix,type);
+                push_const_name(itl,prefix,type,"const ");
 
                 const auto structure =  struct_from_type(itl.struct_table,type);
                 plain = structure.name;
@@ -493,7 +493,7 @@ String type_name(Interloper& itl,const Type *type)
 
             case ENUM: 
             {
-                push_const_name(itl,prefix,type);
+                push_const_name(itl,prefix,type,"const");
 
                 const auto enumeration = enum_from_type(itl.enum_table,type);
                 plain = enumeration.name;  
@@ -503,7 +503,7 @@ String type_name(Interloper& itl,const Type *type)
 
             case ARRAY:
             {
-                push_const_name(itl,compound,type);
+                push_const_name(itl,compound,type," const");
 
                 ArrayType* array_type = (ArrayType*)type;
 
@@ -515,7 +515,7 @@ String type_name(Interloper& itl,const Type *type)
             // builtin
             default:
             {
-                push_const_name(itl,prefix,type);
+                push_const_name(itl,prefix,type,"const ");
 
                 plain = builtin_type_name(builtin_type(type->type_idx));
                 done = true;
@@ -590,9 +590,13 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 {
     Type* type = nullptr;
 
+    // override that makes entire type constant
+    // i.e arrays, structs, pointers, base
+    const b32 is_constant = type_decl->is_constant;
+
     if(struct_idx_override != INVALID_TYPE)
     {
-        type = make_struct(itl,struct_idx_override);
+        type = make_struct(itl,struct_idx_override,is_constant);
     }
 
     else if(type_decl->type_idx == USER_TYPE)
@@ -611,13 +615,13 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         {
             case type_kind::struct_t:
             {
-                type = make_struct(itl,user_type->type_idx); 
+                type = make_struct(itl,user_type->type_idx,is_constant); 
                 break;
             }
 
             case type_kind::enum_t:
             {
-                type = make_enum(itl,user_type->type_idx);
+                type = make_enum(itl,user_type->type_idx,is_constant);
                 break;
             }
 
@@ -635,11 +639,13 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
     else
     {
-        type = make_raw(itl,type_decl->type_idx);
+        type = make_raw(itl,type_decl->type_idx,is_constant);
     }
 
-
-    type->is_const = type_decl->is_const;
+    if(!is_constant)
+    {
+        type->is_const = type_decl->is_const;
+    }
 
     // arrays, pointers
     for(s32 c = count(type_decl->compound_type) - 1; c >= 0; c--)
@@ -651,13 +657,13 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             // pointer to current type
             case ast_type::ptr_indirection:
             {
-                type = make_pointer(itl,type);
+                type = make_pointer(itl,type,is_constant);
                 break;
             }
 
             case ast_type::arr_var_size:
             {
-                type = make_array(itl,type,RUNTIME_SIZE);
+                type = make_array(itl,type,RUNTIME_SIZE,is_constant);
 
                 break;
             }
@@ -669,7 +675,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
                 const u32 size = eval_int_expr(unary_node->next);
 
-                type = make_array(itl,type,size);
+                type = make_array(itl,type,size,is_constant);
                 break;
             }
 
@@ -683,7 +689,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                     return make_builtin(itl,builtin_type::void_t);
                 }
 
-                type = make_array(itl,type,DEDUCE_SIZE);
+                type = make_array(itl,type,DEDUCE_SIZE,is_constant);
 
                 break;
             }
@@ -717,6 +723,53 @@ b32 def_has_indirection(TypeNode *type_decl)
     return count(type_decl->compound_type);
 }
 
+
+Type* value_type(Interloper& itl,const Value& value)
+{
+    if(value.sign)
+    {
+        const s32 v = value.v;
+
+        // what is the smallest storage type that this will fit inside?
+        if(in_range(v,s32(builtin_min(builtin_type::s8_t)),s32(builtin_max(builtin_type::s8_t))))
+        {
+            return  make_builtin(itl,builtin_type::s8_t);
+        }
+
+        else if(in_range(v,s32(builtin_min(builtin_type::s16_t)),s32(builtin_max(builtin_type::s16_t))))
+        {
+            return make_builtin(itl,builtin_type::s16_t);
+        }
+
+        //else if(v,s32(builtin_min(builtin_type::s32_t)),s32(builtin_max(builtin_type::s32_t)))
+        else
+        {
+            return make_builtin(itl,builtin_type::s32_t);
+        }
+    }
+
+    else
+    {
+        const u32 v = value.v;
+
+        // what is the smallest storage type that this will fit inside?
+        if(in_range(v,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
+        {
+            return  make_builtin(itl,builtin_type::u8_t);
+        }
+
+        else if(in_range(v,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
+        {
+            return make_builtin(itl,builtin_type::u16_t);
+        }
+
+        //else if(in_range(v,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t))
+        else
+        {
+            return make_builtin(itl,builtin_type::u32_t);
+        }        
+    }    
+}
 
 
 // TODO: do we want to pass the operation in here for when we support overloading?

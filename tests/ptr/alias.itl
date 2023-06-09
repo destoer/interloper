@@ -15,7 +15,7 @@ func main() s32
     // test x is reloaded before being read when a pointer is written to
     res2 : bool = x == 6;
     
-    decl res = res1 && res2;
+    res := res1 && res2;
 
     return cast(s32,res);
 }

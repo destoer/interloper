@@ -36,7 +36,7 @@ enum class ast_type
     declaration,
     auto_decl,
     
-
+    global_declaration,
 
 
     equal,
@@ -133,6 +133,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "declaration",
     "auto_decl",
 
+    "global declaration"
+
     "=",
     "*",
     "+",
@@ -205,6 +207,7 @@ enum class ast_fmt
     char_t,
     type,
     declaration,
+    global_declaration,
     auto_decl,
     block,
     function_call,
@@ -231,6 +234,7 @@ inline const char *FMT_NAMES[] =
     "char",
     "type",
     "declaration",
+    "global declaration",
     "auto_decl",
     "block",
     "function_call",
@@ -314,6 +318,7 @@ struct TypeNode
     String name;
 
     b32 is_const;
+    b32 is_constant;
     u32 type_idx;
 
     Array<AstNode*> compound_type;
@@ -335,6 +340,15 @@ struct DeclNode
     String name;
     TypeNode* type = nullptr;
     AstNode* expr = nullptr;
+};
+
+struct GlobalDeclNode
+{
+    AstNode node;
+
+    b32 is_const = false;
+    DeclNode *decl = nullptr;
+    String filename;
 };
 
 struct BlockNode
@@ -719,6 +733,17 @@ AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const St
     alias_node->type = type;
 
     return (AstNode*)alias_node;
+}
+
+AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, b32 is_const, const String& filename, const Token& token)
+{
+    GlobalDeclNode* global_node = alloc_node<GlobalDeclNode>(parser,ast_type::global_declaration,ast_fmt::global_declaration,token);
+
+    global_node->filename = filename;
+    global_node->decl = decl_node;
+    global_node->is_const = is_const;
+
+    return (AstNode*)global_node;
 }
 
 AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& field,const Token& token)

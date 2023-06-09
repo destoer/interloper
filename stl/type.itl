@@ -2,7 +2,7 @@
 type_alias string = c8[];
 
 
-//RUNTIME_SIZE : const u32 = 0xfffffff0;
+constant RUNTIME_SIZE : u32 = 0xfffffff0;
 
 enum itl_type
 {
@@ -49,10 +49,10 @@ struct ArrayType (type : const Type)
     contained_type : const Type@;
 
     // RUNTIME_SIZE or current size!
-    size : u32;
+    size : const u32;
 
     // size of indexing array
-    sub_size : u32;
+    sub_size : const u32;
 };
 
 struct StructType (type : const Type)
@@ -83,9 +83,25 @@ func is_builtin(type_idx : itl_type) bool
 
 func deref_pointer(type: const Type@) const Type@
 {
-    decl pointer_type = cast(const PointerType@,type);
+    pointer_type := cast(const PointerType@,type);
 
     return pointer_type.contained_type;
+}
+
+
+func is_runtime_size(size : u32) bool
+{
+    return size == RUNTIME_SIZE;
+}
+
+func is_pointer(type : const Type@) bool
+{
+    return type.type_idx == itl_type::pointer_t;
+}
+
+func is_array(type : const Type@) bool
+{
+    return type.type_idx == itl_type::array_t;
 }
 
 /*

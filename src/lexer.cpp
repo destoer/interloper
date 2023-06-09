@@ -377,6 +377,12 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     advance(lexer);
                 }
 
+                else if(peek(lexer.idx+1,file) == '=')
+                {
+                    insert_token(lexer,token_type::decl);
+                    advance(lexer);
+                }
+
                 else 
                 {
                     insert_token(lexer,token_type::colon); 

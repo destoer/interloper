@@ -17,7 +17,7 @@ func modify()
 // expected 15
 func main() s32
 {
-    decl y = x;
+    y := x;
 
     modify();
 

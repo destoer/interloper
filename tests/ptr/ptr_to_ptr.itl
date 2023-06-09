@@ -2,7 +2,7 @@
 // expected 1
 func swap(v1 : s32@@, v2 : s32@@)
 {
-    decl tmp = @v1;
+    tmp := @v1;
     @v1 = @v2;
     @v2 = tmp;
 }

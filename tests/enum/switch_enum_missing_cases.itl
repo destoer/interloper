@@ -12,7 +12,7 @@ func main() s32
 {
     ans : s32 = 0;
 
-    decl v = scale::small;
+    v := scale::small;
 
     switch(v)
     {

@@ -53,7 +53,7 @@ s32 lbp(Parser &parser,const Token &t)
 
             default:
             {
-                panic(parser,t,"unexpected token %s in %s\n",tok_name(t.type),parser.expression_name.buf);
+                panic(parser,t,"unexpected token '%s' in %s\n",tok_name(t.type),parser.expression_name.buf);
                 break;
             }
         }
@@ -205,7 +205,7 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
 
         default:
         {
-            panic(parser,t,"led: unexpected token %s in %s\n",tok_name(t.type),parser.expression_name.buf);
+            panic(parser,t,"led: unexpected token '%s' in %s\n",tok_name(t.type),parser.expression_name.buf);
             return nullptr;
         }        
     }
@@ -440,7 +440,7 @@ AstNode *nud(Parser &parser, const Token &t)
 
         default:
         {
-            panic(parser,t,"nud: unexpected token %s in %s\n",tok_name(t.type),parser.expression_name.buf);
+            panic(parser,t,"nud: unexpected token '%s' in %s\n",tok_name(t.type),parser.expression_name.buf);
             break;
         }
     }

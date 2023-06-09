@@ -5,9 +5,9 @@ using namespace destoer;
 #include <token.h>
 #include <lexer.h>
 #include <parser.h>
+#include <pool.h>
 #include <type.h>
 #include <ir.h>
-#include <pool.h>
 #include <interpretter.h>
 
 enum class itl_error
@@ -107,6 +107,7 @@ struct Interloper
     // type definitions
     HashTable<String,TypeDef> type_def;
 
+    Array<GlobalDeclNode*> constant_decl;
 
     StructTable struct_table;
     EnumTable enum_table;

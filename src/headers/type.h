@@ -1,6 +1,7 @@
 #pragma once
 #include <destoer.h>
 #include <ir.h>
+#include <pool.h>
 
 
 // if type idx is >= to this then this is a custom defined type
@@ -89,7 +90,7 @@ extern const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE];
 
 
 // is runtime but has an initial stack allocation
-static constexpr u32 RUNTIME_SIZE = 0xfffffff0;
+static constexpr u32 RUNTIME_SIZE = 0xffff'fff0;
 static constexpr u32 DEDUCE_SIZE = RUNTIME_SIZE + 1;
 
 
@@ -332,6 +333,27 @@ struct Symbol
 };
 
 
+
+struct ConstSym
+{
+    String name;
+
+    Type* type;
+
+    union
+    {
+        PoolSlot slot;
+
+        u64 v;
+    };
+};
+
+struct ConstSymTable
+{
+    HashTable<String,ConstSym> table;
+
+    ArenaAllocator *string_allocator;
+};
 
 
 struct Label 

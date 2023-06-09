@@ -1,0 +1,9 @@
+
+
+constant BITS_IN_BYTE : u32 = 8;
+
+// expected 32
+func main() s32
+{
+    return u32.size * BITS_IN_BYTE;
+}
