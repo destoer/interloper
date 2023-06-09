@@ -171,7 +171,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
         const auto &arg =  sym_from_slot(itl.symbol_table,func_call.args[i]);
   
         const u32 arg_idx = i - hidden_args;
-
+/*
         if(is_any(itl,arg.type))
         {
             // compile our arg and figure out what we have
@@ -190,8 +190,9 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             arg_clean += size / GPR_SIZE;
         }
 
-        else if(is_array(arg.type))
+        else*/ if(is_array(arg.type))
         {
+        /*
             // pass a static string, by inserting as const data in the program
             if(call_node->args[arg_idx]->type == ast_type::string)
             {
@@ -234,11 +235,14 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 push_arg(func,data_slot);
 
                 arg_clean += 2;  
-            }    
+            }
+        */
+            assert(false);    
         }
 
         else if(is_struct(arg.type))
         {
+        /*
            const auto structure = struct_from_type(itl.struct_table,arg.type);
 
             const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
@@ -259,6 +263,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
             // clean up the stack push
             arg_clean += structure.size / GPR_SIZE;
+        */
+            assert(false);
         }
 
         // plain builtin in variable
@@ -285,6 +291,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
        // pass in tuple dst
         if(tuple_node)
         {
+            assert(false);
+/*
             // okay how do we wanna structure getting tuple info off of this?
             // do we want to look at the node?
             // 
@@ -350,8 +358,9 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 }
 
                 arg_clean++;
+            
             }
-
+            */
         }
 
         // single arg (for struct returns) 
