@@ -187,6 +187,8 @@ struct OpInfo
 enum class slot_type
 {
     symbol,
+    src,
+    dst,
     label,
     block,
     pool,
@@ -214,6 +216,8 @@ u32 hash_slot(u32 size, Slot<type> v)
 
 static constexpr u32 SYMBOL_NO_SLOT = 0xffff'ffff;
 using SymSlot = Slot<slot_type::symbol>;
+using SrcSlot = Slot<slot_type::src>;
+using DstSlot = Slot<slot_type::dst>;
 
 SymSlot sym_from_idx(u32 idx)
 {

@@ -96,7 +96,7 @@ void emit_call(Function& func, LabelSlot label, b32 save_regs)
         emit(func,op_type::spill_rv);
     }
     
-    emit_internal(func,op_type::call, label.handle,0,0);
+    call(func,label);
 }
 
 void emit_cond_branch(Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, SymSlot sym, b32 cond)
