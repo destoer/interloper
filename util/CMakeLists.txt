@@ -20,4 +20,5 @@ endif()
 
 include_directories("../src/headers")
 include_directories("../src/")
+include_directories("../destoer-lib/src")
 add_executable(gen_table ${src_files})

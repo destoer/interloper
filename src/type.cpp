@@ -10,6 +10,8 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::s16_t, true, true ,2,  u32(-(0xffff / 2)), (0xffff / 2)},
     {builtin_type::s32_t, true, true ,4,  u32(-(0xffffffff / 2)), (0xffffffff / 2)},
 
+    {builtin_type::c8_t, true, false, 1, 0, 0xff},
+
     {builtin_type::byte_t, true, false, 1, 0, 0xff},
 
     {builtin_type::bool_t, false, false ,1,  0, 1},
@@ -112,7 +114,7 @@ b32 is_string(const Type* type)
     {
         const ArrayType* array_type = (ArrayType*)type;
 
-        return array_type->contained_type->type_idx == u32(builtin_type::u8_t);
+        return array_type->contained_type->type_idx == u32(builtin_type::c8_t);
     }
 
     return false;

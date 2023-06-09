@@ -41,6 +41,8 @@ enum class token_type
     s16,
     s32,
 
+    c8_t,
+
     byte_t,
 
     bool_t,
@@ -164,6 +166,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::s8,"s8",-1},
     {token_type::s16,"s16",-1},
     {token_type::s32,"s32",-1},
+
+    {token_type::c8_t,"c8",-1},
 
     {token_type::byte_t,"byte",-1},
 

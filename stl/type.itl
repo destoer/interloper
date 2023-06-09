@@ -1,5 +1,4 @@
-// string type aliases
-type_alias c8 = u8;
+// string type alias
 type_alias string = c8[];
 
 
@@ -14,6 +13,8 @@ enum itl_type
     s8_t,
     s16_t,
     s32_t,
+
+    c8_t,
 
     byte_t,
 

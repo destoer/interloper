@@ -199,7 +199,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                 const u32 size = lit_node->literal.size;
 
-                const auto rtype = make_array(itl,make_builtin(itl,builtin_type::u8_t,true),size);
+                const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
                 check_assign(itl,arg.type,rtype,true);
                 
                 // push the len offset

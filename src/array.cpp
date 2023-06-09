@@ -405,7 +405,7 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
             }
 
             const auto base_type = array_type->contained_type;
-            const auto rtype = make_builtin(itl,builtin_type::u8_t);
+            const auto rtype = make_builtin(itl,builtin_type::c8_t);
 
             for(u32 i = 0; i < literal.size; i++)
             {

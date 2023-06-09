@@ -1262,7 +1262,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             CharNode* char_node = (CharNode*)node;
 
             emit(func,op_type::mov_imm,dst_slot,char_node->character);
-            return make_builtin(itl,builtin_type::u8_t);
+            return make_builtin(itl,builtin_type::c8_t);
         }
 
         case ast_type::access_struct:
