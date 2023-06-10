@@ -1,12 +1,193 @@
 
 
-void add(Function& func,DstSlot dst, SrcSlot v1, SrcSlot v2)
+void add(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
-    emit_reg3<op_type::add_reg>(func,dst,v1,v2);
+    emit_reg3<op_type::add_reg>(itl,func,dst,v1,v2);
+}
+
+SymSlot add_res(Interloper& itl,Function& func, SymSlot v1, SymSlot v2)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    add(itl,func,tmp,v1,v2);
+
+    return tmp;
+}
+
+void sub(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
+{
+    emit_reg3<op_type::sub_reg>(itl,func,dst,v1,v2);
+}
+
+void asr(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
+{
+    emit_reg3<op_type::asr_reg>(itl,func,dst,v1,v2);
+}
+
+void lsr(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
+{
+    emit_reg3<op_type::lsr_reg>(itl,func,dst,v1,v2);
+}
+
+void lsl(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
+{
+    emit_reg3<op_type::lsl_reg>(itl,func,dst,v1,v2);
+}
+
+void not_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
+{
+    emit_reg2<op_type::not_reg>(itl,func,dst,src);
+}
+
+void call(Interloper& itl,Function& func, LabelSlot slot, b32 save_regs = false)
+{
+    if(save_regs)
+    {
+        spill_rv(itl,func);
+    }
+
+    emit_label1<op_type::call>(itl,func,slot);
 }
 
 
-void call(Function& func, LabelSlot slot)
+void branch_reg(Interloper& itl, Function&func, SymSlot target)
 {
-    emit_label1<op_type::call>(func,slot);
+    emit_reg1<op_type::b_reg>(itl,func,target);
+}
+
+void ret(Interloper& itl, Function& func)
+{
+    emit_implicit<op_type::ret>(itl,func);
+}
+
+void syscall(Interloper& itl, Function& func, u32 syscall)
+{
+    emit_imm0<op_type::swi>(itl,func,syscall);
+}
+
+void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
+{
+    emit_reg2<op_type::sxb>(itl,func,dst,src);
+}
+
+void sign_extend_half(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
+{
+    emit_reg2<op_type::sxh>(itl,func,dst,src);
+}
+
+void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
+{
+    emit_reg2<op_type::mov_reg>(itl,func,dst,src);
+}
+
+
+void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+{
+    emit_imm2<op_type::and_imm>(itl,func,dst,src,imm);
+}
+
+void mul_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+{
+    emit_imm2<op_type::mul_imm>(itl,func,dst,src,imm);
+}
+
+void xor_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+{
+    emit_imm2<op_type::xor_imm>(itl,func,dst,src,imm);
+}
+
+SymSlot mul_imm_res(Interloper& itl, Function& func, SymSlot src, u32 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+
+    mul_imm(itl,func,tmp,src,imm);
+
+    return tmp;
+}
+
+void add_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+{
+    emit_imm2<op_type::add_imm>(itl,func,dst,src,imm);
+}
+
+SymSlot add_imm_res(Interloper& itl, Function& func, SymSlot src, u32 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+
+    add_imm(itl,func,tmp,src,imm);
+
+    return tmp;
+}
+
+void sub_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+{
+    emit_imm2<op_type::sub_imm>(itl,func,dst,src,imm);
+}
+
+void cmp_signed_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+{
+    emit_imm2<op_type::cmpsgt_imm>(itl,func,dst,src,imm);
+}
+
+void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+{
+    emit_imm2<op_type::cmpugt_imm>(itl,func,dst,src,imm);
+}
+
+void store_byte(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u32 imm)
+{
+    emit_store<op_type::sb>(itl,func,src,addr,imm);
+}
+
+void store_half(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u32 imm)
+{
+    emit_store<op_type::sh>(itl,func,src,addr,imm);
+}
+
+
+void store_word(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u32 imm)
+{
+    emit_store<op_type::sw>(itl,func,src,addr,imm);
+}
+
+void load_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+{
+    emit_load<op_type::lb>(itl,func,dst,addr,imm);
+}
+
+void load_half(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+{
+    emit_load<op_type::lh>(itl,func,dst,addr,imm);
+}
+
+void load_word(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+{
+    emit_load<op_type::lw>(itl,func,dst,addr,imm);
+}
+
+void load_signed_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+{
+    emit_load<op_type::lsb>(itl,func,dst,addr,imm);
+}
+
+void load_signed_half(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+{
+    emit_load<op_type::lsh>(itl,func,dst,addr,imm);
+}
+
+void mov_imm(Interloper& itl, Function& func, SymSlot dst, u32 imm)
+{
+    emit_imm1<op_type::mov_imm>(itl,func,dst,imm);
+}
+
+SymSlot mov_imm_res(Interloper& itl, Function& func, u32 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    mov_imm(itl,func,tmp,imm);
+
+    return tmp;
+}
+
+void push_arg(Interloper& itl, Function& func, SymSlot src)
+{
+    emit_reg1<op_type::push_arg>(itl,func,src);
 }

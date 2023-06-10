@@ -474,7 +474,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
             else
             {
-                struct_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
+                struct_slot = addrof_res(itl,func,sym.reg.slot);
                 struct_type = sym.type;
             }
 
@@ -669,13 +669,13 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
-    alloc_slot(func,sym.reg,true);
+    alloc_slot(itl,func,sym.reg,true);
 
     if(decl_node->expr)
     {
         if(decl_node->expr->type == ast_type::initializer_list)
         {
-            const SymSlot addr_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
+            const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
 
             traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
         }
@@ -690,7 +690,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     // default construction
     else
     {
-        const SymSlot addr_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
+        const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
 
         for(u32 m = 0; m < count(structure.members); m++)
         {

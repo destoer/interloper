@@ -202,8 +202,12 @@ u32 type_size(Interloper& itl,const Type *type)
     // user defined type
     else if(is_struct(type))
     {
+        UNUSED(itl);
+        assert(false);
+    /*
         const auto& structure = struct_from_type(itl.struct_table,type);
         return structure.size;
+    */
     }
 
     unimplemented("unhandled type size");
@@ -483,11 +487,14 @@ String type_name(Interloper& itl,const Type *type)
 
             case STRUCT: 
             {
+                assert(false);
+            /*
                 push_const_name(itl,prefix,type,"const ");
 
                 const auto structure =  struct_from_type(itl.struct_table,type);
                 plain = structure.name;
                 done = true;
+            */
                 break;                
             }
 
@@ -1312,13 +1319,13 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                 {
                     case builtin_type::s8_t: 
                     {
-                        emit(func,op_type::sxb,dst_slot,src_slot);
+                        sign_extend_byte(itl,func,dst_slot,src_slot);
                         break;
                     }
 
                     case builtin_type::s16_t:
                     {
-                        emit(func,op_type::sxh,dst_slot,src_slot);
+                        sign_extend_half(itl,func,dst_slot,src_slot);
                         break;
                     }
 
@@ -1334,13 +1341,13 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                 {
                     case 1: 
                     {
-                        emit(func,op_type::and_imm,dst_slot,src_slot,0xff);
+                        and_imm(itl,func,dst_slot,src_slot,0xff);
                         break;
                     }
 
                     case 2:  
                     {
-                        emit(func,op_type::and_imm,dst_slot,src_slot,0xffff);
+                        and_imm(itl,func,dst_slot,src_slot,0xffff);
                         break;
                     }
 
@@ -1351,7 +1358,7 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
             // cast doesnt do anything but move into a tmp so the IR doesnt break
             else
             {
-                emit(func,op_type::mov_reg,dst_slot,src_slot);
+                mov_reg(itl,func,dst_slot,src_slot);
             }
 
         }
@@ -1361,7 +1368,7 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         {
             // do nothing 0 and 1 are fine as integers
             // we do want this to require a cast though so conversions have to be explicit
-            emit(func,op_type::mov_reg,dst_slot,src_slot);
+            mov_reg(itl,func,dst_slot,src_slot);
         } 
 
         // integer to bool
@@ -1370,13 +1377,13 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         {
             if(is_signed(old_type))
             {
-                emit(func,op_type::cmpsgt_imm,dst_slot,src_slot,0);
+                cmp_signed_gt_imm(itl,func,dst_slot,src_slot,0);
             }
 
             // unsigned
             else
             {
-                emit(func,op_type::cmpugt_imm,dst_slot,src_slot,0);
+                cmp_unsigned_gt_imm(itl,func,dst_slot,src_slot,0);
             }
         }        
 
@@ -1389,19 +1396,19 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
     // cast from enum to int is fine
     else if(is_enum(old_type) && is_integer(new_type))
     {
-        emit(func,op_type::mov_reg,dst_slot,src_slot);
+        mov_reg(itl,func,dst_slot,src_slot);
     }
 
     // as is integer to enum
     else if(is_integer(old_type) && is_enum(new_type))
     {
-        emit(func,op_type::mov_reg,dst_slot,src_slot);
+        mov_reg(itl,func,dst_slot,src_slot);
     }
 
     // cast does nothing just move the reg, its only acknowledgement your doing something screwy
     else if(is_pointer(old_type) && is_pointer(new_type))
     {
-        emit(func,op_type::mov_reg,dst_slot,src_slot);
+        mov_reg(itl,func,dst_slot,src_slot);
     }
 
     // probably only pointers are gonna valid for casts here
@@ -1419,7 +1426,7 @@ Type* access_builtin_type_info(Interloper& itl, Function& func, SymSlot dst_slot
 
     if(member_name == "size")
     {
-        emit(func,op_type::mov_imm,dst_slot,info.size);
+        mov_imm(itl,func,dst_slot,info.size);
         return make_builtin(itl,builtin_type::u32_t);
     }
 
@@ -1445,7 +1452,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
                 const auto& structure = itl.struct_table[type_decl.type_idx];
                 const u32 size = structure.size;
 
-                emit(func,op_type::mov_imm,dst_slot,size);
+                mov_imm(itl,func,dst_slot,size);
 
                 return make_builtin(itl,builtin_type::u32_t);
             }
@@ -1461,7 +1468,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
 
                 const u32 enum_len = enumeration.member_map.size;
 
-                emit(func,op_type::mov_imm,dst_slot,enum_len);
+                mov_imm(itl,func,dst_slot,enum_len);
 
                 return make_builtin(itl,builtin_type::u32_t);
             }
@@ -1530,7 +1537,8 @@ void parse_def(Interloper& itl, TypeDef& def)
         {
             case def_kind::struct_t:
             {
-                parse_struct_def(itl,def);
+                assert(false);
+                //parse_struct_def(itl,def);
                 break;
             }
 

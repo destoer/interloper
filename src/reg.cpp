@@ -86,3 +86,41 @@ void print(const Reg& reg)
     printf("location: %x\n\n",reg.location);    
     printf("slot: %x\n",reg.slot.handle);
 }
+
+
+SymSlot new_tmp(Function& func, u32 size)
+{
+    const u32 slot = count(func.registers);
+
+    const auto reg = make_reg(reg_kind::tmp,size,slot,false);
+    push_var(func.registers,reg);
+
+    return sym_from_idx(slot);
+}
+
+SymSlot new_tmp_ptr(Function &func)
+{
+    return new_tmp(func,GPR_SIZE);
+}
+
+void free_slot(Interloper& itl,Function& func, const Reg& reg)
+{
+    free_slot(itl,func,reg.slot);
+}
+
+
+void free_sym(Interloper& itl,Function& func, Symbol& sym)
+{
+    if(is_fixed_array(sym.type))
+    {
+        auto [size,count] = calc_arr_allocation(itl,sym);
+        free_fixed_array(itl,func,sym.reg.slot,size,count);
+    }
+
+    else
+    {
+        free_slot(itl,func,sym.reg);
+    }
+
+    sym.scope_end = cur_block(func);
+}

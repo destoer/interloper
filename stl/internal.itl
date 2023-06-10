@@ -1,2 +1,5 @@
 import "start"
-import "type"
+//import "type"
+
+// string type alias
+type_alias string = c8[];

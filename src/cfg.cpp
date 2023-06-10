@@ -88,22 +88,13 @@ BlockSlot add_fall(Interloper& itl,Function& func, BlockSlot prev)
     return exit;
 }
 
-void emit_call(Function& func, LabelSlot label, b32 save_regs)
-{
-    if(save_regs)
-    {
-        // Handle saving any caller saved regs
-        emit(func,op_type::spill_rv);
-    }
-    
-    call(func,label);
-}
-
 void emit_cond_branch(Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, SymSlot sym, b32 cond)
 {
     const op_type branch_type = cond? op_type::bc : op_type::bnc;
 
     const auto& target_block = block_from_slot(func,target);
+
+    // TODO: handle src storage
 
     emit_block_internal(func,block,branch_type,target_block.label_slot.handle,sym.handle,0);
 

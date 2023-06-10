@@ -20,7 +20,7 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
-    emit(func,op_type::save_regs);
+    save_regs(itl,func);
 
 
     const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
@@ -39,11 +39,11 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
     }
 
     const u32 syscall_number = eval_int_expr(func_call->args[0]);
-    emit(func,op_type::swi,syscall_number);
+    syscall(itl,func,syscall_number);
 
 
 
-    emit(func,op_type::restore_regs);
+    restore_regs(itl,func);
     return make_builtin(itl,builtin_type::void_t);   
 }
 

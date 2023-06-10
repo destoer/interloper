@@ -96,7 +96,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // restore callee saved registers
     {op_group::imm_t, "alloc_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::imm_t, "free_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::imm_t, "clean_args %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::imm_t, "clean_args %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"exit_block",0,{arg_type::none,arg_type::none,arg_type::none}},
 

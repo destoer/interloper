@@ -187,8 +187,6 @@ struct OpInfo
 enum class slot_type
 {
     symbol,
-    src,
-    dst,
     label,
     block,
     pool,
@@ -216,8 +214,6 @@ u32 hash_slot(u32 size, Slot<type> v)
 
 static constexpr u32 SYMBOL_NO_SLOT = 0xffff'ffff;
 using SymSlot = Slot<slot_type::symbol>;
-using SrcSlot = Slot<slot_type::src>;
-using DstSlot = Slot<slot_type::dst>;
 
 SymSlot sym_from_idx(u32 idx)
 {
@@ -440,23 +436,31 @@ struct IrEmitter
 
 };
 
+struct Interloper;
+struct Function;
+
+void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
+void sign_extend_half(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
+
+void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
+
+void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm);
+
+void cmp_signed_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm);
+void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm);
+
+void mov_imm(Interloper& itl, Function& func, SymSlot dst, u32 imm);
+
+void spill_rv(Interloper& itl, Function& func);
+
+void free_fixed_array(Interloper& itl,Function& func,SymSlot src,u32 size,u32 count);
+void free_slot(Interloper& itl,Function& func, SymSlot slot);
 struct Function;
 
 BlockSlot block_from_idx(u32 v);
 BlockSlot cur_block(Function& func);
 Block& block_from_slot(Function& func, BlockSlot slot);
 
-void emit(Function& func,op_type op, u32 imm);
-void emit(Function& func,op_type op, SymSlot v1, SymSlot v2, u32 imm);
-void emit(Function& func,op_type op, SymSlot v1, u32 imm);
-void emit(Function& func,op_type op, SymSlot v1, u32 v2, u32 v3);
-
-void emit(Function& func,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
-void emit_block(Function &func,BlockSlot block,op_type op, SymSlot v1 = {}, SymSlot v2 = {}, SymSlot v3 = {});
-
-
-SymSlot emit_res(Function& func, op_type op, SymSlot v2 = {}, SymSlot v3 = {});
-SymSlot emit_res(Function& func, op_type op, SymSlot v2, u32 v3);
 
 void destroy_emitter(IrEmitter& emitter);
 

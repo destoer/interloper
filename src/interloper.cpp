@@ -23,11 +23,11 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, bool addrof);
 void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
 void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
-SymSlot collapse_offset(Function&func, SymSlot addr_slot, u32 *offset);
+SymSlot collapse_offset(Interloper& itl,Function&func, SymSlot addr_slot, u32 *offset);
 
 void add_func(Interloper& itl, const String& name, FuncNode* root);
 
-void alloc_slot(Function& func, const Reg& reg, b32 force_alloc);
+void alloc_slot(Interloper& itl,Function& func, const Reg& reg, b32 force_alloc);
 
 SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
 SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
@@ -39,7 +39,7 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
 #include "parser.cpp"
 #include "optimize.cpp"
 #include "ir.cpp"
-#include "struct.cpp"
+//#include "struct.cpp"
 //#include "rtti.cpp"
 #include "func.cpp"
 #include "array.cpp"
@@ -174,17 +174,17 @@ Type* value(Interloper& itl,Function& func,AstNode *node, SymSlot dst_slot)
     ValueNode* value_node = (ValueNode*)node;
     Value value = value_node->value;
 
-    emit(func,op_type::mov_imm,dst_slot,value.v);
+    mov_imm(itl,func,dst_slot,value.v);
     return value_type(itl,value);    
 }
 
 
 // get back a complete pointer
-SymSlot collapse_offset(Function&func, SymSlot addr_slot, u32 *offset)
+SymSlot collapse_offset(Interloper& itl,Function&func, SymSlot addr_slot, u32 *offset)
 {
     if(*offset)
     {
-        const SymSlot final_addr = emit_res(func,op_type::add_imm,addr_slot,*offset);
+        const SymSlot final_addr = add_imm_res(itl,func,addr_slot,*offset);
         *offset = 0;
 
         return final_addr;
@@ -196,13 +196,68 @@ SymSlot collapse_offset(Function&func, SymSlot addr_slot, u32 *offset)
     }
 }
 
+void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed)
+{
+    if(is_signed)
+    {
+        switch(size)
+        {
+            case 1:
+            {
+                load_signed_byte(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            case 2: 
+            {
+                load_signed_half(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            case 4:
+            {
+                load_word(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            default: assert(false);
+        }        
+    }
+
+    else
+    {
+        switch(size)
+        {
+            case 1:
+            {
+                load_byte(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            case 2: 
+            {
+                load_half(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            case 4:
+            {
+                load_word(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            default: assert(false);
+        }
+    }
+}
+
 void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset)
 {
     const u32 size = type_size(itl,type);
 
     if(size <= sizeof(u32))
     {
-        emit(func,load_ptr(dst_slot,addr_slot,offset,size,is_signed(type)));
+        load_ptr(itl,func,dst_slot,addr_slot,offset,size,is_signed(type));
     }   
 
     else if(is_array(type))
@@ -216,6 +271,31 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
     }  
 }
 
+void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size)
+{
+    switch(size)
+    {
+        case 1:
+        {
+            store_byte(itl,func,src_slot,addr_slot,offset);
+            break;
+        }
+
+        case 2: 
+        {
+            store_half(itl,func,src_slot,addr_slot,offset);
+            break;
+        }
+
+        case 4:
+        {
+            store_word(itl,func,src_slot,addr_slot,offset);
+            break;
+        }
+
+        default: assert(false);
+    }    
+}
 
 void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_slot, const Type* type, u32 offset)
 {
@@ -223,13 +303,13 @@ void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_s
 
     if(size <= sizeof(u32))
     {
-        emit(func,store_ptr(src_slot,addr_slot,offset,size));  
+        store_ptr(itl,func,src_slot,addr_slot,offset,size);  
     }
 
     else
     {
-        SymSlot src_ptr = addrof_res(itl.symbol_table,func,src_slot);
-        src_ptr = collapse_offset(func,src_ptr,&offset);        
+        SymSlot src_ptr = addrof_res(itl,func,src_slot);
+        src_ptr = collapse_offset(itl,func,src_ptr,&offset);        
 
         ir_memcpy(itl,func,addr_slot,src_ptr,type_size(itl,type));        
     } 
@@ -274,9 +354,16 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
 }
 
 
-
-Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type type, SymSlot dst_slot)
+template<const op_type type>
+Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
+    static_assert(
+        type == op_type::add_reg || type == op_type::sub_reg || type == op_type::mul_reg ||
+        type == op_type::mod_reg || type == op_type::div_reg ||
+        type == op_type::xor_reg || type == op_type::and_reg || type == op_type::or_reg
+    );
+    
+
     BinNode* bin_node = (BinNode*)node;
 
     const auto [t1,v1] = compile_oper(itl,func,bin_node->left);
@@ -294,14 +381,14 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, op_type typ
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
 
-        const SymSlot offset_slot = emit_res(func,op_type::mul_imm,v2,type_size(itl,contained_type));
-        emit(func,type,dst_slot,v1,offset_slot);
+        const SymSlot offset_slot = mul_imm_res(itl,func,v2,type_size(itl,contained_type));
+        emit_reg3<type>(itl,func,dst_slot,v1,offset_slot);
     }
 
     // normal arith
     else
     {
-        emit(func,type,dst_slot,v1,v2);
+        emit_reg3<type>(itl,func,dst_slot,v1,v2);
     }
 
 
@@ -332,19 +419,19 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, Sym
         // if signed do a arithmetic shift 
         if(is_signed(t1))
         {
-            emit(func,op_type::asr_reg,dst_slot,v1,v2);
+            asr(itl,func,dst_slot,v1,v2);
         }
 
         else
         {
-            emit(func,op_type::lsr_reg,dst_slot,v1,v2);
+            lsr(itl,func,dst_slot,v1,v2);
         }
     }
 
     // left shift
     else
     {
-        emit(func,op_type::lsl_reg,dst_slot,v1,v2);
+        lsl(itl,func,dst_slot,v1,v2);
     }
 
     // type being shifted is the resulting type
@@ -386,7 +473,8 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u32 v
 }
 
 // handles <, <=, >, >=, &&, ||, ==, !=
-Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op type, SymSlot dst_slot)
+template<const logic_op type>
+Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
@@ -485,13 +573,17 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, logic_op 
         // else we dont care
         const b32 sign = is_signed(type_left);
 
-        // if we have gotten this far the sign of both are the same
-        const op_type op = LOGIC_OPCODE[sign][u32(type)];
+        if(sign)
+        {
+            constexpr op_type opcode_type = LOGIC_OPCODE[1][u32(type)];
+            emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+        }
 
-
-        // one of these is just a temp for the result calc
-        // so afer this we no longer need it
-        emit(func,op,dst_slot,v1,v2);
+        else
+        {
+            constexpr op_type opcode_type = LOGIC_OPCODE[0][u32(type)];
+            emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+        }
 
         return make_builtin(itl,builtin_type::bool_t);
     }
@@ -517,7 +609,7 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
     // NOTE: we use this here so we dont have to care about the underyling type if its a pointer
     if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
     {
-        emit(func,op_type::mov_reg,dst_slot,src_slot);
+        mov_reg(itl,func,dst_slot,src_slot);
     }
 
     else if(is_array(dst_type) && is_array(src_type))
@@ -531,15 +623,15 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
         // copy out the strucutre using the hidden pointer in the first arg
         if(dst_slot.handle == RV_IR)
         {
-            const SymSlot ptr = addrof_res(itl.symbol_table,func,src_slot);
+            const SymSlot ptr = addrof_res(itl,func,src_slot);
 
             ir_memcpy(itl,func,func.args[0],ptr,type_size(itl,dst_type));
         } 
 
         else
         {
-            const SymSlot src_ptr = addrof_res(itl.symbol_table,func,src_slot);
-            const SymSlot dst_ptr = addrof_res(itl.symbol_table,func,dst_slot);
+            const SymSlot src_ptr = addrof_res(itl,func,src_slot);
+            const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
 
             ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,dst_type));
         }
@@ -578,7 +670,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         if(n != count(if_block->statements) - 1)
         {
             // indicate we need to jump the exit block
-            emit(func,op_type::exit_block);
+            emit_exit_block(itl,func);
 
             if(if_block->statements[n+1]->type == ast_type::else_t)
             {
@@ -945,11 +1037,10 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
         // finally emit the dispatch on the table now we know where to exit if the table bounds get execeeded
         const SymSlot switch_slot = new_tmp(func,GPR_SIZE);
-        emit(func,op_type::sub_imm,switch_slot,expr_slot,min);
+        sub_imm(itl,func,switch_slot,expr_slot,min);
 
-
-        // out of range, branch to default
-        const SymSlot default_cmp = emit_res(func,op_type::cmpugt_imm,switch_slot,max - min);
+        const SymSlot default_cmp = new_tmp(func,GPR_SIZE);
+        cmp_unsigned_gt_imm(itl,func,default_cmp,switch_slot,max - min);
 
         // NOTE: branch is emitted later as we dont know where it goes yet
 
@@ -957,23 +1048,23 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const BlockSlot dispatch_block = new_basic_block(itl,func);
 
         // mulitply to get a jump table index
-        const SymSlot table_index = emit_res(func,op_type::mul_imm,switch_slot,GPR_SIZE);
+        const SymSlot table_index = mul_imm_res(itl,func,switch_slot,GPR_SIZE);
 
         
         // reserve space for the table inside the constant pool
         const PoolSlot pool_slot = reserve_const_pool_section(itl.const_pool,pool_type::jump_table,GPR_SIZE * range);
-        const SymSlot table_addr = pool_addr(func,pool_slot);
+        const SymSlot table_addr = pool_addr_res(itl,func,pool_slot);
 
         // get address in the tabel we want
-        const SymSlot final_offset = emit_res(func,op_type::add_reg,table_addr,table_index);
+        const SymSlot final_offset = add_res(itl,func,table_addr,table_index);
 
         // load the address out of the jump table
         const SymSlot target = new_tmp_ptr(func);
-        emit(func,load_ptr(target, final_offset,0, GPR_SIZE,false));
+        load_ptr(itl,func,target, final_offset,0, GPR_SIZE,false);
 
 
         // branch on it
-        emit(func,op_type::b_reg,target);
+        branch_reg(itl,func,target);
 
         // finally compile all the blocks, and populate the jump table
 
@@ -1100,7 +1191,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
                 Type* pointer_type = make_pointer(itl,sym.type);
 
                 // actually  get the addr of the ptr
-                addrof(itl.symbol_table,func,slot,sym.reg.slot);
+                addrof(itl,func,slot,sym.reg.slot);
                 return std::pair{pointer_type,slot};
             }
 
@@ -1227,7 +1318,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         {
             CharNode* char_node = (CharNode*)node;
 
-            emit(func,op_type::mov_imm,dst_slot,char_node->character);
+            mov_imm(itl,func,dst_slot,char_node->character);
             return make_builtin(itl,builtin_type::c8_t);
         }
 
@@ -1295,6 +1386,11 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             UnaryNode* deref_node = (UnaryNode*)node;
 
             const auto [type,slot] = load_addr(itl,func,deref_node->next,new_tmp_ptr(func),false);
+            if(itl.error)
+            {
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
             do_ptr_load(itl,func,dst_slot,slot,type);
             return type;            
         }
@@ -1308,7 +1404,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
 
             const u32 size = type_size(itl,type);
-            emit(func,op_type::mov_imm,dst_slot,size);
+            mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);
         }
@@ -1336,7 +1432,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
             else
             {
-                return compile_arith_op(itl,func,node,op_type::add_reg,dst_slot);
+                return compile_arith_op<op_type::add_reg>(itl,func,node,dst_slot);
             }
         }
 
@@ -1379,17 +1475,17 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::divide:
         {
-            return compile_arith_op(itl,func,node,op_type::div_reg,dst_slot);
+            return compile_arith_op<op_type::div_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::mod:
         {
-            return compile_arith_op(itl,func,node,op_type::mod_reg,dst_slot);       
+            return compile_arith_op<op_type::mod_reg>(itl,func,node,dst_slot);       
         }
 
         case ast_type::times:
         {
-            return compile_arith_op(itl,func,node,op_type::mul_reg,dst_slot);
+            return compile_arith_op<op_type::mul_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::minus:
@@ -1404,31 +1500,31 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
 
                 // TODO: make sure our optimiser sees through this
-                const SymSlot slot = mov_imm(func,0);
-                emit(func,op_type::sub_reg,dst,slot,dst);
+                const SymSlot slot = mov_imm_res(itl,func,0);
+                sub(itl,func,dst,slot,dst);
                 
                 return t;
             }
 
             else
             {
-                return compile_arith_op(itl,func,node,op_type::sub_reg,dst_slot);
+                return compile_arith_op<op_type::sub_reg>(itl,func,node,dst_slot);
             }
         }
 
         case ast_type::bitwise_and:
         {
-            return compile_arith_op(itl,func,node,op_type::and_reg,dst_slot);
+            return compile_arith_op<op_type::and_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::bitwise_or:
         {
-            return compile_arith_op(itl,func,node,op_type::or_reg,dst_slot);
+            return compile_arith_op<op_type::or_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::bitwise_xor:
         {
-            return compile_arith_op(itl,func,node,op_type::xor_reg,dst_slot);
+            return compile_arith_op<op_type::xor_reg>(itl,func,node,dst_slot);
         }
 
 
@@ -1441,7 +1537,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             // TODO: do we need to check this is integer?
 
 
-            emit(func,op_type::not_reg,dst_slot,reg);
+            not_reg(itl,func,dst_slot,reg);
             return t;
         }            
 
@@ -1459,19 +1555,19 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::false_t:
         {
-            emit(func,op_type::mov_imm,dst_slot,0);
+            mov_imm(itl,func,dst_slot,0);
             return make_builtin(itl,builtin_type::bool_t);
         }
 
         case ast_type::true_t:
         {
-            emit(func,op_type::mov_imm,dst_slot,1);
+            mov_imm(itl,func,dst_slot,1);
             return make_builtin(itl,builtin_type::bool_t);
         }
 
         case ast_type::null_t:
         {
-            emit(func,op_type::mov_imm,dst_slot,0);
+            mov_imm(itl,func,dst_slot,0);
 
             Type* plain = make_builtin(itl,builtin_type::null_t);
 
@@ -1492,7 +1588,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             }
 
             // xor can invert our boolean which is either 1 or 0
-            emit(func,op_type::xor_imm,dst_slot,reg,1);
+            xor_imm(itl,func,dst_slot,reg,1);
             return t;
         }
 
@@ -1501,42 +1597,42 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         // how should we do it?
         case ast_type::logical_lt:
         {
-            return compile_logical_op(itl,func,node,logic_op::cmplt_reg,dst_slot);
+            return compile_logical_op<logic_op::cmplt_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_le:
         {
-            return compile_logical_op(itl,func,node,logic_op::cmple_reg,dst_slot);
+            return compile_logical_op<logic_op::cmple_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_gt:
         {
-            return compile_logical_op(itl,func,node,logic_op::cmpgt_reg,dst_slot);
+            return compile_logical_op<logic_op::cmpgt_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_ge:
         {
-            return compile_logical_op(itl,func,node,logic_op::cmpge_reg,dst_slot);
+            return compile_logical_op<logic_op::cmpge_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_eq:
         {
-            return compile_logical_op(itl,func,node,logic_op::cmpeq_reg,dst_slot);
+            return compile_logical_op<logic_op::cmpeq_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_ne:
         {
-            return compile_logical_op(itl,func,node,logic_op::cmpne_reg,dst_slot);
+            return compile_logical_op<logic_op::cmpne_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_and:
         {
-            return compile_logical_op(itl,func,node,logic_op::and_reg,dst_slot);
+            return compile_logical_op<logic_op::and_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_or:
         {
-            return compile_logical_op(itl,func,node,logic_op::or_reg,dst_slot);
+            return compile_logical_op<logic_op::or_reg>(itl,func,node,dst_slot);
         }
 
 
@@ -1578,7 +1674,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 }
 
                 // emit mov on the enum value
-                emit(func,op_type::mov_imm,dst_slot,enum_member->value);
+                mov_imm(itl,func,dst_slot,enum_member->value);
 
                 return make_enum_type(itl,enumeration);
             }
@@ -1641,7 +1737,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
     // simple type
     else 
     {
-        alloc_slot(func,sym.reg,false);
+        alloc_slot(itl,func,sym.reg,false);
 
         // initalizer
         if(decl_node->expr)
@@ -1655,7 +1751,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
         else
         {
             // NOTE: atm, all standard types use 0 for default, we may need something more flexible
-            emit(func,op_type::mov_imm,sym.reg.slot,default_value(sym.type));
+            mov_imm(itl,func,sym.reg.slot,default_value(sym.type));
         }
     } 
 }
@@ -1700,7 +1796,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     // add new symbol table entry
     const auto &sym = add_symbol(itl.symbol_table,name,type,size);
 
-    alloc_slot(func,sym.reg,is_plain_type(type));
+    alloc_slot(itl,func,sym.reg,is_plain_type(type));
     compile_move(itl,func,sym.reg.slot,reg,sym.type,type);
 }
 
@@ -1861,7 +1957,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 
                 }
 
-                emit(func,op_type::ret);
+                ret(itl,func);
                 
 
                 itl.has_return = true;

@@ -37,8 +37,8 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
 
         for(u32 i = 0; i < count; i++)
         {
-            emit(func,load_ptr(tmp,src_slot,i * 4,4,false));
-            emit(func,store_ptr(tmp,dst_slot,i * 4,4));
+            load_word(itl,func,tmp,src_slot,i * 4);
+            store_word(itl,func,tmp,dst_slot,i * 4);
         }    
     }
 
@@ -58,15 +58,15 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
         mark_used(itl,func_call);
 
 
-        const SymSlot imm_slot = mov_imm(func,size);
+        const SymSlot imm_slot = mov_imm_res(itl,func,size);
 
-        push_arg(func,imm_slot);
-        push_arg(func,src_slot);
-        push_arg(func,dst_slot);
+        push_arg(itl,func,imm_slot);
+        push_arg(itl,func,src_slot);
+        push_arg(itl,func,dst_slot);
 
-        emit_call(func,func_call.label_slot,true);
+        call(itl,func,func_call.label_slot,true);
 
-        emit(func,op_type::clean_args,3);
+        clean_args(itl,func,3);
     }
 }
 

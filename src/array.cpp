@@ -1,3 +1,4 @@
+#if 0
 // indexes off a given type + ptr
 std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, SymSlot ptr_slot, SymSlot dst_slot)
@@ -95,7 +96,7 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
 {
     if(is_runtime_size(type))
     {
-        const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
+        const SymSlot addr = addrof_res(itl,func,slot);
 
         const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
         emit(func,load_ptr(dst_slot,addr,0,GPR_SIZE,false));
@@ -116,7 +117,7 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
 
     if(is_runtime_size(type))
     {
-        const SymSlot addr = addrof_res(itl.symbol_table,func,slot);
+        const SymSlot addr = addrof_res(itl,func,slot);
 
         const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
         emit(func,load_ptr(dst_slot,addr,GPR_SIZE,GPR_SIZE,false));
@@ -302,7 +303,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
         }           
     }   
 }
-
+#endif
 
 // for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
@@ -366,7 +367,7 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
     return std::pair{size,count};
 }
 
-
+/*
 void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const SymSlot addr_slot, Type* type)
 {
     // just a straight assign
@@ -473,3 +474,4 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         alloc->opcode = Opcode(op_type::alloc_fixed_array,array.reg.slot.handle,arr_size,arr_count);
     }
 }
+*/
