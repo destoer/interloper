@@ -683,7 +683,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
         else
         {
             const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
-            check_assign(itl,sym.type,rtype,false,true);        
+            check_assign_init(itl,sym.type,rtype);        
         }
     }
 
@@ -706,7 +706,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
                 else
                 {
                     const auto [rtype,slot] = compile_oper(itl,func,member.expr);
-                    check_assign(itl,member.type,rtype,false,true); 
+                    check_assign_init(itl,member.type,rtype); 
 
                     do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
                 }

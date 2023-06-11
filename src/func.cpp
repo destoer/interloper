@@ -201,7 +201,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 const u32 size = lit_node->literal.size;
 
                 const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
-                check_assign(itl,arg.type,rtype,true);
+                check_assign_arg(itl,arg.type,rtype);
                 
                 // push the len offset
                 const SymSlot len_slot = mov_imm(func,size);
@@ -220,7 +220,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             {
                 auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-                check_assign(itl,arg.type,arg_type,true); 
+                check_assign_arg(itl,arg.type,arg_type); 
 
                 if(itl.error)
                 {
@@ -246,7 +246,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
            const auto structure = struct_from_type(itl.struct_table,arg.type);
 
             const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
-            check_assign(itl,arg.type,arg_type,true);
+            check_assign_arg(itl,arg.type,arg_type);
 
 
             // TODO: support copies with larger loads
@@ -275,7 +275,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
 
             // type check the arg
-            check_assign(itl,arg.type,arg_type,true);
+            check_assign_arg(itl,arg.type,arg_type);
 
             // finally push the arg
             push_arg(itl,func,reg);

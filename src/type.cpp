@@ -878,13 +878,21 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
 }
 
 
-void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_arg, b32 is_initializer, b32 was_pointer)
+enum class assign_type
+{
+    assign,
+    arg,
+    initializer,
+};
+
+
+void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type, b32 was_pointer)
 {
     if(ltype->is_const)
     {
         // can only assign for arg or initalizer everything
         // unless this is a pointer, if so it is legal as long as the ltype of the contained type is const
-        if(!is_initializer && !is_arg && !was_pointer)
+        if(type == assign_type::assign && !was_pointer)
         {
             panic(itl,itl_error::const_type_error,"cannot assign rtype to const ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
@@ -906,7 +914,7 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
 
 // NOTE: this is expected to be called after main sets of type checking
 // so types should atleast be the same fmt at every level
-void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_arg, b32 is_initializer)
+void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type)
 {
     b32 done = false;
 
@@ -939,7 +947,7 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_ar
 
             case POINTER:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
 
                 // check sub types
                 ltype = deref_pointer(ltype);
@@ -951,14 +959,14 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_ar
 
             case STRUCT:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
                 done = true;
                 break;
             }
 
             case ENUM:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
                 done = true;
                 break;
             }
@@ -966,7 +974,7 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_ar
             // check end type
             default:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
                 done = true;
                 break;
             }
@@ -1164,7 +1172,7 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
     }
 }
 
-void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_arg = false, b32 is_initializer = false)
+void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype, assign_type type)
 {
     if(is_plain(rtype) && is_plain(ltype))
     {
@@ -1227,7 +1235,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
                         // valid
                         // [3] = [3]
 
-                        if(!is_arg)
+                        if(type != assign_type::arg)
                         {
                             if(!is_runtime_size(ltype))
                             {
@@ -1282,9 +1290,27 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
     if(!itl.error)
     {
         // we know this will descend properly so check const!
-        check_const(itl,ltype,rtype,is_arg,is_initializer);
+        check_const(itl,ltype,rtype,type);
     }
 }
+
+// check ordinary assign
+void check_assign(Interloper& itl,const Type *ltype, const Type *rtype)
+{
+    check_assign_internal(itl,ltype,rtype,assign_type::assign);
+}
+
+void check_assign_arg(Interloper& itl, const Type* ltype, const Type* rtype)
+{
+    // args behave the same as initalizers
+    check_assign_internal(itl,ltype,rtype,assign_type::arg);
+}
+
+void check_assign_init(Interloper& itl, const Type* ltype, const Type* rtype)
+{
+    check_assign_internal(itl,ltype,rtype,assign_type::initializer);
+}
+
 
 void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_slot,const Type *old_type, const Type *new_type)
 {

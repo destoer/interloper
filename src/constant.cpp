@@ -49,7 +49,7 @@ void compile_constant_expression(Interloper& itl, ConstSym& sym, AstNode* node)
                 // no errors?
 
                 // type check the integer
-                check_assign(itl,sym.type,type,false,true)
+                check_assign_init(itl,sym.type,type);
 
                 // TODO: handle this being nested
                 // top level var, assign directly into var

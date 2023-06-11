@@ -1744,7 +1744,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
         {
             // normal assign
             const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
-            check_assign(itl,ltype,rtype,false,true);             
+            check_assign_init(itl,ltype,rtype);             
         }
 
         // default init
@@ -1927,7 +1927,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             break;
                         }
 
-                        check_assign(itl,func.return_type[0],rtype,false,true);
+                        check_assign_init(itl,func.return_type[0],rtype);
                     }
 
                     // multiple return
