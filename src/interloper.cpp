@@ -34,13 +34,16 @@ SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
 SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type);
 SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type);
 
+void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed);
+void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size);
+
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
 #include "optimize.cpp"
 #include "ir.cpp"
-//#include "struct.cpp"
-//#include "rtti.cpp"
+#include "struct.cpp"
+#include "rtti.cpp"
 #include "func.cpp"
 #include "array.cpp"
 //#include "constant.cpp"
@@ -341,8 +344,7 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
         // may get a back a fixed array as a oper and we want to do a conversion on it
         case ast_type::index:
         {
-            //return read_arr(itl,func,node,new_tmp_ptr(func));
-            assert(false);
+            return read_arr(itl,func,node,new_tmp_ptr(func));
         }
 
         // compile an expr
@@ -1214,8 +1216,6 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
         case ast_type::index:
         {
-            assert(false);
-        /*
             if(take_addr)
             {
                 return index_arr(itl,func,node,slot);
@@ -1246,20 +1246,17 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
                 return std::pair{type,ptr_slot};
             }
-        */
         }
 
         case ast_type::access_struct:
         {
-            assert(false);
-            /*
             if(take_addr)
             {
                 auto [type,ptr_slot,offset] = compute_member_addr(itl,func,node);
-                ptr_slot = collapse_offset(func,ptr_slot,&offset);
+                ptr_slot = collapse_offset(itl,func,ptr_slot,&offset);
 
                 // make sure this ptr goes into the dst slot
-                emit(func,op_type::mov_reg,slot,ptr_slot);
+                mov_reg(itl,func,slot,ptr_slot);
 
                 // we actually want this as a pointer
                 type = make_pointer(itl,type);
@@ -1275,7 +1272,6 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
                 return std::pair{type,slot};
             }
-            */
         }
 
         default:
@@ -1351,8 +1347,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 }
             }
 
-            assert(false);
-            //return read_struct(itl,func,dst_slot,node);           
+            return read_struct(itl,func,dst_slot,node);           
         }
 
         case ast_type::builtin_type_info:
@@ -1364,12 +1359,9 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::index:
         {
-            assert(false);
-            /*
             const auto [type, slot] = read_arr(itl,func,node,dst_slot);
 
             return type;
-            */
         }
 
         case ast_type::addrof:
@@ -1723,14 +1715,12 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
 
     if(is_array(sym.type))
     {
-        assert(false);
-        //compile_arr_decl(itl,func,decl_node,sym);
+        compile_arr_decl(itl,func,decl_node,sym);
     }
 
     else if(is_struct(sym.type))
     {
-        assert(false);
-        //compile_struct_decl(itl,func,decl_node,sym);
+        compile_struct_decl(itl,func,decl_node,sym);
     }
 
     
@@ -1865,16 +1855,14 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     
                         case ast_type::index:
                         {
-                            assert(false);
-                            //write_arr(itl,func,assign_node->left,rtype,slot);
+                            write_arr(itl,func,assign_node->left,rtype,slot);
                             break;
                         }
                     
                         // write on struct member!
                         case ast_type::access_struct:
                         {
-                            //write_struct(itl,func,slot,rtype,assign_node->left);
-                            assert(false);
+                            write_struct(itl,func,slot,rtype,assign_node->left);
                             break;
                         }
                     
@@ -2131,12 +2119,11 @@ void setup_type_table(Interloper& itl)
 
 void check_startup_defs(Interloper& itl)
 {   
-/*
     if(itl.rtti_enable)
     {
         cache_rtti_structs(itl);
     }
-*/
+
     check_func_exists(itl,"main");
     check_func_exists(itl,"start");
 }

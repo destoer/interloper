@@ -202,12 +202,8 @@ u32 type_size(Interloper& itl,const Type *type)
     // user defined type
     else if(is_struct(type))
     {
-        UNUSED(itl);
-        assert(false);
-    /*
         const auto& structure = struct_from_type(itl.struct_table,type);
         return structure.size;
-    */
     }
 
     unimplemented("unhandled type size");
@@ -487,14 +483,11 @@ String type_name(Interloper& itl,const Type *type)
 
             case STRUCT: 
             {
-                assert(false);
-            /*
                 push_const_name(itl,prefix,type,"const ");
 
                 const auto structure =  struct_from_type(itl.struct_table,type);
                 plain = structure.name;
                 done = true;
-            */
                 break;                
             }
 
@@ -1563,8 +1556,7 @@ void parse_def(Interloper& itl, TypeDef& def)
         {
             case def_kind::struct_t:
             {
-                assert(false);
-                //parse_struct_def(itl,def);
+                parse_struct_def(itl,def);
                 break;
             }
 

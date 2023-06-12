@@ -52,28 +52,28 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/ptr/expected_ptr",itl_error::pointer_type_error},
     {"tests/ptr/invalid_ptr_compare",itl_error::pointer_type_error},
     {"tests/ptr/null_invalid",itl_error::mismatched_args},
-/*
+
     // arrays
     {"tests/array/array_pass_u32",itl_error::array_type_error},
     {"tests/array/array_mismatched_type",itl_error::array_type_error},
     {"tests/array/deref_array_of_ptr_invalid",itl_error::pointer_type_error},
-*/
+
 
     // strings
-/*
+
     // structs
     {"tests/struct/redeclare_struct",itl_error::redeclaration},
     {"tests/struct/redeclare_member",itl_error::redeclaration},
     {"tests/struct/recursive_struct_invalid",itl_error::black_hole},
-*/
+
     // stl
 
-/*
+
     // enum
     {"tests/enum/enum_invalid_member",itl_error::enum_type_error},
     {"tests/enum/enum_redeclare_member",itl_error::redeclaration},
     {"tests/enum/enum_redeclare",itl_error::redeclaration},
-*/
+
     // type alias
 
     // tuple
@@ -128,14 +128,14 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/for_idx",10},
     {"tests/control_flow/for_outer_decl",32},
     {"tests/control_flow/while",32},
-/*
+
     {"tests/control_flow/switch_no_default",73},
     {"tests/control_flow/switch",447},
-*/
+
 
     // pointers
     {"tests/ptr/pointer",-2},
-    //{"tests/ptr/cast_ptr",1020},
+    {"tests/ptr/cast_ptr",1020},
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
     //{"tests/ptr/alias",1},
@@ -147,7 +147,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
 
-/*
+
     // arrays
     {"tests/array/array",1061},
     {"tests/array/array_size",16},
@@ -158,21 +158,21 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_take_pointer",5},
     {"tests/array/array_of_ptr",6},
     {"tests/array/array_multi_fixed_size.itl",7200},
-*/
+
     // TODO: type check array initalizer assignemnts
 
     // wait for heap allocation
     //{"tests/array/array_assign_vla",3},
     //{"tests/array/array_assign_vla_fixed",itl_error::none},
-    
-/*
+
+
     // strings
     {"tests/string/char_array",7},
     {"tests/string/write_string",0},
     {"tests/string/write_string_static",0},
-*/
 
-/*
+
+
     // structs
     {"tests/struct/struct",495},
     {"tests/struct/struct_initializer",495},
@@ -186,27 +186,25 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_of_arrays",28},
     {"tests/struct/struct_assign",6},
     {"tests/struct/reorder",8},
-*/
 
-/*
+
+
     // stl
     {"tests/stl/linked_list",66},
     {"tests/stl/mem",0},
-*/
 
-/*
+
+
     // enum
     {"tests/enum/enum",1},
     {"tests/enum/switch_enum",10},
-*/
 
-/*
+
     // type alias
     {"tests/type_alias/type_alias",65},
 
     // tuple
     {"tests/tuple/tuple",1},
-*/
 };
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);

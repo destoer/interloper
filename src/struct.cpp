@@ -551,7 +551,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
                 std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,index_node->name,&member_offset);
                 
-                struct_slot = collapse_offset(func,struct_slot,&member_offset);
+                struct_slot = collapse_offset(itl,func,struct_slot,&member_offset);
 
                 if(is_runtime_size(struct_type))
                 {
@@ -597,15 +597,15 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
     {
         const ArrayType* array_type = (ArrayType*)accessed_type;
 
-        emit(func,op_type::mov_imm,dst_slot,array_type->size);
+        mov_imm(itl,func,dst_slot,array_type->size);
         return make_builtin(itl,builtin_type::u32_t);
     }
 
     // let caller handle reads
     if(is_fixed_array(accessed_type))
     {
-        const SymSlot addr = collapse_offset(func,ptr_slot,&offset);
-        emit(func,op_type::mov_reg,dst_slot,addr);
+        const SymSlot addr = collapse_offset(itl,func,ptr_slot,&offset);
+        mov_reg(itl,func,dst_slot,addr);
         return accessed_type;
     }
 
@@ -727,7 +727,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
             else
             {
-                const SymSlot tmp = mov_imm(func,default_value(member.type));
+                const SymSlot tmp = mov_imm_res(itl,func,default_value(member.type));
 
                 do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
             }
