@@ -62,6 +62,56 @@ void assign_reg_size(Reg& reg, u32 size)
     }    
 }
 
+
+b32 resides_in_mem(const Type* type)
+{
+    return is_struct(type) || is_vla(type);
+}
+
+b32 is_aliased(const Reg& reg)
+{
+    return reg.flags & ALIASED;
+}
+
+b32 stored_in_mem(const Reg& reg)
+{
+    return reg.flags & STORED_IN_MEM;
+}
+
+b32 is_signed(const Reg& reg)
+{
+    return reg.flags & SIGNED_FLAG;
+}
+
+Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
+{
+    Reg reg;
+
+    reg.kind = kind;
+
+    const u32 size = type_size(itl,type);
+
+    assign_reg_size(reg,size);
+
+    const b32 sign = is_signed(type);
+
+    if(sign)
+    {
+        reg.flags |= SIGNED_FLAG;
+    }
+
+    const b32 in_mem = resides_in_mem(type);
+
+    if(in_mem)
+    {
+        reg.flags |= STORED_IN_MEM;
+    }
+
+    reg.slot = {slot};
+
+    return reg;
+}
+
 Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
 {
     Reg reg;
@@ -82,9 +132,22 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
 
 void print(const Reg& reg)
 {
-    printf("offset: %x\n",reg.offset);
-    printf("location: %x\n\n",reg.location);    
-    printf("slot: %x\n",reg.slot.handle);
+    const char* KIND_NAMES[] = {"local","global","tmp"};
+    printf("kind: %s\n",KIND_NAMES[u32(reg.kind)]);
+    printf("slot: 0x%x\n",reg.slot.handle);
+
+    printf("size: %d\n",reg.size);
+    printf("count: %d\n",reg.count);
+
+    printf("offset: 0x%x\n",reg.offset);
+    printf("locaiton: 0x%x\n",reg.location);
+
+    printf("uses: %d\n",reg.uses);
+
+    for(u32 i = 0; i < count(reg.usage); i++)
+    {
+        printf("use[%d] -> %d\n",i,reg.usage[i]);
+    }
 }
 
 
@@ -107,7 +170,6 @@ void free_slot(Interloper& itl,Function& func, const Reg& reg)
 {
     free_slot(itl,func,reg.slot);
 }
-
 
 void free_sym(Interloper& itl,Function& func, Symbol& sym)
 {

@@ -76,6 +76,7 @@ b32 is_trivial_copy(const Type *type)
     return is_builtin(type) || is_pointer(type) || is_enum(type);
 }
 
+
 // for arrays
 b32 is_runtime_size(const ArrayType* type)
 {
@@ -88,6 +89,17 @@ b32 is_runtime_size(const Type* type)
 {
     return is_runtime_size((ArrayType*)type);
 }
+
+b32 is_vla(const Type* type)
+{
+    if(is_array(type))
+    {
+        return is_runtime_size(type);
+    }
+
+    return false;    
+}
+
 
 b32 is_fixed_array_pointer(const Type* type)
 {

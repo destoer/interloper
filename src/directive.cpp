@@ -22,7 +22,7 @@ void addrof(Interloper& itl,Function& func, SymSlot dst, SymSlot src)
 {
     // TODO: move this over to a better system, just keep the old one for now
     auto& reg = reg_from_slot(itl.symbol_table,func,src);
-    reg.aliased = true;    
+    reg.flags |= ALIASED;  
 
     emit_directive_dst1<op_type::addrof>(itl,func,dst,src.handle,0);
 }
@@ -97,4 +97,25 @@ void alloc_stack(Interloper& itl, Function& func, u32 size)
 {
     UNUSED(itl);
     emit_block_internal(func,cur_block(func),op_type::alloc_stack,size,0,0);    
+}
+
+
+void reload_slot(Interloper& itl, Function& func, const Reg& reg)
+{
+    UNUSED(itl);
+
+    if(!stored_in_mem(reg))
+    {
+        emit_block_internal(func,cur_block(func),op_type::reload_slot,reg.slot.handle,0,0);
+    }
+}
+
+void spill_slot(Interloper& itl, Function& func, const Reg& reg)
+{
+    UNUSED(itl);
+
+    if(!stored_in_mem(reg))
+    {
+        emit_block_internal(func,cur_block(func),op_type::spill_slot,reg.slot.handle,0,0);
+    }
 }

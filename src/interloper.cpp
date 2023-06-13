@@ -397,8 +397,6 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
     // produce effective type
     const auto final_type = effective_arith_type(itl,t1,t2);
 
-    
-
     return final_type;        
 }
 
@@ -1705,10 +1703,9 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
         return;
     }
 
-    const auto size = type_size(itl,ltype);
 
     // add new symbol table entry
-    Symbol &sym = global? add_global(itl.symbol_table,name,ltype,size) : add_symbol(itl.symbol_table,name,ltype,size);
+    Symbol &sym = global? add_global(itl,name,ltype) : add_symbol(itl,name,ltype);
 
 
 
@@ -1753,9 +1750,7 @@ std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,
 
     Type* type = compile_expression(itl,func,node,dst_slot);
 
-    const u32 size = type_size(itl,type);
-
-    assign_reg_size(func.registers[dst_slot.handle],size);
+    func.registers[dst_slot.handle] = make_reg(itl,reg_kind::tmp,dst_slot.handle,type);
 
     return std::pair{type,dst_slot};
 }
@@ -1781,10 +1776,8 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 
     // add the symbol
 
-    const auto size = type_size(itl,type);
-
     // add new symbol table entry
-    const auto &sym = add_symbol(itl.symbol_table,name,type,size);
+    const auto &sym = add_symbol(itl,name,type);
 
     alloc_slot(itl,func,sym.reg,is_plain_type(type));
     compile_move(itl,func,sym.reg.slot,reg,sym.type,type);
@@ -2092,7 +2085,7 @@ void destroy_itl(Interloper &itl)
     destroy_arr(itl.used_func);
 
     // destroy typing tables
-    //destroy_struct_table(itl.struct_table);
+    destroy_struct_table(itl.struct_table);
     destroy_enum_table(itl.enum_table);
     destroy_table(itl.type_table);
     destroy_arr(itl.alias_table);

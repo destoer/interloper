@@ -11,7 +11,18 @@ ListNode* get_cur_end(IrEmitter& emitter)
 }
 
 
+void destroy_emitter(IrEmitter& emitter)
+{
+    for(u32 b = 0; b < count(emitter.program); b++)
+    {
+        auto& block = emitter.program[b];
 
+        destroy_arr(block.exit);
+        destroy_arr(block.links);
+    }
+
+    destroy_arr(emitter.program);
+}
 
 constexpr OpInfo opcode_info_from_type(op_type type)
 {
@@ -28,12 +39,32 @@ constexpr OpInfo opcode_info_from_type(op_type type)
 
 void handle_src_storage(Interloper& itl, Function& func, SymSlot src_slot)
 {
-    UNUSED(itl); UNUSED(func); UNUSED(src_slot);
+    if(is_special_reg(src_slot))
+    {
+        return;
+    }
+
+    auto& reg = reg_from_slot(itl.symbol_table,func,src_slot);
+
+    if(is_aliased(reg))
+    {
+        reload_slot(itl,func,reg);
+    }
 }
 
 void handle_dst_storage(Interloper& itl, Function& func, SymSlot dst_slot)
 {
-    UNUSED(itl); UNUSED(func); UNUSED(dst_slot);
+    if(is_special_reg(dst_slot))
+    {
+        return;
+    }
+
+    auto& reg = reg_from_slot(itl.symbol_table,func,dst_slot);
+
+    if(is_aliased(reg))
+    {
+        spill_slot(itl,func,reg);
+    } 
 }
 
 // NOTE: this is the bottom level emitter

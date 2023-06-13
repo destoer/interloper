@@ -32,6 +32,11 @@ const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
 
 Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
 {
+    if(is_special_reg(slot))
+    {
+        assert(false);
+    }
+
     if(!is_tmp(slot))
     {
         return sym_from_slot(table,slot).reg;
@@ -61,8 +66,10 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)
 }
 
 
-Symbol make_sym(SymbolTable& table,const String& name, Type* type, u32 size,u32 arg = NON_ARG)
+Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG)
 {
+    auto& table = itl.symbol_table;
+
     const u32 slot = symbol(count(table.slot_lookup));
 
     Symbol symbol = {};
@@ -71,9 +78,7 @@ Symbol make_sym(SymbolTable& table,const String& name, Type* type, u32 size,u32 
     symbol.arg_offset = arg;
     symbol.scope_end = block_from_idx(0xffff'ffff);
 
-    b32 s = is_signed(type);
-
-    symbol.reg = make_reg(reg_kind::local,size,slot,s);
+    symbol.reg = make_reg(itl,reg_kind::local,slot,type);
 
     return symbol;
 }
@@ -94,9 +99,11 @@ void add_scope(SymbolTable &sym_table, Symbol &sym)
     sym_table.sym_count++;
 }    
 
-Symbol &add_symbol(SymbolTable &sym_table,const String &name, Type *type, u32 size)
+Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
 {
-    auto sym = make_sym(sym_table,name,type,size);
+    auto& sym_table = itl.symbol_table;
+
+    auto sym = make_sym(itl,name,type);
     push_var(sym_table.slot_lookup,sym);
 
     add_scope(sym_table,sym);
@@ -104,9 +111,9 @@ Symbol &add_symbol(SymbolTable &sym_table,const String &name, Type *type, u32 si
     return sym_from_slot(sym_table,sym.reg.slot);
 }
 
-Symbol& add_global(SymbolTable &sym_table,const String &name, Type *type, u32 size)
+Symbol& add_global(Interloper& itl,const String &name, Type *type)
 {
-    Symbol& sym = add_symbol(sym_table,name,type,size);
+    Symbol& sym = add_symbol(itl,name,type);
     sym.reg.location = LOCATION_GLOBAL;
 
     return sym;

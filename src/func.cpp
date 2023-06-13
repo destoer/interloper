@@ -69,7 +69,7 @@ u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Ar
 {
     Type* ptr_type = make_pointer(itl,return_type);
 
-    Symbol sym = make_sym(itl.symbol_table,name,ptr_type,GPR_SIZE,arg_offset);
+    Symbol sym = make_sym(itl,name,ptr_type,arg_offset);
     add_var(itl.symbol_table,sym);
 
     push_var(args,sym.reg.slot);     
@@ -502,17 +502,18 @@ void parse_function_declarations(Interloper& itl)
                 const auto name = a->name;
                 const auto type = get_complete_type(itl,a->type);
 
-                const auto size = type_size(itl,type);
 
                 // add the var to slot lookup and link to function
                 // we will do a add_scope to put it into the scope later
-                Symbol sym = make_sym(itl.symbol_table,name,type,size,arg_offset);
+                Symbol sym = make_sym(itl,name,type,arg_offset);
                 add_var(itl.symbol_table,sym);
 
                 push_var(args,sym.reg.slot);
 
+                const u32 size = type_size(itl,type);
+
                 // if size is below GPR just make it take that much
-                const u32 arg_size = sym.reg.size < GPR_SIZE? 4 : size;
+                const u32 arg_size = promote_size(size);
 
                 arg_offset += arg_size;
 

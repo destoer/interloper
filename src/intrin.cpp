@@ -7,6 +7,57 @@ b32 is_gpr_size(const Type* type)
     return is_trivial_copy(type);
 }
 
+
+void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slot, u32 size)
+{
+    // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
+    // because this alot of boilerplate
+
+    static constexpr u32 COPY_LIMIT = 20;
+
+    // multiple of 4 and under the copy limit
+    if(size < COPY_LIMIT && (size & 3) == 0) 
+    {
+        const auto tmp = new_tmp(func, 4);
+
+        const u32 count = size / 4;
+
+        for(u32 i = 0; i < count; i++)
+        {
+            load_word(itl,func,tmp,src_slot,i * 4);
+            store_word(itl,func,tmp,dst_slot,i * 4);
+        }    
+    }
+
+    else 
+    {
+        // emit a call to memcpy with args
+        // check function is declared
+
+        Function* func_def = lookup(itl.function_table,String("memcpy"));
+
+        if(!func_def)
+        {
+            panic(itl,itl_error::undeclared,"[COMPILE]: memcpy is required for struct passing\n");
+        }
+        Function &func_call = *func_def;
+
+        mark_used(itl,func_call);
+
+
+        const SymSlot imm_slot = mov_imm_res(itl,func,size);
+
+        push_arg(itl,func,imm_slot);
+        push_arg(itl,func,src_slot);
+        push_arg(itl,func,dst_slot);
+
+        call(itl,func,func_call.label_slot,true);
+
+        clean_args(itl,func,3);
+    }
+}
+
+
 Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     UNUSED(dst_slot);
