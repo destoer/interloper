@@ -23,8 +23,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
     {
         case op_type::addrof:
         {
-            const SymSlot slot = sym_from_idx(opcode.v[1]);
-
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
 
@@ -35,11 +33,33 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(table,alloc,block,node,0);
 
-            // spill the var that has had a pointer taken to it so we know its in memory
-            spill(slot,alloc,table,block,node);
-
             node = node->next;
             break;            
+        }
+
+        case op_type::reload_slot:
+        {
+            const SymSlot slot = sym_from_idx(opcode.v[0]);
+            auto& reg = reg_from_slot(itl.symbol_table,func,slot);
+
+            if(reg.location != LOCATION_MEM)
+            {
+                reload_slot(alloc,block,node,reg);
+            }
+
+            node = remove(block.list,node);
+            break;
+        }
+
+        case op_type::spill_slot:
+        {
+            const SymSlot slot = sym_from_idx(opcode.v[0]);
+
+            spill(slot,alloc,itl.symbol_table,block,node,false);
+
+            node = remove(block.list,node);
+
+            break;          
         }
 
         // have to do opcode rewriting by here to make sure hte offset is applied after any reloads occur

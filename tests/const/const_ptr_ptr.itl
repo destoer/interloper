@@ -8,7 +8,7 @@ func main() s32
     ptr2 : const u32@;
 
     // valid assign
-    ptr2 = ptr2;
+    ptr2 = ptr1;
 
     return 0;
 }

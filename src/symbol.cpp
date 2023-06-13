@@ -49,7 +49,7 @@ Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
 }
 
 
-std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)
+Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
     for(s32 i = count(sym_table.table) - 1; i >= 0; i--)
     {
@@ -57,12 +57,16 @@ std::optional<Symbol> get_sym(SymbolTable &sym_table,const String &sym)
 
         if(slot)
         {
-            auto sym = sym_from_slot(sym_table,*slot);
-            return std::optional(sym);
+            return &sym_from_slot(sym_table,*slot);
         }
     }
 
-    return std::nullopt;
+    return nullptr;
+}
+
+b32 symbol_exists(SymbolTable &sym_table,const String &sym)
+{
+    return get_sym(sym_table,sym) != nullptr;
 }
 
 

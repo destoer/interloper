@@ -619,6 +619,20 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     // no need to spill
     if(ir_reg.location == LOCATION_MEM)
     {
+        if(alloc.print_reg_allocation)
+        {
+            if(is_sym(slot))
+            {
+                auto& sym = sym_from_slot(table,slot);
+
+                printf("attempted to spill freed sym %s\n",sym.name.buf);
+            }
+
+            else
+            {
+                printf("attempted to spill freed tmp t%d\n",slot.handle);            
+            }
+        }
         return;
     }
 

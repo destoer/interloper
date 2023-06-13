@@ -15,15 +15,10 @@ void emit_directive_dst1(Interloper& itl,Function& func, SymSlot dst, u32 v2, u3
 }
 
 
-// TODO: we probably need a way to override if this counts for aliasing
-// if this is just for internal use, i.e for returning a struct out of a function
-// we know that it will be used saftely...
+// NOTE: this is for internal use, and will not mark a symbol as being aliased
+// please use load_addr
 void addrof(Interloper& itl,Function& func, SymSlot dst, SymSlot src)
 {
-    // TODO: move this over to a better system, just keep the old one for now
-    auto& reg = reg_from_slot(itl.symbol_table,func,src);
-    reg.flags |= ALIASED;  
-
     emit_directive_dst1<op_type::addrof>(itl,func,dst,src.handle,0);
 }
 

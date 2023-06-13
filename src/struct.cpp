@@ -454,15 +454,15 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             LiteralNode* sym_node = (LiteralNode*)expr_node;
 
             const auto name = sym_node->literal;
-            const auto sym_opt = get_sym(itl.symbol_table,name);
+            const auto sym_ptr = get_sym(itl.symbol_table,name);
 
-            if(!sym_opt)
+            if(!sym_ptr)
             {
                 panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
                 return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
             }            
 
-            const auto sym = sym_opt.value();
+            const auto &sym = *sym_ptr;
 
             // allready a pointer so just return the slot
             // along with the derefed type
@@ -474,7 +474,12 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
             else
             {
-                struct_slot = addrof_res(itl,func,sym.reg.slot);
+                // if base type is a fixed array
+                // then no further compuation will be done
+                if(!is_fixed_array(sym.type))
+                {
+                    struct_slot = addrof_res(itl,func,sym.reg.slot);
+                }
                 struct_type = sym.type;
             }
 

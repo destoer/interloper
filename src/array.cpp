@@ -146,15 +146,15 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 
     const auto arr_name = index_node->name;
 
-    const auto arr_opt = get_sym(itl.symbol_table,arr_name);
+    const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
 
-    if(!arr_opt)
+    if(!arr_ptr)
     {
         panic(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};       
     }
 
-    const auto arr = arr_opt.value();
+    const auto arr = *arr_ptr;
 
     
     // get the initial data ptr

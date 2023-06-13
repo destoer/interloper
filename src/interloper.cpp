@@ -159,14 +159,14 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node)
 
     const auto name = lit_node->literal;
 
-    const auto sym_opt = get_sym(itl.symbol_table,name);
-    if(!sym_opt)
+    const auto sym_ptr = get_sym(itl.symbol_table,name);
+    if(!sym_ptr)
     {
         panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
     }
 
-    const auto &sym = sym_opt.value();
+    const auto &sym = *sym_ptr;
 
     return std::pair{sym.type,sym.reg.slot};
 }
@@ -618,7 +618,7 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
     }
 
     // requires special handling to move
-    else
+    else if(is_struct(dst_type) && is_struct(src_type))
     {
         // copy out the strucutre using the hidden pointer in the first arg
         if(dst_slot.handle == RV_IR)
@@ -635,6 +635,11 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 
             ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,dst_type));
         }
+    }
+
+    else
+    {
+        assert(false);
     }
 }
 
@@ -1172,17 +1177,21 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
             LiteralNode* sym_node = (LiteralNode*)node;
 
             const auto name = sym_node->literal;
-            const auto sym_opt = get_sym(itl.symbol_table,name);
-            if(!sym_opt)
+            auto sym_ptr = get_sym(itl.symbol_table,name);
+            if(!sym_ptr)
             {
                 panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
             }
 
-            const auto &sym = sym_opt.value();
+            auto &sym = *sym_ptr;
 
             if(take_addr)
             {
+                sym.reg.flags |= ALIASED;
+                printf("took addr on :%s\n",sym.name.buf);
+                spill_slot(itl,func,sym.reg);
+
                 if(is_array(sym.type))
                 {
                     assert(false);
@@ -1303,6 +1312,11 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         {
             const auto [type, slot] = symbol(itl,node);
             
+            if(itl.error)
+            {
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
             compile_move(itl,func,dst_slot,slot,type,type);
             return type;
         }
@@ -1439,14 +1453,14 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
             const auto name = lit_node->literal;
 
-            const auto sym_opt = get_sym(itl.symbol_table,name);
-            if(!sym_opt)
+            const auto sym_ptr = get_sym(itl.symbol_table,name);
+            if(!sym_ptr)
             {
                 panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return make_builtin(itl,builtin_type::void_t);
             }
 
-            const auto &sym = sym_opt.value();
+            const auto &sym = *sym_ptr;
 
             check_assign(itl,sym.type,rtype);
 
@@ -1696,10 +1710,11 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
     const auto name = decl_node->name;
     const auto ltype = get_type(itl,decl_node->type);
 
-    const auto sym_opt = get_sym(itl.symbol_table,name);
-    if(sym_opt)
+    const auto sym_ptr = get_sym(itl.symbol_table,name);
+
+    if(sym_ptr)
     {
-        panic(itl,itl_error::redeclaration,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_opt.value().type).buf);
+        panic(itl,itl_error::redeclaration,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_ptr->type).buf);
         return;
     }
 
@@ -1874,14 +1889,14 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                     const auto name = sym_node->literal;
 
-                    const auto sym_opt = get_sym(itl.symbol_table,name);
-                    if(!sym_opt)
+                    const auto sym_ptr = get_sym(itl.symbol_table,name);
+                    if(!sym_ptr)
                     {
                         panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
                         break;
                     }
 
-                    const auto &sym = sym_opt.value();
+                    const auto &sym = *sym_ptr;
 
                     check_assign(itl,sym.type,rtype);
 

@@ -299,15 +299,16 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                     {
                         const LiteralNode *sym_node = (LiteralNode*)var_node;
 
-                        const auto sym_opt = get_sym(itl.symbol_table,sym_node->literal);
+                        const auto sym_ptr = get_sym(itl.symbol_table,sym_node->literal);
 
-                        if(!sym_opt)
+                        if(!sym_ptr)
                         {
                             panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
                             return make_builtin(itl,builtin_type::void_t);
                         }
 
-                        const auto &sym = sym_opt.value();
+                        const auto &sym = *sym_ptr;
+                        spill_slot(itl,func,sym.reg);
 
                         const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
                         push_arg(itl,func,addr_slot);

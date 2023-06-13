@@ -99,12 +99,12 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // type
     {"tests/type/decl",255},
     {"tests/type/builtin_type",271},
-    //{"tests/type/sizeof",1},
-    //{"tests/type/default_initializer",1},
+    {"tests/type/sizeof",1},
+    {"tests/type/default_initializer",1},
     {"tests/type/byte",0},
-    //{"tests/type/struct_punning",11},
+    {"tests/type/struct_punning",11},
     {"tests/type/type_query",1},
-    //{"tests/type/rtti",1},
+    {"tests/type/rtti",1},
 
     // const
     {"tests/const/const_pass_copy",100},
@@ -138,7 +138,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/cast_ptr",1020},
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
-    //{"tests/ptr/alias",1},
+    {"tests/ptr/alias",1},
 
     // wait for heap allocation
     //{"tests/ptr/ptr_to_array",3},
