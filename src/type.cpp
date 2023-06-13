@@ -76,6 +76,7 @@ b32 is_trivial_copy(const Type *type)
     return is_builtin(type) || is_pointer(type) || is_enum(type);
 }
 
+
 // for arrays
 b32 is_runtime_size(const ArrayType* type)
 {
@@ -88,6 +89,17 @@ b32 is_runtime_size(const Type* type)
 {
     return is_runtime_size((ArrayType*)type);
 }
+
+b32 is_vla(const Type* type)
+{
+    if(is_array(type))
+    {
+        return is_runtime_size(type);
+    }
+
+    return false;    
+}
+
 
 b32 is_fixed_array_pointer(const Type* type)
 {
@@ -871,13 +883,21 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
 }
 
 
-void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_arg, b32 is_initializer, b32 was_pointer)
+enum class assign_type
+{
+    assign,
+    arg,
+    initializer,
+};
+
+
+void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type, b32 was_pointer)
 {
     if(ltype->is_const)
     {
         // can only assign for arg or initalizer everything
         // unless this is a pointer, if so it is legal as long as the ltype of the contained type is const
-        if(!is_initializer && !is_arg && !was_pointer)
+        if(type == assign_type::assign && !was_pointer)
         {
             panic(itl,itl_error::const_type_error,"cannot assign rtype to const ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
@@ -899,7 +919,7 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
 
 // NOTE: this is expected to be called after main sets of type checking
 // so types should atleast be the same fmt at every level
-void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_arg, b32 is_initializer)
+void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type)
 {
     b32 done = false;
 
@@ -932,7 +952,7 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_ar
 
             case POINTER:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
 
                 // check sub types
                 ltype = deref_pointer(ltype);
@@ -944,14 +964,14 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_ar
 
             case STRUCT:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
                 done = true;
                 break;
             }
 
             case ENUM:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
                 done = true;
                 break;
             }
@@ -959,7 +979,7 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, b32 is_ar
             // check end type
             default:
             {
-                check_const_internal(itl,ltype,rtype,is_arg,is_initializer,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
                 done = true;
                 break;
             }
@@ -1157,7 +1177,7 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
     }
 }
 
-void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_arg = false, b32 is_initializer = false)
+void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype, assign_type type)
 {
     if(is_plain(rtype) && is_plain(ltype))
     {
@@ -1220,7 +1240,7 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
                         // valid
                         // [3] = [3]
 
-                        if(!is_arg)
+                        if(type != assign_type::arg)
                         {
                             if(!is_runtime_size(ltype))
                             {
@@ -1275,9 +1295,27 @@ void check_assign(Interloper& itl,const Type *ltype, const Type *rtype, b32 is_a
     if(!itl.error)
     {
         // we know this will descend properly so check const!
-        check_const(itl,ltype,rtype,is_arg,is_initializer);
+        check_const(itl,ltype,rtype,type);
     }
 }
+
+// check ordinary assign
+void check_assign(Interloper& itl,const Type *ltype, const Type *rtype)
+{
+    check_assign_internal(itl,ltype,rtype,assign_type::assign);
+}
+
+void check_assign_arg(Interloper& itl, const Type* ltype, const Type* rtype)
+{
+    // args behave the same as initalizers
+    check_assign_internal(itl,ltype,rtype,assign_type::arg);
+}
+
+void check_assign_init(Interloper& itl, const Type* ltype, const Type* rtype)
+{
+    check_assign_internal(itl,ltype,rtype,assign_type::initializer);
+}
+
 
 void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_slot,const Type *old_type, const Type *new_type)
 {
@@ -1312,13 +1350,13 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                 {
                     case builtin_type::s8_t: 
                     {
-                        emit(func,op_type::sxb,dst_slot,src_slot);
+                        sign_extend_byte(itl,func,dst_slot,src_slot);
                         break;
                     }
 
                     case builtin_type::s16_t:
                     {
-                        emit(func,op_type::sxh,dst_slot,src_slot);
+                        sign_extend_half(itl,func,dst_slot,src_slot);
                         break;
                     }
 
@@ -1334,13 +1372,13 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                 {
                     case 1: 
                     {
-                        emit(func,op_type::and_imm,dst_slot,src_slot,0xff);
+                        and_imm(itl,func,dst_slot,src_slot,0xff);
                         break;
                     }
 
                     case 2:  
                     {
-                        emit(func,op_type::and_imm,dst_slot,src_slot,0xffff);
+                        and_imm(itl,func,dst_slot,src_slot,0xffff);
                         break;
                     }
 
@@ -1351,7 +1389,7 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
             // cast doesnt do anything but move into a tmp so the IR doesnt break
             else
             {
-                emit(func,op_type::mov_reg,dst_slot,src_slot);
+                mov_reg(itl,func,dst_slot,src_slot);
             }
 
         }
@@ -1361,7 +1399,7 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         {
             // do nothing 0 and 1 are fine as integers
             // we do want this to require a cast though so conversions have to be explicit
-            emit(func,op_type::mov_reg,dst_slot,src_slot);
+            mov_reg(itl,func,dst_slot,src_slot);
         } 
 
         // integer to bool
@@ -1370,13 +1408,13 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         {
             if(is_signed(old_type))
             {
-                emit(func,op_type::cmpsgt_imm,dst_slot,src_slot,0);
+                cmp_signed_gt_imm(itl,func,dst_slot,src_slot,0);
             }
 
             // unsigned
             else
             {
-                emit(func,op_type::cmpugt_imm,dst_slot,src_slot,0);
+                cmp_unsigned_gt_imm(itl,func,dst_slot,src_slot,0);
             }
         }        
 
@@ -1389,19 +1427,19 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
     // cast from enum to int is fine
     else if(is_enum(old_type) && is_integer(new_type))
     {
-        emit(func,op_type::mov_reg,dst_slot,src_slot);
+        mov_reg(itl,func,dst_slot,src_slot);
     }
 
     // as is integer to enum
     else if(is_integer(old_type) && is_enum(new_type))
     {
-        emit(func,op_type::mov_reg,dst_slot,src_slot);
+        mov_reg(itl,func,dst_slot,src_slot);
     }
 
     // cast does nothing just move the reg, its only acknowledgement your doing something screwy
     else if(is_pointer(old_type) && is_pointer(new_type))
     {
-        emit(func,op_type::mov_reg,dst_slot,src_slot);
+        mov_reg(itl,func,dst_slot,src_slot);
     }
 
     // probably only pointers are gonna valid for casts here
@@ -1419,7 +1457,7 @@ Type* access_builtin_type_info(Interloper& itl, Function& func, SymSlot dst_slot
 
     if(member_name == "size")
     {
-        emit(func,op_type::mov_imm,dst_slot,info.size);
+        mov_imm(itl,func,dst_slot,info.size);
         return make_builtin(itl,builtin_type::u32_t);
     }
 
@@ -1445,7 +1483,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
                 const auto& structure = itl.struct_table[type_decl.type_idx];
                 const u32 size = structure.size;
 
-                emit(func,op_type::mov_imm,dst_slot,size);
+                mov_imm(itl,func,dst_slot,size);
 
                 return make_builtin(itl,builtin_type::u32_t);
             }
@@ -1461,7 +1499,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
 
                 const u32 enum_len = enumeration.member_map.size;
 
-                emit(func,op_type::mov_imm,dst_slot,enum_len);
+                mov_imm(itl,func,dst_slot,enum_len);
 
                 return make_builtin(itl,builtin_type::u32_t);
             }

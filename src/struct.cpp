@@ -454,15 +454,15 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             LiteralNode* sym_node = (LiteralNode*)expr_node;
 
             const auto name = sym_node->literal;
-            const auto sym_opt = get_sym(itl.symbol_table,name);
+            const auto sym_ptr = get_sym(itl.symbol_table,name);
 
-            if(!sym_opt)
+            if(!sym_ptr)
             {
                 panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
                 return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
             }            
 
-            const auto sym = sym_opt.value();
+            const auto &sym = *sym_ptr;
 
             // allready a pointer so just return the slot
             // along with the derefed type
@@ -474,7 +474,12 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
             else
             {
-                struct_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
+                // if base type is a fixed array
+                // then no further compuation will be done
+                if(!is_fixed_array(sym.type))
+                {
+                    struct_slot = addrof_res(itl,func,sym.reg.slot);
+                }
                 struct_type = sym.type;
             }
 
@@ -551,7 +556,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
                 std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,index_node->name,&member_offset);
                 
-                struct_slot = collapse_offset(func,struct_slot,&member_offset);
+                struct_slot = collapse_offset(itl,func,struct_slot,&member_offset);
 
                 if(is_runtime_size(struct_type))
                 {
@@ -580,9 +585,6 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 }
 
 
-void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
-void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
-
 void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype, AstNode *node)
 {
     const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
@@ -600,15 +602,15 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
     {
         const ArrayType* array_type = (ArrayType*)accessed_type;
 
-        emit(func,op_type::mov_imm,dst_slot,array_type->size);
+        mov_imm(itl,func,dst_slot,array_type->size);
         return make_builtin(itl,builtin_type::u32_t);
     }
 
     // let caller handle reads
     if(is_fixed_array(accessed_type))
     {
-        const SymSlot addr = collapse_offset(func,ptr_slot,&offset);
-        emit(func,op_type::mov_reg,dst_slot,addr);
+        const SymSlot addr = collapse_offset(itl,func,ptr_slot,&offset);
+        mov_reg(itl,func,dst_slot,addr);
         return accessed_type;
     }
 
@@ -672,13 +674,13 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
 
-    alloc_slot(func,sym.reg,true);
+    alloc_slot(itl,func,sym.reg,true);
 
     if(decl_node->expr)
     {
         if(decl_node->expr->type == ast_type::initializer_list)
         {
-            const SymSlot addr_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
+            const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
 
             traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
         }
@@ -686,14 +688,14 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
         else
         {
             const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
-            check_assign(itl,sym.type,rtype,false,true);        
+            check_assign_init(itl,sym.type,rtype);        
         }
     }
 
     // default construction
     else
     {
-        const SymSlot addr_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
+        const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
 
         for(u32 m = 0; m < count(structure.members); m++)
         {
@@ -709,7 +711,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
                 else
                 {
                     const auto [rtype,slot] = compile_oper(itl,func,member.expr);
-                    check_assign(itl,member.type,rtype,false,true); 
+                    check_assign_init(itl,member.type,rtype); 
 
                     do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
                 }
@@ -730,7 +732,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
             else
             {
-                const SymSlot tmp = mov_imm(func,default_value(member.type));
+                const SymSlot tmp = mov_imm_res(itl,func,default_value(member.type));
 
                 do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
             }

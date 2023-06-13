@@ -59,10 +59,10 @@ func check_pointer() bool
     y : s32 = 5;
     ptr_false : s32@ = &y;
 
-    res1 : bool = check_ptr(ptr,itl_type::u32_t);
-    res2 : bool = !check_ptr(ptr_false,itl_type::u32_t);
+    res1 := check_ptr(ptr,itl_type::u32_t);
+    res2 := !check_ptr(ptr_false,itl_type::u32_t);
 
-    res : bool = res1 && res2;
+    res := res1 && res2;
 
     return res;
 }
@@ -88,8 +88,8 @@ func check_array() bool
 
 func main() s32
 {
-    res1 : bool = check_builtin();
-    res2 : bool = check_pointer();
+    res1 := check_builtin();
+    res2 := check_pointer();
 
     res := res1 && res2;
 

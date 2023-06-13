@@ -177,7 +177,7 @@ SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
 {
     const PoolSlot pool_slot = make_rtti(itl,type);
 
-    return pool_addr(func,pool_slot);
+    return pool_addr_res(itl,func,pool_slot);
 }
 
 u32 promote_size(u32 size)
@@ -219,10 +219,10 @@ void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, cons
     if(is_trivial_copy(type))
     {
         // store data
-        emit(func,store_ptr(src,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE));
+        store_ptr(itl,func,src,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);
 
         // store type struct
-        emit(func,store_ptr(rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE));                
+        store_ptr(itl,func,rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE);                
     } 
 
     // finally the any struct

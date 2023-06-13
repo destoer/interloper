@@ -1,3 +1,4 @@
+#include <reg.cpp>
 
 List& get_cur_list(IrEmitter& emitter)
 {
@@ -10,276 +11,233 @@ ListNode* get_cur_end(IrEmitter& emitter)
 }
 
 
-
-Opcode store_ptr(SymSlot src_slot, SymSlot addr_slot, u32 offset, u32 size)
+void destroy_emitter(IrEmitter& emitter)
 {
-    static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-    return Opcode(instr[size >> 1],src_slot.handle,addr_slot.handle,offset);
-}
-
-// this function only supports up to 32 bit reads atm
-static_assert(GPR_SIZE == sizeof(u32));
-
-Opcode load_ptr(SymSlot dst_slot, SymSlot addr_slot,u32 offset, u32 size, b32 is_signed)
-{
-    if(is_signed)
+    for(u32 b = 0; b < count(emitter.program); b++)
     {
-        // word is register size (we dont need to extend it)
-        static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
-        return Opcode(instr[size >> 1],dst_slot.handle,addr_slot.handle,offset);       
+        auto& block = emitter.program[b];
+
+        destroy_arr(block.exit);
+        destroy_arr(block.links);
     }
 
-    // "plain data"
-    // just move by size
-    else
+    destroy_arr(emitter.program);
+}
+
+constexpr OpInfo opcode_info_from_type(op_type type)
+{
+    const u32 IDX = u32(type);
+
+    const auto OP_INFO = OPCODE_TABLE[IDX];
+
+    return OP_INFO;    
+}
+
+// NOTE: we could have handled this with higher level checks at hte point we request the symbol
+// from the table and strongly type src and dst slots, but it seems too error prone,
+// even though the current solution is a bit heavyweight
+
+void handle_src_storage(Interloper& itl, Function& func, SymSlot src_slot)
+{
+    if(is_special_reg(src_slot))
     {
-        static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
-        return Opcode(instr[size >> 1],dst_slot.handle,addr_slot.handle,offset);
+        return;
+    }
+
+    auto& reg = reg_from_slot(itl.symbol_table,func,src_slot);
+
+    if(is_aliased(reg))
+    {
+        reload_slot(itl,func,reg);
     }
 }
 
-u32 gpr_count(u32 size)
+void handle_dst_storage(Interloper& itl, Function& func, SymSlot dst_slot)
 {
-    return size / GPR_SIZE;
-}
-
-void alloc_slot(Function& func, const Reg& reg, b32 force_alloc)
-{
-    emit(func,op_type::alloc_slot,reg.slot,force_alloc);
-}
-
-void free_slot(Function& func, const Reg& reg)
-{
-    emit(func,op_type::free_slot,reg.slot);
-}
-
-void free_sym(Interloper& itl,Function& func, Symbol& sym)
-{
-    if(is_fixed_array(sym.type))
+    if(is_special_reg(dst_slot))
     {
-        auto [size,count] = calc_arr_allocation(itl,sym);
-        emit(func,op_type::free_fixed_array,sym.reg.slot,size,count);
+        return;
     }
 
-    else
+    auto& reg = reg_from_slot(itl.symbol_table,func,dst_slot);
+
+    if(is_aliased(reg))
     {
-        free_slot(func,sym.reg);
-    }
-
-    sym.scope_end = cur_block(func);
-}
-
-// get back a longer lived tmp
-// stored internally as a symbol
-SymSlot new_tmp(Function& func, u32 size)
-{
-    const u32 slot = count(func.registers);
-
-    const auto reg = make_reg(reg_kind::tmp,size,slot,false);
-    push_var(func.registers,reg);
-
-    return sym_from_idx(slot);
-}
-
-SymSlot new_tmp_ptr(Function &func)
-{
-    return new_tmp(func,GPR_SIZE);
-}
-
-
-
-static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
-static constexpr u32 TMP_END = REG_FREE - 1;
-static constexpr u32 REG_TMP_START = 0x00000000;
-
-b32 is_sym(SymSlot s)
-{
-    return s.handle >= SYMBOL_START;
-}
-
-u32 tmp(u32 ir_reg)
-{
-    return ir_reg + REG_TMP_START;
-}
-
-// dont correct special regs
-b32 is_reg(SymSlot r)
-{
-    return r.handle < MACHINE_REG_SIZE;
-}
-
-b32 is_special_reg(SymSlot r)
-{
-    return r.handle >= SPECIAL_PURPOSE_REG_START && r.handle <= SPECIAL_PURPOSE_REG_START + SPECIAL_REG_SIZE;
-}
-
-b32 is_tmp(SymSlot s)
-{
-    return s.handle < TMP_END;
-}
-
-
-u32 slot_to_idx(SymSlot slot)
-{
-    return is_sym(slot)? sym_to_idx(slot) : slot.handle;
-}
-
-void assign_reg_size(Reg& reg, u32 size)
-{
-    if(size > GPR_SIZE)
-    {
-        reg.size = GPR_SIZE;
-        reg.count = gpr_count(size);
-    }
-
-    else
-    {
-        reg.count = 1; 
-        reg.size = size;
-    }    
-}
-
-Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
-{
-    Reg reg;
-    reg.kind = kind;
-
-    assign_reg_size(reg,size);
-
-    if(is_signed)
-    {
-        reg.flags |= SIGNED_FLAG;
-    }
-
-    reg.slot = {slot};
-
-    return reg;
-}
-
-void destroy_reg(Reg& ir_reg)
-{
-    destroy_arr(ir_reg.usage);
-}
-
-void print(const Reg& reg)
-{
-    printf("offset: %x\n",reg.offset);
-    printf("location: %x\n\n",reg.location);    
-    printf("slot: %x\n",reg.slot.handle);
+        spill_slot(itl,func,reg);
+    } 
 }
 
 // NOTE: this is the bottom level emitter
-void emit_block_internal(Function& func,BlockSlot block_slot, const Opcode& opcode)
+void emit_block_internal(Function& func,BlockSlot block_slot, op_type type, u32 v1, u32 v2, u32 v3)
 {
+    const Opcode opcode(type,v1,v2,v3);
+
     auto& block = block_from_slot(func,block_slot);
     auto &list = block.list;
     append(list,opcode);    
 }
 
-// Emitter overloads
-void emit_block_internal(Function& func, BlockSlot block_slot, op_type op, u32 v1, u32 v2, u32 v3)
-{
-    Opcode opcode(op,v1,v2,v3);
 
-    emit_block_internal(func,block_slot,opcode); 
+template<const op_type type>
+void emit_implicit(Interloper& itl,Function& func)
+{
+    UNUSED(itl);
+
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
+    static_assert(OP_INFO.args == 0);
+
+    emit_block_internal(func,cur_block(func),type,0,0,0);
 }
 
-void emit(Function& func,const Opcode& opcode)
+// emitter for reg_t 3
+template<const op_type type>
+void emit_reg3(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
-    emit_block_internal(func,cur_block(func),opcode);
-}
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
 
-void emit_internal(Function& func,op_type op, u32 v1, u32 v2, u32 v3)
-{
-    emit_block_internal(func,cur_block(func),op,v1,v2,v3);
-}
+    static_assert(OP_INFO.type[0] == arg_type::dst_reg);
+    static_assert(OP_INFO.type[1] == arg_type::src_reg);
+    static_assert(OP_INFO.type[2] == arg_type::src_reg);
+    static_assert(OP_INFO.args == 3);
 
+    handle_src_storage(itl,func,v1);
+    handle_src_storage(itl,func,v2);
 
-void emit(Function& func,op_type op, SymSlot v1, SymSlot v2, SymSlot v3)
-{
-    emit_internal(func,op,v1.handle,v2.handle,v3.handle);
-}
+    emit_block_internal(func,cur_block(func),type,dst.handle,v1.handle,v2.handle);
 
-
-void emit(Function& func,op_type op, u32 imm)
-{
-    emit_internal(func,op,imm,0,0);
-}
-
-void emit(Function& func,op_type op, SymSlot v1, SymSlot v2, u32 imm)
-{
-    emit_internal(func,op,v1.handle,v2.handle,imm);
-}
-
-void emit(Function& func,op_type op, SymSlot v1, u32 imm)
-{
-    emit_internal(func,op,v1.handle,imm,0);
-}
-
-void emit(Function& func,op_type op, SymSlot v1, u32 v2, u32 v3)
-{
-    emit_internal(func,op,v1.handle,v2,v3);
-}
-
-void emit_block(Function &func,BlockSlot block,op_type op, SymSlot v1, SymSlot v2, SymSlot v3)
-{
-    emit_block_internal(func,block,op,v1.handle,v2.handle,v3.handle);
-}
-
-// emit an opcode, and give back a new dst as a tmp
-SymSlot emit_res(Function& func, op_type op, SymSlot v2, u32 v3)
-{
-    const SymSlot tmp = new_tmp(func,GPR_SIZE);
-    emit(func,op,tmp,v2,v3);
-
-    return tmp;
+    handle_dst_storage(itl,func,dst);
 }
 
 
-SymSlot emit_res(Function& func, op_type op, SymSlot v2, SymSlot v3)
+template<const op_type type>
+void emit_reg2(Interloper& itl,Function& func, SymSlot dst, SymSlot src)
 {
-    const SymSlot tmp = new_tmp(func,GPR_SIZE);
-    emit(func,op,tmp,v2,v3);
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
 
-    return tmp;
+    static_assert(OP_INFO.type[0] == arg_type::dst_reg);
+    static_assert(OP_INFO.type[1] == arg_type::src_reg);
+    static_assert(OP_INFO.args == 2);
+
+    handle_src_storage(itl,func,src);
+
+    emit_block_internal(func,cur_block(func),type,dst.handle,src.handle,0);
+
+    handle_dst_storage(itl,func,dst);
 }
 
-SymSlot emit_res(Function& func, op_type op, u32 v2)
+template<const op_type type>
+void emit_reg1(Interloper& itl, Function& func, SymSlot src)
 {
-    const SymSlot tmp = new_tmp(func,GPR_SIZE);
-    emit(func,op,tmp,v2);
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
 
-    return tmp;
+    static_assert(OP_INFO.type[0] == arg_type::src_reg);
+    static_assert(OP_INFO.args == 1);
+
+    emit_block_internal(func,cur_block(func),type,src.handle,0,0);
+
+    handle_src_storage(itl,func,src);
 }
 
-void addrof(SymbolTable& table,Function &func, SymSlot dst, SymSlot slot)
+
+
+template<const op_type type>
+void emit_store(Interloper& itl, Function& func, SymSlot src, SymSlot ptr, u32 imm)
 {
-    auto& reg = reg_from_slot(table,func,slot);
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
 
-    reg.aliased = true;
+    static_assert(OP_INFO.type[0] == arg_type::src_reg);
+    static_assert(OP_INFO.type[1] == arg_type::src_reg);
+    static_assert(OP_INFO.type[2] == arg_type::imm);
+    static_assert(OP_INFO.args == 3);
 
-    emit(func,op_type::addrof,dst,slot);
+    handle_src_storage(itl,func,ptr);
+    handle_src_storage(itl,func,src);
+
+    emit_block_internal(func,cur_block(func),type,src.handle,ptr.handle,imm);    
 }
 
-SymSlot addrof_res(SymbolTable& table,Function& func,SymSlot slot)
+template<const op_type type>
+void emit_load(Interloper& itl, Function& func, SymSlot dst, SymSlot ptr, u32 imm)
 {
-    const SymSlot tmp = new_tmp(func,GPR_SIZE);
-    addrof(table,func,tmp,slot);
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
 
-    return tmp;
+    static_assert(OP_INFO.type[0] == arg_type::dst_reg);
+    static_assert(OP_INFO.type[1] == arg_type::src_reg);
+    static_assert(OP_INFO.type[2] == arg_type::imm);
+    static_assert(OP_INFO.args == 3);
+
+    handle_src_storage(itl,func,ptr);
+    
+    emit_block_internal(func,cur_block(func),type,dst.handle,ptr.handle,imm);    
+
+    handle_dst_storage(itl,func,dst);
 }
 
-SymSlot mov_imm(Function& func,u32 v)
+template<const op_type type>
+void emit_imm1(Interloper& itl, Function& func, SymSlot dst, u32 imm)
 {
-    return emit_res(func,op_type::mov_imm,v);
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
+
+    static_assert(OP_INFO.type[0] == arg_type::dst_reg);
+    static_assert(OP_INFO.type[1] == arg_type::imm);
+    static_assert(OP_INFO.args == 2);
+
+    emit_block_internal(func,cur_block(func),type,dst.handle,imm,0);    
+
+    handle_dst_storage(itl,func,dst);
 }
 
-void push_arg(Function& func, SymSlot src)
+template<const op_type type>
+void emit_imm0(Interloper& itl, Function& func, u32 imm)
 {
-    emit(func,op_type::push_arg,src);
+    UNUSED(itl);
+
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
+
+    static_assert(OP_INFO.type[0] == arg_type::imm);
+    static_assert(OP_INFO.args == 1);
+
+    emit_block_internal(func,cur_block(func),type,imm,0,0);    
 }
 
-SymSlot pool_addr(Function& func, PoolSlot slot)
+template<const op_type type>
+void emit_imm2(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
 {
-    return emit_res(func,op_type::pool_addr,slot.handle);
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_info_from_type(type);
+
+    static_assert(OP_INFO.type[0] == arg_type::dst_reg);
+    static_assert(OP_INFO.type[1] == arg_type::src_reg);
+    static_assert(OP_INFO.type[2] == arg_type::imm);
+    static_assert(OP_INFO.args == 3);
+
+    handle_src_storage(itl,func,src);
+
+    emit_block_internal(func,cur_block(func),type,dst.handle,src.handle,imm);    
+
+    handle_dst_storage(itl,func,dst);
 }
+
+template<const op_type type>
+void emit_label1(Interloper& itl,Function& func, LabelSlot slot)
+{
+    UNUSED(itl);
+
+    constexpr auto OP_INFO = opcode_info_from_type(type);
+
+    static_assert(OP_INFO.type[0] == arg_type::label);
+    static_assert(OP_INFO.args == 1);
+
+    emit_block_internal(func,cur_block(func),type,slot.handle,0,0);
+}
+
+#include <emit_opcode.cpp>
+#include <directive.cpp>

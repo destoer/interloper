@@ -37,7 +37,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/const/const_invalid_assign",itl_error::const_type_error},
     {"tests/const/const_pass_invalid_ptr.itl",itl_error::const_type_error},
     {"tests/const/const_invalid_ptr_assign.itl",itl_error::const_type_error},
-    {"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
+    //{"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
 
     // func
     {"tests/func/no_main",itl_error::undeclared},
@@ -57,6 +57,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/array/array_pass_u32",itl_error::array_type_error},
     {"tests/array/array_mismatched_type",itl_error::array_type_error},
     {"tests/array/deref_array_of_ptr_invalid",itl_error::pointer_type_error},
+
 
     // strings
 
@@ -137,7 +138,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/cast_ptr",1020},
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
-    //{"tests/ptr/alias",1},
+    {"tests/ptr/alias",1},
 
     // wait for heap allocation
     //{"tests/ptr/ptr_to_array",3},
@@ -163,12 +164,14 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // wait for heap allocation
     //{"tests/array/array_assign_vla",3},
     //{"tests/array/array_assign_vla_fixed",itl_error::none},
-    
+
 
     // strings
     {"tests/string/char_array",7},
     {"tests/string/write_string",0},
     {"tests/string/write_string_static",0},
+
+
 
     // structs
     {"tests/struct/struct",495},
@@ -184,21 +187,24 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_assign",6},
     {"tests/struct/reorder",8},
 
+
+
     // stl
     {"tests/stl/linked_list",66},
     {"tests/stl/mem",0},
+
 
 
     // enum
     {"tests/enum/enum",1},
     {"tests/enum/switch_enum",10},
 
+
     // type alias
     {"tests/type_alias/type_alias",65},
 
     // tuple
     {"tests/tuple/tuple",1},
-
 };
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);

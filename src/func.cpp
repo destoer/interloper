@@ -69,7 +69,7 @@ u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Ar
 {
     Type* ptr_type = make_pointer(itl,return_type);
 
-    Symbol sym = make_sym(itl.symbol_table,name,ptr_type,GPR_SIZE,arg_offset);
+    Symbol sym = make_sym(itl,name,ptr_type,arg_offset);
     add_var(itl.symbol_table,sym);
 
     push_var(args,sym.reg.slot);     
@@ -180,11 +180,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             const u32 size = any_size(itl,arg_type);
 
             // alloc the struct size for our copy
-            emit(func,op_type::alloc_stack,size);
+            alloc_stack(itl,func,size);
 
             const SymSlot SP_SLOT = sym_from_idx(SP_IR);
 
-            // void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, const SymSlot src, const Type* type)
             make_any(itl,func,SP_SLOT,0,reg,arg_type);
 
             arg_clean += size / GPR_SIZE;
@@ -200,17 +199,17 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 const u32 size = lit_node->literal.size;
 
                 const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
-                check_assign(itl,arg.type,rtype,true);
+                check_assign_arg(itl,arg.type,rtype);
                 
                 // push the len offset
-                const SymSlot len_slot = mov_imm(func,size);
-                push_arg(func,len_slot);
+                const SymSlot len_slot = mov_imm_res(itl,func,size);
+                push_arg(itl,func,len_slot);
 
                 // push the data offset
                 const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
 
-                const SymSlot addr_slot = pool_addr(func,pool_slot);
-                push_arg(func,addr_slot);
+                const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
+                push_arg(itl,func,addr_slot);
 
                 arg_clean += 2;
             }
@@ -219,7 +218,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             {
                 auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-                check_assign(itl,arg.type,arg_type,true); 
+                check_assign_arg(itl,arg.type,arg_type); 
 
                 if(itl.error)
                 {
@@ -228,13 +227,13 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                 // push in reverse order let our internal functions handle vla conversion
                 const SymSlot len_slot = load_arr_len(itl,func,reg,arg_type);
-                push_arg(func,len_slot);
+                push_arg(itl,func,len_slot);
 
                 const SymSlot data_slot = load_arr_data(itl,func,reg,arg_type);
-                push_arg(func,data_slot);
+                push_arg(itl,func,data_slot);
 
                 arg_clean += 2;  
-            }    
+            }
         }
 
         else if(is_struct(arg.type))
@@ -242,18 +241,19 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
            const auto structure = struct_from_type(itl.struct_table,arg.type);
 
             const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
-            check_assign(itl,arg.type,arg_type,true);
+            check_assign_arg(itl,arg.type,arg_type);
 
 
             // TODO: support copies with larger loads
             static_assert(GPR_SIZE == sizeof(u32));
 
             // alloc the struct size for our copy
-            emit(func,op_type::alloc_stack,structure.size);
+            alloc_stack(itl,func,structure.size);
 
             // need to save SP as it will get pushed last
-            const SymSlot dst = emit_res(func,op_type::mov_reg,SP_IR);
-            const SymSlot ptr = addrof_res(itl.symbol_table,func,reg);
+            const SymSlot dst = new_tmp(func,GPR_SIZE);
+            mov_reg(itl,func,dst,sym_from_idx(SP_IR));
+            const SymSlot ptr = addrof_res(itl,func,reg);
 
             ir_memcpy(itl,func,dst,ptr,structure.size);
 
@@ -269,10 +269,10 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
 
             // type check the arg
-            check_assign(itl,arg.type,arg_type,true);
+            check_assign_arg(itl,arg.type,arg_type);
 
             // finally push the arg
-            push_arg(func,reg);
+            push_arg(itl,func,reg);
 
             arg_clean++;
         }
@@ -285,6 +285,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
        // pass in tuple dst
         if(tuple_node)
         {
+
             // okay how do we wanna structure getting tuple info off of this?
             // do we want to look at the node?
             // 
@@ -298,18 +299,19 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                     {
                         const LiteralNode *sym_node = (LiteralNode*)var_node;
 
-                        const auto sym_opt = get_sym(itl.symbol_table,sym_node->literal);
+                        const auto sym_ptr = get_sym(itl.symbol_table,sym_node->literal);
 
-                        if(!sym_opt)
+                        if(!sym_ptr)
                         {
                             panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
                             return make_builtin(itl,builtin_type::void_t);
                         }
 
-                        const auto &sym = sym_opt.value();
+                        const auto &sym = *sym_ptr;
+                        spill_slot(itl,func,sym.reg);
 
-                        const SymSlot addr_slot = addrof_res(itl.symbol_table,func,sym.reg.slot);
-                        push_arg(func,addr_slot);
+                        const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
+                        push_arg(itl,func,addr_slot);
 
                         break;
                     }
@@ -318,9 +320,9 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                     {
                         // get the addr and push it
                         auto [type,ptr_slot,offset] = compute_member_addr(itl,func,var_node);
-                        ptr_slot = collapse_offset(func,ptr_slot,&offset);
+                        ptr_slot = collapse_offset(itl,func,ptr_slot,&offset);
 
-                        push_arg(func,ptr_slot);
+                        push_arg(itl,func,ptr_slot);
                         break;
                     }
 
@@ -328,7 +330,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                     {
                         auto [type,ptr_slot] = index_arr(itl,func,var_node,new_tmp_ptr(func));
 
-                        push_arg(func,ptr_slot);
+                        push_arg(itl,func,ptr_slot);
                         break;
                     }
 
@@ -338,7 +340,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
                         const auto [type,ptr_slot] = load_addr(itl,func,deref_node->next,new_tmp_ptr(func),false);
 
-                        push_arg(func,ptr_slot);
+                        push_arg(itl,func,ptr_slot);
                         break;                     
                     }
 
@@ -350,8 +352,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
                 }
 
                 arg_clean++;
+            
             }
-
         }
 
         // single arg (for struct returns) 
@@ -367,18 +369,18 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             {
                 arg_clean++;
 
-                const SymSlot addr = addrof_res(itl.symbol_table,func,dst_slot);
-                push_arg(func,addr);
+                const SymSlot addr = addrof_res(itl,func,dst_slot);
+                push_arg(itl,func,addr);
             }
 
             else
             {
                 arg_clean++;
 
-                alloc_slot(func,func.registers[dst_slot.handle],true);
+                alloc_slot(itl,func,func.registers[dst_slot.handle],true);
                 
-                const SymSlot addr = addrof_res(itl.symbol_table,func,dst_slot);
-                push_arg(func,addr);
+                const SymSlot addr = addrof_res(itl,func,dst_slot);
+                push_arg(itl,func,addr);
             }
         }
     }
@@ -396,14 +398,14 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     // emit call to label slot
     // the actual address will have to resolved as the last compile step
     // once we know the size of all the code
-    emit_call(func,func_call.label_slot,save_regs);
+    call(itl,func,func_call.label_slot,save_regs);
 
 
     // clean up args after the function call
     // TODO: how should we encode this when we do arg passing in regs
     if(arg_clean)
     {
-        emit(func,op_type::clean_args,arg_clean);
+        clean_args(itl,func,arg_clean);
     }
   
 
@@ -501,17 +503,18 @@ void parse_function_declarations(Interloper& itl)
                 const auto name = a->name;
                 const auto type = get_complete_type(itl,a->type);
 
-                const auto size = type_size(itl,type);
 
                 // add the var to slot lookup and link to function
                 // we will do a add_scope to put it into the scope later
-                Symbol sym = make_sym(itl.symbol_table,name,type,size,arg_offset);
+                Symbol sym = make_sym(itl,name,type,arg_offset);
                 add_var(itl.symbol_table,sym);
 
                 push_var(args,sym.reg.slot);
 
+                const u32 size = type_size(itl,type);
+
                 // if size is below GPR just make it take that much
-                const u32 arg_size = sym.reg.size < GPR_SIZE? 4 : size;
+                const u32 arg_size = promote_size(size);
 
                 arg_offset += arg_size;
 
@@ -561,7 +564,7 @@ void compile_function(Interloper& itl, Function& func)
         // we just need to emit the ret at the end 
         if(func.return_type[0]->type_idx == u32(builtin_type::void_t))
         {
-            emit(func,op_type::ret);
+            ret(itl,func);
         }
 
         else

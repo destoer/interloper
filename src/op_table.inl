@@ -1,4 +1,4 @@
-const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
+constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 {
     {op_group::reg_t,"mov %r, %r    ",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"add %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
@@ -96,7 +96,7 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // restore callee saved registers
     {op_group::imm_t, "alloc_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::imm_t, "free_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::imm_t, "clean_args %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::imm_t, "clean_args %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"exit_block",0,{arg_type::none,arg_type::none,arg_type::none}},
 
@@ -105,6 +105,9 @@ const OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::implicit_t,"spill_rv",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::reg_t,"spill %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     {op_group::implicit_t,"spill_all",0,{arg_type::none,arg_type::none,arg_type::none}},
+
+    {op_group::implicit_t,"reload_slot %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::implicit_t,"spill_slot %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     {op_group::reg_t,"load %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     

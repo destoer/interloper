@@ -538,6 +538,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::spill_rv:
         case op_type::spill:
         case op_type::spill_all:
+        case op_type::reload_slot:
+        case op_type::spill_slot:
         case op_type::load:
         case op_type::addrof:
         case op_type::buf_alloc:
