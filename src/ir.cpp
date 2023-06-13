@@ -348,7 +348,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
 
             // reload the spilled var 
-            if(reg.flags & SIGNED_FLAG)
+            if(is_signed(reg))
             {
                 // word is register size (we dont need to extend it)
                 static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
