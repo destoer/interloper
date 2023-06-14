@@ -347,6 +347,9 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             const s32 stack_offset = opcode.v[2];
 
 
+            const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
+
+
             // reload the spilled var 
             if(is_signed(reg))
             {
@@ -354,7 +357,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
                 static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
 
                 // this here does not otherwhise need rewriting so we will emit SP directly
-                node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],SP,reg.offset + stack_offset);        
+                node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],offset_reg,offset);        
             }
 
             // "plain data"
@@ -363,7 +366,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             {
                 static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
 
-                node->opcode =  Opcode(instr[reg.size >> 1],opcode.v[0],SP,reg.offset + stack_offset);
+                node->opcode =  Opcode(instr[reg.size >> 1],opcode.v[0],offset_reg,offset);
             }
             
             node = node->next;
@@ -379,7 +382,9 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
             assert(is_stack_allocated(reg));
 
-            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,reg.offset + stack_offset);
+            const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
+
+            node->opcode = Opcode(op_type::lea,opcode.v[0],offset_reg,offset);
 
             node = node->next;
             break;
@@ -399,7 +404,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
                 printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
             }
 
-
+            // NOTE: this is allways on the stack, globals handle their own allocation...
             node->opcode = Opcode(op_type::lea,opcode.v[0],SP,allocation.offset + allocation.stack_offset);
 
             node = node->next;
@@ -420,7 +425,10 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             // and is just used as a const for a calc (how do we impl this?)
 
             static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
-            node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],SP,reg.offset + stack_offset);   
+    
+            const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
+
+            node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],offset_reg,offset);   
 
             node = node->next;
             break;                    

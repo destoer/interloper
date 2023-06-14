@@ -4,10 +4,10 @@ static_assert(MACHINE_REG_SIZE <= 32);
 struct ArrayAllocation
 {
     SymSlot slot;
-    u32 stack_offset;
-    u32 offset;
-    u32 size;
-    u32 count;
+    u32 stack_offset = 0;
+    u32 offset = 0;
+    u32 size = 0;
+    u32 count = 0;
 };
 
 
@@ -862,3 +862,13 @@ void alloc_args(Function &func, LocalAlloc& alloc, SymbolTable& table, u32 saved
              
 }
 
+std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
+{
+    UNUSED(itl);
+
+    // TODO: for now these are allways locals
+    const u32 reg = SP;
+    const u32 offset = ir_reg.offset + stack_offset;
+
+    return std::pair{reg,offset};
+}
