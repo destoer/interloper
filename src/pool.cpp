@@ -23,6 +23,8 @@ PoolSlot pool_slot_from_idx(u32 handle)
     return {handle};
 }
 
+// TODO: this doesn't handle alignment
+// TODO: should this hold the a Type* of the stored data if it is a var?
 PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
 {
     PoolSection section;

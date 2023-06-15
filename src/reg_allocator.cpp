@@ -866,9 +866,29 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
 {
     UNUSED(itl);
 
-    // TODO: for now these are allways locals
-    const u32 reg = SP;
-    const u32 offset = ir_reg.offset + stack_offset;
+    u32 reg = 0;
+    u32 offset = 0;
+
+    switch(ir_reg.kind)
+    {
+        case reg_kind::local:
+        case reg_kind::tmp:
+        {
+            reg = SP;
+            offset = ir_reg.offset + stack_offset;
+            break;
+        }
+
+        case reg_kind::constant:
+        {
+            assert(false);
+        }
+
+        case reg_kind::global:
+        {
+            assert(false);
+        }
+    }
 
     return std::pair{reg,offset};
 }
