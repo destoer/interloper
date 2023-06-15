@@ -89,7 +89,8 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
         return make_builtin(itl,builtin_type::void_t);
     }
 
-    const u32 syscall_number = eval_int_expr(func_call->args[0]);
+    const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
+
     syscall(itl,func,syscall_number);
 
 

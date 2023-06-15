@@ -685,7 +685,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             {
                 UnaryNode* unary_node = (UnaryNode*)node;
 
-                const u32 size = eval_int_expr(unary_node->next);
+                const auto [size,int_type] = compile_const_int_expression(itl,unary_node->next);
 
                 type = make_array(itl,type,size,is_constant);
                 break;

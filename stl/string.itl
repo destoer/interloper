@@ -1,5 +1,5 @@
 
-
+constant ASCII_CASE_GAP : u8 = 0x20;
 
 // NOTE:
 // will probably call the extentable one string_buffer
@@ -8,7 +8,7 @@ func to_lower(char: c8) c8
 {
     if(char >= 'A' && char <= 'Z')
     {
-        char -= 0x20;
+        char -= ASCII_CASE_GAP;
     }
 
     return char;

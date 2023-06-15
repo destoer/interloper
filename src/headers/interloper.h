@@ -186,4 +186,5 @@ void itl_warning(const char* fmt, ...)
     putchar('\n');    
 }
 
-u32 eval_int_expr(AstNode *node);
+
+std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);

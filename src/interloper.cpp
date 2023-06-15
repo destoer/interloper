@@ -37,6 +37,8 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
 void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed);
 void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size);
 
+std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
+
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
@@ -57,61 +59,6 @@ void dump_ir_sym(Interloper &itl)
         dump_ir(func,itl.symbol_table);
     }
 }
-
-// TODO: we want to overhaul this with a more general mechanism for getting values
-// by running code at compile time, but just use this for now
-u32 eval_int_expr(AstNode *node)
-{
-    assert(node);
-
-    switch(node->type)
-    {
-        case ast_type::value: 
-        {
-            ValueNode* value_node = (ValueNode*)node;
-            return value_node->value.v;
-        }
-
-        case ast_type::times: 
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            return eval_int_expr(bin_node->left) * eval_int_expr(bin_node->right);
-        }
-
-        case ast_type::plus:
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            return eval_int_expr(bin_node->left) + eval_int_expr(bin_node->right);
-        }
-
-        case ast_type::minus: 
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            return eval_int_expr(bin_node->left) - eval_int_expr(bin_node->right);
-        }
-
-        case ast_type::divide:
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            const u32 v1 = eval_int_expr(bin_node->left);
-            const u32 v2 = eval_int_expr(bin_node->right);
-
-            if(v2 == 0)
-            {
-                crash_and_burn("division by zero in eval const expr");
-            }
-
-            return v1 / v2;
-        }
-
-        default: print(node); unimplemented("eval const expr node"); break;
-    }
-}
-
 
 
 TypeAlias make_alias(const String& name, const String& filename, Type* type)
@@ -935,7 +882,9 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             for(u32 i = 0; i < size; i++)
             {
                 CaseNode* case_node = switch_node->statements[i];
-                case_node->value = eval_int_expr(case_node->statement);                
+
+                const auto [case_value,case_type] = compile_const_int_expression(itl,case_node->statement); 
+                case_node->value = case_value;             
             }
 
             switch_type = switch_kind::integer;
