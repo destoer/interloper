@@ -1189,7 +1189,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
             if(take_addr)
             {
                 sym.reg.flags |= ALIASED;
-                printf("took addr on :%s\n",sym.name.buf);
+
                 spill_slot(itl,func,sym.reg);
 
                 if(is_array(sym.type))

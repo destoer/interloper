@@ -67,7 +67,7 @@ func check_pointer() bool
     return res;
 }
 
-func test_array(any : Any, expected_len : u32)
+func test_array(any : Any, expected_len : u32) bool
 {
     type : const Type@ = any.type;
 
@@ -83,13 +83,16 @@ func test_array(any : Any, expected_len : u32)
 
 func check_array() bool
 {
+    arr : u32[?] = {1,2,3,4,5};
 
+    return test_array(arr,arr.len);
 }
 
 func main() s32
 {
     res1 := check_builtin();
     res2 := check_pointer();
+    //res3 := check_array();
 
     res := res1 && res2;
 
