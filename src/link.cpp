@@ -183,7 +183,10 @@ void emit_asm(Interloper &itl)
                         const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[1]);
                         auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-                        opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + section.offset,0);
+                        const u32 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                        const u32 offset = addr - program_counter;
+
+                        opcode = Opcode(op_type::lea,opcode.v[0],PC,offset);
 
                         write_mem(itl.program,i,opcode);
                         break;

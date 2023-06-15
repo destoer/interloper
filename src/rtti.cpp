@@ -94,10 +94,21 @@ void cache_rtti_structs(Interloper& itl)
     rtti.pointer_struct_size = pointer_struct.size;
 
 
+
+    const u32 array_struct_idx = cache_struct(itl,"ArrayType");
+
+    if(invalid_type_idx(array_struct_idx))
+    {
+        return;
+    }
+
+    auto& array_struct = itl.struct_table[array_struct_idx];
+    rtti.array_contained_offset = cache_offset(itl,array_struct,"contained_type");
+    rtti.array_size_offset = cache_offset(itl,array_struct,"size");
+    rtti.array_sub_size_offset = cache_offset(itl,array_struct,"sub_size");
+    rtti.array_struct_size = array_struct.size;
+
 /*
-    rtti.array_idx = cache_struct(itl,"ArrayType");
-
-
     rtti.enum_idx = cache_struct(itl,"EnumType");
 
 
@@ -115,10 +126,42 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
 
     switch(type->type_idx)
     {
+/*
+
+struct ArrayType
+{
+    Type type;
+
+    Type* contained_type;
+
+    // RUNTIME_SIZE or current size!
+    u32 size;
+
+    
+    // size of indexing array
+    u32 sub_size;
+};
+*/
+
         case ARRAY:
         {
-            assert(false);
-            break;
+            ArrayType* array_type = (ArrayType*)type;
+            const PoolSlot contained_type = make_rtti(itl,array_type->contained_type);
+            
+            // reserve room for array type
+            const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.array_struct_size);
+            auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+            // push in base type
+            write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
+            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,ARRAY_RTTI);   
+
+            // write in array type
+            write_const_pool_pointer(itl.const_pool,section,rtti.array_contained_offset,contained_type);
+            write_const_pool(itl.const_pool,section,rtti.array_size_offset,array_type->size);
+            write_const_pool(itl.const_pool,section,rtti.array_sub_size_offset,array_type->sub_size);
+
+            return slot;
         }
 
         case POINTER:
@@ -199,7 +242,7 @@ u32 any_size(Interloper &itl, const Type* type)
     static_assert(GPR_SIZE == sizeof(u32));
 
     // cannot embed directly into the data pointer...
-    if(!is_trivial_copy(type))
+    if(!is_trivial_copy(type) && !is_fixed_array(type))
     {
         const u32 arg_size = type_size(itl,type);
 
@@ -218,11 +261,11 @@ void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, cons
 
     if(is_trivial_copy(type))
     {
-        // store data
-        store_ptr(itl,func,src,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);
-
         // store type struct
-        store_ptr(itl,func,rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE);                
+        store_ptr(itl,func,rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE);  
+
+        // store data
+        store_ptr(itl,func,src,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);              
     } 
 
     // finally the any struct
@@ -230,7 +273,23 @@ void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, cons
     // store our any struct
     else if(is_array(type))
     {
-        assert(false);
+        // store type struct
+        store_ptr(itl,func,rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE); 
+
+        // directly store array pointer into the data pointer
+        if(is_fixed_array(type))
+        {
+            const auto arr_data_slot = load_arr_data(itl,func,src,type);
+
+            // store data
+            store_ptr(itl,func,arr_data_slot,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);
+        }
+
+        // runtime size
+        else
+        {
+            assert(false);
+        }   
     }
 
     else if(is_struct(type))

@@ -3,7 +3,7 @@
 
 func check_builtin_type(any : Any, expected : itl_type) bool
 {
-    type : const Type@ = any.type;
+    type := any.type;
 
     if(is_builtin(type.type_idx))
     {
@@ -15,23 +15,23 @@ func check_builtin_type(any : Any, expected : itl_type) bool
 
 func check_builtin() bool
 {
-    res1 : bool = check_builtin_type(cast(u32,1),itl_type::u32_t);
-    res2 : bool = check_builtin_type(cast(u16,2),itl_type::u16_t);
-    res3 : bool = check_builtin_type(cast(u8,3),itl_type::u8_t);
+    res1 := check_builtin_type(cast(u32,1),itl_type::u32_t);
+    res2 := check_builtin_type(cast(u16,2),itl_type::u16_t);
+    res3 := check_builtin_type(cast(u8,3),itl_type::u8_t);
 
-    res4 : bool = check_builtin_type(cast(s32,4),itl_type::s32_t);
-    res5 : bool = check_builtin_type(cast(s16,5),itl_type::s16_t);
-    res6 : bool = check_builtin_type(cast(s8,6),itl_type::s8_t);
+    res4 := check_builtin_type(cast(s32,4),itl_type::s32_t);
+    res5 := check_builtin_type(cast(s16,5),itl_type::s16_t);
+    res6 := check_builtin_type(cast(s8,6),itl_type::s8_t);
 
-    res7 : bool = check_builtin_type(cast(byte,7),itl_type::byte_t);
+    res7 := check_builtin_type(cast(byte,7),itl_type::byte_t);
 
-    res8 : bool = check_builtin_type(true,itl_type::bool_t);
+    res8 := check_builtin_type(true,itl_type::bool_t);
 
     // not equal
-    res9 : bool = !check_builtin_type(true,itl_type::u32_t);
+    res9 := !check_builtin_type(true,itl_type::u32_t);
     
     // did every test pass?
-    res : bool = res1 && res2 && res3 && res4 && res5 && res6 && res7 && res8 && res9;
+    res := res1 && res2 && res3 && res4 && res5 && res6 && res7 && res8 && res9;
 
     return res;
 }
@@ -85,16 +85,23 @@ func check_array() bool
 {
     arr : u32[?] = {1,2,3,4,5};
 
-    return test_array(arr,arr.len);
+    res1 := test_array(arr,arr.len);
+
+    // not an array fail
+    res2 := !test_array(5,0);
+
+    res := res1 && res2;
+
+    return res;
 }
 
 func main() s32
 {
     res1 := check_builtin();
     res2 := check_pointer();
-    //res3 := check_array();
+    res3 := check_array();
 
-    res := res1 && res2;
+    res := res1 && res2 && res3;
 
     ans : s32 = cast(u32,res);
 

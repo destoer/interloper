@@ -237,7 +237,10 @@ struct RttiCache
     u32 pointer_contained_offset = 0;
     u32 pointer_struct_size = 0;
 
-    u32 array_idx = 0;
+    u32 array_contained_offset = 0;
+    u32 array_size_offset = 0;
+    u32 array_sub_size_offset = 0;
+    u32 array_struct_size = 0;
 
     u32 enum_idx = 0;
 
