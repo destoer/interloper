@@ -134,6 +134,9 @@ void compile_constant(Interloper& itl, GlobalDeclNode* node)
 
     const auto name = decl_node->name;
 
+    // force constant
+    decl_node->type->is_constant = true;
+
     // build the typing info
     Type* type = get_type(itl,decl_node->type);
 
