@@ -75,6 +75,11 @@ void fmt_raw_specifier(Array<char> &buffer, char specifier, u32 slot)
                 push_mem(buffer,SPECIAL_REG_NAMES[SP_NAME_IDX]);
             }
 
+            if(slot == PC)
+            {
+                push_mem(buffer,SPECIAL_REG_NAMES[PC_NAME_IDX]);
+            }
+
             else
             {
                 char name[40];

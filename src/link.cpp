@@ -79,41 +79,37 @@ void emit_asm(Interloper &itl)
 
     // get raw pool data to rewrite its contents
     auto& pool_data = itl.const_pool.buf;
+    auto& const_pool = itl.const_pool;
 
     const u32 const_pool_loc = itl.program.size;
 
-    for(u32 i = 0; i < count(itl.const_pool.sections); i++)
+    // perform pool rewriting
+
+    // rewrite all labels
+    for(u32 l = 0; l < count(const_pool.label); l++)
     {
-        const PoolSection& section = itl.const_pool.sections[i];
-        const u32 section_offset = section.offset;
+        // assumes 32bit handles
+        static_assert(sizeof(LabelSlot) == sizeof(u32));
 
-        // rewrite all labels
-        for(u32 l = 0; l < count(section.label); l++)
-        {
-            // assumes 32bit handles
-            static_assert(sizeof(LabelSlot) == sizeof(u32));
+        const u32 addr = const_pool.label[l];
 
-            const u32 label_offset = section.label[l];
-            const u32 addr = label_offset + section_offset;
+        // read out the label handle so we can write back the offset
+        const u32 label_handle = read_mem<u32>(pool_data,addr);
 
-            // read out the label handle so we can write back the offset
-            const u32 label_handle = read_mem<u32>(pool_data,addr);
-
-            write_mem<u32>(pool_data, addr, itl.symbol_table.label_lookup[label_handle].offset);
-        }
-
-        // rewrite all pointers
-        for(u32 p = 0; p < count(section.pool_pointer); p++)
-        {
-            const u32 pointer_offset = section.pool_pointer[p];
-            const u32 addr = pointer_offset + section_offset;
-
-            const u32 pool_handle = read_mem<u32>(pool_data,addr);
-            auto& section = pool_section_from_slot(itl.const_pool,pool_slot_from_idx(pool_handle));
-
-            write_mem<u32>(pool_data,addr,section.offset + const_pool_loc);
-        }
+        write_mem<u32>(pool_data, addr, itl.symbol_table.label_lookup[label_handle].offset);
     }
+
+    // rewrite all pointers
+    for(u32 p = 0; p < count(const_pool.pool_pointer); p++)
+    {
+        const u32 addr = const_pool.pool_pointer[p];
+
+        const u32 pool_handle = read_mem<u32>(pool_data,addr);
+        auto& section = pool_section_from_slot(itl.const_pool,pool_slot_from_idx(pool_handle));
+
+        write_mem<u32>(pool_data,addr,section.offset + const_pool_loc);
+    }
+    
 
     // add the constant pool, into the final program
     push_mem(itl.program,pool_data);
@@ -127,23 +123,75 @@ void emit_asm(Interloper &itl)
     {
         auto opcode = read_mem<Opcode>(itl.program,i);
 
+        const u32 program_counter = i + OP_SIZE;
+
         // handle all the branch labels
         // TODO: this probably needs to be changed for when we have call <reg>
-        if(OPCODE_TABLE[u32(opcode.op)].group == op_group::branch_t)
+        switch(OPCODE_TABLE[u32(opcode.op)].group)
         {
-            opcode.v[0] = itl.symbol_table.label_lookup[opcode.v[0]].offset;
-            write_mem(itl.program,i,opcode);
-        }
+            case op_group::load_t:
+            {
+                if(opcode.v[1] == GP_IR)
+                {
+                    const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[2]);
+                    auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-        // resolve pools
-        else if(opcode.op == op_type::pool_addr)
-        {
-            const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[1]);
-            auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+                    const u32 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                    const u32 offset = addr - program_counter;
 
-            opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + section.offset,0);
+                    opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
+                    write_mem(itl.program,i,opcode);
+                }
 
-            write_mem(itl.program,i,opcode);
+                break;
+            }
+
+            case op_group::store_t:
+            {
+                if(opcode.v[1] == GP_IR)
+                {
+                    const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[2]);
+                    auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+
+                    const u32 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                    const u32 offset = addr - program_counter;
+
+                    opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
+                    write_mem(itl.program,i,opcode);
+                }
+
+                break;
+            }
+
+
+            case op_group::branch_t:
+            {
+                opcode.v[0] = itl.symbol_table.label_lookup[opcode.v[0]].offset;
+                write_mem(itl.program,i,opcode);
+                break;
+            }
+            
+            // switch on op
+            default:
+            {
+                switch(opcode.op) 
+                {
+                
+                    // resolve pools
+                    case op_type::pool_addr:
+                    {
+                        const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[1]);
+                        auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+
+                        opcode = Opcode(op_type::mov_imm,opcode.v[0],PROGRAM_ORG + const_pool_loc + section.offset,0);
+
+                        write_mem(itl.program,i,opcode);
+                        break;
+                    }
+
+                    default: break;
+                }
+            }
         }
     }
 

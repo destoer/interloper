@@ -2,12 +2,8 @@
 
 void destroy_const_pool(ConstPool& pool)
 {
-    for(u32 i = 0; i < count(pool.sections); i++)
-    {
-        auto& section = pool.sections[i];
-        destroy_arr(section.label);
-        destroy_arr(section.pool_pointer);
-    }
+    destroy_arr(pool.label);
+    destroy_arr(pool.pool_pointer);
 
     destroy_arr(pool.sections);
     destroy_arr(pool.buf);
@@ -58,7 +54,7 @@ void write_const_pool(ConstPool& pool, PoolSection& section, u32 offset,const T&
 void write_const_pool_label(ConstPool& pool, PoolSection& section, u32 offset, LabelSlot label_slot)
 {
     // mark where label is going so it can resolved later
-    push_var(section.label,offset);
+    push_var(pool.label,section.offset + offset);
 
     // write the label in
     write_const_pool(pool,section,offset,label_slot.handle);    
@@ -74,7 +70,7 @@ void write_const_pool_label(ConstPool& pool, PoolSlot slot, u32 offset,LabelSlot
 
 void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,PoolSlot pool_slot)
 {
-    push_var(section.pool_pointer,offset);
+    push_var(pool.pool_pointer,section.offset + offset);
 
     // write the pool slot in
     write_const_pool(pool,section,offset,pool_slot.handle);

@@ -55,8 +55,6 @@ void compile_constant_expression(Interloper& itl, Symbol& sym, AstNode* node)
 
                 // type check the integer
                 check_assign_init(itl,sym.type,rtype);
-
-                printf("got : %d\n",v);
    
                 // push to const pool and save handle as offset for later loading...
                 const auto slot = push_const_pool(itl.const_pool,pool_type::var,&v,sizeof(v));

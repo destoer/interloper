@@ -1,7 +1,4 @@
 
-
-constant BITS_IN_BYTE : u32 = 8;
-
 // expected 32
 func main() s32
 {

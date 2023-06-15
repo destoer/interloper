@@ -881,7 +881,10 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
 
         case reg_kind::constant:
         {
-            assert(false);
+            const u32 handle = ir_reg.offset;
+            reg = GP_IR;
+            offset = handle;
+            break;
         }
 
         case reg_kind::global:

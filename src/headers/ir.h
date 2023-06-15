@@ -329,11 +329,12 @@ static constexpr u32 MACHINE_REG_SIZE = 8;
 
 static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
 
-static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START;
+static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START + 0;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
 static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
+static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 5;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
 static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
@@ -356,6 +357,7 @@ const String SPECIAL_REG_NAMES[] =
 };
 
 static constexpr u32 SP_NAME_IDX = 0;
+static constexpr u32 PC_NAME_IDX = 1;
 
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
 
