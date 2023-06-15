@@ -583,11 +583,6 @@ void compile_function(Interloper& itl, Function& func)
 
 void compile_functions(Interloper &itl)
 {
-    // global scope
-    new_scope(itl.symbol_table);
-
-
-
     // TODO: we need to hide these functions from access via general calling code
     // they should probably get namespaced when we have access to them...
     mark_used(itl,"main");
@@ -598,8 +593,6 @@ void compile_functions(Interloper &itl)
         Function& func = *lookup(itl.function_table,itl.used_func[idx]);
         compile_function(itl,func);
     }
-
-    destroy_scope(itl.symbol_table); 
 }
 
 void check_func_exists(Interloper& itl, const String& name)

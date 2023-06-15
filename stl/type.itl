@@ -2,7 +2,7 @@
 type_alias string = c8[];
 
 
-constant RUNTIME_SIZE : u32 = 0xfffffff0;
+//constant RUNTIME_SIZE : u32 = 0xfffffff0;
 
 enum itl_type
 {

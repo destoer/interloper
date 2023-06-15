@@ -115,12 +115,20 @@ Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
     return sym_from_slot(sym_table,sym.reg.slot);
 }
 
-Symbol& add_global(Interloper& itl,const String &name, Type *type)
+Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 {
-    Symbol& sym = add_symbol(itl,name,type);
-    sym.reg.location = LOCATION_GLOBAL;
+    auto& sym_table = itl.symbol_table;
 
-    return sym;
+    auto sym = make_sym(itl,name,type);
+    sym.reg.kind = constant? reg_kind::constant : reg_kind::global;
+
+    push_var(sym_table.slot_lookup,sym);
+
+    // add this into the top level scope
+    add(sym_table.table[0],sym.name, sym.reg.slot);
+    sym_table.sym_count++;       
+
+    return sym_from_slot(sym_table,sym.reg.slot);
 }
 
 LabelSlot label_from_idx(u32 handle)

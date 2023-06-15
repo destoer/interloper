@@ -319,7 +319,7 @@ struct TypeAlias
 
 using AliasTable = Array<TypeAlias>;
 
-// TODO: delete the constructor, and dont forget to copy strings when we make symbols
+
 struct Symbol
 {
     String name;
@@ -330,29 +330,6 @@ struct Symbol
     Reg reg;
 
     u32 arg_offset = NON_ARG;
-};
-
-
-
-struct ConstSym
-{
-    String name;
-
-    Type* type;
-
-    union
-    {
-        PoolSlot slot;
-
-        u64 v;
-    };
-};
-
-struct ConstSymTable
-{
-    HashTable<String,ConstSym> table;
-
-    ArenaAllocator *string_allocator;
 };
 
 

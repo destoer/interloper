@@ -265,6 +265,7 @@ enum class reg_kind
 {
     local,
     global,
+    constant,
     tmp,
 };
 
@@ -287,7 +288,7 @@ struct Reg
 
     // intialized during register allocation
 
-    // where is it this is stored on the stack?
+    // where is the current offset for its section?
     u32 offset = UNALLOCATED_OFFSET;
 
     // where is this item stored?

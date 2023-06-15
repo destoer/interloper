@@ -46,7 +46,7 @@ void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot
 #include "rtti.cpp"
 #include "func.cpp"
 #include "array.cpp"
-//#include "constant.cpp"
+#include "constant.cpp"
 
 
 void dump_ir_sym(Interloper &itl)
@@ -1720,7 +1720,7 @@ void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 globa
 
 
     // add new symbol table entry
-    Symbol &sym = global? add_global(itl,name,ltype) : add_symbol(itl,name,ltype);
+    Symbol &sym = global? add_global(itl,name,ltype,false) : add_symbol(itl,name,ltype);
 
 
 
@@ -2226,20 +2226,18 @@ void compile(Interloper &itl,const String& initial_filename)
 
     putchar('\n');
 
-/*
-    NOTE: see todo in file, we dont have the means to impl this generally yet
-    go solve aliasing problems first as its roadbloack is similar problem that we dont need
-    new code for
+    // global scope
+    new_scope(itl.symbol_table);
 
     // compile all our constant values 
     compile_constants(itl);
-*/
 
     // go through each function and compile
     // how do we want to handle getting to the entry point / address allocation?
     // do we want a "label" for each function? 
     compile_functions(itl);
 
+    destroy_scope(itl.symbol_table);     
 
     // okay we dont need the parse tree anymore
     // free it

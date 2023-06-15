@@ -18,13 +18,14 @@ std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
 
         default:
         {
+            panic(itl,itl_error::const_type_error,"unrecognised operation for const int initalizer: %s\n",AST_NAMES[u32(node->type)]);
             return std::pair{0,make_builtin(itl,builtin_type::void_t)};
         }
     }
 }
 
 
-void compile_constant_expression(Interloper& itl, ConstSym& sym, AstNode* node)
+void compile_constant_expression(Interloper& itl, Symbol& sym, AstNode* node)
 {
     // switch on top level expression
     // check it is correct for the kind of type we expect from this assignment
@@ -45,16 +46,19 @@ void compile_constant_expression(Interloper& itl, ConstSym& sym, AstNode* node)
             case builtin_type::c8_t:
             {
                 // compile expression
+                auto [v, rtype] = compile_const_int_expression(itl,node);
 
-                // no errors?
+                if(itl.error)
+                {
+                    return;
+                }
 
                 // type check the integer
-                check_assign_init(itl,sym.type,type);
+                check_assign_init(itl,sym.type,rtype);
 
-                // TODO: handle this being nested
-                // top level var, assign directly into var
-                sym.v = v;
+                printf("got : %d\n",v);
 
+                assert(false);
                 break;
             }
 
@@ -130,11 +134,13 @@ void compile_constant(Interloper& itl, GlobalDeclNode* node)
     const auto name = decl_node->name;
 
     // build the typing info
+    Type* type = get_type(itl,decl_node->type);
 
     // add into table
+    auto& sym = add_global(itl,name,type,true);
 
     // compile the expression
-
+    compile_constant_expression(itl,sym,decl_node->expr);
 }
 
 void compile_constants(Interloper& itl)
@@ -142,5 +148,10 @@ void compile_constants(Interloper& itl)
     for(u32 c = 0; c < count(itl.constant_decl); c++)
     {
         compile_constant(itl,itl.constant_decl[c]);
+
+        if(itl.error)
+        {
+            return;
+        }
     }
 }
