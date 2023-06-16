@@ -372,15 +372,15 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
     {
         if(!is_ptr)
         {
-            // this wont be fun to impl properly
-            // for starters we have to lock down writes on fixed arrays
+            // fixed sized array is not a struct dont allow access
             if(is_fixed_array(type))
             {
-                assert(false);
+                panic(itl,itl_error::array_type_error,"no .data member on fixed size array");
+                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
             }
 
             *offset += 0;
-            
+
             // this should probably be better typed
             return std::pair{make_pointer(itl,array_type->contained_type),slot};
         }

@@ -70,8 +70,6 @@ func print_int(v : u32)
     reverse(buf,digits);
 
     // TODO: this should slice
-    //write_buf(buf.data,digits);
-    // TODO: handle reading data from fixed size array..
     write_buf(&buf[0],digits);
 }
 
