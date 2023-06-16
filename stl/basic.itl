@@ -3,6 +3,7 @@ import "internal"
 
 import "system"
 import "bit"
+import "util"
 import "string"
 import "mem"
 import "alloc"

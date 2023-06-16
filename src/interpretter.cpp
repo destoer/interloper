@@ -627,7 +627,9 @@ s32 run(Interpretter& interpretter,const Array<u8>& program)
         execute_opcode(interpretter,opcode);
     }
 
-    printf("\nexit code: %d\n",regs[0]);
+    //print_trace(interpretter.trace);
+
+    printf("\nexit: %d\n",regs[0]);
     return regs[0];
 }
 

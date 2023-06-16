@@ -56,6 +56,7 @@ void branch_reg(Interloper& itl, Function&func, SymSlot target)
 
 void ret(Interloper& itl, Function& func)
 {
+    add_func_exit(func,cur_block(func));
     emit_implicit<op_type::ret>(itl,func);
 }
 

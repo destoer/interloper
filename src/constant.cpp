@@ -122,8 +122,6 @@ std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
 
 void compile_constant_expression(Interloper& itl, Symbol& sym, AstNode* node)
 {
-    itl.cur_expr = node;
-
     // switch on top level expression
     // check it is correct for the kind of type we expect from this assignment
     if(is_builtin(sym.type))
@@ -225,6 +223,8 @@ void compile_constant(Interloper& itl, GlobalDeclNode* node)
 
     // setup the correct file for error reporting
     itl.cur_file = node->filename;
+
+    itl.cur_expr = (AstNode*)node;
 
     // pull type and name so we can create a symbol
     DeclNode* decl_node = node->decl;

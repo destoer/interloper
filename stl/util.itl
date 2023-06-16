@@ -1,0 +1,19 @@
+
+// TODO: make this generic
+func swap(v1 : c8@, v2 : c8@)
+{
+    tmp := @v1;
+
+    @v1 = @v2;
+    @v1 = tmp;
+}
+
+// TODO: impl this as a slice oper and on any array
+func reverse(buf : c8[], len : u32)
+{
+    for(i : u32 = 0; i < len / 2; i += 1)
+    {
+        swap(&buf[i],&buf[len - i - 1]);
+    }
+
+}

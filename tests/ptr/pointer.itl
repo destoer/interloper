@@ -8,7 +8,7 @@ func modify(x: u32@)
 }
 
 
-func swap(v1: u32@, v2: u32@)
+func swap_ptr(v1: u32@, v2: u32@)
 {
     tmp : u32 = @v1;
     @v1 = @v2;
@@ -24,7 +24,7 @@ func main() s32
 
     y : u32 = 3;
 
-    swap(&y,x_ptr);
+    swap_ptr(&y,x_ptr);
 
     return x - y;
 }

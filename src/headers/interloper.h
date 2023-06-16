@@ -81,8 +81,6 @@ struct Interloper
     HashTable<String,Function> function_table;
     Array<DeclNode*> global_def;
     Array<String> used_func;
-    // did the last compiled function have a return
-    b32 has_return;
 
     SymbolTable symbol_table;
 

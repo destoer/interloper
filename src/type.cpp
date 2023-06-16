@@ -1442,10 +1442,16 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         mov_reg(itl,func,dst_slot,src_slot);
     }
 
+    // pointer to int is fine
+    else if(is_pointer(old_type) && is_integer(new_type))
+    {
+        mov_reg(itl,func,dst_slot,src_slot);
+    }
+
     // probably only pointers are gonna valid for casts here
     else
     {
-        unimplemented("handle cast user defined type!\n");        
+        unimplemented("handle cast user defined type %s -> %s!\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);        
     }
 
 }

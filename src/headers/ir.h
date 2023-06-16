@@ -425,11 +425,23 @@ struct List
 };
 List make_list(ArenaAllocator* allocator);
 
-static constexpr u32 INVALID_BLOCK = 0xffff'ffff;
+
+static constexpr u32 SPECIAL_PURPOSE_BLOCK_START_HANDLE = 0xffff'fff0;
+static constexpr u32 INVALID_BLOCK_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 0;
+static constexpr u32 BLOCK_FUNC_EXIT_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 1;
+
+static constexpr BlockSlot INVALID_BLOCK = {INVALID_BLOCK_HANDLE};
+static constexpr BlockSlot BLOCK_FUNC_EXIT = {BLOCK_FUNC_EXIT_HANDLE}; 
+
+
+static constexpr u32 HAS_FUNC_EXIT = 1 << 0;
+static constexpr u32 REACH_FUNC_EXIT = 1 << 1;
 
 struct Block
 {
     List list;
+
+    u32 flags = 0;
 
     // what is the corresponding label for this block?
     LabelSlot label_slot;
@@ -442,6 +454,8 @@ struct Block
     // what blocks are reachable from this block?
     Array<BlockSlot> links;
 };
+
+void add_func_exit(Function& func, BlockSlot slot);
 
 struct IrEmitter
 {

@@ -1,6 +1,6 @@
 
 // expected 1
-func swap(v1 : s32@@, v2 : s32@@)
+func swap_ptr(v1 : s32@@, v2 : s32@@)
 {
     tmp := @v1;
     @v1 = @v2;
@@ -15,7 +15,7 @@ func main() s32
     y_ptr : s32@ = &y;
     x_ptr : s32@ = &x;
 
-    swap(&x_ptr,&y_ptr);
+    swap_ptr(&x_ptr,&y_ptr);
 
     return @y_ptr;
 }

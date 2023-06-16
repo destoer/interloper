@@ -3,7 +3,7 @@
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
 void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
-void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 global = false);
+void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
 void compile_block(Interloper &itl,Function &func,BlockNode *node);
 BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 void compile_if_block(Interloper &itl,Function &func,AstNode *node);
@@ -634,7 +634,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 // add branch over body we compiled to else statement
                 emit_cond_branch(func,cmp_block,else_slot,body_slot,r,false);
 
-                exit_block = add_fall(itl,func,else_slot);
+                exit_block = add_fall(itl,func);
                 break;
             }
 
@@ -652,7 +652,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         // Final block, this exit is done via a fallthrough
         else
         {
-            exit_block = add_fall(itl,func,body_slot);
+            exit_block = add_fall(itl,func);
 
             // if cond not met just branch into exit block
             emit_cond_branch(func,cmp_block,exit_block,body_slot,r,false);          
@@ -1028,6 +1028,10 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             CaseNode* case_node = switch_node->statements[i];
 
             const BlockSlot case_slot = compile_basic_block(itl,func,case_node->block);
+
+            // add link from dispatch to case
+            add_block_exit(func,dispatch_block,case_slot);
+
             const Block& case_block = block_from_slot(func,case_slot);
             case_node->label = case_block.label_slot;
 
@@ -1045,7 +1049,10 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         if(switch_node->default_statement)
         {
             default_block = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next);
+            add_block_exit(func,dispatch_block,default_block);
         }
+
+        BlockSlot default_block_end = cur_block(func);
 
         // create a exit block for every case to jump to when its done
         const BlockSlot exit_block = new_basic_block(itl,func);
@@ -1059,7 +1066,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         else
         {
             // default falls through to exit
-            add_block_exit(func,default_block,exit_block);
+            add_block_exit(func,default_block_end,exit_block);
         }
 
 
@@ -1651,7 +1658,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 }
 
 
-void compile_decl(Interloper &itl,Function &func, const AstNode *line, b32 global)
+void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
 {
     // get entry into symbol table
     const DeclNode* decl_node = (DeclNode*)line;
@@ -1903,9 +1910,6 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 }
 
                 ret(itl,func);
-                
-
-                itl.has_return = true;
                 break;
             }
 

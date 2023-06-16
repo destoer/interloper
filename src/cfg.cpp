@@ -64,11 +64,40 @@ Block& block_from_slot(Function& func, BlockSlot slot)
 }
 
 
+b32 is_func_exit(BlockSlot slot)
+{
+    return slot.handle == BLOCK_FUNC_EXIT_HANDLE;
+}
+
 void add_block_exit(Function& func,BlockSlot slot, BlockSlot exit)
 {
     auto& block = block_from_slot(func,slot);
+    
+    // once we have exited the func everything else is unreachable
+    if(block.flags & HAS_FUNC_EXIT)
+    {
+        return;
+    }
 
     push_var(block.exit,exit);
+}
+
+void add_func_exit(Function& func, BlockSlot slot)
+{
+    auto& block = block_from_slot(func,slot);
+    block.flags = block.flags | HAS_FUNC_EXIT | REACH_FUNC_EXIT;
+}
+
+b32 has_func_exit(Function& func, BlockSlot slot)
+{
+    auto& block = block_from_slot(func,slot);
+    return block.flags & HAS_FUNC_EXIT;
+}
+
+b32 can_reach_exit(Function& func, BlockSlot slot)
+{
+    auto& block = block_from_slot(func,slot);
+    return block.flags & REACH_FUNC_EXIT;
 }
 
 void add_cond_exit(Function& func,BlockSlot slot, BlockSlot target, BlockSlot fall)
@@ -80,10 +109,12 @@ void add_cond_exit(Function& func,BlockSlot slot, BlockSlot target, BlockSlot fa
 }
 
 
-BlockSlot add_fall(Interloper& itl,Function& func, BlockSlot prev)
+BlockSlot add_fall(Interloper& itl,Function& func)
 {
+    const auto cur = cur_block(func);
+
     const BlockSlot exit = new_basic_block(itl,func);
-    add_block_exit(func,prev,exit);
+    add_block_exit(func,cur,exit);
 
     return exit;
 }
@@ -139,6 +170,7 @@ void dump_cfg(Interloper& itl,Function& func)
 
         printf("Block %d(%s):\n",b,label.name.buf);
 
+        printf("flags: %x\n",block.flags);
         print_edges(itl,func,block.exit,"edges");
         print_edges(itl,func,block.links,"links");
 
@@ -173,11 +205,17 @@ void connect_node(Function& func,BlockSlot slot)
         {
             const BlockSlot edge_slot = scan_block.exit[e];
 
+            if(has_func_exit(func,edge_slot))
+            {
+                block.flags |= REACH_FUNC_EXIT;
+            }
+
             if(!contains(seen,edge_slot.handle))
             {
                 // add as a scan target
                 add(seen,edge_slot.handle,u32(0));
                 push_var(scan,edge_slot);
+                
 
                 // add as new link
                 push_var(block.links,edge_slot);

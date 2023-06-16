@@ -3,13 +3,26 @@
 constant SYSCALL_EXIT : u32 = 0;
 constant SYSCALL_WRITE_STRING : u32 = 1;
 
+func write_buf(str : const string, len : u32)
+{
+    intrin_syscall(SYSCALL_WRITE_STRING,str.data,len);     
+}
+
 func write_string(str: const string)
 {
-    intrin_syscall(SYSCALL_WRITE_STRING,str.data,str.len); 
+    write_buf(str,str.len);
 }
 
 
 func exit(exit_code: s32)
 {
     intrin_syscall(SYSCALL_EXIT,exit_code,0);
+}
+
+func assert(cond : bool)
+{
+    if(!cond)
+    {
+        exit(1);
+    }
 }

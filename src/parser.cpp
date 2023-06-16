@@ -824,7 +824,7 @@ AstNode *statement(Parser &parser)
                     consume(parser,token_type::default_t);
                     consume(parser,token_type::colon);
 
-                    AstNode* block_node = opt_block(parser);
+                    AstNode* block_node = (AstNode*)block(parser);
                     switch_node->default_statement = (UnaryNode*)ast_unary(parser,block_node,ast_type::default_t,case_tok);      
                 }
 
@@ -834,7 +834,7 @@ AstNode *statement(Parser &parser)
                     consume(parser,token_type::case_t);
                     AstNode* case_node = expr_terminate(parser,"switch case",token_type::colon);
 
-                    BlockNode* block_node = (BlockNode*)opt_block(parser);
+                    BlockNode* block_node = (BlockNode*)block(parser);
 
                     CaseNode* case_statement = (CaseNode*)ast_case(parser,case_node,block_node,case_tok);
                     push_var(switch_node->statements,case_statement);

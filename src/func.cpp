@@ -177,16 +177,38 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
             // compile our arg and figure out what we have
             auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-            const u32 size = any_size(itl,arg_type);
+            // is allready an any just copy the struct
+            if(is_any(itl,arg_type))
+            {
+                const u32 size = itl.rtti_cache.any_struct_size;
 
-            // alloc the struct size for our copy
-            alloc_stack(itl,func,size);
+                // alloc the struct size for our copy
+                alloc_stack(itl,func,size);
 
-            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+                // need to save SP as it will get pushed last
+                const SymSlot dst = new_tmp(func,GPR_SIZE);
+                mov_reg(itl,func,dst,sym_from_idx(SP_IR));
+                const SymSlot ptr = addrof_res(itl,func,reg);
 
-            make_any(itl,func,SP_SLOT,0,reg,arg_type);
+                ir_memcpy(itl,func,dst,ptr,size);
 
-            arg_clean += size / GPR_SIZE;
+                // clean up the stack push
+                arg_clean += size / GPR_SIZE;
+            }
+
+            else
+            {
+                const u32 size = any_size(itl,arg_type);
+
+                // alloc the struct size for our copy
+                alloc_stack(itl,func,size);
+
+                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+
+                make_any(itl,func,SP_SLOT,0,reg,arg_type);
+
+                arg_clean += size / GPR_SIZE;
+            }
         }
 
         else if(is_array(arg.type))
@@ -242,10 +264,6 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
             const auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
             check_assign_arg(itl,arg.type,arg_type);
-
-
-            // TODO: support copies with larger loads
-            static_assert(GPR_SIZE == sizeof(u32));
 
             // alloc the struct size for our copy
             alloc_stack(itl,func,structure.size);
@@ -466,6 +484,8 @@ void parse_function_declarations(Interloper& itl)
             // NOTE: void return's will have a void type
             if(count(node.return_type) == 1)
             {
+                itl.cur_expr = (AstNode*)node.return_type[0];
+
                 push_var(return_type,get_complete_type(itl,node.return_type[0]));
 
                 // we are returning a struct add a hidden pointer as first arg
@@ -481,6 +501,8 @@ void parse_function_declarations(Interloper& itl)
             {
                 for(u32 a = 0; a < count(node.return_type); a++)
                 {
+                    itl.cur_expr = (AstNode*)node.return_type[a];
+
                     push_var(return_type,get_complete_type(itl,node.return_type[a]));
 
                     char name[40] = {0};
@@ -499,6 +521,7 @@ void parse_function_declarations(Interloper& itl)
             for(u32 i = 0; i < count(decl); i++)
             {
                 const auto a = decl[i];
+                itl.cur_expr = (AstNode*)a;
 
                 const auto name = a->name;
                 const auto type = get_complete_type(itl,a->type);
@@ -550,35 +573,56 @@ void compile_function(Interloper& itl, Function& func)
 
 
 
-    itl.has_return = false;
-
-
     // parse out each line of the function
     compile_basic_block(itl,func,node.block);
 
     destroy_scope(itl.symbol_table);
-
-    if(!itl.has_return)
-    {
-        // is a void function this is fine
-        // we just need to emit the ret at the end 
-        if(func.return_type[0]->type_idx == u32(builtin_type::void_t))
-        {
-            ret(itl,func);
-        }
-
-        else
-        {
-            panic(itl,itl_error::missing_return,"[COMPILE]: non void function without a return\n");
-        }
-    }
 
     if(itl.error)
     {
         return;
     }
 
-    connect_flow_graph(itl,func);    
+ 
+    // if final block has no return and this is a void func insert one
+    if(func.return_type[0]->type_idx == u32(builtin_type::void_t))
+    {    
+        auto& end_block = block_from_slot(func,cur_block(func));
+
+        if(!has_func_exit(func,end_block.block_slot))
+        {
+            ret(itl,func);
+        }
+    }
+
+    // connect up the cfg
+    connect_flow_graph(itl,func); 
+
+#if 0
+    dump_ir(func,itl.symbol_table);
+    dump_cfg(itl,func);
+#endif
+
+    // now check a function exit is reachable from the entry block of the function
+    // for a void func this should allways be possible as everything should hit the bottom return
+    // that does not have an early return...
+
+    auto& start_block = func.emitter.program[0];
+
+    for(u32 b = 0; b < count(start_block.links); b++)
+    {
+        const auto slot = start_block.links[b];
+
+        // TODO: have this print the source line of the block
+        if(!can_reach_exit(func,slot))
+        {
+            auto& block = block_from_slot(func,slot);
+            auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
+
+            itl.cur_expr = (AstNode*)func.root;   
+            panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
+        }
+    }
 }
 
 void compile_functions(Interloper &itl)

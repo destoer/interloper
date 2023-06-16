@@ -112,3 +112,7 @@ func is_builtin(type : const Type@) bool
 }
 */
 
+func int_from_any(any : const Any) u32
+{
+    return cast(u32,any.data);
+}

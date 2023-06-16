@@ -588,6 +588,12 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype, AstNode *node)
 {
     const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
+
+    if(itl.error)
+    {
+        return;
+    }
+
     check_assign(itl,accessed_type,rtype);
     do_ptr_store(itl,func,src_slot,ptr_slot,accessed_type, offset);
 }
@@ -596,6 +602,11 @@ void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype,
 Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *node)
 {
     auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
+
+    if(itl.error)
+    {
+        return make_builtin(itl,builtin_type::void_t);
+    }
 
     // len access on fixed sized array
     if(ptr_slot.handle == ACCESS_FIXED_LEN_REG)
