@@ -1,8 +1,10 @@
 
 func main() s32
 {
-    //print_arg(0);
-    print_int(12);
+    print_arg(0);
+    write_string("\n");
+    print_arg(12456);
+
 
     return 0;
 }

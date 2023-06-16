@@ -5,7 +5,7 @@ func swap(v1 : c8@, v2 : c8@)
     tmp := @v1;
 
     @v1 = @v2;
-    @v1 = tmp;
+    @v2 = tmp;
 }
 
 // TODO: impl this as a slice oper and on any array
