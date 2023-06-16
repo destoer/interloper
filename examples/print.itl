@@ -1,10 +1,14 @@
 
 func main() s32
 {
-    print_arg(0);
-    write_string("\n");
-    print_arg(12456);
+    for(i : u32 = 0; i < 10; i += 1)
+    {
+        print_arg(i);
+        write_string("\n");
+    }
 
+    print_arg(true);
+    write_string("\n");
 
     return 0;
 }

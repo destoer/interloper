@@ -3,14 +3,14 @@
 constant SYSCALL_EXIT : u32 = 0;
 constant SYSCALL_WRITE_STRING : u32 = 1;
 
-func write_buf(str : const string, len : u32)
+func write_buf(data : const c8@, len : u32)
 {
-    intrin_syscall(SYSCALL_WRITE_STRING,str.data,len);     
+    intrin_syscall(SYSCALL_WRITE_STRING,data,len);     
 }
 
 func write_string(str: const string)
 {
-    write_buf(str,str.len);
+    write_buf(str.data,str.len);
 }
 
 

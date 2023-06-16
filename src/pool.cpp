@@ -19,10 +19,18 @@ PoolSlot pool_slot_from_idx(u32 handle)
     return {handle};
 }
 
-// TODO: this doesn't handle alignment
 // TODO: should this hold the a Type* of the stored data if it is a var?
 PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
 {
+    const u32 align_size = size >= GPR_SIZE? GPR_SIZE : size;
+    const u32 unaligned = (pool.buf.size & (align_size - 1));
+
+    // pool requires alginment
+    if(unaligned != 0)
+    {
+        resize(pool.buf,count(pool.buf) + (align_size - unaligned));
+    }
+
     PoolSection section;
     section.type = type;
     section.size = size;

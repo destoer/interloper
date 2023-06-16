@@ -343,6 +343,8 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
 
     const bool is_ptr = is_pointer(type);
 
+    ArrayType* array_type = (ArrayType*)type;
+
     if(member_name == "len")
     {
         if(!is_runtime_size(type))
@@ -370,8 +372,17 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
     {
         if(!is_ptr)
         {
+            // this wont be fun to impl properly
+            // for starters we have to lock down writes on fixed arrays
+            if(is_fixed_array(type))
+            {
+                assert(false);
+            }
+
+            *offset += 0;
+            
             // this should probably be better typed
-            return std::pair{make_builtin(itl,GPR_SIZE_TYPE),slot};
+            return std::pair{make_pointer(itl,array_type->contained_type),slot};
         }
 
         else
@@ -475,11 +486,17 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             else
             {
                 // if base type is a fixed array
-                // then no further compuation will be done
+                // then we just directly return operations
                 if(!is_fixed_array(sym.type))
                 {
                     struct_slot = addrof_res(itl,func,sym.reg.slot);
                 }
+
+                else
+                {
+                    struct_slot = sym.reg.slot;
+                }
+
                 struct_type = sym.type;
             }
 
@@ -617,7 +634,7 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
         return make_builtin(itl,builtin_type::u32_t);
     }
 
-    // let caller handle reads
+    // let caller handle reads via array accessors
     if(is_fixed_array(accessed_type))
     {
         const SymSlot addr = collapse_offset(itl,func,ptr_slot,&offset);

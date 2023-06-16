@@ -116,3 +116,17 @@ func int_from_any(any : const Any) u32
 {
     return cast(u32,any.data);
 }
+
+func bool_from_any(any : const Any) bool
+{
+    v := int_from_any(any);
+
+    return v == 1;
+}
+
+func char_from_any(any : const Any) c8
+{
+    v := int_from_any(any);
+
+    return cast(c8,v);
+}

@@ -69,14 +69,21 @@ func print_int(v : u32)
 
     reverse(buf,digits);
 
-    write_buf(buf,digits);
+    // TODO: this should slice
+    //write_buf(buf.data,digits);
+    // TODO: handle reading data from fixed size array..
+    write_buf(&buf[0],digits);
 }
 
-// TODO: rename this when we get overloading
 func format_int(any : Any)
 {
     v := int_from_any(any);
     print_int(v);
+}
+
+func putchar(char : c8)
+{
+    write_buf(&char,sizeof(char));
 }
 
 func print_arg(arg : Any)
@@ -97,42 +104,54 @@ func print_arg(arg : Any)
 
         case itl_type::u32_t:
         {
-            assert(false);
+            format_int(arg);
         }
 
         case itl_type::s8_t:
         {
-            assert(false);
+            format_int(arg);
         }
 
         case itl_type::s16_t:
         {
-            assert(false);
+            format_int(arg);
         }
 
         case itl_type::s32_t:
         {
-            assert(false);
+            format_int(arg);
         }
 
         case itl_type::c8_t:
         {
-            assert(false);
+            char := char_from_any(arg);
+
+            putchar(char);
         }
 
         case itl_type::byte_t:
         {
-            assert(false);
+            format_int(arg);
         }
 
         case itl_type::bool_t:
         {
-            assert(false);
+            res := bool_from_any(arg);
+
+            if(res)
+            {
+                write_string("true");
+            }
+
+            else
+            {
+                write_string("false");
+            }
         }
 
         case itl_type::null_t:
         {
-            assert(false);
+            write_string("NULL");
         }
 
         case itl_type::pointer_t:
