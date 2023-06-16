@@ -1,0 +1,20 @@
+
+
+
+func main() s32
+{
+    buf : s32[?] = {1,2,3,5};
+    vla : s32[];
+
+    vla.data = &buf[0];
+    vla.len = buf.len;
+
+    sum : s32 = 0;
+
+    for(i : u32 = 0; i < vla.len; i += 1)
+    {
+        sum += vla[i];
+    }
+
+    return sum;
+}

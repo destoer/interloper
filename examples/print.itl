@@ -9,6 +9,8 @@ func main() s32
 
     print_arg(true);
     write_string("\n");
+    print_arg('c');
+    print_arg("\nboop");
 
     return 0;
 }

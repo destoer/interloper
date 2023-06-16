@@ -174,40 +174,68 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
         if(is_any(itl,arg.type))
         {
-            // compile our arg and figure out what we have
-            auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
-
-            // is allready an any just copy the struct
-            if(is_any(itl,arg_type))
+            // push const str as fixed size array
+            if(call_node->args[arg_idx]->type == ast_type::string)
             {
-                const u32 size = itl.rtti_cache.any_struct_size;
+                LiteralNode* lit_node = (LiteralNode*)call_node->args[arg_idx];
+
+                const u32 size = lit_node->literal.size;
+                const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
+                
+                // push the data offset
+                const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
+                const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
+
+
+                const u32 stack_size = any_size(itl,rtype);
 
                 // alloc the struct size for our copy
-                alloc_stack(itl,func,size);
+                alloc_stack(itl,func,stack_size);
 
-                // need to save SP as it will get pushed last
-                const SymSlot dst = new_tmp(func,GPR_SIZE);
-                mov_reg(itl,func,dst,sym_from_idx(SP_IR));
-                const SymSlot ptr = addrof_res(itl,func,reg);
+                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
 
-                ir_memcpy(itl,func,dst,ptr,size);
+                make_any(itl,func,SP_SLOT,0,addr_slot,rtype);
 
-                // clean up the stack push
-                arg_clean += size / GPR_SIZE;
+                arg_clean += stack_size / GPR_SIZE;
             }
 
             else
             {
-                const u32 size = any_size(itl,arg_type);
+                // compile our arg and figure out what we have
+                auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-                // alloc the struct size for our copy
-                alloc_stack(itl,func,size);
+                // is allready an any just copy the struct
+                if(is_any(itl,arg_type))
+                {
+                    const u32 size = itl.rtti_cache.any_struct_size;
 
-                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+                    // alloc the struct size for our copy
+                    alloc_stack(itl,func,size);
 
-                make_any(itl,func,SP_SLOT,0,reg,arg_type);
+                    // need to save SP as it will get pushed last
+                    const SymSlot dst = new_tmp(func,GPR_SIZE);
+                    mov_reg(itl,func,dst,sym_from_idx(SP_IR));
+                    const SymSlot ptr = addrof_res(itl,func,reg);
 
-                arg_clean += size / GPR_SIZE;
+                    ir_memcpy(itl,func,dst,ptr,size);
+
+                    // clean up the stack push
+                    arg_clean += size / GPR_SIZE;
+                }
+
+                else
+                {
+                    const u32 size = any_size(itl,arg_type);
+
+                    // alloc the struct size for our copy
+                    alloc_stack(itl,func,size);
+
+                    const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+
+                    make_any(itl,func,SP_SLOT,0,reg,arg_type);
+
+                    arg_clean += size / GPR_SIZE;
+                }
             }
         }
 

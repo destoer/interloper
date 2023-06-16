@@ -159,7 +159,32 @@ func print_arg(arg : Any)
 
         case itl_type::array_t:
         {
-            assert(false);
+            array_type := cast(const ArrayType@,type);
+
+            contained_type := array_type.contained_type;
+
+            if(is_runtime_size(array_type.size))
+            {
+                assert(false);
+            }
+            
+            // fixed size
+            else
+            {
+                // TODO: only impl by hand this for now till we get template access
+                if(contained_type.type_idx == itl_type::c8_t)
+                {
+                    v := int_from_any(arg);
+
+                    char_ptr : const c8@ = cast(const c8@,v);
+                    write_buf(char_ptr,array_type.size);
+                }
+
+                else
+                {
+                    assert(false);
+                }
+            }
         }
 
         case itl_type::struct_t:
