@@ -1909,6 +1909,16 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 
                 }
 
+                // no return
+                else
+                {
+                    if(func.return_type[0]->type_idx != u32(builtin_type::void_t))
+                    {
+                        panic(itl,itl_error::missing_args,"Expected return type of %s got nothing\n",type_name(itl,func.return_type[0]).buf);
+                        return;
+                    }
+                }
+
                 ret(itl,func);
                 break;
             }
