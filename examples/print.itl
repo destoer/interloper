@@ -12,5 +12,13 @@ func main() s32
     print_arg('c');
     print_arg("\nboop");
 
+
+/*
+    for(i : u32 = 0; i < 10; i += 1)
+    {
+        print("count {}\n",i);
+    }
+*/
+
     return 0;
 }

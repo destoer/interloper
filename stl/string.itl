@@ -154,7 +154,7 @@ func print_arg(arg : Any)
 
         case itl_type::pointer_t:
         {
-            assert(false);
+            unimplemented("pointer print");
         }
 
         case itl_type::array_t:
@@ -165,7 +165,7 @@ func print_arg(arg : Any)
 
             if(is_runtime_size(array_type.size))
             {
-                assert(false);
+                unimplemented("array print vla");
             }
             
             // fixed size
@@ -182,19 +182,19 @@ func print_arg(arg : Any)
 
                 else
                 {
-                    assert(false);
+                    unimplemented("array print");
                 }
             }
         }
 
         case itl_type::struct_t:
         {
-            assert(false);
+            unimplemented("struct print");
         }
 
         case itl_type::enum_t:
         {
-            assert(false);
+            unimplemented("enum print");
         }
     }
 }
