@@ -1,0 +1,24 @@
+
+// NOTE ... is sugar for Any[]
+func sum_ints(boop : u32,args: ...) s32
+{
+    for(i : u32 = 0; i < args.len; i += 1)
+    {
+        v := int_from_any(args[i]);
+
+        boop += v;
+    }
+
+    return boop;
+}
+
+
+// expected 339
+func main() s32
+{
+    x : s8 = 5;
+    y : s16 = 7;
+    z : s32 = 105;
+
+    return sum_ints(5,x,y,z);
+}
