@@ -22,6 +22,7 @@ enum class token_type
     right_paren,
 
     comma,
+    va_args,
 
     equal,
     plus_eq,
@@ -149,6 +150,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::right_paren,")",-1},
 
     {token_type::comma,",",-1},
+    {token_type::va_args,"...",-1},
 
     {token_type::equal,"=",2},
     {token_type::plus_eq,"+=",2},

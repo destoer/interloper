@@ -986,24 +986,43 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
 
         consume(parser,token_type::colon);
 
-        TypeNode* type = parse_type(parser);
-
-        if(!type)
+        // va_args
+        if(match(parser,token_type::va_args))
         {
-            type_panic(parser);
-            return;
+            consume(parser,token_type::va_args);
+
+            f->va_args = true;
+            f->args_name = lit_tok.literal;
+
+            // by definiton this must be the last arg!
+            if(!match(parser,token_type::right_paren))
+            {
+                panic(parser,lit_tok,"va_args can only be placed as the last arg : got %s\n",tok_name(peek(parser,0).type));
+                return;
+            }
         }
 
-
-        // add each declartion
-        DeclNode* decl = (DeclNode*)ast_decl(parser,lit_tok.literal,type,lit_tok);
-        
-        push_var(f->args,decl);
-
-        // if the declaration isnt closed get the next arg
-        if(peek(parser,0).type != token_type::right_paren)
+        else
         {
-            consume(parser,token_type::comma);
+            TypeNode* type = parse_type(parser);
+
+            if(!type)
+            {
+                type_panic(parser);
+                return;
+            }
+
+
+            // add each declartion
+            DeclNode* decl = (DeclNode*)ast_decl(parser,lit_tok.literal,type,lit_tok);
+            
+            push_var(f->args,decl);
+
+            // if the declaration isnt closed get the next arg
+            if(!match(parser,token_type::right_paren))
+            {
+                consume(parser,token_type::comma);
+            }
         }
     }
 

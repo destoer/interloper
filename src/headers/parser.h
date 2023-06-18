@@ -369,6 +369,9 @@ struct FuncNode
     Array<TypeNode*> return_type;
     BlockNode* block = nullptr;
     Array<DeclNode*> args;
+
+    b32 va_args = false;
+    String args_name;
 };
 
 

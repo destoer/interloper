@@ -363,8 +363,21 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
 
             case ']': insert_token(lexer,token_type::sr_brace); break;
 
-            case '.': insert_token(lexer,token_type::dot); break;
-            
+            case '.':
+            { 
+                if(peek(lexer.idx + 1,file) == '.' && peek(lexer.idx + 2,file) == '.')
+                {
+                    insert_token(lexer,token_type::va_args);
+                    advance(lexer);
+                    advance(lexer);
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::dot);
+                } 
+                break;
+            }
             case '?': insert_token(lexer,token_type::qmark); break;
 
             case ';': insert_token(lexer,token_type::semi_colon); break;
