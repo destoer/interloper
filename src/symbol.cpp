@@ -84,6 +84,12 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
 
     symbol.reg = make_reg(itl,reg_kind::local,slot,type);
 
+    // mark an offset so it is not unallocated
+    if(symbol.arg_offset != NON_ARG)
+    {
+        symbol.reg.offset = 0;
+    }
+
     return symbol;
 }
 

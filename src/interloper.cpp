@@ -661,6 +661,11 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         }
     }
 
+    if(itl.error)
+    {
+        return;
+    }
+
     // now we have to exit block add in every exit
     auto &blocks = func.emitter.program;
 

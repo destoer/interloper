@@ -339,7 +339,7 @@ u32 compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sym
 
         else
         {
-            assert(false);
+            make_any(itl,func,ptr_slot,offset,addr_slot,rtype);
         }
     }
 

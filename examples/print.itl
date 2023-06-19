@@ -1,25 +1,12 @@
 
 func main() s32
 {
-/*
-    for(i : u32 = 0; i < 10; i += 1)
-    {
-        print_arg(i);
-        write_string("\n");
-    }
-
-    print_arg(true);
-    write_string("\n");
-    print_arg('c');
-    print_arg("\nboop");
-*/
-
-
     for(i : u32 = 0; i < 10; i += 1)
     {
         print("count {}\n",i);
     }
 
+    print("{} is {} years old","john",20);
 
     return 0;
 }

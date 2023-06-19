@@ -110,6 +110,14 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         case op_type::alloc_stack:
         {
             const u32 size = opcode.v[0];
+        
+            // nothing to do
+            if(size == 0)
+            {
+                node = remove(block.list,node);
+                break;
+            }
+        
             node->opcode = Opcode(op_type::sub_imm,SP_IR,SP_IR,size);
             alloc.stack_offset += size;
 
