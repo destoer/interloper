@@ -120,14 +120,6 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
     const s32 hidden_args = func_call.hidden_args;
 
-    // check we have the right number of params
-    if((count(func_call.args) - hidden_args) != count(call_node->args))
-    {
-        panic(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",count(func_call.args),count(call_node->args));
-        return make_builtin(itl,builtin_type::void_t);
-    }
-
-
     // check calls on functions with multiple returns are valid
     if(tuple_node && count(func_call.return_type) == 1)
     {
@@ -164,9 +156,84 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     u32 arg_clean = 0;
 
 
+    u32 start_arg = count(func_call.args) - 1;
+
+    const u32 actual_args = count(func_call.args) - hidden_args;
+
+    if(func_call.va_args)
+    {
+        if(!itl.rtti_enable)
+        {
+            panic(itl,itl_error::missing_args,"[COMPILE]: attempted to use va_args without rtti: %s\n",func_call.name.buf);
+            return make_builtin(itl,builtin_type::void_t); 
+        }
+
+        // va_arg is optional
+        if(actual_args - 1 > count(call_node->args))
+        {
+            panic(itl,itl_error::missing_args,"[COMPILE]: function call va_argsexpected at least %d args got %d\n",actual_args - 1,count(call_node->args));
+            return make_builtin(itl,builtin_type::void_t);            
+        }
+
+        const u32 normal_args = (actual_args) - 1;
+
+        // how many args are we getting passed?
+        const u32 any_args = count(call_node->args) - normal_args;
+
+        printf("any args: %d\n",any_args);
+
+        // alloc storage for array
+        // this is easy because we know how many args we have
+        auto& rtti_cache = itl.rtti_cache;
+
+        const u32 any_arr_size = any_args * rtti_cache.any_struct_size;
+
+        alloc_stack(itl,func,any_arr_size);
+
+
+        // alloc storage for data
+        // we need to actually compile the args so we know what size they are
+        ListNode* stack_node = alloc_stack(itl,func,0);
+
+        u32 arr_size = 0;
+
+        for(u32 a = 0; a < any_args; a++)
+        {
+            const u32 arg_idx = a + normal_args;
+            print(call_node->args[arg_idx]);
+        }
+
+        
+
+        // we know how large the stack is go back and rewrite the opcode
+        stack_node->opcode = Opcode(op_type::alloc_stack,arr_size,0,0);
+
+        // alloc vla
+        
+        const u32 total_size = arr_size + any_arr_size;
+
+        // skip over our va_args
+        start_arg = actual_args - 1;
+
+        arg_clean += total_size / GPR_SIZE;
+
+        dump_ir(func,itl.symbol_table);
+        assert(false);
+    }
+
+    // normal call
+    else
+    {
+        // check we have the right number of params
+        if(actual_args != count(call_node->args))
+        {
+            panic(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",actual_args,count(call_node->args));
+            return make_builtin(itl,builtin_type::void_t);
+        }        
+    }
 
     // push args in reverse order and type check them
-    for(s32 i = count(func_call.args) - 1; i >= hidden_args; i--)
+    for(s32 i = start_arg; i >= hidden_args; i--)
     {
         const auto &arg =  sym_from_slot(itl.symbol_table,func_call.args[i]);
   
@@ -174,69 +241,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
         if(is_any(itl,arg.type))
         {
-            // push const str as fixed size array
-            if(call_node->args[arg_idx]->type == ast_type::string)
-            {
-                LiteralNode* lit_node = (LiteralNode*)call_node->args[arg_idx];
-
-                const u32 size = lit_node->literal.size;
-                const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
-                
-                // push the data offset
-                const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
-                const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
-
-
-                const u32 stack_size = any_size(itl,rtype);
-
-                // alloc the struct size for our copy
-                alloc_stack(itl,func,stack_size);
-
-                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
-
-                make_any(itl,func,SP_SLOT,0,addr_slot,rtype);
-
-                arg_clean += stack_size / GPR_SIZE;
-            }
-
-            else
-            {
-                // compile our arg and figure out what we have
-                auto [arg_type,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
-
-                // is allready an any just copy the struct
-                if(is_any(itl,arg_type))
-                {
-                    const u32 size = itl.rtti_cache.any_struct_size;
-
-                    // alloc the struct size for our copy
-                    alloc_stack(itl,func,size);
-
-                    // need to save SP as it will get pushed last
-                    const SymSlot dst = new_tmp(func,GPR_SIZE);
-                    mov_reg(itl,func,dst,sym_from_idx(SP_IR));
-                    const SymSlot ptr = addrof_res(itl,func,reg);
-
-                    ir_memcpy(itl,func,dst,ptr,size);
-
-                    // clean up the stack push
-                    arg_clean += size / GPR_SIZE;
-                }
-
-                else
-                {
-                    const u32 size = any_size(itl,arg_type);
-
-                    // alloc the struct size for our copy
-                    alloc_stack(itl,func,size);
-
-                    const SymSlot SP_SLOT = sym_from_idx(SP_IR);
-
-                    make_any(itl,func,SP_SLOT,0,reg,arg_type);
-
-                    arg_clean += size / GPR_SIZE;
-                }
-            }
+            const u32 size = compile_any(itl,func,call_node->args[arg_idx]);
+            arg_clean += size / GPR_SIZE;
         }
 
         else if(is_array(arg.type))

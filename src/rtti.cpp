@@ -252,7 +252,8 @@ u32 any_size(Interloper &itl, const Type* type)
     return size;    
 }
 
-void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, const SymSlot src, const Type* type)
+// TODO: we need to pass in a slot + offset for storing data copies...
+void make_any(Interloper& itl,Function& func, SymSlot any_ptr_slot, u32 offset, const SymSlot src, const Type* type)
 {
     auto& rtti = itl.rtti_cache;
 
@@ -262,10 +263,10 @@ void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, cons
     if(is_trivial_copy(type))
     {
         // store type struct
-        store_ptr(itl,func,rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE);  
+        store_ptr(itl,func,rtti_ptr,any_ptr_slot,offset + rtti.any_type_offset,GPR_SIZE);  
 
         // store data
-        store_ptr(itl,func,src,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);              
+        store_ptr(itl,func,src,any_ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);              
     } 
 
     // finally the any struct
@@ -274,7 +275,7 @@ void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, cons
     else if(is_array(type))
     {
         // store type struct
-        store_ptr(itl,func,rtti_ptr,ptr_slot,offset + rtti.any_type_offset,GPR_SIZE); 
+        store_ptr(itl,func,rtti_ptr,any_ptr_slot,offset + rtti.any_type_offset,GPR_SIZE); 
 
         // directly store array pointer into the data pointer
         if(is_fixed_array(type))
@@ -282,7 +283,7 @@ void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, cons
             const auto arr_data_slot = load_arr_data(itl,func,src,type);
 
             // store data
-            store_ptr(itl,func,arr_data_slot,ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);
+            store_ptr(itl,func,arr_data_slot,any_ptr_slot,offset + rtti.any_data_offset,GPR_SIZE);
         }
 
         // runtime size
@@ -302,4 +303,70 @@ void make_any(Interloper& itl,Function& func, SymSlot ptr_slot, u32 offset, cons
     {
         assert(false);
     }
+}
+
+u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
+{
+    u32 stack_size = 0;
+
+    // push const str as fixed size array
+    if(arg_node->type == ast_type::string)
+    {
+        LiteralNode* lit_node = (LiteralNode*)arg_node;
+
+        const u32 size = lit_node->literal.size;
+        const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
+
+        stack_size = any_size(itl,rtype);
+
+        // push the data offset
+        const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
+        const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
+
+
+        // alloc the struct size for our copy
+        alloc_stack(itl,func,stack_size);
+
+
+        const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+        make_any(itl,func,SP_SLOT,0,addr_slot,rtype);
+    }
+
+    else
+    {
+        // compile our arg and figure out what we have
+        auto [arg_type,reg] = compile_oper(itl,func,arg_node);
+
+        // is allready an any just copy the struct
+        if(is_any(itl,arg_type))
+        {
+            stack_size = itl.rtti_cache.any_struct_size;
+
+            // alloc the struct size for our copy
+            alloc_stack(itl,func,stack_size);
+
+            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+
+            // need to save SP as it will get pushed last
+            const SymSlot dst = new_tmp(func,GPR_SIZE);
+            mov_reg(itl,func,dst,SP_SLOT);
+            const SymSlot ptr = addrof_res(itl,func,reg);
+
+            ir_memcpy(itl,func,dst,ptr,stack_size);
+        }
+
+        else
+        {
+            stack_size = any_size(itl,arg_type);
+
+            // alloc the struct size for our copy
+            alloc_stack(itl,func,stack_size);
+
+            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+
+            make_any(itl,func,SP_SLOT,0,reg,arg_type);
+        }  
+    }
+
+    return stack_size;  
 }

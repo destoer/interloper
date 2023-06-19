@@ -88,10 +88,10 @@ void alloc_slot(Interloper& itl,Function& func, const Reg& reg, b32 force_alloc)
     emit_block_internal(func,cur_block(func),op_type::alloc_slot,reg.slot.handle,force_alloc,0);
 }
 
-void alloc_stack(Interloper& itl, Function& func, u32 size)
+ListNode* alloc_stack(Interloper& itl, Function& func, u32 size)
 {
     UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::alloc_stack,size,0,0);    
+    return emit_block_internal(func,cur_block(func),op_type::alloc_stack,size,0,0);    
 }
 
 

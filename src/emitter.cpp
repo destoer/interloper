@@ -68,13 +68,15 @@ void handle_dst_storage(Interloper& itl, Function& func, SymSlot dst_slot)
 }
 
 // NOTE: this is the bottom level emitter
-void emit_block_internal(Function& func,BlockSlot block_slot, op_type type, u32 v1, u32 v2, u32 v3)
+ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, u32 v1, u32 v2, u32 v3)
 {
     const Opcode opcode(type,v1,v2,v3);
 
     auto& block = block_from_slot(func,block_slot);
     auto &list = block.list;
-    append(list,opcode);    
+    append(list,opcode);
+
+    return list.end;    
 }
 
 

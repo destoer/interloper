@@ -501,3 +501,7 @@ inline u32 symbol(u32 s)
 {
     return SYMBOL_START + s;
 }
+
+
+// intrin
+void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slot, u32 size);
