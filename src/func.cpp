@@ -180,7 +180,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
         // how many args are we getting passed?
         const u32 any_args = count(call_node->args) - normal_args;
 
-        printf("any args: %d\n",any_args);
+        //printf("any args: %d\n",any_args);
 
         // alloc storage for array
         // this is easy because we know how many args we have
@@ -594,7 +594,7 @@ void parse_function_declarations(Interloper& itl)
             {
                 Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
                 Type* array_type = make_array(itl,type,RUNTIME_SIZE,true);
-                
+
                 Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
                 add_var(itl.symbol_table,sym);
 

@@ -163,7 +163,7 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
     return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
 }
 
-std::pair<Type*,SymSlot> read_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* read_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
 
@@ -172,11 +172,12 @@ std::pair<Type*,SymSlot> read_arr(Interloper &itl,Function &func,AstNode *node, 
     // fixed array needs conversion by host
     if(is_fixed_array(type))
     {
-        return std::pair{type,addr_slot};
+        mov_reg(itl,func,dst_slot,addr_slot);
+        return type;
     }
 
     do_ptr_load(itl,func,dst_slot,addr_slot,type);
-    return std::pair{type,dst_slot};
+    return type;
 }
 
 

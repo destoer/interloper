@@ -200,7 +200,34 @@ func print_arg(arg : Any)
 }
 
 
-//func print(fmt: const str, ...)
+func print(fmt: const string, args : ...)
+{
+    arg_count : u32 = 0;
+
+    for(i : u32 = 0; i < fmt.len; i += 1)
+    {
+        char := fmt[i];
+
+        if(char == '{')
+        {
+            if(fmt.len <= i + 1)
+            {
+                return;
+            }
+
+            if(fmt[i+1] == '}')
+            {
+                print_arg(args[arg_count]);
+                arg_count += 1;
+            }
+        }
+
+        else
+        {
+            putchar(char);
+        }
+    }
+}
 
 // TODO: switch this over to format string
 // TODO: add line and file info? (what mechanism should be used for this)

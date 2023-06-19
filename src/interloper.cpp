@@ -10,7 +10,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
 void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
-std::pair<Type*, SymSlot> read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+Type* read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const SymSlot addr_slot, ArrayType* type, u32* offset);
 std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
@@ -217,12 +217,10 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 
     else if(is_struct(type))
     {
-        if(is_sym(dst_slot))
-        {
-            auto& sym = sym_from_slot(itl.symbol_table,dst_slot);
-            printf("boop: %s\n",sym.name.buf);
-        }
-        unimplemented("struct read %s : %x [%x]\n",type_name(itl,type).buf,dst_slot.handle,addr_slot.handle);
+        const u32 size = type_size(itl,type);
+        const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
+
+        ir_memcpy(itl,func,dst_ptr,addr_slot,size);
     }  
 
     else
@@ -296,12 +294,6 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
         case ast_type::symbol:
         {
             return symbol(itl,node);
-        }
-
-        // may get a back a fixed array as a oper and we want to do a conversion on it
-        case ast_type::index:
-        {
-            return read_arr(itl,func,node,new_tmp_ptr(func));
         }
 
         // compile an expr
@@ -1337,7 +1329,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::index:
         {
-            const auto [type, slot] = read_arr(itl,func,node,dst_slot);
+            const auto type = read_arr(itl,func,node,dst_slot);
 
             return type;
         }

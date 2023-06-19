@@ -26,6 +26,19 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
 
+            const auto slot = sym_from_idx(opcode.v[1]);
+            auto& reg = reg_from_slot(slot,table,alloc);
+
+
+            if(is_stack_unallocated(reg))
+            {
+                assert(stored_in_mem(reg));
+                
+                stack_reserve_reg(alloc,reg);  
+            }
+
+
+
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
             node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);

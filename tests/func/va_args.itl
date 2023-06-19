@@ -4,11 +4,9 @@ func sum_ints(boop : u32,args: ...) s32
 {
     for(i : u32 = 0; i < args.len; i += 1)
     {
-        v := cast(u32,args[i].data);
-
         // this requres tmp struct loading
         // we will just hack around if for now while we test this 
-        //v := int_from_any(args[i]);
+        v := int_from_any(args[i]);
 
         boop += v;
     }
