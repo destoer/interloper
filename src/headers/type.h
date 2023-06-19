@@ -368,6 +368,8 @@ struct Function
     FuncNode* root = nullptr;
 
     b32 used = false;
+
+    b32 va_args = false;
 };
 
 

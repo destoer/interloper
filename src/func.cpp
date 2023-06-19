@@ -488,7 +488,6 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
 void parse_function_declarations(Interloper& itl)
 {
-    
 
     for(u32 b = 0; b < count(itl.function_table.buf); b++)
     {
@@ -572,6 +571,19 @@ void parse_function_declarations(Interloper& itl)
                 //printf("arg slot %s: %d : %d\n",sym.name.buf,sym.slot, args[args.size()-1]);
             }
 
+            // add va args
+            if(node.va_args && itl.rtti_enable)
+            {
+                Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
+                Type* array_type = make_array(itl,type,RUNTIME_SIZE,true);
+
+                Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
+                add_var(itl.symbol_table,sym);
+
+                push_var(args,sym.reg.slot);
+
+                func.va_args = true;
+            }
 
             finalise_def(itl,func,return_type,args,hidden_args);
         }
