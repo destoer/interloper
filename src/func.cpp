@@ -190,35 +190,47 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
         alloc_stack(itl,func,any_arr_size);
 
+        const SymSlot any_arr_ptr = new_tmp_ptr(func);
+        mov_reg(itl,func,any_arr_ptr,sym_from_idx(SP_IR));
 
         // alloc storage for data
         // we need to actually compile the args so we know what size they are
         ListNode* stack_node = alloc_stack(itl,func,0);
 
-        u32 arr_size = 0;
-
+        u32 data_size = 0;
+    
         for(u32 a = 0; a < any_args; a++)
         {
             const u32 arg_idx = a + normal_args;
-            print(call_node->args[arg_idx]);
+            const u32 arr_offset = a * rtti_cache.any_struct_size;
+
+            compile_any_arr(itl,func,call_node->args[arg_idx],any_arr_ptr,arr_offset);
         }
 
         
 
         // we know how large the stack is go back and rewrite the opcode
-        stack_node->opcode = Opcode(op_type::alloc_stack,arr_size,0,0);
+        stack_node->opcode = Opcode(op_type::alloc_stack,data_size,0,0);
+
+        const u32 vla_size = GPR_SIZE * 2;
 
         // alloc vla
+        alloc_stack(itl,func,vla_size);
+
+        // and store it
+        const SymSlot any_len_slot = mov_imm_res(itl,func,any_args);
+
+        // store data
+        store_ptr(itl,func,any_arr_ptr,sym_from_idx(SP_IR),0,GPR_SIZE);
+        store_ptr(itl,func,any_len_slot,sym_from_idx(SP_IR),GPR_SIZE,GPR_SIZE);      
+
         
-        const u32 total_size = arr_size + any_arr_size;
+        const u32 total_size = data_size + any_arr_size + vla_size;
 
         // skip over our va_args
-        start_arg = actual_args - 1;
+        start_arg = actual_args - 2;
 
         arg_clean += total_size / GPR_SIZE;
-
-        dump_ir(func,itl.symbol_table);
-        assert(false);
     }
 
     // normal call
@@ -582,7 +594,7 @@ void parse_function_declarations(Interloper& itl)
             {
                 Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
                 Type* array_type = make_array(itl,type,RUNTIME_SIZE,true);
-
+                
                 Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
                 add_var(itl.symbol_table,sym);
 

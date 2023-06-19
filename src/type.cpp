@@ -442,7 +442,7 @@ Type* make_array(Interloper& itl, Type* contained_type, u32 size, b32 is_constan
 
     array_type->size = size;
     array_type->contained_type = contained_type;
-    array_type->sub_size = 0;
+    init_arr_sub_sizes(itl,(Type*)array_type);
 
     return (Type*)array_type;
 }
@@ -712,11 +712,6 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 return make_builtin(itl,builtin_type::void_t);
             }
         }
-    }
-
-    if(is_array(type))
-    {
-        init_arr_sub_sizes(itl,type);
     }
 
 

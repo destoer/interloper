@@ -215,10 +215,20 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
         unimplemented("load arr from ptr");
     }
 
+    else if(is_struct(type))
+    {
+        if(is_sym(dst_slot))
+        {
+            auto& sym = sym_from_slot(itl.symbol_table,dst_slot);
+            printf("boop: %s\n",sym.name.buf);
+        }
+        unimplemented("struct read %s : %x [%x]\n",type_name(itl,type).buf,dst_slot.handle,addr_slot.handle);
+    }  
+
     else
     {
-        unimplemented("struct read");
-    }  
+        assert(false);
+    }
 }
 
 void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size)

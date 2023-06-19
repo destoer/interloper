@@ -305,8 +305,13 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr_slot, u32 offset, 
     }
 }
 
-u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
+
+u32 compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, SymSlot ptr_slot = {SYMBOL_NO_SLOT}, u32 offset = 0)
 {
+    UNUSED(offset);
+
+    const b32 handle_storage = ptr_slot.handle == SYMBOL_NO_SLOT;
+
     u32 stack_size = 0;
 
     // push const str as fixed size array
@@ -315,7 +320,7 @@ u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
         LiteralNode* lit_node = (LiteralNode*)arg_node;
 
         const u32 size = lit_node->literal.size;
-        const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
+        auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
 
         stack_size = any_size(itl,rtype);
 
@@ -323,13 +328,19 @@ u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
         const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
         const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
 
+        if(handle_storage)
+        {
+            // alloc the struct size for our copy
+            alloc_stack(itl,func,stack_size);
 
-        // alloc the struct size for our copy
-        alloc_stack(itl,func,stack_size);
+            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+            make_any(itl,func,SP_SLOT,0,addr_slot,rtype);
+        }
 
-
-        const SymSlot SP_SLOT = sym_from_idx(SP_IR);
-        make_any(itl,func,SP_SLOT,0,addr_slot,rtype);
+        else
+        {
+            assert(false);
+        }
     }
 
     else
@@ -342,31 +353,65 @@ u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
         {
             stack_size = itl.rtti_cache.any_struct_size;
 
-            // alloc the struct size for our copy
-            alloc_stack(itl,func,stack_size);
 
-            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+            if(handle_storage)
+            {
+                // alloc the struct size for our copy
+                alloc_stack(itl,func,stack_size);
 
-            // need to save SP as it will get pushed last
-            const SymSlot dst = new_tmp(func,GPR_SIZE);
-            mov_reg(itl,func,dst,SP_SLOT);
-            const SymSlot ptr = addrof_res(itl,func,reg);
+                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
 
-            ir_memcpy(itl,func,dst,ptr,stack_size);
+                // need to save SP as it will get pushed last
+                const SymSlot dst = new_tmp(func,GPR_SIZE);
+                mov_reg(itl,func,dst,SP_SLOT);
+                const SymSlot ptr = addrof_res(itl,func,reg);
+
+                ir_memcpy(itl,func,dst,ptr,stack_size);
+            }
+
+            else
+            {
+                assert(false);
+            }
         }
 
         else
         {
             stack_size = any_size(itl,arg_type);
 
-            // alloc the struct size for our copy
-            alloc_stack(itl,func,stack_size);
+            if(handle_storage)
+            {
+                // alloc the struct size for our copy
+                alloc_stack(itl,func,stack_size);
 
-            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
 
-            make_any(itl,func,SP_SLOT,0,reg,arg_type);
+                make_any(itl,func,SP_SLOT,0,reg,arg_type);
+            }
+
+            else
+            {
+                make_any(itl,func,ptr_slot,offset,reg,arg_type);
+            }
         }  
     }
 
     return stack_size;  
+}
+
+// return total size including data
+u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
+{
+    // Handle stack alloc and store itself caller will handle deallocation of stack
+    return compile_any_internal(itl,func,arg_node);
+}
+
+// return just data size
+// TODO: we currently never need seperate data
+u32 compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, SymSlot any_ptr_slot, u32 offset)
+{
+    // storage allocation handled by caller
+    compile_any_internal(itl,func,arg_node,any_ptr_slot,offset);
+
+    return 0;
 }
