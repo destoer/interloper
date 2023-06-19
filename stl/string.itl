@@ -200,7 +200,7 @@ func print_arg(arg : Any)
 }
 
 
-func print(fmt: const string, args : ...)
+func print_args(fmt : const string, args : Any[])
 {
     arg_count : u32 = 0;
 
@@ -219,7 +219,8 @@ func print(fmt: const string, args : ...)
             {
                 if(arg_count == args.len)
                 {
-                    crash_and_burn("ran out of args in print");
+                    //crash_and_burn("ran out of args in print({})",fmt);
+                    crash_and_burn("ran out of args in print({})");
                 }
 
                 print_arg(args[arg_count]);
@@ -235,20 +236,34 @@ func print(fmt: const string, args : ...)
     }
 }
 
-// TODO: switch this over to format string
+func print(fmt: const string, args : ...)
+{
+    print_args(fmt,args);
+}
+
 // TODO: add line and file info? (what mechanism should be used for this)
-func unimplemented(str: const string, args: ...)
+func unimplemented_args(fmt: const string, args: Any[])
 {
     write_string("unimplemented: ");
-    write_string(str);
+    print_args(fmt,args);
     
     exit(1);
 }
 
-func crash_and_burn(str: const string, args: ...)
+func crash_and_burn_args(fmt: const string, args: Any[])
 {
     write_string("crash and burn: ");
-    write_string(str);
+    print_args(fmt,args);
 
     exit(1);
+}
+
+func crash_and_burn(fmt: const string, args: ...)
+{
+    crash_and_burn_args(fmt,args);
+}
+
+func unimplemented(fmt: const string, args: ...)
+{
+    unimplemented_args(fmt,args);
 }
