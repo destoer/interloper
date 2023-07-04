@@ -1495,7 +1495,9 @@ void print(const AstNode *root)
 
         case ast_fmt::auto_decl:
         {
-            assert(false);
+            AutoDeclNode* auto_decl = (AutoDeclNode*)root;
+            printf("auto decl : %s\n",auto_decl->name.buf);
+            print(auto_decl->expr);
             break;
         }
 

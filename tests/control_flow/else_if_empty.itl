@@ -1,0 +1,21 @@
+// expected 4
+
+func main() s32
+{
+    if(false)
+    {
+        return 3;
+    }
+
+    else if(true)
+    {
+        if(false)
+        {
+
+        }
+
+        return 4;
+    }
+    
+    return 1;
+}

@@ -1,5 +1,5 @@
 
-constant ASCII_CASE_GAP : u8 = 0x20;
+constant ASCII_CASE_GAP : u8 = 'a' - 'A';
 
 // NOTE:
 // will probably call the extentable one string_buffer
@@ -13,32 +13,6 @@ func to_lower(char: c8) c8
 
     return char;
 }
-
-/*
-enum itl_type
-{
-    u8_t,
-    u16_t,
-    u32_t,
-
-    s8_t,
-    s16_t,
-    s32_t,
-
-    c8_t,
-
-    byte_t,
-
-    bool_t,
-
-    null_t,
-
-    pointer_t,
-    array_t,
-    struct_t,
-    enum_t,
-}
-*/
 
 // if printed in base 2, its 64 bits
 constant MAX_INT_CHARS : u32 = 64;

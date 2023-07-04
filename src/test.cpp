@@ -125,6 +125,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/else_if_no_else",94220},
     {"tests/control_flow/else_empty",7},
     {"tests/control_flow/nested_if",575},
+    {"tests/control_flow/else_if_empty",4},
     {"tests/control_flow/for",32},
     {"tests/control_flow/for_idx",10},
     {"tests/control_flow/for_outer_decl",32},
