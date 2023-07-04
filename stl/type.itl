@@ -88,7 +88,6 @@ func deref_pointer(type: const Type@) const Type@
     return pointer_type.contained_type;
 }
 
-
 func is_runtime_size(size : u32) bool
 {
     return size == RUNTIME_SIZE;
@@ -97,6 +96,14 @@ func is_runtime_size(size : u32) bool
 func is_pointer(type : const Type@) bool
 {
     return type.type_idx == itl_type::pointer_t;
+}
+
+// TODO: we want to solve this with java style enums for type info but for now this is good enough
+func is_signed(type : const Type@) bool
+{
+    return type.type_idx == itl_type::s8_t || type.type_idx == itl_type::s16_t ||
+        type.type_idx == itl_type::s32_t || type.type_idx == itl_type::c8_t ||
+        type.type_idx == itl_type::byte_t;
 }
 
 func is_array(type : const Type@) bool

@@ -191,6 +191,7 @@ void destroy_lexer(Lexer& lexer)
 
 void panic(Lexer& lexer, const String& filename, const char* fmt, ...)
 {
+    lexer.error = true;
     printf("lexer error: %s %d:%d: ",filename.buf,lexer.row+1,lexer.column+1);
 
     va_list args; 
@@ -201,6 +202,22 @@ void panic(Lexer& lexer, const String& filename, const char* fmt, ...)
     putchar('\n');
 
     print_line(filename,lexer.row+1);   
+}
+
+char escape_char(Lexer& lexer, const String& file_name,char escape_char)
+{
+    switch(escape_char)
+    {
+        case 'n': return '\n';
+        case '0': return '\0';
+
+        default:
+        {
+            destroy_lexer(lexer);
+            panic(lexer,file_name,"unknown char literal '%c'",escape_char);
+            return '\0';
+        }
+    } 
 }
 
 // TODO: change file to be a string, and just conv them all in
@@ -289,16 +306,40 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     return true;
                 }
 
-                if(peek(lexer.idx+2,file) != '\'')
+                // potential escape char
+                else if(c == '\\')
                 {
-                    panic(lexer,file_name,"unterminated char literal");
-                    destroy_lexer(lexer);
-                    return true;
+                    const char e = escape_char(lexer,file_name,peek(lexer.idx+2,file));
+
+                    if(lexer.error)
+                    {
+                        return true;
+                    }
+                    
+                    if(peek(lexer.idx+3,file) != '\'')
+                    {
+                        panic(lexer,file_name,"unterminated char literal");
+                        destroy_lexer(lexer);
+                        return true;
+                    }
+
+                    insert_token_char(lexer,e,col);
+                    advance(lexer,3);
                 }
 
-                insert_token_char(lexer,c,col);
+                else
+                {
+                    // normal char
+                    if(peek(lexer.idx+2,file) != '\'')
+                    {
+                        panic(lexer,file_name,"unterminated char literal");
+                        destroy_lexer(lexer);
+                        return true;
+                    }
 
-                advance(lexer,2);
+                    insert_token_char(lexer,c,col);
+                    advance(lexer,2);
+                }
                 break;
             }
 
@@ -318,24 +359,12 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     // escape sequence
                     if(c == '\\')
                     {
-                        char e = peek(lexer.idx + 1,file);
+                        c = escape_char(lexer,file_name,peek(lexer.idx+1,file));
+                        advance(lexer);
 
-                        switch(e)
+                        if(lexer.error)
                         {
-                            // filefeed
-                            case 'n':
-                            {
-                                c = '\n';
-                                advance(lexer);
-                                break;
-                            }
-
-                            default:
-                            {
-                                destroy_lexer(lexer);
-                                panic(lexer,file_name,"unterminated char literal");
-                                return true;
-                            }
+                            return true;
                         }
                     }
 

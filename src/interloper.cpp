@@ -1649,7 +1649,6 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             // TODO: we dont have namespacing
             else 
             {
-                assert(false);
                 // TODO: this wont print a full scope
                 panic(itl,itl_error::none,"no such scope %s\n",scope_node->scope.buf);
                 return make_builtin(itl,builtin_type::void_t);

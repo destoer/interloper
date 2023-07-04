@@ -22,6 +22,13 @@ std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
             return std::pair{value.v,value_type(itl,value)};               
         }
 
+        case ast_type::char_t:
+        {
+            CharNode* char_node = (CharNode*)node;
+
+            return std::pair(char_node->character,make_builtin(itl,builtin_type::c8_t));            
+        }
+
         case ast_type::symbol:
         {
             // TODO: atm this requires correct decl order

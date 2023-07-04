@@ -6,7 +6,20 @@ func main() s32
         print("count {}\n",i);
     }
 
-    print("{} is {} years old","john",20);
+    putchar('\n');
+
+    print("{} is {} years old\n","john",20);
+
+    v := 87;
+    ptr := &v;
+
+    print("{} : {b} : {x} : {}\n",v,v,v,ptr);
+
+    s := -5;
+    ptr_s := &s;
+    print("{} : {b} : {x} : {}\n",s,s,s,ptr_s);
+
+    print("{}",NULL);
 
     return 0;
 }

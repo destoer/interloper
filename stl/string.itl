@@ -43,24 +43,30 @@ enum itl_type
 // if printed in base 2, its 64 bits
 constant MAX_INT_CHARS : u32 = 64;
 
-
-func print_int(v : u32)
+func print_int(v : u32, base : u32)
 {
+    if(base > 16)
+    {
+        crash_and_burn("invalid base in print_int: \n");
+    }   
+
     if(v == 0)
     {
         write_string("0");
         return;
     }
 
+    DIGIT_CHAR : const c8[?] = "0123456789ABCDEF";
+
     buf : c8[MAX_INT_CHARS];
     digits : u32 = 0;
 
     while(v != 0)
     {
-        digit :=  v % 10;
-        v  = v / 10;
+        digit :=  v % base;
+        v  = v / base;
 
-        char : c8 = cast(c8,digit + '0');
+        char : c8 = DIGIT_CHAR[digit];
 
         buf[digits] = char;
 
@@ -73,10 +79,57 @@ func print_int(v : u32)
     write_buf(&buf[0],digits);
 }
 
-func format_int(any : Any)
+func print_dec(v : u32, sign : bool)
+{
+    if(sign)
+    {
+        v = ~v + 1;
+        write_string("-");
+    }
+
+    print_int(v,10);
+}
+
+func print_bin(v : u32)
+{
+    write_string("0b");
+    print_int(v,2);  
+}
+
+func print_hex(v : u32)
+{
+    write_string("0x");
+    print_int(v,16);
+}
+
+func format_int(any : Any, specifier: c8)
 {
     v := int_from_any(any);
-    print_int(v);
+
+    switch(specifier)
+    {
+        case 'd':
+        {
+            sign := is_signed(any.type);
+            print_dec(v,sign);
+        }
+
+        case 'b':
+        {
+            print_bin(v);
+        }
+
+        case 'x':
+        {
+            print_hex(v);
+        }
+
+        default:
+        {
+            sign := is_signed(any.type);
+            print_dec(v,sign);
+        }
+    }
 }
 
 func putchar(char : c8)
@@ -84,7 +137,7 @@ func putchar(char : c8)
     write_buf(&char,sizeof(char));
 }
 
-func print_arg(arg : Any)
+func print_arg(arg : Any, specifier : c8)
 {
     type := arg.type;
 
@@ -92,32 +145,32 @@ func print_arg(arg : Any)
     {
         case itl_type::u8_t:
         {
-            format_int(arg);
+            format_int(arg,specifier);
         }
 
         case itl_type::u16_t:
         {
-            format_int(arg);
+            format_int(arg,specifier);
         }
 
         case itl_type::u32_t:
         {
-            format_int(arg);
+            format_int(arg,specifier);
         }
 
         case itl_type::s8_t:
         {
-            format_int(arg);
+            format_int(arg,specifier);
         }
 
         case itl_type::s16_t:
         {
-            format_int(arg);
+            format_int(arg,specifier);
         }
 
         case itl_type::s32_t:
         {
-            format_int(arg);
+            format_int(arg,specifier);
         }
 
         case itl_type::c8_t:
@@ -129,7 +182,7 @@ func print_arg(arg : Any)
 
         case itl_type::byte_t:
         {
-            format_int(arg);
+            format_int(arg,specifier);
         }
 
         case itl_type::bool_t:
@@ -154,7 +207,18 @@ func print_arg(arg : Any)
 
         case itl_type::pointer_t:
         {
-            unimplemented("pointer print");
+            v := int_from_any(arg);
+
+            if(v == 0)
+            {
+                write_string("NULL");
+            }
+
+            else
+            {
+                write_string("0x");
+                print_int(v,16);
+            }
         }
 
         case itl_type::array_t:
@@ -210,22 +274,28 @@ func print_args(fmt : const string, args : Any[])
 
         if(char == '{')
         {
-            if(fmt.len <= i + 1)
+            if(fmt.len <= i + 1 || arg_count == args.len)
             {
+                crash_and_burn("ran out of args in print({})");
                 return;
             }
+        
+            specifier := fmt[i+1];
 
-            if(fmt[i+1] == '}')
+            // default fmt
+            if(specifier == '}')
             {
-                if(arg_count == args.len)
-                {
-                    //crash_and_burn("ran out of args in print({})",fmt);
-                    crash_and_burn("ran out of args in print({})");
-                }
-
-                print_arg(args[arg_count]);
+                print_arg(args[arg_count],'\0');
                 arg_count += 1;
                 i += 1;
+            }
+
+            // arg with specifier
+            else
+            {
+                print_arg(args[arg_count],specifier);
+                i += 2;
+                arg_count += 1;   
             }
         }
 

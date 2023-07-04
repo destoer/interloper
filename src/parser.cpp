@@ -1194,6 +1194,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
     
     if(itl.print_tokens)
     {
+        printf("tokens for file: %s\n",filename.buf);
         print_tokens(parser.tokens);
     }
     

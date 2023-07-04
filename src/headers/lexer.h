@@ -12,4 +12,5 @@ struct Lexer
     ArenaAllocator* string_allocator;
 
     b32 in_comment = false;
+    b32 error = false;
 };
