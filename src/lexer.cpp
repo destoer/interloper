@@ -220,6 +220,8 @@ char escape_char(Lexer& lexer, const String& file_name,char escape_char)
     } 
 }
 
+#include "lexer_lut.cpp"
+
 // TODO: change file to be a string, and just conv them all in
 b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
 {
@@ -251,453 +253,296 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
             continue;
         }
 
-        switch(c)
+        const u32 idx = u32(c);
+
+        // fast lookup
+        token_type match = LEXER_LOOKUP[idx].type;
+
+        if(match != token_type::error)
         {
-            case '\t': break;
-            case ' ': break;
-            case '\r': break;
-            case '\n':
+            // secondary chars
+            if(LEXER_LOOKUP[idx].chain)
             {
-                lexer.column = -1;
-                lexer.row++;
-                break;
-            }
+                // scan chain for match on next char
+                const char next = peek(lexer.idx+1,file);
 
-            case '(': insert_token(lexer,token_type::left_paren); break;
-
-            case ')': insert_token(lexer,token_type::right_paren); break;
-
-            case '{': insert_token(lexer,token_type::left_c_brace); break;
-
-            case '}': insert_token(lexer,token_type::right_c_brace); break;
-
-            case ',': insert_token(lexer,token_type::comma); break;
-
-            case '=': 
-            {
-                // equal
-                if(peek(lexer.idx+1,file) == '=')
+                const auto& chain = LEXER_LOOKUP[idx].chain;
+                for(u32 i = 0; i < LEXER_LOOKUP[idx].chain_size; i++)
                 {
-                    insert_token(lexer,token_type::logical_eq);
-                    advance(lexer);
-                }
-                
-                else
-                {
-                    insert_token(lexer,token_type::equal); 
-                }
-
-                
-                break;
-            }
-
-
-            // char literal
-            case '\'':
-            {
-                const u32 col = lexer.column;
-
-                const char c = peek(lexer.idx+1,file);
-
-                if(c == '\0')
-                {
-                    destroy_lexer(lexer);
-                    panic(lexer,file_name,"eof hit in middle of char literal");
-                    return true;
-                }
-
-                // potential escape char
-                else if(c == '\\')
-                {
-                    const char e = escape_char(lexer,file_name,peek(lexer.idx+2,file));
-
-                    if(lexer.error)
+                    if(next == chain[i].c)
                     {
-                        return true;
-                    }
-                    
-                    if(peek(lexer.idx+3,file) != '\'')
-                    {
-                        panic(lexer,file_name,"unterminated char literal");
-                        destroy_lexer(lexer);
-                        return true;
-                    }
-
-                    insert_token_char(lexer,e,col);
-                    advance(lexer,3);
-                }
-
-                else
-                {
-                    // normal char
-                    if(peek(lexer.idx+2,file) != '\'')
-                    {
-                        panic(lexer,file_name,"unterminated char literal");
-                        destroy_lexer(lexer);
-                        return true;
-                    }
-
-                    insert_token_char(lexer,c,col);
-                    advance(lexer,2);
-                }
-                break;
-            }
-
-            // string literal
-            case '\"':
-            {
-                const u32 start_col = lexer.column;
-                advance(lexer);
-
-
-                StringBuffer buffer;
-
-                while(lexer.idx < size)
-                {  
-                    char c = file[lexer.idx];
-
-                    // escape sequence
-                    if(c == '\\')
-                    {
-                        c = escape_char(lexer,file_name,peek(lexer.idx+1,file));
+                        match = chain[i].type;
                         advance(lexer);
+                        break;
+                    }
+                }
+            }
+
+            // insert result
+            insert_token(lexer,match);
+        }
+
+        // slow lookup
+        else
+        {
+            switch(c)
+            {
+                case '\t': break;
+                case ' ': break;
+                case '\r': break;
+                case '\n':
+                {
+                    lexer.column = -1;
+                    lexer.row++;
+                    break;
+                }
+
+
+                // char literal
+                case '\'':
+                {
+                    const u32 col = lexer.column;
+
+                    const char c = peek(lexer.idx+1,file);
+
+                    if(c == '\0')
+                    {
+                        destroy_lexer(lexer);
+                        panic(lexer,file_name,"eof hit in middle of char literal");
+                        return true;
+                    }
+
+                    // potential escape char
+                    else if(c == '\\')
+                    {
+                        const char e = escape_char(lexer,file_name,peek(lexer.idx+2,file));
 
                         if(lexer.error)
                         {
                             return true;
                         }
-                    }
-
-                    else if(c == '\"')
-                    {
-                        break;
-                    }
-
-                    advance(lexer);
-                    push_char(*lexer.string_allocator,buffer,c);
-                }
-
-                // null term the string
-                push_char(*lexer.string_allocator,buffer,'\0');
-
-                // create string fomr the array
-                String literal = make_string(buffer);
-
-                insert_token(lexer,token_type::string,literal,start_col);
-                break;
-            }
-
-
-            case '[': insert_token(lexer,token_type::sl_brace); break;
-
-            case ']': insert_token(lexer,token_type::sr_brace); break;
-
-            case '.':
-            { 
-                if(peek(lexer.idx + 1,file) == '.' && peek(lexer.idx + 2,file) == '.')
-                {
-                    insert_token(lexer,token_type::va_args);
-                    advance(lexer);
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::dot);
-                } 
-                break;
-            }
-            case '?': insert_token(lexer,token_type::qmark); break;
-
-            case ';': insert_token(lexer,token_type::semi_colon); break;
-
-            case ':': 
-            {
-                if(peek(lexer.idx+1,file) == ':')
-                {
-                    insert_token(lexer,token_type::scope);
-                    advance(lexer);
-                }
-
-                else if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::decl);
-                    advance(lexer);
-                }
-
-                else 
-                {
-                    insert_token(lexer,token_type::colon); 
-                }
-                break;
-            }
-
-            case '@': insert_token(lexer,token_type::deref); break;
-
-            case '*':
-            { 
-                if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::times_eq);
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::times); 
-                }
-                break;
-            }        
-
-            case '+':
-            {
-                if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::plus_eq);
-                    advance(lexer);
-                }
-
-                else if(peek(lexer.idx+1,file) == '+')
-                {
-                    insert_token(lexer,token_type::increment);
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::plus); 
-                }
-                break;
-            }
-
-            case '-': 
-            {
-                if(peek(lexer.idx+1,file) == '-')
-                {
-                    insert_token(lexer,token_type::decrement);
-                    advance(lexer);
-                }
-
-
-                // parse out negative literal
-                else if(isdigit(peek(lexer.idx+1,file)))
-                {
-                    if(decode_imm(lexer,file))
-                    {
-                        destroy_lexer(lexer);
-                        panic(lexer,file_name,"malformed integer literal");
-                        return true;
-                    }
-                }
-
-                else if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::minus_eq);
-                    advance(lexer);
-                }                
-
-                else
-                {
-                    insert_token(lexer,token_type::minus);
-                }
-                break;
-            }
-            
-
-            case '&':
-            {
-                // equal
-                if(peek(lexer.idx+1,file) == '&')
-                {
-                    insert_token(lexer,token_type::logical_and);
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::operator_and);
-                }
-                break;              
-            }
-
-            case '|':
-            {
-                // logical or
-                if(peek(lexer.idx+1,file) == '|')
-                {
-                    insert_token(lexer,token_type::logical_or);
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::bitwise_or);
-                }
-                break;              
-            }
-
-            case '~': insert_token(lexer,token_type::bitwise_not); break;
-            case '^': insert_token(lexer,token_type::bitwise_xor); break;
-
-            case '!':
-            {
-                // not equal
-                if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::logical_ne);
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::logical_not);
-                }
-                break;
-            }
-
-            case '<':
-            {
-                if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::logical_le);
-                    advance(lexer);
-                }
-
-                else if(peek(lexer.idx+1,file) == '<')
-                {
-                    insert_token(lexer,token_type::shift_l);
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::logical_lt);
-                }
-                break;
-            }
-
-            case '>':
-            {
-                if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::logical_ge);
-                    advance(lexer);
-                }
-
-                else if(peek(lexer.idx+1,file) == '>')
-                {
-                    insert_token(lexer,token_type::shift_r);
-                    advance(lexer);
-                }
-
-
-                else
-                {
-                    insert_token(lexer,token_type::logical_gt);
-                }
-                break;
-            }
-
-            case '%': insert_token(lexer,token_type::mod); break;
-
-            case '/': 
-            {
-                // we have comment eat tokens until a newline
-                if(peek(lexer.idx+1,file) == '/')
-                {
-                    while(lexer.idx < size)
-                    {
-                        if(file[lexer.idx] == '\n')
+                        
+                        if(peek(lexer.idx+3,file) != '\'')
                         {
-                            lexer.column = -1;
-                            lexer.row++;
-                            break;
+                            panic(lexer,file_name,"unterminated char literal");
+                            destroy_lexer(lexer);
+                            return true;
                         }
 
-                        advance(lexer);
-                    }
-                }
-
-                else if(peek(lexer.idx+1,file) == '=')
-                {
-                    insert_token(lexer,token_type::divide_eq);
-                    advance(lexer);
-                }
-
-                // start of multifile comment
-                else if(peek(lexer.idx+1,file) == '*')
-                {
-                    lexer.in_comment = true;
-                    advance(lexer);
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::divide);
-                } 
-                break;
-            }
-
-            default:
-            {
-                const u32 start_idx = lexer.idx;
-                const u32 start_col = lexer.column;
-
-                // potential symbol
-                if(isalpha(c) || c == '_')
-                {
-                    while(lexer.idx < size)
-                    {
-                        advance(lexer);
-                        const char x = file[lexer.idx];
-                        if(!isalnum(x) && x != '_')
-                        {
-                            advance(lexer,-1);
-                            break;
-                        }
-                    }
-
-                    String literal = copy_string(*lexer.string_allocator,string_slice(file,start_idx,(lexer.idx - start_idx) + 1));
-
-
-                    const s32 slot = keyword_lookup(literal);
-
-                    // if its a keyword identify its type
-                    // else its a symbol
-                    if(slot != INVALID_SLOT)
-                    {
-                        insert_token(lexer,KEYWORD_TABLE[slot].v,start_col);
+                        insert_token_char(lexer,e,col);
+                        advance(lexer,3);
                     }
 
                     else
                     {
-                        insert_token(lexer,token_type::symbol,literal,start_col);
-                    }
+                        // normal char
+                        if(peek(lexer.idx+2,file) != '\'')
+                        {
+                            panic(lexer,file_name,"unterminated char literal");
+                            destroy_lexer(lexer);
+                            return true;
+                        }
 
+                        insert_token_char(lexer,c,col);
+                        advance(lexer,2);
+                    }
+                    break;
                 }
 
-                // parse out a integer literal
-                // we will ignore floats for now
-                // 0b
-                // 0x
-                // 0
-                else if(isdigit(c))
+                // string literal
+                case '\"':
                 {
-                    if(decode_imm(lexer,file))
+                    const u32 start_col = lexer.column;
+                    advance(lexer);
+
+
+                    StringBuffer buffer;
+
+                    while(lexer.idx < size)
+                    {  
+                        char c = file[lexer.idx];
+
+                        // escape sequence
+                        if(c == '\\')
+                        {
+                            c = escape_char(lexer,file_name,peek(lexer.idx+1,file));
+                            advance(lexer);
+
+                            if(lexer.error)
+                            {
+                                return true;
+                            }
+                        }
+
+                        else if(c == '\"')
+                        {
+                            break;
+                        }
+
+                        advance(lexer);
+                        push_char(*lexer.string_allocator,buffer,c);
+                    }
+
+                    // null term the string
+                    push_char(*lexer.string_allocator,buffer,'\0');
+
+                    // create string fomr the array
+                    String literal = make_string(buffer);
+
+                    insert_token(lexer,token_type::string,literal,start_col);
+                    break;
+                }
+
+
+                case '.':
+                { 
+                    if(peek(lexer.idx + 1,file) == '.' && peek(lexer.idx + 2,file) == '.')
                     {
+                        insert_token(lexer,token_type::va_args);
+                        advance(lexer);
+                        advance(lexer);
+                    }
+
+                    else
+                    {
+                        insert_token(lexer,token_type::dot);
+                    } 
+                    break;
+                }
+
+                case '-': 
+                {
+                    if(peek(lexer.idx+1,file) == '-')
+                    {
+                        insert_token(lexer,token_type::decrement);
+                        advance(lexer);
+                    }
+
+
+                    // parse out negative literal
+                    else if(isdigit(peek(lexer.idx+1,file)))
+                    {
+                        if(decode_imm(lexer,file))
+                        {
+                            destroy_lexer(lexer);
+                            panic(lexer,file_name,"malformed integer literal");
+                            return true;
+                        }
+                    }
+
+                    else if(peek(lexer.idx+1,file) == '=')
+                    {
+                        insert_token(lexer,token_type::minus_eq);
+                        advance(lexer);
+                    }                
+
+                    else
+                    {
+                        insert_token(lexer,token_type::minus);
+                    }
+                    break;
+                }
+                
+                case '/': 
+                {
+                    // we have comment eat tokens until a newline
+                    if(peek(lexer.idx+1,file) == '/')
+                    {
+                        while(lexer.idx < size)
+                        {
+                            if(file[lexer.idx] == '\n')
+                            {
+                                lexer.column = -1;
+                                lexer.row++;
+                                break;
+                            }
+
+                            advance(lexer);
+                        }
+                    }
+
+                    else if(peek(lexer.idx+1,file) == '=')
+                    {
+                        insert_token(lexer,token_type::divide_eq);
+                        advance(lexer);
+                    }
+
+                    // start of multifile comment
+                    else if(peek(lexer.idx+1,file) == '*')
+                    {
+                        lexer.in_comment = true;
+                        advance(lexer);
+                    }
+
+                    else
+                    {
+                        insert_token(lexer,token_type::divide);
+                    } 
+                    break;
+                }
+
+                default:
+                {
+                    const u32 start_idx = lexer.idx;
+                    const u32 start_col = lexer.column;
+
+                    // potential symbol
+                    if(isalpha(c) || c == '_')
+                    {
+                        while(lexer.idx < size)
+                        {
+                            advance(lexer);
+                            const char x = file[lexer.idx];
+                            if(!isalnum(x) && x != '_')
+                            {
+                                advance(lexer,-1);
+                                break;
+                            }
+                        }
+
+                        const String literal_file = string_slice(file,start_idx,(lexer.idx - start_idx) + 1);
+
+                        const s32 slot = keyword_lookup(literal_file);
+
+                        // if its a keyword identify its type
+                        // else its a symbol
+                        if(slot != INVALID_SLOT)
+                        {
+                            insert_token(lexer,KEYWORD_TABLE[slot].v,start_col);
+                        }
+
+                        else
+                        {
+                            // need to copy literal as we ditch the file later
+                            const String literal = copy_string(*lexer.string_allocator,literal_file);
+                            insert_token(lexer,token_type::symbol,literal,start_col);
+                        }
+
+                    }
+
+                    // parse out a integer literal
+                    // we will ignore floats for now
+                    // 0b
+                    // 0x
+                    // 0
+                    else if(isdigit(c))
+                    {
+                        if(decode_imm(lexer,file))
+                        {
+                            destroy_lexer(lexer);
+                            panic(lexer,file_name,"malformed integer literal");
+                            return true;
+                        }
+                    }
+
+                    else
+                    {
+                        panic(lexer,file_name,"unexpected char '%c",c);
                         destroy_lexer(lexer);
-                        panic(lexer,file_name,"malformed integer literal");
                         return true;
                     }
+                    break;
                 }
-
-                else
-                {
-                    panic(lexer,file_name,"unexpected char '%c",c);
-                    destroy_lexer(lexer);
-                    return true;
-                }
-                break;
             }
         }
     }
