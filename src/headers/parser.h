@@ -254,8 +254,7 @@ struct AstNode
 {
     ast_type type;
     ast_fmt fmt;
-    u32 line;
-    u32 col;
+    u32 idx;
 };
 
 struct BinNode
@@ -493,7 +492,9 @@ struct Parser
 
     // error handling
     b32 error = false;
-    s32 line = 0;
+    u32 idx = 0;
+    u32 line = 0;
+    u32 col = 0;
 };
 
 void add_ast_pointer(Parser& parser, void* pointer);
@@ -509,8 +510,7 @@ T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
 
     node->type = type;
     node->fmt = fmt;
-    node->line = token.line;
-    node->col = token.col;
+    node->idx = token.idx;
 
     return ret_node;
 }
@@ -759,6 +759,8 @@ AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& fie
     return (AstNode*)builtin_access;
 }
 
+// scan file for row and column info
+std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
 inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
 {
@@ -772,10 +774,13 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     va_start(args, fmt);
     vprintf(fmt,args);
     va_end(args);
-    printf("at: %s line %d col %d\n\n",parser.cur_file.buf,token.line + 1,token.col + 1);
+    const auto [line,col] = get_line_info(parser.cur_file,token.idx);
+    printf("at: %s line %d col %d\n\n",parser.cur_file.buf,line,col);
 
     parser.error = true;
-    parser.line = token.line;
+    parser.line = parser.line;
+    parser.col = parser.col;
+    parser.idx = token.idx;
 }
 
 void print_depth(int depth);

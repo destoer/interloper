@@ -30,7 +30,7 @@ Token next_token(Parser &parser)
     {
         // TODO: make this return the actual file end
         // for row and col
-        return token_plain(token_type::eof,0,0);
+        return token_plain(token_type::eof,0);
     }
 
     return parser.tokens[parser.tok_idx++];  
@@ -50,7 +50,7 @@ Token peek(Parser &parser,u32 v)
     const auto idx = parser.tok_idx + v;
     if(idx >= count(parser.tokens))
     {
-        return token_plain(token_type::eof,0,0);
+        return token_plain(token_type::eof,0);
     }
 
     return parser.tokens[idx];
@@ -1311,7 +1311,7 @@ bool parse(Interloper& itl, const String& initial_filename)
     const String stl_path = make_static_string("stl/",strlen("stl/"));
 
     // import basic by default
-    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
+    //add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
 
     add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"internal.itl"));
 
@@ -1657,4 +1657,42 @@ void print(const AstNode *root)
     }
 
     depth -= 1;
+}
+
+std::pair<u32,u32> get_line_info(const String& filename, u32 idx)
+{
+    auto [file,err] = read_str_buf(filename);
+
+    if(err)
+    {
+        printf("file %s does not exist\n",filename.buf);
+        return std::pair{1,1};
+    }
+
+    // 1 indexed
+    u32 col = 1;
+    u32 row = 1;
+
+    for(u32 i = 0; i < file.size; i++)
+    {
+        if(i == idx)
+        {
+            break;
+        }
+
+        if(file[i] == '\n')
+        {
+            row += 1;
+            col = 0;
+        }
+
+        else
+        {
+            col += 1;
+        }
+    }
+
+    destroy_arr(file);
+
+    return std::pair{row,col};
 }
