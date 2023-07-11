@@ -3,13 +3,22 @@ using namespace destoer;
 
 #include <lexer_lut.cpp>
 
-void dump_state_table()
+void dump_state_table(int argc, char* argv[])
 {
-	printf("{\n");
-	for(u32 i = 0; i < LEX_CLASS_SIZE; i++)
+	const char* transistion = "LEX_CHAR_ERROR";
+
+	if(argc == 2)
 	{
-		printf("\tLEX_CHAR_ERROR, //%s\n",LEX_CLASS_NAMES[i]);
+		transistion = argv[1];
 	}
+
+	printf("{\n");
+	for(u32 i = 0; i < LEX_CLASS_SIZE - 1; i++)
+	{
+		printf("\t%s, //%s\n",transistion,LEX_CLASS_NAMES[i]);
+	}
+	printf("\tLEX_STATE_INVALID_CHAR,\n");
+
 	printf("},\n");
 }
 
@@ -84,11 +93,13 @@ void dump_misc_table()
     printf("};\n");	
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-	dump_misc_table();
+	UNUSED(argc); UNUSED(argv);
+
+	//dump_misc_table();
 
 	//dump_class_table();
 
-	//dump_state_table();
+	dump_state_table(argc,argv);
 }

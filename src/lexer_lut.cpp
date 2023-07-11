@@ -12,22 +12,10 @@ static constexpr u32 LEX_STATE_STRING_FIN = LEX_STATE_END + 3;
 static constexpr u32 LEX_STATE_MISC_FIN = LEX_STATE_END + 4;
 
 // terminator operators
-static constexpr u32 LEX_STATE_EQ = LEX_STATE_END + 5;
-static constexpr u32 LEX_STATE_COLON = LEX_STATE_END + 6;
-static constexpr u32 LEX_STATE_TIMES = LEX_STATE_END + 7;
-static constexpr u32 LEX_STATE_PLUS = LEX_STATE_END + 8;
-static constexpr u32 LEX_STATE_MINUS = LEX_STATE_END + 9;
-static constexpr u32 LEX_STATE_OR = LEX_STATE_END + 10;
-static constexpr u32 LEX_STATE_XOR = LEX_STATE_END + 11;
-static constexpr u32 LEX_STATE_AND = LEX_STATE_END + 12;
-static constexpr u32 LEX_STATE_NOT = LEX_STATE_END + 13;
-static constexpr u32 LEX_STATE_GT = LEX_STATE_END + 14;
-static constexpr u32 LEX_STATE_LT = LEX_STATE_END + 15;
-static constexpr u32 LEX_STATE_EOF = LEX_STATE_END + 16;
-static constexpr u32 LEX_STATE_CHAR = LEX_STATE_END + 17;
-static constexpr u32 LEX_STATE_DOT = LEX_STATE_END + 18;
-static constexpr u32 LEX_STATE_MOD = LEX_STATE_END + 19;
-static constexpr u32 LEX_STATE_FORWARD_SLASH = LEX_STATE_END + 20;
+static constexpr u32 LEX_STATE_EOF = LEX_STATE_END + 6;
+static constexpr u32 LEX_STATE_CHAR = LEX_STATE_END + 7;
+static constexpr u32 LEX_STATE_DOT = LEX_STATE_END + 8;
+static constexpr u32 LEX_STATE_FORWARD_SLASH = LEX_STATE_END + 9;
 
 // active
 // NOTE: keep this immedialty following termination 
@@ -35,22 +23,38 @@ static constexpr u32 LEX_STATE_ACTIVE = LEX_STATE_FORWARD_SLASH + 1;
 
 static constexpr u32 LEX_STATE_START = LEX_STATE_ACTIVE + 0;
 static constexpr u32 LEX_STATE_SYM = LEX_STATE_ACTIVE + 1; 
+static constexpr u32 LEX_STATE_TIMES = LEX_STATE_ACTIVE + 2;
+static constexpr u32 LEX_STATE_LT = LEX_STATE_ACTIVE + 3;  
+static constexpr u32 LEX_STATE_GT = LEX_STATE_ACTIVE + 4;
+static constexpr u32 LEX_STATE_COLON = LEX_STATE_ACTIVE + 5;  
+static constexpr u32 LEX_STATE_EQ = LEX_STATE_ACTIVE + 6;
+static constexpr u32 LEX_STATE_OR = LEX_STATE_ACTIVE + 7;
+static constexpr u32 LEX_STATE_AND = LEX_STATE_ACTIVE + 8;
+static constexpr u32 LEX_STATE_NOT = LEX_STATE_ACTIVE + 9;
+static constexpr u32 LEX_STATE_XOR = LEX_STATE_ACTIVE + 10;
+static constexpr u32 LEX_STATE_MOD = LEX_STATE_ACTIVE + 11;
+static constexpr u32 LEX_STATE_MINUS = LEX_STATE_ACTIVE + 12;
+static constexpr u32 LEX_STATE_PLUS = LEX_STATE_ACTIVE + 13;
 
-static constexpr u32 LEX_ACTIVE_STATE_SIZE = (LEX_STATE_SYM + 1) - LEX_STATE_ACTIVE; 
+static constexpr u32 LEX_ACTIVE_STATE_SIZE = (LEX_STATE_PLUS + 1) - LEX_STATE_ACTIVE; 
 
 const char* LEXER_ACTIVE_STATE_NAMES[LEX_ACTIVE_STATE_SIZE] = 
 {
     "start",
     "sym",
+	"times",
+	"lt",
+	"gt",
+	"colon",
+	"equal",
+	"or",
+	"and",
+	"not",
+	"xor",
+	"mod",
+	"sub",
+	"add",
 };
-
-
-b32 IN_TOKEN[LEX_ACTIVE_STATE_SIZE] = 
-{
-    false,
-    true,
-};
-
 
 enum class lex_class
 {
@@ -551,5 +555,321 @@ static constexpr u32 LEX_ACTIVE_STATES[LEX_ACTIVE_STATE_SIZE][LEX_CLASS_SIZE]
 	LEX_STATE_SYM_FIN, //eof
 	LEX_STATE_INVALID_CHAR, //error
 },
+
+// times
+{
+	u32(token_type::times), //whitespace
+	u32(token_type::times), //digit
+	u32(token_type::times), //alpha
+    u32(token_type::times), //misc
+	u32(token_type::times), //single_quote
+	u32(token_type::times), //double_quote
+	u32(token_type::times), //forward_slash
+	u32(token_type::times), //plus
+	u32(token_type::times), //minus
+	u32(token_type::times), //times
+	u32(token_type::times), //and
+	u32(token_type::times), //or
+	u32(token_type::times), //xor
+	u32(token_type::times), //gt
+	u32(token_type::times), //lt
+	u32(token_type::times), //colon
+	u32(token_type::times_eq), //equal
+	u32(token_type::times), //not
+	u32(token_type::times), //dot
+	u32(token_type::times), // mod
+	u32(token_type::times), //eof
+	LEX_STATE_INVALID_CHAR, //error
+},
+
+// lt
+{
+	u32(token_type::logical_lt), //whitespace
+	u32(token_type::logical_lt), //digit
+	u32(token_type::logical_lt), //alpha
+	u32(token_type::logical_lt), //token_misc
+	u32(token_type::logical_lt), //single_quote
+	u32(token_type::logical_lt), //double_quote
+	u32(token_type::logical_lt), //forward_slash
+	u32(token_type::logical_lt), //plus
+	u32(token_type::logical_lt), //minus
+	u32(token_type::logical_lt), //times
+	u32(token_type::logical_lt), //and
+	u32(token_type::logical_lt), //or
+	u32(token_type::logical_lt), //xor
+	u32(token_type::logical_lt), //gt
+	u32(token_type::shift_l), //lt
+	u32(token_type::logical_lt), //colon
+	u32(token_type::logical_le), //equal
+	u32(token_type::logical_lt), //not
+	u32(token_type::logical_lt), //dot
+	u32(token_type::logical_lt), //mod
+	u32(token_type::logical_lt), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+//gt
+{
+	u32(token_type::logical_gt), //whitespace
+	u32(token_type::logical_gt), //digit
+	u32(token_type::logical_gt), //alpha
+	u32(token_type::logical_gt), //token_misc
+	u32(token_type::logical_gt), //single_quote
+	u32(token_type::logical_gt), //double_quote
+	u32(token_type::logical_gt), //forward_slash
+	u32(token_type::logical_gt), //plus
+	u32(token_type::logical_gt), //minus
+	u32(token_type::logical_gt), //times
+	u32(token_type::logical_gt), //and
+	u32(token_type::logical_gt), //or
+	u32(token_type::logical_gt), //xor
+	u32(token_type::shift_r), //gt
+	u32(token_type::logical_gt), //lt
+	u32(token_type::logical_gt), //colon
+	u32(token_type::logical_ge), //equal
+	u32(token_type::logical_gt), //not
+	u32(token_type::logical_gt), //dot
+	u32(token_type::logical_gt), //mod
+	u32(token_type::logical_gt), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+
+// colon
+{
+	u32(token_type::colon), //whitespace
+	u32(token_type::colon), //digit
+	u32(token_type::colon), //alpha
+	u32(token_type::colon), //token_misc
+	u32(token_type::colon), //single_quote
+	u32(token_type::colon), //double_quote
+	u32(token_type::colon), //forward_slash
+	u32(token_type::colon), //plus
+	u32(token_type::colon), //minus
+	u32(token_type::colon), //times
+	u32(token_type::colon), //and
+	u32(token_type::colon), //or
+	u32(token_type::colon), //xor
+	u32(token_type::colon), //gt
+	u32(token_type::colon), //lt
+	u32(token_type::scope), //colon
+	u32(token_type::decl), //equal
+	u32(token_type::colon), //not
+	u32(token_type::colon), //dot
+	u32(token_type::colon), //mod
+	u32(token_type::colon), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+// equal
+{
+	u32(token_type::equal), //whitespace
+	u32(token_type::equal), //digit
+	u32(token_type::equal), //alpha
+	u32(token_type::equal), //token_misc
+	u32(token_type::equal), //single_quote
+	u32(token_type::equal), //double_quote
+	u32(token_type::equal), //forward_slash
+	u32(token_type::equal), //plus
+	u32(token_type::equal), //minus
+	u32(token_type::equal), //times
+	u32(token_type::equal), //and
+	u32(token_type::equal), //or
+	u32(token_type::equal), //xor
+	u32(token_type::equal), //gt
+	u32(token_type::equal), //lt
+	u32(token_type::equal), //colon
+	u32(token_type::logical_eq), //equal
+	u32(token_type::equal), //not
+	u32(token_type::equal), //dot
+	u32(token_type::equal), //mod
+	u32(token_type::equal), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+// or
+{
+	u32(token_type::bitwise_or), //whitespace
+	u32(token_type::bitwise_or), //digit
+	u32(token_type::bitwise_or), //alpha
+	u32(token_type::bitwise_or), //token_misc
+	u32(token_type::bitwise_or), //single_quote
+	u32(token_type::bitwise_or), //double_quote
+	u32(token_type::bitwise_or), //forward_slash
+	u32(token_type::bitwise_or), //plus
+	u32(token_type::bitwise_or), //minus
+	u32(token_type::bitwise_or), //times
+	u32(token_type::bitwise_or), //and
+	u32(token_type::logical_or), //or
+	u32(token_type::bitwise_or), //xor
+	u32(token_type::bitwise_or), //gt
+	u32(token_type::bitwise_or), //lt
+	u32(token_type::bitwise_or), //colon
+	u32(token_type::bitwise_or), //equal
+	u32(token_type::bitwise_or), //not
+	u32(token_type::bitwise_or), //dot
+	u32(token_type::bitwise_or), //mod
+	u32(token_type::bitwise_or), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+
+// and
+{
+	u32(token_type::operator_and), //whitespace
+	u32(token_type::operator_and), //digit
+	u32(token_type::operator_and), //alpha
+	u32(token_type::operator_and), //token_misc
+	u32(token_type::operator_and), //single_quote
+	u32(token_type::operator_and), //double_quote
+	u32(token_type::operator_and), //forward_slash
+	u32(token_type::operator_and), //plus
+	u32(token_type::operator_and), //minus
+	u32(token_type::operator_and), //times
+	u32(token_type::logical_and), //and
+	u32(token_type::operator_and), //or
+	u32(token_type::operator_and), //xor
+	u32(token_type::operator_and), //gt
+	u32(token_type::operator_and), //lt
+	u32(token_type::operator_and), //colon
+	u32(token_type::operator_and), //equal
+	u32(token_type::operator_and), //not
+	u32(token_type::operator_and), //dot
+	u32(token_type::operator_and), //mod
+	u32(token_type::operator_and), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+// not
+{
+	u32(token_type::logical_not), //whitespace
+	u32(token_type::logical_not), //digit
+	u32(token_type::logical_not), //alpha
+	u32(token_type::logical_not), //token_misc
+	u32(token_type::logical_not), //single_quote
+	u32(token_type::logical_not), //double_quote
+	u32(token_type::logical_not), //forward_slash
+	u32(token_type::logical_not), //plus
+	u32(token_type::logical_not), //minus
+	u32(token_type::logical_not), //times
+	u32(token_type::logical_not), //and
+	u32(token_type::logical_not), //or
+	u32(token_type::logical_not), //xor
+	u32(token_type::logical_not), //gt
+	u32(token_type::logical_not), //lt
+	u32(token_type::logical_not), //colon
+	u32(token_type::logical_ne), //equal
+	u32(token_type::logical_not), //not
+	u32(token_type::logical_not), //dot
+	u32(token_type::logical_not), //mod
+	u32(token_type::logical_not), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+// xor
+{
+	u32(token_type::bitwise_xor), //whitespace
+	u32(token_type::bitwise_xor), //digit
+	u32(token_type::bitwise_xor), //alpha
+	u32(token_type::bitwise_xor), //token_misc
+	u32(token_type::bitwise_xor), //single_quote
+	u32(token_type::bitwise_xor), //double_quote
+	u32(token_type::bitwise_xor), //forward_slash
+	u32(token_type::bitwise_xor), //plus
+	u32(token_type::bitwise_xor), //minus
+	u32(token_type::bitwise_xor), //times
+	u32(token_type::bitwise_xor), //and
+	u32(token_type::bitwise_xor), //or
+	u32(token_type::bitwise_xor), //xor
+	u32(token_type::bitwise_xor), //gt
+	u32(token_type::bitwise_xor), //lt
+	u32(token_type::bitwise_xor), //colon
+	u32(token_type::bitwise_xor), //equal
+	u32(token_type::bitwise_xor), //not
+	u32(token_type::bitwise_xor), //dot
+	u32(token_type::bitwise_xor), //mod
+	u32(token_type::bitwise_xor), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+// mod
+{
+	u32(token_type::mod), //whitespace
+	u32(token_type::mod), //digit
+	u32(token_type::mod), //alpha
+	u32(token_type::mod), //token_misc
+	u32(token_type::mod), //single_quote
+	u32(token_type::mod), //double_quote
+	u32(token_type::mod), //forward_slash
+	u32(token_type::mod), //plus
+	u32(token_type::mod), //minus
+	u32(token_type::mod), //times
+	u32(token_type::mod), //and
+	u32(token_type::mod), //or
+	u32(token_type::mod), //xor
+	u32(token_type::mod), //gt
+	u32(token_type::mod), //lt
+	u32(token_type::mod), //colon
+	u32(token_type::mod), //equal
+	u32(token_type::mod), //not
+	u32(token_type::mod), //dot
+	u32(token_type::mod), //mod
+	u32(token_type::mod), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+// sub
+{
+	u32(token_type::minus), //whitespace
+	LEX_STATE_INT_FIN, //digit
+	u32(token_type::minus), //alpha
+	u32(token_type::minus), //token_misc
+	u32(token_type::minus), //single_quote
+	u32(token_type::minus), //double_quote
+	u32(token_type::minus), //forward_slash
+	u32(token_type::minus), //plus
+	u32(token_type::decrement), //minus
+	u32(token_type::minus), //times
+	u32(token_type::minus), //and
+	u32(token_type::minus), //or
+	u32(token_type::minus), //xor
+	u32(token_type::minus), //gt
+	u32(token_type::minus), //lt
+	u32(token_type::minus), //colon
+	u32(token_type::minus_eq), //equal
+	u32(token_type::minus), //not
+	u32(token_type::minus), //dot
+	u32(token_type::minus), //mod
+	u32(token_type::minus), //eof
+	LEX_STATE_INVALID_CHAR,
+},
+
+
+// add
+{
+	u32(token_type::plus), //whitespace
+	u32(token_type::plus), //digit
+	u32(token_type::plus), //alpha
+    u32(token_type::plus), //misc
+	u32(token_type::plus), //single_quote
+	u32(token_type::plus), //double_quote
+	u32(token_type::plus), //forward_slash
+	u32(token_type::increment), //plus
+	u32(token_type::plus), //minus
+	u32(token_type::plus), //times
+	u32(token_type::plus), //and
+	u32(token_type::plus), //or
+	u32(token_type::plus), //xor
+	u32(token_type::plus), //gt
+	u32(token_type::plus), //lt
+	u32(token_type::plus), //colon
+	u32(token_type::plus_eq), //equal
+	u32(token_type::plus), //not
+	u32(token_type::plus), //dot
+	u32(token_type::plus), // mod
+	u32(token_type::plus), //eof
+	LEX_STATE_INVALID_CHAR, //error
+},
+
 
 };

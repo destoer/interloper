@@ -117,14 +117,10 @@ enum class token_type
 
 struct TokInfo
 {
-    TokInfo(token_type t,const char *n,int32_t l) : type(t), name(n), lbp(l)
-    {
-
-    }
-
     token_type type;
     const char *name;
     s32 lbp;
+    u32 size = 0;
 };
 
 static constexpr size_t TOKEN_SIZE = static_cast<size_t>(token_type::END)+1;
@@ -141,7 +137,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::null_t,"NULL",0},
 
     {token_type::semi_colon,";",-1},
-    {token_type::colon,":",-1},
+    {token_type::colon,":",-1,1},
 
     {token_type::left_c_brace,"{",-1},
     {token_type::right_c_brace,"}",-1},
@@ -152,14 +148,14 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::comma,",",-1},
     {token_type::va_args,"...",-1},
 
-    {token_type::equal,"=",2},
-    {token_type::plus_eq,"+=",2},
-    {token_type::minus_eq,"-=",2},
-    {token_type::times_eq,"*=",2},
-    {token_type::divide_eq,"/=",2},
+    {token_type::equal,"=",2,1},
+    {token_type::plus_eq,"+=",2,2},
+    {token_type::minus_eq,"-=",2,2},
+    {token_type::times_eq,"*=",2,2},
+    {token_type::divide_eq,"/=",2,2},
 
 
-    {token_type::decl,":=",-1},
+    {token_type::decl,":=",-1,2},
 
     {token_type::const_t,"const",-1},
 
@@ -187,17 +183,17 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     
     {token_type::struct_t,"struct",-1},
     {token_type::enum_t,"enum",-1},
-    {token_type::scope,"::",-1},
+    {token_type::scope,"::",-1,2},
 
 
     {token_type::func,"func",-1},
     {token_type::ret,"return",-1},
 
-    {token_type::times,"*",21},
-    {token_type::plus,"+",20},
-    {token_type::minus,"-",20},
-    {token_type::divide,"/",21},
-    {token_type::mod,"%",21},
+    {token_type::times,"*",21,1},
+    {token_type::plus,"+",20,1},
+    {token_type::minus,"-",20,1},
+    {token_type::divide,"/",21,1},
+    {token_type::mod,"%",21,1},
     {token_type::increment,"++",-1},
     {token_type::decrement,"--",-1},
 
@@ -207,27 +203,27 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::dot,".",-1},
     {token_type::qmark,"?",-1},
 
-    {token_type::shift_l,"<<",13},
-    {token_type::shift_r,">>",13},
+    {token_type::shift_l,"<<",13,2},
+    {token_type::shift_r,">>",13,2},
 
-    {token_type::deref,"@",30},
+    {token_type::deref,"@",30,1},
 
-    {token_type::operator_and,"&",10},
-    {token_type::bitwise_or,"|",9},
+    {token_type::operator_and,"&",10,1},
+    {token_type::bitwise_or,"|",9,1},
     {token_type::bitwise_not,"~",-1}, // unary
-    {token_type::bitwise_xor,"^",8},
+    {token_type::bitwise_xor,"^",8,1},
 
-    {token_type::logical_or,"||",6},
-    {token_type::logical_and,"&&",5},
-    {token_type::logical_not,"!",7},
+    {token_type::logical_or,"||",6,2},
+    {token_type::logical_and,"&&",5,2},
+    {token_type::logical_not,"!",7,1},
 
-    {token_type::logical_eq,"==",11},
-    {token_type::logical_ne,"!=",11},
+    {token_type::logical_eq,"==",11,2},
+    {token_type::logical_ne,"!=",11,2},
 
-    {token_type::logical_lt,"<",12},
-    {token_type::logical_gt,">",12},
-    {token_type::logical_le,"<=",12},
-    {token_type::logical_ge,">=",12},
+    {token_type::logical_lt,"<",12,1},
+    {token_type::logical_gt,">",12,1},
+    {token_type::logical_le,"<=",12,2},
+    {token_type::logical_ge,">=",12,2},
 
     {token_type::for_t,"for",-1},
     {token_type::while_t,"while",-1},

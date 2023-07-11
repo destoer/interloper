@@ -10,11 +10,6 @@ void print_tokens(const Array<Token> &tokens)
 }
 
 
-char peek(u32 offset, const String& file)
-{
-    return offset < file.size? file[offset] : '\0';
-}
-
 void insert_token(Lexer &lexer, token_type type)
 {
     push_var(lexer.tokens,token_plain(type,lexer.idx));
@@ -197,7 +192,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
         while(state >= LEX_STATE_ACTIVE)
         {
             const u32 active_idx = state - LEX_STATE_ACTIVE;
-            len += IN_TOKEN[active_idx];
+            len += state != LEX_STATE_START;
 
             const char c = *src++;
             lex_class lc = LEX_CLASS[u32(c)];
@@ -321,7 +316,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
 
             case LEX_STATE_INT_FIN:
             {
-                src--;
+                src = start;
                 const auto [value,err] = parse_value(&src);
 
                 if(err)
@@ -361,195 +356,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 }
                 break;
             }
-
-            case LEX_STATE_COLON:
-            {
-                const char peek = *src;
-
-                if(peek == ':')
-                {
-                    insert_token(lexer,token_type::scope);
-                    src++;
-                }
-
-                else if(peek == '=')
-                {
-                    insert_token(lexer,token_type::decl);
-                    src++;
-                }
-
-                else 
-                {
-                    insert_token(lexer,token_type::colon);
-                }
-
-                break;
-            }
-
-            case LEX_STATE_EQ:
-            {
-                const char peek = *src;
-
-                // logical equality
-                if(peek == '=')
-                {
-                    insert_token(lexer,token_type::logical_eq);
-                    src++;
-                }
-                
-                else
-                {
-                    insert_token(lexer,token_type::equal); 
-                }
-
-                break;
-            }
-
-            case LEX_STATE_TIMES:
-            {
-                const char peek = *src;
-
-                if(peek == '=')
-                {
-                    insert_token(lexer,token_type::times_eq);
-                    src++;
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::times); 
-                }
-                break;
-            }
-
-            case LEX_STATE_PLUS:
-            {
-                const char peek = *src;
-
-                if(peek == '=')
-                {
-                    insert_token(lexer,token_type::plus_eq);
-                    src++;
-                }
-
-                else if(peek == '+')
-                {
-                    insert_token(lexer,token_type::increment);
-                    src++;
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::plus);
-                }
-
-                break;
-            }
-
-            case LEX_STATE_MINUS:
-            {
-                const char peek = *src;
-
-                if(peek == '-')
-                {
-                    insert_token(lexer,token_type::decrement);
-                    src++;
-                }
-
-                // parse out negative literal
-                else if(isdigit(peek))
-                {
-                    src--;
-                    auto [value,err] = parse_value(&src);
-
-                    if(err)
-                    {
-                        destroy_lexer(lexer);
-                        panic(lexer,file_name,"malformed integer literal");
-                        return true;
-                    }
-
-                    insert_token_value(lexer,value);
-                }
-
-                else if(peek == '=')
-                {
-                    insert_token(lexer,token_type::minus_eq);
-                    src++;
-                }                
-
-                else
-                {
-                    insert_token(lexer,token_type::minus);
-                }
-                break;
-            }
-        
-            case LEX_STATE_OR:
-            {
-                const char peek = *src;
-
-                // logical or
-                if(peek == '|')
-                {
-                    insert_token(lexer,token_type::logical_or);
-                    src++;
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::bitwise_or);
-                }
-                break;
-            }
-
-            case LEX_STATE_AND:
-            {
-                const char peek = *src;
-
-                // equal
-                if(peek == '&')
-                {
-                    insert_token(lexer,token_type::logical_and);
-                    src++;
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::operator_and);
-                }
-                break;
-            }
-
-            case LEX_STATE_NOT:
-            {
-                const char peek = *src;
-                if(peek == '=')
-                {
-                    insert_token(lexer,token_type::logical_ne);
-                    src++;
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::logical_not);
-                }
-
-                break;
-            }
-
-            case LEX_STATE_XOR:
-            {
-                insert_token(lexer,token_type::bitwise_xor);
-                break;
-            }
-
-            case LEX_STATE_MOD:
-            {
-                insert_token(lexer,token_type::mod);
-                break;
-            }
-
+            
             case LEX_STATE_DOT:
             {
                 if(*src == '.' && src[1] == '.')
@@ -562,54 +369,6 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 {
                     insert_token(lexer,token_type::dot);
                 }                 
-                break;
-            }
-
-            case LEX_STATE_GT:
-            {
-                const char peek = *src;
-
-                if(peek == '=')
-                {
-                    insert_token(lexer,token_type::logical_ge);
-                    src++;
-                }
-
-                else if(peek == '>')
-                {
-                    insert_token(lexer,token_type::shift_r);
-                    src++;
-                }
-
-
-                else
-                {
-                    insert_token(lexer,token_type::logical_gt);
-                }
-
-                break;
-            }
-
-            case LEX_STATE_LT:
-            {
-                const char peek = *src;
-
-                if(peek == '=')
-                {
-                    insert_token(lexer,token_type::logical_le);
-                    src++;
-                }
-
-                else if(peek == '<')
-                {
-                    insert_token(lexer,token_type::shift_l);
-                    src++;
-                }
-
-                else
-                {
-                    insert_token(lexer,token_type::logical_lt);
-                }                
                 break;
             }
 
@@ -667,7 +426,14 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 return false;            
             }
 
-            default: assert(false);
+            default:
+            {
+                const u32 size = TOKEN_INFO[state].size;
+
+                insert_token(lexer,token_type(state));
+                src = start + size;
+                break;
+            }
         }
     }
 
