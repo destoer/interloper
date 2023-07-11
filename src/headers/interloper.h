@@ -141,11 +141,10 @@ inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
 
     if(itl.cur_expr)
     {
-        const u32 line = itl.cur_expr->line;
-        const u32 col = itl.cur_expr->col;
+        const auto [line,col] = get_line_info(itl.cur_file,itl.cur_expr->idx);
         const String filename = itl.cur_file;
 
-        printf("error: %s %d:%d: ",filename.buf,line + 1,col + 1);
+        printf("error: %s %d:%d: ",filename.buf,line,col);
 
 
         va_list args; 
@@ -153,7 +152,7 @@ inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
         vprintf(fmt,args);
         va_end(args);
 
-        print_line(filename,line+1);
+        print_line(filename,line);
     }
 
     else 

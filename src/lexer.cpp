@@ -10,171 +10,27 @@ void print_tokens(const Array<Token> &tokens)
 }
 
 
-char peek(u32 offset, const String& file)
-{
-    return offset < file.size? file[offset] : '\0';
-}
-
 void insert_token(Lexer &lexer, token_type type)
 {
-    push_var(lexer.tokens,token_plain(type,lexer.row,lexer.column));
+    push_var(lexer.tokens,token_plain(type,lexer.idx));
 }
 
 
-void insert_token(Lexer &lexer, token_type type, u32 col)
+void insert_token(Lexer &lexer, token_type type, const String &literal)
 {
-    push_var(lexer.tokens,token_plain(type,lexer.row,col));
+    push_var(lexer.tokens,token_literal(type,literal,lexer.idx));
 }
 
-void insert_token(Lexer &lexer, token_type type, const String &literal, u32 col)
+void insert_token_char(Lexer& lexer,char c)
 {
-    push_var(lexer.tokens,token_literal(type,literal,lexer.row,col));
+    push_var(lexer.tokens,token_char(c,lexer.idx));
 }
 
-void insert_token_char(Lexer& lexer,char c, u32 col)
+void insert_token_value(Lexer& lexer,const Value& value)
 {
-    push_var(lexer.tokens,token_char(c,lexer.row,col));
+    push_var(lexer.tokens,token_value(value,lexer.idx));
 }
 
-void insert_token_value(Lexer& lexer,const Value& value, u32 col)
-{
-    push_var(lexer.tokens,token_value(value,lexer.row,col));
-}
-
-
-template<typename F>
-bool read_immediate_internal(String& literal, u32 offset, F lambda)
-{
-    for(u32 i = offset; i < literal.size; i++)
-    {
-        // valid part of the value
-        if(lambda(literal[i]))
-        {
-            continue;
-        }
-
-        // values cannot have these at the end!
-        else if(isalpha(literal[i]))
-        {
-            return false;
-        }
-
-        // we have  < ; + , etc stop parsing
-        else 
-        {
-            // clamp string to the actual literal length 
-            literal.size = i - 1;
-            break;
-        }
-    }
-
-    return true;
-}
-
-
-bool read_immediate(String& literal)
-{
-    // an empty immediate aint much use to us
-    if(!literal.size)
-    {
-        return true;
-    }
-
-    u32 offset = 0;
-
-    const auto c = literal[0];
-
-    // allow - or +
-    if(c == '-' || c == '+')
-    {
-        offset = 1;
-        // no digit after the sign is of no use
-        if(literal.size == 1)
-        {
-            return true;
-        }
-    }
-
-    bool valid = false;
-
-    // verify we have a valid hex number
-    if(string_equal(string_slice(literal,offset,2),"0x"))
-    {
-        // skip past the prefix
-        offset += 2;
-        valid = read_immediate_internal(literal,offset,[](const char c) 
-        {
-            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
-        });
-    }
-
-    // verify its ones or zeros
-    else if(string_equal(string_slice(literal,offset,2),"0x"))
-    {
-        // skip past the prefix
-        offset += 2;                
-        valid = read_immediate_internal(literal,offset,[](const char c) 
-        {
-            return c == '0' || c == '1';
-        });
-    }
-
-    // verify we have all digits
-    else
-    {
-        valid = read_immediate_internal(literal,offset,[](const char c) 
-        {
-            return c >= '0' && c <= '9';
-        });
-    }
-    
-
-    return !valid;
-}
-
-void advance(Lexer& lexer, s32 v = 1)
-{
-    lexer.column += v;
-    lexer.idx += v;
-}
-
-// TODO: make sure the number fits in 32 bits
-u32 convert_imm(const String& str)
-{
-    return strtol(str.buf,NULL,0);
-}
-
-
-
-// true on error
-bool decode_imm(Lexer &lexer,const String& file)
-{
-    const u32 start_idx = lexer.idx;
-    const u32 start_col = lexer.column;
-
-    // get back out a literal for parsing
-    // TODO: make this use slicing on the string
-    String literal = string_slice(file,lexer.idx,file.size - lexer.idx);
-    const bool error = read_immediate(literal);
-
-    if(error)
-    {
-        return true;
-    }
-
-    // get the value from the string
-    const u32 v = convert_imm(literal);
-    const bool sign = file[start_idx] == '-';
-
-    const Value value = {v,sign};
-
-    insert_token_value(lexer,value,start_col);
-
-    // ignore the terminator
-    advance(lexer,literal.size);
-
-    return false; 
-}
 
 #include "keyword_hashtable.cpp"
 
@@ -192,7 +48,8 @@ void destroy_lexer(Lexer& lexer)
 void panic(Lexer& lexer, const String& filename, const char* fmt, ...)
 {
     lexer.error = true;
-    printf("lexer error: %s %d:%d: ",filename.buf,lexer.row+1,lexer.column+1);
+    auto [row,col] = get_line_info(filename,lexer.idx);
+    printf("lexer error: %s %d:%d: ",filename.buf,row,col);
 
     va_list args; 
     va_start(args, fmt);
@@ -201,7 +58,7 @@ void panic(Lexer& lexer, const String& filename, const char* fmt, ...)
 
     putchar('\n');
 
-    print_line(filename,lexer.row+1);   
+    print_line(filename,row);   
 }
 
 char escape_char(Lexer& lexer, const String& file_name,char escape_char)
@@ -220,334 +77,366 @@ char escape_char(Lexer& lexer, const String& file_name,char escape_char)
     } 
 }
 
+std::pair<Value,b32> parse_value(const char** src_ptr)
+{
+    const char* src = *src_ptr;
+
+    // default to base 10
+    u32 base = 10;
+    Value value;
+
+    // check sign
+    if(*src == '-')
+    {
+        value.sign = true;
+        src++;
+    }
+
+    // peek for base
+    if(*src == '0')
+    {
+        if(src[1] == 'x')
+        {
+            base = 16;
+            src += 2;
+        }
+
+        else if(src[1] == 'b')
+        {
+            base = 2;
+            src += 2;
+        }
+    }
+
+    b32 done = false;
+
+    while(!done)
+    {
+        const char c = toupper(*src);
+ 
+        // ignore _
+        if(c == '_')
+        {
+            src++;
+            continue;
+        }
+
+        u32 v = 0;
+
+        // convert the digit
+        if(base >= 2 && c >= '0' && c <= '1')
+        {
+            v = c - '0';
+        }
+
+        else if(base >= 10 && c >= '2' && c <= '9')
+        {
+            v = c - '0';
+        }
+
+        else if(base >= 16 && c >= 'A' && c <= 'F')
+        {
+            v = 10 + (c - 'A');
+        }
+
+        else
+        {
+            // alpha in this context is an error
+            if(isalpha(c))
+            {
+                return std::pair{value,true};
+            }
+
+            else
+            {
+                done = true;
+                break;                
+            }
+        }
+
+        // acummulate digit
+        value.v *= base;
+        value.v += v;
+
+        src++;
+    }
+
+    // make twos complement
+    if(value.sign)
+    {
+        value.v = (~value.v) + 1;
+    }
+
+    *src_ptr = src;
+    return std::pair{value,false};
+}
+
 #include "lexer_lut.cpp"
 
 // TODO: change file to be a string, and just conv them all in
+// based upon https://nothings.org/computer/lexing.html
 b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
 {
     Lexer lexer;
 
-    lexer.row = 0;
-    lexer.column = 0;
     lexer.string_allocator = string_allocator; 
 
-    const auto size = file.size;
-    for(lexer.idx = 0; lexer.idx < size; advance(lexer))
+    const char* src = file.buf;
+    
+    for(;;)
     {
-        auto c = file[lexer.idx];
+        u32 len = 0;
+        u32 state = LEX_STATE_START;
 
-        if(lexer.in_comment)
+        // still need to parse token
+        while(state >= LEX_STATE_ACTIVE)
         {
-            if(c == '\n')
-            {
-                lexer.column = -1;
-                lexer.row++;                
-            }
+            const u32 active_idx = state - LEX_STATE_ACTIVE;
+            len += state != LEX_STATE_START;
 
-            else if(c == '*' && peek(lexer.idx+1,file) == '/')
-            {
-                lexer.in_comment = false;
-                advance(lexer);
-            }
-
-            continue;
+            const char c = *src++;
+            lex_class lc = LEX_CLASS[u32(c)];
+            state = LEX_ACTIVE_STATES[active_idx][u32(lc)];
         }
 
-        const u32 idx = u32(c);
+        const char* start = (src - (len + 1));
+        lexer.idx =  start - file.buf;
 
-        // fast lookup
-        token_type match = LEXER_LOOKUP[idx].type;
-
-        if(match != token_type::error)
+        // switch on end state to handle resolution of any multi char tokens
+        switch(state)
         {
-            // secondary chars
-            if(LEXER_LOOKUP[idx].chain)
+            case LEX_STATE_INVALID_CHAR:
             {
-                // scan chain for match on next char
-                const char next = peek(lexer.idx+1,file);
-
-                const auto& chain = LEXER_LOOKUP[idx].chain;
-                for(u32 i = 0; i < LEXER_LOOKUP[idx].chain_size; i++)
-                {
-                    if(next == chain[i].c)
-                    {
-                        match = chain[i].type;
-                        advance(lexer);
-                        break;
-                    }
-                }
+                src--;
+                panic(lexer,file_name,"Invalid char '%c' : %d\n",*src,*src);
+                destroy_lexer(lexer);
+                return true;
             }
 
-            // insert result
-            insert_token(lexer,match);
-        }
-
-        // slow lookup
-        else
-        {
-            switch(c)
+            case LEX_STATE_STRING_FIN:
             {
-                case '\t': break;
-                case ' ': break;
-                case '\r': break;
-                case '\n':
-                {
-                    lexer.column = -1;
-                    lexer.row++;
-                    break;
-                }
+                // we skip '"'
+            
+                StringBuffer buffer;
 
+                while(*src)
+                {  
+                    char c = *src++;
 
-                // char literal
-                case '\'':
-                {
-                    const u32 col = lexer.column;
-
-                    const char c = peek(lexer.idx+1,file);
-
-                    if(c == '\0')
+                    // escape sequence
+                    if(c == '\\')
                     {
-                        destroy_lexer(lexer);
-                        panic(lexer,file_name,"eof hit in middle of char literal");
-                        return true;
-                    }
-
-                    // potential escape char
-                    else if(c == '\\')
-                    {
-                        const char e = escape_char(lexer,file_name,peek(lexer.idx+2,file));
+                        c = escape_char(lexer,file_name,*src);
+                        src++;
 
                         if(lexer.error)
                         {
                             return true;
                         }
-                        
-                        if(peek(lexer.idx+3,file) != '\'')
-                        {
-                            panic(lexer,file_name,"unterminated char literal");
-                            destroy_lexer(lexer);
-                            return true;
-                        }
-
-                        insert_token_char(lexer,e,col);
-                        advance(lexer,3);
                     }
 
-                    else
+                    else if(c == '\"')
                     {
-                        // normal char
-                        if(peek(lexer.idx+2,file) != '\'')
-                        {
-                            panic(lexer,file_name,"unterminated char literal");
-                            destroy_lexer(lexer);
-                            return true;
-                        }
-
-                        insert_token_char(lexer,c,col);
-                        advance(lexer,2);
+                        break;
                     }
-                    break;
+
+                    push_char(*lexer.string_allocator,buffer,c);
                 }
 
-                // string literal
-                case '\"':
+                // null term the string
+                push_char(*lexer.string_allocator,buffer,'\0');
+
+                // create string fomr the array
+                String literal = make_string(buffer);
+
+                insert_token(lexer,token_type::string,literal);
+                break;
+            }
+
+            case LEX_STATE_FORWARD_SLASH:
+            {
+                const char peek = *src;
+
+                // comment process tokens until newline
+                if(peek == '/')
                 {
-                    const u32 start_col = lexer.column;
-                    advance(lexer);
-
-
-                    StringBuffer buffer;
-
-                    while(lexer.idx < size)
-                    {  
-                        char c = file[lexer.idx];
-
-                        // escape sequence
-                        if(c == '\\')
-                        {
-                            c = escape_char(lexer,file_name,peek(lexer.idx+1,file));
-                            advance(lexer);
-
-                            if(lexer.error)
-                            {
-                                return true;
-                            }
-                        }
-
-                        else if(c == '\"')
+                    src++;
+                    while(*src)
+                    {
+                        const char c = *src++;
+                        if(c == '\n')
                         {
                             break;
                         }
-
-                        advance(lexer);
-                        push_char(*lexer.string_allocator,buffer,c);
                     }
-
-                    // null term the string
-                    push_char(*lexer.string_allocator,buffer,'\0');
-
-                    // create string fomr the array
-                    String literal = make_string(buffer);
-
-                    insert_token(lexer,token_type::string,literal,start_col);
-                    break;
                 }
 
-
-                case '.':
-                { 
-                    if(peek(lexer.idx + 1,file) == '.' && peek(lexer.idx + 2,file) == '.')
-                    {
-                        insert_token(lexer,token_type::va_args);
-                        advance(lexer);
-                        advance(lexer);
-                    }
-
-                    else
-                    {
-                        insert_token(lexer,token_type::dot);
-                    } 
-                    break;
-                }
-
-                case '-': 
+                // multi line comment
+                else if(peek == '*')
                 {
-                    if(peek(lexer.idx+1,file) == '-')
+                    b32 done = false;
+                    src++;
+                    while(!done)
                     {
-                        insert_token(lexer,token_type::decrement);
-                        advance(lexer);
-                    }
-
-
-                    // parse out negative literal
-                    else if(isdigit(peek(lexer.idx+1,file)))
-                    {
-                        if(decode_imm(lexer,file))
+                        const char c = *src++;
+                        
+                        if(!c)
                         {
-                            destroy_lexer(lexer);
-                            panic(lexer,file_name,"malformed integer literal");
-                            return true;
+                            done = true;
+                        }
+
+                        else if(c == '*' && src[0] == '/')
+                        {
+                            done = true;
+                            src++;
                         }
                     }
-
-                    else if(peek(lexer.idx+1,file) == '=')
-                    {
-                        insert_token(lexer,token_type::minus_eq);
-                        advance(lexer);
-                    }                
-
-                    else
-                    {
-                        insert_token(lexer,token_type::minus);
-                    }
-                    break;
-                }
-                
-                case '/': 
-                {
-                    // we have comment eat tokens until a newline
-                    if(peek(lexer.idx+1,file) == '/')
-                    {
-                        while(lexer.idx < size)
-                        {
-                            if(file[lexer.idx] == '\n')
-                            {
-                                lexer.column = -1;
-                                lexer.row++;
-                                break;
-                            }
-
-                            advance(lexer);
-                        }
-                    }
-
-                    else if(peek(lexer.idx+1,file) == '=')
-                    {
-                        insert_token(lexer,token_type::divide_eq);
-                        advance(lexer);
-                    }
-
-                    // start of multifile comment
-                    else if(peek(lexer.idx+1,file) == '*')
-                    {
-                        lexer.in_comment = true;
-                        advance(lexer);
-                    }
-
-                    else
-                    {
-                        insert_token(lexer,token_type::divide);
-                    } 
-                    break;
                 }
 
-                default:
+                else if(peek == '=')
                 {
-                    const u32 start_idx = lexer.idx;
-                    const u32 start_col = lexer.column;
+                    insert_token(lexer,token_type::divide_eq);
+                    src++;
+                }
 
-                    // potential symbol
-                    if(isalpha(c) || c == '_')
+                else
+                {
+                    insert_token(lexer,token_type::divide);
+                }
+
+                break;
+            }
+
+            case LEX_STATE_MISC_FIN:
+            {
+                token_type tok_type = LEX_TYPE[*start & 0x7f];
+                insert_token(lexer,tok_type);
+                break;
+            }
+
+            case LEX_STATE_INT_FIN:
+            {
+                src = start;
+                const auto [value,err] = parse_value(&src);
+
+                if(err)
+                {
+                    panic(lexer,file_name,"Invalid integer literal\n");
+                    destroy_lexer(lexer);
+                    return true;
+                }
+
+                insert_token_value(lexer,value);
+                break;
+            }
+
+            case LEX_STATE_SYM_FIN:
+            {
+                // correct as we actually want the termination token
+                // as it not encoded by the state unlike in operators
+                src--;
+
+                const String literal_file = string_slice(file,lexer.idx,len);
+
+                const s32 slot = keyword_lookup(literal_file);
+
+                // if its a keyword identify its type
+                // else its a symbol
+                if(slot != INVALID_SLOT)
+                {
+                    insert_token(lexer,KEYWORD_TABLE[slot].v);
+                }
+
+                else
+                {
+                    // need to copy literal as we ditch the file later
+                    const String literal = copy_string(*lexer.string_allocator,literal_file);
+                    //printf("%s\n",literal.buf);
+                    insert_token(lexer,token_type::symbol,literal);
+                }
+                break;
+            }
+            
+            case LEX_STATE_DOT:
+            {
+                if(*src == '.' && src[1] == '.')
+                {
+                    insert_token(lexer,token_type::va_args);
+                    src += 2;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::dot);
+                }                 
+                break;
+            }
+
+            case LEX_STATE_CHAR:
+            {
+                const char peek = *src;
+
+                if(peek == '\0')
+                {
+                    destroy_lexer(lexer);
+                    panic(lexer,file_name,"eof hit in middle of char literal");
+                    return true;
+                }
+
+                // potential escape char
+                else if(peek == '\\')
+                {
+                    const char e = escape_char(lexer,file_name,src[1]);
+
+                    if(lexer.error)
                     {
-                        while(lexer.idx < size)
-                        {
-                            advance(lexer);
-                            const char x = file[lexer.idx];
-                            if(!isalnum(x) && x != '_')
-                            {
-                                advance(lexer,-1);
-                                break;
-                            }
-                        }
-
-                        const String literal_file = string_slice(file,start_idx,(lexer.idx - start_idx) + 1);
-
-                        const s32 slot = keyword_lookup(literal_file);
-
-                        // if its a keyword identify its type
-                        // else its a symbol
-                        if(slot != INVALID_SLOT)
-                        {
-                            insert_token(lexer,KEYWORD_TABLE[slot].v,start_col);
-                        }
-
-                        else
-                        {
-                            // need to copy literal as we ditch the file later
-                            const String literal = copy_string(*lexer.string_allocator,literal_file);
-                            insert_token(lexer,token_type::symbol,literal,start_col);
-                        }
-
+                        return true;
                     }
-
-                    // parse out a integer literal
-                    // we will ignore floats for now
-                    // 0b
-                    // 0x
-                    // 0
-                    else if(isdigit(c))
+                    
+                    if(src[2] != '\'')
                     {
-                        if(decode_imm(lexer,file))
-                        {
-                            destroy_lexer(lexer);
-                            panic(lexer,file_name,"malformed integer literal");
-                            return true;
-                        }
-                    }
-
-                    else
-                    {
-                        panic(lexer,file_name,"unexpected char '%c",c);
+                        panic(lexer,file_name,"unterminated char literal");
                         destroy_lexer(lexer);
                         return true;
                     }
-                    break;
+
+                    insert_token_char(lexer,e);
+                    src += 3;
                 }
+
+                else
+                {
+                    // normal char
+                    if(src[1] != '\'')
+                    {
+                        panic(lexer,file_name,"unterminated char literal");
+                        destroy_lexer(lexer);
+                        return true;
+                    }
+
+                    insert_token_char(lexer,peek);
+                    src += 2;
+                }
+                break;
+            }
+
+            case LEX_STATE_EOF:
+            {
+                tokens_out = lexer.tokens;
+                return false;            
+            }
+
+            default:
+            {
+                const u32 size = TOKEN_INFO[state].size;
+
+                insert_token(lexer,token_type(state));
+                src = start + size;
+                break;
             }
         }
     }
 
 
-    tokens_out = lexer.tokens;
-    return false;
+
 }
