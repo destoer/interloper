@@ -18,16 +18,19 @@ static constexpr u32 LEX_STATE_TIMES = LEX_STATE_END + 7;
 static constexpr u32 LEX_STATE_PLUS = LEX_STATE_END + 8;
 static constexpr u32 LEX_STATE_MINUS = LEX_STATE_END + 9;
 static constexpr u32 LEX_STATE_OR = LEX_STATE_END + 10;
-static constexpr u32 LEX_STATE_AND = LEX_STATE_END + 11;
-static constexpr u32 LEX_STATE_NOT = LEX_STATE_END + 12;
-static constexpr u32 LEX_STATE_GT = LEX_STATE_END + 13;
-static constexpr u32 LEX_STATE_LT = LEX_STATE_END + 14;
-static constexpr u32 LEX_STATE_EOF = LEX_STATE_END + 15;
-static constexpr u32 LEX_STATE_CHAR = LEX_STATE_END + 16;
-static constexpr u32 LEX_STATE_FORWARD_SLASH = LEX_STATE_END + 17;
+static constexpr u32 LEX_STATE_XOR = LEX_STATE_END + 11;
+static constexpr u32 LEX_STATE_AND = LEX_STATE_END + 12;
+static constexpr u32 LEX_STATE_NOT = LEX_STATE_END + 13;
+static constexpr u32 LEX_STATE_GT = LEX_STATE_END + 14;
+static constexpr u32 LEX_STATE_LT = LEX_STATE_END + 15;
+static constexpr u32 LEX_STATE_EOF = LEX_STATE_END + 16;
+static constexpr u32 LEX_STATE_CHAR = LEX_STATE_END + 17;
+static constexpr u32 LEX_STATE_DOT = LEX_STATE_END + 18;
+static constexpr u32 LEX_STATE_MOD = LEX_STATE_END + 19;
+static constexpr u32 LEX_STATE_FORWARD_SLASH = LEX_STATE_END + 20;
 
 // active
-// NOTE: keep this immedialty following the active!
+// NOTE: keep this immedialty following termination 
 static constexpr u32 LEX_STATE_ACTIVE = LEX_STATE_FORWARD_SLASH + 1;
 
 static constexpr u32 LEX_STATE_START = LEX_STATE_ACTIVE + 0;
@@ -68,6 +71,9 @@ enum class lex_class
     lt,
     colon,
     equal,
+	not_t,
+	dot,
+	mod,
     eof,
     error,
 };
@@ -93,6 +99,9 @@ const char* LEX_CLASS_NAMES[LEX_CLASS_SIZE] =
     "lt",
     "colon",
     "equal",
+	"not",
+	"dot",
+	"mod",
     "eof",
     "error",
 };
@@ -131,20 +140,20 @@ lex_class LEX_CLASS[256] = {
 	lex_class::error, //(1e)
 	lex_class::error, //(1f)
 	lex_class::whitespace, //' '(20)
-	lex_class::error, //'!'(21)
+	lex_class::not_t, //'!'(21)
 	lex_class::double_quote, //'"'(22)
 	lex_class::error, //'#'(23)
 	lex_class::error, //'$'(24)
-	lex_class::error, //'%'(25)
-	lex_class::error, //'&'(26)
-	lex_class::error, //'''(27)
+	lex_class::mod, //'%'(25)
+	lex_class::and_t, //'&'(26)
+	lex_class::single_quote, //'''(27)
 	lex_class::token_misc, //'('(28)
 	lex_class::token_misc, //')'(29)
-	lex_class::error, //'*'(2a)
-	lex_class::error, //'+'(2b)
-	lex_class::error, //','(2c)
-	lex_class::error, //'-'(2d)
-	lex_class::error, //'.'(2e)
+	lex_class::times, //'*'(2a)
+	lex_class::plus, //'+'(2b)
+	lex_class::token_misc, //','(2c)
+	lex_class::minus, //'-'(2d)
+	lex_class::dot, //'.'(2e)
 	lex_class::forward_slash, //'/'(2f)
 	lex_class::digit, //'0'
 	lex_class::digit, //'1'
@@ -156,13 +165,13 @@ lex_class LEX_CLASS[256] = {
 	lex_class::digit, //'7'
 	lex_class::digit, //'8'
 	lex_class::digit, //'9'
-	lex_class::error, //':'(3a)
+	lex_class::colon, //':'(3a)
 	lex_class::token_misc, //';'(3b)
-	lex_class::error, //'<'(3c)
-	lex_class::error, //'='(3d)
-	lex_class::error, //'>'(3e)
-	lex_class::error, //'?'(3f)
-	lex_class::error, //'@'(40)
+	lex_class::lt, //'<'(3c)
+	lex_class::equal, //'='(3d)
+	lex_class::gt, //'>'(3e)
+	lex_class::token_misc, //'?'(3f)
+	lex_class::token_misc, //'@'(40)
 	lex_class::alpha, //'A'
 	lex_class::alpha, //'B'
 	lex_class::alpha, //'C'
@@ -189,11 +198,11 @@ lex_class LEX_CLASS[256] = {
 	lex_class::alpha, //'X'
 	lex_class::alpha, //'Y'
 	lex_class::alpha, //'Z'
-	lex_class::error, //'['(5b)
+	lex_class::token_misc, //'['(5b)
 	lex_class::error, //'\'(5c)
-	lex_class::error, //']'(5d)
-	lex_class::error, //'^'(5e)
-	lex_class::error, //'_'(5f)
+	lex_class::token_misc, //']'(5d)
+	lex_class::xor_t, //'^'(5e)
+	lex_class::alpha, //'_'(5f)
 	lex_class::error, //'`'(60)
 	lex_class::alpha, //'a'
 	lex_class::alpha, //'b'
@@ -222,9 +231,9 @@ lex_class LEX_CLASS[256] = {
 	lex_class::alpha, //'y'
 	lex_class::alpha, //'z'
 	lex_class::token_misc, //'{'(7b)
-	lex_class::error, //'|'(7c)
+	lex_class::or_t, //'|'(7c)
 	lex_class::token_misc, //'}'(7d)
-	lex_class::error, //'~'(7e)
+	lex_class::token_misc, //'~'(7e)
 	lex_class::error, //(7f)
 	lex_class::error, //(80)
 	lex_class::error, //(81)
@@ -402,7 +411,7 @@ token_type LEX_TYPE[128] = {
 	token_type::right_paren, //')'
 	token_type::error, //'*'
 	token_type::error, //'+'
-	token_type::error, //','
+	token_type::comma, //','
 	token_type::error, //'-'
 	token_type::error, //'.'
 	token_type::error, //'/'
@@ -417,12 +426,12 @@ token_type LEX_TYPE[128] = {
 	token_type::error, //'8'
 	token_type::error, //'9'
 	token_type::error, //':'
-	token_type::error, //';'
+	token_type::semi_colon, //';'
 	token_type::error, //'<'
 	token_type::error, //'='
 	token_type::error, //'>'
-	token_type::error, //'?'
-	token_type::error, //'@'
+	token_type::qmark, //'?'
+	token_type::deref, //'@'
 	token_type::error, //'A'
 	token_type::error, //'B'
 	token_type::error, //'C'
@@ -449,9 +458,9 @@ token_type LEX_TYPE[128] = {
 	token_type::error, //'X'
 	token_type::error, //'Y'
 	token_type::error, //'Z'
-	token_type::error, //'['
+	token_type::sl_brace, //'['
 	token_type::error, //'\'
-	token_type::error, //']'
+	token_type::sr_brace, //']'
 	token_type::error, //'^'
 	token_type::error, //'_'
 	token_type::error, //'`'
@@ -482,9 +491,9 @@ token_type LEX_TYPE[128] = {
 	token_type::error, //'y'
 	token_type::error, //'z'
 	token_type::left_c_brace, //'{'
-	token_type::right_c_brace, //'|'
-	token_type::error, //'}'
-	token_type::error, //'~'
+	token_type::error, //'|'
+	token_type::right_c_brace, //'}'
+	token_type::bitwise_not, //'~'
 	token_type::error, //(7f)
 };
 
@@ -494,22 +503,25 @@ static constexpr u32 LEX_ACTIVE_STATES[LEX_ACTIVE_STATE_SIZE][LEX_CLASS_SIZE]
 // start
 {
 	LEX_STATE_START, //whitespace
-	LEX_STATE_INVALID_CHAR, //digit
+	LEX_STATE_INT_FIN, //digit
 	LEX_STATE_SYM, //alpha
     LEX_STATE_MISC_FIN, //misc
-	LEX_STATE_INVALID_CHAR, //single_quote
+	LEX_STATE_CHAR, //single_quote
 	LEX_STATE_STRING_FIN, //double_quote
 	LEX_STATE_FORWARD_SLASH, //forward_slash
-	LEX_STATE_INVALID_CHAR, //plus
-	LEX_STATE_INVALID_CHAR, //minus
-	LEX_STATE_INVALID_CHAR, //times
-	LEX_STATE_INVALID_CHAR, //and
-	LEX_STATE_INVALID_CHAR, //or
-	LEX_STATE_INVALID_CHAR, //xor
-	LEX_STATE_INVALID_CHAR, //gt
-	LEX_STATE_INVALID_CHAR, //lt
-	LEX_STATE_INVALID_CHAR, //colon
-	LEX_STATE_INVALID_CHAR, //equal
+	LEX_STATE_PLUS, //plus
+	LEX_STATE_MINUS, //minus
+	LEX_STATE_TIMES, //times
+	LEX_STATE_AND, //and
+	LEX_STATE_OR, //or
+	LEX_STATE_XOR, //xor
+	LEX_STATE_GT, //gt
+	LEX_STATE_LT, //lt
+	LEX_STATE_COLON, //colon
+	LEX_STATE_EQ, //equal
+	LEX_STATE_NOT, //not
+	LEX_STATE_DOT, //dot
+	LEX_STATE_MOD, // mod
 	LEX_STATE_EOF, //eof
 	LEX_STATE_INVALID_CHAR, //error
 },
@@ -519,7 +531,7 @@ static constexpr u32 LEX_ACTIVE_STATES[LEX_ACTIVE_STATE_SIZE][LEX_CLASS_SIZE]
 	LEX_STATE_SYM_FIN, //whitespace
 	LEX_STATE_SYM, //digit
 	LEX_STATE_SYM, //alpha
-    LEX_STATE_INVALID_CHAR, //misc
+    LEX_STATE_SYM_FIN, //misc
 	LEX_STATE_SYM_FIN, //single_quote
 	LEX_STATE_SYM_FIN, //double_quote
 	LEX_STATE_SYM_FIN, //forward_slash
@@ -533,6 +545,9 @@ static constexpr u32 LEX_ACTIVE_STATES[LEX_ACTIVE_STATE_SIZE][LEX_CLASS_SIZE]
 	LEX_STATE_SYM_FIN, //lt
 	LEX_STATE_SYM_FIN, //colon
 	LEX_STATE_SYM_FIN, //equal
+	LEX_STATE_SYM_FIN, //not
+	LEX_STATE_SYM_FIN, //dot
+	LEX_STATE_SYM_FIN, // mod
 	LEX_STATE_SYM_FIN, //eof
 	LEX_STATE_INVALID_CHAR, //error
 },

@@ -82,6 +82,100 @@ char escape_char(Lexer& lexer, const String& file_name,char escape_char)
     } 
 }
 
+std::pair<Value,b32> parse_value(const char** src_ptr)
+{
+    const char* src = *src_ptr;
+
+    // default to base 10
+    u32 base = 10;
+    Value value;
+
+    // check sign
+    if(*src == '-')
+    {
+        value.sign = true;
+        src++;
+    }
+
+    // peek for base
+    if(*src == '0')
+    {
+        if(src[1] == 'x')
+        {
+            base = 16;
+            src += 2;
+        }
+
+        else if(src[1] == 'b')
+        {
+            base = 2;
+            src += 2;
+        }
+    }
+
+    b32 done = false;
+
+    while(!done)
+    {
+        const char c = toupper(*src);
+ 
+        // ignore _
+        if(c == '_')
+        {
+            src++;
+            continue;
+        }
+
+        u32 v = 0;
+
+        // convert the digit
+        if(base >= 2 && c >= '0' && c <= '1')
+        {
+            v = c - '0';
+        }
+
+        else if(base >= 10 && c >= '2' && c <= '9')
+        {
+            v = c - '0';
+        }
+
+        else if(base >= 16 && c >= 'A' && c <= 'F')
+        {
+            v = 10 + (c - 'A');
+        }
+
+        else
+        {
+            // alpha in this context is an error
+            if(isalpha(c))
+            {
+                return std::pair{value,true};
+            }
+
+            else
+            {
+                done = true;
+                break;                
+            }
+        }
+
+        // acummulate digit
+        value.v *= base;
+        value.v += v;
+
+        src++;
+    }
+
+    // make twos complement
+    if(value.sign)
+    {
+        value.v = (~value.v) + 1;
+    }
+
+    *src_ptr = src;
+    return std::pair{value,false};
+}
+
 #include "lexer_lut.cpp"
 
 // TODO: change file to be a string, and just conv them all in
@@ -110,11 +204,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
             state = LEX_ACTIVE_STATES[active_idx][u32(lc)];
         }
 
-
-        // go back as we have seen a terminating token
-        src--;
-
-        const char* start = (src - len);
+        const char* start = (src - (len + 1));
         lexer.idx =  start - file.buf;
 
         // switch on end state to handle resolution of any multi char tokens
@@ -122,6 +212,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
         {
             case LEX_STATE_INVALID_CHAR:
             {
+                src--;
                 panic(lexer,file_name,"Invalid char '%c' : %d\n",*src,*src);
                 destroy_lexer(lexer);
                 return true;
@@ -129,8 +220,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
 
             case LEX_STATE_STRING_FIN:
             {
-                // skip "
-                src++;
+                // we skip '"'
             
                 StringBuffer buffer;
 
@@ -164,14 +254,13 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 // create string fomr the array
                 String literal = make_string(buffer);
 
-                insert_token(lexer,token_type::string,literal);                
-
+                insert_token(lexer,token_type::string,literal);
                 break;
             }
 
             case LEX_STATE_FORWARD_SLASH:
             {
-                const char peek = src[1];
+                const char peek = *src;
 
                 // comment process tokens until newline
                 if(peek == '/')
@@ -187,33 +276,71 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     }
                 }
 
+                // multi line comment
+                else if(peek == '*')
+                {
+                    b32 done = false;
+                    src++;
+                    while(!done)
+                    {
+                        const char c = *src++;
+                        
+                        if(!c)
+                        {
+                            done = true;
+                        }
+
+                        else if(c == '*' && src[0] == '/')
+                        {
+                            done = true;
+                            src++;
+                        }
+                    }
+                }
+
                 else if(peek == '=')
                 {
-                    assert(false);
+                    insert_token(lexer,token_type::divide_eq);
+                    src++;
                 }
 
                 else
                 {
-                    assert(false);
+                    insert_token(lexer,token_type::divide);
                 }
+
                 break;
             }
 
             case LEX_STATE_MISC_FIN:
             {
-                token_type tok_type = LEX_TYPE[*src & 0x7f];
+                token_type tok_type = LEX_TYPE[*start & 0x7f];
                 insert_token(lexer,tok_type);
                 break;
             }
 
             case LEX_STATE_INT_FIN:
             {
-                assert(false);
+                src--;
+                const auto [value,err] = parse_value(&src);
+
+                if(err)
+                {
+                    panic(lexer,file_name,"Invalid integer literal\n");
+                    destroy_lexer(lexer);
+                    return true;
+                }
+
+                insert_token_value(lexer,value);
                 break;
             }
 
             case LEX_STATE_SYM_FIN:
             {
+                // correct as we actually want the termination token
+                // as it not encoded by the state unlike in operators
+                src--;
+
                 const String literal_file = string_slice(file,lexer.idx,len);
 
                 const s32 slot = keyword_lookup(literal_file);
@@ -235,63 +362,302 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 break;
             }
 
+            case LEX_STATE_COLON:
+            {
+                const char peek = *src;
+
+                if(peek == ':')
+                {
+                    insert_token(lexer,token_type::scope);
+                    src++;
+                }
+
+                else if(peek == '=')
+                {
+                    insert_token(lexer,token_type::decl);
+                    src++;
+                }
+
+                else 
+                {
+                    insert_token(lexer,token_type::colon);
+                }
+
+                break;
+            }
+
             case LEX_STATE_EQ:
             {
-                assert(false);
+                const char peek = *src;
+
+                // logical equality
+                if(peek == '=')
+                {
+                    insert_token(lexer,token_type::logical_eq);
+                    src++;
+                }
+                
+                else
+                {
+                    insert_token(lexer,token_type::equal); 
+                }
+
                 break;
             }
 
             case LEX_STATE_TIMES:
             {
-                assert(false);
+                const char peek = *src;
+
+                if(peek == '=')
+                {
+                    insert_token(lexer,token_type::times_eq);
+                    src++;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::times); 
+                }
                 break;
             }
 
             case LEX_STATE_PLUS:
             {
-                assert(false);
+                const char peek = *src;
+
+                if(peek == '=')
+                {
+                    insert_token(lexer,token_type::plus_eq);
+                    src++;
+                }
+
+                else if(peek == '+')
+                {
+                    insert_token(lexer,token_type::increment);
+                    src++;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::plus);
+                }
+
                 break;
             }
 
             case LEX_STATE_MINUS:
             {
-                assert(false);
+                const char peek = *src;
+
+                if(peek == '-')
+                {
+                    insert_token(lexer,token_type::decrement);
+                    src++;
+                }
+
+                // parse out negative literal
+                else if(isdigit(peek))
+                {
+                    src--;
+                    auto [value,err] = parse_value(&src);
+
+                    if(err)
+                    {
+                        destroy_lexer(lexer);
+                        panic(lexer,file_name,"malformed integer literal");
+                        return true;
+                    }
+
+                    insert_token_value(lexer,value);
+                }
+
+                else if(peek == '=')
+                {
+                    insert_token(lexer,token_type::minus_eq);
+                    src++;
+                }                
+
+                else
+                {
+                    insert_token(lexer,token_type::minus);
+                }
                 break;
             }
         
             case LEX_STATE_OR:
             {
-                assert(false);
+                const char peek = *src;
+
+                // logical or
+                if(peek == '|')
+                {
+                    insert_token(lexer,token_type::logical_or);
+                    src++;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::bitwise_or);
+                }
                 break;
             }
 
             case LEX_STATE_AND:
             {
-                assert(false);
+                const char peek = *src;
+
+                // equal
+                if(peek == '&')
+                {
+                    insert_token(lexer,token_type::logical_and);
+                    src++;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::operator_and);
+                }
                 break;
             }
 
             case LEX_STATE_NOT:
             {
-                assert(false);
+                const char peek = *src;
+                if(peek == '=')
+                {
+                    insert_token(lexer,token_type::logical_ne);
+                    src++;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::logical_not);
+                }
+
+                break;
+            }
+
+            case LEX_STATE_XOR:
+            {
+                insert_token(lexer,token_type::bitwise_xor);
+                break;
+            }
+
+            case LEX_STATE_MOD:
+            {
+                insert_token(lexer,token_type::mod);
+                break;
+            }
+
+            case LEX_STATE_DOT:
+            {
+                if(*src == '.' && src[1] == '.')
+                {
+                    insert_token(lexer,token_type::va_args);
+                    src += 2;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::dot);
+                }                 
                 break;
             }
 
             case LEX_STATE_GT:
             {
-                assert(false);
+                const char peek = *src;
+
+                if(peek == '=')
+                {
+                    insert_token(lexer,token_type::logical_ge);
+                    src++;
+                }
+
+                else if(peek == '>')
+                {
+                    insert_token(lexer,token_type::shift_r);
+                    src++;
+                }
+
+
+                else
+                {
+                    insert_token(lexer,token_type::logical_gt);
+                }
+
                 break;
             }
 
             case LEX_STATE_LT:
             {
-                assert(false);
+                const char peek = *src;
+
+                if(peek == '=')
+                {
+                    insert_token(lexer,token_type::logical_le);
+                    src++;
+                }
+
+                else if(peek == '<')
+                {
+                    insert_token(lexer,token_type::shift_l);
+                    src++;
+                }
+
+                else
+                {
+                    insert_token(lexer,token_type::logical_lt);
+                }                
                 break;
             }
 
             case LEX_STATE_CHAR:
             {
-                assert(false);
+                const char peek = *src;
+
+                if(peek == '\0')
+                {
+                    destroy_lexer(lexer);
+                    panic(lexer,file_name,"eof hit in middle of char literal");
+                    return true;
+                }
+
+                // potential escape char
+                else if(peek == '\\')
+                {
+                    const char e = escape_char(lexer,file_name,src[1]);
+
+                    if(lexer.error)
+                    {
+                        return true;
+                    }
+                    
+                    if(src[2] != '\'')
+                    {
+                        panic(lexer,file_name,"unterminated char literal");
+                        destroy_lexer(lexer);
+                        return true;
+                    }
+
+                    insert_token_char(lexer,e);
+                    src += 3;
+                }
+
+                else
+                {
+                    // normal char
+                    if(src[1] != '\'')
+                    {
+                        panic(lexer,file_name,"unterminated char literal");
+                        destroy_lexer(lexer);
+                        return true;
+                    }
+
+                    insert_token_char(lexer,peek);
+                    src += 2;
+                }
                 break;
             }
 

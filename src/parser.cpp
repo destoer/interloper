@@ -1287,7 +1287,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         if(parser.error)
         {
             // print line number
-            print_line(filename,parser.line + 1);
+            print_line(filename,parser.line);
             destroy_arr(parser.tokens);
             return true;
         }
@@ -1311,7 +1311,7 @@ bool parse(Interloper& itl, const String& initial_filename)
     const String stl_path = make_static_string("stl/",strlen("stl/"));
 
     // import basic by default
-    //add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
+    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
 
     add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"internal.itl"));
 

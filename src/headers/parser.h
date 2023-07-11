@@ -778,8 +778,8 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     printf("at: %s line %d col %d\n\n",parser.cur_file.buf,line,col);
 
     parser.error = true;
-    parser.line = parser.line;
-    parser.col = parser.col;
+    parser.line = line;
+    parser.col = col;
     parser.idx = token.idx;
 }
 
