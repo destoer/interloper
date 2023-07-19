@@ -161,11 +161,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_of_ptr",6},
     {"tests/array/array_multi_fixed_size",7200},
     {"tests/array/array_vla_from_parts",11},
+    {"tests/array/array_assign_vla",15},
 
     // TODO: type check array initalizer assignemnts
-
-    // wait for heap allocation
-    //{"tests/array/array_assign_vla",3},
     //{"tests/array/array_assign_vla_fixed",itl_error::none},
 
 

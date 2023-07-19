@@ -1,11 +1,11 @@
 
-// expected 3
+// expected 15
 
 func main() s32
 {
-    arr: u32[3];
+    arr: u32[3] = {4,8};
 
     vla: u32[] = arr;
 
-    return vla.len;
+    return vla.len + vla[0] + vla[1];
 }
