@@ -436,25 +436,13 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
         // arbitary expression
         default:
         {
-            if(is_fixed_array(type))
-            {
-                panic(itl,itl_error::array_type_error,"Attempted assignment on fixed array\n");
-                return;
-            }
-
             // compile expr
             auto [rtype,slot] = compile_oper(itl,func,node);
             
             if(is_array(rtype))
             {
-                
                 compile_move(itl,func,arr_slot,slot,type,rtype);
                 check_assign_init(itl,type,rtype);
-            }
-
-            else
-            {
-                panic(itl,itl_error::array_type_error,"expected array of type %s in assignment got %s\n",type);
             }
 
             break;
