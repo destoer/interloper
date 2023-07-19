@@ -336,8 +336,8 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
 
                 if(is_runtime_size(array_type))
                 {
-                    // TODO: make sure that the allocation information does not go into alloc slot
-                    unimplemented("arr alloc size");
+                    size = GPR_SIZE * 2;
+                    done = true;
                 }
 
                 else
@@ -367,14 +367,29 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
     return std::pair{size,count};
 }
 
-
 void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const SymSlot addr_slot, Type* type)
 {
-    // just a straight assign
-    if(node->type != ast_type::initializer_list)
+    RecordNode* list = (RecordNode*)node;
+
+    u32 idx = 0;
+    traverse_arr_initializer_internal(itl,func,list,addr_slot,(ArrayType*)type,&idx);
+}
+
+
+void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const SymSlot arr_slot, Type* type)
+{
+    switch(node->type)
     {
-        if(node->type == ast_type::string)
-        {      
+        case ast_type::initializer_list:
+        {
+            const SymSlot addr_slot = load_arr_data(itl,func,arr_slot,type);
+            traverse_arr_initializer(itl,func,node,addr_slot,type);
+            break;
+        }
+
+        case ast_type::string:
+        {
+            const SymSlot addr_slot = load_arr_data(itl,func,arr_slot,type);
 
             LiteralNode* literal_node = (LiteralNode*)node;
             const String literal = literal_node->literal;
@@ -414,29 +429,44 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const
                 check_assign_init(itl,base_type,rtype);
 
                 do_ptr_store(itl,func,slot,addr_slot,rtype,i);
-            }           
+            }
+            break;           
         }
-
-        else
+    
+        // arbitary expression
+        default:
         {
-            unimplemented("single intializer");
+            if(is_fixed_array(type))
+            {
+                panic(itl,itl_error::array_type_error,"Attempted assignment on fixed array\n");
+                return;
+            }
+
+            // compile expr
+            auto [rtype,slot] = compile_oper(itl,func,node);
+            
+            if(is_array(rtype))
+            {
+                
+                compile_move(itl,func,arr_slot,slot,type,rtype);
+                check_assign_init(itl,type,rtype);
+            }
+
+            else
+            {
+                panic(itl,itl_error::array_type_error,"expected array of type %s in assignment got %s\n",type);
+            }
+
+            break;
         }
-
-        return;
     }
-
-    RecordNode* list = (RecordNode*)node;
-
-    u32 idx = 0;
-    traverse_arr_initializer_internal(itl,func,list,addr_slot,(ArrayType*)type,&idx);
 }
-
 
 void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& array)
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    alloc_slot(itl,func,array.reg,false);
+    alloc_slot(itl,func,array.reg,true);
     ListNode* alloc = get_cur_end(func.emitter);
 
 
@@ -445,8 +475,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     // rather than runtime setup
     if(decl_node->expr)
     {
-        const SymSlot addr_slot = load_arr_data(itl,func,array);
-        traverse_arr_initializer(itl,func,decl_node->expr,addr_slot,array.type);
+        compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type);
     }
 
     if(itl.error)
@@ -470,7 +499,15 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     {
         const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
 
-        // we have the allocation information now complete it
-        alloc->opcode = Opcode(op_type::alloc_fixed_array,array.reg.slot.handle,arr_size,arr_count);
+        if(is_fixed_array(array.type))
+        {
+            // we have the allocation information now complete it
+            alloc->opcode = Opcode(op_type::alloc_fixed_array,array.reg.slot.handle,arr_size,arr_count);
+        }
+
+        else
+        {
+
+        }
     }
 }

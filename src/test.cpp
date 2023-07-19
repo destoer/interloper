@@ -159,7 +159,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_auto_size",16},
     {"tests/array/array_take_pointer",5},
     {"tests/array/array_of_ptr",6},
-    {"tests/array/array_multi_fixed_size.itl",7200},
+    {"tests/array/array_multi_fixed_size",7200},
+    {"tests/array/array_vla_from_parts",11},
 
     // TODO: type check array initalizer assignemnts
 
