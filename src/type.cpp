@@ -904,7 +904,7 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
         // ltype must be const too
         if(!ltype->is_const)
         {
-            panic(itl,itl_error::const_type_error,"cannot const rtype to ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::const_type_error,"cannot assign const rtype to ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;            
         }
     }
@@ -913,7 +913,7 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
 }
 
 // NOTE: this is expected to be called after main sets of type checking
-// so types should atleast be the same fmt at every level
+// so this function assumes that every type is the of the same kind at every level
 void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type)
 {
     b32 done = false;
@@ -939,7 +939,11 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_ty
         {
             case ARRAY:
             {
-                assert(false);
+                check_const_internal(itl,ltype,rtype,type,was_pointer);
+
+                // check sub types
+                ltype = index_arr(ltype);
+                rtype = index_arr(rtype);
 
                 was_pointer = false;
                 break;
@@ -1174,6 +1178,9 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 
 void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype, assign_type type)
 {
+    const Type* ltype_copy = ltype;
+    const Type* rtype_copy = rtype;
+
     if(is_plain(rtype) && is_plain(ltype))
     {
         check_assign_plain(itl,ltype,rtype);
@@ -1311,7 +1318,7 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
     if(!itl.error)
     {
         // we know this will descend properly so check const!
-        check_const(itl,ltype,rtype,type);
+        check_const(itl,ltype_copy,rtype_copy,type);
     }
 }
 

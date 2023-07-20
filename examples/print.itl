@@ -19,7 +19,10 @@ func main() s32
     ptr_s := &s;
     print("{} : {b} : {x} : {}\n",s,s,s,ptr_s);
 
-    print("{}",NULL);
+    print("{}\n",NULL);
+
+    //invalid print
+    //print("{} : {}\n","boop");
 
     return 0;
 }

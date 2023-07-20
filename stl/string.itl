@@ -250,7 +250,7 @@ func print_args(fmt : const string, args : Any[])
         {
             if(fmt.len <= i + 1 || arg_count == args.len)
             {
-                crash_and_burn("ran out of args in print({})");
+                crash_and_burn("ran out of args in print()");
                 return;
             }
         
@@ -288,7 +288,7 @@ func print(fmt: const string, args : ...)
 // TODO: add line and file info? (what mechanism should be used for this)
 func unimplemented_args(fmt: const string, args: Any[])
 {
-    write_string("unimplemented: ");
+    write_string("\nunimplemented: ");
     print_args(fmt,args);
     
     exit(1);
@@ -296,7 +296,7 @@ func unimplemented_args(fmt: const string, args: Any[])
 
 func crash_and_burn_args(fmt: const string, args: Any[])
 {
-    write_string("crash and burn: ");
+    write_string("\ncrash and burn: ");
     print_args(fmt,args);
 
     exit(1);

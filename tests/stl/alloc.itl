@@ -1,0 +1,9 @@
+
+
+func main() s32
+{
+    buf : byte[1024];
+    arena : Arena = make_arena(buf);
+
+    return 0;
+}
