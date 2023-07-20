@@ -45,7 +45,7 @@ func make_array(arena : Arena@, size: u32) byte[]
 
     if(ptr == NULL)
     {
-        crash_and_burn("Failed to allocate memory from arena: {}\n",bytes);
+        crash_and_burn("Failed to allocate memory for array from arena: {}\n",bytes);
     }
 
     buf.data = ptr;

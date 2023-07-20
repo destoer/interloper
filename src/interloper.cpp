@@ -568,7 +568,17 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 
     else if(is_array(dst_type) && is_array(src_type))
     {
-        const SymSlot addr_slot = addrof_res(itl,func,dst_slot);
+        SymSlot addr_slot;
+
+        if(dst_slot.handle == RV_IR)
+        {
+            addr_slot = func.args[0];
+        }
+
+        else
+        {   
+            addr_slot = addrof_res(itl,func,dst_slot);
+        }
 
         const SymSlot data_slot = load_arr_data(itl,func,src_slot,src_type);
         store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE);
