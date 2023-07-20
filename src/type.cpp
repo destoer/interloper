@@ -1202,6 +1202,38 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
                 return;
             }
 
+            // single dimension can trivally convert to a vla
+            // for multi dimensional arrays all sizes must match
+            if(!is_array(index_arr(ltype)) && !is_array(index_arr(rtype)))
+            {
+                ArrayType* array_ltype = (ArrayType*)ltype;
+                ArrayType* array_rtype = (ArrayType*)rtype;
+
+                if(type != assign_type::arg)
+                {
+                    if(!is_runtime_size(ltype))
+                    {
+                        panic(itl,itl_error::array_type_error,"%s = %s, cannot assign to fixed size array\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                        return;
+                    }
+                } 
+
+                // any rtype size is legal in this context if ltype is a vla
+                if(!is_runtime_size(ltype))
+                {
+                    // must be same size
+                    if(array_ltype->size != array_rtype->size)
+                    {
+                        panic(itl,itl_error::array_type_error,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
+                        return;
+                    }
+                }
+
+                ltype = index_arr(ltype);
+                rtype = index_arr(rtype);              
+            } 
+
+
             b32 done = false;
 
             while(!done)
@@ -1219,18 +1251,6 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
                         ArrayType* array_ltype = (ArrayType*)ltype;
                         ArrayType* array_rtype = (ArrayType*)rtype;
 
-                        // when we conv them the rule is to push struct convs to a vla
-                        // until we hit the end or something that is allready a vla
-                        // as it will allready hold it in the correct from 
-
-                        // dimension assign
-                        // assign to var size, have to be equal or a runtime size
-                        // [][] = [][3]
-                        // [][3] = [][3]
-                        // [][] = [][]
-                        // [][] = [3][3] 
-
-
                         // for arg passing only
                         // valid
                         // [3] = [3]
@@ -1244,15 +1264,13 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
                             }
                         }
 
-                        // any assignment is valid if the dst is a vla
-                        if(!is_runtime_size(ltype))
+                        // must be same size
+                        if(array_ltype->size != array_rtype->size)
                         {
-                            if(array_ltype->size != array_rtype->size)
-                            {
-                                panic(itl,itl_error::array_type_error,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
-                                return;
-                            }
-                        }    
+                            panic(itl,itl_error::array_type_error,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
+                            return;
+                        }
+                            
 
                         ltype = index_arr(ltype);
                         rtype = index_arr(rtype);                                       
