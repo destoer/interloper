@@ -7,5 +7,10 @@ func main() s32
 
     vla : byte[] = make_array(&arena,25);
 
-    return vla.len;
+    for(i : u32 = 0; i < vla.len; i += 1)
+    {
+        vla[i] = cast(byte,i);
+    }
+
+    return vla.len * vla[3];
 }

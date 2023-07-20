@@ -194,8 +194,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::minus,"-",20,1},
     {token_type::divide,"/",21,1},
     {token_type::mod,"%",21,1},
-    {token_type::increment,"++",-1},
-    {token_type::decrement,"--",-1},
+    {token_type::increment,"++",-1,2},
+    {token_type::decrement,"--",-1,2},
 
     {token_type::sl_brace,"[",30},
     {token_type::sr_brace,"]",-1},

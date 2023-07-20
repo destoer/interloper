@@ -795,6 +795,11 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     // compile loop end stmt
     compile_expression_tmp(itl,func,for_node->post);
     
+    if(itl.error)
+    {
+        return;
+    }
+
     const BlockSlot end_block = cur_block(func);
 
 
