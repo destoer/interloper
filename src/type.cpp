@@ -1267,6 +1267,13 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
                         // must be same size
                         if(array_ltype->size != array_rtype->size)
                         {
+                            // provide better error messagee for vlas
+                            if(is_runtime_size(ltype) != is_runtime_size(rtype))
+                            {
+                                panic(itl,itl_error::array_type_error,"%s = %s, cannot assign different array types beyond 1d\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                                return;                            
+                            }
+
                             panic(itl,itl_error::array_type_error,"expected array of size %d got %d\n",array_ltype->size,array_rtype->size);
                             return;
                         }
@@ -1292,11 +1299,7 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
 
             // finally type check the base type!
             check_assign_plain(itl,ltype,rtype);
-
-
         }
-
-
 
         else
         {

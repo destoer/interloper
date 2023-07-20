@@ -1,0 +1,11 @@
+
+
+// expected compile error
+
+func main() s32
+{
+    buf : u32[3][3];
+    vla : u32[][] = buf;
+
+    return vla.len;
+}

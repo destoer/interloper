@@ -57,6 +57,8 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/array/array_pass_u32",itl_error::array_type_error},
     {"tests/array/array_mismatched_type",itl_error::array_type_error},
     {"tests/array/deref_array_of_ptr_invalid",itl_error::pointer_type_error},
+    {"tests/array/array_assign_vla_fixed",itl_error::array_type_error},
+    {"tests/array/array_assign_vla_multi",itl_error::array_type_error},
 
 
     // strings
@@ -162,10 +164,6 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_multi_fixed_size",7200},
     {"tests/array/array_vla_from_parts",11},
     {"tests/array/array_assign_vla",15},
-
-    // TODO: type check array initalizer assignemnts
-    //{"tests/array/array_assign_vla_fixed",itl_error::none},
-
 
     // strings
     {"tests/string/char_array",7},
