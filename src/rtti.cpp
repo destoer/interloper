@@ -126,23 +126,6 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
 
     switch(type->type_idx)
     {
-/*
-
-struct ArrayType
-{
-    Type type;
-
-    Type* contained_type;
-
-    // RUNTIME_SIZE or current size!
-    u32 size;
-
-    
-    // size of indexing array
-    u32 sub_size;
-};
-*/
-
         case ARRAY:
         {
             ArrayType* array_type = (ArrayType*)type;

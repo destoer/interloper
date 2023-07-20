@@ -593,7 +593,7 @@ void parse_function_declarations(Interloper& itl)
             if(node.va_args && itl.rtti_enable)
             {
                 Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
-                Type* array_type = make_array(itl,type,RUNTIME_SIZE,true);
+                Type* array_type = make_array(itl,type,RUNTIME_SIZE);
 
                 Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
                 add_var(itl.symbol_table,sym);

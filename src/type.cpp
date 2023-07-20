@@ -264,7 +264,7 @@ Type* contained_arr_type(ArrayType* array_type)
 
 
 // gives back the absolute bottom type
-const Type* get_plain_type(const Type* type)
+Type* get_plain_type(Type* type)
 {
     for(;;)
     {
@@ -598,6 +598,49 @@ TypeDecl* lookup_type(Interloper& itl,const String& name)
     return user_type;
 }
 
+Type* copy_type_internal(Interloper& itl, const Type* type)
+{
+    switch(type->type_idx)
+    {
+        case ARRAY:
+        {
+            ArrayType* array_type = (ArrayType*)type;
+            Type* contained_type = copy_type_internal(itl,index_arr(array_type));
+
+            return make_array(itl,contained_type,array_type->size,type->is_const);
+        }
+
+        case POINTER:
+        {
+            assert(false);
+            break;
+        }
+
+        case STRUCT:
+        {
+            StructType* struct_type = (StructType*)type;
+
+            return make_struct(itl,struct_type->struct_idx,type->is_const);
+        }
+
+        case ENUM:
+        {
+            assert(false);
+            break;
+        }
+
+        default:
+        {
+            return make_raw(itl,type->type_idx,type->is_const);
+        }
+    }    
+}
+
+Type* copy_type(Interloper& itl, const Type* type)
+{
+    return copy_type_internal(itl,type);
+}
+
 Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
     Type* type = nullptr;
@@ -605,6 +648,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
     // override that makes entire type constant
     // i.e arrays, structs, pointers, base
     const b32 is_constant = type_decl->is_constant;
+    b32 is_alias = false;
 
     if(struct_idx_override != INVALID_TYPE)
     {
@@ -641,7 +685,9 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             {
                 TypeAlias alias = itl.alias_table[user_type->type_idx];
 
-                type = alias.type;
+                // alias must be copied so specifiers cannot tamper with it
+                type = copy_type(itl,alias.type);
+                is_alias = true;
                 break;
             }
 
@@ -656,7 +702,17 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
     if(!is_constant)
     {
-        type->is_const = type_decl->is_const;
+        // need const on bottom type
+        if(is_alias)
+        {
+            Type* plain_type = get_plain_type(type);
+            plain_type->is_const = type_decl->is_const;
+        }
+
+        else
+        {
+            type->is_const = type_decl->is_const;
+        }
     }
 
     // arrays, pointers

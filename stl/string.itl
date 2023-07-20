@@ -238,7 +238,7 @@ func print_arg(arg : Any, specifier : c8)
 }
 
 
-func print_args(fmt : const string, args : Any[])
+func print_args(fmt : const string, args : const Any[])
 {
     arg_count : u32 = 0;
 
@@ -286,7 +286,7 @@ func print(fmt: const string, args : ...)
 }
 
 // TODO: add line and file info? (what mechanism should be used for this)
-func unimplemented_args(fmt: const string, args: Any[])
+func unimplemented_args(fmt: const string, args: const Any[])
 {
     write_string("\nunimplemented: ");
     print_args(fmt,args);
@@ -294,7 +294,7 @@ func unimplemented_args(fmt: const string, args: Any[])
     exit(1);
 }
 
-func crash_and_burn_args(fmt: const string, args: Any[])
+func crash_and_burn_args(fmt: const string, args: const Any[])
 {
     write_string("\ncrash and burn: ");
     print_args(fmt,args);

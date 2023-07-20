@@ -5,5 +5,7 @@ func main() s32
     buf : byte[1024];
     arena : Arena = make_arena(buf);
 
+    vla : byte[] = make_array(&arena,25);
+
     return 0;
 }

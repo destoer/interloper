@@ -32,3 +32,24 @@ func allocate(arena : Arena@, size : u32) byte@
 
     return alloc_ptr;    
 }
+
+// TODO: this needs templates
+func make_array(arena : Arena@, size: u32) byte[]
+{
+    buf : byte[];
+
+    // TODO: this needs to use the type size
+    bytes := size;
+
+    ptr := allocate(arena,bytes);
+
+    if(ptr == NULL)
+    {
+        crash_and_burn("Failed to allocate memory from arena: {}\n",bytes);
+    }
+
+    buf.data = ptr;
+    buf.len = size;
+
+    return buf;
+}
