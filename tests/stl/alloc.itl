@@ -7,5 +7,5 @@ func main() s32
 
     vla : byte[] = make_array(&arena,25);
 
-    return 0;
+    return vla.len;
 }

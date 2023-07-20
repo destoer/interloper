@@ -481,8 +481,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     // store the return value back into a reg (if its actually binded)
     if(returns_value && dst_slot.handle != NO_SLOT && !hidden_args)
     {
-        // TODO: is this dst type correct?
-        compile_move(itl,func,dst_slot,sym_from_idx(RV_IR),func.return_type[0],func.return_type[0]);
+        compile_move(itl,func,dst_slot,sym_from_idx(RV_IR),func_call.return_type[0],func_call.return_type[0]);
     }
     
 
