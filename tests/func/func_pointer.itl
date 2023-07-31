@@ -1,0 +1,25 @@
+
+
+func times_five(x : s32) s32
+{
+    return x * 5;
+}
+
+func times_two(x : s32) s32
+{
+    return x * 2;
+}
+
+func main() s32
+{
+    ptr : func(x : s32) s32 = times_five;
+
+    res1 := ptr(5);
+
+    ptr = times_two;
+
+    res2 := ptr(5);
+
+    // expected 35
+    return res2 + res1;
+}

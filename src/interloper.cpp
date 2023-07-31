@@ -2032,22 +2032,16 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
 
 
-// -> add globals
-// -> improve inserting static data 
-// -> rtti
-// -> va_args
-// -> print
-
 // -> impl static assert
 // -> improve const expressions
-// -> handle block args inside the reg allocator
+// -> handle block args inside the reg allocator and get a proper global allocator
 
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
 // function_pointers
-// -> early stl  -> labels ->  compile time execution ->
-// discriminated unions -> marcro -> debugg memory guards -> ...
+// -> early stl  -> function pointers -> compile time execution ->
+// better enums -> unions? -> debug memory guards -> ...
 
 void destroy_ast(Interloper& itl)
 {
