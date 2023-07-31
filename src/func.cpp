@@ -524,7 +524,8 @@ void parse_function_declarations(Interloper& itl)
                 push_var(return_type,get_complete_type(itl,node.return_type[0]));
 
                 // we are returning a struct add a hidden pointer as first arg
-                if(type_size(itl,return_type[0]) > GPR_SIZE)
+                // TODO: if the struct is small enough we should not return it in this manner
+                if(type_size(itl,return_type[0]) > GPR_SIZE || is_struct(return_type[0]))
                 {
                     arg_offset = add_hidden_return(itl,"_struct_ret_ptr",return_type[0],args,arg_offset);
                     hidden_args++;

@@ -1,16 +1,44 @@
 
 
-func main() s32
+func test_arena() bool
 {
     buf : byte[1024];
     arena : Arena = make_arena(buf);
 
-    vla : byte[] = make_byte_array(&arena,25);
+    vla : byte[] = byte_array_arena(&arena,25);
 
     for(i : u32 = 0; i < vla.len; i += 1)
     {
         vla[i] = cast(byte,i);
     }
 
-    return vla.len * vla[3];
+    res := vla.len * vla[3];
+
+    return res == 75;
+}
+
+func test_heap() bool
+{
+    buf : byte[1024];
+    heap := make_heap(buf);
+
+    vla : byte[] = byte_array_heap(&heap,25);
+
+    for(i : u32 = 0; i < vla.len; i += 1)
+    {
+        vla[i] = cast(byte,i * 2);
+    }
+
+    free_heap(&heap,vla.data);
+
+    res := vla.len * vla[3];
+
+    return res == 150;
+}
+
+func main() s32
+{
+    pass := test_heap() && test_arena();
+
+    return cast(s32,pass);
 }

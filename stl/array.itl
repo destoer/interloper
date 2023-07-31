@@ -1,22 +1,33 @@
 
-func make_byte_array(arena : Arena@, size : u32) byte[]
+func byte_array_arena(arena : Arena@, size : u32) byte[]
 {
     buf : byte[];
 
-    buf.data = alloc_panic(arena,size);
+    buf.data = alloc_arena_panic(arena,size);
+    buf.len = size;
+
+    return buf;
+}
+
+func byte_array_heap(heap : Heap@, size : u32) byte[]
+{
+    buf : byte[];
+
+    buf.data = alloc_heap_panic(heap,size,1);
     buf.len = size;
 
     return buf;
 }
 
 
-func make_u32_array(arena : Arena@, size : u32) u32[]
+
+func u32_array_arena(arena : Arena@, size : u32) u32[]
 {
     buf : u32[];
 
     bytes := size * u32.size;
 
-    buf.data = alloc_panic(arena,bytes);
+    buf.data = alloc_arena_panic(arena,bytes);
     buf.len = bytes;
 
     return buf;

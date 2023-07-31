@@ -2,20 +2,168 @@
 struct HeapNode
 {
     next : HeapNode@;
-    size : u32;
+    blocks : u32;
 }
 
 struct Heap
 {
-    root : HeapNode@ = NULL;
-};
+    free_list : HeapNode@ = NULL;
+}
 
 constant DEFAULT_BLOCK_SIZE : u32 = 1024;
 constant BLOCK_SIZE : u32 = HeapNode.size;
 
-/*
-func heap_alloc(heap : Heap@, size : u32) byte@
-{
 
+func free_heap(heap : Heap@, ptr : byte@)
+{
+    if(ptr == NULL)
+    {
+        return;
+    }
+
+    insert := cast(HeapNode@,ptr) - 1;
+    cur := heap.free_list;
+
+
+    // handle insertion at start
+    if(cur == NULL || insert < cur)
+    {
+        heap.free_list = insert;
+
+        // attempt to collapse with old first
+        if((insert + insert.blocks) == cur)
+        {
+            insert.blocks += cur.blocks;
+            insert.next = cur.next;
+        }
+
+        else
+        {
+            insert.next = cur;
+        }
+
+        return;
+    }
+
+
+    // scan for correct insertion location
+    // i.e insert > cur && insert < next
+    while(cur.next != NULL && !(insert > cur && insert < cur.next))
+    {
+        cur = cur.next;
+    }
+    
+    // at this point cur contains the lower bound
+    // and cur.next contains the upper bound
+    // insert is in the middle
+
+    next := cur.next;
+
+    // attempt to collapse upper
+    if((insert + insert.blocks) == next)
+    {
+        insert.blocks += next.blocks;
+        insert.next = next;
+    }
+    
+    // cant collapse insert . next
+    else
+    {
+        insert.next = cur.next;
+    }
+
+    // attempt to collapse lower
+    if((cur + cur.blocks) == insert)
+    {
+        cur.blocks += insert.blocks;
+        cur.next = insert.next;
+    }
+
+    // cant collapse cur . insert
+    else
+    {
+        cur.next = insert;
+    }
 }
-*/
+
+
+
+func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
+{
+    bytes := count * size;
+
+    // TODO: this overstimates block aligned data
+    // we are just gonna ignore this for now
+    req_blocks := (bytes / BLOCK_SIZE) + 2;
+
+    // attempt to find a block big enough for allocation?
+    cur := heap.free_list;
+    prev := cur;
+
+    while(cur != NULL)
+    {
+        if(cur.blocks >= req_blocks)
+        {
+            // exact size just skip over
+            if(cur.blocks == req_blocks)
+            {
+                prev.next = cur.next;
+            }
+
+            // fragment the block
+            else
+            {
+                // cur block gets remaining
+                remaining_blocks := cur.blocks - req_blocks;
+                cur.blocks -= req_blocks;
+
+
+                // new block contains the requested allocation
+                cur += remaining_blocks;
+                cur.blocks = req_blocks;
+            }
+
+            return cast(byte@,(cur + 1));
+        }
+
+        prev = cur;
+        cur = cur.next;
+    }
+
+    // cannot find a large enough buffer
+    return NULL;
+}
+
+func alloc_heap_panic(heap : Heap@, count : u32, size : u32) byte@
+{
+    ptr := alloc_heap(heap,count,size);
+
+    if(ptr == NULL)
+    {
+        crash_and_burn("out of memory for heap alloc: {}\n",size);
+    }
+
+    return ptr;
+}
+
+func add_buffer(heap : Heap@, ptr : byte@, size : u32)
+{
+    if(ptr == NULL)
+    {
+        return;
+    }
+
+    blocks := size / BLOCK_SIZE;
+
+    node := cast(HeapNode@,ptr);
+    node.blocks = blocks;
+    free_heap(heap,node + 1);  
+}
+
+func make_heap(buf : byte[]) Heap
+{
+    heap : Heap;
+    add_buffer(&heap,buf.data,buf.len);
+
+    return heap;
+}

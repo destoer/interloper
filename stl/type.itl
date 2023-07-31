@@ -37,12 +37,12 @@ struct Type
 
     // specifiers
     is_const : const bool;
-};
+}
 
 struct PointerType (type : const Type)
 {
     contained_type : const Type@;
-};
+}
 
 struct ArrayType (type : const Type)
 {
@@ -53,17 +53,17 @@ struct ArrayType (type : const Type)
 
     // size of indexing array
     sub_size : const u32;
-};
+}
 
 struct StructType (type : const Type)
 {
     struct_idx : const u32;
-};
+}
 
 struct EnumType (type : const Type)
 {
     enum_idx : const u32;
-};
+}
 
 
 struct Any
@@ -73,13 +73,20 @@ struct Any
     data : const byte@;
 
     type : const Type@;
-};
+}
 
 
 func is_builtin(type_idx : itl_type) bool
 {
     return cast(u32,type_idx) < cast(u32,itl_type::pointer_t);
 }
+
+
+func is_builtin_type(type : const Type@) bool
+{
+    return is_builtin(type.type_idx);
+}
+
 
 func deref_pointer(type: const Type@) const Type@
 {
@@ -110,14 +117,6 @@ func is_array(type : const Type@) bool
 {
     return type.type_idx == itl_type::array_t;
 }
-
-/*
-// TODO: we need function overloading for this
-func is_builtin(type : const Type@) bool
-{
-    return is_builtin(type.type_idx);
-}
-*/
 
 func int_from_any(any : const Any) u32
 {

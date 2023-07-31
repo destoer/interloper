@@ -17,7 +17,7 @@ func make_arena(buf : byte[]) Arena
     return arena;
 }
 
-func allocate(arena : Arena@, size : u32) byte@
+func alloc_arena(arena : Arena@, size : u32) byte@
 {
     // allocation failed
     if(arena.len + size >= arena.buf.len)
@@ -31,9 +31,9 @@ func allocate(arena : Arena@, size : u32) byte@
     return alloc_ptr;    
 }
 
-func alloc_panic(arena : Arena@, size : u32) byte@
+func alloc_arena_panic(arena : Arena@, size : u32) byte@
 {
-    ptr := allocate(arena,size);
+    ptr := alloc_arena(arena,size);
 
     if(ptr == NULL)
     {
