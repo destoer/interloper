@@ -143,15 +143,6 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     }
 
 
-
-    // for now we are just going with callee saved
-    // if we eventually mix caller and callee saved so we can have the called func overwrite values
-    // we dont care about then we need to re add the save and restore directives
-    // and we will need a push and pop bitset to implement them
-    // with care to rewrite where the return register ends up when we restore
-    // save all the used regs
-    //emit(func,op_type::save_regs);
-    
     // how many args are we pushing to the stack?
     u32 arg_clean = 0;
 

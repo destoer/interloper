@@ -118,6 +118,38 @@ std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
             return std::pair{ans,type};
         }
 
+        case ast_type::access_struct:
+        {
+            // are we accessing type info on a type name?
+            BinNode* member_root = (BinNode*)node;
+            AstNode* expr_node = member_root->left;
+
+            if(expr_node->type == ast_type::symbol)
+            {
+                RecordNode* members = (RecordNode*)member_root->right;
+
+                // potential type info access
+                if(count(members->nodes) == 1 && members->nodes[0]->type == ast_type::access_member)
+                {
+                    LiteralNode* sym_node = (LiteralNode*)expr_node;
+                    const auto name = sym_node->literal;
+
+                    TypeDecl* type_decl = lookup_type(itl,name);
+
+                    if(type_decl)
+                    {
+                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
+
+                        auto [type,ans] = access_type_info(itl,*type_decl,member_node->literal);
+                        return std::pair{ans,type};
+                    }
+                }
+            }
+
+            panic(itl,itl_error::const_type_error,"struct access not supported in constant expr");
+            return std::pair{0,make_builtin(itl,builtin_type::void_t)};
+        }
+
         default:
         {
             panic(itl,itl_error::const_type_error,"unrecognised operation for const int initalizer: %s\n",AST_NAMES[u32(node->type)]);

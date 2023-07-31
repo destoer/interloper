@@ -1,0 +1,44 @@
+struct Arena
+{
+    buf : byte[];
+
+    // how much of the arena have we used
+    len : u32;
+}
+
+
+func make_arena(buf : byte[]) Arena
+{
+    arena : Arena;
+
+    arena.len = 0;
+    arena.buf = buf;
+
+    return arena;
+}
+
+func allocate(arena : Arena@, size : u32) byte@
+{
+    // allocation failed
+    if(arena.len + size >= arena.buf.len)
+    {
+        return NULL;
+    }
+
+    alloc_ptr : byte@ = &arena.buf[arena.len];
+    arena.len += size;
+
+    return alloc_ptr;    
+}
+
+func alloc_panic(arena : Arena@, size : u32) byte@
+{
+    ptr := allocate(arena,size);
+
+    if(ptr == NULL)
+    {
+        crash_and_burn("out of memory for arena alloc {} {}\n",arena.len,size);
+    }
+
+    return ptr;
+}

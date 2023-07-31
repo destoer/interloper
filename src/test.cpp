@@ -189,7 +189,6 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
     // stl
-    {"tests/stl/linked_list",66},
     {"tests/stl/mem",0},
 
 

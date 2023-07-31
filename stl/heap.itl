@@ -1,0 +1,21 @@
+
+struct HeapNode
+{
+    next : HeapNode@;
+    size : u32;
+}
+
+struct Heap
+{
+    root : HeapNode@ = NULL;
+};
+
+constant DEFAULT_BLOCK_SIZE : u32 = 1024;
+constant BLOCK_SIZE : u32 = HeapNode.size;
+
+/*
+func heap_alloc(heap : Heap@, size : u32) byte@
+{
+
+}
+*/

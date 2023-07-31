@@ -311,6 +311,8 @@ Struct& struct_from_type(StructTable& struct_table, const Type* type);
 
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u32_t;
 
+std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name);
+
 
 struct TypeAlias
 {
@@ -400,3 +402,4 @@ struct SymbolTable
 };
 
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);
+Symbol* get_sym(SymbolTable &sym_table,const String &sym);

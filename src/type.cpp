@@ -1071,6 +1071,26 @@ b32 plain_type_equal(const Type* ltype, const Type* rtype)
     }
 }
 
+b32 type_equal(const Type* ltype, const Type* rtype)
+{
+    switch(ltype->type_idx)
+    {
+        case ARRAY:
+        {
+            assert(false);
+        }
+
+        case POINTER:
+        {
+            assert(false);
+        }
+
+        default:
+        {
+            return plain_type_equal(ltype,rtype);
+        }
+    }
+}
 
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
@@ -1541,22 +1561,32 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
 
 }
 
-
-Type* access_builtin_type_info(Interloper& itl, Function& func, SymSlot dst_slot, builtin_type type, const String& member_name)
+std::pair<Type*,u32> access_builtin_type_info(Interloper& itl, builtin_type type, const String& member_name)
 {
     const BuiltinTypeInfo& info = builtin_type_info[u32(type)];
 
     if(member_name == "size")
     {
-        mov_imm(itl,func,dst_slot,info.size);
-        return make_builtin(itl,builtin_type::u32_t);
+        return std::pair{make_builtin(itl,builtin_type::u32_t),info.size};
     }
 
     panic(itl,itl_error::undefined_type_oper,"unknown type info for builtin type %s.%s\n",TYPE_NAMES[u32(type)],member_name.buf);
-    return make_builtin(itl,builtin_type::void_t);
+    return std::pair{make_builtin(itl,builtin_type::u32_t),0};
 }
 
-Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
+
+
+Type* access_builtin_type_info(Interloper& itl, Function& func, SymSlot dst_slot, builtin_type type, const String& member_name)
+{
+    auto [rtype,ans] = access_builtin_type_info(itl,type,member_name);
+
+    mov_imm(itl,func,dst_slot,ans);
+
+    return rtype;
+}
+
+
+std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl, const String& member_name)
 {
     switch(type_decl.kind)
     {
@@ -1564,7 +1594,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
         {
             builtin_type type = builtin_type(type_decl.type_idx);
 
-            return access_builtin_type_info(itl,func,dst_slot,type,member_name);
+            return access_builtin_type_info(itl,type,member_name);
         }
 
         case type_kind::struct_t:
@@ -1574,12 +1604,10 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
                 const auto& structure = itl.struct_table[type_decl.type_idx];
                 const u32 size = structure.size;
 
-                mov_imm(itl,func,dst_slot,size);
-
-                return make_builtin(itl,builtin_type::u32_t);
+                return std::pair{make_builtin(itl,builtin_type::u32_t),size};
             }
 
-            return make_builtin(itl,builtin_type::void_t);
+            return std::pair{make_builtin(itl,builtin_type::u32_t),0};
         }
 
         case type_kind::enum_t:
@@ -1590,15 +1618,13 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
 
                 const u32 enum_len = enumeration.member_map.size;
 
-                mov_imm(itl,func,dst_slot,enum_len);
-
-                return make_builtin(itl,builtin_type::u32_t);
+                return std::pair{make_builtin(itl,builtin_type::u32_t),enum_len};
             }
 
             else
             {
                 panic(itl,itl_error::enum_type_error,"unknown type info for enum %s\n",type_decl.name.buf);
-                return make_builtin(itl,builtin_type::void_t);
+                return std::pair{make_builtin(itl,builtin_type::u32_t),0};
             }
         }
 
@@ -1611,6 +1637,15 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
     }
 
     assert(false);
+}
+
+Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
+{
+    auto [type,ans] = access_type_info(itl,type_decl,member_name);
+
+    mov_imm(itl,func,dst_slot,ans);
+
+    return type;
 }
 
 

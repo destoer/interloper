@@ -355,6 +355,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
 }
 
 
+
 Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, SymSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
@@ -1281,7 +1282,6 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
     }
 }
 
-
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot dst_slot)
 {
     if(!node)
@@ -1691,7 +1691,6 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         }
     }
 }
-
 
 void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
 {
