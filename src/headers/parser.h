@@ -320,6 +320,8 @@ struct TypeNode
     b32 is_constant;
     u32 type_idx;
 
+    FuncNode* func_type = nullptr;
+
     Array<AstNode*> compound_type;
 };
 

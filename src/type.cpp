@@ -185,40 +185,44 @@ builtin_type cast_builtin(const Type *type)
 
 u32 type_size(Interloper& itl,const Type *type)
 {
-    if(is_builtin(type))
+    switch(type->type_idx)
     {
-        return builtin_size(builtin_type(type->type_idx));
-    }
-
-    else if(is_pointer(type))
-    {
-        return GPR_SIZE;
-    }
-    
-    // TODO: this doesnt handle VLA
-    else if(is_array(type))
-    {
-        if(is_runtime_size(type))
+        case FUNC_POINTER:
         {
-            return GPR_SIZE * 2;
+            return GPR_SIZE;
         }
 
-        return GPR_SIZE;
-    }
+        case STRUCT:
+        {
+            const auto& structure = struct_from_type(itl.struct_table,type);
+            return structure.size;
+        }
 
-    else if(is_enum(type))
-    {
-        return GPR_SIZE;
-    }
+        case ENUM:
+        {
+            return GPR_SIZE;
+        }
 
-    // user defined type
-    else if(is_struct(type))
-    {
-        const auto& structure = struct_from_type(itl.struct_table,type);
-        return structure.size;
-    }
+        case ARRAY:
+        {
+            if(is_runtime_size(type))
+            {
+                return GPR_SIZE * 2;
+            }
 
-    unimplemented("unhandled type size");
+            return GPR_SIZE;            
+        }
+
+        case POINTER:
+        {
+            return GPR_SIZE;
+        }
+
+        default:
+        {
+            return builtin_size(builtin_type(type->type_idx));
+        }
+    }
 }
 
 
@@ -693,6 +697,11 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
             default: assert(false);
         }       
+    }
+
+    else if(type_decl->type_idx == FUNC_POINTER)
+    {
+        unimplemented("func pointer definition");
     }
 
     else

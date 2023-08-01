@@ -1736,6 +1736,12 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         {
             // normal assign
             const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
+
+            if(itl.error)
+            {
+                return;
+            }
+
             check_assign_init(itl,ltype,rtype);             
         }
 

@@ -5,6 +5,8 @@
 void type_panic(Parser &parser);
 BlockNode *block(Parser &parser);
 
+FuncNode* parse_func_sig(Parser& parser, const String& filename, const String& func_name,const Token& token);
+
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
@@ -99,6 +101,11 @@ u32 plain_type_idx(const Token &tok)
         return s32(tok.type) - s32(token_type::u8);
     }
 
+    else if(tok.type == token_type::func)
+    {
+        return FUNC_POINTER;
+    }
+
     // we might not know what this is yet so we will resolve the idx properly later...
     else if(tok.type == token_type::symbol)
     {
@@ -159,14 +166,27 @@ TypeNode *parse_type(Parser &parser)
 
     String type_literal;
     
-    if(type_idx == USER_TYPE)
-    {   
-        type_literal = plain_tok.literal;
-    }
-
-    else
+    switch(type_idx)
     {
-        type_literal = TYPE_NAMES[type_idx];
+        case USER_TYPE:
+        {
+            type_literal = plain_tok.literal;
+            break;
+        }
+
+        case FUNC_POINTER:
+        {
+            TypeNode* type = (TypeNode*)ast_type_decl(parser,"func_pointer",plain_tok);
+            type->type_idx = FUNC_POINTER;
+            type->func_type = parse_func_sig(parser,parser.cur_file,"func_pointer",plain_tok);
+            return type;
+        }
+
+        default:
+        {
+            type_literal = TYPE_NAMES[type_idx];
+            break;
+        }
     }
 
     TypeNode* type = (TypeNode*)ast_type_decl(parser,type_literal,plain_tok);
@@ -935,28 +955,11 @@ void type_alias(Interloper& itl, Parser &parser, const String& filename)
     }
 }
 
-void func_decl(Interloper& itl, Parser &parser, const String& filename)
+// parse just the function signature
+// NOTE: this is used to parse signatures for function pointers
+FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& func_name, const Token& token)
 {
-
-    // func_dec = func ident(arg...) return_type 
-    // arg = ident : type,
-
-    // what is the name of our function?
-    const auto func_name = next_token(parser);
-
-    if(func_name.type != token_type::symbol)
-    {
-        panic(parser,func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
-        return;
-    }
-
-    if(contains(itl.function_table,func_name.literal))
-    {
-        panic(itl,itl_error::redeclaration,"function %s has been declared twice!\n",func_name.literal.buf);
-        return;
-    }
-
-    FuncNode *f = (FuncNode*)ast_func(parser,func_name.literal,filename,func_name);
+    FuncNode *f = (FuncNode*)ast_func(parser,func_name,filename,token);
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
@@ -969,7 +972,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
         if(match(parser,token_type::eof))
         {
             panic(parser,paren,"unterminated function declaration!\n");
-            return;
+            return nullptr;
         }
 
         // for each arg pull type, name
@@ -980,7 +983,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
         if(lit_tok.type != token_type::symbol)
         {
             panic(parser,lit_tok,"expected name for function arg\n");
-            return;
+            return nullptr;
         }
         
 
@@ -998,7 +1001,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
             if(!match(parser,token_type::right_paren))
             {
                 panic(parser,lit_tok,"va_args can only be placed as the last arg : got %s\n",tok_name(peek(parser,0).type));
-                return;
+                return nullptr;
             }
         }
 
@@ -1009,7 +1012,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
             if(!type)
             {
                 type_panic(parser);
-                return;
+                return nullptr;
             }
 
 
@@ -1038,7 +1041,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
             if(match(parser,token_type::eof))
             {
                 panic(parser,paren,"unterminated function declaration!\n");
-                return;
+                return nullptr;
             }
             
             TypeNode* return_type = parse_type(parser);
@@ -1046,7 +1049,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
             if(!return_type)
             {
                 type_panic(parser);
-                return;
+                return nullptr;
             }
 
             push_var(f->return_type,return_type);
@@ -1076,11 +1079,37 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
     // void
     else
     {
-        TypeNode* return_type = (TypeNode*)ast_type_decl(parser,"void",func_name); 
+        TypeNode* return_type = (TypeNode*)ast_type_decl(parser,"void",token); 
         return_type->type_idx = u32(builtin_type::void_t);
 
         push_var(f->return_type,return_type);
     }
+
+    return f;
+}
+
+void func_decl(Interloper& itl, Parser &parser, const String& filename)
+{
+
+    // func_dec = func ident(arg...) return_type 
+    // arg = ident : type,
+
+    // what is the name of our function?
+    const auto func_name = next_token(parser);
+
+    if(func_name.type != token_type::symbol)
+    {
+        panic(parser,func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
+        return;
+    }
+
+    if(contains(itl.function_table,func_name.literal))
+    {
+        panic(itl,itl_error::redeclaration,"function %s has been declared twice!\n",func_name.literal.buf);
+        return;
+    }
+
+    FuncNode* f = parse_func_sig(parser,filename,func_name.literal,func_name);
 
     f->block = block(parser); 
 
