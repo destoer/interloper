@@ -1913,31 +1913,31 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             break;
                         }
 
-                        check_assign_init(itl,func.return_type[0],rtype);
+                        check_assign_init(itl,func.sig.return_type[0],rtype);
                     }
 
                     // multiple return
                     else
                     {
-                        if(count(record_node->nodes) != count(func.return_type))
+                        if(count(record_node->nodes) != count(func.sig.return_type))
                         {
                             panic(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
-                                func.name.buf,count(record_node->nodes),count(func.return_type));
+                                func.name.buf,count(record_node->nodes),count(func.sig.return_type));
                             
                             return;
                         }
                         
 
-                        for(u32 r = 0; r < count(func.return_type); r++)
+                        for(u32 r = 0; r < count(func.sig.return_type); r++)
                         {
                             // void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
                             // NOTE: Pointers are in the first set of args i.e the hidden ones
                             const auto [rtype, ret_slot] = compile_oper(itl,func,record_node->nodes[r]);
 
                             // check each param
-                            check_assign(itl,func.return_type[r],rtype);
+                            check_assign(itl,func.sig.return_type[r],rtype);
 
-                            do_ptr_store(itl,func,ret_slot,func.args[r],func.return_type[r]);
+                            do_ptr_store(itl,func,ret_slot,func.args[r],func.sig.return_type[r]);
                         }
                     }
                 
@@ -1946,9 +1946,9 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 // no return
                 else
                 {
-                    if(func.return_type[0]->type_idx != u32(builtin_type::void_t))
+                    if(func.sig.return_type[0]->type_idx != u32(builtin_type::void_t))
                     {
-                        panic(itl,itl_error::missing_args,"Expected return type of %s got nothing\n",type_name(itl,func.return_type[0]).buf);
+                        panic(itl,itl_error::missing_args,"Expected return type of %s got nothing\n",type_name(itl,func.sig.return_type[0]).buf);
                         return;
                     }
                 }

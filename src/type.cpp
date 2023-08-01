@@ -1727,7 +1727,8 @@ void parse_def(Interloper& itl, TypeDef& def)
 void destroy_func(Function& func)
 {
     destroy_arr(func.args);
-    destroy_arr(func.return_type);
+    destroy_arr(func.sig.return_type);
+    destroy_arr(func.sig.args);
 
     for(u32 r = 0; r < count(func.registers); r++)
     {

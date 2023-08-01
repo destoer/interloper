@@ -39,6 +39,7 @@ static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
 static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;
 static constexpr u32 ENUM = BUILTIN_TYPE_SIZE + 4;
 static constexpr u32 TUPLE = BUILTIN_TYPE_SIZE + 5;
+static constexpr u32 FUNC_POINTER = BUILTIN_TYPE_SIZE + 6;
 
 static constexpr u32 RTTI_BUILTIN_SIZE = BUILTIN_TYPE_SIZE - 1;
 
@@ -345,18 +346,41 @@ struct Label
 };
 
 
+
+
 struct FuncNode;
+
+// NOTE: this is everything required to describe an abstract function
+// so it can be used for function pointers
+struct FuncSig
+{
+    Array<Type*> return_type;
+    Array<Type*> args;
+
+    b32 va_args = false;
+    u32 hidden_args = 0;
+};
+
+
+
+// NOTE: a func pointer is not a pointer to this struct
+// just this struct  
+struct FuncPointerType
+{
+    Type type;
+
+    FuncSig sig;
+};
+
+
 struct Function
 {
     String name;
-    Array<Type*> return_type;
 
-    u32 hidden_args = 0;
-
-    // TODO: if we need debugging information on local vars we need an array
-    // of slots for both normal vars so we know whats in the functions
+    FuncSig sig;
 
     // gives slots into the main symbol table
+    // NOTE: sig stores copies of the types
     Array<SymSlot> args;
     
     // tmp's in the function
@@ -370,8 +394,6 @@ struct Function
     FuncNode* root = nullptr;
 
     b32 used = false;
-
-    b32 va_args = false;
 };
 
 
