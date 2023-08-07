@@ -1387,7 +1387,7 @@ void print_depth(int depth)
     printf(" %d ",depth);    
 }
 
-void print(const AstNode *root)
+void print(const AstNode *root, b32 override_seperator)
 {
     static int depth = 0;
 
@@ -1399,7 +1399,7 @@ void print(const AstNode *root)
     }
 
 
-    if(root->type == ast_type::function || root->type == ast_type::struct_t)
+    if(!override_seperator && (root->type == ast_type::function || root->type == ast_type::struct_t))
     {
         printf("\n\n\n");
     }
@@ -1467,7 +1467,10 @@ void print(const AstNode *root)
                 print((AstNode*)func_node->args[a]);
             }            
 
-            print((AstNode*)func_node->block);
+            if(func_node->block)
+            {
+                print((AstNode*)func_node->block);
+            }
 
             for(u32 r = 0; r < count(func_node->return_type); r++)
             {
@@ -1503,6 +1506,11 @@ void print(const AstNode *root)
         {
             TypeNode* type_decl = (TypeNode*)root;
             printf("type: %s %s\n", type_decl->is_const? "const" : "",type_decl->name.buf);
+
+            if(type_decl->func_type)
+            {
+                print((AstNode*)type_decl->func_type,true);
+            }
 
             for(u32 c = 0; c < count(type_decl->compound_type); c++)
             {

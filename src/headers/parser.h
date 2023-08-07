@@ -133,7 +133,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "declaration",
     "auto_decl",
 
-    "global declaration"
+    "global declaration",
 
     "=",
     "*",

@@ -129,7 +129,7 @@ struct Interloper
 };
 
 
-void print(const AstNode *root);
+void print(const AstNode *root, b32 override_seperator = false);
 
 inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
 {
