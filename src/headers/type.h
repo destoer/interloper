@@ -355,7 +355,9 @@ struct FuncNode;
 struct FuncSig
 {
     Array<Type*> return_type;
-    Array<Type*> args;
+
+    // gives slots into the main symbol table
+    Array<SymSlot> args;
 
     b32 va_args = false;
     u32 hidden_args = 0;
@@ -379,10 +381,6 @@ struct Function
 
     FuncSig sig;
 
-    // gives slots into the main symbol table
-    // NOTE: sig stores copies of the types
-    Array<SymSlot> args;
-    
     // tmp's in the function
     Array<Reg> registers;
 

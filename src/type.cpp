@@ -701,6 +701,8 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
     else if(type_decl->type_idx == FUNC_POINTER)
     {
+        // TODO: we need to seperate the sig parser
+        // so we can just grab this all trivially
         unimplemented("func pointer definition");
     }
 
@@ -1733,11 +1735,16 @@ void parse_def(Interloper& itl, TypeDef& def)
 }
 
 
+void destroy_sig(FuncSig& sig)
+{
+    destroy_arr(sig.args);
+    destroy_arr(sig.return_type);
+    destroy_arr(sig.args);
+}
+
 void destroy_func(Function& func)
 {
-    destroy_arr(func.args);
-    destroy_arr(func.sig.return_type);
-    destroy_arr(func.sig.args);
+    destroy_sig(func.sig);
 
     for(u32 r = 0; r < count(func.registers); r++)
     {

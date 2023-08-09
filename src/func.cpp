@@ -36,9 +36,9 @@ void print_func_decl(Interloper& itl,const Function &func)
 
     printf("hidden args: %d\n",func.sig.hidden_args);
 
-    for(u32 a = 0; a < count(func.args); a++)
+    for(u32 a = 0; a < count(func.sig.args); a++)
     {
-        const SymSlot slot = func.args[a];
+        const SymSlot slot = func.sig.args[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
 
         print(itl,sym); 
@@ -51,41 +51,27 @@ void print_func_decl(Interloper& itl,const Function &func)
 }
 
 
-void finalise_def(Interloper& itl,Function& func, Array<Type*> rt, Array<SymSlot> a, u32 hidden_args)
+void finalise_def(Interloper& itl,Function& func)
 {
-    // finalise sig
-    func.sig.return_type = rt;
-
-    for(u32 i = 0; i < count(a); i++)
-    {
-        const auto& sym = sym_from_slot(itl.symbol_table,a[i]);
-        push_var(func.sig.args,sym.type);
-    }
-
-    func.sig.hidden_args = hidden_args;
-    
 
     // add as a label as it this will be need to referenced by call instrs
     // in the ir to get the name back
     func.label_slot = add_label(itl.symbol_table,func.name);
-
-    func.args = a;
 }
 
 
 // add hidden arg pointers for return
-u32 add_hidden_return(Interloper& itl, const String& name, Type* return_type, Array<SymSlot>& args ,u32 arg_offset)
+void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* return_type, u32* arg_offset)
 {
     Type* ptr_type = make_pointer(itl,return_type);
 
-    Symbol sym = make_sym(itl,name,ptr_type,arg_offset);
+    Symbol sym = make_sym(itl,name,ptr_type,*arg_offset);
     add_var(itl.symbol_table,sym);
 
-    push_var(args,sym.reg.slot);     
+    push_var(sig.args,sym.reg.slot);     
 
-    arg_offset += GPR_SIZE;
-
-    return arg_offset;     
+    *arg_offset += GPR_SIZE;
+    sig.hidden_args++;
 }
 
 u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,FuncSig& sig, u32 start_arg)
@@ -97,7 +83,8 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,FuncSig& 
     // push args in reverse order and type check them
     for(s32 i = start_arg; i >= hidden_args; i--)
     {
-        Type* arg_type =  sig.args[i];
+        auto& sym = sym_from_slot(itl.symbol_table,sig.args[i]); 
+        Type* arg_type =  sym.type;
   
         const u32 arg_idx = i - hidden_args;
 
@@ -567,6 +554,87 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     return handle_call(itl,func,sig,label_slot,dst_slot,arg_clean);
 }
 
+void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
+{
+    itl.cur_file = node.filename;
+
+    u32 arg_offset = 0;
+
+    // NOTE: void return's will have a void type
+    if(count(node.return_type) == 1)
+    {
+        itl.cur_expr = (AstNode*)node.return_type[0];
+
+        push_var(sig.return_type,get_complete_type(itl,node.return_type[0]));
+
+        // we are returning a struct add a hidden pointer as first arg
+        // TODO: if the struct is small enough we should not return it in this manner
+        if(type_size(itl,sig.return_type[0]) > GPR_SIZE || is_struct(sig.return_type[0]))
+        {
+            add_hidden_return(itl,sig,"_struct_ret_ptr",sig.return_type[0],&arg_offset);
+        }   
+    }
+
+    // tuple return
+    else if(count(node.return_type) > 1)
+    {
+        for(u32 a = 0; a < count(node.return_type); a++)
+        {
+            itl.cur_expr = (AstNode*)node.return_type[a];
+
+            push_var(sig.return_type,get_complete_type(itl,node.return_type[a]));
+
+            char name[40] = {0};
+            sprintf(name,"_tuple_ret_0x%x",a);
+
+            add_hidden_return(itl,sig,name,sig.return_type[a],&arg_offset);
+        }
+    }
+
+
+    const auto decl = node.args;
+
+    // rip every arg
+    for(u32 i = 0; i < count(decl); i++)
+    {
+        const auto a = decl[i];
+        itl.cur_expr = (AstNode*)a;
+
+        const auto name = a->name;
+        const auto type = get_complete_type(itl,a->type);
+
+
+        // add the var to slot lookup and link to function
+        // we will do a add_scope to put it into the scope later
+        Symbol sym = make_sym(itl,name,type,arg_offset);
+        add_var(itl.symbol_table,sym);
+
+        push_var(sig.args,sym.reg.slot);
+
+        const u32 size = type_size(itl,type);
+
+        // if size is below GPR just make it take that much
+        const u32 arg_size = promote_size(size);
+
+        arg_offset += arg_size;
+
+        //printf("arg slot %s: %d : %d\n",sym.name.buf,sym.slot, args[args.size()-1]);
+    }
+
+    // add va args
+    if(node.va_args && itl.rtti_enable)
+    {
+        Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
+        Type* array_type = make_array(itl,type,RUNTIME_SIZE);
+
+        Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
+        add_var(itl.symbol_table,sym);
+
+        push_var(sig.args,sym.reg.slot);
+
+        sig.va_args = true;
+    }
+}
 
 
 // we wont worry about the scope on functions for now as we wont have namespaces for a while
@@ -580,97 +648,10 @@ void parse_function_declarations(Interloper& itl)
         for(u32 i = 0; i < count(bucket); i++)
         {
             auto& func = bucket[i].v;
-            const FuncNode& node = *func.root;
 
-            itl.cur_file = node.filename;
+            parse_func_sig(itl,func.sig,*func.root);
 
-            // parse out out the return type
-            Array<SymSlot> args;
-            u32 arg_offset = 0;
-            u32 hidden_args = 0;
-
-            Array<Type*> return_type;
-
-
-            // NOTE: void return's will have a void type
-            if(count(node.return_type) == 1)
-            {
-                itl.cur_expr = (AstNode*)node.return_type[0];
-
-                push_var(return_type,get_complete_type(itl,node.return_type[0]));
-
-                // we are returning a struct add a hidden pointer as first arg
-                // TODO: if the struct is small enough we should not return it in this manner
-                if(type_size(itl,return_type[0]) > GPR_SIZE || is_struct(return_type[0]))
-                {
-                    arg_offset = add_hidden_return(itl,"_struct_ret_ptr",return_type[0],args,arg_offset);
-                    hidden_args++;
-                }   
-            }
-
-            // tuple return
-            else if(count(node.return_type) > 1)
-            {
-                for(u32 a = 0; a < count(node.return_type); a++)
-                {
-                    itl.cur_expr = (AstNode*)node.return_type[a];
-
-                    push_var(return_type,get_complete_type(itl,node.return_type[a]));
-
-                    char name[40] = {0};
-                    sprintf(name,"_tuple_ret_0x%x",a);
-
-                    arg_offset = add_hidden_return(itl,name,return_type[a],args,arg_offset);
-
-                    hidden_args++;
-                }
-            }
-
-
-            const auto decl = node.args;
-
-            // rip every arg
-            for(u32 i = 0; i < count(decl); i++)
-            {
-                const auto a = decl[i];
-                itl.cur_expr = (AstNode*)a;
-
-                const auto name = a->name;
-                const auto type = get_complete_type(itl,a->type);
-
-
-                // add the var to slot lookup and link to function
-                // we will do a add_scope to put it into the scope later
-                Symbol sym = make_sym(itl,name,type,arg_offset);
-                add_var(itl.symbol_table,sym);
-
-                push_var(args,sym.reg.slot);
-
-                const u32 size = type_size(itl,type);
-
-                // if size is below GPR just make it take that much
-                const u32 arg_size = promote_size(size);
-
-                arg_offset += arg_size;
-
-                //printf("arg slot %s: %d : %d\n",sym.name.buf,sym.slot, args[args.size()-1]);
-            }
-
-            // add va args
-            if(node.va_args && itl.rtti_enable)
-            {
-                Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
-                Type* array_type = make_array(itl,type,RUNTIME_SIZE);
-
-                Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
-                add_var(itl.symbol_table,sym);
-
-                push_var(args,sym.reg.slot);
-
-                func.sig.va_args = true;
-            }
-
-            finalise_def(itl,func,return_type,args,hidden_args);
+            finalise_def(itl,func);
         }
     }
 }
@@ -688,9 +669,9 @@ void compile_function(Interloper& itl, Function& func)
 
 
     // put each arg into scope
-    for(u32 a = 0; a < count(func.args); a++)
+    for(u32 a = 0; a < count(func.sig.args); a++)
     {
-        const SymSlot slot = func.args[a];
+        const SymSlot slot = func.sig.args[a];
 
         auto &sym = sym_from_slot(itl.symbol_table,slot);
         add_scope(itl.symbol_table,sym);

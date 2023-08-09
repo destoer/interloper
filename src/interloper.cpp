@@ -573,7 +573,7 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 
         if(dst_slot.handle == RV_IR)
         {
-            addr_slot = func.args[0];
+            addr_slot = func.sig.args[0];
         }
 
         else
@@ -596,7 +596,7 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
         {
             const SymSlot ptr = addrof_res(itl,func,src_slot);
 
-            ir_memcpy(itl,func,func.args[0],ptr,type_size(itl,dst_type));
+            ir_memcpy(itl,func,func.sig.args[0],ptr,type_size(itl,dst_type));
         } 
 
         else
@@ -1943,7 +1943,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             // check each param
                             check_assign(itl,func.sig.return_type[r],rtype);
 
-                            do_ptr_store(itl,func,ret_slot,func.args[r],func.sig.return_type[r]);
+                            do_ptr_store(itl,func,ret_slot,func.sig.args[r],func.sig.return_type[r]);
                         }
                     }
                 

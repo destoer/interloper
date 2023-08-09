@@ -848,9 +848,9 @@ void mark_lifetimes(Function& func,LocalAlloc& alloc, SymbolTable& table)
 // and when we push off determining stack size to a later pass
 void alloc_args(Function &func, LocalAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
 {
-    for(u32 a = 0; a < count(func.args); a++)
+    for(u32 a = 0; a < count(func.sig.args); a++)
     {
-        const SymSlot slot = func.args[a];
+        const SymSlot slot = func.sig.args[a];
 
         auto &sym = sym_from_slot(table,slot);
 
