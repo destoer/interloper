@@ -528,6 +528,56 @@ String type_name(Interloper& itl,const Type *type)
                 break;
             }
 
+            case FUNC_POINTER:
+            {
+                FuncPointerType* func_type = (FuncPointerType*)type;
+                const FuncSig& sig = func_type->sig;
+                StringBuffer func_name;
+
+                push_const_name(itl,prefix,type,"const ");
+
+                push_string(itl.string_allocator,func_name,"func(");
+
+                // push args
+                for(u32 a = 0; a < count(sig.args); a++)
+                {
+                    if(a != 0)
+                    {
+                        push_char(itl.string_allocator,func_name,',');
+                    }
+
+                    const auto& sym = sym_from_slot(itl.symbol_table,sig.args[a]);
+
+                    push_string(itl.string_allocator,func_name,sym.name);
+
+                    push_string(itl.string_allocator,func_name," : ");
+
+                    push_string(itl.string_allocator,func_name,type_name(itl,sym.type));
+                }
+
+                push_string(itl.string_allocator,func_name,") ");
+
+
+                // single return
+                if(count(sig.return_type) == 1)
+                {
+                    push_string(itl.string_allocator,func_name,type_name(itl,sig.return_type[0]));
+                }
+
+                // tuple return
+                else
+                {
+                    assert(false);
+                }
+
+                // null term the string
+                push_char(itl.string_allocator,func_name,'\0');
+
+                plain = make_string(func_name);
+                done = true;
+                break;
+            }
+
             // builtin
             default:
             {
@@ -628,6 +678,12 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
         }
 
         case ENUM:
+        {
+            assert(false);
+            break;
+        }
+
+        case FUNC_POINTER:
         {
             assert(false);
             break;
@@ -1045,6 +1101,12 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_ty
                 break;
             }
 
+            case FUNC_POINTER:
+            {
+                assert(false);
+                break;
+            }
+
             // check end type
             default:
             {
@@ -1074,6 +1136,11 @@ b32 plain_type_equal(const Type* ltype, const Type* rtype)
         }
 
         case ENUM:
+        {
+            assert(false);
+        }
+
+        case FUNC_POINTER:
         {
             assert(false);
         }

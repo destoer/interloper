@@ -179,6 +179,12 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             break;
         }
 
+        case FUNC_POINTER:
+        {
+            assert(false);
+            break;
+        }
+
         // builtin just insert as is
         default:
         {

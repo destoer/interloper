@@ -121,6 +121,7 @@ enum class op_type
     load,
 
     addrof,
+    load_func_addr,
 
     save_regs,
     restore_regs,

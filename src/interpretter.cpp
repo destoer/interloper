@@ -545,6 +545,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::buf_alloc:
         case op_type::alloc_vla:
         case op_type::state_dump:
+        case op_type::load_func_addr:
         case op_type::END:
         {
             print_regs(interpretter);

@@ -22,7 +22,6 @@ void addrof(Interloper& itl,Function& func, SymSlot dst, SymSlot src)
     emit_directive_dst1<op_type::addrof>(itl,func,dst,src.handle,0);
 }
 
-
 SymSlot addrof_res(Interloper& itl, Function& func, SymSlot src)
 {
     const auto tmp = new_tmp_ptr(func);
@@ -113,4 +112,11 @@ void spill_slot(Interloper& itl, Function& func, const Reg& reg)
     {
         emit_block_internal(func,cur_block(func),op_type::spill_slot,reg.slot.handle,0,0);
     }
+}
+
+void load_func_addr(Interloper& itl, Function& func, SymSlot dst, LabelSlot label)
+{
+    UNUSED(itl);
+
+    emit_block_internal(func,cur_block(func),op_type::load_func_addr,dst.handle,label.handle,0);
 }

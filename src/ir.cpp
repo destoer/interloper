@@ -50,6 +50,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;            
         }
 
+        case op_type::load_func_addr:
+        {
+            assert(false);
+            break;
+        }
+
         case op_type::reload_slot:
         {
             const SymSlot slot = sym_from_idx(opcode.v[0]);

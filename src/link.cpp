@@ -192,6 +192,11 @@ void emit_asm(Interloper &itl)
                         break;
                     }
 
+                    case op_type::load_func_addr:
+                    {
+                        unimplemented("load func addr");
+                    }
+
                     default: break;
                 }
             }

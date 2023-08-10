@@ -1171,8 +1171,30 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
             const auto name = sym_node->literal;
             auto sym_ptr = get_sym(itl.symbol_table,name);
+
             if(!sym_ptr)
             {
+                // could be attempting to take a function pointer?
+                if(take_addr)
+                {
+                    auto func_ptr = lookup(itl.function_table,name);
+
+                    if(func_ptr)
+                    {
+                        auto& func_call = *func_ptr;
+                        // this may get called at some point so we need to mark it for compilation...
+                        mark_used(itl,func_call);
+
+                        FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
+                        type->sig = func_call.sig;
+
+                        load_func_addr(itl,func,slot,func_call.label_slot);
+                        
+                        return std::pair{(Type*)type,slot};
+                    }
+                }
+
+                // nothing found!
                 panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
             }

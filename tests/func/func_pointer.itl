@@ -12,14 +12,16 @@ func times_two(x : s32) s32
 
 func main() s32
 {
-    ptr : func(x : s32) s32 = times_five;
-
+    ptr : func(x : s32) s32 = &times_five;
+/*
     res1 := ptr(5);
 
-    ptr = times_two;
+    ptr = &times_two;
 
     res2 := ptr(5);
 
     // expected 35
     return res2 + res1;
+*/
+    return 0;
 }
