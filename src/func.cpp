@@ -74,7 +74,7 @@ void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* 
     sig.hidden_args++;
 }
 
-u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,FuncSig& sig, u32 start_arg)
+u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
 {
     u32 arg_clean = 0;
 
@@ -364,8 +364,25 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
     return arg_clean;    
 }
 
-Type* handle_call(Interloper& itl, Function& func, FuncSig& sig, LabelSlot label_slot, SymSlot dst_slot, u32 arg_clean)
+struct FuncCall
 {
+    FuncSig sig = {};
+    String name = {};
+
+    union
+    {
+        LabelSlot label_slot = {};
+        SymSlot sym_slot;
+    };
+
+    // tag for above union
+    b32 func_pointer = false;
+};
+
+Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, SymSlot dst_slot, u32 arg_clean)
+{
+    auto& sig = call_info.sig;
+
     // NOTE: func struct will hold a void value if it has nothing
     const bool returns_value = sig.return_type[0]->type_idx != u32(builtin_type::void_t);
 
@@ -374,12 +391,19 @@ Type* handle_call(Interloper& itl, Function& func, FuncSig& sig, LabelSlot label
     const b32 save_regs = returns_value && !sig.hidden_args;
 
 
-    // TODO: we need to choose the correct calling procedure depending on if this is a pointer
+    if(!call_info.func_pointer)
+    {
+        // emit call to label slot
+        // the actual address will have to resolved as the last compile step
+        // once we know the size of all the code
+        call(itl,func,call_info.label_slot,save_regs);
+    }
 
-    // emit call to label slot
-    // the actual address will have to resolved as the last compile step
-    // once we know the size of all the code
-    call(itl,func,label_slot,save_regs);
+    // func pointer
+    else
+    {
+        call_reg(itl,func,call_info.sym_slot,save_regs);
+    }
 
 
     // clean up args after the function call
@@ -417,44 +441,82 @@ Type* handle_call(Interloper& itl, Function& func, FuncSig& sig, LabelSlot label
     }    
 }
 
-struct FuncCall
-{
-    FuncSig sig = {};
-    String name = {};
-    LabelSlot label_slot = {};
-};
-
 FuncCall get_calling_sig(Interloper& itl,FuncCallNode* call_node,TupleAssignNode* tuple_node)
 {
-    Function* func_call_ptr = lookup(itl.function_table,call_node->name);
+    FuncCall call_info;
 
-    // check function is declared
-    if(!func_call_ptr)
+    // just a plain symbol
     {
-        panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",call_node->name.buf);
-        return {};
+        Function* func_call_ptr = lookup(itl.function_table,call_node->name);
+
+        // no known function
+        if(!func_call_ptr)
+        {
+            // check if this is instead a function pointer on a plain sym?
+            auto sym_ptr = get_sym(itl.symbol_table,call_node->name);
+
+
+            if(sym_ptr)
+            {
+                auto& sym = *sym_ptr;
+
+                // we have a symbol that is a function pointer we are good to go
+                if(is_func_pointer(sym.type))
+                {
+                    FuncPointerType* func_type = (FuncPointerType*)sym.type;
+
+                    call_info.sym_slot = sym.reg.slot;
+                    call_info.sig = func_type->sig;
+                    call_info.name = sym.name;
+                    call_info.func_pointer = true;
+                }
+
+                else
+                {
+                    panic(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer",call_node->name.buf);
+                    return {};         
+                }
+            }
+
+            else
+            {
+                // cant find any context that would be a function call
+                // this is an error
+                panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",call_node->name.buf);
+                return {};
+            }
+        }
+
+        else
+        {
+            auto& func_call = *func_call_ptr;
+
+            call_info.label_slot = func_call.label_slot;
+            call_info.sig = func_call.sig;
+            call_info.name = func_call.name;
+            call_info.func_pointer = false;
+
+            mark_used(itl,func_call);
+        }
     }
 
-    auto &func_call = *func_call_ptr;
-    const auto &name = func_call.name;
+    // is an expression potentially on a function pointer...
+    // TODO: we are gonna have to change the def of FuncCallNode to handle this
+    {
+
+    }
 
     //print_func_decl(itl,func_call);
 
-    mark_used(itl,func_call);
-
-    // TODO: this should be obtained differently when we do function pointers
-    auto &sig = func_call.sig;
-    auto &label_slot = func_call.label_slot;
-
     
     // check calls on functions with multiple returns are valid
-    if(tuple_node && count(sig.return_type) == 1)
+    if(tuple_node && count(call_info.sig.return_type) == 1)
     {
         panic(itl,itl_error::tuple_mismatch,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
         return {};
     }
 
-    if(count(sig.return_type) > 1)
+    if(count(call_info.sig.return_type) > 1)
     {
         if(!tuple_node)
         {
@@ -462,14 +524,15 @@ FuncCall get_calling_sig(Interloper& itl,FuncCallNode* call_node,TupleAssignNode
             return {};
         }
 
-        if(count(sig.return_type) != count(tuple_node->symbols))
+        if(count(call_info.sig.return_type) != count(tuple_node->symbols))
         {
-            panic(itl,itl_error::tuple_mismatch,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",count(tuple_node->symbols),count(call_node->args));
+            panic(itl,itl_error::tuple_mismatch,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",
+                count(tuple_node->symbols),count(call_node->args));
             return {};
         }
     }
 
-    return {sig,name,label_slot};    
+    return call_info;   
 }
 
 // used for both tuples and ordinary function calls
@@ -496,7 +559,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     }
 
 
-    auto [sig, name, label_slot] = get_calling_sig(itl,call_node,tuple_node);
+    const auto call_info = get_calling_sig(itl,call_node,tuple_node);
+    auto& sig = call_info.sig;
 
     if(itl.error)
     {
@@ -518,7 +582,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
     if(sig.va_args)
     {
-        arg_clean += push_va_args(itl,func,call_node,name,actual_args);
+        arg_clean += push_va_args(itl,func,call_node,call_info.name,actual_args);
 
         // skip over our va_args
         start_arg = actual_args - 2;
@@ -551,7 +615,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
 
     // handle calling and returns
-    return handle_call(itl,func,sig,label_slot,dst_slot,arg_clean);
+    return handle_call(itl,func,call_info,dst_slot,arg_clean);
 }
 
 void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)

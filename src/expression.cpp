@@ -256,7 +256,7 @@ AstNode* nud_sym(Parser& parser, const Token& t)
         default:
         {
             prev_token(parser);
-            AstNode* node = var(parser,t);
+            AstNode* node = var(parser,t,true);
 
             next_expr_token(parser);
 

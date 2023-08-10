@@ -503,28 +503,41 @@ AstNode* arr_access(Parser& parser, const Token& t)
     }
 }
 
-AstNode* var(Parser& parser, const Token& sym_tok)
+AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call)
 {
     const Token next = peek(parser,0);
+
+    AstNode* node = nullptr;
 
     switch(next.type)
     {
         case token_type::dot:
         {   
-            return struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
+            node = struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
+            break;
         }
 
         case token_type::sl_brace:
         {
-            return arr_access(parser,sym_tok);
+            node = arr_access(parser,sym_tok);
+            break;
         }
 
 
         default:
         {
-           return ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok);
+           node = ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok);
+           break;
         }
     }
+
+    // function pointer call
+    if(match(parser,token_type::left_paren) && allow_call)
+    {
+        unimplemented("func pointer call");
+    }
+
+    return node;
 }
 
 AstNode* func_call(Parser& parser,const Token& t)

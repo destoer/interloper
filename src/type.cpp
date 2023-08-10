@@ -79,7 +79,7 @@ b32 is_bool(const Type* type)
 
 b32 is_trivial_copy(const Type *type)
 {
-    return is_builtin(type) || is_pointer(type) || is_enum(type);
+    return is_builtin(type) || is_pointer(type) || is_enum(type) || is_func_pointer(type);
 }
 
 

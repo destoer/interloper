@@ -367,6 +367,17 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
+        case op_type::call_reg:
+        {
+            // push
+            regs[SP] -= GPR_SIZE;
+            write_mem<u32>(interpretter,regs[SP],regs[PC]);
+
+            write_pc(interpretter,regs[opcode.v[0]]);
+            break;
+        }
+
+
         case op_type::ret:
         {              
             // pop pc

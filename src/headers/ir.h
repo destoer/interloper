@@ -52,6 +52,7 @@ enum class op_type
     popm,
 
     call,
+    call_reg,
     ret,
 
     swi,

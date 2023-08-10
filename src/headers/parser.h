@@ -794,4 +794,4 @@ AstNode* func_call(Parser& parser,const Token& t);
 AstNode* arr_access(Parser& parser, const Token& t);
 AstNode *struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 AstNode* array_index(Parser& parser,const Token& t);
-AstNode* var(Parser& parser, const Token& sym_tok);
+AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call = false);

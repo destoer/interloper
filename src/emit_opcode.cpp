@@ -48,6 +48,15 @@ void call(Interloper& itl,Function& func, LabelSlot slot, b32 save_regs = false)
     emit_label1<op_type::call>(itl,func,slot);
 }
 
+void call_reg(Interloper& itl,Function& func, SymSlot slot, b32 save_regs = false)
+{
+    if(save_regs)
+    {
+        spill_rv(itl,func);
+    }
+
+    emit_reg1<op_type::call_reg>(itl,func,slot);
+}
 
 void branch_reg(Interloper& itl, Function&func, SymSlot target)
 {

@@ -1,4 +1,4 @@
-// expected 35
+// expected 50
 
 func times_five(x : s32) s32
 {
@@ -10,17 +10,26 @@ func times_two(x : s32) s32
     return x * 2;
 }
 
+struct Box
+{
+    func_ptr : func(x : s32) s32;
+};
+
 func main() s32
 {
     ptr : func(x : s32) s32 = &times_five;
-/*
+
     res1 := ptr(5);
 
     ptr = &times_two;
 
     res2 := ptr(5);
+/*
+    // test this works with whatever expression!
+    box : Box;
+    box.func_ptr = &times_five;
 
-    return res2 + res1;
+    res3 := box.func_ptr(3);
 */
-    return 0;
+    return res2 + res1;
 }
