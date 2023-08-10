@@ -52,7 +52,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
         case op_type::load_func_addr:
         {
-            assert(false);
+
+            // just rewrite the 1st reg
+            allocate_and_rewrite(table,alloc,block,node,0);
+
+            node = node->next;
             break;
         }
 

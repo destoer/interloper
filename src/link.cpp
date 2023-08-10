@@ -194,7 +194,15 @@ void emit_asm(Interloper &itl)
 
                     case op_type::load_func_addr:
                     {
-                        unimplemented("load func addr");
+                        const u32 label = opcode.v[1];
+
+                        const u32 addr = itl.symbol_table.label_lookup[label].offset;
+
+                        const u32 offset = addr - program_counter;
+
+                        opcode = Opcode(op_type::lea,opcode.v[0],PC,offset);
+
+                        write_mem(itl.program,i,opcode);
                     }
 
                     default: break;

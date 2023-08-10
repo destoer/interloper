@@ -1350,6 +1350,7 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
         }
 
         // check every type in function pointer is equal
+        // implict conversions are not valid here!
 
         // check args
         for(u32 a = 0; a < count(func_ltype->sig.args); a++)
