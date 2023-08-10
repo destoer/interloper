@@ -701,9 +701,12 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
     else if(type_decl->type_idx == FUNC_POINTER)
     {
-        // TODO: we need to seperate the sig parser
-        // so we can just grab this all trivially
-        unimplemented("func pointer definition");
+        FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,is_constant);
+        parse_func_sig(itl,type->sig,*type_decl->func_type);
+
+        push_var(itl.func_pointer,&type->sig);
+
+        return (Type*)type;
     }
 
     else

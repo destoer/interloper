@@ -2105,6 +2105,13 @@ void destroy_itl(Interloper &itl)
     destroy_allocator(itl.list_allocator);
     destroy_allocator(itl.string_allocator);
     destroy_allocator(itl.type_allocator);
+
+    for(u32 p = 0; p < count(itl.func_pointer); p++)
+    {
+        destroy_sig(*itl.func_pointer[p]);
+    }
+
+    destroy_arr(itl.func_pointer);
 }
 
 static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;

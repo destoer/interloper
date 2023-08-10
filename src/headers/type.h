@@ -394,6 +394,7 @@ struct Function
     b32 used = false;
 };
 
+void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node);
 
 struct Interloper;
 

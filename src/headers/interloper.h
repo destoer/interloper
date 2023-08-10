@@ -107,6 +107,9 @@ struct Interloper
 
     Array<GlobalDeclNode*> constant_decl;
 
+    // memory collection for func pointer types
+    Array<FuncSig*> func_pointer;
+
     StructTable struct_table;
     EnumTable enum_table;
     AliasTable alias_table;
