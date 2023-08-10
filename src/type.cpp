@@ -56,6 +56,12 @@ b32 is_struct(const Type* type)
     return type->type_idx == STRUCT;
 }
 
+b32 is_func_pointer(const Type* type)
+{
+    return type->type_idx == FUNC_POINTER;
+}
+
+
 b32 is_enum(const Type* type)
 {
     return type->type_idx == ENUM;
@@ -538,7 +544,8 @@ String type_name(Interloper& itl,const Type *type)
 
                 push_string(itl.string_allocator,func_name,"func(");
 
-                // push args
+                // print args
+                // TODO: this should probably hide hidden args...
                 for(u32 a = 0; a < count(sig.args); a++)
                 {
                     if(a != 0)
@@ -1325,6 +1332,48 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
             panic(itl,itl_error::struct_error,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
         }        
+    }
+
+    else if(is_func_pointer(ltype) && is_func_pointer(rtype))
+    {
+        FuncPointerType* func_ltype = (FuncPointerType*)ltype;
+        FuncPointerType* func_rtype = (FuncPointerType*)rtype;
+
+        if(count(func_ltype->sig.args) != count(func_rtype->sig.args))
+        {
+            panic(itl,itl_error::mismatched_args,"func pointers have mistached arg sizes %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        }
+
+        if(count(func_ltype->sig.return_type) != count(func_rtype->sig.return_type))
+        {
+            panic(itl,itl_error::mismatched_args,"func pointers have mistached return type sizes %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        }
+
+        // check every type in function pointer is equal
+
+        // check args
+        for(u32 a = 0; a < count(func_ltype->sig.args); a++)
+        {
+            auto& lsym = sym_from_slot(itl.symbol_table,func_ltype->sig.args[a]);
+            auto& rsym = sym_from_slot(itl.symbol_table,func_rtype->sig.args[a]);
+
+            if(!type_equal(lsym.type,rsym.type))
+            {
+                panic(itl,itl_error::mismatched_args,"func pointer arg %d does not match: %s != %s\n",a,
+                    type_name(itl,lsym.type).buf,type_name(itl,rsym.type).buf);
+            }
+        }
+
+        // check ret type
+        for(u32 r = 0; r < count(func_ltype->sig.return_type); r++)
+        {
+            if(!type_equal(func_ltype->sig.return_type[r],func_rtype->sig.return_type[r]))
+            {
+                panic(itl,itl_error::mismatched_args,"func pointer arg %d does not match: %s != %s\n",r,
+                    type_name(itl,func_ltype->sig.return_type[r]).buf,type_name(itl,func_rtype->sig.return_type[r]).buf);
+            }
+        }
+
     }
 
     else
