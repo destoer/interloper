@@ -109,7 +109,7 @@ u32 compute_member_size(Interloper& itl,const Type* type)
     return size;    
 }
 
-b32 parse_nested_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
+b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
     // member is struct that has not had its defintion parsed yet
     TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
@@ -170,7 +170,7 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
 
     itl.cur_file = filename;
 
-    // NOTE: function pointer currently requires in order decl
+    // TODO: function pointer currently requires in order decl
     // or deduction will fail
     if(type_decl->func_type)
     {
@@ -185,7 +185,7 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
 
     else if(!type_exists(itl,type_decl->name))
     {
-        if(!parse_nested_type(itl,structure.name,type_decl,&type_idx_override))
+        if(!handle_recursive_type(itl,structure.name,type_decl,&type_idx_override))
         {
             destroy_struct(structure);
             return 0;
