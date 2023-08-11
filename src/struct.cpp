@@ -109,6 +109,51 @@ u32 compute_member_size(Interloper& itl,const Type* type)
     return size;    
 }
 
+b32 parse_nested_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
+{
+    // member is struct that has not had its defintion parsed yet
+    TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
+
+    // no such definiton exists
+    if(!def_ptr)
+    {
+        panic(itl,itl_error::undeclared,"%s : member type %s is not defined\n",struct_name.buf,type_decl->name.buf);
+        return false;
+    }
+
+    TypeDef& def = *def_ptr;
+
+    // if we attempt to check a partial defintion twice that the definition is recursive
+    if(def.state == def_state::checking)
+    {
+        // if its a pointer we dont need the complete inormation yet as they are all alike
+        // so just override the type idx from the one reserved inside the def
+        if(def_has_indirection(type_decl))
+        {
+            *type_idx_override = def.slot;
+        }
+
+        else
+        {
+            // panic to prevent having our struct collpase into a black hole
+            panic(itl,itl_error::black_hole,"%s : is recursively defined via %s\n",struct_name.buf,type_decl->name.buf);
+            return false;
+        }
+    }
+
+    else
+    {
+        parse_def(itl,def);
+
+        if(itl.error)
+        {
+            return false;
+        }
+    }
+
+    return true;    
+}
+
 // returns member loc
 u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, const String& filename, b32 forced_first)
 {
@@ -123,55 +168,37 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
 
     u32 type_idx_override = INVALID_TYPE;
 
-    // member is struct that has not had its defintion parsed yet
-    if(!type_exists(itl,type_decl->name))
-    {
-        TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
+    itl.cur_file = filename;
 
-        // no such definiton exists
-        if(!def_ptr)
+    // NOTE: function pointer currently requires in order decl
+    // or deduction will fail
+    if(type_decl->func_type)
+    {
+        member.type = get_type(itl,type_decl,type_idx_override,true);
+
+        if(itl.error)
         {
-            panic(itl,itl_error::undeclared,"%s : member type %s is not defined\n",structure.name.buf,type_decl->name.buf);
+            destroy_struct(structure);
+            return 0;            
+        }
+    }
+
+    else if(!type_exists(itl,type_decl->name))
+    {
+        if(!parse_nested_type(itl,structure.name,type_decl,&type_idx_override))
+        {
             destroy_struct(structure);
             return 0;
         }
 
-        TypeDef& def = *def_ptr;
-
-        // if we attempt to check a partial defintion twice that the definition is recursive
-        if(def.state == def_state::checking)
-        {
-            // if its a pointer we dont need the complete inormation yet as they are all alike
-            // so just override the type idx from the one reserved inside the def
-            if(def_has_indirection(type_decl))
-            {
-                type_idx_override = def.slot;
-            }
-
-            else
-            {
-                // panic to prevent having our struct collpase into a black hole
-                panic(itl,itl_error::black_hole,"%s : is recursively defined via %s\n",structure.name.buf,type_decl->name.buf);
-                destroy_struct(structure);
-                return 0;
-            }
-        }
-
-        else
-        {
-            parse_def(itl,def);
-
-            if(itl.error)
-            {
-                destroy_struct(structure);
-                return 0;
-            }
-        }
+        member.type = get_type(itl,type_decl,type_idx_override,true);
     }
 
-    itl.cur_file = filename;
+    else
+    {
+        member.type = get_type(itl,type_decl,type_idx_override,true);
+    }
 
-    member.type = get_type(itl,type_decl,type_idx_override,true);
 
     // TODO: ensure array type cant use a deduced type size
 

@@ -411,7 +411,7 @@ struct FuncCallNode
 {
     AstNode node;
 
-    String name;
+    AstNode* expr =  nullptr;
     Array<AstNode*> args;
 };
 
@@ -647,13 +647,15 @@ AstNode* ast_if_block(Parser& parser, const Token& token)
     return (AstNode*)block_node;
 }
 
-AstNode* ast_call(Parser& parser, const String& name, const Token& token)
+AstNode* ast_call(Parser& parser, AstNode* expr, const Token& token)
 {
     FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,ast_fmt::function_call,token);
 
     add_ast_pointer(parser,&func_call->args.data);
 
-    func_call->name = name;
+    // NOTE: this can encompass just a plain name for a function
+    // or it could be for a symbol as part of a function pointer!
+    func_call->expr = expr;
 
     return (AstNode*)func_call;
 }
@@ -790,7 +792,7 @@ bool match(Parser &parser,token_type type);
 void consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-AstNode* func_call(Parser& parser,const Token& t);
+AstNode* func_call(Parser& parser,AstNode *expr, const Token& t);
 AstNode* arr_access(Parser& parser, const Token& t);
 AstNode *struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 AstNode* array_index(Parser& parser,const Token& t);

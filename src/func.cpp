@@ -441,19 +441,25 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     }    
 }
 
-FuncCall get_calling_sig(Interloper& itl,FuncCallNode* call_node,TupleAssignNode* tuple_node)
+FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
 {
     FuncCall call_info;
 
-    // just a plain symbol
+    AstNode* expr = call_node->expr;
+
+    // just a plain literal
+    if(expr->fmt == ast_fmt::literal)
     {
-        Function* func_call_ptr = lookup(itl.function_table,call_node->name);
+        const LiteralNode* literal_node = (LiteralNode*)expr;
+        const String& name = literal_node->literal;
+
+        Function* func_call_ptr = lookup(itl.function_table,name);
 
         // no known function
         if(!func_call_ptr)
         {
             // check if this is instead a function pointer on a plain sym?
-            auto sym_ptr = get_sym(itl.symbol_table,call_node->name);
+            auto sym_ptr = get_sym(itl.symbol_table,name);
 
 
             if(sym_ptr)
@@ -473,7 +479,7 @@ FuncCall get_calling_sig(Interloper& itl,FuncCallNode* call_node,TupleAssignNode
 
                 else
                 {
-                    panic(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer",call_node->name.buf);
+                    panic(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer",name.buf);
                     return {};         
                 }
             }
@@ -482,7 +488,7 @@ FuncCall get_calling_sig(Interloper& itl,FuncCallNode* call_node,TupleAssignNode
             {
                 // cant find any context that would be a function call
                 // this is an error
-                panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",call_node->name.buf);
+                panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
                 return {};
             }
         }
@@ -500,10 +506,23 @@ FuncCall get_calling_sig(Interloper& itl,FuncCallNode* call_node,TupleAssignNode
         }
     }
 
-    // is an expression potentially on a function pointer...
-    // TODO: we are gonna have to change the def of FuncCallNode to handle this
+    // is an expression
+    else 
     {
+        auto [type, slot] = compile_oper(itl,func,expr);
 
+        if(!is_func_pointer(type))
+        {
+            panic(itl,itl_error::undeclared,"[COMPILE]: expression of type %s is not callable",type_name(itl,type).buf);
+            return {};
+        }
+
+        FuncPointerType* func_type = (FuncPointerType*)type;
+
+        call_info.sym_slot = slot;
+        call_info.sig = func_type->sig;
+        call_info.name = "call_expr";
+        call_info.func_pointer = true;
     }
 
     //print_func_decl(itl,func_call);
@@ -549,17 +568,23 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
     // NOTE: if this is a multiple return the function call is a child node
     FuncCallNode* call_node = tuple_node? tuple_node->func_call : (FuncCallNode*)node;
 
-    // check this is not an intrinsic function
-    s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,call_node->name);
-
-    if(idx != INVALID_SLOT)
+    if(call_node->expr->fmt == ast_fmt::literal)
     {
-        const auto handler = INTRIN_TABLE[idx].v;
-        return handler(itl,func,node,dst_slot);
+        const LiteralNode* literal_node = (LiteralNode*)call_node->expr;
+        const String& name = literal_node->literal;
+
+        // check this is not an intrinsic function
+        s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,name);
+
+        if(idx != INVALID_SLOT)
+        {
+            const auto handler = INTRIN_TABLE[idx].v;
+            return handler(itl,func,node,dst_slot);
+        }
     }
 
 
-    const auto call_info = get_calling_sig(itl,call_node,tuple_node);
+    const auto call_info = get_calling_sig(itl,func,call_node,tuple_node);
     auto& sig = call_info.sig;
 
     if(itl.error)

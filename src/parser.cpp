@@ -400,7 +400,9 @@ AstNode* tuple_assign(Parser& parser, const Token& t)
             {
                 consume(parser,token_type::equal);
 
-                tuple_node->func_call = (FuncCallNode*)func_call(parser,next_token(parser));
+                const auto sym_tok = next_token(parser);
+
+                tuple_node->func_call = (FuncCallNode*)func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
                 consume(parser,token_type::semi_colon);
                 done = true;
                 break;
@@ -534,17 +536,17 @@ AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call)
     // function pointer call
     if(match(parser,token_type::left_paren) && allow_call)
     {
-        unimplemented("func pointer call");
+        return func_call(parser,node,sym_tok);
     }
 
     return node;
 }
 
-AstNode* func_call(Parser& parser,const Token& t)
+AstNode* func_call(Parser& parser,AstNode *expr, const Token& t)
 {
     consume(parser,token_type::left_paren);
 
-    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,t.literal,t);
+    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,expr,t);
 
 
     // keep reading args till we run out of commas
@@ -1576,7 +1578,9 @@ void print(const AstNode *root, b32 override_seperator)
         {
             FuncCallNode* func_call = (FuncCallNode*)root;
 
-            printf("function call : %s\n",func_call->name.buf);
+            printf("function call\n");
+
+            print(func_call->expr);
 
             for(u32 a = 0; a < count(func_call->args); a++)
             {

@@ -228,7 +228,7 @@ AstNode* nud_sym(Parser& parser, const Token& t)
             // correct the state machine
             prev_token(parser);
 
-            AstNode* call = func_call(parser,t); 
+            AstNode* call = func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t); 
             next_expr_token(parser);
 
             return call;
