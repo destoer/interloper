@@ -103,10 +103,10 @@ inline int conv_builtin_type(builtin_type t)
 
 enum class type_kind
 {
-    builtin,
     enum_t,
     struct_t,
     alias_t,
+    builtin,
 };
 
 
@@ -115,10 +115,10 @@ static constexpr u32 KIND_SIZE = 4;
 
 inline const char* KIND_NAMES[KIND_SIZE] = 
 {
-    "builtin",
     "enum",
     "struct",
     "alias",
+    "builtin",
 };
 
 
@@ -140,6 +140,7 @@ b32 invalid_type_idx(u32 type_idx)
     return type_idx == INVALID_TYPE_IDX;
 }
 
+// NOTE: bottom three shared with type_kind
 enum class def_kind
 {
     enum_t,

@@ -616,49 +616,6 @@ void print_type(Interloper& itl, const Type* type)
     printf("type: %s\n",type_name(itl,type).buf);
 }
 
-// NOTE: 
-// to be used externally when attempting to find a type decl
-// dont look it up in the type table directly as the definition might not
-// have been parsed yet
-TypeDecl* lookup_type(Interloper& itl,const String& name)
-{
-    TypeDecl* user_type = lookup(itl.type_table,name);
-
-    // currently type does not exist
-    // attempt to parse the def
-    if(!user_type)
-    {
-        // look if there is a defintion for this type!
-        // if there is not then we have an error
-        TypeDef *def_ptr = lookup(itl.type_def,name);
-
-        // no such definiton exists
-        // NOTE: this is allowed to not panic the 
-        // caller is expected to check the pointer and not just
-        // compiler error state
-        if(!def_ptr)
-        {
-            return nullptr;
-        }
-
-        // okay attempt to parse the def
-        TypeDef& def = *def_ptr;
-        parse_def(itl,def);
-
-        // def parsing failed in some fashion just bail out
-        // there are no options left
-        if(itl.error)
-        {
-            return nullptr;
-        }
-
-        // okay now we have the type
-        user_type = lookup(itl.type_table,name);
-    }
-
-    return user_type;
-}
-
 Type* copy_type_internal(Interloper& itl, const Type* type)
 {
     switch(type->type_idx)
@@ -708,6 +665,84 @@ Type* copy_type(Interloper& itl, const Type* type)
     return copy_type_internal(itl,type);
 }
 
+// NOTE: 
+// to be used externally when attempting to find a type decl
+// dont look it up in the type table directly as the definition might not
+// have been parsed yet
+TypeDecl* lookup_type(Interloper& itl,const String& name)
+{
+    TypeDecl* user_type = lookup(itl.type_table,name);
+
+    // currently type does not exist
+    // attempt to parse the def
+    if(!user_type)
+    {
+        // look if there is a defintion for this type!
+        // if there is not then we have an error
+        TypeDef *def_ptr = lookup(itl.type_def,name);
+
+        // no such definiton exists
+        // NOTE: this is allowed to not panic the 
+        // caller is expected to check the pointer and not just
+        // compiler error state
+        if(!def_ptr)
+        {
+            return nullptr;
+        }
+
+        // okay attempt to parse the def
+        TypeDef& def = *def_ptr;
+        parse_def(itl,def);
+
+        // def parsing failed in some fashion just bail out
+        // there are no options left
+        if(itl.error)
+        {
+            return nullptr;
+        }
+
+        // okay now we have the type
+        user_type = lookup(itl.type_table,name);
+    }
+
+    return user_type;
+}
+
+Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_constant, b32 *is_alias)
+{
+    switch(kind)
+    {
+        case type_kind::struct_t:
+        {
+            return make_struct(itl,type_idx,is_constant); 
+        }
+
+        case type_kind::enum_t:
+        {
+            return make_enum(itl,type_idx,is_constant);
+        }
+
+        case type_kind::alias_t:
+        {
+            TypeAlias alias = itl.alias_table[type_idx];
+
+            *is_alias = true;
+
+            // alias must be copied so specifiers cannot tamper with it
+            return copy_type(itl,alias.type);
+        }
+
+        default: assert(false);
+    }
+}
+
+// TODO: this is more restrictive than required atm
+b32 def_has_indirection(TypeNode *type_decl)
+{
+    return count(type_decl->compound_type);
+}
+
+
 Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
     Type* type = nullptr;
@@ -717,6 +752,9 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
     const b32 is_constant = type_decl->is_constant;
     b32 is_alias = false;
 
+    // struct has checked that just a name without a full type is allready valid
+    // so we wont bother doing this again!
+    // NOTE: we check this below as well for other situations such as function pointers
     if(struct_idx_override != INVALID_TYPE)
     {
         type = make_struct(itl,struct_idx_override,is_constant);
@@ -724,41 +762,70 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
     else if(type_decl->type_idx == USER_TYPE)
     {
+        // NOTE: here we are doing the heavy lifting on defs by our self
+        // to handle out of order decl so we directly query the type table
+        // rather than using lookup_type
         const auto name = type_decl->name;
+        TypeDecl* user_type = lookup(itl.type_table,name);
 
-        TypeDecl* user_type = lookup_type(itl,name);
-
+        // user type does not exist yet
         if(!user_type)
         {
-            panic(itl,itl_error::undeclared,"no such type %s\n",type_decl->name);
-            return make_builtin(itl,builtin_type::void_t);
+            // check we have a type definiton
+            TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
+
+            // no such definiton exists, nothing we can do
+            if(!def_ptr)
+            {
+                panic(itl,itl_error::undeclared,"type %s is not defined\n",type_decl->name.buf);
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
+            TypeDef& def = *def_ptr;
+
+
+            // if this is not currently being checked 
+            // parse it
+            if(def.state == def_state::not_checked)
+            {
+                parse_def(itl,def);
+
+                // def checking went wrong!
+                if(itl.error)
+                {
+                    return make_builtin(itl,builtin_type::void_t);
+                }
+
+                // okay now we have a complete type build it!
+                user_type = lookup(itl.type_table,name);
+                type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant,&is_alias);
+            }
+
+            // type is being currently checked?
+            // we might have a potential black hole
+            else
+            {
+                // indirection, this is fine we dont need details of the type yet
+                if(def_has_indirection(type_decl))
+                {
+                    type = make_base_type(itl,def.slot,type_kind(def.kind),is_constant,&is_alias);
+                }
+
+                // this is no indirection and we have attempted to parse a type twice
+                // this means recursion is happening somewhere
+                else
+                {
+                    // TODO: add huertsics to scan for where!
+                    panic(itl,itl_error::black_hole,"type %s is recursively defined\n",def.name.buf);
+                    return make_builtin(itl,builtin_type::void_t);               
+                }
+            }
         }
 
-        switch(user_type->kind)
-        {
-            case type_kind::struct_t:
-            {
-                type = make_struct(itl,user_type->type_idx,is_constant); 
-                break;
-            }
-
-            case type_kind::enum_t:
-            {
-                type = make_enum(itl,user_type->type_idx,is_constant);
-                break;
-            }
-
-            case type_kind::alias_t:
-            {
-                TypeAlias alias = itl.alias_table[user_type->type_idx];
-
-                // alias must be copied so specifiers cannot tamper with it
-                type = copy_type(itl,alias.type);
-                is_alias = true;
-                break;
-            }
-
-            default: assert(false);
+        // user defined type allready exists, just pull the info out
+        else
+        {   
+            type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant,&is_alias);
         }       
     }
 
@@ -855,12 +922,6 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 Type* get_complete_type(Interloper& itl, TypeNode* type_decl)
 {
     return get_type(itl,type_decl,INVALID_TYPE,true);
-}
-
-// TODO: this is more restrictive than required atm
-b32 def_has_indirection(TypeNode *type_decl)
-{
-    return count(type_decl->compound_type);
 }
 
 
@@ -1170,7 +1231,12 @@ b32 type_equal(const Type* ltype, const Type* rtype)
 
         case POINTER:
         {
-            assert(false);
+            if(ltype->is_const != rtype->is_const)
+            {
+                return false;
+            }
+
+            return type_equal(deref_pointer(ltype),deref_pointer(rtype));
         }
 
         default:
@@ -1360,8 +1426,8 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 
             if(!type_equal(lsym.type,rsym.type))
             {
-                panic(itl,itl_error::mismatched_args,"func pointer arg %d does not match: %s != %s\n",a,
-                    type_name(itl,lsym.type).buf,type_name(itl,rsym.type).buf);
+                panic(itl,itl_error::mismatched_args,"func pointer arg type %d does not match:\n%s = %s\n\n",
+                    a,type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
         }
 
@@ -1370,8 +1436,8 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
         {
             if(!type_equal(func_ltype->sig.return_type[r],func_rtype->sig.return_type[r]))
             {
-                panic(itl,itl_error::mismatched_args,"func pointer arg %d does not match: %s != %s\n",r,
-                    type_name(itl,func_ltype->sig.return_type[r]).buf,type_name(itl,func_rtype->sig.return_type[r]).buf);
+                panic(itl,itl_error::mismatched_args,"func pointer return type %d does not match:\n%s = %s\n\n",
+                    r,type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
         }
 

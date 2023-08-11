@@ -43,6 +43,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/func/no_main",itl_error::undeclared},
     {"tests/func/invalid_args",itl_error::missing_args},
     {"tests/func/redefine_func",itl_error::redeclaration},
+    {"tests/func/missing_return",itl_error::missing_return},
 
     // control_flow
     {"tests/control_flow/switch_duplicate",itl_error::redeclaration},
@@ -120,6 +121,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/func/void_return",255},
     {"tests/func/void_no_return",0},
     {"tests/func/recur",1},
+    {"tests/func/func_pointer",50},
+    {"tests/func/func_pointer_struct_recur",21},
 
     // control flow
     {"tests/control_flow/if",25},

@@ -1079,7 +1079,7 @@ FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& fu
     }
 
     // single type
-    else if(!match(parser,token_type::left_c_brace))
+    else if(!match(parser,token_type::left_c_brace) && !match(parser,token_type::semi_colon))
     {
         TypeNode* return_type = parse_type(parser);
 

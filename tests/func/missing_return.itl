@@ -2,18 +2,15 @@
 // expected compile error
 
 
-// TODO: this test needs to be updated once we have conditional flow
-// it should be considered valid if a return is present with the correct type
-// in either scope1 for a default statement (dont know how we will test this)
-// or there is one inside scope0
-// rather than just any present at all
 
-func test() s32
+func test(x : s32) s32
 {
 
 }
 
 func main() s32
 {
+    test(5);
+
     return 0;
 }

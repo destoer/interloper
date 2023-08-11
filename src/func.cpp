@@ -804,6 +804,15 @@ void compile_function(Interloper& itl, Function& func)
 
     auto& start_block = func.emitter.program[0];
 
+    // check the start block can reach one
+    if(!can_reach_exit(start_block))
+    {
+        auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
+
+        itl.cur_expr = (AstNode*)func.root;   
+        panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);  
+    }
+
     for(u32 b = 0; b < count(start_block.links); b++)
     {
         const auto slot = start_block.links[b];

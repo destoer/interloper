@@ -1,0 +1,23 @@
+
+
+struct Actor
+{
+    update : func(actor : Actor@);
+
+    x : s32;
+};
+
+func update_basic(actor : Actor@)
+{
+    actor.x = 21;
+}
+
+func main() s32 
+{
+    actor : Actor;
+    actor.update = &update_basic;
+
+    actor.update(&actor);
+
+    return actor.x;
+}

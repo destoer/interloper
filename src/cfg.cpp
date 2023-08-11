@@ -100,6 +100,13 @@ b32 can_reach_exit(Function& func, BlockSlot slot)
     return block.flags & REACH_FUNC_EXIT;
 }
 
+b32 can_reach_exit(Block& block)
+{
+    return block.flags & REACH_FUNC_EXIT;
+}
+
+
+
 void add_cond_exit(Function& func,BlockSlot slot, BlockSlot target, BlockSlot fall)
 {
     auto& block = block_from_slot(func,slot);
