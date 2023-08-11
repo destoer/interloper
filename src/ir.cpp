@@ -171,12 +171,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 if(is_sym(slot))
                 {
                     auto& sym = sym_from_slot(table,slot);
-                    printf("alloc slot: %s\n",sym.name.buf);
+                    printf("alloc slot: %s : %s\n",sym.name.buf,opcode.v[1]? "forced" : "unforced");
                 }
 
                 else
                 {
-                    printf("alloc slot: t%d\n",reg.slot.handle);
+                    printf("alloc slot: t%d : %s\n",reg.slot.handle,opcode.v[1]? "forced" : "unforced");
                 }
             }
 

@@ -1812,7 +1812,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     // add new symbol table entry
     const auto &sym = add_symbol(itl,name,type);
 
-    alloc_slot(itl,func,sym.reg,is_plain_type(type));
+    alloc_slot(itl,func,sym.reg,!is_plain_type(type));
     compile_move(itl,func,sym.reg.slot,reg,sym.type,type);
 }
 

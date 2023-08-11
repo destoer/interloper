@@ -17,7 +17,7 @@ struct Box
 
 func main() s32
 {
-    // test basic usage works
+    // test basic usage
     ptr : func(x : s32) s32 = &times_five;
 
     res1 := ptr(5);

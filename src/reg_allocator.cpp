@@ -217,6 +217,8 @@ void stack_reserve_reg(LocalAlloc& alloc, Reg& ir_reg)
 {
     ir_reg.offset = stack_reserve_internal(alloc,ir_reg.size,ir_reg.count);
 
+    log(alloc.print_stack_allocation,"initial stack offset for register %x at %x allocated\n",ir_reg.slot.handle,ir_reg.offset);
+
     // mark this so we can finalise these later
     push_var(alloc.pending_allocation,ir_reg.slot);
 }
