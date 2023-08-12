@@ -748,36 +748,50 @@ void parse_function_declarations(Interloper& itl)
 
 void compile_function(Interloper& itl, Function& func)
 {
-    const auto &node = *func.root;
-    itl.cur_file = node.filename;
-
-    
-    // put arguments on the symbol table they are marked as args
-    // so we know to access them "above" to stack pointer
-    new_scope(itl.symbol_table);
-
-
-    // put each arg into scope
-    for(u32 a = 0; a < count(func.sig.args); a++)
+    // NOTE: for compiler generated functions we dont want to 
+    // compile this via a standard node
+    if(func.root)
     {
-        const SymSlot slot = func.sig.args[a];
+        const auto &node = *func.root;
+        itl.cur_file = node.filename;
 
-        auto &sym = sym_from_slot(itl.symbol_table,slot);
-        add_scope(itl.symbol_table,sym);
+        
+        // put arguments on the symbol table they are marked as args
+        // so we know to access them "above" to stack pointer
+        new_scope(itl.symbol_table);
+
+
+        // put each arg into scope
+        for(u32 a = 0; a < count(func.sig.args); a++)
+        {
+            const SymSlot slot = func.sig.args[a];
+
+            auto &sym = sym_from_slot(itl.symbol_table,slot);
+            add_scope(itl.symbol_table,sym);
+        }
+
+
+
+        // parse out each line of the function
+        compile_basic_block(itl,func,node.block);
+
+        destroy_scope(itl.symbol_table);
+
+        if(itl.error)
+        {
+            return;
+        }
     }
 
-
-
-    // parse out each line of the function
-    compile_basic_block(itl,func,node.block);
-
-    destroy_scope(itl.symbol_table);
-
-    if(itl.error)
+    // empty functions get a stub
+    else
     {
-        return;
+        // produce a dummy basic block
+        if(count(func.emitter.program) == 0)
+        {
+            new_basic_block(itl,func);
+        }
     }
-
  
     // if final block has no return and this is a void func insert one
     if(func.sig.return_type[0]->type_idx == u32(builtin_type::void_t))

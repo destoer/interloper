@@ -50,3 +50,4 @@ Makefile
 interloper
 build.ninja
 gen_table
+lexer_lut

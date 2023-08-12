@@ -106,6 +106,7 @@ struct Interloper
     HashTable<String,TypeDef> type_def;
 
     Array<GlobalDeclNode*> constant_decl;
+    Array<GlobalDeclNode*> global_decl;
 
     // memory collection for func pointer types
     Array<FuncSig*> func_pointer;

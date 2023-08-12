@@ -35,6 +35,7 @@ enum class token_type
     const_t,
 
     constant_t,
+    global_t,
 
     u8,
     u16,
@@ -160,6 +161,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::const_t,"const",-1},
 
     {token_type::constant_t,"constant",-1},
+    {token_type::global_t,"global",-1},
 
     {token_type::u8,"u8",-1},
     {token_type::u16,"u16",-1},

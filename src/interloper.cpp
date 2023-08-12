@@ -2059,6 +2059,41 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 }
 
 
+Function& create_dummy_func(Interloper& itl, const String& name)
+{
+    Function func;
+    func.name = copy_string(itl.string_allocator,name);
+
+    push_var(func.sig.return_type,make_builtin(itl,builtin_type::void_t));
+    finalise_def(itl,func);    
+
+    // create a dummy basic block
+    new_basic_block(itl,func);
+
+    add(itl.function_table,func.name,func);
+    
+    // get its new home
+    return *lookup(itl.function_table,name);
+}
+
+void compile_globals(Interloper& itl)
+{
+    return;
+    // create a dummy void func called init_global
+    // that we can compile all our global inits into!
+    auto& func = create_dummy_func(itl,"init_global");
+
+    for(u32 c = 0; c < count(itl.global_decl); c++)
+    {
+        itl.cur_file = itl.global_decl[c]->filename;
+        compile_decl(itl,func,(AstNode*)itl.global_decl[c]->decl,true);
+
+        if(itl.error)
+        {
+            return;
+        }
+    }
+}
 
 // -> impl static assert
 // -> improve const expressions
@@ -2099,6 +2134,7 @@ void destroy_itl(Interloper &itl)
     destroy_const_pool(itl.const_pool);
     destroy_sym_table(itl.symbol_table);
     destroy_arr(itl.constant_decl);
+    destroy_arr(itl.global_decl);
     
     destroy_ast(itl);
 
@@ -2126,14 +2162,16 @@ void destroy_itl(Interloper &itl)
 
     destroy_allocator(itl.list_allocator);
     destroy_allocator(itl.string_allocator);
-    destroy_allocator(itl.type_allocator);
 
+    
     for(u32 p = 0; p < count(itl.func_pointer); p++)
     {
         destroy_sig(*itl.func_pointer[p]);
     }
 
     destroy_arr(itl.func_pointer);
+
+    destroy_allocator(itl.type_allocator);
 }
 
 static constexpr u32 LIST_INITIAL_SIZE = 16 * 1024;
@@ -2257,6 +2295,13 @@ void compile(Interloper &itl,const String& initial_filename)
 
     // compile all our constant values 
     compile_constants(itl);
+    compile_globals(itl);
+
+    if(itl.error)
+    {
+        destroy_itl(itl);
+        return;
+    }
 
     // go through each function and compile
     // how do we want to handle getting to the entry point / address allocation?

@@ -1314,6 +1314,18 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
                 break; 
             }
 
+            // global mut
+            case token_type::global_t:
+            {
+                DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
+
+                GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,false,filename,t);
+
+                push_var(itl.global_decl,global_decl);
+                break; 
+            }
+
+
             default:
             {
                 panic(parser,t,"unexpected top level token %s(%d)'\n",tok_name(t.type),u32(t.type));

@@ -831,10 +831,13 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
     else if(type_decl->type_idx == FUNC_POINTER)
     {
+        // allocate and create function pointer type
         FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,is_constant);
-        parse_func_sig(itl,type->sig,*type_decl->func_type);
-
         push_var(itl.func_pointer,&type->sig);
+        type->sig = {};
+
+        // parse the function sig
+        parse_func_sig(itl,type->sig,*type_decl->func_type);
 
         return (Type*)type;
     }

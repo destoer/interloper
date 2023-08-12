@@ -3,14 +3,9 @@ import "system"
 // TODO: we need to define this for each arch
 func start()
 {
-    init_global();
+    // NOTE: the compiler will internally set this up for us
+    //init_global();
 
     rc : s32 = main();
     exit(rc);
-}
-
-// TODO: should this just be kept internally?
-func init_global()
-{
-
 }
