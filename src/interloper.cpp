@@ -1807,6 +1807,11 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     // TODO: this should just be compile_expresison
     const auto [type,reg] = compile_oper(itl,func,auto_decl->expr);
 
+    if(itl.error)
+    {
+        return;
+    }
+
     // add the symbol
 
     // add new symbol table entry
@@ -2078,7 +2083,6 @@ Function& create_dummy_func(Interloper& itl, const String& name)
 
 void compile_globals(Interloper& itl)
 {
-    return;
     // create a dummy void func called init_global
     // that we can compile all our global inits into!
     auto& func = create_dummy_func(itl,"init_global");
