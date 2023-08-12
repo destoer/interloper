@@ -711,15 +711,59 @@ b32 is_stack_allocated(Reg& reg)
     return !pending_stack_allocation(reg) && !is_stack_unallocated(reg);
 }
 
+// Alignment functions for for stack, struct, globals etc
+
+void align(u32 *alloc, u32 alignment)
+{
+    // make sure the last start posistion is even
+    alignment /= 2;
+
+    if(alloc[alignment] & alignment)
+    {
+        alloc[alignment] += alignment;
+    }
+}
+
+// NOTE: both arrays are size at number of base type sizes
+// i.e 3 (u8,u16,u32)
+
+// byte start defaults to zero, but for structs extra data may be shoved
+// at the start of the byte alloc
+
+// start is the offset for each section
+// count is how many "slots" each section has
+// byte start is the offset for the initial byte section
+
+u32 calc_alloc_sections(u32* start,u32* count, u32 byte_start = 0)
+{
+    // byte starts at zero
+    start[0] = byte_start;
+
+    // u16
+    start[1] = start[0] + (count[0] * sizeof(u8));
+    align(start,sizeof(u16));
+
+    // u32
+    start[2] = start[1] + (count[1] * sizeof(u16));
+    align(start,sizeof(u32));
+
+    // get total allocation size
+    const u32 size = start[2] + (count[2] * sizeof(u32));
+
+    return size;
+}
+
+u32 calc_final_offset(const u32* start, u32 size, u32 idx)
+{
+    return start[size >> 1] + (idx * size);
+}
+
 u32 finalise_offset(LocalAlloc& alloc,u32 offset, u32 size)
 {
     // what pos in the block does this reg have?
     const u32 idx = offset - PENDING_ALLOCATION;  
     
-    // actually allocate the offset
-    offset = alloc.stack_alloc[size >> 1] + (idx * size); 
-
-    return offset;   
+    return calc_final_offset(alloc.stack_alloc,size,idx);
 }
 
 void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
@@ -744,36 +788,9 @@ void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 }
 
 
-
-void align(u32 *alloc, u32 alignment)
-{
-    // make sure the last start posistion is even
-    alignment /= 2;
-
-    if(alloc[alignment] & alignment)
-    {
-        alloc[alignment] += alignment;
-    }
-}
-
 void calc_allocation(LocalAlloc& alloc)
 {
-    // calculate the final stack sizes
-    // byte located at start
-    alloc.stack_alloc[0] = 0;
-
-    // start u16 at end of byte allocation and align them
-    alloc.stack_alloc[1] = alloc.size_count_max[0];
-    align(alloc.stack_alloc,sizeof(u16));
-
-
-    //  u32 at end of half allocation and align them
-    alloc.stack_alloc[2] = alloc.stack_alloc[1] + (alloc.size_count_max[1] * sizeof(u16));
-    align(alloc.stack_alloc,sizeof(u32));
-
-
-    // get the total stack size
-    alloc.stack_size = alloc.stack_alloc[2] + (alloc.size_count_max[2] * sizeof(u32));
+    alloc.stack_size = calc_alloc_sections(alloc.stack_alloc,alloc.size_count_max);
 
     if(alloc.print_stack_allocation)
     {
@@ -896,4 +913,30 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
     }
 
     return std::pair{reg,offset};
+}
+
+void reserve_global_alloc(Interloper& itl, Symbol& sym)
+{
+    auto& alloc = itl.global_alloc;
+
+    const u32 idx = sym.reg.size >> 1;
+    sym.reg.offset = alloc.count[idx];
+    alloc.count[idx] = sym.reg.count; 
+}
+
+
+void finalise_global_offset(Interloper& itl)
+{
+    // okay now we know how many vars are in each section
+    // align them and compute the final intial offsets
+
+    auto& alloc = itl.global_alloc;
+
+    // first calc the sections
+    alloc.size = calc_alloc_sections(alloc.start,alloc.count);
+
+    // now we need to give each symbol is final offset from the start of the global table
+    
+    // by definiton globals (if any) will be stored inside the "top" symbol table
+    
 }

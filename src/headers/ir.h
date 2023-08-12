@@ -466,6 +466,14 @@ struct IrEmitter
 };
 
 
+struct GlobalAlloc
+{
+    u32 addr = 0;
+    u32 count[3] = {0};
+    u32 start[3] = {0};
+    u32 size = 0;
+};
+
 void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 void sign_extend_half(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 

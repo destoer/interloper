@@ -1734,6 +1734,10 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     // add new symbol table entry
     Symbol &sym = global? add_global(itl,name,ltype,false) : add_symbol(itl,name,ltype);
 
+    if(global)
+    {
+        reserve_global_alloc(itl,sym);
+    }
 
 
 

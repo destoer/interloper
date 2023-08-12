@@ -339,7 +339,6 @@ struct Symbol
     u32 arg_offset = NON_ARG;
 };
 
-
 struct Label 
 {
     String name;

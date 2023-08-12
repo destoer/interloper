@@ -9,12 +9,19 @@ func modify_nested()
 
 func modify()
 {
+    // modification
     x = 10;
 
+    // function call so we expect that x will be reloaded
     modify_nested();
+
+    // perform an increment to check the value isn't getting trashed
+    x += 1;
+
+    // we expect that the value is saved upon function exit
 }
 
-// expected 25
+// expected 26
 func main() s32
 {
     y := x;

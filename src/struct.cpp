@@ -255,8 +255,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     // handle alginment & get starting zonnes + total size
     u32 alloc_start[3];
 
-    // bytes just start at offset zero (and being bytes dont need aligment)
-    alloc_start[0] = 0;
+    u32 byte_start = 0;
 
     // insert this as the first set of data in the byte section
     if(forced_first != -1)
@@ -268,16 +267,12 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
         size_count[0] += size;
 
         // usual byte start offset by our insertion at front
-        alloc_start[0] = size;
+        byte_start = size;
     }
 
-    // get u16 start pos and align it on its own boudary
-    alloc_start[1] = size_count[0] * sizeof(u8);
-    align(alloc_start,sizeof(u16));
+    // finalise the offsets
+    structure.size = calc_alloc_sections(alloc_start,size_count,byte_start);
 
-    // get u32 start pos and align it on its own boudary
-    alloc_start[2] = alloc_start[1] + (size_count[1] * sizeof(u16));
-    align(alloc_start,sizeof(u32));
 
 
     // iter back over every member and give its offset
@@ -300,9 +295,6 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
             member.offset = alloc_start[size >> 1] + (zone_offset * size);
         }
     }
-
-    // get the total structure size
-    structure.size = alloc_start[2] + (size_count[2] * sizeof(u32));
 }
 
 void parse_struct_decl(Interloper& itl, TypeDef& def)

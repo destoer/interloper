@@ -83,6 +83,7 @@ struct Interloper
     Array<String> used_func;
 
     SymbolTable symbol_table;
+    GlobalAlloc global_alloc;
 
     ConstPool const_pool;
 
