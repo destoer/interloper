@@ -1,5 +1,4 @@
 
-// globals are stored above the stack
 global x : u32 = 5;
 
 func modify_nested()

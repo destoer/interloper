@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
     }
 
     Interpretter interpretter = make_interpretter();
-    run(interpretter,itl.program);
+    run(interpretter,itl.program,itl.global_alloc.size);
 
     destroy_itl(itl);
     destroy_interpretter(interpretter);

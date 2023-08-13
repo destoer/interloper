@@ -130,6 +130,11 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 
     push_var(sym_table.slot_lookup,sym);
 
+    if(!constant)
+    {
+        push_var(sym_table.global,sym.reg.slot);
+    }
+
     // add this into the top level scope
     add(sym_table.table[0],sym.name, sym.reg.slot);
     sym_table.sym_count++;       
@@ -175,6 +180,7 @@ void destroy_sym_table(SymbolTable &sym_table)
 
     destroy_arr(sym_table.slot_lookup);
     destroy_arr(sym_table.label_lookup);
+    destroy_arr(sym_table.global);
 
     sym_table.sym_count = 0;
     sym_table.var_count = 0;

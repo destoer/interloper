@@ -106,6 +106,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::implicit_t,"spill_rv",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::reg_t,"spill %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     {op_group::implicit_t,"spill_all",0,{arg_type::none,arg_type::none,arg_type::none}},
+    {op_group::implicit_t,"spill_func_bounds",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"reload_slot %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::implicit_t,"spill_slot %r",1,{arg_type::directive,arg_type::none,arg_type::none}},

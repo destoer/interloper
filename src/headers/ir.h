@@ -115,6 +115,7 @@ enum class op_type
     spill_rv,
     spill,
     spill_all,
+    spill_func_bounds,
     
     reload_slot,
     spill_slot,
@@ -336,7 +337,6 @@ static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
 static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
-static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 5;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
 static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
@@ -346,6 +346,8 @@ static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 // dont perform any moves
 static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 6;
 
+static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 7;
+static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 8;
 
 const String SPECIAL_REG_NAMES[] = 
 {
@@ -356,6 +358,8 @@ const String SPECIAL_REG_NAMES[] =
     "r1",
     "fixed_len",
     "null",
+    "const",
+    "global",
 };
 
 static constexpr u32 SP_NAME_IDX = 0;
@@ -487,6 +491,7 @@ void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot s
 void mov_imm(Interloper& itl, Function& func, SymSlot dst, u32 imm);
 
 void spill_rv(Interloper& itl, Function& func);
+void spill_func_bounds(Interloper& itl, Function& func);
 
 void reload_slot(Interloper& itl, Function& func, const Reg& reg);
 void spill_slot(Interloper& itl, Function& func, const Reg& reg);

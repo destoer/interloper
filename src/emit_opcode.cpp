@@ -45,6 +45,8 @@ void call(Interloper& itl,Function& func, LabelSlot slot, b32 save_regs = false)
         spill_rv(itl,func);
     }
 
+    spill_func_bounds(itl,func);
+
     emit_label1<op_type::call>(itl,func,slot);
 }
 
@@ -54,6 +56,8 @@ void call_reg(Interloper& itl,Function& func, SymSlot slot, b32 save_regs = fals
     {
         spill_rv(itl,func);
     }
+
+    spill_func_bounds(itl,func);
 
     emit_reg1<op_type::call_reg>(itl,func,slot);
 }
@@ -66,6 +70,8 @@ void branch_reg(Interloper& itl, Function&func, SymSlot target)
 void ret(Interloper& itl, Function& func)
 {
     add_func_exit(func,cur_block(func));
+
+    spill_func_bounds(itl,func);
     emit_implicit<op_type::ret>(itl,func);
 }
 

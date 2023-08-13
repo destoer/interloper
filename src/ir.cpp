@@ -181,7 +181,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             }
 
             // explictly force a stack alloc now
-            if(opcode.v[1])
+            if(opcode.v[1] && reg.kind != reg_kind::global)
             {
                 stack_reserve_reg(alloc,reg);    
             }
@@ -248,6 +248,13 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         case op_type::spill_all:
         {
             spill_all(alloc,itl.symbol_table,block,node,false);
+            return remove(block.list,node);
+        }
+
+        case op_type::spill_func_bounds:
+        {
+            spill_func_bounds(alloc,itl.symbol_table,block,node);
+
             return remove(block.list,node);
         }
 

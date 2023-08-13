@@ -268,6 +268,26 @@ void spill_all(LocalAlloc &alloc, SymbolTable& table, Block& block, ListNode* no
     }
 }
 
+// TODO: we probably need to cache this in a bitset so we dont have to loop this every time?
+void spill_func_bounds(LocalAlloc& alloc, SymbolTable& table, Block&  block, ListNode* node)
+{
+    // spill any aliased or global regs when we traverse a function boundary
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        const SymSlot slot = alloc.regs[r];
+
+        if(is_sym(slot))
+        {
+            auto& sym = sym_from_slot(table,slot);
+
+            if(is_aliased(sym.reg) || sym.reg.kind == reg_kind::global)
+            {
+                spill(slot,alloc,table,block,node,false);
+            }
+        } 
+    }   
+}
+
 void free_reg_internal(LocalAlloc& alloc, Reg& ir_reg)
 {
     const u32 reg = ir_reg.location;
@@ -444,7 +464,7 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
 
         // if a pointer is taken to this, 
         // or if we are in a loop and a sym scope extends past loop
-        if(is_aliased(sym.reg) || used_beyond_loop)
+        if(is_aliased(sym.reg) || sym.reg.kind == reg_kind::global || used_beyond_loop)
         {
             spill(slot,alloc,table,block,node,after);
         }
@@ -817,6 +837,17 @@ void finish_stack_alloc(SymbolTable& table, LocalAlloc& alloc)
 
 void mark_lifetimes(Function& func,LocalAlloc& alloc, SymbolTable& table)
 {
+    log(alloc.print_reg_allocation,"marking lifetimes for %s:\n\n",func.name.buf);
+
+    // clear lifetimes for all global vars
+    // because we dont have a multi procedure allocator...
+    for(u32 g = 0; g < count(table.global); g++)
+    {
+        const auto slot = table.global[g];
+        auto& sym = sym_from_slot(table,slot);
+        clear_arr(sym.reg.usage);
+    }
+
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
@@ -851,7 +882,6 @@ void mark_lifetimes(Function& func,LocalAlloc& alloc, SymbolTable& table)
                     continue;
                 }
 
-
                 auto& reg = reg_from_slot(slot,table,alloc);
                 push_var(reg.usage,pc);
             }
@@ -885,34 +915,28 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
 {
     UNUSED(itl);
 
-    u32 reg = 0;
-    u32 offset = 0;
-
     switch(ir_reg.kind)
     {
         case reg_kind::local:
         case reg_kind::tmp:
         {
-            reg = SP;
-            offset = ir_reg.offset + stack_offset;
-            break;
+            const u32 offset = ir_reg.offset + stack_offset;
+            return std::pair{SP,offset};
         }
 
         case reg_kind::constant:
         {
             const u32 handle = ir_reg.offset;
-            reg = GP_IR;
-            offset = handle;
-            break;
+            return std::pair{CONST_IR,handle};
         }
 
         case reg_kind::global:
         {
-            assert(false);
+            return std::pair{GP_IR,ir_reg.offset};
         }
     }
 
-    return std::pair{reg,offset};
+    assert(false);
 }
 
 void reserve_global_alloc(Interloper& itl, Symbol& sym)
@@ -938,5 +962,11 @@ void finalise_global_offset(Interloper& itl)
     // now we need to give each symbol is final offset from the start of the global table
     
     // by definiton globals (if any) will be stored inside the "top" symbol table
-    
+    for(u32 g = 0; g < count(itl.symbol_table.global); g++)
+    {
+        const auto slot = itl.symbol_table.global[g];
+        auto& sym = sym_from_slot(itl.symbol_table,slot);
+
+        sym.reg.offset = calc_final_offset(itl.global_alloc.start,sym.reg.size,sym.reg.offset);
+    }   
 }

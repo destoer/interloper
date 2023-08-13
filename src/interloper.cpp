@@ -2079,6 +2079,8 @@ Function& create_dummy_func(Interloper& itl, const String& name)
     // create a dummy basic block
     new_basic_block(itl,func);
 
+    mark_used(itl,func);
+
     add(itl.function_table,func.name,func);
     
     // get its new home
@@ -2101,6 +2103,8 @@ void compile_globals(Interloper& itl)
             return;
         }
     }
+
+    finalise_global_offset(itl);
 }
 
 // -> impl static assert

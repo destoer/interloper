@@ -131,7 +131,7 @@ void emit_asm(Interloper &itl)
         {
             case op_group::load_t:
             {
-                if(opcode.v[1] == GP_IR)
+                if(opcode.v[1] == CONST_IR)
                 {
                     const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[2]);
                     auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
@@ -143,17 +143,37 @@ void emit_asm(Interloper &itl)
                     write_mem(itl.program,i,opcode);
                 }
 
+                else if(opcode.v[1] == GP_IR)
+                {
+                    const u32 global_offset = opcode.v[2];
+                    const u32 addr = PROGRAM_ORG + count(itl.program) + global_offset;
+                    const u32 offset = addr - program_counter;
+
+                    opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
+                    write_mem(itl.program,i,opcode);             
+                }
+
                 break;
             }
 
             case op_group::store_t:
             {
-                if(opcode.v[1] == GP_IR)
+                if(opcode.v[1] == CONST_IR)
                 {
                     const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[2]);
                     auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
                     const u32 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                    const u32 offset = addr - program_counter;
+
+                    opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
+                    write_mem(itl.program,i,opcode);
+                }
+
+                else if(opcode.v[1] == GP_IR)
+                {
+                    const u32 global_offset = opcode.v[2];
+                    const u32 addr = PROGRAM_ORG + count(itl.program) + global_offset;
                     const u32 offset = addr - program_counter;
 
                     opcode = Opcode(opcode.op,opcode.v[0],PC,offset);

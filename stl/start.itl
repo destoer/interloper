@@ -4,7 +4,7 @@ import "system"
 func start()
 {
     // NOTE: the compiler will internally set this up for us
-    //init_global();
+    init_global();
 
     rc : s32 = main();
     exit(rc);

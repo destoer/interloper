@@ -50,6 +50,12 @@ void restore_regs(Interloper& itl, Function& func)
     emit_implicit<op_type::restore_regs>(itl,func);
 }
 
+void spill_func_bounds(Interloper& itl, Function& func)
+{
+    emit_implicit<op_type::spill_func_bounds>(itl,func);
+}
+
+
 void emit_exit_block(Interloper& itl, Function& func)
 {
     emit_implicit<op_type::exit_block>(itl,func);

@@ -58,6 +58,11 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
         return handle_read<access_type>(&interpretter.program[addr]);
     }
 
+    else if(addr >= interpretter.program.size && addr < interpretter.program.size +  count(interpretter.global))
+    {
+        return handle_read<access_type>(&interpretter.global[addr - interpretter.program.size]);
+    }
+
     if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
     {
         return handle_read<access_type>(&interpretter.stack[addr - 0x20000000]);
@@ -79,6 +84,11 @@ void* get_vm_ptr(Interpretter& interpretter,u32 addr, u32 size)
         return &interpretter.program.data[addr];
     }
 
+    else if(addr >= interpretter.program.size && addr < interpretter.program.size +  count(interpretter.global))
+    {
+        return &interpretter.global[addr - interpretter.program.size];
+    }
+
     if(addr >= 0x20000000 && addr + size < 0x20000000 + count(interpretter.stack))
     {
         return &interpretter.stack[addr - 0x20000000];
@@ -96,7 +106,12 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
-    if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
+    if(interpretter.program.size && addr < interpretter.program.size +  count(interpretter.global))
+    {
+        handle_write<access_type>(&interpretter.global[addr - interpretter.program.size],v);
+    }
+
+    else if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
     {
         handle_write<access_type>(&interpretter.stack[addr - 0x20000000],v);
     }
@@ -551,6 +566,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::spill_all:
         case op_type::reload_slot:
         case op_type::spill_slot:
+        case op_type::spill_func_bounds:
         case op_type::load:
         case op_type::addrof:
         case op_type::buf_alloc:
@@ -566,9 +582,14 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
     }    
 }
 
-void reset(Interpretter& interpretter)
+void reset(Interpretter& interpretter, u32 global_size)
 {
     memset(interpretter.regs,0,sizeof(interpretter.regs));
+
+    if(global_size)
+    {
+        resize(interpretter.global,global_size);
+    }
 
     interpretter.regs[PC] = 0;
     interpretter.regs[SP] = 0x20000000 + count(interpretter.stack);
@@ -585,7 +606,7 @@ Interpretter make_interpretter()
     resize(interpretter.stack,STACK_SIZE);
     memset(interpretter.stack.data,0,interpretter.stack.size);
 
-    reset(interpretter);
+    reset(interpretter,0);
 
     return interpretter;
 }
@@ -593,15 +614,16 @@ Interpretter make_interpretter()
 void destroy_interpretter(Interpretter& interpretter)
 {
     destroy_arr(interpretter.stack);
+    destroy_arr(interpretter.global);
 }
 
-s32 run(Interpretter& interpretter,const Array<u8>& program)
+s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
 {
     //puts("BOOP!"); exit(1);
 
     printf("starting progam execution: %x bytes long\n",program.size);
     
-    reset(interpretter);
+    reset(interpretter,global_size);
 
     auto &regs = interpretter.regs;
 

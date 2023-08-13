@@ -237,7 +237,7 @@ void run_tests()
             break;
         }
 
-        const auto r = run(interpretter,itl.program);      
+        const auto r = run(interpretter,itl.program,itl.global_alloc.size);      
 
 
         if(test.expected != r)

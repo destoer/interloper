@@ -12,7 +12,8 @@ struct Trace
 };
 
 // memory map 
-//  0x10000000 -> program memory
+//  0x00000000 -> program memory
+//  0x00000000 + program_size -> globals
 //  0x20000000 + stack size -> stack
 //  0x30000000 and above -> heap allocations (when implemented)
 struct Interpretter
@@ -26,6 +27,7 @@ struct Interpretter
 
     Array<u8> program;
 
+    Array<u8> global;
 
     Array<u8> stack;
 

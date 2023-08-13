@@ -409,6 +409,7 @@ struct SymbolTable
     Array<HashTable<String,SymSlot>> table;
 
     SlotLookup slot_lookup;
+    Array<SymSlot> global;
 
     // offset is the block slot until full resolution
     // after label resolution this holds the address of the label
