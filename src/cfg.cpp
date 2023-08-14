@@ -106,6 +106,10 @@ b32 can_reach_exit(Block& block)
 }
 
 
+b32 in_loop(Block& block)
+{
+    return block.flags & IN_LOOP;
+}
 
 void add_cond_exit(Function& func,BlockSlot slot, BlockSlot target, BlockSlot fall)
 {
@@ -211,6 +215,12 @@ void connect_node(Function& func,BlockSlot slot)
         for(u32 e = 0; e < count(scan_block.exit); e++)
         {
             const BlockSlot edge_slot = scan_block.exit[e];
+
+            // can reach self this means we have a loop!
+            if(slot.handle == edge_slot.handle)
+            {
+                block.flags |= IN_LOOP;
+            }
 
             if(has_func_exit(func,edge_slot))
             {

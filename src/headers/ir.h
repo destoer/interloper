@@ -442,6 +442,7 @@ static constexpr BlockSlot BLOCK_FUNC_EXIT = {BLOCK_FUNC_EXIT_HANDLE};
 
 static constexpr u32 HAS_FUNC_EXIT = 1 << 0;
 static constexpr u32 REACH_FUNC_EXIT = 1 << 1;
+static constexpr u32 IN_LOOP = 1 << 2;
 
 struct Block
 {

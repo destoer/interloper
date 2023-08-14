@@ -445,22 +445,10 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
     {
         auto &sym = sym_from_slot(table,slot);
 
-        b32 used_beyond_loop = false;
-        UNUSED(used_beyond_loop);
 
-        for(u32 e = 0; e < count(block.links); e++)
-        {
-            const BlockSlot edge_slot = block.links[e];
-
-            // reachable from self
-            // scope extends beyond this last use
-            
-            if(edge_slot.handle == block.block_slot.handle && sym.scope_end.handle > block.block_slot.handle)
-            {
-                used_beyond_loop = true;
-                break;
-            }
-        }
+        // reachable from self
+        // scope extends beyond this last use
+        const b32 used_beyond_loop = in_loop(block) && sym.scope_end.handle > block.block_slot.handle;
 
         // if a pointer is taken to this, 
         // or if we are in a loop and a sym scope extends past loop
