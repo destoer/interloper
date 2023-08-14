@@ -212,8 +212,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         // TODO: we should probably only save regs we use but this is just easy for now
         case op_type::save_regs:
         {
-            node->opcode = Opcode(op_type::pushm,0xffffffff,0,0);
-            alloc.stack_offset += GPR_SIZE * MACHINE_REG_SIZE;
+            node->opcode = Opcode(op_type::pushm,opcode.v[0],0,0);
+            alloc.stack_offset += GPR_SIZE * popcount(opcode.v[0]);
 
             node = node->next;
             break;
@@ -223,8 +223,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         // TODO: make this only restore active regs....
         case op_type::restore_regs:
         {
-            node->opcode = Opcode(op_type::popm,0xffffffff,0,0);
-            alloc.stack_offset -= GPR_SIZE * MACHINE_REG_SIZE;
+            node->opcode = Opcode(op_type::popm,opcode.v[0],0,0);
+            alloc.stack_offset -= GPR_SIZE * popcount(opcode.v[0]);
 
             node = node->next;
             break;

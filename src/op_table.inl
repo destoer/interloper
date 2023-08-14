@@ -118,8 +118,8 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"load_func_addr %r, %a, %x",2,{arg_type::dst_reg,arg_type::label,arg_type::none}},
 
 
-    {op_group::implicit_t,"save_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
-    {op_group::implicit_t,"restore_regs",0,{arg_type::none,arg_type::none,arg_type::none}},
+    {op_group::imm_t,"save_regs",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::imm_t,"restore_regs",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::dst_reg,arg_type::directive,arg_type::none}},
 

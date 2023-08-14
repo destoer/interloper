@@ -40,14 +40,16 @@ void clean_args(Interloper& itl, Function& func, u32 v)
     emit_imm0<op_type::clean_args>(itl,func,v);
 }
 
-void save_regs(Interloper& itl, Function& func)
+void save_regs(Interloper& itl, Function& func, u16 bitset)
 {
-    emit_implicit<op_type::save_regs>(itl,func);
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::save_regs,bitset,0,0);
 }
 
-void restore_regs(Interloper& itl, Function& func)
+void restore_regs(Interloper& itl, Function& func, u16 bitset)
 {
-    emit_implicit<op_type::restore_regs>(itl,func);
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::restore_regs,bitset,0,0);
 }
 
 void spill_func_bounds(Interloper& itl, Function& func)

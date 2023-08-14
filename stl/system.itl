@@ -1,11 +1,14 @@
+import "file"
 // NOTE: abstracts away bottom level primitives that with the os
-// TODO: make seperate files for each target
+// TODO: make this handle multiple targets
 
 constant SYSCALL_EXIT : u32 = 0;
 constant SYSCALL_WRITE_STRING : u32 = 1;
 constant SYSCALL_OPEN : u32 = 2;
 
 // STD IO
+
+global stdout : File = open_stdout();
 
 func write_buf(data : const c8@, len : u32)
 {
@@ -20,6 +23,8 @@ func write_string(str: const string)
 
 // PROCESS
 
+constant FAILURE_OPEN_STDOUT : u32 = 0xf000_0001;
+
 func exit(exit_code: s32)
 {
     intrin_syscall(SYSCALL_EXIT,exit_code,0);
@@ -30,5 +35,23 @@ func exit(exit_code: s32)
 // NOTE: this is expecting a null terminated string
 func os_open(filename : const c8@, mode : u32) s32
 {
-    return intrin_syscall(SYSCALL_OPEN,string.data,mode);
+    return intrin_syscall(SYSCALL_OPEN,filename,mode);
 }
+
+func open_stdout() File
+{
+    fp : File;
+    err : bool;
+
+    // NOTE: for now this only works properly against linux
+    [fp,err] = open_file("/dev/tty",FILE_W,FILE_FLAG_STR);
+
+    
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDOUT);
+    }
+
+    return fp;
+}
+

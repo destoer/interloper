@@ -1,6 +1,6 @@
 
 
-func memcpy(dst: byte@, src: byte@, size: u32)
+func memcpy(dst: byte@, src: const byte@, size: u32)
 {
     end : const byte@ = dst + size;
 

@@ -71,7 +71,11 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
-    save_regs(itl,func);
+    const u32 REG_BITSET = 0b0000'0010;
+
+    // save the regs this will clobber with its direct asm
+    // NOTE: we dont save R0 because it is used for returns and callee saved
+    save_regs(itl,func,REG_BITSET);
 
 
     const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
@@ -93,10 +97,15 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
 
     syscall(itl,func,syscall_number);
 
+    if(dst_slot.handle != NO_SLOT)
+    {
+        // move result
+        mov_reg(itl,func,dst_slot,sym_from_idx(R0_IR));
+    }
+    
+    restore_regs(itl,func,REG_BITSET);
 
-
-    restore_regs(itl,func);
-    return make_builtin(itl,builtin_type::void_t);   
+    return make_builtin(itl,builtin_type::s32_t);   
 }
 
 static constexpr u32 INTRIN_TABLE_SIZE = 2;
