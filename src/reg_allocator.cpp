@@ -933,7 +933,7 @@ void reserve_global_alloc(Interloper& itl, Symbol& sym)
 
     const u32 idx = sym.reg.size >> 1;
     sym.reg.offset = alloc.count[idx];
-    alloc.count[idx] = sym.reg.count; 
+    alloc.count[idx] += sym.reg.count; 
 }
 
 
@@ -947,6 +947,10 @@ void finalise_global_offset(Interloper& itl)
     // first calc the sections
     alloc.size = calc_alloc_sections(alloc.start,alloc.count);
 
+    log(itl.print_global,"Global size %x : start (%x, %x, %x) : count (%x, %x, %x)\n",
+        alloc.size,alloc.start[0],alloc.start[1],alloc.start[2],alloc.count[0],
+        alloc.count[1],alloc.count[2]);
+
     // now we need to give each symbol is final offset from the start of the global table
     
     // by definiton globals (if any) will be stored inside the "top" symbol table
@@ -956,5 +960,6 @@ void finalise_global_offset(Interloper& itl)
         auto& sym = sym_from_slot(itl.symbol_table,slot);
 
         sym.reg.offset = calc_final_offset(itl.global_alloc.start,sym.reg.size,sym.reg.offset);
+        log(itl.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,sym.reg.offset,sym.reg.size,sym.reg.count);
     }   
 }

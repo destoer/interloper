@@ -7,42 +7,27 @@
 
 
 
-struct Config
+
+void parse_flags(Interloper& itl,const char* flags)
 {
-    b32 print_ast = false;
-    b32 print_ir = false;
-    b32 print_tokens = false;
-
-    b32 print_reg_allocation = false;
-    b32 print_stack_allocation = false;
-
-    b32 print_types = false;     
-};
-
-
-Config parse_flags(const char* flags)
-{
-    Config cfg;
-
     u32 i = 1;
     while(flags[i])
     {
         switch(flags[i])
         {
-            case 'i': cfg.print_ir = true; break;
-            case 'a': cfg.print_ast = true; break;
-            case 'r': cfg.print_reg_allocation = true; break;
-            case 's': cfg.print_stack_allocation = true; break;
-            case 'c': cfg.print_types = true; break;
-            case 'l': cfg.print_tokens = true; break;
+            case 'i': itl.print_ir = true; break;
+            case 'a': itl.print_ast = true; break;
+            case 'r': itl.print_reg_allocation = true; break;
+            case 's': itl.print_stack_allocation = true; break;
+            case 'g': itl.print_global = true; break;
+            case 'c': itl.print_types = true; break;
+            case 'l': itl.print_tokens = true; break;
 
             default: crash_and_burn("unknown flag: %c\n",flags[i]); 
         }
 
         i++;
     }
-
-    return cfg;
 }
 
 int main(int argc, char *argv[])
@@ -70,16 +55,7 @@ int main(int argc, char *argv[])
     if(argv[1][0] == '-')
     {
         // we have flags of some kind
-        auto cfg = parse_flags(argv[1]);
-
-        // move over our config
-        itl.print_ast = cfg.print_ast;
-        itl.print_ir = cfg.print_ir;
-        itl.print_tokens = cfg.print_tokens;
-
-        itl.print_reg_allocation = cfg.print_reg_allocation;
-        itl.print_stack_allocation = cfg.print_stack_allocation;
-        itl.print_types = cfg.print_types;
+        parse_flags(itl,argv[1]);
 
         // for now just assume flags are in a batch
         if(argc == 3)
