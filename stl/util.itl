@@ -17,3 +17,21 @@ func reverse(buf : c8[], len : u32)
     }
 
 }
+
+func assert(cond : bool)
+{
+    if(!cond)
+    {
+        exit(1);
+    }
+}
+
+func min(v1 : s32, v2 : s32) s32
+{
+    if(v1 < v2)
+    {
+        return v1;
+    }
+
+    return v2;
+}

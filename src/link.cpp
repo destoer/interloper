@@ -110,6 +110,8 @@ void emit_asm(Interloper &itl)
         write_mem<u32>(pool_data,addr,section.offset + const_pool_loc);
     }
     
+    // make sure the pool is aligned before its inserted
+    align_pool(const_pool,GPR_SIZE);
 
     // add the constant pool, into the final program
     push_mem(itl.program,pool_data);

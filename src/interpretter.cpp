@@ -53,17 +53,19 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
-    if(addr < interpretter.program.size)
+    const u32 size = sizeof(access_type);
+
+    if(addr + size <= interpretter.program.size)
     {
         return handle_read<access_type>(&interpretter.program[addr]);
     }
 
-    else if(addr >= interpretter.program.size && addr < interpretter.program.size +  count(interpretter.global))
+    else if(addr >= interpretter.program.size && addr + size <= interpretter.program.size +  interpretter.global.size)
     {
         return handle_read<access_type>(&interpretter.global[addr - interpretter.program.size]);
     }
 
-    if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
+    if(addr >= 0x20000000 && addr + size <= 0x20000000 + interpretter.stack.size)
     {
         return handle_read<access_type>(&interpretter.stack[addr - 0x20000000]);
     }
@@ -71,7 +73,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     else
     {
         print_regs(interpretter);
-        crash_and_burn("%x: out of bounds read at %x\n",interpretter.regs[PC] - sizeof(Opcode),addr);
+        crash_and_burn("%x, %x: out of bounds read at %x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr);
     }
 }
 
@@ -84,12 +86,12 @@ void* get_vm_ptr(Interpretter& interpretter,u32 addr, u32 size)
         return &interpretter.program.data[addr];
     }
 
-    else if(addr >= interpretter.program.size && addr < interpretter.program.size +  count(interpretter.global))
+    else if(addr >= interpretter.program.size && addr + size <= interpretter.program.size +  interpretter.global.size)
     {
         return &interpretter.global[addr - interpretter.program.size];
     }
 
-    if(addr >= 0x20000000 && addr + size < 0x20000000 + count(interpretter.stack))
+    if(addr >= 0x20000000 && addr + size <= 0x20000000 + interpretter.stack.size)
     {
         return &interpretter.stack[addr - 0x20000000];
     }
@@ -106,12 +108,14 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     // force align access
     addr &= ~(sizeof(access_type) - 1);
 
-    if(interpretter.program.size && addr < interpretter.program.size +  count(interpretter.global))
+    const u32 size = sizeof(access_type);
+
+    if(addr >= interpretter.program.size && addr + size <= interpretter.program.size +  interpretter.global.size)
     {
         handle_write<access_type>(&interpretter.global[addr - interpretter.program.size],v);
     }
 
-    else if(addr >= 0x20000000 && addr < 0x20000000 + count(interpretter.stack))
+    else if(addr >= 0x20000000 && addr + size <= 0x20000000 + interpretter.stack.size)
     {
         handle_write<access_type>(&interpretter.stack[addr - 0x20000000],v);
     }
@@ -119,7 +123,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     else
     {
         print_regs(interpretter);
-        crash_and_burn("%08x: out of bounds write at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),addr,v);
+        crash_and_burn("%08x, %x: out of bounds write at %x:%x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr,v);
     }
 }
 

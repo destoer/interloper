@@ -1,0 +1,49 @@
+
+struct File
+{
+    flags : u32;
+
+    // os handle
+    handle : s32;
+    
+    // for buffered io
+    buf : byte[];
+    pending : u32;
+}
+
+constant FILE_R : u32 = 0;
+constant FILE_W : u32 = 1;
+constant FILE_RW : u32 = 2;
+
+constant FILE_FLAG_B : u32 1 << 0;
+constant FILE_FLAG_STR : u32 1 << 1;
+
+
+func open_file(str : const string, mode : u32, flags : u32) [File,bool]
+{
+    file : File;    
+
+    file.flags = flags;
+
+    // null terminate the string in a stack buffer
+    buf : char[256];
+
+    memcpy(&buf[0],&str[0],min(str.len,buf.len - 1));
+    buf[buf.len - 1] = '\0';
+
+    file.handle = os_open(buf.data,mode); 
+
+    // TODO: we should allocate our buffer here
+
+    return file,true;
+}
+
+func write_file_str(file : File@, str : const string) bool
+{
+    return write_file_mem(file,str.data, str.len);
+}
+
+func write_file_mem(file : File@,buf : byte@, len : u32) bool
+{
+    return true;
+}

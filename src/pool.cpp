@@ -19,10 +19,8 @@ PoolSlot pool_slot_from_idx(u32 handle)
     return {handle};
 }
 
-// TODO: should this hold the a Type* of the stored data if it is a var?
-PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
+void align_pool(ConstPool& pool, u32 align_size)
 {
-    const u32 align_size = size >= GPR_SIZE? GPR_SIZE : size;
     const u32 unaligned = (pool.buf.size & (align_size - 1));
 
     // pool requires alginment
@@ -30,6 +28,14 @@ PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
     {
         resize(pool.buf,count(pool.buf) + (align_size - unaligned));
     }
+}
+
+// TODO: should this hold the a Type* of the stored data if it is a var?
+PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
+{
+    const u32 align_size = size >= GPR_SIZE? GPR_SIZE : size;
+
+    align_pool(pool,align_size);
 
     PoolSection section;
     section.type = type;
@@ -85,24 +91,28 @@ void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,
 }
 
 
-/*
-template<typename T>
-void write_const_pool_struct(ConstPool& pool, PoolSlot slot, const String& name, const T& data)
-{
-
-}
-*/
-
-
 // create a pool section and push the data to it
 PoolSlot push_const_pool(ConstPool& pool, pool_type type, const void* data,u32 size)
 {
+    u32 pool_size = size;
+
+    if(type == pool_type::string_literal)
+    {
+        pool_size += 1;
+    }
+
     // create section
-    const auto slot = reserve_const_pool_section(pool,type,size);
+    const auto slot = reserve_const_pool_section(pool,type,pool_size);
     auto& section = pool_section_from_slot(pool,slot);
 
     // copy the data into the pool
     write_const_pool(pool,section,0,data,size);
+
+    // string_literals are null terminated inside the pool
+    if(type == pool_type::string_literal)
+    {
+        write_const_pool(pool,section,size,'\0');
+    }
 
     return slot;
 }

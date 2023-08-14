@@ -73,6 +73,32 @@ std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
             return std::pair{ans,type};
         }
 
+        case ast_type::shift_l:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+
+            const u32 ans = value_left << value_right;
+            Type* type = effective_arith_type(itl,type_left,type_right);
+
+            return std::pair{ans,type};            
+        }
+
+        case ast_type::shift_r:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+
+            const u32 ans = value_left >> value_right;
+            Type* type = effective_arith_type(itl,type_left,type_right);
+
+            return std::pair{ans,type};            
+        }
+
         case ast_type::times:
         {
             BinNode* bin_node = (BinNode*)node;

@@ -1,7 +1,11 @@
+// NOTE: abstracts away bottom level primitives that with the os
 // TODO: make seperate files for each target
 
 constant SYSCALL_EXIT : u32 = 0;
 constant SYSCALL_WRITE_STRING : u32 = 1;
+constant SYSCALL_OPEN : u32 = 2;
+
+// STD IO
 
 func write_buf(data : const c8@, len : u32)
 {
@@ -14,15 +18,17 @@ func write_string(str: const string)
 }
 
 
+// PROCESS
+
 func exit(exit_code: s32)
 {
     intrin_syscall(SYSCALL_EXIT,exit_code,0);
 }
 
-func assert(cond : bool)
+// FILE IO
+
+// NOTE: this is expecting a null terminated string
+func os_open(filename : const c8@, mode : u32) s32
 {
-    if(!cond)
-    {
-        exit(1);
-    }
+    return intrin_syscall(SYSCALL_OPEN,string.data,mode);
 }
