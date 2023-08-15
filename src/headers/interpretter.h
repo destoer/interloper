@@ -21,7 +21,7 @@ struct Interpretter
     u32 size = 0;
 
     //pc and sp are after the standard regs
-    u32 regs[MACHINE_REG_SIZE + 2];
+    u64 regs[MACHINE_REG_SIZE + 2];
 
     b32 quit;
 
@@ -33,6 +33,4 @@ struct Interpretter
 
     Trace trace;
 };
-
-
 

@@ -218,17 +218,17 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
         // translate larger items, into several allocations on the final section
         if(size > GPR_SIZE)
         {
-            member.offset = size_count[GPR_SIZE >> 1];
+            member.offset = size_count[log2(GPR_SIZE)];
 
-            size_count[GPR_SIZE >> 1] += gpr_count(size);
+            size_count[log2(GPR_SIZE)] += gpr_count(size);
         }
 
         else
         {
             // cache the offset into its section
-            member.offset = size_count[size >> 1];
+            member.offset = size_count[log2(size)];
 
-            size_count[size >> 1] += 1;
+            size_count[log2(size)] += 1;
         }
     }
 
@@ -253,7 +253,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     // TODO: handle not reordering the struct upon request
 
     // handle alginment & get starting zonnes + total size
-    u32 alloc_start[3];
+    u32 alloc_start[4];
 
     u32 byte_start = 0;
 
@@ -292,7 +292,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
 
         else 
         {
-            member.offset = alloc_start[size >> 1] + (zone_offset * size);
+            member.offset = alloc_start[log2(size)] + (zone_offset * size);
         }
     }
 }
@@ -322,7 +322,7 @@ void parse_struct_decl(Interloper& itl, TypeDef& def)
 
     // we want to get how many sizes of each we have
     // and then we can go back through and align the struct with them
-    u32 size_count[3] = {0};
+    u32 size_count[4] = {0};
 
     s32 forced_first_loc = -1;
 

@@ -23,6 +23,7 @@ enum class op_type
 
     sxb,
     sxh,
+    sxw,
 
     mov_imm,
     add_imm,
@@ -35,13 +36,16 @@ enum class op_type
     lb,
     lh,
     lw,
+    ld,
 
     lsb,
     lsh,
+    lsw,
 
     sb,
     sh,
     sw,
+    sd,
 
     lea,
 
@@ -248,7 +252,7 @@ struct Opcode
 {
     Opcode() {}
 
-    Opcode(op_type op, u32 v1, u32 v2, u32 v3)
+    Opcode(op_type op, u64 v1, u64 v2, u64 v3)
     {
         this->op = op;
         this->v[0] = v1;
@@ -261,7 +265,7 @@ struct Opcode
     // operands (either a register id)
     // or an immediate (depends implictly on opcode type)
     // or a label number
-    u32 v[3];
+    u64 v[3];
 };
 
 enum class reg_kind
@@ -382,7 +386,7 @@ static constexpr u32 PROGRAM_ORG = 0;
 static constexpr SymSlot SP_REG = {SP};
 
 
-static constexpr u32 GPR_SIZE = sizeof(u32);
+static constexpr u32 GPR_SIZE = sizeof(u64);
 
 
 
@@ -474,22 +478,23 @@ struct IrEmitter
 struct GlobalAlloc
 {
     u32 addr = 0;
-    u32 count[3] = {0};
-    u32 start[3] = {0};
+    u32 count[4] = {0};
+    u32 start[4] = {0};
     u32 size = 0;
 };
 
 void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 void sign_extend_half(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
+void sign_extend_word(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 
 void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 
-void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm);
+void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm);
 
-void cmp_signed_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm);
-void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm);
+void cmp_signed_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm);
+void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm);
 
-void mov_imm(Interloper& itl, Function& func, SymSlot dst, u32 imm);
+void mov_imm(Interloper& itl, Function& func, SymSlot dst, u64 imm);
 
 void spill_rv(Interloper& itl, Function& func);
 void spill_func_bounds(Interloper& itl, Function& func);

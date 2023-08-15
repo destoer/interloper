@@ -40,11 +40,11 @@ void print_regs(Interpretter& interpretter)
     puts("regs:");
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
-        printf("r%d = 0x%08x\n",i,interpretter.regs[i]);
+        printf("r%d = 0x%016lx\n",i,interpretter.regs[i]);
     }
 
-    printf("PC = 0x%08x\n",interpretter.regs[PC]);
-    printf("SP = 0x%08x\n",interpretter.regs[SP]);
+    printf("PC = 0x%016lx\n",interpretter.regs[PC]);
+    printf("SP = 0x%016lx\n",interpretter.regs[SP]);
 }
 
 template<typename access_type>
@@ -73,7 +73,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     else
     {
         print_regs(interpretter);
-        crash_and_burn("%x, %x: out of bounds read at %x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr);
+        crash_and_burn("%x, %lx: out of bounds read at %x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr);
     }
 }
 
@@ -123,7 +123,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     else
     {
         print_regs(interpretter);
-        crash_and_burn("%08x, %x: out of bounds write at %x:%x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr,v);
+        crash_and_burn("%08x, %lx: out of bounds write at %x:%x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr,v);
     }
 }
 
@@ -187,7 +187,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::asr_reg:
         {
-            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) >> regs[opcode.v[2]];
+            regs[opcode.v[0]] = s64(regs[opcode.v[1]]) >> regs[opcode.v[2]];
             break;
         }
 
@@ -229,13 +229,19 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::sxb:
         {
-            regs[opcode.v[0]] = s32(s8(regs[opcode.v[1]]));
+            regs[opcode.v[0]] = s64(s8(regs[opcode.v[1]]));
             break;
         }
 
         case op_type::sxh:
         {
-            regs[opcode.v[0]] = s32(s16(regs[opcode.v[1]]));
+            regs[opcode.v[0]] = s64(s16(regs[opcode.v[1]]));
+            break;
+        }
+
+        case op_type::sxw:
+        {
+            regs[opcode.v[0]] = s64(s32(regs[opcode.v[1]]));
             break;
         }
 
@@ -294,6 +300,13 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
+
+        case op_type::ld:
+        {
+            regs[opcode.v[0]] = read_mem<u64>(interpretter,regs[opcode.v[1]]+opcode.v[2]);
+            break;
+        }
+
         case op_type::lsb:
         {
             regs[opcode.v[0]] = read_mem<s8>(interpretter,regs[opcode.v[1]]+opcode.v[2]);
@@ -303,6 +316,12 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::lsh:
         {
             regs[opcode.v[0]] = read_mem<s16>(interpretter,regs[opcode.v[1]]+opcode.v[2]);
+            break;
+        }
+
+        case op_type::lsw:
+        {
+            regs[opcode.v[0]] = read_mem<s32>(interpretter,regs[opcode.v[1]]+opcode.v[2]);
             break;
         }
 
@@ -331,17 +350,23 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
+        case op_type::sd:
+        {
+            write_mem<u64>(interpretter,regs[opcode.v[1]]+opcode.v[2],regs[opcode.v[0]]);
+            break;
+        }
+
         case op_type::push:
         {
             const u32 v = regs[opcode.v[0]];
             regs[SP] -= GPR_SIZE;
-            write_mem<u32>(interpretter,regs[SP],v); 
+            write_mem<u64>(interpretter,regs[SP],v); 
             break;               
         }
 
         case op_type::pop:
         {
-            regs[opcode.v[0]] = read_mem<u32>(interpretter,regs[SP]);
+            regs[opcode.v[0]] = read_mem<u64>(interpretter,regs[SP]);
             regs[SP] += GPR_SIZE;
             break;
         }
@@ -356,7 +381,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                     const u32 v = regs[r];
                     
                     regs[SP] -= GPR_SIZE;
-                    write_mem<u32>(interpretter,regs[SP],v); 
+                    write_mem<u64>(interpretter,regs[SP],v); 
                 }
             }
             break;               
@@ -368,7 +393,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             {
                 if(is_set(opcode.v[0],r))
                 { 
-                    regs[r] = read_mem<u32>(interpretter,regs[SP]);
+                    regs[r] = read_mem<u64>(interpretter,regs[SP]);
                     regs[SP] += GPR_SIZE;
                 }
             }
@@ -380,7 +405,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             // push
             
             regs[SP] -= GPR_SIZE;
-            write_mem<u32>(interpretter,regs[SP],regs[PC]);
+            write_mem<u64>(interpretter,regs[SP],regs[PC]);
 
             write_pc(interpretter,opcode.v[0]);
             break;
@@ -390,7 +415,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         {
             // push
             regs[SP] -= GPR_SIZE;
-            write_mem<u32>(interpretter,regs[SP],regs[PC]);
+            write_mem<u64>(interpretter,regs[SP],regs[PC]);
 
             write_pc(interpretter,regs[opcode.v[0]]);
             break;
@@ -400,7 +425,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::ret:
         {              
             // pop pc
-            const u32 target = read_mem<u32>(interpretter,regs[SP]);
+            const u64 target = read_mem<u64>(interpretter,regs[SP]);
             write_pc(interpretter,target);
 
             regs[SP] += GPR_SIZE;
@@ -410,31 +435,31 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         // signed compare
         case op_type::cmpsgt_imm:
         {
-            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) > s32(opcode.v[2]);
+            regs[opcode.v[0]] = s64(regs[opcode.v[1]]) > s64(opcode.v[2]);
             break;                
         }
 
         case op_type::cmpslt_reg:
         {
-            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) < s32(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s64(regs[opcode.v[1]]) < s64(regs[opcode.v[2]]);
             break;
         }
 
         case op_type::cmpsle_reg:
         {
-            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) <= s32(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s64(regs[opcode.v[1]]) <= s64(regs[opcode.v[2]]);
             break;
         }
 
         case op_type::cmpsgt_reg:
         {
-            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) > s32(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s64(regs[opcode.v[1]]) > s64(regs[opcode.v[2]]);
             break;
         }
 
         case op_type::cmpsge_reg:
         {
-            regs[opcode.v[0]] = s32(regs[opcode.v[1]]) >= s32(regs[opcode.v[2]]);
+            regs[opcode.v[0]] = s64(regs[opcode.v[1]]) >= s64(regs[opcode.v[2]]);
             break;
         }
 
@@ -519,6 +544,9 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         // system call
         case op_type::swi:
         {
+            // TODO: our interpreter relies on 64 bit pointers for now
+            static_assert(sizeof(u32*) == 8);
+
             switch(opcode.v[0])
             {
                 case SYSCALL_EXIT: // exit
@@ -534,7 +562,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
                     if(!ptr)
                     {
-                        crash_and_burn("out of bounds print at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
+                        crash_and_burn("out of bounds print at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
                         return;
                     }
 
@@ -544,7 +572,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
                 default:
                 {
-                    printf("unknown syscall: %x\n",opcode.v[0]);
+                    printf("unknown syscall: %lx\n",opcode.v[0]);
                     break;
                 }
             }
@@ -655,7 +683,7 @@ s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
         const auto opcode = read_mem<Opcode>(interpretter.program,regs[PC]);
 
     #if 0
-        printf("%08x: ",regs[PC]);
+        printf("%016x: ",regs[PC]);
         disass_opcode_raw(opcode);
     #endif
     
@@ -667,7 +695,7 @@ s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
 
     //print_trace(interpretter.trace);
 
-    printf("\nexit: %d\n",regs[0]);
+    printf("\nexit: %ld\n",regs[0]);
     return regs[0];
 }
 

@@ -70,8 +70,10 @@ void write_const_pool_label(ConstPool& pool, PoolSection& section, u32 offset, L
     // mark where label is going so it can resolved later
     push_var(pool.label,section.offset + offset);
 
+    static_assert(GPR_SIZE == 8);
+
     // write the label in
-    write_const_pool(pool,section,offset,label_slot.handle);    
+    write_const_pool(pool,section,offset,u64(label_slot.handle));    
 }
 
 void write_const_pool_label(ConstPool& pool, PoolSlot slot, u32 offset,LabelSlot label_slot)
@@ -86,8 +88,10 @@ void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,
 {
     push_var(pool.pool_pointer,section.offset + offset);
 
+    static_assert(GPR_SIZE == 8);
+
     // write the pool slot in
-    write_const_pool(pool,section,offset,pool_slot.handle);
+    write_const_pool(pool,section,offset,u64(pool_slot.handle));
 }
 
 

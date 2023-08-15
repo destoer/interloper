@@ -1328,7 +1328,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
             default:
             {
-                panic(parser,t,"unexpected top level token %s(%d)'\n",tok_name(t.type),u32(t.type));
+                panic(parser,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
                 destroy_arr(parser.tokens);
                 return true;
             }
@@ -1478,7 +1478,7 @@ void print(const AstNode *root, b32 override_seperator)
         {
             ValueNode* value_node = (ValueNode*)root;
 
-            printf("value: %s%d\n",value_node->value.sign? "-" : "",value_node->value.v);
+            printf("value: %s%lu\n",value_node->value.sign? "-" : "",value_node->value.v);
             break;
         }
 

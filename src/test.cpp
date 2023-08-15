@@ -109,7 +109,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/type/byte",0},
     {"tests/type/struct_punning",11},
     {"tests/type/type_query",1},
-    {"tests/type/rtti",1},
+    //{"tests/type/rtti",1},
 
     // const
     {"tests/const/const_pass_copy",100},

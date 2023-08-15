@@ -7,17 +7,17 @@ void insert_program(Interloper& itl, const Opcode& opcode)
 
 
 // NOTE: pass in a size, so we only print the code section
-void dump_program(const Array<u8> &program,u32 size, HashTable<u32,LabelSlot> &inv_label_lookup, LabelLookup &label_lookup)
+void dump_program(const Array<u8> &program,u32 size, HashTable<u64,LabelSlot> &inv_label_lookup, LabelLookup &label_lookup)
 {
-    for(u32 pc = 0; pc < size; pc += sizeof(Opcode))
+    for(u64 pc = 0; pc < size; pc += sizeof(Opcode))
     {
         if(contains(inv_label_lookup,pc))
         {
             const auto label = label_from_slot(label_lookup,*lookup(inv_label_lookup,pc));
-            printf("0x%08x %s:\n",pc,label.name.buf);
+            printf("0x%08lx %s:\n",pc,label.name.buf);
         }
 
-        printf("  0x%08x:\t ",pc);   
+        printf("  0x%08lx:\t ",pc);   
 
         const Opcode opcode = read_mem<Opcode>(program,pc);
         disass_opcode_raw(opcode);
@@ -27,7 +27,7 @@ void dump_program(const Array<u8> &program,u32 size, HashTable<u32,LabelSlot> &i
 
 void emit_asm(Interloper &itl)
 {
-    HashTable<u32,LabelSlot> inv_label_lookup = make_table<u32,LabelSlot>();
+    HashTable<u64,LabelSlot> inv_label_lookup = make_table<u64,LabelSlot>();
 
 
 
@@ -51,7 +51,7 @@ void emit_asm(Interloper &itl)
 
             itl.symbol_table.label_lookup[func.label_slot.handle].offset = itl.program.size;
 
-            add(inv_label_lookup,itl.program.size,func.label_slot);
+            add(inv_label_lookup,u64(itl.program.size),func.label_slot);
 
             for(u32 b = 0; b < count(func.emitter.program); b++)
             {
@@ -63,7 +63,7 @@ void emit_asm(Interloper &itl)
                 // if this is the first block prefer function name
                 if(b != 0)
                 {
-                    add(inv_label_lookup,itl.program.size,block.label_slot);
+                    add(inv_label_lookup,u64(itl.program.size),block.label_slot);
                 }
 
                 // dump every opcode into the final program
@@ -94,9 +94,11 @@ void emit_asm(Interloper &itl)
         const u32 addr = const_pool.label[l];
 
         // read out the label handle so we can write back the offset
-        const u32 label_handle = read_mem<u32>(pool_data,addr);
+        const u32 label_handle = read_mem<u64>(pool_data,addr);
 
-        write_mem<u32>(pool_data, addr, itl.symbol_table.label_lookup[label_handle].offset);
+        printf("resolved pool label L%d %x -> %lx\n",label_handle,addr,itl.symbol_table.label_lookup[label_handle].offset);
+
+        write_mem<u64>(pool_data, addr, itl.symbol_table.label_lookup[label_handle].offset);
     }
 
     // rewrite all pointers
@@ -104,10 +106,10 @@ void emit_asm(Interloper &itl)
     {
         const u32 addr = const_pool.pool_pointer[p];
 
-        const u32 pool_handle = read_mem<u32>(pool_data,addr);
+        const u32 pool_handle = read_mem<u64>(pool_data,addr);
         auto& section = pool_section_from_slot(itl.const_pool,pool_slot_from_idx(pool_handle));
 
-        write_mem<u32>(pool_data,addr,section.offset + const_pool_loc);
+        write_mem<u64>(pool_data,addr,section.offset + const_pool_loc);
     }
     
     // make sure the pool is aligned before its inserted
@@ -138,8 +140,8 @@ void emit_asm(Interloper &itl)
                     const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[2]);
                     auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-                    const u32 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
-                    const u32 offset = addr - program_counter;
+                    const u64 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                    const u64 offset = addr - program_counter;
 
                     opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
                     write_mem(itl.program,i,opcode);
@@ -147,9 +149,9 @@ void emit_asm(Interloper &itl)
 
                 else if(opcode.v[1] == GP_IR)
                 {
-                    const u32 global_offset = opcode.v[2];
-                    const u32 addr = PROGRAM_ORG + count(itl.program) + global_offset;
-                    const u32 offset = addr - program_counter;
+                    const u64 global_offset = opcode.v[2];
+                    const u64 addr = PROGRAM_ORG + count(itl.program) + global_offset;
+                    const u64 offset = addr - program_counter;
 
                     opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
                     write_mem(itl.program,i,opcode);             
@@ -165,8 +167,8 @@ void emit_asm(Interloper &itl)
                     const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[2]);
                     auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-                    const u32 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
-                    const u32 offset = addr - program_counter;
+                    const u64 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                    const u64 offset = addr - program_counter;
 
                     opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
                     write_mem(itl.program,i,opcode);
@@ -174,9 +176,9 @@ void emit_asm(Interloper &itl)
 
                 else if(opcode.v[1] == GP_IR)
                 {
-                    const u32 global_offset = opcode.v[2];
-                    const u32 addr = PROGRAM_ORG + count(itl.program) + global_offset;
-                    const u32 offset = addr - program_counter;
+                    const u64 global_offset = opcode.v[2];
+                    const u64 addr = PROGRAM_ORG + count(itl.program) + global_offset;
+                    const u64 offset = addr - program_counter;
 
                     opcode = Opcode(opcode.op,opcode.v[0],PC,offset);
                     write_mem(itl.program,i,opcode);
@@ -205,8 +207,8 @@ void emit_asm(Interloper &itl)
                         const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[1]);
                         auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-                        const u32 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
-                        const u32 offset = addr - program_counter;
+                        const u64 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                        const u64 offset = addr - program_counter;
 
                         opcode = Opcode(op_type::lea,opcode.v[0],PC,offset);
 
@@ -218,9 +220,9 @@ void emit_asm(Interloper &itl)
                     {
                         const u32 label = opcode.v[1];
 
-                        const u32 addr = itl.symbol_table.label_lookup[label].offset;
+                        const u64 addr = itl.symbol_table.label_lookup[label].offset;
 
-                        const u32 offset = addr - program_counter;
+                        const u64 offset = addr - program_counter;
 
                         opcode = Opcode(op_type::lea,opcode.v[0],PC,offset);
 

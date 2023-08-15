@@ -5,10 +5,12 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::u8_t, true, false, 1, 0, 0xff},
     {builtin_type::u16_t, true, false ,2, 0, 0xffff},
     {builtin_type::u32_t, true, false ,4, 0, 0xffffffff},
+    {builtin_type::s64_t, true, false ,8,  0, u64(0xffffffff'ffffffff)},
 
-    {builtin_type::s8_t, true, true, 1, u32(-(0xff / 2)), (0xff / 2)},
-    {builtin_type::s16_t, true, true ,2,  u32(-(0xffff / 2)), (0xffff / 2)},
-    {builtin_type::s32_t, true, true ,4,  u32(-(0xffffffff / 2)), (0xffffffff / 2)},
+    {builtin_type::s8_t, true, true, 1, u64(-(0xff / 2)), (0xff / 2)},
+    {builtin_type::s16_t, true, true ,2,  u64(-(0xffff / 2)), (0xffff / 2)},
+    {builtin_type::s32_t, true, true ,4,  u64(-(0xffffffff / 2)), (0xffffffff / 2)},
+    {builtin_type::s64_t, true, true ,8,  u64(-(0xffffffff'ffffffff / 2)), u64(0xffffffff'ffffffff / 2)},
 
     {builtin_type::c8_t, true, false, 1, 0, 0xff},
 
@@ -28,7 +30,7 @@ void parse_def(Interloper& itl, TypeDef& def);
 
 b32 is_builtin(const Type* type)
 {
-    return type->type_idx < BUILTIN_TYPE_SIZE;
+    return type->type_idx  < BUILTIN_TYPE_SIZE;
 }
 
 b32 is_integer(const Type* type)
@@ -169,12 +171,12 @@ u32 builtin_size(builtin_type t)
     return builtin_type_info[u32(t)].size;
 }
 
-u32 builtin_max(builtin_type t)
+u64 builtin_max(builtin_type t)
 {
     return builtin_type_info[u32(t)].max;
 }
 
-u32 builtin_min(builtin_type t)
+u64 builtin_min(builtin_type t)
 {
     return builtin_type_info[u32(t)].min;
 }
@@ -206,7 +208,7 @@ u32 type_size(Interloper& itl,const Type *type)
 
         case ENUM:
         {
-            return GPR_SIZE;
+            return sizeof(u32);
         }
 
         case ARRAY:
@@ -515,7 +517,7 @@ String type_name(Interloper& itl,const Type *type)
 
             case ENUM: 
             {
-                push_const_name(itl,prefix,type,"const");
+                push_const_name(itl,prefix,type,"const ");
 
                 const auto enumeration = enum_from_type(itl.enum_table,type);
                 plain = enumeration.name;  
@@ -732,8 +734,13 @@ Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_const
             return copy_type(itl,alias.type);
         }
 
-        default: assert(false);
+        case type_kind::builtin:
+        {
+            return make_builtin(itl,builtin_type(type_idx),is_constant);
+        }
     }
+
+    assert(false);
 }
 
 // TODO: this is more restrictive than required atm
@@ -932,34 +939,38 @@ Type* value_type(Interloper& itl,const Value& value)
 {
     if(value.sign)
     {
-        const s32 v = value.v;
+        const s64 v = s64(value.v);
 
         // what is the smallest storage type that this will fit inside?
-        if(in_range(v,s32(builtin_min(builtin_type::s8_t)),s32(builtin_max(builtin_type::s8_t))))
+        if(in_range(v,s64(builtin_min(builtin_type::s8_t)),s64(builtin_max(builtin_type::s8_t))))
         {
-            return  make_builtin(itl,builtin_type::s8_t);
+            return make_builtin(itl,builtin_type::s8_t);
         }
 
-        else if(in_range(v,s32(builtin_min(builtin_type::s16_t)),s32(builtin_max(builtin_type::s16_t))))
+        else if(in_range(v,s64(builtin_min(builtin_type::s16_t)),s64(builtin_max(builtin_type::s16_t))))
         {
             return make_builtin(itl,builtin_type::s16_t);
         }
 
-        //else if(v,s32(builtin_min(builtin_type::s32_t)),s32(builtin_max(builtin_type::s32_t)))
-        else
+        else if(in_range(v,s64(builtin_min(builtin_type::s32_t)),s64(builtin_max(builtin_type::s32_t))))
         {
             return make_builtin(itl,builtin_type::s32_t);
+        }
+
+        else
+        {
+            return make_builtin(itl,builtin_type::s64_t);
         }
     }
 
     else
     {
-        const u32 v = value.v;
+        const u64 v = value.v;
 
         // what is the smallest storage type that this will fit inside?
         if(in_range(v,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
         {
-            return  make_builtin(itl,builtin_type::u8_t);
+            return make_builtin(itl,builtin_type::u8_t);
         }
 
         else if(in_range(v,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
@@ -967,10 +978,14 @@ Type* value_type(Interloper& itl,const Value& value)
             return make_builtin(itl,builtin_type::u16_t);
         }
 
-        //else if(in_range(v,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t))
-        else
+        else if(in_range(v,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t)))
         {
             return make_builtin(itl,builtin_type::u32_t);
+        }
+
+        else
+        {
+            return make_builtin(itl,builtin_type::u64_t);
         }        
     }    
 }
@@ -1659,6 +1674,12 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                         break;
                     }
 
+                    case builtin_type::s32_t:
+                    {
+                        sign_extend_word(itl,func,dst_slot,src_slot);
+                        break;                        
+                    }
+
                     default: crash_and_burn("invalid signed integer upcast");
                 }
             }
@@ -1678,6 +1699,12 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                     case 2:  
                     {
                         and_imm(itl,func,dst_slot,src_slot,0xffff);
+                        break;
+                    }
+
+                    case 4:
+                    {
+                        and_imm(itl,func,dst_slot,src_slot,0xffff'ffff);
                         break;
                     }
 

@@ -9,7 +9,7 @@ PoolSlot pool_slot_from_sym(const Symbol& sym)
     return pool_slot_from_idx(sym.reg.offset);
 }
 
-std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node)
+std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node)
 {
 
     switch(node->type)
@@ -54,8 +54,7 @@ std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
             const auto pool_slot = pool_slot_from_sym(sym);
             auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-            static_assert(GPR_SIZE == 4);
-            const u32 v = read_mem<u32>(itl.const_pool.buf,section.offset);
+            const u32 v = read_mem<u64>(itl.const_pool.buf,section.offset);
 
             return std::pair{v,type};
         }
@@ -199,9 +198,11 @@ void compile_constant_expression(Interloper& itl, Symbol& sym, AstNode* node)
             case builtin_type::u8_t:
             case builtin_type::u16_t:
             case builtin_type::u32_t:
+            case builtin_type::u64_t:
             case builtin_type::s8_t:
             case builtin_type::s16_t:
             case builtin_type::s32_t:
+            case builtin_type::s64_t:
             case builtin_type::byte_t:
             case builtin_type::c8_t:
             {

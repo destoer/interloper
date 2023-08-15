@@ -1,0 +1,18 @@
+// expected 6
+
+func main() s32
+{
+    a : u8 = 0xff;
+    a += 1;
+
+    b : u16 = 0xffff;
+    b += 2;
+
+    c : u32 = 0xffff_ffff;
+    c += 3;
+
+    d : u64 = 0xffff_ffff_ffff_ffff;
+    d += 4;
+
+    return cast(s32,a + b + c + d);
+}

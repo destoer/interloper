@@ -166,7 +166,13 @@ void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,
 
             case 4:
             {
-                load_word(itl,func,dst_slot,addr_slot,offset);
+                load_signed_word(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            case 8:
+            {
+                load_double(itl,func,dst_slot,addr_slot,offset);
                 break;
             }
 
@@ -196,6 +202,12 @@ void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,
                 break;
             }
 
+            case 8:
+            {
+                load_double(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
             default: assert(false);
         }
     }
@@ -205,7 +217,7 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 {
     const u32 size = type_size(itl,type);
 
-    if(size <= sizeof(u32))
+    if(size <= GPR_SIZE)
     {
         load_ptr(itl,func,dst_slot,addr_slot,offset,size,is_signed(type));
     }   
@@ -251,6 +263,12 @@ void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot
             break;
         }
 
+        case 8:
+        {
+            store_double(itl,func,src_slot,addr_slot,offset);
+            break;
+        }
+
         default: assert(false);
     }    
 }
@@ -259,7 +277,7 @@ void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_s
 {
     const u32 size = type_size(itl,type);
 
-    if(size <= sizeof(u32))
+    if(size <= GPR_SIZE)
     {
         store_ptr(itl,func,src_slot,addr_slot,offset,size);  
     }
@@ -817,13 +835,6 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
-/* TODO:
-// compiles a statement and gets back a compile time value + type of the expr
-std::pair<Type*, void*> exec_constant(Interloper& itl,AstNode* node)
-{
-
-}
-*/
 
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
@@ -946,14 +957,14 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     }
 
 
-    u32 gap = 0;
+    u64 gap = 0;
 
     // gap check all the statements and figure out 
     // if they are close enough to encode as a binary table
     // or if a binary search should be employed instead
     for(u32 i = 0; i < size - 1; i++)
     {
-        const u32 cur_gap = switch_node->statements[i + 1]->value - switch_node->statements[i]->value;
+        const u64 cur_gap = switch_node->statements[i + 1]->value - switch_node->statements[i]->value;
 
         // these statements have no gap, this means they are duplicated
         if(cur_gap == 0)
@@ -981,9 +992,9 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     if(gap < JUMP_TABLE_LIMIT)
     {
         // get the table limits i.e min max
-        const s32 min = switch_node->statements[0]->value;
-        const s32 max = switch_node->statements[size - 1]->value;
-        const u32 range = (max - min) + 1;
+        const s64 min = switch_node->statements[0]->value;
+        const s64 max = switch_node->statements[size - 1]->value;
+        const u64 range = (max - min) + 1;
 
 
         // compile the actual switch expr
@@ -1118,6 +1129,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         
         const LabelSlot default_label = block_from_slot(func,default_block).label_slot; 
 
+        // NOTE: we do a second pass because we did not know where the default block is stored when
+        // we compiled all the switch statements
         for(u32 i = 0; i < range; i++)
         {
             const u32 addr = i * GPR_SIZE;
@@ -1125,12 +1138,10 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             // this is a non default case
             CaseNode* case_node = switch_node->statements[case_idx];
 
-            static_assert(GPR_SIZE == sizeof(u32));
-
             // current jump table entry matches case
             if(case_node->value - min == i)
             {
-                //printf("case %d -> %d\n",i,case_node->label);
+                printf("case %ld -> %d L%d\n",case_node->value,addr,case_node->label.handle);
 
                 write_const_pool_label(itl.const_pool,pool_slot, addr, case_node->label);
                 case_idx++;

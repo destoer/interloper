@@ -29,6 +29,6 @@ struct ConstPool
     Array<u8> buf;
 
     // offsets into the buffer that requires address resolution
-    Array<u32> label;
-    Array<u32> pool_pointer; 
+    Array<u64> label;
+    Array<u64> pool_pointer; 
 };

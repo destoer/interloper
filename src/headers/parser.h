@@ -429,7 +429,7 @@ struct ForNode
 struct CaseNode
 {
     // final value
-    u32 value;
+    u64 value;
 
     // what label does this statement have
     LabelSlot label;

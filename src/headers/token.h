@@ -40,10 +40,12 @@ enum class token_type
     u8,
     u16,
     u32,
+    u64,
 
     s8,
     s16,
     s32,
+    s64,
 
     c8_t,
 
@@ -166,11 +168,13 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::u8,"u8",-1},
     {token_type::u16,"u16",-1},
-    {token_type::u32,"u32",0},
+    {token_type::u32,"u32",-1},
+    {token_type::u64,"u64",-1},
 
     {token_type::s8,"s8",-1},
     {token_type::s16,"s16",-1},
     {token_type::s32,"s32",-1},
+    {token_type::s64,"s64",-1},
 
     {token_type::c8_t,"c8",-1},
 
@@ -261,7 +265,7 @@ struct Value
     friend bool operator == (const Value &t1, const Value &t2);
     friend bool operator != (const Value &t1, const Value &t2);   
 
-    u32 v = 0;
+    u64 v = 0;
     b32 sign = false;
 };
 
@@ -387,7 +391,7 @@ inline void print_token(const Token& t)
 
         case token_type::value:
         {
-            printf("value: %s%d\n",t.value.sign? "-"  : "",t.value.v);
+            printf("value: %s%lu\n",t.value.sign? "-"  : "",t.value.v);
             break;
         }
 

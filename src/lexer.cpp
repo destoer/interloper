@@ -161,10 +161,12 @@ std::pair<Value,b32> parse_value(const char** src_ptr)
         src++;
     }
 
+    //printf("parsed value: %s0x%lx\n",value.sign? "-" : "",value.v);
+
     // make twos complement
     if(value.sign)
     {
-        value.v = (~value.v) + 1;
+        value.v = (~value.v) + s64(1);
     }
 
     *src_ptr = src;
@@ -173,7 +175,6 @@ std::pair<Value,b32> parse_value(const char** src_ptr)
 
 #include "lexer_lut.cpp"
 
-// TODO: change file to be a string, and just conv them all in
 // based upon https://nothings.org/computer/lexing.html
 b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
 {

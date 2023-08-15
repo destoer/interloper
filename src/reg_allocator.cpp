@@ -55,14 +55,14 @@ struct LocalAlloc
     u32 stack_offset;
 
     // where does each section for alloc start?
-    u32 stack_alloc[3];
+    u32 stack_alloc[4];
 
     // how much of each type of var is there at the momemnt?
-    u32 size_count[3];
+    u32 size_count[4];
 
     // what is the maximum ammount of vars?
     // this will be used to compute the stack size later
-    u32 size_count_max[3];
+    u32 size_count_max[4];
 
     // what is the total ammount of space that this functions stack requires!
     u32 stack_size;
@@ -181,7 +181,7 @@ b32 pending_stack_alloc(Reg& ir_reg)
 // finish_stack_alloc has to be called first before usage
 u32 stack_reserve_internal(LocalAlloc& alloc, u32 size, u32 count)
 {
-    const u32 idx = size >> 1;
+    const u32 idx = log2(size);
     const u32 cur = alloc.size_count[idx];
 
 
@@ -650,7 +650,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     const u32 size = ir_reg.size * ir_reg.count;
 
     // TODO: handle if structs aernt always in emory
-    assert(size <= sizeof(u32));
+    assert(size <= GPR_SIZE);
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
 
@@ -724,11 +724,13 @@ b32 is_stack_allocated(Reg& reg)
 void align(u32 *alloc, u32 alignment)
 {
     // make sure the last start posistion is even
-    alignment /= 2;
+    const u32 idx = log2(alignment);
 
-    if(alloc[alignment] & alignment)
+    const u32 unaligned = alloc[idx] & (alignment - 1);
+
+    if(unaligned)
     {
-        alloc[alignment] += alignment;
+        alloc[idx] += (alignment - unaligned); 
     }
 }
 
@@ -755,15 +757,19 @@ u32 calc_alloc_sections(u32* start,u32* count, u32 byte_start = 0)
     start[2] = start[1] + (count[1] * sizeof(u16));
     align(start,sizeof(u32));
 
+    // u64
+    start[3] = start[2] + (count[2] * sizeof(u32));
+    align(start,sizeof(u64));
+
     // get total allocation size
-    const u32 size = start[2] + (count[2] * sizeof(u32));
+    const u32 size = start[3] + (count[3] * sizeof(u64));
 
     return size;
 }
 
 u32 calc_final_offset(const u32* start, u32 size, u32 idx)
 {
-    return start[size >> 1] + (idx * size);
+    return start[log2(size)] + (idx * size);
 }
 
 u32 finalise_offset(LocalAlloc& alloc,u32 offset, u32 size)
@@ -894,7 +900,7 @@ void alloc_args(Function &func, LocalAlloc& alloc, SymbolTable& table, u32 saved
         //printf("%s : %x\n",sym.name.buf,sym.arg_offset);
 
         // alloc above the stack frame
-        sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + sizeof(u32);
+        sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + GPR_SIZE;
     }
              
 }
@@ -931,7 +937,7 @@ void reserve_global_alloc(Interloper& itl, Symbol& sym)
 {
     auto& alloc = itl.global_alloc;
 
-    const u32 idx = sym.reg.size >> 1;
+    const u32 idx = log2(sym.reg.size);
     sym.reg.offset = alloc.count[idx];
     alloc.count[idx] += sym.reg.count; 
 }
@@ -947,9 +953,9 @@ void finalise_global_offset(Interloper& itl)
     // first calc the sections
     alloc.size = calc_alloc_sections(alloc.start,alloc.count);
 
-    log(itl.print_global,"Global size %x : start (%x, %x, %x) : count (%x, %x, %x)\n",
-        alloc.size,alloc.start[0],alloc.start[1],alloc.start[2],alloc.count[0],
-        alloc.count[1],alloc.count[2]);
+    log(itl.print_global,"Global size %x : start (%x, %x, %x, %x) : count (%x, %x, %x, %x)\n",
+        alloc.size,alloc.start[0],alloc.start[1],alloc.start[2],alloc.start[3],alloc.count[0],
+        alloc.count[1],alloc.count[2],alloc.count[3]);
 
     // now we need to give each symbol is final offset from the start of the global table
     

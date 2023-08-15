@@ -1,4 +1,4 @@
-void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char specifier, u32 handle)
+void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char specifier, u64 handle)
 {
     switch(specifier)
     {
@@ -41,7 +41,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
         case 'x':
         {
             char name[40];
-            const u32 len = sprintf(name,"0x%x",handle);
+            const u32 len = sprintf(name,"0x%lx",handle);
 
             push_mem(buffer,name,len);
             break;
@@ -63,7 +63,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
     }    
 }
 
-void fmt_raw_specifier(Array<char> &buffer, char specifier, u32 slot)
+void fmt_raw_specifier(Array<char> &buffer, char specifier, u64 slot)
 {
     switch(specifier)
     {
@@ -83,7 +83,7 @@ void fmt_raw_specifier(Array<char> &buffer, char specifier, u32 slot)
             else
             {
                 char name[40];
-                const u32 len = sprintf(name,"r%d",slot);
+                const u32 len = sprintf(name,"r%ld",slot);
 
                 push_mem(buffer,name,len);
             }
@@ -97,7 +97,7 @@ void fmt_raw_specifier(Array<char> &buffer, char specifier, u32 slot)
         case 'x':
         {
             char name[40];
-            const u32 len = sprintf(name,"0x%x",slot);
+            const u32 len = sprintf(name,"0x%lx",slot);
 
             push_mem(buffer,name,len);
             break;

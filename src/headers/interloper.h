@@ -190,5 +190,11 @@ void itl_warning(const char* fmt, ...)
     putchar('\n');    
 }
 
+#include <bit>
 
-std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
+inline u32 log2(u32 idx)
+{
+    return std::bit_width(idx) - 1;      
+}
+
+std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
