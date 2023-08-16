@@ -75,6 +75,8 @@ struct Interloper
     b32 error;
     itl_error error_code;
 
+    u32 arith_depth = 0;
+
     AstNode *cur_expr = nullptr;
     String cur_file = "";
 

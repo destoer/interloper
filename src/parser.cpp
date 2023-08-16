@@ -1478,7 +1478,15 @@ void print(const AstNode *root, b32 override_seperator)
         {
             ValueNode* value_node = (ValueNode*)root;
 
-            printf("value: %s%lu\n",value_node->value.sign? "-" : "",value_node->value.v);
+            if(value_node->value.sign)
+            {
+                printf("value: %ld\n",s64(value_node->value.v));
+            }
+
+            else
+            {
+                printf("value: %lu\n",value_node->value.v);
+            }
             break;
         }
 

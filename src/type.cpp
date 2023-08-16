@@ -48,6 +48,12 @@ b32 is_signed_integer(const Type *type)
     return is_signed(type) && is_integer(type);
 }
 
+b32 is_unsigned_integer(const Type *type)
+{
+    return !is_signed(type) && is_integer(type);
+}
+
+
 b32 is_array(const Type* type)
 {
     return type->type_idx == ARRAY;
@@ -1636,6 +1642,12 @@ void clip_arith_type(Interloper &itl, Function& func,SymSlot dst_slot, SymSlot s
         case 4:
         {
             and_imm(itl,func,dst_slot,src_slot,0xffff'ffff);
+            break;
+        }
+
+        // maximum type -> do nothing
+        case 8:
+        {
             break;
         }
 

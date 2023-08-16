@@ -332,6 +332,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         type == op_type::xor_reg || type == op_type::and_reg || type == op_type::or_reg
     );
     
+    itl.arith_depth += 1;
 
     BinNode* bin_node = (BinNode*)node;
 
@@ -365,7 +366,6 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         emit_reg3<type>(itl,func,dst_slot,v1,v2);
     }
 
-
     // produce effective type
     const auto final_type = effective_arith_type(itl,t1,t2);
 
@@ -386,6 +386,8 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, Sym
         panic(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
         return make_builtin(itl,builtin_type::void_t);
     }
+
+
 
     if(right)
     {
@@ -1473,6 +1475,11 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             BinNode* bin_node = (BinNode*)node;
 
             const auto rtype = compile_expression(itl,func,bin_node->right,dst_slot);
+
+            if(bin_node->left->fmt != ast_fmt::literal)
+            {
+                panic(itl,itl_error::invalid_statement,"[COMPILE]: expected symbol in multiple assign\n");
+            }
 
             LiteralNode* lit_node = (LiteralNode*)bin_node->left;
 
