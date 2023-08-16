@@ -375,20 +375,6 @@ void init_arr_sub_sizes(Interloper&itl,Type* type)
 }
 
 
-// total block size of the array
-u32 arr_size(const Type* type)
-{
-    const ArrayType* array_type = (ArrayType*)type;
-
-    if(array_type->size == RUNTIME_SIZE)
-    {
-        return RUNTIME_SIZE;
-    }
-
-    return array_type->size * array_type->sub_size;
-}
-
-
 u32 default_value(const Type* type)
 {
     UNUSED(type);

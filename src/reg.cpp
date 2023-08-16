@@ -46,20 +46,27 @@ u32 gpr_count(u32 size)
     return size / GPR_SIZE;
 }
 
-
-void assign_reg_size(Reg& reg, u32 size)
+// NOTE: this only works for structs, vars i.e power of two aligned sizes
+// not arrays
+std::pair<u32,u32> calc_alloc_size(u32 size)
 {
     if(size > GPR_SIZE)
     {
-        reg.size = GPR_SIZE;
-        reg.count = gpr_count(size);
+        return std::pair{GPR_SIZE,gpr_count(size)};
     }
 
     else
     {
-        reg.count = 1; 
-        reg.size = size;
-    }    
+        return std::pair{size,1};
+    }       
+}
+
+void assign_reg_size(Reg& reg, u32 size)
+{
+    const auto [reg_size,count]  = calc_alloc_size(size);
+
+    reg.size = reg_size;
+    reg.count = count;   
 }
 
 

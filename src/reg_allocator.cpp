@@ -735,7 +735,7 @@ void align(u32 *alloc, u32 alignment)
 }
 
 // NOTE: both arrays are size at number of base type sizes
-// i.e 3 (u8,u16,u32)
+// i.e 4 (u8,u16,u32,u64)
 
 // byte start defaults to zero, but for structs extra data may be shoved
 // at the start of the byte alloc
@@ -763,7 +763,12 @@ u32 calc_alloc_sections(u32* start,u32* count, u32 byte_start = 0)
 
     // get total allocation size
     const u32 size = start[3] + (count[3] * sizeof(u64));
-
+/*
+    for(u32 i = 0; i < 4; i++)
+    {
+        printf("alloc: %d, %d\n",start[i],count[i]);
+    }
+*/
     return size;
 }
 

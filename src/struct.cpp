@@ -92,21 +92,31 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
 
 static constexpr u32 OFFSET_FORCED_FIRST = 0xffff'ffff;
 
-u32 compute_member_size(Interloper& itl,const Type* type)
+std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 {
-    u32 size;
-
     if(is_fixed_array(type))
     {
-        size = arr_size(type);
+        ArrayType* array_type = (ArrayType*)type;
+
+        u32 count = array_type->size;
+        u32 size = array_type->sub_size;
+
+        // size > GPR_SIZE align on gpr_size
+        // otherwhise on its own boundary
+        if(array_type->sub_size > GPR_SIZE)
+        {
+            count += array_type->sub_size / GPR_SIZE;
+            size = GPR_SIZE;
+        }
+
+        return std::pair{size,count};
     }
 
     else
     {
-        size = type_size(itl,type);
-    }
-
-    return size;    
+        const u32 size = type_size(itl,type);
+        return calc_alloc_size(size);
+    } 
 }
 
 b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
@@ -211,25 +221,12 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
     // normal member decl
     else
     {
-        const u32 size = compute_member_size(itl,member.type);
+        const auto [size,count] = compute_member_size(itl,member.type);
 
-        // TODO: handle fixed sized arrays
+        member.offset = size_count[log2(size)];
 
         // translate larger items, into several allocations on the final section
-        if(size > GPR_SIZE)
-        {
-            member.offset = size_count[log2(GPR_SIZE)];
-
-            size_count[log2(GPR_SIZE)] += gpr_count(size);
-        }
-
-        else
-        {
-            // cache the offset into its section
-            member.offset = size_count[log2(size)];
-
-            size_count[log2(size)] += 1;
-        }
+        size_count[log2(size)] += count;
     }
 
     const u32 loc = count(structure.members);
@@ -261,13 +258,15 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     if(forced_first != -1)
     {
         auto& member = structure.members[forced_first];
-        const u32 size = compute_member_size(itl,member.type);
+        const auto [size,count] = compute_member_size(itl,member.type);
         
+        const u32 bytes = size * count;
+
         // include allocation for this member
-        size_count[0] += size;
+        size_count[0] += bytes;
 
         // usual byte start offset by our insertion at front
-        byte_start = size;
+        byte_start = bytes;
     }
 
     // finalise the offsets
@@ -281,9 +280,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
         auto& member = structure.members[m];
 
         const u32 zone_offset = member.offset;
-
-        u32 size = type_size(itl,member.type);
-        size = size > GPR_SIZE? GPR_SIZE : size;
+        const auto [size,count] = compute_member_size(itl,member.type);
 
         if(member.offset == OFFSET_FORCED_FIRST)
         {
