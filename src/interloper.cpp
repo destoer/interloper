@@ -412,7 +412,7 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, Sym
 }
 
 
-b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u32 v)
+b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v)
 {
     // unsigned value against signed value
     // if one side is signed and the other unsigned
@@ -464,7 +464,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
             if(bin_node->left->type == ast_type::value)
             {
                 ValueNode* value_node = (ValueNode*)bin_node->left;
-                const u32 v = value_node->value.v;
+                const u64 v = value_node->value.v;
 
                 const b32 coerce = check_static_cmp(itl,type_left,type_right,v);
 
@@ -479,7 +479,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
             else
             {
                 ValueNode* value_node = (ValueNode*)bin_node->right;
-                const u32 v = value_node->value.v;
+                const u64 v = value_node->value.v;
 
                 
                 const b32 coerce = check_static_cmp(itl,type_right,type_left,v);

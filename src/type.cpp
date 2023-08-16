@@ -1617,6 +1617,35 @@ void check_assign_init(Interloper& itl, const Type* ltype, const Type* rtype)
 }
 
 
+void clip_arith_type(Interloper &itl, Function& func,SymSlot dst_slot, SymSlot src_slot, u32 size)
+{
+    switch(size)
+    {
+        case 1: 
+        {
+            and_imm(itl,func,dst_slot,src_slot,0xff);
+            break;
+        }
+
+        case 2:  
+        {
+            and_imm(itl,func,dst_slot,src_slot,0xffff);
+            break;
+        }
+
+        case 4:
+        {
+            and_imm(itl,func,dst_slot,src_slot,0xffff'ffff);
+            break;
+        }
+
+        default:
+        {
+            assert(false);
+        }
+    }    
+}
+
 void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_slot,const Type *old_type, const Type *new_type)
 {
     if(itl.error)
@@ -1674,28 +1703,7 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
             // truncate value (mask)
             else if(builtin_size(builtin_old) > builtin_size(builtin_new))
             {
-                switch(builtin_size(builtin_new))
-                {
-                    case 1: 
-                    {
-                        and_imm(itl,func,dst_slot,src_slot,0xff);
-                        break;
-                    }
-
-                    case 2:  
-                    {
-                        and_imm(itl,func,dst_slot,src_slot,0xffff);
-                        break;
-                    }
-
-                    case 4:
-                    {
-                        and_imm(itl,func,dst_slot,src_slot,0xffff'ffff);
-                        break;
-                    }
-
-                    default: crash_and_burn("invalid signed integer downcast");
-                }
+                clip_arith_type(itl,func,dst_slot,src_slot,type_size(itl,new_type));
             }
 
             // cast doesnt do anything but move into a tmp so the IR doesnt break

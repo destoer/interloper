@@ -1,5 +1,5 @@
 
-// expected 7
+// expected 6
 
 func main() s32
 {
@@ -10,10 +10,12 @@ func main() s32
     for(i : u32 = 0; i < str.len; i += 1)
     {
         str[i] = to_lower(str[i]);
-
-        x : u8 = str[i] - 'a';
-
-        set = set_bit(set,x);
+        
+        if(str[i] >= 'a' && str[i] <= 'z')
+        {
+            x : u8 = str[i] - 'a';
+            set = set_bit(set,x);
+        }
     }
 
     return hamming_weight(set);

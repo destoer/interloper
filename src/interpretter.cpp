@@ -358,7 +358,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
         case op_type::push:
         {
-            const u32 v = regs[opcode.v[0]];
+            const u64 v = regs[opcode.v[0]];
             regs[SP] -= GPR_SIZE;
             write_mem<u64>(interpretter,regs[SP],v); 
             break;               
@@ -378,7 +378,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             {
                 if(is_set(opcode.v[0],r))
                 { 
-                    const u32 v = regs[r];
+                    const u64 v = regs[r];
                     
                     regs[SP] -= GPR_SIZE;
                     write_mem<u64>(interpretter,regs[SP],v); 

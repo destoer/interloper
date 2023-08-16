@@ -2,12 +2,6 @@
 
 using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 
-b32 is_gpr_size(const Type* type)
-{
-    return is_trivial_copy(type);
-}
-
-
 void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slot, u32 size)
 {
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
@@ -15,7 +9,7 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
 
     static constexpr u32 COPY_LIMIT = 32;
 
-    // multiple of 4 and under the copy limit
+    // multiple of 8 and under the copy limit
     if(size < COPY_LIMIT && (size & 7) == 0) 
     {
         const auto tmp = new_tmp(func, 8);

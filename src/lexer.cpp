@@ -121,7 +121,7 @@ std::pair<Value,b32> parse_value(const char** src_ptr)
             continue;
         }
 
-        u32 v = 0;
+        u64 v = 0;
 
         // convert the digit
         if(base >= 2 && c >= '0' && c <= '1')
