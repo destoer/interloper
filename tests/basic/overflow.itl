@@ -1,5 +1,9 @@
 // expected 65286
-// TODO: we dont handle limits inside regs at all yet
+
+// NOTE: we only do clipping on unsigned values
+// when we perform expressions they are done at the max type of the machine
+// when we type check ints it still uses the type for computing promotion
+// so we know if it will narrow under normal circumstances
 
 func main() s32
 {
@@ -16,7 +20,7 @@ func main() s32
     d += 4;
 
     // this should just work
-    e : u64 = 0xff < 8;
+    e : u64 = 0xff << 8;
 
     return cast(s32,a + b + c + d + e);
 }

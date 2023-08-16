@@ -100,6 +100,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/comment",0},
     {"tests/basic/constant",32},
     {"tests/basic/global",26},
+    {"tests/basic/overflow",65286},
 
     // type
     {"tests/type/decl",255},

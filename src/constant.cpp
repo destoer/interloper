@@ -209,6 +209,13 @@ void compile_constant_expression(Interloper& itl, Symbol& sym, AstNode* node)
                 // compile expression
                 auto [v, rtype] = compile_const_int_expression(itl,node);
 
+                // now we know the value get a more accurate value up to max precision
+                Value value;
+                value.v = v;
+                value.sign = is_signed(rtype);
+
+                rtype = value_type(itl,value);
+
                 if(itl.error)
                 {
                     return;

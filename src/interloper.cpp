@@ -1781,6 +1781,11 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
             // normal assign
             const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
 
+            if(is_unsigned_integer(sym.type))
+            {
+                clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
+            }
+
             if(itl.error)
             {
                 return;
@@ -1946,6 +1951,11 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     check_assign(itl,sym.type,rtype);
 
                     compile_move(itl,func,sym.reg.slot,slot,sym.type,rtype);
+
+                    if(is_unsigned_integer(sym.type))
+                    {
+                        clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
+                    }
                 }
                 break;
             }
