@@ -96,7 +96,7 @@ void emit_asm(Interloper &itl)
         // read out the label handle so we can write back the offset
         const u32 label_handle = read_mem<u64>(pool_data,addr);
 
-        printf("resolved pool label L%d %x -> %lx\n",label_handle,addr,itl.symbol_table.label_lookup[label_handle].offset);
+        //printf("resolved pool label L%d %x -> %lx\n",label_handle,addr,itl.symbol_table.label_lookup[label_handle].offset);
 
         write_mem<u64>(pool_data, addr, itl.symbol_table.label_lookup[label_handle].offset);
     }
@@ -118,10 +118,6 @@ void emit_asm(Interloper &itl)
     // add the constant pool, into the final program
     push_mem(itl.program,pool_data);
 
-
-    // TODO: how do we want to labels for a mov i.e
-    // x = @some_function;
-    
     // "link" the program and resolve the labels
     for(u32 i = 0; i < const_pool_loc; i += sizeof(Opcode))
     {

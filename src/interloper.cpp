@@ -1141,7 +1141,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             // current jump table entry matches case
             if(case_node->value - min == i)
             {
-                printf("case %ld -> %d L%d\n",case_node->value,addr,case_node->label.handle);
+                //printf("case %ld -> %d L%d\n",case_node->value,addr,case_node->label.handle);
 
                 write_const_pool_label(itl.const_pool,pool_slot, addr, case_node->label);
                 case_idx++;
@@ -1153,7 +1153,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             // as statements as sorted this means there is no match emit default
             else
             {
-                //printf("case %d -> default(%d)\n",i,default_label);
+                //printf("case %d -> %d default(L%d)\n",i,addr,default_label.handle);
 
                 write_const_pool_label(itl.const_pool,pool_slot, addr, default_label);
             }
