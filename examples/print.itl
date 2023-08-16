@@ -21,6 +21,9 @@ func main() s32
 
     print("{}\n",NULL);
 
+    b := 0xdead_beef_cafe_babe;
+    print("{x}\n",b);
+
     //invalid print
     //print("{} : {}\n","boop");
 

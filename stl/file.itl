@@ -4,7 +4,8 @@ struct File
     flags : u32;
 
     // os handle
-    handle : s32;
+    // NOTE: inside the vm this is basically a FILE*
+    handle : byte@;
     
     // for buffered io
     buf : byte[];

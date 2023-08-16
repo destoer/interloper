@@ -70,8 +70,15 @@ void write_const_pool_label(ConstPool& pool, PoolSection& section, u32 offset, L
     // mark where label is going so it can resolved later
     push_var(pool.label,section.offset + offset);
 
+    //printf("wrote label L%d %d\n",label_slot.handle,count(pool.label));
+
+    static_assert(GPR_SIZE == 8);
+
+    // promote the handle so it can fit the addr later
+    const u64 handle = label_slot.handle;
+
     // write the label in
-    write_const_pool(pool,section,offset,label_slot.handle);    
+    write_const_pool(pool,section,offset,handle);    
 }
 
 void write_const_pool_label(ConstPool& pool, PoolSlot slot, u32 offset,LabelSlot label_slot)
@@ -86,8 +93,14 @@ void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,
 {
     push_var(pool.pool_pointer,section.offset + offset);
 
+    static_assert(GPR_SIZE == 8);
+
+
+    // promote the handle so it can fit the addr later
+    const u64 handle = pool_slot.handle;
+
     // write the pool slot in
-    write_const_pool(pool,section,offset,pool_slot.handle);
+    write_const_pool(pool,section,offset,handle);
 }
 
 

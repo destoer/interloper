@@ -68,7 +68,7 @@ void handle_dst_storage(Interloper& itl, Function& func, SymSlot dst_slot)
 }
 
 // NOTE: this is the bottom level emitter
-ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, u32 v1, u32 v2, u32 v3)
+ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, u64 v1, u64 v2, u64 v3)
 {
     const Opcode opcode(type,v1,v2,v3);
 
@@ -182,7 +182,7 @@ void emit_load(Interloper& itl, Function& func, SymSlot dst, SymSlot ptr, u32 im
 }
 
 template<const op_type type>
-void emit_imm1(Interloper& itl, Function& func, SymSlot dst, u32 imm)
+void emit_imm1(Interloper& itl, Function& func, SymSlot dst, u64 imm)
 {
     // sanity checking fmt
     constexpr auto OP_INFO = opcode_info_from_type(type);
@@ -197,7 +197,7 @@ void emit_imm1(Interloper& itl, Function& func, SymSlot dst, u32 imm)
 }
 
 template<const op_type type>
-void emit_imm0(Interloper& itl, Function& func, u32 imm)
+void emit_imm0(Interloper& itl, Function& func, u64 imm)
 {
     UNUSED(itl);
 
@@ -211,7 +211,7 @@ void emit_imm0(Interloper& itl, Function& func, u32 imm)
 }
 
 template<const op_type type>
-void emit_imm2(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void emit_imm2(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     // sanity checking fmt
     constexpr auto OP_INFO = opcode_info_from_type(type);

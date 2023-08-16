@@ -10,6 +10,20 @@
 #include "disass.cpp"
 
 
+void print_slot(SymbolTable& table, SymSlot slot)
+{
+    if(is_sym(slot))
+    {
+        auto &sym = sym_from_slot(table,slot);
+        printf("sym: %s\n",sym.name.buf);
+    }
+
+    else
+    {
+        printf("tmp: t%d\n",slot.handle);
+    }
+}
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block &block, ListNode *node)
 {
     auto &table = itl.symbol_table;
@@ -32,7 +46,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             if(is_stack_unallocated(reg))
             {
-                assert(stored_in_mem(reg));
+                if(!stored_in_mem(reg))
+                {
+                    printf("error in func: %s\n",func.name.buf);
+                    print_slot(itl.symbol_table,slot);
+                    assert(false);
+                }
                 
                 stack_reserve_reg(alloc,reg);  
             }
@@ -273,7 +292,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                     printf("reclaiming stack space %s : (%d , %d)\n",sym.name.buf,sym.reg.size,sym.reg.count);
                 }
 
-                alloc.size_count[sym.reg.size >> 1] -= sym.reg.count;
+                alloc.size_count[log2(sym.reg.size)] -= sym.reg.count;
             }
 
 
@@ -294,7 +313,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 printf("reclaiming stack space from arr %s : (%d , %d)\n",sym.name.buf,size,count);
             }
 
-            alloc.size_count[size >> 1] -= count;
+            alloc.size_count[log2(size)] -= count;
             
             return remove(block.list,node);          
         }
@@ -392,19 +411,19 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             if(is_signed(reg))
             {
                 // word is register size (we dont need to extend it)
-                static const op_type instr[3] = {op_type::lsb, op_type::lsh, op_type::lw};
+                static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
 
                 // this here does not otherwhise need rewriting so we will emit SP directly
-                node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],offset_reg,offset);        
+                node->opcode = Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);        
             }
 
             // "plain data"
             // just move by size
             else
             {
-                static const op_type instr[3] = {op_type::lb, op_type::lh, op_type::lw};
+                static const op_type instr[4] = {op_type::lb, op_type::lh, op_type::lw,op_type::ld};
 
-                node->opcode =  Opcode(instr[reg.size >> 1],opcode.v[0],offset_reg,offset);
+                node->opcode =  Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);
             }
             
             node = node->next;
@@ -462,11 +481,11 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             // TODO: we need to not bother storing these back if the varaible spilled has not been modified
             // and is just used as a const for a calc (how do we impl this?)
 
-            static const op_type instr[3] = {op_type::sb, op_type::sh, op_type::sw};
+            static const op_type instr[4] = {op_type::sb, op_type::sh, op_type::sw,op_type::sd};
     
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
 
-            node->opcode = Opcode(instr[reg.size >> 1],opcode.v[0],offset_reg,offset);   
+            node->opcode = Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);   
 
             node = node->next;
             break;                    
@@ -569,7 +588,7 @@ void allocate_registers(Interloper& itl,Function &func)
     const bool insert_callee_saves = func.name != "main" && save_count != 0;
 
 
-    alloc_args(func,alloc,itl.symbol_table,insert_callee_saves? sizeof(u32) * save_count : 0);
+    alloc_args(func,alloc,itl.symbol_table,insert_callee_saves? GPR_SIZE * save_count : 0);
 
     // entry point does not need to preserve regs
     if(insert_callee_saves)

@@ -5,7 +5,7 @@
 
 
 // if type idx is >= to this then this is a custom defined type
-static constexpr u32 BUILTIN_TYPE_SIZE = 11;
+static constexpr u32 BUILTIN_TYPE_SIZE = 13;
 static constexpr u32 USER_TYPE = 0xf0000000;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
@@ -15,10 +15,12 @@ enum class builtin_type
     u8_t,
     u16_t,
     u32_t,
+    u64_t,
 
     s8_t,
     s16_t,
     s32_t,
+    s64_t,
 
     c8_t,
 
@@ -53,10 +55,12 @@ static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
     "u8",
     "u16",
     "u32",
+    "u64",
 
     "s8",
     "s16",
     "s32",
+    "s64",
 
     "c8",
 
@@ -81,9 +85,9 @@ struct BuiltinTypeInfo
     // how many bytes is the type
     u32 size;
 
-    u32 min;
+    u64 min;
 
-    u32 max;
+    u64 max;
 };
 
 
@@ -311,7 +315,7 @@ enum class struct_state
 using StructTable = Array<Struct>;
 Struct& struct_from_type(StructTable& struct_table, const Type* type);
 
-static const builtin_type GPR_SIZE_TYPE = builtin_type::u32_t;
+static const builtin_type GPR_SIZE_TYPE = builtin_type::u64_t;
 
 std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name);
 
@@ -342,7 +346,7 @@ struct Symbol
 struct Label 
 {
     String name;
-    u32 offset;  
+    u64 offset;  
 };
 
 

@@ -30,8 +30,12 @@ func check_builtin() bool
     // not equal
     res9 := !check_builtin_type(true,itl_type::u32_t);
     
+    // 64 bit
+    res10 := check_builtin_type(cast(u64,0xffff_ffff_dead_beef),itl_type::u64_t);
+    res11 := check_builtin_type(cast(s64,0xffff_ffff_cafe_babe),itl_type::s64_t);
+
     // did every test pass?
-    res := res1 && res2 && res3 && res4 && res5 && res6 && res7 && res8 && res9;
+    res := res1 && res2 && res3 && res4 && res5 && res6 && res7 && res8 && res9 && res10 && res11;
 
     return res;
 }

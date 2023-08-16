@@ -17,7 +17,7 @@ func to_lower(char: c8) c8
 // if printed in base 2, its 64 bits
 constant MAX_INT_CHARS : u32 = 64;
 
-func print_int(v : u32, base : u32)
+func print_int(v : u64, base : u32)
 {
     if(base > 16)
     {
@@ -53,7 +53,7 @@ func print_int(v : u32, base : u32)
     write_buf(&buf[0],digits);
 }
 
-func print_dec(v : u32, sign : bool)
+func print_dec(v : u64, sign : bool)
 {
     if(sign)
     {
@@ -64,13 +64,13 @@ func print_dec(v : u32, sign : bool)
     print_int(v,10);
 }
 
-func print_bin(v : u32)
+func print_bin(v : u64)
 {
     write_string("0b");
     print_int(v,2);  
 }
 
-func print_hex(v : u32)
+func print_hex(v : u64)
 {
     write_string("0x");
     print_int(v,16);
@@ -132,6 +132,11 @@ func print_arg(arg : Any, specifier : c8)
             format_int(arg,specifier);
         }
 
+        case itl_type::u64_t:
+        {
+            format_int(arg,specifier);
+        }
+
         case itl_type::s8_t:
         {
             format_int(arg,specifier);
@@ -143,6 +148,11 @@ func print_arg(arg : Any, specifier : c8)
         }
 
         case itl_type::s32_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::s64_t:
         {
             format_int(arg,specifier);
         }

@@ -166,7 +166,13 @@ void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,
 
             case 4:
             {
-                load_word(itl,func,dst_slot,addr_slot,offset);
+                load_signed_word(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
+            case 8:
+            {
+                load_double(itl,func,dst_slot,addr_slot,offset);
                 break;
             }
 
@@ -196,6 +202,12 @@ void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,
                 break;
             }
 
+            case 8:
+            {
+                load_double(itl,func,dst_slot,addr_slot,offset);
+                break;
+            }
+
             default: assert(false);
         }
     }
@@ -205,7 +217,7 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 {
     const u32 size = type_size(itl,type);
 
-    if(size <= sizeof(u32))
+    if(size <= GPR_SIZE)
     {
         load_ptr(itl,func,dst_slot,addr_slot,offset,size,is_signed(type));
     }   
@@ -251,6 +263,12 @@ void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot
             break;
         }
 
+        case 8:
+        {
+            store_double(itl,func,src_slot,addr_slot,offset);
+            break;
+        }
+
         default: assert(false);
     }    
 }
@@ -259,7 +277,7 @@ void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_s
 {
     const u32 size = type_size(itl,type);
 
-    if(size <= sizeof(u32))
+    if(size <= GPR_SIZE)
     {
         store_ptr(itl,func,src_slot,addr_slot,offset,size);  
     }
@@ -314,6 +332,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         type == op_type::xor_reg || type == op_type::and_reg || type == op_type::or_reg
     );
     
+    itl.arith_depth += 1;
 
     BinNode* bin_node = (BinNode*)node;
 
@@ -347,7 +366,6 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         emit_reg3<type>(itl,func,dst_slot,v1,v2);
     }
 
-
     // produce effective type
     const auto final_type = effective_arith_type(itl,t1,t2);
 
@@ -368,6 +386,8 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, Sym
         panic(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
         return make_builtin(itl,builtin_type::void_t);
     }
+
+
 
     if(right)
     {
@@ -394,7 +414,7 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, Sym
 }
 
 
-b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u32 v)
+b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v)
 {
     // unsigned value against signed value
     // if one side is signed and the other unsigned
@@ -446,7 +466,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
             if(bin_node->left->type == ast_type::value)
             {
                 ValueNode* value_node = (ValueNode*)bin_node->left;
-                const u32 v = value_node->value.v;
+                const u64 v = value_node->value.v;
 
                 const b32 coerce = check_static_cmp(itl,type_left,type_right,v);
 
@@ -461,7 +481,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
             else
             {
                 ValueNode* value_node = (ValueNode*)bin_node->right;
-                const u32 v = value_node->value.v;
+                const u64 v = value_node->value.v;
 
                 
                 const b32 coerce = check_static_cmp(itl,type_right,type_left,v);
@@ -817,13 +837,6 @@ void compile_for_block(Interloper &itl,Function &func,AstNode *node)
     destroy_scope(itl.symbol_table);
 }
 
-/* TODO:
-// compiles a statement and gets back a compile time value + type of the expr
-std::pair<Type*, void*> exec_constant(Interloper& itl,AstNode* node)
-{
-
-}
-*/
 
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
@@ -946,14 +959,14 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     }
 
 
-    u32 gap = 0;
+    u64 gap = 0;
 
     // gap check all the statements and figure out 
     // if they are close enough to encode as a binary table
     // or if a binary search should be employed instead
     for(u32 i = 0; i < size - 1; i++)
     {
-        const u32 cur_gap = switch_node->statements[i + 1]->value - switch_node->statements[i]->value;
+        const u64 cur_gap = switch_node->statements[i + 1]->value - switch_node->statements[i]->value;
 
         // these statements have no gap, this means they are duplicated
         if(cur_gap == 0)
@@ -981,9 +994,9 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     if(gap < JUMP_TABLE_LIMIT)
     {
         // get the table limits i.e min max
-        const s32 min = switch_node->statements[0]->value;
-        const s32 max = switch_node->statements[size - 1]->value;
-        const u32 range = (max - min) + 1;
+        const s64 min = switch_node->statements[0]->value;
+        const s64 max = switch_node->statements[size - 1]->value;
+        const u64 range = (max - min) + 1;
 
 
         // compile the actual switch expr
@@ -1118,6 +1131,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         
         const LabelSlot default_label = block_from_slot(func,default_block).label_slot; 
 
+        // NOTE: we do a second pass because we did not know where the default block is stored when
+        // we compiled all the switch statements
         for(u32 i = 0; i < range; i++)
         {
             const u32 addr = i * GPR_SIZE;
@@ -1125,12 +1140,10 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             // this is a non default case
             CaseNode* case_node = switch_node->statements[case_idx];
 
-            static_assert(GPR_SIZE == sizeof(u32));
-
             // current jump table entry matches case
             if(case_node->value - min == i)
             {
-                //printf("case %d -> %d\n",i,case_node->label);
+                //printf("case %ld -> %d L%d\n",case_node->value,addr,case_node->label.handle);
 
                 write_const_pool_label(itl.const_pool,pool_slot, addr, case_node->label);
                 case_idx++;
@@ -1142,7 +1155,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             // as statements as sorted this means there is no match emit default
             else
             {
-                //printf("case %d -> default(%d)\n",i,default_label);
+                //printf("case %d -> %d default(L%d)\n",i,addr,default_label.handle);
 
                 write_const_pool_label(itl.const_pool,pool_slot, addr, default_label);
             }
@@ -1462,6 +1475,11 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             BinNode* bin_node = (BinNode*)node;
 
             const auto rtype = compile_expression(itl,func,bin_node->right,dst_slot);
+
+            if(bin_node->left->fmt != ast_fmt::literal)
+            {
+                panic(itl,itl_error::invalid_statement,"[COMPILE]: expected symbol in multiple assign\n");
+            }
 
             LiteralNode* lit_node = (LiteralNode*)bin_node->left;
 

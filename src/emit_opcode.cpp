@@ -90,28 +90,33 @@ void sign_extend_half(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
     emit_reg2<op_type::sxh>(itl,func,dst,src);
 }
 
+void sign_extend_word(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
+{
+    emit_reg2<op_type::sxw>(itl,func,dst,src);
+}
+
 void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
 {
     emit_reg2<op_type::mov_reg>(itl,func,dst,src);
 }
 
 
-void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::and_imm>(itl,func,dst,src,imm);
 }
 
-void mul_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void mul_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::mul_imm>(itl,func,dst,src,imm);
 }
 
-void xor_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void xor_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::xor_imm>(itl,func,dst,src,imm);
 }
 
-SymSlot mul_imm_res(Interloper& itl, Function& func, SymSlot src, u32 imm)
+SymSlot mul_imm_res(Interloper& itl, Function& func, SymSlot src, u64 imm)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
 
@@ -120,12 +125,12 @@ SymSlot mul_imm_res(Interloper& itl, Function& func, SymSlot src, u32 imm)
     return tmp;
 }
 
-void add_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void add_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::add_imm>(itl,func,dst,src,imm);
 }
 
-SymSlot add_imm_res(Interloper& itl, Function& func, SymSlot src, u32 imm)
+SymSlot add_imm_res(Interloper& itl, Function& func, SymSlot src, u64 imm)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
 
@@ -134,68 +139,84 @@ SymSlot add_imm_res(Interloper& itl, Function& func, SymSlot src, u32 imm)
     return tmp;
 }
 
-void sub_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void sub_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::sub_imm>(itl,func,dst,src,imm);
 }
 
-void cmp_signed_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void cmp_signed_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::cmpsgt_imm>(itl,func,dst,src,imm);
 }
 
-void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u32 imm)
+void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::cmpugt_imm>(itl,func,dst,src,imm);
 }
 
-void store_byte(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u32 imm)
+void store_byte(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u64 imm)
 {
     emit_store<op_type::sb>(itl,func,src,addr,imm);
 }
 
-void store_half(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u32 imm)
+void store_half(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u64 imm)
 {
     emit_store<op_type::sh>(itl,func,src,addr,imm);
 }
 
 
-void store_word(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u32 imm)
+void store_word(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u64 imm)
 {
     emit_store<op_type::sw>(itl,func,src,addr,imm);
 }
 
-void load_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+void store_double(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u64 imm)
+{
+    emit_store<op_type::sd>(itl,func,src,addr,imm);
+}
+
+void load_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
     emit_load<op_type::lb>(itl,func,dst,addr,imm);
 }
 
-void load_half(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+void load_half(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
     emit_load<op_type::lh>(itl,func,dst,addr,imm);
 }
 
-void load_word(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+void load_word(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
     emit_load<op_type::lw>(itl,func,dst,addr,imm);
 }
 
-void load_signed_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+void load_double(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
+{
+    emit_load<op_type::ld>(itl,func,dst,addr,imm);
+}
+
+void load_signed_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
     emit_load<op_type::lsb>(itl,func,dst,addr,imm);
 }
 
-void load_signed_half(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u32 imm)
+void load_signed_half(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
     emit_load<op_type::lsh>(itl,func,dst,addr,imm);
 }
 
-void mov_imm(Interloper& itl, Function& func, SymSlot dst, u32 imm)
+void load_signed_word(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
+{
+    emit_load<op_type::lsw>(itl,func,dst,addr,imm);
+}
+
+// TODO: this doesn't support 64 bit values
+void mov_imm(Interloper& itl, Function& func, SymSlot dst, u64 imm)
 {
     emit_imm1<op_type::mov_imm>(itl,func,dst,imm);
 }
 
-SymSlot mov_imm_res(Interloper& itl, Function& func, u32 imm)
+SymSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
     mov_imm(itl,func,tmp,imm);

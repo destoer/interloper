@@ -75,6 +75,8 @@ struct Interloper
     b32 error;
     itl_error error_code;
 
+    u32 arith_depth = 0;
+
     AstNode *cur_expr = nullptr;
     String cur_file = "";
 
@@ -190,5 +192,11 @@ void itl_warning(const char* fmt, ...)
     putchar('\n');    
 }
 
+#include <bit>
 
-std::pair<u32,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
+inline u32 log2(u32 idx)
+{
+    return std::bit_width(idx) - 1;      
+}
+
+std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);

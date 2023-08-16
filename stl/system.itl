@@ -1,4 +1,3 @@
-import "file"
 // NOTE: abstracts away bottom level primitives that with the os
 // TODO: make this handle multiple targets
 
@@ -8,7 +7,10 @@ constant SYSCALL_OPEN : u32 = 2;
 
 // STD IO
 
+/*
+import "file"
 global stdout : File = open_stdout();
+*/
 
 func write_buf(data : const c8@, len : u32)
 {
@@ -31,9 +33,9 @@ func exit(exit_code: s32)
 }
 
 // FILE IO
-
+/*
 // NOTE: this is expecting a null terminated string
-func os_open(filename : const c8@, mode : u32) s32
+func os_open(filename : const c8@, mode : u32) byte@
 {
     return intrin_syscall(SYSCALL_OPEN,filename,mode);
 }
@@ -54,4 +56,4 @@ func open_stdout() File
 
     return fp;
 }
-
+*/

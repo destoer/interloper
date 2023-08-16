@@ -227,9 +227,6 @@ u32 any_size(Interloper &itl, const Type* type)
 {
     u32 size = itl.rtti_cache.any_struct_size;
 
-    // how does this play at 64 bit?
-    static_assert(GPR_SIZE == sizeof(u32));
-
     // cannot embed directly into the data pointer...
     if(!is_trivial_copy(type) && !is_fixed_array(type))
     {

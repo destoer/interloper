@@ -9,10 +9,12 @@ enum itl_type
     u8_t,
     u16_t,
     u32_t,
+    u64_t,
 
     s8_t,
     s16_t,
     s32_t,
+    s64_t,
 
     c8_t,
 
@@ -118,9 +120,9 @@ func is_array(type : const Type@) bool
     return type.type_idx == itl_type::array_t;
 }
 
-func int_from_any(any : const Any) u32
+func int_from_any(any : const Any) u64
 {
-    return cast(u32,any.data);
+    return cast(u64,any.data);
 }
 
 func bool_from_any(any : const Any) bool

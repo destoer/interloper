@@ -15,14 +15,18 @@ const char* KEYWORD[][2] =
 
     {tok_name(token_type::const_t),"token_type::const_t"},
     {tok_name(token_type::constant_t),"token_type::constant_t"},
+    {tok_name(token_type::global_t),"token_type::global_t"},
 
     {tok_name(token_type::u8),"token_type::u8"},
     {tok_name(token_type::u16),"token_type::u16"},
     {tok_name(token_type::u32),"token_type::u32"},
+    {tok_name(token_type::u64),"token_type::u64"},
 
     {tok_name(token_type::s8),"token_type::s8"},
     {tok_name(token_type::s16),"token_type::s16"},
     {tok_name(token_type::s32),"token_type::s32"},
+    {tok_name(token_type::s64),"token_type::s64"},
+
     {tok_name(token_type::c8_t),"token_type::c8_t"},
     {tok_name(token_type::byte_t),"token_type::byte_t"},
     {tok_name(token_type::bool_t),"token_type::bool_t"},
