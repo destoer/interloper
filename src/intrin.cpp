@@ -60,12 +60,12 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
 
     const u32 arg_size = count(func_call->args);
 
-    if(arg_size != 3)
+    if(arg_size != 4)
     {
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
-    const u32 REG_BITSET = 0b0000'0010;
+    const u32 REG_BITSET = 0b0000'0110;
 
     // save the regs this will clobber with its direct asm
     // NOTE: we dont save R0 because it is used for returns and callee saved
@@ -74,6 +74,7 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
 
     const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
     const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R1_IR));
+    const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(R2_IR));
 
     if(!is_trivial_copy(v1_type))
     {
@@ -83,7 +84,13 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
 
     if(!is_trivial_copy(v2_type))
     {
-        panic(itl,itl_error::mismatched_args,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
+        panic(itl,itl_error::mismatched_args,"arg2 of type %s does not fit inside a gpr\n",type_name(itl,v2_type).buf);
+        return make_builtin(itl,builtin_type::void_t);
+    }
+
+    if(!is_trivial_copy(v3_type))
+    {
+        panic(itl,itl_error::mismatched_args,"arg3 of type %s does not fit inside a gpr\n",type_name(itl,v3_type).buf);
         return make_builtin(itl,builtin_type::void_t);
     }
 
@@ -99,7 +106,7 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
     
     restore_regs(itl,func,REG_BITSET);
 
-    return make_builtin(itl,builtin_type::s32_t);   
+    return make_builtin(itl,builtin_type::s64_t);   
 }
 
 static constexpr u32 INTRIN_TABLE_SIZE = 2;

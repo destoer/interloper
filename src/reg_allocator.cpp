@@ -490,6 +490,7 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
             case RV_IR: opcode.v[reg] = RV; break;
             case R0_IR: opcode.v[reg] = R0; break;
             case R1_IR: opcode.v[reg] = R1; break;
+            case R2_IR: opcode.v[reg] = R2; break;
 
             default: crash_and_burn("unhandled special reg %x\n",slot); break;
         }

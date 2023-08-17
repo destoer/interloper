@@ -1126,6 +1126,11 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
 
     FuncNode* f = parse_func_sig(parser,filename,func_name.literal,func_name);
 
+    if(!f)
+    {
+        return;
+    }
+
     f->block = block(parser); 
 
     // finally add the function def

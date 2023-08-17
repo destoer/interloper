@@ -2261,6 +2261,10 @@ void compile(Interloper &itl,const String& initial_filename)
 
     setup_type_table(itl);
 
+    // add an dummy error value as the first handle
+    // see SYM_ERROR
+    make_sym(itl,"ITL_ERROR",make_builtin(itl,builtin_type::void_t));
+
     // parse intial input file
     {
         // build ast

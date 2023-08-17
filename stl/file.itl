@@ -39,12 +39,22 @@ func open_file(str : const string, mode : u32, flags : u32) [File,bool]
     return file,false;
 }
 
-func write_file_str(file : File@, str : const string) bool
+func write_file_str(file : File@, str : const string) s64
 {
     return write_file_mem(file,str.data, str.len);
 }
 
-func write_file_mem(file : File@,buf : byte@, len : u32) bool
+func write_file_mem(file : File@,buf : const byte@, len : u64) s64
 {
-    return false;
+    return os_write(file.handle,buf,len);
+}
+
+func read_file_str(file : File@, str : string) s64
+{
+    return read_file_mem(file,str.data, str.len);
+}
+
+func read_file_mem(file : File@,buf : byte@, len : u64) s64
+{
+    return os_read(file.handle,buf,len);
 }

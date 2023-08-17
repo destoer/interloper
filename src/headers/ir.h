@@ -230,7 +230,8 @@ SymSlot sym_from_idx(u32 idx)
     return {idx};
 }
 
-static constexpr SymSlot SYM_ERROR = {SYMBOL_NO_SLOT};
+// first index of symslot is reserved
+static constexpr SymSlot SYM_ERROR = {0};
 
 
 using LabelSlot = Slot<slot_type::label>;
@@ -341,17 +342,18 @@ static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
 static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
+static constexpr u32 R2_IR = SPECIAL_PURPOSE_REG_START + 5;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
-static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 5;
+static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 6;
 
 static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
 // dont perform any moves
-static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 7;
 
-static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 7;
-static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 8;
+static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 8;
+static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 9;
 
 const String SPECIAL_REG_NAMES[] = 
 {
@@ -360,6 +362,7 @@ const String SPECIAL_REG_NAMES[] =
     "rv",
     "r0",
     "r1",
+    "r2",
     "fixed_len",
     "null",
     "const",
@@ -380,6 +383,7 @@ static constexpr u32 PC = MACHINE_REG_SIZE + 1;
 static constexpr u32 RV = 0;
 static constexpr u32 R0 = 0;
 static constexpr u32 R1 = 1;
+static constexpr u32 R2 = 2;
 
 static constexpr u32 PROGRAM_ORG = 0;
 

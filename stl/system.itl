@@ -7,14 +7,14 @@ constant SYSCALL_OPEN : u32 = 2;
 
 // STD IO
 
-/*
+
 import "file"
 global stdout : File = open_stdout();
-*/
+global stdin : File = open_stdin();
 
 func write_buf(data : const c8@, len : u32)
 {
-    intrin_syscall(SYSCALL_WRITE_STRING,data,len);     
+    intrin_syscall(SYSCALL_WRITE_STRING,data,len,0);     
 }
 
 func write_string(str: const string)
@@ -26,18 +26,29 @@ func write_string(str: const string)
 // PROCESS
 
 constant FAILURE_OPEN_STDOUT : u32 = 0xf000_0001;
+constant FAILURE_OPEN_STDIN : u32 = 0xf000_0002;
 
 func exit(exit_code: s32)
 {
-    intrin_syscall(SYSCALL_EXIT,exit_code,0);
+    intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
 }
 
 // FILE IO
-/*
+
 // NOTE: this is expecting a null terminated string
 func os_open(filename : const c8@, mode : u32) byte@
 {
-    return intrin_syscall(SYSCALL_OPEN,filename,mode);
+    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,mode,0));
+}
+
+func os_write(handle : const byte@, data : const byte@, len : u64) s64
+{
+    return intrin_syscall(SYSCALL_WRITE,handle,data,len);
+}
+
+func os_read(handle : const byte@, data : byte@, len : u64) s64
+{
+    return intrin_syscall(SYSCALL_READ,handle,data,len);
 }
 
 func open_stdout() File
@@ -56,4 +67,20 @@ func open_stdout() File
 
     return fp;
 }
-*/
+
+func open_stdin() File
+{
+    fp : File;
+    err : bool;
+
+    // NOTE: for now this only works properly against linux
+    [fp,err] = open_file("/dev/tty",FILE_R,FILE_FLAG_STR);
+
+    
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDIN);
+    }
+
+    return fp;
+}
