@@ -9,6 +9,21 @@ PoolSlot pool_slot_from_sym(const Symbol& sym)
     return pool_slot_from_idx(sym.reg.offset);
 }
 
+b32 is_constant(const Symbol& sym)
+{
+    return sym.reg.kind = reg_kind::constant;
+}
+
+u64 int_from_const(Interloper& itl,const Sybmol& sym)
+{
+    const auto pool_slot = pool_slot_from_sym(sym);
+    auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+
+    const u64 v = read_mem<u64>(itl.const_pool.buf,section.offset);
+
+    return v;
+}
+
 std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node)
 {
 
@@ -31,7 +46,6 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
 
         case ast_type::symbol:
         {
-            // TODO: this needs redefinition and const checking!
 
             // TODO: atm this requires correct decl order
             // as we dont have a locking mechanism or a way to lookup exprs
@@ -52,11 +66,14 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
             // pull sym
             auto& sym = sym_from_slot(itl.symbol_table,sym_slot);
 
-            // get access to const pool so we can inline the value
-            const auto pool_slot = pool_slot_from_sym(sym);
-            auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+            if(!is_constant(sym))
+            {
+                panic(itl,itl_error::const_type_error,"symbol %s is not constant\n",sym.name.buf);
+                return std::pair{0,make_builtin(itl,builtin_type::void_t)};
+            }
 
-            const u64 v = read_mem<u64>(itl.const_pool.buf,section.offset);
+            // get access to const pool so we can inline the value
+            const u64 v = int_from_const(itl,sym);
 
             return std::pair{v,type};
         }
@@ -293,9 +310,6 @@ void compile_constant_expression(Interloper& itl, Symbol& sym, AstNode* node)
 
 void compile_constant(Interloper& itl, GlobalDeclNode* node)
 {
-    // TODO: when we support using const vars in expr
-    // we need a locking mechanism to prevent undefined uses
-
     // setup the correct file for error reporting
     itl.cur_file = node->filename;
 
@@ -305,6 +319,12 @@ void compile_constant(Interloper& itl, GlobalDeclNode* node)
     DeclNode* decl_node = node->decl;
 
     const auto name = decl_node->name;
+
+    if(symbol_exists(itl.symbol_table,name))
+    {
+        panic(itl,itl_error::redeclaration,"constant symbol %s redefined\n",name.buf);
+        return;
+    }
 
     // force constant
     decl_node->type->is_constant = true;
