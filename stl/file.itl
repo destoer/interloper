@@ -12,15 +12,19 @@ struct File
     pending : u32;
 }
 
-constant FILE_R : u32 = 0;
-constant FILE_W : u32 = 1;
-constant FILE_RW : u32 = 2;
+enum file_mode
+{
+    read,
+    write,
+    read_write,
+}
 
-constant FILE_FLAG_B : u32  = 1 << 0;
+
+constant FILE_FLAG_BIN : u32  = 1 << 0;
 constant FILE_FLAG_STR : u32 = 1 << 1;
+constant FILE_FLAG_ERROR : u32 = 1 << 2;
 
-
-func open_file(str : const string, mode : u32, flags : u32) [File,bool]
+func open_file(str : const string, mode : file_mode, flags : u32) [File,bool]
 {
     file : File;    
 
@@ -30,13 +34,25 @@ func open_file(str : const string, mode : u32, flags : u32) [File,bool]
     buf : c8[256];
 
     memcpy(&buf[0],&str[0],min_unsigned(str.len,buf.len - 1));
-    buf[buf.len - 1] = '\0';
+    buf[str.len] = '\0';
 
-    file.handle = os_open(&buf[0],mode); 
+    file.handle = os_open(&buf[0],cast(u32,mode)); 
+
+    if(!is_os_handle_valid(file.handle))
+    {
+        file.flags = file.flags | FILE_FLAG_ERROR;
+        return file,true;
+    }
 
     // TODO: we should allocate our buffer here
 
     return file,false;
+}
+
+func file_close(file : File@)
+{
+    os_close(file.handle);
+    file.handle = cast(byte@,INVALID_HANDLE);
 }
 
 func write_file_str(file : File@, str : const string) s64
@@ -57,4 +73,37 @@ func read_file_str(file : File@, str : string) s64
 func read_file_mem(file : File@,buf : byte@, len : u64) s64
 {
     return os_read(file.handle,buf,len);
+}
+
+
+func open_stdout() File
+{
+    fp : File;
+    err : bool;
+
+    // NOTE: for now this only works properly against linux
+    [fp,err] = open_file("/dev/stdout",file_mode::write,FILE_FLAG_STR);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDOUT);
+    }
+
+    return fp;
+}
+
+func open_stdin() File
+{
+    fp : File;
+    err : bool;
+
+    // NOTE: for now this only works properly against linux
+    [fp,err] = open_file("/dev/stdin",file_mode::read,FILE_FLAG_STR);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDIN);
+    }
+
+    return fp;
 }

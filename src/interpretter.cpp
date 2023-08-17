@@ -78,28 +78,63 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
 }
 
 static_assert(PROGRAM_ORG == 0);
-void* get_vm_ptr(Interpretter& interpretter,u32 addr, u32 size)
+
+// get a pointer, plus size left in the section
+std::pair<void*,u32> get_vm_ptr_internal(Interpretter& interpretter,u32 addr)
 {
     // read out the program
-    if(addr + size <= interpretter.program.size)
+    if(addr <= interpretter.program.size)
     {
-        return &interpretter.program.data[addr];
+        return std::pair{&interpretter.program.data[addr],interpretter.program.size - addr};
     }
 
-    else if(addr >= interpretter.program.size && addr + size <= interpretter.program.size +  interpretter.global.size)
+    else if(addr >= interpretter.program.size && addr <= interpretter.program.size +  interpretter.global.size)
     {
-        return &interpretter.global[addr - interpretter.program.size];
+        return std::pair{&interpretter.global[addr - interpretter.program.size],((interpretter.program.size +  interpretter.global.size) - addr)};
     }
 
-    if(addr >= 0x20000000 && addr + size <= 0x20000000 + interpretter.stack.size)
+    if(addr >= 0x20000000 && addr <= 0x20000000 + interpretter.stack.size)
     {
-        return &interpretter.stack[addr - 0x20000000];
+        return std::pair{&interpretter.stack[addr - 0x20000000],0x20000000 + interpretter.stack.size - addr};
     }
 
     else
     {
-        return nullptr;
+        return std::pair{nullptr,0};
     }    
+}
+
+void* get_vm_ptr(Interpretter& interpretter, u32 addr, u32 size)
+{
+    auto [ptr,remain] = get_vm_ptr_internal(interpretter,addr);
+
+    if(remain < size)
+    {
+        return nullptr;
+    }
+
+    return ptr;
+}
+
+char* get_vm_str(Interpretter& interpretter, u32 addr)
+{
+    auto [ptr,remain] = get_vm_ptr_internal(interpretter,addr);
+
+    char* str = (char*)ptr;
+
+    while(remain)
+    {
+        // null terminated string
+        if(*str == '\0')
+        {
+            return (char*)ptr;
+        }
+
+        str++;
+        remain--;
+    }
+
+    return nullptr;
 }
 
 template<typename access_type>
@@ -563,10 +598,89 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                     if(!ptr)
                     {
                         crash_and_burn("out of bounds print at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
-                        return;
                     }
 
                     fwrite(ptr,1,regs[R1],stdout);
+                    break;
+                }
+
+                case SYSCALL_OPEN:
+                {
+                    char* ptr = get_vm_str(interpretter,regs[R0]); 
+
+                    if(!ptr)
+                    {
+                        crash_and_burn("out of str for file open at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
+                    }
+
+                    const u32 v = regs[R1];
+
+                    // last mode, R = 0, W = 1
+                    const u32 FILE_RW = 2;
+
+                    if(v > FILE_RW)
+                    {
+                        crash_and_burn("invalid file mode for at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
+                    }
+
+                    // NOTE: we open this in binary because we just want a raw file
+                    // the actual running program will have to handle any buffering of strings etc
+                    const char* mode_table[3] = {"rb","wb","rwb"};
+
+                    const char* mode = mode_table[v];
+
+                    FILE* fp = fopen(ptr,mode);
+
+                    // file handle is not valid
+                    if(!fp)
+                    {
+                        //printf("could not open file %s: %s\n",ptr,strerror(errno));
+                        regs[R0] = u64(NULL);
+                    }
+
+                    else
+                    {
+                        //printf("open: %s : %s\n",ptr,mode);
+
+                        // disable buffering
+                        // this is supposed to simulate a raw os handle
+                        setbuf(fp, NULL);
+
+                        regs[R0] = u64(fp);
+                    }
+                    break;
+                }
+
+                case SYSCALL_CLOSE:
+                {
+                    FILE* fp = (FILE*)regs[0];
+
+                    if(fp)
+                    {
+                        fclose(fp);
+                    }
+                    break;
+                }
+
+                case SYSCALL_WRITE:
+                {
+                    FILE* fp = (FILE*)regs[0];
+                    const u32 len = regs[2];
+
+                    void* ptr = get_vm_ptr(interpretter,regs[1],len);
+
+                    if(!ptr)
+                    {
+                        crash_and_burn("out of bounds file read at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
+                    }
+
+                    if(!fp)
+                    {
+                        crash_and_burn("invalid file handle for write at %lx\n",interpretter.regs[PC] - sizeof(Opcode));
+                    }
+
+
+                    fwrite(ptr,1,len,fp);
                     break;
                 }
 
@@ -695,7 +809,9 @@ s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
 
     //print_trace(interpretter.trace);
 
-    printf("\nexit: %ld\n",regs[0]);
-    return regs[0];
+    const s32 exit_code = s32(regs[0]);
+
+    printf("exit: %d : %x\n",exit_code,exit_code);
+    return exit_code;
 }
 

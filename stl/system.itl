@@ -4,6 +4,9 @@
 constant SYSCALL_EXIT : u32 = 0;
 constant SYSCALL_WRITE_STRING : u32 = 1;
 constant SYSCALL_OPEN : u32 = 2;
+constant SYSCALL_CLOSE : u32 = 3;
+constant SYSCALL_WRITE : u32 = 4;
+constant SYSCALL_READ : u32 = 5;
 
 // STD IO
 
@@ -19,17 +22,24 @@ func write_buf(data : const c8@, len : u32)
 
 func write_string(str: const string)
 {
-    write_buf(str.data,str.len);
+    write_file_str(&stdout,str);
 }
 
 
 // PROCESS
 
-constant FAILURE_OPEN_STDOUT : u32 = 0xf000_0001;
-constant FAILURE_OPEN_STDIN : u32 = 0xf000_0002;
+constant FAILURE_OPEN_STDOUT : s32 = 0xf000_0001;
+constant FAILURE_OPEN_STDIN : s32 = 0xf000_0002;
+
+func at_exit()
+{
+    file_close(&stdin);
+    file_close(&stdout);
+}
 
 func exit(exit_code: s32)
 {
+    at_exit();
     intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
 }
 
@@ -39,6 +49,11 @@ func exit(exit_code: s32)
 func os_open(filename : const c8@, mode : u32) byte@
 {
     return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,mode,0));
+}
+
+func os_close(handle : const byte@)
+{
+    intrin_syscall(SYSCALL_CLOSE,handle,0,0);
 }
 
 func os_write(handle : const byte@, data : const byte@, len : u64) s64
@@ -51,36 +66,9 @@ func os_read(handle : const byte@, data : byte@, len : u64) s64
     return intrin_syscall(SYSCALL_READ,handle,data,len);
 }
 
-func open_stdout() File
+constant INVALID_HANDLE : u64 = 0;
+
+func is_os_handle_valid(handle : byte@) bool
 {
-    fp : File;
-    err : bool;
-
-    // NOTE: for now this only works properly against linux
-    [fp,err] = open_file("/dev/tty",FILE_W,FILE_FLAG_STR);
-
-    
-    if(err)
-    {
-        exit(FAILURE_OPEN_STDOUT);
-    }
-
-    return fp;
-}
-
-func open_stdin() File
-{
-    fp : File;
-    err : bool;
-
-    // NOTE: for now this only works properly against linux
-    [fp,err] = open_file("/dev/tty",FILE_R,FILE_FLAG_STR);
-
-    
-    if(err)
-    {
-        exit(FAILURE_OPEN_STDIN);
-    }
-
-    return fp;
+    return handle != cast(byte@,INVALID_HANDLE);
 }

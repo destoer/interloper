@@ -403,7 +403,11 @@ struct SymbolTable;
 
 // IR SYSCALLS
 static constexpr u32 SYSCALL_EXIT = 0x0;
-static constexpr u32 SYSCALL_WRITE_STRING = SYSCALL_EXIT + 1;
+static constexpr u32 SYSCALL_WRITE_STRING = 0x1;
+static constexpr u32 SYSCALL_OPEN = 0x2;
+static constexpr u32 SYSCALL_CLOSE = 0x3;
+static constexpr u32 SYSCALL_WRITE = 0x4;
+static constexpr u32 SYSCALL_READ = 0x5;
 
 
 static constexpr u32 STACK_SIZE = 32 * 1024;

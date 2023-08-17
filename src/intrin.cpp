@@ -7,7 +7,7 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
     // because this alot of boilerplate
 
-    static constexpr u32 COPY_LIMIT = 32;
+    static constexpr u32 COPY_LIMIT = 64;
 
     // multiple of 8 and under the copy limit
     if(size < COPY_LIMIT && (size & 7) == 0) 
@@ -101,7 +101,7 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
     if(dst_slot.handle != NO_SLOT)
     {
         // move result
-        mov_reg(itl,func,dst_slot,sym_from_idx(R0_IR));
+        mov_reg(itl,func,dst_slot,sym_from_idx(RV_IR));
     }
     
     restore_regs(itl,func,REG_BITSET);

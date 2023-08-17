@@ -31,6 +31,8 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
 
         case ast_type::symbol:
         {
+            // TODO: this needs redefinition and const checking!
+
             // TODO: atm this requires correct decl order
             // as we dont have a locking mechanism or a way to lookup exprs
             auto [type,sym_slot] = symbol(itl,node);
