@@ -11,10 +11,10 @@ PoolSlot pool_slot_from_sym(const Symbol& sym)
 
 b32 is_constant(const Symbol& sym)
 {
-    return sym.reg.kind = reg_kind::constant;
+    return sym.reg.kind == reg_kind::constant;
 }
 
-u64 int_from_const(Interloper& itl,const Sybmol& sym)
+u64 int_from_const(Interloper& itl,const Symbol& sym)
 {
     const auto pool_slot = pool_slot_from_sym(sym);
     auto& section = pool_section_from_slot(itl.const_pool,pool_slot);

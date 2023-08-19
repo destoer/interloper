@@ -1,4 +1,7 @@
 
+constant FILE_BLOCK_SIZE : u32 = 512;
+constant FILE_DEFAULT_BUFFER_SIZE : u32 = FILE_BLOCK_SIZE * 1;
+
 struct File
 {
     flags : u32;
@@ -9,20 +12,25 @@ struct File
     
     // for buffered io
     buf : byte[];
-    pending : u32;
+    
+    // inside our buffer, how much data do we have?
+    buffer_offset : u16;
+    buffer_size : u16;
 }
 
 enum file_mode
 {
     read,
     write,
-    read_write,
 }
 
 
 constant FILE_FLAG_BIN : u32  = 1 << 0;
 constant FILE_FLAG_STR : u32 = 1 << 1;
 constant FILE_FLAG_ERROR : u32 = 1 << 2;
+
+// otherwhise a write is buffered if the buffer is not empty
+constant FILE_FLAG_BUFFER_READ : u32 = 1 << 3;
 
 func open_file(str : const string, mode : file_mode, flags : u32) [File,bool]
 {

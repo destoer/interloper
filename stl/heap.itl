@@ -10,7 +10,7 @@ struct Heap
     free_list : HeapNode@ = NULL;
 }
 
-constant DEFAULT_BLOCK_SIZE : u32 = 1024;
+constant HEAP_DEFAULT_BLOCK_SIZE : u32 = 1024;
 constant BLOCK_SIZE : u32 = HeapNode.size;
 
 

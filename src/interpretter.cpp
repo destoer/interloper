@@ -590,20 +590,6 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                     break;
                 }
 
-                // TODO: bounds check this
-                case SYSCALL_WRITE_STRING:
-                {   
-                    void* ptr = get_vm_ptr(interpretter,regs[R0],regs[R1]);
-
-                    if(!ptr)
-                    {
-                        crash_and_burn("out of bounds print at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
-                    }
-
-                    fwrite(ptr,1,regs[R1],stdout);
-                    break;
-                }
-
                 case SYSCALL_OPEN:
                 {
                     char* ptr = get_vm_str(interpretter,regs[R0]); 
@@ -616,16 +602,16 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                     const u32 v = regs[R1];
 
                     // last mode, R = 0, W = 1
-                    const u32 FILE_RW = 2;
+                    const u32 FILE_W = 1;
 
-                    if(v > FILE_RW)
+                    if(v > FILE_W)
                     {
                         crash_and_burn("invalid file mode for at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
                     }
 
                     // NOTE: we open this in binary because we just want a raw file
                     // the actual running program will have to handle any buffering of strings etc
-                    const char* mode_table[3] = {"rb","wb","rwb"};
+                    const char* mode_table[2] = {"rb","wb"};
 
                     const char* mode = mode_table[v];
 

@@ -50,7 +50,7 @@ func print_int(v : u64, base : u32)
     reverse(buf,digits);
 
     // TODO: this should slice
-    write_buf(&buf[0],digits);
+    write_str_raw(&buf[0],digits);
 }
 
 func print_dec(v : u64, sign : bool)
@@ -108,7 +108,7 @@ func format_int(any : Any, specifier: c8)
 
 func putchar(char : c8)
 {
-    write_buf(&char,sizeof(char));
+    write_str_raw(&char,sizeof(char));
 }
 
 func print_arg(arg : Any, specifier : c8)
@@ -225,7 +225,7 @@ func print_arg(arg : Any, specifier : c8)
                     v := int_from_any(arg);
 
                     char_ptr : const c8@ = cast(const c8@,v);
-                    write_buf(char_ptr,array_type.size);
+                    write_str_raw(char_ptr,array_type.size);
                 }
 
                 else

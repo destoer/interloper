@@ -2,11 +2,10 @@
 // TODO: make this handle multiple targets
 
 constant SYSCALL_EXIT : u32 = 0;
-constant SYSCALL_WRITE_STRING : u32 = 1;
-constant SYSCALL_OPEN : u32 = 2;
-constant SYSCALL_CLOSE : u32 = 3;
-constant SYSCALL_WRITE : u32 = 4;
-constant SYSCALL_READ : u32 = 5;
+constant SYSCALL_OPEN : u32 = 1;
+constant SYSCALL_CLOSE : u32 = 2;
+constant SYSCALL_WRITE : u32 = 3;
+constant SYSCALL_READ : u32 = 4;
 
 // STD IO
 
@@ -15,9 +14,9 @@ import "file"
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
-func write_buf(data : const c8@, len : u32)
+func write_str_raw(data : const c8@, len : u32)
 {
-    intrin_syscall(SYSCALL_WRITE_STRING,data,len,0);     
+    write_file_mem(&stdout,data,len);   
 }
 
 func write_string(str: const string)
