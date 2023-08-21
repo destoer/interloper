@@ -7,5 +7,5 @@ func main() s32
 
     vla: u32[] = arr;
 
-    return vla.len + vla[0] + vla[1];
+    return cast(u32,vla.len) + vla[0] + vla[1];
 }

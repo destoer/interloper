@@ -18,6 +18,11 @@ void print_slot(SymbolTable& table, SymSlot slot)
         printf("sym: %s\n",sym.name.buf);
     }
 
+    else if(is_special_reg(slot))
+    {
+        printf("special reg: %s\n",SPECIAL_REG_NAMES[slot.handle - SPECIAL_PURPOSE_REG_START].buf);
+    }
+
     else
     {
         printf("tmp: t%d\n",slot.handle);

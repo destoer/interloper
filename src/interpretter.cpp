@@ -47,6 +47,55 @@ void print_regs(Interpretter& interpretter)
     printf("SP = 0x%016lx\n",interpretter.regs[SP]);
 }
 
+// fread does not seem to play nice with stdin
+// so we are gonna have to use the bottom level os primitives
+
+const u32 FILE_R = 0;
+const u32 FILE_W = 1;
+
+#ifdef __linux__
+
+#include <fcntl.h>
+#include <unistd.h>
+
+bool handle_valid(s64 handle)
+{
+    return s64(handle) >= 0;
+}
+
+s64 os_open(const char* file, u32 mode)
+{
+    u32 flag;
+
+    switch(mode)
+    {
+        case FILE_W: flag = O_WRONLY; break;
+        case FILE_R: flag = O_RDONLY; break;
+        default: printf("invalid file mode: %d\n",mode); return -1;
+    }
+
+    return open(file,flag);
+}
+
+s64 os_read(s64 handle, void* buf, u32 len)
+{
+    return read(handle,buf,len);
+}
+
+s64 os_write(s64 handle, const void* buf, u32 len)
+{
+    return write(s64(handle),buf,len);
+}
+
+s64 os_close(s64 handle)
+{
+    return close(handle);
+}
+
+#else 
+static_assert(false);
+#endif
+
 template<typename access_type>
 access_type read_mem(Interpretter& interpretter,u32 addr)
 {
@@ -599,75 +648,68 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                         crash_and_burn("out of str for file open at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R0]);
                     }
 
-                    const u32 v = regs[R1];
+                    const u32 mode = regs[R1];
 
-                    // last mode, R = 0, W = 1
-                    const u32 FILE_W = 1;
-
-                    if(v > FILE_W)
+                    if(mode > FILE_W)
                     {
                         crash_and_burn("invalid file mode for at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
                     }
 
-                    // NOTE: we open this in binary because we just want a raw file
-                    // the actual running program will have to handle any buffering of strings etc
-                    const char* mode_table[2] = {"rb","wb"};
-
-                    const char* mode = mode_table[v];
-
-                    FILE* fp = fopen(ptr,mode);
-
-                    // file handle is not valid
-                    if(!fp)
-                    {
-                        //printf("could not open file %s: %s\n",ptr,strerror(errno));
-                        regs[R0] = u64(NULL);
-                    }
-
-                    else
-                    {
-                        //printf("open: %s : %s\n",ptr,mode);
-
-                        // disable buffering
-                        // this is supposed to simulate a raw os handle
-                        setbuf(fp, NULL);
-
-                        regs[R0] = u64(fp);
-                    }
+                    regs[R0] = os_open(ptr,mode);
                     break;
                 }
 
                 case SYSCALL_CLOSE:
                 {
-                    FILE* fp = (FILE*)regs[0];
+                    const s64 handle = regs[0];
 
-                    if(fp)
+                    if(handle_valid(handle))
                     {
-                        fclose(fp);
+                        os_close(handle);
                     }
                     break;
                 }
 
                 case SYSCALL_WRITE:
                 {
-                    FILE* fp = (FILE*)regs[0];
+                    const s64 handle = regs[0];
                     const u32 len = regs[2];
 
                     void* ptr = get_vm_ptr(interpretter,regs[1],len);
 
                     if(!ptr)
                     {
-                        crash_and_burn("out of bounds file read at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
+                        crash_and_burn("out of bounds file write at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
                     }
 
-                    if(!fp)
+                    if(!handle_valid(handle))
                     {
                         crash_and_burn("invalid file handle for write at %lx\n",interpretter.regs[PC] - sizeof(Opcode));
                     }
 
-
-                    fwrite(ptr,1,len,fp);
+                    os_write(handle,ptr,len);
                     break;
+                }
+
+                case SYSCALL_READ:
+                {
+                    const s64 handle = regs[0];
+                    const u32 len = regs[2];
+
+                    void* ptr = get_vm_ptr(interpretter,regs[1],len);
+
+                    if(!ptr)
+                    {
+                        crash_and_burn("out of bounds file write at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
+                    }
+
+                    if(!handle_valid(handle))
+                    {
+                        crash_and_burn("invalid file handle for read at %lx\n",interpretter.regs[PC] - sizeof(Opcode));
+                    }
+
+                    os_read(handle,ptr,len);
+                    break;                  
                 }
 
                 default:
@@ -717,6 +759,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 void reset(Interpretter& interpretter, u32 global_size)
 {
     memset(interpretter.regs,0,sizeof(interpretter.regs));
+    memset(interpretter.stack.data,0,interpretter.stack.size);
 
     if(global_size)
     {
@@ -736,7 +779,6 @@ Interpretter make_interpretter()
     Interpretter interpretter;
 
     resize(interpretter.stack,STACK_SIZE);
-    memset(interpretter.stack.data,0,interpretter.stack.size);
 
     reset(interpretter,0);
 

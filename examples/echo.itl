@@ -1,0 +1,15 @@
+
+
+func main() s32
+{
+    buf : c8[256];
+
+    print("Enter some text: ");
+
+    out := read_string(buf);
+
+    write_string(out);
+    //print("You said {}\n",out);
+
+    return 0;
+}

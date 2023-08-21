@@ -341,7 +341,30 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
     {
         if(dst_slot.handle == NO_SLOT)
         {
+            // TODO: pass some dummy memory
             unimplemented("no_slot: binding on large return type");
+        }
+
+        else if(dst_slot.handle == RV_IR)
+        {
+            // this is nested pass in the current hidden return
+            if(func.sig.hidden_args == 1)
+            {
+                push_arg(itl,func,func.sig.args[0]);
+            }
+
+            else
+            {
+                panic(itl,itl_error::missing_return,"Attempted to return invalid large var inside func");
+                return arg_clean;
+            }
+        }
+
+        else if(is_special_reg(dst_slot))
+        {
+            print_slot(itl.symbol_table,dst_slot);
+            dump_ir(func,itl.symbol_table);   
+            assert(false);
         }
 
         else if(is_sym(dst_slot))

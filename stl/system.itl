@@ -24,6 +24,11 @@ func write_string(str: const string)
     write_file_str(&stdout,str);
 }
 
+func read_string(str : string) string
+{
+    return read_file_str(&stdin,str);
+}
+
 
 // PROCESS
 

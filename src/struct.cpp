@@ -374,7 +374,7 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
             if(!is_ptr)
             {
                 *offset += GPR_SIZE;
-                return std::pair{make_builtin(itl,builtin_type::u32_t),slot};
+                return std::pair{make_builtin(itl,builtin_type::u64_t),slot};
             }
 
             else

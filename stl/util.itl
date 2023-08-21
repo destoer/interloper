@@ -26,7 +26,7 @@ func assert(cond : bool)
     }
 }
 
-func min_signed(v1 : s32, v2 : s32) s32
+func min_signed(v1 : s64, v2 : s64) s64
 {
     if(v1 < v2)
     {
@@ -36,7 +36,7 @@ func min_signed(v1 : s32, v2 : s32) s32
     return v2;
 }
 
-func min_unsigned(v1 : u32, v2 : u32) u32
+func min_unsigned(v1 : u64, v2 : u64) u64
 {
     if(v1 < v2)
     {

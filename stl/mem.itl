@@ -1,6 +1,6 @@
 
 
-func memcpy(dst: byte@, src: const byte@, size: u32)
+func memcpy(dst: byte@, src: const byte@, size: u64)
 {
     end : const byte@ = dst + size;
 
@@ -14,7 +14,7 @@ func memcpy(dst: byte@, src: const byte@, size: u32)
 }
 
 
-func memset(dst: byte@, size : u32, v : u8)
+func memset(dst: byte@, size : u64, v : u8)
 {
     end : const byte@ = dst + size;
 
@@ -25,7 +25,7 @@ func memset(dst: byte@, size : u32, v : u8)
     }    
 }
 
-func zero_mem(dst: byte@, size : u32)
+func zero_mem(dst: byte@, size : u64)
 {
     memset(dst,size,0);
 }

@@ -73,9 +73,20 @@ func write_file_mem(file : File@,buf : const byte@, len : u64) s64
     return os_write(file.handle,buf,len);
 }
 
-func read_file_str(file : File@, str : string) s64
+func read_file_str(file : File@, str : string) string
 {
-    return read_file_mem(file,str.data, str.len);
+    len := read_file_mem(file,str.data, str.len);
+
+    // TODO: use slicing for this
+    buf : c8[];
+
+    if(len >= 0)
+    {
+        buf.data = str.data;
+        buf.len = cast(u64,len);
+    }
+
+    return buf;
 }
 
 func read_file_mem(file : File@,buf : byte@, len : u64) s64
