@@ -350,6 +350,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
             // this is nested pass in the current hidden return
             if(func.sig.hidden_args == 1)
             {
+                arg_clean++;
                 push_arg(itl,func,func.sig.args[0]);
             }
 
