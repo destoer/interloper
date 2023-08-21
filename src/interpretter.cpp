@@ -687,7 +687,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                         crash_and_burn("invalid file handle for write at %lx\n",interpretter.regs[PC] - sizeof(Opcode));
                     }
 
-                    os_write(handle,ptr,len);
+                    regs[R0] = os_write(handle,ptr,len);
                     break;
                 }
 
@@ -708,7 +708,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                         crash_and_burn("invalid file handle for read at %lx\n",interpretter.regs[PC] - sizeof(Opcode));
                     }
 
-                    os_read(handle,ptr,len);
+                    regs[R0] = os_read(handle,ptr,len);
                     break;                  
                 }
 
