@@ -8,8 +8,7 @@ func main() s32
 
     out := read_string(buf);
 
-    write_string(out);
-    //print("You said {}\n",out);
+    print("You said {}\n",out);
 
     return 0;
 }

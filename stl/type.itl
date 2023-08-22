@@ -77,6 +77,12 @@ struct Any
     type : const Type@;
 }
 
+// struct for generic vla
+struct Vla
+{
+    data : const byte@;
+    len : u64;
+}
 
 func is_builtin(type_idx : itl_type) bool
 {

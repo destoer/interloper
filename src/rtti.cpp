@@ -259,7 +259,10 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
         // runtime size
         else
         {
-            assert(false);
+            const auto arr_ptr = addrof_res(itl,func,src);
+
+            // store data
+            store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);
         }   
     }
 

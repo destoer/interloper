@@ -14,7 +14,7 @@ import "file"
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
-func write_str_raw(data : const c8@, len : u32)
+func write_str_raw(data : const c8@, len : u64)
 {
     write_file_mem(&stdout,data,len);   
 }
