@@ -230,6 +230,7 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
     // aquire a copy of the typing information from the const pool
     const SymSlot rtti_ptr = aquire_rtti(itl,func,type); 
 
+    // goes directly in the pointer
     if(is_trivial_copy(type))
     {
         // store type struct
@@ -239,9 +240,7 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
         store_ptr(itl,func,src,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);              
     } 
 
-    // finally the any struct
-    // TODO: we should store things less than GPR_SIZE directly in the pointer...
-    // store our any struct
+    // allready in memory just store a the pointer to it
     else if(is_array(type))
     {
         // store type struct
