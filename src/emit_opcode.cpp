@@ -224,6 +224,16 @@ SymSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
     return tmp;
 }
 
+// copy gpr sized reg
+SymSlot copy_reg(Interloper& itl, Function& func, SymSlot src)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+
+    mov_reg(itl,func,tmp,src);
+
+    return tmp;
+}
+
 void push_arg(Interloper& itl, Function& func, SymSlot src)
 {
     emit_reg1<op_type::push_arg>(itl,func,src);

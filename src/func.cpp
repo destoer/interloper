@@ -154,8 +154,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             alloc_stack(itl,func,structure.size);
 
             // need to save SP as it will get pushed last
-            const SymSlot dst = new_tmp(func,GPR_SIZE);
-            mov_reg(itl,func,dst,sym_from_idx(SP_IR));
+            const SymSlot dst = copy_reg(itl,func,sym_from_idx(SP_IR));
             const SymSlot ptr = addrof_res(itl,func,reg);
 
             ir_memcpy(itl,func,dst,ptr,structure.size);
@@ -216,14 +215,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
 
     alloc_stack(itl,func,any_arr_size);
 
-    const SymSlot any_arr_ptr = new_tmp_ptr(func);
-    mov_reg(itl,func,any_arr_ptr,sym_from_idx(SP_IR));
-
-    // alloc storage for data
-    // we need to actually compile the args so we know what size they are
-    ListNode* stack_node = alloc_stack(itl,func,0);
-
-    u32 data_size = 0;
+    const SymSlot any_arr_ptr = copy_reg(itl,func,sym_from_idx(SP_IR));
 
     for(u32 a = 0; a < any_args; a++)
     {
@@ -233,10 +225,6 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
         compile_any_arr(itl,func,call_node->args[arg_idx],any_arr_ptr,arr_offset);
     }
 
-    
-
-    // we know how large the stack is go back and rewrite the opcode
-    stack_node->opcode = Opcode(op_type::alloc_stack,data_size,0,0);
 
     const u32 vla_size = GPR_SIZE * 2;
 
@@ -251,7 +239,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     store_ptr(itl,func,any_len_slot,sym_from_idx(SP_IR),GPR_SIZE,GPR_SIZE);      
 
     
-    const u32 total_size = data_size + any_arr_size + vla_size;
+    const u32 total_size = any_arr_size + vla_size;
 
     arg_clean += total_size / GPR_SIZE;
 
