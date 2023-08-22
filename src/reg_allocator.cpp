@@ -623,6 +623,32 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,Block &block, ListNode *no
     handle_allocation(itl.symbol_table,alloc,block,node);
 }
 
+void reserve_offset(LocalAlloc& alloc,SymbolTable& table, Reg& ir_reg)
+{
+    if(is_sym(ir_reg.slot))
+    {
+        auto& sym = sym_from_slot(table,ir_reg.slot);
+
+        log(alloc.print_reg_allocation,"spill %s from reg r%d\n",sym.name.buf,ir_reg.location);
+
+
+        // only allocate the local vars by here
+        if(!is_arg(sym))
+        {
+            stack_reserve_reg(alloc,ir_reg);
+        }
+    }
+
+    else
+    {
+        log(alloc.print_reg_allocation,"spill t%d from reg r%d\n",ir_reg.slot.handle,ir_reg.location);
+
+        // by defintion a tmp has to be local
+        // TODO: fmt this tmp
+        stack_reserve_reg(alloc,ir_reg);
+    }    
+}
+
 void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, b32 after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
@@ -630,6 +656,13 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     // no need to spill
     if(ir_reg.location == LOCATION_MEM)
     {
+        // make sure it has a stack pos
+        if(ir_reg.offset == UNALLOCATED_OFFSET)
+        {
+            reserve_offset(alloc,table,ir_reg);
+            return;
+        }
+
         if(alloc.print_reg_allocation)
         {
             if(is_sym(slot))
@@ -657,28 +690,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
 
     if(ir_reg.offset == UNALLOCATED_OFFSET)
     {
-        if(is_sym(slot))
-        {
-            auto& sym = sym_from_slot(table,slot);
-
-            log(alloc.print_reg_allocation,"spill %s from reg r%d\n",sym.name.buf,reg);
-
-
-            // only allocate the local vars by here
-            if(!is_arg(sym))
-            {
-                stack_reserve_reg(alloc,ir_reg);
-            }
-        }
-
-        else
-        {
-            log(alloc.print_reg_allocation,"spill t%d from reg r%d\n",slot.handle,reg);
-
-            // by defintion a tmp has to be local
-            // TODO: fmt this tmp
-            stack_reserve_reg(alloc,ir_reg);
-        }
+        reserve_offset(alloc,table,ir_reg);
     }
 
     // if the value has only been used as a source and not modifed then we can just treat this as a free_reg

@@ -98,11 +98,8 @@ func read_file_mem(file : File@,buf : byte@, len : u64) s64
 
 func open_stdout() File
 {
-    fp : File;
-    err : bool;
-
     // NOTE: for now this only works properly against linux
-    [fp,err] = open_file("/dev/stdout",file_mode::write);
+    [fp,err] := open_file("/dev/stdout",file_mode::write);
 
     if(err)
     {
@@ -114,11 +111,8 @@ func open_stdout() File
 
 func open_stdin() File
 {
-    fp : File;
-    err : bool;
-
     // NOTE: for now this only works properly against linux
-    [fp,err] = open_file("/dev/stdin",file_mode::read);
+    [fp,err] := open_file("/dev/stdin",file_mode::read);
 
     if(err)
     {

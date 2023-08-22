@@ -398,7 +398,16 @@ AstNode* tuple_assign(Parser& parser, const Token& t)
             // end of tuple
             case token_type::sr_brace:
             {
-                consume(parser,token_type::equal);
+                if(match(parser,token_type::decl))
+                {
+                    consume(parser,token_type::decl);
+                    tuple_node->auto_decl = true;
+                }
+
+                else
+                {
+                    consume(parser,token_type::equal);
+                }
 
                 const auto sym_tok = next_token(parser);
 

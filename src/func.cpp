@@ -253,9 +253,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
     // pass in tuple dst
     if(tuple_node)
     {
-        // okay how do we wanna structure getting tuple info off of this?
-        // do we want to look at the node?
-        // 
+        // TODO: this doesn't do any type checking...
         for(s32 a = count(tuple_node->symbols) - 1; a >= 0; a--)
         {
             AstNode* var_node = tuple_node->symbols[a];
@@ -568,6 +566,39 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
     return call_info;   
 }
 
+void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_node,const FuncSig& sig)
+{
+    b32 new_decl = false;
+
+    // go thru each var check the type matches exactly
+    for(u32 s = 0; s < count(tuple_node->symbols); s++)
+    {
+        AstNode* node = tuple_node->symbols[s];
+
+        // get ltype and handle any decl
+        if(node->type == ast_type::symbol)
+        {
+            LiteralNode* literal_node = (LiteralNode*)node;
+            const auto& name = literal_node->literal;
+
+            // no such symbol, infer the type
+            if(!symbol_exists(itl.symbol_table,name))
+            {
+                // add new symbol table entry with return type
+                auto& sym = add_symbol(itl,name,sig.return_type[s]);
+                alloc_slot(itl,func,sym.reg,!is_plain_type(sym.type));
+
+                new_decl = true;
+            }
+        }
+    }
+    
+    if(!new_decl)
+    {
+        panic(itl,itl_error::tuple_mismatch,"No new variables declared in tuple assign");
+    }
+}
+
 // used for both tuples and ordinary function calls
 Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
@@ -606,6 +637,11 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
         return make_builtin(itl,builtin_type::void_t);
     }
 
+
+    if(tuple_node && tuple_node->auto_decl)
+    {
+        handle_tuple_decl(itl,func,tuple_node,sig);
+    }
 
     
     // handle argument pushing

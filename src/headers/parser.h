@@ -469,6 +469,7 @@ struct TupleAssignNode
 
     Array<AstNode*> symbols;
     FuncCallNode* func_call;
+    b32 auto_decl;
 };
 
 using AstPointers = Array<void***>;
@@ -726,6 +727,7 @@ AstNode* ast_tuple_assign(Parser& parser, const Token& token)
 {
     TupleAssignNode* tuple_node = alloc_node<TupleAssignNode>(parser,ast_type::tuple_assign,ast_fmt::tuple_assign,token);
 
+    tuple_node->auto_decl = false;
     add_ast_pointer(parser,&tuple_node->symbols.data);
 
     return (AstNode*)tuple_node;
