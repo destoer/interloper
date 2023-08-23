@@ -2,7 +2,13 @@
 
 #include <destoer.h>
 
-
+// IR SYSCALLS
+static constexpr u32 SYSCALL_EXIT = 0x0;
+static constexpr u32 SYSCALL_OPEN = 0x1;
+static constexpr u32 SYSCALL_CLOSE = 0x2;
+static constexpr u32 SYSCALL_WRITE = 0x3;
+static constexpr u32 SYSCALL_READ = 0x4;
+static constexpr u32 SYSCALL_ALLOC = 0x5;
 
 struct Trace
 {
@@ -30,6 +36,9 @@ struct Interpretter
     Array<u8> global;
 
     Array<u8> stack;
+
+    // allocate pointers for cleanup by the vm
+    Array<u8> alloc;
 
     Trace trace;
 };

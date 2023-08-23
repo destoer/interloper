@@ -48,7 +48,7 @@ func open_file(str : const string, mode : file_mode) [File,bool]
         return file,true;
     }
 
-    // TODO: we should allocate our buffer here
+    file.buf = byte_array_heap(&global_heap,FILE_DEFAULT_BUFFER_SIZE);
 
     return file,false;
 }
@@ -57,6 +57,9 @@ func file_close(file : File@)
 {
     os_close(file.handle);
     file.handle = cast(byte@,INVALID_HANDLE);
+
+    // free our buffer
+    free_heap(&global_heap,file.buf.data);
 }
 
 func write_file_str(file : File@, str : const string) s64

@@ -2,7 +2,7 @@
 struct HeapNode
 {
     next : HeapNode@;
-    blocks : u32;
+    blocks : u64;
 }
 
 struct Heap
@@ -10,9 +10,9 @@ struct Heap
     free_list : HeapNode@ = NULL;
 }
 
-constant HEAP_DEFAULT_BLOCK_SIZE : u32 = 1024;
-constant BLOCK_SIZE : u32 = HeapNode.size;
-
+constant HEAP_DEFAULT_BLOCK_COUNT : u32 = 1024;
+constant HEAP_BLOCK_SIZE : u32 = HeapNode.size;
+constant HEAP_DEFAULT_ALLOC_SIZE : u32 = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_COUNT;
 
 func free_heap(heap : Heap@, ptr : byte@)
 {
@@ -86,7 +86,18 @@ func free_heap(heap : Heap@, ptr : byte@)
     }
 }
 
+func request_buffer(heap : Heap@, size : u64) bool
+{
+    ptr := os_req_mem(size);
 
+    if(ptr == cast(byte@,OS_INVALID_PTR))
+    {
+        return false;
+    }
+
+    add_buffer(heap,ptr,size);
+    return true;
+}
 
 func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
 {
@@ -94,7 +105,7 @@ func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
 
     // TODO: this overstimates block aligned data
     // we are just gonna ignore this for now
-    req_blocks := (bytes / BLOCK_SIZE) + 2;
+    req_blocks := (bytes / HEAP_BLOCK_SIZE) + 2;
 
     // attempt to find a block big enough for allocation?
     cur := heap.free_list;
@@ -130,7 +141,15 @@ func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
         cur = cur.next;
     }
 
-    // cannot find a large enough buffer
+    req := max_unsigned(req_blocks * HEAP_BLOCK_SIZE,HEAP_DEFAULT_ALLOC_SIZE);
+
+    // out of memory try get some more
+    if(request_buffer(heap,req))
+    {
+        return alloc_heap(heap,count,size);
+    }
+
+    // cannot aquire any more memory we are out
     return NULL;
 }
 
@@ -146,14 +165,14 @@ func alloc_heap_panic(heap : Heap@, count : u32, size : u32) byte@
     return ptr;
 }
 
-func add_buffer(heap : Heap@, ptr : byte@, size : u32)
+func add_buffer(heap : Heap@, ptr : byte@, size : u64)
 {
     if(ptr == NULL)
     {
         return;
     }
 
-    blocks := size / BLOCK_SIZE;
+    blocks := size / HEAP_BLOCK_SIZE;
 
     node := cast(HeapNode@,ptr);
     node.blocks = blocks;

@@ -74,7 +74,15 @@ s64 os_open(const char* file, u32 mode)
         default: printf("invalid file mode: %d\n",mode); return -1;
     }
 
-    return open(file,flag);
+    const s64 handle = open(file,flag);
+
+    if(handle == -1)
+    {
+        printf("[VM]: warning could not open file: %s : %d\n",file,mode);
+        perror("error: ");
+    }
+
+    return handle;
 }
 
 s64 os_read(s64 handle, void* buf, u32 len)
@@ -114,9 +122,14 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
         return handle_read<access_type>(&interpretter.global[addr - interpretter.program.size]);
     }
 
-    if(addr >= 0x20000000 && addr + size <= 0x20000000 + interpretter.stack.size)
+    else if(addr >= 0x20000000 && addr + size <= 0x20000000 + interpretter.stack.size)
     {
         return handle_read<access_type>(&interpretter.stack[addr - 0x20000000]);
+    }
+
+    else if(addr >= 0x3000'0000 && addr + size <= 0x3000'0000 + interpretter.alloc.size)
+    {
+        return handle_read<access_type>(&interpretter.alloc[addr - 0x3000'0000]);
     }
 
     else
@@ -142,9 +155,14 @@ std::pair<void*,u32> get_vm_ptr_internal(Interpretter& interpretter,u32 addr)
         return std::pair{&interpretter.global[addr - interpretter.program.size],((interpretter.program.size +  interpretter.global.size) - addr)};
     }
 
-    if(addr >= 0x20000000 && addr <= 0x20000000 + interpretter.stack.size)
+    else if(addr >= 0x20000000 && addr <= 0x20000000 + interpretter.stack.size)
     {
-        return std::pair{&interpretter.stack[addr - 0x20000000],0x20000000 + interpretter.stack.size - addr};
+        return std::pair{&interpretter.stack[addr - 0x20000000],(0x20000000 + interpretter.stack.size) - addr};
+    }
+
+    else if(addr >= 0x3000'0000 && addr <= 0x3000'0000 + interpretter.alloc.size)
+    {
+        return std::pair(&interpretter.alloc[addr - 0x3000'0000],(0x3000'0000 + interpretter.alloc.size) - addr );
     }
 
     else
@@ -202,6 +220,11 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     else if(addr >= 0x20000000 && addr + size <= 0x20000000 + interpretter.stack.size)
     {
         handle_write<access_type>(&interpretter.stack[addr - 0x20000000],v);
+    }
+
+    else if(addr >= 0x3000'0000 && addr + size <= 0x3000'0000 + interpretter.alloc.size)
+    {
+        handle_write<access_type>(&interpretter.alloc[addr - 0x3000'0000],v);
     }
 
     else
@@ -712,6 +735,21 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                     break;                  
                 }
 
+                case SYSCALL_ALLOC:
+                {
+                    const u64 size = regs[0];
+                    const u64 old_size = interpretter.alloc.size;
+
+                    const u64 new_size = size + old_size;
+                    resize(interpretter.alloc,new_size);
+
+                    //printf("alloc: %ld\n",size);
+
+                    // alloc is at the end of the old one
+                    regs[R0] = 0x3000'0000 + old_size;
+                    break;
+                }
+
                 default:
                 {
                     printf("unknown syscall: %lx\n",opcode.v[0]);
@@ -789,6 +827,7 @@ void destroy_interpretter(Interpretter& interpretter)
 {
     destroy_arr(interpretter.stack);
     destroy_arr(interpretter.global);
+    destroy_arr(interpretter.alloc);
 }
 
 s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
@@ -834,6 +873,9 @@ s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
 
         execute_opcode(interpretter,opcode);
     }
+
+    // destroy any heap allocations
+    destroy_arr(interpretter.alloc);
 
     //print_trace(interpretter.trace);
 

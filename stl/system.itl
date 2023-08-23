@@ -1,11 +1,14 @@
 // NOTE: abstracts away bottom level primitives that with the os
-// TODO: make this handle multiple targets
+
+// TODO: make this handle multiple targets we probably want a very primtive switching mechanism
+// for imports
 
 constant SYSCALL_EXIT : u32 = 0;
 constant SYSCALL_OPEN : u32 = 1;
 constant SYSCALL_CLOSE : u32 = 2;
 constant SYSCALL_WRITE : u32 = 3;
 constant SYSCALL_READ : u32 = 4;
+constant SYSCALL_ALLOC : u32 = 5;
 
 // STD IO
 
@@ -32,14 +35,14 @@ func read_string(str : string) string
 
 // PROCESS
 
-constant FAILURE_OPEN_STDOUT : s32 = 0xf000_0001;
-constant FAILURE_OPEN_STDIN : s32 = 0xf000_0002;
-
 func at_exit()
 {
     file_close(&stdin);
     file_close(&stdout);
 }
+
+constant FAILURE_OPEN_STDOUT : s32 = 0xf000_0001;
+constant FAILURE_OPEN_STDIN : s32 = 0xf000_0002;
 
 func exit(exit_code: s32)
 {
@@ -75,4 +78,13 @@ constant INVALID_HANDLE : u64 = 0;
 func is_os_handle_valid(handle : byte@) bool
 {
     return handle != cast(byte@,INVALID_HANDLE);
+}
+
+// memory
+
+constant OS_INVALID_PTR : u64 = 0; 
+
+func os_req_mem(size : u64) byte@
+{
+    return cast(byte@,intrin_syscall(SYSCALL_ALLOC,size,0,0));
 }

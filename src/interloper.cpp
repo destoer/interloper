@@ -282,12 +282,13 @@ void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_s
         store_ptr(itl,func,src_slot,addr_slot,offset,size);  
     }
 
+    // large copy
     else
     {
         SymSlot src_ptr = addrof_res(itl,func,src_slot);
-        src_ptr = collapse_offset(itl,func,src_ptr,&offset);        
+        const auto dst_ptr = collapse_offset(itl,func,addr_slot,&offset);        
 
-        ir_memcpy(itl,func,addr_slot,src_ptr,type_size(itl,type));        
+        ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,type));        
     } 
 }
 
