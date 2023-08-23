@@ -57,7 +57,7 @@ func read_string(str : string) string
 {
     [str,rc] := read_file_str(&stdin,str);
 
-    if(rc != file_res::success)
+    if(rc != file_read_res::success)
     {
         crash_and_burn("Failed to read from stdin!?");
     }

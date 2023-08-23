@@ -14,9 +14,9 @@ func test_str() s32
 
     buf : c8[256];
 
-    rc : file_res = file_res::success;
+    rc := file_read_res::success;
 
-    while(rc == file_res::success)
+    while(rc == file_read_res::success)
     {
         [str,rc] := read_file_str(&fp,buf);
         print("{}\n",str);

@@ -24,7 +24,7 @@ enum file_mode
     write,
 }
 
-enum file_res
+enum file_read_res
 {
     eof,
     error,
@@ -32,6 +32,7 @@ enum file_res
 }
 
 constant FILE_FLAG_ERROR : u32 = 1 << 0;
+constant FILE_FLAG_EOF : u32 = 1 << 1;
 
 // otherwhise a write is buffered if the buffer is not empty
 constant FILE_FLAG_BUFFER_READ : u32 = 1 << 3;
@@ -68,14 +69,26 @@ func close_file(file : File@)
     free_heap(&global_heap,file.buf.data);
 }
 
-func buffer_file(file : File@) bool
+func buffer_file_read(file : File@) file_read_res
 {
     len := os_read(file.handle,file.buf.data,FILE_DEFAULT_BUFFER_SIZE);
 
+    // TODO: this should be a switch
+    if(len == 0)
+    {
+        file.flags = file.flags | FILE_FLAG_EOF;
+        return file_read_res::eof;
+    }
+
+    else if(len == OS_INVALID_READ)
+    {
+        return file_read_res::error;
+    }
+
     file.buffer_offset = 0;
     file.buffer_size = cast(u64,len);
-    
-    return len == OS_INVALID_READ;
+
+    return file_read_res::success;
 }
 
 func write_file_str(file : File@, str : const string) s64
@@ -96,24 +109,18 @@ func flush_read(file : File@, ptr : byte@, len : u64)
     file.buffer_size -= len;  
 }
 
-func read_file_str(file : File@, str : string) [string, file_res]
+func read_file_str(file : File@, str : string) [string, file_read_res]
 {
     // buffer is empty rebuffer it
     if(file.buffer_size == 0)
     {
-        err := buffer_file(file);
+        res := buffer_file_read(file);
 
-        if(err)
+        // error or eof
+        if(res != file_read_res::success)
         {
             buf : string;
-            return buf,file_res::error;
-        }
-
-        // file is completly empty!
-        if(file.buffer_size == 0)
-        {
-            buf : string;
-            return buf, file_res::eof;
+            return buf,res;
         }
     }
 
@@ -125,14 +132,14 @@ func read_file_str(file : File@, str : string) [string, file_res]
     while(true)
     { 
         // save size of buffer for later
-        buffer_size := file.buffer_size;
+        pending := file.buffer_size;
 
         // setup pointers to scan for '\n'
         start := &file.buf[file.buffer_offset];
         ptr := start;
 
         // max is end of the buffer or str len, whatever is lowest
-        max_read := min_unsigned(buffer_size,remain);
+        max_read := min_unsigned(pending,remain);
         end := &file.buf[file.buffer_offset + max_read];
 
         while(ptr != end)
@@ -158,7 +165,7 @@ func read_file_str(file : File@, str : string) [string, file_res]
                 buf.len = str.len - remain;
                 buf.data = str.data; 
 
-                return buf,file_res::success;
+                return buf,file_read_res::success;
             }
 
             // goto next char
@@ -168,27 +175,21 @@ func read_file_str(file : File@, str : string) [string, file_res]
 
 
         // flush what we have out to file
-        flush_read(file,&str[out_offset],buffer_size);
-        out_offset += buffer_size;
+        flush_read(file,&str[out_offset],max_read);
+        out_offset += max_read;
 
         // rebuffer the file out
-        err := buffer_file(file);
+        res := buffer_file_read(file);
 
-        if(err)
-        {
-            buf : string;
-            return buf,file_res::error;
-        }
-    
-        // there is nothing left to read we are done
-        if(file.buffer_size == 0 || remain == 0)
+        // there is nothing left to read, or there is an error
+        if(res != file_read_res::success|| remain == 0)
         {
             buf : string;
 
             buf.len = str.len - remain;
             buf.data = str.data; 
 
-            return buf,file_res::success;
+            return buf,res;
         }
     }
 
@@ -198,32 +199,26 @@ func read_file_str(file : File@, str : string) [string, file_res]
     // no newline hit return str
     buf : string;
 
-    return buf,file_res::error;
+    return buf,file_read_res::error;
 }
 
-func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_res]
+func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_read_res]
 {
     // enough in the buffer just pass it back out
     if(len <= file.buffer_size)
     {
         flush_read(file,buf,len);
-        return len,file_res::success;
+        return len,file_read_res::success;
     }
 
     // buffer is empty rebuffer it
     if(file.buffer_size == 0)
     {
-        err := buffer_file(file);
+        res := buffer_file_read(file);
 
-        if(err)
+        if(res != file_read_res::success)
         {
-            return -1,file_res::error;
-        }
-
-        // file is completly empty!
-        if(file.buffer_size == 0)
-        {
-            return 0, file_res::eof;
+            return 0, res;
         }
     }
 
@@ -231,8 +226,10 @@ func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_res]
     // TODO: should there be a limit where we just directly dump it into the os?
     remain := len - pending;
 
+    res := file_read_res::success;
+
     // buffer file in until we are done
-    while(remain != 0 && file.buffer_size != 0)
+    while(remain != 0 && res == file_read_res::success)
     {
         // flush out any pending data
         pending := file.buffer_size;
@@ -244,21 +241,13 @@ func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_res]
         remain -= pending;
 
         // buffer next ammount of file in
-        if(!buffer_file(file))
-        {
-            return -1,file_res::error;
-        }
+        res = buffer_file_read(file);
     }
 
     // calc how much we actually read
     read := len - remain;
 
-    if(file.buffer_size == 0)
-    {
-        return read,file_res::eof;
-    }
-
-    return read, file_res::success;
+    return read, res;
 }
 
 
