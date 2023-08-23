@@ -37,6 +37,7 @@ enum class itl_error
     undefined_type_oper,
     const_type_error,
     rtti_error,
+    unimplemented,
 };
 
 static const char* ERROR_NAME[] = 
@@ -66,6 +67,7 @@ static const char* ERROR_NAME[] =
     "undefined type operation",
     "const type error",
     "rtti error",
+    "unimplemented",
 };
 
 struct Interloper

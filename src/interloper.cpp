@@ -224,7 +224,7 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 
     else if(is_array(type))
     {
-        unimplemented("load arr from ptr");
+        panic(itl,itl_error::unimplemented,"load arr from ptr");
     }
 
     else if(is_struct(type))

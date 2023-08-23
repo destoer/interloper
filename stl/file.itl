@@ -14,8 +14,8 @@ struct File
     buf : byte[];
     
     // inside our buffer, how much data do we have?
-    buffer_offset : u16;
-    buffer_size : u16;
+    buffer_offset : u64;
+    buffer_size : u64;
 }
 
 enum file_mode
@@ -24,6 +24,12 @@ enum file_mode
     write,
 }
 
+enum file_res
+{
+    eof,
+    error,
+    success,
+}
 
 constant FILE_FLAG_ERROR : u32 = 1 << 0;
 
@@ -62,6 +68,16 @@ func close_file(file : File@)
     free_heap(&global_heap,file.buf.data);
 }
 
+func buffer_file(file : File@) bool
+{
+    len := os_read(file.handle,file.buf.data,FILE_DEFAULT_BUFFER_SIZE);
+
+    file.buffer_offset = 0;
+    file.buffer_size = cast(u64,len);
+    
+    return len == OS_INVALID_READ;
+}
+
 func write_file_str(file : File@, str : const string) s64
 {
     return write_file_mem(file,str.data, str.len);
@@ -72,30 +88,177 @@ func write_file_mem(file : File@,buf : const byte@, len : u64) s64
     return os_write(file.handle,buf,len);
 }
 
-func read_file_str(file : File@, str : string) string
+func flush_read(file : File@, ptr : byte@, len : u64)
 {
-    // TODO: this should scan the buffer for a '\n'
-    // if we cant find it flush the buffer
+    memcpy(ptr,&file.buf[file.buffer_offset],len);
 
-    // then keep buffering up to the length
-
-    len := read_file_mem(file,str.data, str.len);
-
-    // TODO: use slicing for this
-    buf : c8[];
-
-    if(len >= 0)
-    {
-        buf.data = str.data;
-        buf.len = cast(u64,len);
-    }
-
-    return buf;
+    file.buffer_offset += len;
+    file.buffer_size -= len;  
 }
 
-func read_file_mem(file : File@,buf : byte@, len : u64) s64
+func read_file_str(file : File@, str : string) [string, file_res]
 {
-    return os_read(file.handle,buf,len);
+    // buffer is empty rebuffer it
+    if(file.buffer_size == 0)
+    {
+        err := buffer_file(file);
+
+        if(err)
+        {
+            buf : string;
+            return buf,file_res::error;
+        }
+
+        // file is completly empty!
+        if(file.buffer_size == 0)
+        {
+            buf : string;
+            return buf, file_res::eof;
+        }
+    }
+
+    // attempt to find the first occurence of a '\n' 
+    // now we have a buffer to work with
+    remain := str.len; 
+    out_offset : u64 = 0;
+
+    while(true)
+    { 
+        // save size of buffer for later
+        buffer_size := file.buffer_size;
+
+        // setup pointers to scan for '\n'
+        start := &file.buf[file.buffer_offset];
+        ptr := start;
+
+        // max is end of the buffer or str len, whatever is lowest
+        max_read := min_unsigned(buffer_size,remain);
+        end := &file.buf[file.buffer_offset + max_read];
+
+        while(ptr != end)
+        {
+            // newline found
+            if(@ptr == '\n')
+            {
+                // we have read out this char
+                ptr += 1;
+                remain -= 1;
+
+                // correct the buffer offsets for the last scan
+                read := cast(u64,ptr) - cast(u64,start);
+
+                // perform the final flush to the buffer
+                flush_read(file,&str[out_offset],read);
+
+                // buf := str[0 : str.len - remain];
+
+                // produce the final res
+                buf : string;
+
+                buf.len = str.len - remain;
+                buf.data = str.data; 
+
+                return buf,file_res::success;
+            }
+
+            // goto next char
+            ptr += 1;
+            remain -= 1;
+        }
+
+
+        // flush what we have out to file
+        flush_read(file,&str[out_offset],buffer_size);
+        out_offset += buffer_size;
+
+        // rebuffer the file out
+        err := buffer_file(file);
+
+        if(err)
+        {
+            buf : string;
+            return buf,file_res::error;
+        }
+    
+        // there is nothing left to read we are done
+        if(file.buffer_size == 0 || remain == 0)
+        {
+            buf : string;
+
+            buf.len = str.len - remain;
+            buf.data = str.data; 
+
+            return buf,file_res::success;
+        }
+    }
+
+    // TODO: we dont no return detection yet
+    crash_and_burn("unreachable");
+
+    // no newline hit return str
+    buf : string;
+
+    return buf,file_res::error;
+}
+
+func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_res]
+{
+    // enough in the buffer just pass it back out
+    if(len <= file.buffer_size)
+    {
+        flush_read(file,buf,len);
+        return len,file_res::success;
+    }
+
+    // buffer is empty rebuffer it
+    if(file.buffer_size == 0)
+    {
+        err := buffer_file(file);
+
+        if(err)
+        {
+            return -1,file_res::error;
+        }
+
+        // file is completly empty!
+        if(file.buffer_size == 0)
+        {
+            return 0, file_res::eof;
+        }
+    }
+
+
+    // TODO: should there be a limit where we just directly dump it into the os?
+    remain := len - pending;
+
+    // buffer file in until we are done
+    while(remain != 0 && file.buffer_size != 0)
+    {
+        // flush out any pending data
+        pending := file.buffer_size;
+        flush_size := min_unsigned(remain,pending);
+
+        flush_read(file,ptr,flush_size);
+
+        // less byte to read
+        remain -= pending;
+
+        // buffer next ammount of file in
+        if(!buffer_file(file))
+        {
+            return -1,file_res::error;
+        }
+    }
+
+    // calc how much we actually read
+    read := len - remain;
+
+    if(file.buffer_size == 0)
+    {
+        return read,file_res::eof;
+    }
+
+    return read, file_res::success;
 }
 
 

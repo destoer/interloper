@@ -1,0 +1,10 @@
+
+
+func main() s32 
+{
+    arr : u32[?] = {1,2,3,5,6,7};
+
+    slice := arr[3 : arr.len - 3];
+
+    return slice.len;
+}

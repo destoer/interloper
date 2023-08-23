@@ -702,7 +702,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
                     if(!ptr)
                     {
-                        crash_and_burn("out of bounds file write at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
+                        crash_and_burn("out of bounds file write at %lx:%x:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1],len);
                     }
 
                     if(!handle_valid(handle))
@@ -723,7 +723,7 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
 
                     if(!ptr)
                     {
-                        crash_and_burn("out of bounds file write at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
+                        crash_and_burn("out of bounds file read at %lx:%x:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1],len);
                     }
 
                     if(!handle_valid(handle))

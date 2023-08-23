@@ -466,6 +466,20 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type);
     }
 
+    else 
+    {
+        // default construct
+        if(!is_fixed_array(array.type))
+        {
+            const auto addr = addrof_res(itl,func,array.reg.slot);
+            const auto zero = mov_imm_res(itl,func,0);
+
+            store_ptr(itl,func,zero,addr,0,GPR_SIZE);
+            store_ptr(itl,func,zero,addr,GPR_SIZE,GPR_SIZE);
+        }
+
+    }
+
     if(itl.error)
     {
         return;
