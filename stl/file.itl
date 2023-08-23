@@ -1,5 +1,5 @@
 
-constant FILE_BLOCK_SIZE : u32 = 512;
+constant FILE_BLOCK_SIZE : u32 = 4096;
 constant FILE_DEFAULT_BUFFER_SIZE : u32 = FILE_BLOCK_SIZE * 1;
 
 struct File
@@ -202,7 +202,13 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
     return buf,file_read_res::error;
 }
 
-func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_read_res]
+func read_file_mem(file : File@, buf : byte[]) [u64, file_read_res]
+{
+    [len,res] := read_file_raw(file,buf.data,buf.len);
+    return len,res;
+}
+
+func read_file_raw(file : File@,buf : byte@, len : u64) [u64, file_read_res]
 {
     // enough in the buffer just pass it back out
     if(len <= file.buffer_size)
@@ -235,7 +241,7 @@ func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_read_res]
         pending := file.buffer_size;
         flush_size := min_unsigned(remain,pending);
 
-        flush_read(file,ptr,flush_size);
+        flush_read(file,buf,flush_size);
 
         // less byte to read
         remain -= pending;
