@@ -53,10 +53,10 @@ func open_file(str : const string, mode : file_mode) [File,bool]
     return file,false;
 }
 
-func file_close(file : File@)
+func close_file(file : File@)
 {
     os_close(file.handle);
-    file.handle = cast(byte@,INVALID_HANDLE);
+    file.handle = cast(byte@,INVALID_FILE_HANDLE);
 
     // free our buffer
     free_heap(&global_heap,file.buf.data);

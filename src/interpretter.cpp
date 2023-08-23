@@ -75,13 +75,13 @@ s64 os_open(const char* file, u32 mode)
     }
 
     const s64 handle = open(file,flag);
-
+/*
     if(handle == -1)
     {
         printf("[VM]: warning could not open file: %s : %d\n",file,mode);
         perror("error: ");
     }
-
+*/
     return handle;
 }
 

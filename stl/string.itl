@@ -321,6 +321,8 @@ func crash_and_burn_args(fmt: const string, args: const Any[])
     write_string("\ncrash and burn: ");
     print_args(fmt,args);
 
+    write_string("\n");
+
     exit(2);
 }
 

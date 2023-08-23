@@ -1,0 +1,30 @@
+
+func test_str()
+{
+    [fp,err] := open_file("tests/stl/lines.txt",file_mode::read);
+
+    if(err)
+    {
+        crash_and_burn("could not open str test file");
+    }
+
+    done := false;
+
+    buf : c8[256];
+
+    while(!done)
+    {
+        str := read_file_str(&fp,buf);
+        print("{}\n",str);
+
+        done = str.len == 0;
+    }
+
+    close_file(&fp);
+}
+
+func main() s32
+{
+    test_str();
+    return 0;
+}

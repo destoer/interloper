@@ -37,8 +37,8 @@ func read_string(str : string) string
 
 func at_exit()
 {
-    file_close(&stdin);
-    file_close(&stdout);
+    close_file(&stdin);
+    close_file(&stdout);
 }
 
 constant FAILURE_OPEN_STDOUT : s32 = 0xf000_0001;
@@ -73,11 +73,11 @@ func os_read(handle : const byte@, data : byte@, len : u64) s64
     return intrin_syscall(SYSCALL_READ,handle,data,len);
 }
 
-constant INVALID_HANDLE : u64 = 0;
+constant INVALID_FILE_HANDLE : s64 = -1;
 
 func is_os_handle_valid(handle : byte@) bool
 {
-    return handle != cast(byte@,INVALID_HANDLE);
+    return cast(s64,handle) != INVALID_FILE_HANDLE;
 }
 
 // memory
