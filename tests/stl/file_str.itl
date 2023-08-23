@@ -1,8 +1,6 @@
 
 func test_str() s32
 {
-    lines : s32 = 0;
-
     [fp,err] := open_file("tests/stl/lines.txt",file_mode::read);
 
     if(err)
@@ -10,9 +8,8 @@ func test_str() s32
         crash_and_burn("could not open str test file");
     }
 
-    done := false;
-
     buf : c8[256];
+    lines : s32 = 0;
 
     rc := file_read_res::success;
 

@@ -224,7 +224,7 @@ func read_file_mem(file : File@,buf : byte@, len : u64) [s64, file_read_res]
 
 
     // TODO: should there be a limit where we just directly dump it into the os?
-    remain := len - pending;
+    remain := len;
 
     res := file_read_res::success;
 
