@@ -13,9 +13,23 @@ void next_expr_token(Parser& parser)
 {
     parser.expr_tok = next_token(parser);
 
-    if(parser.expr_tok.type == parser.termination_type || (parser.expr_tok.type == token_type::comma && parser.list_terminate))
+    // what will cause early termination?
+    switch(parser.term_type)
     {
-        parser.terminate = true;
+        case termination_type::normal:
+        {
+            parser.terminate = parser.terminate ||
+                (parser.expr_tok.type == parser.terminating_tok);
+
+            break;         
+        }
+
+        case termination_type::list: 
+        {
+            parser.terminate = parser.terminate ||
+                (parser.expr_tok.type == token_type::comma) || (parser.expr_tok.type == parser.terminating_tok);
+            break;
+        }
     }
 }
 
@@ -482,20 +496,20 @@ AstNode *expression(Parser &parser,s32 rbp)
 
 
 AstNode *expr_terminate_internal(Parser &parser,const String& expression_name,const Token& token,token_type t, 
-    b32 must_terminate = false, b32 list_terminate = false)
+    b32 must_terminate = false, termination_type term_type = termination_type::normal)
 {
     //printf("Expression termination on %s\n",tok_name(t));
 
     // backup vars on stack as this is used recursively
     const b32 terminate_old = parser.terminate;
-    const token_type term_type_old = parser.termination_type;
-    const b32 list_terminate_old = parser.list_terminate;
+    const token_type terminating_tok_old = parser.terminating_tok;
+    const termination_type term_type_old = parser.term_type;
     const String expression_name_old = parser.expression_name;
 
     // make pratt parser terminate as soon as it sees
     // this token
-    parser.termination_type = t;
-    parser.list_terminate = list_terminate;
+    parser.terminating_tok = t;
+    parser.term_type = term_type;
     parser.terminate = false;
 
     // get our expression
@@ -513,10 +527,10 @@ AstNode *expr_terminate_internal(Parser &parser,const String& expression_name,co
     }
 
 
-    parser.termination_type = term_type_old;
+    parser.term_type = term_type_old;
     parser.terminate = terminate_old;
-    parser.list_terminate = list_terminate_old;
     parser.expression_name = expression_name_old;
+    parser.terminating_tok = terminating_tok_old;
 
     return e;
 }
@@ -548,7 +562,7 @@ AstNode *statement_terminate(Parser& parser,const String& expression_name)
 
 std::pair<AstNode*,b32> expr_list(Parser& parser,const String& expression_name, token_type type)
 {
-    AstNode* e = expr_terminate_internal(parser,expression_name,next_token(parser),type,true,true);
+    AstNode* e = expr_terminate_internal(parser,expression_name,next_token(parser),type,true,termination_type::list);
 
     const b32 seen_list_term = parser.expr_tok.type == type;
 
@@ -567,7 +581,7 @@ AstNode* expr_terminate_in_expr(Parser& parser,const String& expression_name, to
 
 std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,const String& expression_name, token_type type)
 {
-    AstNode* e = expr_terminate_internal(parser,expression_name,parser.expr_tok,type,true,true);
+    AstNode* e = expr_terminate_internal(parser,expression_name,parser.expr_tok,type,true,termination_type::list);
 
     const b32 seen_list_term = parser.expr_tok.type == type;
 

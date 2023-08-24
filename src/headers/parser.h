@@ -474,6 +474,12 @@ struct TupleAssignNode
 
 using AstPointers = Array<void***>;
 
+enum class termination_type
+{
+    normal,
+    list,
+};
+
 struct Parser
 {
     Array<Token> tokens;
@@ -482,8 +488,8 @@ struct Parser
     Token expr_tok;
     u32 tok_idx = 0;
     b32 terminate = false;
-    b32 list_terminate = false;
-    token_type termination_type = token_type::eof;
+    token_type terminating_tok = token_type::eof;
+    termination_type term_type = termination_type::normal;
 
     ArenaAllocator* allocator;
     ArenaAllocator* string_allocator;

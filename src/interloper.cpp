@@ -1927,8 +1927,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     
                         default:
                         {
-                            print(assign_node->left);
-                            unimplemented("non plain assign");
+                            panic(itl,itl_error::invalid_expr,"could not assign to expr: %s\n",AST_NAMES[u32(assign_node->left->type)]);
                             break;
                         }
                     }

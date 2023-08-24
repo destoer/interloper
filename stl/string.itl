@@ -17,6 +17,15 @@ func to_lower(char: c8) c8
 // if printed in base 2, its 64 bits
 constant MAX_INT_CHARS : u32 = 64;
 
+func clip_string(str : string, len : u64) string
+{
+    buf : string;
+    buf.data = str.data;
+    buf.len = len;
+
+    return buf;
+}
+
 func print_int(v : u64, base : u32)
 {
     if(base > 16)
@@ -49,8 +58,9 @@ func print_int(v : u64, base : u32)
 
     reverse(buf,digits);
 
-    // TODO: this should slice
-    write_str_raw(&buf[0],digits);
+    str := clip_string(buf,digits);
+
+    write_string(str);
 }
 
 func print_dec(v : u64, sign : bool)
