@@ -128,3 +128,17 @@ void load_func_addr(Interloper& itl, Function& func, SymSlot dst, LabelSlot labe
 
     emit_block_internal(func,cur_block(func),op_type::load_func_addr,dst.handle,label.handle,0);
 }
+
+void load_struct_u64(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 offset)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::load_struct_u64,dst.handle,src.handle,offset);
+}
+
+SymSlot load_struct_u64_res(Interloper& itl, Function& func, SymSlot src, u64 offset)
+{
+    const auto dst = new_tmp(func,GPR_SIZE);
+    load_struct_u64(itl,func,dst,src,offset);
+
+    return dst;
+}

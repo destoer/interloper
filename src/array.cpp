@@ -96,12 +96,7 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
 {
     if(is_runtime_size(type))
     {
-        const SymSlot addr = addrof_res(itl,func,slot);
-
-        const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,dst_slot,addr,0,GPR_SIZE,false);
-
-        return dst_slot;
+        return load_struct_u64_res(itl,func,slot,0);
     }
 
     // fixed size, array ptr is stored in its own slot!
@@ -113,16 +108,9 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
 
 SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type)
 {
-    UNUSED(slot);
-
     if(is_runtime_size(type))
     {
-        const SymSlot addr = addrof_res(itl,func,slot);
-
-        const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,dst_slot,addr,GPR_SIZE,GPR_SIZE,false);
-
-        return dst_slot;
+        return load_struct_u64_res(itl,func,slot,GPR_SIZE);
     }
 
     ArrayType* array_type = (ArrayType*)type;

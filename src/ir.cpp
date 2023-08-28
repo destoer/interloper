@@ -29,6 +29,30 @@ void print_slot(SymbolTable& table, SymSlot slot)
     }
 }
 
+ListNode* rewrite_load_struct(Interloper& itl, Function& func,LocalAlloc &alloc,SymbolTable& table,Block &block, ListNode *node)
+{
+    const auto slot = sym_from_idx(node->opcode.v[1]);
+    auto& reg = reg_from_slot(slot,table,alloc);
+
+    if(is_stack_unallocated(reg))
+    {
+        if(!stored_in_mem(reg))
+        {
+            printf("error in func: %s\n",func.name.buf);
+            print_slot(itl.symbol_table,slot);
+            assert(false);
+        }
+        
+        stack_reserve_reg(alloc,reg);  
+    }
+
+    // add the stack offset, so this correctly offset for when we fully rewrite this
+    node->opcode.v[2] += alloc.stack_offset;
+
+    allocate_and_rewrite(table,alloc,block,node,0);
+    return node->next;
+}
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block &block, ListNode *node)
 {
     auto &table = itl.symbol_table;
@@ -72,6 +96,12 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             node = node->next;
             break;            
+        }
+
+        case op_type::load_struct_u64:
+        {
+            node = rewrite_load_struct(itl,func,alloc,table,block,node);
+            break;
         }
 
         case op_type::load_func_addr:
@@ -346,6 +376,23 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 }
 
 
+ListNode* rewrite_load_struct_addr(Interloper& itl, LocalAlloc& alloc, ListNode* node, op_type type)
+{
+    const u32 base_offset = node->opcode.v[2];
+    
+    const SymSlot slot = sym_from_idx(node->opcode.v[1]);
+
+    auto &reg = reg_from_slot(slot,itl.symbol_table,alloc);
+
+    assert(is_stack_allocated(reg));
+
+    const auto [offset_reg,offset] = reg_offset(itl,reg,0);
+
+    node->opcode = Opcode(type,node->opcode.v[0],offset_reg,offset + base_offset);
+
+    return node->next;    
+}
+
 // 2nd pass of rewriting on the IR
 ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, ListNode *node,const Opcode& callee_restore,
     const Opcode& stack_clean, bool insert_callee_saves)
@@ -451,6 +498,13 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             node = node->next;
             break;
         }
+
+        case op_type::load_struct_u64:
+        {
+            node = rewrite_load_struct_addr(itl,alloc,node,op_type::ld);
+            break;
+        }
+
 
         case op_type::alloc_fixed_array:
         {
