@@ -503,14 +503,14 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             {
                 // if base type is a fixed array
                 // then we just directly return operations
-                if(!is_fixed_array(sym.type))
+                if(is_fixed_array(sym.type))
                 {
-                    struct_slot = addrof_res(itl,func,sym.reg.slot);
+                    struct_slot = sym.reg.slot;
                 }
 
                 else
                 {
-                    struct_slot = sym.reg.slot;
+                    struct_slot = addrof_res(itl,func,sym.reg.slot);
                 }
 
                 struct_type = sym.type;
