@@ -15,11 +15,11 @@ void optimise_block(Interloper& itl, Function& func, Block& block)
 
 void optimise_func(Interloper& itl, Function& func)
 {
-    for(u32 b = 0; b < count(func.emitter.program); b++)
-    {
-        auto& block = func.emitter.program[b];
-        optimise_block(itl,func,block);
-    }    
+    // NOTE: this should follow the CFG from start
+    // so which definitions of vars flow in and out of each block can be marked
+    // which will allow us to fold operations correctly
+
+    // i think we are better off impl our global register allocator first before attempting this though
 }
 */
 
