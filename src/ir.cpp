@@ -46,8 +46,11 @@ ListNode* rewrite_load_struct(Interloper& itl, Function& func,LocalAlloc &alloc,
         stack_reserve_reg(alloc,reg);  
     }
 
-    // add the stack offset, so this correctly offset for when we fully rewrite this
-    node->opcode.v[2] += alloc.stack_offset;
+    if(reg.kind == reg_kind::tmp || reg.kind == reg_kind::local)
+    {
+        // add the stack offset, so this correctly offset for when we fully rewrite this
+        node->opcode.v[2] += alloc.stack_offset;
+    }
 
     allocate_and_rewrite(table,alloc,block,node,0);
     return node->next;
