@@ -44,7 +44,7 @@ func open_file(str : const string, mode : file_mode) [File,bool]
     // null terminate the string in a stack buffer
     buf : c8[256];
 
-    memcpy(&buf[0],&str[0],min_unsigned(str.len,buf.len - 1));
+    memcpy(&buf[0],&str[0],min_u64(str.len,buf.len - 1));
     buf[str.len] = '\0';
 
     file.handle = os_open(&buf[0],cast(u32,mode)); 
@@ -139,7 +139,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
         ptr := start;
 
         // max is end of the buffer or str len, whatever is lowest
-        max_read := min_unsigned(pending,remain);
+        max_read := min_u64(pending,remain);
         end := &file.buf[file.buffer_offset + max_read];
 
         while(ptr != end)
@@ -231,7 +231,7 @@ func read_file_raw(file : File@,buf : byte@, len : u64) [u64, file_read_res]
     {
         // flush out any pending data
         pending := file.buffer_size;
-        flush_size := min_unsigned(remain,pending);
+        flush_size := min_u64(remain,pending);
 
         flush_read(file,buf,flush_size);
 

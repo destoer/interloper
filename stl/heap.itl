@@ -141,7 +141,7 @@ func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
         cur = cur.next;
     }
 
-    req := max_unsigned(req_blocks * HEAP_BLOCK_SIZE,HEAP_DEFAULT_ALLOC_SIZE);
+    req := max_u64(req_blocks * HEAP_BLOCK_SIZE,HEAP_DEFAULT_ALLOC_SIZE);
 
     // out of memory try get some more
     if(request_buffer(heap,req))

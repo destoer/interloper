@@ -118,7 +118,7 @@ func is_signed(type : const Type@) bool
 {
     idx := cast(u32,type.type_idx);
 
-    return idx >= cast(u32,itl_type::s8_t) && idx <= cast(u32,itl_type::s64_t); 
+    return in_range_u64(idx,cast(u32,itl_type::s8_t),cast(u32,itl_type::s64_t));
 }
 
 func is_array(type : const Type@) bool
