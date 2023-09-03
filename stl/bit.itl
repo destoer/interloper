@@ -11,7 +11,6 @@ func hamming_weight(set: u32) u32
 {
     sum : u32 = 0;
 
-    // TODO: add way to query internal type limits
     for(i : u32 = 0; i < (u32.size * BITS_IN_BYTE); i += 1)
     {
         sum += cast(u32,is_set(set,i));
@@ -23,4 +22,9 @@ func hamming_weight(set: u32) u32
 func set_bit(v: u32, bit: u32) u32
 {
     return v | (1 << bit);
+}
+
+func deset_bit(v : u32, bit: u32) u32
+{
+    return v & ~(1 << bit);
 }
