@@ -5,7 +5,7 @@ func main() s32
 {
     str : c8[?] = "Hello there";
 
-    set : u32 = 0;
+    set : u64 = 0;
 
     for(i : u32 = 0; i < str.len; i += 1)
     {

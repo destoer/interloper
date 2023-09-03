@@ -307,10 +307,62 @@ AstNode *nud(Parser &parser, const Token &t)
     switch(t.type)
     {
     
+        case token_type::u8:
+        {
+            return builtin_type_info_access(parser,builtin_type::u8_t);
+        }
+
+        case token_type::u16:
+        {
+            return builtin_type_info_access(parser,builtin_type::u16_t);
+        }
+
         case token_type::u32:
         {
             return builtin_type_info_access(parser,builtin_type::u32_t);
         }
+
+        case token_type::u64:
+        {
+            return builtin_type_info_access(parser,builtin_type::u64_t);
+        }
+
+
+        case token_type::s8:
+        {
+            return builtin_type_info_access(parser,builtin_type::s8_t);
+        }
+
+        case token_type::s16:
+        {
+            return builtin_type_info_access(parser,builtin_type::s16_t);
+        }
+
+        case token_type::s32:
+        {
+            return builtin_type_info_access(parser,builtin_type::s32_t);
+        }
+
+        case token_type::s64:
+        {
+            return builtin_type_info_access(parser,builtin_type::s64_t);
+        }
+
+        case token_type::bool_t:
+        {
+            return builtin_type_info_access(parser,builtin_type::bool_t);
+        }
+
+        case token_type::byte_t:
+        {
+            return builtin_type_info_access(parser,builtin_type::byte_t);
+        }
+
+        case token_type::c8_t:
+        {
+            return builtin_type_info_access(parser,builtin_type::c8_t);
+        }
+
 
         // cast(<type>,<expr>)
         case token_type::cast:

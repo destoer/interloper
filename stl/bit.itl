@@ -1,17 +1,17 @@
 
 constant BITS_IN_BYTE : u32 = 8;
 
-func is_set(v: u32, bit: u32) bool
+func is_set(v: u64, bit: u32) bool
 {
     return cast(bool,(v >> bit) & 1);
 }
 
 
-func hamming_weight(set: u32) u32
+func hamming_weight(set: u64) u32
 {
     sum : u32 = 0;
 
-    for(i : u32 = 0; i < (u32.size * BITS_IN_BYTE); i += 1)
+    for(i : u32 = 0; i < (u64.size * BITS_IN_BYTE); i += 1)
     {
         sum += cast(u32,is_set(set,i));
     }
@@ -19,12 +19,12 @@ func hamming_weight(set: u32) u32
     return sum;
 }
 
-func set_bit(v: u32, bit: u32) u32
+func set_bit(v: u64, bit: u32) u64
 {
     return v | (1 << bit);
 }
 
-func deset_bit(v : u32, bit: u32) u32
+func deset_bit(v : u64, bit: u32) u64
 {
     return v & ~(1 << bit);
 }
