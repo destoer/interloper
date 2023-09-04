@@ -24,7 +24,7 @@ func write_str_raw(data : const c8@, len : u64)
         return;
     }
 
-    else if(data == NULL)
+    else if(!data)
     {
         write_file_str(&stdout,"NULL");
     }
@@ -42,7 +42,7 @@ func write_string(str: const string)
         return;
     }
 
-    else if(str.data == NULL)
+    else if(!str.data)
     {
         write_file_str(&stdout,"NULL");
     }
@@ -55,6 +55,13 @@ func write_string(str: const string)
 
 func read_string(str : string) string
 {
+    // if we are going to request input
+    // flush any stdout so we get our prompt
+    if(stdout.buffer_size)
+    {
+        flush_write(&stdout);
+    }
+
     [str,rc] := read_file_str(&stdin,str);
 
     if(rc != file_read_res::success)

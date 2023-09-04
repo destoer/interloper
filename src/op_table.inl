@@ -76,6 +76,9 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cmpeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
+    {op_group::imm_t,"cmpeq %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"cmpne %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+
     {op_group::branch_t,"bnc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
     {op_group::branch_t,"bc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
     {op_group::branch_t,"b %a",1,{arg_type::label,arg_type::none,arg_type::none}},

@@ -238,3 +238,30 @@ void push_arg(Interloper& itl, Function& func, SymSlot src)
 {
     emit_reg1<op_type::push_arg>(itl,func,src);
 }
+
+
+void cmp_eq_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
+{
+    emit_imm2<op_type::cmpeq_imm>(itl,func,dst,src,imm);
+}
+
+void cmp_ne_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
+{
+    emit_imm2<op_type::cmpne_imm>(itl,func,dst,src,imm);
+}
+
+SymSlot cmp_eq_imm_res(Interloper& itl, Function& func, SymSlot src, u64 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    cmp_eq_imm(itl,func,tmp,src,imm);
+
+    return tmp;    
+}
+
+SymSlot cmp_ne_imm_res(Interloper& itl, Function& func, SymSlot src, u64 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    cmp_ne_imm(itl,func,tmp,src,imm);
+
+    return tmp;    
+}

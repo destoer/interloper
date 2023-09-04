@@ -16,7 +16,7 @@ constant HEAP_DEFAULT_ALLOC_SIZE : u32 = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_CO
 
 func free_heap(heap : Heap@, ptr : byte@)
 {
-    if(ptr == NULL)
+    if(!ptr)
     {
         return;
     }
@@ -26,7 +26,7 @@ func free_heap(heap : Heap@, ptr : byte@)
 
 
     // handle insertion at start
-    if(cur == NULL || insert < cur)
+    if(!cur || insert < cur)
     {
         heap.free_list = insert;
 
@@ -111,7 +111,7 @@ func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
     cur := heap.free_list;
     prev := cur;
 
-    while(cur != NULL)
+    while(cur)
     {
         if(cur.blocks >= req_blocks)
         {
@@ -157,7 +157,7 @@ func alloc_heap_panic(heap : Heap@, count : u32, size : u32) byte@
 {
     ptr := alloc_heap(heap,count,size);
 
-    if(ptr == NULL)
+    if(!ptr)
     {
         crash_and_burn("out of memory for heap alloc: {}\n",size);
     }
@@ -167,7 +167,7 @@ func alloc_heap_panic(heap : Heap@, count : u32, size : u32) byte@
 
 func add_buffer(heap : Heap@, ptr : byte@, size : u64)
 {
-    if(ptr == NULL)
+    if(!ptr)
     {
         return;
     }

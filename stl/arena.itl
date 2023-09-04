@@ -35,7 +35,7 @@ func alloc_arena_panic(arena : Arena@, size : u32) byte@
 {
     ptr := alloc_arena(arena,size);
 
-    if(ptr == NULL)
+    if(!ptr)
     {
         crash_and_burn("out of memory for arena alloc {} {} {}\n",arena.buf.len,arena.len,size);
     }

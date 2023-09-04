@@ -617,6 +617,18 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
+        case op_type::cmpeq_imm:
+        {
+            regs[opcode.v[0]] = regs[opcode.v[1]] == opcode.v[2];
+            break;
+        }
+
+        case op_type::cmpne_imm:
+        {
+            regs[opcode.v[0]] = regs[opcode.v[1]] != opcode.v[2];
+            break;
+        }
+
         case op_type::bnc:
         {
             if(!regs[opcode.v[1]])

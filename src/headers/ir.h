@@ -80,6 +80,9 @@ enum class op_type
     cmpeq_reg,
     cmpne_reg,
 
+    cmpeq_imm,
+    cmpne_imm,
+
     bnc,
     bc,
     b,

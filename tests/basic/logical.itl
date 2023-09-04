@@ -49,7 +49,9 @@ func main() s32
     // eq to < 1
     or := true || cast(bool,-1);
 
-    res := or && res1 && res2 && res3 && res4;
+    v := 0;
+    
+    res := or && res1 && res2 && res3 && res4 && !v;
 
     // false is 0 and 1 is true
     return cast(s32,res);

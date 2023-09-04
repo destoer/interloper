@@ -2,26 +2,27 @@
 constant FILE_BLOCK_SIZE : u32 = 4096;
 constant FILE_DEFAULT_BUFFER_SIZE : u32 = FILE_BLOCK_SIZE * 1;
 
+enum file_mode
+{
+    read,
+    write,
+}
+
 struct File
 {
     flags : u32;
 
     // os handle
-    // NOTE: inside the vm this is basically a FILE*
     handle : byte@;
     
     // for buffered io
     buf : byte[];
     
+    mode : file_mode;
+
     // inside our buffer, how much data do we have?
     buffer_offset : u64;
     buffer_size : u64;
-}
-
-enum file_mode
-{
-    read,
-    write,
 }
 
 enum file_read_res
@@ -34,8 +35,8 @@ enum file_read_res
 constant FILE_FLAG_ERROR : u32 = 1 << 0;
 constant FILE_FLAG_EOF : u32 = 1 << 1;
 
-// otherwhise a write is buffered if the buffer is not empty
-constant FILE_FLAG_BUFFER_READ : u32 = 1 << 3;
+constant FILE_FLAG_LINE_BUFFER : u32 = 1 << 2;
+
 
 func open_file(str : const string, mode : file_mode) [File,bool]
 {
@@ -48,6 +49,7 @@ func open_file(str : const string, mode : file_mode) [File,bool]
     buf[str.len] = '\0';
 
     file.handle = os_open(&buf[0],cast(u32,mode)); 
+    file.mode = mode;
 
     if(!is_os_handle_valid(file.handle))
     {
@@ -62,12 +64,114 @@ func open_file(str : const string, mode : file_mode) [File,bool]
 
 func close_file(file : File@)
 {
+    // flush any pending writes
+    if(file.mode == file_mode::write && file.buffer_size != 0)
+    {
+        flush_write(file);
+    }
+
     os_close(file.handle);
     file.handle = cast(byte@,INVALID_FILE_HANDLE);
 
     // free our buffer
     free_heap(&global_heap,file.buf.data);
 }
+
+
+func flush_write(file : File@) 
+{
+    os_write(file.handle,&file.buf[0],file.buffer_size);
+    file.buffer_size = 0;
+    file.buffer_offset = 0;
+}
+
+// NOTE: this does no error checking
+func buffer_file_write(file : File@, buf : const byte@, len : u64)
+{
+    memcpy(&file.buf[file.buffer_offset],buf,len);
+
+    file.buffer_offset += len;
+    file.buffer_size += len;     
+}
+
+func write_file_str(file : File@, str : const string) s64
+{
+    // flush buffer to disk when a '\n' is seen
+    if(file.flags & FILE_FLAG_LINE_BUFFER)
+    {
+        // buffer in data until we see a new line and then flush it
+        ptr := str.data;
+        end := &str[str.len];
+
+        // newline found
+        while(ptr != end)
+        {
+            // buffer is full flush it to disk
+            if(file.buf.len == file.buffer_size)
+            {
+                flush_write(file);
+            }        
+
+            char := @ptr;
+
+            file.buf[file.buffer_offset] = char;
+
+            file.buffer_offset += 1;
+            file.buffer_size += 1;
+            ptr += 1;
+
+            // we have seen a newline flush it out
+            if(char == '\n')
+            {
+                flush_write(file);
+            }
+        }
+
+        // buffer is full flush to disk
+        return str.len;
+    }
+
+    // just treat as binary data
+    else
+    {
+        return write_file_mem(file,str.data, str.len);
+    }
+}
+
+func write_file_mem(file : File@,buf : const byte@, len : u64) s64
+{
+    // write is larger than buffer size, just dump everything
+    if(len >= FILE_DEFAULT_BUFFER_SIZE)
+    {
+        flush_write(file);
+        os_write(file.handle,buf,len);
+        return len;
+    }
+
+    remain := len;
+    offset : u64 = 0;
+
+    // buffer the file writes in
+    while(remain != 0)
+    {
+        // buffer is full flush it to disk
+        if(file.buf.len == file.buffer_size)
+        {
+            flush_write(file);
+        }
+
+        // full? flush it to disk and rebuffer the remaining
+        buffer_size := min_u64(remain,file.buf.len - file.buffer_size);
+
+        buffer_file_write(file,buf,buffer_size);
+
+        remain -= buffer_size;
+        buf += buffer_size;
+    }
+
+    return len;
+}
+
 
 func buffer_file_read(file : File@) file_read_res
 {
@@ -89,24 +193,6 @@ func buffer_file_read(file : File@) file_read_res
     file.buffer_size = cast(u64,len);
 
     return file_read_res::success;
-}
-
-func write_file_str(file : File@, str : const string) s64
-{
-    // TODO: this needs to perform proper line buffering
-
-    return write_file_mem(file,str.data, str.len);
-}
-
-func write_file_mem(file : File@,buf : const byte@, len : u64) s64
-{
-    // write is larger than buffer size, just dump everything
-
-    // buffer write, until full or out of data
-
-    // full? flush it to disk and rebuffer the remaining
-
-    return os_write(file.handle,buf,len);
 }
 
 // flush file buffer, into passed buffer
@@ -268,6 +354,7 @@ func open_stdout() File
         exit(FAILURE_OPEN_STDOUT);
     }
 
+    fp.flags = fp.flags | FILE_FLAG_LINE_BUFFER;
     return fp;
 }
 

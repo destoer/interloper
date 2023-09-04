@@ -647,10 +647,16 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
     {
         BinNode* if_stmt = (BinNode*)if_block->statements[n];
 
-        // compile the compare expr for conditon
-        const auto [t,r] = compile_oper(itl,func,if_stmt->left);
+        // compile the compare expr if conditon
+        auto [t,r] = compile_oper(itl,func,if_stmt->left);
 
-        if(!is_bool(t))
+        // integer or pointer is fine check they aernt zero as a shorthand
+        if(is_integer(t) || is_pointer(t))
+        {
+            r = cmp_ne_imm_res(itl,func,r,0);
+        }
+        
+        else if(!is_bool(t))
         {
             panic(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,t).buf);
             return;
@@ -734,9 +740,15 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     BinNode* while_node = (BinNode*)node;
 
     // compile cond
-    const auto [t,stmt_cond_reg] = compile_oper(itl,func,while_node->left);
+    auto [t,stmt_cond_reg] = compile_oper(itl,func,while_node->left);
 
-    if(!is_bool(t))
+    // integer or pointer, check not zero
+    if(is_integer(t) || is_pointer(t))
+    {
+        stmt_cond_reg = cmp_ne_imm_res(itl,func,stmt_cond_reg,0);
+    }
+
+    else if(!is_bool(t))
     {
         panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,t).buf);
         return;
@@ -749,6 +761,12 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 
     SymSlot loop_cond_reg;
     std::tie(std::ignore,loop_cond_reg) = compile_oper(itl,func,while_node->left);
+
+    // integer or pointer, check not zero
+    if(is_integer(t) || is_pointer(t))
+    {
+        loop_cond_reg = cmp_ne_imm_res(itl,func,loop_cond_reg,0);
+    }
 
     const BlockSlot exit_block = new_basic_block(itl,func);
 
@@ -1618,7 +1636,15 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
             const auto [t,reg] = compile_oper(itl,func,unary_node->next);
 
-            if(!is_bool(t))
+            // integer or pointer, eq to zero
+            if(is_integer(t) || is_pointer(t))
+            {
+                cmp_eq_imm(itl,func,dst_slot,reg,0);
+                return make_builtin(itl,builtin_type::bool_t);
+            }
+
+            // logical not on bool
+            else if(!is_bool(t))
             {
                 panic(itl,itl_error::bool_type_error,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
                 return make_builtin(itl,builtin_type::void_t);
