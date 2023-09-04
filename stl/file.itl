@@ -93,14 +93,23 @@ func buffer_file_read(file : File@) file_read_res
 
 func write_file_str(file : File@, str : const string) s64
 {
+    // TODO: this needs to perform proper line buffering
+
     return write_file_mem(file,str.data, str.len);
 }
 
 func write_file_mem(file : File@,buf : const byte@, len : u64) s64
 {
+    // write is larger than buffer size, just dump everything
+
+    // buffer write, until full or out of data
+
+    // full? flush it to disk and rebuffer the remaining
+
     return os_write(file.handle,buf,len);
 }
 
+// flush file buffer, into passed buffer
 func flush_read(file : File@, ptr : byte@, len : u64)
 {
     memcpy(ptr,&file.buf[file.buffer_offset],len);
@@ -169,7 +178,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
         }
 
 
-        // flush what we have out to file
+        // flush what we have out to buffer
         flush_read(file,&str[out_offset],max_read);
         out_offset += max_read;
 
