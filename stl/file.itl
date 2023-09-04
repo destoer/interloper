@@ -96,50 +96,49 @@ func buffer_file_write(file : File@, buf : const byte@, len : u64)
 
 func write_file_str(file : File@, str : const string) s64
 {
-    // flush buffer to disk when a '\n' is seen
-    if(file.flags & FILE_FLAG_LINE_BUFFER)
-    {
-        // buffer in data until we see a new line and then flush it
-        ptr := str.data;
-        end := &str[str.len];
+    return write_file_mem(file,str.data, str.len); 
+}
 
-        // newline found
-        while(ptr != end)
+func write_file_line_buffer(file : File@, buf : const byte@, len : u64) s64
+{
+    // buffer in data until we see a new line and then flush it
+    end := buf + len;
+
+    // newline found
+    while(buf != end)
+    {
+        // buffer is full flush it to disk
+        if(file.buf.len == file.buffer_size)
         {
-            // buffer is full flush it to disk
-            if(file.buf.len == file.buffer_size)
-            {
-                flush_write(file);
-            }        
+            flush_write(file);
+        }        
 
-            char := @ptr;
+        char := @buf;
+        buf += 1;
 
-            file.buf[file.buffer_offset] = char;
+        file.buf[file.buffer_offset] = char;
 
-            file.buffer_offset += 1;
-            file.buffer_size += 1;
-            ptr += 1;
+        file.buffer_offset += 1;
+        file.buffer_size += 1;
 
-            // we have seen a newline flush it out
-            if(char == '\n')
-            {
-                flush_write(file);
-            }
+        // we have seen a newline flush it out
+        if(char == '\n')
+        {
+            flush_write(file);
         }
-
-        // buffer is full flush to disk
-        return str.len;
     }
 
-    // just treat as binary data
-    else
-    {
-        return write_file_mem(file,str.data, str.len);
-    }
+    return len;    
 }
 
 func write_file_mem(file : File@,buf : const byte@, len : u64) s64
 {
+    // flush buffer to disk when a linefeed is seen
+    if(file.flags & FILE_FLAG_LINE_BUFFER)
+    {
+        return write_file_line_buffer(file,buf,len);
+    }
+
     // write is larger than buffer size, just dump everything
     if(len >= FILE_DEFAULT_BUFFER_SIZE)
     {

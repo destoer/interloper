@@ -722,6 +722,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                         crash_and_burn("invalid file handle for write at %lx\n",interpretter.regs[PC] - sizeof(Opcode));
                     }
 
+                    //printf("write %ld: %lx %d\n",handle,regs[1],len);
+
                     regs[R0] = os_write(handle,ptr,len);
                     break;
                 }
