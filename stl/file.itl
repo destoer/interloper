@@ -104,7 +104,6 @@ func write_file_line_buffer(file : File@, buf : const byte@, len : u64) s64
     // buffer in data until we see a new line and then flush it
     end := buf + len;
 
-    // newline found
     while(buf != end)
     {
         // buffer is full flush it to disk
