@@ -220,7 +220,7 @@ func print_arg(arg : Any, specifier : c8)
         {
             v := int_from_any(arg);
 
-            if(v == 0)
+            if(!v)
             {
                 write_string("NULL");
             }
@@ -361,4 +361,90 @@ func crash_and_burn(fmt: const string, args: ...)
 func unimplemented(fmt: const string, args: ...)
 {
     unimplemented_args(fmt,args);
+}
+
+
+struct Value
+{
+    v : u64;
+    sign : bool;
+};
+
+func str_valid(str : const string) bool
+{
+    return str.len != 0 && str.data != NULL;
+}
+
+func is_alpha(c : c8) bool
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+// returns number of chars parsed along with value
+func parse_value(str : const string) [Value, s64]
+{
+    value : Value;
+    data := str.data;
+    end := str.data + str.len;
+
+    // empty string
+    if(!str_valid(str))
+    {
+        return value, -1; 
+    }
+
+
+    if(str[0] == '-')
+    {
+        data += 1;
+        value.sign = true; 
+    }
+
+    done := false;
+
+    while(!done)
+    {
+        if(data == end)
+        {
+            done = true;
+        }
+
+        else
+        {
+            c := @data;
+
+            v : u32 = 0;
+
+            if(c >= '0' && c <= '9')
+            {
+                v = c - '0';
+            }
+
+            else
+            {
+                // letters are not legal in this context
+                if(is_alpha(c))
+                {
+                    return value, -1;
+                }
+
+                done  = true;           
+            }
+
+            // accumulate digits
+            value.v *= 10;
+            value.v += v;
+
+            data += 1;
+        }
+    }
+
+    // make twos complement if negative
+    if(value.sign)
+    {
+        value.v = (~value.v) + 1;
+    }
+
+    used := cast(u64,data) - cast(u64,str.data);
+    return value, used;
 }
