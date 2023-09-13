@@ -6,3 +6,18 @@ func assert(cond : bool)
         exit(1);
     }
 }
+
+// TODO: this needs to call into time()
+global seed : u64 = 0x123456789;
+
+// basic LCG
+func rand_internal() u64
+{
+    seed = (0xdead * seed) + 0xbeef; 
+    return seed;
+}
+
+func rand_range_u64(min : u64, max : u64) u64
+{
+    return (rand_internal() % (max + 1)) + min;
+}

@@ -1,0 +1,9 @@
+
+import "card"
+
+func main() s32
+{
+    card : Card = {0,0};
+
+    print_card(&card);
+}

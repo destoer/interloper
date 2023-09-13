@@ -1,15 +1,14 @@
 // required for operation
-import "internal" 
+import <internal> 
+import <file>
+import <string>
+import <system>
 
-import "file"
-import "string"
-import "system"
+import <mem>
+import <alloc>
+import <array>
 
-import "mem"
-import "alloc"
-import "array"
+import <bit>
+import <util>
 
-import "bit"
-import "util"
-
-import "math"
+import <math>

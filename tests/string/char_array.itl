@@ -3,17 +3,17 @@
 
 func main() s32
 {
-    str : c8[?] = "Hello there";
+    str : const c8[?] = "Hello there";
 
     set : u64 = 0;
 
     for(i : u32 = 0; i < str.len; i += 1)
     {
-        str[i] = to_lower(str[i]);
+        c := to_lower(str[i]);
         
-        if(str[i] >= 'a' && str[i] <= 'z')
+        if(c >= 'a' && c <= 'z')
         {
-            x : u8 = str[i] - 'a';
+            x : u8 = c - 'a';
             set = set_bit(set,x);
         }
     }

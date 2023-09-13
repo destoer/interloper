@@ -382,6 +382,8 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
             LiteralNode* literal_node = (LiteralNode*)node;
             const String literal = literal_node->literal;
 
+            // TODO: we need to add different hanlding for const strings
+
             if(!is_string(type))
             {
                 panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,type).buf);

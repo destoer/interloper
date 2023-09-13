@@ -1,0 +1,28 @@
+struct Card
+{
+    suit : u32;
+    face : u32;
+};
+
+constant SUIT : c8[?] = {'C','D','H','S'};
+constant FACE : string[?] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+
+type_alias Deck = Card[52];
+
+func print_card(card : const Card@)
+{
+    print("{}{}",SUIT[card.suit],suit[card.face]);
+}
+
+func shuffle_deck(deck : Deck)
+{
+    for(i : s32 = deck.len; i > 0; i -= 1)
+    {
+        idx := rand_range_u64(0,deck.len - 1);
+        
+        // perform swap
+        tmp := deck[i];
+        deck[i] = deck[idx];
+        deck[idx] = tmp; 
+    }
+}

@@ -1271,6 +1271,8 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         print_tokens(parser.tokens);
     }
     
+    const String cur_path = extract_path(filename);
+
     const auto size = count(parser.tokens);
 
     // TODO: move this to a seperate loop to make freeing up crap ez
@@ -1285,24 +1287,48 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         { 
             case token_type::import:
             {
-                if(!match(parser,token_type::string))
+                // stl path: import <name>
+                if(match(parser,token_type::logical_lt))
+                {
+                    consume(parser,token_type::logical_lt);
+
+                    if(!match(parser,token_type::symbol))
+                    {
+                        const auto err = next_token(parser);
+                        panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(err.type),err.literal.buf);
+                    }
+
+                    const auto name_tok = next_token(parser);
+
+                    consume(parser,token_type::logical_gt);
+
+                    if(parser.error)
+                    {
+                        destroy_arr(parser.tokens);
+                        return true;
+                    }
+
+                    const auto full_path = cat_string(itl.string_allocator,stl_path,get_program_name(itl.string_allocator,name_tok.literal)); 
+
+                    add_file(file_set,file_stack, full_path);
+                }
+
+                // relative path: import "boop"
+                else if(match(parser,token_type::string))
+                {
+                    const auto name_tok = next_token(parser);
+
+                    const auto full_path = cat_string(itl.string_allocator,cur_path,get_program_name(itl.string_allocator,name_tok.literal));
+
+                    add_file(file_set,file_stack,full_path);
+                }
+
+                // unk
+                else
                 {
                     panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
                     destroy_arr(parser.tokens);
                     return true;
-                }
-
-                const auto name_tok = next_token(parser);
-
-                // stl file
-                if(!contains_ext(name_tok.literal))
-                {
-                    add_file(file_set,file_stack, cat_string(itl.string_allocator,stl_path,get_program_name(itl.string_allocator,name_tok.literal)));
-                }
-
-                else
-                {
-                    add_file(file_set,file_stack,name_tok.literal);
                 }
                 break;
             }

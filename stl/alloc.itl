@@ -1,6 +1,6 @@
 
 
-import "arena"
-import "heap"
+import <arena>
+import <heap>
 
 global global_heap : Heap;

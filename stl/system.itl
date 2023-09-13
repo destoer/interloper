@@ -13,7 +13,8 @@ constant SYSCALL_ALLOC : u32 = 5;
 // STD IO
 
 
-import "file"
+import <file>
+
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
