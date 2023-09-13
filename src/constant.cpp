@@ -14,7 +14,7 @@ b32 is_constant(const Symbol& sym)
     return sym.reg.kind == reg_kind::constant;
 }
 
-u64 int_from_const(Interloper& itl,const Symbol& sym)
+u64 builtin_from_const(Interloper& itl,const Symbol& sym)
 {
     const auto pool_slot = pool_slot_from_sym(sym);
     auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
@@ -24,9 +24,33 @@ u64 int_from_const(Interloper& itl,const Symbol& sym)
     return v;
 }
 
-std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node)
+// NOTE: type checking rules are less strict than in "runtime" expressions
+void check_const_cmp(Interloper& itl, Type* ltype, Type* rtype, logic_op type)
 {
+    b32 valid = false;
 
+    // only allowed on bools
+    if(type == logic_op::or_reg || type == logic_op::and_reg)
+    {
+        valid = is_bool(ltype) && is_bool(rtype);
+    }
+
+    else
+    {
+        valid = (is_integer(ltype) && is_integer(rtype)) || (is_bool(ltype) && is_bool(rtype));
+    }
+
+    if(!valid)
+    {
+        panic(itl,itl_error::const_type_error,"Could not compare types: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+    }
+}
+
+
+//TODO: in the future we may return out a slot + offset in the data section
+// for structs etc but just leave it simple for now
+std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
+{
     switch(node->type)
     {
         case ast_type::value:
@@ -56,13 +80,6 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
                 return std::pair{0,make_builtin(itl,builtin_type::void_t)};        
             }
 
-            // not valid if this is not an int
-            if(!is_integer(type))
-            {
-                panic(itl,itl_error::int_type_error,"expected integer for const int expr got %s\n",type_name(itl,type));
-                return std::pair{0,make_builtin(itl,builtin_type::void_t)}; 
-            }
-
             // pull sym
             auto& sym = sym_from_slot(itl.symbol_table,sym_slot);
 
@@ -72,18 +89,26 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
                 return std::pair{0,make_builtin(itl,builtin_type::void_t)};
             }
 
-            // get access to const pool so we can inline the value
-            const u64 v = int_from_const(itl,sym);
+            if(is_builtin(sym.type))
+            {
+                // get access to const pool so we can inline the value
+                const u64 v = builtin_from_const(itl,sym);
 
-            return std::pair{v,type};
+                return std::pair{v,type};
+            }
+
+            else
+            {
+                unimplemented("const expr sym not builtin");
+            }
         }
 
         case ast_type::plus:
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
-            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left + value_right;
             Type* type = effective_arith_type(itl,type_left,type_right);
@@ -91,12 +116,26 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
             return std::pair{ans,type};
         }
 
+        case ast_type::bitwise_and:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
+
+            const u64 ans = value_left & value_right;
+            Type* type = effective_arith_type(itl,type_left,type_right);
+
+            return std::pair{ans,type};       
+        }
+
+
         case ast_type::shift_l:
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
-            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left << value_right;
             Type* type = effective_arith_type(itl,type_left,type_right);
@@ -108,8 +147,8 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
-            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left >> value_right;
             Type* type = effective_arith_type(itl,type_left,type_right);
@@ -121,8 +160,8 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
-            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left * value_right;
             Type* type = effective_arith_type(itl,type_left,type_right);
@@ -134,8 +173,8 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
-            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left - value_right;
             Type* type = effective_arith_type(itl,type_left,type_right);
@@ -147,8 +186,8 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [value_left,type_left] = compile_const_int_expression(itl,bin_node->left);
-            const auto [value_right,type_right] = compile_const_int_expression(itl,bin_node->right);
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             if(value_right == 0)
             {
@@ -160,6 +199,20 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
             Type* type = effective_arith_type(itl,type_left,type_right);
 
             return std::pair{ans,type};
+        }
+
+        case ast_type::logical_eq:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
+            const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
+
+            check_const_cmp(itl,type_left,type_right,logic_op::cmpeq_reg);
+
+            const b32 ans = value_left == value_right;
+
+            return std::pair{ans,make_builtin(itl,builtin_type::bool_t)};
         }
 
         case ast_type::access_struct:
@@ -196,14 +249,43 @@ std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node
 
         default:
         {
-            panic(itl,itl_error::const_type_error,"unrecognised operation for const int initalizer: %s\n",AST_NAMES[u32(node->type)]);
+            panic(itl,itl_error::const_type_error,"unrecognised operation for const expr: %s\n",AST_NAMES[u32(node->type)]);
             return std::pair{0,make_builtin(itl,builtin_type::void_t)};
         }
+    }    
+}
+
+std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node)
+{
+    const auto [v ,type] = compile_const_expression(itl,node);
+
+    // not valid if this is not an int
+    if(!is_integer(type))
+    {
+        panic(itl,itl_error::int_type_error,"expected integer for const int expr got %s\n",type_name(itl,type).buf);
+        return std::pair{0,make_builtin(itl,builtin_type::void_t)}; 
     }
+
+    return std::pair{v,type};
 }
 
 
-void compile_constant_expression(Interloper& itl, Symbol& sym, AstNode* node)
+bool compile_const_bool_expression(Interloper& itl, AstNode* node)
+{
+    const auto [v ,type] = compile_const_expression(itl,node);
+
+    // not valid if this is not an int
+    if(!is_bool(type))
+    {
+        panic(itl,itl_error::int_type_error,"expected bool for const bool expr got %s\n",type_name(itl,type).buf);
+        return false;
+    }
+
+    return bool(v);
+}
+
+
+void compile_constant_decl(Interloper& itl, Symbol& sym, AstNode* node)
 {
     // switch on top level expression
     // check it is correct for the kind of type we expect from this assignment
@@ -336,7 +418,7 @@ void compile_constant(Interloper& itl, GlobalDeclNode* node)
     auto& sym = add_global(itl,name,type,true);
 
     // compile the expression
-    compile_constant_expression(itl,sym,decl_node->expr);
+    compile_constant_decl(itl,sym,decl_node->expr);
 }
 
 void compile_constants(Interloper& itl)

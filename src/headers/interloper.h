@@ -36,6 +36,7 @@ enum class itl_error
     struct_error,
     undefined_type_oper,
     const_type_error,
+    const_assert,
     rtti_error,
     unimplemented,
 };
@@ -66,6 +67,7 @@ static const char* ERROR_NAME[] =
     "struct error",
     "undefined type operation",
     "const type error",
+    "const assert",
     "rtti error",
     "unimplemented",
 };

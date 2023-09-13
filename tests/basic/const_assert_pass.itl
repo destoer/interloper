@@ -1,0 +1,9 @@
+
+constant x : u32 = 5;
+
+func main() s32
+{
+    const_assert((x & 1) == 1);
+
+    return 0;
+}

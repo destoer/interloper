@@ -2092,6 +2092,19 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 break;
             }
 
+            case ast_type::const_assert:
+            {
+                UnaryNode* unary_node = (UnaryNode*)line;
+
+                const b32 pass = compile_const_bool_expression(itl,unary_node->next);
+
+                if(!pass)
+                {
+                    panic(itl,itl_error::const_assert,"Compile time assertion failed\n");
+                }
+                break;
+            }
+
             default:
             {
                 panic(itl,itl_error::invalid_statement,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);

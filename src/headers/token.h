@@ -32,6 +32,8 @@ enum class token_type
 
     decl,
 
+    const_assert,
+
     const_t,
 
     constant_t,
@@ -160,6 +162,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
 
     {token_type::decl,":=",-1,2},
+
+    {token_type::const_assert,"const_assert",-1},
 
     {token_type::const_t,"const",-1},
 

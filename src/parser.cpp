@@ -581,6 +581,16 @@ AstNode* func_call(Parser& parser,AstNode *expr, const Token& t)
     return (AstNode*)func_call;
 }
 
+AstNode* const_assert(Parser& parser,const Token& t)
+{
+    consume(parser,token_type::left_paren);
+
+    const auto expr = expr_terminate(parser,"const_assert",token_type::right_paren);
+    consume(parser,token_type::semi_colon);
+
+    return ast_unary(parser,expr,ast_type::const_assert,t);       
+}
+
 AstNode *statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -622,6 +632,11 @@ AstNode *statement(Parser &parser)
                 return ast_plain(parser,ast_type::ret,t);
             }
         }
+
+        case token_type::const_assert:
+        {
+            return const_assert(parser,t); 
+        }            
 
 
         case token_type::deref:

@@ -16,6 +16,7 @@ enum class ast_type
     char_t,
     string,
 
+    const_assert,
     cast,
     sizeof_t,
     struct_t,
@@ -113,6 +114,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "char",
     "string",
 
+    "const_assert",
     "cast",
     "sizeof",
     "struct",
