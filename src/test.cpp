@@ -29,6 +29,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/basic/u32_eq_s32",itl_error::int_type_error},
     {"tests/basic/invalid_compare",itl_error::out_of_bounds},
     {"tests/basic/invalid_literal",itl_error::lexer_error},
+    {"tests/basic/const_assert_fail",itl_error::const_assert},
 
     // type
     {"tests/type/byte_invalid",itl_error::pointer_type_error},
@@ -101,6 +102,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/constant",32},
     {"tests/basic/global",26},
     {"tests/basic/overflow",65286},
+    {"tests/basic/const_assert_pass",0},
 
     // type
     {"tests/type/decl",255},
