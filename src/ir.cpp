@@ -29,7 +29,7 @@ void print_slot(SymbolTable& table, SymSlot slot)
     }
 }
 
-ListNode* rewrite_load_struct(Interloper& itl, Function& func,LocalAlloc &alloc,SymbolTable& table,Block &block, ListNode *node)
+ListNode* rewrite_access_struct(Interloper& itl, Function& func,LocalAlloc &alloc,SymbolTable& table,Block &block, ListNode *node)
 {
     const auto slot = sym_from_idx(node->opcode.v[1]);
     auto& reg = reg_from_slot(slot,table,alloc);
@@ -103,7 +103,13 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
         case op_type::load_struct_u64:
         {
-            node = rewrite_load_struct(itl,func,alloc,table,block,node);
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::write_struct_u64:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
             break;
         }
 
@@ -379,7 +385,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 }
 
 
-ListNode* rewrite_load_struct_addr(Interloper& itl, LocalAlloc& alloc, ListNode* node, op_type type)
+ListNode* rewrite_access_struct_addr(Interloper& itl, LocalAlloc& alloc, ListNode* node, op_type type)
 {
     const u32 base_offset = node->opcode.v[2];
     
@@ -504,7 +510,13 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
         case op_type::load_struct_u64:
         {
-            node = rewrite_load_struct_addr(itl,alloc,node,op_type::ld);
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::ld);
+            break;
+        }
+
+        case op_type::write_struct_u64:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::sd);
             break;
         }
 

@@ -294,7 +294,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
 
         // push the data offset
         // string literals as pushed as null terminated
-        const PoolSlot pool_slot = push_const_pool(itl.const_pool,pool_type::string_literal,lit_node->literal.buf,size);
+        const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
         const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
 
         if(handle_storage)

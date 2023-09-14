@@ -131,7 +131,10 @@ enum class op_type
 
     addrof,
     load_func_addr,
+
     load_struct_u64,
+
+    write_struct_u64,
 
     save_regs,
     restore_regs,

@@ -129,3 +129,8 @@ PoolSlot push_const_pool(ConstPool& pool, pool_type type, const void* data,u32 s
 
     return slot;
 }
+
+PoolSlot push_const_pool_string(ConstPool& pool, const String& literal)
+{
+    return push_const_pool(pool,pool_type::string_literal,literal.buf,literal.size);
+}

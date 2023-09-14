@@ -106,6 +106,17 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
     }
 }
 
+// NOTE: this has to be a vla
+void store_arr_data(Interloper& itl, Function& func, SymSlot slot, SymSlot data)
+{
+    write_struct_u64(itl,func,data,slot,0);
+}
+
+void store_arr_len(Interloper& itl, Function& func, SymSlot slot,SymSlot len)
+{
+    write_struct_u64(itl,func,len,slot,GPR_SIZE);
+}
+
 SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type)
 {
     if(is_runtime_size(type))
@@ -400,26 +411,48 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
                 array_type->size = literal.size;
             }
 
+
             if(array_type->size == RUNTIME_SIZE)
             {
-                unimplemented("string vla");
+                if(is_const_string(type))
+                {
+                    // we can set this up directly from the const pool
+                    const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
+
+                    const SymSlot arr_data = pool_addr_res(itl,func,pool_slot);
+                    store_arr_data(itl,func,arr_slot,arr_data);
+
+                    const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
+                    store_arr_len(itl,func,arr_slot,arr_size);
+                }
+
+                else
+                {
+                    panic(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+                }
             }
 
-            if(array_type->size < literal.size)
+            // fixed sized array
+            else
             {
-                panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
+                if(array_type->size < literal.size)
+                {
+                    panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
+                }
+
+                // copy into array
+                const auto base_type = array_type->contained_type;
+                const auto rtype = make_builtin(itl,builtin_type::c8_t);
+
+                for(u32 i = 0; i < literal.size; i++)
+                {
+                    const SymSlot slot = mov_imm_res(itl,func,literal[i]);
+                    check_assign_init(itl,base_type,rtype);
+
+                    do_ptr_store(itl,func,slot,addr_slot,rtype,i);
+                }
             }
 
-            const auto base_type = array_type->contained_type;
-            const auto rtype = make_builtin(itl,builtin_type::c8_t);
-
-            for(u32 i = 0; i < literal.size; i++)
-            {
-                const SymSlot slot = mov_imm_res(itl,func,literal[i]);
-                check_assign_init(itl,base_type,rtype);
-
-                do_ptr_store(itl,func,slot,addr_slot,rtype,i);
-            }
             break;           
         }
     

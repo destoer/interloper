@@ -146,6 +146,19 @@ b32 is_string(const Type* type)
     return false;
 }
 
+b32 is_const_string(const Type* type)
+{
+    if(is_array(type))
+    {
+        const ArrayType* array_type = (ArrayType*)type;
+
+        return array_type->contained_type->type_idx == u32(builtin_type::c8_t) && array_type->contained_type->is_const; 
+    }
+
+    return false;
+}
+
+
 b32 is_plain(const Type *type)
 {
     return !is_pointer(type) && !is_array(type);

@@ -142,3 +142,9 @@ SymSlot load_struct_u64_res(Interloper& itl, Function& func, SymSlot src, u64 of
 
     return dst;
 }
+
+void write_struct_u64(Interloper& itl, Function& func, SymSlot src, SymSlot slot, u64 offset)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::write_struct_u64,src.handle,slot.handle,offset);
+}

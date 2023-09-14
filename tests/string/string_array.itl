@@ -2,11 +2,12 @@
 
 func main() s32
 {
-    // TODO: make this work with arrays of strings too
-    // str : string[?] = {"Hello","World"};
-    str : string = "Hello world!";
+    str : const string[?] = {"Hello","World"};
 
-    write_string(str);
+    for(i : u32 = 0; i < str.len; i += 1)
+    {
+        write_string(str[i]);
+    }
 
     return 0;
 }
