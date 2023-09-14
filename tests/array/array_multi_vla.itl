@@ -6,11 +6,11 @@
 // NOTE: dont worry about this yet, just get standard multidimensional arrays working
 func main() s32
 {
-    arr1 : u32[?] = {1} // 1,1
-    arr2 : u32[?] = {1,2} // 2,3
-    arr3 : u32[?] = {1,2,3,4}// 4, 10
-    arr4 : u32[?] = {5} // 1, 5
-    arr5 : u32[?] = {1,2,3,4,5,7} // 6 , 22
+    arr1 : u32[?] = {1}; // 1,1
+    arr2 : u32[?] = {1,2}; // 2,3
+    arr3 : u32[?] = {1,2,3,4}; // 4, 10
+    arr4 : u32[?] = {5}; // 1, 5
+    arr5 : u32[?] = {1,2,3,4,5,7}; // 6 , 22
 
     arr : u32[?][] = {arr1, arr2, arr3, arr4,arr5};
 

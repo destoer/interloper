@@ -28,59 +28,66 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
             panic(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
             return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
         }
-
-        /*
-        const u32 count = type.dimensions[i];
-        // this just works for single dimension VLA
         
-        if(count == RUNTIME_SIZE)
+        const bool last_index = i == indexes - 1;
+        
+
+        // perform the indexing operation
+
+        const u32 size = array_type->sub_size;
+
+        const SymSlot mul_slot = mul_imm_res(itl,func,subscript_slot,size);   
+
+        const SymSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
+        add(itl,func,add_slot,last_slot,mul_slot);
+
+        last_slot = add_slot;
+
+        // vla and indexing insnt finished need to load data ptr
+        if(is_runtime_size(type))
         {
-            unimplemented("index VLA");
-        }
-        else
-        */
-        {
-            const u32 size = array_type->sub_size;
-
-            const SymSlot mul_slot = mul_imm_res(itl,func,subscript_slot,size);   
-
-            const bool last_index = i == indexes - 1;
-
-            const SymSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
-            add(itl,func,add_slot,last_slot,mul_slot);
-
-            last_slot = add_slot;
-
-
-            // goto next subscript
-            if(is_array(array_type->contained_type))
+            // this is not the last index
+            if(is_array(array_type->contained_type) && !last_index)
             {
-                array_type = (ArrayType*)index_arr(array_type);
+                const auto tmp = new_tmp_ptr(func);
 
-                if(last_index)
-                {
-                    accessed_type = (Type*)array_type;
-                }
+                load_ptr(itl,func,tmp,last_slot,0,GPR_SIZE,false);
 
+                last_slot = tmp;
+            }
+        }
+
+        // handle typing on next index
+
+        // goto next subscript
+        if(is_array(array_type->contained_type))
+        {
+            array_type = (ArrayType*)index_arr(array_type);
+
+            if(last_index)
+            {
+                accessed_type = (Type*)array_type;
             }
 
-            // this last index will give us our actual values
-            else
-            {
-                // this is the last index i.e it is fine to get back a contained type
-                // that is plain!
-                if(last_index)
-                {
-                    accessed_type = index_arr(array_type);
-                }
-
-                else 
-                {
-                    panic(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
-                    return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                          
-                }
-            } 
         }
+
+        // this last index will give us our actual values
+        else
+        {
+            // this is the last index i.e it is fine to get back a contained type
+            // that is plain!
+            if(last_index)
+            {
+                accessed_type = index_arr(array_type);
+            }
+
+            else 
+            {
+                panic(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
+                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                          
+            }
+        } 
+        
     }
 
     // return pointer to accessed type
@@ -220,7 +227,8 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
 
     else if(type->size == RUNTIME_SIZE)
     {
-        unimplemented("VLA assign");
+        panic(itl,itl_error::array_type_error,"cannot assign initalizer to vla\n");
+        return;
     }
 
     // next type is a sub array
@@ -242,18 +250,25 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
         {
             // descend each sub initializer until we hit one containing values
             // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
-            if(list->nodes[n]->type == ast_type::initializer_list)
+            switch(list->nodes[n]->type)
             {
-                traverse_arr_initializer_internal(itl,func,(RecordNode*)list->nodes[n],addr_slot,next_arr,offset);
-            }
+                case ast_type::initializer_list:
+                {
+                    traverse_arr_initializer_internal(itl,func,(RecordNode*)list->nodes[n],addr_slot,next_arr,offset);
+                    break;
+                }
 
-            // handle an array (this should fufill the current "depth req in its entirety")
-            else
-            {
-                unimplemented("arr initializer with array");            
+                // string:
+                // this requres a 
+
+                // handle an array (this should fufill the current "depth req in its entirety")
+                default:
+                {
+                    unimplemented("arr initializer with array");
+                    break;            
+                }
             }
         }
-
     }
 
     // we are getting to the value assigns!

@@ -101,7 +101,6 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             {
                 LiteralNode* lit_node = (LiteralNode*)call_node->args[arg_idx];
 
-                // this is a null terminated string!
                 const u32 size = lit_node->literal.size;
 
                 const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
@@ -112,7 +111,6 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                 push_arg(itl,func,len_slot);
 
                 // push the data offset
-                // NOTE: we are pushing this as a null terminated string hence the + 1
                 const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
 
                 const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);

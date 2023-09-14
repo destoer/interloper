@@ -293,7 +293,6 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
         auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
 
         // push the data offset
-        // string literals as pushed as null terminated
         const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
         const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
 
