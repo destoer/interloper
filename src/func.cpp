@@ -224,10 +224,8 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     }
 
 
-    const u32 vla_size = GPR_SIZE * 2;
-
     // alloc vla
-    alloc_stack(itl,func,vla_size);
+    alloc_stack(itl,func,VLA_SIZE);
 
     // and store it
     const SymSlot any_len_slot = mov_imm_res(itl,func,any_args);
@@ -237,7 +235,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     store_ptr(itl,func,any_len_slot,sym_from_idx(SP_IR),GPR_SIZE,GPR_SIZE);      
 
     
-    const u32 total_size = any_arr_size + vla_size;
+    const u32 total_size = any_arr_size + VLA_SIZE;
 
     arg_clean += total_size / GPR_SIZE;
 

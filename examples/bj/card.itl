@@ -5,8 +5,8 @@ struct Card
 };
 
 // TODO: these should be constatnts but we dont support arrays yet
-global SUIT : c8[?] = {'C','D','H','S'};
-global FACE : string[?] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+global SUIT : const c8[?] = {'C','D','H','S'};
+global FACE : const string[?] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
 
 type_alias Deck = Card[52];
 

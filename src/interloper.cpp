@@ -224,11 +224,25 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 
     else if(is_array(type))
     {
-        panic(itl,itl_error::unimplemented,"load arr from ptr");
+        addr_slot = collapse_offset(itl,func,addr_slot,&offset);
+
+        if(is_runtime_size(type))
+        {
+            const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
+            ir_memcpy(itl,func,dst_ptr,addr_slot,VLA_SIZE);
+        }
+
+        // fixed size array, the pointer is the array
+        else
+        {
+            mov_reg(itl,func,dst_slot,addr_slot);
+        }
     }
 
     else if(is_struct(type))
     {
+        addr_slot = collapse_offset(itl,func,addr_slot,&offset);
+
         const u32 size = type_size(itl,type);
         const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
 

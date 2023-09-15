@@ -6,7 +6,7 @@ func main() s32
 
     for(i : u32 = 0; i < str.len; i += 1)
     {
-        write_string(str[i]);
+        print("{}\n",str[i]);
     }
 
     return 0;

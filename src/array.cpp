@@ -210,6 +210,27 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, Sy
     }
 }
 
+void copy_fixed_size_string(Interloper& itl, Function& func,SymSlot addr_slot, ArrayType *array_type, const String& literal)
+{
+    if(array_type->size < literal.size)
+    {
+        panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
+        return;
+    }
+
+    // copy into array
+    const auto base_type = array_type->contained_type;
+    const auto rtype = make_builtin(itl,builtin_type::c8_t);
+
+    for(u32 i = 0; i < literal.size; i++)
+    {
+        const SymSlot slot = mov_imm_res(itl,func,literal[i]);
+        check_assign_init(itl,base_type,rtype);
+
+        do_ptr_store(itl,func,slot,addr_slot,rtype,i);
+    }    
+}
+
 void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const SymSlot addr_slot, ArrayType* type, u32* offset)
 {
     if(itl.error)
@@ -248,18 +269,61 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
 
         for(u32 n = 0; n < node_len; n++)
         {
+            AstNode* node = list->nodes[n];
+
             // descend each sub initializer until we hit one containing values
             // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
-            switch(list->nodes[n]->type)
+            switch(node->type)
             {
                 case ast_type::initializer_list:
                 {
-                    traverse_arr_initializer_internal(itl,func,(RecordNode*)list->nodes[n],addr_slot,next_arr,offset);
+                    traverse_arr_initializer_internal(itl,func,(RecordNode*)node,addr_slot,next_arr,offset);
                     break;
                 }
 
-                // string:
-                // this requres a 
+                case ast_type::string:
+                {
+                    LiteralNode* literal_node = (LiteralNode*)node;
+                    const String literal = literal_node->literal;        
+
+                    if(!is_string(next_arr))
+                    {
+                        panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)next_arr).buf);
+                        return;
+                    }
+
+
+                    if(is_runtime_size(next_arr))
+                    {
+                        if(is_const_string(next_arr))
+                        {
+                            // we can set this up directly from the const pool
+                            const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
+
+                            const SymSlot arr_data = pool_addr_res(itl,func,pool_slot);
+                            store_ptr(itl,func,arr_data,addr_slot,0 + *offset,GPR_SIZE);
+
+                            const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
+                            store_ptr(itl,func,arr_size,addr_slot,GPR_SIZE + *offset,GPR_SIZE);
+
+                            *offset += VLA_SIZE;
+                        }
+
+                        else
+                        {
+                            panic(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+                        }
+                    }
+
+                    // fixed sized array
+                    else
+                    {
+                        copy_fixed_size_string(itl,func,addr_slot,next_arr,literal);
+                        *offset += next_arr->size * sizeof(char);
+                    }
+
+                    break;
+                }
 
                 // handle an array (this should fufill the current "depth req in its entirety")
                 default:
@@ -403,8 +467,6 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
 
         case ast_type::string:
         {
-            const SymSlot addr_slot = load_arr_data(itl,func,arr_slot,type);
-
             LiteralNode* literal_node = (LiteralNode*)node;
             const String literal = literal_node->literal;
 
@@ -450,22 +512,8 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
             // fixed sized array
             else
             {
-                if(array_type->size < literal.size)
-                {
-                    panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
-                }
-
-                // copy into array
-                const auto base_type = array_type->contained_type;
-                const auto rtype = make_builtin(itl,builtin_type::c8_t);
-
-                for(u32 i = 0; i < literal.size; i++)
-                {
-                    const SymSlot slot = mov_imm_res(itl,func,literal[i]);
-                    check_assign_init(itl,base_type,rtype);
-
-                    do_ptr_store(itl,func,slot,addr_slot,rtype,i);
-                }
+                const SymSlot addr_slot = load_arr_data(itl,func,arr_slot,type);
+                copy_fixed_size_string(itl,func,addr_slot,array_type,literal);
             }
 
             break;           

@@ -133,6 +133,12 @@ b32 is_fixed_array_pointer(const Type* type)
     return false;
 }
 
+b32 is_string(const ArrayType* type)
+{
+    const ArrayType* array_type = (ArrayType*)type;
+
+    return array_type->contained_type->type_idx == u32(builtin_type::c8_t);
+}
 
 b32 is_string(const Type* type)
 {
@@ -144,6 +150,14 @@ b32 is_string(const Type* type)
     }
 
     return false;
+}
+
+
+b32 is_const_string(const ArrayType* type)
+{
+    const ArrayType* array_type = (ArrayType*)type;
+
+    return array_type->contained_type->type_idx == u32(builtin_type::c8_t) && array_type->contained_type->is_const; 
 }
 
 b32 is_const_string(const Type* type)

@@ -221,6 +221,8 @@ struct ArrayType
     u32 sub_size;
 };
 
+static constexpr u32 VLA_SIZE = GPR_SIZE * 2;
+
 // cache for rtti, these contain offsets and struct idx for all rtti structs
 // NOTE: These are pulled from the defs in the type.itl file rather than having the compiler insert them
 // so that any struct differences as a result of compile target is handled for us
