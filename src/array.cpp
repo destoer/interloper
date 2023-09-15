@@ -590,7 +590,32 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         if(is_fixed_array(array.type))
         {
             // we have the allocation information now complete it
-            alloc->opcode = Opcode(op_type::alloc_fixed_array,array.reg.slot.handle,arr_size,arr_count);
+            switch(array.reg.kind)
+            {
+                case reg_kind::local:
+                {
+                    alloc->opcode = Opcode(op_type::alloc_fixed_array,array.reg.slot.handle,arr_size,arr_count);
+                    break;
+                }
+
+                case reg_kind::tmp:
+                {
+                    alloc->opcode = Opcode(op_type::alloc_fixed_array,array.reg.slot.handle,arr_size,arr_count);
+                    break;
+                }
+
+                case reg_kind::global:
+                {
+                    assert(false);
+                    break;
+                }
+
+                case reg_kind::constant:
+                {
+                    assert(false);
+                    break;
+                }
+            }
         }
 
         else

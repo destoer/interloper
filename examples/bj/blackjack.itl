@@ -21,6 +21,9 @@ func play_blackjack()
 
 func main() s32
 {
+    card : Card = {0,0};
+    print_card(&card);
+
     play_blackjack();
 
     return 0;

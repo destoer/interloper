@@ -135,7 +135,7 @@ access_type read_mem(Interpretter& interpretter,u32 addr)
     else
     {
         print_regs(interpretter);
-        crash_and_burn("%x, %lx: out of bounds read at %x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr);
+        crash_and_burn("%lx: out of bounds read of %x at %x\n",interpretter.regs[PC] - sizeof(Opcode),size,addr);
     }
 }
 
@@ -230,7 +230,7 @@ void write_mem(Interpretter& interpretter,u32 addr, access_type v)
     else
     {
         print_regs(interpretter);
-        crash_and_burn("%08x, %lx: out of bounds write at %x:%x\n",size,interpretter.regs[PC] - sizeof(Opcode),addr,v);
+        crash_and_burn("%lx: out of bounds write of %x at %x:%x\n",interpretter.regs[PC] - sizeof(Opcode),size,addr,v);
     }
 }
 

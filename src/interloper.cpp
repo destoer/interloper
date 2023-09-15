@@ -228,6 +228,7 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 
         // TODO: we want to reduce the number of copies this requires
         // for passing to a function
+        // we should probably pass in a special slot that tells us to just directly push things
         if(is_runtime_size(type))
         {
             const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
