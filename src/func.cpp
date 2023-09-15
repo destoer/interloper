@@ -130,14 +130,26 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                     return arg_clean;
                 }
 
-                // push in reverse order let our internal functions handle vla conversion
-                const SymSlot len_slot = load_arr_len(itl,func,reg,rtype);
-                push_arg(itl,func,len_slot);
 
-                const SymSlot data_slot = load_arr_data(itl,func,reg,rtype);
-                push_arg(itl,func,data_slot);
+                if(is_runtime_size(arg_type))
+                {
+                    // push in reverse order let our internal functions handle vla conversion
+                    const SymSlot len_slot = load_arr_len(itl,func,reg,rtype);
+                    push_arg(itl,func,len_slot);
 
-                arg_clean += 2;  
+                    const SymSlot data_slot = load_arr_data(itl,func,reg,rtype);
+                    push_arg(itl,func,data_slot);
+
+                    arg_clean += 2;  
+                }
+
+                // fixed sized array
+                else
+                {
+                    push_arg(itl,func,reg);
+
+                    arg_clean += 1;
+                }
             }
         }
 

@@ -12,7 +12,20 @@ type_alias Deck = Card[52];
 
 func print_card(card : const Card@)
 {
-    print("{}{}",SUIT[card.suit],suit[card.face]);
+    print("{}{}",SUIT[card.suit],FACE[card.face]);
+}
+
+func init_deck(deck : Deck)
+{
+    for(s : u32 = 0; s < SUIT.len; s += 1)
+    {
+        for(f : u32 = 0; f < FACE.len; f += 1)
+        {
+            idx := (s * FACE.len) + f;
+            deck[idx].suit = s;
+            deck[idx].face = f;
+        }
+    }
 }
 
 func shuffle_deck(deck : Deck)

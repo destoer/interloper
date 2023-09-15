@@ -1,9 +1,27 @@
 
 import "card"
 
+func play_round()
+{
+    deck : Deck;
+    init_deck(deck);
+
+    for(c : u32 = 0; c < deck.len; c += 1)
+    {
+        print_card(&deck[c]);
+        linefeed();
+    }
+}
+
+func play_blackjack()
+{
+    // TODO: add exit cond
+    play_round();
+}
+
 func main() s32
 {
-    card : Card = {0,0};
+    play_blackjack();
 
-    print_card(&card);
+    return 0;
 }

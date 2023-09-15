@@ -226,6 +226,8 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
     {
         addr_slot = collapse_offset(itl,func,addr_slot,&offset);
 
+        // TODO: we want to reduce the number of copies this requires
+        // for passing to a function
         if(is_runtime_size(type))
         {
             const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);

@@ -848,8 +848,6 @@ void destroy_interpretter(Interpretter& interpretter)
 
 s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
 {
-    //puts("BOOP!"); exit(1);
-
     printf("starting progam execution: %x bytes long\n",program.size);
     
     reset(interpretter,global_size);

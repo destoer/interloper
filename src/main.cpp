@@ -22,6 +22,7 @@ void parse_flags(Interloper& itl,const char* flags)
             case 'g': itl.print_global = true; break;
             case 'c': itl.print_types = true; break;
             case 'l': itl.print_tokens = true; break;
+            case 'q': itl.compile_only = true; break;
 
             default: crash_and_burn("unknown flag: %c\n",flags[i]); 
         }
@@ -77,9 +78,12 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Interpretter interpretter = make_interpretter();
-    run(interpretter,itl.program,itl.global_alloc.size);
+    if(!itl.compile_only)
+    {
+        Interpretter interpretter = make_interpretter();
+        run(interpretter,itl.program,itl.global_alloc.size);
+        destroy_interpretter(interpretter);
+    }
 
     destroy_itl(itl);
-    destroy_interpretter(interpretter);
 }

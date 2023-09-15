@@ -138,6 +138,11 @@ func putchar(char : c8)
     write_str_raw(&char,sizeof(char));
 }
 
+func linefeed()
+{
+    putchar('\n');
+}
+
 func print_arg(arg : Any, specifier : c8)
 {
     type := arg.type;
