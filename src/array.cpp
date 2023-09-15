@@ -587,6 +587,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
     {
         const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
 
+        // allocate fixed array if needed, and initalize it to its data pointer
         if(is_fixed_array(array.type))
         {
             // we have the allocation information now complete it
@@ -604,15 +605,17 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
                     break;
                 }
 
+                // just dump addr
                 case reg_kind::global:
                 {
-                    assert(false);
+                    alloc->opcode = Opcode(op_type::addrof,array.reg.slot.handle,array.reg.slot.handle,0);
                     break;
                 }
 
+                // just dump addr
                 case reg_kind::constant:
                 {
-                    assert(false);
+                    alloc->opcode = Opcode(op_type::addrof,array.reg.slot.handle,array.reg.slot.handle,0);
                     break;
                 }
             }
