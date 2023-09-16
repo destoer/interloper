@@ -1796,13 +1796,6 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     // add new symbol table entry
     Symbol &sym = global? add_global(itl,name,ltype,false) : add_symbol(itl,name,ltype);
 
-    if(global)
-    {
-        reserve_global_alloc(itl,sym);
-    }
-
-
-
     if(is_array(sym.type))
     {
         compile_arr_decl(itl,func,decl_node,sym);
@@ -1845,6 +1838,13 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
             mov_imm(itl,func,sym.reg.slot,default_value(sym.type));
         }
     } 
+
+    // need to perform sizing AFTER initalizers have been parsed
+    // just in case we need to do any size deduction
+    if(global)
+    {
+        reserve_global_alloc(itl,sym);
+    }
 }
 
 std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
