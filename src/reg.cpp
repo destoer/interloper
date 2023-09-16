@@ -72,7 +72,7 @@ void assign_reg_size(Reg& reg, u32 size)
 
 b32 resides_in_mem(const Type* type)
 {
-    return is_struct(type) || is_vla(type);
+    return is_struct(type) || is_array(type);
 }
 
 b32 is_aliased(const Reg& reg)
@@ -180,7 +180,7 @@ void free_slot(Interloper& itl,Function& func, const Reg& reg)
 
 void free_sym(Interloper& itl,Function& func, Symbol& sym)
 {
-    if(is_fixed_array(sym.type))
+    if(is_fixed_array(sym.type) && (sym.reg.kind == reg_kind::local || sym.reg.kind == reg_kind::tmp))
     {
         auto [size,count] = calc_arr_allocation(itl,sym);
         free_fixed_array(itl,func,sym.reg.slot,size,count);

@@ -329,7 +329,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             auto& sym = sym_from_slot(table,slot);
 
 
-            if(sym.reg.offset != UNALLOCATED_OFFSET)
+            if(!is_stack_unallocated(sym.reg))
             {
                 if(alloc.print_stack_allocation)
                 {
@@ -393,7 +393,7 @@ ListNode* rewrite_access_struct_addr(Interloper& itl, LocalAlloc& alloc, ListNod
 
     auto &reg = reg_from_slot(slot,itl.symbol_table,alloc);
 
-    assert(is_stack_allocated(reg));
+    assert(is_stored_in_mem(reg));
 
     const auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
@@ -498,7 +498,8 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
             auto &reg = reg_from_slot(slot,itl.symbol_table,alloc);
 
-            assert(is_stack_allocated(reg));
+
+            assert(is_mem_allocated(reg));
 
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
 

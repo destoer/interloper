@@ -172,9 +172,31 @@ void print_uses(Reg& ir_reg)
 }
 
 
-b32 pending_stack_alloc(Reg& ir_reg)
+b32 is_mem_unallocated(Reg& reg)
 {
-    return ir_reg.offset >= PENDING_ALLOCATION;
+    return reg.offset == UNALLOCATED_OFFSET;
+}
+
+b32 is_mem_allocated(Reg& reg)
+{
+    return reg.offset != UNALLOCATED_OFFSET;
+}
+
+b32 is_stack_unallocated(Reg& reg)
+{
+    return is_mem_unallocated(reg) && (reg.kind == reg_kind::local || reg.kind == reg_kind::tmp);
+}
+
+
+b32 pending_stack_allocation(Reg& reg)
+{
+    return reg.flags & PENDING_STACK_ALLOCATION;
+}
+
+
+b32 is_stored_in_mem(Reg& reg)
+{
+    return reg.flags & STORED_IN_MEM;
 }
 
 // NOTE: this just reserves stack space,
@@ -188,7 +210,7 @@ u32 stack_reserve_internal(LocalAlloc& alloc, u32 size, u32 count)
     alloc.size_count[idx] += count;
     alloc.size_count_max[idx] = std::max(alloc.size_count_max[idx],alloc.size_count[idx]);
 
-    return cur + PENDING_ALLOCATION;    
+    return cur;    
 }
 
 u32 allocate_stack_array(LocalAlloc& alloc,SymbolTable& table ,SymSlot slot, u32 size, u32 alloc_count)
@@ -205,7 +227,7 @@ u32 allocate_stack_array(LocalAlloc& alloc,SymbolTable& table ,SymSlot slot, u32
     if(alloc.print_stack_allocation)
     {
         auto& sym = sym_from_slot(table,slot);
-        printf("initial array stack offset: %s [%x,%x] -> %x\n",sym.name.buf,size,alloc_count,allocation.offset - PENDING_ALLOCATION);
+        printf("initial array stack offset: %s [%x,%x] -> %x\n",sym.name.buf,size,alloc_count,allocation.offset);
     }
 
     push_var(alloc.array_allocation,allocation);
@@ -215,7 +237,12 @@ u32 allocate_stack_array(LocalAlloc& alloc,SymbolTable& table ,SymSlot slot, u32
 
 void stack_reserve_reg(LocalAlloc& alloc, Reg& ir_reg)
 {
+    // if we attempt to reserve space for a global we have trouble
+    assert(ir_reg.kind == reg_kind::local || ir_reg.kind == reg_kind::tmp);
+
     ir_reg.offset = stack_reserve_internal(alloc,ir_reg.size,ir_reg.count);
+
+    ir_reg.flags |= PENDING_STACK_ALLOCATION;
 
     log(alloc.print_stack_allocation,"initial stack offset for register %x at %x allocated\n",ir_reg.slot.handle,ir_reg.offset);
 
@@ -231,13 +258,13 @@ void stack_reserve_slot(LocalAlloc& alloc,SymbolTable table, SymSlot slot)
     {
         auto& sym = sym_from_slot(table,slot);
 
-        log(alloc.print_stack_allocation,"initial offset allocated %s: [%x,%x] -> %x\n",sym.name.buf,ir_reg.size,ir_reg.count,ir_reg.offset - PENDING_ALLOCATION);    
+        log(alloc.print_stack_allocation,"initial offset allocated %s: [%x,%x] -> %x\n",sym.name.buf,ir_reg.size,ir_reg.count,ir_reg.offset);    
     }
 
     else
     {
         // by defintion a tmp has to be local
-        log(alloc.print_stack_allocation,"initial offset allocated t%d: [%x,%x] -> %x\n",slot.handle,ir_reg.size,ir_reg.count,ir_reg.offset - PENDING_ALLOCATION);
+        log(alloc.print_stack_allocation,"initial offset allocated t%d: [%x,%x] -> %x\n",slot.handle,ir_reg.size,ir_reg.count,ir_reg.offset);
     }
 
     stack_reserve_reg(alloc,ir_reg);    
@@ -657,7 +684,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     if(ir_reg.location == LOCATION_MEM)
     {
         // make sure it has a stack pos
-        if(ir_reg.offset == UNALLOCATED_OFFSET)
+        if(is_stack_unallocated(ir_reg))
         {
             reserve_offset(alloc,table,ir_reg);
             return;
@@ -688,7 +715,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
 
-    if(ir_reg.offset == UNALLOCATED_OFFSET)
+    if(is_stack_unallocated(ir_reg))
     {
         reserve_offset(alloc,table,ir_reg);
     }
@@ -714,23 +741,6 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     free_reg_internal(alloc,ir_reg);
 }
 
-
-b32 is_stack_unallocated(Reg& reg)
-{
-    return reg.offset == UNALLOCATED_OFFSET;
-}
-
-
-b32 pending_stack_allocation(Reg& reg)
-{
-    return reg.offset >= PENDING_ALLOCATION && !is_stack_unallocated(reg);
-}
-
-
-b32 is_stack_allocated(Reg& reg)
-{
-    return !pending_stack_allocation(reg) && !is_stack_unallocated(reg);
-}
 
 // Alignment functions for for stack, struct, globals etc
 
@@ -793,7 +803,7 @@ u32 calc_final_offset(const u32* start, u32 size, u32 idx)
 u32 finalise_offset(LocalAlloc& alloc,u32 offset, u32 size)
 {
     // what pos in the block does this reg have?
-    const u32 idx = offset - PENDING_ALLOCATION;  
+    const u32 idx = offset;  
     
     return calc_final_offset(alloc.stack_alloc,size,idx);
 }
@@ -805,18 +815,19 @@ void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
         if(is_sym(reg.slot))
         {
             auto& sym = sym_from_slot(table,reg.slot);
-            printf("final offset %s = [%x,%x] -> (%x,%x)\n",sym.name.buf,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
+            printf("final offset %s = [%x,%x] -> (%x,%x)\n",sym.name.buf,reg.size,reg.count,reg.offset,reg.offset);
         }
 
         else
         {
-            printf("final offset t%d = [%x,%x] -> (%x,%x)\n",reg.slot.handle,reg.size,reg.count,reg.offset,reg.offset - PENDING_ALLOCATION);
+            printf("final offset t%d = [%x,%x] -> (%x,%x)\n",reg.slot.handle,reg.size,reg.count,reg.offset,reg.offset);
         }
     }
 
     assert(pending_stack_allocation(reg));
 
     reg.offset = finalise_offset(alloc,reg.offset,reg.size); 
+    reg.flags &= ~PENDING_STACK_ALLOCATION;
 }
 
 
@@ -951,13 +962,31 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
     assert(false);
 }
 
+// get actual memory needed to allocate a var, this accounts for fixed size arrays
+// that technically have seperate storage
+std::pair<u32,u32> get_mem_allocation_size(Interloper& itl,Symbol& sym)
+{
+    // allocate fixed array if needed, and initalize it to its data pointer
+    if(is_fixed_array(sym.type))
+    {
+        return calc_arr_allocation(itl,sym);
+    }
+
+    else
+    {
+        return std::pair{sym.reg.size,sym.reg.count};
+    }
+}
+
 void reserve_global_alloc(Interloper& itl, Symbol& sym)
 {
     auto& alloc = itl.global_alloc;
 
-    const u32 idx = log2(sym.reg.size);
+    const auto [size,count] = get_mem_allocation_size(itl,sym);
+
+    const u32 idx = log2(size);
     sym.reg.offset = alloc.count[idx];
-    alloc.count[idx] += sym.reg.count; 
+    alloc.count[idx] += count; 
 }
 
 
@@ -983,7 +1012,9 @@ void finalise_global_offset(Interloper& itl)
         const auto slot = itl.symbol_table.global[g];
         auto& sym = sym_from_slot(itl.symbol_table,slot);
 
-        sym.reg.offset = calc_final_offset(itl.global_alloc.start,sym.reg.size,sym.reg.offset);
-        log(itl.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,sym.reg.offset,sym.reg.size,sym.reg.count);
+        const auto [size,count] = get_mem_allocation_size(itl,sym);
+
+        sym.reg.offset = calc_final_offset(itl.global_alloc.start,size,sym.reg.offset);
+        log(itl.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,sym.reg.offset,size,count);
     }   
 }
