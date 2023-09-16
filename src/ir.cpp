@@ -406,9 +406,6 @@ ListNode* rewrite_access_struct_addr(Interloper& itl, LocalAlloc& alloc, ListNod
 ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, ListNode *node,const Opcode& callee_restore,
     const Opcode& stack_clean, bool insert_callee_saves)
 {
-    UNUSED(itl); UNUSED(alloc); UNUSED(block); UNUSED(node); UNUSED(callee_restore);
-    UNUSED(stack_clean); UNUSED(insert_callee_saves);
-
     const auto opcode = node->opcode;
 
     switch(node->opcode.op)
