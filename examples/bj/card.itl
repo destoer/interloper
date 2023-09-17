@@ -10,6 +10,9 @@ global FACE : const string[?] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "1
 
 type_alias Deck = Card[52];
 
+// game state should end before 14 cards
+type_alias Hand = Card[14];
+
 func print_card(card : const Card@)
 {
     print("{}:{} ",SUIT[card.suit],FACE[card.face]);
@@ -30,9 +33,9 @@ func init_deck(deck : Deck)
 
 func shuffle_deck(deck : Deck)
 {
-    for(i : s32 = deck.len; i > 0; i -= 1)
+    for(i : s32 = deck.len - 1; i > 0; i -= 1)
     {
-        idx := rand_range_u64(0,deck.len - 1);
+        idx := rand_range_u64(0,cast(u32,i)); 
         
         // perform swap
         tmp := deck[i];

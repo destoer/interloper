@@ -19,5 +19,5 @@ func rand_internal() u64
 
 func rand_range_u64(min : u64, max : u64) u64
 {
-    return (rand_internal() % (max + 1)) + min;
+    return (rand_internal() % ((max + 1) - min)) + min;
 }

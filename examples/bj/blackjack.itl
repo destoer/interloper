@@ -1,14 +1,32 @@
 
 import "card"
 
-func play_round()
+struct Blackjack
 {
     deck : Deck;
-    init_deck(deck);
+    player_hand : Hand;
+    dealer_hand : Hand;
+};
 
-    for(c : u32 = 0; c < deck.len; c += 1)
+func make_blackjack() Blackjack
+{
+    bj : Blackjack;
+
+    init_deck(bj.deck);
+    shuffle_deck(bj.deck);
+
+    // deal initial cards on both hands
+
+    return bj;
+}
+
+func play_round()
+{
+    bj := make_blackjack();
+
+    for(c : u32 = 0; c < bj.deck.len; c += 1)
     {
-        print_card(&deck[c]);
+        print_card(&bj.deck[c]);
         linefeed();
     }
 }
