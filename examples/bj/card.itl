@@ -12,7 +12,7 @@ type_alias Deck = Card[52];
 
 func print_card(card : const Card@)
 {
-    print("{}{} ",SUIT[card.suit],FACE[card.face]);
+    print("{}:{} ",SUIT[card.suit],FACE[card.face]);
 }
 
 func init_deck(deck : Deck)

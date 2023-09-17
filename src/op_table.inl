@@ -88,7 +88,8 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::slot_t,"alloc_slot %r, %x",2,{arg_type::directive,arg_type::imm,arg_type::none}},
     {op_group::slot_t,"free_slot %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
-    {op_group::slot_t,"alloc_fixed_array %r, %x, %x",3,{arg_type::dst_reg,arg_type::imm,arg_type::imm}},
+    {op_group::slot_t,"alloc_local_array %r, %x, %x",3,{arg_type::dst_reg,arg_type::imm,arg_type::imm}},
+    {op_group::reg_t,"alloc_global_array %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
     {op_group::slot_t,"free_fixed_array %r, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
     {op_group::slot_t,"alloc_vla",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 

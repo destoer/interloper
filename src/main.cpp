@@ -19,7 +19,7 @@ void parse_flags(Interloper& itl,const char* flags)
             case 'a': itl.print_ast = true; break;
             case 'r': itl.print_reg_allocation = true; break;
             case 's': itl.print_stack_allocation = true; break;
-            case 'g': itl.print_global = true; break;
+            case 'g': itl.global_alloc.print_global = true; break;
             case 'c': itl.print_types = true; break;
             case 'l': itl.print_tokens = true; break;
             case 'q': itl.compile_only = true; break;

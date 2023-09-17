@@ -2231,6 +2231,7 @@ void destroy_itl(Interloper &itl)
     destroy_sym_table(itl.symbol_table);
     destroy_arr(itl.constant_decl);
     destroy_arr(itl.global_decl);
+    destroy_arr(itl.global_alloc.array_allocation);
     
     destroy_ast(itl);
 

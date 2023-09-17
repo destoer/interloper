@@ -1,16 +1,6 @@
 // our bitset can only store 32 regs
 static_assert(MACHINE_REG_SIZE <= 32);
 
-struct ArrayAllocation
-{
-    SymSlot slot;
-    u32 stack_offset = 0;
-    u32 offset = 0;
-    u32 size = 0;
-    u32 count = 0;
-};
-
-
 // is this how we want it?
 // or should we just pass stuff through one by one?
 struct LocalAlloc
@@ -962,33 +952,41 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
     assert(false);
 }
 
-// get actual memory needed to allocate a var, this accounts for fixed size arrays
-// that technically have seperate storage
-std::pair<u32,u32> get_mem_allocation_size(Interloper& itl,Symbol& sym)
-{
-    // allocate fixed array if needed, and initalize it to its data pointer
-    if(is_fixed_array(sym.type))
-    {
-        return calc_arr_allocation(itl,sym);
-    }
 
-    else
-    {
-        return std::pair{sym.reg.size,sym.reg.count};
-    }
+u32 global_alloc_internal(GlobalAlloc& alloc, u32 size, u32 count)
+{
+    const u32 idx = log2(size);
+    const u32 offset = alloc.count[idx];
+    alloc.count[idx] += count; 
+
+    return offset;
 }
 
 void reserve_global_alloc(Interloper& itl, Symbol& sym)
 {
-    auto& alloc = itl.global_alloc;
-
-    const auto [size,count] = get_mem_allocation_size(itl,sym);
-
-    const u32 idx = log2(size);
-    sym.reg.offset = alloc.count[idx];
-    alloc.count[idx] += count; 
+    sym.reg.offset = global_alloc_internal(itl.global_alloc,sym.reg.size,sym.reg.count);
 }
 
+u32 allocate_global_array(GlobalAlloc& alloc,SymbolTable& table ,SymSlot slot, u32 size, u32 alloc_count)
+{
+    ArrayAllocation allocation;
+    allocation.slot = slot;
+    allocation.size = size;
+    allocation.count = alloc_count;
+    allocation.offset = global_alloc_internal(alloc,size,alloc_count);
+
+    const u32 idx = count(alloc.array_allocation);
+
+    if(alloc.print_global)
+    {
+        auto& sym = sym_from_slot(table,slot);
+        printf("initial array global offset: %s [%x,%x] -> %x\n",sym.name.buf,size,alloc_count,allocation.offset);
+    }
+
+    push_var(alloc.array_allocation,allocation);
+
+    return idx;
+}
 
 void finalise_global_offset(Interloper& itl)
 {
@@ -1000,7 +998,7 @@ void finalise_global_offset(Interloper& itl)
     // first calc the sections
     alloc.size = calc_alloc_sections(alloc.start,alloc.count);
 
-    log(itl.print_global,"Global size %x : start (%x, %x, %x, %x) : count (%x, %x, %x, %x)\n",
+    log(alloc.print_global,"Global size %x : start (%x, %x, %x, %x) : count (%x, %x, %x, %x)\n",
         alloc.size,alloc.start[0],alloc.start[1],alloc.start[2],alloc.start[3],alloc.count[0],
         alloc.count[1],alloc.count[2],alloc.count[3]);
 
@@ -1012,9 +1010,13 @@ void finalise_global_offset(Interloper& itl)
         const auto slot = itl.symbol_table.global[g];
         auto& sym = sym_from_slot(itl.symbol_table,slot);
 
-        const auto [size,count] = get_mem_allocation_size(itl,sym);
+        const auto [size,count] = std::pair{sym.reg.size,sym.reg.count};
 
         sym.reg.offset = calc_final_offset(itl.global_alloc.start,size,sym.reg.offset);
-        log(itl.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,sym.reg.offset,size,count);
-    }   
+        log(alloc.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,sym.reg.offset,size,count);
+    }
+
+    // finalised offsets on any fixed size array allocations handled by global_array_alloc
+
+
 }

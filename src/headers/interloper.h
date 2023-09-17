@@ -135,8 +135,6 @@ struct Interloper
 
     b32 print_types = false;
 
-    b32 print_global = false;
-
     // compiler options
     b32 rtti_enable = true;
 

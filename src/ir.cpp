@@ -253,7 +253,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;
         }
 
-        case op_type::alloc_fixed_array:
+        case op_type::alloc_local_array:
         {
             const u32 size = opcode.v[1];
             const u32 count = opcode.v[2];
@@ -262,9 +262,33 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             const u32 offset = allocate_stack_array(alloc,table,slot,size,count);
             
-            node->opcode = Opcode(op_type::alloc_fixed_array,opcode.v[0],offset,0);
+            node->opcode = Opcode(op_type::alloc_local_array,opcode.v[0],offset,0);
 
             allocate_and_rewrite(table,alloc,block,node,0);
+
+            node = node->next;
+            break;
+        }
+
+        case op_type::alloc_global_array:
+        {
+            const u32 idx = node->opcode.v[1];
+
+            auto& global_alloc = itl.global_alloc;
+
+            ArrayAllocation &allocation = global_alloc.array_allocation[idx];
+
+            allocation.offset = calc_final_offset(itl.global_alloc.start,allocation.size,allocation.offset);
+
+            if(alloc.print_stack_allocation)
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,allocation.slot);
+                printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
+            }
+
+            allocate_and_rewrite(table,alloc,block,node,0);
+
+            node->opcode = Opcode(op_type::lea,node->opcode.v[0],GP_IR,allocation.offset);
 
             node = node->next;
             break;
@@ -519,7 +543,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
         }
 
 
-        case op_type::alloc_fixed_array:
+        case op_type::alloc_local_array:
         {
             const u32 idx = node->opcode.v[1];
 

@@ -94,7 +94,8 @@ enum class op_type
     alloc_slot,
     free_slot,
 
-    alloc_fixed_array,
+    alloc_local_array,
+    alloc_global_array,
     free_fixed_array,
     alloc_vla,
 
@@ -480,12 +481,25 @@ struct IrEmitter
 };
 
 
+struct ArrayAllocation
+{
+    SymSlot slot;
+    u32 stack_offset = 0;
+    u32 offset = 0;
+    u32 size = 0;
+    u32 count = 0;
+};
+
 struct GlobalAlloc
 {
     u32 addr = 0;
     u32 count[4] = {0};
     u32 start[4] = {0};
     u32 size = 0;
+
+    b32 print_global = false;
+
+    Array<ArrayAllocation> array_allocation;
 };
 
 void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
