@@ -1,12 +1,31 @@
 
 import "card"
 
+struct Hand
+{
+    // 14 is max before bust
+    cards : Card[14];
+    count : u32;
+};
+
 struct Blackjack
 {
     deck : Deck;
+    deck_count : u32;
+
     player_hand : Hand;
     dealer_hand : Hand;
 };
+
+func print_deck(deck : const Card[])
+{
+    for(c : u32 = 0; c < deck.len; c += 1)
+    {
+        print_card(&deck[c]);
+    }
+    
+    linefeed();
+}
 
 func make_blackjack() Blackjack
 {
@@ -24,11 +43,7 @@ func play_round()
 {
     bj := make_blackjack();
 
-    for(c : u32 = 0; c < bj.deck.len; c += 1)
-    {
-        print_card(&bj.deck[c]);
-        linefeed();
-    }
+    print_deck(bj.deck);
 }
 
 func play_blackjack()
@@ -39,10 +54,6 @@ func play_blackjack()
 
 func main() s32
 {
-/*
-    card : Card = {0,0};
-    print_card(&card);
-*/
     play_blackjack();
 
     return 0;
