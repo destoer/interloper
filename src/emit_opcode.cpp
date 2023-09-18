@@ -224,6 +224,22 @@ SymSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
     return tmp;
 }
 
+void lea(Interloper& itl,Function& func, SymSlot dst, SymSlot ptr, u32 offset)
+{
+    emit_load<op_type::lea>(itl,func,dst,ptr,offset);
+}
+
+SymSlot lea_res(Interloper& itl,Function& func, SymSlot ptr, u32 offset)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+
+    lea(itl,func,tmp,ptr,offset);
+
+    return tmp;
+}
+
+
+
 // copy gpr sized reg
 SymSlot copy_reg(Interloper& itl, Function& func, SymSlot src)
 {

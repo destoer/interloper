@@ -714,6 +714,53 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
     } 
 }
 
+void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,SymSlot addr_slot)
+{
+    // default construction
+    for(u32 m = 0; m < count(structure.members); m++)
+    {
+        const auto& member = structure.members[m];
+
+        if(member.expr)
+        {
+            if(member.expr->type == ast_type::initializer_list)
+            {
+                unimplemented("initializer list");
+            }
+
+            else
+            {
+                const auto [rtype,slot] = compile_oper(itl,func,member.expr);
+                check_assign_init(itl,member.type,rtype); 
+
+                do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
+            }
+        }
+
+        // (basically we need to just recurse this method)
+        else if(is_struct(member.type))
+        {
+            const auto structure = struct_from_type(itl.struct_table,member.type);
+
+            const SymSlot ptr_slot = lea_res(itl,func,addr_slot,member.offset);
+            compile_struct_decl_default(itl,func,structure,ptr_slot);
+        }
+
+        // TODO: handle arrays
+        else if(is_array(member.type))
+        {
+
+        }
+
+        else
+        {
+            const SymSlot tmp = mov_imm_res(itl,func,default_value(member.type));
+
+            do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
+        }
+    }
+}
+
 void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
 {
     const auto structure = struct_from_type(itl.struct_table,sym.type);
@@ -736,55 +783,10 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
         }
     }
 
-    // default construction
+    // default init
     else
     {
         const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
-
-        for(u32 m = 0; m < count(structure.members); m++)
-        {
-            const auto& member = structure.members[m];
-
-            if(member.expr)
-            {
-                if(member.expr->type == ast_type::initializer_list)
-                {
-                    unimplemented("initializer list");
-                }
-
-                else
-                {
-                    const auto [rtype,slot] = compile_oper(itl,func,member.expr);
-                    check_assign_init(itl,member.type,rtype); 
-
-                    do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset);
-                }
-            }
-
-            // TODO: handle nested struct membmer
-            // (basically we need to just recurse this method)
-            else if(is_struct(member.type))
-            {
-
-            }
-
-            // TODO: handle arrays
-            else if(is_array(member.type))
-            {
-
-            }
-
-            else
-            {
-                const SymSlot tmp = mov_imm_res(itl,func,default_value(member.type));
-
-                do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset);
-            }
-        }
-    }
-
-    if(itl.error)
-    {
-        return;
+        compile_struct_decl_default(itl,func,structure,addr_slot);
     }
 }

@@ -23,7 +23,10 @@ func make_blackjack() Blackjack
     deal_card(&bj.deck,&bj.player);
 
     deal_card(&bj.deck,&bj.dealer);
-    deal_card(&bj.deck,&bj.dealer);    
+    deal_card(&bj.deck,&bj.dealer);
+    
+    // dealer may start the game stood
+    bj.dealer.stand = value_hand(&bj.dealer) >= DEALER_STAND;    
 
     return bj;
 }
@@ -37,7 +40,7 @@ func play_round()
     // check for blackjack!
     bj.blackjack = value_hand(&bj.player) == 21 || value_hand(&bj.dealer) == 21;
 
-    // game is instant over if a player got blackjack
+    // game is instantly over if a player got blackjack
     done := bj.blackjack;
 
     if(value_hand(&bj.player) == 21)
@@ -45,7 +48,7 @@ func play_round()
         print("Blackjack!\n");
     }
 
-    buf : c8[256];
+    user_input : c8[256];
 
     while(!done)
     {
@@ -67,9 +70,9 @@ func play_round()
 
         // hit or stand?
         print("Stand?: ");
-        out := read_string(buf);
+        out := read_string(user_input);
 
-        // player stand
+        // player stand, game will end
         if(out[0] == 'y')
         {
             print("Player stood\n");
@@ -114,8 +117,6 @@ func play_round()
     // show final set of cards
     print_hand(&bj.player,"Player");
     print_hand(&bj.dealer,"Dealer");
-
-
 
     // print the win state
 
@@ -164,14 +165,14 @@ func play_blackjack()
 {
     done := false;
 
-    buf : c8[256];
+    user_input : c8[256];
 
     while(!done)
     {
         play_round();
 
         print("continue playing?: ");
-        out := read_string(buf);
+        out := read_string(user_input);
 
         // player stand
         done = out[0] == 'n';
