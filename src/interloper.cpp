@@ -217,12 +217,7 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
 {
     const u32 size = type_size(itl,type);
 
-    if(size <= GPR_SIZE)
-    {
-        load_ptr(itl,func,dst_slot,addr_slot,offset,size,is_signed(type));
-    }   
-
-    else if(is_array(type))
+    if(is_array(type))
     {
         addr_slot = collapse_offset(itl,func,addr_slot,&offset);
 
@@ -250,7 +245,12 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
         const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
 
         ir_memcpy(itl,func,dst_ptr,addr_slot,size);
-    }  
+    }
+
+    else if(size <= GPR_SIZE)
+    {
+        load_ptr(itl,func,dst_slot,addr_slot,offset,size,is_signed(type));
+    }            
 
     else
     {

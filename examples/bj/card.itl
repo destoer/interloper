@@ -33,14 +33,11 @@ func shuffle_deck(deck : Deck)
 {
     for(i : s32 = deck.len - 1; i > 0; i -= 1)
     {
-        //idx := rand_range_u64(0,cast(u32,i)); 
-        idx := 0;
-
-        print("swap {} : {}\n",idx,i);
+        idx := rand_range_u64(0,cast(u32,i)); 
 
         // perform swap
         tmp := deck[i];
         deck[i] = deck[idx];
-        deck[idx] = tmp; 
+        deck[idx] = tmp;
     }
 }
