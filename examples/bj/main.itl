@@ -1,0 +1,8 @@
+import "blackjack"
+
+func main() s32
+{
+    play_blackjack();
+
+    return 0;
+}

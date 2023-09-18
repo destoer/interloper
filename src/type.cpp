@@ -1045,7 +1045,8 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
     // one or more user defined
     else
     {
-        unimplemented("user defined type arithmetic!\n");       
+        panic(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return make_builtin(itl,builtin_type::void_t);    
     }
 }
 

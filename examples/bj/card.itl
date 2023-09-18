@@ -7,37 +7,111 @@ struct Card
 // TODO: these should be constants but we dont support arrays yet
 global SUIT : const c8[?] = {'C','D','H','S'};
 global FACE : const string[?] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+global FACE_VALUE : const u32[?] = {1,2,3,4,5,6,7,8,9,10,10,10,10};
 
-type_alias Deck = Card[52];
+constant ACE : u32 = 0;
 
 func print_card(card : const Card@)
 {
     print("{}:{} ",SUIT[card.suit],FACE[card.face]);
-    //print("{}:{} ",card.suit,card.face);
 }
 
-func init_deck(deck : Deck)
+struct Hand
+{
+    // 14 is max before bust
+    card : Card[14];
+    count : u32;
+    stand : bool;
+};
+
+struct Deck
+{
+    card : Card[52];
+    dealt : u32;
+};
+
+
+func init_deck(deck : const Deck@)
 {
     for(s : u32 = 0; s < SUIT.len; s += 1)
     {
         for(f : u32 = 0; f < FACE.len; f += 1)
         {
             idx := (s * FACE.len) + f;
-            deck[idx].suit = s;
-            deck[idx].face = f;
+            deck.card[idx].suit = s;
+            deck.card[idx].face = f;
         }
     }
 }
 
-func shuffle_deck(deck : Deck)
+func shuffle_deck(deck : const Deck@)
 {
-    for(i : s32 = deck.len - 1; i > 0; i -= 1)
+    for(i : s32 = deck.card.len - 1; i > 0; i -= 1)
     {
         idx := rand_range_u64(0,cast(u32,i)); 
 
         // perform swap
-        tmp := deck[i];
-        deck[i] = deck[idx];
-        deck[idx] = tmp;
+        tmp := deck.card[i];
+        deck.card[i] = deck.card[idx];
+        deck.card[idx] = tmp;
     }
+}
+
+func value_hand(hand : const Hand@) u64
+{
+    value : u32 = 0;
+
+    for(i : u32 = 0; i < hand.count; i += 1)
+    {
+        card := &hand.card[i];
+
+        // special case ace
+        // it wont bust us then value is 11
+        if(card.face == ACE && value <= 10)
+        {
+            value += 11;
+        }
+
+        else
+        {
+            value += FACE_VALUE[card.face];
+        }
+    }
+
+    return value;
+}
+
+func print_hand(hand : const Hand@, name : const string)
+{
+    print("{}: ",name);
+
+    for(c : u32 = 0; c < hand.count; c += 1)
+    {
+        print_card(&hand.card[c]);
+    }
+    
+    print("value: {}\n",value_hand(hand));
+}
+
+func deal_card(deck : Deck@, hand : Hand@)
+{
+    // player is stood dont deal any more cards
+    if(hand.stand)
+    {
+        return;
+    }
+
+    // dealt every card, re roll the deck
+    if(deck.dealt == deck.card.len)
+    {
+        shuffle_deck(deck);
+        deck.dealt = 0;
+    }
+
+    // deal into hand
+    hand.card[hand.count] = deck.card[deck.dealt];
+    hand.count += 1;
+
+    // take it out of the deck
+    deck.dealt += 1;
 }

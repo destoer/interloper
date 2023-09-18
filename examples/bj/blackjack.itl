@@ -1,60 +1,181 @@
 
 import "card"
 
-struct Hand
-{
-    // 14 is max before bust
-    cards : Card[14];
-    count : u32;
-};
-
 struct Blackjack
 {
     deck : Deck;
-    deck_count : u32;
 
-    player_hand : Hand;
-    dealer_hand : Hand;
+    player : Hand;
+    dealer : Hand;
+
+    blackjack : bool;
 };
-
-func print_deck(deck : const Card[])
-{
-    for(c : u32 = 0; c < deck.len; c += 1)
-    {
-        print_card(&deck[c]);
-    }
-    
-    linefeed();
-}
 
 func make_blackjack() Blackjack
 {
     bj : Blackjack;
 
-    init_deck(bj.deck);
-    shuffle_deck(bj.deck);
+    init_deck(&bj.deck);
+    shuffle_deck(&bj.deck);
 
     // deal initial cards on both hands
+    deal_card(&bj.deck,&bj.player);
+    deal_card(&bj.deck,&bj.player);
+
+    deal_card(&bj.deck,&bj.dealer);
+    deal_card(&bj.deck,&bj.dealer);    
 
     return bj;
 }
+
+constant DEALER_STAND : u32 = 17;
 
 func play_round()
 {
     bj := make_blackjack();
 
-    print_deck(bj.deck);
+    // check for blackjack!
+    bj.blackjack = value_hand(&bj.player) == 21 || value_hand(&bj.dealer) == 21;
+
+    // game is instant over if a player got blackjack
+    done := bj.blackjack;
+
+    if(value_hand(&bj.player) == 21)
+    {
+        print("Blackjack!\n");
+    }
+
+    buf : c8[256];
+
+    while(!done)
+    {
+        // show the dealer hand
+        print("Dealer: ");
+
+        print_card(&bj.dealer.card[0]);
+
+        // only first card shown
+        for(i : u32 = 0; i < bj.dealer.count - 1; i += 1)
+        {
+            print("? ");
+        }
+        linefeed();
+
+
+        // show the player hand
+        print_hand(&bj.player,"Player");
+
+        // hit or stand?
+        print("Stand?: ");
+        out := read_string(buf);
+
+        // player stand
+        if(out[0] == 'y')
+        {
+            print("Player stood\n");
+
+            bj.player.stand = true;
+
+            // deal cards until dealer is stood
+            while(!bj.dealer.stand)
+            {
+                deal_card(&bj.deck,&bj.dealer);
+                bj.dealer.stand = value_hand(&bj.dealer) >= DEALER_STAND;
+            }
+
+            done = true;
+        }
+        
+        // check end game states
+        else
+        {
+            // deal new round of cards
+            deal_card(&bj.deck,&bj.player);
+            deal_card(&bj.deck,&bj.dealer);
+
+            player_value := value_hand(&bj.player);
+            dealer_value := value_hand(&bj.dealer);
+
+            // if dealer has hit over their limit they must stand
+            bj.dealer.stand = dealer_value >= DEALER_STAND;
+
+            // check win cond
+            // if any player has a blackjack or a bust 
+            // or if both players are stood the game is over
+            done = (player_value >= 21 || dealer_value >= 21) || (bj.player.stand && bj.dealer.stand);
+        }
+
+        // seperate each deal
+        linefeed();
+    }
+
+    print("Round over:\n");
+
+    // show final set of cards
+    print_hand(&bj.player,"Player");
+    print_hand(&bj.dealer,"Dealer");
+
+
+
+    // print the win state
+
+    // cache these values now they are final
+    // to make the win calc easier
+    player_value := value_hand(&bj.player);
+    dealer_value := value_hand(&bj.dealer);
+
+    // draw
+    if(player_value == dealer_value)
+    {
+        print("Push!\n");
+    }
+
+    // if both player's bust the dealer still wins
+    else if(player_value > 21 && dealer_value > 21)
+    {
+        print("Player busted\n");
+    }
+
+    // check invidivual busts
+    else if(player_value > 21)
+    {
+        print("Player busted!\n");
+    }
+
+    else if(dealer_value > 21)
+    {
+        print("Dealer busted!\n");
+    }
+
+    // all other states have been accounted for
+    // highest value wins
+    else if(dealer_value > player_value)
+    {
+        print("Dealer wins\n");
+    }
+
+    else
+    {
+        print("Player wins!\n");
+    }
 }
 
 func play_blackjack()
 {
-    // TODO: add exit cond
-    play_round();
-}
+    done := false;
 
-func main() s32
-{
-    play_blackjack();
+    buf : c8[256];
 
-    return 0;
+    while(!done)
+    {
+        play_round();
+
+        print("continue playing?: ");
+        out := read_string(buf);
+
+        // player stand
+        done = out[0] == 'n';
+
+        linefeed();
+    }
 }

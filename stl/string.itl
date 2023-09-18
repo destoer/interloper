@@ -453,3 +453,22 @@ func parse_value(str : const string) [Value, s64]
     used := cast(u64,data) - cast(u64,str.data);
     return value, used;
 }
+
+func str_cmp(v1 : const string, v2 : const string) bool
+{
+    // different len, not equal
+    if(v1.len != v2.len)
+    {
+        return false;
+    }
+
+    for(i : u32 = 0; i < v1.len; i += 1)
+    {
+        if(v1[i] != v2[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
