@@ -82,7 +82,7 @@ func print_int(v : u64, base : u32)
 
 func print_dec(v : u64, sign : bool)
 {
-    if(sign)
+    if(sign && cast(s64,v) < 0)
     {
         v = ~v + 1;
         write_string("-");

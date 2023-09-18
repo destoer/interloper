@@ -4,7 +4,7 @@ struct Card
     face : u32;
 };
 
-// TODO: these should be constatnts but we dont support arrays yet
+// TODO: these should be constants but we dont support arrays yet
 global SUIT : const c8[?] = {'C','D','H','S'};
 global FACE : const string[?] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
 
@@ -33,8 +33,11 @@ func shuffle_deck(deck : Deck)
 {
     for(i : s32 = deck.len - 1; i > 0; i -= 1)
     {
-        idx := rand_range_u64(0,cast(u32,i)); 
-        
+        //idx := rand_range_u64(0,cast(u32,i)); 
+        idx := 0;
+
+        print("swap {} : {}\n",idx,i);
+
         // perform swap
         tmp := deck[i];
         deck[i] = deck[idx];
