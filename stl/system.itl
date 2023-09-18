@@ -9,6 +9,7 @@ constant SYSCALL_CLOSE : u32 = 2;
 constant SYSCALL_WRITE : u32 = 3;
 constant SYSCALL_READ : u32 = 4;
 constant SYSCALL_ALLOC : u32 = 5;
+constant SYSCALL_TIME : u32 = 6;
 
 // STD IO
 
@@ -130,4 +131,9 @@ constant OS_INVALID_PTR : u64 = 0;
 func os_req_mem(size : u64) byte@
 {
     return cast(byte@,intrin_syscall(SYSCALL_ALLOC,size,0,0));
+}
+
+func time() s64
+{
+    return intrin_syscall(SYSCALL_TIME,0,0,0);
 }

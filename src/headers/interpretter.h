@@ -9,7 +9,7 @@ static constexpr u32 SYSCALL_CLOSE = 0x2;
 static constexpr u32 SYSCALL_WRITE = 0x3;
 static constexpr u32 SYSCALL_READ = 0x4;
 static constexpr u32 SYSCALL_ALLOC = 0x5;
-
+static constexpr u32 SYSCALL_TIME = 0x6;
 struct Trace
 {
     u64 idx;

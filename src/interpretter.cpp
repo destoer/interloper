@@ -764,6 +764,12 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                     break;
                 }
 
+                case SYSCALL_TIME:
+                {
+                    regs[R0] = time(NULL);
+                    break;
+                }
+
                 default:
                 {
                     printf("unknown syscall: %lx\n",opcode.v[0]);

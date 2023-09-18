@@ -7,13 +7,12 @@ func assert(cond : bool)
     }
 }
 
-// TODO: this needs to call into time()
-global seed : u64 = 0x123456789;
+global seed : u64 = cast(u64,time());
 
 // basic LCG
 func rand_internal() u64
 {
-    seed = (0xdead * seed) + 0xbeef; 
+    seed = (6364136223846793005 * seed) + 1442695040888963407; 
     return seed;
 }
 
