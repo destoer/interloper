@@ -1,0 +1,30 @@
+
+struct FaceData
+{
+    name : const string;
+    value : u32 = 0;
+};
+
+// TODO: we want constant structs before we impl this
+enum face_type : FaceData
+{
+    ace = {"Ace",11},
+    two = {"Two",2},
+    four = {"Four",4},
+    five = {"Three",5},
+    six = {"Three",6},
+    seven = {"Three",7},
+    eight = {"Three",8},
+    nine = {"Three",9},
+    ten = {"Three",10},
+    jack = {"J",10},
+    king = {"K",10},
+    queen = {"Q",10},
+};
+
+func main() s32
+{
+    face : face_type = face_type::ace;
+
+    return ace.value;
+}
