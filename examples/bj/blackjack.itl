@@ -24,12 +24,23 @@ func make_blackjack() Blackjack
 
     deal_card(&bj.deck,&bj.dealer);
     deal_card(&bj.deck,&bj.dealer);
-    
+
     // dealer may start the game stood
     bj.dealer.stand = value_hand(&bj.dealer) >= DEALER_STAND;    
 
     return bj;
 }
+
+func deal_until_stand(deck : Deck@,dealer : Hand@)
+{
+    // deal cards until dealer is stood
+    while(!dealer.stand)
+    {
+        deal_card(deck,dealer);
+        dealer.stand = value_hand(dealer) >= DEALER_STAND;
+    }    
+}
+
 
 constant DEALER_STAND : u32 = 17;
 
@@ -80,11 +91,7 @@ func play_round()
             bj.player.stand = true;
 
             // deal cards until dealer is stood
-            while(!bj.dealer.stand)
-            {
-                deal_card(&bj.deck,&bj.dealer);
-                bj.dealer.stand = value_hand(&bj.dealer) >= DEALER_STAND;
-            }
+            deal_until_stand(&bj.deck,&bj.dealer);
 
             done = true;
         }
@@ -105,7 +112,13 @@ func play_round()
             // check win cond
             // if any player has a blackjack or a bust 
             // or if both players are stood the game is over
-            done = (player_value >= 21 || dealer_value >= 21) || (bj.player.stand && bj.dealer.stand);
+            if((player_value >= 21 || dealer_value >= 21) || (bj.player.stand && bj.dealer.stand))
+            {
+                done = true;
+
+                // make sure dealer has been dealth every card
+                deal_until_stand(&bj.deck,&bj.dealer);
+            }
         }
 
         // seperate each deal
