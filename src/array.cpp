@@ -563,7 +563,6 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
             store_ptr(itl,func,zero,addr,0,GPR_SIZE);
             store_ptr(itl,func,zero,addr,GPR_SIZE,GPR_SIZE);
         }
-
     }
 
     if(itl.error)
@@ -571,13 +570,10 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         return;
     }
 
-    if(array.reg.count == RUNTIME_SIZE)
-    {
-        unimplemented("DECL VLA");
-    }
+    ArrayType* array_type = (ArrayType*)array.type;
 
     // this has not been inited by traverse_arr_initializer
-    else if(array.reg.count == DEDUCE_SIZE)
+    if(array_type->size == DEDUCE_SIZE)
     {
         panic(itl,itl_error::missing_initializer,"auto sized array %s does not have an initializer\n",array.name.buf);
         return;
