@@ -19,13 +19,7 @@ struct Foo
 
 func main() s32
 {
-    foo : Foo;
-
-    // TODO: this cant use a initializer yet..
-    for(i : u32 = 0; i < foo.arr.len; i += 1)
-    {
-        foo.arr[i] = i + 1;
-    }
+    foo : Foo = {{1,2,3}};
 
     // array should get converted into a runtime sized array
     // when passed

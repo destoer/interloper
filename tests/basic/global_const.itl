@@ -1,8 +1,0 @@
-
-// TODO: for now just put with other globals and dont djump this inside the constant section
-GLOBAL : const s32 = 0xdeadbeef;
-
-func main() s32
-{
-    return GLBOAL;
-}
