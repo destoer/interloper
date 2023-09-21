@@ -14,18 +14,13 @@ func memcpy(dst: byte@, src: const byte@, size: u64)
 }
 
 
-func memset(dst: byte@, size : u64, v : u8)
+func zero_mem(dst: byte@, size : u64)
 {
     end : const byte@ = dst + size;
 
     while(dst != end)
     {
-        @dst = v;
+        @dst = 0;
         dst += 1;
-    }    
-}
-
-func zero_mem(dst: byte@, size : u64)
-{
-    memset(dst,size,0);
+    }  
 }

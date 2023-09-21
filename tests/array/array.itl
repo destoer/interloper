@@ -4,9 +4,8 @@
 
 func main() s32
 {
-    x: bool[100];
+    x : bool[100] = {?};
 
-    // TODO: replace with initializer
     for(i : u32 = 0; i < x.len; i += 1)
     {
         x[i] = true;

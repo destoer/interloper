@@ -406,6 +406,18 @@ AstNode *nud(Parser &parser, const Token &t)
         // initializer list
         case token_type::left_c_brace:
         {
+            // check for no init 
+            // NOTE: as this is is not common we resolve it here
+            // rather than inside the tokenizer
+            if(parser.expr_tok.type == token_type::qmark)
+            {
+                consume_expr(parser,token_type::qmark);
+                consume_expr(parser,token_type::right_c_brace);
+
+                return ast_plain(parser,ast_type::no_init,t);
+            }
+
+
             RecordNode* init = (RecordNode*)ast_record(parser,ast_type::initializer_list,t);
             b32 done = false;
 

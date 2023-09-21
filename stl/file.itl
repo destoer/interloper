@@ -43,7 +43,7 @@ func open_file(str : const string, mode : file_mode) [File,bool]
     file : File;    
 
     // null terminate the string in a stack buffer
-    buf : c8[256];
+    buf : c8[256] = {?};
 
     memcpy(&buf[0],&str[0],min_u64(str.len,buf.len - 1));
     buf[str.len] = '\0';

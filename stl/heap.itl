@@ -181,7 +181,7 @@ func add_buffer(heap : Heap@, ptr : byte@, size : u64)
 
 func make_heap(buf : byte[]) Heap
 {
-    heap : Heap;
+    heap : Heap = {?};
     add_buffer(&heap,buf.data,buf.len);
 
     return heap;

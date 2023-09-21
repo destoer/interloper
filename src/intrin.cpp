@@ -2,6 +2,21 @@
 
 using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 
+Function* find_func(Interloper& itl, const String& name)
+{
+    Function* func_def = lookup(itl.function_table,name);
+
+    if(!func_def)
+    {
+        panic(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing\n",name.buf);
+        return nullptr;
+    }
+
+    mark_used(itl,*func_def);
+
+    return  func_def;
+}
+
 void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slot, u32 size)
 {
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
@@ -27,13 +42,13 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
     {
         // emit a call to memcpy with args
         // check function is declared
-
-        Function* func_def = lookup(itl.function_table,String("memcpy"));
+        Function* func_def = find_func(itl,String("memcpy"));
 
         if(!func_def)
         {
-            panic(itl,itl_error::undeclared,"[COMPILE]: memcpy is required for struct passing\n");
+            return;
         }
+
         Function &func_call = *func_def;
 
         mark_used(itl,func_call);
@@ -51,6 +66,49 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
     }
 }
 
+void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
+{
+
+    static constexpr u32 INLINE_LIMIT = 256;
+
+    // multiple of 8 and under the copy limit
+    if(size < INLINE_LIMIT && (size & 7) == 0) 
+    {
+        const auto zero = imm_zero(itl,func);
+
+        const u32 count = size / 8;
+
+        for(u32 i = 0; i < count; i++)
+        {
+            store_double(itl,func,zero,dst_ptr,i * 8);
+        }    
+    }
+
+    // call into zero_mem
+    else
+    {
+        Function* func_def = find_func(itl,String("zero_mem"));
+
+        if(!func_def)
+        {
+            return;
+        }
+
+        Function &func_call = *func_def;
+
+        mark_used(itl,func_call);
+
+
+        const SymSlot imm_slot = mov_imm_res(itl,func,size);
+
+        push_arg(itl,func,imm_slot);
+        push_arg(itl,func,dst_ptr);
+
+        call(itl,func,func_call.label_slot,true);
+
+        clean_args(itl,func,2);        
+    }
+}
 
 Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {

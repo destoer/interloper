@@ -1815,27 +1815,29 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         // initalizer
         if(decl_node->expr)
         {
-            // normal assign
-            const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
-
-            if(is_unsigned_integer(sym.type))
+            if(decl_node->expr->type != ast_type::no_init)
             {
-                clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
-            }
+                // normal assign
+                const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
 
-            if(itl.error)
-            {
-                return;
-            }
+                if(is_unsigned_integer(sym.type))
+                {
+                    clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
+                }
 
-            check_assign_init(itl,ltype,rtype);             
+                if(itl.error)
+                {
+                    return;
+                }
+
+                check_assign_init(itl,ltype,rtype);
+            }             
         }
 
         // default init
         else
         {
-            // NOTE: atm, all standard types use 0 for default, we may need something more flexible
-            mov_imm(itl,func,sym.reg.slot,default_value(sym.type));
+            mov_imm(itl,func,sym.reg.slot,0);
         }
     } 
 

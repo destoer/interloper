@@ -32,6 +32,7 @@ enum class ast_type
     arr_fixed,
     initializer_list,
     arr_deduce_size,
+    no_init,
     const_t,
 
     declaration,
@@ -130,6 +131,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "arr_fixed",
     "intializer_list",
     "deduced_arr_size",
+    "no_init",
     "const",
 
     "declaration",

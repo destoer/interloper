@@ -188,6 +188,11 @@ b32 is_value_type(const Type* type)
     return is_plain(type);
 }
 
+b32 is_fixed_array(const ArrayType* type)
+{
+    return !is_runtime_size(type);
+}
+
 b32 is_fixed_array(const Type* type)
 {
     if(is_array(type))
@@ -405,15 +410,6 @@ u32 init_arr_sub_sizes_internal(Interloper& itl, Type* type)
 void init_arr_sub_sizes(Interloper&itl,Type* type)
 {
     init_arr_sub_sizes_internal(itl,type);
-}
-
-
-u32 default_value(const Type* type)
-{
-    UNUSED(type);
-    // NOTE: for now every default is zero
-    // and as such we dont bother doing any type checking either
-    return 0;
 }
 
 // type creation helpers

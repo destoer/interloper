@@ -536,6 +536,57 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
     }
 }
 
+void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, SymSlot addr, u32 offset)
+{
+    if(is_fixed_array(type))
+    {
+        // this has not been inited by traverse_arr_initializer
+        if(type->size == DEDUCE_SIZE)
+        {
+            panic(itl,itl_error::missing_initializer,"auto sized array does not have an initializer\n");
+            return;
+        }
+
+        if(is_array(type->contained_type))
+        {
+            ArrayType* next_type = (ArrayType*)type->contained_type;
+
+            for(u32 i = 0; i < type->size; i++)
+            {
+                default_construct_arr(itl,func,next_type,addr,(i * next_type->sub_size) + offset);
+            }
+        }
+
+        // default construct each arr
+        else if(is_struct(type->contained_type))
+        {
+            // TODO: replace this with a zero_mem primitive
+            // if the struct has no initalizers
+            const auto structure = struct_from_type(itl.struct_table,type->contained_type);
+
+            for(u32 i = 0; i < type->size; i++)
+            {
+                compile_struct_decl_default(itl,func,structure,addr,(i * structure.size) + offset);
+            }
+        }
+
+        // final plain values
+        else
+        {
+            ir_zero(itl,func,lea_res(itl,func,addr,offset),type->size * type->sub_size);
+        }
+    }
+
+    // vla just setup the struct
+    else
+    {
+        const auto zero = mov_imm_res(itl,func,0);
+
+        store_ptr(itl,func,zero,addr,0 + offset,GPR_SIZE);
+        store_ptr(itl,func,zero,addr,GPR_SIZE + offset,GPR_SIZE);
+    }        
+}
+
 void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& array)
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
@@ -545,37 +596,32 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 
 
     // has an initalizer
-    // TODO: need to handle dumping this as a constant if the array is constant
-    // rather than runtime setup
     if(decl_node->expr)
     {
-        compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type);
+        if(decl_node->expr->type != ast_type::no_init)
+        {
+            compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type);
+        }
     }
 
     else 
     {
+        ArrayType* array_type = (ArrayType*)array.type;
+
         // default construct
         if(!is_fixed_array(array.type))
         {
-            const auto addr = addrof_res(itl,func,array.reg.slot);
-            const auto zero = mov_imm_res(itl,func,0);
+            default_construct_arr(itl,func,array_type,addrof_res(itl,func,array.reg.slot),0);
+        }
 
-            store_ptr(itl,func,zero,addr,0,GPR_SIZE);
-            store_ptr(itl,func,zero,addr,GPR_SIZE,GPR_SIZE);
+        else
+        {
+            default_construct_arr(itl,func,array_type,array.reg.slot,0);
         }
     }
 
     if(itl.error)
     {
-        return;
-    }
-
-    ArrayType* array_type = (ArrayType*)array.type;
-
-    // this has not been inited by traverse_arr_initializer
-    if(array_type->size == DEDUCE_SIZE)
-    {
-        panic(itl,itl_error::missing_initializer,"auto sized array %s does not have an initializer\n",array.name.buf);
         return;
     }
 

@@ -9,7 +9,7 @@ struct Arena
 
 func make_arena(buf : byte[]) Arena
 {
-    arena : Arena;
+    arena : Arena = {?};
 
     arena.len = 0;
     arena.buf = buf;

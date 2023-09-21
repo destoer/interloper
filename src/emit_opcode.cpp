@@ -281,3 +281,8 @@ SymSlot cmp_ne_imm_res(Interloper& itl, Function& func, SymSlot src, u64 imm)
 
     return tmp;    
 }
+
+SymSlot imm_zero(Interloper& itl, Function& func)
+{
+    return mov_imm_res(itl,func,0);
+}

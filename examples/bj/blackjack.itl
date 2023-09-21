@@ -3,10 +3,10 @@ import "card"
 
 struct Blackjack
 {
-    deck : Deck;
+    deck : Deck = {?};
 
-    player : Hand;
-    dealer : Hand;
+    player : Hand = {?};
+    dealer : Hand = {?};
 
     blackjack : bool;
 };
@@ -59,7 +59,7 @@ func play_round()
         print("Blackjack!\n");
     }
 
-    user_input : c8[256];
+    user_input : c8[256] = {?};
 
     while(!done)
     {
@@ -178,7 +178,7 @@ func play_blackjack()
 {
     done := false;
 
-    user_input : c8[256];
+    user_input : c8[256] = {?};
 
     while(!done)
     {
