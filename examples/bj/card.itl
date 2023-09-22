@@ -19,14 +19,14 @@ func print_card(card : const Card@)
 struct Hand
 {
     // 14 is max before bust
-    card : Card[14];
+    card : Card[14] = {?};
     count : u32;
     stand : bool;
 };
 
 struct Deck
 {
-    card : Card[52];
+    card : Card[52] = {?};
     dealt : u32;
 };
 
