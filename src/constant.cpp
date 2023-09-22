@@ -47,6 +47,20 @@ void check_const_cmp(Interloper& itl, Type* ltype, Type* rtype, logic_op type)
 }
 
 
+struct ConstData
+{
+    union
+    {
+        u64 data = 0;
+        PoolSlot slot;
+    };
+
+    // builtin, pointer, enum go directly into data
+    // everything else goes into a pool slot 
+    Type* type = nullptr;
+};
+
+
 //TODO: in the future we may return out a slot + offset in the data section
 // for structs etc but just leave it simple for now
 std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
@@ -358,10 +372,16 @@ void compile_constant_decl(Interloper& itl, Symbol& sym, AstNode* node)
         assert(false);
     }
 
-    // TODO: need to take a guess on this things size
-    // then verify it matches
+
     else if(is_array(sym.type))
     {
+        // initializer
+        
+        // scan each part of initializer
+        // and determine the size, so we can figure out how
+        // much we need toa alloc into the pool
+
+        // other array...
         assert(false);
     }
 

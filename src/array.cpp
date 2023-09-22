@@ -602,6 +602,12 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         {
             compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type);
         }
+
+        // now we have deduced every size, we need to reinit the sub size...
+        if(is_fixed_array(array.type))
+        {
+            init_arr_sub_sizes(itl,(Type*)array.type);
+        }
     }
 
     else 
