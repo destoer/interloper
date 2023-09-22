@@ -89,18 +89,24 @@ void write_const_pool_label(ConstPool& pool, PoolSlot slot, u32 offset,LabelSlot
     write_const_pool_label(pool,section,offset,label_slot);
 }
 
-void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,PoolSlot pool_slot)
+void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,const ConstDataPointer& data_pointer)
 {
-    push_var(pool.pool_pointer,section.offset + offset);
+    PoolPointer pointer;
+    pointer.pointer = data_pointer;
+    pointer.pool_offset = section.offset + offset;
 
-    static_assert(GPR_SIZE == 8);
+    push_var(pool.pool_pointer,pointer);
+}
 
+// write from pool slot with no offset
+// NOTE: this is intended as a shortcut for internal use outside of const exprs
+void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,PoolSlot slot)
+{
+    PoolPointer pointer;
+    pointer.pointer = {slot, 0};
+    pointer.pool_offset = section.offset + offset;
 
-    // promote the handle so it can fit the addr later
-    const u64 handle = pool_slot.handle;
-
-    // write the pool slot in
-    write_const_pool(pool,section,offset,handle);
+    push_var(pool.pool_pointer,pointer);
 }
 
 

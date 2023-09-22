@@ -385,7 +385,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
     }
 
     // produce effective type
-    const auto final_type = effective_arith_type(itl,t1,t2);
+    const auto final_type = effective_arith_type(itl,t1,t2,type);
 
     return final_type;        
 }

@@ -46,17 +46,30 @@ void check_const_cmp(Interloper& itl, Type* ltype, Type* rtype, logic_op type)
     }
 }
 
+// pointer obtained by a cast, stored directly in data
+static constexpr u32 CONST_FLAG_RAW_POINTER = 1 << 0;
 
 struct ConstData
 {
+    // actual data repr
     union
     {
+        // inline data
         u64 data = 0;
+
+        // Pointer to other const pool var
+        // NOTE: pointers derived from ints are put inside data
+        // and cannot be derefernced at compile time
+        // additonally pointer casts to int are illegal
+        ConstDataPointer data_pointer;
+
+        // pool slot of var, used for returning structs
+        // requires a memcpy out of the const pool for a move
         PoolSlot slot;
     };
 
-    // builtin, pointer, enum go directly into data
-    // everything else goes into a pool slot 
+    // NOTE: these indicate how to access const data, as described above
+    u32 flags = 0;
     Type* type = nullptr;
 };
 
@@ -125,7 +138,7 @@ std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
             const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left + value_right;
-            Type* type = effective_arith_type(itl,type_left,type_right);
+            Type* type = effective_arith_type(itl,type_left,type_right,op_type::add_reg);
 
             return std::pair{ans,type};
         }
@@ -138,7 +151,7 @@ std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
             const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left & value_right;
-            Type* type = effective_arith_type(itl,type_left,type_right);
+            Type* type = effective_arith_type(itl,type_left,type_right,op_type::and_reg);
 
             return std::pair{ans,type};       
         }
@@ -152,7 +165,7 @@ std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
             const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left << value_right;
-            Type* type = effective_arith_type(itl,type_left,type_right);
+            Type* type = effective_arith_type(itl,type_left,type_right,op_type::lsl_reg);
 
             return std::pair{ans,type};            
         }
@@ -164,8 +177,10 @@ std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
             const auto [value_left,type_left] = compile_const_expression(itl,bin_node->left);
             const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
+            // TODO: this doesn't handle asr
+
             const u64 ans = value_left >> value_right;
-            Type* type = effective_arith_type(itl,type_left,type_right);
+            Type* type = effective_arith_type(itl,type_left,type_right,op_type::lsr_reg);
 
             return std::pair{ans,type};            
         }
@@ -178,7 +193,7 @@ std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
             const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left * value_right;
-            Type* type = effective_arith_type(itl,type_left,type_right);
+            Type* type = effective_arith_type(itl,type_left,type_right,op_type::mul_reg);
 
             return std::pair{ans,type};
         }
@@ -191,7 +206,7 @@ std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
             const auto [value_right,type_right] = compile_const_expression(itl,bin_node->right);
 
             const u64 ans = value_left - value_right;
-            Type* type = effective_arith_type(itl,type_left,type_right);
+            Type* type = effective_arith_type(itl,type_left,type_right,op_type::sub_reg);
 
             return std::pair{ans,type};
         }
@@ -210,7 +225,7 @@ std::pair<u64,Type*> compile_const_expression(Interloper& itl, AstNode* node)
             }
 
             const u64 ans = value_left / value_right;
-            Type* type = effective_arith_type(itl,type_left,type_right);
+            Type* type = effective_arith_type(itl,type_left,type_right,op_type::div_reg);
 
             return std::pair{ans,type};
         }
@@ -377,9 +392,10 @@ void compile_constant_decl(Interloper& itl, Symbol& sym, AstNode* node)
     {
         // initializer
         
-        // scan each part of initializer
+        // scan each part of initializer quickly
         // and determine the size, so we can figure out how
-        // much we need toa alloc into the pool
+        // much we need to alloc into the pool 
+        // NOTE: we still check that the sizes are the same later!
 
         // other array...
         assert(false);

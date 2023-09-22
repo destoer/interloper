@@ -104,12 +104,14 @@ void emit_asm(Interloper &itl)
     // rewrite all pointers
     for(u32 p = 0; p < count(const_pool.pool_pointer); p++)
     {
-        const u32 addr = const_pool.pool_pointer[p];
+        const auto& pool_pointer = const_pool.pool_pointer[p];
+        const auto& data_pointer = pool_pointer.pointer;
 
-        const u32 pool_handle = read_mem<u64>(pool_data,addr);
-        auto& section = pool_section_from_slot(itl.const_pool,pool_slot_from_idx(pool_handle));
+        const u32 addr = pool_pointer.pool_offset;
 
-        write_mem<u64>(pool_data,addr,section.offset + const_pool_loc);
+        auto& section = pool_section_from_slot(itl.const_pool,data_pointer.slot);
+
+        write_mem<u64>(pool_data,addr,(section.offset + data_pointer.offset) + const_pool_loc);
     }
     
     // make sure the pool is aligned before its inserted

@@ -23,6 +23,22 @@ struct PoolSection
 };
 
 
+struct ConstDataPointer
+{
+    // pool slot of section we are taking a pointer too
+    PoolSlot slot;
+
+    // offset into this section
+    u32 offset = 0;
+};
+
+
+struct PoolPointer
+{
+    ConstDataPointer pointer;
+    u32 pool_offset = 0;
+};
+
 struct ConstPool
 {
     Array<PoolSection> sections;
@@ -30,5 +46,5 @@ struct ConstPool
 
     // offsets into the buffer that requires address resolution
     Array<u32> label;
-    Array<u32> pool_pointer; 
+    Array<PoolPointer> pool_pointer; 
 };

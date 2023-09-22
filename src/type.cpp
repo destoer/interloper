@@ -1006,8 +1006,7 @@ Type* value_type(Interloper& itl,const Value& value)
 }
 
 
-// TODO: do we want to pass the operation in here for when we support overloading?
-Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
+Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_kind)
 {
     // builtin type
     if(is_builtin(rtype) && is_builtin(ltype))
@@ -1034,6 +1033,12 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype)
     // pointer arithmetic is fine
     else if(is_pointer(ltype) && is_integer(rtype))
     {
+        if(op_kind != op_type::sub_reg && op_kind != op_type::add_reg)
+        {
+            panic(itl,itl_error::undefined_type_oper,"arithmetic or pointers is only defined for addition and subtraction\n");
+            return make_builtin(itl,builtin_type::void_t);            
+        }
+
         return ltype;
     }
 
