@@ -365,12 +365,6 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
     // pointer arith adds the size of the underlying type
     if(is_pointer(t1) && is_integer(t2))
     {
-        if(type != op_type::sub_reg && type != op_type::add_reg)
-        {
-            panic(itl,itl_error::int_type_error,"Pointer arithmetic is only defined on subtraction and additon! %s : %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
-            return make_builtin(itl,builtin_type::void_t);
-        }
-
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
 

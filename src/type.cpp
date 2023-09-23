@@ -884,6 +884,8 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         }
     }
 
+    b32 indirection = false;
+
     // arrays, pointers
     for(s32 c = count(type_decl->compound_type) - 1; c >= 0; c--)
     {
@@ -895,17 +897,17 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             case ast_type::ptr_indirection:
             {
                 type = make_pointer(itl,type,is_constant);
+                indirection = true;
                 break;
             }
 
             case ast_type::arr_var_size:
             {
                 type = make_array(itl,type,RUNTIME_SIZE,is_constant);
-
+                indirection = true;
                 break;
             }
 
-            // TODO: we need to revise the decl order on this!
             case ast_type::arr_fixed:
             {
                 UnaryNode* unary_node = (UnaryNode*)node;
@@ -916,13 +918,19 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 break;
             }
 
-            // TODO: if we allready have a indireciton that aint flat, i.e a vla or pointer
-            // this aint legal!
             case ast_type::arr_deduce_size:
             {
                 if(complete_type)
                 {
                     panic(itl,itl_error::mismatched_args,"type is constant and cannot be deduced by assign\n");
+                    return make_builtin(itl,builtin_type::void_t);
+                }
+
+                // i.e we cant have a pointer to an array with a size deduction
+                // it has to hold the indirection...
+                if(indirection)
+                {
+                    panic(itl,itl_error::mismatched_args,"cannot have deduction for array size where indirection allready exists\n");
                     return make_builtin(itl,builtin_type::void_t);
                 }
 
@@ -1035,7 +1043,7 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_
     {
         if(op_kind != op_type::sub_reg && op_kind != op_type::add_reg)
         {
-            panic(itl,itl_error::undefined_type_oper,"arithmetic or pointers is only defined for addition and subtraction\n");
+            panic(itl,itl_error::undefined_type_oper,"Pointer arithmetic is only defined for addition and subtraction\n");
             return make_builtin(itl,builtin_type::void_t);            
         }
 

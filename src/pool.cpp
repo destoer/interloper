@@ -35,6 +35,8 @@ PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
 {
     const u32 align_size = size >= GPR_SIZE? GPR_SIZE : size;
 
+    // TODO: this results in extra padding
+    // make this do reordering at the end
     align_pool(pool,align_size);
 
     PoolSection section;
@@ -95,11 +97,13 @@ void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,
     pointer.pointer = data_pointer;
     pointer.pool_offset = section.offset + offset;
 
+    // write out handle to PoolPointer incase we need to do a look for const expr
+    const u64 handle = count(pool.pool_pointer);
+    write_const_pool(pool,section,offset,handle);
+
     push_var(pool.pool_pointer,pointer);
 }
 
-// write from pool slot with no offset
-// NOTE: this is intended as a shortcut for internal use outside of const exprs
 void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,PoolSlot slot)
 {
     PoolPointer pointer;
@@ -108,7 +112,6 @@ void write_const_pool_pointer(ConstPool& pool, PoolSection& section, u32 offset,
 
     push_var(pool.pool_pointer,pointer);
 }
-
 
 // create a pool section and push the data to it
 PoolSlot push_const_pool(ConstPool& pool, pool_type type, const void* data,u32 size)

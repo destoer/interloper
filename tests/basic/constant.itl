@@ -5,15 +5,18 @@ struct Point
     y : u32;
 };
 
-constant TABLE : u32[?] = {1,2,3,4,5};
 
 constant point : Point = {3,5};
+*/
+
+/*
+constant TABLE : u32[?] = {1,2,3,4,5};
 
 func sum_arr() s32
 {
     ans : s32 = 0;
 
-    for(i : u32 = 0; i < TABLE.len; i++)
+    for(i : u32 = 0; i < TABLE.len; i += 1)
     {
         ans += TABLE[i];
     }
@@ -25,10 +28,14 @@ func sum_arr() s32
 // expected 32
 func main() s32
 {
-/*
-    sum := sum_arr(TABLE);
+    res1 := (u32.size * BITS_IN_BYTE) == 32;
 
-    product := point.x * point.y;
-*/
-    return u32.size * BITS_IN_BYTE;
+    //res2 := sum_arr(TABLE) == 15;
+    res2 := true;
+
+    //product := point.x * point.y;
+
+    ans := res1 && res2;
+
+    return cast(s32,ans);
 }
