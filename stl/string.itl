@@ -261,7 +261,6 @@ func print_arg(arg : Any, specifier : c8)
             // fixed size
             else
             {
-                // TODO: only impl by hand this for now till we get template access
                 if(contained_type.type_idx == itl_type::c8_t)
                 {
                     v := int_from_any(arg);

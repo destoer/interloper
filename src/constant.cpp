@@ -364,7 +364,17 @@ void compile_constant_decl(Interloper& itl, Symbol& sym, AstNode* node)
 
             case builtin_type::bool_t:
             {
-                assert(false);
+                const auto res = compile_const_bool_expression(itl,node);
+
+                if(itl.error)
+                {
+                    return;
+                }
+
+                const auto slot = push_const_pool(itl.const_pool,pool_type::var,&v,GPR_SIZE);
+                sym.reg.offset = slot.handle;
+
+                break;                
             }
 
             // these should not be possible...
