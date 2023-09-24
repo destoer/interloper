@@ -265,7 +265,7 @@ TypeNode *parse_type(Parser &parser)
 
 
 
-AstNode *declaration(Parser &parser, token_type terminator)
+AstNode *declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
 {
     // declartion
     // symbol ':' type ( ';' | '=' expression ';')
@@ -292,7 +292,7 @@ AstNode *declaration(Parser &parser, token_type terminator)
     //    [declare:name]
     // [type]   optional([eqauls])
 
-    DeclNode* decl = (DeclNode*)ast_decl(parser,s.literal,type,s);
+    DeclNode* decl = (DeclNode*)ast_decl(parser,s.literal,type,is_const_decl,s);
 
     const auto eq = peek(parser,0);
 
@@ -658,6 +658,11 @@ AstNode *statement(Parser &parser)
         case token_type::sl_brace:
         {
             return tuple_assign(parser, t);
+        }
+
+        case token_type::constant_t:
+        {
+            return declaration(parser,token_type::semi_colon,true);
         }
 
         case token_type::symbol:
@@ -1056,7 +1061,7 @@ FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& fu
 
 
             // add each declartion
-            DeclNode* decl = (DeclNode*)ast_decl(parser,lit_tok.literal,type,lit_tok);
+            DeclNode* decl = (DeclNode*)ast_decl(parser,lit_tok.literal,type,false,lit_tok);
             
             push_var(f->args,decl);
 
@@ -1361,9 +1366,9 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
             // global constant
             case token_type::constant_t:
             {
-                DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
+                DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon,true);
 
-                GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,true,filename,t);
+                GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,filename,t);
 
                 push_var(itl.constant_decl,const_decl);
                 break; 
@@ -1374,7 +1379,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
             {
                 DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
 
-                GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,false,filename,t);
+                GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,filename,t);
 
                 push_var(itl.global_decl,global_decl);
                 break; 
@@ -1613,7 +1618,7 @@ void print(const AstNode *root, b32 override_seperator)
         {
             DeclNode* decl_node = (DeclNode*)root;
 
-            printf("decl : %s\n",decl_node->name.buf);
+            printf("%s : %s\n",decl_node->node.type == ast_type::const_decl? "const decl" : "decl",decl_node->name.buf);
 
             print((AstNode*)decl_node->type);
             print(decl_node->expr);
@@ -1631,7 +1636,7 @@ void print(const AstNode *root, b32 override_seperator)
         case ast_fmt::global_declaration:
         {
             GlobalDeclNode* global_node = (GlobalDeclNode*)root;
-            printf("global %s decl:\n",global_node->is_const? "const" : "");
+            printf("global %s decl:\n",global_node->decl->node.type == ast_type::const_decl ? "const" : "");
             print((AstNode*)global_node->decl);
             break;
         }

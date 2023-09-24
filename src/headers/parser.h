@@ -36,6 +36,7 @@ enum class ast_type
     const_t,
 
     declaration,
+    const_decl,
     auto_decl,
     
     global_declaration,
@@ -135,6 +136,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "const",
 
     "declaration",
+    "const declaration",
     "auto_decl",
 
     "global declaration",
@@ -338,6 +340,8 @@ struct IndexNode
     Array<AstNode*> indexes;
 };
 
+// can be ast_type::declaration
+// or ast_type::const_decl
 struct DeclNode
 {
     AstNode node;
@@ -351,7 +355,6 @@ struct GlobalDeclNode
 {
     AstNode node;
 
-    b32 is_const = false;
     DeclNode *decl = nullptr;
     String filename;
 };
@@ -620,9 +623,11 @@ AstNode* ast_type_decl(Parser& parser, const String& name, const Token& token)
 }
 
 
-AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, const Token& token)
+AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, b32 is_const_decl, const Token& token)
 {
-    DeclNode* decl_node = alloc_node<DeclNode>(parser,ast_type::declaration,ast_fmt::declaration,token);
+    const auto decl_type = is_const_decl? ast_type::const_decl : ast_type::declaration;
+
+    DeclNode* decl_node = alloc_node<DeclNode>(parser,decl_type,ast_fmt::declaration,token);
 
     decl_node->name = name;
     decl_node->type = type;
@@ -754,13 +759,12 @@ AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const St
     return (AstNode*)alias_node;
 }
 
-AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, b32 is_const, const String& filename, const Token& token)
+AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename, const Token& token)
 {
     GlobalDeclNode* global_node = alloc_node<GlobalDeclNode>(parser,ast_type::global_declaration,ast_fmt::global_declaration,token);
 
     global_node->filename = filename;
     global_node->decl = decl_node;
-    global_node->is_const = is_const;
 
     return (AstNode*)global_node;
 }

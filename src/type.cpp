@@ -1127,26 +1127,26 @@ enum class assign_type
 };
 
 
-void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type, b32 was_pointer)
+void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type, b32 was_reference)
 {
-    if(ltype->is_const)
+
+    // const ltype is of no concern if while an arg or initializer (in this instance they are the same thing)
+    // i.e first time initialization, it is a problem if this is an assign though
+    // but we only really care for assigns on the "top level" if its a pointer
+    if(ltype->is_const && type == assign_type::assign && !was_reference)
     {
-        // can only assign for arg or initalizer everything
-        // unless this is a pointer, if so it is legal as long as the ltype of the contained type is const
-        if(type == assign_type::assign && !was_pointer)
-        {
-            panic(itl,itl_error::const_type_error,"cannot assign rtype to const ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            return;
-        }
+        panic(itl,itl_error::const_type_error,"cannot assign rtype to const ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return;
     }
 
+    // for an rtype a copy is fine, unless it was a reference in which case
+    // the ltype must also be const
     if(rtype->is_const)
     {
-        // ltype must be const too
-        if(!ltype->is_const)
+        if(!ltype->is_const && was_reference)
         {
-            panic(itl,itl_error::const_type_error,"cannot assign const rtype to ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            return;            
+            panic(itl,itl_error::const_type_error,"cannot assign const ref rtype to ltype: %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
         }
     }
 
@@ -1158,7 +1158,7 @@ void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, 
 void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type)
 {
     b32 done = false;
-
+/*
     // value types can be copied if only the rype is const
     if(is_value_type(rtype) && is_value_type(ltype))
     {
@@ -1168,10 +1168,9 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_ty
             return;
         }
     }
-
-    // TODO: how does this play with heavily nested types?
-    // was a pointer in the type "above"
-    b32 was_pointer = false;
+*/
+    // was the type above us a reference?
+    b32 was_reference = false;
 
     // check const specifiers at every level
     while(!done)
@@ -1180,52 +1179,54 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_ty
         {
             case ARRAY:
             {
-                check_const_internal(itl,ltype,rtype,type,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_reference);
 
                 // check sub types
                 ltype = index_arr(ltype);
                 rtype = index_arr(rtype);
 
-                was_pointer = false;
+                // array counts as a pointer
+                was_reference = true;
                 break;
             }
 
             case POINTER:
             {
-                check_const_internal(itl,ltype,rtype,type,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_reference);
 
                 // check sub types
                 ltype = deref_pointer(ltype);
                 rtype = deref_pointer(rtype);
 
-                was_pointer = true;
+                was_reference = true;
                 break;
             }
 
             case STRUCT:
             {
-                check_const_internal(itl,ltype,rtype,type,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_reference);
                 done = true;
                 break;
             }
 
             case ENUM:
             {
-                check_const_internal(itl,ltype,rtype,type,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_reference);
                 done = true;
                 break;
             }
 
             case FUNC_POINTER:
             {
-                assert(false);
+                check_const_internal(itl,ltype,rtype,type,was_reference);
+                done = true;
                 break;
             }
 
             // check end type
             default:
             {
-                check_const_internal(itl,ltype,rtype,type,was_pointer);
+                check_const_internal(itl,ltype,rtype,type,was_reference);
                 done = true;
                 break;
             }

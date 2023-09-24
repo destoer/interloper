@@ -246,7 +246,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
         type->size = node_len;
     }
 
-    else if(type->size == RUNTIME_SIZE)
+    else if(is_runtime_size(type))
     {
         panic(itl,itl_error::array_type_error,"cannot assign initalizer to vla\n");
         return;
@@ -467,9 +467,6 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
 
         case ast_type::string:
         {
-            LiteralNode* literal_node = (LiteralNode*)node;
-            const String literal = literal_node->literal;
-
             // TODO: we need to add different hanlding for const strings
 
             if(!is_string(type))
@@ -478,9 +475,10 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
                 return;
             }
 
-
             ArrayType* array_type = (ArrayType*)type;
 
+            LiteralNode* literal_node = (LiteralNode*)node;
+            const String literal = literal_node->literal;
 
             // handle auto sizing
             if(array_type->size == DEDUCE_SIZE)

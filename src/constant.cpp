@@ -1,8 +1,3 @@
-// TODO: 
-// figure out how to put these in with normal symbols slots
-//  and mark them for special access that we perform rewriting on inside the 1st stage ir
-// because we need something generic
-
 
 b32 is_constant(const Symbol& sym)
 {
@@ -41,12 +36,8 @@ struct ConstData
         u64 v = 0;
 
         // Pointer to other const pool var
-        // NOTE: this how we return arrays too!
+        // Used to return arrays, pointers structs
         ConstDataPointer data_pointer;
-
-        // pool slot of var, used for returning structs
-        // requires a memcpy out of the const pool for a move
-        PoolSlot slot;
     };
 
     // NOTE: this indicates how to access const data, as described above
@@ -63,26 +54,133 @@ ConstData make_const_builtin(u64 v, Type* type)
     return data;
 }
 
-/*
-// used for writing compound data, i.e structs, arrays
-void write_const_data(Interloper& itl, PoolSlot slot, u32 offset, ConstData& data)
-{
 
+void write_const_builtin(Interloper& itl,PoolSlot slot, u32 offset,const ConstData& data)
+{
+    auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+    // calc the read reqs
+    const u32 addr = section.offset + offset;
+    const u32 size = type_size(itl,data.type);
+
+    switch(size)
+    {
+        case 1:
+        {
+            write_mem<u8>(itl.const_pool.buf,addr,data.v);
+            break;
+        }
+
+        case 2:
+        {
+            write_mem<u16>(itl.const_pool.buf,addr,data.v);
+            break;
+        }
+
+        case 4:
+        {
+            write_mem<u32>(itl.const_pool.buf,addr,data.v);
+            break;
+        }
+
+        case 8:
+        {
+            write_mem<u64>(itl.const_pool.buf,addr,data.v);
+            break;
+        }
+
+        default:
+        {
+            crash_and_burn("invalid sized const builtin write");
+            break;
+        }
+    }
 }
-*/
+
+// used for writing into compound data, i.e structs, arrays
+void write_const_data(Interloper& itl, PoolSlot slot, u32 offset, const ConstData& data)
+{
+    // write out based on type
+    Type* type = data.type;
+
+    // builtin type can just be directly read out as is from here
+    if(is_builtin(type))
+    {
+        write_const_builtin(itl,slot,offset,data);
+    }
+
+    // this is technically just an int
+    // return in place
+    else if(is_enum(type))
+    {
+        assert(false);
+    }
+
+    
+    else if(is_array(type))
+    {
+        // this should only be legal for vla assigns
+
+        assert(false);
+    }
+
+    else if(is_struct(type))
+    {
+        assert(false);
+    }
+
+    else if(is_pointer(type))
+    {
+        assert(false);
+    }
+
+    // whoops
+    else
+    {
+        assert(false);
+    }   
+}
 
 PoolSlot pool_slot_from_sym(const Symbol& sym)
 {
     return pool_slot_from_idx(sym.reg.offset);
 }
 
-u64 builtin_from_const(Interloper& itl,PoolSlot slot, u32 offset)
+u64 builtin_from_const(Interloper& itl, Type* type,PoolSlot slot, u32 offset)
 {
     auto& section = pool_section_from_slot(itl.const_pool,slot);
 
-    const u64 v = read_mem<u64>(itl.const_pool.buf,section.offset + offset);
+    // calc the read reqs
+    const u32 addr = section.offset + offset;
+    const u32 size = type_size(itl,type);
 
-    return v;
+    switch(size)
+    {
+        case 1:
+        {
+            return read_mem<u8>(itl.const_pool.buf,addr);
+        }
+
+        case 2:
+        {
+            return read_mem<u16>(itl.const_pool.buf,addr);
+        }
+
+        case 4:
+        {
+            return read_mem<u32>(itl.const_pool.buf,addr);
+        }
+
+        case 8:
+        {
+            return read_mem<u64>(itl.const_pool.buf,addr);
+        }
+
+        default:
+        {
+            crash_and_burn("invalid sized const builtin read");
+        }
+    }
 }
 
 ConstData read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset)
@@ -94,7 +192,7 @@ ConstData read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset
     {
         ConstData data;
 
-        data.v = builtin_from_const(itl,slot,offset);
+        data.v = builtin_from_const(itl,type,slot,offset);
         data.type = type;
 
         return data;
@@ -386,14 +484,142 @@ bool compile_const_bool_expression(Interloper& itl, AstNode* node)
     return bool(data.v);
 }
 
-void compile_const_arr_list_internal(Interloper& itl,RecordNode* list, ArrayType* type, PoolSlot slot, u32 offset)
+void compile_const_arr_list_internal(Interloper& itl,RecordNode* list, ArrayType* type, PoolSlot slot, u32* offset)
 {
-    UNUSED(itl); UNUSED(list); UNUSED(type); UNUSED(slot); UNUSED(offset);
-    assert(false);
+    if(itl.error)
+    {
+        return;
+    }
+
+    const u32 node_len = count(list->nodes);
+
+    if(is_runtime_size(type))
+    {
+        panic(itl,itl_error::array_type_error,"cannot assign initalizer to vla\n");
+        return;
+    }
+
+    // next type is a sub array
+    if(is_array(type->contained_type))
+    {
+        ArrayType* next_arr = (ArrayType*)type->contained_type;
+
+        const u32 count = type->size;
+
+        // type check the actual ammount is right
+        // TODO: this should allow not specifing the full ammount but for now just keep it simple
+        if(count != node_len)
+        {
+            panic(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d\n",type_name(itl,(Type*)type).buf,count,node_len);
+            return;
+        }        
+
+        for(u32 n = 0; n < node_len; n++)
+        {
+            AstNode* node = list->nodes[n];
+
+            // descend each sub initializer until we hit one containing values
+            // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
+            switch(node->type)
+            {
+                case ast_type::initializer_list:
+                {
+                    compile_const_arr_list_internal(itl,(RecordNode*)node,next_arr,slot,offset);
+                    break;
+                }
+
+                case ast_type::string:
+                {
+                    unimplemented("const array string");
+                }
+
+                // handle an array (this should fufill the current "depth req in its entirety")
+                default:
+                {
+                    unimplemented("arr initializer with array");
+                    break;            
+                }
+            }
+        }
+    }
+
+    // we are getting to the value assigns!
+    else
+    {  
+        Type* base_type = type->contained_type;
+
+        const u32 size = type_size(itl,base_type);
+
+        // seperate loop incase we need to handle initializers
+        if(is_struct(base_type))
+        {
+            unimplemented("const array of structs");
+        }
+
+        // normal types
+        else
+        {
+            for(u32 i = 0; i < node_len; i++)
+            {
+                auto data = compile_const_expression(itl,list->nodes[i]);
+                check_assign_init(itl,base_type,data.type);
+
+                write_const_data(itl,slot,*offset,data);
+                *offset = *offset + size;
+            }
+        }           
+    } 
+}
+
+PoolSlot add_const_vla(Interloper& itl, Symbol& array, PoolSlot data_slot,u64 len)
+{
+    static_assert(GPR_SIZE == 8);
+
+    // alloc vla struct
+    const auto vla_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,GPR_SIZE * 2);
+    auto& vla_section = pool_section_from_slot(itl.const_pool,vla_slot);
+
+    // write in the data
+    write_const_pool_pointer(itl.const_pool,vla_section,0,data_slot); 
+    write_const_pool(itl.const_pool,vla_section,GPR_SIZE,len);
+
+    array.reg.offset = vla_slot.handle;
+
+    return vla_slot;
+}
+
+// returns data slot
+PoolSlot add_const_fixed_array(Interloper& itl, Symbol& array)
+{
+    // okay now reinit subsizes now we know the complete type
+    init_arr_sub_sizes(itl,(Type*)array.type);
+    
+    // preallocate the arr data
+    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
+    const u32 data_size = arr_size * arr_count;
+
+    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
+
+    // add array pointer
+    const auto pointer_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,GPR_SIZE);
+    auto& pointer_section = pool_section_from_slot(itl.const_pool,pointer_slot);
+
+    // mark as location
+    array.reg.offset = pointer_slot.handle;
+
+    write_const_pool_pointer(itl.const_pool,pointer_section,0,data_slot);
+
+    return data_slot;    
 }
 
 void compile_const_arr_initializer_list(Interloper& itl, Symbol& array, AstNode* node)
 {
+    if(is_runtime_size(array.type))
+    {
+        panic(itl,itl_error::array_type_error,"Cannot use initializer list with vla\n");
+        return;
+    }
+
     // scan each part of initializer quickly
     // and determine the size, so we can figure out how
     // much we need to alloc into the pool 
@@ -426,28 +652,16 @@ void compile_const_arr_initializer_list(Interloper& itl, Symbol& array, AstNode*
         }
     }
 
-
-    // okay now reinit subsizes now we know the complete type
-    init_arr_sub_sizes(itl,(Type*)array.type);
-    
-    // preallocate the arr data
-    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
-    const u32 data_size = arr_size * arr_count;
-
-    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
-
-    // add array pointer
-    const auto pointer_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,GPR_SIZE);
-    auto& pointer_section = pool_section_from_slot(itl.const_pool,pointer_slot);
-
-    write_const_pool_pointer(itl.const_pool,pointer_section,0,data_slot);
+    // prealloc data inside the const pool for this
+    const auto data_slot = add_const_fixed_array(itl,array);
 
     // actually insert the data into the const pool for the list
-    compile_const_arr_list_internal(itl,record_node,(ArrayType*)array.type,data_slot,0);
+    u32 offset = 0;
+    compile_const_arr_list_internal(itl,record_node,(ArrayType*)array.type,data_slot,&offset);
 }
 
 
-void compile_constant_decl(Interloper& itl, Symbol& sym, AstNode* node)
+void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
 {
     // switch on top level expression
     // check it is correct for the kind of type we expect from this assignment
@@ -542,9 +756,46 @@ void compile_constant_decl(Interloper& itl, Symbol& sym, AstNode* node)
                 break;
             }
 
+            case ast_type::string:
+            {
+                if(!is_string(sym.type))
+                {
+                    panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,sym.type).buf);
+                    return;
+                }
+
+                LiteralNode* literal_node = (LiteralNode*)node;
+                const String literal = literal_node->literal;
+
+                ArrayType* array_type = (ArrayType*)sym.type;
+
+                if(is_runtime_size(sym.type))
+                {
+                    unimplemented("runtime size const string lit");
+                }
+
+                // fixed size
+                else
+                {
+                    // handle auto sizing
+                    if(array_type->size == DEDUCE_SIZE)
+                    {
+                        array_type->size = literal.size;
+                    }
+
+                    const auto data_slot = add_const_fixed_array(itl,sym); 
+                    auto& section = pool_section_from_slot(itl.const_pool,data_slot);
+
+                    // copy the string in
+                    write_const_pool(itl.const_pool,section,0,literal.buf,literal.size);           
+                }
+                break;
+            }
+
             default:
             {
                 unimplemented("arbitary assign const array");
+                break;
             }
         }
     }
@@ -572,18 +823,9 @@ void compile_constant_decl(Interloper& itl, Symbol& sym, AstNode* node)
 }
 
 
-
-
-void compile_constant(Interloper& itl, GlobalDeclNode* node)
+void compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
 {
-    // setup the correct file for error reporting
-    itl.cur_file = node->filename;
-
-    itl.cur_expr = (AstNode*)node;
-
     // pull type and name so we can create a symbol
-    DeclNode* decl_node = node->decl;
-
     const auto name = decl_node->name;
 
     if(symbol_exists(itl.symbol_table,name))
@@ -599,10 +841,20 @@ void compile_constant(Interloper& itl, GlobalDeclNode* node)
     Type* type = get_type(itl,decl_node->type);
 
     // add into table
-    auto& sym = add_global(itl,name,type,true);
+    auto& sym = global? add_global(itl,name,type,true) : add_symbol(itl,name,type);
 
     // compile the expression
-    compile_constant_decl(itl,sym,decl_node->expr);
+    compile_constant_initializer(itl,sym,decl_node->expr);    
+}
+
+void compile_constant(Interloper& itl, GlobalDeclNode* node)
+{
+    // setup the correct file for error reporting
+    itl.cur_file = node->filename;
+
+    itl.cur_expr = (AstNode*)node;
+
+    compile_constant_decl(itl,node->decl,true);
 }
 
 void compile_constants(Interloper& itl)

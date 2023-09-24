@@ -9,8 +9,24 @@ struct Point
 constant point : Point = {3,5};
 */
 
-/*
+
+// constant HELLO : string = "Hello";
+
 constant TABLE : u32[?] = {1,2,3,4,5};
+
+/*
+func sum_arr(arr : const u32[]) s32
+{
+    ans : s32 = 0;
+
+    for(i : u32 = 0; i < arr.len; i += 1)
+    {
+        ans += arr[i];
+    }
+
+    return ans;
+}
+*/
 
 func sum_arr() s32
 {
@@ -23,17 +39,23 @@ func sum_arr() s32
 
     return ans;
 }
-*/
 
 // expected 32
 func main() s32
 {
+    // test basic
     res1 := (u32.size * BITS_IN_BYTE) == 32;
 
-    //res2 := sum_arr(TABLE) == 15;
-    res2 := true;
+    // test arr
+    // res2 := sum_arr(TABLE) == 15;
+    res2 := sum_arr() == 15;
 
+    // test struct
     //product := point.x * point.y;
+
+    // test array of structs
+
+    // test string
 
     ans := res1 && res2;
 

@@ -56,7 +56,8 @@ func print_int(v : u64, base : u32)
         return;
     }
 
-    DIGIT_CHAR : const c8[?] = "0123456789ABCDEF";
+    // integer to char lut
+    constant DIGIT_CHAR : c8[?] = "0123456789ABCDEF";
 
     buf : c8[MAX_INT_CHARS] = {?};
     digits : u32 = 0;

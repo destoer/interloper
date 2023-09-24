@@ -1920,6 +1920,12 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             {
                 compile_decl(itl,func,line);
                 break;
+            }
+
+            case ast_type::const_decl:
+            {
+                compile_constant_decl(itl,(DeclNode*)line,false);
+                break;
             }           
 
 
