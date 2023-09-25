@@ -1,4 +1,4 @@
-/*
+
 struct Point
 {
     x : u32;
@@ -6,15 +6,15 @@ struct Point
 };
 
 
-constant point : Point = {3,5};
-*/
+constant POINT : Point = {3,4};
 
 
 // constant HELLO : string = "Hello";
 
 constant TABLE : u32[?] = {1,2,3,4,5};
 
-/*
+constant STRUCT_TABLE : Point[?] = {{2,10},{3,7}};
+
 func sum_arr(arr : const u32[]) s32
 {
     ans : s32 = 0;
@@ -26,19 +26,7 @@ func sum_arr(arr : const u32[]) s32
 
     return ans;
 }
-*/
 
-func sum_arr() s32
-{
-    ans : s32 = 0;
-
-    for(i : u32 = 0; i < TABLE.len; i += 1)
-    {
-        ans += TABLE[i];
-    }
-
-    return ans;
-}
 
 // expected 32
 func main() s32
@@ -47,17 +35,18 @@ func main() s32
     res1 := (u32.size * BITS_IN_BYTE) == 32;
 
     // test arr
-    // res2 := sum_arr(TABLE) == 15;
-    res2 := sum_arr() == 15;
-
-    // test struct
-    //product := point.x * point.y;
-
-    // test array of structs
+    res2 := sum_arr(TABLE) == 15;
 
     // test string
 
-    ans := res1 && res2;
+
+    // test struct
+    res3 := (POINT.x * POINT.y) == 12;
+
+    // test array of structs
+    res4 := ((STRUCT_TABLE[0].x * STRUCT_TABLE[0].y) + (STRUCT_TABLE[1].x * STRUCT_TABLE[1].y)) == 41;
+    
+    ans := res1 && res2 && res3 && res4;
 
     return cast(s32,ans);
 }

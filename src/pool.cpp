@@ -143,3 +143,32 @@ PoolSlot push_const_pool_string(ConstPool& pool, const String& literal)
 {
     return push_const_pool(pool,pool_type::string_literal,literal.buf,literal.size);
 }
+
+void write_const_pool_vla(ConstPool& const_pool, PoolSection& vla_section, u32 offset, PoolSlot data_slot, u64 len)
+{
+    // write in the data
+    write_const_pool_pointer(const_pool,vla_section,0 + offset,data_slot); 
+    write_const_pool(const_pool,vla_section,GPR_SIZE + offset,len);    
+}
+
+PoolSlot push_const_pool_vla(ConstPool& const_pool,PoolSlot data_slot, u64 len)
+{
+    // alloc vla struct
+    const auto vla_slot = reserve_const_pool_section(const_pool,pool_type::var,GPR_SIZE * 2);
+    auto& vla_section = pool_section_from_slot(const_pool,vla_slot);
+
+    write_const_pool_vla(const_pool,vla_section,0,data_slot,len);
+
+    return vla_slot;
+}
+
+PoolSlot push_const_pool_fixed_array(ConstPool& const_pool, PoolSlot data_slot)
+{
+    // add array pointer
+    const auto pointer_slot = reserve_const_pool_section(const_pool,pool_type::var,GPR_SIZE);
+    auto& pointer_section = pool_section_from_slot(const_pool,pointer_slot);
+
+    write_const_pool_pointer(const_pool,pointer_section,0,data_slot);
+
+    return pointer_slot;    
+}

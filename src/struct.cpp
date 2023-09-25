@@ -397,7 +397,6 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
 
             *offset += 0;
 
-            // this should probably be better typed
             return std::pair{make_pointer(itl,array_type->contained_type),slot};
         }
 
@@ -670,7 +669,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
 
     if(node_len != member_size)
     {
-        panic(itl,itl_error::undeclared,"arr initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        panic(itl,itl_error::undeclared,"struct initlizier missing initlizer expected %d got %d\n",member_size,node_len);
         return;
     }
     
