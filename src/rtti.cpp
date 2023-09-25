@@ -209,7 +209,7 @@ SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
 {
     const PoolSlot pool_slot = make_rtti(itl,type);
 
-    return pool_addr_res(itl,func,pool_slot);
+    return pool_addr_res(itl,func,pool_slot,0);
 }
 
 u32 promote_size(u32 size)
@@ -294,7 +294,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
 
         // push the data offset
         const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
-        const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
+        const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
 
         if(handle_storage)
         {

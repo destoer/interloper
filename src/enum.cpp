@@ -32,54 +32,64 @@ void print_enum(Enum& enumeration)
     printf("}\n");       
 }
 
-void enum_decl(Interloper& itl,Parser& parser, const String& filename)
+void compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
+
+void parse_enum_def(Interloper& itl, TypeDef& def)
 {
-    const auto name_tok = next_token(parser);
+    EnumNode* node = (EnumNode*)def.root;    
 
-    if(name_tok.type != token_type::symbol)
-    {
-        panic(itl,itl_error::missing_name,"Expected symbol for enum name got %s\n",tok_name(name_tok.type));
-        return;
-    }
+    itl.cur_file = node->filename;
 
-    consume(parser,token_type::left_c_brace);
-
-    // NOTE: at present there doesn't seem to be  a good reason to put this into a ast and parse it
-    // it makes more sense just to immediatly pull the definition
     Enum enumeration;
 
-    enumeration.name = name_tok.literal;
-    enumeration.filename = filename;
-    enumeration.member_map = make_table<String,EnumMember>();
-
-    TypeDecl* type_decl = lookup(itl.type_table,enumeration.name);
-
-    if(type_decl)
+    // this is an enum struct
+    if(node->struct_name != "")
     {
-        panic(itl,itl_error::redeclaration,"%s %s redeclared as enum\n",KIND_NAMES[u32(type_decl->kind)],enumeration.name.buf);
-        destroy_enum(enumeration);
-        return;
+        // check we have a valid struct
+        TypeDecl* type_decl = lookup_type(itl,node->struct_name);
+
+        if(!type_decl)
+        {
+            panic(itl,itl_error::struct_error,"no such struct %s for enum struct %s\n",node->struct_name.buf,node->name.buf);
+            return; 
+        }
+
+        if(type_decl->kind != type_kind::struct_t)
+        {
+            panic(itl,itl_error::struct_error,"type %s is not a struct for enum struct %s\n",node->struct_name.buf,node->name.buf);
+            return;        
+        }
+
+        // mark struct idx
+        enumeration.struct_idx = type_decl->type_idx;
+
+        // reserve space for it inside the const pool
+        const u32 data_size = itl.struct_table[enumeration.struct_idx].size * count(node->member);
+        enumeration.struct_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
     }
+
+    // reset filename incase struct clobbers it
+    itl.cur_file = node->filename;
+
+    // setup enum info
+    enumeration.name = node->name;
+    enumeration.filename = node->filename;
+    enumeration.member_map = make_table<String,EnumMember>();
 
     u32 member_count = 0;
 
-    while(!match(parser,token_type::right_c_brace))
+    // parse each enum member
+    for(u32 m = 0; m < count(node->member); m++)
     {
-        const auto member_tok = next_token(parser);
-
-        if(member_tok.type != token_type::symbol)
-        {
-            panic(itl,itl_error::missing_name,"Expected symbol for enum %s member got %s\n",enumeration.name.buf,tok_name(member_tok.type));
-            destroy_enum(enumeration);
-            return;
-        }
+        const EnumMemberDecl& member_decl = node->member[m];
 
         // create member and give it a internal value representation
         EnumMember member;
 
-        member.name = member_tok.literal;
+        member.name = member_decl.name;
         member.value = member_count++;
 
+        // check for duplicate members
         if(contains(enumeration.member_map,member.name))
         {
             panic(itl,itl_error::redeclaration,"Enum %s member %s redefined!\n",enumeration.name.buf,member.name.buf);
@@ -87,15 +97,36 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
             return;
         }
 
+        // compile in member access
+        if(enumeration.struct_idx != INVALID_TYPE_IDX)
+        {
+            auto& structure = itl.struct_table[enumeration.struct_idx];
+
+            switch(member_decl.initializer->type)
+            {
+                case ast_type::initializer_list:
+                {
+                    const u32 offset = m * structure.size;
+
+                    compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);
+                    break;
+                }
+
+                default:
+                {
+                    unimplemented("enum struct expr init");
+                    break;
+                }
+            }
+
+        }
+
 
         // add member to enum
         add(enumeration.member_map,member.name,member);
-
-        consume(parser,token_type::comma);
     }
 
-    consume(parser,token_type::right_c_brace);
-
+    // finally add enum into type table
     const u32 slot = count(itl.enum_table);
     enumeration.type_idx = slot;
 
@@ -109,13 +140,13 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
 }
 
 
+
 Enum enum_from_type(EnumTable& enum_table, const Type* type)
 {
     EnumType* enum_type = (EnumType*)type;
 
     return enum_table[enum_type->enum_idx];
 }   
-
 
 
 Type* make_enum_type(Interloper& itl,Enum& enumeration)

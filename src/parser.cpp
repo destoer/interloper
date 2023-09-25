@@ -1,6 +1,5 @@
 #include <interloper.h>
 #include "expression.cpp"
-#include "enum.cpp"
 
 void type_panic(Parser &parser);
 BlockNode *block(Parser &parser);
@@ -1219,6 +1218,97 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
     add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, filename);
 }
 
+void enum_decl(Interloper& itl,Parser& parser, const String& filename)
+{
+    const auto name_tok = next_token(parser);
+
+    if(name_tok.type != token_type::symbol)
+    {
+        panic(itl,itl_error::missing_name,"Expected symbol for enum name got %s\n",tok_name(name_tok.type));
+        return;
+    }
+
+
+    // check redeclaration
+    TypeDef* type_def = lookup(itl.type_def,name_tok.literal);
+
+    if(type_def)
+    {
+        panic(itl,itl_error::redeclaration,"%s %s redeclared as enum\n",KIND_NAMES[u32(type_def->kind)],name_tok.literal.buf);
+        return;
+    }
+
+    String struct_name = "";
+    b32 enum_struct = false;
+
+    if(match(parser,token_type::colon))
+    {
+        consume(parser,token_type::colon);
+
+        if(match(parser,token_type::symbol))
+        {
+            const auto struct_tok = next_token(parser);
+            struct_name = struct_tok.literal;
+            enum_struct = true;
+        }
+
+        else
+        {
+            panic(parser,next_token(parser),"Expected symbol for struct name got %s\n",tok_name(name_tok.type));
+            return;            
+        }
+    }
+
+    consume(parser,token_type::left_c_brace);
+
+    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,struct_name,filename,name_tok);
+
+    // push each member till we hit the terminating brace
+    while(!match(parser,token_type::right_c_brace))
+    {
+        const auto member_tok = next_token(parser);
+
+        if(member_tok.type != token_type::symbol)
+        {
+            panic(parser,member_tok,"Expected symbol for enum %s member got %s\n",name_tok.literal.buf,tok_name(member_tok.type));
+            return;
+        }
+
+        EnumMemberDecl member;
+        member.name = member_tok.literal;
+
+        // if we have an enum struct parse the intializer too
+        if(enum_struct)
+        {
+            consume(parser,token_type::equal);
+
+            token_type term;
+
+            AstNode* initializer = expr_terminate(parser,"enum struct init",token_type::comma,term);
+
+            member.initializer = initializer;
+        }
+
+        else
+        {
+            consume(parser,token_type::comma);
+        }
+
+        push_var(enum_node->member,member);        
+    }
+
+    consume(parser,token_type::right_c_brace);
+
+    // semi colon after decl is optional
+    if(match(parser,token_type::semi_colon))
+    {
+        consume(parser,token_type::semi_colon);
+    }
+
+    // add the type decl
+    add_type_def(itl, def_kind::enum_t,(AstNode*)enum_node, enum_node->name, filename);
+}
+
 StringBuffer read_source_file(const String& filename)
 {
     auto [file,err] = read_str_buf(filename);
@@ -1486,7 +1576,7 @@ void print(const AstNode *root, b32 override_seperator)
     }
 
 
-    if(!override_seperator && (root->type == ast_type::function || root->type == ast_type::struct_t))
+    if(!override_seperator && (root->type == ast_type::function || root->type == ast_type::struct_t || root->type == ast_type::enum_t))
     {
         printf("\n\n\n");
     }
@@ -1586,6 +1676,27 @@ void print(const AstNode *root, b32 override_seperator)
             }                        
 
             break;
+        }
+
+        case ast_fmt::enum_t:
+        {
+            EnumNode* enum_node = (EnumNode*) root;
+
+            printf("enum %s:%s : %s\n",enum_node->filename.buf,enum_node->name.buf,enum_node->struct_name.buf);
+
+            
+            for(u32 m = 0; m < count(enum_node->member); m++)
+            {
+                // we store this directly as its not used anywher else
+                // fake the depth print
+                depth += 1;
+                print_depth(depth);
+
+                printf("member %s: \n",enum_node->member[m].name.buf);
+                print(enum_node->member[m].initializer);
+                depth -= 1;
+            }
+            break;           
         }
 
         case ast_fmt::char_t:

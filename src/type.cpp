@@ -1953,6 +1953,7 @@ b32 type_exists(Interloper& itl, const String& name)
 
 void parse_struct_def(Interloper& itl, TypeDef& def);
 void parse_alias_def(Interloper& itl, TypeDef& def);
+void parse_enum_def(Interloper& itl, TypeDef& def);
 
 void parse_def(Interloper& itl, TypeDef& def)
 {
@@ -1975,10 +1976,9 @@ void parse_def(Interloper& itl, TypeDef& def)
                 break;
             }
 
-            // NOTE: for now there is no need to parse enums late so this just stays the same
             case def_kind::enum_t: 
             {
-                assert(false);
+                parse_enum_def(itl,def);
                 break;
             }
         }

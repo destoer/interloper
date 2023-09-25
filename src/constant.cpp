@@ -272,6 +272,47 @@ bool compile_const_bool_expression(Interloper& itl, AstNode* node)
 void compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
 
 
+u32 const_write_in_string(Interloper& itl, LiteralNode* literal_node, Type* type, PoolSlot slot, u32 offset)
+{
+    if(!is_string(type))
+    {
+        panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)type).buf);
+        return offset;
+    }
+
+    ArrayType* array_type = (ArrayType*)type;
+
+    const String literal = literal_node->literal;
+
+    auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+    if(is_runtime_size(array_type))
+    {
+        // add string into const pool
+        const auto data_slot = push_const_pool_string(itl.const_pool,literal);
+
+        // write in vla data
+        write_const_pool_vla(itl.const_pool,section,offset,data_slot,literal.size);
+        offset += VLA_SIZE;
+    }
+
+    // fixed size
+    else
+    {
+        if(array_type->size < literal.size)
+        {
+            panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
+            return offset;
+        }
+
+        // copy the string in
+        write_const_pool(itl.const_pool,section,offset,literal.buf,literal.size);
+        offset += array_type->size * sizeof(char);           
+    }
+
+    return offset;    
+}
+
 void compile_const_arr_list_internal(Interloper& itl,RecordNode* list, ArrayType* type, PoolSlot slot, u32* offset)
 {
     if(itl.error)
@@ -318,40 +359,7 @@ void compile_const_arr_list_internal(Interloper& itl,RecordNode* list, ArrayType
 
                 case ast_type::string:
                 {
-                    if(!is_string(next_arr))
-                    {
-                        panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)next_arr).buf);
-                        return;
-                    }
-
-                    LiteralNode* literal_node = (LiteralNode*)node;
-                    const String literal = literal_node->literal;
-
-                    auto& section = pool_section_from_slot(itl.const_pool,slot);
-
-                    if(is_runtime_size(next_arr))
-                    {
-                        // add string into const pool
-                        const auto data_slot = push_const_pool_string(itl.const_pool,literal);
-
-                        // write in vla data
-                        write_const_pool_vla(itl.const_pool,section,*offset,data_slot,literal.size);
-                        *offset += VLA_SIZE;
-                    }
-
-                    // fixed size
-                    else
-                    {
-                        if(next_arr->size < literal.size)
-                        {
-                            panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,next_arr->size);
-                            return;
-                        }
-
-                        // copy the string in
-                        write_const_pool(itl.const_pool,section,*offset,literal.buf,literal.size);
-                        *offset += next_arr->size * sizeof(char);           
-                    }
+                    *offset = const_write_in_string(itl,(LiteralNode*)node,(Type*)next_arr,slot,*offset);
                     break;
                 }
 
@@ -506,37 +514,47 @@ void compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const 
         const auto member = structure.members[i];
     
         // either sub struct OR array member initializer
-        if(list->nodes[i]->type == ast_type::initializer_list)
+        switch(list->nodes[i]->type)
         {
-            if(is_array(member.type))
+            case ast_type::initializer_list:
             {
-               u32 arr_offset = offset + member.offset;
-               auto type = member.type;
+                if(is_array(member.type))
+                {
+                    u32 arr_offset = offset + member.offset;
+                    auto type = member.type;
 
-               compile_const_arr_list_internal(itl,(RecordNode*)list->nodes[i],(ArrayType*)type,slot,&arr_offset);
+                    compile_const_arr_list_internal(itl,(RecordNode*)list->nodes[i],(ArrayType*)type,slot,&arr_offset);
+                }
+
+                else if(is_struct(member.type))
+                {
+                    const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
+                    compile_const_struct_list_internal(itl,(RecordNode*)list->nodes[i],sub_struct,slot,offset + member.offset);
+                }
+
+                else
+                {
+                    panic(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
+                    return;
+                }
+                break;
             }
 
-            else if(is_struct(member.type))
+            case ast_type::string:
             {
-                const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-                compile_const_struct_list_internal(itl,(RecordNode*)list->nodes[i],sub_struct,slot,offset + member.offset);
+                const_write_in_string(itl,(LiteralNode*)list->nodes[i],member.type,slot,offset + member.offset);
+                break;
             }
 
-            else
+            // we have a list of plain values we can actually initialize
+            default:
             {
-                panic(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
-                return;
+                // get the operand and type check it
+                const auto data = compile_const_expression(itl,list->nodes[i]);
+                check_assign(itl,member.type,data.type);
+
+                write_const_data(itl,slot,member.offset + offset,data);
             }
-        }
-
-        // we have a list of plain values we can actually initialize
-        else
-        {
-            // get the operand and type check it
-            const auto data = compile_const_expression(itl,list->nodes[i]);
-            check_assign(itl,member.type,data.type);
-
-            write_const_data(itl,slot,member.offset + offset,data);
         }
     }     
 }
@@ -765,6 +783,7 @@ void compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
     auto& sym = global? add_global(itl,name,type,true) : add_symbol(itl,name,type);
 
     // make sure this is marked as constant
+    // incase it is declared locally
     sym.reg.kind = reg_kind::constant;
 
     // compile the expression

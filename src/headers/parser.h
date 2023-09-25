@@ -19,6 +19,7 @@ enum class ast_type
     const_assert,
     cast,
     sizeof_t,
+    enum_t,
     struct_t,
     scope,
     type_alias,
@@ -120,6 +121,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "cast",
     "sizeof",
     "struct",
+    "enum",
     "scope",
     "type_alias",
 
@@ -210,6 +212,7 @@ enum class ast_fmt
     value,
     function,
     struct_t,
+    enum_t,
     char_t,
     type,
     declaration,
@@ -237,6 +240,7 @@ inline const char *FMT_NAMES[] =
     "value",
     "function",
     "struct",
+    "enum",
     "char",
     "type",
     "declaration",
@@ -392,6 +396,24 @@ struct StructNode
     Array<DeclNode*> members;
     // is there a member forced to be first in the memory layout?
     DeclNode* forced_first = nullptr;
+};
+
+struct EnumMemberDecl
+{
+    String name;
+    AstNode* initializer = nullptr;
+};
+
+struct EnumNode
+{
+    AstNode node;
+
+    String name;
+    String filename;
+    Array<EnumMemberDecl> member;
+
+    // do we have a struct?
+    String struct_name = "";
 };
 
 
@@ -777,6 +799,19 @@ AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& fie
     builtin_access->field = field;
 
     return (AstNode*)builtin_access;
+}
+
+AstNode* ast_enum(Parser& parser, const String& name,const String& struct_name, const String& filename, const Token& token)
+{
+    EnumNode* enum_node = alloc_node<EnumNode>(parser,ast_type::enum_t,ast_fmt::enum_t,token);
+
+    enum_node->name = name;
+    enum_node->filename = filename;
+    enum_node->struct_name = struct_name;
+    
+    add_ast_pointer(parser,&enum_node->member.data);
+
+    return (AstNode*)enum_node;    
 }
 
 // scan file for row and column info

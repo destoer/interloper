@@ -5,7 +5,6 @@ struct FaceData
     value : u32 = 0;
 };
 
-// TODO: we want constant structs before we impl this
 enum face_type : FaceData
 {
     ace = {"Ace",11},
@@ -23,9 +22,11 @@ enum face_type : FaceData
     queen = {"Q",10},
 };
 
+// expected 11
+
 func main() s32
 {
-    face : face_type = face_type::ace;
+    ace : face_type = face_type::ace;
 
     return ace.value;
 }

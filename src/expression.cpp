@@ -434,8 +434,9 @@ AstNode *nud(Parser &parser, const Token &t)
                 push_var(init->nodes,e);
             }
 
-            // allow trailing comma 
-            if(parser.expr_tok.type == token_type::comma && match(parser,token_type::right_c_brace))
+            // allow trailing comma if
+            // NOTE: if its the terminator we just ignore it so the term cond goes in properly
+            if(parser.terminating_tok != token_type::comma && parser.expr_tok.type == token_type::comma && match(parser,token_type::right_c_brace))
             {
                 next_expr_token(parser);
             }

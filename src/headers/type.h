@@ -269,7 +269,13 @@ struct Enum
 
     HashTable<String,EnumMember> member_map;
 
+    // self referential idx
     u32 type_idx;
+
+    // idx of struct for enum struct
+    u32 struct_idx = INVALID_TYPE_IDX;
+
+    PoolSlot struct_slot;
 };
 
 

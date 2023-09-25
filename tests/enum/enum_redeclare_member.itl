@@ -8,5 +8,7 @@ enum foo
 
 func main() s32 
 {
+    v : foo = foo::v1;
+
     return 0;
 }

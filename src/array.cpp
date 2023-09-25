@@ -300,7 +300,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                             // we can set this up directly from the const pool
                             const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
 
-                            const SymSlot arr_data = pool_addr_res(itl,func,pool_slot);
+                            const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
                             store_ptr(itl,func,arr_data,addr_slot,0 + *offset,GPR_SIZE);
 
                             const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
@@ -494,7 +494,7 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
                     // we can set this up directly from the const pool
                     const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
 
-                    const SymSlot arr_data = pool_addr_res(itl,func,pool_slot);
+                    const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
                     store_arr_data(itl,func,arr_slot,arr_data);
 
                     const SymSlot arr_size = mov_imm_res(itl,func,literal.size);

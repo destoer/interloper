@@ -113,7 +113,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                 // push the data offset
                 const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
 
-                const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot);
+                const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
                 push_arg(itl,func,addr_slot);
 
                 arg_clean += 2;

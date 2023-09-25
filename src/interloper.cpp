@@ -45,6 +45,7 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "optimize.cpp"
 #include "ir.cpp"
 #include "struct.cpp"
+#include "enum.cpp"
 #include "rtti.cpp"
 #include "func.cpp"
 #include "array.cpp"
@@ -1087,7 +1088,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         
         // reserve space for the table inside the constant pool
         const PoolSlot pool_slot = reserve_const_pool_section(itl.const_pool,pool_type::jump_table,GPR_SIZE * range);
-        const SymSlot table_addr = pool_addr_res(itl,func,pool_slot);
+        const SymSlot table_addr = pool_addr_res(itl,func,pool_slot,0);
 
         // get address in the tabel we want
         const SymSlot final_offset = add_res(itl,func,table_addr,table_index);

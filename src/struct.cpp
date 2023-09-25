@@ -78,18 +78,6 @@ std::optional<Member> get_member(StructTable& struct_table, const Type* type, co
 }
 
 
-void parse_struct_decl(Interloper& itl, TypeDef& def);
-
-void parse_struct_def(Interloper& itl, TypeDef& def)
-{
-    // mark struct as being parsed so we can check for recursion
-    def.state = def_state::checking;
-    parse_struct_decl(itl,def);
-
-    // mark as checked so that we know we dont have to recheck the decl
-    def.state = def_state::checked;
-}
-
 static constexpr u32 OFFSET_FORCED_FIRST = 0xffff'ffff;
 
 std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
@@ -294,7 +282,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-void parse_struct_decl(Interloper& itl, TypeDef& def)
+void parse_struct_def(Interloper& itl, TypeDef& def)
 {
     StructNode* node = (StructNode*)def.root;
 

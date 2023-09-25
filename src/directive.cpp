@@ -63,15 +63,15 @@ void emit_exit_block(Interloper& itl, Function& func)
     emit_implicit<op_type::exit_block>(itl,func);
 }
 
-void pool_addr(Interloper& itl, Function& func, SymSlot dst_slot, PoolSlot pool_slot)
+void pool_addr(Interloper& itl, Function& func, SymSlot dst_slot, PoolSlot pool_slot, u32 offset)
 {
-    emit_directive_dst1<op_type::pool_addr>(itl,func,dst_slot,pool_slot.handle,0);
+    emit_directive_dst1<op_type::pool_addr>(itl,func,dst_slot,pool_slot.handle,offset);
 }
 
-SymSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot)
+SymSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 offset)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
-    pool_addr(itl,func,tmp,pool_slot);
+    pool_addr(itl,func,tmp,pool_slot,offset);
 
     return tmp;
 }
