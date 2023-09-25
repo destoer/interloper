@@ -498,7 +498,7 @@ std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& fu
     const SymSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
 
     // compute final addr
-    add(itl,func,struct_slot,enum_table_slot,table_offset);
+    struct_slot = add_res(itl,func,enum_table_slot,table_offset);
 
     return std::pair{enum_struct_member.type,struct_slot};
 }
