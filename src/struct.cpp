@@ -435,7 +435,6 @@ std::pair<Type*,SymSlot> access_struct_member(Interloper& itl, Function& func, S
 }
 
 
-// NOTE: this will just panic if the member name if invalid
 std::optional<u32> member_offset(Struct& structure, const String& name)
 {
     auto member_opt = get_member(structure,name);
@@ -449,6 +448,61 @@ std::optional<u32> member_offset(Struct& structure, const String& name)
     return std::optional{member.offset};
 }
 
+std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& func, SymSlot struct_slot,Type* struct_type,b32 enum_base_access,
+    const String& member_name, u32* member_offset)
+{
+    const auto& enumeration = enum_from_type(itl.enum_table,struct_type);
+
+    if(enumeration.struct_idx == INVALID_TYPE_IDX)
+    {
+        panic(itl,itl_error::struct_error,"member access on plain enum %s\n",enumeration.name.buf);
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                      
+    }
+
+    // pull info on enum struct member
+    auto& enum_struct = itl.struct_table[enumeration.struct_idx];
+
+    const auto enum_struct_member_opt = get_member(enum_struct, member_name);
+
+    if(!enum_struct_member_opt)
+    {
+        panic(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,struct_type).buf);
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                
+    }
+
+    const auto& enum_struct_member = enum_struct_member_opt.value();
+
+    // finally index the table
+    *member_offset = enum_struct_member.offset;
+
+    // get the start of the table
+    const auto enum_table_slot = pool_addr_res(itl,func,enumeration.struct_slot,0);
+
+    // get the enum index
+    SymSlot enum_slot = sym_from_idx(SYMBOL_NO_SLOT);
+    
+    // we allready directly have the enum
+    if(enum_base_access)
+    {
+        enum_slot = struct_slot;
+    }
+
+    // ordinary access on a pointer, we must deref it
+    else
+    {
+        enum_slot = new_tmp(func,GPR_SIZE);
+        load_ptr(itl,func,enum_slot,struct_slot,*member_offset,GPR_SIZE,false);
+    }
+
+    // scale index
+    const SymSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
+
+    // compute final addr
+    add(itl,func,struct_slot,enum_table_slot,table_offset);
+
+    return std::pair{enum_struct_member.type,struct_slot};
+}
+
 // return type, slot, offset
 std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
@@ -459,6 +513,9 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
     // Type is allways the accessed type of the current pointer
     SymSlot struct_slot = sym_from_idx(SYMBOL_NO_SLOT);
     Type* struct_type = nullptr;
+
+    // this is a member access on a enum that we directly have access too
+    b32 enum_base_access = false;
 
     // parse out initail expr
     switch(expr_node->type)
@@ -493,6 +550,13 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 if(is_fixed_array(sym.type))
                 {
                     struct_slot = sym.reg.slot;
+                }
+
+                // if this is an enum we will do a direct index with it
+                else if(is_enum(sym.type))
+                {
+                    struct_slot = sym.reg.slot;
+                    enum_base_access = true;
                 }
 
                 else
@@ -560,6 +624,17 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 else if(is_array(struct_type))
                 {
                     std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                }
+
+                // do enum member access
+                else if(is_enum(struct_type))
+                {
+                    std::tie(struct_type,struct_slot) = access_enum_struct_member(itl,func,struct_slot,struct_type,enum_base_access,member_name,&member_offset);
+                    enum_base_access = false;
+                    if(itl.error)
+                    {
+                        std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0}; 
+                    }
                 }
 
                 // actual struct member

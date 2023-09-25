@@ -106,6 +106,8 @@ void parse_enum_def(Interloper& itl, TypeDef& def)
             {
                 case ast_type::initializer_list:
                 {
+                    itl.cur_expr = (AstNode*)member_decl.initializer;
+                    
                     const u32 offset = m * structure.size;
 
                     compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);

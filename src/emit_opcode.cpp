@@ -18,6 +18,20 @@ void sub(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
     emit_reg3<op_type::sub_reg>(itl,func,dst,v1,v2);
 }
 
+void mul(Interloper& itl, Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
+{
+    emit_reg3<op_type::mul_reg>(itl,func,dst,v1,v2);
+}
+
+SymSlot mul_res(Interloper& itl, Function& func, SymSlot v1, SymSlot v2)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+
+    mul(itl,func,tmp,v1,v2);
+
+    return tmp;
+}
+
 void asr(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
     emit_reg3<op_type::asr_reg>(itl,func,dst,v1,v2);

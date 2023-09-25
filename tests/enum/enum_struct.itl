@@ -28,5 +28,7 @@ func main() s32
 {
     ace : face_type = face_type::ace;
 
+    print("{}\n",ace.name);
+
     return ace.value;
 }

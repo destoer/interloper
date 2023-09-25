@@ -1,20 +1,49 @@
-struct Card
+struct FaceData
 {
-    suit : u32;
-    face : u32;
+    name : const string;
+    value : u32 = 0;
 };
 
-// TODO: these should be constants but we dont support arrays yet
-constant SUIT : c8[?] = {'C','D','H','S'};
-constant FACE : string[?] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
-constant FACE_VALUE : u32[?] = {1,2,3,4,5,6,7,8,9,10,10,10,10};
+enum face_kind : FaceData
+{
+    ace = {"Ace",11},
+    two = {"Two",2},
+    three = {"Three",3},
+    four = {"Four",4},
+    five = {"Five",5},
+    six = {"Six",6},
+    seven = {"Seven",7},
+    eight = {"Eight",8},
+    nine = {"Nine",9},
+    ten = {"Ten",10},
+    jack = {"J",10},
+    king = {"K",10},
+    queen = {"Q",10},
+};
 
-constant ACE : u32 = 0;
+struct SuitData
+{
+    name : c8;
+};
+
+enum suit_kind : SuitData
+{
+    club = {'C'},
+    diamond = {'D'},
+    heart = {'H'},
+    spade = {'S'},
+}; 
+
+struct Card
+{
+    suit : suit_kind;
+    face : face_kind;
+};
+
 
 func print_card(card : const Card@)
 {
-    //print("{}:{} ",card.suit.name,card.face.name);
-    print("{}:{} ",SUIT[card.suit],FACE[card.face]);
+    print("{}:{} ",card.suit.name,card.face.name);
 }
 
 struct Hand
@@ -34,13 +63,13 @@ struct Deck
 
 func init_deck(deck : const Deck@)
 {
-    for(s : u32 = 0; s < SUIT.len; s += 1)
+    for(s : u32 = 0; s < suit_kind.len; s += 1)
     {
-        for(f : u32 = 0; f < FACE.len; f += 1)
+        for(f : u32 = 0; f < suit_kind.len; f += 1)
         {
-            idx := (s * FACE.len) + f;
-            deck.card[idx].suit = s;
-            deck.card[idx].face = f;
+            idx := (s * suit_kind.len) + f;
+            deck.card[idx].suit = cast(suit_kind,s);
+            deck.card[idx].face = cast(face_kind,f);
         }
     }
 }
@@ -68,14 +97,14 @@ func value_hand(hand : const Hand@) u64
 
         // special case ace
         // it wont bust us then value is 11
-        if(card.face == ACE && value <= 10)
+        if(card.face == face_kind::ace && value <= 10)
         {
             value += 11;
         }
 
         else
         {
-            value += FACE_VALUE[card.face];
+            value += card.face.value;
         }
     }
 
