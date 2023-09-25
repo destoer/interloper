@@ -615,6 +615,11 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                        std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
                     }
 
+                    else if(is_enum(pointer_type->contained_type))
+                    {
+                        unimplemented("struct member access by enum");
+                    }
+
                     else
                     {
                         std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
