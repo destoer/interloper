@@ -229,6 +229,8 @@ builtin_type cast_builtin(const Type *type)
     return builtin_type(type->type_idx);
 }
 
+static constexpr u32 ENUM_SIZE = 4;
+
 u32 type_size(Interloper& itl,const Type *type)
 {
     switch(type->type_idx)
@@ -246,7 +248,7 @@ u32 type_size(Interloper& itl,const Type *type)
 
         case ENUM:
         {
-            return sizeof(u32);
+            return ENUM_SIZE;
         }
 
         case ARRAY:

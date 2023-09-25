@@ -491,7 +491,7 @@ std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& fu
     else
     {
         enum_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,enum_slot,struct_slot,*member_offset,GPR_SIZE,false);
+        load_ptr(itl,func,enum_slot,struct_slot,*member_offset,ENUM_SIZE,false);
     }
 
     // scale index
@@ -514,7 +514,8 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
     SymSlot struct_slot = sym_from_idx(SYMBOL_NO_SLOT);
     Type* struct_type = nullptr;
 
-    // this is a member access on a enum that we directly have access too
+    // this indicates a member access on a enum that we directly have access to
+    // (i.e we dont waste time taking a pointer to it)
     b32 enum_base_access = false;
 
     // parse out initail expr

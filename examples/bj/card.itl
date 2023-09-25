@@ -96,7 +96,7 @@ func value_hand(hand : const Hand@) u64
         card := &hand.card[i];
 
         // special case ace
-        // it wont bust us then value is 11
+        // if it wont bust us then value is 11
         if(card.face == face_kind::ace && value <= 10)
         {
             value += 11;
