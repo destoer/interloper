@@ -605,6 +605,8 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 LiteralNode* member_node = (LiteralNode*)n;
                 const auto member_name = member_node->literal;
 
+                // TODO: can we simpllify this by just doing a pointer deref at the top level?
+                // and repeating the switch below
                 if(is_pointer(struct_type))
                 {
                     PointerType* pointer_type = (PointerType*)struct_type;

@@ -65,9 +65,9 @@ func init_deck(deck : const Deck@)
 {
     for(s : u32 = 0; s < suit_kind.len; s += 1)
     {
-        for(f : u32 = 0; f < suit_kind.len; f += 1)
+        for(f : u32 = 0; f < face_kind.len; f += 1)
         {
-            idx := (s * suit_kind.len) + f;
+            idx := (s * face_kind.len) + f;
             deck.card[idx].suit = cast(suit_kind,s);
             deck.card[idx].face = cast(face_kind,f);
         }
