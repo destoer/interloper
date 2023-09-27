@@ -202,47 +202,28 @@ ConstData make_const_builtin(u64 v, Type* type)
     return data;
 }
 
-
-void write_const_builtin(Interloper& itl,PoolSlot slot, u32 offset,const ConstData& data)
+void write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u64 v, u32 size)
 {
+    assert(size <= 8);
+
     auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+    if((offset + size) > section.size)
+    {
+        panic(itl,itl_error::out_of_bounds,"out of bounds write in const pool\n");
+        return;
+    } 
 
     // calc the read reqs
     const u32 addr = section.offset + offset;
+
+    memcpy(&itl.const_pool.buf.data[addr],&v,size);
+}
+
+void write_const_builtin(Interloper& itl,PoolSlot slot, u32 offset,const ConstData& data)
+{
     const u32 size = type_size(itl,data.type);
-
-    switch(size)
-    {
-        case 1:
-        {
-            write_mem<u8>(itl.const_pool.buf,addr,data.v);
-            break;
-        }
-
-        case 2:
-        {
-            write_mem<u16>(itl.const_pool.buf,addr,data.v);
-            break;
-        }
-
-        case 4:
-        {
-            write_mem<u32>(itl.const_pool.buf,addr,data.v);
-            break;
-        }
-
-        case 8:
-        {
-            write_mem<u64>(itl.const_pool.buf,addr,data.v);
-            break;
-        }
-
-        default:
-        {
-            crash_and_burn("invalid sized const builtin write");
-            break;
-        }
-    }
+    write_const_pool_mem(itl,slot,offset,data.v,size);
 }
 
 // used for writing into compound data, i.e structs, arrays
@@ -294,41 +275,31 @@ PoolSlot pool_slot_from_sym(const Symbol& sym)
     return pool_slot_from_idx(sym.reg.offset);
 }
 
-u64 builtin_from_const(Interloper& itl, Type* type,PoolSlot slot, u32 offset)
+u64 read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u32 size)
 {
+    assert(size <= 8);
+
     auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+    if((offset + size) > section.size)
+    {
+        panic(itl,itl_error::out_of_bounds,"out of bounds read in const pool\n");
+        return 0;
+    } 
 
     // calc the read reqs
     const u32 addr = section.offset + offset;
+
+    u64 v = 0;
+    memcpy(&v,&itl.const_pool.buf.data[addr],size);
+
+    return v;
+}
+
+u64 builtin_from_const(Interloper& itl, Type* type,PoolSlot slot, u32 offset)
+{
     const u32 size = type_size(itl,type);
-
-    switch(size)
-    {
-        case 1:
-        {
-            return read_mem<u8>(itl.const_pool.buf,addr);
-        }
-
-        case 2:
-        {
-            return read_mem<u16>(itl.const_pool.buf,addr);
-        }
-
-        case 4:
-        {
-            return read_mem<u32>(itl.const_pool.buf,addr);
-        }
-
-        case 8:
-        {
-            return read_mem<u64>(itl.const_pool.buf,addr);
-        }
-
-        default:
-        {
-            crash_and_burn("invalid sized const builtin read");
-        }
-    }
+    return read_const_pool_mem(itl,slot,offset,size);
 }
 
 ConstData read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset)

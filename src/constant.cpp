@@ -26,6 +26,115 @@ void check_const_cmp(Interloper& itl, Type* ltype, Type* rtype, logic_op type)
     }
 }
 
+void clip_const_type(ConstData& data, u32 size)
+{
+    switch(size)
+    {
+        case 1: data.v &= 0xff; break;
+        case 2: data.v &= 0xffff; break;
+        case 4: data.v &= 0xffff'ffff; break;
+        case 8: break;
+
+        default:
+        {
+            assert(false);
+        }
+    }    
+}
+
+void handle_const_cast(Interloper& itl, Type* new_type, ConstData& data)
+{
+    const Type* old_type = data.type;
+
+    // assign the new type
+    data.type = new_type; 
+
+    // handle side effects of the cast
+    // builtin type
+    if(is_plain_builtin(old_type) && is_plain_builtin(new_type))
+    {
+        const auto builtin_old = builtin_type(old_type->type_idx);
+        const auto builtin_new = builtin_type(new_type->type_idx);
+
+        // integer
+        // any cast is fine, just make sure to clip if the new type has smaller storage
+        if(is_integer(old_type) && is_integer(new_type))
+        {
+            // larger type -> smaller type
+            // truncate value (mask)
+            if(builtin_size(builtin_old) > builtin_size(builtin_new))
+            {
+                clip_const_type(data,builtin_size(builtin_new));
+            }
+        }
+
+        // bool to integer
+        // no conversion needd
+        else if(builtin_old == builtin_type::bool_t && is_integer(new_type))
+        {
+
+        } 
+
+        // integer to bool
+        // if integer is > 0, its true else false
+        else if(is_integer(old_type) && builtin_new == builtin_type::bool_t)
+        {
+            if(is_signed(old_type))
+            {
+                data.v = s64(data.v) > 0;
+            }
+
+            // unsigned
+            else
+            {
+                data.v = u64(data.v) > 0;
+            }
+        }        
+
+        else
+        {
+            panic(itl,itl_error::illegal_cast,"cannot cast %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
+        }
+    }
+
+    // cast from enum to int is fine
+    else if(is_enum(old_type) && is_integer(new_type))
+    {
+        
+    }
+
+    // as is integer to enum
+    else if(is_integer(old_type) && is_enum(new_type))
+    {
+        
+    }
+
+    // cast does nothing just move the reg, its only acknowledgement your doing something screwy
+    // NOTE: we will check size accesses on reads to ensure nothing goes wrong doing this
+    else if(is_pointer(old_type) && is_pointer(new_type))
+    {
+        
+    }
+
+    // pointer to int is illegal in const expr
+    else if(is_pointer(old_type) && is_integer(new_type))
+    {
+        panic(itl,itl_error::illegal_cast,"pointer to int cast is illegal in constant expr %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
+    }
+
+    // as is integer to pointer
+    else if(is_integer(old_type) && is_pointer(new_type))
+    {
+        panic(itl,itl_error::illegal_cast,"int to pointer cast is illegal in constant expr %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
+    }
+
+    // fuck knows
+    else
+    {
+        panic(itl,itl_error::illegal_cast,"cannot cast %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);       
+    }   
+}
+
 ConstData compile_const_expression(Interloper& itl, AstNode* node)
 {
     switch(node->type)
@@ -71,22 +180,35 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
 
         case ast_type::plus:
         {
-            BinNode* bin_node = (BinNode*)node;
 
-            const auto left = compile_const_expression(itl,bin_node->left);
-            const auto right = compile_const_expression(itl,bin_node->right);
-            
-            if(is_pointer(left.type) && is_integer(right.type))
+            // unary plus
+            if(node->fmt == ast_fmt::unary)
             {
-                unimplemented("const pointer add");
+                UnaryNode* unary_node = (UnaryNode*)node;
+
+                // negate by doing 0 - v
+                return compile_const_expression(itl,unary_node->next);
             }
 
             else
             {
-                const u64 ans = left.v + right.v;
-                Type* type = effective_arith_type(itl,left.type,right.type,op_type::add_reg);
+                BinNode* bin_node = (BinNode*)node;
 
-                return make_const_builtin(ans,type);
+                const auto left = compile_const_expression(itl,bin_node->left);
+                const auto right = compile_const_expression(itl,bin_node->right);
+                
+                if(is_pointer(left.type) && is_integer(right.type))
+                {
+                    unimplemented("const pointer add");
+                }
+
+                else
+                {
+                    const u64 ans = left.v + right.v;
+                    Type* type = effective_arith_type(itl,left.type,right.type,op_type::add_reg);
+
+                    return make_const_builtin(ans,type);
+                }
             }
         }
 
@@ -146,22 +268,35 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
 
         case ast_type::minus:
         {
-            BinNode* bin_node = (BinNode*)node;
-
-            const auto left = compile_const_expression(itl,bin_node->left);
-            const auto right = compile_const_expression(itl,bin_node->right);
-            
-            if(is_pointer(left.type) && is_integer(right.type))
+            // unary minus
+            if(node->fmt == ast_fmt::unary)
             {
-                unimplemented("const pointer sub");
+                UnaryNode* unary_node = (UnaryNode*)node;
+
+                auto data = compile_const_expression(itl,unary_node->next);
+                data.v = -data.v;
+                return data;
             }
 
             else
             {
-                const u64 ans = left.v - right.v;
-                Type* type = effective_arith_type(itl,left.type,right.type,op_type::sub_reg);
+                BinNode* bin_node = (BinNode*)node;
 
-                return make_const_builtin(ans,type);
+                const auto left = compile_const_expression(itl,bin_node->left);
+                const auto right = compile_const_expression(itl,bin_node->right);
+                
+                if(is_pointer(left.type) && is_integer(right.type))
+                {
+                    unimplemented("const pointer sub");
+                }
+
+                else
+                {
+                    const u64 ans = left.v - right.v;
+                    Type* type = effective_arith_type(itl,left.type,right.type,op_type::sub_reg);
+
+                    return make_const_builtin(ans,type);
+                }
             }
         }
 
@@ -184,6 +319,16 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
             return make_const_builtin(ans,type);
         }
 
+        case ast_type::false_t:
+        {
+            return make_const_builtin(0,make_builtin(itl,builtin_type::bool_t));
+        }
+
+        case ast_type::true_t:
+        {
+            return make_const_builtin(1,make_builtin(itl,builtin_type::bool_t));
+        }
+
         case ast_type::logical_eq:
         {
             BinNode* bin_node = (BinNode*)node;
@@ -196,6 +341,17 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
             const b32 ans = left.v == right.v;
 
             return make_const_builtin(ans,make_builtin(itl,builtin_type::bool_t));
+        }
+
+        case ast_type::cast:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            auto data = compile_const_expression(itl,bin_node->right);
+            auto new_type = get_type(itl,(TypeNode*)bin_node->left);
+
+            handle_const_cast(itl,new_type,data);
+            return data;            
         }
 
         case ast_type::access_struct:
@@ -602,21 +758,21 @@ void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
                 // compile expression
                 auto [v, rtype] = compile_const_int_expression(itl,node);
 
-                // now we know the value get a more accurate value up to max precision
+                // now we know the value we can get an exact type out of the result
                 Value value;
                 value.v = v;
                 value.sign = is_signed(rtype);
-
+                
                 rtype = value_type(itl,value);
+
+                // type check the integer
+                check_assign_init(itl,sym.type,rtype);
 
                 if(itl.error)
                 {
                     return;
                 }
 
-                // type check the integer
-                check_assign_init(itl,sym.type,rtype);
-   
                 // push to const pool and save handle as offset for later loading...
                 const auto slot = push_const_pool(itl.const_pool,pool_type::var,&v,builtin_size(type));
                 sym.reg.offset = slot.handle;

@@ -5,7 +5,7 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::u8_t, true, false, 1, 0, 0xff},
     {builtin_type::u16_t, true, false ,2, 0, 0xffff},
     {builtin_type::u32_t, true, false ,4, 0, 0xffffffff},
-    {builtin_type::s64_t, true, false ,8,  0, u64(0xffffffff'ffffffff)},
+    {builtin_type::u64_t, true, false ,8,  0, u64(0xffffffff'ffffffff)},
 
     {builtin_type::s8_t, true, true, 1, u64(-(0xff / 2)), (0xff / 2)},
     {builtin_type::s16_t, true, true ,2,  u64(-(0xffff / 2)), (0xffff / 2)},
@@ -1752,6 +1752,8 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                         break;                        
                     }
 
+                    case builtin_type::s64_t: break;
+
                     default: crash_and_burn("invalid signed integer upcast");
                 }
             }
@@ -1797,7 +1799,7 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
 
         else
         {
-            unimplemented("handle cast builtin illegal %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
+            panic(itl,itl_error::illegal_cast,"cannot cast %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
         }
     }
 
@@ -1831,10 +1833,10 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         mov_reg(itl,func,dst_slot,src_slot);
     }
 
-    // probably only pointers are gonna valid for casts here
+    // dont know
     else
     {
-        unimplemented("handle cast user defined type %s -> %s!\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);        
+        panic(itl,itl_error::illegal_cast,"cannot cast %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);      
     }
 
 }

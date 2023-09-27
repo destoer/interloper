@@ -327,7 +327,6 @@ AstNode *nud(Parser &parser, const Token &t)
             return builtin_type_info_access(parser,builtin_type::u64_t);
         }
 
-
         case token_type::s8:
         {
             return builtin_type_info_access(parser,builtin_type::s8_t);

@@ -4,6 +4,42 @@ type_alias string = c8[];
 
 constant RUNTIME_SIZE : u32 = 0xfffffff0;
 
+struct BuiltinTypeData
+{
+    is_integer : bool;
+
+    is_signed : bool;
+
+    // how many bytes is the type
+    size : u32;
+
+    // range of values allowed
+    min : u64;
+    max : u64;
+}
+
+enum builtin_type : BuiltinTypeData
+{
+    u8_t = {true,false,1,0,0xff},
+    u16_t = {true, false ,2, 0, 0xffff},
+    u32_t = {true, false ,4, 0, 0xffffffff},
+    u64_t = {true, false ,8,  0, 0xffffffff_ffffffff},
+
+    s8_t = {true, true, 1, cast(u64,-(0xff / 2)), (0xff / 2)},
+    s16_t = {true, true ,2,  cast(u64,-(0xffff / 2)), (0xffff / 2)},
+    s32_t = {true, true ,4,  cast(u64,-(0xffffffff / 2)), (0xffffffff / 2)},
+    s64_t = {true, true ,8,  cast(u64,-(0xffffffff_ffffffff / 2)), 0xffffffff_ffffffff / 2},
+
+    c8_t = {true, false, 1, 0, 0xff},
+
+    byte_t = {true, false, 1, 0, 0xff},
+
+    bool_t = {false, false ,1,  0, 1},
+
+    // TODO: i think we need usize_t
+    null_t = {false,false, 8,0,0},
+}
+
 enum itl_type
 {
     u8_t,
@@ -113,7 +149,6 @@ func is_pointer(type : const Type@) bool
     return type.type_idx == itl_type::pointer_t;
 }
 
-// TODO: we want to solve this with java style enums for type info but for now this is good enough
 func is_signed(type : const Type@) bool
 {
     idx := cast(u32,type.type_idx);
@@ -133,6 +168,8 @@ func int_from_any(any : const Any) u64
 
 func bool_from_any(any : const Any) bool
 {
+    type : builtin_type;
+
     v := int_from_any(any);
 
     return v == 1;
