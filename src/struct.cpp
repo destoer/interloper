@@ -472,9 +472,6 @@ std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& fu
 
     const auto& enum_struct_member = enum_struct_member_opt.value();
 
-    // finally index the table
-    *member_offset = enum_struct_member.offset;
-
     // get the start of the table
     const auto enum_table_slot = pool_addr_res(itl,func,enumeration.struct_slot,0);
 
@@ -494,6 +491,11 @@ std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& fu
         load_ptr(itl,func,enum_slot,struct_slot,*member_offset,ENUM_SIZE,false);
     }
 
+    // update for new offset
+    *member_offset = enum_struct_member.offset;
+
+    // finally index the table
+    
     // scale index
     const SymSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
 
