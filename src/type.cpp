@@ -85,6 +85,11 @@ b32 is_bool(const Type* type)
     return type->type_idx == u32(builtin_type::bool_t);
 }
 
+b32 is_void(const Type* type)
+{
+    return type->type_idx == u32(builtin_type::void_t);
+}
+
 b32 is_trivial_copy(const Type *type)
 {
     return is_builtin(type) || is_pointer(type) || is_enum(type) || is_func_pointer(type);

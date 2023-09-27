@@ -51,7 +51,13 @@ struct Hand
     // 14 is max before bust
     card : Card[14] = {?};
     count : u32;
+
     stand : bool;
+
+    // value caching
+    ace_count : u32;
+    value_soft : u32;
+    value : u32;
 };
 
 struct Deck
@@ -87,30 +93,6 @@ func shuffle_deck(deck : const Deck@)
     }
 }
 
-func value_hand(hand : const Hand@) u64
-{
-    value : u32 = 0;
-
-    for(i : u32 = 0; i < hand.count; i += 1)
-    {
-        card := &hand.card[i];
-
-        // special case ace
-        // if it wont bust us then value is 11
-        if(card.face == face_kind::ace && value <= 10)
-        {
-            value += 11;
-        }
-
-        else
-        {
-            value += card.face.value;
-        }
-    }
-
-    return value;
-}
-
 func print_hand(hand : const Hand@, name : const string)
 {
     print("{}: ",name);
@@ -120,7 +102,26 @@ func print_hand(hand : const Hand@, name : const string)
         print_card(&hand.card[c]);
     }
     
-    print("value: {}\n",value_hand(hand));
+    print("value: {}\n",hand.value);
+}
+
+func value_hand(hand : Hand@)
+{
+    // use soft value as a base
+    value : u32 = hand.value_soft;
+
+    // keep adding hard value of aces
+    // until we are at a limit or out of aces
+    ace_count := hand.ace_count;
+
+    while(value <= 11 && ace_count != 0)
+    {
+        value += 10;
+        ace_count -= 1;
+    }
+
+    // finally recache the value
+    hand.value = value;
 }
 
 func deal_card(deck : Deck@, hand : Hand@)
@@ -141,6 +142,19 @@ func deal_card(deck : Deck@, hand : Hand@)
     // deal into hand
     hand.card[hand.count] = deck.card[deck.dealt];
     hand.count += 1;
+
+    // cache soft value and ace count
+    // so we can procure the value of hand easily
+    card := &deck.card[deck.dealt];
+
+    hand.value_soft += card.face.value;
+
+    if(card.face == face_kind::ace)
+    {
+        hand.ace_count += 1;
+    }
+    
+    value_hand(hand);
 
     // take it out of the deck
     deck.dealt += 1;

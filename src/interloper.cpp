@@ -1872,11 +1872,17 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
         return;
     }
 
-    // TODO: this should just be compile_expresison
     const auto [type,reg] = compile_oper(itl,func,auto_decl->expr);
 
     if(itl.error)
     {
+        return;
+    }
+
+    // attempting to deduce a type from void is nonsense
+    if(is_void(type))
+    {
+        panic(itl,itl_error::undefined_type_oper,"Result of auto decl is void\n");
         return;
     }
 

@@ -26,7 +26,7 @@ func make_blackjack() Blackjack
     deal_card(&bj.deck,&bj.dealer);
 
     // dealer may start the game stood
-    bj.dealer.stand = value_hand(&bj.dealer) >= DEALER_STAND;    
+    bj.dealer.stand = bj.dealer.value >= DEALER_STAND;    
 
     return bj;
 }
@@ -37,7 +37,7 @@ func deal_until_stand(deck : Deck@,dealer : Hand@)
     while(!dealer.stand)
     {
         deal_card(deck,dealer);
-        dealer.stand = value_hand(dealer) >= DEALER_STAND;
+        dealer.stand = dealer.value >= DEALER_STAND;
     }    
 }
 
@@ -49,12 +49,12 @@ func play_round()
     bj := make_blackjack();
 
     // check for blackjack!
-    bj.blackjack = value_hand(&bj.player) == 21 || value_hand(&bj.dealer) == 21;
+    bj.blackjack = bj.player.value == 21 || bj.dealer.value == 21;
 
     // game is instantly over if a player got blackjack
     done := bj.blackjack;
 
-    if(value_hand(&bj.player) == 21)
+    if(bj.player.value == 21)
     {
         print("Blackjack!\n");
     }
@@ -103,16 +103,13 @@ func play_round()
             deal_card(&bj.deck,&bj.player);
             deal_card(&bj.deck,&bj.dealer);
 
-            player_value := value_hand(&bj.player);
-            dealer_value := value_hand(&bj.dealer);
-
             // if dealer has hit over their limit they must stand
-            bj.dealer.stand = dealer_value >= DEALER_STAND;
+            bj.dealer.stand = bj.dealer.value >= DEALER_STAND;
 
             // check win cond
             // if any player has a blackjack or a bust 
             // or if both players are stood the game is over
-            if((player_value >= 21 || dealer_value >= 21) || (bj.player.stand && bj.dealer.stand))
+            if((bj.player.value >= 21 || bj.dealer.value >= 21) || (bj.player.stand && bj.dealer.stand))
             {
                 done = true;
 
@@ -135,27 +132,22 @@ func play_round()
 
     // cache these values now they are final
     // to make the win calc easier
-    player_value := value_hand(&bj.player);
-    dealer_value := value_hand(&bj.dealer);
+    player_value := bj.player.value;
+    dealer_value := bj.dealer.value;
 
-    // draw
-    if(player_value == dealer_value)
-    {
-        print("Push!\n");
-    }
-
-    // if both player's bust the dealer still wins
-    else if(player_value > 21 && dealer_value > 21)
-    {
-        print("Player busted\n");
-    }
-
-    // check invidivual busts
-    else if(player_value > 21)
+    // if player busts they lose regardless
+    if(player_value > 21)
     {
         print("Player busted!\n");
     }
 
+    // draw
+    else if(player_value == dealer_value)
+    {
+        print("Push!\n");
+    }
+
+    // dealer bust
     else if(dealer_value > 21)
     {
         print("Dealer busted!\n");
