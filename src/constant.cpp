@@ -455,15 +455,8 @@ u32 const_write_in_string(Interloper& itl, LiteralNode* literal_node, Type* type
     // fixed size
     else
     {
-        if(array_type->size < literal.size)
-        {
-            panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
-            return offset;
-        }
-
-        // copy the string in
-        write_const_pool(itl.const_pool,section,offset,literal.buf,literal.size);
-        offset += array_type->size * sizeof(char);           
+        panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+        return offset;          
     }
 
     return offset;    
@@ -839,8 +832,6 @@ void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
                 LiteralNode* literal_node = (LiteralNode*)node;
                 const String literal = literal_node->literal;
 
-                ArrayType* array_type = (ArrayType*)sym.type;
-
                 if(is_runtime_size(sym.type))
                 {
                     const auto data_slot = push_const_pool_string(itl.const_pool,literal);
@@ -854,27 +845,8 @@ void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
                 // fixed size
                 else
                 {
-                    // handle auto sizing
-                    if(array_type->size == DEDUCE_SIZE)
-                    {
-                        array_type->size = literal.size;
-                    }
-
-                    if(array_type->size < literal.size)
-                    {
-                        panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
-                        return;
-                    }
-
-                    // as the array can be larger than the string we have to write it in manually
-                    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,array_type->size);
-                    auto& section = pool_section_from_slot(itl.const_pool,data_slot);
-                    write_const_pool(itl.const_pool,section,0,literal.buf,literal.size);
-
-                    const auto pointer_slot = push_const_pool_fixed_array(itl.const_pool,data_slot);
-
-                    // mark as location
-                    sym.reg.offset = pointer_slot.handle;          
+                    panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+                    return;         
                 }
                 break;
             }

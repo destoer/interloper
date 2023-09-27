@@ -210,27 +210,6 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, Sy
     }
 }
 
-void copy_fixed_size_string(Interloper& itl, Function& func,SymSlot addr_slot, ArrayType *array_type, const String& literal)
-{
-    if(array_type->size < literal.size)
-    {
-        panic(itl,itl_error::out_of_bounds,"expected array of atleast size %d got %d\n",literal.size,array_type->size);
-        return;
-    }
-
-    // copy into array
-    const auto base_type = array_type->contained_type;
-    const auto rtype = make_builtin(itl,builtin_type::c8_t);
-
-    for(u32 i = 0; i < literal.size; i++)
-    {
-        const SymSlot slot = mov_imm_res(itl,func,literal[i]);
-        check_assign_init(itl,base_type,rtype);
-
-        do_ptr_store(itl,func,slot,addr_slot,rtype,i);
-    }    
-}
-
 void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const SymSlot addr_slot, ArrayType* type, u32* offset)
 {
     if(itl.error)
@@ -318,8 +297,8 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                     // fixed sized array
                     else
                     {
-                        copy_fixed_size_string(itl,func,addr_slot,next_arr,literal);
-                        *offset += next_arr->size * sizeof(char);
+                        panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+                        return;
                     }
 
                     break;
@@ -480,14 +459,7 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
             LiteralNode* literal_node = (LiteralNode*)node;
             const String literal = literal_node->literal;
 
-            // handle auto sizing
-            if(array_type->size == DEDUCE_SIZE)
-            {
-                array_type->size = literal.size;
-            }
-
-
-            if(array_type->size == RUNTIME_SIZE)
+            if(is_runtime_size(array_type))
             {
                 if(is_const_string(type))
                 {
@@ -510,8 +482,8 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
             // fixed sized array
             else
             {
-                const SymSlot addr_slot = load_arr_data(itl,func,arr_slot,type);
-                copy_fixed_size_string(itl,func,addr_slot,array_type,literal);
+                panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+                return;
             }
 
             break;           
