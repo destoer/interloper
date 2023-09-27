@@ -341,12 +341,8 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
 }
 
 
-std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, SymSlot slot, Type* type, const String& member_name,u32* offset)
+std::pair<Type*,SymSlot> access_array_member(Interloper& itl, SymSlot slot, Type* type, const String& member_name,u32* offset)
 {
-    UNUSED(func);
-
-    const bool is_ptr = is_pointer(type);
-
     ArrayType* array_type = (ArrayType*)type;
 
     if(member_name == "len")
@@ -359,39 +355,23 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
         // vla
         else
         {
-            if(!is_ptr)
-            {
-                *offset += GPR_SIZE;
-                return std::pair{make_builtin(itl,builtin_type::u64_t),slot};
-            }
-
-            else
-            {
-                unimplemented("vla len by ptr");
-            }
+            *offset += GPR_SIZE;
+            return std::pair{make_builtin(itl,builtin_type::u64_t),slot};
         }
     }
 
     else if(member_name == "data")
     {
-        if(!is_ptr)
+        // fixed sized array is not a struct dont allow access
+        if(is_fixed_array(type))
         {
-            // fixed sized array is not a struct dont allow access
-            if(is_fixed_array(type))
-            {
-                panic(itl,itl_error::array_type_error,"no .data member on fixed size array");
-                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
-            }
-
-            *offset += 0;
-
-            return std::pair{make_pointer(itl,array_type->contained_type),slot};
+            panic(itl,itl_error::array_type_error,"no .data member on fixed size array");
+            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
         }
 
-        else
-        {
-            unimplemented("data by ptr");
-        }
+        *offset += 0;
+
+        return std::pair{make_pointer(itl,array_type->contained_type),slot};
     }
 
 
@@ -403,21 +383,8 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, Function& func, Sy
 }
 
 // returns the member + offset
-std::pair<Type*,SymSlot> access_struct_member(Interloper& itl, Function& func, SymSlot slot, Type* type, const String& member_name, u32* offset)
+std::pair<Type*,SymSlot> access_struct_member(Interloper& itl, SymSlot slot, Type* type, const String& member_name, u32* offset)
 {
-    // auto deref pointer
-    if(is_pointer(type))
-    {
-        const SymSlot ptr_slot = slot;
-        slot = new_tmp(func,GPR_SIZE);
-
-        do_ptr_load(itl,func,slot,ptr_slot,type,*offset);
-        *offset = 0;
-
-        // now we are back to a straight pointer
-        type = deref_pointer(type);
-    }
-
     // get offset for struct member
     const auto member_opt = get_member(itl.struct_table,type,member_name);
 
@@ -607,33 +574,19 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 LiteralNode* member_node = (LiteralNode*)n;
                 const auto member_name = member_node->literal;
 
-                // TODO: can we simpllify this by just doing a pointer deref at the top level?
-                // and repeating the switch below
+                // auto deferef pointers first
                 if(is_pointer(struct_type))
                 {
-                    PointerType* pointer_type = (PointerType*)struct_type;
+                    do_ptr_load(itl,func,struct_slot,struct_slot,struct_type,member_offset);
+                    member_offset = 0;
 
-                    // pointer to array
-                    if(is_array(pointer_type->contained_type))
-                    {
-                       std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
-                    }
-
-                    else if(is_enum(pointer_type->contained_type))
-                    {
-                        unimplemented("struct member access by enum");
-                    }
-
-                    else
-                    {
-                        std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
-                    }
-                    
+                    // now we are back to a straight pointer
+                    struct_type = deref_pointer(struct_type);
                 }
 
-                else if(is_array(struct_type))
+                if(is_array(struct_type))
                 {
-                    std::tie(struct_type,struct_slot) = access_array_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                    std::tie(struct_type,struct_slot) = access_array_member(itl,struct_slot,struct_type,member_name,&member_offset);
                 }
 
                 // do enum member access
@@ -650,7 +603,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 // actual struct member
                 else
                 {
-                    std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,member_name,&member_offset);
+                    std::tie(struct_type,struct_slot) = access_struct_member(itl,struct_slot,struct_type,member_name,&member_offset);
                 }   
                 break;
             }
@@ -659,7 +612,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             {
                 IndexNode* index_node = (IndexNode*)n;
 
-                std::tie(struct_type,struct_slot) = access_struct_member(itl,func,struct_slot,struct_type,index_node->name,&member_offset);
+                std::tie(struct_type,struct_slot) = access_struct_member(itl,struct_slot,struct_type,index_node->name,&member_offset);
                 
                 struct_slot = collapse_offset(itl,func,struct_slot,&member_offset);
 
