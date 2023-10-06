@@ -109,7 +109,7 @@ func play_round()
             // check win cond
             // if any player has a blackjack or a bust 
             // or if both players are stood the game is over
-            if((bj.player.value >= 21 || bj.dealer.value >= 21) || (bj.player.stand && bj.dealer.stand))
+            if((bj.player.value >= 21 || bj.dealer.value > 21) || (bj.player.stand && bj.dealer.stand))
             {
                 done = true;
 

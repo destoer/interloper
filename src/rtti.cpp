@@ -35,7 +35,6 @@ u32 cache_struct(Interloper& itl, const String& name)
     return type_decl->type_idx;
 }
 
-//NOTE: this silently fails
 u32 cache_offset(Interloper& itl,Struct& structure, const String& member_name)
 {
     auto offset_opt = member_offset(structure,member_name);

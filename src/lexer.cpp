@@ -67,6 +67,7 @@ char escape_char(Lexer& lexer, const String& file_name,char escape_char)
     {
         case 'n': return '\n';
         case '0': return '\0';
+        case '\\': return '\\';
 
         default:
         {

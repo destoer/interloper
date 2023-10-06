@@ -53,6 +53,14 @@ void print_regs(Interpretter& interpretter)
 const u32 FILE_R = 0;
 const u32 FILE_W = 1;
 
+// TODO: in proper vm we need the actual system.itl to do the heavy lifting with this translation
+enum class file_opt
+{
+    create,
+    append,
+    open,
+};
+
 #ifdef __linux__
 
 #include <fcntl.h>
@@ -63,15 +71,45 @@ bool handle_valid(s64 handle)
     return s64(handle) >= 0;
 }
 
-s64 os_open(const char* file, u32 mode)
+s64 os_open(const char* file, u32 mode, file_opt opt)
 {
-    u32 flag;
+    u32 flag = 0;
 
     switch(mode)
     {
         case FILE_W: flag = O_WRONLY; break;
         case FILE_R: flag = O_RDONLY; break;
         default: printf("invalid file mode: %d\n",mode); return -1;
+    }
+
+    switch(opt)
+    {
+        case file_opt::create:
+        {
+            flag |= O_CREAT;
+            break;
+        }
+
+        case file_opt::open: 
+        {
+            break;
+        }
+
+        case file_opt::append:
+        {
+            flag |= O_APPEND;
+            break;
+        }
+    }
+
+    if(strcmp(file,"stdout") == 0)
+    {
+        file = "/dev/stdout";
+    }
+
+    else if(strcmp(file,"stdin") == 0)
+    {
+        file = "/dev/stdin";
     }
 
     const s64 handle = open(file,flag);
@@ -101,7 +139,103 @@ s64 os_close(s64 handle)
 }
 
 #else 
-static_assert(false);
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+bool handle_valid(s64 handle)
+{
+    return (HANDLE)handle != INVALID_HANDLE_VALUE;
+}
+
+s64 os_open(const char* file, u32 mode, file_opt opt)
+{
+    u32 flag = 0;
+
+    //printf("open: '%s'\n",file);
+
+    switch(mode)
+    {
+        case FILE_W: flag = GENERIC_WRITE; break;
+        case FILE_R: flag = GENERIC_READ; break;
+        default: printf("invalid file mode: %d\n",mode); return -1;
+    }
+
+    u32 open_flag = 0;
+
+    switch(opt)
+    {
+        case file_opt::create:
+        {
+            open_flag = CREATE_NEW;
+            break;
+        }
+
+        case file_opt::append:
+        {
+            open_flag = OPEN_EXISTING;
+            flag |= FILE_APPEND_DATA;
+            break;
+        }
+
+        case file_opt::open:
+        {
+            open_flag = OPEN_EXISTING;
+            break;
+        }
+    }
+
+    if(strcmp(file,"stdin") == 0)
+    {
+        return s64(GetStdHandle(STD_INPUT_HANDLE));
+    }
+
+    else if(strcmp(file,"stdout") == 0)
+    {
+        return s64(GetStdHandle(STD_OUTPUT_HANDLE));
+    }
+
+    // NOTE: this needs OPEN_EXISTING for con io
+    const HANDLE handle = CreateFileA(file,flag,FILE_SHARE_READ,NULL,open_flag,FILE_ATTRIBUTE_NORMAL,NULL); 
+
+    if(handle == INVALID_HANDLE_VALUE)
+    {
+        //printf("[VM]: warning could not open file: %s : %d\n",file,mode);
+    }
+
+    return s64(handle);
+}
+
+s64 os_read(s64 handle, void* buf, u32 len)
+{
+    DWORD read = 0;
+    
+    if(!ReadFile((HANDLE)handle,buf,len,&read,NULL))
+    {
+        //printf("failed to read file: %d\n",GetLastError());
+        return -1;
+    }
+
+    return read;
+}
+
+s64 os_write(s64 handle, const void* buf, u32 len)
+{
+    DWORD wrote = 0;
+    
+    if(!WriteFile((HANDLE)handle,buf,len,&wrote,NULL))
+    {
+        return -1;
+    }
+                 
+    return wrote;
+}
+
+s64 os_close(s64 handle)
+{
+    return CloseHandle((HANDLE)handle);
+}
+
 #endif
 
 template<typename access_type>
@@ -690,7 +824,13 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
                         crash_and_burn("invalid file mode for at %lx:%x\n",interpretter.regs[PC] - sizeof(Opcode),regs[R1]);
                     }
 
-                    regs[R0] = os_open(ptr,mode);
+                    if(regs[R2] > u32(file_opt::open))
+                    {
+                        crash_and_burn("invalid file opt: %d",regs[R2]);
+                    }
+
+
+                    regs[R0] = os_open(ptr,mode,file_opt(regs[R2]));
                     break;
                 }
 

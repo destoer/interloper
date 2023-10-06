@@ -3,7 +3,7 @@
 func main() s32
 {
     // TODO: we need a better test
-    [fp, err] := open_file("tests/stl/lines.txt",file_mode::read);
+    [fp, err] := open_file("tests/stl/lines.txt",file_mode::read,file_opt::open);
     
     if(err)
     {

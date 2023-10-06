@@ -19,6 +19,31 @@ import <file>
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
+func open_stdout() File
+{
+    [fp,err] := open_file("stdout",file_mode::write,file_opt::open);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDOUT);
+    }
+
+    fp.flags = fp.flags | FILE_FLAG_LINE_BUFFER;
+    return fp;
+}
+
+func open_stdin() File
+{
+    [fp,err] := open_file("stdin",file_mode::read,file_opt::open);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDIN);
+    }
+
+    return fp;
+}
+
 func write_str_raw(data : const c8@, len : u64)
 {
     if(len == 0)
@@ -77,10 +102,10 @@ func read_string(str : string) string
 
 // PROCESS
 
+// TODO: os specific global cleanup?
 func at_exit()
 {
-    close_file(&stdin);
-    close_file(&stdout);
+
 }
 
 constant FAILURE_OPEN_STDOUT : s32 = 0xf000_0001;
@@ -97,9 +122,10 @@ func exit(exit_code: s32)
 constant OS_INVALID_READ : s64 = -1;
 
 // NOTE: this is expecting a null terminated string
-func os_open(filename : const c8@, mode : u32) byte@
+// NOTE: for the vm we expect matches withe file mode
+func os_open(filename : const c8@, mode : file_mode, opt : file_opt) byte@
 {
-    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,mode,0));
+    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,cast(u32,mode),cast(u32,opt)));
 }
 
 func os_close(handle : const byte@)

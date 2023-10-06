@@ -36,7 +36,7 @@ enum builtin_type : BuiltinTypeData
 
     bool_t = {false, false ,1,  0, 1},
 
-    // TODO: i think we need usize_t
+    // TODO: i think we need usize
     null_t = {false,false, 8,0,0},
 }
 
