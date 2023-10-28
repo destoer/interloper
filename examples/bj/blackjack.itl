@@ -69,7 +69,7 @@ func play_round()
         print_card(&bj.dealer.card[0]);
 
         // only first card shown
-        for(i : u32 = 0; i < bj.dealer.count - 1; i += 1)
+        for(i in 0 < bj.dealer.count - 1)
         {
             print("? ");
         }
@@ -107,8 +107,8 @@ func play_round()
             bj.dealer.stand = bj.dealer.value >= DEALER_STAND;
 
             // check win cond
-            // if any player has a blackjack or a bust 
-            // or if both players are stood the game is over
+            // if player has a blacjack or bust or the dealer is bust 
+            // or if everyone is stood then the run is over
             if((bj.player.value >= 21 || bj.dealer.value > 21) || (bj.player.stand && bj.dealer.stand))
             {
                 done = true;

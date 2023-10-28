@@ -9,6 +9,7 @@ const char* KEYWORD[][2] =
 {
 
     {tok_name(token_type::for_t),"token_type::for_t"},
+    {tok_name(token_type::in_t),"token_type::in_t"},
     {tok_name(token_type::if_t),"token_type::if_t"},
     {tok_name(token_type::else_t),"token_type::else_t"},
     {tok_name(token_type::while_t),"token_type::while_t"},

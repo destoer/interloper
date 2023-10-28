@@ -67,7 +67,7 @@ void handle_dst_storage(Interloper& itl, Function& func, SymSlot dst_slot)
     } 
 }
 
-// NOTE: this is the bottom level emitter
+// NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
 ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, u64 v1, u64 v2, u64 v3)
 {
     const Opcode opcode(type,v1,v2,v3);
@@ -78,6 +78,12 @@ ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type,
 
     return list.end;    
 }
+
+ListNode* emit_block_internal_slot(Function& func,BlockSlot block_slot, op_type type, SymSlot v1, SymSlot v2, SymSlot v3)
+{
+    return emit_block_internal(func,block_slot,type,v1.handle,v2.handle,v3.handle);
+}
+
 
 
 template<const op_type type>

@@ -79,7 +79,8 @@ enum class ast_type
     true_t,
     null_t,
 
-    for_block,
+    for_range,
+    for_iter,
     while_block,
 
     if_block,
@@ -179,7 +180,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "true",
     "NULL",
 
-    "for_block",
+    "for_range",
+    "for_iter",
     "while_block",
 
     "if_block",
@@ -220,7 +222,8 @@ enum class ast_fmt
     auto_decl,
     block,
     function_call,
-    for_block,
+    for_iter,
+    for_range,
     record,
     index,
     switch_t,
@@ -248,7 +251,8 @@ inline const char *FMT_NAMES[] =
     "auto_decl",
     "block",
     "function_call",
-    "for",
+    "for_iter",
+    "for_range",
     "record",
     "index",
     "switch",
@@ -444,16 +448,28 @@ struct FuncCallNode
     Array<AstNode*> args;
 };
 
-struct ForNode
+
+
+struct ForIterNode
 {
     AstNode node;
 
-    AstNode* initializer;
-    AstNode* cond;
-    AstNode* post;
+    AstNode* initializer = nullptr;
+    AstNode* cond = nullptr;
+    AstNode* post = nullptr;
 
     BlockNode* block;
 };
+
+struct ForRangeNode
+{
+    AstNode node;
+
+    AstNode* cond;
+    BlockNode* block;
+    String name;
+};
+
 
 struct CaseNode
 {
@@ -698,13 +714,19 @@ AstNode* ast_call(Parser& parser, AstNode* expr, const Token& token)
     return (AstNode*)func_call;
 }
 
-AstNode* ast_for(Parser& parser, const Token& token)
+AstNode* ast_for_iter(Parser& parser, const Token& token)
 {
-    AstNode* node = (AstNode*)alloc_node<ForNode>(parser,ast_type::for_block,ast_fmt::for_block,token);
+    AstNode* node = (AstNode*)alloc_node<ForIterNode>(parser,ast_type::for_iter,ast_fmt::for_iter,token);
 
     return node;
 }
 
+AstNode* ast_for_range(Parser& parser, const Token& token)
+{
+    AstNode* node = (AstNode*)alloc_node<ForRangeNode>(parser,ast_type::for_range,ast_fmt::for_range,token);
+
+    return node;
+}
 
 AstNode* ast_record(Parser& parser,ast_type type, const Token& token)
 {

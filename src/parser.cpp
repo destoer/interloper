@@ -590,6 +590,100 @@ AstNode* const_assert(Parser& parser,const Token& t)
     return ast_unary(parser,expr,ast_type::const_assert,t);       
 }
 
+AstNode* parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
+{
+    // e.g for(i := 0; i < size; i += 1)
+
+    ForIterNode* for_node = (ForIterNode*)ast_for_iter(parser,t);
+
+    // handle first stmt
+    // decl 
+    if(peek(parser,1).type == token_type::colon)
+    {
+        for_node->initializer = declaration(parser,token_type::semi_colon);
+    }
+
+    // auto decl
+    else if(peek(parser,1).type == token_type::decl)
+    {
+        for_node->initializer = auto_decl(parser);  
+    }
+
+    // standard stmt
+    else
+    {
+        for_node->initializer = statement_terminate(parser,"for initializer statement");
+    }
+    
+    for_node->cond = statement_terminate(parser,"for condition"); 
+
+    // allow paren terminator followed by a '{'
+    if(term_paren)
+    {
+        for_node->post = expr_terminate(parser,"for post statement",token_type::right_paren);
+        auto next = peek(parser,0);
+        if(next.type != token_type::left_c_brace)
+        {
+            panic(parser,next,"invalid iter for statement terminator: %s expected {\n",tok_name(next.type));
+            return nullptr;                        
+        }
+    }
+
+    // statement was not wrapped by parens
+    // expect brace to end it
+    else
+    {
+        for_node->post = expr_terminate(parser,"for post statement",token_type::left_c_brace);
+        prev_token(parser);
+    }  
+    
+    // for stmt parsed now compile the actual block
+    for_node->block = block(parser);
+
+    return (AstNode*)for_node;
+}
+
+AstNode* parse_for_range(Parser& parser,const Token& t, b32 term_paren)
+{
+    // e.g
+    // for(i in 0 <= size)
+    ForRangeNode* for_node = (ForRangeNode*)ast_for_range(parser,t);
+
+    const auto name = next_token(parser);
+
+    if(name.type != token_type::symbol)
+    { 
+        panic(parser,name,"Expected name for range for statement");
+        return nullptr;
+    }
+
+    for_node->name = name.literal;
+
+    consume(parser,token_type::in_t);
+
+    if(term_paren)
+    { 
+        for_node->cond = expr_terminate(parser,"for range cond",token_type::right_paren);
+        auto next = peek(parser,0);
+        if(next.type != token_type::left_c_brace)
+        {
+            panic(parser,next,"invalid range for statement terminator: %s expected {\n",tok_name(next.type));
+            return nullptr;                        
+        }
+    }
+
+    else
+    {
+        for_node->cond = expr_terminate(parser,"for range cond statement",token_type::left_c_brace);
+        prev_token(parser);
+    }
+
+    // for stmt parsed now compile the actual block
+    for_node->block = block(parser);
+
+    return (AstNode*)for_node;
+}
+
 AstNode *statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -739,7 +833,6 @@ AstNode *statement(Parser &parser)
         // assume one cond for now
         case token_type::for_t:
         {
-            ForNode* for_node = (ForNode*)ast_for(parser,t);
 
             // allow statment to wrapped a in a set of parens
             const bool term_paren = peek(parser,0).type == token_type::left_paren;
@@ -750,55 +843,17 @@ AstNode *statement(Parser &parser)
                 consume(parser,token_type::left_paren);
             }
 
-            
-            // handle first stmt
-            // decl 
-            if(peek(parser,1).type == token_type::colon)
+            // check for range for
+            if(peek(parser,1).type == token_type::in_t)
             {
-                for_node->initializer = declaration(parser,token_type::semi_colon);
+                return parse_for_range(parser,t,term_paren);
             }
 
-            // auto decl
-            else if(peek(parser,1).type == token_type::decl)
-            {
-                for_node->initializer = auto_decl(parser);  
-            }
-
-            // standard stmt
             else
             {
-                for_node->initializer = statement_terminate(parser,"for initializer statement");
+                // check for iter for
+                return parse_for_iter(parser,t,term_paren);
             }
-            
-
-            // for(s32 x = 5; x > 0; x -= 1) (multiple statement)
-
-            for_node->cond = statement_terminate(parser,"for condition"); 
-
-            // allow paren terminator followed by a '{'
-            if(term_paren)
-            {
-                for_node->post = expr_terminate(parser,"for post statement",token_type::right_paren);
-                auto next = peek(parser,0);
-                if(next.type != token_type::left_c_brace)
-                {
-                    panic(parser,next,"invalid single for statement terminator: %s expected {\n",tok_name(next.type));
-                    return nullptr;                        
-                }
-            }
-
-            // statement was not wrapped by parens
-            // expect brace to end it
-            else
-            {
-                for_node->post = expr_terminate(parser,"for post statement",token_type::left_c_brace);
-                prev_token(parser);
-            }  
-            
-            // for stmt parsed now compile the actual block
-            for_node->block = block(parser);
-
-            return (AstNode*)for_node;
         }
 
         case token_type::while_t:
@@ -1025,7 +1080,7 @@ FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& fu
 
         if(lit_tok.type != token_type::symbol)
         {
-            panic(parser,lit_tok,"expected name for function arg\n");
+            panic(parser,lit_tok,"expected name for function arg got %s\n",tok_name(lit_tok.type));
             return nullptr;
         }
         
@@ -1781,17 +1836,27 @@ void print(const AstNode *root, b32 override_seperator)
             break;
         }
 
-        case ast_fmt::for_block:
+        case ast_fmt::for_iter:
         {
             printf("for\n");
 
-            ForNode* for_node = (ForNode*)root;
+            ForIterNode* for_node = (ForIterNode*)root;
 
             print(for_node->initializer);
             print(for_node->cond);
             print(for_node->post);
 
             print((AstNode*)for_node->block);
+
+            break;
+        }
+
+        case ast_fmt::for_range:
+        {
+            ForRangeNode* for_node = (ForRangeNode*)root;
+
+            printf("for %s in\n",for_node->name.buf);
+            print(for_node->cond);
 
             break;
         }

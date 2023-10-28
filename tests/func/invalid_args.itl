@@ -1,8 +1,8 @@
 // expected compile error
 
-func invalid_call(in : s32) s32
+func invalid_call(input : s32) s32
 {
-    return in;
+    return input;
 }
 
 
