@@ -69,9 +69,9 @@ struct Deck
 
 func init_deck(deck : const Deck@)
 {
-    for(s : u32 = 0; s < suit_kind.len; s += 1)
+    for(s in 0 < suit_kind.len)
     {
-        for(f : u32 = 0; f < face_kind.len; f += 1)
+        for(f in 0 < face_kind.len)
         {
             idx := (s * face_kind.len) + f;
             deck.card[idx].suit = cast(suit_kind,s);
@@ -82,7 +82,7 @@ func init_deck(deck : const Deck@)
 
 func shuffle_deck(deck : const Deck@)
 {
-    for(i : s32 = deck.card.len - 1; i > 0; i -= 1)
+    for(i in deck.card.len - 1 > 0)
     {
         idx := rand_range_u64(0,cast(u32,i)); 
 
@@ -97,7 +97,7 @@ func print_hand(hand : const Hand@, name : const string)
 {
     print("{}: ",name);
 
-    for(c : u32 = 0; c < hand.count; c += 1)
+    for(c in 0 < hand.count)
     {
         print_card(&hand.card[c]);
     }

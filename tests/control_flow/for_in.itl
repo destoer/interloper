@@ -24,6 +24,9 @@ func main() s32
     // array iter
     sum3 : u32 = 15;
 /*
+    // TODO: should this be reverse if we need it? 
+    //for(v in rev(arr))
+
     for(v in arr)
     {
         sum3 += v;
