@@ -17,9 +17,9 @@ func main() s32
 
     ans: u32 = 0;
 
-    for i : u32 = 0; i < point.len; i += 1
+    for p in point
     {
-        ans += point[i].y * point[i].x;
+        ans += p.y * p.x;
     }
 
     return ans;

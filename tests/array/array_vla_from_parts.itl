@@ -11,9 +11,9 @@ func main() s32
 
     sum : s32 = 0;
 
-    for(i : u32 = 0; i < vla.len; i += 1)
+    for(v in vla)
     {
-        sum += vla[i];
+        sum += v;
     }
 
     return sum;

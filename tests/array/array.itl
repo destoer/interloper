@@ -6,13 +6,13 @@ func main() s32
 {
     x : bool[100] = {?};
 
-    for(i : u32 = 0; i < x.len; i += 1)
+    for(@v in x)
     {
-        x[i] = true;
+        @v = true;
     }
 
   
-    for(i : u32 = 2; i < x.len; i += 1)
+    for(i in 2 < x.len)
     {
         if(x[i])
         {
@@ -23,10 +23,11 @@ func main() s32
         }
     }
 
-    ans : u32 = 0;
-    for(i : u32 = 0; i < x.len; i += 1)
+    ans : s32 = 0;
+
+    for([v , i] in x)
     {
-        if(x[i])
+        if(v)
         {
             ans += i;
         }

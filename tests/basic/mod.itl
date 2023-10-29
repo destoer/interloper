@@ -15,7 +15,7 @@ func main() s32
 {
     ans : s32 = 0;
 
-    for(x : s32 = 0; x < 1000; x += 1)
+    for(x in 0 < 1000)
     {
         if(is_multiple(x))
         {

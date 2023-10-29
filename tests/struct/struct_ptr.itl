@@ -12,11 +12,11 @@ func main() s32
 {
     p : Point;
 
-    ptr = &p.x;
+    ptr := &p.x;
 
-    for(i : s32 = 0; i < 10; i++)
+    for i in 0 < 10
     {
-        @ptr++;
+        @ptr += 1;
     }
 
     return @ptr;

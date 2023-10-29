@@ -19,12 +19,13 @@ func main() s32
     len : u32 = 0;
     total : u32 = 0;
 
-    for(i : u32 = 0; i < arr.len; i += 1)
+    for(arr_sub in arr)
     {
-        len += arr[i].len;
-        for(j : u32 = 0; j < arr[i].len; j += 1)
+        len += arr_sub.len;
+        
+        for(v in arr_sub)
         {
-            total += arr[i][j];
+            total += v;
         }
     }
 

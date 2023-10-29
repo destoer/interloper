@@ -275,9 +275,35 @@ void cmp_eq_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 i
     emit_imm2<op_type::cmpeq_imm>(itl,func,dst,src,imm);
 }
 
+void cmp_eq(Interloper& itl, Function& func,SymSlot dst, SymSlot v1, SymSlot v2)
+{
+    emit_reg3<op_type::cmpeq_reg>(itl,func,dst,v1,v2);
+}
+
+SymSlot cmp_eq_res(Interloper& itl, Function& func, SymSlot v1, SymSlot v2)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    cmp_eq(itl,func,tmp,v1,v2);
+
+    return tmp;   
+}
+
 void cmp_ne_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::cmpne_imm>(itl,func,dst,src,imm);
+}
+
+void cmp_ne(Interloper& itl, Function& func,SymSlot dst, SymSlot v1, SymSlot v2)
+{
+    emit_reg3<op_type::cmpne_reg>(itl,func,dst,v1,v2);
+}
+
+SymSlot cmp_ne_res(Interloper& itl, Function& func, SymSlot v1, SymSlot v2)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    cmp_ne(itl,func,tmp,v1,v2);
+
+    return tmp;   
 }
 
 SymSlot cmp_eq_imm_res(Interloper& itl, Function& func, SymSlot src, u64 imm)

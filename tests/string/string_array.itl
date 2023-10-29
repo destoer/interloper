@@ -2,11 +2,11 @@
 
 func main() s32
 {
-    str : const string[?] = {"Hello","World"};
+    strings : const string[?] = {"Hello","World"};
 
-    for(i : u32 = 0; i < str.len; i += 1)
+    for str in strings
     {
-        print("{}\n",str[i]);
+        print("{}\n",str);
     }
 
     return 0;

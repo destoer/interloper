@@ -467,7 +467,13 @@ struct ForRangeNode
 
     AstNode* cond;
     BlockNode* block;
-    String name;
+
+    // encode
+    // [@v, i]
+    String name_one;
+    String name_two;
+
+    b8 take_pointer = false;
 };
 
 

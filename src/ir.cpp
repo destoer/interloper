@@ -345,6 +345,17 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             return remove(block.list,node);
         }
 
+        // forcibly dellocate a register
+        case op_type::kill_reg:
+        {
+            const auto slot = sym_from_idx(opcode.v[0]);
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+            free_reg(ir_reg,table,alloc);
+
+            return remove(block.list,node);
+        }
+
         // scope has elapsed any resources can be reclaimed
         // TODO: should this support registers?
         case op_type::free_slot:

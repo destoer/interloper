@@ -7,9 +7,9 @@ func test_arena() bool
 
     vla : byte[] = byte_array_arena(&arena,25);
 
-    for(i : u32 = 0; i < vla.len; i += 1)
+    for [@v , i] in vla
     {
-        vla[i] = cast(byte,i);
+        @v = cast(byte,i);
     }
 
     res := vla.len * vla[3];
@@ -21,9 +21,9 @@ func test_heap() bool
 {
     vla : byte[] = byte_array_heap(&global_heap,25);
 
-    for(i : u32 = 0; i < vla.len; i += 1)
+    for [@v , i] in vla
     {
-        vla[i] = cast(byte,i * 2);
+        @v = cast(byte,i * 2);
     }
 
     res := vla.len * vla[3];

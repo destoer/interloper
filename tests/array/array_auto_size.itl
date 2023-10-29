@@ -5,9 +5,9 @@ func sum(arr: u32[]) u32
 {
     ans : u32 = 0;
 
-    for(i : u32 = 0; i < arr.len; i += 1)
+    for(v in arr)
     {
-        ans += arr[i];
+        ans += v;
     }
 
     return ans;

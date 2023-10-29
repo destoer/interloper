@@ -795,18 +795,20 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     // save initial block so we can dump a branch later
     const BlockSlot initial_block = cur_block(func);
 
-    // NOTE: this current assumes dec or inc
-    const auto& sym = add_symbol(itl,for_node->name,make_builtin(itl,builtin_type::s32_t));
-    const SymSlot index_slot = sym.reg.slot;
-
     BinNode* cmp_node = (BinNode*)for_node->cond;
 
-    // grab initalizer
-    const auto entry_init_type = compile_expression(itl,func,cmp_node->left,index_slot);
+
 
     // grab end
     // NOTE: we need to regrab this later incase it is not a const
     const auto [entry_end_type,entry_end] = compile_oper(itl,func,cmp_node->right);
+
+    // make index the same type as the end stmt
+    const auto& sym = add_symbol(itl,for_node->name_one,entry_end_type);
+    const SymSlot index = sym.reg.slot;
+
+    // grab initalizer
+    const auto entry_init_type = compile_expression(itl,func,cmp_node->left,index);
 
     if(!is_integer(entry_init_type) || !is_integer(entry_end_type))
     {
@@ -817,7 +819,7 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
 
     // compile in cmp for entry
     SymSlot entry_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index_slot,entry_end);
+    emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index,entry_end);
 
     // compile the main loop body
     const BlockSlot for_block = compile_basic_block(itl,func,for_node->block); 
@@ -825,12 +827,12 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     // compile post inc / dec
     if(inc)
     {
-        add_imm(itl,func,index_slot,index_slot,1);
+        add_imm(itl,func,index,index,1);
     }
 
     else
     {
-        sub_imm(itl,func,index_slot,index_slot,1);
+        sub_imm(itl,func,index,index,1);
     }
 
     // compile body check
@@ -840,7 +842,7 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     const auto [exit_end_type,exit_end] = compile_oper(itl,func,cmp_node->right);
 
     SymSlot exit_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index_slot,exit_end);
+    emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index,exit_end);
 
     // compile in branches
     const BlockSlot exit_block = new_basic_block(itl,func);
@@ -852,7 +854,127 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);    
 }
 
-// void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
+void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
+{
+    const auto [type, arr_slot] = compile_expression_tmp(itl,func,for_node->cond);
+
+    if(!is_array(type))
+    {
+        panic(itl,itl_error::array_type_error,"Expected array for range stmt got %s\n",type_name(itl,type).buf);
+        return;
+    }
+
+    ArrayType* arr_type = (ArrayType*)type;
+
+    const u32 index_size = arr_type->sub_size;
+
+    // save initial block so we can dump a branch later
+    const BlockSlot initial_block = cur_block(func);
+
+    const b32 track_idx = for_node->name_two.buf != nullptr;
+    SymSlot index = SYM_ERROR;
+
+    SymSlot data = SYM_ERROR;
+
+    // create var to hold data
+    if(!for_node->take_pointer)
+    {
+        const auto& sym = add_symbol(itl,for_node->name_one,index_arr(arr_type));
+        data = sym.reg.slot;
+    }
+
+    else
+    {
+        const auto& sym = add_symbol(itl,for_node->name_one,make_pointer(itl,index_arr(arr_type)));
+        data = sym.reg.slot;
+    }
+    
+
+    if(track_idx)
+    {
+        // check our loop index does not exist
+        if(symbol_exists(itl.symbol_table,for_node->name_two))
+        {
+            panic(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
+            return;
+        }        
+
+        // make a fake constant symbol
+        auto& sym = add_symbol(itl,for_node->name_two,make_builtin(itl,builtin_type::u32_t,true));
+        sym.reg.flags &= ~CONST;
+
+        // init the index
+        index = sym.reg.slot;
+        mov_imm(itl,func,index,0);
+    }
+
+    // setup the loop grab data and len
+    const auto arr_len = load_arr_len(itl,func,arr_slot,type);
+    const auto arr_bytes = mul_imm_res(itl,func,arr_len,index_size);
+
+    const auto arr_data = load_arr_data(itl,func,arr_slot,type);
+
+    // compute array end
+    const auto arr_end = add_res(itl,func,arr_data,arr_bytes);
+
+
+    // keep the pointer and end alive 
+    // (NOTE: we should be able to get rid of this in our reg alloc rw)
+    auto& arr_data_reg = reg_from_slot(itl.symbol_table,func,arr_data);
+    arr_data_reg.flags |= KEEP_ALIVE;
+
+    auto& arr_end_reg = reg_from_slot(itl.symbol_table,func,arr_end);
+    arr_end_reg.flags |= KEEP_ALIVE;
+
+
+    // check array is not empty
+    const auto entry_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+    
+    // compile the main loop body
+    const BlockSlot for_block = new_basic_block(itl,func);
+
+    // if we want the data actually load it for us
+    if(!for_node->take_pointer)
+    {
+        // insert the array load inside the for block
+        // before we compile the actual stmts
+        do_ptr_load(itl,func,data,arr_data,arr_type->contained_type);
+    }
+
+    // move the pointer in the data
+    else
+    {
+        mov_reg(itl,func,data,arr_data);
+    }
+
+    compile_block(itl,func,for_node->block);
+
+    // compile body check
+    const BlockSlot end_block = cur_block(func);
+
+    // goto next array index
+    add_imm(itl,func,arr_data,arr_data,index_size);
+
+    if(track_idx)
+    {
+        add_imm(itl,func,index,index,1);
+    }
+
+    const auto exit_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+
+    // compile in branches
+    const BlockSlot exit_block = new_basic_block(itl,func);
+
+    // explictly deallocate the registers
+    kill_reg(itl,func,arr_data);
+    kill_reg(itl,func,arr_end);
+
+    // emit loop branch
+    emit_cond_branch(func,end_block,for_block,exit_block,exit_cond,true);
+
+    // emit branch over the loop body if array is empty
+    emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);  
+}
 
 
 void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
@@ -863,9 +985,9 @@ void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
 
 
     // check our loop index does not exist
-    if(symbol_exists(itl.symbol_table,for_node->name))
+    if(symbol_exists(itl.symbol_table,for_node->name_one))
     {
-        panic(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name.buf);
+        panic(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
         return;
     }
 
@@ -899,16 +1021,10 @@ void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
         }
 
         // array index!
-        case ast_type::symbol:
-        {
-            assert(false);
-            break;
-        }
-
         default:
         {
-            panic(itl,itl_error::invalid_expr,"invalid range for cond expression");
-            return;
+            compile_for_range_arr(itl,func,for_node);
+            break;
         }
     }
 

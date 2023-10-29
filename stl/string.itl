@@ -294,7 +294,7 @@ func print_args(fmt : const string, args : const Any[])
 {
     arg_count : u32 = 0;
 
-    for(i : u32 = 0; i < fmt.len; i += 1)
+    for(i in 0 < fmt.len)
     {
         char := fmt[i];
 

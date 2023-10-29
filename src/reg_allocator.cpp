@@ -483,11 +483,16 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
         }
     }
 
-    // tmp's are fine to delete under any circumstance because they will not live beyond the block
+    // tmp
     else
     {
         auto& ir_reg = reg_from_slot(slot,table,alloc);
-        free_reg(ir_reg,table,alloc);
+
+        // free the tmp unless we have marked to keep it alive
+        if(!(ir_reg.flags & KEEP_ALIVE))
+        {
+            free_reg(ir_reg,table,alloc);
+        }
     }    
 }
 

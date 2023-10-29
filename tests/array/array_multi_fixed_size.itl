@@ -5,9 +5,9 @@ func sum_arr(buf: u32[]) u32
 {
     ans : u32 = 0;
 
-    for i : u32 = 0; i < buf.len; i += 1
+    for v in buf
     {
-        ans += buf[i];
+        ans += v;
     }
 
     return ans;
@@ -23,17 +23,16 @@ func main() s32
         { {17,18,19,20}, {21,22,23,24} },
     };
 
-
-
     sum : u32 = 0;
 
-    for i : u32 = 0; i < arr.len; i += 1
+    for arr_2d in arr
     {
-        for j : u32 = 0; j < arr[i].len; j += 1
+        for arr_1d in arr_2d
         {
-            sum += sum_arr(arr[i][j]);
+            sum += sum_arr(arr_1d);
         }
     }
+    
 
     return sum * arr.len * arr[0].len * arr[0][0].len;
 }

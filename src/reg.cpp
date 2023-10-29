@@ -114,6 +114,12 @@ Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
         reg.flags |= STORED_IN_MEM;
     }
 
+    // store if this reg is const for opt purposes
+    if(type->is_const)
+    {
+        reg.flags |= CONST;
+    }
+
     reg.slot = {slot};
 
     return reg;

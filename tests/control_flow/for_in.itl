@@ -22,8 +22,8 @@ func main() s32
     }
 
     // array iter
-    sum3 : u32 = 15;
-/*
+    sum3 : u32 = 0;
+
     // TODO: should this be reverse if we need it? 
     //for(v in rev(arr))
 
@@ -31,20 +31,25 @@ func main() s32
     {
         sum3 += v;
     }
-*/
+
+
+    // array iter with idx
+    sum4 : u32 = 0;
+
+    for([v, i] in arr)
+    {
+        sum4 += i * v;
+    }
 
     // array iter by pointer, with idx
-    // TODO: we will have to add a extra field to parser if we see a comma
-    // along with a bool for the pointer for this...
-    sum4 : u32 = 40;
-/*
+    sum5 : u32 = 0;
+
     for([@v, i] in arr)
     {
-        sum4 += i * @v;
+        sum5 += i * @v;
     }
-*/
 
-    res := sum1 == 40  && sum2 == 40 && sum3 == 15 && sum4 == 40;
+    res := sum1 == 40  && sum2 == 40 && sum3 == 15 && sum4 == 40 && sum5 == 40;
 
     return cast(s32,res);
 }

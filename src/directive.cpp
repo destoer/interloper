@@ -82,6 +82,12 @@ void free_slot(Interloper& itl,Function& func, SymSlot slot)
     emit_block_internal(func,cur_block(func),op_type::free_slot,slot.handle,0,0);
 }
 
+void kill_reg(Interloper& itl,Function& func, SymSlot slot)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::kill_reg,slot.handle,0,0);
+}
+
 
 void free_fixed_array(Interloper& itl,Function& func,SymSlot src,u32 size,u32 count)
 {

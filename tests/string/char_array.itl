@@ -6,14 +6,14 @@ func main() s32
     str : const string = "Hello there";
 
     set : u64 = 0;
-
-    for(i : u32 = 0; i < str.len; i += 1)
+    
+    for c in str
     {
-        c := to_lower(str[i]);
+        l := to_lower(c);
         
-        if(c >= 'a' && c <= 'z')
+        if(l >= 'a' && l <= 'z')
         {
-            x : u8 = c - 'a';
+            x : u8 = l - 'a';
             set = set_bit(set,x);
         }
     }

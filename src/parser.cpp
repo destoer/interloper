@@ -643,21 +643,55 @@ AstNode* parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
     return (AstNode*)for_node;
 }
 
-AstNode* parse_for_range(Parser& parser,const Token& t, b32 term_paren)
+AstNode* parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 take_index, b32 take_pointer)
 {
     // e.g
     // for(i in 0 <= size)
+    // for([v, i] in arr)
+    // for(v in arr)
+    // for(@v in arr)
     ForRangeNode* for_node = (ForRangeNode*)ast_for_range(parser,t);
 
-    const auto name = next_token(parser);
+    if(take_index)
+    {
+        consume(parser,token_type::sl_brace);
+    }
 
-    if(name.type != token_type::symbol)
+    if(take_pointer)
+    {
+        consume(parser,token_type::deref);
+    }
+
+    for_node->take_pointer = take_pointer;
+
+    const auto name_one = next_token(parser);
+
+    if(name_one.type != token_type::symbol)
     { 
-        panic(parser,name,"Expected name for range for statement");
+        panic(parser,name_one,"Expected name for range for statement");
         return nullptr;
     }
 
-    for_node->name = name.literal;
+
+    for_node->name_one = name_one.literal;
+
+    // get the 2nd name
+    if(take_index)
+    {
+        consume(parser,token_type::comma);
+
+        const auto name_two = next_token(parser);
+
+        if(name_two.type != token_type::symbol)
+        { 
+            panic(parser,name_two,"Expected name for range for statement");
+            return nullptr;
+        }
+
+        for_node->name_two = name_two.literal;
+
+        consume(parser,token_type::sr_brace);
+    }
 
     consume(parser,token_type::in_t);
 
@@ -844,14 +878,41 @@ AstNode *statement(Parser &parser)
             }
 
             // check for range for
-            if(peek(parser,1).type == token_type::in_t)
+            // first look for tuple
+            // [v, i] in arr
+            if(peek(parser,0).type == token_type::sl_brace)
             {
-                return parse_for_range(parser,t,term_paren);
+                // pointer in tuple
+                // [@v, i] in arr
+                if(peek(parser,1).type == token_type::deref)
+                {
+                    return parse_for_range(parser,t,term_paren,true,true);
+                }
+
+                // [v, i] in arr
+                else
+                {
+                    return parse_for_range(parser,t,term_paren,true,false);
+                }
             }
 
+            // potential pointer for array iter
+            // just @v in arr
+            else if(peek(parser,0).type == token_type::deref)
+            {
+                return parse_for_range(parser,t,term_paren,false,true);
+            }
+
+            // check for idx range
+            // i in 0 < size
+            else if(peek(parser,1).type == token_type::in_t)
+            {
+                return parse_for_range(parser,t,term_paren,false,false);
+            }
+
+            // must be iter for
             else
             {
-                // check for iter for
                 return parse_for_iter(parser,t,term_paren);
             }
         }
@@ -1855,7 +1916,7 @@ void print(const AstNode *root, b32 override_seperator)
         {
             ForRangeNode* for_node = (ForRangeNode*)root;
 
-            printf("for %s in\n",for_node->name.buf);
+            printf("for [%s, %s] in\n",for_node->name_one.buf, for_node->name_two.buf);
             print(for_node->cond);
 
             break;

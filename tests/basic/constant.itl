@@ -19,9 +19,9 @@ func sum_arr(arr : const u32[]) s32
 {
     ans : s32 = 0;
 
-    for(i : u32 = 0; i < arr.len; i += 1)
+    for(v in arr)
     {
-        ans += arr[i];
+        ans += v;
     }
 
     return ans;

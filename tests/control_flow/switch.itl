@@ -6,9 +6,9 @@ func main() s32
 
     ans : u32 = 0;
 
-    for i : u32 = 0; i < buf.len; i += 1
+    for v in buf
     {
-        switch(buf[i])
+        switch(v)
         {
             case 1:
             {
@@ -35,7 +35,7 @@ func main() s32
                 ans += 6;
 
                 // 46
-                if(is_set(cast(u32,buf[i]),0))
+                if(is_set(cast(u32,v),0))
                 {
                     ans += 35;
                 }

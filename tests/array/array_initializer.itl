@@ -6,9 +6,9 @@ func main() s32
 
     ans : u32 = 0;
 
-    for(i : u32 = 0; i < buf.len; i += 1)
+    for(v in buf)
     {
-        ans += buf[i];
+        ans += v;
     }
 
     return ans;

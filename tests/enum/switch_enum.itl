@@ -14,9 +14,9 @@ func main() s32
 
     ans : s32 = 0;
 
-    for i : u32 = 0; i < buf.len; i += 1
+    for(v in buf)
     {
-        switch(buf[i])
+        switch(v)
         {
             case scale::small:
             {
