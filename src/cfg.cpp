@@ -8,6 +8,9 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
     block.label_slot = label_slot;
     block.block_slot = block_slot;
 
+    block.live_in = make_set<SymSlot>();
+    block.live_out = make_set<SymSlot>();
+
     return block;
 }
 
@@ -80,6 +83,10 @@ void add_block_exit(Function& func,BlockSlot slot, BlockSlot exit)
     }
 
     push_var(block.exit,exit);
+
+    // add entry to our target block
+    auto& exit_block = block_from_slot(func,exit);
+    push_var(exit_block.entry,slot);
 }
 
 void add_func_exit(Function& func, BlockSlot slot)

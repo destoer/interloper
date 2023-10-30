@@ -10,15 +10,22 @@ ListNode* get_cur_end(IrEmitter& emitter)
     return get_cur_list(emitter).end;    
 }
 
+void destroy_block(Block& block)
+{
+    destroy_arr(block.entry);
+    destroy_arr(block.exit);
+
+    destroy_set(block.live_in);
+    destroy_set(block.live_out);
+
+    destroy_arr(block.links);
+}
 
 void destroy_emitter(IrEmitter& emitter)
 {
     for(u32 b = 0; b < count(emitter.program); b++)
     {
-        auto& block = emitter.program[b];
-
-        destroy_arr(block.exit);
-        destroy_arr(block.links);
+        destroy_block(emitter.program[b]);
     }
 
     destroy_arr(emitter.program);

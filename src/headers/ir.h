@@ -468,7 +468,14 @@ struct Block
     // What is our own slot?
     BlockSlot block_slot;
 
+    // blocks that can enter
+    Array<BlockSlot> entry;
+
+    // block we exit to
     Array<BlockSlot> exit;
+
+    Set<SymSlot> live_in;
+    Set<SymSlot> live_out;
 
     // what blocks are reachable from this block?
     Array<BlockSlot> links;
