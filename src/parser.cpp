@@ -1438,11 +1438,11 @@ StringBuffer read_source_file(const String& filename)
 }
 
 
-void add_file(HashTable<String,u32> &file_set, Array<String>& stack, const String& filename)
+void add_file(Set<String> &file_set, Array<String>& stack, const String& filename)
 {
     if(!contains(file_set,filename))
     {
-        add(file_set,filename,u32(0));
+        add(file_set,filename);
         push_var(stack,filename);
     }
 }
@@ -1463,7 +1463,7 @@ void destroy_parser(Parser& parser)
     destroy_arr(parser.tokens);
 }
 
-bool parse_file(Interloper& itl,const String& file, const String& filename,const String& stl_path, HashTable<String,u32>& file_set, Array<String> &file_stack)
+bool parse_file(Interloper& itl,const String& file, const String& filename,const String& stl_path, Set<String>& file_set, Array<String> &file_stack)
 {
     // Parse out the file
     Parser parser = make_parser(filename,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
@@ -1623,7 +1623,7 @@ bool parse(Interloper& itl, const String& initial_filename)
 {
     // TODO: destruct these
     Array<String> file_stack;
-    HashTable<String,u32> file_set = make_table<String,u32>();
+    Set<String> file_set = make_set<String>();
 
     // add the initial file
     add_file(file_set,file_stack,get_program_name(itl.string_allocator,initial_filename));
@@ -1665,7 +1665,7 @@ bool parse(Interloper& itl, const String& initial_filename)
     }
 
     destroy_arr(file_stack);
-    destroy_table(file_set);
+    destroy_set(file_set);
 
     return error;
 }
