@@ -476,6 +476,8 @@ struct Block
 
     Set<SymSlot> live_in;
     Set<SymSlot> live_out;
+    Set<SymSlot> def;
+    Set<SymSlot> use;
 
     // what blocks are reachable from this block?
     Array<BlockSlot> links;

@@ -10,6 +10,8 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
 
     block.live_in = make_set<SymSlot>();
     block.live_out = make_set<SymSlot>();
+    block.def = make_set<SymSlot>();
+    block.use = make_set<SymSlot>();
 
     return block;
 }

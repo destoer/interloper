@@ -25,5 +25,5 @@ func main() s32
 
     write_string("\n");
 
-    return cast(s32,total);
+    return cast(s32,total >= 57);
 }

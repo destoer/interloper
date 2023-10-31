@@ -17,6 +17,8 @@ void destroy_block(Block& block)
 
     destroy_set(block.live_in);
     destroy_set(block.live_out);
+    destroy_set(block.def);
+    destroy_set(block.use);
 
     destroy_arr(block.links);
 }
