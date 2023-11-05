@@ -613,6 +613,9 @@ void allocate_registers(Interloper& itl,Function &func)
 {
     auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers);
 
+    // do liveness analysis
+    compute_var_live(itl,func);
+
     // figure out how long each sym lives
     mark_lifetimes(func,alloc,itl.symbol_table);
 

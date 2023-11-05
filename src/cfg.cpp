@@ -8,10 +8,10 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
     block.label_slot = label_slot;
     block.block_slot = block_slot;
 
+    block.use = make_set<SymSlot>();
+    block.def = make_set<SymSlot>();
     block.live_in = make_set<SymSlot>();
     block.live_out = make_set<SymSlot>();
-    block.def = make_set<SymSlot>();
-    block.use = make_set<SymSlot>();
 
     return block;
 }
@@ -205,7 +205,7 @@ void connect_node(Function& func,BlockSlot slot)
     auto& block = block_from_slot(func,slot);
 
     // Which nodes have we allready looked at?
-    HashTable<u32, u32> seen = make_table<u32,u32>();
+    Set<BlockSlot> seen = make_set<BlockSlot>();
 
     // setup intial scan
     Array<BlockSlot> scan;
@@ -226,7 +226,7 @@ void connect_node(Function& func,BlockSlot slot)
             const BlockSlot edge_slot = scan_block.exit[e];
 
             // can reach self this means we have a loop!
-            if(slot.handle == edge_slot.handle)
+            if(slot == edge_slot)
             {
                 block.flags |= IN_LOOP;
             }
@@ -236,10 +236,10 @@ void connect_node(Function& func,BlockSlot slot)
                 block.flags |= REACH_FUNC_EXIT;
             }
 
-            if(!contains(seen,edge_slot.handle))
+            if(!contains(seen,edge_slot))
             {
                 // add as a scan target
-                add(seen,edge_slot.handle,u32(0));
+                add(seen,edge_slot);
                 push_var(scan,edge_slot);
                 
 
@@ -250,7 +250,7 @@ void connect_node(Function& func,BlockSlot slot)
     }
 
     
-    destroy_table(seen);
+    destroy_set(seen);
     destroy_arr(scan);
 }
 
@@ -265,5 +265,199 @@ void connect_flow_graph(Interloper& itl,Function& func)
     {
         const BlockSlot slot = block_from_idx(b);
         connect_node(func,slot);
+    }
+}
+
+// TODO: would it be cheaper to do this inside the emitter?
+void compute_use_def(Function& func)
+{
+    // each block
+    for(u32 b = 0; b < count(func.emitter.program); b++)
+    {
+        const BlockSlot slot = block_from_idx(b);
+        auto& block = block_from_slot(func,slot);
+
+        // run pass on block
+        ListNode *node = block.list.start;
+
+        // ignore empty blocks
+        if(!node)
+        {
+            continue;
+        }
+        
+        // for each opcode
+        while(node)
+        {
+            // mark three address code
+            const auto opcode = node->opcode;
+
+            const auto info = OPCODE_TABLE[u32(opcode.op)];
+
+            for(u32 r = 0; r < info.args; r++)
+            {
+                // some kind of reg
+                if(info.type[r] == arg_type::src_reg || info.type[r] == arg_type::dst_reg)
+                {
+                    const auto slot = sym_from_idx(opcode.v[r]);
+
+                    // ir reg
+                    if(!is_special_reg(slot))
+                    {
+                        // used as src, without a def -> use
+                        if(info.type[r] == arg_type::src_reg)
+                        {
+                            if(!contains(block.def,slot))
+                            {
+                                add(block.use,slot);
+                            }
+                        }
+
+                        // used as dst, without a prior use -> def
+                        else if(info.type[r] == arg_type::dst_reg)
+                        {
+                            if(!contains(block.use,slot))
+                            {
+                                add(block.def,slot);
+                            }
+                        }
+                    }
+                }
+            }
+
+            node = node->next;
+        }        
+    }
+}
+
+
+void print_ir_set(Interloper& itl, const Set<SymSlot>& set, const char* tag)
+{
+    printf("%s: {",tag);
+
+    // dump each value
+    for(u32 i = 0; i < count(set.buf); i++)
+    {
+        const SetBucket<SymSlot>& bucket = set.buf[i];
+
+        for(u32 j = 0; j < count(bucket); j++)
+        {
+            const auto slot = bucket[j];
+
+            // print var name
+            if(is_sym(slot))
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,slot);
+                printf("%s,",sym.name.buf);
+            }
+
+            else
+            {
+                printf("t%d,",slot.handle);
+            }
+        }
+    }
+
+    printf("}\n");
+}
+
+void print_cfg_info(Interloper& itl, Function& func)
+{
+    // empty function we are done!!
+    if(!count(func.emitter.program))
+    {
+        return;
+    }
+
+    printf("\ncfg for function %s:\n",func.name.buf);
+
+    Set<BlockSlot> seen = make_set<BlockSlot>();
+    Array<BlockSlot> to_visit;
+
+    // print from start
+    BlockSlot start = block_from_idx(0);
+    add(seen,start);
+    push_var(to_visit,start);
+
+    
+    while(count(to_visit))
+    {
+        const BlockSlot cur = pop(to_visit);
+        const auto& block = block_from_slot(func,cur); 
+
+        // print cur
+        printf("\nL%d,\n",block.label_slot.handle);
+
+        print_ir_set(itl,block.use,"use: ");
+        print_ir_set(itl,block.def,"def: ");
+        print_ir_set(itl,block.live_in,"live in: ");
+        print_ir_set(itl,block.live_out,"live out: ");
+
+
+        // add any we havent seen for a print
+        for(u32 e = 0; e < count(block.exit); e++)
+        {
+            const auto exit = block.exit[e];
+
+            if(!contains(seen,exit))
+            {
+                add(seen,exit);
+                push_var(to_visit,exit);            
+            }
+        }      
+    }
+
+
+}
+
+void compute_var_live(Interloper& itl, Function& func)
+{
+    // empty function we are done!!
+    if(!count(func.emitter.program))
+    {
+        return;
+    }
+
+    // first compute a use def chain for each block
+    compute_use_def(func);
+/*
+    // backprop until we get no changes to account for loops!
+    b32 modified = true;
+
+    while(modified)
+    {
+        modified = false;
+
+        // run a liveness pass
+        Set<u32> seen = make_set<u32>();
+        Array<u32> to_visit;
+
+        // run complete analysis from last node
+        BlockSlot end = block_from_idx(count(block_from_idx[0]) - 1);
+        add(seen,end.handle);
+        add(to_visit,end.handle);
+
+        // run pass on cur block
+        while(count(to_visit))
+        {
+            const BlockSlot cur = pop(scan);
+            const auto& block = block_from_slot(func,cur);
+
+            // used as a use -> input
+
+            // input of exit -> output
+            
+            // finally if there is no def for an output 
+            // then it must be an input (the value must arise somewhere)
+        }
+
+        // cleanup mem for current pass
+        destroy_set(seen);
+        destroy_arr(to_visit);
+    }
+*/
+    if(itl.print_ir)
+    {
+        print_cfg_info(itl,func);
     }
 }

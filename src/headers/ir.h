@@ -239,6 +239,12 @@ SymSlot sym_from_idx(u32 idx)
     return {idx};
 }
 
+template<slot_type type>
+b32 operator==(const Slot<type> v1,const Slot<type> v2)
+{
+    return v1.handle == v2.handle;
+}
+
 // first index of symslot is reserved
 static constexpr SymSlot SYM_ERROR = {0};
 
