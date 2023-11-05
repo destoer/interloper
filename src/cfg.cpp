@@ -77,7 +77,7 @@ b32 is_func_exit(BlockSlot slot)
 void add_block_exit(Function& func,BlockSlot slot, BlockSlot exit)
 {
     auto& block = block_from_slot(func,slot);
-    
+
     // once we have exited the func everything else is unreachable
     if(block.flags & HAS_FUNC_EXIT)
     {
@@ -122,10 +122,8 @@ b32 in_loop(Block& block)
 
 void add_cond_exit(Function& func,BlockSlot slot, BlockSlot target, BlockSlot fall)
 {
-    auto& block = block_from_slot(func,slot);
-
-    push_var(block.exit,target);
-    push_var(block.exit,fall);
+    add_block_exit(func,slot,target);
+    add_block_exit(func,slot,fall);
 }
 
 
@@ -361,6 +359,19 @@ void print_ir_set(Interloper& itl, const Set<SymSlot>& set, const char* tag)
     printf("}\n");
 }
 
+void print_block_connection(Function& func, const Array<BlockSlot> con, const char* tag)
+{
+    printf("%s: {",tag);
+
+    for(u32 c = 0; c < count(con); c++)
+    {
+        auto& block = block_from_slot(func,con[c]);
+        printf("L%d,",block.label_slot.handle);
+    }
+
+    printf("}\n");
+}
+
 void print_cfg_info(Interloper& itl, Function& func)
 {
     // empty function we are done!!
@@ -388,11 +399,15 @@ void print_cfg_info(Interloper& itl, Function& func)
         // print cur
         printf("\nL%d,\n",block.label_slot.handle);
 
+
+        print_block_connection(func,block.entry,"entry: ");
+
         print_ir_set(itl,block.use,"use: ");
         print_ir_set(itl,block.def,"def: ");
         print_ir_set(itl,block.live_in,"live in: ");
         print_ir_set(itl,block.live_out,"live out: ");
 
+        print_block_connection(func,block.exit,"exit: ");
 
         // add any we havent seen for a print
         for(u32 e = 0; e < count(block.exit); e++)
