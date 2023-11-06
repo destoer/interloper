@@ -159,44 +159,8 @@ void emit_branch(Function& func, BlockSlot block,BlockSlot target)
     add_block_exit(func,block,target);
 }
 
-void print_edges(Interloper& itl, Function& func, Array<BlockSlot> links, const char* prefix)
-{
-    printf("%s:",prefix);
-
-    // print each link for blocks
-    for(u32 l = 0; l < count(links); l++)
-    {
-        const BlockSlot link_slot = links[l];
-        const auto& link_block = block_from_slot(func,link_slot);
-
-        const auto& link_label = label_from_slot(itl.symbol_table.label_lookup,link_block.label_slot);
-        printf("(%d : %s), ",link_slot.handle,link_label.name.buf);
-    }
-
-    putchar('\n');
-}
-
-void dump_cfg(Interloper& itl,Function& func)
-{
-    printf("cfg for: %s\n",func.name.buf);
-
-    for(u32 b = 0; b < count(func.emitter.program); b++)
-    {
-        auto& block = func.emitter.program[b];
-        const auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
 
 
-        printf("Block %d(%s):\n",b,label.name.buf);
-
-        printf("flags: %x\n",block.flags);
-        print_edges(itl,func,block.exit,"edges");
-        print_edges(itl,func,block.links,"links");
-
-        putchar('\n');
-    }
-
-    putchar('\n');    
-}
 
 void connect_node(Function& func,BlockSlot slot)
 {
@@ -251,6 +215,102 @@ void connect_node(Function& func,BlockSlot slot)
     destroy_set(seen);
     destroy_arr(scan);
 }
+
+
+void print_ir_set(Interloper& itl, const Set<SymSlot>& set, const char* tag)
+{
+    printf("%s: {",tag);
+
+    // dump each value
+    for(u32 i = 0; i < count(set.buf); i++)
+    {
+        const SetBucket<SymSlot>& bucket = set.buf[i];
+
+        for(u32 j = 0; j < count(bucket); j++)
+        {
+            const auto slot = bucket[j];
+
+            // print var name
+            if(is_sym(slot))
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,slot);
+                printf("%s,",sym.name.buf);
+            }
+
+            else
+            {
+                printf("t%d,",slot.handle);
+            }
+        }
+    }
+
+    printf("}\n");
+}
+
+void print_block_connection(Function& func, const Array<BlockSlot> con, const char* tag)
+{
+    printf("%s: {",tag);
+
+    for(u32 c = 0; c < count(con); c++)
+    {
+        auto& block = block_from_slot(func,con[c]);
+        printf("L%d,",block.label_slot.handle);
+    }
+
+    printf("}\n");
+}
+
+void dump_cfg(Interloper& itl, Function& func)
+{
+    // empty function we are done!!
+    if(!count(func.emitter.program))
+    {
+        return;
+    }
+
+    printf("\ncfg for function %s:\n",func.name.buf);
+
+    Set<BlockSlot> seen = make_set<BlockSlot>();
+    Array<BlockSlot> to_visit;
+
+    // print from start
+    BlockSlot start = block_from_idx(0);
+    add(seen,start);
+    push_var(to_visit,start);
+
+    
+    while(count(to_visit))
+    {
+        const BlockSlot cur = pop(to_visit);
+        const auto& block = block_from_slot(func,cur); 
+
+        // print cur
+        printf("\nL%d:\n",block.label_slot.handle);
+        printf("flags: %x\n",block.flags);
+
+        print_block_connection(func,block.entry,"entry: ");
+
+        print_ir_set(itl,block.use,"use: ");
+        print_ir_set(itl,block.def,"def: ");
+        print_ir_set(itl,block.live_in,"live in: ");
+        print_ir_set(itl,block.live_out,"live out: ");
+
+        print_block_connection(func,block.exit,"exit: ");
+
+        // add any we havent seen for a print
+        for(u32 e = 0; e < count(block.exit); e++)
+        {
+            const auto exit = block.exit[e];
+
+            if(!contains(seen,exit))
+            {
+                add(seen,exit);
+                push_var(to_visit,exit);            
+            }
+        }      
+    }
+}
+
 
 // after we have finished emitting the IR we need to mark which nodes can be reached
 // from any one node
@@ -332,102 +392,6 @@ void compute_use_def(Interloper& itl,Function& func)
     }
 }
 
-
-void print_ir_set(Interloper& itl, const Set<SymSlot>& set, const char* tag)
-{
-    printf("%s: {",tag);
-
-    // dump each value
-    for(u32 i = 0; i < count(set.buf); i++)
-    {
-        const SetBucket<SymSlot>& bucket = set.buf[i];
-
-        for(u32 j = 0; j < count(bucket); j++)
-        {
-            const auto slot = bucket[j];
-
-            // print var name
-            if(is_sym(slot))
-            {
-                auto& sym = sym_from_slot(itl.symbol_table,slot);
-                printf("%s,",sym.name.buf);
-            }
-
-            else
-            {
-                printf("t%d,",slot.handle);
-            }
-        }
-    }
-
-    printf("}\n");
-}
-
-void print_block_connection(Function& func, const Array<BlockSlot> con, const char* tag)
-{
-    printf("%s: {",tag);
-
-    for(u32 c = 0; c < count(con); c++)
-    {
-        auto& block = block_from_slot(func,con[c]);
-        printf("L%d,",block.label_slot.handle);
-    }
-
-    printf("}\n");
-}
-
-void print_cfg_info(Interloper& itl, Function& func)
-{
-    // empty function we are done!!
-    if(!count(func.emitter.program))
-    {
-        return;
-    }
-
-    printf("\ncfg for function %s:\n",func.name.buf);
-
-    Set<BlockSlot> seen = make_set<BlockSlot>();
-    Array<BlockSlot> to_visit;
-
-    // print from start
-    BlockSlot start = block_from_idx(0);
-    add(seen,start);
-    push_var(to_visit,start);
-
-    
-    while(count(to_visit))
-    {
-        const BlockSlot cur = pop(to_visit);
-        const auto& block = block_from_slot(func,cur); 
-
-        // print cur
-        printf("\nL%d:\n",block.label_slot.handle);
-
-
-        print_block_connection(func,block.entry,"entry: ");
-
-        print_ir_set(itl,block.use,"use: ");
-        print_ir_set(itl,block.def,"def: ");
-        print_ir_set(itl,block.live_in,"live in: ");
-        print_ir_set(itl,block.live_out,"live out: ");
-
-        print_block_connection(func,block.exit,"exit: ");
-
-        // add any we havent seen for a print
-        for(u32 e = 0; e < count(block.exit); e++)
-        {
-            const auto exit = block.exit[e];
-
-            if(!contains(seen,exit))
-            {
-                add(seen,exit);
-                push_var(to_visit,exit);            
-            }
-        }      
-    }
-
-
-}
 
 void compute_var_live(Interloper& itl, Function& func)
 {
@@ -513,6 +477,6 @@ void compute_var_live(Interloper& itl, Function& func)
 
     if(itl.print_ir)
     {
-        print_cfg_info(itl,func);
+        dump_cfg(itl,func);
     }
 }
