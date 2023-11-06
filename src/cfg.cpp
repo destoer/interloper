@@ -292,7 +292,8 @@ void compute_use_def(Function& func)
 
             const auto info = OPCODE_TABLE[u32(opcode.op)];
 
-            for(u32 r = 0; r < info.args; r++)
+            // look at src regs first, then dst!
+            for(s32 r = info.args - 1; r >= 0; r--)
             {
                 // some kind of reg
                 if(info.type[r] == arg_type::src_reg || info.type[r] == arg_type::dst_reg)
@@ -397,7 +398,7 @@ void print_cfg_info(Interloper& itl, Function& func)
         const auto& block = block_from_slot(func,cur); 
 
         // print cur
-        printf("\nL%d,\n",block.label_slot.handle);
+        printf("\nL%d:\n",block.label_slot.handle);
 
 
         print_block_connection(func,block.entry,"entry: ");
