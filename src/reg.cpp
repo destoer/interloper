@@ -70,9 +70,11 @@ void assign_reg_size(Reg& reg, u32 size)
 }
 
 
+// NOTE: this doesn't account for external array storage
+// just the type itself!
 b32 resides_in_mem(const Type* type)
 {
-    return is_struct(type) || is_array(type);
+    return is_struct(type) || is_vla(type);
 }
 
 b32 is_aliased(const Reg& reg)

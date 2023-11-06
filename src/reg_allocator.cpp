@@ -454,46 +454,27 @@ void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode
     }   
 }
 
-// TODO: how should this behave for globals?
+
 void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot slot, b32 after)
 {
-    // we can just cheat and spill vars for now to make sure they get saved but this kinda defeats the point
-    if(is_sym(slot))
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+    // scope extends beyond this last use i.e because its in a loop
+    const b32 used_beyond = contains(block.live_out,slot); 
+
+    // if a pointer is taken to this, 
+    // or if we are in a loop and a reg scope extends past loop
+    if(is_aliased(ir_reg) || ir_reg.kind == reg_kind::global || used_beyond)
     {
-        auto &sym = sym_from_slot(table,slot);
-
-
-        // reachable from self
-        // scope extends beyond this last use
-        const b32 used_beyond_loop = in_loop(block) && sym.scope_end.handle > block.block_slot.handle;
-
-        // if a pointer is taken to this, 
-        // or if we are in a loop and a sym scope extends past loop
-        if(is_aliased(sym.reg) || sym.reg.kind == reg_kind::global || used_beyond_loop)
-        {
-            spill(slot,alloc,table,block,node,after);
-        }
-
-            
-        // No way to access it, get rid of the reg
-        else
-        {
-            auto& ir_reg = reg_from_slot(slot,table,alloc);
-            free_reg(ir_reg,table,alloc);
-        }
+        spill(slot,alloc,table,block,node,after);
     }
 
-    // tmp
+        
+    // No way to access it, get rid of the reg
     else
     {
-        auto& ir_reg = reg_from_slot(slot,table,alloc);
-
-        // free the tmp unless we have marked to keep it alive
-        if(!(ir_reg.flags & KEEP_ALIVE))
-        {
-            free_reg(ir_reg,table,alloc);
-        }
-    }    
+        free_reg(ir_reg,table,alloc);
+    }
 }
 
 // NOTE: use this to force rewrites of directives

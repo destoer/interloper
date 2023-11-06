@@ -659,6 +659,8 @@ void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype,
 
 Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *node)
 {
+    const List list_old = get_cur_list(func.emitter);
+
     auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
 
     if(itl.error)
@@ -669,6 +671,10 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
     // len access on fixed sized array
     if(ptr_slot.handle == ACCESS_FIXED_LEN_REG)
     {
+        // dont need any of the new instrs for this
+        // get rid of them
+        get_cur_list(func.emitter) = list_old;
+
         const ArrayType* array_type = (ArrayType*)accessed_type;
 
         mov_imm(itl,func,dst_slot,array_type->size);

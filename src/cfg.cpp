@@ -267,7 +267,7 @@ void connect_flow_graph(Interloper& itl,Function& func)
 }
 
 // TODO: would it be cheaper to do this inside the emitter?
-void compute_use_def(Function& func)
+void compute_use_def(Interloper& itl,Function& func)
 {
     // each block
     for(u32 b = 0; b < count(func.emitter.program); b++)
@@ -298,31 +298,37 @@ void compute_use_def(Function& func)
                 // assume some kind of slot
                 const auto slot = sym_from_idx(opcode.v[r]);
 
-                // ir reg
-                if(!is_special_reg(slot))
+                // make sure this is actually a reg
+                if(is_special_reg(slot) || (info.type[r] != arg_type::src_reg && info.type[r] != arg_type::dst_reg))
+                {
+                    continue;
+                }
+
+                auto& ir_reg = reg_from_slot(itl.symbol_table,func,slot);
+
+                // ir reg, that is not stored in memory
+                if(!stored_in_mem(ir_reg))
                 {
                     // used as src, without a def -> use
-                    if(info.type[r] == arg_type::src_reg)
+                    if(info.type[r] == arg_type::src_reg && !contains(block.def,slot))
                     {
-                        if(!contains(block.def,slot))
-                        {
-                            add(block.use,slot);
-                        }
+                        add(block.use,slot); 
                     }
 
-                    // used as dst, without a prior use -> def
+                    // used as dst, def
                     else if(info.type[r] == arg_type::dst_reg)
                     {
-                        if(!contains(block.use,slot))
-                        {
-                            add(block.def,slot);
-                        }
+                        add(block.def,slot);
                     }
                 }
             }
 
             node = node->next;
-        }        
+        }
+
+        // if block has a use of a var it must be an input
+        // computed here for speed rather than in liveness func
+        set_union(block.live_in,block.use);        
     }
 }
 
@@ -432,8 +438,8 @@ void compute_var_live(Interloper& itl, Function& func)
     }
 
     // first compute a use def chain for each block
-    compute_use_def(func);
-/*
+    compute_use_def(itl,func);
+
     // backprop until we get no changes to account for loops!
     b32 modified = true;
 
@@ -442,33 +448,69 @@ void compute_var_live(Interloper& itl, Function& func)
         modified = false;
 
         // run a liveness pass
-        Set<u32> seen = make_set<u32>();
-        Array<u32> to_visit;
+        auto seen = make_set<BlockSlot>();
+        Array<BlockSlot> to_visit;
 
         // run complete analysis from last node
-        BlockSlot end = block_from_idx(count(block_from_idx[0]) - 1);
-        add(seen,end.handle);
-        add(to_visit,end.handle);
+        const BlockSlot end = block_from_idx(count(func.emitter.program) - 1);
+        add(seen,end);
+        push_var(to_visit,end);
 
         // run pass on cur block
         while(count(to_visit))
         {
-            const BlockSlot cur = pop(scan);
-            const auto& block = block_from_slot(func,cur);
+            const BlockSlot cur = pop(to_visit);
+            auto& block = block_from_slot(func,cur);
 
             // used as a use -> input
+            // NOTE: computed above in use def for speed 
+            // as it will not change from propagation
+            // set_union(block.input,block.use);
 
             // input of exit -> output
+            for(u32 e = 0; e < count(block.exit); e++)
+            {
+                const auto& exit = block_from_slot(func,block.exit[e]);
+
+                modified |= set_union(block.live_out,exit.live_in);
+            }
             
             // finally if there is no def for an output 
             // then it must be an input (the value must arise somewhere)
+            for(u32 i = 0; i < count(block.live_out.buf); i++)
+            {
+                const auto bucket = block.live_out.buf[i];
+
+                for(u32 j = 0; j < count(bucket); j++)
+                {
+                    const auto slot = bucket[j];
+
+                    if(!contains(block.def,slot))
+                    {
+                        modified |= add(block.live_in,slot);
+                    }
+                }
+            }
+
+
+            // add entrys we havent seen for parsing
+            for(u32 e = 0; e < count(block.entry); e++)
+            {
+                const auto entry = block.entry[e];
+
+                if(!contains(seen,entry))
+                {
+                    add(seen,entry);
+                    push_var(to_visit,entry);            
+                }
+            } 
         }
 
         // cleanup mem for current pass
         destroy_set(seen);
         destroy_arr(to_visit);
     }
-*/
+
     if(itl.print_ir)
     {
         print_cfg_info(itl,func);

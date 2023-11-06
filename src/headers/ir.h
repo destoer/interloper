@@ -93,7 +93,6 @@ enum class op_type
     // so we can reclaim allocation on the stack
     alloc_slot,
     free_slot,
-    kill_reg,
 
     alloc_local_array,
     alloc_global_array,
@@ -295,8 +294,7 @@ static constexpr u32 SIGNED_FLAG = 1 << 0;
 static constexpr u32 STORED_IN_MEM = 1 << 1;
 static constexpr u32 ALIASED = 1 << 2;
 static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
-static constexpr u32 KEEP_ALIVE = 1 << 4;
-static constexpr u32 CONST = 1 << 5;
+static constexpr u32 CONST = 1 << 4;
 
 struct Reg
 {

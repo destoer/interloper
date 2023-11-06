@@ -602,23 +602,32 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 
     else if(is_array(dst_type) && is_array(src_type))
     {
-        SymSlot addr_slot;
-
-        if(dst_slot.handle == RV_IR)
+        if(is_fixed_array(dst_type))
         {
-            addr_slot = func.sig.args[0];
+            mov_reg(itl,func,dst_slot,src_slot);
         }
 
+        // runtime
         else
-        {   
-            addr_slot = addrof_res(itl,func,dst_slot);
-        }
+        {
+            SymSlot addr_slot;
 
-        const SymSlot data_slot = load_arr_data(itl,func,src_slot,src_type);
-        store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE);
+            if(dst_slot.handle == RV_IR)
+            {
+                addr_slot = func.sig.args[0];
+            }
 
-        const SymSlot len_slot = load_arr_len(itl,func,src_slot,src_type);
-        store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE);
+            else
+            {   
+                addr_slot = addrof_res(itl,func,dst_slot);
+            }
+
+            const SymSlot data_slot = load_arr_data(itl,func,src_slot,src_type);
+            store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE);
+
+            const SymSlot len_slot = load_arr_len(itl,func,src_slot,src_type);
+            store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE);
+        } 
     }
 
     // requires special handling to move
@@ -918,15 +927,6 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     const auto arr_end = add_res(itl,func,arr_data,arr_bytes);
 
 
-    // keep the pointer and end alive 
-    // (NOTE: we should be able to get rid of this in our reg alloc rw)
-    auto& arr_data_reg = reg_from_slot(itl.symbol_table,func,arr_data);
-    arr_data_reg.flags |= KEEP_ALIVE;
-
-    auto& arr_end_reg = reg_from_slot(itl.symbol_table,func,arr_end);
-    arr_end_reg.flags |= KEEP_ALIVE;
-
-
     // check array is not empty
     const auto entry_cond = cmp_ne_res(itl,func,arr_data,arr_end);
     
@@ -964,10 +964,6 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
 
     // compile in branches
     const BlockSlot exit_block = new_basic_block(itl,func);
-
-    // explictly deallocate the registers
-    kill_reg(itl,func,arr_data);
-    kill_reg(itl,func,arr_end);
 
     // emit loop branch
     emit_cond_branch(func,end_block,for_block,exit_block,exit_cond,true);
