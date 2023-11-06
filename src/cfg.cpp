@@ -295,30 +295,27 @@ void compute_use_def(Function& func)
             // look at src regs first, then dst!
             for(s32 r = info.args - 1; r >= 0; r--)
             {
-                // some kind of reg
-                if(info.type[r] == arg_type::src_reg || info.type[r] == arg_type::dst_reg)
+                // assume some kind of slot
+                const auto slot = sym_from_idx(opcode.v[r]);
+
+                // ir reg
+                if(!is_special_reg(slot))
                 {
-                    const auto slot = sym_from_idx(opcode.v[r]);
-
-                    // ir reg
-                    if(!is_special_reg(slot))
+                    // used as src, without a def -> use
+                    if(info.type[r] == arg_type::src_reg)
                     {
-                        // used as src, without a def -> use
-                        if(info.type[r] == arg_type::src_reg)
+                        if(!contains(block.def,slot))
                         {
-                            if(!contains(block.def,slot))
-                            {
-                                add(block.use,slot);
-                            }
+                            add(block.use,slot);
                         }
+                    }
 
-                        // used as dst, without a prior use -> def
-                        else if(info.type[r] == arg_type::dst_reg)
+                    // used as dst, without a prior use -> def
+                    else if(info.type[r] == arg_type::dst_reg)
+                    {
+                        if(!contains(block.use,slot))
                         {
-                            if(!contains(block.use,slot))
-                            {
-                                add(block.def,slot);
-                            }
+                            add(block.def,slot);
                         }
                     }
                 }
