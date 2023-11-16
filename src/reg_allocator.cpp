@@ -288,6 +288,13 @@ void spill_all(LocalAlloc &alloc, SymbolTable& table, Block& block, ListNode* no
 // TODO: we probably need to cache this in a bitset so we dont have to loop this every time?
 void spill_func_bounds(LocalAlloc& alloc, SymbolTable& table, Block&  block, ListNode* node)
 {
+
+    // handle callee saved regs
+    if(is_var(alloc.regs[RV]))
+    {
+        spill(alloc.regs[RV],alloc,table,block,node,false);
+    }
+
     // spill any aliased or global regs when we traverse a function boundary
     for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
     {
@@ -356,7 +363,7 @@ void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNod
 
 void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node)
 {
-    u32 max_gap = 0;
+    s32 max_gap = 0;
     u32 max_reg = REG_FREE;
 
     for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
@@ -368,7 +375,7 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* no
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
             // we haven't found something that can be freed yet...
-            const u32 cur_gap = ir_reg.usage[ir_reg.uses] - alloc.pc;
+            const s32 cur_gap = ir_reg.usage[ir_reg.uses] - alloc.pc;
 
             // Find what reg will not be used for the longest
             // NOTE: we can probably improve what factors are at play here
@@ -378,7 +385,7 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* no
             {
                 max_gap = cur_gap;
                 max_reg = r;
-            }    
+            }
         }
     }
 
@@ -536,17 +543,26 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
 
     const SymSlot slot = sym_from_idx(node->opcode.v[reg]);
 
+    const b32 is_src = info.type[reg] == arg_type::src_reg;
+    const b32 is_dst = info.type[reg] == arg_type::dst_reg;
+
     // special purpose ir reg dont allocate just rewrite it
     if(is_special_reg(slot))
     {
         rewrite_reg(table,alloc,node->opcode,reg);
+    
+        // make sure callee saved regs are marked as used for saving
+        const u32 spec_reg = node->opcode.v[reg];
+
+        if(spec_reg >= 1 && spec_reg < MACHINE_REG_SIZE && is_dst)
+        {
+            alloc.use_count += !is_set(alloc.used_regs,spec_reg);
+            alloc.used_regs = set_bit(alloc.used_regs,spec_reg);
+        }
         return;
     }
 
     auto& ir_reg = reg_from_slot(slot,table,alloc);
-
-    const b32 is_src = info.type[reg] == arg_type::src_reg;
-    const b32 is_dst = info.type[reg] == arg_type::dst_reg;
 
     // Never a source as this is an initial alloc
     allocate_slot(table,alloc,block,node,ir_reg,is_src);
@@ -786,24 +802,25 @@ u32 finalise_offset(LocalAlloc& alloc,u32 offset, u32 size)
 
 void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 {
+    assert(pending_stack_allocation(reg));
+
+    reg.offset = finalise_offset(alloc,reg.offset,reg.size); 
+    reg.flags &= ~PENDING_STACK_ALLOCATION;
+
+
     if(alloc.print_stack_allocation)
     {
         if(is_sym(reg.slot))
         {
             auto& sym = sym_from_slot(table,reg.slot);
-            printf("final offset %s = [%x,%x] -> (%x,%x)\n",sym.name.buf,reg.size,reg.count,reg.offset,reg.offset);
+            printf("final offset %s = [%x,%x] -> %x\n",sym.name.buf,reg.size,reg.count,reg.offset);
         }
 
         else
         {
-            printf("final offset t%d = [%x,%x] -> (%x,%x)\n",reg.slot.handle,reg.size,reg.count,reg.offset,reg.offset);
+            printf("final offset t%d = [%x,%x] -> %x\n",reg.slot.handle,reg.size,reg.count,reg.offset);
         }
     }
-
-    assert(pending_stack_allocation(reg));
-
-    reg.offset = finalise_offset(alloc,reg.offset,reg.size); 
-    reg.flags &= ~PENDING_STACK_ALLOCATION;
 }
 
 
@@ -816,6 +833,7 @@ void calc_allocation(LocalAlloc& alloc)
         printf("byte count: %d\n",alloc.size_count_max[0]);
         printf("half count: %d\n",alloc.size_count_max[1]);
         printf("word count: %d\n",alloc.size_count_max[2]);
+        printf("dword count: %d\n",alloc.size_count_max[3]);
         printf("stack size: %d\n",alloc.stack_size);
     }
 }
@@ -847,6 +865,8 @@ void mark_lifetimes(Function& func,LocalAlloc& alloc, SymbolTable& table)
         clear_arr(sym.reg.usage);
     }
 
+    u32 pc = 0;
+
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
@@ -854,8 +874,6 @@ void mark_lifetimes(Function& func,LocalAlloc& alloc, SymbolTable& table)
         List& list = block.list;
 
         ListNode *node = list.start;
-
-        u32 pc = 0;
 
         while(node)
         {

@@ -4,7 +4,7 @@ func main() s32
 {
     arr : u32[?] = {1,2,3,4,5};
 
-    sum1 : u32 = 0;
+    sum1 : s64 = 0;
 
     // forward
     for(i in 0 < arr.len)
@@ -13,7 +13,7 @@ func main() s32
     }
 
 
-    sum2 : u32 = 0;
+    sum2 : s64 = 0;
 
     // reverse
     for(i in arr.len - 1 >= 0)
@@ -21,8 +21,9 @@ func main() s32
         sum2 += i * arr[i];
     }
 
+
     // array iter
-    sum3 : u32 = 0;
+    sum3 : s64 = 0;
 
     // TODO: should this be reverse if we need it? 
     //for(v in rev(arr))
@@ -34,7 +35,7 @@ func main() s32
 
 
     // array iter with idx
-    sum4 : u32 = 0;
+    sum4 : s64 = 0;
 
     for([v, i] in arr)
     {
@@ -42,7 +43,7 @@ func main() s32
     }
 
     // array iter by pointer, with idx
-    sum5 : u32 = 0;
+    sum5 : s64 = 0;
 
     for([@v, i] in arr)
     {

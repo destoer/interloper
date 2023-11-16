@@ -60,7 +60,7 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
         push_arg(itl,func,src_slot);
         push_arg(itl,func,dst_slot);
 
-        call(itl,func,func_call.label_slot,true);
+        call(itl,func,func_call.label_slot);
 
         clean_args(itl,func,3);
     }
@@ -104,7 +104,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
         push_arg(itl,func,imm_slot);
         push_arg(itl,func,dst_ptr);
 
-        call(itl,func,func_call.label_slot,true);
+        call(itl,func,func_call.label_slot);
 
         clean_args(itl,func,2);        
     }
@@ -122,13 +122,6 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
     {
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
-
-    const u32 REG_BITSET = 0b0000'0110;
-
-    // save the regs this will clobber with its direct asm
-    // NOTE: we dont save R0 because it is used for returns and callee saved
-    save_regs(itl,func,REG_BITSET);
-
 
     const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
     const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R1_IR));
@@ -162,8 +155,6 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
         mov_reg(itl,func,dst_slot,sym_from_idx(RV_IR));
     }
     
-    restore_regs(itl,func,REG_BITSET);
-
     return make_builtin(itl,builtin_type::s64_t);   
 }
 

@@ -704,8 +704,6 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
             break;
         }
 
-
-
         // unsigned compare
         case op_type::cmpugt_imm:
         {
@@ -922,7 +920,6 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         // directives/pseudo ops should not be hit at runtime..
         case op_type::push_arg:
         case op_type::clean_args:
-        case op_type::free_stack:
         case op_type::alloc_stack:
         case op_type::pool_addr:
         case op_type::alloc_slot:
@@ -930,11 +927,8 @@ void execute_opcode(Interpretter& interpretter,const Opcode &opcode)
         case op_type::alloc_global_array:
         case op_type::free_fixed_array:
         case op_type::free_slot:
-        case op_type::save_regs:
-        case op_type::restore_regs:
         case op_type::exit_block:
         case op_type::placeholder:
-        case op_type::spill_rv:
         case op_type::spill:
         case op_type::spill_all:
         case op_type::reload_slot:
@@ -1030,7 +1024,6 @@ s32 run(Interpretter& interpretter,const Array<u8>& program, u32 global_size)
     #endif
     
         regs[PC] += OP_SIZE;
-
 
         execute_opcode(interpretter,opcode);
     }

@@ -52,25 +52,15 @@ void not_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
     emit_reg2<op_type::not_reg>(itl,func,dst,src);
 }
 
-void call(Interloper& itl,Function& func, LabelSlot slot, b32 save_regs = false)
+void call(Interloper& itl,Function& func, LabelSlot slot)
 {
-    if(save_regs)
-    {
-        spill_rv(itl,func);
-    }
-
     spill_func_bounds(itl,func);
 
     emit_label1<op_type::call>(itl,func,slot);
 }
 
-void call_reg(Interloper& itl,Function& func, SymSlot slot, b32 save_regs = false)
+void call_reg(Interloper& itl,Function& func, SymSlot slot)
 {
-    if(save_regs)
-    {
-        spill_rv(itl,func);
-    }
-
     spill_func_bounds(itl,func);
 
     emit_reg1<op_type::call_reg>(itl,func,slot);

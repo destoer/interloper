@@ -104,14 +104,12 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // free the stack space for args
     // restore callee saved registers
     {op_group::imm_t, "alloc_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::imm_t, "free_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::imm_t, "clean_args %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"exit_block",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"placeholder",0,{arg_type::none,arg_type::none,arg_type::none}},
 
-    {op_group::implicit_t,"spill_rv",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::reg_t,"spill %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     {op_group::implicit_t,"spill_all",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::implicit_t,"spill_func_bounds",0,{arg_type::none,arg_type::none,arg_type::none}},
@@ -129,9 +127,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::reg_t,"write_struct_u64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
 
-
-    {op_group::imm_t,"save_regs",1,{arg_type::directive,arg_type::none,arg_type::none}},
-    {op_group::imm_t,"restore_regs",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::dst_reg,arg_type::directive,arg_type::none}},
 

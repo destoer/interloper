@@ -111,7 +111,6 @@ enum class op_type
     // perform cleanup after a function call
     // free the stack space for args
     alloc_stack,
-    free_stack,
     clean_args,
 
     // branch to end of if statement chain
@@ -120,7 +119,6 @@ enum class op_type
     // used when the end of the block is read past in the optimiser
     placeholder,
 
-    spill_rv,
     spill,
     spill_all,
     spill_func_bounds,
@@ -136,9 +134,6 @@ enum class op_type
     load_struct_u64,
 
     write_struct_u64,
-
-    save_regs,
-    restore_regs,
 
     pool_addr,
 
@@ -349,6 +344,9 @@ static constexpr u32 SYMBOL_START = 0x80000000;
 // when we actually want to define some targets
 static constexpr u32 MACHINE_REG_SIZE = 8;
 
+// TAC wont function on less than 3 regs
+static_assert(MACHINE_REG_SIZE >= 3);
+
 static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
 
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START + 0;
@@ -530,7 +528,6 @@ void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot s
 
 void mov_imm(Interloper& itl, Function& func, SymSlot dst, u64 imm);
 
-void spill_rv(Interloper& itl, Function& func);
 void spill_func_bounds(Interloper& itl, Function& func);
 
 void reload_slot(Interloper& itl, Function& func, const Reg& reg);

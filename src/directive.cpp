@@ -30,26 +30,14 @@ SymSlot addrof_res(Interloper& itl, Function& func, SymSlot src)
     return tmp;
 }
 
-void spill_rv(Interloper& itl, Function& func)
-{
-    emit_implicit<op_type::spill_rv>(itl,func);
-}
-
 void clean_args(Interloper& itl, Function& func, u32 v)
 {
     emit_imm0<op_type::clean_args>(itl,func,v);
 }
 
-void save_regs(Interloper& itl, Function& func, u16 bitset)
+void spill_all(Interloper& itl, Function& func)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::save_regs,bitset,0,0);
-}
-
-void restore_regs(Interloper& itl, Function& func, u16 bitset)
-{
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::restore_regs,bitset,0,0);
+    emit_implicit<op_type::spill_all>(itl,func);
 }
 
 void spill_func_bounds(Interloper& itl, Function& func)

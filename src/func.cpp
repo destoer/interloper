@@ -407,22 +407,19 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     const bool returns_value = sig.return_type[0]->type_idx != u32(builtin_type::void_t);
 
 
-    // if we have a register in R0 we need to save it so its not overwritten
-    const b32 save_regs = returns_value && !sig.hidden_args;
-
 
     if(!call_info.func_pointer)
     {
         // emit call to label slot
         // the actual address will have to resolved as the last compile step
         // once we know the size of all the code
-        call(itl,func,call_info.label_slot,save_regs);
+        call(itl,func,call_info.label_slot);
     }
 
     // func pointer
     else
     {
-        call_reg(itl,func,call_info.sym_slot,save_regs);
+        call_reg(itl,func,call_info.sym_slot);
     }
 
 

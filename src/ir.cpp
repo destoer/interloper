@@ -206,23 +206,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;
         }
 
-        case op_type::free_stack:
-        {
-            const u32 size = opcode.v[0];
-            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,size);
-            alloc.stack_offset -= size;
-
-            rewrite_regs(itl.symbol_table,alloc,node->opcode);
-
-            if(alloc.print_stack_allocation)
-            {
-                printf("free stack %x\n",size);
-            }
-
-            node = node->next;
-            break;
-        }
-
         case op_type::alloc_slot:
         {
             const SymSlot slot = sym_from_idx(opcode.v[0]);
@@ -293,44 +276,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             node = node->next;
             break;
         }
-
-
-
-        // TODO: we should probably only save regs we use but this is just easy for now
-        case op_type::save_regs:
-        {
-            node->opcode = Opcode(op_type::pushm,opcode.v[0],0,0);
-            alloc.stack_offset += GPR_SIZE * popcount(opcode.v[0]);
-
-            node = node->next;
-            break;
-        }
-
-
-        // TODO: make this only restore active regs....
-        case op_type::restore_regs:
-        {
-            node->opcode = Opcode(op_type::popm,opcode.v[0],0,0);
-            alloc.stack_offset -= GPR_SIZE * popcount(opcode.v[0]);
-
-            node = node->next;
-            break;
-        }
-
-        // make sure the return value has nothing important when calling functions
-        case op_type::spill_rv:
-        {
-            const SymSlot slot = alloc.regs[RV];
-
-            // if we have a reg here
-            if(slot.handle != REG_FREE)
-            {
-                spill(slot,alloc,table,block,node);
-            }
-
-            return remove(block.list,node);
-        }
-
 
         case op_type::spill_all:
         {
