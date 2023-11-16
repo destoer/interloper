@@ -6,7 +6,9 @@
 #include "cfg.cpp"
 #include "pool.cpp"
 #include "link.cpp"
+#include "stack_allocator.cpp"
 #include "reg_allocator.cpp"
+#include "local_allocator.cpp"
 #include "disass.cpp"
 
 
@@ -43,13 +45,13 @@ ListNode* rewrite_access_struct(Interloper& itl, Function& func,LocalAlloc &allo
             assert(false);
         }
         
-        stack_reserve_reg(alloc,reg);  
+        stack_reserve_reg(alloc.stack_alloc,reg);  
     }
 
     if(reg.kind == reg_kind::tmp || reg.kind == reg_kind::local)
     {
         // add the stack offset, so this correctly offset for when we fully rewrite this
-        node->opcode.v[2] += alloc.stack_offset;
+        node->opcode.v[2] += alloc.stack_alloc.stack_offset;
     }
 
     allocate_and_rewrite(table,alloc,block,node,0);
@@ -85,14 +87,14 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                     assert(false);
                 }
                 
-                stack_reserve_reg(alloc,reg);  
+                stack_reserve_reg(alloc.stack_alloc,reg);  
             }
 
 
 
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
-            node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_offset);
+            node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_alloc.stack_offset);
 
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(table,alloc,block,node,0);
@@ -158,7 +160,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             // varaibles now have to be accessed at a different offset
             // until this is corrected by clean call
-            alloc.stack_offset += GPR_SIZE;
+            alloc.stack_alloc.stack_offset += GPR_SIZE;
 
             node = node->next;
             break;
@@ -170,11 +172,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             const auto stack_clean = GPR_SIZE * opcode.v[0];
 
             node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
-            alloc.stack_offset -= stack_clean; 
+            alloc.stack_alloc.stack_offset -= stack_clean; 
 
             rewrite_regs(itl.symbol_table,alloc,node->opcode);
 
-            log(alloc.print_stack_allocation,"clean args: %x\n",stack_clean);
+            log(alloc.stack_alloc.print,"clean args: %x\n",stack_clean);
     
             node = node->next;
             break;
@@ -192,11 +194,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             }
         
             node->opcode = Opcode(op_type::sub_imm,SP_IR,SP_IR,size);
-            alloc.stack_offset += size;
+            alloc.stack_alloc.stack_offset += size;
 
             rewrite_regs(itl.symbol_table,alloc,node->opcode);
 
-            if(alloc.print_stack_allocation)
+            if(alloc.stack_alloc.print)
             {
                 printf("allocate stack %x\n",size);
             }
@@ -212,7 +214,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             auto& reg = reg_from_slot(slot,table,alloc);
             
 
-            if(alloc.print_reg_allocation)
+            if(alloc.reg_alloc.print)
             {
                 if(is_sym(slot))
                 {
@@ -229,7 +231,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // explictly force a stack alloc now
             if(opcode.v[1] && reg.kind != reg_kind::global)
             {
-                stack_reserve_reg(alloc,reg);    
+                stack_reserve_reg(alloc.stack_alloc,reg);    
             }
 
             node = remove(block.list,node);
@@ -243,7 +245,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             const SymSlot slot = sym_from_idx(opcode.v[0]);
 
-            const u32 offset = allocate_stack_array(alloc,table,slot,size,count);
+            const u32 offset = allocate_stack_array(alloc.stack_alloc,table,slot,size,count);
             
             node->opcode = Opcode(op_type::alloc_local_array,opcode.v[0],offset,0);
 
@@ -263,7 +265,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             allocation.offset = calc_final_offset(itl.global_alloc.start,allocation.size,allocation.offset);
 
-            if(alloc.print_stack_allocation)
+            if(alloc.stack_alloc.print)
             {
                 auto& sym = sym_from_slot(itl.symbol_table,allocation.slot);
                 printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
@@ -295,40 +297,14 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         // TODO: should this support registers?
         case op_type::free_slot:
         {
-            const SymSlot slot = sym_from_idx(opcode.v[0]);
-            auto& sym = sym_from_slot(table,slot);
-
-
-            if(!is_stack_unallocated(sym.reg))
-            {
-                if(alloc.print_stack_allocation)
-                {
-                    printf("reclaiming stack space %s : (%d , %d)\n",sym.name.buf,sym.reg.size,sym.reg.count);
-                }
-
-                alloc.size_count[log2(sym.reg.size)] -= sym.reg.count;
-            }
-
-
+            // TODO: can we reclaim stack space from this?
             return remove(block.list,node);
         }
 
 
         case op_type::free_fixed_array:
         {
-            const SymSlot slot = sym_from_idx(opcode.v[0]);
-            auto& sym = sym_from_slot(table,slot);  
-
-            const u32 size = opcode.v[1];
-            const u32 count = opcode.v[2];
-
-            if(alloc.print_stack_allocation)
-            {
-                printf("reclaiming stack space from arr %s : (%d , %d)\n",sym.name.buf,size,count);
-            }
-
-            alloc.size_count[log2(size)] -= count;
-            
+            // TODO: can we reclaim stack space from this?            
             return remove(block.list,node);          
         }
 
@@ -403,7 +379,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
         {
             ListNode *tmp = node;
 
-            if(alloc.stack_size)
+            if(alloc.stack_alloc.stack_size)
             {
                 tmp = insert_at(block.list,tmp,stack_clean);
 
@@ -493,11 +469,11 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
         {
             const u32 idx = node->opcode.v[1];
 
-            ArrayAllocation &allocation = alloc.array_allocation[idx];
+            ArrayAllocation &allocation = alloc.stack_alloc.array_allocation[idx];
 
-            allocation.offset = finalise_offset(alloc,allocation.offset,allocation.size);
+            allocation.offset = finalise_offset(alloc.stack_alloc,allocation.offset,allocation.size);
 
-            if(alloc.print_stack_allocation)
+            if(alloc.stack_alloc.print)
             {
                 auto& sym = sym_from_slot(itl.symbol_table,allocation.slot);
                 printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
@@ -552,9 +528,9 @@ void allocate_registers(Interloper& itl,Function &func)
     compute_var_live(itl,func);
 
     // figure out how long each sym lives
-    mark_lifetimes(func,alloc,itl.symbol_table);
+    mark_lifetimes(func,alloc.tmp_regs,itl.symbol_table);
 
-    log(alloc.print_reg_allocation,"allocating registers for %s:\n\n",func.name.buf);
+    log(alloc.reg_alloc.print,"allocating registers for %s:\n\n",func.name.buf);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
@@ -605,15 +581,15 @@ void allocate_registers(Interloper& itl,Function &func)
     // Figure out how large a stack we need and put everything on it
     finish_stack_alloc(itl.symbol_table,alloc);
 
-    if(alloc.print_reg_allocation)
+    if(alloc.reg_alloc.print)
     {
-        print_alloc(alloc,itl.symbol_table);
+        print_reg_alloc(alloc.reg_alloc,itl.symbol_table);
     }
 
     // only allocate a stack if we need it
-    if(alloc.stack_size)
+    if(alloc.stack_alloc.stack_size)
     {
-        insert_front(func.emitter.program[0].list,Opcode(op_type::sub_imm,SP,SP,alloc.stack_size));
+        insert_front(func.emitter.program[0].list,Opcode(op_type::sub_imm,SP,SP,alloc.stack_alloc.stack_size));
     }
 
 
@@ -627,13 +603,13 @@ void allocate_registers(Interloper& itl,Function &func)
     static constexpr u32 CALLEE_SAVED_MASK = 1;
 
     // make sure callee saved regs are not saved inside the func
-    const u32 saved_regs = alloc.used_regs & ~CALLEE_SAVED_MASK;
+    const u32 saved_regs = alloc.reg_alloc.used_regs & ~CALLEE_SAVED_MASK;
     const u32 save_count = popcount(saved_regs);
 
     const bool insert_callee_saves = func.name != "main" && save_count != 0;
 
 
-    alloc_args(func,alloc,itl.symbol_table,insert_callee_saves? GPR_SIZE * save_count : 0);
+    alloc_args(func,alloc.stack_alloc,itl.symbol_table,insert_callee_saves? GPR_SIZE * save_count : 0);
 
     // entry point does not need to preserve regs
     if(insert_callee_saves)
@@ -643,7 +619,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
     // epilogue opcodes
     const auto callee_restore = Opcode(op_type::popm,saved_regs,0,0);
-    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_size);
+    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_alloc.stack_size);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {

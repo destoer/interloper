@@ -30,7 +30,7 @@ const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
     return table.slot_lookup[sym_to_idx(slot)]; 
 }
 
-Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
+Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, SymSlot slot)
 {
     if(is_special_reg(slot))
     {
@@ -44,8 +44,13 @@ Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
 
     else
     {
-        return func.registers[slot.handle];
+        return tmp_regs[slot.handle];
     }
+}
+
+Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
+{
+    return reg_from_slot(table,func.registers,slot);
 }
 
 
