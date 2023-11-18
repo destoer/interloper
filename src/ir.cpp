@@ -69,6 +69,39 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
     switch(node->opcode.op)
     {
+        case op_type::mov_reg:
+        {
+            const auto dst = sym_from_idx(opcode.v[0]);
+            const auto src = sym_from_idx(opcode.v[1]);
+
+            // used for return values just
+            // rewrite the register into R0
+            if(src.handle == RV_IR && is_var(dst))
+            {
+                auto& ir_reg = reg_from_slot(dst,table,alloc);
+
+                // attempt to force reg
+                if(allocate_into_rv(alloc.reg_alloc,ir_reg))
+                {
+                    if(alloc.reg_alloc.print)
+                    {
+                        printf("forcing ir %x into RV\n",dst.handle);
+                    }
+
+                    mark_reg_usage(alloc,ir_reg,true);
+
+                    node = remove(block.list,node);
+                    break;
+                }
+            }
+
+            // just do it normally
+            rewrite_opcode(itl,alloc,block,node);
+            node = node->next;
+            
+            break;
+        }
+
         case op_type::addrof:
         {
             // -> <addrof> <alloced reg> <slot> <stack offset>

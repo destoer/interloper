@@ -123,6 +123,12 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
+    // make sure any registers we startt using get saved
+    // TODO: if we start using intrinsics for performance rather than
+    // just accessing arch details we will need a better solution than blindly spilling
+    // then all
+    spill_all(itl,func);
+
     const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
     const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R1_IR));
     const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(R2_IR));

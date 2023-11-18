@@ -155,6 +155,33 @@ u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
     return reg;
 }
 
+bool request_reg(RegAlloc& alloc, u32 req_reg)
+{
+    // attempt to swap rv to the end of the free list
+    for(u32 r = 0; r < alloc.free_regs; r++)
+    {
+        if(alloc.free_list[r] == req_reg)
+        {
+            std::swap(alloc.free_list[r],alloc.free_list[alloc.free_regs - 1]);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool allocate_into_rv(RegAlloc& alloc,Reg& ir_reg)
+{
+    if(request_reg(alloc,RV))
+    {
+        assert(alloc_reg(ir_reg,alloc) == RV);
+        return true;
+    }
+
+    return false;
+}
+
+
 u32 special_reg_to_reg(SymSlot slot)
 {
     switch(slot.handle)

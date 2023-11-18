@@ -245,6 +245,20 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
     }
 }
 
+// mark usage for internal freeing
+void mark_reg_usage(LocalAlloc& alloc, Reg& ir_reg, bool is_dst)
+{
+    ir_reg.uses++;
+
+    // is this is a dst we need to write this back when spilled
+    if(is_dst)
+    {
+        ir_reg.dirty = true;
+    }
+
+    check_dead_reg(alloc.reg_alloc,ir_reg);
+}
+
 
 void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, ListNode* node,u32 reg)
 {
@@ -277,15 +291,7 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
     allocate_slot(table,alloc,block,node,ir_reg,is_src);
     rewrite_reg_internal(table,alloc,node->opcode,reg);
 
-    ir_reg.uses++;
-
-    // is this is a dst we need to write this back when spilled
-    if(is_dst)
-    {
-        ir_reg.dirty = true;
-    }
-
-    check_dead_reg(alloc.reg_alloc,ir_reg);     
+    mark_reg_usage(alloc,ir_reg,is_dst); 
 }
 
 
@@ -316,7 +322,7 @@ void spill_func_bounds(LocalAlloc& alloc, SymbolTable& table, Block&  block, Lis
         const SymSlot slot = alloc.reg_alloc.regs[r];
 
         // handle callee saved regs
-        if(is_callee_saved(r) && is_var(slot))
+        if(!is_callee_saved(r) && is_var(slot))
         {
             spill(slot,alloc,table,block,node,false);
         }
