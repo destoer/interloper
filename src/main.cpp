@@ -23,6 +23,8 @@ void parse_flags(Interloper& itl,const char* flags)
             case 'c': itl.print_types = true; break;
             case 'l': itl.print_tokens = true; break;
             case 'q': itl.compile_only = true; break;
+            case 'z': itl.optimise = true; break;
+            case 't': break;
 
             default: crash_and_burn("unknown flag: %c\n",flags[i]); 
         }
@@ -41,9 +43,9 @@ int main(int argc, char *argv[])
     }
 
     // run tests
-    if(string_equal(argv[1],"-t"))
+    if(argv[1][0] == '-' && string_contains(argv[1],"t"))
     {
-        run_tests();
+        run_tests(argv[1]);
         return 0;
     }
 

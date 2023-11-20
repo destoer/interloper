@@ -862,6 +862,10 @@ void compile_function(Interloper& itl, Function& func)
     // connect up the cfg
     connect_flow_graph(itl,func); 
 
+    // do liveness analysis
+    compute_var_live(itl,func);
+
+
 #if 0
     dump_ir(func,itl.symbol_table);
     dump_cfg(itl,func);

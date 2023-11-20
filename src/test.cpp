@@ -221,7 +221,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);
 
-void run_tests()
+void parse_flags(Interloper& itl,const char* flags);
+
+void run_tests(const char* flags)
 {
     puts("running tests....");
     auto start = std::chrono::system_clock::now();
@@ -239,6 +241,7 @@ void run_tests()
         
         const auto &test = PROGRAM_CORRECT_TEST[i];
         
+        parse_flags(itl,flags);
         compile(itl,test.name);
 
         if(itl.error)

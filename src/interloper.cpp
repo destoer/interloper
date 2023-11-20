@@ -42,8 +42,8 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
-#include "optimize.cpp"
 #include "ir.cpp"
+#include "optimize.cpp"
 #include "struct.cpp"
 #include "enum.cpp"
 #include "rtti.cpp"
@@ -2674,8 +2674,11 @@ void compile(Interloper &itl,const String& initial_filename)
     }
 
 
-    //optimise_ir(itl);
-
+    if(itl.optimise)
+    {
+        optimise_ir(itl);
+    }
+    
     if(itl.print_ir)
     {
         dump_ir_sym(itl);

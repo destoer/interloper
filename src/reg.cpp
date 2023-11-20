@@ -201,3 +201,14 @@ void free_sym(Interloper& itl,Function& func, Symbol& sym)
 
     sym.scope_end = cur_block(func);
 }
+
+
+bool is_local_reg(const Reg &reg)
+{
+    return !is_aliased(reg) && reg.kind != reg_kind::global;
+}
+
+const OpInfo& info_from_op(const Opcode& opcode)
+{
+    return OPCODE_TABLE[u32(opcode.op)];
+}

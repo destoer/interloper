@@ -110,6 +110,11 @@ void insert_front(List &list, const Opcode opcode)
 // return node after deleted
 ListNode *remove(List &list, ListNode* node)
 {
+    if(!node)
+    {
+        return nullptr;
+    }
+
     if(node == list.start)
     {
         list.start = node->next;
@@ -117,11 +122,9 @@ ListNode *remove(List &list, ListNode* node)
         if(list.start)
         {
             list.start->prev = nullptr;
-
-            return list.start;
         }
 
-        return nullptr;
+        return list.start;
     }
 
     else if(node == list.end)
@@ -140,10 +143,15 @@ ListNode *remove(List &list, ListNode* node)
     {
         // unlink the "middle" node
         ListNode *before = node->prev;
+        ListNode *next = node->next;
 
-        before->next = node->next;
-        before->next->prev = before;
+        before->next = next;
 
-        return before->next;
+        if(next)
+        {
+            next->prev = before;
+        }
+
+        return next;
     }
 }

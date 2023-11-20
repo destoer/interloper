@@ -53,6 +53,10 @@ Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
     return reg_from_slot(table,func.registers,slot);
 }
 
+Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
+{
+    return reg_from_slot(itl.symbol_table,func,slot);
+}
 
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {

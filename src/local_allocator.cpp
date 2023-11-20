@@ -232,7 +232,7 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
 
     // if a pointer is taken to this, 
     // or if we are in a loop and a reg scope extends past loop
-    if(is_aliased(ir_reg) || ir_reg.kind == reg_kind::global || used_beyond)
+    if(!is_local_reg(ir_reg) || used_beyond)
     {
         spill(slot,alloc,table,block,node,after);
     }

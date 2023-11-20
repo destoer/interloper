@@ -557,13 +557,10 @@ void allocate_registers(Interloper& itl,Function &func)
 {
     auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers);
 
-    // do liveness analysis
-    compute_var_live(itl,func);
+    log(alloc.reg_alloc.print,"allocating registers for %s:\n\n",func.name.buf);
 
     // figure out how long each sym lives
-    mark_lifetimes(func,alloc.tmp_regs,itl.symbol_table);
-
-    log(alloc.reg_alloc.print,"allocating registers for %s:\n\n",func.name.buf);
+    mark_lifetimes(func,func.registers,itl.symbol_table);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {

@@ -68,6 +68,13 @@ Block& block_from_slot(Function& func, BlockSlot slot)
     return func.emitter.program[slot.handle];
 }
 
+BlockSlot block_from_label(Interloper& itl, LabelSlot slot)
+{
+    const auto label = label_from_slot(itl.symbol_table.label_lookup,slot);
+
+    return block_from_idx(label.offset);
+}
+
 
 b32 is_func_exit(BlockSlot slot)
 {
@@ -89,6 +96,20 @@ void add_block_exit(Function& func,BlockSlot slot, BlockSlot exit)
     // add entry to our target block
     auto& exit_block = block_from_slot(func,exit);
     push_var(exit_block.entry,slot);
+}
+
+
+void remove_block_exit(Function& func, BlockSlot slot, BlockSlot exit)
+{
+    auto& block = block_from_slot(func,slot);
+
+    // remove exit
+    remove_unordered_key(block.exit,exit);
+
+
+    // remove entry as well
+    auto& exit_block = block_from_slot(func,exit);
+    remove_unordered_key(exit_block.entry,slot);
 }
 
 void add_func_exit(Function& func, BlockSlot slot)
