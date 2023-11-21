@@ -620,7 +620,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 {
                     const SymSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    do_ptr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,builtin_type::u32_t),0);
+                    do_ptr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE),0);
                     struct_slot = vla_ptr;
                 }
 
