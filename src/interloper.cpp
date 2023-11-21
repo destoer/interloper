@@ -1484,8 +1484,6 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
             if(take_addr)
             {
-                sym.reg.flags |= ALIASED;
-
                 spill_slot(itl,func,sym.reg);
 
                 if(is_array(sym.type))

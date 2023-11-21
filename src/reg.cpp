@@ -205,7 +205,7 @@ void free_sym(Interloper& itl,Function& func, Symbol& sym)
 
 bool is_local_reg(const Reg &reg)
 {
-    return !is_aliased(reg) && reg.kind != reg_kind::global;
+    return !is_aliased(reg) && reg.kind != reg_kind::global && reg.kind != reg_kind::constant;
 }
 
 const OpInfo& info_from_op(const Opcode& opcode)

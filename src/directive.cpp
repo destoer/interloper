@@ -15,10 +15,13 @@ void emit_directive_dst1(Interloper& itl,Function& func, SymSlot dst, u32 v2, u3
 }
 
 
-// NOTE: this is for internal use, and will not mark a symbol as being aliased
-// please use load_addr
+
 void addrof(Interloper& itl,Function& func, SymSlot dst, SymSlot src)
 {
+    // mark reg as aliased
+    auto& reg = reg_from_slot(itl,func,src);
+    reg.flags |= ALIASED;
+
     emit_directive_dst1<op_type::addrof>(itl,func,dst,src.handle,0);
 }
 

@@ -1,98 +1,80 @@
 #include <interloper.h>
 
 
+struct ConstValue
+{
+    u64 x = 0;
+    b32 known = false;
+};
 
 
 struct RegValue
 {
-    u64 value = 0;
-    SymSlot slot_value = {SYMBOL_NO_SLOT};
-
-    b32 known_value = false;
-    b32 known_slot = false;
-
+    ConstValue value;
     u32 uses = 0;
 };
 
+struct InstrOper
+{
+    ConstValue v1;
+    ConstValue v2;
+    b32 can_compute_dst = false;
+};
+
+ConstValue make_const_value(u64 v)
+{
+    return {v,true};
+}
+
 using ValueTable = HashTable<SymSlot, RegValue>;
 
-// does not require an special handling
-bool reg_local(const Reg& reg)
-{
-    return !is_aliased(reg) && reg.kind != reg_kind::global;
-}
-
-bool is_known_value(const RegValue& v1, const Reg& reg)
-{
-    return is_local_reg(reg) && v1.known_value;
-}
-
-bool is_known_value(Interloper& itl, Function& func,ValueTable& table, SymSlot slot)
-{
-    auto v1_opt = lookup(table,slot);
-
-    if(!v1_opt)
-    {
-        return false;
-    }
-
-    auto& v1 = *v1_opt;
-    auto& reg = reg_from_slot(itl,func,slot);
-
-    return is_known_value(v1,reg);
-}
-
-// ignore slot inline for now
-/*
-bool is_known_slot(const RegValue& v1, const Reg& reg)
-{
-    return is_local_reg(reg) && v1.known_slot;
-}
-
-bool is_known_slot(ValueTable& table, SymSlot slot)
-{
-    return is_known_slot(v1,reg);
-}
-*/
 
 
 // NOTE: slot invalidation is done in a common place outside this
-void update_value(ValueTable& table, SymSlot slot, u64 ans)
+void update_value(Interloper& itl, Function& func,ValueTable& table, SymSlot slot, u64 ans)
 {
-    // cant prop special regs
-    if(!is_var(slot))
+    // must be a local value to keep its result
+    if(is_var(slot))
+    {
+        auto& reg = reg_from_slot(itl,func,slot);
+
+        if(!is_local_reg(reg))
+        {
+            return;
+        }
+    }
+
+    else
     {
         return;
     }
 
-    auto v1_opt = lookup(table,slot);
+    auto r1_opt = lookup(table,slot);
 
-    if(v1_opt)
+    if(r1_opt)
     {
-        auto& v1 = *v1_opt;
-        v1.known_value = true; 
-        v1.value = ans;
+        auto& r1 = *r1_opt;
+        r1.value = make_const_value(ans);
     }
 
     // first time
     else
     {
-        RegValue v1;
-        v1.known_value = true;
-        v1.value = ans;
+        RegValue r1;
+        r1.value = make_const_value(ans);
 
-        add(table,slot,v1);
+        add(table,slot,r1);
     }
 }
 
 void invalidate_value(ValueTable& table, SymSlot slot)
 {
-    auto v1_opt = lookup(table,slot);
+    auto r1_opt = lookup(table,slot);
 
-    if(v1_opt)
+    if(r1_opt)
     {
-        auto& v1 = *v1_opt;
-        v1.known_value = false; 
+        auto& r1 = *r1_opt;
+        r1.value.known = false; 
     }    
 }
 
@@ -120,11 +102,16 @@ void mark_use(ValueTable& table, SymSlot slot)
     }
 }
 
-u64 known_value(ValueTable& table, SymSlot slot)
+ConstValue known_value(ValueTable& table, SymSlot slot)
 {
-    auto v1_opt = lookup(table,slot);
+    auto r1_opt = lookup(table,slot);
 
-    return v1_opt->value;
+    if(r1_opt)
+    {
+        return r1_opt->value;
+    }
+
+    return {};
 }
 
 Opcode mov_imm(const SymSlot dst, u64 v1)
@@ -132,341 +119,244 @@ Opcode mov_imm(const SymSlot dst, u64 v1)
     return Opcode(op_type::mov_imm,dst.handle,v1,0);
 }
 
-// update slot value and insert into instr
-void inline_value(ListNode* node, SymSlot dst, ValueTable& reg_value, u64 ans)
+InstrOper get_instr_operands(ValueTable& reg_value,const ListNode* node)
 {
-    update_value(reg_value,dst,ans);
-    node->opcode = mov_imm(dst,ans);    
+    // check if we known both operands of our instruction
+    bool can_compute_dst = false;
+
+    const auto info = info_from_op(node->opcode);
+    const bool is_dst = info.type[0] == arg_type::dst_reg;
+
+    // saved values 
+    // NOTE: only valid when can_compute_dst is true
+    ConstValue v1;
+    ConstValue v2;
+
+    if(is_dst)
+    {
+        const auto s1 = sym_from_idx(node->opcode.v[1]);
+        const auto s2 = sym_from_idx(node->opcode.v[2]);
+
+        // reg3
+        if(info.args == 3 && info.group == op_group::reg_t)
+        {
+            v1 = known_value(reg_value,s1);
+            v2 = known_value(reg_value,s2);
+
+            can_compute_dst = v1.known && v2.known;
+        }
+
+        // reg2
+        else if(info.args == 2 && info.group == op_group::reg_t)
+        {
+            v1 = known_value(reg_value,s1);
+            can_compute_dst = v1.known;
+        }
+
+
+        // imm3
+        else if(info.args == 3 && info.group == op_group::imm_t)
+        {
+            v1 = known_value(reg_value,s1);
+            
+            if(v1.known)
+            {
+                can_compute_dst = true;
+                v2 = make_const_value(node->opcode.v[2]);
+            }
+        }
+
+    }
+
+    else
+    {
+
+        const auto s1 = sym_from_idx(node->opcode.v[1]);
+        const auto s2 = sym_from_idx(node->opcode.v[2]);
+
+        UNUSED(s2);
+
+        // branch
+        if(info.args == 2 && info.group == op_group::branch_t)
+        {
+            v1 = known_value(reg_value,s1);     
+        }
+    }
+
+    return {v1,v2,can_compute_dst};
 }
 
-void propagate_values(Interloper& itl, Function& func, Block& block, ValueTable& reg_value)
+// NOTE: order of operands must not matter for this
+void inline_commuative_v1(ListNode* node, op_type imm_op, u64 v1)
 {
-    ListNode *node = block.list.start;
+    node->opcode.op = imm_op;
+    node->opcode.v[1] = node->opcode.v[2];
+    node->opcode.v[2] = v1;
+}
 
-    // forward pass to attempt to propagate values
-    while(node)
+void inline_v2_internal(ListNode* node, op_type imm_op, u64 v2)
+{
+    node->opcode.op = imm_op;
+    node->opcode.v[2] = v2;
+}
+
+void inline_v2(ListNode* node, op_type imm_op, const ConstValue& v2)
+{
+    if(v2.known)
     {
-        auto& info = info_from_op(node->opcode);
+        inline_v2_internal(node,imm_op,v2.x);
+    }
+}
 
-        bool removed = false;
+void inline_commuative_single(ListNode* node, op_type imm_op, const ConstValue &v1, const ConstValue& v2)
+{
+    if(v1.known)
+    {
+        inline_commuative_v1(node,imm_op,v1.x);
+    }
 
-        // check if we known both operands of our instruction
-        bool can_compute_dst = false;
-        const bool is_dst = info.type[0] == arg_type::dst_reg;
-        const auto dst = sym_from_idx(node->opcode.v[0]);
-
-        // saved values 
-        // NOTE: only valid when can_compute_dst is true
-        u64 v1 = 0;
-        u64 v2 = 0;
-        b32 v2_known = false;
-        b32 v1_known = false;
-
-        UNUSED(v1); UNUSED(v2);
-
-        if(is_dst)
-        {
-            const auto s1 = sym_from_idx(node->opcode.v[1]);
-            const auto s2 = sym_from_idx(node->opcode.v[2]);
-
-            // reg3
-            if(info.args == 3 && info.group == op_group::reg_t)
-            {
-                v1_known = is_known_value(itl,func,reg_value,s1);
-                v2_known = is_known_value(itl,func,reg_value,s2);
-
-                can_compute_dst = v1_known && v2_known;
-
-                if(v1_known)
-                {
-                    v1 = known_value(reg_value,s1);
-                }
-
-                if(v2_known)
-                {
-                    v2 = known_value(reg_value,s2);
-                }
-            }
-
-            // reg2
-            else if(info.args == 2 && info.group == op_group::reg_t)
-            {
-                v1_known = is_known_value(itl,func,reg_value,s1);
-                can_compute_dst = v1_known;
-                
-                if(v1_known)
-                {
-                    v1 = known_value(reg_value,s1);
-                }
-            }
+    else if(v2.known)
+    {
+        inline_v2_internal(node,imm_op,v2.x);
+    }    
+}
 
 
-            // imm3
-            else if(info.args == 3 && info.group == op_group::imm_t)
-            {
-                v1_known = is_known_value(itl,func,reg_value,s1);
-                can_compute_dst = v1_known;
+std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Block& block, ValueTable& reg_value, const InstrOper& oper, ListNode* node)
+{
+    // NOTE: this doesn't mean that we will compute the dst
+    // just that we know both the operands on the instruction
+    const auto can_compute_dst = oper.can_compute_dst;
 
-                if(v1_known)
-                {
-                    v1 = known_value(reg_value,s1);
-                    v2 = node->opcode.v[2];
-                }
-            }
+    // inline these here for convience
+    const u64 v1 = oper.v1.x;
+    const u64 v2 = oper.v2.x;
 
-        }
+    ConstValue ans;
 
-        else
-        {
+    ListNode* next = node->next;
+    b32 removed = false;
 
-            const auto s1 = sym_from_idx(node->opcode.v[1]);
-            const auto s2 = sym_from_idx(node->opcode.v[2]);
-
-            UNUSED(s2);
-
-            // branch
-            if(info.args == 2 && info.group == op_group::branch_t)
-            {
-                v1_known = is_known_value(itl,func,reg_value,s1);
-   
-                if(v1_known)
-                {
-                    v1 = known_value(reg_value,s1);
-                }          
-            }
-        }
-
+    // full answer needed
+    if(can_compute_dst)
+    {
         switch(node->opcode.op)
         {
-            case op_type::mov_imm:
+            case op_type::mov_reg: 
             {
-                if(is_var(dst))
-                {
-                    update_value(reg_value,dst,node->opcode.v[1]);
-                    can_compute_dst = true;
-                }
-                break;
-            }
-
-            case op_type::mov_reg:
-            {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1);
-                }
+                ans = make_const_value(v1);
                 break;
             }
 
             case op_type::add_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 + v2);
-                }
-
-                // we can still simplify one operand known
-                else if(v2_known)
-                {
-                    node->opcode = Opcode(op_type::add_imm,node->opcode.v[0],node->opcode.v[1],v2);
-                }
-
-                else if(v1_known)
-                {
-                    node->opcode = Opcode(op_type::add_imm,node->opcode.v[0],node->opcode.v[2],v1);
-                }
-
-                break;
-            }
-
-            case op_type::add_imm:
-            {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 + v2);
-                }
-
+                ans = make_const_value(v1 + v2);
                 break;
             }
 
             case op_type::sub_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 - v2);
-                }
-
-                // we can still simplify one operand known
-                else if(v2_known)
-                {
-                    node->opcode = Opcode(op_type::sub_imm,node->opcode.v[0],node->opcode.v[1],v2);
-                }
-
-                break;
-            }
-
-            case op_type::sub_imm:
-            {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 - v2);
-                }
+                ans = make_const_value(v1 - v2);
                 break;
             }
 
             case op_type::mul_reg:
             {
-                if(can_compute_dst)
+                ans = make_const_value(v1 * v2);
+                break;
+            }
+
+            case op_type::div_reg:
+            {
+                if(v2 != 0)
                 {
-                    inline_value(node,dst,reg_value,v1 * v2);
+                    ans = make_const_value(v1 / v2);
                 }
+                break;
+            }
+
+            case op_type::and_reg:
+            {
+                ans = make_const_value(v1 & v2);
+                break;
+            }
+
+            case op_type::add_imm:
+            {
+                ans = make_const_value(v1 + v2);
                 break;
             }
 
             case op_type::mul_imm:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 * v2);
-                }
-                break;        
-            }
-        
-            case op_type::div_reg:
-            {
-                if(can_compute_dst)
-                {
-                    if(v2 != 0)
-                    {
-                        inline_value(node,dst,reg_value,v1 / v2);
-                    }
-
-                    else
-                    {
-                        can_compute_dst = false;
-                    }
-                }
-                break;
-            }
-        
-            case op_type::and_reg:
-            {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 & v2);
-                }
-
-                else if(v1_known)
-                {
-                    node->opcode = Opcode(op_type::and_imm,node->opcode.v[0],node->opcode.v[2],v1);
-                }
-
-                else if(v2_known)
-                {
-                    node->opcode = Opcode(op_type::and_imm,node->opcode.v[0],node->opcode.v[1],v2);
-                }
-
+                ans = make_const_value(v1 * v2);
                 break;
             }
 
             case op_type::and_imm:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 & v2);
-                }
-
+                ans = make_const_value(v1 & v2);
                 break;
             }
 
-            // signed compare
             case op_type::cmpsgt_imm:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,s64(v1) > s64(v2));
-                }
+                ans = make_const_value(s64(v1) > s64(v2));
                 break;                
             }
 
             case op_type::cmpslt_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,s64(v1) < s64(v2));
-                }
+                ans = make_const_value(s64(v1) < s64(v2));
                 break;
             }
 
             case op_type::cmpsle_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,s64(v1) <= s64(v2));
-                }
+                ans = make_const_value(s64(v1) <= s64(v2));
                 break;
             }
 
             case op_type::cmpsgt_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,s64(v1) > s64(v2));
-                }
+                ans = make_const_value(s64(v1) > s64(v2));
                 break;
             }
 
             case op_type::cmpsge_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,s64(v1) >= s64(v2));
-                }
+                ans = make_const_value(s64(v1) >= s64(v2));
                 break;
             }
 
             // unsigned compare
             case op_type::cmpugt_imm:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 > v2);
-                }
+                ans = make_const_value(v1 > v2);
                 break;                
             }
 
             case op_type::cmpult_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 < v2);
-                }
+                ans = make_const_value(v1 < v2);
                 break;
             }
 
             case op_type::cmpule_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 <= v2);
-                }
+                ans = make_const_value(v1 <= v2);
                 break;
             }
 
             case op_type::cmpugt_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 > v2);
-                }
+                ans = make_const_value(v1 > v2);
                 break;
             }
 
             case op_type::cmpuge_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 >= v2);
-                }
+                ans = make_const_value(v1 >= v2);
                 break;
             }
 
@@ -474,37 +364,65 @@ void propagate_values(Interloper& itl, Function& func, Block& block, ValueTable&
             // compare equality
             case op_type::cmpeq_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 == v2);
-                }
+                ans = make_const_value(v1 == v2);
                 break;
             }
 
             case op_type::cmpne_reg:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 != v2);
-                }
+                ans = make_const_value(v1 == v2);
                 break;
             }
 
             case op_type::cmpeq_imm:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 == v2);
-                }
+                ans = make_const_value(v1 == v2);
                 break;
             }
 
             case op_type::cmpne_imm:
             {
-                if(can_compute_dst)
-                {
-                    inline_value(node,dst,reg_value,v1 != v2);
-                }
+                ans = make_const_value(v1 != v2);
+                break;
+            }
+
+            default: break;
+        }
+    }
+
+    // partial operands can still optimise
+    else
+    {
+        switch(node->opcode.op)
+        {
+            case op_type::mov_imm:
+            {   
+                ans = make_const_value(node->opcode.v[1]);
+                break;
+            }
+
+            case op_type::add_reg:
+            {
+                inline_commuative_single(node,op_type::add_imm,oper.v1,oper.v2);
+                break;
+            }
+
+            case op_type::sub_reg:
+            {
+                inline_v2(node,op_type::sub_imm,oper.v2);
+                break;
+            }
+
+            case op_type::mul_reg:
+            {
+                inline_commuative_single(node,op_type::mul_imm,oper.v1,oper.v2);
+                break;
+            }
+
+
+            case op_type::and_reg:
+            {
+                inline_commuative_single(node,op_type::and_imm,oper.v1,oper.v2);
                 break;
             }
 
@@ -536,7 +454,7 @@ void propagate_values(Interloper& itl, Function& func, Block& block, ValueTable&
                         const auto exit = block_from_label(itl,target_label);
                         remove_block_exit(func,block.block_slot,exit);
 
-                        node = remove(block.list,node);
+                        next = remove(block.list,node);
                         removed = true;
                     }
                 }
@@ -555,7 +473,7 @@ void propagate_values(Interloper& itl, Function& func, Block& block, ValueTable&
                         const auto exit = block_from_label(itl,target_label);
                         remove_block_exit(func,block.block_slot,exit);
 
-                        node = remove(block.list,node);
+                        next = remove(block.list,node);
                         removed = true;              
                     }
 
@@ -570,48 +488,69 @@ void propagate_values(Interloper& itl, Function& func, Block& block, ValueTable&
                 }
                 break;
             } 
-        
-            default: 
-            {
-                // if we have not actually computed a value than we no longer know it
-                can_compute_dst = false;
-                break;
-            }
+
+            default: break;
+        }
+    }
+
+    // update the dst results
+    if(!removed)
+    {
+        const auto info = info_from_op(node->opcode);
+        const b32 is_dst = info.type[0] == arg_type::dst_reg;
+        const auto dst = sym_from_idx(node->opcode.v[0]);
+
+        // we managed to compute the result 
+        // update the value and directly insert it as a instruction
+        if(ans.known)
+        {
+            update_value(itl,func,reg_value,dst,ans.x);
+            node->opcode = Opcode(op_type::mov_imm,dst.handle,ans.x,0);
         }
 
-        // no longer know the result of the instr
-        // must invalidate the value
-        if(is_dst && is_var(dst) && !can_compute_dst)
+        // invalid value if dst
+        else if(is_dst && is_var(dst))
         {
             invalidate_value(reg_value,dst);
         }
+    }
+
+    return std::pair{next,removed};
+}
+
+void update_var_tracking(Interloper& itl, Function& func, ValueTable& reg_value,ListNode* node)
+{
+    UNUSED(itl); UNUSED(func);
+
+    // info has changed repull it
+    auto& post_info = info_from_op(node->opcode);
+
+    // mark any uses (NOTE: we do this after inlining has happend)
+    for(u32 a = 0; a < post_info.args; a++)
+    {
+        if(post_info.type[a] == arg_type::src_reg)
+        {
+            mark_use(reg_value,sym_from_idx(node->opcode.v[a]));
+        }
+    }
+}
+
+void propagate_values(Interloper& itl, Function& func, Block& block, ValueTable& reg_value)
+{
+    ListNode *node = block.list.start;
+
+    // forward pass to attempt to propagate values
+    while(node)
+    {
+        const auto oper = get_instr_operands(reg_value,node);
+        const auto [next,removed] = inline_instruction(itl,func,block,reg_value,oper,node);
 
         if(!removed)
         {
-            // info has changed repull it
-            auto& post_info = info_from_op(node->opcode);
-
-            // mark any uses (NOTE: we do this after inlining has happend)
-            for(u32 a = 0; a < post_info.args; a++)
-            {
-                if(post_info.type[a] == arg_type::src_reg)
-                {
-                    mark_use(reg_value,sym_from_idx(node->opcode.v[a]));
-                }
-            }
-
-            // inline any src values we can
-
-            // finally 
-            // if dst written
-            // invalidate known slot values
-            if(post_info.type[0] == arg_type::dst_reg)
-            {
-
-            }
-
-            node = node->next;
+            update_var_tracking(itl,func,reg_value,node);
         }
+
+        node = next;
     }
 }
 
