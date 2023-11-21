@@ -102,13 +102,25 @@ void mark_use(ValueTable& table, SymSlot slot)
     }
 }
 
-ConstValue known_value(ValueTable& table, SymSlot slot)
+ConstValue known_value(Interloper& itl, ValueTable& table, SymSlot slot)
 {
     auto r1_opt = lookup(table,slot);
 
     if(r1_opt)
     {
         return r1_opt->value;
+    }
+
+    else if(is_sym(slot))
+    {
+        const auto sym = sym_from_slot(itl.symbol_table,slot);
+
+        // const symbol thats builtin directly inline it
+        if(sym.reg.kind == reg_kind::constant && is_builtin(sym.type))
+        {
+            const u64 v = builtin_from_const(itl,sym.type,pool_slot_from_idx(sym.reg.offset),0);
+            return make_const_value(v);
+        }       
     }
 
     return {};
@@ -119,7 +131,7 @@ Opcode mov_imm(const SymSlot dst, u64 v1)
     return Opcode(op_type::mov_imm,dst.handle,v1,0);
 }
 
-InstrOper get_instr_operands(ValueTable& reg_value,const ListNode* node)
+InstrOper get_instr_operands(Interloper& itl,ValueTable& reg_value,const ListNode* node)
 {
     // check if we known both operands of our instruction
     bool can_compute_dst = false;
@@ -140,8 +152,8 @@ InstrOper get_instr_operands(ValueTable& reg_value,const ListNode* node)
         // reg3
         if(info.args == 3 && info.group == op_group::reg_t)
         {
-            v1 = known_value(reg_value,s1);
-            v2 = known_value(reg_value,s2);
+            v1 = known_value(itl,reg_value,s1);
+            v2 = known_value(itl,reg_value,s2);
 
             can_compute_dst = v1.known && v2.known;
         }
@@ -149,7 +161,7 @@ InstrOper get_instr_operands(ValueTable& reg_value,const ListNode* node)
         // reg2
         else if(info.args == 2 && info.group == op_group::reg_t)
         {
-            v1 = known_value(reg_value,s1);
+            v1 = known_value(itl,reg_value,s1);
             can_compute_dst = v1.known;
         }
 
@@ -157,7 +169,7 @@ InstrOper get_instr_operands(ValueTable& reg_value,const ListNode* node)
         // imm3
         else if(info.args == 3 && info.group == op_group::imm_t)
         {
-            v1 = known_value(reg_value,s1);
+            v1 = known_value(itl,reg_value,s1);
             
             if(v1.known)
             {
@@ -179,7 +191,7 @@ InstrOper get_instr_operands(ValueTable& reg_value,const ListNode* node)
         // branch
         if(info.args == 2 && info.group == op_group::branch_t)
         {
-            v1 = known_value(reg_value,s1);     
+            v1 = known_value(itl,reg_value,s1);     
         }
     }
 
@@ -221,6 +233,31 @@ void inline_commuative_single(ListNode* node, op_type imm_op, const ConstValue &
     }    
 }
 
+void simplify_mul_imm(ListNode* node)
+{
+    switch(node->opcode.v[2])
+    {
+        case 0:
+        {
+            // x * 0 = 0
+            node->opcode = Opcode(op_type::mov_imm,node->opcode.v[0],0,0);
+            break;
+        }
+
+        case 1:
+        {
+            // x * 1 = x;
+            node->opcode = Opcode(op_type::mov_reg,node->opcode.v[0],node->opcode.v[1],0);
+        }
+
+        default:
+        {
+            // TODO: power of two
+
+            break;
+        }
+    }
+}
 
 std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Block& block, ValueTable& reg_value, const InstrOper& oper, ListNode* node)
 {
@@ -416,6 +453,19 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
             case op_type::mul_reg:
             {
                 inline_commuative_single(node,op_type::mul_imm,oper.v1,oper.v2);
+
+                // simplify based on value
+                if(node->opcode.op == op_type::mul_imm)
+                {
+                    simplify_mul_imm(node);
+                }
+
+                break;
+            }
+
+            case op_type::mul_imm:
+            {
+                simplify_mul_imm(node);
                 break;
             }
 
@@ -542,7 +592,7 @@ void propagate_values(Interloper& itl, Function& func, Block& block, ValueTable&
     // forward pass to attempt to propagate values
     while(node)
     {
-        const auto oper = get_instr_operands(reg_value,node);
+        const auto oper = get_instr_operands(itl,reg_value,node);
         const auto [next,removed] = inline_instruction(itl,func,block,reg_value,oper,node);
 
         if(!removed)

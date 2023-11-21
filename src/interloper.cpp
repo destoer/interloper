@@ -2182,11 +2182,11 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             case ast_type::equal:
             {
                 BinNode* assign_node = (BinNode*)line;
-                const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
-
-
+                
                 if(assign_node->left->type != ast_type::symbol)
                 {
+                    const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
+
                     switch(assign_node->left->type)
                     {
                         case ast_type::deref:
@@ -2235,9 +2235,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                     const auto &sym = *sym_ptr;
 
+                    const auto rtype = compile_expression(itl,func,assign_node->right,sym.reg.slot);
                     check_assign(itl,sym.type,rtype);
-
-                    compile_move(itl,func,sym.reg.slot,slot,sym.type,rtype);
 
                     if(is_unsigned_integer(sym.type))
                     {
