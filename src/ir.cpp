@@ -123,11 +123,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 stack_reserve_reg(alloc.stack_alloc,reg);  
             }
 
-
+            const u32 offset = node->opcode.v[2] + alloc.stack_alloc.stack_offset;
 
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
-            node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],alloc.stack_alloc.stack_offset);
+            node->opcode = Opcode(op_type::addrof,opcode.v[0],opcode.v[1],offset);
 
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(table,alloc,block,node,0);

@@ -16,19 +16,19 @@ void emit_directive_dst1(Interloper& itl,Function& func, SymSlot dst, u32 v2, u3
 
 
 
-void addrof(Interloper& itl,Function& func, SymSlot dst, SymSlot src)
+void addrof(Interloper& itl,Function& func, SymSlot dst, SymSlot src, u32 offset = 0)
 {
     // mark reg as aliased
     auto& reg = reg_from_slot(itl,func,src);
     reg.flags |= ALIASED;
 
-    emit_directive_dst1<op_type::addrof>(itl,func,dst,src.handle,0);
+    emit_directive_dst1<op_type::addrof>(itl,func,dst,src.handle,offset);
 }
 
-SymSlot addrof_res(Interloper& itl, Function& func, SymSlot src)
+SymSlot addrof_res(Interloper& itl, Function& func, SymSlot src, u32 offset = 0)
 {
     const auto tmp = new_tmp_ptr(func);
-    addrof(itl,func,tmp,src);
+    addrof(itl,func,tmp,src,offset);
 
     return tmp;
 }

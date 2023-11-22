@@ -341,7 +341,7 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
 }
 
 
-std::pair<Type*,SymSlot> access_array_member(Interloper& itl, SymSlot slot, Type* type, const String& member_name,u32* offset)
+Type* access_array_member(Interloper& itl, Type* type, const String& member_name,AddrSlot* struct_slot)
 {
     ArrayType* array_type = (ArrayType*)type;
 
@@ -349,14 +349,16 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, SymSlot slot, Type
     {
         if(!is_runtime_size(type))
         {
-            return std::pair{type,ACCESS_FIXED_LEN_REG_SLOT};
+            struct_slot->slot = ACCESS_FIXED_LEN_REG_SLOT;
+            struct_slot->struct_addr = false;
+            return type;
         }
 
         // vla
         else
         {
-            *offset += GPR_SIZE;
-            return std::pair{make_builtin(itl,builtin_type::u64_t),slot};
+            struct_slot->offset += GPR_SIZE;
+            return make_builtin(itl,builtin_type::u64_t);
         }
     }
 
@@ -366,24 +368,23 @@ std::pair<Type*,SymSlot> access_array_member(Interloper& itl, SymSlot slot, Type
         if(is_fixed_array(type))
         {
             panic(itl,itl_error::array_type_error,"no .data member on fixed size array");
-            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+            make_builtin(itl,builtin_type::void_t);
         }
 
-        *offset += 0;
+        struct_slot->offset += 0;
 
-        return std::pair{make_pointer(itl,array_type->contained_type),slot};
+        return make_pointer(itl,array_type->contained_type);
     }
 
 
     else
     {
         panic(itl,itl_error::undeclared,"unknown array member %s\n",member_name.buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+        return make_builtin(itl,builtin_type::void_t);
     }
 }
 
-// returns the member + offset
-std::pair<Type*,SymSlot> access_struct_member(Interloper& itl, SymSlot slot, Type* type, const String& member_name, u32* offset)
+Type* access_struct_member(Interloper& itl, Type* type, const String& member_name, AddrSlot* struct_slot)
 {
     // get offset for struct member
     const auto member_opt = get_member(itl.struct_table,type,member_name);
@@ -391,14 +392,14 @@ std::pair<Type*,SymSlot> access_struct_member(Interloper& itl, SymSlot slot, Typ
     if(!member_opt)
     {
         panic(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+        return make_builtin(itl,builtin_type::void_t);
     }
 
     const auto member = member_opt.value();
 
-    *offset += member.offset;
+    struct_slot->offset += member.offset;  
 
-    return std::pair{member.type,slot};    
+    return member.type;
 }
 
 
@@ -415,15 +416,15 @@ std::optional<u32> member_offset(Struct& structure, const String& name)
     return std::optional{member.offset};
 }
 
-std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& func, SymSlot struct_slot,Type* struct_type,b32 enum_base_access,
-    const String& member_name, u32* member_offset)
+Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type,
+    const String& member_name, AddrSlot* struct_slot)
 {
     const auto& enumeration = enum_from_type(itl.enum_table,struct_type);
 
     if(enumeration.struct_idx == INVALID_TYPE_IDX)
     {
         panic(itl,itl_error::struct_error,"member access on plain enum %s\n",enumeration.name.buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                      
+        return make_builtin(itl,builtin_type::void_t);                    
     }
 
     // pull info on enum struct member
@@ -434,7 +435,7 @@ std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& fu
     if(!enum_struct_member_opt)
     {
         panic(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,struct_type).buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                
+        return make_builtin(itl,builtin_type::void_t);                
     }
 
     const auto& enum_struct_member = enum_struct_member_opt.value();
@@ -446,20 +447,23 @@ std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& fu
     SymSlot enum_slot = sym_from_idx(SYMBOL_NO_SLOT);
     
     // we allready directly have the enum
-    if(enum_base_access)
+    if(struct_slot->struct_addr)
     {
-        enum_slot = struct_slot;
+        assert(struct_slot->offset == 0);
+
+        enum_slot = struct_slot->slot;
     }
 
     // ordinary access on a pointer, we must deref it
     else
     {
         enum_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,enum_slot,struct_slot,*member_offset,ENUM_SIZE,false);
+        load_ptr(itl,func,enum_slot,struct_slot->slot,struct_slot->offset,ENUM_SIZE,false);
     }
 
     // update for new offset
-    *member_offset = enum_struct_member.offset;
+    struct_slot->offset = enum_struct_member.offset;
+    struct_slot->struct_addr = false;
 
     // finally index the table
     
@@ -467,25 +471,41 @@ std::pair<Type*, SymSlot> access_enum_struct_member(Interloper& itl,Function& fu
     const SymSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
 
     // compute final addr
-    struct_slot = add_res(itl,func,enum_table_slot,table_offset);
+    const auto addr_slot = add_res(itl,func,enum_table_slot,table_offset);
 
-    return std::pair{enum_struct_member.type,struct_slot};
+    // update the struct addr
+    struct_slot->slot = addr_slot;
+
+    return enum_struct_member.type;
+}
+
+void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_slot)
+{
+    if(struct_slot->struct_addr)
+    {
+        struct_slot->slot = addrof_res(itl,func,struct_slot->slot,struct_slot->offset);
+
+        struct_slot->offset = 0;
+        struct_slot->struct_addr = false;
+    }
+
+    else
+    {
+        struct_slot->slot = collapse_offset(itl,func,struct_slot->slot,&struct_slot->offset);
+    }
 }
 
 // return type, slot, offset
-std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Function& func, AstNode* node)
 {
     BinNode* member_root =(BinNode*)node;
 
     AstNode* expr_node = member_root->left;
 
     // Type is allways the accessed type of the current pointer
-    SymSlot struct_slot = sym_from_idx(SYMBOL_NO_SLOT);
     Type* struct_type = nullptr;
 
-    // this indicates a member access on a enum that we directly have access to
-    // (i.e we dont waste time taking a pointer to it)
-    b32 enum_base_access = false;
+    AddrSlot struct_slot;
 
     // parse out initail expr
     switch(expr_node->type)
@@ -500,7 +520,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             if(!sym_ptr)
             {
                 panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
-                return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
+                return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
             }            
 
             const auto &sym = *sym_ptr;
@@ -510,7 +530,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             if(is_pointer(sym.type))
             {
                 struct_type = deref_pointer(sym.type);
-                struct_slot = sym.reg.slot;
+                struct_slot = make_addr_slot(sym.reg.slot,0,false);
             }
 
             else
@@ -519,19 +539,18 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 // then we just directly return operations
                 if(is_fixed_array(sym.type))
                 {
-                    struct_slot = sym.reg.slot;
+                    struct_slot = make_addr_slot(sym.reg.slot,0,false);
                 }
 
                 // if this is an enum we will do a direct index with it
                 else if(is_enum(sym.type))
                 {
-                    struct_slot = sym.reg.slot;
-                    enum_base_access = true;
+                    struct_slot = make_addr_slot(sym.reg.slot,0,true);
                 }
 
                 else
                 {
-                    struct_slot = addrof_res(itl,func,sym.reg.slot);
+                    struct_slot = make_addr_slot(sym.reg.slot,0,true);
                 }
 
                 struct_type = sym.type;
@@ -542,7 +561,10 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
         case ast_type::index:
         {
-            std::tie(struct_type, struct_slot) = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+            SymSlot addr_slot;
+            std::tie(struct_type, addr_slot) = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+
+            struct_slot = make_addr_slot(addr_slot,0,false);
 
             // we return types in here as the accessed type
             struct_type = deref_pointer(struct_type);
@@ -553,14 +575,12 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
         default: 
         {
             panic(itl,itl_error::struct_error,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
-            return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
+            return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
         }
     }
 
 
     RecordNode* members = (RecordNode*)member_root->right;
-
-    u32 member_offset = 0;
 
     // perform each member access
     for(u32 m = 0; m < count(members->nodes); m++)
@@ -577,8 +597,14 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
                 // auto deferef pointers first
                 if(is_pointer(struct_type))
                 {
-                    do_ptr_load(itl,func,struct_slot,struct_slot,struct_type,member_offset);
-                    member_offset = 0;
+                    // TODO: we should remove the need to do this
+                    // when we hook into do_ptr_load
+                    collapse_struct_offset(itl,func,&struct_slot);
+
+                    SymSlot addr_slot = new_tmp_ptr(func);
+                    do_ptr_load(itl,func,addr_slot,struct_slot.slot,struct_type,struct_slot.offset);
+
+                    struct_slot = make_addr_slot(addr_slot,0,false);
 
                     // now we are back to a straight pointer
                     struct_type = deref_pointer(struct_type);
@@ -586,24 +612,24 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
                 if(is_array(struct_type))
                 {
-                    std::tie(struct_type,struct_slot) = access_array_member(itl,struct_slot,struct_type,member_name,&member_offset);
+                    struct_type = access_array_member(itl,struct_type,member_name,&struct_slot);
                 }
 
                 // do enum member access
                 else if(is_enum(struct_type))
                 {
-                    std::tie(struct_type,struct_slot) = access_enum_struct_member(itl,func,struct_slot,struct_type,enum_base_access,member_name,&member_offset);
-                    enum_base_access = false;
+                    struct_type = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
+
                     if(itl.error)
                     {
-                        std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0}; 
+                        return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot}; 
                     }
                 }
 
                 // actual struct member
                 else
                 {
-                    std::tie(struct_type,struct_slot) = access_struct_member(itl,struct_slot,struct_type,member_name,&member_offset);
+                    struct_type = access_struct_member(itl,struct_type,member_name,&struct_slot);
                 }   
                 break;
             }
@@ -612,19 +638,23 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             {
                 IndexNode* index_node = (IndexNode*)n;
 
-                std::tie(struct_type,struct_slot) = access_struct_member(itl,struct_slot,struct_type,index_node->name,&member_offset);
+                struct_type = access_struct_member(itl,struct_type,index_node->name,&struct_slot);
                 
-                struct_slot = collapse_offset(itl,func,struct_slot,&member_offset);
+                // TODO: should not collapse it here if its a runtime size
+                collapse_struct_offset(itl,func,&struct_slot);
 
                 if(is_runtime_size(struct_type))
                 {
                     const SymSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    do_ptr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE),0);
-                    struct_slot = vla_ptr;
+                    do_ptr_load(itl,func,vla_ptr,struct_slot.slot,make_builtin(itl,GPR_SIZE_TYPE),0);
+                    struct_slot = make_addr_slot(vla_ptr,0,false);
                 }
 
-                std::tie(struct_type,struct_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot,new_tmp_ptr(func));
+                SymSlot addr_slot;
+                std::tie(struct_type,addr_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
+
+                struct_slot = make_addr_slot(addr_slot,0,false);
 
                 // deref of pointer
                 struct_type = deref_pointer(struct_type);
@@ -634,14 +664,31 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
             default: 
             {
                 panic(itl,itl_error::undeclared,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
-                return std::tuple{make_builtin(itl,builtin_type::void_t),SYM_ERROR,0};
+                return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
             }
         }
     }
 
-    return std::tuple{struct_type,struct_slot,member_offset};
+    return std::tuple{struct_type,struct_slot};
 }
 
+// TODO: we will change this sig later for now we want to hide the new Addr interface inside the 
+// struct offseting code so we only have to expose it slowly
+std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+{
+    const auto [type,addr_slot] = compute_member_addr_internal(itl,func,node);
+
+    if(addr_slot.struct_addr)
+    {
+        const auto slot = addrof_res(itl,func,addr_slot.slot);
+        return std::tuple{type,slot,addr_slot.offset};
+    }
+
+    else 
+    {
+        return std::tuple{type,addr_slot.slot,addr_slot.offset};
+    }
+}
 
 void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype, AstNode *node)
 {

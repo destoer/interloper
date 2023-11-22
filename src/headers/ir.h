@@ -557,3 +557,18 @@ inline u32 symbol(u32 s)
 
 // intrin
 void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slot, u32 size);
+
+
+struct AddrSlot
+{
+    SymSlot slot = {SYMBOL_NO_SLOT};
+    u32 offset = 0;
+
+    // slot is not a pointer and refers to an actual variable
+    b32 struct_addr = false;
+};
+
+AddrSlot make_addr_slot(SymSlot slot, u32 offset,b32 struct_addr = false)
+{
+    return {slot,offset,struct_addr};
+}
