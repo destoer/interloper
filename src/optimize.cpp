@@ -259,6 +259,25 @@ void simplify_mul_imm(ListNode* node)
     }
 }
 
+void simplify_add_imm(ListNode* node)
+{
+    // x + 0 = x
+    if(node->opcode.v[2] == 0)
+    {
+        node->opcode = Opcode(op_type::mov_reg,node->opcode.v[0],node->opcode.v[1],0);
+    }
+}
+
+void simplify_sub_imm(ListNode* node)
+{
+    // x - 0 = x
+    if(node->opcode.v[2] == 0)
+    {
+        node->opcode = Opcode(op_type::mov_reg,node->opcode.v[0],node->opcode.v[1],0);
+    }
+}
+
+
 std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Block& block, ValueTable& reg_value, const InstrOper& oper, ListNode* node)
 {
     // NOTE: this doesn't mean that we will compute the dst
@@ -441,12 +460,34 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
             case op_type::add_reg:
             {
                 inline_commuative_single(node,op_type::add_imm,oper.v1,oper.v2);
+
+                if(node->opcode.op == op_type::add_imm)
+                {
+                    simplify_add_imm(node);
+                }
                 break;
             }
 
             case op_type::sub_reg:
             {
                 inline_v2(node,op_type::sub_imm,oper.v2);
+
+                if(node->opcode.op == op_type::sub_imm)
+                {
+                    simplify_sub_imm(node);
+                }
+                break;
+            }
+
+            case op_type::add_imm:
+            {
+                simplify_add_imm(node);
+                break;
+            }
+
+            case op_type::sub_imm:
+            {
+                simplify_sub_imm(node);
                 break;
             }
 
