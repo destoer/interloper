@@ -276,7 +276,11 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
         case reg_kind::constant:
         {
             const u32 handle = ir_reg.offset;
-            return std::pair{CONST_IR,handle};
+
+            const PoolSlot pool_slot = pool_slot_from_idx(handle);
+            auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+
+            return std::pair{CONST_IR,section.offset};
         }
 
         case reg_kind::global:

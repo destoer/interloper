@@ -135,10 +135,9 @@ void emit_asm(Interloper &itl)
             {
                 if(opcode.v[1] == CONST_IR)
                 {
-                    const PoolSlot pool_slot = pool_slot_from_idx(opcode.v[2]);
-                    auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+                    const u32 section_offset = opcode.v[2];
 
-                    const u64 addr =  PROGRAM_ORG + const_pool_loc + section.offset;
+                    const u64 addr =  PROGRAM_ORG + const_pool_loc + section_offset;
                     const u64 offset = addr - program_counter;
 
                     opcode = Opcode(opcode.op,opcode.v[0],PC,offset);

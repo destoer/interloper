@@ -597,18 +597,16 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
                 // auto deferef pointers first
                 if(is_pointer(struct_type))
                 {
-                    // TODO: we should remove the need to do this
-                    // when we hook into do_ptr_load
-                    collapse_struct_offset(itl,func,&struct_slot);
-
                     SymSlot addr_slot = new_tmp_ptr(func);
-                    do_ptr_load(itl,func,addr_slot,struct_slot.slot,struct_type,struct_slot.offset);
+                    do_ptr_load_internal(itl,func,addr_slot,struct_slot,struct_type);
 
                     struct_slot = make_addr_slot(addr_slot,0,false);
 
                     // now we are back to a straight pointer
                     struct_type = deref_pointer(struct_type);
                 }
+
+
 
                 if(is_array(struct_type))
                 {
@@ -640,15 +638,18 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
 
                 struct_type = access_struct_member(itl,struct_type,index_node->name,&struct_slot);
                 
-                // TODO: should not collapse it here if its a runtime size
-                collapse_struct_offset(itl,func,&struct_slot);
-
                 if(is_runtime_size(struct_type))
                 {
                     const SymSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    do_ptr_load(itl,func,vla_ptr,struct_slot.slot,make_builtin(itl,GPR_SIZE_TYPE),0);
+                    do_ptr_load_internal(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
                     struct_slot = make_addr_slot(vla_ptr,0,false);
+                }
+
+                // fixed size collpase the offset
+                else
+                {
+                    collapse_struct_offset(itl,func,&struct_slot);
                 }
 
                 SymSlot addr_slot;
@@ -708,7 +709,7 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
 {
     const List list_old = get_cur_list(func.emitter);
 
-    auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
+    auto [accessed_type, addr_slot] = compute_member_addr_internal(itl,func,node);
 
     if(itl.error)
     {
@@ -716,7 +717,7 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
     }
 
     // len access on fixed sized array
-    if(ptr_slot.handle == ACCESS_FIXED_LEN_REG)
+    if(addr_slot.slot.handle == ACCESS_FIXED_LEN_REG)
     {
         // dont need any of the new instrs for this
         // get rid of them
@@ -731,12 +732,12 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
     // let caller handle reads via array accessors
     if(is_fixed_array(accessed_type))
     {
-        const SymSlot addr = collapse_offset(itl,func,ptr_slot,&offset);
-        mov_reg(itl,func,dst_slot,addr);
+        collapse_struct_offset(itl,func,&addr_slot);
+        mov_reg(itl,func,dst_slot,addr_slot.slot);
         return accessed_type;
     }
 
-    do_ptr_load(itl,func,dst_slot,ptr_slot,accessed_type,offset);
+    do_ptr_load_internal(itl,func,dst_slot,addr_slot,accessed_type);
     return accessed_type;
 }
 

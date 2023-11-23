@@ -123,6 +123,13 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"addrof %r, %r, %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
     {op_group::reg_t,"load_func_addr %r, %a, %x",2,{arg_type::dst_reg,arg_type::label,arg_type::none}},
 
+    {op_group::reg_t,"load_struct_s8 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::reg_t,"load_struct_s16 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::reg_t,"load_struct_s32 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+
+    {op_group::reg_t,"load_struct_u8 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::reg_t,"load_struct_u16 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::reg_t,"load_struct_u32 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
     {op_group::reg_t,"load_struct_u64 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
 
     {op_group::reg_t,"write_struct_u64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},

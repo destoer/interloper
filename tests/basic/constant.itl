@@ -39,7 +39,6 @@ func main() s32
 
     // test string
 
-
     // test struct
     res3 := (POINT.x * POINT.y) == 12;
 

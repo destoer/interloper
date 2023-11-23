@@ -131,6 +131,13 @@ enum class op_type
     addrof,
     load_func_addr,
 
+    load_struct_s8,
+    load_struct_s16,
+    load_struct_s32,
+
+    load_struct_u8,
+    load_struct_u16,
+    load_struct_u32,
     load_struct_u64,
 
     write_struct_u64,

@@ -22,6 +22,8 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 
 std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, bool addrof);
 void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
+void do_ptr_load_internal(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, const Type* type);
+
 void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_slot, const Type* type, u32 offset = 0);
 SymSlot collapse_offset(Interloper& itl,Function&func, SymSlot addr_slot, u32 *offset);
 
@@ -214,13 +216,36 @@ void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,
     }
 }
 
-void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_slot, const Type* type, u32 offset)
+void load_struct(Interloper &itl,Function& func,SymSlot dst_slot,AddrSlot addr_slot,u32 size, b32 is_signed)
+{
+    if(is_signed)
+    {
+        const op_type SIGNED_LOAD_STRUCT_TABLE[] = {op_type::load_struct_s8,op_type::load_struct_s16,op_type::load_struct_s32,op_type::load_struct_u64};
+        const u32 idx = log2(size);
+
+        assert(idx <= 3);
+
+        load_struct_internal(itl,func,SIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr_slot);     
+    }
+
+    else
+    {
+        const op_type UNSIGNED_LOAD_STRUCT_TABLE[] = {op_type::load_struct_u8,op_type::load_struct_u16,op_type::load_struct_u32,op_type::load_struct_u64};
+        const u32 idx = log2(size);
+
+        assert(idx <= 3);
+
+        load_struct_internal(itl,func,UNSIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr_slot);     
+    }
+}
+
+void do_ptr_load_internal(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
     if(is_array(type))
     {
-        addr_slot = collapse_offset(itl,func,addr_slot,&offset);
+        collapse_struct_offset(itl,func,&addr_slot);
 
         // TODO: we want to reduce the number of copies this requires
         // for passing to a function
@@ -228,29 +253,39 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
         if(is_runtime_size(type))
         {
             const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
-            ir_memcpy(itl,func,dst_ptr,addr_slot,VLA_SIZE);
+            ir_memcpy(itl,func,dst_ptr,addr_slot.slot,VLA_SIZE);
         }
 
         // fixed size array, the pointer is the array
         else
         {
-            mov_reg(itl,func,dst_slot,addr_slot);
+            mov_reg(itl,func,dst_slot,addr_slot.slot);
         }
     }
 
     else if(is_struct(type))
     {
-        addr_slot = collapse_offset(itl,func,addr_slot,&offset);
+        collapse_struct_offset(itl,func,&addr_slot);
 
         const u32 size = type_size(itl,type);
         const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
 
-        ir_memcpy(itl,func,dst_ptr,addr_slot,size);
+        ir_memcpy(itl,func,dst_ptr,addr_slot.slot,size);
     }
 
     else if(size <= GPR_SIZE)
     {
-        load_ptr(itl,func,dst_slot,addr_slot,offset,size,is_signed(type));
+        const b32 sign = is_signed(type);
+
+        if(addr_slot.struct_addr)
+        {
+            load_struct(itl,func,dst_slot,addr_slot,size,sign);
+        }
+
+        else
+        {
+            load_ptr(itl,func,dst_slot,addr_slot.slot,addr_slot.offset,size,sign);
+        }
     }            
 
     else
@@ -258,6 +293,14 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot addr_sl
         assert(false);
     }
 }
+
+void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot ptr_slot, const Type* type, u32 offset)
+{
+    const auto addr_slot = make_addr_slot(ptr_slot,offset,false);
+    do_ptr_load_internal(itl,func,dst_slot,addr_slot,type);
+}
+
+
 
 void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size)
 {

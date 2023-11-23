@@ -48,7 +48,7 @@ ListNode* rewrite_access_struct(Interloper& itl, Function& func,LocalAlloc &allo
         stack_reserve_reg(alloc.stack_alloc,reg);  
     }
 
-    if(reg.kind == reg_kind::tmp || reg.kind == reg_kind::local)
+    if(is_local(reg))
     {
         // add the stack offset, so this correctly offset for when we fully rewrite this
         node->opcode.v[2] += alloc.stack_alloc.stack_offset;
@@ -123,7 +123,13 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 stack_reserve_reg(alloc.stack_alloc,reg);  
             }
 
-            const u32 offset = node->opcode.v[2] + alloc.stack_alloc.stack_offset;
+            u32 offset = node->opcode.v[2];
+
+            // local add the stack offset
+            if(is_local(reg))
+            {
+                offset += alloc.stack_alloc.stack_offset;
+            }
 
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
@@ -134,6 +140,42 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             node = node->next;
             break;            
+        }
+
+        case op_type::load_struct_s8:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::load_struct_s16:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::load_struct_s32:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::load_struct_u8:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::load_struct_u16:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::load_struct_u32:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
         }
 
         case op_type::load_struct_u64:
@@ -469,7 +511,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
         case op_type::addrof:
         {
-            const s32 stack_offset = opcode.v[2];
+            const s32 base_offset = opcode.v[2];
             const SymSlot slot = sym_from_idx(opcode.v[1]);
 
             auto &reg = reg_from_slot(slot,itl.symbol_table,alloc);
@@ -477,11 +519,47 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
             assert(is_mem_allocated(reg));
 
-            const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
+            auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
-            node->opcode = Opcode(op_type::lea,opcode.v[0],offset_reg,offset);
+            node->opcode = Opcode(op_type::lea,opcode.v[0],offset_reg,base_offset + offset);
 
             node = node->next;
+            break;
+        }
+
+        case op_type::load_struct_s8:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::lsb);
+            break;
+        }
+
+        case op_type::load_struct_s16:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::lsh);
+            break;
+        }
+
+        case op_type::load_struct_s32:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::lsw);
+            break;
+        }
+
+        case op_type::load_struct_u8:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::lb);
+            break;
+        }
+
+        case op_type::load_struct_u16:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::lh);
+            break;
+        }
+
+        case op_type::load_struct_u32:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::lw);
             break;
         }
 

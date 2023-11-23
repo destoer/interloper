@@ -92,6 +92,16 @@ b32 is_signed(const Reg& reg)
     return reg.flags & SIGNED_FLAG;
 }
 
+b32 is_global(const Reg& reg)
+{
+    return reg.kind == reg_kind::global || reg.kind == reg_kind::constant;
+}
+
+b32 is_local(const Reg& reg)
+{
+    return !is_global(reg);  
+}
+
 Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
 {
     Reg reg;
@@ -205,7 +215,7 @@ void free_sym(Interloper& itl,Function& func, Symbol& sym)
 
 bool is_local_reg(const Reg &reg)
 {
-    return !is_aliased(reg) && reg.kind != reg_kind::global && reg.kind != reg_kind::constant;
+    return !is_aliased(reg) && is_local(reg);
 }
 
 const OpInfo& info_from_op(const Opcode& opcode)
