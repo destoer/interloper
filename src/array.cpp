@@ -117,12 +117,14 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
 // NOTE: this has to be a vla
 void store_arr_data(Interloper& itl, Function& func, SymSlot slot, SymSlot data)
 {
-    write_struct_u64(itl,func,data,slot,0);
+    const auto addr_slot = make_struct_addr(slot,0);
+    write_struct_u64(itl,func,data,addr_slot);
 }
 
 void store_arr_len(Interloper& itl, Function& func, SymSlot slot,SymSlot len)
 {
-    write_struct_u64(itl,func,len,slot,GPR_SIZE);
+    const auto addr_slot = make_struct_addr(slot,GPR_SIZE);
+    write_struct_u64(itl,func,len,addr_slot);
 }
 
 SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type)

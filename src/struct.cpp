@@ -678,7 +678,7 @@ std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& fun
 
 void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype, AstNode *node)
 {
-    const auto [accessed_type, ptr_slot, offset] = compute_member_addr(itl,func,node);
+    const auto [accessed_type, addr_slot] = compute_member_addr_internal(itl,func,node);
 
     if(itl.error)
     {
@@ -686,7 +686,7 @@ void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype,
     }
 
     check_assign(itl,accessed_type,rtype);
-    do_ptr_store(itl,func,src_slot,ptr_slot,accessed_type, offset);
+    do_ptr_store_internal(itl,func,src_slot,addr_slot,accessed_type);
 }
 
 

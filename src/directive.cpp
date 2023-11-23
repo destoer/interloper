@@ -125,6 +125,13 @@ void load_struct_internal(Interloper& itl, Function& func, op_type type,SymSlot 
     emit_block_internal(func,cur_block(func),type,dst.handle,addr_slot.slot.handle,addr_slot.offset);
 }
 
+void store_struct_internal(Interloper& itl, Function& func, op_type type,SymSlot src, AddrSlot addr_slot)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),type,src.handle,addr_slot.slot.handle,addr_slot.offset);
+}
+
+
 void load_struct_u64(Interloper& itl, Function& func, SymSlot dst, AddrSlot addr_slot)
 {
     load_struct_internal(itl,func,op_type::load_struct_u64,dst,addr_slot);
@@ -138,8 +145,7 @@ SymSlot load_struct_u64_res(Interloper& itl, Function& func, AddrSlot addr_slot)
     return dst;
 }
 
-void write_struct_u64(Interloper& itl, Function& func, SymSlot src, SymSlot slot, u64 offset)
+void write_struct_u64(Interloper& itl, Function& func, SymSlot src, AddrSlot addr_slot)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::write_struct_u64,src.handle,slot.handle,offset);
+    store_struct_internal(itl,func,op_type::store_struct_u64,src,addr_slot);
 }

@@ -140,7 +140,10 @@ enum class op_type
     load_struct_u32,
     load_struct_u64,
 
-    write_struct_u64,
+    store_struct_u8,
+    store_struct_u16,
+    store_struct_u32,
+    store_struct_u64,
 
     pool_addr,
 

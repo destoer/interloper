@@ -10,9 +10,9 @@ AddrSlot make_struct_addr(SymSlot slot, u32 offset)
 }
 
 
-AddrSlot take_addr(Interloper& itl, Function& func, SymSlot src)
+AddrSlot take_addr(Interloper& itl, Function& func, SymSlot src, u32 offset)
 {
-    const auto src_ptr = addrof_res(itl,func,src);
+    const auto src_ptr = addrof_res(itl,func,src,offset);
     return make_addr(src_ptr,0);
 }
 
@@ -38,10 +38,7 @@ void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_sl
 {
     if(struct_slot->struct_addr)
     {
-        struct_slot->slot = addrof_res(itl,func,struct_slot->slot,struct_slot->offset);
-
-        struct_slot->offset = 0;
-        struct_slot->struct_addr = false;
+        *struct_slot = take_addr(itl,func,struct_slot->slot,struct_slot->offset);
     }
 
     else
@@ -236,21 +233,46 @@ void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot
     }    
 }
 
-void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot addr_slot, const Type* type, u32 offset = 0)
+
+void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot addr_slot,u32 size)
+{
+    const op_type STORE_STRUCT_TABLE[] = {op_type::store_struct_u8,op_type::store_struct_u16,op_type::store_struct_u32,op_type::store_struct_u64};
+    const u32 idx = log2(size);
+
+    assert(idx <= 3);
+
+    load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,addr_slot);      
+}
+
+void do_ptr_store_internal(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot addr_slot, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
     if(size <= GPR_SIZE)
     {
-        store_ptr(itl,func,src_slot,addr_slot,offset,size);  
+        if(addr_slot.struct_addr)
+        {
+            store_struct(itl,func,src_slot,addr_slot,size);
+        }
+
+        else
+        {
+            store_ptr(itl,func,src_slot,addr_slot.slot,addr_slot.offset,size);
+        }
     }
 
     // large copy
     else
     {
         SymSlot src_ptr = addrof_res(itl,func,src_slot);
-        const auto dst_ptr = collapse_offset(itl,func,addr_slot,&offset);        
+        collapse_struct_offset(itl,func,&addr_slot);        
 
-        ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,type));        
+        ir_memcpy(itl,func,addr_slot.slot,src_ptr,type_size(itl,type));        
     } 
+}
+
+void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot ptr_slot, const Type* type, u32 offset = 0)
+{
+    const auto addr_slot = make_addr(ptr_slot,offset);
+    do_ptr_store_internal(itl,func,src_slot,addr_slot,type);
 }

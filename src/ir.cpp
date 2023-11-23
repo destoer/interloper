@@ -184,7 +184,25 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;
         }
 
-        case op_type::write_struct_u64:
+        case op_type::store_struct_u8:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::store_struct_u16:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::store_struct_u32:
+        {
+            node = rewrite_access_struct(itl,func,alloc,table,block,node);
+            break;
+        }
+
+        case op_type::store_struct_u64:
         {
             node = rewrite_access_struct(itl,func,alloc,table,block,node);
             break;
@@ -569,7 +587,25 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             break;
         }
 
-        case op_type::write_struct_u64:
+        case op_type::store_struct_u8:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::sb);
+            break;
+        }
+
+        case op_type::store_struct_u16:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::sh);
+            break;
+        }
+
+        case op_type::store_struct_u32:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::sw);
+            break;
+        }
+
+        case op_type::store_struct_u64:
         {
             node = rewrite_access_struct_addr(itl,alloc,node,op_type::sd);
             break;
