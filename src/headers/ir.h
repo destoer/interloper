@@ -574,8 +574,3 @@ struct AddrSlot
     // slot is not a pointer and refers to an actual variable
     b32 struct_addr = false;
 };
-
-AddrSlot make_addr_slot(SymSlot slot, u32 offset,b32 struct_addr = false)
-{
-    return {slot,offset,struct_addr};
-}

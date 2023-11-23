@@ -479,21 +479,6 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
     return enum_struct_member.type;
 }
 
-void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_slot)
-{
-    if(struct_slot->struct_addr)
-    {
-        struct_slot->slot = addrof_res(itl,func,struct_slot->slot,struct_slot->offset);
-
-        struct_slot->offset = 0;
-        struct_slot->struct_addr = false;
-    }
-
-    else
-    {
-        struct_slot->slot = collapse_offset(itl,func,struct_slot->slot,&struct_slot->offset);
-    }
-}
 
 // return type, slot, offset
 std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Function& func, AstNode* node)
@@ -530,7 +515,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
             if(is_pointer(sym.type))
             {
                 struct_type = deref_pointer(sym.type);
-                struct_slot = make_addr_slot(sym.reg.slot,0,false);
+                struct_slot = make_addr(sym.reg.slot,0);
             }
 
             else
@@ -539,18 +524,18 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
                 // then we just directly return operations
                 if(is_fixed_array(sym.type))
                 {
-                    struct_slot = make_addr_slot(sym.reg.slot,0,false);
+                    struct_slot = make_addr(sym.reg.slot,0);
                 }
 
                 // if this is an enum we will do a direct index with it
                 else if(is_enum(sym.type))
                 {
-                    struct_slot = make_addr_slot(sym.reg.slot,0,true);
+                    struct_slot = make_struct_addr(sym.reg.slot,0);
                 }
 
                 else
                 {
-                    struct_slot = make_addr_slot(sym.reg.slot,0,true);
+                    struct_slot = make_struct_addr(sym.reg.slot,0);
                 }
 
                 struct_type = sym.type;
@@ -564,7 +549,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
             SymSlot addr_slot;
             std::tie(struct_type, addr_slot) = index_arr(itl,func,expr_node,new_tmp_ptr(func));
 
-            struct_slot = make_addr_slot(addr_slot,0,false);
+            struct_slot = make_addr(addr_slot,0);
 
             // we return types in here as the accessed type
             struct_type = deref_pointer(struct_type);
@@ -600,7 +585,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
                     SymSlot addr_slot = new_tmp_ptr(func);
                     do_ptr_load_internal(itl,func,addr_slot,struct_slot,struct_type);
 
-                    struct_slot = make_addr_slot(addr_slot,0,false);
+                    struct_slot = make_addr(addr_slot,0);
 
                     // now we are back to a straight pointer
                     struct_type = deref_pointer(struct_type);
@@ -643,7 +628,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
                     const SymSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
                     do_ptr_load_internal(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
-                    struct_slot = make_addr_slot(vla_ptr,0,false);
+                    struct_slot = make_addr(vla_ptr,0);
                 }
 
                 // fixed size collpase the offset
@@ -655,7 +640,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
                 SymSlot addr_slot;
                 std::tie(struct_type,addr_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
 
-                struct_slot = make_addr_slot(addr_slot,0,false);
+                struct_slot = make_addr(addr_slot,0);
 
                 // deref of pointer
                 struct_type = deref_pointer(struct_type);

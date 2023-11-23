@@ -103,7 +103,7 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
 {
     if(is_runtime_size(type))
     {
-        const auto addr_slot = make_addr_slot(slot,0,true);
+        const auto addr_slot = make_struct_addr(slot,0);
         return load_struct_u64_res(itl,func,addr_slot);
     }
 
@@ -129,7 +129,7 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
 {
     if(is_runtime_size(type))
     {
-        const auto addr_slot = make_addr_slot(slot,GPR_SIZE,true);
+        const auto addr_slot = make_struct_addr(slot,GPR_SIZE);
         return load_struct_u64_res(itl,func,addr_slot);
     }
 
