@@ -453,17 +453,18 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
         // copy out the strucutre using the hidden pointer in the first arg
         if(dst_slot.handle == RV_IR)
         {
-            const SymSlot ptr = addrof_res(itl,func,src_slot);
+            const auto src_addr = make_struct_addr(src_slot,0);
+            const auto dst_addr = make_addr(func.sig.args[0],0);
 
-            ir_memcpy(itl,func,func.sig.args[0],ptr,type_size(itl,dst_type));
+            ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
         } 
 
         else
         {
-            const SymSlot src_ptr = addrof_res(itl,func,src_slot);
-            const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
+            const auto src_addr = make_struct_addr(src_slot,0);
+            const auto dst_addr = make_struct_addr(dst_slot,0);
 
-            ir_memcpy(itl,func,dst_ptr,src_ptr,type_size(itl,dst_type));
+            ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
         }
     }
 

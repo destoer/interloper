@@ -17,7 +17,7 @@ Function* find_func(Interloper& itl, const String& name)
     return  func_def;
 }
 
-void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slot, u32 size)
+void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
 {
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
     // because this alot of boilerplate
@@ -33,8 +33,11 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
 
         for(u32 i = 0; i < count; i++)
         {
-            load_double(itl,func,tmp,src_slot,i * 8);
-            store_double(itl,func,tmp,dst_slot,i * 8);
+            load_addr_slot(itl,func,tmp,src_addr,8,false);
+            store_addr_slot(itl,func,tmp,dst_addr,8);
+
+            src_addr.offset += 8;
+            dst_addr.offset += 8;
         }    
     }
 
@@ -56,9 +59,12 @@ void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slo
 
         const SymSlot imm_slot = mov_imm_res(itl,func,size);
 
+        collapse_struct_offset(itl,func,&src_addr);
+        collapse_struct_offset(itl,func,&dst_addr);
+
         push_arg(itl,func,imm_slot);
-        push_arg(itl,func,src_slot);
-        push_arg(itl,func,dst_slot);
+        push_arg(itl,func,src_addr.slot);
+        push_arg(itl,func,dst_addr.slot);
 
         call(itl,func,func_call.label_slot);
 

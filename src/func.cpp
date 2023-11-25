@@ -164,10 +164,12 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             alloc_stack(itl,func,structure.size);
 
             // need to save SP as it will get pushed last
-            const SymSlot dst = copy_reg(itl,func,sym_from_idx(SP_IR));
-            const SymSlot ptr = addrof_res(itl,func,reg);
+            const SymSlot dst_ptr = copy_reg(itl,func,sym_from_idx(SP_IR));
+            const auto dst_addr = make_addr(dst_ptr,0);
 
-            ir_memcpy(itl,func,dst,ptr,structure.size);
+            const auto src_addr = make_struct_addr(reg,0);
+
+            ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
 
             // clean up the stack push
             arg_clean += structure.size / GPR_SIZE;

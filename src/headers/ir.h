@@ -565,9 +565,6 @@ inline u32 symbol(u32 s)
 }
 
 
-// intrin
-void ir_memcpy(Interloper&itl, Function& func, SymSlot dst_slot, SymSlot src_slot, u32 size);
-
 
 struct AddrSlot
 {
@@ -577,3 +574,6 @@ struct AddrSlot
     // slot is not a pointer and refers to an actual variable
     b32 struct_addr = false;
 };
+
+// intrin
+void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);

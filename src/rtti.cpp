@@ -329,10 +329,12 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
                 const SymSlot SP_SLOT = sym_from_idx(SP_IR);
 
                 // need to save SP as it will get pushed last
-                const SymSlot dst = copy_reg(itl,func,SP_SLOT);
-                const SymSlot ptr = addrof_res(itl,func,reg);
+                const SymSlot dst_ptr = copy_reg(itl,func,SP_SLOT);
+                const auto dst_addr = make_addr(dst_ptr,0);
 
-                ir_memcpy(itl,func,dst,ptr,stack_size);
+                const auto src_addr = make_struct_addr(reg,0);
+
+                ir_memcpy(itl,func,dst_addr,src_addr,stack_size);
             }
 
             else

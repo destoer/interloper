@@ -138,53 +138,54 @@ void load_struct(Interloper &itl,Function& func,SymSlot dst_slot,AddrSlot addr_s
     }
 }
 
+void load_addr_slot(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, u32 size, b32 sign)
+{
+    if(addr_slot.struct_addr)
+    {
+        load_struct(itl,func,dst_slot,addr_slot,size,sign);
+    }
+
+    else
+    {
+        load_ptr(itl,func,dst_slot,addr_slot.slot,addr_slot.offset,size,sign);
+    }
+}
+
 void do_ptr_load_internal(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
     if(is_array(type))
     {
-        collapse_struct_offset(itl,func,&addr_slot);
-
         // TODO: we want to reduce the number of copies this requires
         // for passing to a function
         // we should probably pass in a special slot that tells us to just directly push things
         if(is_runtime_size(type))
         {
-            const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
-            ir_memcpy(itl,func,dst_ptr,addr_slot.slot,VLA_SIZE);
+            const auto dst_addr = make_struct_addr(dst_slot,0);
+            ir_memcpy(itl,func,dst_addr,addr_slot,VLA_SIZE);
         }
 
         // fixed size array, the pointer is the array
         else
         {
+            collapse_struct_offset(itl,func,&addr_slot);
             mov_reg(itl,func,dst_slot,addr_slot.slot);
         }
     }
 
     else if(is_struct(type))
     {
-        collapse_struct_offset(itl,func,&addr_slot);
+        const auto dst_addr = make_struct_addr(dst_slot,0);
 
-        const u32 size = type_size(itl,type);
-        const SymSlot dst_ptr = addrof_res(itl,func,dst_slot);
-
-        ir_memcpy(itl,func,dst_ptr,addr_slot.slot,size);
+        ir_memcpy(itl,func,dst_addr,addr_slot,size);
     }
 
     else if(size <= GPR_SIZE)
     {
         const b32 sign = is_signed(type);
 
-        if(addr_slot.struct_addr)
-        {
-            load_struct(itl,func,dst_slot,addr_slot,size,sign);
-        }
-
-        else
-        {
-            load_ptr(itl,func,dst_slot,addr_slot.slot,addr_slot.offset,size,sign);
-        }
+        load_addr_slot(itl,func,dst_slot,addr_slot,size,sign);
     }            
 
     else
@@ -244,30 +245,34 @@ void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot addr_
     load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,addr_slot);      
 }
 
+void store_addr_slot(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot addr_slot, u32 size)
+{
+    if(addr_slot.struct_addr)
+    {
+        store_struct(itl,func,src_slot,addr_slot,size);
+    }
+
+    else
+    {
+        store_ptr(itl,func,src_slot,addr_slot.slot,addr_slot.offset,size);
+    }
+}
+
+
 void do_ptr_store_internal(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot addr_slot, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
     if(size <= GPR_SIZE)
     {
-        if(addr_slot.struct_addr)
-        {
-            store_struct(itl,func,src_slot,addr_slot,size);
-        }
-
-        else
-        {
-            store_ptr(itl,func,src_slot,addr_slot.slot,addr_slot.offset,size);
-        }
+        store_addr_slot(itl,func,src_slot,addr_slot,size);
     }
 
     // large copy
     else
-    {
-        SymSlot src_ptr = addrof_res(itl,func,src_slot);
-        collapse_struct_offset(itl,func,&addr_slot);        
-
-        ir_memcpy(itl,func,addr_slot.slot,src_ptr,type_size(itl,type));        
+    {      
+        const auto src_addr = make_struct_addr(src_slot,0);
+        ir_memcpy(itl,func,addr_slot,src_addr,size);        
     } 
 }
 
