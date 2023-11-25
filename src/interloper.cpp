@@ -1371,14 +1371,10 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
         {
             if(take_addr)
             {
-                auto [type,ptr_slot,offset] = compute_member_addr(itl,func,node);
-                ptr_slot = collapse_offset(itl,func,ptr_slot,&offset);
+                auto [type,ptr_slot] = compute_member_ptr(itl,func,node);
 
                 // make sure this ptr goes into the dst slot
                 mov_reg(itl,func,slot,ptr_slot);
-
-                // we actually want this as a pointer
-                type = make_pointer(itl,type);
 
                 return std::pair{type,ptr_slot};
             }

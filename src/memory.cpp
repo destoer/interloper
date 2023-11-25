@@ -151,7 +151,7 @@ void load_addr_slot(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot add
     }
 }
 
-void do_ptr_load_internal(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, const Type* type)
+void do_addr_load(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot src_addr, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
@@ -163,14 +163,14 @@ void do_ptr_load_internal(Interloper &itl,Function &func,SymSlot dst_slot,AddrSl
         if(is_runtime_size(type))
         {
             const auto dst_addr = make_struct_addr(dst_slot,0);
-            ir_memcpy(itl,func,dst_addr,addr_slot,VLA_SIZE);
+            ir_memcpy(itl,func,dst_addr,src_addr,VLA_SIZE);
         }
 
         // fixed size array, the pointer is the array
         else
         {
-            collapse_struct_offset(itl,func,&addr_slot);
-            mov_reg(itl,func,dst_slot,addr_slot.slot);
+            collapse_struct_offset(itl,func,&src_addr);
+            mov_reg(itl,func,dst_slot,src_addr.slot);
         }
     }
 
@@ -178,14 +178,14 @@ void do_ptr_load_internal(Interloper &itl,Function &func,SymSlot dst_slot,AddrSl
     {
         const auto dst_addr = make_struct_addr(dst_slot,0);
 
-        ir_memcpy(itl,func,dst_addr,addr_slot,size);
+        ir_memcpy(itl,func,dst_addr,src_addr,size);
     }
 
     else if(size <= GPR_SIZE)
     {
         const b32 sign = is_signed(type);
 
-        load_addr_slot(itl,func,dst_slot,addr_slot,size,sign);
+        load_addr_slot(itl,func,dst_slot,src_addr,size,sign);
     }            
 
     else
@@ -196,37 +196,37 @@ void do_ptr_load_internal(Interloper &itl,Function &func,SymSlot dst_slot,AddrSl
 
 void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot ptr_slot, const Type* type, u32 offset = 0)
 {
-    const auto addr_slot = make_addr(ptr_slot,offset);
-    do_ptr_load_internal(itl,func,dst_slot,addr_slot,type);
+    const auto src_addr = make_addr(ptr_slot,offset);
+    do_addr_load(itl,func,dst_slot,src_addr,type);
 }
 
 
 
-void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size)
+void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot dst_addr,u32 offset,u32 size)
 {
     switch(size)
     {
         case 1:
         {
-            store_byte(itl,func,src_slot,addr_slot,offset);
+            store_byte(itl,func,src_slot,dst_addr,offset);
             break;
         }
 
         case 2: 
         {
-            store_half(itl,func,src_slot,addr_slot,offset);
+            store_half(itl,func,src_slot,dst_addr,offset);
             break;
         }
 
         case 4:
         {
-            store_word(itl,func,src_slot,addr_slot,offset);
+            store_word(itl,func,src_slot,dst_addr,offset);
             break;
         }
 
         case 8:
         {
-            store_double(itl,func,src_slot,addr_slot,offset);
+            store_double(itl,func,src_slot,dst_addr,offset);
             break;
         }
 
@@ -235,49 +235,49 @@ void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot
 }
 
 
-void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot addr_slot,u32 size)
+void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot dst_addr,u32 size)
 {
     const op_type STORE_STRUCT_TABLE[] = {op_type::store_struct_u8,op_type::store_struct_u16,op_type::store_struct_u32,op_type::store_struct_u64};
     const u32 idx = log2(size);
 
     assert(idx <= 3);
 
-    load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,addr_slot);      
+    load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,dst_addr);      
 }
 
-void store_addr_slot(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot addr_slot, u32 size)
+void store_addr_slot(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_addr, u32 size)
 {
-    if(addr_slot.struct_addr)
+    if(dst_addr.struct_addr)
     {
-        store_struct(itl,func,src_slot,addr_slot,size);
+        store_struct(itl,func,src_slot,dst_addr,size);
     }
 
     else
     {
-        store_ptr(itl,func,src_slot,addr_slot.slot,addr_slot.offset,size);
+        store_ptr(itl,func,src_slot,dst_addr.slot,dst_addr.offset,size);
     }
 }
 
 
-void do_ptr_store_internal(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot addr_slot, const Type* type)
+void do_addr_store(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_addr, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
     if(size <= GPR_SIZE)
     {
-        store_addr_slot(itl,func,src_slot,addr_slot,size);
+        store_addr_slot(itl,func,src_slot,dst_addr,size);
     }
 
     // large copy
     else
     {      
         const auto src_addr = make_struct_addr(src_slot,0);
-        ir_memcpy(itl,func,addr_slot,src_addr,size);        
+        ir_memcpy(itl,func,dst_addr,src_addr,size);        
     } 
 }
 
 void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot ptr_slot, const Type* type, u32 offset = 0)
 {
-    const auto addr_slot = make_addr(ptr_slot,offset);
-    do_ptr_store_internal(itl,func,src_slot,addr_slot,type);
+    const auto dst_addr = make_addr(ptr_slot,offset);
+    do_addr_store(itl,func,src_slot,dst_addr,type);
 }

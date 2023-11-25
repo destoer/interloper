@@ -294,8 +294,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                 case ast_type::access_struct:
                 {
                     // get the addr and push it
-                    auto [type,ptr_slot,offset] = compute_member_addr(itl,func,var_node);
-                    ptr_slot = collapse_offset(itl,func,ptr_slot,&offset);
+                    auto [type,ptr_slot] = compute_member_ptr(itl,func,var_node);
 
                     push_arg(itl,func,ptr_slot);
                     break;

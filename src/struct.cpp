@@ -481,7 +481,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
 
 
 // return type, slot, offset
-std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Function& func, AstNode* node)
+std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
     BinNode* member_root =(BinNode*)node;
 
@@ -583,7 +583,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
                 if(is_pointer(struct_type))
                 {
                     SymSlot addr_slot = new_tmp_ptr(func);
-                    do_ptr_load_internal(itl,func,addr_slot,struct_slot,struct_type);
+                    do_addr_load(itl,func,addr_slot,struct_slot,struct_type);
 
                     struct_slot = make_addr(addr_slot,0);
 
@@ -627,7 +627,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
                 {
                     const SymSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    do_ptr_load_internal(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
+                    do_addr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
                     struct_slot = make_addr(vla_ptr,0);
                 }
 
@@ -658,27 +658,18 @@ std::tuple<Type*,AddrSlot> compute_member_addr_internal(Interloper& itl, Functio
     return std::tuple{struct_type,struct_slot};
 }
 
-// TODO: we will change this sig later for now we want to hide the new Addr interface inside the 
-// struct offseting code so we only have to expose it slowly
-std::tuple<Type*,SymSlot,u32> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+std::pair<Type*,SymSlot> compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 {
-    const auto [type,addr_slot] = compute_member_addr_internal(itl,func,node);
+    auto [type,addr_slot] = compute_member_addr(itl,func,node);
 
-    if(addr_slot.struct_addr)
-    {
-        const auto slot = addrof_res(itl,func,addr_slot.slot);
-        return std::tuple{type,slot,addr_slot.offset};
-    }
+    collapse_struct_offset(itl,func,&addr_slot);
 
-    else 
-    {
-        return std::tuple{type,addr_slot.slot,addr_slot.offset};
-    }
+    return std::pair{make_pointer(itl,type),addr_slot.slot};
 }
 
 void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype, AstNode *node)
 {
-    const auto [accessed_type, addr_slot] = compute_member_addr_internal(itl,func,node);
+    const auto [accessed_type, addr_slot] = compute_member_addr(itl,func,node);
 
     if(itl.error)
     {
@@ -686,7 +677,7 @@ void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype,
     }
 
     check_assign(itl,accessed_type,rtype);
-    do_ptr_store_internal(itl,func,src_slot,addr_slot,accessed_type);
+    do_addr_store(itl,func,src_slot,addr_slot,accessed_type);
 }
 
 
@@ -694,7 +685,7 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
 {
     const List list_old = get_cur_list(func.emitter);
 
-    auto [accessed_type, addr_slot] = compute_member_addr_internal(itl,func,node);
+    auto [accessed_type, addr_slot] = compute_member_addr(itl,func,node);
 
     if(itl.error)
     {
@@ -722,7 +713,7 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
         return accessed_type;
     }
 
-    do_ptr_load_internal(itl,func,dst_slot,addr_slot,accessed_type);
+    do_addr_load(itl,func,dst_slot,addr_slot,accessed_type);
     return accessed_type;
 }
 
