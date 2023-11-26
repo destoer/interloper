@@ -577,3 +577,13 @@ struct AddrSlot
 
 // intrin
 void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
+
+enum class arch_target
+{
+    x86_64_t,
+};
+
+enum class os_target
+{
+    linux_t,
+};

@@ -42,6 +42,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // test producing a dummy elf binary
+    if(argv[1][0] == '-' && string_contains(argv[1],"e"))
+    {
+        build_test_binary();
+        return 0;
+    }
+
     // run tests
     if(argv[1][0] == '-' && string_contains(argv[1],"t"))
     {

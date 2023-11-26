@@ -39,6 +39,7 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
+#include "elf.cpp"
 #include "ir.cpp"
 #include "optimize.cpp"
 #include "memory.cpp"
