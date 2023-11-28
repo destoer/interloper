@@ -87,17 +87,24 @@ void stack_reserve_reg(StackAlloc& alloc, Reg& ir_reg)
 
 // Alignment functions for for stack, struct, globals etc
 
+u32 align_val(u32 v,u32 alignment)
+{
+    const u32 unaligned = v & (alignment - 1);
+
+    if(unaligned)
+    {
+        v += (alignment - unaligned); 
+    }
+
+    return v;
+}
+
 void align(u32 *alloc, u32 alignment)
 {
     // make sure the last start posistion is even
     const u32 idx = log2(alignment);
 
-    const u32 unaligned = alloc[idx] & (alignment - 1);
-
-    if(unaligned)
-    {
-        alloc[idx] += (alignment - unaligned); 
-    }
+    alloc[idx] = align_val(alloc[idx],alignment);
 }
 
 // NOTE: both arrays are size at number of base type sizes

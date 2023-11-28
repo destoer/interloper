@@ -208,3 +208,4 @@ inline u32 log2(u32 idx)
 }
 
 std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
+u32 align_val(u32 v,u32 alignment);
