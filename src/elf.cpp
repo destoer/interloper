@@ -249,17 +249,20 @@ void finalise_section_data(Elf& elf)
 {
     // add text section data
     auto& text_section = elf.text_section;
-/*
+
+    const u32 align = elf.text_section.program_header.p_align;
+
     // make sure page size aligns
     const u64 cur_offset = elf.buffer.size;
-    resize(elf.buffer,align_val(cur_offset,4096));
-*/
+    resize(elf.buffer,align_val(cur_offset,align));
+
     const u64 text_offset = push_section_data(elf,text_section.section_idx,text_section.buffer,true);
     
     // finish up the program header
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_offset),text_offset);
 
-    const u64 vaddr = align_val(text_offset,elf.text_section.program_header.p_align);
+    // start at 4MB
+    const u64 vaddr = align_val(text_offset,align) + 0x400000;
 
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_vaddr),vaddr);
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
@@ -319,7 +322,7 @@ void finalise_elf(Elf& elf)
 
     finalise_section_data(elf);
 
-    printf("program size: %x\n",elf.buffer.size);
+    printf("program size: %d\n",elf.buffer.size);
 }
 
 void destroy_elf(Elf& elf)
@@ -369,14 +372,13 @@ void build_test_binary()
     // shellcode for basic exit program
     /*
     _start:
-        mov rbx, 0xdeadbeef
-        mov rax, 1
-        int 0x80
+        mov rdi, 0x5
+        mov rax, 0x3c
+        syscall
     */
     const u8 SHELLCODE[] = {
-        0x48, 0xbb, 0xef, 0xbe, 0xad, 0xde, 0x00, 0x00, 
-        0x00, 0x00, 0x48, 0xc7, 0xc0, 0x01, 0x00, 0x00, 
-        0x00, 0xcd, 0x80, 
+        0x48, 0xc7, 0xc7, 0x05, 0x00, 0x00, 0x00, 0x48, 
+        0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05, 
     };
 
     add_function(elf,"_start",SHELLCODE,sizeof(SHELLCODE));
