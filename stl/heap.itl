@@ -2,28 +2,45 @@
 struct HeapNode
 {
     next : HeapNode@;
+
+    // NOTE: inclusive Node
     blocks : u64;
 }
 
 struct Heap
 {
     free_list : HeapNode@ = NULL;
+
+    // not this is in block counts
+    used : u64;
+    capacity : u64;
 }
+
 
 constant HEAP_DEFAULT_BLOCK_COUNT : u32 = 1024;
 constant HEAP_BLOCK_SIZE : u32 = HeapNode.size;
 constant HEAP_DEFAULT_ALLOC_SIZE : u32 = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_COUNT;
 
-func free_heap(heap : Heap@, ptr : byte@)
+func usable_blocks(heap: const Heap@) u64
 {
-    if(!ptr)
-    {
-        return;
-    }
+    return (heap.capacity - heap.used);
+}
 
-    insert := cast(HeapNode@,ptr) - 1;
+func heap_usage(heap: const Heap@)
+{
+    print("heap usage:\n");
+    print("used: {}\n",heap.used * HEAP_BLOCK_SIZE);
+    print("capacity: {}\n",heap.capacity * HEAP_BLOCK_SIZE);
+    print("free: {}\n",usable_blocks(heap) * HEAP_BLOCK_SIZE);
+
+    putchar('\n');
+}
+
+// internal function to add node back to free list
+// NOTE: null checking must be done by higher level functions
+func free_heap_node(heap: Heap@, insert: HeapNode@)
+{
     cur := heap.free_list;
-
 
     // handle insertion at start
     if(!cur || insert < cur)
@@ -86,6 +103,25 @@ func free_heap(heap : Heap@, ptr : byte@)
     }
 }
 
+
+
+func free_heap(heap : Heap@, ptr : byte@)
+{
+    if(!ptr)
+    {
+        return;
+    }
+
+    // block info is behind the buffer
+    insert := cast(HeapNode@,ptr) - 1;
+
+    // track memory reclaim
+    heap.used -= insert.blocks;
+
+    // actually add it back to the free list
+    free_heap_node(heap,insert);
+}
+
 func request_buffer(heap : Heap@, size : u64) bool
 {
     ptr := os_req_mem(size);
@@ -133,7 +169,11 @@ func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
                 cur += remaining_blocks;
                 cur.blocks = req_blocks;
             }
+            
+            // mark heap usage
+            heap.used += cur.blocks;
 
+            // data is after buffer
             return cast(byte@,(cur + 1));
         }
 
@@ -172,16 +212,22 @@ func add_buffer(heap : Heap@, ptr : byte@, size : u64)
         return;
     }
 
-    blocks := size / HEAP_BLOCK_SIZE;
+    // NOTE: we need a block to actually store it
+    blocks := (size / HEAP_BLOCK_SIZE);
 
     node := cast(HeapNode@,ptr);
     node.blocks = blocks;
-    free_heap(heap,node + 1);  
+
+    // new memory added
+    heap.capacity += blocks;
+
+    // directly pass new block
+    free_heap_node(heap,node);  
 }
 
 func make_heap(buf : byte[]) Heap
 {
-    heap : Heap = {?};
+    heap : Heap;
     add_buffer(&heap,buf.data,buf.len);
 
     return heap;
