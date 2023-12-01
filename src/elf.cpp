@@ -2,7 +2,13 @@
 
 #include <elf.h>
 
-struct TextSection
+struct ElfFunc
+{
+    u32 offset;
+    u32 size;
+};
+
+struct ElfTextSection
 {
     // program storage
     Array<u8> buffer;
@@ -17,16 +23,24 @@ struct TextSection
     // what offset is this stored at in the text section?
     // NOTE: this is relative to the start of the buffer
     // and not the elf file as a whole
-    HashTable<String,u32> offset_table;
+    HashTable<String,ElfFunc> offset_table;
 };
 
-struct StringTable
+struct ElfStringTable
 {
-    u32 table_idx = 0;
+    u32 section_idx = 0;
     Elf64_Shdr header;
 
     Array<u8> buffer;
     u32 cur_string_idx;
+};
+
+struct ElfSymbolTable
+{
+    u32 section_idx = 0;
+    Elf64_Shdr header;
+
+    Array<Elf64_Sym> table;
 };
 
 // NOTE: atm we only care about supporting 64 bit
@@ -45,9 +59,12 @@ struct Elf
     // basic elf header
     Elf64_Ehdr header;
 
-    StringTable section_string_table;
+    ElfStringTable section_string_table;
+    ElfStringTable symtab_string_table;
 
-    TextSection text_section;
+    ElfTextSection text_section;
+
+    ElfSymbolTable symbol_table;
 
     u16 section_count = 0;
     u16 program_count = 0;
@@ -112,22 +129,21 @@ void setup_header(Elf& elf)
     
 }
 
-u32 push_section_name(Elf& elf,const String& name)
+u32 push_string(ElfStringTable& string_table, const String& name)
 {
-    auto& string_table = elf.section_string_table;
-
     // add a string and null term it
     const u32 offset = push_mem(string_table.buffer,name);
     push_var(string_table.buffer,'\0');
     
     string_table.cur_string_idx += 1;
-    return offset;
+
+    return offset;   
 }
 
 u32 add_section(Elf& elf, const String& name, Elf64_Shdr& section)
 {
     // first name is allways empty
-    section.sh_name = push_section_name(elf,name);
+    section.sh_name = push_string(elf.section_string_table,name);
     return elf.section_count++;
 }
 
@@ -141,10 +157,7 @@ void setup_text(Elf& elf)
     auto& text_section = elf.text_section;
 
     // setup the text section
-    text_section.offset_table = make_table<String,u32>();
-
-    // setup the text section
-    text_section.offset_table = make_table<String,u32>();
+    text_section.offset_table = make_table<String,ElfFunc>();
 
     auto& section_header = text_section.header;
 
@@ -169,15 +182,62 @@ void setup_text(Elf& elf)
     text_section.program_idx = add_program_header(elf);
 }
 
-void setup_string(Elf& elf, StringTable& string_table, const String& name)
+void setup_string(Elf& elf, ElfStringTable& string_table, const String& name)
 {
     push_var(string_table.buffer,'\0');
 
     memset(&string_table.header,0,sizeof(string_table.header));
     
     string_table.header.sh_type = SHT_STRTAB;
+    string_table.header.sh_flags = SHF_STRINGS;
 
-    string_table.table_idx = add_section(elf,name,string_table.header);
+    string_table.section_idx = add_section(elf,name,string_table.header);
+}
+
+void setup_symtab(Elf& elf)
+{
+    auto& symbol_table = elf.symbol_table;
+    auto& header = symbol_table.header;
+
+    memset(&header,0,sizeof(header));
+
+    symbol_table.section_idx = add_section(elf,".symtab",header);
+
+    header.sh_type = SHT_SYMTAB;
+
+    header.sh_entsize = sizeof(Elf64_Sym);
+
+    // link to the sym table we are going to use
+    header.sh_link = elf.symtab_string_table.section_idx;
+}
+
+
+void add_func_symbol(Elf& elf,const String& name,const ElfFunc& func)
+{
+    auto& symbol_table = elf.symbol_table;
+    auto& symtab_string_table = elf.symtab_string_table;
+
+    Elf64_Sym sym;
+    memset(&sym,0,sizeof(sym));
+
+    // add symbol name
+    sym.st_name = push_string(symtab_string_table,name);
+
+    // write the offset into value for now
+    // we will rewrite it later
+    sym.st_value = func.offset;
+
+    // set as function
+    sym.st_info = ELF64_ST_INFO(STB_LOCAL,STT_FUNC);
+
+    // setup size
+    sym.st_size = func.size;
+
+    // what section is this symbol a part of?
+    sym.st_shndx = elf.text_section.section_idx;
+
+    // add symbol
+    push_var(symbol_table.table,sym);
 }
 
 Elf make_elf(const String& filename)
@@ -193,6 +253,10 @@ Elf make_elf(const String& filename)
 
     // setup the section string table
     setup_string(elf,elf.section_string_table,".shstrtab");
+
+    setup_string(elf,elf.symtab_string_table,".strtab");
+
+    setup_symtab(elf);
 
 
     return elf;
@@ -216,31 +280,45 @@ void write_section_header(Elf& elf,u32 header_idx, u32 offset, u64 v)
 void finalise_section_headers(Elf& elf)
 {
     // add text section header
-    push_mem(elf.buffer,&elf.text_section.header,sizeof(elf.text_section.header));
+    auto& text_section = elf.text_section;
+    push_mem(elf.buffer,&text_section.header,sizeof(text_section.header));
 
     // add string section header
-    auto& string_table = elf.section_string_table;
+    auto& section_string_table = elf.section_string_table;
+    push_mem(elf.buffer,&section_string_table.header,sizeof(section_string_table.header));
 
-    push_mem(elf.buffer,&string_table.header,sizeof(string_table.header));
+    // string table header
+    auto& symtab_string_table = elf.symtab_string_table;
+    push_mem(elf.buffer,&symtab_string_table.header,sizeof(symtab_string_table.header));
 
-    // setup location of elf header
+    // add symtab header
+    auto& symbol_table = elf.symbol_table;
+
+    // + 1 of final local symbol?
+    elf.symbol_table.header.sh_info = count(elf.symbol_table.table) + 1;
+
+    push_mem(elf.buffer,&symbol_table.header,sizeof(symbol_table.header));
+
+
+    // setup location of program headers
     elf.header.e_phoff = elf.buffer.size;
 }
 
-u32 push_section_data(Elf& elf, u32 table_idx, const Array<u8>& buffer, b32 write_addr = false)
+template<typename T>
+u32 push_section_data(Elf& elf, u32 section_idx, const Array<T>& buffer, b32 write_addr = false)
 {
     // write offset
     const u64 buffer_offset = push_mem(elf.buffer,buffer);
-    write_section_header(elf,table_idx,offsetof(Elf64_Shdr,sh_offset),buffer_offset); 
+    write_section_header(elf,section_idx,offsetof(Elf64_Shdr,sh_offset),buffer_offset); 
 
     // addr
     if(write_addr)
     {
-        write_section_header(elf,table_idx,offsetof(Elf64_Shdr,sh_addr),buffer_offset);
+        write_section_header(elf,section_idx,offsetof(Elf64_Shdr,sh_addr),buffer_offset);
     }
 
     // size
-    write_section_header(elf,table_idx,offsetof(Elf64_Shdr,sh_size),buffer.size);
+    write_section_header(elf,section_idx,offsetof(Elf64_Shdr,sh_size),buffer.size);
 
     return buffer_offset;  
 }
@@ -278,10 +356,27 @@ void finalise_section_data(Elf& elf)
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_memsz),size);
 
     // add string section data
-    auto& string_table = elf.section_string_table;
-    push_section_data(elf,string_table.table_idx,string_table.buffer);
+    auto& section_string_table = elf.section_string_table;
+    push_section_data(elf,section_string_table.section_idx,section_string_table.buffer);
 
-    // add symtab entires for functions now we know where the text section lives
+    // add symtab string
+    auto& symtab_string_table = elf.symtab_string_table;
+    push_section_data(elf,symtab_string_table.section_idx,symtab_string_table.buffer);
+
+    // add symtab
+    auto& symbol_table = elf.symbol_table;
+
+    // rewrite every symbol know we know start of text section
+    for(u32 s = 0; s < count(symbol_table.table); s++)
+    {
+        auto& sym = symbol_table.table[s];
+
+        const u32 offset = sym.st_value;
+
+        sym.st_value = vaddr + offset;
+    }
+
+    push_section_data(elf,symbol_table.section_idx,symbol_table.table);
 }
 
 void finalise_elf_header(Elf& elf)
@@ -293,7 +388,7 @@ void finalise_elf_header(Elf& elf)
     elf.header.e_shoff = sizeof(elf.header);
 
     // give section name offset
-    elf.header.e_shstrndx = elf.section_string_table.table_idx;   
+    elf.header.e_shstrndx = elf.section_string_table.section_idx;   
 
     // actually dump the data
     push_mem(elf.buffer,&elf.header,sizeof(elf.header));
@@ -333,8 +428,14 @@ void destroy_elf(Elf& elf)
 
     destroy_arr(elf.section_string_table.buffer);
 
+    destroy_arr(elf.symtab_string_table.buffer);
+
+    destroy_arr(elf.symbol_table.table);
+
     destroy_arr(elf.buffer);
 }
+
+void add_func_symbol(Elf& elf,const String& name,const ElfFunc& func);
 
 // insert a new function into the elf file
 void add_function(Elf& elf,const String &func_name,const u8* buffer, u32 size)
@@ -344,8 +445,12 @@ void add_function(Elf& elf,const String &func_name,const u8* buffer, u32 size)
     // insert the shellcode
     const u32 offset = push_mem(text.buffer,buffer,size);
 
+    const ElfFunc func = {offset,size};
+
     // record the offset
-    add(text.offset_table,func_name,offset);
+    add(text.offset_table,func_name,func);
+
+    add_func_symbol(elf,func_name,func);
 }
 
 void write_elf(Elf& elf)
