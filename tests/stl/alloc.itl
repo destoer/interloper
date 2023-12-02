@@ -35,12 +35,13 @@ func test_heap() bool
 
     res := vla.len * vla[3];
 
-    free_heap(&global_heap,vla.data);
+    free_heap(&global_heap,&vla.data);
     
     print("after free:\n");
     heap_usage(&global_heap);
 
-    return res == 150;
+    // check data is also free
+    return res == 150 && vla.data == NULL;
 }
 
 func main() s32

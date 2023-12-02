@@ -19,6 +19,16 @@ func byte_array_heap(heap : Heap@, size : u32) byte[]
     return buf;
 }
 
+func u32_array_heap(heap : Heap@, size : u32) u32[]
+{
+    buf : u32[];
+
+    buf.data = cast(u32@,alloc_heap_panic(heap,size,4));
+    buf.len = size;
+
+    return buf;
+}
+
 
 
 func u32_array_arena(arena : Arena@, size : u32) u32[]

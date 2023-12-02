@@ -105,7 +105,7 @@ func free_heap_node(heap: Heap@, insert: HeapNode@)
 
 
 
-func free_heap(heap : Heap@, ptr : byte@)
+func free_heap(heap : Heap@, ptr : byte@@)
 {
     if(!ptr)
     {
@@ -113,7 +113,10 @@ func free_heap(heap : Heap@, ptr : byte@)
     }
 
     // block info is behind the buffer
-    insert := cast(HeapNode@,ptr) - 1;
+    insert := cast(HeapNode@,@ptr) - 1;
+
+    // set our ptr to null
+    @ptr = NULL;
 
     // track memory reclaim
     heap.used -= insert.blocks;

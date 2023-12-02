@@ -1304,14 +1304,18 @@ b32 type_equal(const Type* ltype, const Type* rtype)
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 {
-    UNUSED(itl);
-
-
     // any ptr rtype is compatible with byte ptr ltype
-    if(ltype->type_idx == POINTER && rtype->type_idx == POINTER)
+    if(is_pointer(ltype) && is_pointer(rtype))
     {
-        const Type* base_type_ltype = deref_pointer(ltype);
-        const Type* base_type_rtype = deref_pointer(rtype);
+        const Type* base_type_ltype = ltype;
+        const Type* base_type_rtype = rtype;
+
+        // a pointer to a pointer is equally acceptable
+        while(is_pointer(base_type_ltype) && is_pointer(base_type_rtype))
+        {
+            base_type_ltype = deref_pointer(base_type_ltype);
+            base_type_rtype = deref_pointer(base_type_rtype);
+        }
 
         if(base_type_ltype->type_idx == u32(builtin_type::byte_t))
         {

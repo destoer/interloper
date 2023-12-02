@@ -80,7 +80,7 @@ func close_file(file : File@)
     file.handle = cast(byte@,INVALID_FILE_HANDLE);
 
     // free our buffer
-    free_heap(&global_heap,file.buf.data);
+    free_heap(&global_heap,&file.buf.data);
 }
 
 
