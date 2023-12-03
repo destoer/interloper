@@ -11,7 +11,7 @@ struct Heap
 {
     free_list : HeapNode@ = NULL;
 
-    // not this is in block counts
+    // NOTE: this is in block counts
     used : u64;
     capacity : u64;
 }

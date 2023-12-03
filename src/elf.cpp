@@ -66,7 +66,8 @@ struct Elf
 
     ElfSymbolTable symbol_table;
 
-    u16 section_count = 0;
+    // we have a null section
+    u16 section_count = 1;
     u16 program_count = 0;
 };
 
@@ -191,6 +192,8 @@ void setup_string(Elf& elf, ElfStringTable& string_table, const String& name)
     string_table.header.sh_type = SHT_STRTAB;
     string_table.header.sh_flags = SHF_STRINGS;
 
+    string_table.header.sh_addralign = 1;
+
     string_table.section_idx = add_section(elf,name,string_table.header);
 }
 
@@ -207,8 +210,17 @@ void setup_symtab(Elf& elf)
 
     header.sh_entsize = sizeof(Elf64_Sym);
 
+    header.sh_addralign = 8;
+
     // link to the sym table we are going to use
     header.sh_link = elf.symtab_string_table.section_idx;
+
+
+    // insert the null sym entry
+    Elf64_Sym null_sym;
+    memset(&null_sym,0,sizeof(null_sym));
+
+    push_var(symbol_table.table,null_sym);
 }
 
 
@@ -228,12 +240,12 @@ void add_func_symbol(Elf& elf,const String& name,const ElfFunc& func)
     sym.st_value = func.offset;
 
     // set as function
-    sym.st_info = ELF64_ST_INFO(STB_LOCAL,STT_FUNC);
+    sym.st_info = ELF64_ST_INFO(STB_GLOBAL,STT_FUNC);
 
     // setup size
     sym.st_size = func.size;
 
-    // what section is this symbol a part of?
+    // what seciton is this sym apart of
     sym.st_shndx = elf.text_section.section_idx;
 
     // add symbol
@@ -248,13 +260,14 @@ Elf make_elf(const String& filename)
     // setup initial header section
     setup_header(elf);
 
-    // setup text section
-    setup_text(elf);
-
     // setup the section string table
     setup_string(elf,elf.section_string_table,".shstrtab");
 
     setup_string(elf,elf.symtab_string_table,".strtab");
+
+
+    // setup text section
+    setup_text(elf);
 
     setup_symtab(elf);
 
@@ -279,9 +292,11 @@ void write_section_header(Elf& elf,u32 header_idx, u32 offset, u64 v)
 
 void finalise_section_headers(Elf& elf)
 {
-    // add text section header
-    auto& text_section = elf.text_section;
-    push_mem(elf.buffer,&text_section.header,sizeof(text_section.header));
+    // add null section
+    Elf64_Shdr null_section;
+    memset(&null_section,0,sizeof(null_section));
+    push_mem(elf.buffer,&null_section,sizeof(null_section));
+
 
     // add string section header
     auto& section_string_table = elf.section_string_table;
@@ -290,6 +305,10 @@ void finalise_section_headers(Elf& elf)
     // string table header
     auto& symtab_string_table = elf.symtab_string_table;
     push_mem(elf.buffer,&symtab_string_table.header,sizeof(symtab_string_table.header));
+
+    // add text section header
+    auto& text_section = elf.text_section;
+    push_mem(elf.buffer,&text_section.header,sizeof(text_section.header));
 
     // add symtab header
     auto& symbol_table = elf.symbol_table;
@@ -323,16 +342,27 @@ u32 push_section_data(Elf& elf, u32 section_idx, const Array<T>& buffer, b32 wri
     return buffer_offset;  
 }
 
+void align_elf(Elf& elf, u32 align)
+{
+    const u64 cur_offset = elf.buffer.size;
+    resize(elf.buffer,align_val(cur_offset,align));   
+}
+
 void finalise_section_data(Elf& elf)
 {
     // add text section data
     auto& text_section = elf.text_section;
 
-    const u32 align = elf.text_section.program_header.p_align;
+    // add string section data
+    auto& section_string_table = elf.section_string_table;
+    push_section_data(elf,section_string_table.section_idx,section_string_table.buffer);
+
+    // add symtab string
+    auto& symtab_string_table = elf.symtab_string_table;
+    push_section_data(elf,symtab_string_table.section_idx,symtab_string_table.buffer);
 
     // make sure page size aligns
-    const u64 cur_offset = elf.buffer.size;
-    resize(elf.buffer,align_val(cur_offset,align));
+    align_elf(elf,elf.text_section.program_header.p_align);
 
     const u64 text_offset = push_section_data(elf,text_section.section_idx,text_section.buffer,true);
     
@@ -340,7 +370,7 @@ void finalise_section_data(Elf& elf)
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_offset),text_offset);
 
     // start at 4MB
-    const u64 vaddr = align_val(text_offset,align) + 0x400000;
+    const u64 vaddr = text_offset + 0x400000;
 
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_vaddr),vaddr);
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
@@ -355,14 +385,6 @@ void finalise_section_data(Elf& elf)
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_filesz),size);
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_memsz),size);
 
-    // add string section data
-    auto& section_string_table = elf.section_string_table;
-    push_section_data(elf,section_string_table.section_idx,section_string_table.buffer);
-
-    // add symtab string
-    auto& symtab_string_table = elf.symtab_string_table;
-    push_section_data(elf,symtab_string_table.section_idx,symtab_string_table.buffer);
-
     // add symtab
     auto& symbol_table = elf.symbol_table;
 
@@ -375,6 +397,9 @@ void finalise_section_data(Elf& elf)
 
         sym.st_value = vaddr + offset;
     }
+
+    // align the symbol table data
+    align_elf(elf,symbol_table.header.sh_addralign);
 
     push_section_data(elf,symbol_table.section_idx,symbol_table.table);
 }
