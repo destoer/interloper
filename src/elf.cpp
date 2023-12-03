@@ -323,6 +323,8 @@ void finalise_section_headers(Elf& elf)
     elf.header.e_phoff = elf.buffer.size;
 }
 
+static constexpr u32 BASE_ADDR = 0x400000;
+
 template<typename T>
 u32 push_section_data(Elf& elf, u32 section_idx, const Array<T>& buffer, b32 write_addr = false)
 {
@@ -333,7 +335,7 @@ u32 push_section_data(Elf& elf, u32 section_idx, const Array<T>& buffer, b32 wri
     // addr
     if(write_addr)
     {
-        write_section_header(elf,section_idx,offsetof(Elf64_Shdr,sh_addr),buffer_offset);
+        write_section_header(elf,section_idx,offsetof(Elf64_Shdr,sh_addr),BASE_ADDR + buffer_offset);
     }
 
     // size
@@ -370,7 +372,7 @@ void finalise_section_data(Elf& elf)
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_offset),text_offset);
 
     // start at 4MB
-    const u64 vaddr = text_offset + 0x400000;
+    const u64 vaddr = text_offset + BASE_ADDR;
 
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_vaddr),vaddr);
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
