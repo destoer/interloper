@@ -389,7 +389,7 @@ void finalise_section_data(Elf& elf)
     auto& symbol_table = elf.symbol_table;
 
     // rewrite every symbol know we know start of text section
-    for(u32 s = 0; s < count(symbol_table.table); s++)
+    for(u32 s = 1; s < count(symbol_table.table); s++)
     {
         auto& sym = symbol_table.table[s];
 
