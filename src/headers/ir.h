@@ -220,7 +220,7 @@ static constexpr u32 INVALID_HANDLE = 0xffff'ffff;
 template<slot_type type>
 struct Slot
 {
-    u32 handle = INVALID_HANDLE;
+    u32 handle;
 };
 
 

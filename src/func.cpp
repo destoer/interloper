@@ -392,7 +392,7 @@ struct FuncCall
 
     union
     {
-        LabelSlot label_slot = {};
+        LabelSlot label_slot;
         SymSlot sym_slot;
     };
 

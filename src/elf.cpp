@@ -352,9 +352,6 @@ void align_elf(Elf& elf, u32 align)
 
 void finalise_section_data(Elf& elf)
 {
-    // add text section data
-    auto& text_section = elf.text_section;
-
     // add string section data
     auto& section_string_table = elf.section_string_table;
     push_section_data(elf,section_string_table.section_idx,section_string_table.buffer);
@@ -362,6 +359,9 @@ void finalise_section_data(Elf& elf)
     // add symtab string
     auto& symtab_string_table = elf.symtab_string_table;
     push_section_data(elf,symtab_string_table.section_idx,symtab_string_table.buffer);
+
+    // add text section data
+    auto& text_section = elf.text_section;
 
     // make sure page size aligns
     align_elf(elf,elf.text_section.program_header.p_align);

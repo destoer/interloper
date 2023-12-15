@@ -48,6 +48,8 @@ PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
     const u32 handle = count(pool.sections);
     PoolSlot slot  = {handle};
 
+    section.slot = slot;
+
     // reserve this section inside the pool
     resize(pool.buf,count(pool.buf) + size);
 
@@ -181,11 +183,11 @@ struct ConstData
     {
         // inline data
         // enum, builtin types
-        u64 v = 0;
+        u64 v;
 
         // Pointer to other const pool var
         // Used to return arrays, pointers structs
-        ConstDataPointer data_pointer;
+        ConstDataPointer data_pointer = {};
     };
 
     // NOTE: this indicates how to access const data, as described above
