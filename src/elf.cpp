@@ -501,20 +501,33 @@ void build_test_binary()
 {
     Elf elf = make_elf("test-prog");
 
-    // shellcode for basic exit program
     /*
     _start:
         mov rdi, 0x5
         mov rax, 0x3c
         syscall
     */
+
+    X86Emitter emitter;
+
+    mov_imm(emitter,x86_reg::rdi,0x5);
+    mov_imm(emitter,x86_reg::rax,0x3c);
+    syscall(emitter);
+
+    add_function(elf,"start",emitter.buffer.data,emitter.buffer.size);
+
+    destroy_emitter(emitter);
+/*
     const u8 SHELLCODE[] = {
         0x48, 0xc7, 0xc7, 0x05, 0x00, 0x00, 0x00, 0x48, 
         0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05, 
     };
 
-    add_function(elf,"_start",SHELLCODE,sizeof(SHELLCODE));
-    
+
+    add_function(elf,"start",SHELLCODE,sizeof(SHELLCODE));
+*/
+
+
     finalise_elf(elf);
 
     write_elf(elf);

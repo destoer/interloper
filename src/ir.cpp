@@ -3,6 +3,8 @@
 
 #include "list.cpp"
 #include "emitter.cpp"
+#include "x86_emitter.cpp"
+#include "rewrite_arch_ir.cpp"
 #include "cfg.cpp"
 #include "pool.cpp"
 #include "link.cpp"

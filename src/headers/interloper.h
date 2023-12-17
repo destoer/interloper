@@ -125,6 +125,10 @@ struct Interloper
     AliasTable alias_table;
     RttiCache rtti_cache;
 
+    // targetting info
+    arch_target arch = arch_target::x86_64_t;
+    os_target os = os_target::linux_t;
+
     // compilier config
 
     // diagnostic

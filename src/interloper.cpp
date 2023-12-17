@@ -39,8 +39,8 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
-#include "elf.cpp"
 #include "ir.cpp"
+#include "elf.cpp"
 #include "optimize.cpp"
 #include "memory.cpp"
 #include "struct.cpp"
@@ -2496,6 +2496,15 @@ void compile(Interloper &itl,const String& initial_filename)
         dump_ir_sym(itl);
     }
     
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            rewrite_x86_ir(itl);
+            break;
+        }
+    }
+
     // perform register allocation on used functions
     for(u32 n = 0; n < count(itl.used_func); n++)
     {

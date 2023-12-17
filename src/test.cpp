@@ -223,6 +223,13 @@ static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / 
 
 void parse_flags(Interloper& itl,const char* flags);
 
+s32 run(Interloper& itl)
+{
+    UNUSED(itl);
+    printf("run stub");
+    return 0;
+}
+
 void run_tests(const char* flags)
 {
     puts("running tests....");
@@ -234,7 +241,7 @@ void run_tests(const char* flags)
     puts("\nprogram tests\n");
 
     Interloper itl;
-    Interpretter interpretter = make_interpretter();
+
     for(u32 i = 0; i < PROGRAM_CORRECT_TEST_SIZE; i++)
     {
         destroy_itl(itl);
@@ -251,7 +258,7 @@ void run_tests(const char* flags)
             break;
         }
 
-        const auto r = run(interpretter,itl.program,itl.global_alloc.size);      
+        const auto r = run(itl);    
 
 
         if(test.expected != r)
@@ -286,7 +293,6 @@ void run_tests(const char* flags)
     }
 
     destroy_itl(itl);
-    destroy_interpretter(interpretter);
 
     puts("\nfinished testing\n");
     auto current = std::chrono::system_clock::now();

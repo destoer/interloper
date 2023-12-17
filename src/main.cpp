@@ -2,7 +2,6 @@
 
 #include <destoer.cpp>
 #include "interloper.cpp"
-#include "interpretter.cpp"
 #include "test.cpp"
 
 
@@ -59,6 +58,9 @@ int main(int argc, char *argv[])
 
     Interloper itl;
 
+    // TODO: this just needs to go for now
+    itl.rtti_enable = false;
+
     // parse compiler flags
     const char* filename = "";
 
@@ -89,9 +91,7 @@ int main(int argc, char *argv[])
 
     if(!itl.compile_only)
     {
-        Interpretter interpretter = make_interpretter();
-        run(interpretter,itl.program,itl.global_alloc.size);
-        destroy_interpretter(interpretter);
+        printf("program execution stubbed\n");
     }
 
     destroy_itl(itl);
