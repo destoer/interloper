@@ -3,11 +3,12 @@
 // The machine code translator is basically a 1 to 1 mapping
 // outside of optimal instruction selection
 
-ListNode* rewrite_three_address_code(Interloper& itl, Function& func, ListNode* node)
+ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& block,ListNode* node)
 {
-    UNUSED(itl); UNUSED(func); UNUSED(node);
+    UNUSED(itl); UNUSED(func); UNUSED(node); UNUSED(block);
 
-    const auto& info = info_from_op(node->opcode);
+    const auto& opcode = node->opcode;
+    const auto& info = info_from_op(opcode);
 
     // TODO: need to improve this to take advantage of the fact some operands are commutive
     // but ah well
@@ -15,7 +16,17 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, ListNode* 
     {
         case op_group::reg_t:
         {
-            assert(false);
+            switch(info.args)
+            {
+
+                
+
+                default:
+                {
+                    assert(false);
+                    break;
+                }
+            }
             break;
         }
 
@@ -27,7 +38,20 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, ListNode* 
 
         case op_group::imm_t:
         {
-            assert(false);
+            switch(info.args)
+            {
+                // no need to rewrite 2 operand instruction
+                case 2:
+                {
+                    break;
+                }
+                
+                default:
+                {
+                    assert(false);
+                    break;
+                }
+            }
             break;
         }
 
@@ -64,7 +88,17 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, ListNode* 
 
         case op_group::slot_t:
         {
-            assert(false);
+            switch(opcode.op)
+            {
+                // information directive dont care
+                case op_type::alloc_slot: break;
+
+
+                default:
+                {
+                    assert(false);
+                }
+            }
             break;
         }
     }
@@ -72,14 +106,15 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, ListNode* 
     return node->next;
 }
 
-ListNode* rewrite_x86_opcode(Interloper& itl, Function& func, ListNode* node)
+// TODO: when these grow we should probbably move them elsewhere
+ListNode* rewrite_x86_opcode(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
     // TODO: rewrite specific opcodes that aern't aviable in any form on x86 such as regm
 
     // crush the opcode down to two address code
     // TODO: when we change this over to code generation 
     // we want to save crushing opcodes we dont need to such as add
-    ListNode* next = rewrite_three_address_code(itl,func,node);
+    ListNode* next = rewrite_three_address_code(itl,func,block,node);
 
     return next;
 }
@@ -95,7 +130,7 @@ void rewrite_x86_func(Interloper& itl, Function& func)
 
         while(node)
         {
-            node = rewrite_x86_opcode(itl,func,node);
+            node = rewrite_x86_opcode(itl,func,block,node);
         }
     }
 }

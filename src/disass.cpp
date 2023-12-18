@@ -135,7 +135,7 @@ void fmt_raw_specifier(Array<char> &buffer, char specifier, u64 slot)
 
 void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
 {
-    const auto& info = OPCODE_TABLE[u32(opcode.op)];
+    const auto& info = info_from_op(opcode);
     const auto& fmt_string = info.fmt_string;
 
     Array<char> buffer;

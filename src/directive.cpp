@@ -5,7 +5,7 @@ template<const op_type type>
 void emit_directive_dst1(Interloper& itl,Function& func, SymSlot dst, u32 v2, u32 v3)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::dst_reg);    
 

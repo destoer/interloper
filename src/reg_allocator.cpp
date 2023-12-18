@@ -230,7 +230,7 @@ void mark_lifetimes(Function& func,Array<Reg> &tmp_regs, SymbolTable& table)
         {
             const auto opcode = node->opcode;
 
-            const auto info = OPCODE_TABLE[u32(opcode.op)];
+            const auto info = info_from_op(opcode);
 
 
             // make sure our src var's are loaded

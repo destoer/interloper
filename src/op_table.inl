@@ -1,5 +1,6 @@
 constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 {
+    // main arith reg3
     {op_group::reg_t,"mov %r, %r    ",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"add %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"sub %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
@@ -29,6 +30,31 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"and %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::imm_t,"xor %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
+    // main arith reg2
+    {op_group::reg_t,"add %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"sub %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mul %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"div %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mod %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+
+
+    {op_group::reg_t,"lsl %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"asr %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsr %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+
+    {op_group::reg_t,"xor %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"or %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"and %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"not %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+
+    {op_group::imm_t,"add %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"sub %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"mul %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+
+    {op_group::imm_t,"and %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"xor %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+
+    // load
     {op_group::load_t,"lb %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::load_t,"lh %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::load_t,"lw %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
@@ -38,6 +64,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::load_t,"lsh %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::load_t,"lsw %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
+    // store
     {op_group::store_t,"sb %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::store_t,"sh %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::store_t,"sw %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},

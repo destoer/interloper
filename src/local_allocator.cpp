@@ -66,7 +66,7 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
 
 void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
     if(info.type[reg] == arg_type::src_reg || info.type[reg] == arg_type::dst_reg)
     {
@@ -76,7 +76,7 @@ void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 
 void rewrite_regs(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode)
 {   
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
     for(u32 r = 0; r < info.args; r++)
     {
@@ -263,7 +263,7 @@ void mark_reg_usage(LocalAlloc& alloc, Reg& ir_reg, bool is_dst)
 void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, ListNode* node,u32 reg)
 {
     const auto opcode = node->opcode;
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
     const SymSlot slot = sym_from_idx(node->opcode.v[reg]);
 
@@ -355,7 +355,7 @@ void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNod
 void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
 {
     const auto opcode = node->opcode;
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
     // make sure our src var's are loaded
     // mark if any are dead we can reuse to allocate the dst

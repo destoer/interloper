@@ -371,7 +371,7 @@ void compute_use_def(Interloper& itl,Function& func)
             // mark three address code
             const auto opcode = node->opcode;
 
-            const auto info = OPCODE_TABLE[u32(opcode.op)];
+            const auto info = info_from_op(opcode);
 
             // look at src regs first, then dst!
             for(s32 r = info.args - 1; r >= 0; r--)

@@ -2521,8 +2521,6 @@ void compile(Interloper &itl,const String& initial_filename)
     }
 
     // emit the actual target asm
-    // for now we will just collect the emitter IR
-    // and resolve labels
     emit_asm(itl);
 
     printf("OK\n\n");

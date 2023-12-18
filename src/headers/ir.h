@@ -33,6 +33,29 @@ enum class op_type
     and_imm,
     xor_imm,
 
+    add_reg2,
+    sub_reg2,
+    mul_reg2,
+    div_reg2,
+    mod_reg2,
+
+
+    lsl_reg2,
+    asr_reg2,
+    lsr_reg2,
+
+    xor_reg2,
+    or_reg2,
+    and_reg2,
+    not_reg2,
+    
+    add_imm2,
+    sub_imm2,
+    mul_imm2,
+
+    and_imm2,
+    xor_imm2,
+
     lb,
     lh,
     lw,

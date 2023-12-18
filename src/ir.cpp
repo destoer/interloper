@@ -7,7 +7,7 @@
 #include "rewrite_arch_ir.cpp"
 #include "cfg.cpp"
 #include "pool.cpp"
-#include "link.cpp"
+#include "asm.cpp"
 #include "stack_allocator.cpp"
 #include "reg_allocator.cpp"
 #include "local_allocator.cpp"
@@ -701,7 +701,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         auto opcode = block.list.end->opcode;
 
-        const auto& ENTRY = OPCODE_TABLE[u32(opcode.op)];  
+        const auto& ENTRY = info_from_op(opcode); 
 
         // block has ended spill variables still live 
         // TODO: we want to get rid of this with a proper global allocator...
