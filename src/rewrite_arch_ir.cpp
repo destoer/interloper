@@ -3,6 +3,40 @@
 // The machine code translator is basically a 1 to 1 mapping
 // outside of optimal instruction selection
 
+ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type)
+{
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+    const auto v2 = node->opcode.v[2];
+
+    // add dst, dst, v2
+    // -> add dst, v2
+    if(dst == v1)
+    {
+        node->opcode = Opcode(type,dst,v2,0);
+    }
+
+    // add dst, v1, dst
+    // -> add dst, v1
+    else if(dst == v2)
+    {
+        node->opcode = Opcode(type,dst,v1,0);
+    }
+
+    // add dst, v1, v2
+    // -> mov dst, v1
+    // -> add dst, v2
+    else
+    {
+        node->opcode = Opcode(op_type::mov_reg,dst,v1,0);
+        node = insert_after(block.list,node,Opcode(type,dst,v2,0));
+    }
+
+    return node->next;
+}
+
+// TODO: we need a mechanism for rewriting large imm
+// on RISC ISA
 ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& block,ListNode* node)
 {
     UNUSED(itl); UNUSED(func); UNUSED(node); UNUSED(block);
@@ -12,92 +46,26 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
     // TODO: need to improve this to take advantage of the fact some operands are commutive
     // but ah well
-    switch(info.group)
+    switch(opcode.op)
     {
-        case op_group::reg_t:
+
+        case op_type::add_reg: 
         {
-            switch(info.args)
+            return rewrite_reg3_two_commutative(block,node,op_type::add_reg2);
+        }
+
+        case op_type::call: break;
+        case op_type::mov_imm: break;
+        case op_type::mov_reg: break;
+        case op_type::ret: break;
+        case op_type::swi: break;
+
+        default:
+        {
+            if(!is_directive(opcode.op))
             {
-
-                
-
-                default:
-                {
-                    assert(false);
-                    break;
-                }
-            }
-            break;
-        }
-
-        case op_group::regm_t:
-        {
-            assert(false);
-            break;
-        }
-
-        case op_group::imm_t:
-        {
-            switch(info.args)
-            {
-                // no need to rewrite 2 operand instruction
-                case 2:
-                {
-                    break;
-                }
-                
-                default:
-                {
-                    assert(false);
-                    break;
-                }
-            }
-            break;
-        }
-
-        case op_group::store_t:
-        {
-            assert(false);
-            break;
-        }
-
-        case op_group::load_t:
-        {
-            assert(false);
-            break;
-        }
-
-        // No operands, there should be nothing to crush?
-        case op_group::implicit_t:
-        {
-            break;
-        }
-
-        case op_group::branch_t:
-        {
-            assert(false);
-            break;
-        }
-
-
-        case op_group::branch_reg_t:
-        {
-            assert(false);
-            break;
-        }
-
-        case op_group::slot_t:
-        {
-            switch(opcode.op)
-            {
-                // information directive dont care
-                case op_type::alloc_slot: break;
-
-
-                default:
-                {
-                    assert(false);
-                }
+                printf("unknown opcode: %s\n",info.fmt_string.buf);
+                assert(false); 
             }
             break;
         }

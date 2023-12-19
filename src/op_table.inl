@@ -112,6 +112,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::branch_reg_t,"b %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
 
     // directives
+    {op_group::slot_t,"DIRECTIVE",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::slot_t,"alloc_slot %r, %x",2,{arg_type::directive,arg_type::imm,arg_type::none}},
     {op_group::slot_t,"free_slot %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 

@@ -114,6 +114,7 @@ enum class op_type
     // DIRECTIVES
     // varabile on the stack is out of scope
     // so we can reclaim allocation on the stack
+    DIRECTIVE,
     alloc_slot,
     free_slot,
 
@@ -173,6 +174,11 @@ enum class op_type
     // just c++ things not used
     END,
 };
+
+b32 is_directive(op_type type)
+{
+    return type >= op_type::DIRECTIVE;
+}
 
 // general operation defined for unsigned or unsigned ints
 // will be convered to a specific conterpart in op_type

@@ -2491,11 +2491,6 @@ void compile(Interloper &itl,const String& initial_filename)
         optimise_ir(itl);
     }
     
-    if(itl.print_ir)
-    {
-        dump_ir_sym(itl);
-    }
-    
     switch(itl.arch)
     {
         case arch_target::x86_64_t:
@@ -2503,6 +2498,11 @@ void compile(Interloper &itl,const String& initial_filename)
             rewrite_x86_ir(itl);
             break;
         }
+    }
+
+    if(itl.print_ir)
+    {
+        dump_ir_sym(itl);
     }
 
     // perform register allocation on used functions
