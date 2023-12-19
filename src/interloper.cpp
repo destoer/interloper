@@ -2290,6 +2290,7 @@ void destroy_ast(Interloper& itl)
 
 void destroy_itl(Interloper &itl)
 {
+    destroy_asm_emitter(itl.asm_emitter);
     destroy_arr(itl.program);
     destroy_const_pool(itl.const_pool);
     destroy_sym_table(itl.symbol_table);

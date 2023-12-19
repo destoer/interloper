@@ -496,9 +496,11 @@ void write_elf(Elf& elf)
     fp.close();
 }
 
-
-void build_test_binary()
+void emit_elf(Interloper& itl)
 {
+    UNUSED(itl);
+    assert(false);
+#if 0
     Elf elf = make_elf("test-prog");
 
     /*
@@ -532,4 +534,5 @@ void build_test_binary()
 
     write_elf(elf);
     destroy_elf(elf);
+#endif
 }

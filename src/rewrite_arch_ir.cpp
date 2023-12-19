@@ -64,7 +64,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         {
             if(!is_directive(opcode.op))
             {
-                printf("unknown opcode: %s\n",info.fmt_string.buf);
+                printf("[REWRITE TAC]: unknown opcode: %s\n",info.fmt_string.buf);
                 assert(false); 
             }
             break;

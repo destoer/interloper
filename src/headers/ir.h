@@ -616,3 +616,16 @@ enum class os_target
 {
     linux_t,
 };
+
+struct AsmFunc
+{
+    u32 offset;
+    u32 size;
+};
+
+struct AsmEmitter
+{
+    Array<u8> buffer;
+
+    HashTable<String,AsmFunc> func;
+};

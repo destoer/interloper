@@ -129,6 +129,8 @@ struct Interloper
     arch_target arch = arch_target::x86_64_t;
     os_target os = os_target::linux_t;
 
+    AsmEmitter asm_emitter;
+
     // compilier config
 
     // diagnostic
