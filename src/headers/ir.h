@@ -629,3 +629,19 @@ struct AsmEmitter
 
     HashTable<String,AsmFunc> func;
 };
+
+namespace x86
+{
+
+void emit_asm(Interloper& itl);
+
+}
+
+/*
+enum class ir_pass
+{
+    optimize
+    arch_rewrite1,
+    reg_alloc,
+}
+*/

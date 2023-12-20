@@ -60,6 +60,14 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::ret: break;
         case op_type::swi: break;
 
+        // TODO: any reloading directives may have to be rewritten during the 1st reg alloc pass
+        // or any loads by here
+        // if [reg, imm] referencing is not possible on the target arch (for how large the imm is)
+        // i.e rewrite all the imm -> 0 or whatever bound is acceptable
+        // and hard bake the addr into a register with an add
+        // this should not pose a problem on x86 however as we should be able to insert arbitary offsetting
+        // if need be
+
         default:
         {
             if(!is_directive(opcode.op))
