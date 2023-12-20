@@ -82,6 +82,7 @@ enum class op_type
     call_reg,
     ret,
 
+    syscall,
     swi,
 
     // compare unsigned
@@ -394,19 +395,20 @@ static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
 static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
 static constexpr u32 R2_IR = SPECIAL_PURPOSE_REG_START + 5;
+static constexpr u32 R3_IR = SPECIAL_PURPOSE_REG_START + 6;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
-static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 7;
 
 static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
 // dont perform any moves
-static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 7;
+static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 8;
 
-static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 8;
-static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 9;
+static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 9;
+static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 10;
 
-const String SPECIAL_REG_NAMES[] = 
+const String SPECIAL_REG_NAMES[11] = 
 {
     "sp",
     "pc",
@@ -414,6 +416,7 @@ const String SPECIAL_REG_NAMES[] =
     "r0",
     "r1",
     "r2",
+    "r3",
     "fixed_len",
     "null",
     "const",
@@ -435,6 +438,7 @@ static constexpr u32 RV = 0;
 static constexpr u32 R0 = 0;
 static constexpr u32 R1 = 1;
 static constexpr u32 R2 = 2;
+static constexpr u32 R3 = 3;
 
 static constexpr u32 PROGRAM_ORG = 0;
 

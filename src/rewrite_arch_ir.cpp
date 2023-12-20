@@ -35,6 +35,41 @@ ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type
     return node->next;
 }
 
+
+void assert_bound(u64 v,u64 min, u64 max)
+{
+    assert(in_range(v,min,max));
+}
+
+// TODO: this assumes we have no access to the instruction
+void emit_popm(Interloper& itl, Block& block, ListNode* node, u32 bitset)
+{
+    UNUSED(itl);
+
+    for(s32 i = MACHINE_REG_SIZE - 1; i >= 0; i--)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,Opcode(op_type::pop,i,0,0));
+            node = node->next;
+        }
+    }
+}
+
+void emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
+{
+    UNUSED(itl);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,Opcode(op_type::push,i,0,0));
+            node = node->next;
+        }
+    }
+}
+
 // TODO: we need a mechanism for rewriting large imm
 // on RISC ISA
 ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& block,ListNode* node)
@@ -58,7 +93,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::mov_imm: break;
         case op_type::mov_reg: break;
         case op_type::ret: break;
-        case op_type::swi: break;
+        case op_type::syscall: break;
 
         // TODO: any reloading directives may have to be rewritten during the 1st reg alloc pass
         // or any loads by here

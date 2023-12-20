@@ -116,7 +116,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     }
 }
 
-Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     UNUSED(dst_slot);
     
@@ -135,9 +135,12 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
     // then all
     spill_all(itl,func);
 
-    const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
-    const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R1_IR));
-    const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(R2_IR));
+    const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
+    mov_imm(itl,func,sym_from_idx(R0_IR),syscall_number);
+
+    const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R1_IR));
+    const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R2_IR));
+    const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(R3_IR));
 
     if(!is_trivial_copy(v1_type))
     {
@@ -157,9 +160,8 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
         return make_builtin(itl,builtin_type::void_t);
     }
 
-    const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
 
-    syscall(itl,func,syscall_number);
+    syscall(itl,func);
 
     if(dst_slot.handle != NO_SLOT)
     {
@@ -168,6 +170,19 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
     }
     
     return make_builtin(itl,builtin_type::s64_t);   
+}
+
+Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+{
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            return intrin_syscall_x86(itl,func,node,dst_slot);
+        }
+    }
+
+    assert(false);
 }
 
 static constexpr u32 INTRIN_TABLE_SIZE = 2;

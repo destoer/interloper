@@ -35,11 +35,16 @@ u8 mod_reg(x86_reg v1, x86_reg v2)
     return (0b11 << 6) | (u32(v1) << 3) | (v2 << 0);
 }
 
+u8 mod_opcode_reg(x86_reg v1, u8 ext)
+{
+    return (0b11 << 6) | (ext << 3) | (u32(v1) << 0);
+}
+
 void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 {
     const u8 opcode = 0xb8 + u32(reg);
 
-    // mov r64, imm64
+    // mov +r64, imm64
     push_u16(emitter,(opcode << 8) | REX_W);
 
     // push the immediate
@@ -56,6 +61,18 @@ void emit_reg2(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     emit_reg2(emitter,0x3,dst,v1);
+}
+
+void add_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
+{
+    // add r64, imm32
+    const u8 opcode = 0x81;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    // opcode extenstion required
+    push_u8(emitter,mod_opcode_reg(dst,0));
+
+    push_u32(emitter,v1);
 }
 
 void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
@@ -81,9 +98,16 @@ void call(AsmEmitter& emitter,LabelSlot addr)
 
 void push(AsmEmitter& emitter, x86_reg src)
 {
-    // push r64
+    // push +r64
     push_u8(emitter,0x50 + u32(src));
 }
+
+void pop(AsmEmitter& emitter, x86_reg src)
+{
+    // pop +r64
+    push_u8(emitter,0x58 + u32(src));
+}
+
 
 /*
 void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
@@ -123,6 +147,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_type::add_imm2:
+        {
+            add_imm(emitter,dst,u32(v1));
+            break;
+        }
+
         case op_type::mov_reg:
         {
             mov(emitter,dst,v1);
@@ -145,6 +175,26 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::push:
         {
             push(emitter,dst);
+            break;
+        }
+
+        case op_type::pop:
+        {
+            pop(emitter,dst);
+            break;
+        }
+
+        case op_type::syscall:
+        {
+            syscall(emitter);
+            break;
+        }
+
+        // dont know how we are gonna handle this yet
+        // atm we are just gonna ignore it :D
+        // its not important for what we need
+        case op_type::lsw:
+        {
             break;
         }
 

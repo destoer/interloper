@@ -79,9 +79,9 @@ void ret(Interloper& itl, Function& func)
     emit_implicit<op_type::ret>(itl,func);
 }
 
-void syscall(Interloper& itl, Function& func, u32 syscall)
+void syscall(Interloper& itl, Function& func)
 {
-    emit_imm0<op_type::swi>(itl,func,syscall);
+    emit_implicit<op_type::syscall>(itl,func);
 }
 
 void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src)

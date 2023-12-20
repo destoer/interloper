@@ -266,7 +266,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // clean up args
             const auto stack_clean = GPR_SIZE * opcode.v[0];
 
-            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
+            node->opcode = Opcode(op_type::add_imm2,SP_IR,stack_clean,0);
             alloc.stack_alloc.stack_offset -= stack_clean; 
 
             rewrite_regs(itl.symbol_table,alloc,node->opcode);
@@ -444,7 +444,7 @@ ListNode* rewrite_access_struct_addr(Interloper& itl, LocalAlloc& alloc, ListNod
 }
 
 // 2nd pass of rewriting on the IR
-ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, ListNode *node,const Opcode& callee_restore,
+ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, ListNode *node,const u32 saved_regs,
     const Opcode& stack_clean, bool insert_callee_saves)
 {
     const auto opcode = node->opcode;
@@ -472,22 +472,15 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
         case op_type::ret:
         {
-            ListNode *tmp = node;
-
             if(alloc.stack_alloc.stack_size)
             {
-                tmp = insert_at(block.list,tmp,stack_clean);
-
-                // make sure callee restore comes after stack clean
-                if(insert_callee_saves)
-                {
-                    insert_after(block.list,tmp,callee_restore);
-                }
+                insert_at(block.list,node,stack_clean);
             }
 
-            else if(insert_callee_saves)
+            // make sure callee restore comes after stack clean
+            if(insert_callee_saves)
             {
-                tmp = insert_at(block.list,tmp,callee_restore);
+                emit_popm(itl,block,node,saved_regs);
             }
 
             node = node->next;
@@ -760,12 +753,12 @@ void allocate_registers(Interloper& itl,Function &func)
     // entry point does not need to preserve regs
     if(insert_callee_saves)
     {
-        insert_front(func.emitter.program[0].list,Opcode(op_type::pushm,saved_regs,0,0));
+        auto& start_block = func.emitter.program[0];
+
+        emit_pushm(itl,start_block,start_block.list.start,saved_regs);
     }
 
-    // epilogue opcodes
-    const auto callee_restore = Opcode(op_type::popm,saved_regs,0,0);
-    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_alloc.stack_size);
+    const auto stack_clean = Opcode(op_type::add_imm2,SP,alloc.stack_alloc.stack_size,0);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
@@ -775,7 +768,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         while(node)
         {
-            node = rewrite_directives(itl,alloc,block,node,callee_restore,stack_clean,insert_callee_saves);
+            node = rewrite_directives(itl,alloc,block,node,saved_regs,stack_clean,insert_callee_saves);
         }
     }
 

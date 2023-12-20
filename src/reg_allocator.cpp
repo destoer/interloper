@@ -191,6 +191,7 @@ u32 special_reg_to_reg(SymSlot slot)
         case R0_IR: return R0;
         case R1_IR: return R1; 
         case R2_IR: return R2; 
+        case R3_IR: return R3;
 
         default: crash_and_burn("unhandled special reg %x\n",slot); 
     }    
