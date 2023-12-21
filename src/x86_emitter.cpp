@@ -18,9 +18,9 @@ static constexpr u8 REX_X = REX | (1 << 1);
 static constexpr u8 REX_B = REX | (1 << 0);
 
 
-u8 mod_reg(x86_reg v1, x86_reg v2)
+u8 mod_reg(x86_reg dst, x86_reg v1)
 {
-    return (0b11 << 6) | (u32(v1) << 3) | (v2 << 0);
+    return (0b11 << 6) | (u32(dst) << 3) | (u32(v1) << 0);
 }
 
 u8 mod_opcode_reg(x86_reg v1, u8 ext)
@@ -28,25 +28,15 @@ u8 mod_opcode_reg(x86_reg v1, u8 ext)
     return (0b11 << 6) | (ext << 3) | (u32(v1) << 0);
 }
 
-void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
+u16 mod_base_disp(x86_reg dst,x86_reg src)
 {
-    const u8 opcode = 0xb8 + u32(reg);
+    // reg, [base + disp32]
+    const u8 mod = (0b10 << 6) | (dst << 3) | (0b100 << 0);
+    const u8 sib = (0b00 << 6) | (0b100 <<  3) | (u32(src) << 0);
 
-    if(imm > 0xffff'ffff)
-    {
-        // mov +r64, imm64
-        push_u16(emitter,(opcode << 8) | REX_W);
-
-        // push the immediate
-        push_u64(emitter,imm);
-    }
-
-    else
-    {
-        push_u8(emitter,opcode);
-        push_u32(emitter,u32(imm));
-    }
+    return ((sib << 8) | (mod << 0));
 }
+
 
 void emit_reg2(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 {
@@ -61,7 +51,42 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2(emitter,0x3,dst,v1);
 }
 
-void add_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
+void bitwise_xor(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // add r64, r64
+    emit_reg2(emitter,0x31,dst,v1);
+}
+
+void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
+{
+    const u8 opcode = 0xb8 + u32(reg);
+
+    // requires 64 bit mov
+    if(imm > 0xffff'ffff)
+    {
+        // mov +r64, imm64
+        push_u16(emitter,(opcode << 8) | REX_W);
+
+        // push the immediate
+        push_u64(emitter,imm);
+    }
+
+    // special case zero
+    else if(imm == 0)
+    {
+        bitwise_xor(emitter,reg,reg);
+    }
+
+    // 32 bit move
+    else
+    {
+        push_u8(emitter,opcode);
+        push_u32(emitter,u32(imm));
+    }
+}
+
+
+void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
 {
     // add r64, imm32
     const u8 opcode = 0x81;
@@ -82,6 +107,18 @@ void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 void ret(AsmEmitter& emitter)
 {
     push_u8(emitter,0xC3);
+}
+
+void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
+{
+    // movsxd r32/, r/m16
+    const u8 opcode = 0x63;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u16(emitter,mod_base_disp(dst,v1));
+
+    // push the displacement
+    push_u32(emitter,imm);
 }
 
 // TODO: this wont leave any useful linking information yet
@@ -198,11 +235,9 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
-        // dont know how we are gonna handle this yet
-        // atm we are just gonna ignore it :D
-        // its not important for what we need
         case op_type::lsw:
         {
+            lsw(emitter,dst,v1,s32(v2));
             break;
         }
 

@@ -243,10 +243,10 @@ u32 special_reg_to_reg(arch_target arch,SymSlot slot)
             assert(false);
         }
 
-        case R0_IR: return 0;
-        case R1_IR: return 1; 
-        case R2_IR: return 2; 
-        case R3_IR: return 3;
+        case RAX_IR: return u32(x86_reg::rax);
+        case RDI_IR: return u32(x86_reg::rdi); 
+        case RSI_IR: return u32(x86_reg::rsi); 
+        case RDX_IR: return u32(x86_reg::rdx);
 
         default: crash_and_burn("unhandled special reg %x\n",slot); 
     }    

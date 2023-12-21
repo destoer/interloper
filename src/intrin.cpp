@@ -136,11 +136,11 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
     spill_all(itl,func);
 
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
-    mov_imm(itl,func,sym_from_idx(R0_IR),syscall_number);
+    mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
 
-    const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R1_IR));
-    const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R2_IR));
-    const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(R3_IR));
+    const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(RDI_IR));
+    const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(RSI_IR));
+    const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(RDX_IR));
 
     if(!is_trivial_copy(v1_type))
     {

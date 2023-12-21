@@ -392,10 +392,12 @@ static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START + 0;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
-static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
-static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
-static constexpr u32 R2_IR = SPECIAL_PURPOSE_REG_START + 5;
-static constexpr u32 R3_IR = SPECIAL_PURPOSE_REG_START + 6;
+
+// x86 regs
+static constexpr u32 RAX_IR = SPECIAL_PURPOSE_REG_START + 3;
+static constexpr u32 RDI_IR = SPECIAL_PURPOSE_REG_START + 4;
+static constexpr u32 RSI_IR = SPECIAL_PURPOSE_REG_START + 5;
+static constexpr u32 RDX_IR = SPECIAL_PURPOSE_REG_START + 6;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
 static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 7;
@@ -413,10 +415,10 @@ const String SPECIAL_REG_NAMES[11] =
     "sp",
     "pc",
     "rv",
-    "r0",
-    "r1",
-    "r2",
-    "r3",
+    "rax",
+    "rdi",
+    "rsi",
+    "rdx",
     "fixed_len",
     "null",
     "const",
