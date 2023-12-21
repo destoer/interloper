@@ -25,6 +25,11 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
+b32 fit_into_s8(s64 v1)
+{
+    return in_range<s8>(v1,-128,127);
+}
+
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype);
 void parse_def(Interloper& itl, TypeDef& def);
 

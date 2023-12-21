@@ -66,7 +66,7 @@ void push_base_disp(AsmEmitter& emitter,x86_reg dst, x86_reg src, s32 imm)
         push_u16(emitter,mod_base(dst,src));
     }
 
-    else if(in_range<s8>(imm,-128,127))
+    else if(fit_into_s8(imm))
     {
         push_u16(emitter,mod_base_disp_8(dst,src));
         push_u8(emitter,s8(imm));
@@ -137,14 +137,29 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 
 void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
 {
+    // add r64, imm8
+    if(fit_into_s8(v1))
+    {
+        const u8 opcode = 0x83;
+        push_u16(emitter,(opcode << 8) | REX_W);
+
+        // opcode extenstion required
+        push_u8(emitter,mod_opcode_reg(dst,0));
+
+        push_u8(emitter,s8(v1));
+    }
+
     // add r64, imm32
-    const u8 opcode = 0x81;
-    push_u16(emitter,(opcode << 8) | REX_W);
+    else
+    {
+        const u8 opcode = 0x81;
+        push_u16(emitter,(opcode << 8) | REX_W);
 
-    // opcode extenstion required
-    push_u8(emitter,mod_opcode_reg(dst,0));
+        // opcode extenstion required
+        push_u8(emitter,mod_opcode_reg(dst,0));
 
-    push_u32(emitter,v1);
+        push_u32(emitter,v1);
+    }
 }
 
 void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
