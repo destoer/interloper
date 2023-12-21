@@ -145,7 +145,7 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 }
 
 
-void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+void arith_imm(AsmEmitter& emitter, x86_reg dst, s32 v1, u32 opcode_ext)
 {
     // add r64, imm8
     if(fit_into_s8(v1))
@@ -154,7 +154,7 @@ void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
         push_u16(emitter,(opcode << 8) | REX_W);
 
         // opcode extenstion required
-        push_u8(emitter,mod_opcode_reg(dst,0));
+        push_u8(emitter,mod_opcode_reg(dst,opcode_ext));
 
         push_u8(emitter,s8(v1));
     }
@@ -166,10 +166,20 @@ void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
         push_u16(emitter,(opcode << 8) | REX_W);
 
         // opcode extenstion required
-        push_u8(emitter,mod_opcode_reg(dst,0));
+        push_u8(emitter,mod_opcode_reg(dst,opcode));
 
         push_u32(emitter,v1);
-    }
+    }    
+}
+
+void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+{
+    arith_imm(emitter,dst,v1,0);
+}
+
+void sub_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+{
+    arith_imm(emitter,dst,v1,5);
 }
 
 void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
@@ -293,7 +303,13 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::add_imm2:
         {
-            add_imm(emitter,dst,u32(v1));
+            add_imm(emitter,dst,s32(v1));
+            break;
+        }
+
+        case op_type::sub_imm2:
+        {
+            sub_imm(emitter,dst,s32(v1));
             break;
         }
 

@@ -329,7 +329,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 break;
             }
         
-            node->opcode = Opcode(op_type::sub_imm,SP_IR,SP_IR,size);
+            node->opcode = make_op(op_type::sub_imm2,SP_IR,size);
             alloc.stack_alloc.stack_offset += size;
 
             rewrite_regs(itl.symbol_table,alloc,node->opcode);
@@ -770,7 +770,7 @@ void allocate_registers(Interloper& itl,Function &func)
     if(alloc.stack_alloc.stack_size)
     {
         const u32 SP = arch_sp(itl.arch);
-        insert_front(func.emitter.program[0].list,Opcode(op_type::sub_imm,SP,SP,alloc.stack_alloc.stack_size));
+        insert_front(func.emitter.program[0].list,make_op(op_type::sub_imm2,SP,alloc.stack_alloc.stack_size));
     }
 
 
