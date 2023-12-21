@@ -173,6 +173,29 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* no
 }
 
 
+void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* node,SymSlot spec_reg)
+{
+    const u32 reg = special_reg_to_reg(alloc.arch,spec_reg);
+
+    if(!is_free(alloc.reg_alloc.regs[reg]))
+    {
+        // TODO: this should attempt to find a spare reg to copy it into
+        // this is spill because we need this specific register
+        // not because we want to ensure any side effects happen correctly
+
+        spill(alloc.reg_alloc.regs[reg],alloc,table,block,node);
+    }
+}
+
+// is a ir register housed in a specifed machine register?
+b32 in_reg(LocalAlloc& alloc, SymbolTable& table,SymSlot sym_slot,SymSlot spec_reg)
+{
+    auto& ir_reg = reg_from_slot(sym_slot,table,alloc);
+    const u32 reg = special_reg_to_reg(alloc.arch,spec_reg);
+
+    return ir_reg.location == reg;
+}
+
 void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& block, ListNode* node)
 {
     // evict a register to make space

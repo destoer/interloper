@@ -155,6 +155,10 @@ b32 is_var(SymSlot slot)
     return is_tmp(slot) || is_sym(slot);
 }
 
+b32 is_free(SymSlot slot)
+{
+    return slot.handle == REG_FREE;
+}
 
 void free_reg_internal(RegAlloc& alloc, Reg& ir_reg)
 {

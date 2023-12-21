@@ -56,6 +56,10 @@ enum class op_type
     and_imm2,
     xor_imm2,
 
+    cqo,
+    div_x86,
+    mul_x86,
+
     lb,
     lh,
     lw,
@@ -143,6 +147,10 @@ enum class op_type
 
     // used when the end of the block is read past in the optimiser
     placeholder,
+
+    replace_reg,
+    evict_reg,
+
 
     spill,
     spill_all,
@@ -316,6 +324,11 @@ struct Opcode
     // or a label number
     u64 v[3];
 };
+
+inline Opcode make_op(op_type type, u32 dst = 0, u32 v1 = 0, u32 v2 = 0)
+{
+    return Opcode(type,dst,v1,v2);
+}
 
 enum class reg_kind
 {

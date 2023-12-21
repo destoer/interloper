@@ -100,6 +100,12 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm(emitter,0x3,dst,v1);
 }
 
+void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // sub r64, r64
+    emit_reg2_rm(emitter,0x2B,dst,v1);
+}
+
 void bitwise_xor(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // add r64, r64
@@ -123,7 +129,9 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
     // special case zero
     else if(imm == 0)
     {
-        // xor reg, reg
+        // xor reg, reg 
+        // NOTE: we use 32 version as it sign extends
+        // and is shorter
         push_u8(emitter,0x31);
         push_u8(emitter,mod_reg(reg,reg));
     }
@@ -228,6 +236,30 @@ void syscall(AsmEmitter& emitter)
     push_u16(emitter,0x05'0f);
 }
 
+void cqo(AsmEmitter& emitter)
+{
+    const u8 opcode = 0x99;
+    push_u16(emitter,(opcode << 8) | REX_W);
+}
+
+void div_x86(AsmEmitter& emitter, x86_reg src)
+{
+    // div r64
+    const u8 opcode = 0xf7;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u8(emitter,mod_opcode_reg(src,6));
+}
+
+void mul_x86(AsmEmitter& emitter, x86_reg src)
+{
+    // mul r64
+    const u8 opcode = 0xf7;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u8(emitter,mod_opcode_reg(src,4));
+}
+
 
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
@@ -250,6 +282,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::add_reg2: 
         {
             add(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::sub_reg2: 
+        {
+            sub(emitter,dst,v1);
             break;
         }
 
@@ -297,6 +335,25 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             syscall(emitter);
             break;
         }
+
+        case op_type::cqo:
+        {
+            cqo(emitter);
+            break;
+        }
+
+        case op_type::div_x86:
+        {
+            div_x86(emitter,dst);
+            break;
+        }
+
+        case op_type::mul_x86:
+        {
+            mul_x86(emitter,dst);
+            break;
+        }
+
 
         case op_type::lsw:
         {

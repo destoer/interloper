@@ -1,3 +1,6 @@
+// TODO: we need to handle 16 byte alignemnt
+// if we need to call external functions or use sse
+
 struct StackAlloc
 {
     Array<ArrayAllocation> array_allocation;

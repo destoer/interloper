@@ -97,10 +97,51 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 }
             }
 
+            // implement reg coalesce
+
             // just do it normally
             rewrite_opcode(itl,alloc,block,node);
             node = node->next;
             
+            break;
+        }
+
+        case op_type::replace_reg:
+        {
+            const auto spec_reg = sym_from_idx(opcode.v[0]);
+            const auto src = sym_from_idx(opcode.v[1]);
+
+            // src is allready in the right reg do nothing
+            if(in_reg(alloc,table,src,spec_reg))
+            {
+                node = remove(block.list,node);
+            }
+            
+            else
+            {
+                // replace reg, slot
+                // -> evict reg
+                // -> mov reg, slot
+                
+
+
+                evict_reg(alloc,table,block,node,spec_reg);
+
+                // rewrite the move
+                node->opcode = make_op(op_type::mov_reg,opcode.v[0],opcode.v[1]);
+                rewrite_opcode(itl,alloc,block,node);
+
+                node = node->next;
+            }
+            break;
+        }
+
+        case op_type::evict_reg:
+        {
+            const auto spec_reg = sym_from_idx(opcode.v[0]);
+            evict_reg(alloc,table,block,node,spec_reg);
+
+            node = remove(block.list,node);
             break;
         }
 
