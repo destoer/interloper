@@ -123,7 +123,9 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
     // special case zero
     else if(imm == 0)
     {
-        bitwise_xor(emitter,reg,reg);
+        // xor reg, reg
+        push_u8(emitter,0x31);
+        push_u8(emitter,mod_reg(reg,reg));
     }
 
     // 32 bit move
