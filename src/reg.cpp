@@ -227,11 +227,12 @@ struct ArchInfo
 {
     u32 sp;
     u32 rv;
+    u32 gpr;
 };
 
 static constexpr ArchInfo ARCH_TABLE[ARCH_SIZE] = 
 {
-    {u32(x86_reg::rsp),u32(x86_reg::rax)}, // x86
+    {u32(x86_reg::rsp),u32(x86_reg::rax),7}, // x86
 };
 
 ArchInfo info_from_arch(arch_target arch)

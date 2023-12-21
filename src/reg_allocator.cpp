@@ -26,22 +26,50 @@ struct RegAlloc
     arch_target arch;
 };
 
+void add_gpr(RegAlloc& alloc, u32 reg)
+{
+    alloc.free_list[alloc.free_regs++] = reg;
+}
+
+void add_gpr(RegAlloc& alloc, x86_reg reg)
+{
+    alloc.free_list[alloc.free_regs++] = u32(reg);
+}
+
 RegAlloc make_reg_alloc(b32 print, arch_target arch)
 {
     RegAlloc alloc;
 
-    auto& info = info_from_arch(arch);
+    const auto info = info_from_arch(arch);
 
-    // every register is free!
-    alloc.free_regs = info.gpr;
     alloc.use_count = 0;
     alloc.used_regs = 0;
 
+    // mark every reg as free
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         alloc.regs[i] = {REG_FREE};
-        alloc.free_list[i] = i;
     }
+
+    alloc.free_regs = 0;
+
+    // add in GPR regs
+    switch(arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            add_gpr(alloc,x86_reg::rax);
+            add_gpr(alloc,x86_reg::rcx);
+            add_gpr(alloc,x86_reg::rdx);
+            add_gpr(alloc,x86_reg::rbx);
+            add_gpr(alloc,x86_reg::rdp);
+            add_gpr(alloc,x86_reg::rsi);
+            add_gpr(alloc,x86_reg::rdi);
+            break;
+        }
+    }
+
+    assert(alloc.free_regs == info.gpr);
 
     alloc.print = print;
 
