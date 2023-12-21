@@ -359,7 +359,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
         else if(is_special_reg(dst_slot))
         {
             print_slot(itl.symbol_table,dst_slot);
-            dump_ir(itl,func,itl.symbol_table);   
+            dump_ir_sym(itl,func,itl.symbol_table);   
             assert(false);
         }
 

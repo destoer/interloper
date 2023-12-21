@@ -51,12 +51,22 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "constant.cpp"
 
 
-void dump_ir_sym(Interloper &itl)
+void dump_sym_ir(Interloper &itl)
 {
     for(u32 f = 0; f < count(itl.used_func); f++)
     {
         Function& func = *lookup(itl.function_table,itl.used_func[f]);
-        dump_ir(itl,func,itl.symbol_table);
+        dump_ir_sym(itl,func,itl.symbol_table);
+    }
+}
+
+
+void dump_reg_ir(Interloper &itl)
+{
+    for(u32 f = 0; f < count(itl.used_func); f++)
+    {
+        Function& func = *lookup(itl.function_table,itl.used_func[f]);
+        dump_ir_reg(itl,func,itl.symbol_table);
     }
 }
 
@@ -2503,7 +2513,7 @@ void compile(Interloper &itl,const String& initial_filename)
 
     if(itl.print_ir)
     {
-        dump_ir_sym(itl);
+        dump_sym_ir(itl);
     }
 
     // perform register allocation on used functions
@@ -2519,6 +2529,11 @@ void compile(Interloper &itl,const String& initial_filename)
         {
             putchar('\n');
         }
+    }
+
+    if(itl.print_ir)
+    {
+        dump_reg_ir(itl);
     }
 
     // emit the actual target asm
