@@ -30,7 +30,7 @@ u8 mod_opcode_reg(x86_reg v1, u8 ext)
     return (0b11 << 6) | (ext << 3) | (u32(v1) << 0);
 }
 
-u16 mod_base_disp(x86_reg dst,x86_reg src)
+u16 mod_base_disp_32(x86_reg dst,x86_reg src)
 {
     // reg, [base + disp32]
     const u8 mod = (0b10 << 6) | (dst << 3) | (0b100 << 0);
@@ -39,6 +39,46 @@ u16 mod_base_disp(x86_reg dst,x86_reg src)
     return ((sib << 8) | (mod << 0));
 }
 
+u16 mod_base_disp_8(x86_reg dst,x86_reg src)
+{
+    // reg, [base + disp8]
+    const u8 mod = (0b01 << 6) | (dst << 3) | (0b100 << 0);
+    const u8 sib = (0b00 << 6) | (0b100 <<  3) | (u32(src) << 0);
+
+    return ((sib << 8) | (mod << 0));
+}
+
+
+u16 mod_base(x86_reg dst,x86_reg src)
+{
+    // reg, [base]
+    const u8 mod = (0b00 << 6) | (dst << 3) | (0b100 << 0);
+    const u8 sib = (0b00 << 6) | (0b100 <<  3) | (u32(src) << 0);
+
+    return ((sib << 8) | (mod << 0));
+}
+
+
+void push_base_disp(AsmEmitter& emitter,x86_reg dst, x86_reg src, s32 imm)
+{
+    if(imm == 0)
+    {
+        push_u16(emitter,mod_base(dst,src));
+    }
+
+    else if(in_range<s8>(imm,-128,127))
+    {
+        push_u16(emitter,mod_base_disp_8(dst,src));
+        push_u8(emitter,s8(imm));
+    }
+
+    // use 32 bit
+    else
+    {
+        push_u16(emitter,mod_base_disp_32(dst,src));
+        push_u32(emitter,imm);
+    }
+}
 
 void emit_reg2_rm(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 {
@@ -120,14 +160,11 @@ void ret(AsmEmitter& emitter)
 
 void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
 {
-    // movsxd r32/, r/m16
+    // movsxd r64, r/m16
     const u8 opcode = 0x63;
     push_u16(emitter,(opcode << 8) | REX_W);
 
-    push_u16(emitter,mod_base_disp(dst,v1));
-
-    // push the displacement
-    push_u32(emitter,imm);
+    push_base_disp(emitter,dst,v1,imm);
 }
 
 // TODO: this wont leave any useful linking information yet
