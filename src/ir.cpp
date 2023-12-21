@@ -622,7 +622,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             }
 
             // NOTE: this is allways on the stack, globals handle their own allocation...
-            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,allocation.offset + allocation.stack_offset);
+            node->opcode = Opcode(op_type::lea,opcode.v[0],arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
 
             node = node->next;
             break;
@@ -664,7 +664,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers);
+    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers,itl.arch);
 
     log(alloc.reg_alloc.print,"allocating registers for %s:\n\n",func.name.buf);
 
@@ -728,6 +728,7 @@ void allocate_registers(Interloper& itl,Function &func)
     // only allocate a stack if we need it
     if(alloc.stack_alloc.stack_size)
     {
+        const u32 SP = arch_sp(itl.arch);
         insert_front(func.emitter.program[0].list,Opcode(op_type::sub_imm,SP,SP,alloc.stack_alloc.stack_size));
     }
 
@@ -758,6 +759,7 @@ void allocate_registers(Interloper& itl,Function &func)
         emit_pushm(itl,start_block,start_block.list.start,saved_regs);
     }
 
+    const u32 SP = arch_sp(itl.arch);
     const auto stack_clean = Opcode(op_type::add_imm2,SP,alloc.stack_alloc.stack_size,0);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)

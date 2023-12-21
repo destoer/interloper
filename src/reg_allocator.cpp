@@ -22,14 +22,18 @@ struct RegAlloc
     u32 use_count;
    
     b32 print = false;
+
+    arch_target arch;
 };
 
-RegAlloc make_reg_alloc(b32 print)
+RegAlloc make_reg_alloc(b32 print, arch_target arch)
 {
     RegAlloc alloc;
 
+    auto& info = info_from_arch(arch);
+
     // every register is free!
-    alloc.free_regs = MACHINE_REG_SIZE;
+    alloc.free_regs = info.gpr;
     alloc.use_count = 0;
     alloc.used_regs = 0;
 
@@ -40,6 +44,8 @@ RegAlloc make_reg_alloc(b32 print)
     }
 
     alloc.print = print;
+
+    alloc.arch = arch;
 
     return alloc;
 }
@@ -121,10 +127,6 @@ b32 is_var(SymSlot slot)
     return is_tmp(slot) || is_sym(slot);
 }
 
-b32 is_callee_saved(u32 reg)
-{
-    return reg >= R1 && reg < MACHINE_REG_SIZE;
-}
 
 void free_reg_internal(RegAlloc& alloc, Reg& ir_reg)
 {
@@ -172,6 +174,8 @@ bool request_reg(RegAlloc& alloc, u32 req_reg)
 
 bool allocate_into_rv(RegAlloc& alloc,Reg& ir_reg)
 {
+    const u32 RV = arch_rv(alloc.arch);
+
     if(request_reg(alloc,RV))
     {
         assert(alloc_reg(ir_reg,alloc) == RV);
@@ -182,16 +186,39 @@ bool allocate_into_rv(RegAlloc& alloc,Reg& ir_reg)
 }
 
 
-u32 special_reg_to_reg(SymSlot slot)
+u32 special_reg_to_reg(arch_target arch,SymSlot slot)
 {
     switch(slot.handle)
     {
-        case SP_IR: return SP;
-        case RV_IR: return RV; 
-        case R0_IR: return R0;
-        case R1_IR: return R1; 
-        case R2_IR: return R2; 
-        case R3_IR: return R3;
+        case SP_IR:
+        { 
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rsp;
+                }
+            }
+            assert(false);
+        }
+
+
+        case RV_IR: 
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rax;
+                }
+            }
+            assert(false);
+        }
+
+        case R0_IR: return 0;
+        case R1_IR: return 1; 
+        case R2_IR: return 2; 
+        case R3_IR: return 3;
 
         default: crash_and_burn("unhandled special reg %x\n",slot); 
     }    
@@ -270,6 +297,8 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
         case reg_kind::local:
         case reg_kind::tmp:
         {
+            const u32 SP = arch_sp(itl.arch);
+
             const u32 offset = ir_reg.offset + stack_offset;
             return std::pair{SP,offset};
         }

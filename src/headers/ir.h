@@ -429,33 +429,12 @@ static constexpr u32 PC_NAME_IDX = 1;
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
 
 
-
-
-// for use in the interpretter
-static constexpr u32 SP = MACHINE_REG_SIZE;
-static constexpr u32 PC = MACHINE_REG_SIZE + 1;
-static constexpr u32 RV = 0;
-static constexpr u32 R0 = 0;
-static constexpr u32 R1 = 1;
-static constexpr u32 R2 = 2;
-static constexpr u32 R3 = 3;
-
-static constexpr u32 PROGRAM_ORG = 0;
-
-static constexpr SymSlot SP_REG = {SP};
-
-
 static constexpr u32 GPR_SIZE = sizeof(u64);
 
 
 
-static constexpr u32 OP_SIZE = sizeof(Opcode);
-
-
 struct SymbolTable;
 
-
-static constexpr u32 STACK_SIZE = 32 * 1024;
 
 inline const char *block_names[] =
 {
@@ -587,9 +566,6 @@ Block& block_from_slot(Function& func, BlockSlot slot);
 
 void destroy_emitter(IrEmitter& emitter);
 
-void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
-void disass_opcode_raw(const Opcode &opcode);
-
 b32 is_tmp(SymSlot s);
 
 inline u32 symbol(u32 s)
@@ -616,22 +592,41 @@ enum class arch_target
     x86_64_t,
 };
 
+static constexpr u32 ARCH_SIZE = 1;
+
 enum class os_target
 {
     linux_t,
 };
 
+
+void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table,arch_target arch);
+void disass_opcode_raw(const Opcode &opcode,arch_target arch);
+
+
 struct AsmFunc
 {
+    String name;
+    LabelSlot label;
     u32 offset;
     u32 size;
+};
+
+struct LinkOpcode
+{
+    Opcode opcode;
+    u32 offset;
 };
 
 struct AsmEmitter
 {
     Array<u8> buffer;
 
-    HashTable<String,AsmFunc> func;
+    Array<AsmFunc> func;
+
+    Array<LinkOpcode> link;
+    u64 base_vaddr = 0;
+    u64 base_offset = 0;
 };
 
 namespace x86
@@ -640,6 +635,33 @@ namespace x86
 void emit_asm(Interloper& itl);
 
 }
+
+
+enum x86_reg : u64
+{
+    rax,
+    rcx,
+    rdx,
+    rbx,
+    rsp,
+    rdp,
+    rsi,
+    rdi,
+};
+
+static constexpr u32 X86_REG_SIZE = 8;
+
+static const char* X86_NAMES[8] =
+{
+    "rax",
+    "rcx",
+    "rdx",
+    "rbx",
+    "rsp",
+    "rdp",
+    "rsi",
+    "rdi",
+};
 
 /*
 enum class ir_pass

@@ -1,18 +1,6 @@
 namespace x86
 {
 
-enum x86_reg : u64
-{
-    rax,
-    rcx,
-    rdx,
-    rbx,
-    rsp,
-    rdp,
-    rsi,
-    rdi,
-};
-
 
 // base rex
 static constexpr u8 REX = 0x40;
@@ -44,11 +32,20 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 {
     const u8 opcode = 0xb8 + u32(reg);
 
-    // mov +r64, imm64
-    push_u16(emitter,(opcode << 8) | REX_W);
+    if(imm > 0xffff'ffff)
+    {
+        // mov +r64, imm64
+        push_u16(emitter,(opcode << 8) | REX_W);
 
-    // push the immediate
-    push_u64(emitter,imm);
+        // push the immediate
+        push_u64(emitter,imm);
+    }
+
+    else
+    {
+        push_u8(emitter,opcode);
+        push_u32(emitter,u32(imm));
+    }
 }
 
 void emit_reg2(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
@@ -60,6 +57,7 @@ void emit_reg2(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 
 void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
+    // add r64, r64
     emit_reg2(emitter,0x3,dst,v1);
 }
 
@@ -77,6 +75,7 @@ void add_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
 
 void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
+    // mov r64, r64
     emit_reg2(emitter,0x89,dst,v1);
 }
 
@@ -86,14 +85,21 @@ void ret(AsmEmitter& emitter)
 }
 
 // TODO: this wont leave any useful linking information yet
-void call(AsmEmitter& emitter,LabelSlot addr)
+u32 call(AsmEmitter& emitter,LabelSlot addr)
 {
     UNUSED(addr);
 
     // TODO: we need a way to encode far calls
     // in the upper IR eventually
+
+    // call rel32
     push_u8(emitter,0xe8);
+
+    const u32 offset = emitter.buffer.size;
+    
     push_u32(emitter,0);
+
+    return offset;
 }
 
 void push(AsmEmitter& emitter, x86_reg src)
@@ -168,7 +174,9 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::call:
         {
             LabelSlot label = label_from_idx(u32(dst));
-            call(emitter,label);
+            const u32 offset = call(emitter,label);
+
+            add_link(emitter,opcode,offset);
             break;
         }
 
@@ -208,15 +216,9 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
     }
 }
 
-void end_func(AsmEmitter& emitter, Function& func)
-{
-    auto& asm_func = *lookup(emitter.func,func.name);
-    asm_func.size = emitter.buffer.size - asm_func.offset; 
-}
-
 void emit_func(Interloper& itl, Function& func)
 {
-    add_func(itl.asm_emitter,func);
+    const u32 func_idx = add_func(itl.asm_emitter,func);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
@@ -230,7 +232,7 @@ void emit_func(Interloper& itl, Function& func)
         }
     }
 
-    end_func(itl.asm_emitter,func);
+    end_func(itl.asm_emitter,func_idx);
 }
 
 void emit_asm(Interloper& itl)

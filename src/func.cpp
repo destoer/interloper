@@ -359,7 +359,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
         else if(is_special_reg(dst_slot))
         {
             print_slot(itl.symbol_table,dst_slot);
-            dump_ir(func,itl.symbol_table);   
+            dump_ir(itl,func,itl.symbol_table);   
             assert(false);
         }
 
@@ -866,11 +866,6 @@ void compile_function(Interloper& itl, Function& func)
     // do liveness analysis
     compute_var_live(itl,func);
 
-
-#if 0
-    dump_ir(func,itl.symbol_table);
-    dump_cfg(itl,func);
-#endif
 
     // now check a function exit is reachable from the entry block of the function
     // for a void func this should allways be possible as everything should hit the bottom return

@@ -56,7 +56,7 @@ void dump_ir_sym(Interloper &itl)
     for(u32 f = 0; f < count(itl.used_func); f++)
     {
         Function& func = *lookup(itl.function_table,itl.used_func[f]);
-        dump_ir(func,itl.symbol_table);
+        dump_ir(itl,func,itl.symbol_table);
     }
 }
 
@@ -2523,6 +2523,15 @@ void compile(Interloper &itl,const String& initial_filename)
 
     // emit the actual target asm
     emit_asm(itl);
+
+    switch(itl.os)
+    {
+        case os_target::linux_t:
+        {
+            emit_elf(itl);
+            break;
+        }
+    }
 
     printf("OK\n\n");
 }

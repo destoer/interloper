@@ -5,6 +5,8 @@ struct LocalAlloc
 {
     RegAlloc reg_alloc;
 
+    arch_target arch;
+
     // what instruction are we on?
     u32 pc = 0;
 
@@ -15,14 +17,15 @@ struct LocalAlloc
     StackAlloc stack_alloc;
 };
 
-LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation, Array<Reg> tmp)
+LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation, Array<Reg> tmp, arch_target arch)
 {
     LocalAlloc alloc;
 
     alloc.stack_alloc = make_stack_alloc(print_stack_allocation);
-    alloc.reg_alloc = make_reg_alloc(print_reg_allocation);
+    alloc.reg_alloc = make_reg_alloc(print_reg_allocation,arch);
 
     alloc.pc = 0;
+    alloc.arch = arch;
 
     alloc.tmp_regs = tmp;
 
@@ -52,7 +55,7 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
     // so its converted to our interrpetter regs and not a hardware target
     if(is_special_reg(slot))
     {
-        opcode.v[reg] = special_reg_to_reg(slot);
+        opcode.v[reg] = special_reg_to_reg(alloc.arch,slot);
     } 
 
     else
@@ -278,7 +281,7 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
         // make sure callee saved regs are marked as used for saving
         const u32 spec_reg = node->opcode.v[reg];
 
-        if(is_callee_saved(spec_reg) && is_dst)
+        if(is_callee_saved(alloc.arch,spec_reg) && is_dst)
         {
             mark_used(alloc.reg_alloc,spec_reg);
         }
@@ -322,7 +325,7 @@ void spill_func_bounds(LocalAlloc& alloc, SymbolTable& table, Block&  block, Lis
         const SymSlot slot = alloc.reg_alloc.regs[r];
 
         // handle callee saved regs
-        if(!is_callee_saved(r) && is_var(slot))
+        if(!is_callee_saved(alloc.arch,r) && is_var(slot))
         {
             spill(slot,alloc,table,block,node,false);
         }

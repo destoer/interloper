@@ -222,3 +222,50 @@ const OpInfo& info_from_op(const Opcode& opcode)
 {
     return OPCODE_TABLE[u32(opcode.op)];
 }
+
+struct ArchInfo
+{
+    u32 sp;
+    u32 rv;
+};
+
+static constexpr ArchInfo ARCH_TABLE[ARCH_SIZE] = 
+{
+    {u32(x86_reg::rsp),u32(x86_reg::rax)}, // x86
+};
+
+ArchInfo info_from_arch(arch_target arch)
+{
+    return ARCH_TABLE[u32(arch)];
+}
+
+u32 arch_sp(arch_target arch)
+{
+    const auto info = info_from_arch(arch);
+
+    return info.sp;
+}
+
+u32 arch_rv(arch_target arch)
+{
+    const auto info = info_from_arch(arch);
+
+    return info.rv;
+}
+
+
+
+b32 is_callee_saved(arch_target arch,u32 reg_idx)
+{
+    switch(arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            const x86_reg reg = x86_reg(reg_idx);
+
+            return reg != x86_reg::rax && reg != x86_reg::rsp;
+        }
+    }
+
+    assert(false);
+}

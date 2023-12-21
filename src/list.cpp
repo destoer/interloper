@@ -1,13 +1,13 @@
 #include <ir.h>
 
-void print(List &list)
+void print(List &list, arch_target arch)
 {
     puts("list contents:");
 
     ListNode *tmp = list.start;
     while(tmp)
     {
-        disass_opcode_raw(tmp->opcode);
+        disass_opcode_raw(tmp->opcode,arch);
         tmp = tmp->next;
     }
 }

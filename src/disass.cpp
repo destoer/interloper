@@ -63,32 +63,23 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
     }    
 }
 
-void fmt_raw_specifier(Array<char> &buffer, char specifier, u64 slot)
+void fmt_raw_specifier(Array<char> &buffer, char specifier, u64 slot, arch_target arch)
 {
     switch(specifier)
     {
         // raw register
         case 'r':
         {
-            if(slot == SP)
+            switch(arch)
             {
-                push_mem(buffer,SPECIAL_REG_NAMES[SP_NAME_IDX]);
+                case arch_target::x86_64_t:
+                {
+                    push_mem(buffer,X86_NAMES[slot],strlen(X86_NAMES[slot]));
+                    break;
+                }
             }
 
-            else if(slot == PC)
-            {
-                push_mem(buffer,SPECIAL_REG_NAMES[PC_NAME_IDX]);
-            }
-
-            else
-            {
-                char name[40];
-                const u32 len = sprintf(name,"r%ld",slot);
-
-                push_mem(buffer,name,len);
-            }
-
-
+            assert(false);
             break;
         }
 
@@ -133,7 +124,7 @@ void fmt_raw_specifier(Array<char> &buffer, char specifier, u64 slot)
     }    
 }
 
-void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
+void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table,arch_target arch)
 {
     const auto& info = info_from_op(opcode);
     const auto& fmt_string = info.fmt_string;
@@ -160,7 +151,7 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
 
             else
             {
-                fmt_raw_specifier(buffer,specifier,opcode.v[args++]);
+                fmt_raw_specifier(buffer,specifier,opcode.v[args++],arch);
             }
 
             i += 2;
@@ -183,18 +174,18 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table)
 
 // TODO: use table of fmt strings to print this
 // just figure out symbol printing first and then generalise it
-void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table)
+void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table,arch_target arch)
 {
-    disass_opcode_internal(opcode,&table);
+    disass_opcode_internal(opcode,&table,arch);
 }
 
-void disass_opcode_raw(const Opcode &opcode)
+void disass_opcode_raw(const Opcode &opcode, arch_target arch)
 {
-    disass_opcode_internal(opcode,nullptr);
+    disass_opcode_internal(opcode,nullptr,arch);
 }
 
 
-void dump_ir(Function &func,SymbolTable& table)
+void dump_ir(Interloper& itl,Function &func,SymbolTable& table)
 {
     printf("%s:\n",func.name.buf);
 
@@ -212,7 +203,7 @@ void dump_ir(Function &func,SymbolTable& table)
         while(node)
         {
             printf("\t");
-            disass_opcode_sym(node->opcode,table);
+            disass_opcode_sym(node->opcode,table,itl.arch);
             node = node->next;
         }
 

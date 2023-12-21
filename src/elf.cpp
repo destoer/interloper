@@ -10,20 +10,13 @@ struct ElfFunc
 
 struct ElfTextSection
 {
-    // program storage
-    Array<u8> buffer;
-
     u32 section_idx = 0;
     Elf64_Shdr header;
     
     u32 program_idx;
     Elf64_Phdr program_header;
 
-
-    // what offset is this stored at in the text section?
-    // NOTE: this is relative to the start of the buffer
-    // and not the elf file as a whole
-    HashTable<String,ElfFunc> offset_table;
+    // NOTE: code is owned externally in the AsmEmitter struct
 };
 
 struct ElfStringTable
@@ -157,9 +150,6 @@ void setup_text(Elf& elf)
 {
     auto& text_section = elf.text_section;
 
-    // setup the text section
-    text_section.offset_table = make_table<String,ElfFunc>();
-
     auto& section_header = text_section.header;
 
     memset(&section_header,0,sizeof(section_header));
@@ -224,7 +214,7 @@ void setup_symtab(Elf& elf)
 }
 
 
-void add_func_symbol(Elf& elf,const String& name,const ElfFunc& func)
+void add_func_symbol(Elf& elf,const AsmFunc& func)
 {
     auto& symbol_table = elf.symbol_table;
     auto& symtab_string_table = elf.symtab_string_table;
@@ -233,7 +223,7 @@ void add_func_symbol(Elf& elf,const String& name,const ElfFunc& func)
     memset(&sym,0,sizeof(sym));
 
     // add symbol name
-    sym.st_name = push_string(symtab_string_table,name);
+    sym.st_name = push_string(symtab_string_table,func.name);
 
     // write the offset into value for now
     // we will rewrite it later
@@ -350,7 +340,7 @@ void align_elf(Elf& elf, u32 align)
     resize(elf.buffer,align_val(cur_offset,align));   
 }
 
-void finalise_section_data(Elf& elf)
+void finalise_section_data(Interloper& itl,Elf& elf)
 {
     // add string section data
     auto& section_string_table = elf.section_string_table;
@@ -366,8 +356,10 @@ void finalise_section_data(Elf& elf)
     // make sure page size aligns
     align_elf(elf,elf.text_section.program_header.p_align);
 
-    const u64 text_offset = push_section_data(elf,text_section.section_idx,text_section.buffer,true);
+    const u64 text_offset = push_section_data(elf,text_section.section_idx,itl.asm_emitter.buffer,true);
     
+    itl.asm_emitter.base_offset = text_offset;
+
     // finish up the program header
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_offset),text_offset);
 
@@ -378,11 +370,8 @@ void finalise_section_data(Elf& elf)
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
 
 
-    // write entry point (atm we only have a single function so of course this is the entry)
-    write_mem(elf.buffer,offsetof(Elf64_Ehdr,e_entry),vaddr);
-
     // write size
-    const u64 size = text_section.buffer.size;
+    const u64 size = itl.asm_emitter.buffer.size;
 
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_filesz),size);
     write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_memsz),size);
@@ -397,8 +386,21 @@ void finalise_section_data(Elf& elf)
 
         const u32 offset = sym.st_value;
 
-        sym.st_value = vaddr + offset;
+        const u32 func_addr = vaddr + offset;
+
+        sym.st_value = func_addr;
     }
+
+    // for itl
+    // TODO: write the label info
+    finalise_labels(itl,vaddr);
+
+    // write entry point (i.e find start)
+
+    const auto& start = *lookup(itl.function_table,String("start"));
+    auto& start_label = label_from_slot(itl.symbol_table.label_lookup,start.label_slot);
+
+    write_mem(elf.buffer,offsetof(Elf64_Ehdr,e_entry),start_label.offset);
 
     // align the symbol table data
     align_elf(elf,symbol_table.header.sh_addralign);
@@ -432,7 +434,7 @@ void finalise_program_headers(Elf& elf)
 
 }
 
-void finalise_elf(Elf& elf)
+void finalise_elf(Interloper& itl,Elf& elf)
 {
     finalise_elf_header(elf);
 
@@ -442,17 +444,13 @@ void finalise_elf(Elf& elf)
 
     finalise_program_headers(elf);
 
-    finalise_section_data(elf);
+    finalise_section_data(itl,elf);
 
     printf("program size: %d\n",elf.buffer.size);
 }
 
 void destroy_elf(Elf& elf)
 {
-    // text section
-    destroy_arr(elf.text_section.buffer);
-    destroy_table(elf.text_section.offset_table);
-
     destroy_arr(elf.section_string_table.buffer);
 
     destroy_arr(elf.symtab_string_table.buffer);
@@ -460,24 +458,6 @@ void destroy_elf(Elf& elf)
     destroy_arr(elf.symbol_table.table);
 
     destroy_arr(elf.buffer);
-}
-
-void add_func_symbol(Elf& elf,const String& name,const ElfFunc& func);
-
-// insert a new function into the elf file
-void add_function(Elf& elf,const String &func_name,const u8* buffer, u32 size)
-{
-    auto& text = elf.text_section;
-
-    // insert the shellcode
-    const u32 offset = push_mem(text.buffer,buffer,size);
-
-    const ElfFunc func = {offset,size};
-
-    // record the offset
-    add(text.offset_table,func_name,func);
-
-    add_func_symbol(elf,func_name,func);
 }
 
 void write_elf(Elf& elf)
@@ -496,43 +476,58 @@ void write_elf(Elf& elf)
     fp.close();
 }
 
+// TODO: we need to generalise this away from x86
+void link_elf(Interloper& itl, Elf& elf)
+{
+    auto& asm_emitter = itl.asm_emitter;
+
+    const u32 text_offset = itl.asm_emitter.base_offset;
+
+    for(u32 l = 0; l < count(asm_emitter.link); l++)
+    {
+        const auto link = asm_emitter.link[l];
+        const auto opcode = link.opcode;
+
+        switch(opcode.op)
+        {
+            case op_type::call:
+            {
+                // get the lable and write in the relative addr
+                const LabelSlot slot = label_from_idx(opcode.v[0]);
+                const auto label = label_from_slot(itl.symbol_table.label_lookup,slot);
+
+                const u32 rel_addr = (label.offset  - (link.offset + asm_emitter.base_vaddr)) - 4;
+
+                write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+            }
+
+            default: break;
+        }
+    }
+}
+
 void emit_elf(Interloper& itl)
 {
-    UNUSED(itl);
-    assert(false);
-#if 0
     Elf elf = make_elf("test-prog");
 
-    /*
-    _start:
-        mov rdi, 0x5
-        mov rax, 0x3c
-        syscall
-    */
+    // Add every function in the emitter
+    // NOTE: this adds just the definitons
+    // we wont push the data in until we finalise the elf
 
-    X86Emitter emitter;
+    auto& asm_emitter = itl.asm_emitter;
 
-    mov_imm(emitter,x86_reg::rdi,0x5);
-    mov_imm(emitter,x86_reg::rax,0x3c);
-    syscall(emitter);
+    for(u32 f = 0; f < count(asm_emitter.func); f++)
+    {
+        auto& func = asm_emitter.func[f];
+        add_func_symbol(elf,func);
+    }
+    
 
-    add_function(elf,"start",emitter.buffer.data,emitter.buffer.size);
+    finalise_elf(itl,elf);
 
-    destroy_emitter(emitter);
-/*
-    const u8 SHELLCODE[] = {
-        0x48, 0xc7, 0xc7, 0x05, 0x00, 0x00, 0x00, 0x48, 
-        0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05, 
-    };
-
-
-    add_function(elf,"start",SHELLCODE,sizeof(SHELLCODE));
-*/
-
-
-    finalise_elf(elf);
+    // now we know the poistions go back and "link" the text section
+    link_elf(itl,elf);
 
     write_elf(elf);
     destroy_elf(elf);
-#endif
 }
