@@ -17,10 +17,12 @@ static constexpr u8 REX_X = REX | (1 << 1);
 // extend sib base / modrm
 static constexpr u8 REX_B = REX | (1 << 0);
 
-
-u8 mod_reg(x86_reg dst, x86_reg v1)
+// NOTE: the order depends on format
+// r16/32/64 	r/m16/32/64 (should be v1 = src, v2 = dst)
+// r/m16/32/64 	r16/32/64 (should be v1 = dst, v2 = src)
+u8 mod_reg(x86_reg v1, x86_reg v2)
 {
-    return (0b11 << 6) | (u32(dst) << 3) | (u32(v1) << 0);
+    return (0b11 << 6) | (u32(v2) << 3) | (u32(v1) << 0);
 }
 
 u8 mod_opcode_reg(x86_reg v1, u8 ext)
@@ -38,7 +40,14 @@ u16 mod_base_disp(x86_reg dst,x86_reg src)
 }
 
 
-void emit_reg2(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
+void emit_reg2_rm(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
+{
+    // opcode r1, r2
+    push_u16(emitter,(opcode << 8) | REX_W);
+    push_u8(emitter,mod_reg(v1,dst));
+}
+
+void emit_reg2_mr(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 {
     // opcode r1, r2
     push_u16(emitter,(opcode << 8) | REX_W);
@@ -48,13 +57,13 @@ void emit_reg2(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // add r64, r64
-    emit_reg2(emitter,0x3,dst,v1);
+    emit_reg2_rm(emitter,0x3,dst,v1);
 }
 
 void bitwise_xor(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // add r64, r64
-    emit_reg2(emitter,0x31,dst,v1);
+    emit_reg2_rm(emitter,0x31,dst,v1);
 }
 
 void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
@@ -101,7 +110,7 @@ void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
 void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // mov r64, r64
-    emit_reg2(emitter,0x89,dst,v1);
+    emit_reg2_mr(emitter,0x89,dst,v1);
 }
 
 void ret(AsmEmitter& emitter)
