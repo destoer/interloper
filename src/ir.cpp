@@ -112,11 +112,15 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             assert(is_var(src));
 
             // src is allready in the right reg 
-            // TODO: what is the correct behavior here a spill?
+            // just save it if need be and then restrict its usage
             if(in_reg(alloc,table,src,spec_reg))
             {
-                assert(false);
-                //node = remove(block.list,node);
+                evict_reg(alloc,table,block,node,spec_reg);
+
+                // mark register as reserved
+                restrict_reg(alloc.reg_alloc,spec_reg);
+
+                node = remove(block.list,node);
             }
             
             else
@@ -130,7 +134,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 // mark register as reserved
                 restrict_reg(alloc.reg_alloc,spec_reg);
 
-
+                // TODO: if the value has to be reloaded this will result in a uneeded
+                // copy 
                 node->opcode = make_op(op_type::mov_reg,opcode.v[0],opcode.v[1]);
                 rewrite_opcode(itl,alloc,block,node);
 
@@ -149,8 +154,6 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             if(is_var(dst))
             {
                 auto& ir_reg = reg_from_slot(dst,table,alloc);
-
-                print_uses(ir_reg);
 
                 // rax free
                 release_reg(alloc.reg_alloc,out);

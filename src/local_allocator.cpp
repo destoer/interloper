@@ -183,6 +183,22 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
         // this is spill because we need this specific register
         // not because we want to ensure any side effects happen correctly
 
+        const auto slot = alloc.reg_alloc.regs[reg];
+
+        if(alloc.reg_alloc.print)
+        {
+            if(is_sym(slot))
+            {
+                auto& sym = sym_from_slot(table,slot);
+                printf("symbol %s evicted from reg %s\n",sym.name.buf,reg_name(alloc.arch,reg));
+            }
+
+            else
+            {
+                printf("tmp t%d evicted from reg %s\n",slot.handle,reg_name(alloc.arch,reg));
+            }
+        }
+
         spill(alloc.reg_alloc.regs[reg],alloc,table,block,node);
     }
 }
@@ -420,7 +436,7 @@ void reserve_offset(LocalAlloc& alloc,SymbolTable& table, Reg& ir_reg)
     {
         auto& sym = sym_from_slot(table,ir_reg.slot);
 
-        log(print_reg,"spill %s from reg %s\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location));
+        log(print_reg,"reserve offset for %s in reg %s\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location));
 
 
         // only allocate the local vars by here
@@ -432,7 +448,7 @@ void reserve_offset(LocalAlloc& alloc,SymbolTable& table, Reg& ir_reg)
 
     else
     {
-        log(print_reg,"spill t%d from reg %s\n",ir_reg.slot.handle,reg_name(alloc.arch,ir_reg.location));
+        log(print_reg,"reserve offset for t%d in reg %s\n",ir_reg.slot.handle,reg_name(alloc.arch,ir_reg.location));
 
         // by defintion a tmp has to be local
         // TODO: fmt this tmp
@@ -482,6 +498,21 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     if(is_stack_unallocated(ir_reg))
     {
         reserve_offset(alloc,table,ir_reg);
+    }
+
+    if(alloc.reg_alloc.print)
+    {
+        if(is_sym(ir_reg.slot))
+        {
+            auto& sym = sym_from_slot(table,ir_reg.slot);
+
+            printf("spill %s from reg %s (size %d)\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
+        }
+
+        else
+        {
+            printf("spill t%d from reg %s (size %d)\n",ir_reg.slot.handle,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
+        }
     }
 
     // if the value has only been used as a source and not modifed then we can just treat this as a free_reg

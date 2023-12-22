@@ -30,6 +30,10 @@ u8 mod_opcode_reg(x86_reg v1, u8 ext)
     return (0b11 << 6) | (ext << 3) | (u32(v1) << 0);
 }
 
+// NOTE: the order of operands depends on format of opcode
+// r16/32/64 	r/m16/32/64  -> // reg, [base + disp32]
+// r/m16/32/64 	r16/32/64  -> // [base + disp32], reg
+
 u16 mod_base_disp_32(x86_reg dst,x86_reg src)
 {
     // reg, [base + disp32]
@@ -202,6 +206,35 @@ void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
     push_base_disp(emitter,dst,v1,imm);
 }
 
+
+void sw(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    // mov r/m32, r32
+    const u8 opcode = 0x89;
+    push_u8(emitter,opcode);
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
+void sb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    // mov r/m8, r8
+    const u8 opcode = 0x88;
+    push_u8(emitter,opcode);
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
+void lb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    // movzx r64, r/m8,
+    
+    push_u8(emitter,REX_W);
+    push_u16(emitter,0xb6'0f);;
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
 // TODO: this wont leave any useful linking information yet
 u32 call(AsmEmitter& emitter,LabelSlot addr)
 {
@@ -370,6 +403,23 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_type::lb:
+        {
+            lb(emitter,dst,v1,s32(v2));
+            break;
+        }
+
+        case op_type::sb:
+        {
+            sb(emitter,dst,v1,s32(v2));
+            break;
+        }
+
+        case op_type::sw:
+        {
+            sw(emitter,dst,v1,s32(v2));
+            break;
+        }
 
         case op_type::lsw:
         {
