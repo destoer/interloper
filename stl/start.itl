@@ -16,7 +16,7 @@ func start()
 
 func exit(exit_code: s32)
 {
-    intrin_syscall(0x3c,exit_code,0,0);
+    intrin_syscall(0x3c,exit_code);
 }
 
 func start()
