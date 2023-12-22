@@ -360,13 +360,13 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::div_x86:
         {
-            div_x86(emitter,dst);
+            div_x86(emitter,v1);
             break;
         }
 
         case op_type::mul_x86:
         {
-            mul_x86(emitter,dst);
+            mul_x86(emitter,v1);
             break;
         }
 

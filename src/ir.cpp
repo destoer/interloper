@@ -24,7 +24,7 @@ void print_slot(SymbolTable& table, SymSlot slot)
 
     else if(is_special_reg(slot))
     {
-        printf("special reg: %s\n",SPECIAL_REG_NAMES[slot.handle - SPECIAL_PURPOSE_REG_START].buf);
+        printf("special reg: %s\n",spec_reg_name(slot));
     }
 
     else
@@ -83,15 +83,13 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 auto& ir_reg = reg_from_slot(dst,table,alloc);
 
                 // attempt to force reg
-                if(allocate_into_rv(alloc.reg_alloc,ir_reg))
+                if(allocate_into_reg(alloc.reg_alloc,ir_reg,{RV_IR}))
                 {
                     if(alloc.reg_alloc.print)
                     {
                         printf("forcing ir %x into RV\n",dst.handle);
                     }
-
-                    mark_reg_usage(alloc,ir_reg,true);
-
+                    mark_reg_usage(alloc.reg_alloc,ir_reg,true);
                     node = remove(block.list,node);
                     break;
                 }
@@ -111,10 +109,14 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             const auto spec_reg = sym_from_idx(opcode.v[0]);
             const auto src = sym_from_idx(opcode.v[1]);
 
-            // src is allready in the right reg do nothing
+            assert(is_var(src));
+
+            // src is allready in the right reg 
+            // TODO: what is the correct behavior here a spill?
             if(in_reg(alloc,table,src,spec_reg))
             {
-                node = remove(block.list,node);
+                assert(false);
+                //node = remove(block.list,node);
             }
             
             else
@@ -122,17 +124,64 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 // replace reg, slot
                 // -> evict reg
                 // -> mov reg, slot
-                
-
-
+            
                 evict_reg(alloc,table,block,node,spec_reg);
 
-                // rewrite the move
+                // mark register as reserved
+                restrict_reg(alloc.reg_alloc,spec_reg);
+
+
                 node->opcode = make_op(op_type::mov_reg,opcode.v[0],opcode.v[1]);
                 rewrite_opcode(itl,alloc,block,node);
 
                 node = node->next;
             }
+
+
+            break;
+        }
+
+        case op_type::div_x86:
+        {
+            const auto dst = sym_from_idx(opcode.v[0]);
+            const auto out = sym_from_idx(RAX_IR);
+
+            if(is_var(dst))
+            {
+                auto& ir_reg = reg_from_slot(dst,table,alloc);
+
+                print_uses(ir_reg);
+
+                // rax free
+                release_reg(alloc.reg_alloc,out);
+
+                // force to rax
+                assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
+            }
+            
+            rewrite_opcode(itl,alloc,block,node);
+            node = node->next;
+            break;
+        }
+
+        case op_type::mul_x86:
+        {
+            const auto dst = sym_from_idx(opcode.v[0]);
+            const auto out = sym_from_idx(RAX_IR);
+
+            if(is_var(dst))
+            {
+                auto& ir_reg = reg_from_slot(dst,table,alloc);
+
+                // rax free
+                release_reg(alloc.reg_alloc,out);
+
+                // force to rax
+                assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
+            }
+            
+            rewrite_opcode(itl,alloc,block,node);
+            node = node->next;
             break;
         }
 
@@ -154,7 +203,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             // mark register as reserved
             release_reg(alloc.reg_alloc,spec_reg);
-            
+
             node = remove(block.list,node);
             break;
         }

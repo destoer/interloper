@@ -128,6 +128,11 @@ b32 is_restricted(RegAlloc& alloc, u32 reg)
 void restrict_reg(RegAlloc& alloc, SymSlot slot)
 {
     const auto reg = special_reg_to_reg(alloc.arch,slot);
+    
+    if(alloc.print)
+    {
+        printf("lock reg: %s\n",spec_reg_name(slot));
+    }
 
     assert(!is_restricted(alloc,reg));
 
@@ -143,13 +148,16 @@ void restrict_reg(RegAlloc& alloc, SymSlot slot)
             return;
         }
     }
-
-    assert(false);
 }
 
 void release_reg(RegAlloc& alloc, SymSlot slot)
 {
     const auto reg = special_reg_to_reg(alloc.arch,slot);
+
+    if(alloc.print)
+    {
+        printf("unlock reg: %s\n",spec_reg_name(slot));
+    }
 
     assert(is_restricted(alloc,reg));
 
@@ -179,13 +187,13 @@ void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
 
         if(is_tmp(slot))
         {
-            printf("reg r%d -> temp t%d\n",i,slot.handle);
+            printf("reg %s -> temp t%d\n",reg_name(alloc.arch,i),slot.handle);
         }
 
         else if(is_sym(slot))
         {
             const auto &sym = sym_from_slot(table,slot);
-            printf("reg r%d -> sym %s\n",i,sym.name.buf);
+            printf("reg %s -> sym %s\n",reg_name(alloc.arch,i),sym.name.buf);
         }
     }
 
@@ -290,19 +298,6 @@ bool request_reg(RegAlloc& alloc, u32 req_reg)
     return false;
 }
 
-bool allocate_into_rv(RegAlloc& alloc,Reg& ir_reg)
-{
-    const u32 RV = arch_rv(alloc.arch);
-
-    if(request_reg(alloc,RV))
-    {
-        assert(alloc_reg(ir_reg,alloc) == RV);
-        return true;
-    }
-
-    return false;
-}
-
 
 void check_dead_reg(RegAlloc& alloc, Reg& ir_reg)
 {
@@ -312,6 +307,36 @@ void check_dead_reg(RegAlloc& alloc, Reg& ir_reg)
         alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
     }   
 }
+
+// mark usage for internal freeing
+void mark_reg_usage(RegAlloc& alloc, Reg& ir_reg, bool is_dst)
+{
+    ir_reg.uses++;
+
+    // is this is a dst we need to write this back when spilled
+    if(is_dst)
+    {
+        ir_reg.dirty = true;
+    }
+
+    check_dead_reg(alloc,ir_reg);
+}
+
+
+b32 allocate_into_reg(RegAlloc& alloc,Reg& ir_reg,SymSlot spec_reg)
+{
+    const u32 reg = special_reg_to_reg(alloc.arch,spec_reg);
+
+    if(request_reg(alloc,reg))
+    {
+        assert(alloc_reg(ir_reg,alloc) == reg);
+        return true;
+    }
+
+    return false;
+}
+
+
 
 void mark_lifetimes(Function& func,Array<Reg> &tmp_regs, SymbolTable& table)
 {

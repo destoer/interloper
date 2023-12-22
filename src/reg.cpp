@@ -175,6 +175,24 @@ void print(const Reg& reg)
     }
 }
 
+const char* spec_reg_name(SymSlot spec_reg)
+{
+    return SPECIAL_REG_NAMES[spec_reg.handle - SPECIAL_PURPOSE_REG_START].buf;    
+}
+
+
+const char* reg_name(arch_target arch, u32 reg)
+{
+    switch(arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            return X86_NAMES[reg];
+        }
+    }
+
+    return nullptr;
+}
 
 SymSlot new_tmp(Function& func, u32 size)
 {

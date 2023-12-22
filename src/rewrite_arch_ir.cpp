@@ -106,7 +106,7 @@ void emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
     }
 }
 
-ListNode* x86_fixed_oper(Block& block, ListNode* node, op_type type, u32 out_reg)
+ListNode* x86_fixed_oper(Block& block, ListNode* node, op_type type)
 {
     // div dst, v1 , v2    
     const auto dst = node->opcode.v[0];
@@ -123,13 +123,10 @@ ListNode* x86_fixed_oper(Block& block, ListNode* node, op_type type, u32 out_reg
     node = insert_after(block.list,node,make_op(op_type::cqo));
     
     // perform the operation!
-    node = insert_after(block.list,node,make_op(type,v2));
+    node = insert_after(block.list,node,make_op(type,dst,v2));
 
     // we are now allowed to give back rdx again
     node = insert_after(block.list,node,make_op(op_type::release_reg,RDX_IR));   
-
-    // copy out the result
-    node = insert_after(block.list,node,make_op(op_type::mov_reg,dst,out_reg));
 
     return node->next;
 }
@@ -137,12 +134,12 @@ ListNode* x86_fixed_oper(Block& block, ListNode* node, op_type type, u32 out_reg
 
 ListNode* mul_x86(Block& block, ListNode* node)
 {
-    return x86_fixed_oper(block,node,op_type::mul_x86,RAX_IR);
+    return x86_fixed_oper(block,node,op_type::mul_x86);
 }
 
 ListNode* div_x86(Block& block, ListNode* node)
 {
-    return x86_fixed_oper(block,node,op_type::div_x86,RAX_IR);
+    return x86_fixed_oper(block,node,op_type::div_x86);
 }
 
 
