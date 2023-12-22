@@ -116,14 +116,17 @@ ListNode* x86_fixed_oper(Block& block, ListNode* node, op_type type, u32 out_reg
     // move in numerator
     node->opcode = make_op(op_type::replace_reg,RAX_IR,v1);
 
-    // make sure rdx is free
-    node = insert_after(block.list,node,make_op(op_type::evict_reg,RDX_IR));            
+    // make sure rdx is free and cannot be used for allocation
+    node = insert_after(block.list,node,make_op(op_type::reserve_reg,RDX_IR));            
 
     // sign extend rax into rdx
     node = insert_after(block.list,node,make_op(op_type::cqo));
     
     // perform the operation!
     node = insert_after(block.list,node,make_op(type,v2));
+
+    // we are now allowed to give back rdx again
+    node = insert_after(block.list,node,make_op(op_type::release_reg,RDX_IR));   
 
     // copy out the result
     node = insert_after(block.list,node,make_op(op_type::mov_reg,dst,out_reg));

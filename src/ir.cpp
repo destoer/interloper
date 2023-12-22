@@ -136,11 +136,25 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;
         }
 
-        case op_type::evict_reg:
+        case op_type::reserve_reg:
         {
             const auto spec_reg = sym_from_idx(opcode.v[0]);
             evict_reg(alloc,table,block,node,spec_reg);
 
+            // mark register as reserved
+            restrict_reg(alloc.reg_alloc,spec_reg);
+
+            node = remove(block.list,node);
+            break;
+        }
+
+        case op_type::release_reg:
+        {
+            const auto spec_reg = sym_from_idx(opcode.v[0]);
+
+            // mark register as reserved
+            release_reg(alloc.reg_alloc,spec_reg);
+            
             node = remove(block.list,node);
             break;
         }

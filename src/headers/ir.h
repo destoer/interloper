@@ -149,7 +149,8 @@ enum class op_type
     placeholder,
 
     replace_reg,
-    evict_reg,
+    reserve_reg,
+    release_reg,
 
 
     spill,

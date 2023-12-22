@@ -16,6 +16,8 @@ struct RegAlloc
     SymSlot dead_slot[MACHINE_REG_SIZE] = {0};
     u32 dead_count = 0;
 
+    u32 restricted_reg = 0;
+
     // bitset of which regs this functions needs to use
     // for now we are going to just callee save every register
     u32 used_regs;
@@ -75,7 +77,86 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
 
     alloc.arch = arch;
 
+
     return alloc;
+}
+
+
+u32 special_reg_to_reg(arch_target arch,SymSlot slot)
+{
+    switch(slot.handle)
+    {
+        case SP_IR:
+        { 
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rsp;
+                }
+            }
+            assert(false);
+        }
+
+
+        case RV_IR: 
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rax;
+                }
+            }
+            assert(false);
+        }
+
+        case RAX_IR: return u32(x86_reg::rax);
+        case RDI_IR: return u32(x86_reg::rdi); 
+        case RSI_IR: return u32(x86_reg::rsi); 
+        case RDX_IR: return u32(x86_reg::rdx);
+
+        default: crash_and_burn("unhandled special reg %x\n",slot); 
+    }    
+}
+
+b32 is_restricted(RegAlloc& alloc, u32 reg)
+{
+    return is_set(alloc.restricted_reg,reg);
+}
+
+void restrict_reg(RegAlloc& alloc, SymSlot slot)
+{
+    const auto reg = special_reg_to_reg(alloc.arch,slot);
+
+    assert(!is_restricted(alloc,reg));
+
+    alloc.restricted_reg = set_bit(alloc.restricted_reg,reg);
+
+    //  remove it from the free list so it cant be allocated
+    for(u32 r = 0; r < alloc.free_regs; r++)
+    {
+        if(alloc.free_list[r] == reg)
+        {
+            std::swap(alloc.free_list[r],alloc.free_list[alloc.free_regs - 1]);
+            alloc.free_regs--;
+            return;
+        }
+    }
+
+    assert(false);
+}
+
+void release_reg(RegAlloc& alloc, SymSlot slot)
+{
+    const auto reg = special_reg_to_reg(alloc.arch,slot);
+
+    assert(is_restricted(alloc,reg));
+
+    alloc.restricted_reg = deset_bit(alloc.restricted_reg,reg);
+
+    // put register back inside the free list
+    alloc.free_list[alloc.free_regs++] = reg;
 }
 
 void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
@@ -191,6 +272,11 @@ u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
 
 bool request_reg(RegAlloc& alloc, u32 req_reg)
 {
+    if(is_restricted(alloc,req_reg))
+    {
+        return false;
+    }
+
     // attempt to swap rv to the end of the free list
     for(u32 r = 0; r < alloc.free_regs; r++)
     {
@@ -217,44 +303,6 @@ bool allocate_into_rv(RegAlloc& alloc,Reg& ir_reg)
     return false;
 }
 
-
-u32 special_reg_to_reg(arch_target arch,SymSlot slot)
-{
-    switch(slot.handle)
-    {
-        case SP_IR:
-        { 
-            switch(arch)
-            {
-                case arch_target::x86_64_t:
-                {
-                    return x86_reg::rsp;
-                }
-            }
-            assert(false);
-        }
-
-
-        case RV_IR: 
-        {
-            switch(arch)
-            {
-                case arch_target::x86_64_t:
-                {
-                    return x86_reg::rax;
-                }
-            }
-            assert(false);
-        }
-
-        case RAX_IR: return u32(x86_reg::rax);
-        case RDI_IR: return u32(x86_reg::rdi); 
-        case RSI_IR: return u32(x86_reg::rsi); 
-        case RDX_IR: return u32(x86_reg::rdx);
-
-        default: crash_and_burn("unhandled special reg %x\n",slot); 
-    }    
-}
 
 void check_dead_reg(RegAlloc& alloc, Reg& ir_reg)
 {
