@@ -76,18 +76,18 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             const auto dst = sym_from_idx(opcode.v[0]);
             const auto src = sym_from_idx(opcode.v[1]);
 
-            // used for return values just
-            // rewrite the register into R0
-            if(src.handle == RV_IR && is_var(dst))
+            // i.e used for return values just
+            // rewrite the register into spec RV
+            if(is_special_reg(src) && is_var(dst))
             {
                 auto& ir_reg = reg_from_slot(dst,table,alloc);
 
                 // attempt to force reg
-                if(allocate_into_reg(alloc.reg_alloc,ir_reg,{RV_IR}))
+                if(allocate_into_reg(alloc.reg_alloc,ir_reg,src))
                 {
                     if(alloc.reg_alloc.print)
                     {
-                        printf("forcing ir %x into RV\n",dst.handle);
+                        printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(src));
                     }
                     mark_reg_usage(alloc.reg_alloc,ir_reg,true);
                     node = remove(block.list,node);
@@ -95,7 +95,19 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 }
             }
 
-            // implement reg coalesce
+            // if this is a value allready held  the machine reg we are about to move to
+            // we must make sure we save the value incase we need it later!
+            if(is_special_reg(dst))
+            {
+                const u32 reg = special_reg_to_reg(alloc.arch,dst);
+
+                const auto held_slot = alloc.reg_alloc.regs[reg];
+
+                if(is_var(held_slot))
+                {
+                    evict_reg(alloc,table,block,node,dst);
+                }
+            }
 
             // just do it normally
             rewrite_opcode(itl,alloc,block,node);
@@ -158,6 +170,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 // rax free
                 release_reg(alloc.reg_alloc,out);
 
+                if(alloc.reg_alloc.print)
+                {
+                    printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(out));
+                }
+
                 // force to rax
                 assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
             }
@@ -178,6 +195,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
                 // rax free
                 release_reg(alloc.reg_alloc,out);
+
+                if(alloc.reg_alloc.print)
+                {
+                    printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(out));
+                }
 
                 // force to rax
                 assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
