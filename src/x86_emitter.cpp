@@ -98,6 +98,16 @@ void emit_reg2_mr(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
     push_u8(emitter,mod_reg(dst,v1));
 }
 
+void prefix_u8_data_reg(AsmEmitter& emitter, x86_reg dst)
+{
+    // index or data reg, used must prefix with rex
+    if(dst > x86_reg::rdx)
+    {
+        push_u8(emitter,REX);
+    }
+}
+
+
 void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // add r64, r64
@@ -213,6 +223,16 @@ void sub_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
     arith_imm(emitter,dst,v1,5);
 }
 
+void xor_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+{
+    arith_imm(emitter,dst,v1,6);
+}
+
+void cmp_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+{
+    arith_imm(emitter,dst,v1,7);
+}
+
 void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // mov r64, r64
@@ -245,6 +265,8 @@ void sw(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 
 void sb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 {
+    prefix_u8_data_reg(emitter,src);
+
     // mov r/m8, r8
     const u8 opcode = 0x88;
     push_u8(emitter,opcode);
@@ -282,6 +304,8 @@ u32 call(AsmEmitter& emitter,LabelSlot addr)
 
 void emit_set_flag(AsmEmitter& emitter, x86_reg dst, u8 op)
 {
+    prefix_u8_data_reg(emitter,dst);
+
     push_u16(emitter,(op << 8) | (0xf << 0));
     push_u8(emitter,mod_opcode_reg(dst,0));
 }
@@ -290,6 +314,33 @@ void setsgt(AsmEmitter& emitter, x86_reg dst)
 {
     emit_set_flag(emitter,dst,0x9f);
 }
+
+void setslt(AsmEmitter& emitter, x86_reg dst)
+{
+    emit_set_flag(emitter,dst,0x9c);
+}
+
+void setsle(AsmEmitter& emitter, x86_reg dst)
+{
+    emit_set_flag(emitter,dst,0x9e);
+}
+
+void setsge(AsmEmitter& emitter, x86_reg dst)
+{
+    emit_set_flag(emitter,dst,0x9d);
+}
+
+
+void seteq(AsmEmitter& emitter, x86_reg dst)
+{
+    emit_set_flag(emitter,dst,0x94);
+}
+
+void setne(AsmEmitter& emitter, x86_reg dst)
+{
+    emit_set_flag(emitter,dst,0x95);
+}
+
 
 void push(AsmEmitter& emitter, x86_reg src)
 {
@@ -369,6 +420,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_type::xor_imm2:
+        {
+            xor_imm(emitter,dst,s32(v1));
+            break;
+        }
+
         case op_type::and_reg2: 
         {
             bitwise_and(emitter,dst,v1);
@@ -393,9 +450,46 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+
+        case op_type::cmp_flags_imm:
+        {
+            cmp_imm(emitter,dst,v1);
+            break;
+        }      
+
         case op_type::setsgt:
         {
             setsgt(emitter,dst);
+            break;
+        }
+
+        case op_type::setsge:
+        {
+            setsge(emitter,dst);
+            break;
+        }
+
+        case op_type::setslt:
+        {
+            setslt(emitter,dst);
+            break;
+        }
+
+        case op_type::setsle:
+        {
+            setsle(emitter,dst);
+            break;
+        }
+
+        case op_type::seteq:
+        {
+            seteq(emitter,dst);
+            break;
+        }
+
+        case op_type::setne:
+        {
+            setne(emitter,dst);
             break;
         }
 
