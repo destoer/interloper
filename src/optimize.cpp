@@ -337,6 +337,24 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
                 break;
             }
 
+            case op_type::or_reg:
+            {
+                ans = make_const_value(v1 | v2);
+                break;
+            }
+
+            case op_type::xor_reg:
+            {
+                ans = make_const_value(v1 ^ v2);
+                break;
+            }
+
+            case op_type::not_reg:
+            {
+                ans = make_const_value(~v1);
+                break;
+            }
+
             case op_type::add_imm:
             {
                 ans = make_const_value(v1 + v2);
