@@ -137,6 +137,12 @@ void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm(emitter,0x2B,dst,v1);
 }
 
+void cmp(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
+{
+    // cmp r64, r64
+    emit_reg2_rm(emitter,0x3B,v1,v2);
+}
+
 void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 {
     const u8 opcode = 0xb8 + u32(reg);
@@ -274,6 +280,17 @@ u32 call(AsmEmitter& emitter,LabelSlot addr)
     return offset;
 }
 
+void emit_set_flag(AsmEmitter& emitter, x86_reg dst, u8 op)
+{
+    push_u16(emitter,(op << 8) | (0xf << 0));
+    push_u8(emitter,mod_opcode_reg(dst,0));
+}
+
+void setsgt(AsmEmitter& emitter, x86_reg dst)
+{
+    emit_set_flag(emitter,dst,0x9f);
+}
+
 void push(AsmEmitter& emitter, x86_reg src)
 {
     // push +r64
@@ -285,15 +302,6 @@ void pop(AsmEmitter& emitter, x86_reg src)
     // pop +r64
     push_u8(emitter,0x58 + u32(src));
 }
-
-
-/*
-void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
-{
-    // sub dst
-}
-*/
-
 
 void syscall(AsmEmitter& emitter)
 {
@@ -376,6 +384,18 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::sub_reg2: 
         {
             sub(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::cmp_flags:
+        {
+            cmp(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::setsgt:
+        {
+            setsgt(emitter,dst);
             break;
         }
 
