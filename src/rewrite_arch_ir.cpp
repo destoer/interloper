@@ -35,6 +35,31 @@ ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type
     return node->next;
 }
 
+ListNode* rewrite_imm3_two(Block& block, ListNode* node,op_type type)
+{
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+    const auto imm = node->opcode.v[2];
+
+    // add dst, dst, imm
+    // -> add dst, imm
+    if(dst == v1)
+    {
+        node->opcode = make_op(type,dst,imm);
+    }
+
+    // add dst, v1, imm
+    // -> mov dst, v1
+    // -> add dst, imm
+    else
+    {
+        node->opcode = Opcode(op_type::mov_reg,dst,v1,0);
+        node = insert_after(block.list,node,make_op(type,dst,imm));
+    }
+
+    return node->next;
+}
+
 ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type type)
 {
     const auto dst = node->opcode.v[0];
@@ -153,6 +178,35 @@ ListNode* div_x86(Block& block, ListNode* node)
     return x86_fixed_oper(block,node,op_type::div_x86);
 }
 
+ListNode* rewrite_cmp_flag_reg(Block& block, ListNode* node, op_type set)
+{
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+    const auto v2 = node->opcode.v[2];
+
+    // cmpsgt dst,v1,v2
+    // -> cmp_flags v1, v2
+    // -> setsgt dst
+    node->opcode = make_op(op_type::cmp_flags,v1,v2);
+    node = insert_after(block.list,node,make_op(set,dst));
+
+    return node->next;
+}
+
+ListNode* rewrite_cmp_flag_imm(Block& block, ListNode* node, op_type set)
+{
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+    const auto imm = node->opcode.v[2];
+
+    // cmpsgt dst,v1,imm
+    // -> cmp_flags_imm v1, imm
+    // -> setsgt dst
+    node->opcode = make_op(op_type::cmp_flags_imm,v1,imm);
+    node = insert_after(block.list,node,make_op(set,dst));
+
+    return node->next;
+}
 
 // TODO: we need a mechanism for rewriting large imm
 // on RISC ISA
@@ -165,6 +219,15 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
     // but ah well
     switch(opcode.op)
     {
+        case op_type::cmpsgt_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setsgt);
+        }
+
+        case op_type::cmpsgt_imm:
+        {
+            return rewrite_cmp_flag_imm(block,node,op_type::setsgt);
+        }
 
         case op_type::add_reg: 
         {
@@ -180,6 +243,11 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         {
             return rewrite_reg3_two_commutative(block,node,op_type::xor_reg2);
         }
+
+        case op_type::xor_imm: 
+        {
+            return rewrite_imm3_two(block,node,op_type::xor_imm2);
+        } 
 
         case op_type::or_reg: 
         {

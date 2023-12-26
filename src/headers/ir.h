@@ -112,6 +112,13 @@ enum class op_type
     cmpeq_imm,
     cmpne_imm,
 
+    // compare flags
+    cmp_flags,
+    cmp_flags_imm,
+
+    // set signed
+    setsgt,
+
     bnc,
     bc,
     b,
