@@ -104,16 +104,37 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm(emitter,0x3,dst,v1);
 }
 
-void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+void bitwise_and(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
-    // sub r64, r64
-    emit_reg2_rm(emitter,0x2B,dst,v1);
+    // and r64, r64
+    emit_reg2_rm(emitter,0x23,dst,v1);
+}
+
+void bitwise_or(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // or r64, r64
+    emit_reg2_rm(emitter,0xB,dst,v1);
 }
 
 void bitwise_xor(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
-    // add r64, r64
-    emit_reg2_rm(emitter,0x31,dst,v1);
+    // xor r64, r64
+    emit_reg2_rm(emitter,0x33,dst,v1);
+}
+
+void bitwise_not(AsmEmitter& emitter, x86_reg dst)
+{
+    // not r64
+    const u8 opcode = 0xf7;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u8(emitter,mod_opcode_reg(dst,2));
+}
+
+void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // sub r64, r64
+    emit_reg2_rm(emitter,0x2B,dst,v1);
 }
 
 void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
@@ -325,6 +346,30 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::add_reg2: 
         {
             add(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::not_reg1: 
+        {
+            bitwise_not(emitter,dst);
+            break;
+        }
+
+        case op_type::xor_reg2: 
+        {
+            bitwise_xor(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::and_reg2: 
+        {
+            bitwise_and(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::or_reg2: 
+        {
+            bitwise_or(emitter,dst,v1);
             break;
         }
 

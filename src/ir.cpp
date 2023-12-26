@@ -95,7 +95,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 }
             }
 
-            // if this is a value allready held  the machine reg we are about to move to
+            // if a value is allready held in the machine reg we are about to move to
             // we must make sure we save the value incase we need it later!
             if(is_special_reg(dst))
             {

@@ -72,6 +72,17 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     return node->next;
 }
 
+ListNode* rewrite_reg2_one(Block& block, ListNode* node,op_type type)
+{
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+
+    node->opcode = Opcode(op_type::mov_reg,dst,v1,0);
+    node = insert_after(block.list,node,make_op(type,dst));
+
+    return node->next;
+}
+
 void assert_bound(u64 v,u64 min, u64 max)
 {
     assert(in_range(v,min,max));
@@ -158,6 +169,26 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::add_reg: 
         {
             return rewrite_reg3_two_commutative(block,node,op_type::add_reg2);
+        }
+
+        case op_type::and_reg: 
+        {
+            return rewrite_reg3_two_commutative(block,node,op_type::and_reg2);
+        }
+
+        case op_type::xor_reg: 
+        {
+            return rewrite_reg3_two_commutative(block,node,op_type::xor_reg2);
+        }
+
+        case op_type::or_reg: 
+        {
+            return rewrite_reg3_two_commutative(block,node,op_type::or_reg2);
+        }
+
+        case op_type::not_reg:
+        {
+            return rewrite_reg2_one(block,node,op_type::not_reg1);
         }
 
         case op_type::sub_reg: 

@@ -47,7 +47,6 @@ enum class op_type
     xor_reg2,
     or_reg2,
     and_reg2,
-    not_reg2,
     
     add_imm2,
     sub_imm2,
@@ -59,6 +58,8 @@ enum class op_type
     cqo,
     div_x86,
     mul_x86,
+
+    not_reg1,
 
     lb,
     lh,
