@@ -117,7 +117,13 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cmp_flags_imm %r, %x",2,{arg_type::src_reg,arg_type::imm,arg_type::none}},
 
     // flag signed
+    {op_group::reg_t,"setslt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setsle %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setsgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setsge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+    {op_group::reg_t,"seteq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
     {op_group::branch_t,"bnc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
     {op_group::branch_t,"bc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},

@@ -215,18 +215,48 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
     const auto& opcode = node->opcode;
     const auto& info = info_from_op(opcode);
 
-    // TODO: need to improve this to take advantage of the fact some operands are commutive
-    // but ah well
+
     switch(opcode.op)
     {
+        case op_type::cmpslt_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setslt);
+        }
+
+        case op_type::cmpsle_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setsle);
+        }
+
         case op_type::cmpsgt_reg:
         {
             return rewrite_cmp_flag_reg(block,node,op_type::setsgt);
         }
 
+        case op_type::cmpsge_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setsge);
+        }
+
+        case op_type::cmpeq_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::seteq);
+        }
+
+        case op_type::cmpne_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setne);
+        }
+
+
         case op_type::cmpsgt_imm:
         {
             return rewrite_cmp_flag_imm(block,node,op_type::setsgt);
+        }
+
+        case op_type::cmpeq_imm:
+        {
+            return rewrite_cmp_flag_imm(block,node,op_type::seteq);
         }
 
         case op_type::add_reg: 

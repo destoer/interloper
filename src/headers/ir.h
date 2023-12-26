@@ -117,7 +117,13 @@ enum class op_type
     cmp_flags_imm,
 
     // set signed
+    setslt,
+    setsle,
     setsgt,
+    setsge,
+
+    seteq,
+    setne,
 
     bnc,
     bc,
