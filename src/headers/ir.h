@@ -59,6 +59,10 @@ enum class op_type
     div_x86,
     mul_x86,
 
+    lsl_x86,
+    lsr_x86,
+    asr_x86,
+
     not_reg1,
 
     lb,
@@ -423,12 +427,13 @@ static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
 
 // x86 regs
 static constexpr u32 RAX_IR = SPECIAL_PURPOSE_REG_START + 3;
-static constexpr u32 RDI_IR = SPECIAL_PURPOSE_REG_START + 4;
-static constexpr u32 RSI_IR = SPECIAL_PURPOSE_REG_START + 5;
-static constexpr u32 RDX_IR = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 RCX_IR = SPECIAL_PURPOSE_REG_START + 4;
+static constexpr u32 RDX_IR = SPECIAL_PURPOSE_REG_START + 5;
+static constexpr u32 RDI_IR = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 RSI_IR = SPECIAL_PURPOSE_REG_START + 7;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
-static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 7;
+static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 8;
 
 static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
@@ -438,15 +443,16 @@ static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 8;
 static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 9;
 static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 10;
 
-const String SPECIAL_REG_NAMES[11] = 
+const String SPECIAL_REG_NAMES[12] = 
 {
     "sp",
     "pc",
     "rv",
     "rax",
+    "rcx",
+    "rdx",
     "rdi",
     "rsi",
-    "rdx",
     "fixed_len",
     "null",
     "const",

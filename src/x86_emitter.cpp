@@ -384,6 +384,33 @@ void mul_x86(AsmEmitter& emitter, x86_reg src)
 }
 
 
+void lsl_x86(AsmEmitter& emitter, x86_reg src)
+{
+    // lsl r64, cl
+    const u8 opcode = 0xd3;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u8(emitter,mod_opcode_reg(src,4));
+}
+
+void lsr_x86(AsmEmitter& emitter, x86_reg src)
+{
+    // lsr r64, cl
+    const u8 opcode = 0xd3;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u8(emitter,mod_opcode_reg(src,5));
+}
+
+void asr_x86(AsmEmitter& emitter, x86_reg src)
+{
+    // asr r64, c;
+    const u8 opcode = 0xd3;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u8(emitter,mod_opcode_reg(src,7));
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
     UNUSED(emitter);
@@ -559,6 +586,24 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::mul_x86:
         {
             mul_x86(emitter,v1);
+            break;
+        }
+
+        case op_type::lsl_x86:
+        {
+            lsl_x86(emitter,dst);
+            break;
+        }
+
+        case op_type::lsr_x86:
+        {
+            lsr_x86(emitter,dst);
+            break;
+        }
+
+        case op_type::asr_x86:
+        {
+            asr_x86(emitter,dst);
             break;
         }
 

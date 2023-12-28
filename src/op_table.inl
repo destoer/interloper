@@ -57,6 +57,10 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"div_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"mul_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
 
+    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+
     {op_group::reg_t,"not %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
     // load

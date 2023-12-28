@@ -142,7 +142,7 @@ void emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
     }
 }
 
-ListNode* x86_fixed_oper(Block& block, ListNode* node, op_type type)
+ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type)
 {
     // div dst, v1 , v2    
     const auto dst = node->opcode.v[0];
@@ -168,15 +168,52 @@ ListNode* x86_fixed_oper(Block& block, ListNode* node, op_type type)
 }
 
 
+
+ListNode* x86_shift(Block& block, ListNode* node, op_type type)
+{
+    // lsl dst, v1 , v2    
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+    const auto v2 = node->opcode.v[2];
+
+    // rewrite to
+    // replace rcx, v2
+    // mov dst, v1
+    // lsl dst, rcx
+
+    node->opcode = make_op(op_type::replace_reg,RCX_IR,v2);
+    node = insert_after(block.list,node,make_op(op_type::mov_reg,dst,v1));
+    node = insert_after(block.list,node,make_op(type,dst,RCX_IR));
+
+    return node->next;
+}
+
 ListNode* mul_x86(Block& block, ListNode* node)
 {
-    return x86_fixed_oper(block,node,op_type::mul_x86);
+    return x86_fixed_arith_oper(block,node,op_type::mul_x86);
 }
 
 ListNode* div_x86(Block& block, ListNode* node)
 {
-    return x86_fixed_oper(block,node,op_type::div_x86);
+    return x86_fixed_arith_oper(block,node,op_type::div_x86);
 }
+
+ListNode* lsl_x86(Block& block, ListNode* node)
+{
+    return x86_shift(block,node,op_type::lsl_x86);
+}
+
+ListNode* asr_x86(Block& block, ListNode* node)
+{
+    return x86_shift(block,node,op_type::asr_x86);
+}
+
+ListNode* lsr_x86(Block& block, ListNode* node)
+{
+    return x86_shift(block,node,op_type::lsr_x86);
+}
+
+
 
 ListNode* rewrite_cmp_flag_reg(Block& block, ListNode* node, op_type set)
 {
@@ -287,6 +324,21 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::not_reg:
         {
             return rewrite_reg2_one(block,node,op_type::not_reg1);
+        }
+
+        case op_type::lsl_reg:
+        {
+            return lsl_x86(block,node);
+        }
+
+        case op_type::asr_reg:
+        {
+            return asr_x86(block,node);
+        }
+
+        case op_type::lsr_reg:
+        {
+            return lsr_x86(block,node); 
         }
 
         case op_type::sub_reg: 

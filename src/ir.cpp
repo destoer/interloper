@@ -60,6 +60,18 @@ ListNode* rewrite_access_struct(Interloper& itl, Function& func,LocalAlloc &allo
     return node->next;
 }
 
+ListNode* rewrite_x86_shift(Interloper& itl, LocalAlloc& alloc, Block& block, ListNode* node)
+{
+    const auto oper = sym_from_idx(RCX_IR);
+
+    // rcx free
+    release_reg(alloc.reg_alloc,oper);
+
+    rewrite_opcode(itl,alloc,block,node);
+
+    return node->next;
+}
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block &block, ListNode *node)
 {
     auto &table = itl.symbol_table;
@@ -207,6 +219,24 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             
             rewrite_opcode(itl,alloc,block,node);
             node = node->next;
+            break;
+        }
+
+        case op_type::lsl_x86:
+        {
+            node = rewrite_x86_shift(itl,alloc,block,node);
+            break;
+        }
+
+        case op_type::lsr_x86:
+        {
+            node = rewrite_x86_shift(itl,alloc,block,node);
+            break;
+        }
+
+        case op_type::asr_x86:
+        {
+            node = rewrite_x86_shift(itl,alloc,block,node);
             break;
         }
 
