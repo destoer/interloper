@@ -90,19 +90,39 @@ void push_base_disp(AsmEmitter& emitter,x86_reg dst, x86_reg src, s32 imm)
     }
 }
 
-void emit_reg2_rm_extended(AsmEmitter& emitter, const u16 opcode, x86_reg dst, x86_reg v1)
+void emit_reg2_rm_extended_32(AsmEmitter& emitter, const u16 opcode, x86_reg dst, x86_reg v1)
 {
-    // opcode r1, r2
-    push_u8(emitter,REX_W);
+    // opcode r32, r2
     push_u16(emitter,(opcode));
     push_u8(emitter,mod_reg(v1,dst));
 }
+
+void emit_reg2_rm_extended(AsmEmitter& emitter, const u16 opcode, x86_reg dst, x86_reg v1)
+{
+    // opcode r64, r2
+    // override to r64
+    push_u8(emitter,REX_W);
+    emit_reg2_rm_extended_32(emitter,opcode,dst,v1);
+}
+
+void emit_reg2_rm_32(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
+{
+    // opcode r1, r2
+    push_u16(emitter,(mod_reg(v1,dst) << 8) | (opcode << 0));
+}
+
 
 void emit_reg2_rm(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 {
     // opcode r1, r2
     push_u16(emitter,(opcode << 8) | REX_W);
     push_u8(emitter,mod_reg(v1,dst));
+}
+
+void emit_reg2_mr_32(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
+{
+    // opcode r1, r2
+    push_u16(emitter,(mod_reg(dst,v1) << 8) | (opcode << 0));
 }
 
 void emit_reg2_mr(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
@@ -259,21 +279,22 @@ void and_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
     if(v1 == 0xff)
     {
         // movzx r64, r8
-        emit_reg2_rm_extended(emitter,0xb6'0f,dst,dst);
+        emit_reg2_rm_extended_32(emitter,0xb6'0f,dst,dst);
     }
 
     else if(v1 == 0xffff)
     {
         // movzx r64, r16
-        emit_reg2_rm_extended(emitter,0xb7'0f,dst,dst);
+        emit_reg2_rm_extended_32(emitter,0xb7'0f,dst,dst);
     }
 
     else if(v1 == 0xffff'ffff)
     {
         // rely on 32 bit zero extenstion
+        // NOTE: this may generate weird looking instructions
+        // like mov eax, eax
         // mov r32, r32
-        const u8 opcode = 0x89;
-        push_u16(emitter,(mod_reg(dst,dst) << 8) | (opcode << 0));
+        emit_reg2_mr_32(emitter,0x89,dst,dst);
     }
 
     // special case for u32
