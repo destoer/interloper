@@ -255,10 +255,31 @@ void xor_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 
 void and_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
+    // special case type clipping
+    if(v1 == 0xff)
+    {
+        // movzx r64, r8
+        emit_reg2_rm_extended(emitter,0xb6'0f,dst,dst);
+    }
+
+    else if(v1 == 0xffff)
+    {
+        // movzx r64, r16
+        emit_reg2_rm_extended(emitter,0xb7'0f,dst,dst);
+    }
+
+    else if(v1 == 0xffff'ffff)
+    {
+        // rely on 32 bit zero extenstion
+        // mov r32, r32
+        const u8 opcode = 0x89;
+        push_u16(emitter,(mod_reg(dst,dst) << 8) | (opcode << 0));
+    }
+
     // special case for u32
     // as any 32 bit value will remove
     // the top bits when and happens a zero extend from eax is fine!
-    if(fit_into_u32(v1))
+    else if(fit_into_u32(v1))
     {
         // and r32, u32
         const u32 opcode = 0x81;
