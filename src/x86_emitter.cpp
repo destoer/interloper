@@ -77,10 +77,16 @@ void push_base_disp(AsmEmitter& emitter,x86_reg dst, x86_reg src, s32 imm)
     }
 
     // use 32 bit
-    else
+    else if(fit_into_s32(imm))
     {
         push_u16(emitter,mod_base_disp_32(dst,src));
         push_u32(emitter,imm);
+    }
+
+    // cannot fit
+    else
+    {
+        assert(false);
     }
 }
 
@@ -471,6 +477,20 @@ void asr_x86(AsmEmitter& emitter, x86_reg src)
     push_u8(emitter,mod_opcode_reg(src,7));
 }
 
+void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
+{
+    // lea r64, [r64 + disp]
+    const u8 opcode = 0x8d;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_base_disp(emitter,dst,v1,imm);
+}
+
+void lea(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
+{
+    add(emitter,dst,v1,imm);
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
     UNUSED(emitter);
@@ -675,25 +695,31 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::lb:
         {
-            lb(emitter,dst,v1,s32(v2));
+            lb(emitter,dst,v1,s64(v2));
             break;
         }
 
         case op_type::sb:
         {
-            sb(emitter,dst,v1,s32(v2));
+            sb(emitter,dst,v1,s64(v2));
             break;
         }
 
         case op_type::sw:
         {
-            sw(emitter,dst,v1,s32(v2));
+            sw(emitter,dst,v1,s64(v2));
             break;
         }
 
         case op_type::lsw:
         {
-            lsw(emitter,dst,v1,s32(v2));
+            lsw(emitter,dst,v1,s64(v2));
+            break;
+        }
+
+        case op_type::lea:
+        {
+            lea(emitter,dst,v1,s64(v2));
             break;
         }
 
