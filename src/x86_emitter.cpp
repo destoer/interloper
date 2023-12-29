@@ -84,6 +84,14 @@ void push_base_disp(AsmEmitter& emitter,x86_reg dst, x86_reg src, s32 imm)
     }
 }
 
+void emit_reg2_rm_extended(AsmEmitter& emitter, const u16 opcode, x86_reg dst, x86_reg v1)
+{
+    // opcode r1, r2
+    push_u8(emitter,REX_W);
+    push_u16(emitter,(opcode));
+    push_u8(emitter,mod_reg(v1,dst));
+}
+
 void emit_reg2_rm(AsmEmitter& emitter, const u8 opcode, x86_reg dst, x86_reg v1)
 {
     // opcode r1, r2
@@ -315,6 +323,26 @@ void lb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 
     push_base_disp(emitter,src,v1,imm);
 }
+
+void sxb(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // movsx r64, r8
+    emit_reg2_rm_extended(emitter,0xbe'0f,dst,v1);
+}
+
+
+void sxh(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // movsx r64, r16
+    emit_reg2_rm_extended(emitter,0xbf'0f,dst,v1);
+}
+
+void sxw(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // movsxd r64, r16
+    emit_reg2_rm(emitter,0x63,dst,v1);
+}
+
 
 // TODO: this wont leave any useful linking information yet
 u32 call(AsmEmitter& emitter,LabelSlot addr)
@@ -668,6 +696,25 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             lsw(emitter,dst,v1,s32(v2));
             break;
         }
+
+        case op_type::sxb:
+        {
+            sxb(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::sxh:
+        {
+            sxh(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::sxw:
+        {
+            sxw(emitter,dst,v1);
+            break;
+        }
+
 
         default:
         {
