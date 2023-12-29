@@ -186,7 +186,7 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 }
 
 
-void arith_imm(AsmEmitter& emitter, x86_reg dst, s32 v1, u32 opcode_ext)
+void arith_imm(AsmEmitter& emitter, x86_reg dst, s64 v1, u32 opcode_ext)
 {
     // add r64, imm8
     if(fit_into_s8(v1))
@@ -201,34 +201,66 @@ void arith_imm(AsmEmitter& emitter, x86_reg dst, s32 v1, u32 opcode_ext)
     }
 
     // add r64, imm32
-    else
+    else if(fit_into_s32(v1))
     {
         const u8 opcode = 0x81;
         push_u16(emitter,(opcode << 8) | REX_W);
 
         // opcode extenstion required
-        push_u8(emitter,mod_opcode_reg(dst,opcode));
+        push_u8(emitter,mod_opcode_reg(dst,opcode_ext));
 
         push_u32(emitter,v1);
     }    
+
+    // imm64 required
+    // NOTE: this should not trip
+    // our upper level IR should convert this to
+    // add dst, imm64
+    // -> mov t0, imm64
+    // -> add dst, t0
+    else
+    {
+        assert(false);
+    }
 }
 
-void add_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+void add_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
     arith_imm(emitter,dst,v1,0);
 }
 
-void sub_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+void sub_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
     arith_imm(emitter,dst,v1,5);
 }
 
-void xor_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+void xor_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
     arith_imm(emitter,dst,v1,6);
 }
 
-void cmp_imm(AsmEmitter& emitter, x86_reg dst, s32 v1)
+void and_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
+{
+    // special case for u32
+    // as any 32 bit value will remove
+    // the top bits when and happens a zero extend from eax is fine!
+    if(fit_into_u32(v1))
+    {
+        // and r32, u32
+        const u32 opcode = 0x81;
+        push_u16(emitter,(mod_opcode_reg(dst,4) << 8) | (opcode << 0));
+
+        push_u32(emitter,v1);   
+    }
+
+    else
+    {
+        arith_imm(emitter,dst,v1,4);
+    }
+}
+
+
+void cmp_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
     arith_imm(emitter,dst,v1,7);
 }
@@ -449,13 +481,19 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::xor_imm2:
         {
-            xor_imm(emitter,dst,s32(v1));
+            xor_imm(emitter,dst,s64(v1));
             break;
         }
 
         case op_type::and_reg2: 
         {
             bitwise_and(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::and_imm2:
+        {
+            and_imm(emitter,dst,s64(v1));
             break;
         }
 

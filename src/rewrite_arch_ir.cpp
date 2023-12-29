@@ -306,6 +306,11 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_reg3_two_commutative(block,node,op_type::and_reg2);
         }
 
+        case op_type::and_imm:
+        {
+            return rewrite_imm3_two(block,node,op_type::and_imm2);
+        }
+
         case op_type::xor_reg: 
         {
             return rewrite_reg3_two_commutative(block,node,op_type::xor_reg2);
