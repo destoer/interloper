@@ -71,7 +71,8 @@ void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
     const auto info = info_from_op(opcode);
 
-    if(info.type[reg] == arg_type::src_reg || info.type[reg] == arg_type::dst_reg)
+    // only want to rewrite regs
+    if(is_arg_reg(info.type[reg]))
     {
         rewrite_reg_internal(table,alloc,opcode,reg);
     }
@@ -296,8 +297,8 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
 
     const SymSlot slot = sym_from_idx(node->opcode.v[reg]);
 
-    const b32 is_src = info.type[reg] == arg_type::src_reg;
-    const b32 is_dst = info.type[reg] == arg_type::dst_reg;
+    const b32 is_src = is_arg_src(info.type[reg]);
+    const b32 is_dst = is_arg_dst(info.type[reg]);
 
     // special purpose ir reg dont allocate just rewrite it
     if(is_special_reg(slot))
@@ -391,7 +392,7 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
     for(u32 a = 1; a < info.args; a++)
     {
         // only interested in src registers
-        if(info.type[a] != arg_type::src_reg)
+        if(!is_arg_src(info.type[a]))
         {
             continue;
         }
@@ -403,20 +404,20 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
     
     // alloc the first slot
     // NOTE: this is done seperately in case we can reuse src slots as the dst
-    const b32 is_dst = info.type[0] == arg_type::dst_reg;
-    const b32 is_src = info.type[0] == arg_type::src_reg;
+    // however this can only be done if it is just a src, not a mixed dst/src
+    const b32 is_only_dst = info.type[0] == arg_type::dst_reg;
 
     // regs can be freed early
     // NOTE: this cannot happen on a src
     // because otherwhise a reload will be inserted before
     // the current instruction that clobbers the var we have just rewritten
-    if(is_dst)
+    if(is_only_dst)
     {
         // free any regs that are never used again
         clean_dead_regs(table,alloc,block,node);        
     }
 
-    if(is_src || is_dst)
+    if(is_arg_reg(info.type[0]))
     {
         allocate_and_rewrite(table,alloc,block,node,0);
     }

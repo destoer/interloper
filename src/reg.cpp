@@ -35,6 +35,20 @@ b32 is_tmp(SymSlot s)
     return s.handle < TMP_END;
 }
 
+b32 is_arg_reg(arg_type type)
+{
+    return type <= arg_type::dst_src_reg;
+}
+
+b32 is_arg_src(arg_type type)
+{
+    return type == arg_type::dst_src_reg || type == arg_type::src_reg;
+}
+
+b32 is_arg_dst(arg_type type)
+{
+    return type == arg_type::dst_src_reg || type == arg_type::dst_reg;
+}
 
 u32 slot_to_idx(SymSlot slot)
 {

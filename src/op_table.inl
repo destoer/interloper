@@ -31,37 +31,37 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"xor %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
     // main arith reg2
-    {op_group::reg_t,"add %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"sub %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"mul %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"div %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"mod %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"add %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"sub %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mul %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"div %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mod %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
 
-    {op_group::reg_t,"lsl %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"asr %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"lsr %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsl %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"asr %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsr %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::reg_t,"xor %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"or %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"and %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"xor %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"or %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"and %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::imm_t,"add %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
-    {op_group::imm_t,"sub %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
-    {op_group::imm_t,"mul %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"add %r, %x",2,{arg_type::dst_src_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"sub %r, %x",2,{arg_type::dst_src_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"mul %r, %x",2,{arg_type::dst_src_reg,arg_type::imm,arg_type::none}},
 
-    {op_group::imm_t,"and %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
-    {op_group::imm_t,"xor %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"and %r, %x",2,{arg_type::dst_src_reg,arg_type::imm,arg_type::none}},
+    {op_group::imm_t,"xor %r, %x",2,{arg_type::dst_src_reg,arg_type::imm,arg_type::none}},
 
     {op_group::implicit_t,"cqo",0,{arg_type::none,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"div_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"mul_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"div_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mul_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::reg_t,"not %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"not %r",1,{arg_type::dst_src_reg,arg_type::none,arg_type::none}},
 
     // load
     {op_group::load_t,"lb %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},

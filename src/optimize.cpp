@@ -137,7 +137,10 @@ InstrOper get_instr_operands(Interloper& itl,ValueTable& reg_value,const ListNod
     bool can_compute_dst = false;
 
     const auto info = info_from_op(node->opcode);
-    const bool is_dst = info.type[0] == arg_type::dst_reg;
+    const bool is_dst = is_arg_dst(info.type[0]);
+
+    // we optimize TAC this should not be present
+    assert(info.type[0] != arg_type::dst_src_reg);
 
     // saved values 
     // NOTE: only valid when can_compute_dst is true
@@ -606,7 +609,7 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
     if(!removed)
     {
         const auto info = info_from_op(node->opcode);
-        const b32 is_dst = info.type[0] == arg_type::dst_reg;
+        const b32 is_dst = is_arg_dst(info.type[0]);
         const auto dst = sym_from_idx(node->opcode.v[0]);
 
         // we managed to compute the result 
@@ -637,7 +640,7 @@ void update_var_tracking(Interloper& itl, Function& func, ValueTable& reg_value,
     // mark any uses (NOTE: we do this after inlining has happend)
     for(u32 a = 0; a < post_info.args; a++)
     {
-        if(post_info.type[a] == arg_type::src_reg)
+        if(is_arg_src(post_info.type[a]))
         {
             mark_use(reg_value,sym_from_idx(node->opcode.v[a]));
         }
@@ -674,7 +677,7 @@ void remove_dead_stores(Interloper& itl, Function& func, Block& block, ValueTabl
         const auto opcode = node->opcode;
         const auto& info = info_from_op(opcode);
 
-        if(info.type[0] == arg_type::dst_reg)
+        if(is_arg_dst(info.type[0]))
         {
             const auto dst = sym_from_idx(opcode.v[0]);
             const auto v1_opt = lookup(reg_value,dst);

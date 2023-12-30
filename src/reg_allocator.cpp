@@ -372,7 +372,7 @@ void mark_lifetimes(Function& func,Array<Reg> &tmp_regs, SymbolTable& table)
             for(u32 a = 0; a < info.args; a++)
             {
                 // only interested in registers
-                if(info.type[a] != arg_type::src_reg && info.type[a] != arg_type::dst_reg)
+                if(!is_arg_reg(info.type[a]))
                 {
                     continue;
                 }

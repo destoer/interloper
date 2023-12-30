@@ -251,8 +251,14 @@ enum class op_group
 
 enum class arg_type
 {
+    // NOTE: these 3 must be first
     src_reg,
     dst_reg,
+    // double duty, used in reg2 opcodes
+    // i.e add dst, v1
+    dst_src_reg,
+
+
     imm,
     label,
     directive,
