@@ -499,9 +499,26 @@ void link_elf(Interloper& itl, Elf& elf)
                 const u32 rel_addr = (label.offset  - (link.offset + asm_emitter.base_vaddr)) - 4;
 
                 write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+                break;
             }
 
-            default: break;
+            case op_type::load_func_addr:
+            {
+                // get the lable and write in the relative addr
+                const LabelSlot slot = label_from_idx(opcode.v[1]);
+                const auto label = label_from_slot(itl.symbol_table.label_lookup,slot);
+
+                const u32 rel_addr = (label.offset  - (link.offset + asm_emitter.base_vaddr)) - 4;
+
+                write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+                break;
+            }
+
+            default:
+            {
+                assert(false);
+                break;
+            }
         }
     }
 }

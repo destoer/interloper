@@ -65,7 +65,16 @@ u16 mod_base(x86_reg dst,x86_reg src)
 
 void push_base_disp(AsmEmitter& emitter,x86_reg dst, x86_reg src, s32 imm)
 {
-    if(imm == 0)
+    // handle special regs
+    if(src == x86_reg::rip)
+    {
+        // reg [rip + disp32]
+        const u8 mod = (0b00 << 6) | (dst << 3) | (0b101 << 0);
+        push_u8(emitter,mod);
+        push_u32(emitter,imm);
+    }
+
+    else if(imm == 0)
     {
         push_u16(emitter,mod_base(dst,src));
     }
@@ -367,8 +376,6 @@ void lb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
     push_base_disp(emitter,src,v1,imm);
 }
 
-
-// Todo: DONT KNOW IF THIS IS RIGHT
 void lh(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 {
     // movzx r64, r/m16,
@@ -477,6 +484,16 @@ u32 call(AsmEmitter& emitter,LabelSlot addr)
 
     return offset;
 }
+
+void call_reg(AsmEmitter& emitter, x86_reg src)
+{
+    // call r64
+    const u8 opcode = 0xff;
+    push_u8(emitter,opcode);
+
+    push_u8(emitter,mod_opcode_reg(src,2));
+}
+
 
 void emit_set_flag(AsmEmitter& emitter, x86_reg dst, u8 op)
 {
@@ -599,6 +616,15 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
 void lea(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
 {
     add(emitter,dst,v1,imm);
+}
+
+void add_lea_rel_link(AsmEmitter& emitter, const Opcode& opcode)
+{
+    // NOTE: relies on emitter disp allwayys being u32
+    // for RIP relative
+    const u32 offset = emitter.buffer.size - 4;
+
+    add_link(emitter,opcode,offset);
 }
 
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
@@ -749,6 +775,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_type::call_reg:
+        {
+            call_reg(emitter,dst);
+            break;
+        }
+
         case op_type::push:
         {
             push(emitter,dst);
@@ -860,6 +892,13 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::lea:
         {
             lea(emitter,dst,v1,s64(v2));
+            break;
+        }
+
+        case op_type::load_func_addr:
+        {
+            lea(emitter,dst,x86_reg::rip,0);
+            add_lea_rel_link(emitter,opcode);
             break;
         }
 

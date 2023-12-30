@@ -683,11 +683,14 @@ enum x86_reg : u64
     rdp,
     rsi,
     rdi,
+
+    // special regs (needs special encoding to access)
+    rip,
 };
 
-static constexpr u32 X86_REG_SIZE = 8;
+static constexpr u32 X86_REG_SIZE = 9;
 
-static const char* X86_NAMES[8] =
+static const char* X86_NAMES[X86_REG_SIZE] =
 {
     "rax",
     "rcx",
@@ -697,6 +700,8 @@ static const char* X86_NAMES[8] =
     "rdp",
     "rsi",
     "rdi",
+
+    "rip",
 };
 
 /*

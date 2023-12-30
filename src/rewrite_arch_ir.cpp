@@ -245,6 +245,23 @@ ListNode* rewrite_cmp_flag_imm(Block& block, ListNode* node, op_type set)
     return node->next;
 }
 
+ListNode* rewrite_no_imm(Function& func, Block& block,ListNode* node, op_type type)
+{
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+    const auto imm = node->opcode.v[2];
+
+    // mul dst, v1, imm
+    // -> mov t0, imm
+    // -> mul dst, v1, t0
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    node->opcode = make_op(op_type::mov_imm,tmp.handle,imm);
+    node = insert_after(block.list,node,make_op(type,dst,v1,tmp.handle));
+
+    // NOTE: another writing pass has to happen on this opcode
+    return node;   
+}
+
 // TODO: we need a mechanism for rewriting large imm
 // on RISC ISA
 ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& block,ListNode* node)
@@ -380,13 +397,13 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             break;
         }
 
-    /*
-        case op_type::mul_reg:
+        case op_type::mul_imm:
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::mul_reg2);
+            return rewrite_no_imm(func,block,node,op_type::mul_reg);
         }
-    */
+
         case op_type::call: break;
+        case op_type::call_reg: break;
         case op_type::mov_imm: break;
         case op_type::mov_reg: break;
         case op_type::lb: break;

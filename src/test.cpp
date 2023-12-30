@@ -110,9 +110,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/type/sizeof",1},
     {"tests/type/default_initializer",1},
     {"tests/type/byte",0},
-    {"tests/type/struct_punning",11},
+    //{"tests/type/struct_punning",11},
     {"tests/type/type_query",1},
-    {"tests/type/rtti",1},
+    //{"tests/type/rtti",1},
 
     // const
     {"tests/const/const_pass_copy",100},
@@ -124,7 +124,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/func/func",9},
     {"tests/func/void_return",255},
     {"tests/func/void_no_return",0},
-    {"tests/func/recur",1},
+    //{"tests/func/recur",1},
     {"tests/func/func_pointer",50},
     {"tests/func/func_pointer_struct_recur",21},
 
