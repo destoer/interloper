@@ -223,6 +223,37 @@ static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / 
 
 void parse_flags(Interloper& itl,const char* flags);
 
+b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const char* flags, b32 optimized)
+{
+    destroy_itl(itl);
+    
+    itl.optimise = optimized;
+
+    parse_flags(itl,flags);
+    compile(itl,test.name);
+
+    printf("%s: ",optimized? "optimized" : "unoptimized");
+    
+    if(itl.error)
+    {
+        printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.error_code)]);
+        return true;
+    }
+
+    const auto r = WEXITSTATUS(system("./test-prog"));     
+
+
+    if(test.expected != r)
+    {
+        printf("Fail %s return code does not match %d != %d\n",test.name,test.expected,r);
+        return true;
+    }
+
+    printf("Pass: %s\n",test.name);
+
+    return false;
+}
+
 void run_tests(const char* flags)
 {
     puts("running tests....");
@@ -237,31 +268,20 @@ void run_tests(const char* flags)
 
     for(u32 i = 0; i < PROGRAM_CORRECT_TEST_SIZE; i++)
     {
-        destroy_itl(itl);
-        
-        const auto &test = PROGRAM_CORRECT_TEST[i];
-        
-        parse_flags(itl,flags);
-        compile(itl,test.name);
+        auto& test = PROGRAM_CORRECT_TEST[i];
 
-        if(itl.error)
+        if(run_correctness_test(test,itl,flags,false))
         {
-            printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.error_code)]);
             fail = true;
             break;
         }
 
-        const auto r = WEXITSTATUS(system("./test-prog"));     
-
-
-        if(test.expected != r)
+        if(run_correctness_test(test,itl,flags,true))
         {
-            printf("Fail %s return code does not match %d != %d\n",test.name,test.expected,r);
             fail = true;
             break;
         }
 
-        printf("Pass: %s\n",test.name);
     }
 
     if(!fail)
