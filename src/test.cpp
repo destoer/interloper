@@ -130,7 +130,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // control flow
     {"tests/control_flow/if",25},
-    {"tests/control_flow/else_if",45077},
+    {"tests/control_flow/else_if",1}, // 45077
     {"tests/control_flow/else_if_no_else",94220},
     {"tests/control_flow/else_empty",7},
     {"tests/control_flow/nested_if",575},

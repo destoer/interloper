@@ -491,6 +491,18 @@ u32 je(AsmEmitter& emitter)
     return emit_cond_jump(emitter,0x84'0f);
 }
 
+u32 branch(AsmEmitter& emitter)
+{
+    push_u8(emitter,0xe9);
+
+    const u32 offset = emitter.buffer.size;
+
+    // dummy value
+    push_u32(emitter,0);
+
+    return offset;
+}
+
 u32 call(AsmEmitter& emitter)
 {
     // TODO: we need a way to encode far calls
@@ -804,6 +816,14 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::je:
         {
             const u32 offset = je(emitter);
+
+            add_link(emitter,opcode,offset);
+            break;
+        }
+
+        case op_type::b:
+        {
+            const u32 offset = branch(emitter);
 
             add_link(emitter,opcode,offset);
             break;
