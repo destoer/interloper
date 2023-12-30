@@ -491,6 +491,11 @@ u32 je(AsmEmitter& emitter)
     return emit_cond_jump(emitter,0x84'0f);
 }
 
+u32 jne(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x85'0f);
+}
+
 u32 branch(AsmEmitter& emitter)
 {
     push_u8(emitter,0xe9);
@@ -538,22 +543,52 @@ void emit_set_flag(AsmEmitter& emitter, x86_reg dst, u8 op)
 
 void setsgt(AsmEmitter& emitter, x86_reg dst)
 {
+    // setg
     emit_set_flag(emitter,dst,0x9f);
+}
+
+void setsge(AsmEmitter& emitter, x86_reg dst)
+{
+    // setge
+    emit_set_flag(emitter,dst,0x9d);
 }
 
 void setslt(AsmEmitter& emitter, x86_reg dst)
 {
+    // setl
     emit_set_flag(emitter,dst,0x9c);
 }
 
 void setsle(AsmEmitter& emitter, x86_reg dst)
 {
+    // setle
     emit_set_flag(emitter,dst,0x9e);
 }
 
-void setsge(AsmEmitter& emitter, x86_reg dst)
+
+void setugt(AsmEmitter& emitter, x86_reg dst)
 {
-    emit_set_flag(emitter,dst,0x9d);
+    // seta
+    emit_set_flag(emitter,dst,0x97);
+}
+
+void setuge(AsmEmitter& emitter, x86_reg dst)
+{
+    // setae
+    emit_set_flag(emitter,dst,0x93);
+}
+
+
+void setult(AsmEmitter& emitter, x86_reg dst)
+{
+    // setb
+    emit_set_flag(emitter,dst,0x92);
+}
+
+void setule(AsmEmitter& emitter, x86_reg dst)
+{
+    // setbe
+    emit_set_flag(emitter,dst,0x96);
 }
 
 
@@ -769,6 +804,30 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_type::setugt:
+        {
+            setugt(emitter,dst);
+            break;
+        }
+
+        case op_type::setuge:
+        {
+            setuge(emitter,dst);
+            break;
+        }
+
+        case op_type::setult:
+        {
+            setult(emitter,dst);
+            break;
+        }
+
+        case op_type::setule:
+        {
+            setule(emitter,dst);
+            break;
+        }
+
         case op_type::seteq:
         {
             seteq(emitter,dst);
@@ -820,6 +879,15 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             add_link(emitter,opcode,offset);
             break;
         }
+
+        case op_type::jne:
+        {
+            const u32 offset = jne(emitter);
+
+            add_link(emitter,opcode,offset);
+            break;
+        }
+
 
         case op_type::b:
         {

@@ -1,4 +1,4 @@
-// expected 94220
+// expected 94220 (1)
 
 func test(x: s32) s32
 {
@@ -22,5 +22,7 @@ func test(x: s32) s32
 
 func main() s32
 {
-    return test(-5) + test(0) + test(1) + test(-1) + test(-5000);
+    ans := test(-5) + test(0) + test(1) + test(-1) + test(-5000);
+
+    return cast(s32,ans == 94220);
 }

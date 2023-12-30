@@ -303,6 +303,26 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_cmp_flag_reg(block,node,op_type::setsge);
         }
 
+        case op_type::cmpult_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setult);
+        }
+
+        case op_type::cmpule_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setule);
+        }
+
+        case op_type::cmpugt_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setugt);
+        }
+
+        case op_type::cmpuge_reg:
+        {
+            return rewrite_cmp_flag_reg(block,node,op_type::setuge);
+        }
+
         case op_type::cmpeq_reg:
         {
             return rewrite_cmp_flag_reg(block,node,op_type::seteq);
@@ -312,7 +332,6 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         {
             return rewrite_cmp_flag_reg(block,node,op_type::setne);
         }
-
 
         case op_type::cmpsgt_imm:
         {
@@ -382,6 +401,11 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::sub_reg: 
         {
             return rewrite_reg3_two(func,block,node,op_type::sub_reg2);
+        }
+
+        case op_type::sub_imm:
+        {
+            return rewrite_imm3_two(block,node,op_type::sub_imm2);
         }
 
         case op_type::div_reg:

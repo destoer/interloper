@@ -522,6 +522,13 @@ void link_elf(Interloper& itl, Elf& elf)
                 break;
             }
 
+            case op_type::jne:
+            {
+                const LabelSlot slot = label_from_idx(opcode.v[0]);
+                rewrite_rel_label(itl,elf,link,slot);
+                break;
+            }
+
             case op_type::b:
             {
                 const LabelSlot slot = label_from_idx(opcode.v[0]);

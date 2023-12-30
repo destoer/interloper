@@ -126,6 +126,13 @@ enum class op_type
     setsgt,
     setsge,
 
+    // set unsigned
+    setult,
+    setule,
+    setugt,
+    setuge,
+
+
     seteq,
     setne,
 

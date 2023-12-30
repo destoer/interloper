@@ -131,9 +131,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // control flow
     {"tests/control_flow/if",25},
     {"tests/control_flow/else_if",1}, // 45077
-    {"tests/control_flow/else_if_no_else",94220},
+    {"tests/control_flow/else_if_no_else",1}, // 94220
     {"tests/control_flow/else_empty",7},
-    {"tests/control_flow/nested_if",575},
+    {"tests/control_flow/nested_if",1}, // 5727
     {"tests/control_flow/else_if_empty",4},
     {"tests/control_flow/for",32},
     {"tests/control_flow/for_idx",10},
@@ -142,12 +142,12 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/while",32},
 
     {"tests/control_flow/switch_no_default",73},
-    {"tests/control_flow/switch",447},
+    {"tests/control_flow/switch",1}, // 447
 
 
     // pointers
     {"tests/ptr/pointer",-2},
-    {"tests/ptr/cast_ptr",1020},
+    {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
     {"tests/ptr/alias",1},
@@ -161,7 +161,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
     // arrays
-    {"tests/array/array",1061},
+    {"tests/array/array",1}, // 1061
     {"tests/array/array_size",16},
     {"tests/array/array_initializer",16},
     {"tests/array/array_conv",6},
@@ -169,7 +169,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_auto_size",16},
     {"tests/array/array_take_pointer",5},
     {"tests/array/array_of_ptr",6},
-    {"tests/array/array_multi_fixed_size",7200},
+    {"tests/array/array_multi_fixed_size",1}, // 7200
     {"tests/array/array_vla_from_parts",11},
     {"tests/array/array_assign_vla",15},
 
@@ -182,8 +182,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
     // structs
-    {"tests/struct/struct",495},
-    {"tests/struct/struct_initializer",495},
+    {"tests/struct/struct",1}, // 495
+    {"tests/struct/struct_initializer",1}, // 495
     {"tests/struct/pass_struct",2},
     {"tests/struct/return_struct",3},
     {"tests/struct/return_struct_tmp",3},

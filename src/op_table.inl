@@ -126,6 +126,11 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"setsgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setsge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
+    {op_group::reg_t,"setult %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setule %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setugt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setuge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
     {op_group::reg_t,"seteq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
