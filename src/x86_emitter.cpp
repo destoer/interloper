@@ -533,6 +533,16 @@ void call_reg(AsmEmitter& emitter, x86_reg src)
 }
 
 
+void branch_reg(AsmEmitter& emitter, x86_reg src)
+{
+    // jmp r64
+    const u8 opcode = 0xff;
+    push_u8(emitter,opcode);
+
+    push_u8(emitter,mod_opcode_reg(src,4));
+}
+
+
 void emit_set_flag(AsmEmitter& emitter, x86_reg dst, u8 op)
 {
     prefix_u8_data_reg(emitter,dst);
@@ -900,6 +910,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::call_reg:
         {
             call_reg(emitter,dst);
+            break;
+        }
+
+        case op_type::b_reg:
+        {
+            branch_reg(emitter,dst);
             break;
         }
 

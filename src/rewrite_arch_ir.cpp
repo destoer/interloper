@@ -323,6 +323,11 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_cmp_flag_reg(block,node,op_type::setuge);
         }
 
+        case op_type::cmpugt_imm:
+        {
+            return rewrite_cmp_flag_imm(block,node,op_type::setugt);
+        }
+
         case op_type::cmpeq_reg:
         {
             return rewrite_cmp_flag_reg(block,node,op_type::seteq);
@@ -450,18 +455,28 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::call: break;
         case op_type::call_reg: break;
         case op_type::b: break;
+        case op_type::b_reg: break;
+
         case op_type::mov_imm: break;
         case op_type::mov_reg: break;
+
         case op_type::lb: break;
         case op_type::lh: break;
         case op_type::lw: break;
         case op_type::ld: break;
+
+        case op_type::lsb: break;
+        case op_type::lsh: break;
+        case op_type::lsw: break;
+
         case op_type::sb: break;
         case op_type::sh: break;
         case op_type::sw: break;
         case op_type::sd: break;
+
         case op_type::sxb: break;
         case op_type::sxh: break;
+
         case op_type::ret: break;
         case op_type::syscall: break;
 
