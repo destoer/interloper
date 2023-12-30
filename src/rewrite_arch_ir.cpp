@@ -262,6 +262,17 @@ ListNode* rewrite_no_imm(Function& func, Block& block,ListNode* node, op_type ty
     return node;   
 }
 
+ListNode* rewrite_x86_cond_branch(Block& block, ListNode* node, b32 if_true)
+{
+    const u32 handle = node->opcode.v[0];
+    const u32 cond = node->opcode.v[1];
+
+    node->opcode = make_op(op_type::test,cond,cond);
+    node = insert_after(block.list,node,make_op(if_true? op_type::jne : op_type::je,handle));
+            
+    return node->next;
+}
+
 // TODO: we need a mechanism for rewriting large imm
 // on RISC ISA
 ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& block,ListNode* node)
@@ -400,6 +411,16 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::mul_imm:
         {
             return rewrite_no_imm(func,block,node,op_type::mul_reg);
+        }
+
+        case op_type::bnc:
+        {
+            return rewrite_x86_cond_branch(block,node,false);
+        }
+
+        case op_type::bc:
+        {
+            return rewrite_x86_cond_branch(block,node,true);
         }
 
         case op_type::call: break;

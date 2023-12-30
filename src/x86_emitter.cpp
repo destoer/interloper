@@ -201,8 +201,16 @@ void cmp(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
     emit_reg2_rm(emitter,0x3B,v1,v2);
 }
 
+void test(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
+{
+    // TODO: do we even care about 64 bit here ever?
+    // test r64, r64
+    emit_reg2_rm(emitter,0x85,v1,v2);
+}
+
 void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 {
+    //NOTE: this move does not sign extend
     const u8 opcode = 0xb8 + u32(reg);
 
     // requires 64 bit mov
@@ -466,12 +474,25 @@ void sxw(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm(emitter,0x63,dst,v1);
 }
 
-
-// TODO: this wont leave any useful linking information yet
-u32 call(AsmEmitter& emitter,LabelSlot addr)
+u32 emit_cond_jump(AsmEmitter& emitter, u16 opcode)
 {
-    UNUSED(addr);
+    push_u16(emitter,opcode);
 
+    const u32 offset = emitter.buffer.size;
+
+    // dummy value
+    push_u32(emitter,0);
+
+    return offset;
+}
+
+u32 je(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x84'0f);
+}
+
+u32 call(AsmEmitter& emitter)
+{
     // TODO: we need a way to encode far calls
     // in the upper IR eventually
 
@@ -700,6 +721,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         }
 
 
+        case op_type::test:
+        {
+            test(emitter,dst,v1);
+            break;
+        }
+
         case op_type::cmp_flags_imm:
         {
             cmp_imm(emitter,dst,v1);
@@ -768,8 +795,15 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::call:
         {
-            LabelSlot label = label_from_idx(u32(dst));
-            const u32 offset = call(emitter,label);
+            const u32 offset = call(emitter);
+
+            add_link(emitter,opcode,offset);
+            break;
+        }
+
+        case op_type::je:
+        {
+            const u32 offset = je(emitter);
 
             add_link(emitter,opcode,offset);
             break;
@@ -939,6 +973,9 @@ void emit_func(Interloper& itl, Function& func)
     {
         auto& block = func.emitter.program[b];
         ListNode* node = block.list.start;
+
+        // store cur relative offset to finalise later
+        write_cur_rel_offset(itl,block.label_slot);
 
         while(node)
         {

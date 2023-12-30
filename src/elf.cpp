@@ -476,12 +476,23 @@ void write_elf(Elf& elf)
     fp.close();
 }
 
+void rewrite_rel_label(Interloper& itl,Elf& elf,const LinkOpcode& link, LabelSlot slot)
+{
+    auto& asm_emitter = itl.asm_emitter;
+    const u32 text_offset = itl.asm_emitter.base_offset;
+
+    // get the lable and write in the relative addr
+    const auto label = label_from_slot(itl.symbol_table.label_lookup,slot);
+
+    const s32 rel_addr = (label.offset  - (link.offset + asm_emitter.base_vaddr)) - 4;
+
+    write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+}
+
 // TODO: we need to generalise this away from x86
 void link_elf(Interloper& itl, Elf& elf)
 {
     auto& asm_emitter = itl.asm_emitter;
-
-    const u32 text_offset = itl.asm_emitter.base_offset;
 
     for(u32 l = 0; l < count(asm_emitter.link); l++)
     {
@@ -492,25 +503,22 @@ void link_elf(Interloper& itl, Elf& elf)
         {
             case op_type::call:
             {
-                // get the lable and write in the relative addr
                 const LabelSlot slot = label_from_idx(opcode.v[0]);
-                const auto label = label_from_slot(itl.symbol_table.label_lookup,slot);
-
-                const u32 rel_addr = (label.offset  - (link.offset + asm_emitter.base_vaddr)) - 4;
-
-                write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+                rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
 
             case op_type::load_func_addr:
             {
-                // get the lable and write in the relative addr
                 const LabelSlot slot = label_from_idx(opcode.v[1]);
-                const auto label = label_from_slot(itl.symbol_table.label_lookup,slot);
+                rewrite_rel_label(itl,elf,link,slot);
+                break;
+            }
 
-                const u32 rel_addr = (label.offset  - (link.offset + asm_emitter.base_vaddr)) - 4;
-
-                write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+            case op_type::je:
+            {
+                const LabelSlot slot = label_from_idx(opcode.v[0]);
+                rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
 

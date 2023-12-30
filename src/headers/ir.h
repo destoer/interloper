@@ -134,6 +134,11 @@ enum class op_type
     b,
     b_reg,
 
+    // x86 branch
+    test,
+    je,
+    jne,
+
     // DIRECTIVES
     // varabile on the stack is out of scope
     // so we can reclaim allocation on the stack
