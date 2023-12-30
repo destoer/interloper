@@ -2376,6 +2376,9 @@ void compile(Interloper &itl,const String& initial_filename)
 {
     printf("compiling file: %s\n",initial_filename.buf);
 
+    // TODO: this just needs to go for now
+    itl.rtti_enable = false;
+
     itl.error = false;
     itl.error_code = itl_error::none;
 

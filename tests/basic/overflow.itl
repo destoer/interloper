@@ -22,5 +22,7 @@ func main() s32
     // this should just work
     e : u64 = 0xff << 8;
 
-    return cast(s32,a + b + c + d + e);
+    ans := a + b + c + d + e;
+
+    return cast(s32,ans == 65286);
 }

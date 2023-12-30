@@ -1,6 +1,6 @@
 
 
-// expected 294
+// expected 294 (1)
 
 func main() s32
 {
@@ -14,5 +14,5 @@ func main() s32
 
     a /= 2;
 
-    return a;
+    return cast(s32,a == 294);
 }

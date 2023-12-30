@@ -51,9 +51,6 @@ int main(int argc, char *argv[])
 
     Interloper itl;
 
-    // TODO: this just needs to go for now
-    itl.rtti_enable = false;
-
     // parse compiler flags
     const char* filename = "";
 

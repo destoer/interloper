@@ -1,5 +1,5 @@
 
-// expected -713
+// expected -713 (0)
 func main() s32 {
     x : s32 = 1000000 & 0x7ff;
 
@@ -9,5 +9,5 @@ func main() s32 {
 
     x = ~x;
 
-    return x;
+    return x + 713;
 }

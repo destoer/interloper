@@ -90,23 +90,23 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // basic
     {"tests/basic/first",9},
     {"tests/basic/arith",31},
-    {"tests/basic/assign",1190},
-    {"tests/basic/unary",-11},
+    {"tests/basic/assign",0}, // 1190
+    {"tests/basic/unary",0},// -11
     {"tests/basic/scope",16},
-    {"tests/basic/bitwise",-713},
+    {"tests/basic/bitwise",0}, // -713
     {"tests/basic/logical",1},
-    {"tests/basic/arith_eq",294},
+    {"tests/basic/arith_eq",1}, // 294
     //{"tests/basic/mod",233168},
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
     //{"tests/basic/constant",1},
     //{"tests/basic/global",26},
-    {"tests/basic/overflow",65286},
+    {"tests/basic/overflow",1},  // 65286
     {"tests/basic/const_assert_pass",0},
 
     // type
     {"tests/type/decl",255},
-    {"tests/type/builtin_type",271},
+    {"tests/type/builtin_type",1}, // 271
     {"tests/type/sizeof",1},
     {"tests/type/default_initializer",1},
     {"tests/type/byte",0},
@@ -223,13 +223,6 @@ static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / 
 
 void parse_flags(Interloper& itl,const char* flags);
 
-s32 run(Interloper& itl)
-{
-    UNUSED(itl);
-    printf("run stub");
-    return 0;
-}
-
 void run_tests(const char* flags)
 {
     puts("running tests....");
@@ -258,7 +251,7 @@ void run_tests(const char* flags)
             break;
         }
 
-        const auto r = run(itl);    
+        const auto r = WEXITSTATUS(system("./test-prog"));     
 
 
         if(test.expected != r)

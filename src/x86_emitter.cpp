@@ -141,6 +141,11 @@ void prefix_u8_data_reg(AsmEmitter& emitter, x86_reg dst)
     }
 }
 
+void prefix_u16_reg(AsmEmitter& emitter)
+{
+    // 16 bit override
+    push_u8(emitter,0x66);
+}
 
 void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
@@ -279,7 +284,16 @@ void and_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
     if(v1 == 0xff)
     {
         // movzx r64, r8
-        emit_reg2_rm_extended_32(emitter,0xb6'0f,dst,dst);
+        if(dst <= x86_reg::rbx)
+        {
+            emit_reg2_rm_extended_32(emitter,0xb6'0f,dst,dst);
+        }
+
+        // need to use 64 bit for the upper registers
+        else
+        {
+            emit_reg2_rm_extended(emitter,0xb6'0f,dst,dst);
+        }
     }
 
     else if(v1 == 0xffff)
@@ -371,6 +385,29 @@ void lb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 
     push_base_disp(emitter,src,v1,imm);
 }
+
+void lh(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    prefix_u16_reg(emitter);
+
+    // mov r16, r/m16
+    const u8 opcode = 0x8b;
+    push_u8(emitter,opcode);
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
+void sh(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    prefix_u16_reg(emitter);
+
+    // mov r/m16, r16
+    const u8 opcode = 0x89;
+    push_u8(emitter,opcode);
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
 
 void sxb(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
@@ -745,6 +782,18 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         {
             sb(emitter,dst,v1,s64(v2));
             break;
+        }
+
+        case op_type::lh:
+        {
+            lh(emitter,dst,v1,s64(v2));
+            break;        
+        }
+
+        case op_type::sh:
+        {
+            sh(emitter,dst,v1,s64(v2));
+            break;        
         }
 
         case op_type::sw:
