@@ -389,10 +389,17 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::call: break;
         case op_type::mov_imm: break;
         case op_type::mov_reg: break;
+        case op_type::lb: break;
+        case op_type::lh: break;
+        case op_type::lw: break;
+        case op_type::ld: break;
+        case op_type::sb: break;
+        case op_type::sh: break;
+        case op_type::sw: break;
+        case op_type::sd: break;
         case op_type::sxb: break;
         case op_type::sxh: break;
         case op_type::ret: break;
-        case op_type::sw: break;
         case op_type::syscall: break;
 
         // TODO: any reloading directives may have to be rewritten during the 1st reg alloc pass

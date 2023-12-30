@@ -346,25 +346,6 @@ void ret(AsmEmitter& emitter)
     push_u8(emitter,0xC3);
 }
 
-void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
-{
-    // movsxd r64, r/m16
-    const u8 opcode = 0x63;
-    push_u16(emitter,(opcode << 8) | REX_W);
-
-    push_base_disp(emitter,dst,v1,imm);
-}
-
-
-void sw(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
-{
-    // mov r/m32, r32
-    const u8 opcode = 0x89;
-    push_u8(emitter,opcode);
-
-    push_base_disp(emitter,src,v1,imm);
-}
-
 void sb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 {
     prefix_u8_data_reg(emitter,src);
@@ -386,13 +367,14 @@ void lb(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
     push_base_disp(emitter,src,v1,imm);
 }
 
+
+// Todo: DONT KNOW IF THIS IS RIGHT
 void lh(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 {
-    prefix_u16_reg(emitter);
-
-    // mov r16, r/m16
-    const u8 opcode = 0x8b;
-    push_u8(emitter,opcode);
+    // movzx r64, r/m16,
+    
+    push_u8(emitter,REX_W);
+    push_u16(emitter,0xb7'0f);;
 
     push_base_disp(emitter,src,v1,imm);
 }
@@ -408,6 +390,55 @@ void sh(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
     push_base_disp(emitter,src,v1,imm);
 }
 
+
+void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
+{
+    // movsxd r64, r/m16
+    const u8 opcode = 0x63;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_base_disp(emitter,dst,v1,imm);
+}
+
+
+void lw(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    // mov r32, m/r32
+    const u8 opcode = 0x8b;
+    push_u8(emitter,opcode);
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
+void sw(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    // mov r/m32, r32
+    const u8 opcode = 0x89;
+    push_u8(emitter,opcode);
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
+
+
+void ld(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    // mov r64, m/r64
+    const u8 opcode = 0x8b;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_base_disp(emitter,src,v1,imm);
+}
+
+
+void sd(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
+{
+    // mov m/r64, r64
+    const u8 opcode = 0x89;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_base_disp(emitter,src,v1,imm);
+}
 
 void sxb(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
@@ -796,6 +827,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;        
         }
 
+        case op_type::lw:
+        {
+            lw(emitter,dst,v1,s64(v2));
+            break;
+        }
+
         case op_type::sw:
         {
             sw(emitter,dst,v1,s64(v2));
@@ -805,6 +842,18 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::lsw:
         {
             lsw(emitter,dst,v1,s64(v2));
+            break;
+        }
+
+        case op_type::ld:
+        {
+            ld(emitter,dst,v1,s64(v2));
+            break;
+        }
+
+        case op_type::sd:
+        {
+            sd(emitter,dst,v1,s64(v2));
             break;
         }
 
