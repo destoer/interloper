@@ -11,5 +11,5 @@ func main() s32
 
     ans : s32 = buf[0] + buf[1] + buf[2] + buf[3];
 
-    return cast(s32,ans == 255);
+    return cast(s32,ans == 1020);
 }
