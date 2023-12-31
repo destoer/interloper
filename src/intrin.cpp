@@ -137,6 +137,7 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
 
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
     mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
+    
 
     if(arg_size >= 2)
     {
@@ -160,7 +161,7 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
         }
     }
 
-    if(arg_size >= 3)
+    if(arg_size >= 4)
     {
         const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(RDX_IR));
 

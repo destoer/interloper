@@ -109,6 +109,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             // if a value is allready held in the machine reg we are about to move to
             // we must make sure we save the value incase we need it later!
+            // then the lock the register so it can no longer be freely allocated
             if(is_special_reg(dst))
             {
                 const u32 reg = special_reg_to_reg(alloc.arch,dst);
@@ -118,6 +119,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 if(is_var(held_slot))
                 {
                     evict_reg(alloc,table,block,node,dst);
+                    restrict_reg(alloc.reg_alloc,dst);
                 }
             }
 

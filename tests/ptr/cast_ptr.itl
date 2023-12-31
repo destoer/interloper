@@ -1,6 +1,6 @@
 
 
-// expected 1020
+// expected 1020 (1)
 func main() s32 
 {
     buf : byte[32];
@@ -9,5 +9,7 @@ func main() s32
 
     @ptr = 0xffffffff;
 
-    return buf[0] + buf[1] + buf[2] + buf[3];
+    ans : s32 = buf[0] + buf[1] + buf[2] + buf[3];
+
+    return cast(s32,ans == 255);
 }

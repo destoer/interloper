@@ -474,6 +474,8 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::sw: break;
         case op_type::sd: break;
 
+        case op_type::lea: break;
+
         case op_type::sxb: break;
         case op_type::sxh: break;
 
