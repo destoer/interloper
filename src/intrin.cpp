@@ -116,6 +116,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     }
 }
 
+// TODO: intrin directly using registers probably need to lock them
 Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     UNUSED(dst_slot);

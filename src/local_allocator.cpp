@@ -204,6 +204,12 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
     }
 }
 
+void lock_reg(LocalAlloc& alloc,SymbolTable& table, Block& block, ListNode* node, SymSlot spec)
+{
+    evict_reg(alloc,table,block,node,spec);
+    lock_reg(alloc.reg_alloc,spec);
+}
+
 // is a ir register housed in a specifed machine register?
 b32 in_reg(LocalAlloc& alloc, SymbolTable& table,SymSlot sym_slot,SymSlot spec_reg)
 {

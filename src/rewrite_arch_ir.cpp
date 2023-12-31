@@ -162,7 +162,7 @@ ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type)
     node = insert_after(block.list,node,make_op(type,dst,v2));
 
     // we are now allowed to give back rdx again
-    node = insert_after(block.list,node,make_op(op_type::release_reg,RDX_IR));   
+    node = insert_after(block.list,node,make_op(op_type::unlock_reg,RDX_IR));   
 
     return node->next;
 }

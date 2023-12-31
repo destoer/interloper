@@ -65,7 +65,7 @@ ListNode* rewrite_x86_shift(Interloper& itl, LocalAlloc& alloc, Block& block, Li
     const auto oper = sym_from_idx(RCX_IR);
 
     // rcx free
-    release_reg(alloc.reg_alloc,oper);
+    unlock_reg(alloc.reg_alloc,oper);
 
     rewrite_opcode(itl,alloc,block,node);
 
@@ -118,8 +118,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
                 if(is_var(held_slot))
                 {
-                    evict_reg(alloc,table,block,node,dst);
-                    restrict_reg(alloc.reg_alloc,dst);
+                    lock_reg(alloc,table,block,node,dst);
                 }
             }
 
@@ -127,6 +126,14 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             rewrite_opcode(itl,alloc,block,node);
             node = node->next;
             
+            break;
+        }
+
+        // make sure register locks for ret dont leak across blocks
+        case op_type::ret:
+        {
+            unlock_registers(alloc.reg_alloc);
+            node = node->next;
             break;
         }
 
@@ -141,10 +148,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // just save it if need be and then restrict its usage
             if(in_reg(alloc,table,src,spec_reg))
             {
-                evict_reg(alloc,table,block,node,spec_reg);
-
                 // mark register as reserved
-                restrict_reg(alloc.reg_alloc,spec_reg);
+                lock_reg(alloc,table,block,node,spec_reg);
 
                 node = remove(block.list,node);
             }
@@ -155,10 +160,8 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 // -> evict reg
                 // -> mov reg, slot
             
-                evict_reg(alloc,table,block,node,spec_reg);
-
                 // mark register as reserved
-                restrict_reg(alloc.reg_alloc,spec_reg);
+                lock_reg(alloc,table,block,node,spec_reg);
 
                 // TODO: if the value has to be reloaded this will result in a uneeded
                 // copy 
@@ -182,7 +185,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 auto& ir_reg = reg_from_slot(dst,table,alloc);
 
                 // rax free
-                release_reg(alloc.reg_alloc,out);
+                unlock_reg(alloc.reg_alloc,out);
 
                 if(alloc.reg_alloc.print)
                 {
@@ -208,7 +211,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 auto& ir_reg = reg_from_slot(dst,table,alloc);
 
                 // rax free
-                release_reg(alloc.reg_alloc,out);
+                unlock_reg(alloc.reg_alloc,out);
 
                 if(alloc.reg_alloc.print)
                 {
@@ -245,21 +248,20 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
         case op_type::reserve_reg:
         {
             const auto spec_reg = sym_from_idx(opcode.v[0]);
-            evict_reg(alloc,table,block,node,spec_reg);
 
             // mark register as reserved
-            restrict_reg(alloc.reg_alloc,spec_reg);
+            lock_reg(alloc,table,block,node,spec_reg);
 
             node = remove(block.list,node);
             break;
         }
 
-        case op_type::release_reg:
+        case op_type::unlock_reg:
         {
             const auto spec_reg = sym_from_idx(opcode.v[0]);
 
             // mark register as reserved
-            release_reg(alloc.reg_alloc,spec_reg);
+            unlock_reg(alloc.reg_alloc,spec_reg);
 
             node = remove(block.list,node);
             break;

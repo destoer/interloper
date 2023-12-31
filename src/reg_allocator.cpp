@@ -126,10 +126,15 @@ b32 is_restricted(RegAlloc& alloc, u32 reg)
     return is_set(alloc.restricted_reg,reg);
 }
 
-void restrict_reg(RegAlloc& alloc, SymSlot slot)
+
+void lock_reg(RegAlloc& alloc, SymSlot slot)
 {
     const auto reg = special_reg_to_reg(alloc.arch,slot);
-    
+
+    // NOTE: this expects the reg to be unallocated when it locks it
+    // use a higher level wrapper
+    assert(alloc.regs[reg].handle == REG_FREE);
+
     if(alloc.print)
     {
         printf("lock reg: %s\n",spec_reg_name(slot));
@@ -151,13 +156,11 @@ void restrict_reg(RegAlloc& alloc, SymSlot slot)
     }
 }
 
-void release_reg(RegAlloc& alloc, SymSlot slot)
+void unlock_reg_internal(RegAlloc& alloc, u32 reg)
 {
-    const auto reg = special_reg_to_reg(alloc.arch,slot);
-
     if(alloc.print)
     {
-        printf("unlock reg: %s\n",spec_reg_name(slot));
+        printf("unlock reg: %s\n",reg_name(alloc.arch,reg));
     }
 
     assert(is_restricted(alloc,reg));
@@ -166,6 +169,24 @@ void release_reg(RegAlloc& alloc, SymSlot slot)
 
     // put register back inside the free list
     alloc.free_list[alloc.free_regs++] = reg;
+}
+
+void unlock_reg(RegAlloc& alloc, SymSlot slot)
+{
+    const auto reg = special_reg_to_reg(alloc.arch,slot);
+
+    unlock_reg_internal(alloc,reg);
+}
+
+void unlock_registers(RegAlloc& alloc)
+{
+    for(u32 reg = 0; reg < MACHINE_REG_SIZE; reg++)
+    {
+        if(is_restricted(alloc,reg))
+        {
+            unlock_reg_internal(alloc,reg);
+        }
+    }
 }
 
 void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)

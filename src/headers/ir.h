@@ -180,7 +180,7 @@ enum class op_type
 
     replace_reg,
     reserve_reg,
-    release_reg,
+    unlock_reg,
 
 
     spill,
