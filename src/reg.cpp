@@ -122,7 +122,15 @@ Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
 
     reg.kind = kind;
 
-    const u32 size = type_size(itl,type);
+    u32 size = type_size(itl,type);
+
+    // tmp's derived from expression are allways atleast gpr sized
+    // this ensures that intermediate results allways get stored at 
+    // "max" precision
+    if(kind == reg_kind::tmp && size < GPR_SIZE)
+    {
+        size = GPR_SIZE;
+    }
 
     assign_reg_size(reg,size);
 
