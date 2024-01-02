@@ -1116,15 +1116,10 @@ void emit_func(Interloper& itl, Function& func)
 
 void emit_asm(Interloper& itl)
 {
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
+    for(u32 idx = 0; idx != count(itl.used_func); idx++)
     {
-        auto& bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& func = bucket[i].v;
-            emit_func(itl,func);
-        }
+        auto& func = *lookup(itl.function_table,itl.used_func[idx]);
+        emit_func(itl,func);
     }
 }
 
