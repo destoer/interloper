@@ -3,7 +3,16 @@
 func main() s32
 {
     arr : u32[?] = {1,2,3,4,5};
+/*
+    sum3 : s32 = 0;
 
+    for(v in arr)
+    {
+        sum3 += v;
+    }
+
+    return sum3;
+*/
     sum1 : s64 = 0;
 
     // forward

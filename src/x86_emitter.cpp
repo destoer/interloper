@@ -216,6 +216,15 @@ void test(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
     emit_reg2_rm(emitter,0x85,v1,v2);
 }
 
+void zero_reg(AsmEmitter& emitter, x86_reg dst)
+{
+    // xor reg, reg 
+    // NOTE: we use 32 version as it sign extends
+    // and is shorter
+    push_u8(emitter,0x31);
+    push_u8(emitter,mod_reg(dst,dst));
+}
+
 void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 {
     //NOTE: this move does not sign extend
@@ -234,11 +243,7 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
     // special case zero
     else if(imm == 0)
     {
-        // xor reg, reg 
-        // NOTE: we use 32 version as it sign extends
-        // and is shorter
-        push_u8(emitter,0x31);
-        push_u8(emitter,mod_reg(reg,reg));
+        zero_reg(emitter,reg);
     }
 
     // 32 bit move
@@ -303,22 +308,27 @@ void xor_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
     arith_imm(emitter,dst,v1,6);
 }
 
+void zxb(AsmEmitter& emitter, x86_reg dst)
+{
+    // movzx r64, r8
+    if(dst <= x86_reg::rbx)
+    {
+        emit_reg2_rm_extended_32(emitter,0xb6'0f,dst,dst);
+    }
+
+    // need to use 64 bit for the upper registers
+    else
+    {
+        emit_reg2_rm_extended(emitter,0xb6'0f,dst,dst);
+    }  
+}
+
 void and_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
     // special case type clipping
     if(v1 == 0xff)
     {
-        // movzx r64, r8
-        if(dst <= x86_reg::rbx)
-        {
-            emit_reg2_rm_extended_32(emitter,0xb6'0f,dst,dst);
-        }
-
-        // need to use 64 bit for the upper registers
-        else
-        {
-            emit_reg2_rm_extended(emitter,0xb6'0f,dst,dst);
-        }
+        zxb(emitter,dst);
     }
 
     else if(v1 == 0xffff)
@@ -552,11 +562,16 @@ void branch_reg(AsmEmitter& emitter, x86_reg src)
 
 
 void emit_set_flag(AsmEmitter& emitter, x86_reg dst, u8 op)
-{
+{   
+    // set<x> dst
     prefix_u8_data_reg(emitter,dst);
 
     push_u16(emitter,(op << 8) | (0xf << 0));
     push_u8(emitter,mod_opcode_reg(dst,0));
+
+    // now zero extend the 8 bit quantity
+    // as set<x> does not 
+    zxb(emitter,dst);
 }
 
 void setsgt(AsmEmitter& emitter, x86_reg dst)
