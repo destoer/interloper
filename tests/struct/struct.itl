@@ -16,5 +16,7 @@ func main() s32
     foo.v2 = 9;
     foo.v3 = 11;
 
-    return foo.v1 * foo.v2 * foo.v3;
+    ans := foo.v1 * foo.v2 * foo.v3;
+
+    return cast(s32,ans == 495);
 }

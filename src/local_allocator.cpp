@@ -443,12 +443,10 @@ void reserve_offset(LocalAlloc& alloc,SymbolTable& table, Reg& ir_reg)
     {
         auto& sym = sym_from_slot(table,ir_reg.slot);
 
-        log(print_reg,"reserve offset for %s in reg %s\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location));
-
-
         // only allocate the local vars by here
         if(!is_arg(sym))
         {
+            log(print_reg,"reserve offset for %s in reg %s\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location));
             stack_reserve_reg(alloc.stack_alloc,ir_reg);
         }
     }

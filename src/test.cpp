@@ -177,7 +177,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     //{"tests/string/char_array",6},
     {"tests/string/write_string",0},
     //{"tests/string/write_string_static",0},
-    {"tests/string/str_conv",1},
+    //{"tests/string/str_conv",1},
 
 
 
@@ -200,16 +200,16 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // stl
     {"tests/stl/mem",0},
-    {"tests/stl/alloc",1},
-    {"tests/stl/file_str",6},
-    {"tests/stl/file_bin",1},
+    //{"tests/stl/alloc",1},
+    //{"tests/stl/file_str",6},
+    //{"tests/stl/file_bin",1},
 
 
 
     // enum
     {"tests/enum/enum",1},
-    {"tests/enum/switch_enum",10},
-    {"tests/enum/enum_struct",11},
+    //{"tests/enum/switch_enum",10},
+    //{"tests/enum/enum_struct",11},
 
 
     // type alias

@@ -209,7 +209,15 @@ const char* reg_name(arch_target arch, u32 reg)
     {
         case arch_target::x86_64_t:
         {
-            return X86_NAMES[reg];
+            if(reg < X86_REG_SIZE)
+            {
+                return X86_NAMES[reg];
+            }
+
+            else
+            {
+                return "ERROR";
+            }
         }
     }
 
