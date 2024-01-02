@@ -707,6 +707,13 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
 
     const u32 index_size = arr_type->sub_size;
 
+    // attempting to index statically zero array
+    // we dont care
+    if(is_fixed_array(arr_type) && arr_type->size == 0)
+    {
+        return;
+    }
+
     // save initial block so we can dump a branch later
     const BlockSlot initial_block = cur_block(func);
 
@@ -756,9 +763,16 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     // compute array end
     const auto arr_end = add_res(itl,func,arr_data,arr_bytes);
 
+    SymSlot entry_cond = {SYMBOL_NO_SLOT};
 
-    // check array is not empty
-    const auto entry_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+    // if this is a fixed size array we dont need to check it
+    // on entry apart from the zero check handled above ^
+    // because we know it has members
+    if(is_runtime_size(arr_type))
+    {
+        // check array is not empty
+        entry_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+    }
     
     // compile the main loop body
     const BlockSlot for_block = new_basic_block(itl,func);
@@ -798,8 +812,18 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     // emit loop branch
     emit_cond_branch(func,end_block,for_block,exit_block,exit_cond,true);
 
-    // emit branch over the loop body if array is empty
-    emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);  
+    if(is_runtime_size(arr_type))
+    {
+        // emit branch over the loop body if array is empty
+        emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);  
+    }
+
+    // fixed size array only need to add a fall
+    // as we know its not empty by this point
+    else
+    {
+        add_block_exit(func,initial_block,for_block);
+    }
 }
 
 
