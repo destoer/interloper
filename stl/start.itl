@@ -14,6 +14,8 @@ func start()
 
 // Minimal start code
 
+import <mem>
+
 func exit(exit_code: s32)
 {
     intrin_syscall(0x3c,exit_code);

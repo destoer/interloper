@@ -32,5 +32,5 @@ func main() s32
         }
     }
 
-    return ans;
+    return cast(s32,ans == 1061);
 }
