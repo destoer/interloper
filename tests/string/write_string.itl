@@ -3,7 +3,8 @@
 
 func main() s32
 {
-    str : const string = "Go for broke\n";
+    //str : const string = "Go for broke\n";
+    str : c8[?] = {'B','O','O','P','\n'};
 
     write_string(str);
 

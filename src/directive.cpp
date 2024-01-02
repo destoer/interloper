@@ -149,3 +149,15 @@ void write_struct_u64(Interloper& itl, Function& func, SymSlot src, AddrSlot add
 {
     store_struct_internal(itl,func,op_type::store_struct_u64,src,addr_slot);
 }
+
+void lock_reg(Interloper& itl, Function& func, SymSlot reg)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::lock_reg,reg.handle,0,0);
+}
+
+void unlock_reg(Interloper& itl, Function& func, SymSlot reg)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::unlock_reg,reg.handle,0,0);
+}

@@ -179,7 +179,7 @@ enum class op_type
     placeholder,
 
     replace_reg,
-    reserve_reg,
+    lock_reg,
     unlock_reg,
 
 

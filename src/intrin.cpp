@@ -136,12 +136,14 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
     // then all
     spill_all(itl,func);
 
+    lock_reg(itl,func,sym_from_idx(RAX_IR));
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
     mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
     
 
     if(arg_size >= 2)
     {
+        lock_reg(itl,func,sym_from_idx(RDI_IR));
         const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(RDI_IR));
 
         if(!is_trivial_copy(v1_type))
@@ -153,6 +155,7 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
 
     if(arg_size >= 3)
     {
+        lock_reg(itl,func,sym_from_idx(RSI_IR));
         const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(RSI_IR));
 
         if(!is_trivial_copy(v2_type))
@@ -164,6 +167,7 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
 
     if(arg_size >= 4)
     {
+        lock_reg(itl,func,sym_from_idx(RDX_IR));
         const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(RDX_IR));
 
 

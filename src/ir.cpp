@@ -245,7 +245,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;
         }
 
-        case op_type::reserve_reg:
+        case op_type::lock_reg:
         {
             const auto spec_reg = sym_from_idx(opcode.v[0]);
 

@@ -88,7 +88,7 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
             list.end = node;
         }
 
-        else
+        else if(node->next)
         {
             node->next->prev = node;
         }

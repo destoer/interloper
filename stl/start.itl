@@ -14,11 +14,31 @@ func start()
 
 // Minimal start code
 
+// TODO: these need to go soon
+import <bit>
 import <mem>
+import <string>
+
+func os_exit(exit_code: s32)
+{
+    intrin_syscall(0x3c,exit_code);
+}
+
+func os_write(handle: u64,buf : const u8@, size: u64)
+{
+    intrin_syscall(1,handle,buf,size);
+}
 
 func exit(exit_code: s32)
 {
-    intrin_syscall(0x3c,exit_code);
+    os_exit(exit_code);
+}
+
+
+// TODO: this should use file buffering later
+func write_string(str: const string)
+{
+    os_write(1,cast(const u8@,str.data),str.len);
 }
 
 func start()

@@ -153,7 +153,7 @@ ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type)
     node->opcode = make_op(op_type::replace_reg,RAX_IR,v1);
 
     // make sure rdx is free and cannot be used for allocation
-    node = insert_after(block.list,node,make_op(op_type::reserve_reg,RDX_IR));            
+    node = insert_after(block.list,node,make_op(op_type::lock_reg,RDX_IR));            
 
     // sign extend rax into rdx
     node = insert_after(block.list,node,make_op(op_type::cqo));

@@ -35,7 +35,7 @@ void add_gpr(RegAlloc& alloc, u32 reg)
 
 void add_gpr(RegAlloc& alloc, x86_reg reg)
 {
-    alloc.free_list[alloc.free_regs++] = u32(reg);
+    add_gpr(alloc,u32(reg));
 }
 
 RegAlloc make_reg_alloc(b32 print, arch_target arch)

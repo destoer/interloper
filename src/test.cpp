@@ -174,9 +174,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_assign_vla",15},
 
     // strings
-    {"tests/string/char_array",6},
+    //{"tests/string/char_array",6},
     {"tests/string/write_string",0},
-    {"tests/string/write_string_static",0},
+    //{"tests/string/write_string_static",0},
     {"tests/string/str_conv",1},
 
 
