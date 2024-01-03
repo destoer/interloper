@@ -19,6 +19,19 @@ struct ElfTextSection
     // NOTE: code is owned externally in the AsmEmitter struct
 };
 
+struct ElfAllocSection
+{
+    u32 section_idx = 0;
+    Elf64_Shdr header;
+    
+    u32 program_idx;
+    Elf64_Phdr program_header;   
+
+    // NOTE: code is owned externally in the 
+    // for text AsmEmitter struct
+    // for const dat ain the const pool
+};
+
 struct ElfStringTable
 {
     u32 section_idx = 0;
@@ -55,7 +68,8 @@ struct Elf
     ElfStringTable section_string_table;
     ElfStringTable symtab_string_table;
 
-    ElfTextSection text_section;
+    ElfAllocSection text_section;
+    ElfAllocSection const_data;
 
     ElfSymbolTable symbol_table;
 
@@ -146,31 +160,39 @@ u32 add_program_header(Elf& elf)
     return elf.program_count++;
 }
 
-void setup_text(Elf& elf)
+void setup_alloc_section(Elf& elf,ElfAllocSection& section, const String& name, u32 shf_flags, u32 program_flags)
 {
-    auto& text_section = elf.text_section;
-
-    auto& section_header = text_section.header;
+    auto& section_header = section.header;
 
     memset(&section_header,0,sizeof(section_header));
 
-    text_section.section_idx = add_section(elf,".text",section_header);
+    section.section_idx = add_section(elf,name,section_header);
 
     section_header.sh_type = SHT_PROGBITS;
-    section_header.sh_flags = SHF_EXECINSTR | SHF_ALLOC;
+    section_header.sh_flags = shf_flags;
     section_header.sh_addralign = 16;
 
     // setup program header
-    auto& program_header = text_section.program_header;
+    auto& program_header = section.program_header;
 
     memset(&program_header,0,sizeof(program_header));
 
     // load, align to 4096 byte page, read | execute
     program_header.p_type = PT_LOAD;
     program_header.p_align = 4096;
-    program_header.p_flags = PF_X | PF_R;
+    program_header.p_flags = program_flags;
 
-    text_section.program_idx = add_program_header(elf);
+    section.program_idx = add_program_header(elf);   
+}
+
+void setup_text(Elf& elf)
+{
+    setup_alloc_section(elf,elf.text_section,".text",SHF_EXECINSTR | SHF_ALLOC,PF_X | PF_R);
+}
+
+void setup_const(Elf& elf)
+{
+    setup_alloc_section(elf,elf.const_data,".rodata",SHF_ALLOC,PF_R);
 }
 
 void setup_string(Elf& elf, ElfStringTable& string_table, const String& name)
@@ -259,6 +281,8 @@ Elf make_elf(const String& filename)
     // setup text section
     setup_text(elf);
 
+    setup_const(elf);
+
     setup_symtab(elf);
 
 
@@ -300,6 +324,10 @@ void finalise_section_headers(Elf& elf)
     auto& text_section = elf.text_section;
     push_mem(elf.buffer,&text_section.header,sizeof(text_section.header));
 
+    // add const section header
+    auto& const_data = elf.const_data;
+    push_mem(elf.buffer,&const_data.header,sizeof(const_data.header));
+
     // add symtab header
     auto& symbol_table = elf.symbol_table;
 
@@ -340,6 +368,30 @@ void align_elf(Elf& elf, u32 align)
     resize(elf.buffer,align_val(cur_offset,align));   
 }
 
+std::pair<u64,u64> finalise_alloc_section(Elf& elf, ElfAllocSection& section,Array<u8> buffer)
+{
+    // make sure page size aligns
+    align_elf(elf,section.program_header.p_align);
+
+    const u64 offset = push_section_data(elf,section.section_idx,buffer,true);
+    
+    // finish up the program header
+    write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_offset),offset);
+
+    // start at 4MB
+    const u64 vaddr = offset + BASE_ADDR;
+
+    write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_vaddr),vaddr);
+    write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
+
+    // write size
+    write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_filesz),buffer.size);
+    write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_memsz),buffer.size);
+
+
+    return std::pair{offset,vaddr};
+}
+
 void finalise_section_data(Interloper& itl,Elf& elf)
 {
     // add string section data
@@ -350,31 +402,18 @@ void finalise_section_data(Interloper& itl,Elf& elf)
     auto& symtab_string_table = elf.symtab_string_table;
     push_section_data(elf,symtab_string_table.section_idx,symtab_string_table.buffer);
 
+    // TODO: we need to factor this
+
     // add text section data
-    auto& text_section = elf.text_section;
-
-    // make sure page size aligns
-    align_elf(elf,elf.text_section.program_header.p_align);
-
-    const u64 text_offset = push_section_data(elf,text_section.section_idx,itl.asm_emitter.buffer,true);
-    
+    const auto [text_offset,text_vaddr] = finalise_alloc_section(elf,elf.text_section,itl.asm_emitter.buffer);
     itl.asm_emitter.base_offset = text_offset;
 
-    // finish up the program header
-    write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_offset),text_offset);
 
-    // start at 4MB
-    const u64 vaddr = text_offset + BASE_ADDR;
-
-    write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_vaddr),vaddr);
-    write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
+    // add const section data
+    const auto [const_offset, const_vaddr] = finalise_alloc_section(elf,elf.const_data,itl.const_pool.buf);
+    itl.const_pool.base_vaddr = const_vaddr;
 
 
-    // write size
-    const u64 size = itl.asm_emitter.buffer.size;
-
-    write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_filesz),size);
-    write_program_header(elf,text_section.program_idx,offsetof(Elf64_Phdr,p_memsz),size);
 
     // add symtab
     auto& symbol_table = elf.symbol_table;
@@ -386,14 +425,14 @@ void finalise_section_data(Interloper& itl,Elf& elf)
 
         const u32 offset = sym.st_value;
 
-        const u32 func_addr = vaddr + offset;
+        const u32 func_addr = text_vaddr + offset;
 
         sym.st_value = func_addr;
     }
 
     // for itl
     // TODO: write the label info
-    finalise_labels(itl,vaddr);
+    finalise_labels(itl,text_vaddr);
 
     // write entry point (i.e find start)
 
@@ -429,8 +468,15 @@ void finalise_program_headers(Elf& elf)
     write_mem(elf.buffer,offsetof(Elf64_Ehdr,e_phnum),elf.program_count);
     
     // start writing out the headers
+
+    // text section
     auto &text_section = elf.text_section;
     push_mem(elf.buffer,&text_section.program_header,sizeof(text_section.program_header));
+
+    // const data
+    auto &const_data = elf.const_data;
+    push_mem(elf.buffer,&const_data.program_header,sizeof(const_data.program_header));
+
 
 }
 
@@ -484,13 +530,34 @@ void rewrite_rel_label(Interloper& itl,Elf& elf,const LinkOpcode& link, LabelSlo
     // get the lable and write in the relative addr
     const auto label = label_from_slot(itl.symbol_table.label_lookup,slot);
 
-    const s32 rel_addr = (label.offset  - (link.offset + asm_emitter.base_vaddr)) - 4;
+    const u32 label_addr = label.offset;
+    const u32 instr_addr = (link.offset + asm_emitter.base_vaddr);
+
+    const s32 rel_addr = (label_addr  - instr_addr) - 4;
 
     write_mem(elf.buffer,text_offset + link.offset,rel_addr);
 }
 
-// TODO: we need to generalise this away from x86
-void link_elf(Interloper& itl, Elf& elf)
+void rewrite_rel_const_pool(Interloper& itl,Elf& elf,const LinkOpcode& link, PoolSlot slot)
+{
+    auto& asm_emitter = itl.asm_emitter;
+    auto& const_pool = itl.const_pool;
+    const u32 text_offset = itl.asm_emitter.base_offset;
+
+    // get pool section and write in relative addr
+    auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+    const u32 const_addr = (const_pool.base_vaddr + section.offset);
+    const u32 instr_addr = (asm_emitter.base_vaddr + link.offset);
+
+    const s32 rel_addr = (const_addr - instr_addr) - 4;
+
+    write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+}
+
+
+
+void link_opcodes(Interloper& itl, Elf& elf)
 {
     auto& asm_emitter = itl.asm_emitter;
 
@@ -536,6 +603,13 @@ void link_elf(Interloper& itl, Elf& elf)
                 break;
             }
 
+            case op_type::pool_addr:
+            {
+                const PoolSlot slot = pool_slot_from_idx(opcode.v[1]);
+                rewrite_rel_const_pool(itl,elf,link,slot);
+                break;
+            }
+
             default:
             {
                 assert(false);
@@ -543,6 +617,35 @@ void link_elf(Interloper& itl, Elf& elf)
             }
         }
     }
+}
+
+/*
+void link_const(Interloper& itl, Elf& elf)
+{
+    UNUSED(elf);
+    auto &const_pool = itl.const_pool;
+
+    // rewrite all labels
+    for(u32 l = 0; l < count(const_pool.label); l++)
+    {
+        assert(false);
+    }
+
+    // rewrite all pointers
+    for(u32 p = 0; p < count(const_pool.pool_pointer); p++)
+    {
+        assert(false);
+    }
+}
+*/
+
+
+// TODO: we need to generalise this away from x86
+void link_elf(Interloper& itl, Elf& elf)
+{
+    //link_const(itl,elf);
+
+    link_opcodes(itl,elf);
 }
 
 void emit_elf(Interloper& itl)

@@ -905,6 +905,13 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_type::pool_addr:
+        {
+            lea(emitter,dst,x86_reg::rip,0);
+            add_lea_rel_link(emitter,opcode);
+            break;
+        }
+
         case op_type::je:
         {
             const u32 offset = je(emitter);

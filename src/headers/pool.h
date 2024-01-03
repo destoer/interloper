@@ -47,4 +47,6 @@ struct ConstPool
     // offsets into the buffer that requires address resolution
     Array<u32> label;
     Array<PoolPointer> pool_pointer; 
+
+    u32 base_vaddr = 0;
 };
