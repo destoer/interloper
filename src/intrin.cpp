@@ -116,7 +116,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     }
 }
 
-// TODO: intrin directly using registers probably need to lock them
+
 Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     UNUSED(dst_slot);
@@ -130,17 +130,11 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
-    // make sure any registers we startt using get saved
-    // TODO: if we start using intrinsics for performance rather than
-    // just accessing arch details we will need a better solution than blindly spilling
-    // then all
-    spill_all(itl,func);
-
+    // make sure this register doesn't get reused
     lock_reg(itl,func,sym_from_idx(RAX_IR));
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
     mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
     
-
     if(arg_size >= 2)
     {
         lock_reg(itl,func,sym_from_idx(RDI_IR));
