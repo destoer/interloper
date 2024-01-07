@@ -36,7 +36,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
         const u32 size = array_type->sub_size;
 
-        const SymSlot mul_slot = mul_imm_res(itl,func,subscript_slot,size);   
+        const SymSlot mul_slot = mul_imm_pow2_res(itl,func,subscript_slot,size);   
 
         const SymSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
         add(itl,func,add_slot,last_slot,mul_slot);

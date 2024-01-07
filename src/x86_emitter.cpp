@@ -255,6 +255,19 @@ void mov_imm(AsmEmitter& emitter, x86_reg reg, u64 imm)
 }
 
 
+void shift_imm(AsmEmitter& emitter, x86_reg dst, u8 v1, u32 opcode_ext)
+{
+    // shl r64, imm8
+    const u8 opcode = 0xc1;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    // opcode extenstion required
+    push_u8(emitter,mod_opcode_reg(dst,opcode_ext));
+
+    push_u8(emitter,v1);
+}
+    
+
 void arith_imm(AsmEmitter& emitter, x86_reg dst, s64 v1, u32 opcode_ext)
 {
     // add r64, imm8
@@ -364,6 +377,11 @@ void and_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
     }
 }
 
+
+void lsl_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
+{
+    shift_imm(emitter,dst,v1,4);
+}
 
 void cmp_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
@@ -1011,6 +1029,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::lsl_x86:
         {
             lsl_x86(emitter,dst);
+            break;
+        }
+
+        case op_type::lsl_imm2:
+        {
+            lsl_imm(emitter,dst,u32(v1));
             break;
         }
 

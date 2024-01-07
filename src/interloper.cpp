@@ -197,7 +197,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
 
-        const SymSlot offset_slot = mul_imm_res(itl,func,v2,type_size(itl,contained_type));
+        const SymSlot offset_slot = mul_imm_pow2_res(itl,func,v2,type_size(itl,contained_type));
         emit_reg3<type>(itl,func,dst_slot,v1,offset_slot);
     }
 
@@ -756,7 +756,7 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
 
     // setup the loop grab data and len
     const auto arr_len = load_arr_len(itl,func,arr_slot,type);
-    const auto arr_bytes = mul_imm_res(itl,func,arr_len,index_size);
+    const auto arr_bytes = mul_imm_pow2_res(itl,func,arr_len,index_size);
 
     const auto arr_data = load_arr_data(itl,func,arr_slot,type);
 
@@ -958,6 +958,12 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     destroy_scope(itl.symbol_table);    
 }
 
+SymSlot mul_imm_pow2_res(Interloper& itl, Function& func, SymSlot src,s32 imm)
+{
+    u32 shift = log2(imm);
+
+    return lsl_imm_res(itl,func,src,shift);
+}
 
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
@@ -1173,7 +1179,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const BlockSlot dispatch_block = new_basic_block(itl,func);
 
         // mulitply to get a jump table index
-        const SymSlot table_index = mul_imm_res(itl,func,switch_slot,GPR_SIZE);
+        const SymSlot table_index = mul_imm_pow2_res(itl,func,switch_slot,GPR_SIZE);
 
         
         // reserve space for the table inside the constant pool
@@ -2528,6 +2534,11 @@ void compile(Interloper &itl,const String& initial_filename)
         optimise_ir(itl);
     }
     
+    if(itl.print_ir)
+    {
+        dump_sym_ir(itl);
+    }
+
     switch(itl.arch)
     {
         case arch_target::x86_64_t:

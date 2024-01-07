@@ -84,6 +84,10 @@ int main(int argc, char *argv[])
 
     if(!itl.compile_only)
     {
-        return WEXITSTATUS(system("./test-prog"));
+        s32 rc = WEXITSTATUS(system("./test-prog"));
+
+        printf("exit code: %d\n",rc);
+
+        return rc;
     }
 }
