@@ -456,10 +456,10 @@ static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 8;
 static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
 // dont perform any moves
-static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 8;
+static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 9;
 
-static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 9;
-static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 10;
+static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 10;
+static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 11;
 
 const String SPECIAL_REG_NAMES[12] = 
 {
@@ -472,7 +472,7 @@ const String SPECIAL_REG_NAMES[12] =
     "rdi",
     "rsi",
     "fixed_len",
-    "null",
+    "null_slot",
     "const",
     "global",
 };

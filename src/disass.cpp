@@ -70,6 +70,15 @@ void fmt_raw_specifier(Array<char> &buffer,const SymbolTable* table, char specif
         // raw register
         case 'r':
         {
+            SymSlot spec = sym_from_idx(slot);
+
+            if(is_special_reg(spec))
+            {
+                const u32 idx = spec.handle - SPECIAL_PURPOSE_REG_START;
+                push_mem(buffer,SPECIAL_REG_NAMES[idx]);
+                break;
+            }
+
             switch(arch)
             {
                 case arch_target::x86_64_t:
