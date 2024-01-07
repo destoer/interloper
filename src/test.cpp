@@ -99,7 +99,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     //{"tests/basic/mod",233168},
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
-    //{"tests/basic/constant",1},
+    {"tests/basic/constant",1},
     //{"tests/basic/global",26},
     {"tests/basic/overflow",1},  // 65286
     {"tests/basic/const_assert_pass",0},
@@ -141,8 +141,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/for_outer_decl",32},
     {"tests/control_flow/while",32},
 
-    //{"tests/control_flow/switch_no_default",73},
-    //{"tests/control_flow/switch",1}, // 447
+    {"tests/control_flow/switch_no_default",73},
+    {"tests/control_flow/switch",1}, // 447
 
 
     // pointers

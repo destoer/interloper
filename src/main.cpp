@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 
     if(!itl.compile_only)
     {
-        printf("program execution stubbed\n");
+        return WEXITSTATUS(system("./test-prog"));
     }
 
     destroy_itl(itl);

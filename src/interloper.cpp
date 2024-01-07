@@ -1187,7 +1187,6 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const SymSlot target = new_tmp_ptr(func);
         load_ptr(itl,func,target, final_offset,0, GPR_SIZE,false);
 
-
         // branch on it
         branch_reg(itl,func,target);
 

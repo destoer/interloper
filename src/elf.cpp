@@ -8,16 +8,6 @@ struct ElfFunc
     u32 size;
 };
 
-struct ElfTextSection
-{
-    u32 section_idx = 0;
-    Elf64_Shdr header;
-    
-    u32 program_idx;
-    Elf64_Phdr program_header;
-
-    // NOTE: code is owned externally in the AsmEmitter struct
-};
 
 struct ElfAllocSection
 {
@@ -26,6 +16,8 @@ struct ElfAllocSection
     
     u32 program_idx;
     Elf64_Phdr program_header;   
+
+    u32 symbol_idx;
 
     // NOTE: code is owned externally in the 
     // for text AsmEmitter struct
@@ -137,6 +129,13 @@ void setup_header(Elf& elf)
     
 }
 
+
+void align_elf(Elf& elf, u32 align)
+{
+    const u64 cur_offset = elf.buffer.size;
+    resize(elf.buffer,align_val(cur_offset,align));   
+}
+
 u32 push_string(ElfStringTable& string_table, const String& name)
 {
     // add a string and null term it
@@ -160,7 +159,51 @@ u32 add_program_header(Elf& elf)
     return elf.program_count++;
 }
 
-void setup_alloc_section(Elf& elf,ElfAllocSection& section, const String& name, u32 shf_flags, u32 program_flags)
+u32 add_symbol(Elf& elf,const String& name,u32 section_idx,u32 st_info, u32 offset, u32 size)
+{
+    auto& symbol_table = elf.symbol_table;
+    auto& symtab_string_table = elf.symtab_string_table;
+
+    Elf64_Sym sym;
+    memset(&sym,0,sizeof(sym));
+
+    // add symbol name
+    sym.st_name = push_string(symtab_string_table,name);
+
+    // write the offset into value for now
+    // we will rewrite it later
+    sym.st_value = offset;
+
+    // set as function
+    sym.st_info = st_info;
+
+    // setup size
+    sym.st_size = size;
+
+    // what seciton is this sym apart of
+    sym.st_shndx = section_idx;
+
+    const u32 idx = count(symbol_table.table);
+
+    // add symbol
+    push_var(symbol_table.table,sym);
+
+    return idx;
+}
+
+
+u32 add_section_symbol(Elf& elf,const String& name, u32 section_idx)
+{
+    // write symbol and offset later
+    return add_symbol(elf,name,section_idx,ELF64_ST_INFO(STB_GLOBAL,STT_SECTION),0,0);
+}
+
+void add_func_symbol(Elf& elf,const AsmFunc& func)
+{
+    add_symbol(elf,func.name,elf.text_section.section_idx,ELF64_ST_INFO(STB_GLOBAL,STT_FUNC),func.offset,func.size);
+}
+
+void setup_alloc_section(Elf& elf,ElfAllocSection& section, const String& name,const String& sym_name, u32 shf_flags, u32 program_flags)
 {
     auto& section_header = section.header;
 
@@ -183,16 +226,22 @@ void setup_alloc_section(Elf& elf,ElfAllocSection& section, const String& name, 
     program_header.p_flags = program_flags;
 
     section.program_idx = add_program_header(elf);   
+
+    // add symbol
+    section.symbol_idx = add_section_symbol(elf,sym_name,section.section_idx);
 }
+
+
+
 
 void setup_text(Elf& elf)
 {
-    setup_alloc_section(elf,elf.text_section,".text",SHF_EXECINSTR | SHF_ALLOC,PF_X | PF_R);
+    setup_alloc_section(elf,elf.text_section,".text","_text",SHF_EXECINSTR | SHF_ALLOC,PF_X | PF_R);
 }
 
 void setup_const(Elf& elf)
 {
-    setup_alloc_section(elf,elf.const_data,".rodata",SHF_ALLOC,PF_R);
+    setup_alloc_section(elf,elf.const_data,".rodata","_rodata",SHF_ALLOC,PF_R);
 }
 
 void setup_string(Elf& elf, ElfStringTable& string_table, const String& name)
@@ -226,7 +275,11 @@ void setup_symtab(Elf& elf)
 
     // link to the sym table we are going to use
     header.sh_link = elf.symtab_string_table.section_idx;
+}
 
+void add_null_sym(Elf& elf)
+{
+    auto& symbol_table = elf.symbol_table;
 
     // insert the null sym entry
     Elf64_Sym null_sym;
@@ -235,34 +288,6 @@ void setup_symtab(Elf& elf)
     push_var(symbol_table.table,null_sym);
 }
 
-
-void add_func_symbol(Elf& elf,const AsmFunc& func)
-{
-    auto& symbol_table = elf.symbol_table;
-    auto& symtab_string_table = elf.symtab_string_table;
-
-    Elf64_Sym sym;
-    memset(&sym,0,sizeof(sym));
-
-    // add symbol name
-    sym.st_name = push_string(symtab_string_table,func.name);
-
-    // write the offset into value for now
-    // we will rewrite it later
-    sym.st_value = func.offset;
-
-    // set as function
-    sym.st_info = ELF64_ST_INFO(STB_GLOBAL,STT_FUNC);
-
-    // setup size
-    sym.st_size = func.size;
-
-    // what seciton is this sym apart of
-    sym.st_shndx = elf.text_section.section_idx;
-
-    // add symbol
-    push_var(symbol_table.table,sym);
-}
 
 Elf make_elf(const String& filename)
 {
@@ -277,6 +302,9 @@ Elf make_elf(const String& filename)
 
     setup_string(elf,elf.symtab_string_table,".strtab");
 
+    // insert the null sym entry 
+    // NOTE: we want this done before we dump any symbols
+    add_null_sym(elf);
 
     // setup text section
     setup_text(elf);
@@ -284,7 +312,6 @@ Elf make_elf(const String& filename)
     setup_const(elf);
 
     setup_symtab(elf);
-
 
     return elf;
 }
@@ -306,6 +333,9 @@ void write_section_header(Elf& elf,u32 header_idx, u32 offset, u64 v)
 
 void finalise_section_headers(Elf& elf)
 {
+    // align section headers
+    align_elf(elf,sizeof(Elf64_Shdr));
+
     // add null section
     Elf64_Shdr null_section;
     memset(&null_section,0,sizeof(null_section));
@@ -316,9 +346,10 @@ void finalise_section_headers(Elf& elf)
     auto& section_string_table = elf.section_string_table;
     push_mem(elf.buffer,&section_string_table.header,sizeof(section_string_table.header));
 
-    // string table header
+    // symbol string table header
     auto& symtab_string_table = elf.symtab_string_table;
     push_mem(elf.buffer,&symtab_string_table.header,sizeof(symtab_string_table.header));
+
 
     // add text section header
     auto& text_section = elf.text_section;
@@ -333,7 +364,6 @@ void finalise_section_headers(Elf& elf)
 
     // + 1 of final local symbol?
     elf.symbol_table.header.sh_info = count(elf.symbol_table.table) + 1;
-
     push_mem(elf.buffer,&symbol_table.header,sizeof(symbol_table.header));
 
 
@@ -362,12 +392,6 @@ u32 push_section_data(Elf& elf, u32 section_idx, const Array<T>& buffer, b32 wri
     return buffer_offset;  
 }
 
-void align_elf(Elf& elf, u32 align)
-{
-    const u64 cur_offset = elf.buffer.size;
-    resize(elf.buffer,align_val(cur_offset,align));   
-}
-
 std::pair<u64,u64> finalise_alloc_section(Elf& elf, ElfAllocSection& section,Array<u8> buffer)
 {
     // make sure page size aligns
@@ -392,46 +416,31 @@ std::pair<u64,u64> finalise_alloc_section(Elf& elf, ElfAllocSection& section,Arr
     return std::pair{offset,vaddr};
 }
 
-void finalise_section_data(Interloper& itl,Elf& elf)
+void write_symtab(Interloper& itl, Elf& elf, u64 text_vaddr, u64 const_vaddr)
 {
-    // add string section data
-    auto& section_string_table = elf.section_string_table;
-    push_section_data(elf,section_string_table.section_idx,section_string_table.buffer);
-
-    // add symtab string
-    auto& symtab_string_table = elf.symtab_string_table;
-    push_section_data(elf,symtab_string_table.section_idx,symtab_string_table.buffer);
-
-    // TODO: we need to factor this
-
-    // add text section data
-    const auto [text_offset,text_vaddr] = finalise_alloc_section(elf,elf.text_section,itl.asm_emitter.buffer);
-    itl.asm_emitter.base_offset = text_offset;
-
-
-    // add const section data
-    const auto [const_offset, const_vaddr] = finalise_alloc_section(elf,elf.const_data,itl.const_pool.buf);
-    itl.const_pool.base_vaddr = const_vaddr;
-
-
-
     // add symtab
     auto& symbol_table = elf.symbol_table;
+
+    // setup the offsets of the section symbools
+    symbol_table.table[elf.text_section.symbol_idx].st_value = text_vaddr;
+    symbol_table.table[elf.const_data.symbol_idx].st_value = const_vaddr;
 
     // rewrite every symbol know we know start of text section
     for(u32 s = 1; s < count(symbol_table.table); s++)
     {
         auto& sym = symbol_table.table[s];
 
-        const u32 offset = sym.st_value;
+        if(ELF64_ST_TYPE(sym.st_info) == STT_FUNC)
+        {
+            const u32 offset = sym.st_value;
 
-        const u32 func_addr = text_vaddr + offset;
+            const u32 func_addr = text_vaddr + offset;
 
-        sym.st_value = func_addr;
+            sym.st_value = func_addr;
+        }
     }
 
-    // for itl
-    // TODO: write the label info
+    // we can also write in all the correct label pos
     finalise_labels(itl,text_vaddr);
 
     // write entry point (i.e find start)
@@ -445,6 +454,60 @@ void finalise_section_data(Interloper& itl,Elf& elf)
     align_elf(elf,symbol_table.header.sh_addralign);
 
     push_section_data(elf,symbol_table.section_idx,symbol_table.table);
+}
+
+void finalise_const_pool(Interloper& itl,Elf& elf,u32 const_offset, u64 const_vaddr)
+{
+    // get raw pool data to rewrite its contents
+    auto& const_pool = itl.const_pool;
+
+    // perform pool rewriting
+
+    // rewrite all labels
+    for(u32 l = 0; l < count(const_pool.label); l++)
+    {
+        const auto pool_label = const_pool.label[l];
+        const auto label = label_from_slot(itl.symbol_table.label_lookup,pool_label.label_slot);
+
+        write_mem<u64>(elf.buffer,const_offset + pool_label.pool_offset,label.offset);
+    }
+
+    // rewrite all pointers
+    for(u32 p = 0; p < count(const_pool.pool_pointer); p++)
+    {
+        const auto& pool_pointer = const_pool.pool_pointer[p];
+        const auto& data_pointer = pool_pointer.pointer;
+        auto& section = pool_section_from_slot(itl.const_pool,data_pointer.slot);
+
+        const u32 addr = const_offset + pool_pointer.pool_offset;
+
+        write_mem<u64>(elf.buffer,addr,(section.offset + data_pointer.offset) + const_vaddr);
+    }   
+}
+
+void finalise_section_data(Interloper& itl,Elf& elf)
+{
+    // add string section data
+    auto& section_string_table = elf.section_string_table;
+    push_section_data(elf,section_string_table.section_idx,section_string_table.buffer);
+
+    // add symtab string
+    auto& symtab_string_table = elf.symtab_string_table;
+    push_section_data(elf,symtab_string_table.section_idx,symtab_string_table.buffer);
+
+    // add text section data
+    const auto [text_offset,text_vaddr] = finalise_alloc_section(elf,elf.text_section,itl.asm_emitter.buffer);
+    itl.asm_emitter.base_offset = text_offset;
+
+    // add const section data
+    const auto [const_offset, const_vaddr] = finalise_alloc_section(elf,elf.const_data,itl.const_pool.buf);
+    itl.const_pool.base_vaddr = const_vaddr;
+
+    // write in symtab
+    write_symtab(itl,elf,text_vaddr,const_vaddr);
+
+
+    finalise_const_pool(itl,elf,const_offset,const_vaddr);
 }
 
 void finalise_elf_header(Elf& elf)
@@ -464,6 +527,9 @@ void finalise_elf_header(Elf& elf)
 
 void finalise_program_headers(Elf& elf)
 {
+    // align program headers
+    align_elf(elf,sizeof(u64));
+
     write_mem(elf.buffer,offsetof(Elf64_Ehdr,e_phoff),elf.header.e_phoff);
     write_mem(elf.buffer,offsetof(Elf64_Ehdr,e_phnum),elf.program_count);
     
@@ -619,32 +685,9 @@ void link_opcodes(Interloper& itl, Elf& elf)
     }
 }
 
-/*
-void link_const(Interloper& itl, Elf& elf)
-{
-    UNUSED(elf);
-    auto &const_pool = itl.const_pool;
-
-    // rewrite all labels
-    for(u32 l = 0; l < count(const_pool.label); l++)
-    {
-        assert(false);
-    }
-
-    // rewrite all pointers
-    for(u32 p = 0; p < count(const_pool.pool_pointer); p++)
-    {
-        assert(false);
-    }
-}
-*/
-
-
 // TODO: we need to generalise this away from x86
 void link_elf(Interloper& itl, Elf& elf)
 {
-    //link_const(itl,elf);
-
     link_opcodes(itl,elf);
 }
 

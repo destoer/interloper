@@ -43,6 +43,9 @@ func write_string(str: const string)
 
 func start()
 {
+    init_global();
+
     rc : s32 = main();
+
     exit(rc);
 }

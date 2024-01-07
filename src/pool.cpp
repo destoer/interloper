@@ -71,8 +71,10 @@ void write_const_pool(ConstPool& pool, PoolSection& section, u32 offset,const T&
 
 void write_const_pool_label(ConstPool& pool, PoolSection& section, u32 offset, LabelSlot label_slot)
 {
+    const PoolLabel pool_label = {label_slot,section.offset + offset};
+
     // mark where label is going so it can resolved later
-    push_var(pool.label,section.offset + offset);
+    push_var(pool.label,pool_label);
 
     //printf("wrote label L%d %d\n",label_slot.handle,count(pool.label));
 
