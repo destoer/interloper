@@ -79,10 +79,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+
+    destroy_itl(itl);
+
     if(!itl.compile_only)
     {
         return WEXITSTATUS(system("./test-prog"));
     }
-
-    destroy_itl(itl);
 }

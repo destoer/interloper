@@ -622,6 +622,39 @@ void rewrite_rel_const_pool(Interloper& itl,Elf& elf,const LinkOpcode& link, Poo
 }
 
 
+void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
+{
+    auto& asm_emitter = itl.asm_emitter;
+    auto& const_pool = itl.const_pool;
+
+    const auto opcode = link.opcode;
+
+    const s64 section_offset = opcode.v[2];
+    const SymSlot spec = sym_from_idx(opcode.v[1]);
+
+    const u32 text_offset = itl.asm_emitter.base_offset;
+
+    switch(spec.handle)
+    {
+        case CONST_IR:
+        {
+            const u32 const_addr = (const_pool.base_vaddr + section_offset);
+            const u32 instr_addr = (asm_emitter.base_vaddr + link.offset);
+
+            const s32 rel_addr = (const_addr - instr_addr) - 4;
+
+            write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+            break;
+        }
+
+        default:
+        {
+            unimplemented("[ELF X86 LINK]: unknown load_store handle %s",spec_reg_name(spec));
+            break;
+        }
+    }
+}
+
 
 void link_opcodes(Interloper& itl, Elf& elf)
 {
@@ -676,8 +709,22 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 break;
             }
 
+            case op_type::ld:
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
+
+            case op_type::lw:
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
+
             default:
             {
+                auto& info = info_from_op(opcode);
+                printf("[ELF link X86]: unknown opcode: %s\n",info.fmt_string.buf);
                 assert(false);
                 break;
             }

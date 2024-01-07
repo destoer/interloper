@@ -719,13 +719,36 @@ void lea(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
     add(emitter,dst,v1,imm);
 }
 
-void add_lea_rel_link(AsmEmitter& emitter, const Opcode& opcode)
+void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
 {
     // NOTE: relies on emitter disp allwayys being u32
     // for RIP relative
     const u32 offset = emitter.buffer.size - 4;
 
     add_link(emitter,opcode,offset);
+}
+
+template<typename FUNC_PTR>
+void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
+{
+    const auto dst = x86_reg(opcode.v[0]);
+    auto v1 = x86_reg(opcode.v[1]);
+    s64 v2 = s64(opcode.v[2]);
+
+    const bool is_data_sect = (v1 == CONST_IR || v1 == GP_IR);
+
+    if(is_data_sect)
+    {
+        v1 = x86_reg::rip;
+        v2 = 0;
+    }
+
+    func(emitter,dst,v1,v2);
+
+    if(is_data_sect)
+    {
+        add_rip_rel_link(emitter,opcode);
+    }
 }
 
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
@@ -908,7 +931,7 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::pool_addr:
         {
             lea(emitter,dst,x86_reg::rip,0);
-            add_lea_rel_link(emitter,opcode);
+            add_rip_rel_link(emitter,opcode);
             break;
         }
 
@@ -1005,68 +1028,68 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::lb:
         {
-            lb(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,lb);
             break;
         }
 
         case op_type::sb:
         {
-            sb(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,sb);
             break;
         }
 
         case op_type::lh:
         {
-            lh(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,lh);
             break;        
         }
 
         case op_type::sh:
         {
-            sh(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,sh);
             break;        
         }
 
         case op_type::lw:
         {
-            lw(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,lw);
             break;
         }
 
         case op_type::sw:
         {
-            sw(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,sw);
             break;
         }
 
         case op_type::lsw:
         {
-            lsw(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,lsw);
             break;
         }
 
         case op_type::ld:
         {
-            ld(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,ld);
             break;
         }
 
         case op_type::sd:
         {
-            sd(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,sd);;
             break;
         }
 
         case op_type::lea:
         {
-            lea(emitter,dst,v1,s64(v2));
+            emit_load_store(emitter,opcode,lea);
             break;
         }
 
         case op_type::load_func_addr:
         {
             lea(emitter,dst,x86_reg::rip,0);
-            add_lea_rel_link(emitter,opcode);
+            add_rip_rel_link(emitter,opcode);
             break;
         }
 
