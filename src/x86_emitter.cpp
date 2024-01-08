@@ -84,7 +84,10 @@ void push_base_disp(AsmEmitter& emitter,x86_reg dst, x86_reg src, s32 imm)
             push_u8(emitter,0);     
         }
 
-        push_u16(emitter,mod_base(dst,src));
+        else
+        {
+            push_u16(emitter,mod_base(dst,src));
+        }
     }
 
     else if(fit_into_s8(imm))

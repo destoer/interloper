@@ -46,8 +46,7 @@ func main() s32
     // test array of structs
     res4 := ((STRUCT_TABLE[0].x * STRUCT_TABLE[0].y) + (STRUCT_TABLE[1].x * STRUCT_TABLE[1].y)) == 41;
     
-    //ans := res1 && res2 && res3 && res4;
-    ans := res4;
+    ans := res1 && res2 && res3 && res4;
 
     return cast(s32,ans);
 }

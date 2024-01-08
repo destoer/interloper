@@ -334,6 +334,18 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
                 break;
             }
 
+            case op_type::lsl_reg:
+            {
+                ans = make_const_value(v1 << v2);
+                break;                
+            }
+
+            case op_type::lsl_imm:
+            {
+                ans = make_const_value(v1 << v2);
+                break;
+            }
+
             case op_type::and_reg:
             {
                 ans = make_const_value(v1 & v2);
@@ -535,6 +547,18 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
             case op_type::and_reg:
             {
                 inline_commuative_single(node,op_type::and_imm,oper.v1,oper.v2);
+                break;
+            }
+
+            case op_type::lsl_imm:
+            {
+                // shift zero (i.e nothing)
+                // conv to mov
+                if(node->opcode.v[2] == 0)
+                {
+                    node->opcode = make_op(op_type::mov_reg,node->opcode.v[0],node->opcode.v[1]);
+                }
+
                 break;
             }
 
