@@ -705,7 +705,7 @@ static constexpr u32 LEX_ACTIVE_STATES[LEX_ACTIVE_STATE_SIZE][LEX_CLASS_SIZE]
 	u32(token_type::bitwise_or), //gt
 	u32(token_type::bitwise_or), //lt
 	u32(token_type::bitwise_or), //colon
-	u32(token_type::bitwise_or), //equal
+	u32(token_type::bitwise_or_eq), //equal
 	u32(token_type::bitwise_or), //not
 	u32(token_type::bitwise_or), //dot
 	u32(token_type::bitwise_or), //mod

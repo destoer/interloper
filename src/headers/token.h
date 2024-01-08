@@ -30,6 +30,8 @@ enum class token_type
     times_eq,
     divide_eq,
 
+    bitwise_or_eq,
+
     decl,
 
     const_assert,
@@ -161,6 +163,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::times_eq,"*=",2,2},
     {token_type::divide_eq,"/=",2,2},
 
+    {token_type::bitwise_or_eq,"|=",2,2},
 
     {token_type::decl,":=",-1,2},
 

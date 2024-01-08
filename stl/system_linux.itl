@@ -150,7 +150,47 @@ constant OS_INVALID_READ : s64 = -1;
 // NOTE: this is expecting a null terminated string
 func os_open(filename : const c8@, mode : file_mode, opt : file_opt) byte@
 {
-    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,cast(u32,mode),cast(u32,opt)));
+    // convert our high level enums to an os flag
+    os_flag : u32 = 0;
+
+    constant OS_OPEN_READ_ONLY: u32 = 0;
+    constant OS_OPEN_WRITE_ONLY: u32 = 1;
+    constant OS_OPEN_CREATE : u32 = 0x40;
+    constant OS_OPEN_APPEND : u32 = 0x400;
+
+    switch(mode)
+    {
+        case file_mode::read:
+        {
+            os_flag = OS_OPEN_READ_ONLY;
+        }
+    
+        case file_mode::write:
+        {
+            os_flag = OS_OPEN_WRITE_ONLY;
+        }
+    }
+
+    switch(opt)
+    {
+        case file_opt::open:
+        {
+
+        }
+
+        case file_opt::create:
+        {
+            os_flag |= OS_OPEN_CREATE;
+        }
+
+        case file_opt::append:
+        {
+            os_flag |= OS_OPEN_APPEND;
+        }
+    }
+
+
+    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,os_flag,0));
 }
 
 func os_close(handle : const byte@)

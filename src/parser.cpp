@@ -816,6 +816,7 @@ AstNode *statement(Parser &parser)
                 case token_type::minus_eq:
                 case token_type::divide_eq:
                 case token_type::times_eq:
+                case token_type::bitwise_or_eq:
                 case token_type::equal:
                 {
                     prev_token(parser);
