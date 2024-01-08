@@ -18,6 +18,7 @@ func start()
 import <bit>
 import <mem>
 import <string>
+import <math>
 
 func os_exit(exit_code: s32)
 {
@@ -39,6 +40,11 @@ func exit(exit_code: s32)
 func write_string(str: const string)
 {
     os_write(1,cast(const u8@,str.data),str.len);
+}
+
+func write_str_raw(data : const c8@, len : u64)
+{
+    os_write(1,cast(const u8@,data),len);
 }
 
 func start()

@@ -59,6 +59,7 @@ enum class op_type
 
     cqo,
     div_x86,
+    mod_x86,
     mul_x86,
 
     lsl_x86,

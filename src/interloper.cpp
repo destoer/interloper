@@ -1445,6 +1445,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         return make_builtin(itl,builtin_type::void_t);
     }
 
+    itl.cur_expr = node;
    
     switch(node->type)
     {
@@ -2404,9 +2405,6 @@ void check_startup_defs(Interloper& itl)
 void compile(Interloper &itl,const String& initial_filename)
 {
     printf("compiling file: %s\n",initial_filename.buf);
-
-    // TODO: this just needs to go for now
-    itl.rtti_enable = false;
 
     itl.error = false;
     itl.error_code = itl_error::none;

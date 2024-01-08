@@ -159,10 +159,8 @@ ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type)
     node = insert_after(block.list,node,make_op(op_type::cqo));
     
     // perform the operation!
+    // NOTE: the operation should unlock both registers
     node = insert_after(block.list,node,make_op(type,dst,v2));
-
-    // we are now allowed to give back rdx again
-    node = insert_after(block.list,node,make_op(op_type::unlock_reg,RDX_IR));   
 
     return node->next;
 }
@@ -196,6 +194,11 @@ ListNode* mul_x86(Block& block, ListNode* node)
 ListNode* div_x86(Block& block, ListNode* node)
 {
     return x86_fixed_arith_oper(block,node,op_type::div_x86);
+}
+
+ListNode* mod_x86(Block& block, ListNode* node)
+{
+    return x86_fixed_arith_oper(block,node,op_type::mod_x86);
 }
 
 ListNode* lsl_x86(Block& block, ListNode* node)
@@ -425,6 +428,18 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
                 case arch_target::x86_64_t:
                 {
                     return div_x86(block,node);
+                }
+            }
+            break;
+        }
+
+        case op_type::mod_reg:
+        {
+            switch(itl.arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return mod_x86(block,node);
                 }
             }
             break;

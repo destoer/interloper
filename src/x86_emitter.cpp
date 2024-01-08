@@ -1023,6 +1023,13 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_type::mod_x86:
+        {
+            // same as div just different result reg used
+            div_x86(emitter,v1);
+            break;
+        }
+
         case op_type::mul_x86:
         {
             mul_x86(emitter,v1);

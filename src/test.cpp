@@ -96,10 +96,10 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/bitwise",0}, // -713
     {"tests/basic/logical",1},
     {"tests/basic/arith_eq",1}, // 294
-    //{"tests/basic/mod",233168},
+    {"tests/basic/mod",1}, // 233168
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
-    //{"tests/basic/constant",1},
+    {"tests/basic/constant",1},
     //{"tests/basic/global",26},
     {"tests/basic/overflow",1},  // 65286
     {"tests/basic/const_assert_pass",0},
@@ -112,7 +112,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/type/byte",0},
     {"tests/type/struct_punning",11},
     {"tests/type/type_query",1},
-    //{"tests/type/rtti",1},
+    {"tests/type/rtti",1},
 
     // const
     {"tests/const/const_pass_copy",100},
@@ -174,10 +174,10 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_assign_vla",15},
 
     // strings
-    //{"tests/string/char_array",6},
+    {"tests/string/char_array",6},
     {"tests/string/write_string",0},
-    //{"tests/string/write_string_static",0},
-    //{"tests/string/str_conv",1},
+    {"tests/string/write_string_static",0},
+    {"tests/string/str_conv",1},
 
 
 
@@ -208,8 +208,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // enum
     {"tests/enum/enum",1},
-    //{"tests/enum/switch_enum",10},
-    //{"tests/enum/enum_struct",11},
+    {"tests/enum/switch_enum",10},
+    {"tests/enum/enum_struct",11},
 
 
     // type alias

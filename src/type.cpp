@@ -1844,6 +1844,13 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         mov_reg(itl,func,dst_slot,src_slot);
     }
 
+
+    // integer to pointer
+    else if(is_integer(old_type) && (is_pointer(new_type)))
+    {
+        mov_reg(itl,func,dst_slot,src_slot);
+    }
+
     // func pointer cast to pointer or integer is fine
     else if(is_func_pointer(old_type) && (is_pointer(new_type) || is_integer(new_type)))
     {

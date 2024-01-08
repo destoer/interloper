@@ -72,6 +72,40 @@ ListNode* rewrite_x86_shift(Interloper& itl, LocalAlloc& alloc, Block& block, Li
     return node->next;
 }
 
+ListNode* rewrite_x86_fixed_arith(Interloper& itl, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot out)
+{
+    // save where our dst is being forced into
+    const auto dst = sym_from_idx(node->opcode.v[0]);
+
+    // rewrite src
+    allocate_and_rewrite(itl.symbol_table,alloc,block,node,1);
+
+    // rax free
+    unlock_reg(alloc.reg_alloc,sym_from_idx(RAX_IR));
+
+    // rdx free
+    unlock_reg(alloc.reg_alloc,sym_from_idx(RDX_IR));
+
+    if(is_var(dst))
+    {
+        auto& ir_reg = reg_from_slot(dst,itl.symbol_table,alloc);
+
+        if(alloc.reg_alloc.print)
+        {
+            printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(out));
+        }
+
+        // force to out reg
+        assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
+        mark_reg_usage(alloc.reg_alloc,ir_reg,true);
+    }
+
+    // NOTE: where the dst was written (NOTE: this is actually implict to thei instructiom)
+    node->opcode.v[0] = out.handle;
+
+    return node->next;  
+}
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block &block, ListNode *node)
 {
     auto &table = itl.symbol_table;
@@ -177,53 +211,20 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
         case op_type::div_x86:
         {
-            const auto dst = sym_from_idx(opcode.v[0]);
-            const auto out = sym_from_idx(RAX_IR);
-
-            if(is_var(dst))
-            {
-                auto& ir_reg = reg_from_slot(dst,table,alloc);
-
-                // rax free
-                unlock_reg(alloc.reg_alloc,out);
-
-                if(alloc.reg_alloc.print)
-                {
-                    printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(out));
-                }
-
-                // force to rax
-                assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
-            }
-            
-            rewrite_opcode(itl,alloc,block,node);
-            node = node->next;
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RAX_IR));
             break;
         }
 
+        case op_type::mod_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RDX_IR));
+            break;
+        }
+
+
         case op_type::mul_x86:
         {
-            const auto dst = sym_from_idx(opcode.v[0]);
-            const auto out = sym_from_idx(RAX_IR);
-
-            if(is_var(dst))
-            {
-                auto& ir_reg = reg_from_slot(dst,table,alloc);
-
-                // rax free
-                unlock_reg(alloc.reg_alloc,out);
-
-                if(alloc.reg_alloc.print)
-                {
-                    printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(out));
-                }
-
-                // force to rax
-                assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
-            }
-            
-            rewrite_opcode(itl,alloc,block,node);
-            node = node->next;
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RAX_IR));
             break;
         }
 
