@@ -325,11 +325,20 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
                 break;
             }
 
-            case op_type::div_reg:
+            case op_type::udiv_reg:
             {
                 if(v2 != 0)
                 {
-                    ans = make_const_value(v1 / v2);
+                    ans = make_const_value(u64(v1) / u64(v2));
+                }
+                break;
+            }
+
+            case op_type::sdiv_reg:
+            {
+                if(v2 != 0)
+                {
+                    ans = make_const_value(s64(v1) / s64(v2));
                 }
                 break;
             }

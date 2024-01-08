@@ -454,6 +454,23 @@ void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
     push_base_disp(emitter,dst,v1,imm);
 }
 
+void lsb(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
+{
+    // movsx r64, r/m8
+    push_u8(emitter,REX_W);
+    push_u16(emitter,0xbe'0f);
+
+    push_base_disp(emitter,dst,v1,imm);
+}
+
+void lsh(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s32 imm)
+{
+    // movsx r64, r/m8
+    push_u8(emitter,REX_W);
+    push_u16(emitter,0xbf'0f);
+
+    push_base_disp(emitter,dst,v1,imm);
+}
 
 void lw(AsmEmitter& emitter, x86_reg src, x86_reg v1, s32 imm)
 {
@@ -680,13 +697,22 @@ void cqo(AsmEmitter& emitter)
     push_u16(emitter,(opcode << 8) | REX_W);
 }
 
-void div_x86(AsmEmitter& emitter, x86_reg src)
+void udiv_x86(AsmEmitter& emitter, x86_reg src)
 {
-    // div r64
+    // udiv r64
     const u8 opcode = 0xf7;
     push_u16(emitter,(opcode << 8) | REX_W);
 
     push_u8(emitter,mod_opcode_reg(src,6));
+}
+
+void sdiv_x86(AsmEmitter& emitter, x86_reg src)
+{
+    // idiv r64
+    const u8 opcode = 0xf7;
+    push_u16(emitter,(opcode << 8) | REX_W);
+
+    push_u8(emitter,mod_opcode_reg(src,7));
 }
 
 void mul_x86(AsmEmitter& emitter, x86_reg src)
@@ -1017,16 +1043,29 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
-        case op_type::div_x86:
+        case op_type::sdiv_x86:
         {
-            div_x86(emitter,v1);
+            sdiv_x86(emitter,v1);
             break;
         }
 
-        case op_type::mod_x86:
+        case op_type::udiv_x86:
+        {
+            udiv_x86(emitter,v1);
+            break;
+        }
+
+        case op_type::umod_x86:
         {
             // same as div just different result reg used
-            div_x86(emitter,v1);
+            udiv_x86(emitter,v1);
+            break;
+        }
+
+        case op_type::smod_x86:
+        {
+            // same as div just different result reg used
+            sdiv_x86(emitter,v1);
             break;
         }
 
@@ -1093,6 +1132,18 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::sw:
         {
             emit_load_store(emitter,opcode,sw);
+            break;
+        }
+
+        case op_type::lsb:
+        {
+            emit_load_store(emitter,opcode,lsb);
+            break;
+        }
+
+        case op_type::lsh:
+        {
+            emit_load_store(emitter,opcode,lsh);
             break;
         }
 

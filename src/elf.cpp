@@ -727,6 +727,12 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 break;
             }
 
+            case op_type::lsb:
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
+
             default:
             {
                 auto& info = info_from_op(opcode);

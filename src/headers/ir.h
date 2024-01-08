@@ -7,8 +7,10 @@ enum class op_type
     add_reg,
     sub_reg,
     mul_reg,
-    div_reg,
-    mod_reg,
+    udiv_reg,
+    sdiv_reg,
+    umod_reg,
+    smod_reg,
 
 
     lsl_reg,
@@ -37,8 +39,10 @@ enum class op_type
     add_reg2,
     sub_reg2,
     mul_reg2,
-    div_reg2,
-    mod_reg2,
+    udiv_reg2,
+    sdiv_reg2,
+    umod_reg2,
+    smod_reg2,
 
 
     lsl_reg2,
@@ -58,8 +62,10 @@ enum class op_type
     xor_imm2,
 
     cqo,
-    div_x86,
-    mod_x86,
+    udiv_x86,
+    sdiv_x86,
+    umod_x86,
+    smod_x86,
     mul_x86,
 
     lsl_x86,

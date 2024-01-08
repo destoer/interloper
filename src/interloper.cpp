@@ -169,13 +169,13 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 }
 
-
+// NOTE: pass umod or udiv and it will figure out the correct one
 template<const op_type type>
 Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     static_assert(
         type == op_type::add_reg || type == op_type::sub_reg || type == op_type::mul_reg ||
-        type == op_type::mod_reg || type == op_type::div_reg ||
+        type == op_type::umod_reg || type == op_type::udiv_reg ||
         type == op_type::xor_reg || type == op_type::and_reg || type == op_type::or_reg
     );
     
@@ -204,7 +204,37 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
     // normal arith
     else
     {
-        emit_reg3<type>(itl,func,dst_slot,v1,v2);
+        // figure out correct division type
+        if constexpr (type == op_type::udiv_reg)
+        {
+            if(is_signed(t1))
+            {
+                emit_reg3<op_type::sdiv_reg>(itl,func,dst_slot,v1,v2);
+            }
+
+            else
+            {
+                emit_reg3<op_type::udiv_reg>(itl,func,dst_slot,v1,v2);
+            }
+        }
+
+        else if constexpr (type == op_type::umod_reg)
+        {
+            if(is_signed(t1))
+            {
+                emit_reg3<op_type::smod_reg>(itl,func,dst_slot,v1,v2);
+            }
+
+            else
+            {
+                emit_reg3<op_type::umod_reg>(itl,func,dst_slot,v1,v2);
+            }
+        }
+
+        else
+        {
+            emit_reg3<type>(itl,func,dst_slot,v1,v2);
+        }
     }
 
     // produce effective type
@@ -1632,12 +1662,12 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::divide:
         {
-            return compile_arith_op<op_type::div_reg>(itl,func,node,dst_slot);
+            return compile_arith_op<op_type::udiv_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::mod:
         {
-            return compile_arith_op<op_type::mod_reg>(itl,func,node,dst_slot);       
+            return compile_arith_op<op_type::umod_reg>(itl,func,node,dst_slot);       
         }
 
         case ast_type::times:

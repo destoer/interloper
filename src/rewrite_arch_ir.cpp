@@ -142,7 +142,7 @@ void emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
     }
 }
 
-ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type)
+ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type, bool is_unsigned)
 {
     // div dst, v1 , v2    
     const auto dst = node->opcode.v[0];
@@ -155,9 +155,18 @@ ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type)
     // make sure rdx is free and cannot be used for allocation
     node = insert_after(block.list,node,make_op(op_type::lock_reg,RDX_IR));            
 
-    // sign extend rax into rdx
-    node = insert_after(block.list,node,make_op(op_type::cqo));
-    
+    if(is_unsigned)
+    {
+        // sign extend rax into rdx
+        node = insert_after(block.list,node,make_op(op_type::mov_imm,RDX_IR,0));
+    }
+
+    else
+    {
+        // sign extend rax into rdx
+        node = insert_after(block.list,node,make_op(op_type::cqo));
+    }
+
     // perform the operation!
     // NOTE: the operation should unlock both registers
     node = insert_after(block.list,node,make_op(type,dst,v2));
@@ -188,17 +197,28 @@ ListNode* x86_shift(Block& block, ListNode* node, op_type type)
 
 ListNode* mul_x86(Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::mul_x86);
+    return x86_fixed_arith_oper(block,node,op_type::mul_x86,false);
 }
 
-ListNode* div_x86(Block& block, ListNode* node)
+ListNode* udiv_x86(Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::div_x86);
+    return x86_fixed_arith_oper(block,node,op_type::udiv_x86,true);
 }
 
-ListNode* mod_x86(Block& block, ListNode* node)
+ListNode* sdiv_x86(Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::mod_x86);
+    return x86_fixed_arith_oper(block,node,op_type::sdiv_x86,false);
+}
+
+
+ListNode* umod_x86(Block& block, ListNode* node)
+{
+    return x86_fixed_arith_oper(block,node,op_type::umod_x86,true);
+}
+
+ListNode* smod_x86(Block& block, ListNode* node)
+{
+    return x86_fixed_arith_oper(block,node,op_type::smod_x86,false);
 }
 
 ListNode* lsl_x86(Block& block, ListNode* node)
@@ -421,25 +441,49 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_imm3_two(block,node,op_type::sub_imm2);
         }
 
-        case op_type::div_reg:
+        case op_type::udiv_reg:
         {
             switch(itl.arch)
             {
                 case arch_target::x86_64_t:
                 {
-                    return div_x86(block,node);
+                    return udiv_x86(block,node);
                 }
             }
             break;
         }
 
-        case op_type::mod_reg:
+        case op_type::sdiv_reg:
         {
             switch(itl.arch)
             {
                 case arch_target::x86_64_t:
                 {
-                    return mod_x86(block,node);
+                    return sdiv_x86(block,node);
+                }
+            }
+            break;
+        }
+
+        case op_type::umod_reg:
+        {
+            switch(itl.arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return umod_x86(block,node);
+                }
+            }
+            break;
+        }
+
+        case op_type::smod_reg:
+        {
+            switch(itl.arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return smod_x86(block,node);
                 }
             }
             break;

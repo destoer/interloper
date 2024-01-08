@@ -209,18 +209,30 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             break;
         }
 
-        case op_type::div_x86:
+        case op_type::udiv_x86:
         {
             node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RAX_IR));
             break;
         }
 
-        case op_type::mod_x86:
+        case op_type::sdiv_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RAX_IR));
+            break;
+        }
+
+
+        case op_type::umod_x86:
         {
             node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RDX_IR));
             break;
         }
 
+        case op_type::smod_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RDX_IR));
+            break;
+        }
 
         case op_type::mul_x86:
         {

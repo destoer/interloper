@@ -5,8 +5,10 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"add %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"sub %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"mul %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"div %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"mod %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"udiv %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"sdiv %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"umod %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"smod %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
 
     {op_group::reg_t,"lsl %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
@@ -35,8 +37,10 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"add %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"sub %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"mul %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"div %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"mod %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"udiv %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"sdiv %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"umod %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"smod %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
 
     {op_group::reg_t,"lsl %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
@@ -56,8 +60,10 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"xor %r, %x",2,{arg_type::dst_src_reg,arg_type::imm,arg_type::none}},
 
     {op_group::implicit_t,"cqo",0,{arg_type::none,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"div_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"mod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"udiv_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"sdiv_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"umod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"smod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"mul_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
     {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
