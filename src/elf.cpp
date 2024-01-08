@@ -24,6 +24,12 @@ struct ElfAllocSection
     // for const dat ain the const pool
 };
 
+struct ElfGlobal
+{
+    u32 program_idx;
+    Elf64_Phdr program_header;   
+};
+
 struct ElfStringTable
 {
     u32 section_idx = 0;
@@ -62,6 +68,7 @@ struct Elf
 
     ElfAllocSection text_section;
     ElfAllocSection const_data;
+    ElfGlobal global;
 
     ElfSymbolTable symbol_table;
 
@@ -244,6 +251,22 @@ void setup_const(Elf& elf)
     setup_alloc_section(elf,elf.const_data,".rodata","_rodata",SHF_ALLOC,PF_R);
 }
 
+void setup_global(Interloper& itl,Elf& elf)
+{
+    auto& program_header = elf.global.program_header;
+
+    memset(&program_header,0,sizeof(program_header));
+
+    // load, align to 4096 byte page, read | execute
+    program_header.p_type = PT_LOAD;
+    program_header.p_align = 4096;
+    program_header.p_flags = PF_R | PF_W;
+    
+    program_header.p_memsz = itl.global_alloc.size;
+
+    elf.global.program_idx = add_program_header(elf);   
+}
+
 void setup_string(Elf& elf, ElfStringTable& string_table, const String& name)
 {
     push_var(string_table.buffer,'\0');
@@ -289,7 +312,7 @@ void add_null_sym(Elf& elf)
 }
 
 
-Elf make_elf(const String& filename)
+Elf make_elf(Interloper& itl,const String& filename)
 {
     Elf elf;
     elf.name = filename;
@@ -310,6 +333,8 @@ Elf make_elf(const String& filename)
     setup_text(elf);
 
     setup_const(elf);
+
+    setup_global(itl,elf);
 
     setup_symtab(elf);
 
@@ -392,6 +417,12 @@ u32 push_section_data(Elf& elf, u32 section_idx, const Array<T>& buffer, b32 wri
     return buffer_offset;  
 }
 
+void finalise_program_vaddr(Elf& elf, u32 program_idx, u64 vaddr)
+{
+    write_program_header(elf,program_idx,offsetof(Elf64_Phdr,p_vaddr),vaddr);
+    write_program_header(elf,program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
+}
+
 std::pair<u64,u64> finalise_alloc_section(Elf& elf, ElfAllocSection& section,Array<u8> buffer)
 {
     // make sure page size aligns
@@ -405,8 +436,7 @@ std::pair<u64,u64> finalise_alloc_section(Elf& elf, ElfAllocSection& section,Arr
     // start at 4MB
     const u64 vaddr = offset + BASE_ADDR;
 
-    write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_vaddr),vaddr);
-    write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_paddr),vaddr);
+    finalise_program_vaddr(elf,section.program_idx,vaddr);
 
     // write size
     write_program_header(elf,section.program_idx,offsetof(Elf64_Phdr,p_filesz),buffer.size);
@@ -506,8 +536,13 @@ void finalise_section_data(Interloper& itl,Elf& elf)
     // write in symtab
     write_symtab(itl,elf,text_vaddr,const_vaddr);
 
-
     finalise_const_pool(itl,elf,const_offset,const_vaddr);
+
+    // write in global vaddr
+    // TODO: if we want more sections we probably want something that keeps track of cur alloc addr
+    auto& global = elf.global;
+    itl.global_alloc.base_vaddr = align_val(const_vaddr + itl.const_pool.buf.size,global.program_header.p_align);
+    finalise_program_vaddr(elf,global.program_idx,itl.global_alloc.base_vaddr);
 }
 
 void finalise_elf_header(Elf& elf)
@@ -543,7 +578,9 @@ void finalise_program_headers(Elf& elf)
     auto &const_data = elf.const_data;
     push_mem(elf.buffer,&const_data.program_header,sizeof(const_data.program_header));
 
-
+    // const data
+    auto &global = elf.global;
+    push_mem(elf.buffer,&global.program_header,sizeof(global.program_header));
 }
 
 void finalise_elf(Interloper& itl,Elf& elf)
@@ -626,6 +663,7 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
 {
     auto& asm_emitter = itl.asm_emitter;
     auto& const_pool = itl.const_pool;
+    auto& global = itl.global_alloc;
 
     const auto opcode = link.opcode;
 
@@ -642,6 +680,17 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
             const u32 instr_addr = (asm_emitter.base_vaddr + link.offset);
 
             const s32 rel_addr = (const_addr - instr_addr) - 4;
+
+            write_mem(elf.buffer,text_offset + link.offset,rel_addr);
+            break;
+        }
+
+        case GP_IR:
+        {
+            const u32 global_addr = (global.base_vaddr + section_offset);
+            const u32 instr_addr = (asm_emitter.base_vaddr + link.offset);
+
+            const s32 rel_addr = (global_addr - instr_addr) - 4;
 
             write_mem(elf.buffer,text_offset + link.offset,rel_addr);
             break;
@@ -733,6 +782,12 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 break;
             }
 
+            case op_type::sw:
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
+
             default:
             {
                 auto& info = info_from_op(opcode);
@@ -752,7 +807,7 @@ void link_elf(Interloper& itl, Elf& elf)
 
 void emit_elf(Interloper& itl)
 {
-    Elf elf = make_elf("test-prog");
+    Elf elf = make_elf(itl,"test-prog");
 
     // Add every function in the emitter
     // NOTE: this adds just the definitons

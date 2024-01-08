@@ -595,6 +595,8 @@ struct GlobalAlloc
     u32 start[4] = {0};
     u32 size = 0;
 
+    u64 base_vaddr = 0;
+
     b32 print_global = false;
 
     Array<ArrayAllocation> array_allocation;
