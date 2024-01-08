@@ -354,6 +354,9 @@ struct Symbol
 struct Label 
 {
     String name;
+
+    // NOTE: holds final label after asm pass
+    // before this it holds a block slot associated with it
     u64 offset;  
 };
 

@@ -371,7 +371,7 @@ void compute_use_def(Interloper& itl,Function& func)
             // mark three address code
             const auto opcode = node->opcode;
 
-            const auto info = OPCODE_TABLE[u32(opcode.op)];
+            const auto info = info_from_op(opcode);
 
             // look at src regs first, then dst!
             for(s32 r = info.args - 1; r >= 0; r--)
@@ -380,7 +380,7 @@ void compute_use_def(Interloper& itl,Function& func)
                 const auto slot = sym_from_idx(opcode.v[r]);
 
                 // make sure this is actually a reg
-                if(is_special_reg(slot) || (info.type[r] != arg_type::src_reg && info.type[r] != arg_type::dst_reg))
+                if(is_special_reg(slot) || !is_arg_reg(info.type[r]))
                 {
                     continue;
                 }
@@ -391,13 +391,13 @@ void compute_use_def(Interloper& itl,Function& func)
                 if(!stored_in_mem(ir_reg))
                 {
                     // used as src, without a def -> use
-                    if(info.type[r] == arg_type::src_reg && !contains(block.def,slot))
+                    if(is_arg_src(info.type[r]) && !contains(block.def,slot))
                     {
                         add(block.use,slot); 
                     }
 
-                    // used as dst, def
-                    else if(info.type[r] == arg_type::dst_reg)
+                    // used as dst, def 
+                    else if(is_arg_dst(info.type[r]))
                     {
                         add(block.def,slot);
                     }

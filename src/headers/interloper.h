@@ -125,6 +125,12 @@ struct Interloper
     AliasTable alias_table;
     RttiCache rtti_cache;
 
+    // targetting info
+    arch_target arch = arch_target::x86_64_t;
+    os_target os = os_target::linux_t;
+
+    AsmEmitter asm_emitter;
+
     // compilier config
 
     // diagnostic
@@ -204,8 +210,14 @@ void itl_warning(const char* fmt, ...)
 
 inline u32 log2(u32 idx)
 {
+    if(idx == 0)
+    {
+        return 0;
+    }
+
     return std::bit_width(idx) - 1;      
 }
 
 std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
+SymSlot mul_imm_pow2_res(Interloper& itl, Function& func, SymSlot src,s32 imm);

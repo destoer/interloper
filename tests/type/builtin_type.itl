@@ -1,4 +1,4 @@
-// expected 271
+// expected 271 (1)
 
 func main() s32
 {
@@ -23,8 +23,10 @@ func main() s32
     v6 : s8 = cast(s8,v4+v5);
 
     x : u8 = 10;
-    ans : u32 = cast(u32,cast(s32,cast(s8,x)) + v6 + cast(s32,cast(s8,255)));
+    res : u32 = cast(u32,cast(s32,cast(s8,x)) + v6 + cast(s32,cast(s8,255)));
 
     // cast should narrow
-    return ans + cast(u8,511);
+    ans : s32 = res + cast(u8,511);
+
+    return cast(s32,ans == 271);
 }

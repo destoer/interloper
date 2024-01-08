@@ -90,23 +90,23 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // basic
     {"tests/basic/first",9},
     {"tests/basic/arith",31},
-    {"tests/basic/assign",1190},
-    {"tests/basic/unary",-11},
+    {"tests/basic/assign",0}, // 1190
+    {"tests/basic/unary",0},// -11
     {"tests/basic/scope",16},
-    {"tests/basic/bitwise",-713},
+    {"tests/basic/bitwise",0}, // -713
     {"tests/basic/logical",1},
-    {"tests/basic/arith_eq",294},
-    {"tests/basic/mod",233168},
+    {"tests/basic/arith_eq",1}, // 294
+    {"tests/basic/mod",1}, // 233168
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
     {"tests/basic/constant",1},
     {"tests/basic/global",26},
-    {"tests/basic/overflow",65286},
+    {"tests/basic/overflow",1},  // 65286
     {"tests/basic/const_assert_pass",0},
 
     // type
     {"tests/type/decl",255},
-    {"tests/type/builtin_type",271},
+    {"tests/type/builtin_type",1}, // 271
     {"tests/type/sizeof",1},
     {"tests/type/default_initializer",1},
     {"tests/type/byte",0},
@@ -130,24 +130,24 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // control flow
     {"tests/control_flow/if",25},
-    {"tests/control_flow/else_if",45077},
-    {"tests/control_flow/else_if_no_else",94220},
+    {"tests/control_flow/else_if",1}, // 45077
+    {"tests/control_flow/else_if_no_else",1}, // 94220
     {"tests/control_flow/else_empty",7},
-    {"tests/control_flow/nested_if",575},
+    {"tests/control_flow/nested_if",1}, // 5727
     {"tests/control_flow/else_if_empty",4},
     {"tests/control_flow/for",32},
     {"tests/control_flow/for_idx",10},
-     {"tests/control_flow/for_in",1},
+    {"tests/control_flow/for_in",1},
     {"tests/control_flow/for_outer_decl",32},
     {"tests/control_flow/while",32},
 
     {"tests/control_flow/switch_no_default",73},
-    {"tests/control_flow/switch",447},
+    {"tests/control_flow/switch",1}, // 447
 
 
     // pointers
-    {"tests/ptr/pointer",-2},
-    {"tests/ptr/cast_ptr",1020},
+    {"tests/ptr/pointer",1}, // -2
+    {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
     {"tests/ptr/alias",1},
@@ -161,7 +161,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
     // arrays
-    {"tests/array/array",1061},
+    {"tests/array/array",1}, // 1061
     {"tests/array/array_size",16},
     {"tests/array/array_initializer",16},
     {"tests/array/array_conv",6},
@@ -169,7 +169,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_auto_size",16},
     {"tests/array/array_take_pointer",5},
     {"tests/array/array_of_ptr",6},
-    {"tests/array/array_multi_fixed_size",7200},
+    {"tests/array/array_multi_fixed_size",1}, // 7200
     {"tests/array/array_vla_from_parts",11},
     {"tests/array/array_assign_vla",15},
 
@@ -182,8 +182,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
     // structs
-    {"tests/struct/struct",495},
-    {"tests/struct/struct_initializer",495},
+    {"tests/struct/struct",1}, // 495
+    {"tests/struct/struct_initializer",1}, // 495
     {"tests/struct/pass_struct",2},
     {"tests/struct/return_struct",3},
     {"tests/struct/return_struct_tmp",3},
@@ -223,6 +223,37 @@ static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / 
 
 void parse_flags(Interloper& itl,const char* flags);
 
+b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const char* flags, b32 optimized)
+{
+    destroy_itl(itl);
+    
+    itl.optimise = optimized;
+
+    parse_flags(itl,flags);
+    compile(itl,test.name);
+
+    printf("%s: ",optimized? "optimized" : "unoptimized");
+    
+    if(itl.error)
+    {
+        printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.error_code)]);
+        return true;
+    }
+
+    const auto r = WEXITSTATUS(system("./test-prog"));     
+
+
+    if(test.expected != r)
+    {
+        printf("Fail %s return code does not match %d != %d\n",test.name,test.expected,r);
+        return true;
+    }
+
+    printf("Pass: %s\n",test.name);
+
+    return false;
+}
+
 void run_tests(const char* flags)
 {
     puts("running tests....");
@@ -234,34 +265,23 @@ void run_tests(const char* flags)
     puts("\nprogram tests\n");
 
     Interloper itl;
-    Interpretter interpretter = make_interpretter();
+
     for(u32 i = 0; i < PROGRAM_CORRECT_TEST_SIZE; i++)
     {
-        destroy_itl(itl);
-        
-        const auto &test = PROGRAM_CORRECT_TEST[i];
-        
-        parse_flags(itl,flags);
-        compile(itl,test.name);
+        auto& test = PROGRAM_CORRECT_TEST[i];
 
-        if(itl.error)
+        if(run_correctness_test(test,itl,flags,false))
         {
-            printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.error_code)]);
             fail = true;
             break;
         }
 
-        const auto r = run(interpretter,itl.program,itl.global_alloc.size);      
-
-
-        if(test.expected != r)
+        if(run_correctness_test(test,itl,flags,true))
         {
-            printf("Fail %s return code does not match %d != %d\n",test.name,test.expected,r);
             fail = true;
             break;
         }
 
-        printf("Pass: %s\n",test.name);
     }
 
     if(!fail)
@@ -286,7 +306,6 @@ void run_tests(const char* flags)
     }
 
     destroy_itl(itl);
-    destroy_interpretter(interpretter);
 
     puts("\nfinished testing\n");
     auto current = std::chrono::system_clock::now();

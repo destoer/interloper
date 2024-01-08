@@ -5,6 +5,8 @@ struct LocalAlloc
 {
     RegAlloc reg_alloc;
 
+    arch_target arch;
+
     // what instruction are we on?
     u32 pc = 0;
 
@@ -15,14 +17,15 @@ struct LocalAlloc
     StackAlloc stack_alloc;
 };
 
-LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation, Array<Reg> tmp)
+LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation, Array<Reg> tmp, arch_target arch)
 {
     LocalAlloc alloc;
 
     alloc.stack_alloc = make_stack_alloc(print_stack_allocation);
-    alloc.reg_alloc = make_reg_alloc(print_reg_allocation);
+    alloc.reg_alloc = make_reg_alloc(print_reg_allocation,arch);
 
     alloc.pc = 0;
+    alloc.arch = arch;
 
     alloc.tmp_regs = tmp;
 
@@ -52,7 +55,7 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
     // so its converted to our interrpetter regs and not a hardware target
     if(is_special_reg(slot))
     {
-        opcode.v[reg] = special_reg_to_reg(slot);
+        opcode.v[reg] = special_reg_to_reg(alloc.arch,slot);
     } 
 
     else
@@ -66,9 +69,10 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
 
 void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
-    if(info.type[reg] == arg_type::src_reg || info.type[reg] == arg_type::dst_reg)
+    // only want to rewrite regs
+    if(is_arg_reg(info.type[reg]))
     {
         rewrite_reg_internal(table,alloc,opcode,reg);
     }
@@ -76,7 +80,7 @@ void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
 
 void rewrite_regs(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode)
 {   
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
     for(u32 r = 0; r < info.args; r++)
     {
@@ -122,12 +126,12 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
     {
         auto& sym = sym_from_slot(table,ir_reg.slot);
 
-        log(print_reg,"freed symbol %s from reg r%d\n",sym.name.buf,reg);
+        log(print_reg,"freed symbol %s from reg %s\n",sym.name.buf,reg_name(alloc.arch,reg));
     }
 
     else
     {
-        log(print_reg,"freed tmp t%d from reg r%d\n",ir_reg.slot,reg);               
+        log(print_reg,"freed tmp t%d from reg %s\n",ir_reg.slot,reg_name(alloc.arch,reg));               
     }
 
     assert(!is_aliased(ir_reg));
@@ -170,6 +174,51 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* no
 }
 
 
+void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* node,SymSlot spec_reg)
+{
+    const u32 reg = special_reg_to_reg(alloc.arch,spec_reg);
+
+    if(!is_free(alloc.reg_alloc.regs[reg]))
+    {
+        // TODO: this should attempt to find a spare reg to copy it into
+        // this is spill because we need this specific register
+        // not because we want to ensure any side effects happen correctly
+
+        const auto slot = alloc.reg_alloc.regs[reg];
+
+        if(alloc.reg_alloc.print)
+        {
+            if(is_sym(slot))
+            {
+                auto& sym = sym_from_slot(table,slot);
+                printf("symbol %s evicted from reg %s\n",sym.name.buf,reg_name(alloc.arch,reg));
+            }
+
+            else
+            {
+                printf("tmp t%d evicted from reg %s\n",slot.handle,reg_name(alloc.arch,reg));
+            }
+        }
+
+        spill(alloc.reg_alloc.regs[reg],alloc,table,block,node);
+    }
+}
+
+void lock_reg(LocalAlloc& alloc,SymbolTable& table, Block& block, ListNode* node, SymSlot spec)
+{
+    evict_reg(alloc,table,block,node,spec);
+    lock_reg(alloc.reg_alloc,spec);
+}
+
+// is a ir register housed in a specifed machine register?
+b32 in_reg(LocalAlloc& alloc, SymbolTable& table,SymSlot sym_slot,SymSlot spec_reg)
+{
+    auto& ir_reg = reg_from_slot(sym_slot,table,alloc);
+    const u32 reg = special_reg_to_reg(alloc.arch,spec_reg);
+
+    return ir_reg.location == reg;
+}
+
 void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& block, ListNode* node)
 {
     // evict a register to make space
@@ -186,12 +235,12 @@ void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& blo
         if(is_sym(slot))
         {
             auto& sym = sym_from_slot(table,slot);
-            printf("symbol %s allocated into reg r%d\n",sym.name.buf,reg);
+            printf("symbol %s allocated into reg %s\n",sym.name.buf,reg_name(alloc.arch,reg));
         }
 
         else
         {
-            printf("tmp t%d allocated into reg r%d\n",slot.handle,reg);
+            printf("tmp t%d allocated into reg %s\n",slot.handle,reg_name(alloc.arch,reg));
         }
     }
 }
@@ -245,30 +294,17 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
     }
 }
 
-// mark usage for internal freeing
-void mark_reg_usage(LocalAlloc& alloc, Reg& ir_reg, bool is_dst)
-{
-    ir_reg.uses++;
-
-    // is this is a dst we need to write this back when spilled
-    if(is_dst)
-    {
-        ir_reg.dirty = true;
-    }
-
-    check_dead_reg(alloc.reg_alloc,ir_reg);
-}
 
 
 void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, ListNode* node,u32 reg)
 {
     const auto opcode = node->opcode;
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
     const SymSlot slot = sym_from_idx(node->opcode.v[reg]);
 
-    const b32 is_src = info.type[reg] == arg_type::src_reg;
-    const b32 is_dst = info.type[reg] == arg_type::dst_reg;
+    const b32 is_src = is_arg_src(info.type[reg]);
+    const b32 is_dst = is_arg_dst(info.type[reg]);
 
     // special purpose ir reg dont allocate just rewrite it
     if(is_special_reg(slot))
@@ -278,7 +314,7 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
         // make sure callee saved regs are marked as used for saving
         const u32 spec_reg = node->opcode.v[reg];
 
-        if(is_callee_saved(spec_reg) && is_dst)
+        if(is_callee_saved(alloc.arch,spec_reg) && is_dst)
         {
             mark_used(alloc.reg_alloc,spec_reg);
         }
@@ -291,7 +327,7 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
     allocate_slot(table,alloc,block,node,ir_reg,is_src);
     rewrite_reg_internal(table,alloc,node->opcode,reg);
 
-    mark_reg_usage(alloc,ir_reg,is_dst); 
+    mark_reg_usage(alloc.reg_alloc,ir_reg,is_dst); 
 }
 
 
@@ -322,7 +358,7 @@ void spill_func_bounds(LocalAlloc& alloc, SymbolTable& table, Block&  block, Lis
         const SymSlot slot = alloc.reg_alloc.regs[r];
 
         // handle callee saved regs
-        if(!is_callee_saved(r) && is_var(slot))
+        if(!is_callee_saved(alloc.arch,r) && is_var(slot))
         {
             spill(slot,alloc,table,block,node,false);
         }
@@ -355,14 +391,14 @@ void clean_dead_regs(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNod
 void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListNode *node)
 {
     const auto opcode = node->opcode;
-    const auto info = OPCODE_TABLE[u32(opcode.op)];
+    const auto info = info_from_op(opcode);
 
     // make sure our src var's are loaded
     // mark if any are dead we can reuse to allocate the dst
     for(u32 a = 1; a < info.args; a++)
     {
         // only interested in src registers
-        if(info.type[a] != arg_type::src_reg)
+        if(!is_arg_src(info.type[a]))
         {
             continue;
         }
@@ -374,20 +410,20 @@ void handle_allocation(SymbolTable& table, LocalAlloc& alloc,Block &block, ListN
     
     // alloc the first slot
     // NOTE: this is done seperately in case we can reuse src slots as the dst
-    const b32 is_dst = info.type[0] == arg_type::dst_reg;
-    const b32 is_src = info.type[0] == arg_type::src_reg;
+    // however this can only be done if it is just a src, not a mixed dst/src
+    const b32 is_only_dst = info.type[0] == arg_type::dst_reg;
 
     // regs can be freed early
     // NOTE: this cannot happen on a src
     // because otherwhise a reload will be inserted before
     // the current instruction that clobbers the var we have just rewritten
-    if(is_dst)
+    if(is_only_dst)
     {
         // free any regs that are never used again
         clean_dead_regs(table,alloc,block,node);        
     }
 
-    if(is_src || is_dst)
+    if(is_arg_reg(info.type[0]))
     {
         allocate_and_rewrite(table,alloc,block,node,0);
     }
@@ -407,19 +443,17 @@ void reserve_offset(LocalAlloc& alloc,SymbolTable& table, Reg& ir_reg)
     {
         auto& sym = sym_from_slot(table,ir_reg.slot);
 
-        log(print_reg,"spill %s from reg r%d\n",sym.name.buf,ir_reg.location);
-
-
         // only allocate the local vars by here
         if(!is_arg(sym))
         {
+            log(print_reg,"reserve offset for %s in reg %s\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location));
             stack_reserve_reg(alloc.stack_alloc,ir_reg);
         }
     }
 
     else
     {
-        log(print_reg,"spill t%d from reg r%d\n",ir_reg.slot.handle,ir_reg.location);
+        log(print_reg,"reserve offset for t%d in reg %s\n",ir_reg.slot.handle,reg_name(alloc.arch,ir_reg.location));
 
         // by defintion a tmp has to be local
         // TODO: fmt this tmp
@@ -469,6 +503,21 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     if(is_stack_unallocated(ir_reg))
     {
         reserve_offset(alloc,table,ir_reg);
+    }
+
+    if(alloc.reg_alloc.print)
+    {
+        if(is_sym(ir_reg.slot))
+        {
+            auto& sym = sym_from_slot(table,ir_reg.slot);
+
+            printf("spill %s from reg %s (size %d)\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
+        }
+
+        else
+        {
+            printf("spill t%d from reg %s (size %d)\n",ir_reg.slot.handle,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
+        }
     }
 
     // if the value has only been used as a source and not modifed then we can just treat this as a free_reg

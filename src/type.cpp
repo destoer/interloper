@@ -25,6 +25,22 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
+b32 fit_into_s8(s64 v1)
+{
+    return in_range<s64>(v1,-128,127);
+}
+
+b32 fit_into_s32(s64 v1)
+{
+    return in_range<s64>(v1,s32(-(0xffffffff / 2)),s32(0xffffffff / 2));
+}
+
+
+b32 fit_into_u32(s64 v1)
+{
+    return in_range<u64>(v1,0,0xffffffff);
+}
+
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype);
 void parse_def(Interloper& itl, TypeDef& def);
 
@@ -1807,6 +1823,9 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         }
     }
 
+    // these cast do no conversions just move the reg 
+    // they are only acknowledgement's your doing something screwy
+
     // cast from enum to int is fine
     else if(is_enum(old_type) && is_integer(new_type))
     {
@@ -1819,20 +1838,21 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
         mov_reg(itl,func,dst_slot,src_slot);
     }
 
-    // cast does nothing just move the reg, its only acknowledgement your doing something screwy
-    else if(is_pointer(old_type) && is_pointer(new_type))
+    // pointer to pointer or integer
+    else if(is_pointer(old_type) && (is_pointer(new_type) || is_integer(new_type)))
     {
         mov_reg(itl,func,dst_slot,src_slot);
     }
 
-    // pointer to int is fine
-    else if(is_pointer(old_type) && is_integer(new_type))
+
+    // integer to pointer
+    else if(is_integer(old_type) && (is_pointer(new_type)))
     {
         mov_reg(itl,func,dst_slot,src_slot);
     }
 
-    // int to point is fine usually...
-    else if(is_integer(old_type) && is_pointer(new_type))
+    // func pointer cast to pointer or integer is fine
+    else if(is_func_pointer(old_type) && (is_pointer(new_type) || is_integer(new_type)))
     {
         mov_reg(itl,func,dst_slot,src_slot);
     }

@@ -116,7 +116,8 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     }
 }
 
-Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+
+Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     UNUSED(dst_slot);
     
@@ -124,42 +125,54 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
 
     const u32 arg_size = count(func_call->args);
 
-    if(arg_size != 4)
+    if(arg_size < 1)
     {
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
-    // make sure any registers we startt using get saved
-    // TODO: if we start using intrinsics for performance rather than
-    // just accessing arch details we will need a better solution than blindly spilling
-    // then all
-    spill_all(itl,func);
-
-    const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(R0_IR));
-    const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(R1_IR));
-    const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(R2_IR));
-
-    if(!is_trivial_copy(v1_type))
-    {
-        panic(itl,itl_error::mismatched_args,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
-        return make_builtin(itl,builtin_type::void_t);   
-    }
-
-    if(!is_trivial_copy(v2_type))
-    {
-        panic(itl,itl_error::mismatched_args,"arg2 of type %s does not fit inside a gpr\n",type_name(itl,v2_type).buf);
-        return make_builtin(itl,builtin_type::void_t);
-    }
-
-    if(!is_trivial_copy(v3_type))
-    {
-        panic(itl,itl_error::mismatched_args,"arg3 of type %s does not fit inside a gpr\n",type_name(itl,v3_type).buf);
-        return make_builtin(itl,builtin_type::void_t);
-    }
-
+    // make sure this register doesn't get reused
+    lock_reg(itl,func,sym_from_idx(RAX_IR));
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
+    mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
+    
+    if(arg_size >= 2)
+    {
+        lock_reg(itl,func,sym_from_idx(RDI_IR));
+        const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(RDI_IR));
 
-    syscall(itl,func,syscall_number);
+        if(!is_trivial_copy(v1_type))
+        {
+            panic(itl,itl_error::mismatched_args,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
+            return make_builtin(itl,builtin_type::void_t);   
+        }
+    }
+
+    if(arg_size >= 3)
+    {
+        lock_reg(itl,func,sym_from_idx(RSI_IR));
+        const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(RSI_IR));
+
+        if(!is_trivial_copy(v2_type))
+        {
+            panic(itl,itl_error::mismatched_args,"arg2 of type %s does not fit inside a gpr\n",type_name(itl,v2_type).buf);
+            return make_builtin(itl,builtin_type::void_t);
+        }
+    }
+
+    if(arg_size >= 4)
+    {
+        lock_reg(itl,func,sym_from_idx(RDX_IR));
+        const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(RDX_IR));
+
+
+        if(!is_trivial_copy(v3_type))
+        {
+            panic(itl,itl_error::mismatched_args,"arg3 of type %s does not fit inside a gpr\n",type_name(itl,v3_type).buf);
+            return make_builtin(itl,builtin_type::void_t);
+        }
+    }
+
+    syscall(itl,func);
 
     if(dst_slot.handle != NO_SLOT)
     {
@@ -168,6 +181,19 @@ Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_s
     }
     
     return make_builtin(itl,builtin_type::s64_t);   
+}
+
+Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+{
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            return intrin_syscall_x86(itl,func,node,dst_slot);
+        }
+    }
+
+    assert(false);
 }
 
 static constexpr u32 INTRIN_TABLE_SIZE = 2;

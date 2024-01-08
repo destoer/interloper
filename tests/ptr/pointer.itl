@@ -1,6 +1,6 @@
 
 
-// expected -2
+// expected -2 (1)
 
 func modify(x: u32@)
 { 
@@ -26,5 +26,7 @@ func main() s32
 
     swap_ptr(&y,x_ptr);
 
-    return x - y;
+    ans : s32 = x - y;
+
+    return cast(s32,ans == -2);
 }

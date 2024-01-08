@@ -2,7 +2,6 @@
 
 #include <destoer.cpp>
 #include "interloper.cpp"
-#include "interpretter.cpp"
 #include "test.cpp"
 
 
@@ -40,13 +39,6 @@ int main(int argc, char *argv[])
     {
         printf("usage: %s <flags> <file to compile>\n",argv[0]);
         return -1;
-    }
-
-    // test producing a dummy elf binary
-    if(argv[1][0] == '-' && string_contains(argv[1],"e"))
-    {
-        build_test_binary();
-        return 0;
     }
 
     // run tests
@@ -87,12 +79,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if(!itl.compile_only)
-    {
-        Interpretter interpretter = make_interpretter();
-        run(interpretter,itl.program,itl.global_alloc.size);
-        destroy_interpretter(interpretter);
-    }
 
     destroy_itl(itl);
+
+    if(!itl.compile_only)
+    {
+        s32 rc = WEXITSTATUS(system("./test-prog"));
+
+        printf("exit code: %d\n",rc);
+
+        return rc;
+    }
 }

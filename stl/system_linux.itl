@@ -1,0 +1,257 @@
+// NOTE: abstracts away bottom level os primitives
+
+constant SYSCALL_READ : u32 = 0;
+constant SYSCALL_WRITE : u32 = 1;
+constant SYSCALL_OPEN : u32 = 2;
+constant SYSCALL_CLOSE : u32 = 3;
+constant SYSCALL_LSEEK : u32 = 8;
+
+constant SYSCALL_EXIT : u32 = 60;
+constant SYSCALL_BRK : u32 = 12;
+
+
+// memory
+
+
+constant OS_INVALID_PTR : u64 = 0; 
+
+// NOTE: we need to declare this first so that any file handles can alloc memory
+// globals are intialized in declaration order
+global current_os_brk : byte@ = brk(NULL);
+
+func brk(ptr : byte@) byte@
+{
+    return cast(byte@,intrin_syscall(SYSCALL_BRK,ptr,0,0));
+}
+
+func os_req_mem(size : u64) byte@
+{
+    // this is basically just a bump allocator
+    old := current_os_brk;
+
+    current_os_brk += size;
+    current_os_brk = brk(current_os_brk);
+
+    return old;
+}
+
+// STD IO
+
+
+import <file>
+
+global stdout : File = open_stdout();
+global stdin : File = open_stdin();
+
+func open_stdout() File
+{
+    [fp,err] := open_file("/dev/stdout",file_mode::write,file_opt::open);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDOUT);
+    }
+
+    fp.flags = fp.flags | FILE_FLAG_LINE_BUFFER;
+    return fp;
+}
+
+func open_stdin() File
+{
+    [fp,err] := open_file("/dev/stdin",file_mode::read,file_opt::open);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDIN);
+    }
+
+    return fp;
+}
+
+func write_str_raw(data : const c8@, len : u64)
+{
+    if(len == 0)
+    {
+        return;
+    }
+
+    else if(!data)
+    {
+        write_file_str(&stdout,"NULL");
+    }
+
+    else
+    {
+        write_file_mem(&stdout,data,len);
+    }   
+}
+
+
+func write_string(str: const string)
+{
+    if(str.len == 0)
+    {
+        return;
+    }
+
+    else if(!str.data)
+    {
+        write_file_str(&stdout,"NULL");
+    }
+
+    else
+    {
+        write_file_str(&stdout,str);
+    }
+}
+
+func read_string(str : string) string
+{
+    // if we are going to request input
+    // flush any stdout so we get our prompt
+    if(stdout.buffer_size)
+    {
+        flush_write(&stdout);
+    }
+
+    [str,rc] := read_file_str(&stdin,str);
+
+    if(rc != file_read_res::success)
+    {
+        crash_and_burn("Failed to read from stdin!?");
+    }
+
+    return str;
+}
+
+
+// PROCESS
+
+// TODO: os specific global cleanup?
+func at_exit()
+{
+    //close_file(&stdin);
+    //close_file(&stdout);
+}
+
+constant FAILURE_OPEN_STDOUT : s32 = 0xf000_0001;
+constant FAILURE_OPEN_STDIN : s32 = 0xf000_0002;
+
+func exit(exit_code: s32)
+{
+    at_exit();
+    intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
+}
+
+// FILE IO
+
+constant OS_INVALID_READ : s64 = -1;
+
+// NOTE: this is expecting a null terminated string
+func os_open(filename : const c8@, mode : file_mode, opt : file_opt) byte@
+{
+    // convert our high level enums to an os flag
+    os_flag : u32 = 0;
+
+    constant OS_OPEN_READ_ONLY: u32 = 0;
+    constant OS_OPEN_WRITE_ONLY: u32 = 1;
+    constant OS_OPEN_CREATE : u32 = 0x40;
+    constant OS_OPEN_APPEND : u32 = 0x400;
+
+    switch(mode)
+    {
+        case file_mode::read:
+        {
+            os_flag = OS_OPEN_READ_ONLY;
+        }
+    
+        case file_mode::write:
+        {
+            os_flag = OS_OPEN_WRITE_ONLY;
+        }
+    }
+
+    switch(opt)
+    {
+        case file_opt::open:
+        {
+
+        }
+
+        case file_opt::create:
+        {
+            os_flag |= OS_OPEN_CREATE;
+        }
+
+        case file_opt::append:
+        {
+            os_flag |= OS_OPEN_APPEND;
+        }
+    }
+
+
+    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,os_flag,0));
+}
+
+func os_close(handle : const byte@)
+{
+    intrin_syscall(SYSCALL_CLOSE,handle,0,0);
+}
+
+func os_write(handle : const byte@, data : const byte@, len : u64) s64
+{
+    return intrin_syscall(SYSCALL_WRITE,handle,data,len);
+}
+
+func os_write_str_raw(data : const byte@, len : u64) s64
+{
+    return os_write(cast(byte@,1),data,len);
+}
+
+func os_write_str(str: const string) s64
+{
+    return os_write_str_raw(str.data,str.len);
+}
+
+func os_read(handle : const byte@, data : byte@, len : u64) s64
+{
+    return intrin_syscall(SYSCALL_READ,handle,data,len);
+}
+
+constant SEEK_CUR : u32 = 1;
+
+func lseek(handle : const byte@, seek : u32, offset : s64) s64
+{
+    return intrin_syscall(SYSCALL_LSEEK,handle,offset,seek);
+}
+
+func os_seek(handle : const byte@, seek : file_seek, offset : s64) s64
+{
+    // i.e this is allready in the native format
+    // start -> 0
+    // cur -> 1
+    // end -> 2
+    return lseek(handle,cast(u32,seek),offset);
+}
+
+func os_tell(handle : const byte@) s64
+{
+    return lseek(handle,SEEK_CUR,0);
+}
+
+constant INVALID_FILE_HANDLE : s64 = -1;
+
+func is_os_handle_valid(handle : byte@) bool
+{
+    return cast(s64,handle) >= 0;
+}
+
+
+// TODO: we might need C structs for this
+// but its not vital it works just yet
+func time() s64
+{
+    x : u32 = 0;
+    return cast(s64,&x);
+    //return intrin_syscall(SYSCALL_TIME,0,0,0);
+}

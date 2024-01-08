@@ -816,6 +816,7 @@ AstNode *statement(Parser &parser)
                 case token_type::minus_eq:
                 case token_type::divide_eq:
                 case token_type::times_eq:
+                case token_type::bitwise_or_eq:
                 case token_type::equal:
                 {
                     prev_token(parser);
@@ -1636,7 +1637,6 @@ bool parse(Interloper& itl, const String& initial_filename)
     add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
 
     add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"internal.itl"));
-
 
     b32 error = false;
 

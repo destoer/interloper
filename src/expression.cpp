@@ -116,6 +116,11 @@ AstNode *led(Parser &parser,Token &t,AstNode *left)
             return oper_eq(parser,left,t,ast_type::divide);
         }
 
+        case token_type::bitwise_or_eq:
+        {
+            return oper_eq(parser,left,t,ast_type::bitwise_or);
+        }
+
         case token_type::equal:
         {
             // right precedence rbp = lbp -1 so that things on the right 

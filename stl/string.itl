@@ -45,7 +45,7 @@ func reverse_str(str : string, len : u64)
 
 func print_int(v : u64, base : u32)
 {
-    if(base > 16)
+    if(base > 16 || base == 0)
     {
         crash_and_burn("invalid base in print_int: \n");
     }   
@@ -65,7 +65,7 @@ func print_int(v : u64, base : u32)
     while(v != 0)
     {
         digit :=  v % base;
-        v  = v / base;
+        v = v / base;
 
         char : c8 = DIGIT_CHAR[digit];
 

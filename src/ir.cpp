@@ -3,9 +3,11 @@
 
 #include "list.cpp"
 #include "emitter.cpp"
+#include "rewrite_arch_ir.cpp"
 #include "cfg.cpp"
 #include "pool.cpp"
-#include "link.cpp"
+#include "asm.cpp"
+#include "x86_emitter.cpp"
 #include "stack_allocator.cpp"
 #include "reg_allocator.cpp"
 #include "local_allocator.cpp"
@@ -22,7 +24,7 @@ void print_slot(SymbolTable& table, SymSlot slot)
 
     else if(is_special_reg(slot))
     {
-        printf("special reg: %s\n",SPECIAL_REG_NAMES[slot.handle - SPECIAL_PURPOSE_REG_START].buf);
+        printf("special reg: %s\n",spec_reg_name(slot));
     }
 
     else
@@ -58,6 +60,52 @@ ListNode* rewrite_access_struct(Interloper& itl, Function& func,LocalAlloc &allo
     return node->next;
 }
 
+ListNode* rewrite_x86_shift(Interloper& itl, LocalAlloc& alloc, Block& block, ListNode* node)
+{
+    const auto oper = sym_from_idx(RCX_IR);
+
+    // rcx free
+    unlock_reg(alloc.reg_alloc,oper);
+
+    rewrite_opcode(itl,alloc,block,node);
+
+    return node->next;
+}
+
+ListNode* rewrite_x86_fixed_arith(Interloper& itl, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot out)
+{
+    // save where our dst is being forced into
+    const auto dst = sym_from_idx(node->opcode.v[0]);
+
+    // rewrite src
+    allocate_and_rewrite(itl.symbol_table,alloc,block,node,1);
+
+    // rax free
+    unlock_reg(alloc.reg_alloc,sym_from_idx(RAX_IR));
+
+    // rdx free
+    unlock_reg(alloc.reg_alloc,sym_from_idx(RDX_IR));
+
+    if(is_var(dst))
+    {
+        auto& ir_reg = reg_from_slot(dst,itl.symbol_table,alloc);
+
+        if(alloc.reg_alloc.print)
+        {
+            printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(out));
+        }
+
+        // force to out reg
+        assert(allocate_into_reg(alloc.reg_alloc,ir_reg,out));
+        mark_reg_usage(alloc.reg_alloc,ir_reg,true);
+    }
+
+    // NOTE: where the dst was written (NOTE: this is actually implict to thei instructiom)
+    node->opcode.v[0] = out.handle;
+
+    return node->next;  
+}
+
 ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block &block, ListNode *node)
 {
     auto &table = itl.symbol_table;
@@ -74,24 +122,37 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             const auto dst = sym_from_idx(opcode.v[0]);
             const auto src = sym_from_idx(opcode.v[1]);
 
-            // used for return values just
-            // rewrite the register into R0
-            if(src.handle == RV_IR && is_var(dst))
+            // i.e used for return values just
+            // rewrite the register into spec RV
+            if(is_special_reg(src) && is_var(dst))
             {
                 auto& ir_reg = reg_from_slot(dst,table,alloc);
 
                 // attempt to force reg
-                if(allocate_into_rv(alloc.reg_alloc,ir_reg))
+                if(allocate_into_reg(alloc.reg_alloc,ir_reg,src))
                 {
                     if(alloc.reg_alloc.print)
                     {
-                        printf("forcing ir %x into RV\n",dst.handle);
+                        printf("forcing ir %x into %s\n",dst.handle,spec_reg_name(src));
                     }
-
-                    mark_reg_usage(alloc,ir_reg,true);
-
+                    mark_reg_usage(alloc.reg_alloc,ir_reg,true);
                     node = remove(block.list,node);
                     break;
+                }
+            }
+
+            // if a value is allready held in the machine reg we are about to move to
+            // we must make sure we save the value incase we need it later!
+            // then the lock the register so it can no longer be freely allocated
+            if(is_special_reg(dst))
+            {
+                const u32 reg = special_reg_to_reg(alloc.arch,dst);
+
+                const auto held_slot = alloc.reg_alloc.regs[reg];
+
+                if(is_var(held_slot))
+                {
+                    lock_reg(alloc,table,block,node,dst);
                 }
             }
 
@@ -99,6 +160,123 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             rewrite_opcode(itl,alloc,block,node);
             node = node->next;
             
+            break;
+        }
+
+        // make sure register locks for ret dont leak across blocks
+        case op_type::ret:
+        {
+            unlock_registers(alloc.reg_alloc);
+            node = node->next;
+            break;
+        }
+
+        case op_type::replace_reg:
+        {
+            const auto spec_reg = sym_from_idx(opcode.v[0]);
+            const auto src = sym_from_idx(opcode.v[1]);
+
+            assert(is_var(src));
+
+            // src is allready in the right reg 
+            // just save it if need be and then restrict its usage
+            if(in_reg(alloc,table,src,spec_reg))
+            {
+                // mark register as reserved
+                lock_reg(alloc,table,block,node,spec_reg);
+
+                node = remove(block.list,node);
+            }
+            
+            else
+            {
+                // replace reg, slot
+                // -> evict reg
+                // -> mov reg, slot
+            
+                // mark register as reserved
+                lock_reg(alloc,table,block,node,spec_reg);
+
+                // TODO: if the value has to be reloaded this will result in a uneeded
+                // copy 
+                node->opcode = make_op(op_type::mov_reg,opcode.v[0],opcode.v[1]);
+                rewrite_opcode(itl,alloc,block,node);
+
+                node = node->next;
+            }
+
+
+            break;
+        }
+
+        case op_type::udiv_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RAX_IR));
+            break;
+        }
+
+        case op_type::sdiv_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RAX_IR));
+            break;
+        }
+
+
+        case op_type::umod_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RDX_IR));
+            break;
+        }
+
+        case op_type::smod_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RDX_IR));
+            break;
+        }
+
+        case op_type::mul_x86:
+        {
+            node = rewrite_x86_fixed_arith(itl,alloc,block,node,sym_from_idx(RAX_IR));
+            break;
+        }
+
+        case op_type::lsl_x86:
+        {
+            node = rewrite_x86_shift(itl,alloc,block,node);
+            break;
+        }
+
+        case op_type::lsr_x86:
+        {
+            node = rewrite_x86_shift(itl,alloc,block,node);
+            break;
+        }
+
+        case op_type::asr_x86:
+        {
+            node = rewrite_x86_shift(itl,alloc,block,node);
+            break;
+        }
+
+        case op_type::lock_reg:
+        {
+            const auto spec_reg = sym_from_idx(opcode.v[0]);
+
+            // mark register as reserved
+            lock_reg(alloc,table,block,node,spec_reg);
+
+            node = remove(block.list,node);
+            break;
+        }
+
+        case op_type::unlock_reg:
+        {
+            const auto spec_reg = sym_from_idx(opcode.v[0]);
+
+            // mark register as reserved
+            unlock_reg(alloc.reg_alloc,spec_reg);
+
+            node = remove(block.list,node);
             break;
         }
 
@@ -264,7 +442,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // clean up args
             const auto stack_clean = GPR_SIZE * opcode.v[0];
 
-            node->opcode = Opcode(op_type::add_imm,SP_IR,SP_IR,stack_clean);
+            node->opcode = Opcode(op_type::add_imm2,SP_IR,stack_clean,0);
             alloc.stack_alloc.stack_offset -= stack_clean; 
 
             rewrite_regs(itl.symbol_table,alloc,node->opcode);
@@ -286,7 +464,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 break;
             }
         
-            node->opcode = Opcode(op_type::sub_imm,SP_IR,SP_IR,size);
+            node->opcode = make_op(op_type::sub_imm2,SP_IR,size);
             alloc.stack_alloc.stack_offset += size;
 
             rewrite_regs(itl.symbol_table,alloc,node->opcode);
@@ -442,7 +620,7 @@ ListNode* rewrite_access_struct_addr(Interloper& itl, LocalAlloc& alloc, ListNod
 }
 
 // 2nd pass of rewriting on the IR
-ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, ListNode *node,const Opcode& callee_restore,
+ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, ListNode *node,const u32 saved_regs,
     const Opcode& stack_clean, bool insert_callee_saves)
 {
     const auto opcode = node->opcode;
@@ -470,22 +648,15 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
         case op_type::ret:
         {
-            ListNode *tmp = node;
-
             if(alloc.stack_alloc.stack_size)
             {
-                tmp = insert_at(block.list,tmp,stack_clean);
-
-                // make sure callee restore comes after stack clean
-                if(insert_callee_saves)
-                {
-                    insert_after(block.list,tmp,callee_restore);
-                }
+                insert_at(block.list,node,stack_clean);
             }
 
-            else if(insert_callee_saves)
+            // make sure callee restore comes after stack clean
+            if(insert_callee_saves)
             {
-                tmp = insert_at(block.list,tmp,callee_restore);
+                emit_popm(itl,block,node,saved_regs);
             }
 
             node = node->next;
@@ -627,7 +798,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             }
 
             // NOTE: this is allways on the stack, globals handle their own allocation...
-            node->opcode = Opcode(op_type::lea,opcode.v[0],SP,allocation.offset + allocation.stack_offset);
+            node->opcode = Opcode(op_type::lea,opcode.v[0],arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
 
             node = node->next;
             break;
@@ -669,7 +840,7 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers);
+    auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers,itl.arch);
 
     log(alloc.reg_alloc.print,"allocating registers for %s:\n\n",func.name.buf);
 
@@ -699,7 +870,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         auto opcode = block.list.end->opcode;
 
-        const auto& ENTRY = OPCODE_TABLE[u32(opcode.op)];  
+        const auto& ENTRY = info_from_op(opcode); 
 
         // block has ended spill variables still live 
         // TODO: we want to get rid of this with a proper global allocator...
@@ -733,7 +904,8 @@ void allocate_registers(Interloper& itl,Function &func)
     // only allocate a stack if we need it
     if(alloc.stack_alloc.stack_size)
     {
-        insert_front(func.emitter.program[0].list,Opcode(op_type::sub_imm,SP,SP,alloc.stack_alloc.stack_size));
+        const u32 SP = arch_sp(itl.arch);
+        insert_front(func.emitter.program[0].list,make_op(op_type::sub_imm2,SP,alloc.stack_alloc.stack_size));
     }
 
 
@@ -758,12 +930,13 @@ void allocate_registers(Interloper& itl,Function &func)
     // entry point does not need to preserve regs
     if(insert_callee_saves)
     {
-        insert_front(func.emitter.program[0].list,Opcode(op_type::pushm,saved_regs,0,0));
+        auto& start_block = func.emitter.program[0];
+
+        emit_pushm(itl,start_block,start_block.list.start,saved_regs);
     }
 
-    // epilogue opcodes
-    const auto callee_restore = Opcode(op_type::popm,saved_regs,0,0);
-    const auto stack_clean = Opcode(op_type::add_imm,SP,SP,alloc.stack_alloc.stack_size);
+    const u32 SP = arch_sp(itl.arch);
+    const auto stack_clean = Opcode(op_type::add_imm2,SP,alloc.stack_alloc.stack_size,0);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
@@ -773,7 +946,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         while(node)
         {
-            node = rewrite_directives(itl,alloc,block,node,callee_restore,stack_clean,insert_callee_saves);
+            node = rewrite_directives(itl,alloc,block,node,saved_regs,stack_clean,insert_callee_saves);
         }
     }
 

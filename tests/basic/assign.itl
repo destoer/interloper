@@ -1,5 +1,5 @@
 
-// expected 1190
+// expected 1190 (0)
 
 func main() s32
 {
@@ -17,5 +17,7 @@ func main() s32
 
     v : s32 = (((a * x) / (y * 5)) * ((x + z) - 5));
 
-    return z + x + v;
+    ans := z + x + v;
+
+    return ans - 1190;
 }

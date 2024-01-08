@@ -11,7 +11,6 @@ func main() s32
         @v = true;
     }
 
-  
     for(i in 2 < x.len)
     {
         if(x[i])
@@ -33,5 +32,5 @@ func main() s32
         }
     }
 
-    return ans;
+    return cast(s32,ans == 1061);
 }

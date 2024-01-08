@@ -1,6 +1,8 @@
 
-// expected -11
+// expected -11 (0)
 func main() s32
 {
-    return -5 + -6;
+    ans := (-5 + -6);
+
+    return ans + 11;
 }

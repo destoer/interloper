@@ -35,6 +35,20 @@ b32 is_tmp(SymSlot s)
     return s.handle < TMP_END;
 }
 
+b32 is_arg_reg(arg_type type)
+{
+    return type <= arg_type::dst_src_reg;
+}
+
+b32 is_arg_src(arg_type type)
+{
+    return type == arg_type::dst_src_reg || type == arg_type::src_reg;
+}
+
+b32 is_arg_dst(arg_type type)
+{
+    return type == arg_type::dst_src_reg || type == arg_type::dst_reg;
+}
 
 u32 slot_to_idx(SymSlot slot)
 {
@@ -108,7 +122,15 @@ Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
 
     reg.kind = kind;
 
-    const u32 size = type_size(itl,type);
+    u32 size = type_size(itl,type);
+
+    // tmp's derived from expression are allways atleast gpr sized
+    // this ensures that intermediate results allways get stored at 
+    // "max" precision
+    if(kind == reg_kind::tmp && size < GPR_SIZE)
+    {
+        size = GPR_SIZE;
+    }
 
     assign_reg_size(reg,size);
 
@@ -175,6 +197,32 @@ void print(const Reg& reg)
     }
 }
 
+const char* spec_reg_name(SymSlot spec_reg)
+{
+    return SPECIAL_REG_NAMES[spec_reg.handle - SPECIAL_PURPOSE_REG_START].buf;    
+}
+
+
+const char* reg_name(arch_target arch, u32 reg)
+{
+    switch(arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            if(reg < X86_REG_SIZE)
+            {
+                return X86_NAMES[reg];
+            }
+
+            else
+            {
+                return "ERROR";
+            }
+        }
+    }
+
+    return nullptr;
+}
 
 SymSlot new_tmp(Function& func, u32 size)
 {
@@ -221,4 +269,52 @@ bool is_local_reg(const Reg &reg)
 const OpInfo& info_from_op(const Opcode& opcode)
 {
     return OPCODE_TABLE[u32(opcode.op)];
+}
+
+struct ArchInfo
+{
+    u32 sp;
+    u32 rv;
+    u32 gpr;
+};
+
+static constexpr ArchInfo ARCH_TABLE[ARCH_SIZE] = 
+{
+    {u32(x86_reg::rsp),u32(x86_reg::rax),7}, // x86
+};
+
+ArchInfo info_from_arch(arch_target arch)
+{
+    return ARCH_TABLE[u32(arch)];
+}
+
+u32 arch_sp(arch_target arch)
+{
+    const auto info = info_from_arch(arch);
+
+    return info.sp;
+}
+
+u32 arch_rv(arch_target arch)
+{
+    const auto info = info_from_arch(arch);
+
+    return info.rv;
+}
+
+
+
+b32 is_callee_saved(arch_target arch,u32 reg_idx)
+{
+    switch(arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            const x86_reg reg = x86_reg(reg_idx);
+
+            return reg != x86_reg::rax && reg != x86_reg::rsp;
+        }
+    }
+
+    assert(false);
 }

@@ -29,7 +29,7 @@ func main() s32
             {
                 ans -= 2;
             }
-            
+   
             default:
             {
                 ans += 6;
@@ -51,5 +51,5 @@ func main() s32
         }
     }
 
-    return ans;
+    return cast(s32,ans == 447);
 }

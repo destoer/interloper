@@ -1,5 +1,5 @@
 
-func byte_array_arena(arena : Arena@, size : u32) byte[]
+func byte_array_arena(arena : Arena@, size : u64) byte[]
 {
     buf : byte[];
 
@@ -9,7 +9,7 @@ func byte_array_arena(arena : Arena@, size : u32) byte[]
     return buf;
 }
 
-func byte_array_heap(heap : Heap@, size : u32) byte[]
+func byte_array_heap(heap : Heap@, size : u64) byte[]
 {
     buf : byte[];
 
@@ -19,7 +19,7 @@ func byte_array_heap(heap : Heap@, size : u32) byte[]
     return buf;
 }
 
-func u32_array_heap(heap : Heap@, size : u32) u32[]
+func u32_array_heap(heap : Heap@, size : u64) u32[]
 {
     buf : u32[];
 
@@ -31,7 +31,7 @@ func u32_array_heap(heap : Heap@, size : u32) u32[]
 
 
 
-func u32_array_arena(arena : Arena@, size : u32) u32[]
+func u32_array_arena(arena : Arena@, size : u64) u32[]
 {
     buf : u32[];
 

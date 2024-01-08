@@ -137,7 +137,10 @@ InstrOper get_instr_operands(Interloper& itl,ValueTable& reg_value,const ListNod
     bool can_compute_dst = false;
 
     const auto info = info_from_op(node->opcode);
-    const bool is_dst = info.type[0] == arg_type::dst_reg;
+    const bool is_dst = is_arg_dst(info.type[0]);
+
+    // we optimize TAC this should not be present
+    assert(info.type[0] != arg_type::dst_src_reg);
 
     // saved values 
     // NOTE: only valid when can_compute_dst is true
@@ -322,18 +325,57 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
                 break;
             }
 
-            case op_type::div_reg:
+            case op_type::udiv_reg:
             {
                 if(v2 != 0)
                 {
-                    ans = make_const_value(v1 / v2);
+                    ans = make_const_value(u64(v1) / u64(v2));
                 }
+                break;
+            }
+
+            case op_type::sdiv_reg:
+            {
+                if(v2 != 0)
+                {
+                    ans = make_const_value(s64(v1) / s64(v2));
+                }
+                break;
+            }
+
+            case op_type::lsl_reg:
+            {
+                ans = make_const_value(v1 << v2);
+                break;                
+            }
+
+            case op_type::lsl_imm:
+            {
+                ans = make_const_value(v1 << v2);
                 break;
             }
 
             case op_type::and_reg:
             {
                 ans = make_const_value(v1 & v2);
+                break;
+            }
+
+            case op_type::or_reg:
+            {
+                ans = make_const_value(v1 | v2);
+                break;
+            }
+
+            case op_type::xor_reg:
+            {
+                ans = make_const_value(v1 ^ v2);
+                break;
+            }
+
+            case op_type::not_reg:
+            {
+                ans = make_const_value(~v1);
                 break;
             }
 
@@ -517,6 +559,18 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
                 break;
             }
 
+            case op_type::lsl_imm:
+            {
+                // shift zero (i.e nothing)
+                // conv to mov
+                if(node->opcode.v[2] == 0)
+                {
+                    node->opcode = make_op(op_type::mov_reg,node->opcode.v[0],node->opcode.v[1]);
+                }
+
+                break;
+            }
+
             case op_type::ret:
             {
                 // once we return nothing else should be executed in the block
@@ -588,7 +642,7 @@ std::pair<ListNode*,b32> inline_instruction(Interloper& itl, Function& func,Bloc
     if(!removed)
     {
         const auto info = info_from_op(node->opcode);
-        const b32 is_dst = info.type[0] == arg_type::dst_reg;
+        const b32 is_dst = is_arg_dst(info.type[0]);
         const auto dst = sym_from_idx(node->opcode.v[0]);
 
         // we managed to compute the result 
@@ -619,7 +673,7 @@ void update_var_tracking(Interloper& itl, Function& func, ValueTable& reg_value,
     // mark any uses (NOTE: we do this after inlining has happend)
     for(u32 a = 0; a < post_info.args; a++)
     {
-        if(post_info.type[a] == arg_type::src_reg)
+        if(is_arg_src(post_info.type[a]))
         {
             mark_use(reg_value,sym_from_idx(node->opcode.v[a]));
         }
@@ -656,7 +710,7 @@ void remove_dead_stores(Interloper& itl, Function& func, Block& block, ValueTabl
         const auto opcode = node->opcode;
         const auto& info = info_from_op(opcode);
 
-        if(info.type[0] == arg_type::dst_reg)
+        if(is_arg_dst(info.type[0]))
         {
             const auto dst = sym_from_idx(opcode.v[0]);
             const auto v1_opt = lookup(reg_value,dst);

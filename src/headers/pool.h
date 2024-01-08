@@ -39,12 +39,20 @@ struct PoolPointer
     u32 pool_offset = 0;
 };
 
+struct PoolLabel
+{
+    LabelSlot label_slot;
+    u32 pool_offset;
+};
+
 struct ConstPool
 {
     Array<PoolSection> sections;
     Array<u8> buf;
 
     // offsets into the buffer that requires address resolution
-    Array<u32> label;
+    Array<PoolLabel> label;
     Array<PoolPointer> pool_pointer; 
+
+    u32 base_vaddr = 0;
 };

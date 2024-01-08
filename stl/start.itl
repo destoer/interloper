@@ -1,6 +1,6 @@
 import <system>
 
-// TODO: we need to define this for each arch
+// TODO: need to define for each arch
 func start()
 {
     // NOTE: the compiler will internally set this up for us

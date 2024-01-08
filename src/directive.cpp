@@ -5,7 +5,7 @@ template<const op_type type>
 void emit_directive_dst1(Interloper& itl,Function& func, SymSlot dst, u32 v2, u32 v3)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::dst_reg);    
 
@@ -148,4 +148,16 @@ SymSlot load_struct_u64_res(Interloper& itl, Function& func, AddrSlot addr_slot)
 void write_struct_u64(Interloper& itl, Function& func, SymSlot src, AddrSlot addr_slot)
 {
     store_struct_internal(itl,func,op_type::store_struct_u64,src,addr_slot);
+}
+
+void lock_reg(Interloper& itl, Function& func, SymSlot reg)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::lock_reg,reg.handle,0,0);
+}
+
+void unlock_reg(Interloper& itl, Function& func, SymSlot reg)
+{
+    UNUSED(itl);
+    emit_block_internal(func,cur_block(func),op_type::unlock_reg,reg.handle,0,0);
 }

@@ -16,32 +16,177 @@ struct RegAlloc
     SymSlot dead_slot[MACHINE_REG_SIZE] = {0};
     u32 dead_count = 0;
 
+    u32 restricted_reg = 0;
+
     // bitset of which regs this functions needs to use
     // for now we are going to just callee save every register
     u32 used_regs;
     u32 use_count;
    
     b32 print = false;
+
+    arch_target arch;
 };
 
-RegAlloc make_reg_alloc(b32 print)
+void add_gpr(RegAlloc& alloc, u32 reg)
+{
+    alloc.free_list[alloc.free_regs++] = reg;
+}
+
+void add_gpr(RegAlloc& alloc, x86_reg reg)
+{
+    add_gpr(alloc,u32(reg));
+}
+
+RegAlloc make_reg_alloc(b32 print, arch_target arch)
 {
     RegAlloc alloc;
 
-    // every register is free!
-    alloc.free_regs = MACHINE_REG_SIZE;
+    const auto info = info_from_arch(arch);
+
     alloc.use_count = 0;
     alloc.used_regs = 0;
 
+    // mark every reg as free
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         alloc.regs[i] = {REG_FREE};
-        alloc.free_list[i] = i;
     }
+
+    alloc.free_regs = 0;
+
+    // add in GPR regs
+    switch(arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            add_gpr(alloc,x86_reg::rax);
+            add_gpr(alloc,x86_reg::rcx);
+            add_gpr(alloc,x86_reg::rdx);
+            add_gpr(alloc,x86_reg::rbx);
+            add_gpr(alloc,x86_reg::rdp);
+            add_gpr(alloc,x86_reg::rsi);
+            add_gpr(alloc,x86_reg::rdi);
+            break;
+        }
+    }
+
+    assert(alloc.free_regs == info.gpr);
 
     alloc.print = print;
 
+    alloc.arch = arch;
+
+
     return alloc;
+}
+
+
+u32 special_reg_to_reg(arch_target arch,SymSlot slot)
+{
+    switch(slot.handle)
+    {
+        case SP_IR:
+        { 
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rsp;
+                }
+            }
+            assert(false);
+        }
+
+
+        case RV_IR: 
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rax;
+                }
+            }
+            assert(false);
+        }
+
+        case RAX_IR: return u32(x86_reg::rax);
+        case RCX_IR: return u32(x86_reg::rcx);
+        case RDX_IR: return u32(x86_reg::rdx);
+        case RDI_IR: return u32(x86_reg::rdi); 
+        case RSI_IR: return u32(x86_reg::rsi); 
+
+        default: crash_and_burn("unhandled special reg %x\n",slot); 
+    }    
+}
+
+b32 is_restricted(RegAlloc& alloc, u32 reg)
+{
+    return is_set(alloc.restricted_reg,reg);
+}
+
+
+void lock_reg(RegAlloc& alloc, SymSlot slot)
+{
+    const auto reg = special_reg_to_reg(alloc.arch,slot);
+
+    // NOTE: this expects the reg to be unallocated when it locks it
+    // use a higher level wrapper
+    assert(alloc.regs[reg].handle == REG_FREE);
+
+    if(alloc.print)
+    {
+        printf("lock reg: %s\n",spec_reg_name(slot));
+    }
+
+    assert(!is_restricted(alloc,reg));
+
+    alloc.restricted_reg = set_bit(alloc.restricted_reg,reg);
+
+    //  remove it from the free list so it cant be allocated
+    for(u32 r = 0; r < alloc.free_regs; r++)
+    {
+        if(alloc.free_list[r] == reg)
+        {
+            std::swap(alloc.free_list[r],alloc.free_list[alloc.free_regs - 1]);
+            alloc.free_regs--;
+            return;
+        }
+    }
+}
+
+void unlock_reg_internal(RegAlloc& alloc, u32 reg)
+{
+    if(alloc.print)
+    {
+        printf("unlock reg: %s\n",reg_name(alloc.arch,reg));
+    }
+
+    assert(is_restricted(alloc,reg));
+
+    alloc.restricted_reg = deset_bit(alloc.restricted_reg,reg);
+
+    // put register back inside the free list
+    alloc.free_list[alloc.free_regs++] = reg;
+}
+
+void unlock_reg(RegAlloc& alloc, SymSlot slot)
+{
+    const auto reg = special_reg_to_reg(alloc.arch,slot);
+
+    unlock_reg_internal(alloc,reg);
+}
+
+void unlock_registers(RegAlloc& alloc)
+{
+    for(u32 reg = 0; reg < MACHINE_REG_SIZE; reg++)
+    {
+        if(is_restricted(alloc,reg))
+        {
+            unlock_reg_internal(alloc,reg);
+        }
+    }
 }
 
 void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
@@ -64,13 +209,13 @@ void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
 
         if(is_tmp(slot))
         {
-            printf("reg r%d -> temp t%d\n",i,slot.handle);
+            printf("reg %s -> temp t%d\n",reg_name(alloc.arch,i),slot.handle);
         }
 
         else if(is_sym(slot))
         {
             const auto &sym = sym_from_slot(table,slot);
-            printf("reg r%d -> sym %s\n",i,sym.name.buf);
+            printf("reg %s -> sym %s\n",reg_name(alloc.arch,i),sym.name.buf);
         }
     }
 
@@ -121,9 +266,9 @@ b32 is_var(SymSlot slot)
     return is_tmp(slot) || is_sym(slot);
 }
 
-b32 is_callee_saved(u32 reg)
+b32 is_free(SymSlot slot)
 {
-    return reg >= R1 && reg < MACHINE_REG_SIZE;
+    return slot.handle == REG_FREE;
 }
 
 void free_reg_internal(RegAlloc& alloc, Reg& ir_reg)
@@ -157,6 +302,11 @@ u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
 
 bool request_reg(RegAlloc& alloc, u32 req_reg)
 {
+    if(is_restricted(alloc,req_reg))
+    {
+        return false;
+    }
+
     // attempt to swap rv to the end of the free list
     for(u32 r = 0; r < alloc.free_regs; r++)
     {
@@ -170,31 +320,6 @@ bool request_reg(RegAlloc& alloc, u32 req_reg)
     return false;
 }
 
-bool allocate_into_rv(RegAlloc& alloc,Reg& ir_reg)
-{
-    if(request_reg(alloc,RV))
-    {
-        assert(alloc_reg(ir_reg,alloc) == RV);
-        return true;
-    }
-
-    return false;
-}
-
-
-u32 special_reg_to_reg(SymSlot slot)
-{
-    switch(slot.handle)
-    {
-        case SP_IR: return SP;
-        case RV_IR: return RV; 
-        case R0_IR: return R0;
-        case R1_IR: return R1; 
-        case R2_IR: return R2; 
-
-        default: crash_and_burn("unhandled special reg %x\n",slot); 
-    }    
-}
 
 void check_dead_reg(RegAlloc& alloc, Reg& ir_reg)
 {
@@ -204,6 +329,36 @@ void check_dead_reg(RegAlloc& alloc, Reg& ir_reg)
         alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
     }   
 }
+
+// mark usage for internal freeing
+void mark_reg_usage(RegAlloc& alloc, Reg& ir_reg, bool is_dst)
+{
+    ir_reg.uses++;
+
+    // is this is a dst we need to write this back when spilled
+    if(is_dst)
+    {
+        ir_reg.dirty = true;
+    }
+
+    check_dead_reg(alloc,ir_reg);
+}
+
+
+b32 allocate_into_reg(RegAlloc& alloc,Reg& ir_reg,SymSlot spec_reg)
+{
+    const u32 reg = special_reg_to_reg(alloc.arch,spec_reg);
+
+    if(request_reg(alloc,reg))
+    {
+        assert(alloc_reg(ir_reg,alloc) == reg);
+        return true;
+    }
+
+    return false;
+}
+
+
 
 void mark_lifetimes(Function& func,Array<Reg> &tmp_regs, SymbolTable& table)
 {
@@ -230,7 +385,7 @@ void mark_lifetimes(Function& func,Array<Reg> &tmp_regs, SymbolTable& table)
         {
             const auto opcode = node->opcode;
 
-            const auto info = OPCODE_TABLE[u32(opcode.op)];
+            const auto info = info_from_op(opcode);
 
 
             // make sure our src var's are loaded
@@ -238,7 +393,7 @@ void mark_lifetimes(Function& func,Array<Reg> &tmp_regs, SymbolTable& table)
             for(u32 a = 0; a < info.args; a++)
             {
                 // only interested in registers
-                if(info.type[a] != arg_type::src_reg && info.type[a] != arg_type::dst_reg)
+                if(!is_arg_reg(info.type[a]))
                 {
                     continue;
                 }
@@ -269,6 +424,8 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
         case reg_kind::local:
         case reg_kind::tmp:
         {
+            const u32 SP = arch_sp(itl.arch);
+
             const u32 offset = ir_reg.offset + stack_offset;
             return std::pair{SP,offset};
         }

@@ -39,8 +39,8 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
-#include "elf.cpp"
 #include "ir.cpp"
+#include "elf.cpp"
 #include "optimize.cpp"
 #include "memory.cpp"
 #include "struct.cpp"
@@ -51,12 +51,22 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "constant.cpp"
 
 
-void dump_ir_sym(Interloper &itl)
+void dump_sym_ir(Interloper &itl)
 {
     for(u32 f = 0; f < count(itl.used_func); f++)
     {
         Function& func = *lookup(itl.function_table,itl.used_func[f]);
-        dump_ir(func,itl.symbol_table);
+        dump_ir_sym(itl,func,itl.symbol_table);
+    }
+}
+
+
+void dump_reg_ir(Interloper &itl)
+{
+    for(u32 f = 0; f < count(itl.used_func); f++)
+    {
+        Function& func = *lookup(itl.function_table,itl.used_func[f]);
+        dump_ir_reg(itl,func,itl.symbol_table);
     }
 }
 
@@ -159,13 +169,13 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 }
 
-
+// NOTE: pass umod or udiv and it will figure out the correct one
 template<const op_type type>
 Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     static_assert(
         type == op_type::add_reg || type == op_type::sub_reg || type == op_type::mul_reg ||
-        type == op_type::mod_reg || type == op_type::div_reg ||
+        type == op_type::umod_reg || type == op_type::udiv_reg ||
         type == op_type::xor_reg || type == op_type::and_reg || type == op_type::or_reg
     );
     
@@ -187,14 +197,44 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
 
-        const SymSlot offset_slot = mul_imm_res(itl,func,v2,type_size(itl,contained_type));
+        const SymSlot offset_slot = mul_imm_pow2_res(itl,func,v2,type_size(itl,contained_type));
         emit_reg3<type>(itl,func,dst_slot,v1,offset_slot);
     }
 
     // normal arith
     else
     {
-        emit_reg3<type>(itl,func,dst_slot,v1,v2);
+        // figure out correct division type
+        if constexpr (type == op_type::udiv_reg)
+        {
+            if(is_signed(t1))
+            {
+                emit_reg3<op_type::sdiv_reg>(itl,func,dst_slot,v1,v2);
+            }
+
+            else
+            {
+                emit_reg3<op_type::udiv_reg>(itl,func,dst_slot,v1,v2);
+            }
+        }
+
+        else if constexpr (type == op_type::umod_reg)
+        {
+            if(is_signed(t1))
+            {
+                emit_reg3<op_type::smod_reg>(itl,func,dst_slot,v1,v2);
+            }
+
+            else
+            {
+                emit_reg3<op_type::umod_reg>(itl,func,dst_slot,v1,v2);
+            }
+        }
+
+        else
+        {
+            emit_reg3<type>(itl,func,dst_slot,v1,v2);
+        }
     }
 
     // produce effective type
@@ -697,6 +737,13 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
 
     const u32 index_size = arr_type->sub_size;
 
+    // attempting to index statically zero array
+    // we dont care
+    if(is_fixed_array(arr_type) && arr_type->size == 0)
+    {
+        return;
+    }
+
     // save initial block so we can dump a branch later
     const BlockSlot initial_block = cur_block(func);
 
@@ -739,16 +786,23 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
 
     // setup the loop grab data and len
     const auto arr_len = load_arr_len(itl,func,arr_slot,type);
-    const auto arr_bytes = mul_imm_res(itl,func,arr_len,index_size);
+    const auto arr_bytes = mul_imm_pow2_res(itl,func,arr_len,index_size);
 
     const auto arr_data = load_arr_data(itl,func,arr_slot,type);
 
     // compute array end
     const auto arr_end = add_res(itl,func,arr_data,arr_bytes);
 
+    SymSlot entry_cond = {SYMBOL_NO_SLOT};
 
-    // check array is not empty
-    const auto entry_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+    // if this is a fixed size array we dont need to check it
+    // on entry apart from the zero check handled above ^
+    // because we know it has members
+    if(is_runtime_size(arr_type))
+    {
+        // check array is not empty
+        entry_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+    }
     
     // compile the main loop body
     const BlockSlot for_block = new_basic_block(itl,func);
@@ -788,8 +842,18 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     // emit loop branch
     emit_cond_branch(func,end_block,for_block,exit_block,exit_cond,true);
 
-    // emit branch over the loop body if array is empty
-    emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);  
+    if(is_runtime_size(arr_type))
+    {
+        // emit branch over the loop body if array is empty
+        emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);  
+    }
+
+    // fixed size array only need to add a fall
+    // as we know its not empty by this point
+    else
+    {
+        add_block_exit(func,initial_block,for_block);
+    }
 }
 
 
@@ -924,6 +988,12 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     destroy_scope(itl.symbol_table);    
 }
 
+SymSlot mul_imm_pow2_res(Interloper& itl, Function& func, SymSlot src,s32 imm)
+{
+    u32 shift = log2(imm);
+
+    return lsl_imm_res(itl,func,src,shift);
+}
 
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
@@ -1139,7 +1209,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const BlockSlot dispatch_block = new_basic_block(itl,func);
 
         // mulitply to get a jump table index
-        const SymSlot table_index = mul_imm_res(itl,func,switch_slot,GPR_SIZE);
+        const SymSlot table_index = mul_imm_pow2_res(itl,func,switch_slot,GPR_SIZE);
 
         
         // reserve space for the table inside the constant pool
@@ -1152,7 +1222,6 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // load the address out of the jump table
         const SymSlot target = new_tmp_ptr(func);
         load_ptr(itl,func,target, final_offset,0, GPR_SIZE,false);
-
 
         // branch on it
         branch_reg(itl,func,target);
@@ -1406,6 +1475,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         return make_builtin(itl,builtin_type::void_t);
     }
 
+    itl.cur_expr = node;
    
     switch(node->type)
     {
@@ -1592,12 +1662,12 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::divide:
         {
-            return compile_arith_op<op_type::div_reg>(itl,func,node,dst_slot);
+            return compile_arith_op<op_type::udiv_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::mod:
         {
-            return compile_arith_op<op_type::mod_reg>(itl,func,node,dst_slot);       
+            return compile_arith_op<op_type::umod_reg>(itl,func,node,dst_slot);       
         }
 
         case ast_type::times:
@@ -2290,6 +2360,7 @@ void destroy_ast(Interloper& itl)
 
 void destroy_itl(Interloper &itl)
 {
+    destroy_asm_emitter(itl.asm_emitter);
     destroy_arr(itl.program);
     destroy_const_pool(itl.const_pool);
     destroy_sym_table(itl.symbol_table);
@@ -2493,9 +2564,23 @@ void compile(Interloper &itl,const String& initial_filename)
     
     if(itl.print_ir)
     {
-        dump_ir_sym(itl);
+        dump_sym_ir(itl);
     }
-    
+
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            rewrite_x86_ir(itl);
+            break;
+        }
+    }
+
+    if(itl.print_ir)
+    {
+        dump_sym_ir(itl);
+    }
+
     // perform register allocation on used functions
     for(u32 n = 0; n < count(itl.used_func); n++)
     {
@@ -2511,10 +2596,22 @@ void compile(Interloper &itl,const String& initial_filename)
         }
     }
 
+    if(itl.print_ir)
+    {
+        dump_reg_ir(itl);
+    }
+
     // emit the actual target asm
-    // for now we will just collect the emitter IR
-    // and resolve labels
     emit_asm(itl);
+
+    switch(itl.os)
+    {
+        case os_target::linux_t:
+        {
+            emit_elf(itl);
+            break;
+        }
+    }
 
     printf("OK\n\n");
 }

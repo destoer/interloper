@@ -7,8 +7,10 @@ enum class op_type
     add_reg,
     sub_reg,
     mul_reg,
-    div_reg,
-    mod_reg,
+    udiv_reg,
+    sdiv_reg,
+    umod_reg,
+    smod_reg,
 
 
     lsl_reg,
@@ -30,8 +32,47 @@ enum class op_type
     sub_imm,
     mul_imm,
 
+    lsl_imm,
     and_imm,
     xor_imm,
+
+    add_reg2,
+    sub_reg2,
+    mul_reg2,
+    udiv_reg2,
+    sdiv_reg2,
+    umod_reg2,
+    smod_reg2,
+
+
+    lsl_reg2,
+    asr_reg2,
+    lsr_reg2,
+
+    xor_reg2,
+    or_reg2,
+    and_reg2,
+    
+    add_imm2,
+    sub_imm2,
+    mul_imm2,
+
+    lsl_imm2,
+    and_imm2,
+    xor_imm2,
+
+    cqo,
+    udiv_x86,
+    sdiv_x86,
+    umod_x86,
+    smod_x86,
+    mul_x86,
+
+    lsl_x86,
+    lsr_x86,
+    asr_x86,
+
+    not_reg1,
 
     lb,
     lh,
@@ -59,6 +100,7 @@ enum class op_type
     call_reg,
     ret,
 
+    syscall,
     swi,
 
     // compare unsigned
@@ -83,14 +125,40 @@ enum class op_type
     cmpeq_imm,
     cmpne_imm,
 
+    // compare flags
+    cmp_flags,
+    cmp_flags_imm,
+
+    // set signed
+    setslt,
+    setsle,
+    setsgt,
+    setsge,
+
+    // set unsigned
+    setult,
+    setule,
+    setugt,
+    setuge,
+
+
+    seteq,
+    setne,
+
     bnc,
     bc,
     b,
     b_reg,
 
+    // x86 branch
+    test,
+    je,
+    jne,
+
     // DIRECTIVES
     // varabile on the stack is out of scope
     // so we can reclaim allocation on the stack
+    DIRECTIVE,
     alloc_slot,
     free_slot,
 
@@ -118,6 +186,11 @@ enum class op_type
 
     // used when the end of the block is read past in the optimiser
     placeholder,
+
+    replace_reg,
+    lock_reg,
+    unlock_reg,
+
 
     spill,
     spill_all,
@@ -150,6 +223,11 @@ enum class op_type
     // just c++ things not used
     END,
 };
+
+b32 is_directive(op_type type)
+{
+    return type >= op_type::DIRECTIVE;
+}
 
 // general operation defined for unsigned or unsigned ints
 // will be convered to a specific conterpart in op_type
@@ -189,8 +267,14 @@ enum class op_group
 
 enum class arg_type
 {
+    // NOTE: these 3 must be first
     src_reg,
     dst_reg,
+    // double duty, used in reg2 opcodes
+    // i.e add dst, v1
+    dst_src_reg,
+
+
     imm,
     label,
     directive,
@@ -287,6 +371,11 @@ struct Opcode
     u64 v[3];
 };
 
+inline Opcode make_op(op_type type, u32 dst = 0, u32 v1 = 0, u32 v2 = 0)
+{
+    return Opcode(type,dst,v1,v2);
+}
+
 enum class reg_kind
 {
     local,
@@ -362,31 +451,37 @@ static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START + 0;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
-static constexpr u32 R0_IR = SPECIAL_PURPOSE_REG_START + 3;
-static constexpr u32 R1_IR = SPECIAL_PURPOSE_REG_START + 4;
-static constexpr u32 R2_IR = SPECIAL_PURPOSE_REG_START + 5;
+
+// x86 regs
+static constexpr u32 RAX_IR = SPECIAL_PURPOSE_REG_START + 3;
+static constexpr u32 RCX_IR = SPECIAL_PURPOSE_REG_START + 4;
+static constexpr u32 RDX_IR = SPECIAL_PURPOSE_REG_START + 5;
+static constexpr u32 RDI_IR = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 RSI_IR = SPECIAL_PURPOSE_REG_START + 7;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
-static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 8;
 
 static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
 // dont perform any moves
-static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 7;
+static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 9;
 
-static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 8;
-static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 9;
+static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 10;
+static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 11;
 
-const String SPECIAL_REG_NAMES[] = 
+const String SPECIAL_REG_NAMES[12] = 
 {
     "sp",
     "pc",
     "rv",
-    "r0",
-    "r1",
-    "r2",
+    "rax",
+    "rcx",
+    "rdx",
+    "rdi",
+    "rsi",
     "fixed_len",
-    "null",
+    "null_slot",
     "const",
     "global",
 };
@@ -397,32 +492,12 @@ static constexpr u32 PC_NAME_IDX = 1;
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
 
 
-
-
-// for use in the interpretter
-static constexpr u32 SP = MACHINE_REG_SIZE;
-static constexpr u32 PC = MACHINE_REG_SIZE + 1;
-static constexpr u32 RV = 0;
-static constexpr u32 R0 = 0;
-static constexpr u32 R1 = 1;
-static constexpr u32 R2 = 2;
-
-static constexpr u32 PROGRAM_ORG = 0;
-
-static constexpr SymSlot SP_REG = {SP};
-
-
 static constexpr u32 GPR_SIZE = sizeof(u64);
 
 
 
-static constexpr u32 OP_SIZE = sizeof(Opcode);
-
-
 struct SymbolTable;
 
-
-static constexpr u32 STACK_SIZE = 32 * 1024;
 
 inline const char *block_names[] =
 {
@@ -520,6 +595,8 @@ struct GlobalAlloc
     u32 start[4] = {0};
     u32 size = 0;
 
+    u64 base_vaddr = 0;
+
     b32 print_global = false;
 
     Array<ArrayAllocation> array_allocation;
@@ -554,9 +631,6 @@ Block& block_from_slot(Function& func, BlockSlot slot);
 
 void destroy_emitter(IrEmitter& emitter);
 
-void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table);
-void disass_opcode_raw(const Opcode &opcode);
-
 b32 is_tmp(SymSlot s);
 
 inline u32 symbol(u32 s)
@@ -583,7 +657,87 @@ enum class arch_target
     x86_64_t,
 };
 
+static constexpr u32 ARCH_SIZE = 1;
+
 enum class os_target
 {
     linux_t,
 };
+
+
+void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table,arch_target arch);
+void disass_opcode_raw(const Opcode &opcode,arch_target arch);
+
+
+struct AsmFunc
+{
+    String name;
+    LabelSlot label;
+    u32 offset;
+    u32 size;
+};
+
+struct LinkOpcode
+{
+    Opcode opcode;
+    u32 offset;
+};
+
+struct AsmEmitter
+{
+    Array<u8> buffer;
+
+    Array<AsmFunc> func;
+
+    Array<LinkOpcode> link;
+    u64 base_vaddr = 0;
+    u64 base_offset = 0;
+};
+
+namespace x86
+{
+
+void emit_asm(Interloper& itl);
+
+}
+
+
+enum x86_reg : u64
+{
+    rax,
+    rcx,
+    rdx,
+    rbx,
+    rsp,
+    rdp,
+    rsi,
+    rdi,
+
+    // special regs (needs special encoding to access)
+    rip,
+};
+
+static constexpr u32 X86_REG_SIZE = 9;
+
+static const char* X86_NAMES[X86_REG_SIZE] =
+{
+    "rax",
+    "rcx",
+    "rdx",
+    "rbx",
+    "rsp",
+    "rdp",
+    "rsi",
+    "rdi",
+
+    "rip",
+};
+
+/*
+enum class ir_pass
+{
+    optimize
+    arch_rewrite1,
+    reg_alloc,
+}
+*/

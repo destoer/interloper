@@ -47,6 +47,20 @@ void lsl(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
     emit_reg3<op_type::lsl_reg>(itl,func,dst,v1,v2);
 }
 
+void lsl_imm(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, s32 v2)
+{
+    emit_imm2<op_type::lsl_imm>(itl,func,dst,v1,v2);
+}
+
+SymSlot lsl_imm_res(Interloper& itl,Function& func, SymSlot v1, s32 v2)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+
+    lsl_imm(itl,func,tmp,v1,v2);
+
+    return tmp;
+}
+
 void not_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
 {
     emit_reg2<op_type::not_reg>(itl,func,dst,src);
@@ -79,9 +93,9 @@ void ret(Interloper& itl, Function& func)
     emit_implicit<op_type::ret>(itl,func);
 }
 
-void syscall(Interloper& itl, Function& func, u32 syscall)
+void syscall(Interloper& itl, Function& func)
 {
-    emit_imm0<op_type::swi>(itl,func,syscall);
+    emit_implicit<op_type::syscall>(itl,func);
 }
 
 void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src)

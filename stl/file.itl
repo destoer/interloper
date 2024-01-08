@@ -1,3 +1,4 @@
+import <basic>
 
 constant FILE_BLOCK_SIZE : u32 = 4096;
 constant FILE_DEFAULT_BUFFER_SIZE : u32 = FILE_BLOCK_SIZE * 1;
@@ -44,6 +45,11 @@ constant FILE_FLAG_EOF : u32 = 1 << 1;
 
 constant FILE_FLAG_LINE_BUFFER : u32 = 1 << 2;
 
+func file_valid(file : const File@) bool
+{
+    return (file.flags & FILE_FLAG_ERROR) == 0;
+}
+
 func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
 {
     file : File;    
@@ -70,6 +76,12 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
 
 func close_file(file : File@)
 {
+    // allready closed
+    if(file.handle == cast(byte@,INVALID_FILE_HANDLE))
+    {
+        return;
+    }
+
     // flush any pending writes
     if(file.mode == file_mode::write && file.buffer_size != 0)
     {
@@ -107,6 +119,11 @@ func write_file_str(file : File@, str : const string) s64
 
 func write_file_line_buffer(file : File@, buf : const byte@, len : u64) s64
 {
+    if(!file_valid(file))
+    {
+        exit(EXIT_INVALID_FILE);
+    }
+
     // buffer in data until we see a new line and then flush it
     end := buf + len;
 
@@ -138,6 +155,11 @@ func write_file_line_buffer(file : File@, buf : const byte@, len : u64) s64
 
 func write_file_mem(file : File@,buf : const byte@, len : u64) s64
 {
+    if(!file_valid(file))
+    {
+        exit(EXIT_INVALID_FILE);
+    }
+
     // flush buffer to disk when a linefeed is seen
     if(file.flags & FILE_FLAG_LINE_BUFFER)
     {
@@ -210,6 +232,11 @@ func flush_read(file : File@, ptr : byte@, len : u64)
 
 func read_file_str(file : File@, str : string) [string, file_read_res]
 {
+    if(!file_valid(file))
+    {
+        exit(EXIT_INVALID_FILE);
+    }
+
     // buffer is empty rebuffer it
     if(file.buffer_size == 0)
     {
@@ -301,6 +328,11 @@ func read_file_mem(file : File@, buf : byte[]) [u64, file_read_res]
 
 func read_file_raw(file : File@,buf : byte@, len : u64) [u64, file_read_res]
 {
+    if(!file_valid(file))
+    {
+        exit(EXIT_INVALID_FILE);
+    }
+
     // enough in the buffer just pass it back out
     if(len <= file.buffer_size)
     {
@@ -345,4 +377,72 @@ func read_file_raw(file : File@,buf : byte@, len : u64) [u64, file_read_res]
     read := len - remain;
 
     return read, res;
+}
+
+
+enum file_seek
+{
+    start,
+    cur,
+    end,
+};
+
+func file_seek(file: File@, seek: file_seek, offset : s64)
+{
+    os_seek(file.handle,seek,offset);
+}
+
+func file_tell(file: File@) s64
+{
+    return os_tell(file.handle);
+}
+
+func file_size(file: File@) s64
+{
+    // save pos so we can restore it later
+    old := file_tell(file);
+
+    // seek to end and get pos 
+    file_seek(file,file_seek::end,0);
+    size := file_tell(file);
+
+    // reset the file pos
+    file_seek(file,file_seek::start,old);
+
+    return size;
+}
+
+func read_bin(name : const string) [byte[],bool]
+{
+    buf : byte[];
+
+    [file,err] := open_file(name,file_mode::read,file_opt::open);
+
+    if(err)
+    {
+        return buf,true;
+    }
+
+    size := file_size(&file);
+
+    if(size == -1)
+    {
+        close_file(&file);
+        return buf,true;
+    }
+
+    buf = byte_array_heap(&global_heap,cast(u64,size));
+
+    [read,file_res] := read_file_mem(&file,buf);
+
+    // done with file remember to close it
+    close_file(&file);
+
+    // error reading file
+    if(file_res == file_read_res::error)
+    {
+        return buf,true;
+    }
+
+    return buf,false;
 }

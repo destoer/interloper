@@ -33,7 +33,7 @@ void destroy_emitter(IrEmitter& emitter)
     destroy_arr(emitter.program);
 }
 
-constexpr OpInfo opcode_info_from_type(op_type type)
+constexpr OpInfo opcode_three_info(op_type type)
 {
     const u32 IDX = u32(type);
 
@@ -101,7 +101,7 @@ void emit_implicit(Interloper& itl,Function& func)
     UNUSED(itl);
 
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
     static_assert(OP_INFO.args == 0);
 
     emit_block_internal(func,cur_block(func),type,0,0,0);
@@ -112,7 +112,7 @@ template<const op_type type>
 void emit_reg3(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::dst_reg);
     static_assert(OP_INFO.type[1] == arg_type::src_reg);
@@ -132,7 +132,7 @@ template<const op_type type>
 void emit_reg2(Interloper& itl,Function& func, SymSlot dst, SymSlot src)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::dst_reg);
     static_assert(OP_INFO.type[1] == arg_type::src_reg);
@@ -149,7 +149,7 @@ template<const op_type type>
 void emit_reg1(Interloper& itl, Function& func, SymSlot src)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::src_reg);
     static_assert(OP_INFO.args == 1);
@@ -165,7 +165,7 @@ template<const op_type type>
 void emit_store(Interloper& itl, Function& func, SymSlot src, SymSlot ptr, u32 imm)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::src_reg);
     static_assert(OP_INFO.type[1] == arg_type::src_reg);
@@ -182,7 +182,7 @@ template<const op_type type>
 void emit_load(Interloper& itl, Function& func, SymSlot dst, SymSlot ptr, u32 imm)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::dst_reg);
     static_assert(OP_INFO.type[1] == arg_type::src_reg);
@@ -200,7 +200,7 @@ template<const op_type type>
 void emit_imm1(Interloper& itl, Function& func, SymSlot dst, u64 imm)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::dst_reg);
     static_assert(OP_INFO.type[1] == arg_type::imm);
@@ -217,7 +217,7 @@ void emit_imm0(Interloper& itl, Function& func, u64 imm)
     UNUSED(itl);
 
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::imm);
     static_assert(OP_INFO.args == 1);
@@ -229,7 +229,7 @@ template<const op_type type>
 void emit_imm2(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     // sanity checking fmt
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::dst_reg);
     static_assert(OP_INFO.type[1] == arg_type::src_reg);
@@ -248,7 +248,7 @@ void emit_label1(Interloper& itl,Function& func, LabelSlot slot)
 {
     UNUSED(itl);
 
-    constexpr auto OP_INFO = opcode_info_from_type(type);
+    constexpr auto OP_INFO = opcode_three_info(type);
 
     static_assert(OP_INFO.type[0] == arg_type::label);
     static_assert(OP_INFO.args == 1);
