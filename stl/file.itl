@@ -1,3 +1,4 @@
+import <basic>
 
 constant FILE_BLOCK_SIZE : u32 = 4096;
 constant FILE_DEFAULT_BUFFER_SIZE : u32 = FILE_BLOCK_SIZE * 1;
@@ -70,6 +71,12 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
 
 func close_file(file : File@)
 {
+    // allready closed
+    if(file.handle == cast(byte@,INVALID_FILE_HANDLE))
+    {
+        return;
+    }
+
     // flush any pending writes
     if(file.mode == file_mode::write && file.buffer_size != 0)
     {

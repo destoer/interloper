@@ -1,57 +1,11 @@
-//import <system>
+import <system>
 
-/*
-// TODO: we need to define this for each arch
+// TODO: need to define for each arch
 func start()
 {
     // NOTE: the compiler will internally set this up for us
     init_global();
 
     rc : s32 = main();
-    exit(rc);
-}
-*/
-
-// Minimal start code
-
-// TODO: these need to go soon
-import <bit>
-import <mem>
-import <string>
-import <math>
-
-func os_exit(exit_code: s32)
-{
-    intrin_syscall(0x3c,exit_code);
-}
-
-func os_write(handle: u64,buf : const u8@, size: u64)
-{
-    intrin_syscall(1,handle,buf,size);
-}
-
-func exit(exit_code: s32)
-{
-    os_exit(exit_code);
-}
-
-
-// TODO: this should use file buffering later
-func write_string(str: const string)
-{
-    os_write(1,cast(const u8@,str.data),str.len);
-}
-
-func write_str_raw(data : const c8@, len : u64)
-{
-    os_write(1,cast(const u8@,data),len);
-}
-
-func start()
-{
-    init_global();
-
-    rc : s32 = main();
-
     exit(rc);
 }

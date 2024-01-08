@@ -361,6 +361,11 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_cmp_flag_reg(block,node,op_type::setne);
         }
 
+        case op_type::cmpne_imm:
+        {
+            return rewrite_cmp_flag_imm(block,node,op_type::setne);
+        }
+
         case op_type::cmpsgt_imm:
         {
             return rewrite_cmp_flag_imm(block,node,op_type::setsgt);
