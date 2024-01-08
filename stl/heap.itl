@@ -138,7 +138,7 @@ func request_buffer(heap : Heap@, size : u64) bool
     return true;
 }
 
-func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
+func alloc_heap(heap : Heap@, count : u64, size : u64) byte@
 {
     bytes := count * size;
 
@@ -196,7 +196,7 @@ func alloc_heap(heap : Heap@, count : u32, size : u32) byte@
     return NULL;
 }
 
-func alloc_heap_panic(heap : Heap@, count : u32, size : u32) byte@
+func alloc_heap_panic(heap : Heap@, count : u64, size : u64) byte@
 {
     ptr := alloc_heap(heap,count,size);
 
