@@ -1,21 +1,21 @@
 
-global x : u32 = 5;
+global test_global : u32 = 5;
 
 func modify_nested()
 {
-    x = x + x;
+    test_global = test_global + test_global;
 }
 
 func modify()
 {
     // modification
-    x = 10;
+    test_global = 10;
 
     // function call so we expect that x will be reloaded
     modify_nested();
 
     // perform an increment to check the value isn't getting trashed
-    x += 1;
+    test_global += 1;
 
     // we expect that the value is saved upon function exit
 }
@@ -23,9 +23,9 @@ func modify()
 // expected 26
 func main() s32
 {
-    y := x;
+    y := test_global;
 
     modify();
 
-    return y + x;
+    return y + test_global;
 }

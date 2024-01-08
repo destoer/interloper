@@ -181,7 +181,7 @@ constant INVALID_FILE_HANDLE : s64 = -1;
 
 func is_os_handle_valid(handle : byte@) bool
 {
-    return cast(s64,handle) != INVALID_FILE_HANDLE;
+    return cast(s64,handle) >= 0;
 }
 
 
