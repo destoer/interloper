@@ -23,7 +23,7 @@ void mark_used(Interloper& itl, Function& func)
 
 void mark_used(Interloper& itl, const String& name)
 {
-    mark_used(itl,*lookup(itl.function_table,name));
+    mark_used(itl,lookup_complete_function(itl,name));
 }
 
 #include "intrin.cpp"
@@ -471,7 +471,7 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
         const LiteralNode* literal_node = (LiteralNode*)expr;
         const String& name = literal_node->literal;
 
-        Function* func_call_ptr = lookup(itl.function_table,name);
+        Function* func_call_ptr = lookup_opt_function(itl,name);
 
         // no known function
         if(!func_call_ptr)
@@ -907,7 +907,7 @@ void compile_functions(Interloper &itl)
     
     for(u32 idx = 0; idx != count(itl.used_func); idx++)
     {
-        Function& func = *lookup(itl.function_table,itl.used_func[idx]);
+        Function& func = lookup_complete_function(itl,itl.used_func[idx]);
         compile_function(itl,func);
     }
 }
@@ -920,4 +920,19 @@ void check_func_exists(Interloper& itl, const String& name)
         panic(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
         return;
     }    
+}
+
+Function* lookup_opt_function(Interloper& itl, const String& name)
+{
+    Function* func_opt = lookup(itl.function_table, name);
+    return func_opt;
+}
+
+Function& lookup_complete_function(Interloper& itl, const String& name)
+{
+    Function* func_opt = lookup_opt_function(itl,name);
+
+    assert(func_opt);
+
+    return *func_opt;
 }

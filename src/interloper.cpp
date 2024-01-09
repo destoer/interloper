@@ -55,7 +55,7 @@ void dump_sym_ir(Interloper &itl)
 {
     for(u32 f = 0; f < count(itl.used_func); f++)
     {
-        Function& func = *lookup(itl.function_table,itl.used_func[f]);
+        Function& func = lookup_complete_function(itl,itl.used_func[f]);
         dump_ir_sym(itl,func,itl.symbol_table);
     }
 }
@@ -65,7 +65,7 @@ void dump_reg_ir(Interloper &itl)
 {
     for(u32 f = 0; f < count(itl.used_func); f++)
     {
-        Function& func = *lookup(itl.function_table,itl.used_func[f]);
+        Function& func = lookup_complete_function(itl,itl.used_func[f]);
         dump_ir_reg(itl,func,itl.symbol_table);
     }
 }
@@ -1346,7 +1346,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
                 // could be attempting to take a function pointer?
                 if(take_addr)
                 {
-                    auto func_ptr = lookup(itl.function_table,name);
+                    auto func_ptr = lookup_opt_function(itl,name);
 
                     if(func_ptr)
                     {
@@ -2302,7 +2302,7 @@ Function& create_dummy_func(Interloper& itl, const String& name)
     add(itl.function_table,func.name,func);
     
     // get its new home
-    return *lookup(itl.function_table,name);
+    return lookup_complete_function(itl,name);
 }
 
 void compile_globals(Interloper& itl)
@@ -2586,7 +2586,7 @@ void compile(Interloper &itl,const String& initial_filename)
     {
         const auto& name = itl.used_func[n];
 
-        Function& func = *lookup(itl.function_table,name);
+        Function& func = lookup_complete_function(itl,name);
 
         allocate_registers(itl,func);
 

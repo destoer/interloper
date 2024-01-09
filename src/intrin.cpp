@@ -4,7 +4,7 @@ using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymS
 
 Function* find_func(Interloper& itl, const String& name)
 {
-    Function* func_def = lookup(itl.function_table,name);
+    Function* func_def = lookup_opt_function(itl,name);
 
     if(!func_def)
     {

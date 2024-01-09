@@ -67,11 +67,7 @@ void finalise_labels(Interloper& itl, u64 base)
         
         // record all block label offsets
         {
-            auto ir_func_opt = lookup(itl.function_table,func.name); 
-
-            assert(ir_func_opt);
-
-            auto& ir_func = *ir_func_opt;
+            auto& ir_func = lookup_complete_function(itl,func.name); 
 
             for(u32 b = 0; b < count(ir_func.emitter.program); b++)
             {

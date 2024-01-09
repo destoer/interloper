@@ -409,6 +409,9 @@ struct Function
     b32 used = false;
 };
 
+Function* lookup_opt_function(Interloper& itl, const String& name);
+Function& lookup_complete_function(Interloper& itl, const String& name);
+
 void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node);
 
 struct Interloper;

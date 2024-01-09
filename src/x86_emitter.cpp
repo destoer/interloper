@@ -1233,7 +1233,7 @@ void emit_asm(Interloper& itl)
 {
     for(u32 idx = 0; idx != count(itl.used_func); idx++)
     {
-        auto& func = *lookup(itl.function_table,itl.used_func[idx]);
+        auto& func = lookup_complete_function(itl,itl.used_func[idx]);
         emit_func(itl,func);
     }
 }
