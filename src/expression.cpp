@@ -7,7 +7,7 @@ std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,const String& expressio
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
-TypeNode *parse_type(Parser &parser);
+TypeNode *parse_type(Parser &parser, b32 allow_fail = false);
 
 void next_expr_token(Parser& parser)
 {
@@ -251,6 +251,43 @@ AstNode* nud_sym(Parser& parser, const Token& t)
             next_expr_token(parser);
 
             return call;
+        }
+
+        // potentail generic instantiation
+        case token_type::logical_lt:
+        {
+            const auto old = parser.tok_idx;
+
+            TypeNode* type = parse_type(parser,true);
+
+            // start of generic usage
+            // name<type>
+            if(type && match(parser,token_type::logical_gt))
+            {
+                consume(parser,token_type::logical_gt);
+
+                AstNode* call = func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t,type); 
+                next_expr_token(parser);
+
+
+                return call;
+            }   
+
+            // did not find function template
+            // walk back the parser
+            else
+            {
+                parser.tok_idx = old;
+
+                prev_token(parser);
+                AstNode* node = var(parser,t,true);
+
+                next_expr_token(parser);
+
+                return node;
+            }
+
+            break;
         }
     
 

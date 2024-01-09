@@ -118,7 +118,7 @@ u32 plain_type_idx(const Token &tok)
 }
 
 
-TypeNode *parse_type(Parser &parser)
+TypeNode *parse_type(Parser &parser, b32 allow_fail)
 {
     // parse out any specifiers
     auto specifier = peek(parser,0);
@@ -159,7 +159,10 @@ TypeNode *parse_type(Parser &parser)
 
     if(type_idx == INVALID_TYPE || type_idx == u32(builtin_type::null_t))
     {
-        panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
+        if(!allow_fail)
+        {
+            panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
+        }
         return nullptr;
     }
 
@@ -550,11 +553,11 @@ AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call)
     return node;
 }
 
-AstNode* func_call(Parser& parser,AstNode *expr, const Token& t)
+AstNode* func_call(Parser& parser,AstNode *expr, const Token& t, TypeNode* generic)
 {
     consume(parser,token_type::left_paren);
 
-    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,expr,t);
+    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,expr,generic,t);
 
 
     // keep reading args till we run out of commas
@@ -1120,6 +1123,31 @@ void type_alias(Interloper& itl, Parser &parser, const String& filename)
 FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& func_name, const Token& token)
 {
     FuncNode *f = (FuncNode*)ast_func(parser,func_name,filename,token);
+
+    // template decl
+    if(match(parser,token_type::logical_lt))
+    {
+        consume(parser,token_type::logical_lt);
+
+        if(match(parser,token_type::symbol))
+        {
+            const auto name = next_token(parser);
+            push_var(f->template_name,name.literal);
+        }
+
+        else
+        {
+            panic(parser,token,"unexecpted token in template decl");
+            return nullptr;
+        }
+
+        consume(parser,token_type::logical_gt);
+    }
+
+    if(parser.error)
+    {
+        return nullptr;
+    }
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
@@ -1761,7 +1789,21 @@ void print(const AstNode *root, b32 override_seperator)
         {
             FuncNode* func_node = (FuncNode*)root;
 
-            printf("function %s:%s\n",func_node->filename.buf,func_node->name.buf);
+            printf("function %s:%s",func_node->filename.buf,func_node->name.buf);
+
+            if(count(func_node->template_name))
+            {
+                putchar('<');
+
+                for(u32 t = 0; t < count(func_node->template_name); t++)
+                {
+                    printf("%s,",func_node->template_name[t].buf);
+                }
+
+                putchar('>');  
+            }
+
+            putchar('\n');
 
             for(u32 a = 0; a < count(func_node->args); a++)
             {

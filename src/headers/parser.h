@@ -386,6 +386,8 @@ struct FuncNode
     BlockNode* block = nullptr;
     Array<DeclNode*> args;
 
+    Array<String> template_name;
+
     b32 va_args = false;
     String args_name;
 };
@@ -445,6 +447,7 @@ struct FuncCallNode
     AstNode node;
 
     AstNode* expr =  nullptr;
+    TypeNode* generic = nullptr;
     Array<AstNode*> args;
 };
 
@@ -606,6 +609,7 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
     FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
 
     add_ast_pointer(parser,&func_node->args.data);
+    add_ast_pointer(parser,&func_node->template_name.data);
     add_ast_pointer(parser,&func_node->return_type.data);
 
     func_node->name = name;
@@ -707,9 +711,11 @@ AstNode* ast_if_block(Parser& parser, const Token& token)
     return (AstNode*)block_node;
 }
 
-AstNode* ast_call(Parser& parser, AstNode* expr, const Token& token)
+AstNode* ast_call(Parser& parser, AstNode* expr, TypeNode* generic,const Token& token)
 {
     FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,ast_fmt::function_call,token);
+
+    func_call->generic = generic;
 
     add_ast_pointer(parser,&func_call->args.data);
 
@@ -871,7 +877,7 @@ bool match(Parser &parser,token_type type);
 void consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-AstNode* func_call(Parser& parser,AstNode *expr, const Token& t);
+AstNode* func_call(Parser& parser,AstNode *expr, const Token& t, TypeNode* generic = nullptr);
 AstNode* arr_access(Parser& parser, const Token& t);
 AstNode *struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 AstNode* array_index(Parser& parser,const Token& t);
