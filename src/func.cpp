@@ -5,25 +5,85 @@ using namespace destoer;
 void add_func(Interloper& itl, const String& name, FuncNode* root)
 {
     Function func;
+    // Make sure our function is not allocated on the
+    // same string allocator as the AST
     func.name = copy_string(itl.string_allocator,name);
     func.root = root;
 
     add(itl.function_table,func.name,func);    
 }
 
+void finalise_def(Interloper& itl,Function& func)
+{
+
+    // add as a label as it this will be need to referenced by call instrs
+    // in the ir to get the name back
+    func.label_slot = add_label(itl.symbol_table,func.name);
+}
+
 
 void mark_used(Interloper& itl, Function& func)
 {
+    push_var(itl.used_func,func.name);
+    func.used = true; 
+}
+
+void finalise_func_internal(Interloper& itl, Function& func)
+{
     if(!func.used)
     {
-        push_var(itl.used_func,func.name);
-        func.used = true;
+        // parse in function signature on demand
+        if(func.root)
+        {
+            parse_func_sig(itl,func.sig,*func.root);
+        }
+        finalise_def(itl,func);
+
+        mark_used(itl,func);  
     }
 }
 
-void mark_used(Interloper& itl, const String& name)
+void finalise_func(Interloper& itl, Function& func, AstNode* call_node)
 {
-    mark_used(itl,lookup_complete_function(itl,name));
+    // NOTE: we have to check we aint instantiating a generic
+    UNUSED(call_node);
+
+    if(!func.used)
+    {
+        finalise_func_internal(itl,func);
+    }
+}
+
+void finalise_func_name(Interloper& itl, const String& name)
+{
+    Function& func = lookup_complete_function(itl,name);
+
+    finalise_func_internal(itl,func);
+}
+
+void check_func_exists(Interloper& itl, const String& name)
+{
+    // ensure the entry functions are defined
+    if(!contains(itl.function_table,name))
+    {
+        panic(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
+        return;
+    }    
+}
+
+Function* lookup_opt_function(Interloper& itl, const String& name)
+{
+    Function* func_opt = lookup(itl.function_table, name);
+    return func_opt;
+}
+
+Function& lookup_complete_function(Interloper& itl, const String& name)
+{
+    Function* func_opt = lookup_opt_function(itl,name);
+
+    assert(func_opt);
+
+    return *func_opt;
 }
 
 #include "intrin.cpp"
@@ -48,15 +108,6 @@ void print_func_decl(Interloper& itl,const Function &func)
     {
         printf("return type %s\n",type_name(itl,func.sig.return_type[r]).buf);
     }
-}
-
-
-void finalise_def(Interloper& itl,Function& func)
-{
-
-    // add as a label as it this will be need to referenced by call instrs
-    // in the ir to get the name back
-    func.label_slot = add_label(itl.symbol_table,func.name);
 }
 
 
@@ -375,7 +426,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
         {
             arg_clean++;
 
-            alloc_slot(itl,func,func.registers[dst_slot.handle],true);
+            alloc_slot(itl,func,dst_slot,true);
             
             const SymSlot addr = addrof_res(itl,func,dst_slot);
             push_arg(itl,func,addr);
@@ -515,12 +566,12 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
         {
             auto& func_call = *func_call_ptr;
 
+            finalise_func(itl,func_call,(AstNode*)call_node);
+
             call_info.label_slot = func_call.label_slot;
             call_info.sig = func_call.sig;
             call_info.name = func_call.name;
             call_info.func_pointer = false;
-
-            mark_used(itl,func_call);
         }
     }
 
@@ -592,7 +643,7 @@ void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_no
             {
                 // add new symbol table entry with return type
                 auto& sym = add_symbol(itl,name,sig.return_type[s]);
-                alloc_slot(itl,func,sym.reg,!is_plain_type(sym.type));
+                alloc_slot(itl,func,sym.reg.slot,!is_plain_type(sym.type));
 
                 new_decl = true;
             }
@@ -634,7 +685,8 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
         }
     }
 
-
+    // get the signature of what we are actually calling
+    // NOTE: this might be plain function, or it could be a function pointer
     const auto call_info = get_calling_sig(itl,func,call_node,tuple_node);
     auto& sig = call_info.sig;
 
@@ -782,25 +834,6 @@ void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
 }
 
 
-// we wont worry about the scope on functions for now as we wont have namespaces for a while
-void parse_function_declarations(Interloper& itl)
-{
-
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
-    {
-        auto& bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& func = bucket[i].v;
-
-            parse_func_sig(itl,func.sig,*func.root);
-
-            finalise_def(itl,func);
-        }
-    }
-}
-
 
 void compile_function(Interloper& itl, Function& func)
 {
@@ -902,37 +935,12 @@ void compile_functions(Interloper &itl)
 {
     // TODO: we need to hide these functions from access via general calling code
     // they should probably get namespaced when we have access to them...
-    mark_used(itl,"main");
-    mark_used(itl,"start");
+    finalise_func_name(itl,"main");
+    finalise_func_name(itl,"start");
     
     for(u32 idx = 0; idx != count(itl.used_func); idx++)
     {
         Function& func = lookup_complete_function(itl,itl.used_func[idx]);
         compile_function(itl,func);
     }
-}
-
-void check_func_exists(Interloper& itl, const String& name)
-{
-    // ensure the entry functions are defined
-    if(!contains(itl.function_table,name))
-    {
-        panic(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
-        return;
-    }    
-}
-
-Function* lookup_opt_function(Interloper& itl, const String& name)
-{
-    Function* func_opt = lookup(itl.function_table, name);
-    return func_opt;
-}
-
-Function& lookup_complete_function(Interloper& itl, const String& name)
-{
-    Function* func_opt = lookup_opt_function(itl,name);
-
-    assert(func_opt);
-
-    return *func_opt;
 }

@@ -37,7 +37,7 @@ func u32_array_arena(arena : Arena@, size : u64) u32[]
 
     bytes := size * u32.size;
 
-    buf.data = alloc_arena_panic(arena,bytes);
+    buf.data = cast(u32@,alloc_arena_panic(arena,bytes));
     buf.len = bytes;
 
     return buf;

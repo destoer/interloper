@@ -338,7 +338,8 @@ struct TypeAlias
 
 using AliasTable = Array<TypeAlias>;
 
-
+// NOTE: this may move during expression compilation
+// prefer holding a slot to a reference
 struct Symbol
 {
     String name;

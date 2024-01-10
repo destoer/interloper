@@ -561,17 +561,19 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, SymS
     }        
 }
 
-void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& array)
+void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, SymSlot slot)
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    alloc_slot(itl,func,array.reg,true);
+    alloc_slot(itl,func,slot,true);
     ListNode* alloc = get_cur_end(func.emitter);
 
 
     // has an initalizer
     if(decl_node->expr)
     {
+        auto& array = sym_from_slot(itl.symbol_table,slot);
+
         if(decl_node->expr->type != ast_type::no_init)
         {
             compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type);
@@ -586,6 +588,8 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 
     else 
     {
+        auto& array = sym_from_slot(itl.symbol_table,slot);
+
         ArrayType* array_type = (ArrayType*)array.type;
 
         // default construct
@@ -607,6 +611,8 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 
     else
     {
+        auto& array = sym_from_slot(itl.symbol_table,slot);
+
         const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
 
         // allocate fixed array if needed, and initalize it to its data pointer

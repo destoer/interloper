@@ -153,6 +153,13 @@ void trash_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* no
         {
             auto& ir_reg = reg_from_slot(slot,table,alloc);
 
+            // register free'd but may still be in flight for this instruction
+            // dont use it
+            if(ir_reg.uses >= count(ir_reg.usage))
+            {
+                continue;
+            }
+
             // we haven't found something that can be freed yet...
             const s32 cur_gap = ir_reg.usage[ir_reg.uses] - alloc.pc;
 

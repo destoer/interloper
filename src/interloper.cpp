@@ -24,7 +24,7 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
 void add_func(Interloper& itl, const String& name, FuncNode* root);
 
-void alloc_slot(Interloper& itl,Function& func, const Reg& reg, b32 force_alloc);
+void alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
 
 SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
 SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
@@ -1351,8 +1351,9 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
                     if(func_ptr)
                     {
                         auto& func_call = *func_ptr;
+
                         // this may get called at some point so we need to mark it for compilation...
-                        mark_used(itl,func_call);
+                        finalise_func(itl,func_call,(AstNode*)node);
 
                         FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
                         type->sig = func_call.sig;
@@ -1907,39 +1908,49 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         return;
     }
 
+    SymSlot slot = {NO_SLOT};
 
     // add new symbol table entry
-    Symbol &sym = global? add_global(itl,name,ltype,false) : add_symbol(itl,name,ltype);
-
-    if(is_array(sym.type))
     {
-        compile_arr_decl(itl,func,decl_node,sym);
-    }
-
-    else if(is_struct(sym.type))
-    {
-        compile_struct_decl(itl,func,decl_node,sym);
+        // dont hold this sym reference as its no doubt going to be invalidated
+        // as we are actively compiling expressions
+        Symbol &sym = global? add_global(itl,name,ltype,false) : add_symbol(itl,name,ltype);
+        slot = sym.reg.slot;
     }
 
     
+
+    if(is_array(ltype))
+    {
+        compile_arr_decl(itl,func,decl_node,slot);
+    }
+
+    else if(is_struct(ltype))
+    {
+        compile_struct_decl(itl,func,decl_node,slot);
+    }
+
     // simple type
     else 
     {
-        alloc_slot(itl,func,sym.reg,false);
-
+        alloc_slot(itl,func,slot,false);
+        
         // initalizer
         if(decl_node->expr)
         {
             if(decl_node->expr->type != ast_type::no_init)
             {
                 // normal assign
-                const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
+                const auto rtype = compile_expression(itl,func,decl_node->expr,slot);
+            
+                // our symbol reference might have moved because of compile_expression
+                auto &sym = sym_from_slot(itl.symbol_table,slot);
 
                 if(is_unsigned_integer(sym.type))
                 {
                     clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
                 }
-
+            
                 if(itl.error)
                 {
                     return;
@@ -1952,7 +1963,7 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         // default init
         else
         {
-            mov_imm(itl,func,sym.reg.slot,0);
+            mov_imm(itl,func,slot,0);
         }
     } 
 
@@ -1960,6 +1971,7 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     // just in case we need to do any size deduction
     if(global)
     {
+        auto &sym = sym_from_slot(itl.symbol_table,slot);
         reserve_global_alloc(itl,sym);
     }
 }
@@ -2011,7 +2023,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     // add new symbol table entry
     const auto &sym = add_symbol(itl,name,type);
 
-    alloc_slot(itl,func,sym.reg,!is_plain_type(type));
+    alloc_slot(itl,func,sym.reg.slot,!is_plain_type(type));
     compile_move(itl,func,sym.reg.slot,reg,sym.type,type);
 }
 
@@ -2118,14 +2130,17 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                         break;
                     }
 
-                    const auto &sym = *sym_ptr;
+                    // copy these locally incase the symbol moves
+                    const auto slot = sym_ptr->reg.slot;
+                    const auto size = sym_ptr->reg.size;
+                    const auto ltype = sym_ptr->type;
 
-                    const auto rtype = compile_expression(itl,func,assign_node->right,sym.reg.slot);
-                    check_assign(itl,sym.type,rtype);
+                    const auto rtype = compile_expression(itl,func,assign_node->right,slot);
+                    check_assign(itl,ltype,rtype);
 
-                    if(is_unsigned_integer(sym.type))
+                    if(is_unsigned_integer(ltype))
                     {
-                        clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
+                        clip_arith_type(itl,func,slot,slot,size);
                     }
                 }
                 break;
@@ -2292,12 +2307,10 @@ Function& create_dummy_func(Interloper& itl, const String& name)
     func.name = copy_string(itl.string_allocator,name);
 
     push_var(func.sig.return_type,make_builtin(itl,builtin_type::void_t));
-    finalise_def(itl,func);    
+    finalise_func_internal(itl,func);  
 
     // create a dummy basic block
     new_basic_block(itl,func);
-
-    mark_used(itl,func);
 
     add(itl.function_table,func.name,func);
     
@@ -2514,15 +2527,19 @@ void compile(Interloper &itl,const String& initial_filename)
         return;
     }
 
-
-    parse_function_declarations(itl);
-    
-
-    if(itl.error)
+#if 0
+    for(u32 b = 0; b < count(itl.function_table.buf); b++)
     {
-        destroy_itl(itl);
-        return;
+        auto& bucket = itl.function_table.buf[b];
+
+        for(u32 i = 0; i < count(bucket); i++)
+        {
+            auto& func = bucket[i].v;
+
+            finalise_func_internal(itl,func);
+        }
     }
+#endif
 
     putchar('\n');
 

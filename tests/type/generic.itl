@@ -10,12 +10,12 @@ func largest<T>(v1: T, v2: T) T
     return v2;
 }
 
-func largest_u64(v1: u64, v2: u64)
+func largest_u64(v1: u64, v2: u64) u64
 {
     return largest<u64>(v1,v2);
 }
 
-func largest_s64(v1: s64, v2: s64)
+func largest_s64(v1: s64, v2: s64) s64
 {
     return largest<s64>(v1,v2);
 }
@@ -24,5 +24,7 @@ func largest_s64(v1: s64, v2: s64)
 
 func main() s32
 {
-    return largest_u64(5,25) + largest_s64(-5,3);
+    ans := largest_u64(5,25) + largest_s64(-5,3);
+
+    return cast(s32,ans);
 }

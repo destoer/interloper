@@ -79,10 +79,10 @@ void free_fixed_array(Interloper& itl,Function& func,SymSlot src,u32 size,u32 co
     emit_block_internal(func,cur_block(func),op_type::free_fixed_array,src.handle,size,count);
 }
 
-void alloc_slot(Interloper& itl,Function& func, const Reg& reg, b32 force_alloc)
+void alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc)
 {
     UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::alloc_slot,reg.slot.handle,force_alloc,0);
+    emit_block_internal(func,cur_block(func),op_type::alloc_slot,slot.handle,force_alloc,0);
 }
 
 ListNode* alloc_stack(Interloper& itl, Function& func, u32 size)

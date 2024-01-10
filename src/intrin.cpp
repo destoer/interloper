@@ -2,7 +2,7 @@
 
 using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 
-Function* find_func(Interloper& itl, const String& name)
+Function* find_complete_func(Interloper& itl, const String& name)
 {
     Function* func_def = lookup_opt_function(itl,name);
 
@@ -12,7 +12,7 @@ Function* find_func(Interloper& itl, const String& name)
         return nullptr;
     }
 
-    mark_used(itl,*func_def);
+    finalise_func_internal(itl,*func_def);
 
     return  func_def;
 }
@@ -45,7 +45,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     {
         // emit a call to memcpy with args
         // check function is declared
-        Function* func_def = find_func(itl,String("memcpy"));
+        Function* func_def = find_complete_func(itl,String("memcpy"));
 
         if(!func_def)
         {
@@ -54,7 +54,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
         Function &func_call = *func_def;
 
-        mark_used(itl,func_call);
+        finalise_func_internal(itl,func_call);
 
 
         const SymSlot imm_slot = mov_imm_res(itl,func,size);
@@ -93,7 +93,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     // call into zero_mem
     else
     {
-        Function* func_def = find_func(itl,String("zero_mem"));
+        Function* func_def = find_complete_func(itl,String("zero_mem"));
 
         if(!func_def)
         {
@@ -102,7 +102,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
 
         Function &func_call = *func_def;
 
-        mark_used(itl,func_call);
+        finalise_func_internal(itl,func_call);
 
 
         const SymSlot imm_slot = mov_imm_res(itl,func,size);

@@ -20,6 +20,7 @@ u32 sym_to_idx(SymSlot s)
 }
 
 
+// NOTE: reference may move, hold the slot if needed for extended periods
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot)
 {
     return table.slot_lookup[sym_to_idx(slot)]; 

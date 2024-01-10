@@ -829,19 +829,28 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     }
 }
 
-void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, Symbol& sym)
+void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, SymSlot slot)
 {
-    const auto structure = struct_from_type(itl.struct_table,sym.type);
+    Type* ltype = nullptr;
 
-    alloc_slot(itl,func,sym.reg,true);
+    // isolate our symbol as it may move
+    {
+        auto& sym = sym_from_slot(itl.symbol_table,slot);
+        alloc_slot(itl,func,slot,true);
 
+        ltype = sym.type;
+    }
+
+    const auto structure = struct_from_type(itl.struct_table,ltype);
+
+    
     if(decl_node->expr)
     {
         switch(decl_node->expr->type)
         {
             case ast_type::initializer_list:
             {
-                const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
+                const SymSlot addr_slot = addrof_res(itl,func,slot);
                 traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
                 break;                
             }
@@ -853,8 +862,8 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
             default:
             {
-                const auto rtype = compile_expression(itl,func,decl_node->expr,sym.reg.slot);
-                check_assign_init(itl,sym.type,rtype);
+                const auto rtype = compile_expression(itl,func,decl_node->expr,slot);
+                check_assign_init(itl,ltype,rtype);
                 break;    
             }
         }
@@ -863,7 +872,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     // default init
     else
     {
-        const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
+        const SymSlot addr_slot = addrof_res(itl,func,slot);
         compile_struct_decl_default(itl,func,structure,addr_slot,0);
     }
 }

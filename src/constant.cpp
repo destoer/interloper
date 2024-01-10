@@ -440,12 +440,13 @@ u32 const_write_in_string(Interloper& itl, LiteralNode* literal_node, Type* type
 
     const String literal = literal_node->literal;
 
-    auto& section = pool_section_from_slot(itl.const_pool,slot);
-
     if(is_runtime_size(array_type))
     {
         // add string into const pool
         const auto data_slot = push_const_pool_string(itl.const_pool,literal);
+
+        // make sure we pull the section after pushing data
+        auto& section = pool_section_from_slot(itl.const_pool,slot);
 
         // write in vla data
         write_const_pool_vla(itl.const_pool,section,offset,data_slot,literal.size);
