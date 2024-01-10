@@ -1124,7 +1124,7 @@ FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& fu
 {
     FuncNode *f = (FuncNode*)ast_func(parser,func_name,filename,token);
 
-    // template decl
+    // generic decl
     if(match(parser,token_type::logical_lt))
     {
         consume(parser,token_type::logical_lt);
@@ -1132,12 +1132,12 @@ FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& fu
         if(match(parser,token_type::symbol))
         {
             const auto name = next_token(parser);
-            push_var(f->template_name,name.literal);
+            push_var(f->generic_name,name.literal);
         }
 
         else
         {
-            panic(parser,token,"unexecpted token in template decl");
+            panic(parser,token,"unexecpted token in generic decl");
             return nullptr;
         }
 
@@ -1791,13 +1791,13 @@ void print(const AstNode *root, b32 override_seperator)
 
             printf("function %s:%s",func_node->filename.buf,func_node->name.buf);
 
-            if(count(func_node->template_name))
+            if(count(func_node->generic_name))
             {
                 putchar('<');
 
-                for(u32 t = 0; t < count(func_node->template_name); t++)
+                for(u32 t = 0; t < count(func_node->generic_name); t++)
                 {
-                    printf("%s,",func_node->template_name[t].buf);
+                    printf("%s,",func_node->generic_name[t].buf);
                 }
 
                 putchar('>');  

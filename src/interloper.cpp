@@ -71,45 +71,6 @@ void dump_reg_ir(Interloper &itl)
 }
 
 
-TypeAlias make_alias(const String& name, const String& filename, Type* type)
-{
-    TypeAlias alias;
-    alias.name = name;
-    alias.filename = filename;
-    alias.type = type;
-
-    return alias;
-}
-
-
-void parse_alias_def(Interloper& itl, TypeDef& def)
-{
-    AliasNode* node = (AliasNode*)def.root;
-
-    Type* type = get_complete_type(itl,node->type);
-
-    if(itl.error)
-    {
-        return;
-    }
-
-    if(itl.print_types)
-    {
-        printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
-    }
-
-    const u32 slot = count(itl.alias_table);
-
-    const TypeAlias alias = make_alias(node->name,node->filename,type);
-
-    // add the alias
-    push_var(itl.alias_table,alias);
-
-    add_type_decl(itl,slot,node->name,type_kind::alias_t);   
-}
-
-
-
 std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node)
 {
     LiteralNode* lit_node = (LiteralNode*)node;
@@ -1350,10 +1311,8 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
 
                     if(func_ptr)
                     {
-                        auto& func_call = *func_ptr;
-
                         // this may get called at some point so we need to mark it for compilation...
-                        finalise_func(itl,func_call,(AstNode*)node);
+                        auto& func_call = finalise_func(itl,*func_ptr,(AstNode*)node);
 
                         FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
                         type->sig = func_call.sig;
@@ -2404,6 +2363,7 @@ void destroy_itl(Interloper &itl)
     destroy_enum_table(itl.enum_table);
     destroy_table(itl.type_table);
     destroy_arr(itl.alias_table);
+    destroy_arr(itl.tmp_alias_table);
 
     destroy_allocator(itl.list_allocator);
     destroy_allocator(itl.string_allocator);

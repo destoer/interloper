@@ -386,7 +386,7 @@ struct FuncNode
     BlockNode* block = nullptr;
     Array<DeclNode*> args;
 
-    Array<String> template_name;
+    Array<String> generic_name;
 
     b32 va_args = false;
     String args_name;
@@ -609,7 +609,7 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
     FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
 
     add_ast_pointer(parser,&func_node->args.data);
-    add_ast_pointer(parser,&func_node->template_name.data);
+    add_ast_pointer(parser,&func_node->generic_name.data);
     add_ast_pointer(parser,&func_node->return_type.data);
 
     func_node->name = name;

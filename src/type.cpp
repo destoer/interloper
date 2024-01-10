@@ -772,6 +772,16 @@ Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_const
             return copy_type(itl,alias.type);
         }
 
+        case type_kind::tmp_alias_t:
+        {
+            TypeAlias alias = itl.tmp_alias_table[type_idx];
+
+            *is_alias = true;
+
+            // alias must be copied so specifiers cannot tamper with it
+            return copy_type(itl,alias.type);
+        }
+
         case type_kind::builtin:
         {
             return make_builtin(itl,builtin_type(type_idx),is_constant);
@@ -887,6 +897,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         return (Type*)type;
     }
 
+    // plain old type
     else
     {
         type = make_raw(itl,type_decl->type_idx,is_constant);
@@ -910,6 +921,8 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
     b32 indirection = false;
 
     // arrays, pointers
+    // NOTE: parse backwards so the plain type
+    // is held at the bottom by any containers
     for(s32 c = count(type_decl->compound_type) - 1; c >= 0; c--)
     {
         AstNode* node = type_decl->compound_type[c];
@@ -1937,6 +1950,13 @@ std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl,
         case type_kind::alias_t:
         {
             assert(false);
+            break;
+        }
+
+        case type_kind::tmp_alias_t:
+        {
+            assert(false);
+            break;
         }
     }
 
@@ -1981,6 +2001,69 @@ void add_type_def(Interloper& itl, def_kind kind,AstNode* root, const String& na
 b32 type_exists(Interloper& itl, const String& name)
 {
     return contains(itl.type_table,name);
+}
+
+TypeAlias make_alias(const String& name, const String& filename, Type* type)
+{
+    TypeAlias alias;
+    alias.name = name;
+    alias.filename = filename;
+    alias.type = type;
+
+    return alias;
+}
+
+void add_alias(Interloper& itl, AliasTable& table,Type* type,const String& name, const String& filename, b32 tmp)
+{
+    const u32 slot = count(table);
+
+    const TypeAlias alias = make_alias(name,filename,type);
+
+    // add the alias
+    push_var(table,alias);
+
+    add_type_decl(itl,slot,name,tmp? type_kind::tmp_alias_t : type_kind::alias_t);       
+}
+
+void parse_alias_def(Interloper& itl, TypeDef& def)
+{
+    AliasNode* node = (AliasNode*)def.root;
+
+    Type* type = get_complete_type(itl,node->type);
+
+    if(itl.error)
+    {
+        return;
+    }
+
+    if(itl.print_types)
+    {
+        printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
+    }
+
+    add_alias(itl,itl.alias_table,type,node->name,node->filename,false);   
+}
+
+void push_temp_type_alias(Interloper& itl, Type* type,const String &name, const String& filename)
+{
+    add_alias(itl,itl.tmp_alias_table,type,name,filename,true);
+}
+
+void pop_temp_type_alias(Interloper& itl)
+{
+    const auto alias = pop(itl.tmp_alias_table);
+
+    // remove the old alias
+    remove(itl.type_def,alias.name);
+
+    // correct the decl entry appropiately
+    if(count(itl.tmp_alias_table))
+    {
+        const u32 slot = count(itl.alias_table) - 1;
+
+        // reinstate the old alais
+        add_type_decl(itl,slot,itl.tmp_alias_table[slot].name,type_kind::tmp_alias_t);  
+    }
 }
 
 

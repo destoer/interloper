@@ -110,6 +110,7 @@ enum class type_kind
     enum_t,
     struct_t,
     alias_t,
+    tmp_alias_t,
     builtin,
 };
 
@@ -406,6 +407,12 @@ struct Function
     LabelSlot label_slot;
 
     FuncNode* root = nullptr;
+
+    // is this function a generic base
+    b32 generic = false;
+
+    Array<String> generic_override_name;
+    Array<Type*> generic_override;
 
     b32 used = false;
 };

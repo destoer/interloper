@@ -22,6 +22,7 @@ enum class itl_error
     string_type_error,
     enum_type_error,
     pointer_type_error,
+    generic_type_error,
     out_of_bounds,
     undeclared,
     missing_initializer,
@@ -54,6 +55,7 @@ static const char* ERROR_NAME[] =
     "string type error",
     "enum type error",
     "pointer type error",
+    "generic type error",
     "out of bounds",
     "not declared",
     "missing initializer",
@@ -123,6 +125,7 @@ struct Interloper
     StructTable struct_table;
     EnumTable enum_table;
     AliasTable alias_table;
+    AliasTable tmp_alias_table;
     RttiCache rtti_cache;
 
     // targetting info

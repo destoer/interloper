@@ -9,9 +9,26 @@ void add_func(Interloper& itl, const String& name, FuncNode* root)
     // same string allocator as the AST
     func.name = copy_string(itl.string_allocator,name);
     func.root = root;
+    
+    // check if this function has a generic
+    func.generic = root && count(root->generic_name);
+
 
     add(itl.function_table,func.name,func);    
 }
+
+Function& duplicate_function(Interloper& itl, const Function& func, const String& new_name)
+{
+    Function dup;
+
+    dup.name = new_name;
+    dup.root = func.root;
+
+    add(itl.function_table,dup.name,dup);
+
+    return lookup_complete_function(itl,dup.name);
+}
+
 
 void finalise_def(Interloper& itl,Function& func)
 {
@@ -43,14 +60,180 @@ void finalise_func_internal(Interloper& itl, Function& func)
     }
 }
 
-void finalise_func(Interloper& itl, Function& func, AstNode* call_node)
+StringBuffer func_generic_name(Interloper& itl, const String& old_name,Type* type)
 {
-    // NOTE: we have to check we aint instantiating a generic
-    UNUSED(call_node);
+    UNUSED(itl);
+    StringBuffer buffer;
 
-    if(!func.used)
+    // old name prefixed with _g_
+    push_string(buffer,"_g_");
+    push_string(buffer,old_name);
+
+    b32 done = false;
+
+    while(!done)
     {
-        finalise_func_internal(itl,func);
+        switch(type->type_idx)
+        {
+            case POINTER:
+            {
+                assert(false);
+                break;
+            }
+
+            case STRUCT: 
+            {
+                assert(false);
+                break;               
+            }
+
+            case ENUM: 
+            {
+                assert(false);
+                break;             
+            }
+
+            case ARRAY:
+            {
+                assert(false);
+                break;
+            }
+
+            case FUNC_POINTER:
+            {
+                assert(false);
+                break;
+            }
+
+            // builtin
+            default:
+            {
+                const auto plain = builtin_type_name(builtin_type(type->type_idx));
+                push_var(buffer,'_');
+                push_string(buffer,plain);
+                done = true;
+                break;
+            }
+        }
+    }
+
+    // null term string
+    push_var(buffer,'\0');
+
+    return buffer;
+}
+
+void push_generic_type_alias(Interloper& itl, Function& func)
+{
+    for(u32 g = 0; g < count(func.generic_override); g++)
+    {
+        push_temp_type_alias(itl,func.generic_override[g],func.generic_override_name[g],itl.cur_file);
+    }
+}
+
+void pop_generic_type_alias(Interloper& itl, Function& func)
+{
+    for(u32 g = 0; g < count(func.generic_override); g++)
+    {
+        pop_temp_type_alias(itl);
+    }
+}
+
+Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
+{
+
+    // generic function
+    if(base_func.generic)
+    {
+        crash_and_burn("require: function_table rewrite");
+
+        switch(ast_node->type)
+        {
+            case ast_type::function_call:
+            {
+                FuncCallNode* call_node = (FuncCallNode*)ast_node;
+
+                if(!call_node->generic)
+                {
+                    panic(itl,itl_error::generic_type_error,"Missing type specification for generic function call: %s\n",base_func.name.buf);
+                    return base_func;
+                } 
+
+                // pull specialised type
+                auto type = get_type(itl,call_node->generic);
+
+                if(!type)
+                {
+                    return base_func;
+                }
+
+                auto specialised_name_buffer = func_generic_name(itl,base_func.name,type);
+
+                // NOTE: we need to copy this string onto the main pool
+                // as the buffer we used to build it is going to get freed
+                const auto specialised_name = make_string(specialised_name_buffer);
+
+                // check if function has allready been specialised
+                // if so just return it
+                auto spec_func_opt = lookup_opt_function(itl,specialised_name);
+
+                if(spec_func_opt)
+                {
+                    destroy_arr(specialised_name_buffer);
+                    return *spec_func_opt;
+                }
+
+
+                // okay this generic has not been generated for with this signature before
+                // we need to build a specialised version
+                
+                // duplicate function
+                auto &spec_func = duplicate_function(itl,base_func,copy_string(itl.string_allocator,specialised_name));
+
+                // add in the type overrides so we can finalise the function
+
+                // copy over all the generic names to the func
+                // so we don't get dead refs when the ast dies
+
+                // along with the type
+                for(u32 g = 0; g < count(base_func.root->generic_name); g++)
+                {
+                    const auto str = copy_string(itl.string_allocator,base_func.root->generic_name[g]);
+                    push_var(spec_func.generic_override_name,str);
+
+                    // TODO: this requires modification for a proper array later
+                    assert(g == 0);
+                    push_var(spec_func.generic_override,type);
+                }
+
+                // push overrides so we can build the sig
+                push_generic_type_alias(itl,spec_func);
+
+                finalise_func_internal(itl,spec_func);
+
+                // now remove the override
+                pop_generic_type_alias(itl,spec_func);
+
+                // cleanup our mem now that we have copied it
+                destroy_arr(specialised_name_buffer);
+
+                // return newly overrided function
+                return spec_func;
+            }
+
+            default:
+            {
+                assert(false);
+                break;
+            }
+        }
+    }
+
+    // ordinary function
+    else
+    {
+        finalise_func_internal(itl,base_func);
+        return base_func;
     }
 }
 
@@ -564,9 +747,12 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
 
         else
         {
-            auto& func_call = *func_call_ptr;
+            auto& func_call = finalise_func(itl,*func_call_ptr,(AstNode*)call_node);
 
-            finalise_func(itl,func_call,(AstNode*)call_node);
+            if(itl.error)
+            {
+                return {};
+            }
 
             call_info.label_slot = func_call.label_slot;
             call_info.sig = func_call.sig;
@@ -837,6 +1023,8 @@ void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
 
 void compile_function(Interloper& itl, Function& func)
 {
+    push_generic_type_alias(itl,func);
+
     // NOTE: for compiler generated functions we dont want to 
     // compile this via a standard node
     if(func.root)
@@ -929,6 +1117,8 @@ void compile_function(Interloper& itl, Function& func)
             panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
         }
     }
+
+    pop_generic_type_alias(itl,func);
 }
 
 void compile_functions(Interloper &itl)
