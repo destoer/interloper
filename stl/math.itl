@@ -6,7 +6,7 @@ func is_even(v : u64) bool
     return (v & 1) == 0;
 }
 
-func min_s64(v1 : s64, v2 : s64) s64
+func min<T>(v1 : T, v2 : T) T
 {
     if(v1 < v2)
     {
@@ -14,20 +14,20 @@ func min_s64(v1 : s64, v2 : s64) s64
     }
 
     return v2;
+}
+
+func min_s64(v1 : s64, v2 : s64) s64
+{
+    return min<s64>(v1,v2);
 }
 
 func min_u64(v1 : u64, v2 : u64) u64
 {
-    if(v1 < v2)
-    {
-        return v1;
-    }
-
-    return v2;
+    return min<u64>(v1,v2);
 }
 
 
-func max_s64(v1 : s64, v2 : s64) s64
+func max<T>(v1 : T, v2 : T) T
 {
     if(v1 > v2)
     {
@@ -35,16 +35,16 @@ func max_s64(v1 : s64, v2 : s64) s64
     }
 
     return v2;
+}
+
+func max_s64(v1 : s64, v2 : s64) s64
+{
+    return max<s64>(v1,v2);
 }
 
 func max_u64(v1 : u64, v2 : u64) u64
 {
-    if(v1 > v2)
-    {
-        return v1;
-    }
-
-    return v2;
+    return max<u64>(v1,v2);
 }
 
 func in_range_u64(v : u64,lo : u64, hi : u64) bool
