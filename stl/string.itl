@@ -29,10 +29,7 @@ func clip_string(str : string, len : u64) string
 
 func swap_c8(v1 : c8@, v2 : c8@)
 {
-    tmp := @v1;
-
-    @v1 = @v2;
-    @v2 = tmp;
+    swap<c8>(v1,v2);
 }
 
 func reverse_str(str : string, len : u64)

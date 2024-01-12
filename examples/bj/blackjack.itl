@@ -113,7 +113,7 @@ func play_round()
             {
                 done = true;
 
-                // make sure dealer has been dealth every card
+                // make sure dealer has been dealt every card
                 deal_until_stand(&bj.deck,&bj.dealer);
             }
         }

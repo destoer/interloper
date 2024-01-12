@@ -1,9 +1,20 @@
 
-func byte_array_arena(arena : Arena@, size : u64) byte[]
+func array_arena<T>(arena : Arena@, size : u64) T[]
 {
-    buf : byte[];
+    buf : T[];
 
-    buf.data = alloc_arena_panic(arena,size);
+    buf.data = cast(T@,alloc_arena_panic(arena,size * sizeof_type(T)));
+    buf.len = size;
+
+    return buf;
+}
+
+
+func array_heap<T>(heap : Heap@, size : u64) T[]
+{
+    buf : T[];
+
+    buf.data = cast(T@,alloc_heap_panic(heap,size,sizeof_type(T)));
     buf.len = size;
 
     return buf;
@@ -11,34 +22,20 @@ func byte_array_arena(arena : Arena@, size : u64) byte[]
 
 func byte_array_heap(heap : Heap@, size : u64) byte[]
 {
-    buf : byte[];
+    return array_heap<byte>(heap,size);
+}
 
-    buf.data = alloc_heap_panic(heap,size,1);
-    buf.len = size;
-
-    return buf;
+func byte_array_arena(arena : Arena@, size : u64) byte[]
+{
+    return array_arena<byte>(arena,size);
 }
 
 func u32_array_heap(heap : Heap@, size : u64) u32[]
 {
-    buf : u32[];
-
-    buf.data = cast(u32@,alloc_heap_panic(heap,size,4));
-    buf.len = size;
-
-    return buf;
+    return array_heap<u32>(heap,size);
 }
-
-
 
 func u32_array_arena(arena : Arena@, size : u64) u32[]
 {
-    buf : u32[];
-
-    bytes := size * u32.size;
-
-    buf.data = cast(u32@,alloc_arena_panic(arena,bytes));
-    buf.len = bytes;
-
-    return buf;
+    return array_arena<u32>(arena,size);
 }

@@ -59,6 +59,7 @@ enum class token_type
 
     cast,
     sizeof_t,
+    sizeof_type_t,
     type_alias,
 
     import,
@@ -192,6 +193,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::cast,"cast",-1},
     {token_type::sizeof_t,"sizeof",-1},
+    {token_type::sizeof_type_t,"sizeof_type",-1},
     {token_type::type_alias,"type_alias",-1},
 
     {token_type::import,"import",-1},

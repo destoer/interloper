@@ -1924,7 +1924,11 @@ std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl,
                 return std::pair{make_builtin(itl,builtin_type::u32_t),size};
             }
 
-            return std::pair{make_builtin(itl,builtin_type::u32_t),0};
+            else
+            {
+                panic(itl,itl_error::enum_type_error,"unknown type info for struct %s\n",type_decl.name.buf);
+                return std::pair{make_builtin(itl,builtin_type::u32_t),0};
+            }
         }
 
         case type_kind::enum_t:
@@ -1945,18 +1949,16 @@ std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl,
             }
         }
 
-        // TODO: if this is plain type pass back the type info for the underlying type
-        // else fail
         case type_kind::alias_t:
         {
-            assert(false);
-            break;
+            panic(itl,itl_error::generic_type_error,"cannot access type properties on alias %s\n",type_decl.name.buf);
+            return std::pair{make_builtin(itl,builtin_type::u32_t),0};
         }
 
         case type_kind::tmp_alias_t:
         {
-            assert(false);
-            break;
+            panic(itl,itl_error::generic_type_error,"cannot access type properties on alias %s\n",type_decl.name.buf);
+            return std::pair{make_builtin(itl,builtin_type::u32_t),0};
         }
     }
 

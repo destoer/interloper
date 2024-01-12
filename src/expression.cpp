@@ -253,41 +253,13 @@ AstNode* nud_sym(Parser& parser, const Token& t)
             return call;
         }
 
-        // potentail generic instantiation
+        // potential generic instantiation
         case token_type::logical_lt:
         {
-            const auto old = parser.tok_idx;
+            auto ans = template_or_var(parser,t);
+            next_expr_token(parser);
 
-            TypeNode* type = parse_type(parser,true);
-
-            // start of generic usage
-            // name<type>
-            if(type && match(parser,token_type::logical_gt))
-            {
-                consume(parser,token_type::logical_gt);
-
-                AstNode* call = func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t,type); 
-                next_expr_token(parser);
-
-
-                return call;
-            }   
-
-            // did not find function template
-            // walk back the parser
-            else
-            {
-                parser.tok_idx = old;
-
-                prev_token(parser);
-                AstNode* node = var(parser,t,true);
-
-                next_expr_token(parser);
-
-                return node;
-            }
-
-            break;
+            return ans;
         }
     
 
@@ -443,7 +415,32 @@ AstNode *nud(Parser &parser, const Token &t)
 
             return ast_unary(parser,e,ast_type::sizeof_t,t);    
         }
-    
+
+        // sizeof_type(<type>)
+        case token_type::sizeof_type_t:
+        {
+            consume_expr(parser,token_type::left_paren);
+
+            // get_type is inside the normal parser we need
+            // to correct the tok idx
+            parser.tok_idx -= 1;
+
+            auto type = parse_type(parser);
+
+            if(!type)
+            {
+                type_panic(parser);
+                return nullptr;
+            }
+
+            // correct our state machine
+            parser.expr_tok = next_token(parser);
+
+            consume_expr(parser,token_type::right_paren);
+
+            return ast_sizeof_type(type);    
+        }
+
         // initializer list
         case token_type::left_c_brace:
         {

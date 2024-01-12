@@ -553,7 +553,7 @@ AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call)
     return node;
 }
 
-AstNode* func_call(Parser& parser,AstNode *expr, const Token& t, TypeNode* generic)
+AstNode* func_call(Parser& parser,AstNode *expr, const Token& t, Array<TypeNode*>* generic)
 {
     consume(parser,token_type::left_paren);
 
@@ -721,6 +721,66 @@ AstNode* parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 take
     return (AstNode*)for_node;
 }
 
+AstNode* parse_template(Parser& parser, const Token& t)
+{
+    Array<TypeNode*> generic;
+
+    b32 done = false;
+
+    while(!done)
+    {
+        TypeNode* type = parse_type(parser,true);
+
+        if(parser.error)
+        {
+            destroy_arr(generic);
+            return nullptr;
+        }
+
+        push_var(generic,type);
+
+        // more args
+        if(match(parser,token_type::comma))
+        {
+            consume(parser,token_type::comma);
+        }
+
+        // end
+        else if(match(parser,token_type::logical_gt))
+        {
+            consume(parser,token_type::logical_gt);
+            done = true;
+        }
+
+        // we have a problem!
+        else
+        {
+            destroy_arr(generic);
+            return nullptr;  
+        }
+    }
+
+    return func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t,&generic);
+}
+
+AstNode* template_or_var(Parser& parser, const Token& t)
+{
+    const auto old = parser.tok_idx;
+
+    AstNode* call = parse_template(parser,t);
+
+    if(call)
+    {
+        return call;
+    }
+
+    // did not find function template
+    // walk back the parser behind <
+    parser.tok_idx = old - 1;
+
+    return var(parser,t,true);
+}
+
 AstNode *statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -828,6 +888,13 @@ AstNode *statement(Parser &parser)
 
                 // check for brackets
                 // array indexes etc here 
+
+                // template usage
+                case token_type::logical_lt:
+                {
+                    consume(parser,token_type::logical_lt);
+                    return template_or_var(parser,t);
+                }
 
                 // function call
                 case token_type::left_paren:
@@ -1071,7 +1138,12 @@ BlockNode *block(Parser &parser)
             return nullptr;
         }
 
-        push_var(b->statements,statement(parser));
+        auto stmt = statement(parser);
+
+        if(stmt)
+        {
+            push_var(b->statements,stmt);
+        }
 
         if(parser.error)
         {
@@ -1869,7 +1941,8 @@ void print(const AstNode *root, b32 override_seperator)
         case ast_fmt::type:
         {
             TypeNode* type_decl = (TypeNode*)root;
-            printf("type: %s %s\n", type_decl->is_const? "const" : "",type_decl->name.buf);
+            // does double duty with sizeof_type
+            printf(" %s: %s %s\n", AST_NAMES[static_cast<size_t>(root->type)],type_decl->is_const? "const" : "",type_decl->name.buf);
 
             if(type_decl->func_type)
             {
@@ -1930,6 +2003,11 @@ void print(const AstNode *root, b32 override_seperator)
             printf("function call\n");
 
             print(func_call->expr);
+
+            for(u32 g = 0; g < count(func_call->generic); g++)
+            {
+                print((AstNode*)func_call->generic[g]);
+            }
 
             for(u32 a = 0; a < count(func_call->args); a++)
             {

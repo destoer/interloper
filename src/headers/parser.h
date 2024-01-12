@@ -19,6 +19,7 @@ enum class ast_type
     const_assert,
     cast,
     sizeof_t,
+    sizeof_type_t,
     enum_t,
     struct_t,
     scope,
@@ -121,6 +122,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "const_assert",
     "cast",
     "sizeof",
+    "sizeof_type",
     "struct",
     "enum",
     "scope",
@@ -447,7 +449,7 @@ struct FuncCallNode
     AstNode node;
 
     AstNode* expr =  nullptr;
-    TypeNode* generic = nullptr;
+    Array<TypeNode*> generic;
     Array<AstNode*> args;
 };
 
@@ -711,13 +713,17 @@ AstNode* ast_if_block(Parser& parser, const Token& token)
     return (AstNode*)block_node;
 }
 
-AstNode* ast_call(Parser& parser, AstNode* expr, TypeNode* generic,const Token& token)
+AstNode* ast_call(Parser& parser, AstNode* expr,Array<TypeNode*>* generic,const Token& token)
 {
     FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,ast_fmt::function_call,token);
 
-    func_call->generic = generic;
+    if(generic)
+    {
+        func_call->generic = *generic;
+    }
 
     add_ast_pointer(parser,&func_call->args.data);
+    add_ast_pointer(parser,&func_call->generic.data);
 
     // NOTE: this can encompass just a plain name for a function
     // or it could be for a symbol as part of a function pointer!
@@ -848,6 +854,14 @@ AstNode* ast_enum(Parser& parser, const String& name,const String& struct_name, 
     return (AstNode*)enum_node;    
 }
 
+
+AstNode* ast_sizeof_type(TypeNode* type)
+{
+    type->node.type = ast_type::sizeof_type_t;
+
+    return (AstNode*)type;    
+}
+
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
@@ -877,8 +891,9 @@ bool match(Parser &parser,token_type type);
 void consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-AstNode* func_call(Parser& parser,AstNode *expr, const Token& t, TypeNode* generic = nullptr);
+AstNode* func_call(Parser& parser,AstNode *expr, const Token& t, Array<TypeNode*>* generic = nullptr);
 AstNode* arr_access(Parser& parser, const Token& t);
 AstNode *struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 AstNode* array_index(Parser& parser,const Token& t);
 AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call = false);
+AstNode* template_or_var(Parser& parser, const Token& t);
