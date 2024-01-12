@@ -766,14 +766,9 @@ void optimise_func(Interloper& itl, Function& func)
 
 void optimise_ir(Interloper &itl)
 {   
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
-        auto& bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& func = bucket[i].v;
-            optimise_func(itl,func);
-        }
+        auto& func = *itl.func_table.used[f];
+        optimise_func(itl,func);
     }
 }

@@ -35,7 +35,7 @@ void push_u64(AsmEmitter& emitter, u64 v)
 
 u32 add_func(AsmEmitter& emitter, Function& func)
 {
-    AsmFunc asm_func = {func.name,func.label_slot,emitter.buffer.size,0};
+    AsmFunc asm_func = {&func,emitter.buffer.size,0};
 
     const u32 idx = count(emitter.func);
 
@@ -58,16 +58,17 @@ void finalise_labels(Interloper& itl, u64 base)
     // record all func label locations
     for(u32 f = 0; f < count(itl.asm_emitter.func); f++)
     {
-        auto& func = itl.asm_emitter.func[f];
+        auto& asm_func = itl.asm_emitter.func[f];
+        auto& ir_func = *asm_func.ir_func; 
 
         {
-            const u64 vaddr = base + func.offset;
-            itl.symbol_table.label_lookup[func.label.handle].offset = vaddr;
+            const u64 vaddr = base + asm_func.offset;
+            itl.symbol_table.label_lookup[ir_func.label_slot.handle].offset = vaddr;
         }
         
         // record all block label offsets
         {
-            auto& ir_func = lookup_complete_function(itl,func.name); 
+            
 
             for(u32 b = 0; b < count(ir_func.emitter.program); b++)
             {

@@ -344,7 +344,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
 
                 // if its a keyword identify its type
                 // else its a symbol
-                if(slot != INVALID_SLOT)
+                if(slot != INVALID_HASH_SLOT)
                 {
                     insert_token(lexer,KEYWORD_TABLE[slot].v);
                 }

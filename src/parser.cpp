@@ -1291,7 +1291,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
         return;
     }
 
-    if(contains(itl.function_table,func_name.literal))
+    if(func_exists(itl,func_name.literal))
     {
         panic(itl,itl_error::redeclaration,"function %s has been declared twice!\n",func_name.literal.buf);
         return;

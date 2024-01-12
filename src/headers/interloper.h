@@ -88,9 +88,8 @@ struct Interloper
     AstNode *cur_expr = nullptr;
     String cur_file = "";
 
-    HashTable<String,Function> function_table;
+    FunctionTable func_table;
     Array<DeclNode*> global_def;
-    Array<String> used_func;
 
     SymbolTable symbol_table;
     GlobalAlloc global_alloc;

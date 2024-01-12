@@ -12,8 +12,6 @@ Function* find_complete_func(Interloper& itl, const String& name)
         return nullptr;
     }
 
-    finalise_func_internal(itl,*func_def);
-
     return  func_def;
 }
 
@@ -53,9 +51,6 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
         }
 
         Function &func_call = *func_def;
-
-        finalise_func_internal(itl,func_call);
-
 
         const SymSlot imm_slot = mov_imm_res(itl,func,size);
 
@@ -101,9 +96,6 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
         }
 
         Function &func_call = *func_def;
-
-        finalise_func_internal(itl,func_call);
-
 
         const SymSlot imm_slot = mov_imm_res(itl,func,size);
 

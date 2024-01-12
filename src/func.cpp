@@ -2,62 +2,104 @@
 
 using namespace destoer;
 
+void print_func_decl(Interloper& itl,const Function &func);
+
+FunctionTable make_func_table()
+{
+    FunctionTable func_table;
+    func_table.table = make_table<String,FunctionDef>();
+    func_table.arena = make_allocator(16 * 1024);
+
+    return func_table;
+}
+
+void destroy_func_table(FunctionTable& func_table)
+{
+    for(u32 f = 0; f < count(func_table.used); f++)
+    {
+        auto& func = *func_table.used[f];
+        destroy_func(func);
+    }
+
+    destroy_table(func_table.table);
+    destroy_arr(func_table.used);
+    destroy_allocator(func_table.arena);
+}
+
 void add_func(Interloper& itl, const String& name, FuncNode* root)
 {
-    Function func;
+    FunctionDef func_def;
+
     // Make sure our function is not allocated on the
     // same string allocator as the AST
-    func.name = copy_string(itl.string_allocator,name);
-    func.root = root;
+    func_def.name = copy_string(itl.string_allocator,name);
+    func_def.root = root;
+    func_def.func = nullptr;
     
-    // check if this function has a generic
-    func.generic = root && count(root->generic_name);
-
-
-    add(itl.function_table,func.name,func);    
+    // add def
+    add(itl.func_table.table,func_def.name,func_def);    
 }
 
-Function& duplicate_function(Interloper& itl, const Function& func, const String& new_name)
+Function* finalise_func_internal(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
 {
-    Function dup;
-
-    dup.name = new_name;
-    dup.root = func.root;
-
-    add(itl.function_table,dup.name,dup);
-
-    return lookup_complete_function(itl,dup.name);
-}
-
-
-void finalise_def(Interloper& itl,Function& func)
-{
-
-    // add as a label as it this will be need to referenced by call instrs
-    // in the ir to get the name back
-    func.label_slot = add_label(itl.symbol_table,func.name);
-}
-
-
-void mark_used(Interloper& itl, Function& func)
-{
-    push_var(itl.used_func,func.name);
-    func.used = true; 
-}
-
-void finalise_func_internal(Interloper& itl, Function& func)
-{
-    if(!func.used)
+    // havent finalised this func
+    if(!func_def.func)
     {
+        Function func;
+        func.name = func_def.name;
+        func.root = func_def.root;
+
         // parse in function signature on demand
         if(func.root)
         {
-            parse_func_sig(itl,func.sig,*func.root);
+            if(parse_sig)
+            {
+                parse_func_sig(itl,func.sig,*func.root);
+            }
         }
-        finalise_def(itl,func);
 
-        mark_used(itl,func);  
+        // dummy func creation
+        else
+        {
+            push_var(func.sig.return_type,make_builtin(itl,builtin_type::void_t));
+
+            // create a dummy basic block
+            new_basic_block(itl,func);
+        }
+
+        // add as a label as it this will be need to referenced by call instrs
+        // in the ir to get the name back
+        func.label_slot = add_label(itl.symbol_table,func.name);
+
+        // write back the slot
+        func_def.func = (Function*)allocate(itl.func_table.arena,sizeof(Function));
+
+        // add the actual func
+        *func_def.func = func;
+
+        // mark it used
+        push_var(itl.func_table.used,func_def.func);
     }
+
+    return func_def.func;   
+}
+
+
+FunctionDef* lookup_func_def(Interloper& itl, const String& name)
+{
+    return lookup(itl.func_table.table,name);
+}
+
+Function& create_dummy_func(Interloper& itl, const String& name)
+{
+    add_func(itl,name,nullptr);
+
+    FunctionDef& func_def = *lookup_func_def(itl,name);
+    
+    finalise_func_internal(itl,func_def);
+
+    // get its new home
+    return lookup_complete_function(itl,name);
 }
 
 StringBuffer func_generic_name(Interloper& itl, const String& old_name,Type* type)
@@ -139,14 +181,13 @@ void pop_generic_type_alias(Interloper& itl, Function& func)
     }
 }
 
-Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
-{
+Function* finalise_func(Interloper& itl, FunctionDef& base_func, AstNode* ast_node)
+{ 
+    const b32 is_generic = base_func.root != nullptr && count(base_func.root->generic_name);
 
     // generic function
-    if(base_func.generic)
+    if(is_generic)
     {
-        crash_and_burn("require: function_table rewrite");
-
         switch(ast_node->type)
         {
             case ast_type::function_call:
@@ -156,7 +197,7 @@ Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
                 if(!call_node->generic)
                 {
                     panic(itl,itl_error::generic_type_error,"Missing type specification for generic function call: %s\n",base_func.name.buf);
-                    return base_func;
+                    return nullptr;
                 } 
 
                 // pull specialised type
@@ -164,7 +205,7 @@ Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
 
                 if(!type)
                 {
-                    return base_func;
+                    return nullptr;
                 }
 
                 auto specialised_name_buffer = func_generic_name(itl,base_func.name,type);
@@ -180,15 +221,16 @@ Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
                 if(spec_func_opt)
                 {
                     destroy_arr(specialised_name_buffer);
-                    return *spec_func_opt;
+                    return spec_func_opt;
                 }
-
 
                 // okay this generic has not been generated for with this signature before
                 // we need to build a specialised version
                 
-                // duplicate function
-                auto &spec_func = duplicate_function(itl,base_func,copy_string(itl.string_allocator,specialised_name));
+                // duplicate function so we can specilaise it
+                add_func(itl,specialised_name,base_func.root);
+
+                auto& spec_func = *finalise_func_internal(itl,*lookup_func_def(itl,specialised_name),false);
 
                 // add in the type overrides so we can finalise the function
 
@@ -209,7 +251,8 @@ Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
                 // push overrides so we can build the sig
                 push_generic_type_alias(itl,spec_func);
 
-                finalise_func_internal(itl,spec_func);
+                // now parse the sig
+                parse_func_sig(itl,spec_func.sig,*spec_func.root);
 
                 // now remove the override
                 pop_generic_type_alias(itl,spec_func);
@@ -218,7 +261,7 @@ Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
                 destroy_arr(specialised_name_buffer);
 
                 // return newly overrided function
-                return spec_func;
+                return &spec_func;
             }
 
             default:
@@ -227,37 +270,47 @@ Function& finalise_func(Interloper& itl, Function& base_func, AstNode* ast_node)
                 break;
             }
         }
+
     }
 
     // ordinary function
     else
     {
-        finalise_func_internal(itl,base_func);
-        return base_func;
+        return finalise_func_internal(itl,base_func);
     }
 }
 
-void finalise_func_name(Interloper& itl, const String& name)
+b32 func_exists(Interloper& itl, const String& name)
 {
-    Function& func = lookup_complete_function(itl,name);
-
-    finalise_func_internal(itl,func);
+    return contains(itl.func_table.table,name);
 }
 
-void check_func_exists(Interloper& itl, const String& name)
+void check_startup_func(Interloper& itl, const String& name)
 {
+    auto def_opt = lookup_func_def(itl,name);
+
     // ensure the entry functions are defined
-    if(!contains(itl.function_table,name))
+    if(!def_opt)
     {
         panic(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
         return;
-    }    
+    }
+
+    finalise_func_internal(itl,*def_opt);    
 }
 
 Function* lookup_opt_function(Interloper& itl, const String& name)
 {
-    Function* func_opt = lookup(itl.function_table, name);
-    return func_opt;
+    FunctionDef* func_def_opt = lookup_func_def(itl, name);
+
+    if(!func_def_opt)
+    {
+        return nullptr;
+    }
+
+    auto& func_def = *func_def_opt;
+
+    return func_def.func;
 }
 
 Function& lookup_complete_function(Interloper& itl, const String& name)
@@ -705,10 +758,10 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
         const LiteralNode* literal_node = (LiteralNode*)expr;
         const String& name = literal_node->literal;
 
-        Function* func_call_ptr = lookup_opt_function(itl,name);
+        FunctionDef* func_call_def = lookup(itl.func_table.table,name);
 
         // no known function
-        if(!func_call_ptr)
+        if(!func_call_def)
         {
             // check if this is instead a function pointer on a plain sym?
             auto sym_ptr = get_sym(itl.symbol_table,name);
@@ -747,12 +800,15 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
 
         else
         {
-            auto& func_call = finalise_func(itl,*func_call_ptr,(AstNode*)call_node);
+            auto func_call_opt = finalise_func(itl,*func_call_def,(AstNode*)call_node);
 
-            if(itl.error)
+            if(!func_call_opt)
             {
                 return {};
             }
+
+            auto& func_call = *func_call_opt;
+
 
             call_info.label_slot = func_call.label_slot;
             call_info.sig = func_call.sig;
@@ -864,7 +920,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
         // check this is not an intrinsic function
         s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,name);
 
-        if(idx != INVALID_SLOT)
+        if(idx != INVALID_HASH_SLOT)
         {
             const auto handler = INTRIN_TABLE[idx].v;
             return handler(itl,func,node,dst_slot);
@@ -1123,14 +1179,9 @@ void compile_function(Interloper& itl, Function& func)
 
 void compile_functions(Interloper &itl)
 {
-    // TODO: we need to hide these functions from access via general calling code
-    // they should probably get namespaced when we have access to them...
-    finalise_func_name(itl,"main");
-    finalise_func_name(itl,"start");
-    
-    for(u32 idx = 0; idx != count(itl.used_func); idx++)
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
-        Function& func = lookup_complete_function(itl,itl.used_func[idx]);
+        auto& func = *itl.func_table.used[f];
         compile_function(itl,func);
     }
 }

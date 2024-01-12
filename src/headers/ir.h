@@ -297,6 +297,7 @@ enum class slot_type
     label,
     block,
     pool,
+    func,
 };
 
 static constexpr u32 INVALID_HANDLE = 0xffff'ffff;
@@ -306,6 +307,12 @@ struct Slot
 {
     u32 handle;
 };
+
+template<slot_type T>
+b32 is_valid_slot(Slot<T> slot)
+{
+    return slot.handle != INVALID_HANDLE;
+}
 
 
 template<slot_type type>
@@ -671,8 +678,7 @@ void disass_opcode_raw(const Opcode &opcode,arch_target arch);
 
 struct AsmFunc
 {
-    String name;
-    LabelSlot label;
+    Function* ir_func = nullptr;
     u32 offset;
     u32 size;
 };

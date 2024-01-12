@@ -53,9 +53,9 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 
 void dump_sym_ir(Interloper &itl)
 {
-    for(u32 f = 0; f < count(itl.used_func); f++)
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
-        Function& func = lookup_complete_function(itl,itl.used_func[f]);
+        auto& func = *itl.func_table.used[f];
         dump_ir_sym(itl,func,itl.symbol_table);
     }
 }
@@ -63,9 +63,9 @@ void dump_sym_ir(Interloper &itl)
 
 void dump_reg_ir(Interloper &itl)
 {
-    for(u32 f = 0; f < count(itl.used_func); f++)
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
-        Function& func = lookup_complete_function(itl,itl.used_func[f]);
+        auto& func = *itl.func_table.used[f];
         dump_ir_reg(itl,func,itl.symbol_table);
     }
 }
@@ -1307,12 +1307,19 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
                 // could be attempting to take a function pointer?
                 if(take_addr)
                 {
-                    auto func_ptr = lookup_opt_function(itl,name);
+                    auto func_def = lookup_func_def(itl,name);
 
-                    if(func_ptr)
+                    if(func_def)
                     {
                         // this may get called at some point so we need to mark it for compilation...
-                        auto& func_call = finalise_func(itl,*func_ptr,(AstNode*)node);
+                        auto func_call_opt = finalise_func(itl,*func_def,(AstNode*)node);
+
+                        if(!func_call_opt)
+                        {
+                            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+                        }
+
+                        auto& func_call = *func_call_opt;
 
                         FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
                         type->sig = func_call.sig;
@@ -2260,23 +2267,6 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 }
 
 
-Function& create_dummy_func(Interloper& itl, const String& name)
-{
-    Function func;
-    func.name = copy_string(itl.string_allocator,name);
-
-    push_var(func.sig.return_type,make_builtin(itl,builtin_type::void_t));
-    finalise_func_internal(itl,func);  
-
-    // create a dummy basic block
-    new_basic_block(itl,func);
-
-    add(itl.function_table,func.name,func);
-    
-    // get its new home
-    return lookup_complete_function(itl,name);
-}
-
 void compile_globals(Interloper& itl)
 {
     // create a dummy void func called init_global
@@ -2342,21 +2332,7 @@ void destroy_itl(Interloper &itl)
     
     destroy_ast(itl);
 
-
-    // delete all functions
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
-    {
-        auto &bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& func = bucket[i].v;
-            destroy_func(func);
-        }
-    }
-
-    destroy_table(itl.function_table);
-    destroy_arr(itl.used_func);
+    destroy_func_table(itl.func_table);
 
     // destroy typing tables
     destroy_struct_table(itl.struct_table);
@@ -2401,8 +2377,11 @@ void check_startup_defs(Interloper& itl)
         cache_rtti_structs(itl);
     }
 
-    check_func_exists(itl,"main");
-    check_func_exists(itl,"start");
+    check_startup_func(itl,"main");
+    check_startup_func(itl,"start");
+
+    check_startup_func(itl,"memcpy");
+    check_startup_func(itl,"zero_mem");
 }
 
 void compile(Interloper &itl,const String& initial_filename)
@@ -2421,7 +2400,7 @@ void compile(Interloper &itl,const String& initial_filename)
 
     itl.symbol_table.string_allocator = &itl.string_allocator;
 
-    itl.function_table = make_table<String,Function>();
+    itl.func_table = make_func_table();
     itl.type_def = make_table<String,TypeDef>();
 
     setup_type_table(itl);
@@ -2465,9 +2444,9 @@ void compile(Interloper &itl,const String& initial_filename)
 
 
         // print function defs
-        for(u32 b = 0; b < count(itl.function_table.buf); b++)
+        for(u32 b = 0; b < count(itl.func_table.table.buf); b++)
         {
-            auto &bucket = itl.function_table.buf[b];
+            auto &bucket = itl.func_table.table.buf[b];
 
             for(u32 i = 0; i < count(bucket); i++)
             {
@@ -2486,20 +2465,6 @@ void compile(Interloper &itl,const String& initial_filename)
         destroy_itl(itl);
         return;
     }
-
-#if 0
-    for(u32 b = 0; b < count(itl.function_table.buf); b++)
-    {
-        auto& bucket = itl.function_table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& func = bucket[i].v;
-
-            finalise_func_internal(itl,func);
-        }
-    }
-#endif
 
     putchar('\n');
 
@@ -2559,11 +2524,9 @@ void compile(Interloper &itl,const String& initial_filename)
     }
 
     // perform register allocation on used functions
-    for(u32 n = 0; n < count(itl.used_func); n++)
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
-        const auto& name = itl.used_func[n];
-
-        Function& func = lookup_complete_function(itl,name);
+        auto& func = *itl.func_table.used[f];
 
         allocate_registers(itl,func);
 

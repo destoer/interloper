@@ -408,14 +408,32 @@ struct Function
 
     FuncNode* root = nullptr;
 
-    // is this function a generic base
-    b32 generic = false;
-
     Array<String> generic_override_name;
     Array<Type*> generic_override;
 
     b32 used = false;
 };
+
+
+struct FunctionDef
+{
+    FuncNode* root = nullptr;
+    // NOTE: we may not actually compile the function
+    // we also don't want the memory to move when we insert
+    // new ones
+    Function* func = nullptr;
+    String name;
+};
+
+struct FunctionTable
+{
+    HashTable<String,FunctionDef> table;
+    Array<Function*> used;
+    ArenaAllocator arena;
+};
+
+
+b32 func_exists(Interloper& itl, const String& name);
 
 Function* lookup_opt_function(Interloper& itl, const String& name);
 Function& lookup_complete_function(Interloper& itl, const String& name);

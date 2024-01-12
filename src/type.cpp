@@ -2128,5 +2128,7 @@ void destroy_func(Function& func)
     }
 
     destroy_arr(func.registers);
+    destroy_arr(func.generic_override);
+    destroy_arr(func.generic_override_name);
     destroy_emitter(func.emitter);
 }

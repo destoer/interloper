@@ -207,7 +207,7 @@ u32 add_section_symbol(Elf& elf,const String& name, u32 section_idx)
 
 void add_func_symbol(Elf& elf,const AsmFunc& func)
 {
-    add_symbol(elf,func.name,elf.text_section.section_idx,ELF64_ST_INFO(STB_GLOBAL,STT_FUNC),func.offset,func.size);
+    add_symbol(elf,func.ir_func->name,elf.text_section.section_idx,ELF64_ST_INFO(STB_GLOBAL,STT_FUNC),func.offset,func.size);
 }
 
 void setup_alloc_section(Elf& elf,ElfAllocSection& section, const String& name,const String& sym_name, u32 shf_flags, u32 program_flags)
