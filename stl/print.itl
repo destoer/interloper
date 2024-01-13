@@ -1,0 +1,324 @@
+func print_int(v : u64, base : u32)
+{
+    if(base > 16 || base == 0)
+    {
+        crash_and_burn("invalid base in print_int: \n");
+    }   
+
+    if(v == 0)
+    {
+        write_string("0");
+        return;
+    }
+
+    // integer to char lut
+    constant DIGIT_CHAR : string = "0123456789ABCDEF";
+
+    buf : c8[MAX_INT_CHARS] = {?};
+    digits : u32 = 0;
+
+    while(v != 0)
+    {
+        digit :=  v % base;
+        v = v / base;
+
+        char : c8 = DIGIT_CHAR[digit];
+
+        buf[digits] = char;
+
+        digits += 1;
+    }
+
+    reverse_str(buf,digits);
+
+    str := clip_string(buf,digits);
+
+    write_string(str);
+}
+
+func print_dec(v : u64, sign : bool)
+{
+    if(sign && cast(s64,v) < 0)
+    {
+        v = ~v + 1;
+        write_string("-");
+    }
+
+    print_int(v,10);
+}
+
+func print_bin(v : u64)
+{
+    write_string("0b");
+    print_int(v,2);  
+}
+
+func print_hex(v : u64)
+{
+    write_string("0x");
+    print_int(v,16);
+}
+
+func format_int(any : Any, specifier: c8)
+{
+    v := int_from_any(any);
+
+    switch(specifier)
+    {
+        case 'd':
+        {
+            sign := is_signed(any.type);
+            print_dec(v,sign);
+        }
+
+        case 'b':
+        {
+            print_bin(v);
+        }
+
+        case 'x':
+        {
+            print_hex(v);
+        }
+
+        default:
+        {
+            sign := is_signed(any.type);
+            print_dec(v,sign);
+        }
+    }
+}
+
+func putchar(char : c8)
+{
+    write_str_raw(&char,sizeof(char));
+}
+
+func linefeed()
+{
+    putchar('\n');
+}
+
+func print_arg(arg : Any, specifier : c8)
+{
+    type := arg.type;
+
+    switch(type.type_idx)
+    {
+        case itl_type::u8_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::u16_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::u32_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::u64_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::s8_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::s16_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::s32_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::s64_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::c8_t:
+        {
+            char := char_from_any(arg);
+
+            putchar(char);
+        }
+
+        case itl_type::byte_t:
+        {
+            format_int(arg,specifier);
+        }
+
+        case itl_type::bool_t:
+        {
+            res := bool_from_any(arg);
+
+            if(res)
+            {
+                write_string("true");
+            }
+
+            else
+            {
+                write_string("false");
+            }
+        }
+
+        case itl_type::null_t:
+        {
+            write_string("NULL");
+        }
+
+        case itl_type::pointer_t:
+        {
+            v := int_from_any(arg);
+
+            if(!v)
+            {
+                write_string("NULL");
+            }
+
+            else
+            {
+                write_string("0x");
+                print_int(v,16);
+            }
+        }
+
+        case itl_type::array_t:
+        {
+            array_type := cast(const ArrayType@,type);
+
+            contained_type := array_type.contained_type;
+
+            if(is_runtime_size(array_type.size))
+            {
+                // vla string
+                if(contained_type.type_idx == itl_type::c8_t)
+                {
+                    vla := cast(Vla@,arg.data);
+                    write_str_raw(cast(c8@,vla.data),vla.len);
+                }
+
+                else
+                {
+                    unimplemented("vla array print");
+                }
+            }
+            
+            // fixed size
+            else
+            {
+                if(contained_type.type_idx == itl_type::c8_t)
+                {
+                    v := int_from_any(arg);
+
+                    char_ptr : const c8@ = cast(const c8@,v);
+                    write_str_raw(char_ptr,array_type.size);
+                }
+
+                else
+                {
+                    unimplemented("array print");
+                }
+            }
+        }
+
+        case itl_type::struct_t:
+        {
+            unimplemented("struct print");
+        }
+
+        case itl_type::enum_t:
+        {
+            unimplemented("enum print");
+        }
+    }
+}
+
+
+func print_args(fmt : const string, args : const Any[])
+{
+    arg_count : u32 = 0;
+
+    for(i in 0 < fmt.len)
+    {
+        char := fmt[i];
+
+        if(char == '{')
+        {
+            if(fmt.len <= i + 1 || arg_count == args.len)
+            {
+                crash_and_burn("ran out of args in print()");
+                return;
+            }
+        
+            specifier := fmt[i+1];
+
+            // default fmt
+            if(specifier == '}')
+            {
+                print_arg(args[arg_count],'\0');
+                arg_count += 1;
+                i += 1;
+            }
+
+            // arg with specifier
+            else
+            {
+                print_arg(args[arg_count],specifier);
+                i += 2;
+                arg_count += 1;   
+            }
+        }
+
+        else
+        {
+            putchar(char);
+        }
+    }
+}
+
+func print(fmt: const string, args : ...)
+{
+    print_args(fmt,args);
+}
+
+// TODO: add line and file info? (what mechanism should be used for this)
+func unimplemented_args(fmt: const string, args: const Any[])
+{
+    write_string("\nunimplemented: ");
+    print_args(fmt,args);
+    
+    write_string("\n");
+
+    exit(2);
+}
+
+func crash_and_burn_args(fmt: const string, args: const Any[])
+{
+    write_string("\ncrash and burn: ");
+    print_args(fmt,args);
+
+    write_string("\n");
+
+    exit(2);
+}
+
+func crash_and_burn(fmt: const string, args: ...)
+{
+    crash_and_burn_args(fmt,args);
+}
+
+func unimplemented(fmt: const string, args: ...)
+{
+    unimplemented_args(fmt,args);
+}
