@@ -611,7 +611,12 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                 {
                     UnaryNode* deref_node = (UnaryNode*)var_node;
 
-                    const auto [type,ptr_slot] = load_addr(itl,func,deref_node->next,new_tmp_ptr(func),false);
+                    const auto [ptr_type,ptr_slot] = take_pointer(itl,func,deref_node->next);
+
+                    if(itl.error)
+                    {
+                        return arg_clean;
+                    }
 
                     push_arg(itl,func,ptr_slot);
                     break;                     

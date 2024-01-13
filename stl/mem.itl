@@ -24,3 +24,8 @@ func zero_mem(dst: byte@, size : u64)
         dst += 1;
     }  
 }
+
+func handle_read<T>(src: const byte@) T
+{
+    return @cast(T@,src);
+}

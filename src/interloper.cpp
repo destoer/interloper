@@ -19,9 +19,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
 
 void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
-
-std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, bool addrof);
-
+std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, FuncNode* root);
 
 void alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
@@ -1287,10 +1285,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     }
 }
 
-
-// TODO: this needs a cleanup
-// TODO: does it make sense to use the same function for both the @ and & operator?
-std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot, b32 take_addr)
+// TODO: should we make this more flexible?
+std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot)
 {
     // figure out what the addr is
     switch(node->type)
@@ -1305,125 +1301,63 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
             if(!sym_ptr)
             {
                 // could be attempting to take a function pointer?
-                if(take_addr)
+                auto func_def = lookup_func_def(itl,name);
+
+                if(func_def)
                 {
-                    auto func_def = lookup_func_def(itl,name);
+                    // this may get called at some point so we need to mark it for compilation...
+                    auto func_call_opt = finalise_func(itl,*func_def,(AstNode*)node);
 
-                    if(func_def)
+                    if(!func_call_opt)
                     {
-                        // this may get called at some point so we need to mark it for compilation...
-                        auto func_call_opt = finalise_func(itl,*func_def,(AstNode*)node);
-
-                        if(!func_call_opt)
-                        {
-                            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
-                        }
-
-                        auto& func_call = *func_call_opt;
-
-                        FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
-                        type->sig = func_call.sig;
-
-                        load_func_addr(itl,func,slot,func_call.label_slot);
-                        
-                        return std::pair{(Type*)type,slot};
+                        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
                     }
-                }
 
+                    auto& func_call = *func_call_opt;
+
+                    FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
+                    type->sig = func_call.sig;
+
+                    load_func_addr(itl,func,slot,func_call.label_slot);
+                    
+                    return std::pair{(Type*)type,slot};
+                }
+                
                 // nothing found!
                 panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
                 return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
             }
 
+            // get addr on symbol
             auto &sym = *sym_ptr;
 
-            if(take_addr)
+            spill_slot(itl,func,sym.reg);
+
+            if(is_array(sym.type))
             {
-                spill_slot(itl,func,sym.reg);
-
-                if(is_array(sym.type))
-                {
-                    assert(false);
-                }
-
-                Type* pointer_type = make_pointer(itl,sym.type);
-
-                // actually  get the addr of the ptr
-                addrof(itl,func,slot,sym.reg.slot);
-                return std::pair{pointer_type,slot};
+                assert(false);
             }
 
-            // deref
-            else
-            {
-                if(!is_pointer(sym.type))
-                {
-                    panic(itl,itl_error::pointer_type_error,"[COMPILE]: symbol '%s' is not a pointer\n",name.buf);
-                    return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
-                }
+            Type* pointer_type = make_pointer(itl,sym.type);
 
-                PointerType* pointer_type = (PointerType*)sym.type;
-
-                Type* contained_type = pointer_type->contained_type;
-
-                return std::pair{contained_type,sym.reg.slot};
-            }
+            // actually  get the addr of the ptr
+            addrof(itl,func,slot,sym.reg.slot);
+            return std::pair{pointer_type,slot};
         }
 
         case ast_type::index:
         {
-            if(take_addr)
-            {
-                return index_arr(itl,func,node,slot);
-            }
-
-            else
-            {
-                IndexNode* index_node = (IndexNode*)node;
-
-
-                auto [type,addr_slot] = index_arr(itl,func,node,slot);
-
-                // actually load the pointer with ptr_load
-                type = deref_pointer(type);
-
-                const SymSlot ptr_slot = new_tmp_ptr(func);
-                do_ptr_load(itl,func,ptr_slot,addr_slot,type);
-
-                // contained type is not actually a pointer
-                if(!is_pointer(type))
-                {
-                    panic(itl,itl_error::pointer_type_error,"[COMPILE]: array '%s' does not contain a pointer\n",index_node->name.buf);
-                    return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
-                }
-
-                // okay now just index out the final type
-                type = deref_pointer(type);
-
-                return std::pair{type,ptr_slot};
-            }
+            return index_arr(itl,func,node,slot);
         }
 
         case ast_type::access_struct:
         {
-            if(take_addr)
-            {
-                auto [type,ptr_slot] = compute_member_ptr(itl,func,node);
+            auto [type,ptr_slot] = compute_member_ptr(itl,func,node);
 
-                // make sure this ptr goes into the dst slot
-                mov_reg(itl,func,slot,ptr_slot);
+            // make sure this ptr goes into the dst slot
+            mov_reg(itl,func,slot,ptr_slot);
 
-                return std::pair{type,ptr_slot};
-            }
-
-            // deref on struct member that is a ptr
-            else
-            {
-                auto type = read_struct(itl,func,slot,node);
-                type = deref_pointer(type);
-
-                return std::pair{type,slot};
-            }
+            return std::pair{type,ptr_slot};
         }
 
         default:
@@ -1432,6 +1366,20 @@ std::pair<Type*,SymSlot> load_addr(Interloper &itl,Function &func,AstNode *node,
             unimplemented("load_addr expr");
         }
     }
+}
+
+std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node)
+{
+    const auto [ptr_type,slot] = compile_oper(itl,func,deref_node);
+
+    // make sure we actually have pointer
+    if(!is_pointer(ptr_type))
+    {
+        panic(itl,itl_error::pointer_type_error,"Expected pointer got: %s\n",type_name(itl,ptr_type));
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+    }
+
+    return {ptr_type,slot};
 }
 
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot dst_slot)
@@ -1525,8 +1473,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         {
             UnaryNode* addrof_node = (UnaryNode*)node;
 
-            // want this to also get an addr but we want the actual ptr_count to go up...
-            const auto [type,slot] = load_addr(itl,func,addrof_node->next,dst_slot,true);
+            const auto [type,slot] = take_addr(itl,func,addrof_node->next,dst_slot);
             return type;
         }
 
@@ -1534,14 +1481,18 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         {
             UnaryNode* deref_node = (UnaryNode*)node;
 
-            const auto [type,slot] = load_addr(itl,func,deref_node->next,new_tmp_ptr(func),false);
+            const auto [ptr_type,slot] = take_pointer(itl,func,deref_node->next);
+
             if(itl.error)
             {
                 return make_builtin(itl,builtin_type::void_t);
             }
 
+            // deref the pointer
+            auto type = deref_pointer(ptr_type); 
             do_ptr_load(itl,func,dst_slot,slot,type);
-            return type;            
+
+            return type;          
         }
 
         case ast_type::sizeof_t:
@@ -2067,8 +2018,16 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                         {
                             UnaryNode* deref_node = (UnaryNode*)assign_node->left;
 
-                            const auto [type,addr_slot] = load_addr(itl,func,deref_node->next,new_tmp_ptr(func),false);
-                            check_assign(itl,type,rtype);
+                            const auto [ptr_type,addr_slot] = take_pointer(itl,func,deref_node->next);
+
+                            if(itl.error)
+                            {
+                                return;
+                            }
+
+                            // store into the pointer
+                            auto type = deref_pointer(ptr_type); 
+
                             do_ptr_store(itl,func,slot,addr_slot,type);
                             break;                        
                         }
