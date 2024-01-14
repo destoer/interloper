@@ -31,7 +31,7 @@ func print_int(v : u64, base : u32)
 
     reverse_str(buf,digits);
 
-    str := clip_string(buf,digits);
+    str := clip_str(buf,digits);
 
     write_string(str);
 }

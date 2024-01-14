@@ -1,8 +1,29 @@
 
 constant ASCII_CASE_GAP : u8 = 'a' - 'A';
 
-// NOTE:
-// will probably call the extentable one string_buffer
+/*
+// heap allocated str
+struct String
+{
+    raw_str: string;
+    capacity : u32;
+};
+
+
+func resize_string(str: String@, new_size : u32)
+{
+    if(new_size > str.capacity)
+    {
+        str.raw_str.data = cast(c8@,realloc_heap_panic(&global_heap,new_size,1));
+    }
+
+    // just crush the internal string
+    else
+    {
+        str.raw_str.len = new_size;
+    }
+}
+*/
 
 func to_lower(char: c8) c8
 {
@@ -17,7 +38,7 @@ func to_lower(char: c8) c8
 // if printed in base 2, its 64 bits
 constant MAX_INT_CHARS : u32 = 64;
 
-func clip_string(str : string, len : u64) string
+func clip_str(str : string, len : u64) string
 {
     buf : string;
     buf.data = str.data;
@@ -125,7 +146,7 @@ func parse_value(str : const string) [Value, s64]
     return value, used;
 }
 
-func str_cmp(v1 : const string, v2 : const string) bool
+func str_equal(v1 : const string, v2 : const string) bool
 {
     // different len, not equal
     if(v1.len != v2.len)

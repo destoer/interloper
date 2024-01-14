@@ -284,7 +284,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
                 flush_read(file,&str[out_offset],read);
 
                 // produce the final res
-                buf := clip_string(str,str.len - remain);
+                buf := clip_str(str,str.len - remain);
 
                 return buf,file_read_res::success;
             }
@@ -305,7 +305,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
         // there is nothing left to read, or there is an error
         if(res != file_read_res::success|| remain == 0)
         {
-            buf := clip_string(str,str.len - remain);
+            buf := clip_str(str,str.len - remain);
 
             return buf,res;
         }

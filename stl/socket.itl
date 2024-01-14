@@ -1,0 +1,62 @@
+struct Socket
+{
+    handle: byte@ = NULL;
+};
+
+enum net_type
+{
+    tcp,
+    udp,
+}
+
+func connect(ip: const string, port: u32, type: net_type) Socket
+{
+    sock : Socket;
+
+    return sock;
+}
+
+func listen(port: u32, type: net_type) Socket
+{
+    sock : Socket;
+
+    return sock;   
+}
+
+func recv(sock: Socket@, buf: byte[]) s64
+{
+    if(!sock)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+func send(sock: Socket@, buf: const byte[]) s64
+{
+    if(!sock)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+func send_str(sock: Socket@, str: const string) s64
+{
+    buf: const byte[];
+    buf.data = str.data;
+    buf.len = str.len;
+
+    return send(sock,buf);
+}
+
+
+func close_sock(sock: Socket@)
+{
+    if(!sock)
+    {
+        return;
+    }
+}
