@@ -61,17 +61,30 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
         case arch_target::x86_64_t:
         {
             add_gpr(alloc,x86_reg::rax);
+        /*
             add_gpr(alloc,x86_reg::rcx);
             add_gpr(alloc,x86_reg::rdx);
             add_gpr(alloc,x86_reg::rbx);
             add_gpr(alloc,x86_reg::rdp);
+        */
             add_gpr(alloc,x86_reg::rsi);
             add_gpr(alloc,x86_reg::rdi);
+        
+            add_gpr(alloc,x86_reg::r8);
+            add_gpr(alloc,x86_reg::r9);
+        /*
+            add_gpr(alloc,x86_reg::r10);
+            add_gpr(alloc,x86_reg::r11);
+            add_gpr(alloc,x86_reg::r12);
+            add_gpr(alloc,x86_reg::r13);
+        */
+            add_gpr(alloc,x86_reg::r14);
+            add_gpr(alloc,x86_reg::r15);
             break;
         }
     }
 
-    assert(alloc.free_regs == info.gpr);
+    assert(alloc.free_regs <= info.gpr);
 
     alloc.print = print;
 

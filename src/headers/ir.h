@@ -445,10 +445,11 @@ void print(const Reg& reg);
 static constexpr u32 SYMBOL_START = 0x80000000;
 
 
+// TODO:
 // for now hardcode this to the limits of our vm
 // we will move this into a struct as part of a config
-// when we actually want to define some targets
-static constexpr u32 MACHINE_REG_SIZE = 8;
+// when we actually want to define multiple targets
+static constexpr u32 MACHINE_REG_SIZE = 16;
 
 // TAC wont function on less than 3 regs
 static_assert(MACHINE_REG_SIZE >= 3);
@@ -719,11 +720,21 @@ enum x86_reg : u64
     rsi,
     rdi,
 
+    // need upper encoding to access
+    r8,
+    r9,
+    r10,
+    r11,
+    r12,
+    r13,
+    r14,
+    r15,
+
     // special regs (needs special encoding to access)
     rip,
 };
 
-static constexpr u32 X86_REG_SIZE = 9;
+static constexpr u32 X86_REG_SIZE = 17;
 
 static const char* X86_NAMES[X86_REG_SIZE] =
 {
@@ -735,6 +746,15 @@ static const char* X86_NAMES[X86_REG_SIZE] =
     "rdp",
     "rsi",
     "rdi",
+
+    "r8",
+    "r9",
+    "r10",
+    "r11",
+    "r12",
+    "r13",
+    "r14",
+    "r15",
 
     "rip",
 };
