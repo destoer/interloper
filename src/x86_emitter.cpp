@@ -167,7 +167,7 @@ void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, s32 imm)
     if(base == x86_reg::rip)
     {
         // reg [rip + disp32]
-        const u8 mod = (0b00 << 6) | (reg << 3) | (0b101 << 0);
+        const u8 mod = (0b00 << 6) | (mask_reg(reg) << 3) | (0b101 << 0);
         push_u8(emitter,mod);
         push_u32(emitter,imm);
     }
