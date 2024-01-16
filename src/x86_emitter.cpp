@@ -943,7 +943,7 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
 {
     // lea r64, [r64 + disp]
     const u8 opcode = 0x8d;
-    push_u16(emitter,(opcode << 8) |  rex_r64(dst));
+    push_u16(emitter,(opcode << 8) |  rex_rm64(dst,v1));
 
     push_reg_base_disp(emitter,dst,v1,imm);
 }
