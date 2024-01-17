@@ -60,7 +60,7 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
     {
         case arch_target::x86_64_t:
         {
-        #if 0
+        #if 1
             add_gpr(alloc,x86_reg::rax);
             add_gpr(alloc,x86_reg::rcx);
             add_gpr(alloc,x86_reg::rdx);
@@ -68,6 +68,15 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
             add_gpr(alloc,x86_reg::rdp);
             add_gpr(alloc,x86_reg::rsi);
             add_gpr(alloc,x86_reg::rdi);
+
+            add_gpr(alloc,x86_reg::r8);
+            add_gpr(alloc,x86_reg::r9);
+            add_gpr(alloc,x86_reg::r10);
+            add_gpr(alloc,x86_reg::r11);
+            add_gpr(alloc,x86_reg::r12);
+            add_gpr(alloc,x86_reg::r13);
+            add_gpr(alloc,x86_reg::r14);
+            add_gpr(alloc,x86_reg::r15);
         #else
             add_gpr(alloc,x86_reg::rax);
             add_gpr(alloc,x86_reg::rdx);

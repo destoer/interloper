@@ -134,12 +134,13 @@ u8 rex_mr64(x86_reg r, x86_reg m)
 
 void prefix_u8_data_m(AsmEmitter& emitter, x86_reg m)
 {
-    if(m >= x86_reg::r8)
+    if(is_extended_reg(m))
     {
-        push_u8(emitter,rex_m64(m));
+        push_u8(emitter,rex_m(m));
     }
 
     // index or data reg, used must prefix with rex
+    // as it is not possible to access 8 bits on older x86 versions
     else if(m > x86_reg::rdx)
     {
         push_u8(emitter,REX);
@@ -148,9 +149,9 @@ void prefix_u8_data_m(AsmEmitter& emitter, x86_reg m)
 
 void prefix_u8_data_rm(AsmEmitter& emitter, x86_reg r, x86_reg m)
 {
-    if(r >= x86_reg::r8 || m >= x86_reg::r8)
+    if(is_extended_reg(r) || is_extended_reg(m))
     {
-        push_u8(emitter,rex_rm64(r,m));
+        push_u8(emitter,rex_rm(r,m));
     }
 
     // index or data reg, used must prefix with rex
