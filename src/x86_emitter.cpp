@@ -175,9 +175,9 @@ void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, s32 imm)
 
     else if(imm == 0)
     {
-        // rbp is reserved for RIP encoding
+        // rbp is reserved for RIP encoding, and r13 is reserved also
         // when no base is used we have to use disp 8 anyways
-        if(base == x86_reg::rdp)
+        if(base == x86_reg::rdp || base == x86_reg::r13)
         {
             push_u16(emitter,reg_base_disp_8(reg,base));
             push_u8(emitter,0);     

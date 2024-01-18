@@ -60,7 +60,6 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
     {
         case arch_target::x86_64_t:
         {
-        #if 1
             add_gpr(alloc,x86_reg::rax);
             add_gpr(alloc,x86_reg::rcx);
             add_gpr(alloc,x86_reg::rdx);
@@ -77,23 +76,6 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
             add_gpr(alloc,x86_reg::r13);
             add_gpr(alloc,x86_reg::r14);
             add_gpr(alloc,x86_reg::r15);
-        #else
-            add_gpr(alloc,x86_reg::rax);
-            add_gpr(alloc,x86_reg::rdx);
-            add_gpr(alloc,x86_reg::rsi);
-            add_gpr(alloc,x86_reg::rdi);
-
-            add_gpr(alloc,x86_reg::r8);
-            add_gpr(alloc,x86_reg::r9);
-        /*
-            add_gpr(alloc,x86_reg::r10);
-            add_gpr(alloc,x86_reg::r11);
-            add_gpr(alloc,x86_reg::r12);
-            add_gpr(alloc,x86_reg::r13);
-        */
-            add_gpr(alloc,x86_reg::r14);
-            add_gpr(alloc,x86_reg::r15);
-        #endif
             break;
         }
     }
@@ -314,6 +296,8 @@ void mark_used(RegAlloc& alloc, u32 reg)
     alloc.use_count += !is_set(alloc.used_regs,reg);
     alloc.used_regs = set_bit(alloc.used_regs,reg);
 }
+
+// TODO: we need to make this prefer certain free registers
 
 u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
 {
