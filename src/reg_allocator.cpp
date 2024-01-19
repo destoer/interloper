@@ -9,7 +9,6 @@ struct RegAlloc
 
     // set of free registers
     u32 free_set = 0;
-    u32 free_regs = 0;
 
     // keep track of freeable regs
     SymSlot dead_slot[MACHINE_REG_SIZE] = {0};
@@ -29,13 +28,11 @@ struct RegAlloc
 void add_reg(RegAlloc& alloc, u32 reg)
 {
     alloc.free_set = set_bit(alloc.free_set,reg);
-    alloc.free_regs++;
 }
 
 void remove_reg(RegAlloc& alloc, u32 reg)
 {
     alloc.free_set = deset_bit(alloc.free_set,reg);
-    alloc.free_regs--;
 }
 
 void add_gpr(RegAlloc& alloc, x86_reg reg)
@@ -57,7 +54,6 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
         alloc.regs[i] = {REG_FREE};
     }
 
-    alloc.free_regs = 0;
     alloc.free_set = 0;
 
     // add in GPR regs
@@ -85,7 +81,7 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
         }
     }
 
-    assert(alloc.free_regs <= info.gpr);
+    assert(popcount(alloc.free_set) <= info.gpr);
 
     alloc.print = print;
 
@@ -280,9 +276,11 @@ void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
 {
     printf("\n\nallocation:\n\n");
 
+    const u32 free_regs = popcount(alloc.free_set);
+
     printf("total registers: %d\n",MACHINE_REG_SIZE);
-    printf("free registers: %d\n",alloc.free_regs);
-    printf("used regsisters: %d\n",MACHINE_REG_SIZE - alloc.free_regs);
+    printf("free registers: %d\n",free_regs);
+    printf("used regsisters: %d\n",MACHINE_REG_SIZE - free_regs);
     printf("total used registers: %d\n",popcount(alloc.used_regs));
 
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)

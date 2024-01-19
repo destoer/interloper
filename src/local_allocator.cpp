@@ -191,7 +191,7 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
             }
 
             // no free registers spill it
-            else if(!alloc.reg_alloc.free_regs)
+            else if(!alloc.reg_alloc.free_set)
             {
                 spill(slot,alloc,table,block,node);
             }
@@ -234,8 +234,8 @@ b32 in_reg(LocalAlloc& alloc, SymbolTable& table,SymSlot sym_slot,SymSlot spec_r
 
 void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& block, ListNode* node)
 {
-    // evict a register to make space
-    if(!alloc.reg_alloc.free_regs)
+    // trash a register to make space
+    if(!alloc.reg_alloc.free_set)
     {
         trash_reg(table,alloc,block,node);
     }
