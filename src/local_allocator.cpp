@@ -15,6 +15,8 @@ struct LocalAlloc
     Array<Reg> tmp_regs;
 
     StackAlloc stack_alloc;
+
+    b32 print = false;
 };
 
 LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation, Array<Reg> tmp, arch_target arch)
@@ -28,6 +30,8 @@ LocalAlloc make_local_alloc(b32 print_reg_allocation,b32 print_stack_allocation,
     alloc.arch = arch;
 
     alloc.tmp_regs = tmp;
+
+    alloc.print = print_reg_allocation;
 
     return alloc;
 }
@@ -94,18 +98,7 @@ void stack_reserve_slot(LocalAlloc& alloc,SymbolTable table, SymSlot slot)
 
     const b32 print_stack = alloc.stack_alloc.print;
 
-    if(is_sym(slot))
-    {
-        auto& sym = sym_from_slot(table,slot);
-
-        log(print_stack,"initial offset allocated %s: [%x,%x] -> %x\n",sym.name.buf,ir_reg.size,ir_reg.count,ir_reg.offset);    
-    }
-
-    else
-    {
-        // by defintion a tmp has to be local
-        log(print_stack,"initial offset allocated t%d: [%x,%x] -> %x\n",slot.handle,ir_reg.size,ir_reg.count,ir_reg.offset);
-    }
+    log_reg(print_stack,table,"initial offset allocated %r: [%x,%x] -> %x",slot,ir_reg.size,ir_reg.count,ir_reg.offset);
 
     stack_reserve_reg(alloc.stack_alloc,ir_reg);    
 }
@@ -120,19 +113,7 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 
     const u32 reg = ir_reg.location;
 
-    const b32 print_reg = alloc.reg_alloc.print;
-
-    if(is_sym(ir_reg.slot))
-    {
-        auto& sym = sym_from_slot(table,ir_reg.slot);
-
-        log(print_reg,"freed symbol %s from reg %s\n",sym.name.buf,reg_name(alloc.arch,reg));
-    }
-
-    else
-    {
-        log(print_reg,"freed tmp t%d from reg %s\n",ir_reg.slot,reg_name(alloc.arch,reg));               
-    }
+    log_reg(alloc.print,table,"freed %r from %s\n",ir_reg.slot,reg_name(alloc.arch,reg));
 
     assert(!is_aliased(ir_reg));
 
@@ -189,21 +170,8 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
     {
         const auto slot = alloc.reg_alloc.regs[reg];
 
-        if(alloc.reg_alloc.print)
-        {
-            if(is_sym(slot))
-            {
-                auto& sym = sym_from_slot(table,slot);
-                printf("symbol %s evicted from reg %s\n",sym.name.buf,reg_name(alloc.arch,reg));
-            }
-
-            else
-            {
-                printf("tmp t%d evicted from reg %s\n",slot.handle,reg_name(alloc.arch,reg));
-            }
-        }
-
-
+        log_reg(alloc.print,table,"%r evicted from %s",slot,reg_name(alloc.arch,reg));
+        
         auto& ir_reg = reg_from_slot(slot,table,alloc);
         bool used_beyond = contains(block.live_out,slot); 
 
@@ -275,19 +243,7 @@ void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& blo
     const u32 reg = alloc_reg(ir_reg,alloc.reg_alloc);
     const SymSlot slot = ir_reg.slot;
    
-    if(alloc.reg_alloc.print)
-    {
-        if(is_sym(slot))
-        {
-            auto& sym = sym_from_slot(table,slot);
-            printf("symbol %s allocated into reg %s\n",sym.name.buf,reg_name(alloc.arch,reg));
-        }
-
-        else
-        {
-            printf("tmp t%d allocated into reg %s\n",slot.handle,reg_name(alloc.arch,reg));
-        }
-    }
+    log_reg(alloc.print,table,"%r allocated into reg %s\n",slot,reg_name(alloc.arch,reg));
 }
 
 void reload_slot(LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg)
@@ -488,28 +444,8 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,Block &block, ListNode *no
 
 void reserve_offset(LocalAlloc& alloc,SymbolTable& table, Reg& ir_reg)
 {
-    const b32 print_reg = alloc.reg_alloc.print;
-
-    if(is_sym(ir_reg.slot))
-    {
-        auto& sym = sym_from_slot(table,ir_reg.slot);
-
-        // only allocate the local vars by here
-        if(!is_arg(sym))
-        {
-            log(print_reg,"reserve offset for %s in reg %s\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location));
-            stack_reserve_reg(alloc.stack_alloc,ir_reg);
-        }
-    }
-
-    else
-    {
-        log(print_reg,"reserve offset for t%d in reg %s\n",ir_reg.slot.handle,reg_name(alloc.arch,ir_reg.location));
-
-        // by defintion a tmp has to be local
-        // TODO: fmt this tmp
-        stack_reserve_reg(alloc.stack_alloc,ir_reg);
-    }    
+    log_reg(alloc.print,table,"reserve offset for %r in %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.location));
+    stack_reserve_reg(alloc.stack_alloc,ir_reg);
 }
 
 void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, b32 after)
@@ -526,20 +462,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
             return;
         }
 
-        if(alloc.reg_alloc.print)
-        {
-            if(is_sym(slot))
-            {
-                auto& sym = sym_from_slot(table,slot);
-
-                printf("attempted to spill freed sym %s\n",sym.name.buf);
-            }
-
-            else
-            {
-                printf("attempted to spill freed tmp t%d\n",slot.handle);            
-            }
-        }
+        log_reg(alloc.print,table,"attempted to spill freed slot %r",slot);
         return;
     }
 
@@ -556,20 +479,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
         reserve_offset(alloc,table,ir_reg);
     }
 
-    if(alloc.reg_alloc.print)
-    {
-        if(is_sym(ir_reg.slot))
-        {
-            auto& sym = sym_from_slot(table,ir_reg.slot);
-
-            printf("spill %s from reg %s (size %d)\n",sym.name.buf,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
-        }
-
-        else
-        {
-            printf("spill t%d from reg %s (size %d)\n",ir_reg.slot.handle,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
-        }
-    }
+    log_reg(alloc.print,table,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
 
     // if the value has only been used as a source and not modifed then we can just treat this as a free_reg
     if(ir_reg.dirty)
@@ -598,19 +508,9 @@ void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
 
     finalise_offset(alloc.stack_alloc,reg);
 
-    if(alloc.stack_alloc.print)
-    {
-        if(is_sym(reg.slot))
-        {
-            auto& sym = sym_from_slot(table,reg.slot);
-            printf("final offset %s = [%x,%x] -> %x\n",sym.name.buf,reg.size,reg.count,reg.offset);
-        }
+    const auto print = alloc.stack_alloc.print;
 
-        else
-        {
-            printf("final offset t%d = [%x,%x] -> %x\n",reg.slot.handle,reg.size,reg.count,reg.offset);
-        }
-    }
+    log_reg(print,table,"final offset %r = [%x,%x] -> %x\n",reg.slot,reg.size,reg.count,reg.offset);
 }
 
 void finish_stack_alloc(SymbolTable& table, LocalAlloc& alloc)

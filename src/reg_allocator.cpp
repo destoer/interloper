@@ -194,6 +194,88 @@ void unlock_registers(RegAlloc& alloc)
     }
 }
 
+void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
+{  
+    if(!print)
+    {
+        return;
+    }
+
+    va_list args;
+    va_start(args,fmt_string);
+
+    for(u32 i = 0; i < fmt_string.size; i++)
+    {
+        if(fmt_string[i] == '%')
+        {
+            switch(fmt_string[i + 1])
+            {
+                // string
+                case 's':
+                {
+                    const auto str = va_arg(args, const char*);
+                    printf("%s",str);
+                    break;
+                }
+
+                // hex
+                case 'x':
+                {
+                    const auto v = va_arg(args, u32);
+
+                    printf("%x",v);
+                    break;
+                }
+
+                // int
+                case 'd':
+                {
+                    const auto v = va_arg(args, s32);
+
+                    printf("%d",v);
+                    break;
+                }
+
+                // reg
+                case 'r':
+                {
+                    const auto slot = sym_from_idx(va_arg(args,u32));
+
+                    if(is_special_reg(slot))
+                    {
+                        printf("%s",spec_reg_name(slot));
+                    }
+
+                    else if(is_tmp(slot))
+                    {
+                        printf("t%d",slot.handle);
+                    }
+
+                    else if(is_sym(slot))
+                    {
+                        const auto &sym = sym_from_slot(table,slot);
+                        printf("%s",sym.name.buf);
+                    }
+                    break;
+                }
+
+                default: assert(false);
+            }
+
+
+            // account for format
+            i += 1;
+        }
+
+        else
+        {
+            putchar(fmt_string[i]);
+        }
+    }
+
+    va_end(args);
+}
+
 void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
 {
     printf("\n\nallocation:\n\n");
@@ -212,16 +294,7 @@ void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
             continue;
         }
 
-        if(is_tmp(slot))
-        {
-            printf("reg %s -> temp t%d\n",reg_name(alloc.arch,i),slot.handle);
-        }
-
-        else if(is_sym(slot))
-        {
-            const auto &sym = sym_from_slot(table,slot);
-            printf("reg %s -> sym %s\n",reg_name(alloc.arch,i),sym.name.buf);
-        }
+        log_reg(alloc.print,table,"reg %s -> %r\n",reg_name(alloc.arch,i),slot);
     }
 
     putchar('\n');

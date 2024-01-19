@@ -487,20 +487,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             const SymSlot slot = sym_from_idx(opcode.v[0]);
             auto& reg = reg_from_slot(slot,table,alloc);
             
-
-            if(alloc.reg_alloc.print)
-            {
-                if(is_sym(slot))
-                {
-                    auto& sym = sym_from_slot(table,slot);
-                    printf("alloc slot: %s : %s\n",sym.name.buf,opcode.v[1]? "forced" : "unforced");
-                }
-
-                else
-                {
-                    printf("alloc slot: t%d : %s\n",reg.slot.handle,opcode.v[1]? "forced" : "unforced");
-                }
-            }
+            log_reg(alloc.print,table,"alloc slot: %r : %s\n",slot,opcode.v[1]? "forced" : "unforced");
 
             // explictly force a stack alloc now
             if(opcode.v[1] && reg.kind != reg_kind::global)
