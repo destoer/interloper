@@ -319,6 +319,10 @@ u32 find_register(u32 set,u32 used,u32 group[], u32 size)
 {
     u32 reg = FFS_EMPTY;
 
+    // TODO: which of these propertys is prefable? usage
+    // or optimal allocation?
+    // if its the latter we need to loop jam the 2nd stmt
+
     // attempt to alloc registers we have allready used first
     // so we do not have to save extra reegisters by using
     // different ones
@@ -338,14 +342,11 @@ u32 find_register(u32 set,u32 used,u32 group[], u32 size)
 }
 
 
-// try calle saved if tmp
 const u32 CALLEE_SAVED_X86 = 1 << u32(x86_reg::rax);
 
-// try lower regs
 const u32 LOWER_REGS_X86 = (1 << u32(x86_reg::rax)) | (1 << u32(x86_reg::rcx)) | (1 << u32(x86_reg::rdx)) | 
     (1 << u32(x86_reg::rbx)) | (1 << u32(x86_reg::rdp)) | (1 << u32(x86_reg::rsi)) | (1 << u32(x86_reg::rdi));
 
-// finally higher
 const u32 HIGHER_REGS_X86 = (1 << u32(x86_reg::r8)) | (1 << u32(x86_reg::r9)) | (1 << u32(x86_reg::r10)) |
     (1 << u32(x86_reg::r11)) | (1 << u32(x86_reg::r12)) | (1 << u32(x86_reg::r13)) | 
     (1 << u32(x86_reg::r14)) | (1 << u32(x86_reg::r15));     
