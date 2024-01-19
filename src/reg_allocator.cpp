@@ -7,10 +7,9 @@ struct RegAlloc
     // is this free or does it hold a var?
     SymSlot regs[MACHINE_REG_SIZE];  
 
-    u32 free_regs = 0;
-
     // set of free registers
     u32 free_set = 0;
+    u32 free_regs = 0;
 
     // keep track of freeable regs
     SymSlot dead_slot[MACHINE_REG_SIZE] = {0};
@@ -21,7 +20,6 @@ struct RegAlloc
     // bitset of which regs this functions needs to use
     // for now we are going to just callee save every register
     u32 used_regs = 0;
-    u32 use_count = 0;
    
     b32 print = false;
 
@@ -51,7 +49,6 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
 
     const auto info = info_from_arch(arch);
 
-    alloc.use_count = 0;
     alloc.used_regs = 0;
 
     // mark every reg as free
@@ -204,7 +201,7 @@ void print_reg_alloc(RegAlloc &alloc,SymbolTable& table)
     printf("total registers: %d\n",MACHINE_REG_SIZE);
     printf("free registers: %d\n",alloc.free_regs);
     printf("used regsisters: %d\n",MACHINE_REG_SIZE - alloc.free_regs);
-    printf("total used registers: %d\n",alloc.use_count);
+    printf("total used registers: %d\n",popcount(alloc.used_regs));
 
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
@@ -298,7 +295,6 @@ void free_ir_reg(RegAlloc& alloc, Reg& ir_reg)
 
 void mark_used(RegAlloc& alloc, u32 reg)
 {
-    alloc.use_count += !is_set(alloc.used_regs,reg);
     alloc.used_regs = set_bit(alloc.used_regs,reg);
 }
 
