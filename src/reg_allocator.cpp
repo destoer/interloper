@@ -7,10 +7,10 @@ struct RegAlloc
     // is this free or does it hold a var?
     SymSlot regs[MACHINE_REG_SIZE];  
 
-    u32 free_regs;
+    u32 free_regs = 0;
 
-    // free list for register allocator
-    u32 free_list[MACHINE_REG_SIZE];
+    // set of free registers
+    u32 free_set = 0;
 
     // keep track of freeable regs
     SymSlot dead_slot[MACHINE_REG_SIZE] = {0};
@@ -20,22 +20,44 @@ struct RegAlloc
 
     // bitset of which regs this functions needs to use
     // for now we are going to just callee save every register
-    u32 used_regs;
-    u32 use_count;
+    u32 used_regs = 0;
+    u32 use_count = 0;
    
     b32 print = false;
 
     arch_target arch;
 };
 
-void add_gpr(RegAlloc& alloc, u32 reg)
+static constexpr u32 FFS_EMPTY = 32;
+
+u32 ffs(u32 v)
 {
-    alloc.free_list[alloc.free_regs++] = reg;
+    for(u32 i = 0; i < 32; i++)
+    {
+        if(is_set(v,i))
+        {
+            return i;
+        }
+    }
+
+    return FFS_EMPTY;
+}
+
+void add_reg(RegAlloc& alloc, u32 reg)
+{
+    alloc.free_set = set_bit(alloc.free_set,reg);
+    alloc.free_regs++;
+}
+
+void remove_reg(RegAlloc& alloc, u32 reg)
+{
+    alloc.free_set = deset_bit(alloc.free_set,reg);
+    alloc.free_regs--;
 }
 
 void add_gpr(RegAlloc& alloc, x86_reg reg)
 {
-    add_gpr(alloc,u32(reg));
+    add_reg(alloc,u32(reg));
 }
 
 RegAlloc make_reg_alloc(b32 print, arch_target arch)
@@ -54,6 +76,7 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
     }
 
     alloc.free_regs = 0;
+    alloc.free_set = 0;
 
     // add in GPR regs
     switch(arch)
@@ -153,16 +176,7 @@ void lock_reg(RegAlloc& alloc, SymSlot slot)
 
     alloc.restricted_reg = set_bit(alloc.restricted_reg,reg);
 
-    //  remove it from the free list so it cant be allocated
-    for(u32 r = 0; r < alloc.free_regs; r++)
-    {
-        if(alloc.free_list[r] == reg)
-        {
-            std::swap(alloc.free_list[r],alloc.free_list[alloc.free_regs - 1]);
-            alloc.free_regs--;
-            return;
-        }
-    }
+    remove_reg(alloc,reg);
 }
 
 void unlock_reg_internal(RegAlloc& alloc, u32 reg)
@@ -177,7 +191,7 @@ void unlock_reg_internal(RegAlloc& alloc, u32 reg)
     alloc.restricted_reg = deset_bit(alloc.restricted_reg,reg);
 
     // put register back inside the free list
-    alloc.free_list[alloc.free_regs++] = reg;
+    add_reg(alloc,reg);
 }
 
 void unlock_reg(RegAlloc& alloc, SymSlot slot)
@@ -280,15 +294,21 @@ b32 is_free(SymSlot slot)
     return slot.handle == REG_FREE;
 }
 
-void free_reg_internal(RegAlloc& alloc, Reg& ir_reg)
+void free_reg_internal(RegAlloc& alloc,u32 reg)
+{
+    // add back to the free list
+    alloc.regs[reg] = sym_from_idx(REG_FREE);
+    add_reg(alloc,reg);      
+}
+
+void free_ir_reg(RegAlloc& alloc, Reg& ir_reg)
 {
     const u32 reg = ir_reg.location;
 
     ir_reg.location = LOCATION_MEM;
 
     // add back to the free list
-    alloc.regs[reg] = sym_from_idx(REG_FREE);
-    alloc.free_list[alloc.free_regs++] = reg;     
+    free_reg_internal(alloc,reg);
 }
 
 void mark_used(RegAlloc& alloc, u32 reg)
@@ -299,10 +319,9 @@ void mark_used(RegAlloc& alloc, u32 reg)
 
 // TODO: we need to make this prefer certain free registers
 
-u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
+u32 aquire_reg(Reg& ir_reg,RegAlloc& alloc, u32 reg)
 {
-    const u32 reg = alloc.free_list[--alloc.free_regs];
-    
+    remove_reg(alloc,reg);
     mark_used(alloc,reg);
 
     ir_reg.location = reg;
@@ -311,24 +330,113 @@ u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
     return reg;
 }
 
-bool request_reg(RegAlloc& alloc, u32 req_reg)
+u32 find_register(u32 set,u32 used,u32 group[], u32 size)
 {
-    if(is_restricted(alloc,req_reg))
+    u32 reg = FFS_EMPTY;
+
+    // attempt to alloc registers we have allready used first
+    // so we do not have to save extra reegisters by using
+    // different ones
+    for(u32 g = 0; g < size && reg == FFS_EMPTY; g++)
     {
-        return false;
+        reg = ffs(set & group[g] & used);
     }
 
-    // attempt to swap rv to the end of the free list
-    for(u32 r = 0; r < alloc.free_regs; r++)
+    // if we have no registers amongst those allready used
+    // just grab any that we can
+    for(u32 g = 0; g < size && reg == FFS_EMPTY; g++)
     {
-        if(alloc.free_list[r] == req_reg)
+        reg = ffs(set & group[g]);
+    }
+
+    return reg;
+}
+
+
+// try calle saved if tmp
+const u32 CALLEE_SAVED_X86 = 1 << u32(x86_reg::rax);
+
+// try lower regs
+const u32 LOWER_REGS_X86 = (1 << u32(x86_reg::rax)) | (1 << u32(x86_reg::rcx)) | (1 << u32(x86_reg::rdx)) | 
+    (1 << u32(x86_reg::rbx)) | (1 << u32(x86_reg::rdp)) | (1 << u32(x86_reg::rsi)) | (1 << u32(x86_reg::rdi));
+
+// finally higher
+const u32 HIGHER_REGS_X86 = (1 << u32(x86_reg::r8)) | (1 << u32(x86_reg::r9)) | (1 << u32(x86_reg::r10)) |
+    (1 << u32(x86_reg::r11)) | (1 << u32(x86_reg::r12)) | (1 << u32(x86_reg::r13)) | 
+    (1 << u32(x86_reg::r14)) | (1 << u32(x86_reg::r15));     
+
+u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
+{
+    u32 reg = FFS_EMPTY;
+
+    switch(alloc.arch)
+    {
+        case arch_target::x86_64_t:
         {
-            std::swap(alloc.free_list[r],alloc.free_list[alloc.free_regs - 1]);
-            return true;
+            u32 group[3];
+            u32 size = 0;
+
+            // prefer to put tmps in callee saved regs
+            // so we don't have to spill them
+            if(ir_reg.kind == reg_kind::tmp)
+            {
+                group[size++] = CALLEE_SAVED_X86;
+            }
+
+            group[size++] = LOWER_REGS_X86;
+            group[size++] = HIGHER_REGS_X86;
+        
+            reg = find_register(alloc.free_set,alloc.used_regs,group,size);
+
+            // should not be empty at this point
+            assert(reg != FFS_EMPTY);
+            break;
         }
     }
 
-    return false;
+    return aquire_reg(ir_reg,alloc,reg);
+}
+
+// NOTE: this only transposes a reg to another
+// it does not actually copy it
+u32 realloc_reg(Reg& ir_reg,RegAlloc& alloc)
+{
+    const u32 old = ir_reg.location;
+
+    u32 reg = FFS_EMPTY;
+
+    switch(alloc.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            u32 group[3];
+            u32 size = 0;
+
+            // prefer higher first when reallocating regs
+            // as they do not have a special purpose, and won't have to be shifted again
+            group[size++] = HIGHER_REGS_X86;
+            group[size++] = LOWER_REGS_X86;
+        
+            reg = find_register(alloc.free_set,alloc.used_regs,group,size);
+
+            // should not be empty at this point
+            assert(reg != FFS_EMPTY);
+            break;
+        }
+    }
+
+    // allocate in the reg
+    aquire_reg(ir_reg,alloc,reg);
+
+    // actually get rid of the old register
+    free_reg_internal(alloc,old);
+
+    return reg;
+}
+
+b32 request_reg(RegAlloc& alloc, u32 req_reg)
+{
+    return !is_restricted(alloc,req_reg) && is_set(alloc.free_set,req_reg);
 }
 
 
@@ -362,7 +470,8 @@ b32 allocate_into_reg(RegAlloc& alloc,Reg& ir_reg,SymSlot spec_reg)
 
     if(request_reg(alloc,reg))
     {
-        assert(alloc_reg(ir_reg,alloc) == reg);
+        // take this for ourself
+        aquire_reg(ir_reg,alloc,reg);
         return true;
     }
 
