@@ -280,7 +280,7 @@ struct ArchInfo
 
 static constexpr ArchInfo ARCH_TABLE[ARCH_SIZE] = 
 {
-    {u32(x86_reg::rsp),u32(x86_reg::rax),7}, // x86
+    {u32(x86_reg::rsp),u32(x86_reg::rax),15}, // x86
 };
 
 ArchInfo info_from_arch(arch_target arch)

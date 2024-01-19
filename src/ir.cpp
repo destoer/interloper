@@ -144,13 +144,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // if a value is allready held in the machine reg we are about to move to
             // we must make sure we save the value incase we need it later!
             // then the lock the register so it can no longer be freely allocated
-            if(is_special_reg(dst))
+            else if(is_special_reg(dst))
             {
-                const u32 reg = special_reg_to_reg(alloc.arch,dst);
+                const auto reg = special_reg_to_reg(alloc.arch,dst);
 
-                const auto held_slot = alloc.reg_alloc.regs[reg];
-
-                if(is_var(held_slot))
+                if(!is_restricted(alloc.reg_alloc,reg))
                 {
                     lock_reg(alloc,table,block,node,dst);
                 }
@@ -182,6 +180,11 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // just save it if need be and then restrict its usage
             if(in_reg(alloc,table,src,spec_reg))
             {
+                auto& ir_reg = reg_from_slot(src,table,alloc);
+
+                // mark the src usage
+                mark_reg_usage(alloc.reg_alloc,ir_reg,false);
+
                 // mark register as reserved
                 lock_reg(alloc,table,block,node,spec_reg);
 

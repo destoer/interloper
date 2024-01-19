@@ -303,7 +303,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
         res := buffer_file_read(file);
 
         // there is nothing left to read, or there is an error
-        if(res != file_read_res::success|| remain == 0)
+        if(res != file_read_res::success || remain == 0)
         {
             buf := clip_str(str,str.len - remain);
 

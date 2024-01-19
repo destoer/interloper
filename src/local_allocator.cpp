@@ -136,7 +136,7 @@ void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 
     assert(!is_aliased(ir_reg));
 
-    free_reg_internal(alloc.reg_alloc,ir_reg);
+    free_ir_reg(alloc.reg_alloc,ir_reg);
 }
 
 
@@ -187,10 +187,6 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
 
     if(!is_free(alloc.reg_alloc.regs[reg]))
     {
-        // TODO: this should attempt to find a spare reg to copy it into
-        // this is spill because we need this specific register
-        // not because we want to ensure any side effects happen correctly
-
         const auto slot = alloc.reg_alloc.regs[reg];
 
         if(alloc.reg_alloc.print)
@@ -207,7 +203,49 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
             }
         }
 
-        spill(alloc.reg_alloc.regs[reg],alloc,table,block,node);
+
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
+        bool used_beyond = contains(block.live_out,slot); 
+
+        // only bother saving this register it has been modified
+        if(ir_reg.dirty)
+        {
+            // requires a spill due to being volatile 
+            if(!is_local_reg(ir_reg) || used_beyond)
+            {
+                spill(slot,alloc,table,block,node);
+            }
+
+            // out of usage simply purge it
+            else if(ir_reg.uses >= count(ir_reg.usage))
+            {
+                free_ir_reg(alloc.reg_alloc,ir_reg);
+            }
+
+            // no free registers spill it
+            else if(!alloc.reg_alloc.free_regs)
+            {
+                spill(slot,alloc,table,block,node);
+            }
+
+            // registers are free we can copy it into another reg 
+            else 
+            {
+                const u32 new_reg = realloc_reg(ir_reg,alloc.reg_alloc);
+
+                log(alloc.reg_alloc.print,"eviction moving to %s\n",reg_name(alloc.arch,new_reg));
+
+                // need to preserve this via a copy
+                const auto op = make_op(op_type::mov_reg,new_reg,reg);
+                insert_at(block.list,node,op);
+            }
+        }
+
+        // just get rid of the register it hasn't been modified
+        else
+        {
+            free_ir_reg(alloc.reg_alloc,ir_reg);
+        }
     }
 }
 
@@ -282,6 +320,12 @@ void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode
 void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, SymSlot slot, b32 after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+    // something else has freed us
+    if(ir_reg.location == LOCATION_MEM)
+    {
+        return;
+    }
 
     // scope extends beyond this last use i.e because its in a loop
     const b32 used_beyond = contains(block.live_out,slot); 
@@ -545,7 +589,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
         ir_reg.dirty = false;
     }
 
-    free_reg_internal(alloc.reg_alloc,ir_reg);
+    free_ir_reg(alloc.reg_alloc,ir_reg);
 }
 
 void finish_alloc(Reg& reg,SymbolTable& table,LocalAlloc& alloc)
