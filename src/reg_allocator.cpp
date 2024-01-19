@@ -28,21 +28,6 @@ struct RegAlloc
     arch_target arch;
 };
 
-static constexpr u32 FFS_EMPTY = 32;
-
-u32 ffs(u32 v)
-{
-    for(u32 i = 0; i < 32; i++)
-    {
-        if(is_set(v,i))
-        {
-            return i;
-        }
-    }
-
-    return FFS_EMPTY;
-}
-
 void add_reg(RegAlloc& alloc, u32 reg)
 {
     alloc.free_set = set_bit(alloc.free_set,reg);
