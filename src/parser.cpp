@@ -1574,6 +1574,7 @@ void parse_directive(Parser& parser)
         return;
     }
 
+    // TODO: move this lookup to a hashtable if it starts getting large
     const auto name = next.literal;
 
     if(name == "attr")

@@ -200,7 +200,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
     // stl
-    {"tests/stl/mem",0},
+    {"tests/stl/mem",1},
     {"tests/stl/alloc",1},
     {"tests/stl/file_str",6},
     {"tests/stl/file_bin",1},

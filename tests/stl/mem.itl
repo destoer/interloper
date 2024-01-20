@@ -9,7 +9,7 @@ func main() s32
 
     res1 := handle_read<s32>(&x[0]) == 0;
 
-    res2 := bswap<u16>(0xdead) == 0xeade;
+    res2 := bswap<u16>(0xdead) == 0xadde;
 
     ans := res1 && res2;
 
