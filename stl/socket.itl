@@ -1,17 +1,23 @@
+
+
+
 struct Socket
 {
     handle: byte@ = NULL;
-};
+}
 
+// TODO: add udp
 enum net_type
 {
     tcp,
-    udp,
+    //udp,
 }
 
 func connect(ip: const string, port: u32, type: net_type) Socket
 {
     sock : Socket;
+
+    sock.handle = os_connect(ip,port,type);
 
     return sock;
 }

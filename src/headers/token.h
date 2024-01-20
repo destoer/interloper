@@ -15,6 +15,8 @@ enum class token_type
     semi_colon,
     colon,
 
+    hash,
+
     left_c_brace,
     right_c_brace,
 
@@ -148,6 +150,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
     {token_type::semi_colon,";",-1},
     {token_type::colon,":",-1,1},
+
+    {token_type::hash,"#",-1},
 
     {token_type::left_c_brace,"{",-1},
     {token_type::right_c_brace,"}",-1},

@@ -9,6 +9,7 @@ constant SYSCALL_LSEEK : u32 = 8;
 constant SYSCALL_EXIT : u32 = 60;
 constant SYSCALL_BRK : u32 = 12;
 
+constant SYSCALL_TIME : u32 = 201;
 
 // memory
 
@@ -192,12 +193,12 @@ func os_open(filename : const c8@, mode : file_mode, opt : file_opt) byte@
     }
 
 
-    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,os_flag,0));
+    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,os_flag));
 }
 
 func os_close(handle : const byte@)
 {
-    intrin_syscall(SYSCALL_CLOSE,handle,0,0);
+    intrin_syscall(SYSCALL_CLOSE,handle);
 }
 
 func os_write(handle : const byte@, data : const byte@, len : u64) s64
@@ -249,11 +250,59 @@ func is_os_handle_valid(handle : byte@) bool
 }
 
 
-// TODO: we might need C structs for this
-// but its not vital it works just yet
 func time() s64
 {
-    x : u32 = 0;
-    return cast(s64,&x);
-    //return intrin_syscall(SYSCALL_TIME,0,0,0);
+    x : s64 = 0;
+    intrin_syscall(SYSCALL_TIME,&x);
+
+    return x;
+}
+
+
+
+// networking
+
+constant AF_INET : u32 = 2;
+constant SOCK_STREAM : u32 = 1;
+
+//#attr(no_reorder)
+struct SockAddr 
+{
+    family : u32 = 0;
+    port : u16 = 0;
+    addr : u32 = 0;
+};
+
+func os_connect(ip: const string, port: u32, type: net_type) byte@
+{
+    switch(type)
+    {
+        case net_type::tcp:
+        {
+        /*
+            // get a socket descriptor
+            handle := linux_socket(AF_INET,SOCK_STREAM,0);
+            
+            // actually connect
+            SockAddr addr;
+
+
+            // convert from dotted quad
+
+            linux_connect(handle,&addr,type_size(SockAddr));
+        */
+        }
+    }
+
+    return NULL;
+}
+
+func os_send(socket: Socket@,buf : const byte[]) s64
+{
+    return -1;
+}
+
+func os_recv(socket: Socket@,buf : byte[]) s64
+{
+    return -1;
 }

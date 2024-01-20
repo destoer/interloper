@@ -1564,6 +1564,29 @@ void destroy_parser(Parser& parser)
     destroy_arr(parser.tokens);
 }
 
+void parse_directive(Parser& parser)
+{
+    const auto next = next_token(parser);
+
+    if(next.type != token_type::symbol)
+    {
+        panic(parser,next,"Expected name for directive got %s\n",tok_name(next.type));
+        return;
+    }
+
+    const auto name = next.literal;
+
+    if(name == "attr")
+    {
+        assert(false);
+    }
+
+    else
+    {
+        panic(parser,next,"Unknown directive %s\n",name.buf);
+    }
+}
+
 bool parse_file(Interloper& itl,const String& file, const String& filename,const String& stl_path, Set<String>& file_set, Array<String> &file_stack)
 {
     // Parse out the file
@@ -1597,6 +1620,18 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         // okay what is our "top level" token
         switch(t.type)
         { 
+            case token_type::hash:
+            {
+                parse_directive(parser);
+
+                if(parser.error)
+                {       
+                    destroy_arr(parser.tokens);
+                    return true;       
+                }
+                break;
+            }
+
             case token_type::import:
             {
                 // stl path: import <name>
@@ -1695,7 +1730,16 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
             default:
             {
-                panic(parser,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
+                if(t.type == token_type::symbol)
+                {
+                    panic(parser,t,"unexpected top level symbol '%s'\n",t.literal.buf);
+                }
+
+                else
+                {
+                    panic(parser,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
+                }
+
                 destroy_arr(parser.tokens);
                 return true;
             }

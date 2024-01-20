@@ -440,12 +440,12 @@ u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
             group[size++] = HIGHER_REGS_X86;
         
             reg = find_register(alloc.free_set,alloc.used_regs,group,size);
-
-            // should not be empty at this point
-            assert(reg != FFS_EMPTY);
             break;
         }
     }
+
+    // should not be empty at this point
+    assert(reg != FFS_EMPTY);
 
     return aquire_reg(ir_reg,alloc,reg);
 }
@@ -471,12 +471,12 @@ u32 realloc_reg(Reg& ir_reg,RegAlloc& alloc)
             group[size++] = LOWER_REGS_X86;
         
             reg = find_register(alloc.free_set,alloc.used_regs,group,size);
-
-            // should not be empty at this point
-            assert(reg != FFS_EMPTY);
             break;
         }
     }
+
+    // should not be empty at this point
+    assert(reg != FFS_EMPTY);
 
     // allocate in the reg
     aquire_reg(ir_reg,alloc,reg);

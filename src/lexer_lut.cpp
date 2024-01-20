@@ -146,7 +146,7 @@ lex_class LEX_CLASS[256] = {
 	lex_class::whitespace, //' '(20)
 	lex_class::not_t, //'!'(21)
 	lex_class::double_quote, //'"'(22)
-	lex_class::error, //'#'(23)
+	lex_class::token_misc, //'#'(23)
 	lex_class::error, //'$'(24)
 	lex_class::mod, //'%'(25)
 	lex_class::and_t, //'&'(26)
@@ -406,7 +406,7 @@ token_type LEX_TYPE[128] = {
 	token_type::error, //' '
 	token_type::error, //'!'
 	token_type::error, //'"'
-	token_type::error, //'#'
+	token_type::hash, //'#'
 	token_type::error, //'$'
 	token_type::error, //'%'
 	token_type::error, //'&'
