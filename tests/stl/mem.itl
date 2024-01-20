@@ -7,5 +7,11 @@ func main() s32
 
     zero_mem(&x[0],x.len);
 
-    return handle_read<s32>(&x[0]);
+    res1 := handle_read<s32>(&x[0]) == 0;
+
+    res2 := bswap<u16>(0xdead) == 0xeade;
+
+    ans := res1 && res2;
+
+    return cast(s32,ans);
 }
