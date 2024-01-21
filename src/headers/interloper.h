@@ -87,6 +87,7 @@ struct Interloper
 
     AstNode *cur_expr = nullptr;
     String cur_file = "";
+    String stl_path = "";
 
     FunctionTable func_table;
     Array<DeclNode*> global_def;

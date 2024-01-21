@@ -1,4 +1,15 @@
 
+/*
+struct Array<T>
+{
+    T[] buf;
+    capacity : u32;
+};
+
+func push_arr<T>(arr : Array<T>)
+
+*/
+
 func array_arena<T>(arena : Arena@, size : u64) T[]
 {
     buf : T[];

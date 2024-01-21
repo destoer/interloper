@@ -35,10 +35,7 @@ void clip_const_type(ConstData& data, u32 size)
         case 4: data.v &= 0xffff'ffff; break;
         case 8: break;
 
-        default:
-        {
-            assert(false);
-        }
+        default: assert(false); break;
     }    
 }
 

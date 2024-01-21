@@ -1,0 +1,15 @@
+
+// expected 16
+#attr(no_reorder)
+struct Foo
+{
+    v1 : u8; // 0
+    v2 : u32; // 4
+    v3 : u8; // 8
+    v4 : u16; // 10
+};
+
+func main() s32 
+{
+    return Foo.size;
+}

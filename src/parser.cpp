@@ -15,6 +15,7 @@ Parser make_parser(const String& cur_file,ArenaAllocator* ast_allocator,ArenaAll
     parser.allocator = ast_allocator;
     parser.string_allocator = string_allocator;
     parser.cur_file = cur_file;
+    parser.cur_path = extract_path(parser.cur_file);
     parser.ast_arrays = ast_arrays;
 
     return parser;
@@ -1382,7 +1383,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
     add_func(itl,func_name.literal,f);
 }
 
-void struct_decl(Interloper& itl,Parser& parser, const String& filename)
+void struct_decl(Interloper& itl,Parser& parser, const String& filename, u32 flags = 0)
 {
     const auto name = next_token(parser);
 
@@ -1399,6 +1400,8 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename)
     }
 
     StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,filename,name);
+
+    struct_node->flags = flags;
 
     // Does this struct have a forced first member?
     if(match(parser,token_type::left_paren))
@@ -1539,12 +1542,18 @@ StringBuffer read_source_file(const String& filename)
 }
 
 
-void add_file(Set<String> &file_set, Array<String>& stack, const String& filename)
+struct FileQueue
 {
-    if(!contains(file_set,filename))
+    Set<String> set;
+    Array<String> stack;
+};
+
+void add_file(FileQueue& queue, const String& filename)
+{
+    if(!contains(queue.set,filename))
     {
-        add(file_set,filename);
-        push_var(stack,filename);
+        add(queue.set,filename);
+        push_var(queue.stack,filename);
     }
 }
 
@@ -1564,7 +1573,42 @@ void destroy_parser(Parser& parser)
     destroy_arr(parser.tokens);
 }
 
-void parse_directive(Parser& parser)
+static constexpr u32 NO_REORDER = (1 << 0);
+
+u32 parse_attr(Parser& parser, const Token& tok)
+{
+    u32 flags = 0;
+
+    consume(parser,token_type::left_paren);
+
+    const auto attr = next_token(parser);
+
+    if(attr.type != token_type::symbol)
+    {
+        panic(parser,tok,"Expected name for attr got %s\n",tok_name(attr.type));
+        return 0;
+    }
+
+    // TODO: just do a single attr for now
+    const auto attr_name = attr.literal;
+
+    if(attr_name == "no_reorder")
+    {
+        flags |= NO_REORDER;
+    }
+
+    else
+    {
+        panic(parser,tok,"Unknown attr %s\n",attr_name.buf);
+        return 0;
+    }
+
+    consume(parser,token_type::right_paren);
+
+    return flags;
+}
+
+void parse_directive(Interloper& itl,Parser& parser)
 {
     const auto next = next_token(parser);
 
@@ -1579,16 +1623,159 @@ void parse_directive(Parser& parser)
 
     if(name == "attr")
     {
-        assert(false);
+        const u32 flags = parse_attr(parser,next);
+
+        if(parser.error)
+        {
+            return;
+        }
+
+        const auto stmt = peek(parser,0);
+
+        // look at which declaration is next?
+        switch(stmt.type)
+        {
+            case token_type::struct_t:
+            {
+                consume(parser,token_type::struct_t);
+                
+                struct_decl(itl,parser,parser.cur_file,flags);
+                break;
+            }
+
+            default:
+            {
+                panic(parser,stmt,"Attribute is not legal on stmt: %s\n",tok_name(stmt.type));
+                return;    
+            }
+        }
     }
 
     else
     {
         panic(parser,next,"Unknown directive %s\n",name.buf);
+        return;
     }
 }
 
-bool parse_file(Interloper& itl,const String& file, const String& filename,const String& stl_path, Set<String>& file_set, Array<String> &file_stack)
+void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
+{
+    const auto &t = next_token(parser);
+
+    switch(t.type)
+    {
+        case token_type::import:
+        {
+            // stl path: import <name>
+            if(match(parser,token_type::logical_lt))
+            {
+                consume(parser,token_type::logical_lt);
+
+                if(!match(parser,token_type::symbol))
+                {
+                    const auto err = next_token(parser);
+                    panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(err.type),err.literal.buf);
+                }
+
+                const auto name_tok = next_token(parser);
+
+                consume(parser,token_type::logical_gt);
+
+                if(parser.error)
+                {
+                    return;
+                }
+
+                const auto full_path = cat_string(itl.string_allocator,itl.stl_path,get_program_name(itl.string_allocator,name_tok.literal)); 
+
+                add_file(queue, full_path);
+            }
+
+            // relative path: import "boop"
+            else if(match(parser,token_type::string))
+            {
+                const auto name_tok = next_token(parser);
+
+                const auto full_path = cat_string(itl.string_allocator,parser.cur_path,get_program_name(itl.string_allocator,name_tok.literal));
+
+                add_file(queue,full_path);
+            }
+
+            // unk
+            else
+            {
+                panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
+                return;
+            }
+            break;
+        }
+
+        // function declartion
+        case token_type::func:
+        {
+            func_decl(itl,parser,parser.cur_file);
+            break;
+        }
+
+        case token_type::struct_t:
+        {
+            struct_decl(itl,parser,parser.cur_file);
+            break;
+        }
+
+        case token_type::enum_t:
+        {
+            enum_decl(itl,parser,parser.cur_file);
+            break;
+        }
+
+        case token_type::type_alias:
+        {
+            type_alias(itl,parser,parser.cur_file);
+            break;
+        }
+
+        // global constant
+        case token_type::constant_t:
+        {
+            DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon,true);
+
+            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,t);
+
+            push_var(itl.constant_decl,const_decl);
+            break; 
+        }
+
+        // global mut
+        case token_type::global_t:
+        {
+            DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
+
+            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,t);
+
+            push_var(itl.global_decl,global_decl);
+            break; 
+        }
+
+
+        default:
+        {
+            if(t.type == token_type::symbol)
+            {
+                panic(parser,t,"unexpected top level symbol '%s'\n",t.literal.buf);
+            }
+
+            else
+            {
+                panic(parser,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
+            }
+
+            return;
+        }
+    }
+}
+
+bool parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
 {
     // Parse out the file
     Parser parser = make_parser(filename,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
@@ -1607,145 +1794,25 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
         print_tokens(parser.tokens);
     }
     
-    const String cur_path = extract_path(filename);
-
     const auto size = count(parser.tokens);
 
-    // TODO: move this to a seperate loop to make freeing up crap ez
-    // TODO: put an extra string in the top level decl of the ast
-    // so we know what file it came from
     while(parser.tok_idx < size)
     {
-        const auto &t = next_token(parser);
+        // check for a directive
+        if(match(parser,token_type::hash))
+        {
+            consume(parser,token_type::hash);
 
-        // okay what is our "top level" token
-        switch(t.type)
-        { 
-            case token_type::hash:
-            {
-                parse_directive(parser);
-
-                if(parser.error)
-                {       
-                    destroy_arr(parser.tokens);
-                    return true;       
-                }
-                break;
-            }
-
-            case token_type::import:
-            {
-                // stl path: import <name>
-                if(match(parser,token_type::logical_lt))
-                {
-                    consume(parser,token_type::logical_lt);
-
-                    if(!match(parser,token_type::symbol))
-                    {
-                        const auto err = next_token(parser);
-                        panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(err.type),err.literal.buf);
-                    }
-
-                    const auto name_tok = next_token(parser);
-
-                    consume(parser,token_type::logical_gt);
-
-                    if(parser.error)
-                    {
-                        destroy_arr(parser.tokens);
-                        return true;
-                    }
-
-                    const auto full_path = cat_string(itl.string_allocator,stl_path,get_program_name(itl.string_allocator,name_tok.literal)); 
-
-                    add_file(file_set,file_stack, full_path);
-                }
-
-                // relative path: import "boop"
-                else if(match(parser,token_type::string))
-                {
-                    const auto name_tok = next_token(parser);
-
-                    const auto full_path = cat_string(itl.string_allocator,cur_path,get_program_name(itl.string_allocator,name_tok.literal));
-
-                    add_file(file_set,file_stack,full_path);
-                }
-
-                // unk
-                else
-                {
-                    panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
-                    destroy_arr(parser.tokens);
-                    return true;
-                }
-                break;
-            }
-
-            // function declartion
-            case token_type::func:
-            {
-                func_decl(itl,parser,filename);
-                break;
-            }
-
-            case token_type::struct_t:
-            {
-                struct_decl(itl,parser,filename);
-                break;
-            }
-
-            case token_type::enum_t:
-            {
-                enum_decl(itl,parser,filename);
-                break;
-            }
-
-            case token_type::type_alias:
-            {
-                type_alias(itl,parser,filename);
-                break;
-            }
-
-            // global constant
-            case token_type::constant_t:
-            {
-                DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon,true);
-
-                GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,filename,t);
-
-                push_var(itl.constant_decl,const_decl);
-                break; 
-            }
-
-            // global mut
-            case token_type::global_t:
-            {
-                DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
-
-                GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,filename,t);
-
-                push_var(itl.global_decl,global_decl);
-                break; 
-            }
-
-
-            default:
-            {
-                if(t.type == token_type::symbol)
-                {
-                    panic(parser,t,"unexpected top level symbol '%s'\n",t.literal.buf);
-                }
-
-                else
-                {
-                    panic(parser,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
-                }
-
-                destroy_arr(parser.tokens);
-                return true;
-            }
+            parse_directive(itl,parser);
         }
 
+        // plain decl
+        else
+        {
+            parse_top_level_token(itl,parser,queue);
+        }
+
+ 
         if(itl.error)
         {
             destroy_arr(parser.tokens);
@@ -1767,28 +1834,28 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,const
 
 bool parse(Interloper& itl, const String& initial_filename)
 {
-    // TODO: destruct these
-    Array<String> file_stack;
-    Set<String> file_set = make_set<String>();
+    FileQueue queue;
+    queue.set = make_set<String>();
 
+    
     // add the initial file
-    add_file(file_set,file_stack,get_program_name(itl.string_allocator,initial_filename));
+    add_file(queue,get_program_name(itl.string_allocator,initial_filename));
 
 
     // TODO: this should probably be a SHELL VAR but just hard code it for now
-    const String stl_path = make_static_string("stl/",strlen("stl/"));
+    itl.stl_path = make_static_string("stl/",strlen("stl/"));
 
     // import basic by default
-    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"basic.itl"));
+    add_file(queue,cat_string(itl.string_allocator,itl.stl_path,"basic.itl"));
 
-    add_file(file_set,file_stack,cat_string(itl.string_allocator,stl_path,"internal.itl"));
+    add_file(queue,cat_string(itl.string_allocator,itl.stl_path,"internal.itl"));
 
     b32 error = false;
 
-    while(count(file_stack))
+    while(count(queue.stack))
     {
         // get the next filename to parse
-        const String filename = pop(file_stack);
+        const String filename = pop(queue.stack);
 
         auto [file,err] = read_str_buf(filename);
 
@@ -1799,7 +1866,7 @@ bool parse(Interloper& itl, const String& initial_filename)
             break;
         }
 
-        error = parse_file(itl,make_string(file),filename,stl_path,file_set,file_stack);
+        error = parse_file(itl,make_string(file),filename,queue);
 
         destroy_arr(file);
 
@@ -1809,8 +1876,8 @@ bool parse(Interloper& itl, const String& initial_filename)
         }
     }
 
-    destroy_arr(file_stack);
-    destroy_set(file_set);
+    destroy_arr(queue.stack);
+    destroy_set(queue.set);
 
     return error;
 }

@@ -404,6 +404,8 @@ struct StructNode
     Array<DeclNode*> members;
     // is there a member forced to be first in the memory layout?
     DeclNode* forced_first = nullptr;
+
+    u32 flags;
 };
 
 struct EnumMemberDecl
@@ -553,7 +555,8 @@ struct Parser
     
     String expression_name;
 
-    String cur_file;
+    String cur_file = "";
+    String cur_path = "";
 
     // error handling
     b32 error = false;
