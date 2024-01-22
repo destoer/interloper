@@ -140,7 +140,7 @@ void setup_header(Elf& elf)
 void align_elf(Elf& elf, u32 align)
 {
     const u64 cur_offset = elf.buffer.size;
-    resize(elf.buffer,align_val(cur_offset,align));   
+    resize(elf.buffer,align_val(cur_offset,align));  
 }
 
 u32 push_string(ElfStringTable& string_table, const String& name)
@@ -759,6 +759,12 @@ void link_opcodes(Interloper& itl, Elf& elf)
             }
 
             case op_type::lb:
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
+
+            case op_type::lh:
             {
                 rewrite_rel_load_store(itl,elf,link);
                 break;

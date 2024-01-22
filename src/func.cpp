@@ -130,7 +130,10 @@ StringBuffer func_generic_name(Interloper& itl, const String& old_name,Array<Typ
 
                 case STRUCT: 
                 {
-                    assert(false);
+                    auto& structure  = struct_from_type(itl.struct_table,type);
+                    push_var(buffer,"_");
+                    push_string(buffer,structure.name);
+                    done = true;
                     break;               
                 }
 

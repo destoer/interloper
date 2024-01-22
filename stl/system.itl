@@ -2,3 +2,6 @@
 import <system_linux>
 
 constant EXIT_INVALID_FILE : s32 = -3;
+
+// TODO: compiler should declare this
+constant LITTLE_ENDIAN : bool = true;

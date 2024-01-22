@@ -1,15 +1,15 @@
 
 
-func check_val(v : u64, sign : bool, len : s64, value : Value, len_out : s64) bool
+func check_val(v : u64, sign : bool, value : Value) bool
 {
-    return value.v == v && sign == value.sign && len == len_out;
+    return value.v == v && sign == value.sign;
 }
 
 func main() s32
 {
-    [value, len] := parse_value("55");
+    [value, str] := parse_value("55");
 
-    res1 := check_val(55,false,2,value,len);
+    res1 := check_val(55,false,value);
 
     return cast(s32,res1);
 }

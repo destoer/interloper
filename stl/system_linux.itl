@@ -11,6 +11,9 @@ constant SYSCALL_BRK : u32 = 12;
 
 constant SYSCALL_TIME : u32 = 201;
 
+constant SYSCALL_SOCKET : u32 = 41;
+constant SYSCALL_CONNECT : u32 = 42;
+
 // memory
 
 
@@ -262,47 +265,80 @@ func time() s64
 
 // networking
 
-constant AF_INET : u32 = 2;
-constant SOCK_STREAM : u32 = 1;
+constant AF_INET : u16 = 2;
+constant SOCK_STREAM : u16 = 1;
 
-//#attr(no_reorder)
+constant INVALID_SOCKET_HANDLE : s64 = -1;
+
+#attr(no_reorder)
 struct SockAddr 
 {
-    family : u32 = 0;
+    family : u16 = 0;
     port : u16 = 0;
     addr : u32 = 0;
+    pad : u8[8];
 };
 
-func os_connect(ip: const string, port: u32, type: net_type) byte@
+func linux_socket(domain: u32, type: u32, protocol : u32) s64
+{
+    return intrin_syscall(SYSCALL_SOCKET,domain,type,protocol);
+}
+
+func linux_connect(handle : s64,addr : byte@,size : u32) s64
+{
+    return intrin_syscall(SYSCALL_CONNECT,handle,addr,size);
+}
+
+func os_connect(ip: const string, port: u16, type: net_type) byte@
 {
     switch(type)
     {
         case net_type::tcp:
         {
-        /*
             // get a socket descriptor
             handle := linux_socket(AF_INET,SOCK_STREAM,0);
             
             // actually connect
-            SockAddr addr;
+            addr : SockAddr;
+            zero_var<SockAddr>(&addr);
 
+            // fill out our details
+            addr.family = AF_INET;
+            addr.port = host_to_network<u16>(port);
 
-            // convert from dotted quad
+            [addr.addr,err] := ip_to_net_addr(ip);
 
-            linux_connect(handle,&addr,type_size(SockAddr));
-        */
+            if(err)
+            {
+                os_close(cast(byte@,handle));
+                return cast(byte@,INVALID_SOCKET_HANDLE);
+            }
+
+            // check connection is fine
+            if(linux_connect(handle,&addr,sizeof_type(SockAddr)) != 0)
+            {
+                os_close(cast(byte@,handle));
+                return cast(byte@,INVALID_SOCKET_HANDLE);
+            }
+
+            return cast(byte@,handle);
         }
     }
 
-    return NULL;
+    return cast(byte@,INVALID_SOCKET_HANDLE);
 }
 
 func os_send(socket: Socket@,buf : const byte[]) s64
 {
-    return -1;
+    return os_write(socket.handle,buf.data,buf.len);
 }
 
 func os_recv(socket: Socket@,buf : byte[]) s64
 {
-    return -1;
+    return os_read(socket.handle,buf.data,buf.len);
+}
+
+func os_socket_close(socket: Socket@)
+{
+    os_close(socket.handle);
 }

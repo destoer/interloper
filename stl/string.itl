@@ -77,8 +77,8 @@ func is_alpha(c : c8) bool
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-// returns number of chars parsed along with value
-func parse_value(str : const string) [Value, s64]
+// where it left off along with value
+func parse_value(str : const string) [Value, const string]
 {
     value : Value;
     data := str.data;
@@ -87,9 +87,8 @@ func parse_value(str : const string) [Value, s64]
     // empty string
     if(!str_valid(str))
     {
-        return value, -1; 
+        return value, str; 
     }
-
 
     if(str[0] == '-')
     {
@@ -119,20 +118,18 @@ func parse_value(str : const string) [Value, s64]
 
             else
             {
-                // letters are not legal in this context
-                if(is_alpha(c))
-                {
-                    return value, -1;
-                }
-
-                done  = true;           
+                // letters terminate
+                done  = true;     
             }
+            
+            if(!done)
+            {
+                // accumulate digits
+                value.v *= 10;
+                value.v += v;
 
-            // accumulate digits
-            value.v *= 10;
-            value.v += v;
-
-            data += 1;
+                data += 1;
+            }
         }
     }
 
@@ -143,7 +140,12 @@ func parse_value(str : const string) [Value, s64]
     }
 
     used := cast(u64,data) - cast(u64,str.data);
-    return value, used;
+    
+    new : const string;
+    new.data = data;
+    new.len = str.len - used;
+
+    return value, new;
 }
 
 func str_equal(v1 : const string, v2 : const string) bool

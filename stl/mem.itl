@@ -25,6 +25,11 @@ func zero_mem(dst: byte@, size : u64)
     }  
 }
 
+func zero_var<T>(dst: T@)
+{
+    zero_mem(dst,sizeof_type(T));
+}
+
 func handle_read<T>(src: const byte@) T
 {
     return @cast(T@,src);
@@ -59,5 +64,5 @@ func host_to_network<T>(v : T) T
     }
 
     // we allready have variables in a native order!
-    return T;
+    return v;
 }

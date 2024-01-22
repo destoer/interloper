@@ -1,23 +1,49 @@
 
+std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot ptr_slot,IndexNode* index_node,PointerType* type)
+{
+    const u32 indexes = count(index_node->indexes);
+
+    if(indexes != 1)
+    {
+        panic(itl,itl_error::array_type_error,"[COMPILE]: expected single index for pointer\n");
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
+    }
+
+    Type* plain = type->contained_type;
+
+    const u32 size = type_size(itl,plain);
+
+    const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[0]);
+    if(!is_integer(subscript_type))
+    {
+        panic(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
+    }
+
+    const SymSlot offset = mul_imm_pow2_res(itl,func,subscript_slot,size);  
+
+    const auto addr = add_res(itl,func,ptr_slot,offset);
+    return std::pair{(Type*)type,addr};
+}
+
 // indexes off a given type + ptr
 std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, SymSlot ptr_slot, SymSlot dst_slot)
 {
-
+    // standard array index
     if(!is_array(type))
     {
         panic(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
     }
 
-    const u32 indexes = count(index_node->indexes);
-
     SymSlot last_slot = ptr_slot;
 
-    
     ArrayType* array_type = (ArrayType*)type;
 
     Type* accessed_type = nullptr;
+
+    const u32 indexes = count(index_node->indexes);
 
     for(u32 i = 0; i < indexes; i++)
     {
@@ -166,11 +192,24 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 
     const auto arr = *arr_ptr;
 
-    
-    // get the initial data ptr
-    const SymSlot data_slot = load_arr_data(itl,func,arr);
+    if(is_array(arr.type))
+    {
+        // get the initial data ptr
+        const SymSlot data_slot = load_arr_data(itl,func,arr);
 
-    return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
+        return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
+    }
+
+    else if(is_pointer(arr.type))
+    {
+        return index_pointer(itl,func,arr.reg.slot,index_node,(PointerType*)arr.type);
+    }
+
+    else
+    {
+        panic(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for index got %s\n",type_name(itl,arr.type));
+        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};          
+    }
 }
 
 Type* read_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)

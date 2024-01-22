@@ -154,10 +154,15 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
                 }
             }
 
+                
+            // TODO: 
+            // if src is not loaded do a direct reload into the dst
+            // to save excess copies?
+
+
             // just do it normally
             rewrite_opcode(itl,alloc,block,node);
             node = node->next;
-            
             break;
         }
 

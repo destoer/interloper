@@ -13,7 +13,48 @@ enum net_type
     //udp,
 }
 
-func connect(ip: const string, port: u32, type: net_type) Socket
+
+
+func ip_to_net_addr(str: const string) [u32,bool]
+{
+    ip : u32 = 0;
+    buf := cast(byte@,&ip);
+
+    // scan each int and shift
+    for(i in 0 < 4)
+    {
+        [value,str] := parse_value(str);
+        buf[i] = cast(u8,value.v);
+
+        // nothing left to parse
+        if(str.len == 0)
+        {
+            return ip, false;
+        }
+
+        // skip dot
+        if(str[0] == '.')
+        {
+            str.data += 1;
+            str.len -= 1;
+        }
+        
+        // this ain't a dotted quad
+        else
+        {
+            return ip, true;
+        }
+    }
+
+    return ip, false;
+}
+
+func socket_valid(sock: const Socket@) bool
+{
+    return sock.handle != cast(byte@,INVALID_SOCKET_HANDLE);
+}
+
+func connect(ip: const string, port: u16, type: net_type) Socket
 {
     sock : Socket;
 
@@ -31,22 +72,22 @@ func listen(port: u32, type: net_type) Socket
 
 func recv(sock: Socket@, buf: byte[]) s64
 {
-    if(!sock)
+    if(!sock || !socket_valid(sock))
     {
         return -1;
     }
 
-    return 0;
+    return os_recv(sock,buf);
 }
 
 func send(sock: Socket@, buf: const byte[]) s64
 {
-    if(!sock)
+    if(!sock || !socket_valid(sock))
     {
         return -1;
     }
 
-    return 0;
+    return os_send(sock,buf);
 }
 
 func send_str(sock: Socket@, str: const string) s64
@@ -65,4 +106,8 @@ func close_sock(sock: Socket@)
     {
         return;
     }
+
+    os_socket_close(sock);
+
+    sock.handle = cast(byte@,INVALID_SOCKET_HANDLE);
 }
