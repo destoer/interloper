@@ -16,7 +16,6 @@ func main() s32
     {
         if(read_arr<u32>(&arr,i) != i + 1)
         {
-            print("{}\n",read_arr<u32>(&arr,i));
             destroy_arr(&arr);
             return 0;
         }
