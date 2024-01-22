@@ -1333,31 +1333,12 @@ b32 type_equal(const Type* ltype, const Type* rtype)
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 {
-    // any ptr rtype is compatible with byte ptr ltype
-    if(is_pointer(ltype) && is_pointer(rtype))
+    // null rtype auto converted 
+    if(is_pointer(ltype) && is_pointer(rtype) && deref_pointer(rtype)->type_idx == u32(builtin_type::null_t))
     {
-        const Type* base_type_ltype = ltype;
-        const Type* base_type_rtype = rtype;
-
-        // a pointer to a pointer is equally acceptable
-        while(is_pointer(base_type_ltype) && is_pointer(base_type_rtype))
-        {
-            base_type_ltype = deref_pointer(base_type_ltype);
-            base_type_rtype = deref_pointer(base_type_rtype);
-        }
-
-        if(base_type_ltype->type_idx == u32(builtin_type::byte_t))
-        {
-            return;
-        }
-
-        // anything of NULL is implictly converted
-        if(base_type_rtype->type_idx == u32(builtin_type::null_t))
-        {
-            return;
-        }
+        return;
     }
-
+    
 
     b32 indirection = true;
 
@@ -1385,7 +1366,10 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 
                 case ARRAY:
                 {
-                    assert(false);
+                    ltype = index_arr(ltype);
+                    rtype = index_arr(rtype);
+
+                    break;
                 }
 
                 // is a standard type, struct, enum, builtin etc2
@@ -1406,6 +1390,12 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
     // anything else
     else
     {
+        // any rtype can be assigned to a byte
+        if(ltype->type_idx == u32(builtin_type::byte_t))
+        {
+            return;
+        }
+
         // if base types still aernt equal we have a problem!
         if(!plain_type_equal(ltype,rtype))
         {
@@ -1878,13 +1868,23 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
 
 }
 
-std::pair<Type*,u32> access_builtin_type_info(Interloper& itl, builtin_type type, const String& member_name)
+std::pair<Type*,u64> access_builtin_type_info(Interloper& itl, builtin_type type, const String& member_name)
 {
     const BuiltinTypeInfo& info = builtin_type_info[u32(type)];
 
     if(member_name == "size")
     {
         return std::pair{make_builtin(itl,builtin_type::u32_t),info.size};
+    }
+
+    else if(member_name == "max")
+    {
+        return std::pair{make_builtin(itl,builtin_type::u32_t),info.max};
+    }
+
+    else if(member_name == "min")
+    {
+        return std::pair{make_builtin(itl,builtin_type::u32_t),info.min};
     }
 
     panic(itl,itl_error::undefined_type_oper,"unknown type info for builtin type %s.%s\n",TYPE_NAMES[u32(type)],member_name.buf);
@@ -2075,6 +2075,10 @@ void parse_enum_def(Interloper& itl, TypeDef& def);
 
 void parse_def(Interloper& itl, TypeDef& def)
 {
+    // this may cross a file boundary
+    // save the old file
+    const auto old_file = itl.cur_file;
+
     if(def.state == def_state::not_checked)
     {
         // mark as checking to lock this against recursion!
@@ -2110,6 +2114,8 @@ void parse_def(Interloper& itl, TypeDef& def)
         panic(itl,itl_error::black_hole,"type %s is recursively defined\n",def.name.buf);
         return;
     }
+
+    itl.cur_file = old_file;
 }
 
 

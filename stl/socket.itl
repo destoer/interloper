@@ -10,7 +10,7 @@ struct Socket
 enum net_type
 {
     tcp,
-    //udp,
+    udp,
 }
 
 
@@ -102,7 +102,7 @@ func send_str(sock: Socket@, str: const string) s64
 
 func close_sock(sock: Socket@)
 {
-    if(!sock)
+    if(!sock || !socket_valid(sock))
     {
         return;
     }

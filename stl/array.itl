@@ -1,15 +1,4 @@
 
-/*
-struct Array<T>
-{
-    T[] buf;
-    capacity : u32;
-};
-
-func push_arr<T>(arr : Array<T>)
-
-*/
-
 func array_arena<T>(arena : Arena@, size : u64) T[]
 {
     buf : T[];
@@ -49,4 +38,79 @@ func u32_array_heap(heap : Heap@, size : u64) u32[]
 func u32_array_arena(arena : Arena@, size : u64) u32[]
 {
     return array_arena<u32>(arena,size);
+}
+
+func array_realloc<T>(heap : Heap@,arr: T@[], size : u64)
+{
+    bytes := sizeof_type(T) * size;
+
+    realloc_heap_panic(heap,&arr.data,bytes);
+
+    arr.len = size;
+}
+
+struct Array
+{
+    buf : byte[];
+    size : u64;
+};
+
+/*
+func index<T>(arr: Array<T>@,index: u32)
+{
+
+}
+*/
+
+
+func clear(arr: Array@)
+{
+    arr.size = 0;
+}
+
+func destroy_arr(arr: Array@)
+{
+    free_heap(&global_heap,&arr.buf.data);
+    arr.size = 0;
+}
+
+func reserve_mem(arr: Array@, size : u64)
+{
+    array_realloc<byte>(&global_heap,&arr.buf,size);
+}
+
+func reserve(arr : Array@, size: u64)
+{
+    free_size := arr.buf.len - arr.size;
+
+    // we have room to just dump this in
+    if(free_size >= size)
+    {
+        return;
+    }
+
+    else
+    {   
+        // reserve double
+        new_capacity := (arr.buf.len + size) * 2;
+        reserve_mem(arr,new_capacity);
+    }
+}
+
+func read_arr<T>(arr : const Array@, idx: u32) T
+{
+    offset := idx * sizeof_type(T);
+
+    return handle_read<T>(&arr.buf[offset]);
+}
+
+func push_arr<T>(arr : Array@, v : T)
+{
+    size := sizeof_type(T);
+
+    reserve(arr,size);
+
+    // actually write in the data
+    handle_write<T>(&arr.buf[arr.size],v);
+    arr.size += size;
 }

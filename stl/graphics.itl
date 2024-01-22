@@ -1,0 +1,64 @@
+struct Window
+{
+    width : u32;
+    height : u32;
+
+    os_win : OSWindow;
+}
+
+// TODO: move this later
+import <socket>
+
+
+
+struct OSWindow
+{
+    // protocol buffer
+    buf : Array;
+
+    sock : Socket;
+}
+
+func os_create_window(str : const string, x : u32, y : u32) OSWindow 
+{
+    win : OSWindow;
+
+    // create a buffer to do our work with
+    win.buf = make_buffer(u16.max);
+
+    // open connection to x server
+    win.sock = connect_unix_domain("/tmp/.X11-unix/X0");
+
+    // attempt to open a window
+
+
+    if(!socket_valid(&win.sock))
+    {
+        print("Could not open window: {} ({},{})\n",str,x,y);
+        exit(1);
+    }
+
+    return win;
+}
+
+func os_destroy_window(win : OSWindow@)
+{
+    destroy_buffer(&win.buf);
+    close_sock(&win.sock);
+}
+
+func open_window(str : const string, x : u32, y : u32) Window
+{
+    win : Window;
+    win.width = x;
+    win.height = y;
+
+    win.os_win = os_create_window(str,x,y);
+
+    return win;
+}
+
+func close_window(win : Window@)
+{
+    os_destroy_window(&win.os_win);
+}

@@ -832,14 +832,6 @@ AstNode *statement(Parser &parser)
 
         case token_type::deref:
         {
-            const auto t2 = peek(parser,0);
-
-            if(t2.type != token_type::symbol)
-            {
-                panic(parser,t2,"statement: expected symbol for deref %s\n");
-                break;
-            }
-
             prev_token(parser);
             return statement_terminate(parser,"pointer deference");
         }

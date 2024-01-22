@@ -107,7 +107,7 @@ func free_heap_node(heap: Heap@, insert: HeapNode@)
 
 func free_heap(heap : Heap@, ptr : byte@@)
 {
-    if(!ptr)
+    if(!@ptr)
     {
         return;
     }
@@ -195,6 +195,56 @@ func alloc_heap(heap : Heap@, count : u64, size : u64) byte@
     // cannot aquire any more memory we are out
     return NULL;
 }
+
+func realloc_heap(heap : Heap@, ptr: byte@@, size: u64) bool
+{
+    // get the actual data pointer
+    old := @ptr;
+
+    // first alloc just behave like alloc
+    if(!old)
+    {
+        @ptr = alloc_heap(heap,1,size);
+        return @ptr == NULL;
+    }
+
+
+
+    // TODO: make this check if we can just extend the old block
+    // rather than just allways requesting we get a new one...
+    new := alloc_heap(heap,1,size);
+
+
+    // failed to get a new buffer just back out
+    // and leave the old one in place
+    if(!new)
+    {
+        return true;
+    }
+
+    // copy over the old data to the new buffer
+    node := cast(HeapNode@,old) - 1;
+    old_size := (node.blocks - 1) * HEAP_BLOCK_SIZE;
+
+    memcpy(new,old,old_size);
+
+    // free up the data
+    free_heap(heap,ptr);
+
+    // actually overwrite the old pointer
+    @ptr = new;
+
+    return false;
+}
+
+func realloc_heap_panic(heap : Heap@, ptr: byte@@, size: u64)
+{
+    if(realloc_heap(heap,ptr,size))
+    {
+        crash_and_burn("out of memory for heap realloc: {}\n",size);
+    }
+}
+
 
 func alloc_heap_panic(heap : Heap@, count : u64, size : u64) byte@
 {

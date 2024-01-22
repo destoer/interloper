@@ -1333,9 +1333,10 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
 
             spill_slot(itl,func,sym.reg);
 
-            if(is_array(sym.type))
+            if(is_fixed_array(sym.type))
             {
-                assert(false);
+                panic(itl,itl_error::array_type_error,"[COMPILE]: cannot take pointer to fixed sized array\n");
+                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
             }
 
             Type* pointer_type = make_pointer(itl,sym.type);

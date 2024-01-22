@@ -1,0 +1,11 @@
+
+import <graphics>
+
+func main() s32
+{
+    win := open_window("interloper",640,480);
+
+    close_window(&win);
+
+    return 0;
+}

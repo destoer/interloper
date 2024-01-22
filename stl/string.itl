@@ -47,6 +47,28 @@ func clip_str(str : string, len : u64) string
     return buf;
 }
 
+func str_copy(dst: string,src: const string) u64
+{
+    size := min_u64(src.len,dst.len);
+
+    memcpy(dst.data,src.data,size);
+
+    return size;
+}
+
+// null terminate the string after copy
+func str_copy_term(dst: string,src: const string) u64
+{
+    size := str_copy(dst,src);
+
+    if(size != 0)
+    {
+        term_pos := min_u64(size,dst.len - 1);
+        dst[term_pos] = '\0';
+    }
+
+    return size;
+}
 
 func swap_c8(v1 : c8@, v2 : c8@)
 {

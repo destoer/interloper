@@ -265,18 +265,27 @@ func time() s64
 
 // networking
 
+constant AF_UNIX : u16 = 1;
 constant AF_INET : u16 = 2;
 constant SOCK_STREAM : u16 = 1;
+constant SOCK_DGRAM : u16 = 2;
 
 constant INVALID_SOCKET_HANDLE : s64 = -1;
 
 #attr(no_reorder)
-struct SockAddr 
+struct SockAddrIn 
 {
     family : u16 = 0;
     port : u16 = 0;
     addr : u32 = 0;
-    pad : u8[8];
+    pad : u8[8] = {?};
+};
+
+#attr(no_reorder)
+struct SockAddrUn
+{
+    family : u16 = 0;
+    path : c8[92] = {?};
 };
 
 func linux_socket(domain: u32, type: u32, protocol : u32) s64
@@ -289,43 +298,85 @@ func linux_connect(handle : s64,addr : byte@,size : u32) s64
     return intrin_syscall(SYSCALL_CONNECT,handle,addr,size);
 }
 
+func connect_unix_domain(name : const string) Socket
+{
+    sock : Socket;
+
+    // open socket
+    handle := linux_socket(AF_UNIX,SOCK_STREAM,0);
+
+    sock.handle = cast(byte@,handle);
+
+    // open connection
+    addr : SockAddrUn;
+    zero_var<SockAddrUn>(&addr);
+
+    addr.family = AF_UNIX;
+
+    // copy the string and null terminate it
+    str_copy_term(addr.path,name);
+
+    // check connection is fine
+    if(linux_connect(handle,&addr,sizeof_type(SockAddrUn)) != 0)
+    {
+        os_close(sock.handle);
+        sock.handle = cast(byte@,INVALID_SOCKET_HANDLE);
+    }
+
+    return sock;
+}
+
 func os_connect(ip: const string, port: u16, type: net_type) byte@
 {
+    handle : s64 = INVALID_SOCKET_HANDLE;
+
     switch(type)
     {
         case net_type::tcp:
         {
             // get a socket descriptor
-            handle := linux_socket(AF_INET,SOCK_STREAM,0);
-            
-            // actually connect
-            addr : SockAddr;
-            zero_var<SockAddr>(&addr);
+            handle = linux_socket(AF_INET,SOCK_STREAM,0);
+        }
 
-            // fill out our details
-            addr.family = AF_INET;
-            addr.port = host_to_network<u16>(port);
-
-            [addr.addr,err] := ip_to_net_addr(ip);
-
-            if(err)
-            {
-                os_close(cast(byte@,handle));
-                return cast(byte@,INVALID_SOCKET_HANDLE);
-            }
-
-            // check connection is fine
-            if(linux_connect(handle,&addr,sizeof_type(SockAddr)) != 0)
-            {
-                os_close(cast(byte@,handle));
-                return cast(byte@,INVALID_SOCKET_HANDLE);
-            }
-
-            return cast(byte@,handle);
+        case net_type::udp:
+        {
+            // get a socket descriptor
+            handle = linux_socket(AF_INET,SOCK_DGRAM,0);
         }
     }
 
-    return cast(byte@,INVALID_SOCKET_HANDLE);
+    // couldn't even open the socket we are done
+    if(handle < 0)
+    {
+       return cast(byte@,INVALID_SOCKET_HANDLE);
+    }
+
+    // actually connect
+    addr : SockAddrIn;
+    zero_var<SockAddrIn>(&addr);
+
+    // fill out our details
+    addr.family = AF_INET;
+    addr.port = host_to_network<u16>(port);
+
+    [addr.addr,err] := ip_to_net_addr(ip);
+
+    if(err)
+    {
+        os_close(cast(byte@,handle));
+        return cast(byte@,INVALID_SOCKET_HANDLE);
+    }
+
+    // check connection is fine
+    if(linux_connect(handle,&addr,sizeof_type(SockAddrIn)) != 0)
+    {
+        os_close(cast(byte@,handle));
+        return cast(byte@,INVALID_SOCKET_HANDLE);
+    }
+
+    // okay we have a connected socket
+    // return the linux handle
+    return cast(byte@,handle);
 }
 
 func os_send(socket: Socket@,buf : const byte[]) s64

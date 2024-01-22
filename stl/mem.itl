@@ -35,6 +35,11 @@ func handle_read<T>(src: const byte@) T
     return @cast(T@,src);
 }
 
+func handle_write<T>(dst: byte@, v : const T)
+{
+    @cast(T@,dst) = v;
+}
+
 // TODO: we need to expose an intrin?
 /*
     #if INTRIN_BSWAP
