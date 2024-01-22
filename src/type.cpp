@@ -1366,6 +1366,12 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 
                 case ARRAY:
                 {
+                    if(!is_runtime_size(ltype) || !is_runtime_size(rtype))
+                    {
+                        panic(itl,itl_error::array_type_error,"Pointer to fixed array");
+                        return;
+                    }
+
                     ltype = index_arr(ltype);
                     rtype = index_arr(rtype);
 
@@ -1385,6 +1391,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
     if(!is_plain(ltype) || !is_plain(rtype))
     {
         panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return;
     }
 
     // anything else
@@ -1400,6 +1407,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
         if(!plain_type_equal(ltype,rtype))
         {
             panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return;
         }
     }
 }
