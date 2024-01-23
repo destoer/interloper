@@ -340,10 +340,6 @@ b32 operator==(const Slot<type> v1,const Slot<type> v2)
     return v1.handle == v2.handle;
 }
 
-// first index of symslot is reserved
-static constexpr SymSlot SYM_ERROR = {0};
-
-
 using LabelSlot = Slot<slot_type::label>;
 
 using BlockSlot = Slot<slot_type::block>;
@@ -357,6 +353,8 @@ static constexpr u32 UNALLOCATED_OFFSET = 0xffff'ffff;
 static constexpr u32 LOCATION_MEM = 0xffffffff;
 static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
+
+b32 is_var(SymSlot slot);
 
 struct Opcode
 {
@@ -443,6 +441,10 @@ void print(const Reg& reg);
 
 // standard symbols
 static constexpr u32 SYMBOL_START = 0x80000000;
+
+// first index of symslot is reserved
+static constexpr SymSlot SYM_ERROR = {SYMBOL_START + 0};
+
 
 
 // TODO:

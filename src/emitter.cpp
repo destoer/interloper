@@ -48,7 +48,7 @@ constexpr OpInfo opcode_three_info(op_type type)
 
 void handle_src_storage(Interloper& itl, Function& func, SymSlot src_slot)
 {
-    if(is_special_reg(src_slot))
+    if(!is_var(src_slot))
     {
         return;
     }
@@ -63,7 +63,7 @@ void handle_src_storage(Interloper& itl, Function& func, SymSlot src_slot)
 
 void handle_dst_storage(Interloper& itl, Function& func, SymSlot dst_slot)
 {
-    if(is_special_reg(dst_slot))
+    if(!is_var(dst_slot))
     {
         return;
     }

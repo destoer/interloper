@@ -10,7 +10,9 @@ struct Window
 import <socket>
 
 
+// TODO: namespace this lot
 
+// https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
 struct OSWindow
 {
     // protocol buffer
@@ -19,31 +21,145 @@ struct OSWindow
     sock : Socket;
 }
 
+func build_request_header(arr: Array@,opcode : u8, data : u8)
+{
+    clear_arr(arr);
+
+    push_arr<u8>(arr,opcode);
+    push_arr<u8>(arr,data);
+
+    // length to be filled later
+    push_arr<u16>(arr,0x00_00);
+}
+
+func pad_x11(arr: Array@, E : u32)
+{
+    pad := (4 - (E & 3)) & 3;
+
+    if(pad != 0)
+    {
+        resize_arr(arr,arr.size + pad);
+    }
+}
+
+func build_auth_packet(buf: Array@)
+{
+    // reset our working buffer
+    clear_arr(buf);
+
+    // build initial authentication packet
+
+    // byte order 
+    if(LITTLE_ENDIAN)
+    {
+        push_arr<u8>(buf,'l');
+    }
+
+    else
+    {
+        push_arr<u8>(buf,'B');
+    }
+
+
+    // unused
+    push_arr<u8>(buf,0x0);
+
+    // version 11.0
+    push_arr<u16>(buf,11);
+    push_arr<u16>(buf,0);
+
+    // no authentication no strings
+    push_arr<u32>(buf,0);
+
+    // pad
+    push_arr<u16>(buf,0);
+}
+
+func read_x11_reply(win: OSWindow@, size : u32)
+{
+    // reset the array so we can read fresh data in
+    clear_arr(&win.buf);
+
+    // get our specified bytes
+    recv_arr_all(&win.sock,&win.buf,size);
+}
+
+func read_setup_info(win: OSWindow@)
+{
+    buf := &win.buf;
+
+    ignore_byte(&win.sock);
+
+    // read in our first batch of data
+    read_x11_reply(win,6);
+
+    log("version {}.{}\n",read_buf<u16>(buf,0),read_buf<u16>(buf,2));
+
+    len : u32 = read_buf<u16>(buf,4) * 4;
+
+    log("len {}\n",len);
+
+    read_x11_reply(win,len);
+
+    dump_arr_bytes(buf);
+}
+
+func authenticate(win: OSWindow@) bool
+{
+    buf := &win.buf;
+
+    build_auth_packet(buf);
+
+    // actually send the packet
+    send_arr(&win.sock,buf);
+
+    // recv back our data
+    rc := recv_var<u8>(&win.sock);
+
+    constant AUTH_SUCCESS : u32 = 1;
+
+    switch(rc)
+    {
+        case AUTH_SUCCESS:
+        {
+            log("connected to x server:\n");
+            read_setup_info(win);
+        }
+
+        default:
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 func os_create_window(str : const string, x : u32, y : u32) OSWindow 
 {
     win : OSWindow;
 
-    // create a buffer to do our work with
-    win.buf = make_buffer(u16.max);
-
     // open connection to x server
     win.sock = connect_unix_domain("/tmp/.X11-unix/X0");
 
-    // attempt to open a window
-
-
     if(!socket_valid(&win.sock))
     {
-        print("Could not open window: {} ({},{})\n",str,x,y);
-        exit(1);
+        crash_and_burn("window socket not valid");
     }
+
+
+    if(authenticate(&win))
+    {
+        crash_and_burn("could not authenticate to server");
+    }
+
 
     return win;
 }
 
 func os_destroy_window(win : OSWindow@)
 {
-    destroy_buffer(&win.buf);
+    destroy_arr(&win.buf);
     close_sock(&win.sock);
 }
 

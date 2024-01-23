@@ -51,6 +51,8 @@ func array_realloc<T>(heap : Heap@,arr: T@[], size : u64)
 
 struct Array
 {
+    // internally treated as a set of bytes
+    // regardless of indexing
     buf : byte[];
     size : u64;
 };
@@ -62,8 +64,7 @@ func index<T>(arr: Array<T>@,index: u32)
 }
 */
 
-
-func clear(arr: Array@)
+func clear_arr(arr: Array@)
 {
     arr.size = 0;
 }
@@ -74,12 +75,28 @@ func destroy_arr(arr: Array@)
     arr.size = 0;
 }
 
-func reserve_mem(arr: Array@, size : u64)
+func reserve_arr_mem(arr: Array@, size : u64)
 {
     array_realloc<byte>(&global_heap,&arr.buf,size);
 }
 
-func reserve(arr : Array@, size: u64)
+func resize_arr(arr : Array@, size : u64)
+{
+    // we have to capacity increase len
+    if(arr.buf.len < size)
+    {
+        arr.size = size;
+    }
+    
+    // need to ask for more memory
+    else
+    {
+        reserve_arr_mem(arr,size * 2);
+        arr.size = size;
+    }
+}
+
+func reserve_arr(arr : Array@, size: u64)
 {
     free_size := arr.buf.len - arr.size;
 
@@ -93,24 +110,44 @@ func reserve(arr : Array@, size: u64)
     {   
         // reserve double
         new_capacity := (arr.buf.len + size) * 2;
-        reserve_mem(arr,new_capacity);
+        reserve_arr_mem(arr,new_capacity);
     }
+}
+
+func read_buf<T>(arr : const Array@, offset : u32) T
+{
+    return handle_read<T>(&arr.buf[offset]);
 }
 
 func read_arr<T>(arr : const Array@, idx: u32) T
 {
     offset := idx * sizeof_type(T);
-
-    return handle_read<T>(&arr.buf[offset]);
+    return read_buf<T>(arr,offset);
 }
+
 
 func push_arr<T>(arr : Array@, v : T)
 {
     size := sizeof_type(T);
 
-    reserve(arr,size);
+    reserve_arr(arr,size);
 
     // actually write in the data
     handle_write<T>(&arr.buf[arr.size],v);
     arr.size += size;
+}
+
+func dump_arr_bytes(arr: const Array@)
+{
+    for(i in 0 < arr.size)
+    {
+        if((i & 15) == 0)
+        {
+            linefeed();
+        }
+
+        print("{x} ",arr.buf[i]);
+    }
+
+    linefeed();
 }

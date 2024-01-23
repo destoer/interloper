@@ -1,5 +1,5 @@
 
-
+import <array>
 
 struct Socket
 {
@@ -70,25 +70,81 @@ func listen(port: u32, type: net_type) Socket
     return sock;   
 }
 
-func recv(sock: Socket@, buf: byte[]) s64
+func recv_raw(sock: Socket@, ptr: byte@, size : u64) s64
 {
     if(!sock || !socket_valid(sock))
     {
         return -1;
     }
 
-    return os_recv(sock,buf);
+    return os_recv(sock,ptr,size);
+}
+
+func recv(sock: Socket@, buf : byte[]) s64
+{
+    return recv_raw(sock,buf.data,buf.len);
+}
+
+func ignore_byte(sock: Socket@) s64
+{
+    v : byte;
+    return recv_raw(sock,&v,1);
+}
+
+func recv_arr_all(sock: Socket@, arr: Array@, size: u64) s64
+{
+    to_read := size;
+
+    old := arr.size;
+
+    // keep reading till we have the ammount requested
+    while(to_read > 0)
+    {
+        read := recv_raw(sock,&arr.buf[arr.size],to_read);
+
+        if(read < 0)
+        {
+            return -1;
+        }
+
+        to_read -= cast(u64,read);
+        arr.size += cast(u64,read);
+    }
+
+    // calc the ammount read
+    return arr.size - old;
+}
+
+func recv_var<T>(sock: Socket@) T
+{
+    v : T;
+
+    recv_raw(sock,&v,sizeof_type(T));
+
+    return host_to_network<T>(v);
+}
+
+
+func send_raw(sock : Socket@, ptr: const byte@, size : u64) s64
+{
+    if(!sock || !socket_valid(sock))
+    {
+        return -1;
+    }
+
+    return os_send(sock,ptr,size);
 }
 
 func send(sock: Socket@, buf: const byte[]) s64
 {
-    if(!sock || !socket_valid(sock))
-    {
-        return -1;
-    }
-
-    return os_send(sock,buf);
+    return send_raw(sock,buf.data,buf.len);
 }
+
+func send_arr(sock: Socket@, arr : const Array@) s64
+{
+    return send_raw(sock,arr.buf.data,arr.size);
+}
+
 
 func send_str(sock: Socket@, str: const string) s64
 {

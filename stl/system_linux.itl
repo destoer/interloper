@@ -379,14 +379,14 @@ func os_connect(ip: const string, port: u16, type: net_type) byte@
     return cast(byte@,handle);
 }
 
-func os_send(socket: Socket@,buf : const byte[]) s64
+func os_send(socket: Socket@,ptr : const byte@, len : u64) s64
 {
-    return os_write(socket.handle,buf.data,buf.len);
+    return os_write(socket.handle,ptr,len);
 }
 
-func os_recv(socket: Socket@,buf : byte[]) s64
+func os_recv(socket: Socket@,ptr : byte@, len : u64) s64
 {
-    return os_read(socket.handle,buf.data,buf.len);
+    return os_read(socket.handle,ptr,len);
 }
 
 func os_socket_close(socket: Socket@)
