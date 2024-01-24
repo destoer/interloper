@@ -151,7 +151,7 @@ func recv_var<T>(sock: Socket@) T
     return v;
 }
 
-func send_var<T>(sock: Socket@, v : T@)
+func send_var<T>(sock: Socket@, v : const T@)
 {
     send_raw(sock,v,sizeof_data(T));
 }
