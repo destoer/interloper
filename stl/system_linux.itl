@@ -10,6 +10,7 @@ constant SYSCALL_EXIT : u32 = 60;
 constant SYSCALL_BRK : u32 = 12;
 
 constant SYSCALL_TIME : u32 = 201;
+constant SYSCALL_NANOSLEEP : u32 = 35;
 
 constant SYSCALL_SOCKET : u32 = 41;
 constant SYSCALL_CONNECT : u32 = 42;
@@ -140,9 +141,6 @@ func at_exit()
     //close_file(&stdout);
 }
 
-constant FAILURE_OPEN_STDOUT : s32 = 0xf000_0001;
-constant FAILURE_OPEN_STDIN : s32 = 0xf000_0002;
-
 func exit(exit_code: s32)
 {
     at_exit();
@@ -261,6 +259,19 @@ func time() s64
     return x;
 }
 
+struct TimeSpec
+{
+    sec : s64;
+    nsec : s64;
+}
+
+func os_sleep_ms(ms : u64)
+{
+    spec : TimeSpec;
+    spec.sec = ms / MS_TO_SEC;
+    spec.nsec = (ms % MS_TO_SEC) * MS_TO_NSEC;
+    intrin_syscall(SYSCALL_NANOSLEEP,&spec,NULL);
+} 
 
 
 // networking

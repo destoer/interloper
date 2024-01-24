@@ -315,6 +315,30 @@ AstNode* builtin_type_info_access(Parser& parser,builtin_type type)
     return nullptr;   
 }
 
+AstNode* type_operator(Parser& parser, ast_type kind)
+{
+    consume_expr(parser,token_type::left_paren);
+
+    // get_type is inside the normal parser we need
+    // to correct the tok idx
+    parser.tok_idx -= 1;
+
+    auto type = parse_type(parser);
+
+    if(!type)
+    {
+        type_panic(parser);
+        return nullptr;
+    }
+
+    // correct our state machine
+    parser.expr_tok = next_token(parser);
+
+    consume_expr(parser,token_type::right_paren);
+
+    return ast_type_operator(type,kind);   
+}
+
 // unary operators
 AstNode *nud(Parser &parser, const Token &t)
 {
@@ -419,27 +443,15 @@ AstNode *nud(Parser &parser, const Token &t)
         // sizeof_type(<type>)
         case token_type::sizeof_type_t:
         {
-            consume_expr(parser,token_type::left_paren);
-
-            // get_type is inside the normal parser we need
-            // to correct the tok idx
-            parser.tok_idx -= 1;
-
-            auto type = parse_type(parser);
-
-            if(!type)
-            {
-                type_panic(parser);
-                return nullptr;
-            }
-
-            // correct our state machine
-            parser.expr_tok = next_token(parser);
-
-            consume_expr(parser,token_type::right_paren);
-
-            return ast_sizeof_type(type);    
+            return type_operator(parser,ast_type::sizeof_type_t);   
         }
+
+        // sizeof_data(<type>)
+        case token_type::sizeof_data_t:
+        {
+            return type_operator(parser,ast_type::sizeof_data_t);   
+        }
+
 
         // initializer list
         case token_type::left_c_brace:

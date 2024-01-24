@@ -294,7 +294,10 @@ func print(fmt: const string, args : ...)
 
 func log(fmt: const string, args : ...)
 {
-    print_args(fmt,args);
+    if(ENABLE_LOGS)
+    {
+        print_args(fmt,args);
+    }
 }
 
 // TODO: add line and file info? (what mechanism should be used for this)

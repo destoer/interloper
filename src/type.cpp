@@ -295,6 +295,24 @@ u32 type_size(Interloper& itl,const Type *type)
 }
 
 
+u32 data_size(Interloper& itl,const Type *type)
+{
+    switch(type->type_idx)
+    {
+        case STRUCT:
+        {
+            const auto& structure = struct_from_type(itl.struct_table,type);
+            return structure.data_size;
+        }   
+
+        default:
+        {
+            return type_size(itl,type);
+        }
+    }
+}
+
+
 const Type* deref_pointer(const Type* type)
 {
     const PointerType* pointer_type = (PointerType*)type;

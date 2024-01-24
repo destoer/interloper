@@ -5,6 +5,8 @@ func main() s32
 {
     win := open_window("interloper",640,480);
 
+    sleep_ms(1500);
+
     close_window(&win);
 
     return 0;

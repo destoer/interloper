@@ -5,3 +5,7 @@ constant EXIT_INVALID_FILE : s32 = -3;
 
 // TODO: compiler should declare this
 constant LITTLE_ENDIAN : bool = true;
+constant ENABLE_LOGS : bool = true;
+
+constant FAILURE_OPEN_STDOUT : s32 = -200;
+constant FAILURE_OPEN_STDIN : s32 = -201;

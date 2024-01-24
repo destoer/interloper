@@ -85,10 +85,13 @@ func recv(sock: Socket@, buf : byte[]) s64
     return recv_raw(sock,buf.data,buf.len);
 }
 
-func ignore_byte(sock: Socket@) s64
+func recv_ignore(sock: Socket@, size : u32)
 {
-    v : byte;
-    return recv_raw(sock,&v,1);
+    for(i in 0 < size)
+    {
+        v : byte;
+        recv_raw(sock,&v,1);
+    }
 }
 
 func recv_raw_all(sock: Socket@, ptr : byte@, size : u64) s64
@@ -139,11 +142,18 @@ func recv_clear_arr(sock: Socket@, arr: Array@, size: u64) s64
 
 func recv_var<T>(sock: Socket@) T
 {
-    // we allways want to read the entire var for this
+
+    // NOTE: we want to only read till the end of data without padding
+    // incase we have differing alignemnts
     v : T;
-    recv_raw_all(sock,&v,sizeof_type(T));
+    recv_raw_all(sock,&v,sizeof_data(T));
 
     return v;
+}
+
+func send_var<T>(sock: Socket@, v : T@)
+{
+    send_raw(sock,v,sizeof_data(T));
 }
 
 func send_raw(sock : Socket@, ptr: const byte@, size : u64) s64

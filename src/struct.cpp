@@ -261,6 +261,8 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
             offset += size * count;
         }
 
+        structure.data_size = offset;
+
         // align final offset against GPR_SIZE to get the final size
         structure.size = align_val(offset,GPR_SIZE);   
     }
@@ -291,7 +293,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
         // finalise the offsets
         structure.size = calc_alloc_sections(alloc_start,size_count,byte_start);
 
-
+        structure.data_size = structure.size;
 
         // iter back over every member and give its offset
         for(u32 m = 0; m < count(structure.members); m++)

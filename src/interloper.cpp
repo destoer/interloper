@@ -1521,6 +1521,17 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             return make_builtin(itl,builtin_type::u32_t);
         }
 
+        case ast_type::sizeof_data_t:
+        {
+            TypeNode* type_node = (TypeNode*)node;
+
+            // move in data size
+            const u32 size = data_size(itl,get_type(itl,type_node));
+            mov_imm(itl,func,dst_slot,size);
+
+            return make_builtin(itl,builtin_type::u32_t);      
+        }
+
         case ast_type::cast:
         {
             BinNode* bin_node = (BinNode*)node;

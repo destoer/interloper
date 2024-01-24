@@ -28,7 +28,7 @@ static constexpr HashNode<String,token_type> KEYWORD_TABLE[KEYWORD_TABLE_SIZE] =
     {"",token_type::error},
     {"",token_type::error},
     {"",token_type::error},
-    {"",token_type::error},
+    {"sizeof_data",token_type::sizeof_data_t},
     {"func",token_type::func},
     {"",token_type::error},
     {"",token_type::error},

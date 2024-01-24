@@ -310,6 +310,10 @@ struct Struct
     // total size of the struct
     u32 size = 0;
 
+    // data size without end padding
+    // if no re order used
+    u32 data_size = 0;
+
     u32 type_idx = 0;
 };
 

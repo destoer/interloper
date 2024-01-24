@@ -20,6 +20,7 @@ enum class ast_type
     cast,
     sizeof_t,
     sizeof_type_t,
+    sizeof_data_t,
     enum_t,
     struct_t,
     scope,
@@ -123,6 +124,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "cast",
     "sizeof",
     "sizeof_type",
+    "sizeof_data",
     "struct",
     "enum",
     "scope",
@@ -858,9 +860,9 @@ AstNode* ast_enum(Parser& parser, const String& name,const String& struct_name, 
 }
 
 
-AstNode* ast_sizeof_type(TypeNode* type)
+AstNode* ast_type_operator(TypeNode* type,ast_type kind)
 {
-    type->node.type = ast_type::sizeof_type_t;
+    type->node.type = kind;
 
     return (AstNode*)type;    
 }

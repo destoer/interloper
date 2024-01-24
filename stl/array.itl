@@ -144,6 +144,26 @@ func push_array<T>(arr : Array@, v : T)
     arr.size += size;
 }
 
+func push_u8(arr : Array@, v : u8)
+{
+    push_array<u8>(arr,v);
+}
+
+func push_u16(arr : Array@, v : u16)
+{
+    push_array<u16>(arr,v);
+}
+
+func push_u32(arr : Array@, v : u32)
+{
+    push_array<u32>(arr,v);
+}
+
+func push_u64(arr : Array@, v : u64)
+{
+    push_array<u64>(arr,v);
+}
+
 func str_from_array(arr : Array@) string
 {
     str : string;

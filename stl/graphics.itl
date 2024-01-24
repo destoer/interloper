@@ -19,27 +19,15 @@ struct OSWindow
     buf : Array;
 
     sock : Socket;
+
+    root_win : u32;
+    screen_x : u32;
+    screen_y : u32;
 }
 
-func build_request_header(arr: Array@,opcode : u8, data : u8)
+func pad_x11(E : u32) u32
 {
-    clear_array(arr);
-
-    push_array<u8>(arr,opcode);
-    push_array<u8>(arr,data);
-
-    // length to be filled later
-    push_array<u16>(arr,0x00_00);
-}
-
-func pad_x11(arr: Array@, E : u32)
-{
-    pad := (4 - (E & 3)) & 3;
-
-    if(pad != 0)
-    {
-        resize_array(arr,arr.size + pad);
-    }
+    return (4 - (E & 3)) & 3;
 }
 
 func build_auth_packet(buf: Array@)
@@ -52,36 +40,33 @@ func build_auth_packet(buf: Array@)
     // byte order 
     if(LITTLE_ENDIAN)
     {
-        push_array<u8>(buf,'l');
+        push_u8(buf,'l');
     }
 
     else
     {
-        push_array<u8>(buf,'B');
+        push_u8(buf,'B');
     }
 
 
     // unused
-    push_array<u8>(buf,0x0);
+    push_u8(buf,0x0);
 
     // version 11.0
-    push_array<u16>(buf,11);
-    push_array<u16>(buf,0);
+    push_u16(buf,11);
+    push_u16(buf,0);
 
     // no authentication no strings
-    push_array<u32>(buf,0);
+    push_u32(buf,0);
 
     // pad
-    push_array<u16>(buf,0);
+    push_u32(buf,0);
 }
 
 func read_x11_reply(win: OSWindow@, size : u32)
 {
-    // reset the array so we can read fresh data in
-    clear_array(&win.buf);
-
     // get our specified bytes
-    recv_arr_all(&win.sock,&win.buf,size);
+    recv_clear_arr(&win.sock,&win.buf,size);
 }
 
 
@@ -110,12 +95,63 @@ struct XSetupInfo
     pad1 : u32;
 };
 
+#attr(no_reorder)
+struct XFormat
+{
+    depth : u8;
+    bpp : u8;
+    scanline_pad : u8;
+    pad1 : u8[5];
+};
+
+#attr(no_reorder)
+struct XScreen
+{
+    root : u32;
+    colour_map : u32;
+    white : u32;
+    black : u32;
+    input_mask : u32;
+    width : u16;
+    height : u16;
+    width_m : u16;
+    height_m : u16;
+    min_map : u16;
+    max_map : u16;
+    root_visual : u32;
+    backing_store : u8;
+    save_under : u8;
+    root_depth : u8;
+    depth_count : u8;
+}
+
+#attr(no_reorder)
+struct XDepth
+{
+    depth : u8;
+    pad1 : u8;
+    vis_size : u16;
+    pad2 : u32;
+}
+
+#attr(no_reorder)
+struct XVisualType
+{
+    id : u32;
+    class : u8;
+    bpr: u8;
+    map_entires : u16;
+    red_mask : u32;
+    green_mask : u32;
+    blue_mask : u32;
+    pad1 : u32;
+}
 
 func read_setup_info(win: OSWindow@)
 {
     buf := &win.buf;
 
-    ignore_byte(&win.sock);
+    recv_ignore(&win.sock,1);
 
     // read in our first batch of data
     read_x11_reply(win,6);
@@ -128,9 +164,56 @@ func read_setup_info(win: OSWindow@)
 
     info := recv_var<XSetupInfo>(&win.sock);
 
-    recv_clear_arr(&win.sock,buf,info.vendor_size);
+    log("big endian bitmap order: {}\n",cast(bool,info.bitmap_order));
 
+    read_x11_reply(win,info.vendor_size);
     log("vendor {}\n",str_from_array(buf),info.vendor_size);
+
+    recv_ignore(&win.sock,pad_x11(info.vendor_size));
+
+    for(i in 0 < info.format_size)
+    {
+        fmt := recv_var<XFormat>(&win.sock);
+        
+        log("format {}\n",i);
+        log("depth {}\n",fmt.depth);
+        log("bits per pixel {}\n",fmt.bpp);
+        log("scanline pad {}\n\n",fmt.scanline_pad);
+    }
+
+    for(i in 0 < info.screen_count)
+    {
+        screen := recv_var<XScreen>(&win.sock);
+        log("\nscreen {}\n",i);
+        log("root {}\n",screen.root);
+        log("dimensions {} : {}\n",screen.width, screen.height);
+
+        // default this to first screen
+        if(i == 0)
+        {
+            win.screen_x = screen.width;
+            win.screen_y = screen.height;
+            win.root_win = screen.root;
+        }
+
+        // read out each depth
+        for(d in 0 < screen.depth_count)
+        {
+            depth := recv_var<XDepth>(&win.sock);
+
+            log("depth {}\n",depth.depth);
+
+            for(v in 0 < depth.vis_size)
+            {
+                visual_type := recv_var<XVisualType>(&win.sock);
+
+                log("id {}\n",visual_type.id);
+                log("class {}\n",visual_type.class);
+                log("bpr {}\n\n",visual_type.bpr); 
+            }
+        }
+    }
+
 }
 
 func authenticate(win: OSWindow@) bool
@@ -164,8 +247,44 @@ func authenticate(win: OSWindow@) bool
     return false;
 }
 
+#attr(no_reorder)
+struct XCreateWindow
+{
+    opcode : u8 = 1;
+    depth : u8;
+    req_len : u16;
+    window_id : u32;
+    x : s16;
+    y : s16;
+    width : u16;
+    height : u16;
+    border_width : u16;
+    class : u16;
+    visual_id : u16;
+    value_mask : u32;
+}
+
+func x11_req_len(len : u32) u16
+{
+    return cast(u16,len / 4);
+}
+
 func create_window(win : OSWindow@, x : u32, y : u32) bool
 {
+    // attempt to get a rgba window
+    win_req : XCreateWindow;
+    win_req.req_len = x11_req_len(sizeof_data(XCreateWindow));
+
+/*
+    win_req.x = cast(s16,win.screen_x / 2);
+    win_req.y = cast(s16,win.screen_y / 2);
+*/
+    
+    win_req.width = cast(u16,x);
+    win_req.height = cast(u16,y);
+
+    send_var<XCreateWindow>(&win.sock,&win_req);
+
     return false;
 }
 

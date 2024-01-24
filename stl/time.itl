@@ -1,0 +1,14 @@
+
+
+constant MS_TO_SEC : u32 = 1000;
+constant MS_TO_NSEC : u32 = 1000_000;
+
+func sleep_ms(ms : u32)
+{
+    os_sleep_ms(ms);
+}
+
+func sleep_s(s : u32)
+{
+    sleep_ms(s * MS_TO_SEC);
+}
