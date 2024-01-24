@@ -1,0 +1,26 @@
+
+
+struct Point
+{
+    x : u32;
+    y : u32;
+};
+
+// make sure there is no name clash
+func sum(x : u32, y : u32)
+{
+    return x + y;
+}
+
+func sum(this: Point)
+{
+    sum(this.x,this.y);
+}
+
+
+func main() s32
+{
+    point : Point = {3,5};
+
+    return point.sum();
+}

@@ -91,19 +91,14 @@ func ignore_byte(sock: Socket@) s64
     return recv_raw(sock,&v,1);
 }
 
-func recv_arr_all(sock: Socket@, arr: Array@, size: u64) s64
+func recv_raw_all(sock: Socket@, ptr : byte@, size : u64) s64
 {
-    // make sure we can read all this in
-    reserve_arr(arr,size);
-
     to_read := size;
-
-    old := arr.size;
 
     // keep reading till we have the ammount requested
     while(to_read > 0)
     {
-        read := recv_raw(sock,&arr.buf[arr.size],to_read);
+        read := recv_raw(sock,ptr,to_read);
 
         if(read < 0)
         {
@@ -111,22 +106,45 @@ func recv_arr_all(sock: Socket@, arr: Array@, size: u64) s64
         }
 
         to_read -= cast(u64,read);
-        arr.size += cast(u64,read);
+        ptr += cast(u64,read);
     }
 
+    return size;
+}
+
+func recv_arr_all(sock: Socket@, arr: Array@, size: u64) s64
+{
+    // make sure we can read all this in
+    reserve_array(arr,size);
+
+    read := recv_raw_all(sock,&arr.buf[arr.size],size);
+
+    if(read == -1)
+    {
+        return -1;
+    }
+
+    arr.size += cast(u64,read);
+
     // calc the ammount read
-    return arr.size - old;
+    return read;
+}
+
+func recv_clear_arr(sock: Socket@, arr: Array@, size: u64) s64
+{
+    clear_array(arr);
+
+    return recv_arr_all(sock,arr,size);
 }
 
 func recv_var<T>(sock: Socket@) T
 {
+    // we allways want to read the entire var for this
     v : T;
+    recv_raw_all(sock,&v,sizeof_type(T));
 
-    recv_raw(sock,&v,sizeof_type(T));
-
-    return host_to_network<T>(v);
+    return v;
 }
-
 
 func send_raw(sock : Socket@, ptr: const byte@, size : u64) s64
 {
@@ -143,7 +161,7 @@ func send(sock: Socket@, buf: const byte[]) s64
     return send_raw(sock,buf.data,buf.len);
 }
 
-func send_arr(sock: Socket@, arr : const Array@) s64
+func send_array(sock: Socket@, arr : const Array@) s64
 {
     return send_raw(sock,arr.buf.data,arr.size);
 }

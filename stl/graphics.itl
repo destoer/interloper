@@ -23,13 +23,13 @@ struct OSWindow
 
 func build_request_header(arr: Array@,opcode : u8, data : u8)
 {
-    clear_arr(arr);
+    clear_array(arr);
 
-    push_arr<u8>(arr,opcode);
-    push_arr<u8>(arr,data);
+    push_array<u8>(arr,opcode);
+    push_array<u8>(arr,data);
 
     // length to be filled later
-    push_arr<u16>(arr,0x00_00);
+    push_array<u16>(arr,0x00_00);
 }
 
 func pad_x11(arr: Array@, E : u32)
@@ -38,51 +38,78 @@ func pad_x11(arr: Array@, E : u32)
 
     if(pad != 0)
     {
-        resize_arr(arr,arr.size + pad);
+        resize_array(arr,arr.size + pad);
     }
 }
 
 func build_auth_packet(buf: Array@)
 {
     // reset our working buffer
-    clear_arr(buf);
+    clear_array(buf);
 
     // build initial authentication packet
 
     // byte order 
     if(LITTLE_ENDIAN)
     {
-        push_arr<u8>(buf,'l');
+        push_array<u8>(buf,'l');
     }
 
     else
     {
-        push_arr<u8>(buf,'B');
+        push_array<u8>(buf,'B');
     }
 
 
     // unused
-    push_arr<u8>(buf,0x0);
+    push_array<u8>(buf,0x0);
 
     // version 11.0
-    push_arr<u16>(buf,11);
-    push_arr<u16>(buf,0);
+    push_array<u16>(buf,11);
+    push_array<u16>(buf,0);
 
     // no authentication no strings
-    push_arr<u32>(buf,0);
+    push_array<u32>(buf,0);
 
     // pad
-    push_arr<u16>(buf,0);
+    push_array<u16>(buf,0);
 }
 
 func read_x11_reply(win: OSWindow@, size : u32)
 {
     // reset the array so we can read fresh data in
-    clear_arr(&win.buf);
+    clear_array(&win.buf);
 
     // get our specified bytes
     recv_arr_all(&win.sock,&win.buf,size);
 }
+
+
+func read_x11_struct<T>(win: OSWindow@) T
+{
+    return recv_var_all<T>(win.sock);
+}
+
+#attr(no_reorder)
+struct XSetupInfo
+{
+    release : u32;
+    resource_id : u32;
+    resource_id_mask : u32;
+    motion_buffer_size : u32;
+    vendor_size : u16;
+    max_req_len : u16;
+    screen_count : u8;
+    format_size : u8;
+    image_order  : u8;
+    bitmap_order : u8;
+    bitmap_scanline_fmt_unit : u8;
+    bitmap_format_scanline_pad : u8;
+    min_keycode : u8;
+    max_keycode : u8;
+    pad1 : u32;
+};
+
 
 func read_setup_info(win: OSWindow@)
 {
@@ -93,15 +120,17 @@ func read_setup_info(win: OSWindow@)
     // read in our first batch of data
     read_x11_reply(win,6);
 
-    log("version {}.{}\n",read_buf<u16>(buf,0),read_buf<u16>(buf,2));
+    log("version {}.{}\n",read_buffer<u16>(buf,0),read_buffer<u16>(buf,2));
 
-    len : u32 = read_buf<u16>(buf,4) * 4;
+    len : u32 = read_buffer<u16>(buf,4) * 4;
 
     log("len {}\n",len);
 
-    read_x11_reply(win,len);
+    info := recv_var<XSetupInfo>(&win.sock);
 
-    dump_arr_bytes(buf);
+    recv_clear_arr(&win.sock,buf,info.vendor_size);
+
+    log("vendor {}\n",str_from_array(buf),info.vendor_size);
 }
 
 func authenticate(win: OSWindow@) bool
@@ -111,7 +140,7 @@ func authenticate(win: OSWindow@) bool
     build_auth_packet(buf);
 
     // actually send the packet
-    send_arr(&win.sock,buf);
+    send_array(&win.sock,buf);
 
     // recv back our data
     rc := recv_var<u8>(&win.sock);
@@ -135,6 +164,11 @@ func authenticate(win: OSWindow@) bool
     return false;
 }
 
+func create_window(win : OSWindow@, x : u32, y : u32) bool
+{
+    return false;
+}
+
 func os_create_window(str : const string, x : u32, y : u32) OSWindow 
 {
     win : OSWindow;
@@ -154,12 +188,17 @@ func os_create_window(str : const string, x : u32, y : u32) OSWindow
     }
 
 
+    if(create_window(&win,x,y))
+    {
+        crash_and_burn("could not create window");
+    }
+
     return win;
 }
 
 func os_destroy_window(win : OSWindow@)
 {
-    destroy_arr(&win.buf);
+    destroy_array(&win.buf);
     close_sock(&win.sock);
 }
 

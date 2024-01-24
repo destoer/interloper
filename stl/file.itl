@@ -69,7 +69,7 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
         return file,true;
     }
 
-    file.buf = byte_array_heap(&global_heap,FILE_DEFAULT_BUFFER_SIZE);
+    file.buf = byte_arr_heap(&global_heap,FILE_DEFAULT_BUFFER_SIZE);
 
     return file,false;
 }
@@ -431,7 +431,7 @@ func read_bin(name : const string) [byte[],bool]
         return buf,true;
     }
 
-    buf = byte_array_heap(&global_heap,cast(u64,size));
+    buf = byte_arr_heap(&global_heap,cast(u64,size));
 
     [read,file_res] := read_file_mem(&file,buf);
 

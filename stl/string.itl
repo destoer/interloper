@@ -1,30 +1,6 @@
 
 constant ASCII_CASE_GAP : u8 = 'a' - 'A';
 
-/*
-// heap allocated str
-struct String
-{
-    raw_str: string;
-    capacity : u32;
-};
-
-
-func resize_string(str: String@, new_size : u32)
-{
-    if(new_size > str.capacity)
-    {
-        str.raw_str.data = cast(c8@,realloc_heap_panic(&global_heap,new_size,1));
-    }
-
-    // just crush the internal string
-    else
-    {
-        str.raw_str.len = new_size;
-    }
-}
-*/
-
 func to_lower(char: c8) c8
 {
     if(char >= 'A' && char <= 'Z')

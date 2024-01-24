@@ -5,7 +5,7 @@ func test_arena() bool
     buf : byte[1024];
     arena : Arena = make_arena(buf);
 
-    vla : byte[] = byte_array_arena(&arena,25);
+    vla : byte[] = byte_arr_arena(&arena,25);
 
     for [@v , i] in vla
     {
@@ -23,7 +23,7 @@ func test_heap() bool
     heap_usage(&global_heap);
 
 
-    vla : byte[] = byte_array_heap(&global_heap,25);
+    vla : byte[] = byte_arr_heap(&global_heap,25);
 
     print("after alloc:\n");
     heap_usage(&global_heap);
@@ -35,7 +35,7 @@ func test_heap() bool
 
     res := vla.len * vla[3];
 
-    free_heap(&global_heap,&vla.data);
+    destroy_arr_heap<byte>(&global_heap,&vla);
     
     print("after free:\n");
     heap_usage(&global_heap);

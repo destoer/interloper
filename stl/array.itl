@@ -1,5 +1,5 @@
 
-func array_arena<T>(arena : Arena@, size : u64) T[]
+func arr_arena<T>(arena : Arena@, size : u64) T[]
 {
     buf : T[];
 
@@ -10,7 +10,7 @@ func array_arena<T>(arena : Arena@, size : u64) T[]
 }
 
 
-func array_heap<T>(heap : Heap@, size : u64) T[]
+func arr_heap<T>(heap : Heap@, size : u64) T[]
 {
     buf : T[];
 
@@ -20,24 +20,31 @@ func array_heap<T>(heap : Heap@, size : u64) T[]
     return buf;
 }
 
-func byte_array_heap(heap : Heap@, size : u64) byte[]
+func destroy_arr_heap<T>(heap : Heap@,arr: T@[])
 {
-    return array_heap<byte>(heap,size);
+    free_heap(heap,&arr.data);
+    arr.len = 0;
 }
 
-func byte_array_arena(arena : Arena@, size : u64) byte[]
+
+func byte_arr_heap(heap : Heap@, size : u64) byte[]
 {
-    return array_arena<byte>(arena,size);
+    return arr_heap<byte>(heap,size);
 }
 
-func u32_array_heap(heap : Heap@, size : u64) u32[]
+func byte_arr_arena(arena : Arena@, size : u64) byte[]
 {
-    return array_heap<u32>(heap,size);
+    return arr_arena<byte>(arena,size);
 }
 
-func u32_array_arena(arena : Arena@, size : u64) u32[]
+func u32_arr_heap(heap : Heap@, size : u64) u32[]
 {
-    return array_arena<u32>(arena,size);
+    return arr_heap<u32>(heap,size);
+}
+
+func u32_arr_arena(arena : Arena@, size : u64) u32[]
+{
+    return arr_arena<u32>(arena,size);
 }
 
 func array_realloc<T>(heap : Heap@,arr: T@[], size : u64)
@@ -64,23 +71,23 @@ func index<T>(arr: Array<T>@,index: u32)
 }
 */
 
-func clear_arr(arr: Array@)
+func clear_array(arr: Array@)
 {
     arr.size = 0;
 }
 
-func destroy_arr(arr: Array@)
+func destroy_array(arr: Array@)
 {
     free_heap(&global_heap,&arr.buf.data);
     arr.size = 0;
 }
 
-func reserve_arr_mem(arr: Array@, size : u64)
+func reserve_array_mem(arr: Array@, size : u64)
 {
     array_realloc<byte>(&global_heap,&arr.buf,size);
 }
 
-func resize_arr(arr : Array@, size : u64)
+func resize_array(arr : Array@, size : u64)
 {
     // we have to capacity increase len
     if(arr.buf.len < size)
@@ -91,12 +98,12 @@ func resize_arr(arr : Array@, size : u64)
     // need to ask for more memory
     else
     {
-        reserve_arr_mem(arr,size * 2);
+        reserve_array_mem(arr,size * 2);
         arr.size = size;
     }
 }
 
-func reserve_arr(arr : Array@, size: u64)
+func reserve_array(arr : Array@, size: u64)
 {
     free_size := arr.buf.len - arr.size;
 
@@ -110,34 +117,44 @@ func reserve_arr(arr : Array@, size: u64)
     {   
         // reserve double
         new_capacity := (arr.buf.len + size) * 2;
-        reserve_arr_mem(arr,new_capacity);
+        reserve_array_mem(arr,new_capacity);
     }
 }
 
-func read_buf<T>(arr : const Array@, offset : u32) T
+func read_buffer<T>(arr : const Array@, offset : u32) T
 {
     return handle_read<T>(&arr.buf[offset]);
 }
 
-func read_arr<T>(arr : const Array@, idx: u32) T
+func read_array<T>(arr : const Array@, idx: u32) T
 {
     offset := idx * sizeof_type(T);
-    return read_buf<T>(arr,offset);
+    return read_buffer<T>(arr,offset);
 }
 
 
-func push_arr<T>(arr : Array@, v : T)
+func push_array<T>(arr : Array@, v : T)
 {
     size := sizeof_type(T);
 
-    reserve_arr(arr,size);
+    reserve_array(arr,size);
 
     // actually write in the data
     handle_write<T>(&arr.buf[arr.size],v);
     arr.size += size;
 }
 
-func dump_arr_bytes(arr: const Array@)
+func str_from_array(arr : Array@) string
+{
+    str : string;
+
+    str.data = cast(c8@,arr.buf.data);
+    str.len = arr.size;
+
+    return str;
+}
+
+func dump_array_bytes(arr: const Array@)
 {
     for(i in 0 < arr.size)
     {
