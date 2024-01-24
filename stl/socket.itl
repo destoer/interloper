@@ -93,6 +93,9 @@ func ignore_byte(sock: Socket@) s64
 
 func recv_arr_all(sock: Socket@, arr: Array@, size: u64) s64
 {
+    // make sure we can read all this in
+    reserve_arr(arr,size);
+
     to_read := size;
 
     old := arr.size;
