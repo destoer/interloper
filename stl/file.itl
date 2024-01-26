@@ -16,6 +16,15 @@ enum file_opt
     open,
 }
 
+#attr(flag)
+enum file_flag : u32 
+{
+    error,
+    eof,  
+    line_buffer,
+}
+
+
 struct File
 {
     flags : u32;
@@ -40,14 +49,9 @@ enum file_read_res
     success,
 }
 
-constant FILE_FLAG_ERROR : u32 = 1 << 0;
-constant FILE_FLAG_EOF : u32 = 1 << 1;
-
-constant FILE_FLAG_LINE_BUFFER : u32 = 1 << 2;
-
 func file_valid(file : const File@) bool
 {
-    return (file.flags & FILE_FLAG_ERROR) == 0;
+    return (file.flags & file_flag::error) == 0;
 }
 
 func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
@@ -65,7 +69,7 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
 
     if(!is_os_handle_valid(file.handle))
     {
-        file.flags = file.flags | FILE_FLAG_ERROR;
+        file.flags = file.flags | file_flag::error;
         return file,true;
     }
 
@@ -161,7 +165,7 @@ func write_file_mem(file : File@,buf : const byte@, len : u64) s64
     }
 
     // flush buffer to disk when a linefeed is seen
-    if(file.flags & FILE_FLAG_LINE_BUFFER)
+    if(file.flags & file_flag::line_buffer)
     {
         return write_file_line_buffer(file,buf,len);
     }
@@ -206,7 +210,7 @@ func buffer_file_read(file : File@) file_read_res
     // TODO: this should be a switch
     if(len == 0)
     {
-        file.flags = file.flags | FILE_FLAG_EOF;
+        file.flags = file.flags | file_flag::eof;
         return file_read_res::eof;
     }
 

@@ -292,10 +292,11 @@ func print(fmt: const string, args : ...)
     print_args(fmt,args);
 }
 
-func log(fmt: const string, args : ...)
+func log(prefix: const string,fmt: const string, args : ...)
 {
     if(ENABLE_LOGS)
     {
+        print("{}",prefix);
         print_args(fmt,args);
     }
 }

@@ -1812,7 +1812,17 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 // emit mov on the enum value
                 mov_imm(itl,func,dst_slot,enum_member->value);
 
-                return make_enum_type(itl,enumeration);
+                // normal enum type
+                if(enumeration.kind != enum_type::int_t)
+                {
+                    return make_enum_type(itl,enumeration);
+                }
+
+                // implictly type to underlying integer value
+                else
+                {
+                    return make_builtin(itl,builtin_type(enumeration.underlying_type_idx));
+                }
             }
 
             // TODO: we dont have namespacing

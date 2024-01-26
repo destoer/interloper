@@ -6,6 +6,8 @@ BlockNode *block(Parser &parser);
 
 FuncNode* parse_func_sig(Parser& parser, const String& filename, const String& func_name,const Token& token);
 
+static constexpr u32 ATTR_NO_REORDER = (1 << 0);
+static constexpr u32 ATTR_FLAG = (1 << 1);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
@@ -92,13 +94,18 @@ bool is_builtin_type_tok(const Token &tok)
    return tok.type >= token_type::u8 && tok.type <= token_type::bool_t; 
 }
 
+builtin_type builtin_type_from_tok(const Token& tok)
+{
+    // compute builtin type idx 
+    return builtin_type(s32(tok.type) - s32(token_type::u8));
+}
+
 u32 plain_type_idx(const Token &tok)
 {
     // within the plain type range
     if(is_builtin_type_tok(tok))
     {
-        // compute builtin type idx 
-        return s32(tok.type) - s32(token_type::u8);
+        return u32(builtin_type_from_tok(tok));
     }
 
     else if(tok.type == token_type::func)
@@ -1393,7 +1400,7 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename, u32 fla
 
     StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,filename,name);
 
-    struct_node->flags = flags;
+    struct_node->attr_flags = flags;
 
     // Does this struct have a forced first member?
     if(match(parser,token_type::left_paren))
@@ -1430,7 +1437,7 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename, u32 fla
     add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, filename);
 }
 
-void enum_decl(Interloper& itl,Parser& parser, const String& filename)
+void enum_decl(Interloper& itl,Parser& parser, const String& filename, u32 flags)
 {
     const auto name_tok = next_token(parser);
 
@@ -1450,30 +1457,44 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
         return;
     }
 
-    String struct_name = "";
-    b32 enum_struct = false;
+    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,filename,name_tok);
+
 
     if(match(parser,token_type::colon))
     {
         consume(parser,token_type::colon);
 
-        if(match(parser,token_type::symbol))
+        const auto type_tok = next_token(parser);
+
+        if(type_tok.type == token_type::symbol)
         {
-            const auto struct_tok = next_token(parser);
-            struct_name = struct_tok.literal;
-            enum_struct = true;
+            enum_node->struct_name = type_tok.literal;
+            enum_node->kind = enum_type::struct_t;
+        }
+
+        else if(is_builtin_type_tok(type_tok))
+        {
+            enum_node->kind = enum_type::int_t;
+            enum_node->type = builtin_type_from_tok(type_tok);
         }
 
         else
         {
-            panic(parser,next_token(parser),"Expected symbol for struct name got %s\n",tok_name(name_tok.type));
+            panic(parser,next_token(parser),"Expected type name got %s\n",type_tok.type);
             return;            
         }
     }
 
+
+    if((flags & ATTR_FLAG) && enum_node->kind != enum_type::int_t)
+    {
+        panic(parser,next_token(parser),"Flag enum must specify underlying intergeral type");
+        return;        
+    }
+
     consume(parser,token_type::left_c_brace);
 
-    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,struct_name,filename,name_tok);
+    enum_node->attr_flags = flags;
 
     // push each member till we hit the terminating brace
     while(!match(parser,token_type::right_c_brace))
@@ -1489,8 +1510,8 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename)
         EnumMemberDecl member;
         member.name = member_tok.literal;
 
-        // if we have an enum struct parse the intializer too
-        if(enum_struct)
+        // see if we have an initlizer
+        if(match(parser,token_type::equal))
         {
             consume(parser,token_type::equal);
 
@@ -1565,8 +1586,6 @@ void destroy_parser(Parser& parser)
     destroy_arr(parser.tokens);
 }
 
-static constexpr u32 NO_REORDER = (1 << 0);
-
 u32 parse_attr(Parser& parser, const Token& tok)
 {
     u32 flags = 0;
@@ -1581,12 +1600,17 @@ u32 parse_attr(Parser& parser, const Token& tok)
         return 0;
     }
 
-    // TODO: just do a single attr for now
     const auto attr_name = attr.literal;
 
+    // TODO: change this to a pregenned hashtable if it starts getting big
     if(attr_name == "no_reorder")
     {
-        flags |= NO_REORDER;
+        flags |= ATTR_NO_REORDER;
+    }
+
+    else if(attr_name == "flag")
+    {
+        flags |= ATTR_FLAG;
     }
 
     else
@@ -1633,6 +1657,14 @@ void parse_directive(Interloper& itl,Parser& parser)
                 
                 struct_decl(itl,parser,parser.cur_file,flags);
                 break;
+            }
+
+            case token_type::enum_t:
+            {
+                consume(parser,token_type::enum_t);
+                
+                enum_decl(itl,parser,parser.cur_file,flags); 
+                break; 
             }
 
             default:
@@ -1717,7 +1749,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 
         case token_type::enum_t:
         {
-            enum_decl(itl,parser,parser.cur_file);
+            enum_decl(itl,parser,parser.cur_file,0);
             break;
         }
 

@@ -1,0 +1,18 @@
+
+#attr(flag)
+enum flags : u8
+{
+    one,
+    two,
+    three,
+}
+
+func main() s32
+{
+    res1 := flags::one == 1 && flags::two == 2 && flags::three == 4;
+    res2 := sizeof_type(flags) == 1;
+
+    ans := res1 && res2;
+    
+    return cast(s32,ans);
+}

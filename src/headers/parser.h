@@ -407,7 +407,7 @@ struct StructNode
     // is there a member forced to be first in the memory layout?
     DeclNode* forced_first = nullptr;
 
-    u32 flags;
+    u32 attr_flags = 0;
 };
 
 struct EnumMemberDecl
@@ -424,8 +424,15 @@ struct EnumNode
     String filename;
     Array<EnumMemberDecl> member;
 
-    // do we have a struct?
-    String struct_name = "";
+    // types
+    union
+    {
+        String struct_name = "";
+        builtin_type type;
+    };
+
+    enum_type kind = enum_type::plain_t;
+    u32 attr_flags = 0;
 };
 
 
@@ -846,13 +853,12 @@ AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& fie
     return (AstNode*)builtin_access;
 }
 
-AstNode* ast_enum(Parser& parser, const String& name,const String& struct_name, const String& filename, const Token& token)
+AstNode* ast_enum(Parser& parser, const String& name,const String& filename, const Token& token)
 {
     EnumNode* enum_node = alloc_node<EnumNode>(parser,ast_type::enum_t,ast_fmt::enum_t,token);
 
     enum_node->name = name;
     enum_node->filename = filename;
-    enum_node->struct_name = struct_name;
     
     add_ast_pointer(parser,&enum_node->member.data);
 

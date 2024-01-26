@@ -42,31 +42,58 @@ void parse_enum_def(Interloper& itl, TypeDef& def)
 
     Enum enumeration;
 
-    // this is an enum struct
-    if(node->struct_name != "")
+    enumeration.kind = node->kind; 
+
+    switch(enumeration.kind)
     {
-        // check we have a valid struct
-        TypeDecl* type_decl = lookup_type(itl,node->struct_name);
-
-        if(!type_decl)
+        case enum_type::struct_t:
         {
-            panic(itl,itl_error::struct_error,"no such struct %s for enum struct %s\n",node->struct_name.buf,node->name.buf);
-            return; 
+            // check we have a valid struct
+            TypeDecl* type_decl = lookup_type(itl,node->struct_name);
+
+            if(!type_decl)
+            {
+                panic(itl,itl_error::struct_error,"no such struct %s for enum struct %s\n",node->struct_name.buf,node->name.buf);
+                return; 
+            }
+
+            if(type_decl->kind != type_kind::struct_t)
+            {
+                panic(itl,itl_error::struct_error,"type %s is not a struct for enum struct %s\n",node->struct_name.buf,node->name.buf);
+                return;        
+            }
+
+            // mark struct idx
+            enumeration.underlying_type_idx = type_decl->type_idx;
+
+            // reserve space for it inside the const pool
+            const u32 data_size = itl.struct_table[enumeration.underlying_type_idx].size * count(node->member);
+            enumeration.struct_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
+        
+            break;
         }
 
-        if(type_decl->kind != type_kind::struct_t)
+        case enum_type::int_t:
         {
-            panic(itl,itl_error::struct_error,"type %s is not a struct for enum struct %s\n",node->struct_name.buf,node->name.buf);
-            return;        
+            if(!is_integer(node->type))
+            {
+                panic(itl,itl_error::enum_type_error,"Only integers can be used an builtin underlying enum type");
+                return;
+            }
+
+            enumeration.underlying_type_idx = u32(node->type);
+
+            break;
         }
 
-        // mark struct idx
-        enumeration.struct_idx = type_decl->type_idx;
-
-        // reserve space for it inside the const pool
-        const u32 data_size = itl.struct_table[enumeration.struct_idx].size * count(node->member);
-        enumeration.struct_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
+        // dont care
+        case enum_type::plain_t:
+        {
+            break;
+        }
     }
+
+    
 
     // reset filename incase struct clobbers it
     itl.cur_file = node->filename;
@@ -78,6 +105,8 @@ void parse_enum_def(Interloper& itl, TypeDef& def)
 
     u32 member_count = 0;
 
+    b32 value_used = false;
+
     // parse each enum member
     for(u32 m = 0; m < count(node->member); m++)
     {
@@ -87,7 +116,6 @@ void parse_enum_def(Interloper& itl, TypeDef& def)
         EnumMember member;
 
         member.name = member_decl.name;
-        member.value = member_count++;
 
         // check for duplicate members
         if(contains(enumeration.member_map,member.name))
@@ -97,29 +125,90 @@ void parse_enum_def(Interloper& itl, TypeDef& def)
             return;
         }
 
-        // compile in member access
-        if(enumeration.struct_idx != INVALID_TYPE_IDX)
+        switch(enumeration.kind)
         {
-            auto& structure = itl.struct_table[enumeration.struct_idx];
-
-            switch(member_decl.initializer->type)
+            case enum_type::struct_t:
             {
-                case ast_type::initializer_list:
-                {
-                    itl.cur_expr = (AstNode*)member_decl.initializer;
-                    const u32 offset = m * structure.size;
+                member.value = member_count++;
 
-                    compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);
-                    break;
-                }
+                // compile in member access
+                auto& structure = itl.struct_table[enumeration.underlying_type_idx];
 
-                default:
+                switch(member_decl.initializer->type)
                 {
-                    unimplemented("enum struct expr init");
-                    break;
+                    case ast_type::initializer_list:
+                    {
+                        itl.cur_expr = (AstNode*)member_decl.initializer;
+                        const u32 offset = m * structure.size;
+
+                        compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);
+                        break;
+                    }
+
+                    default:
+                    {
+                        unimplemented("enum struct expr init");
+                        break;
+                    }
                 }
+                break;
             }
 
+            // specify values by hand
+            case enum_type::int_t:
+            {
+                if(member_decl.initializer)
+                {
+                    value_used = true;
+
+                    const auto [value,type] = compile_const_int_expression(itl,member_decl.initializer);
+
+                    if(!is_integer(type))
+                    {
+                        return;
+                    }
+
+                    member.value = value;
+
+                    // TODO: check for overlapping flags
+                    if(node->attr_flags & ATTR_FLAG)
+                    {
+                        unimplemented("overlapping flag checking"); 
+                    }
+                }
+
+                else
+                {
+                    // TODO: maybe we should relax this to pick a valid int
+                    if(value_used)
+                    {
+                        panic(itl,itl_error::enum_type_error,"Integer enums must assign all values manually when used");
+                        return;
+                    }
+
+                    // we have flags automatically assign the next value
+                    if(node->attr_flags & ATTR_FLAG)
+                    {
+                        member.value = (1 << member_count);
+                    }
+                }
+
+                member_count++;
+                break;
+            }
+
+            case enum_type::plain_t:
+            {
+                member.value = member_count++;
+
+                if(member_decl.initializer)
+                {
+                    panic(itl,itl_error::enum_type_error,"Plain enum's cannot have initializers");
+                    return;
+                }
+
+                break;
+            }
         }
 
 

@@ -59,7 +59,7 @@ func open_stdout() File
         exit(FAILURE_OPEN_STDOUT);
     }
 
-    fp.flags = fp.flags | FILE_FLAG_LINE_BUFFER;
+    fp.flags = fp.flags | file_flag::line_buffer;
     return fp;
 }
 

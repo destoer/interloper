@@ -9,8 +9,9 @@ struct Window
 // TODO: move this later
 import <socket>
 
+constant X11_PREFIX : string = "[X WINDOW]: ";
 
-// TODO: namespace this lot
+// TODO: namespace this lot under x11::
 
 // https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
 struct OSWindow
@@ -23,6 +24,8 @@ struct OSWindow
     root_win : u32;
     screen_x : u32;
     screen_y : u32;
+
+    window_id : u32;
 
     seq_count : u32;
 
@@ -90,10 +93,6 @@ func read_x11_reply(win: OSWindow@, size : u32)
 }
 
 
-func read_x11_struct<T>(win: OSWindow@) T
-{
-    return recv_var_all<T>(win.sock);
-}
 
 #attr(no_reorder)
 struct XSetupInfo
@@ -176,22 +175,22 @@ func read_setup_info(win: OSWindow@)
     // read in our first batch of data
     read_x11_reply(win,6);
 
-    log("version {}.{}\n",read_buffer<u16>(buf,0),read_buffer<u16>(buf,2));
+    log(X11_PREFIX,"version {}.{}\n",read_buffer<u16>(buf,0),read_buffer<u16>(buf,2));
 
     len : u32 = read_buffer<u16>(buf,4) * 4;
 
-    log("len {}\n",len);
+    log(X11_PREFIX,"len {}\n",len);
 
     info := recv_var<XSetupInfo>(&win.sock);
 
-    log("big endian bitmap order: {}\n",cast(bool,info.bitmap_order));
+    log(X11_PREFIX,"big endian bitmap order: {}\n",cast(bool,info.bitmap_order));
 
     read_x11_reply(win,info.vendor_size);
-    log("vendor {}\n",str_from_array(buf),info.vendor_size);
+    log(X11_PREFIX,"vendor {}\n",str_from_array(buf),info.vendor_size);
 
     recv_ignore(&win.sock,pad_x11(info.vendor_size));
 
-    log("resource {b} : {b}\n",info.resource_id,info.resource_id_mask);
+    log(X11_PREFIX,"resource {b} : {b}\n",info.resource_id,info.resource_id_mask);
     win.resource_base = info.resource_id;
     win.resource_mask = info.resource_id_mask;
 
@@ -199,18 +198,18 @@ func read_setup_info(win: OSWindow@)
     {
         fmt := recv_var<XFormat>(&win.sock);
         
-        log("\nformat {}\n",i);
-        log("depth {}\n",fmt.depth);
-        log("bits per pixel {}\n",fmt.bpp);
-        log("scanline pad {}\n",fmt.scanline_pad);
+        log(X11_PREFIX,"\nformat {}\n",i);
+        log(X11_PREFIX,"depth {}\n",fmt.depth);
+        log(X11_PREFIX,"bits per pixel {}\n",fmt.bpp);
+        log(X11_PREFIX,"scanline pad {}\n",fmt.scanline_pad);
     }
 
     for(i in 0 < info.screen_count)
     {
         screen := recv_var<XScreen>(&win.sock);
-        log("\nscreen {}\n",i);
-        log("root {}\n",screen.root);
-        log("dimensions {} : {}\n",screen.width, screen.height);
+        log(X11_PREFIX,"\nscreen {}\n",i);
+        log(X11_PREFIX,"root {}\n",screen.root);
+        log(X11_PREFIX,"dimensions {} : {}\n",screen.width, screen.height);
 
         // default this to first screen
         if(i == 0)
@@ -225,15 +224,15 @@ func read_setup_info(win: OSWindow@)
         {
             depth := recv_var<XDepth>(&win.sock);
 
-            log("depth {}\n",depth.depth);
+            log(X11_PREFIX,"depth {}\n",depth.depth);
 
             for(v in 0 < depth.vis_size)
             {
                 visual_type := recv_var<XVisualType>(&win.sock);
 
-                log("id {}\n",visual_type.id);
-                log("class {}\n",visual_type.class);
-                log("bpr {}\n\n",visual_type.bpr); 
+                log(X11_PREFIX,"id {}\n",visual_type.id);
+                log(X11_PREFIX,"class {}\n",visual_type.class);
+                log(X11_PREFIX,"bpr {}\n\n",visual_type.bpr); 
             }
         }
     }
@@ -258,7 +257,7 @@ func authenticate(win: OSWindow@) bool
     {
         case AUTH_SUCCESS:
         {
-            log("connected to x server:\n");
+            log(X11_PREFIX,"connected to x server:\n");
             read_setup_info(win);
         }
 
@@ -337,21 +336,45 @@ func proccess_reply(win : OSWindow@)
     assert(false);
 }
 
+constant WINDOW_CLASS_INPUT_OUTPUT : u16 = 1;
+
+#attr(flag)
+enum window_mask_t : u32
+{
+    background_pixmap,
+    background_pixe,
+    border_pixmap,
+    border_pixel,
+    bit_gravity,
+    win_gravity,
+    backing_store,
+    backing_planes,
+    backing_pixel,
+    override_redirect,
+    save_under,
+    event_mask,
+    do_not_propagate,
+    colour_map,
+    cursor,
+}
+
 func create_window(win : OSWindow@, x : u32, y : u32) bool
 {
+    // allocate a an id and save it
+    win.window_id = alloc_resource(win);
+
+    log(X11_PREFIX,"window id: {}\n",win.window_id);
+
     // attempt to get a rgba window
     win_req : XCreateWindow;
     win_req.req_len = x11_req_len(sizeof_data(XCreateWindow));
 
-    // TODO: do we just allocate our own id's?
-    win_req.window = alloc_resource(win);
-
-    print("window id: {}\n",win_req.window);
+    win_req.window = win.window_id;
 
     // rgb888
     win_req.depth = 24;
 
-    win_req.class = 1;
+    win_req.class = WINDOW_CLASS_INPUT_OUTPUT;
 
     // set root as parent
     win_req.parent = win.root_win;
@@ -368,9 +391,7 @@ func create_window(win : OSWindow@, x : u32, y : u32) bool
     
     proccess_reply(win);
 
-    map_window(win,win_req.window);
-
-
+    map_window(win,win.window_id);
 
     return false;
 }

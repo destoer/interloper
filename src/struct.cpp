@@ -202,7 +202,7 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
 
 
     // we will deal with this later
-    if(flags & NO_REORDER)
+    if(flags & ATTR_NO_REORDER)
     {
         member.offset = count(structure.members);
     }
@@ -242,7 +242,7 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, c
 void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count, s32 forced_first, u32 flags)
 {
     // push members in order
-    if(flags & NO_REORDER)
+    if(flags & ATTR_NO_REORDER)
     {
         u32 offset = 0;
 
@@ -345,7 +345,7 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
 
     s32 forced_first_loc = -1;
 
-    const u32 flags = node->flags;
+    const u32 flags = node->attr_flags;
 
     // force this to be at the first location in mem
     if(node->forced_first)
@@ -459,14 +459,14 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
 {
     const auto& enumeration = enum_from_type(itl.enum_table,struct_type);
 
-    if(enumeration.struct_idx == INVALID_TYPE_IDX)
+    if(enumeration.kind != enum_type::struct_t)
     {
         panic(itl,itl_error::struct_error,"member access on plain enum %s\n",enumeration.name.buf);
         return make_builtin(itl,builtin_type::void_t);                    
     }
 
     // pull info on enum struct member
-    auto& enum_struct = itl.struct_table[enumeration.struct_idx];
+    auto& enum_struct = itl.struct_table[enumeration.underlying_type_idx];
 
     const auto enum_struct_member_opt = get_member(enum_struct, member_name);
 

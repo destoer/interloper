@@ -49,9 +49,14 @@ b32 is_builtin(const Type* type)
     return type->type_idx  < BUILTIN_TYPE_SIZE;
 }
 
+b32 is_integer(builtin_type type)
+{
+    return builtin_type_info[u32(type)].is_integer;
+}
+
 b32 is_integer(const Type* type)
 {
-    return is_builtin(type) && builtin_type_info[type->type_idx].is_integer;
+    return is_builtin(type) && is_integer(builtin_type(type->type_idx));
 }
 
 b32 is_signed(const Type *type)
@@ -269,7 +274,18 @@ u32 type_size(Interloper& itl,const Type *type)
 
         case ENUM:
         {
-            return ENUM_SIZE;
+            const auto& enumeration = enum_from_type(itl.enum_table,type);
+
+            if(enumeration.kind != enum_type::int_t)
+            {
+                return ENUM_SIZE;
+            }
+
+            // return size of underyling integeral type
+            else
+            {
+                return builtin_size(builtin_type(enumeration.underlying_type_idx));
+            }
         }
 
         case ARRAY:
