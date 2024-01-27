@@ -1,15 +1,15 @@
-func s32 arr_len(u32[]@ buf_ptr)
+func arr_len(buf_ptr: u32@[]) s32
 {
-    u32[] arr = @buf_ptr;
+    arr := @buf_ptr;
 
     return arr.len;
 }
 
 // expected compile error
 // cannot take pointer to fixed size array
-func s32 main()
+func main() s32
 {
-    u32[3] buf = {1,2,3};
+    buf : u32[?] = {1,2,3};
 
     return arr_len(&buf);
 }

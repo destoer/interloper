@@ -54,6 +54,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/ptr/expected_ptr",itl_error::pointer_type_error},
     {"tests/ptr/invalid_ptr_compare",itl_error::pointer_type_error},
     {"tests/ptr/null_invalid",itl_error::mismatched_args},
+    {"tests/ptr/ptr_to_fixed_array",itl_error::array_type_error},
 
     // arrays
     {"tests/array/array_pass_u32",itl_error::array_type_error},
@@ -152,11 +153,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
     {"tests/ptr/alias",1},
-
-    // wait for heap allocation
-    //{"tests/ptr/ptr_to_array",3},
-    //{"tests/ptr/ptr_to_fixed_array",itl_error::none},
-    //{"tests/ptr/ptr_to_array_member",4},
+    {"tests/ptr/ptr_to_array",3},
 
 
 
