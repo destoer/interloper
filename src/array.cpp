@@ -1,5 +1,5 @@
 
-std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot ptr_slot,IndexNode* index_node,PointerType* type)
+std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot ptr_slot,SymSlot dst_slot,IndexNode* index_node,PointerType* type)
 {
     const u32 indexes = count(index_node->indexes);
 
@@ -22,8 +22,8 @@ std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot pt
 
     const SymSlot offset = mul_imm_pow2_res(itl,func,subscript_slot,size);  
 
-    const auto addr = add_res(itl,func,ptr_slot,offset);
-    return std::pair{(Type*)type,addr};
+    add(itl,func,dst_slot,ptr_slot,offset);
+    return std::pair{(Type*)type,dst_slot};
 }
 
 // indexes off a given type + ptr
@@ -202,7 +202,7 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 
     else if(is_pointer(arr.type))
     {
-        return index_pointer(itl,func,arr.reg.slot,index_node,(PointerType*)arr.type);
+        return index_pointer(itl,func,arr.reg.slot,dst_slot,index_node,(PointerType*)arr.type);
     }
 
     else

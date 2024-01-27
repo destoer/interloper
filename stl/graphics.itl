@@ -39,7 +39,7 @@ func alloc_resource(win: OSWindow@) u32
     id := win.resource_id;
     win.resource_id += 1;
 
-    return (id & win.resource_mask) | win.resource_mask;
+    return (id & win.resource_mask) | win.resource_base;
 }
 
 func pad_x11(E : u32) u32
@@ -98,7 +98,7 @@ func read_x11_reply(win: OSWindow@, size : u32)
 struct XSetupInfo
 {
     release : u32;
-    resource_id : u32;
+    resource_id_base : u32;
     resource_id_mask : u32;
     motion_buffer_size : u32;
     vendor_size : u16;
@@ -166,6 +166,23 @@ struct XVisualType
     pad1 : u32;
 }
 
+#attr(no_reorder)
+struct XQueryTree
+{
+    opcode : u8 = 15;
+    pad1 : u8;
+    len: u16 = 2;
+    window: u32;
+}
+
+func query_tree(win: OSWindow@, root : u32)
+{
+    query : XQueryTree;
+    query.window = root;
+
+    send_var<XQueryTree>(&win.sock,&query);
+}
+
 func read_setup_info(win: OSWindow@)
 {
     buf := &win.buf;
@@ -190,26 +207,28 @@ func read_setup_info(win: OSWindow@)
 
     recv_ignore(&win.sock,pad_x11(info.vendor_size));
 
-    log(X11_PREFIX,"resource {b} : {b}\n",info.resource_id,info.resource_id_mask);
-    win.resource_base = info.resource_id;
+    log(X11_PREFIX,"resource {b} : {b}\n\n",info.resource_id_base,info.resource_id_mask);
+
+    win.resource_base = info.resource_id_base;
     win.resource_mask = info.resource_id_mask;
 
     for(i in 0 < info.format_size)
     {
         fmt := recv_var<XFormat>(&win.sock);
         
-        log(X11_PREFIX,"\nformat {}\n",i);
+        log(X11_PREFIX,"format {}\n",i);
         log(X11_PREFIX,"depth {}\n",fmt.depth);
         log(X11_PREFIX,"bits per pixel {}\n",fmt.bpp);
-        log(X11_PREFIX,"scanline pad {}\n",fmt.scanline_pad);
+        log(X11_PREFIX,"scanline pad {}\n\n",fmt.scanline_pad);
     }
 
     for(i in 0 < info.screen_count)
     {
         screen := recv_var<XScreen>(&win.sock);
-        log(X11_PREFIX,"\nscreen {}\n",i);
+        log(X11_PREFIX,"screen {}\n",i);
         log(X11_PREFIX,"root {}\n",screen.root);
-        log(X11_PREFIX,"dimensions {} : {}\n",screen.width, screen.height);
+        log(X11_PREFIX,"measurements {}mm : {}mm\n",screen.width_m,screen.height_m);
+        log(X11_PREFIX,"dimensions {} : {}\n\n",screen.width, screen.height);
 
         // default this to first screen
         if(i == 0)
@@ -224,7 +243,7 @@ func read_setup_info(win: OSWindow@)
         {
             depth := recv_var<XDepth>(&win.sock);
 
-            log(X11_PREFIX,"depth {}\n",depth.depth);
+            log(X11_PREFIX,"depth {}\n\n",depth.depth);
 
             for(v in 0 < depth.vis_size)
             {
@@ -314,7 +333,7 @@ struct XMapWindow
     window : u32;
 }
 
-func x11_req_len(len : u32) u16
+func x11_req_len(len : u64) u16
 {
     return cast(u16,len / 4);
 }
@@ -325,6 +344,24 @@ func map_window(win : OSWindow@, id : u32)
     map.window = id;
 
     send_req<XMapWindow>(win,&map);
+}
+
+#attr(no_reorder)
+struct XDestroyWindow
+{
+    code : u8 = 4;
+    pad1: u8 = 0;
+    len : u16 = 2;
+    window : u32;
+}
+
+// TODO: we need namspacing 
+func x11_destroy_window(win : OSWindow@, id : u32)
+{
+    destroy : XDestroyWindow;
+    destroy.window = id;
+
+    send_req<XDestroyWindow>(win,&destroy);
 }
 
 func proccess_reply(win : OSWindow@)
@@ -339,10 +376,10 @@ func proccess_reply(win : OSWindow@)
 constant WINDOW_CLASS_INPUT_OUTPUT : u16 = 1;
 
 #attr(flag)
-enum window_mask_t : u32
+enum window_create_flag : u32
 {
     background_pixmap,
-    background_pixe,
+    background_pixel,
     border_pixmap,
     border_pixel,
     bit_gravity,
@@ -358,16 +395,54 @@ enum window_mask_t : u32
     cursor,
 }
 
+#attr(flag)
+enum event_flag : u32
+{
+    key_press,
+    key_release,
+    button_press,
+    button_release,
+    enter_window,
+    leave_window,
+    pointer_motion,
+    pointer_motion_hint,
+    button1_motion,
+    button2_motion,
+    button3_motion,
+    button4_motion,
+    button5_motion,
+    button_motion,
+    key_map_state,
+    exposure,
+    visibility_change,
+    structure_notify,
+    resize_redirect,
+    substructure_notify,
+    substructure_redirect,
+    focus_change,
+    property_change,
+    colour_map_change,
+    owner_grab_button,
+}
+
 func create_window(win : OSWindow@, x : u32, y : u32) bool
 {
     // allocate a an id and save it
     win.window_id = alloc_resource(win);
-
+/*
     log(X11_PREFIX,"window id: {}\n",win.window_id);
+
+    // build end list
+    buf := &win.buf;
+    clear_array(buf);
+
+    // first the events we want to listen for
+    events : u32 = event_flag::structure_notify;
+    push_u32(buf,events);
 
     // attempt to get a rgba window
     win_req : XCreateWindow;
-    win_req.req_len = x11_req_len(sizeof_data(XCreateWindow));
+    win_req.req_len = x11_req_len(sizeof_data(XCreateWindow) + buf.size);
 
     win_req.window = win.window_id;
 
@@ -386,17 +461,33 @@ func create_window(win : OSWindow@, x : u32, y : u32) bool
     win_req.width = cast(u16,x);
     win_req.height = cast(u16,y);
 
-    // send the request
+    // TODO: dont know how large this should be
+    // but we want visual confirmation
+    win_req.border_width = 20;
+
+    // mark what window settings we want to change
+    win_req.value_mask |= window_create_flag::event_mask;
+
+    // send the main request
     send_req<XCreateWindow>(win,&win_req);
     
-    proccess_reply(win);
+    // send end list
+    send_array(&win.sock,buf);
 
+    // now map in the window
     map_window(win,win.window_id);
+*/
+
+    // even a basic query isn't getting me a reply?
+    // why?
+    query_tree(win,win.root_win);
+
+    proccess_reply(win);
 
     return false;
 }
 
-func os_create_window(str : const string, x : u32, y : u32) OSWindow 
+func os_open_window(str : const string, x : u32, y : u32) OSWindow 
 {
     win : OSWindow;
 
@@ -425,6 +516,10 @@ func os_create_window(str : const string, x : u32, y : u32) OSWindow
 
 func os_destroy_window(win : OSWindow@)
 {
+    // destroy all resources
+    x11_destroy_window(win,win.window_id);
+
+    // close down our socket and free our working buffer
     destroy_array(&win.buf);
     close_sock(&win.sock);
 }
@@ -435,7 +530,7 @@ func open_window(str : const string, x : u32, y : u32) Window
     win.width = x;
     win.height = y;
 
-    win.os_win = os_create_window(str,x,y);
+    win.os_win = os_open_window(str,x,y);
 
     return win;
 }

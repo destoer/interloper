@@ -54,7 +54,7 @@ func bswap<T>(v : T) T
     for(i in 0 < sizeof_type(T) / 2)
     {
         // swap opposing ends
-        swap<byte>(buf + i,buf + (sizeof_type(T) - i - 1));
+        swap<byte>(&buf[i],&buf[sizeof_type(T) - i - 1]);
     }
 
     return v;

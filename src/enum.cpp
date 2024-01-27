@@ -170,11 +170,8 @@ void parse_enum_def(Interloper& itl, TypeDef& def)
 
                     member.value = value;
 
-                    // TODO: check for overlapping flags
-                    if(node->attr_flags & ATTR_FLAG)
-                    {
-                        unimplemented("overlapping flag checking"); 
-                    }
+                    // TODO: check for overlapping values
+                    unimplemented("overlapping checking"); 
                 }
 
                 else
