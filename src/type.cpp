@@ -717,8 +717,9 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
 
         case ENUM:
         {
-            assert(false);
-            break;
+            EnumType* enum_type = (EnumType*)type;
+
+            return make_enum(itl,enum_type->enum_idx,type->is_const);        
         }
 
         case FUNC_POINTER:
@@ -2113,7 +2114,7 @@ void pop_temp_type_alias(Interloper& itl)
 
 void parse_struct_def(Interloper& itl, TypeDef& def);
 void parse_alias_def(Interloper& itl, TypeDef& def);
-void parse_enum_def(Interloper& itl, TypeDef& def);
+void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set);
 
 void parse_def(Interloper& itl, TypeDef& def)
 {
@@ -2142,7 +2143,10 @@ void parse_def(Interloper& itl, TypeDef& def)
 
             case def_kind::enum_t: 
             {
-                parse_enum_def(itl,def);
+                auto set = make_set<u64>();
+
+                parse_enum_def(itl,def,set);
+                destroy_set(set);
                 break;
             }
         }

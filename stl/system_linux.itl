@@ -15,6 +15,8 @@ constant SYSCALL_NANOSLEEP : u32 = 35;
 constant SYSCALL_SOCKET : u32 = 41;
 constant SYSCALL_CONNECT : u32 = 42;
 
+constant SYSCALL_IOCTL: u32 = 16;
+
 // memory
 
 
@@ -335,6 +337,21 @@ func connect_unix_domain(name : const string) Socket
     }
 
     return sock;
+}
+
+func linux_ioctl(fd : s64,type: u32, param: byte@)
+{
+    intrin_syscall(SYSCALL_IOCTL,fd,type,param);
+}
+
+constant FIONREAD : u32 = 0x0000_541B;
+
+func os_socket_has_data(socket: Socket@) bool
+{
+    len : s32;
+    linux_ioctl(cast(s64,socket.handle),FIONREAD,&len);
+
+    return len > 0;
 }
 
 func os_connect(ip: const string, port: u16, type: net_type) byte@

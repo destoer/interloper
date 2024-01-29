@@ -34,7 +34,7 @@ void print_enum(Enum& enumeration)
 
 void compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
 
-void parse_enum_def(Interloper& itl, TypeDef& def)
+void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 {
     EnumNode* node = (EnumNode*)def.root;    
 
@@ -171,7 +171,16 @@ void parse_enum_def(Interloper& itl, TypeDef& def)
                     member.value = value;
 
                     // TODO: check for overlapping values
-                    unimplemented("overlapping checking"); 
+                    if(contains(set,value))
+                    {
+                        panic(itl,itl_error::enum_type_error,"Duplicate enum value: %s",member.name.buf);
+                        return;
+                    }
+
+                    else
+                    {
+                        add(set,value);
+                    }
                 }
 
                 else

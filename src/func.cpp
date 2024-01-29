@@ -139,7 +139,10 @@ StringBuffer func_generic_name(Interloper& itl, const String& old_name,Array<Typ
 
                 case ENUM: 
                 {
-                    assert(false);
+                    const auto& enumeration = enum_from_type(itl.enum_table,type);
+                    push_var(buffer,'_');
+                    push_string(buffer,enumeration.name);
+                    done = true;
                     break;             
                 }
 

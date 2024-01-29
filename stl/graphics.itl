@@ -83,7 +83,7 @@ func build_auth_packet(buf: Array@)
     push_u32(buf,0);
 
     // pad
-    push_u32(buf,0);
+    push_u16(buf,0);
 }
 
 func read_x11_reply(win: OSWindow@, size : u32)
@@ -364,13 +364,51 @@ func x11_destroy_window(win : OSWindow@, id : u32)
     send_req<XDestroyWindow>(win,&destroy);
 }
 
-func proccess_reply(win : OSWindow@)
+enum x_reply_type : u8
 {
-    // TODO: we probably want to peek this...
-    rc := recv_var<u8>(&win.sock);
+    reply = 1,
+}
 
-    print("rc {}\n",rc);
-    assert(false);
+func process_reply(win : OSWindow@)
+{
+    buf := &win.buf;
+
+    len := read_array<u32>(buf,4) * 4;
+
+    // burn through this reply
+    recv_ignore(&win.sock,len);
+}
+
+func proccess_response(win : OSWindow@)
+{
+    while(socket_has_data(&win.sock))
+    {
+        buf := &win.buf;
+
+        // TODO: we probably want to peek this...
+        recv_clear_arr(&win.sock,buf,32);
+
+        type := read_array<x_reply_type>(buf,0);
+
+        switch(type)
+        {
+            case x_reply_type::reply:
+            {
+                process_reply(win);
+            }
+
+            default:
+            {
+                
+            }
+        }
+    }
+}
+
+// NOTE: this is higher level primtive
+func proccess_events(win: Window@)
+{
+    proccess_response(&win.os_win);
 }
 
 constant WINDOW_CLASS_INPUT_OUTPUT : u16 = 1;
@@ -429,7 +467,7 @@ func create_window(win : OSWindow@, x : u32, y : u32) bool
 {
     // allocate a an id and save it
     win.window_id = alloc_resource(win);
-/*
+
     log(X11_PREFIX,"window id: {}\n",win.window_id);
 
     // build end list
@@ -476,13 +514,6 @@ func create_window(win : OSWindow@, x : u32, y : u32) bool
 
     // now map in the window
     map_window(win,win.window_id);
-*/
-
-    // even a basic query isn't getting me a reply?
-    // why?
-    query_tree(win,win.root_win);
-
-    proccess_reply(win);
 
     return false;
 }
@@ -492,7 +523,7 @@ func os_open_window(str : const string, x : u32, y : u32) OSWindow
     win : OSWindow;
 
     // open connection to x server
-    win.sock = connect_unix_domain("/tmp/.X11-unix/X0");
+    win.sock = connect_unix_domain("/tmp/.X11-unix/X1");
 
     if(!socket_valid(&win.sock))
     {

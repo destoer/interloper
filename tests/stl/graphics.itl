@@ -5,7 +5,14 @@ func main() s32
 {
     win := open_window("interloper",640,480);
 
-    //sleep_ms(1500);
+    quit : bool = false;
+
+    while(!quit)
+    {
+        proccess_events(&win);
+
+        sleep_ms(16);
+    }
 
     close_window(&win);
 
