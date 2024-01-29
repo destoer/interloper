@@ -26,6 +26,14 @@ func destroy_arr_heap<T>(heap : Heap@,arr: T@[])
     arr.len = 0;
 }
 
+func fill_array<T>(array: T[], v: T)
+{
+    for(@p in array)
+    {
+        @p = v;
+    }
+}
+
 
 func byte_arr_heap(heap : Heap@, size : u64) byte[]
 {
@@ -187,4 +195,19 @@ func dump_array_bytes(arr: const Array@)
     }
 
     linefeed();
+}
+
+func dump_arr<T>(arr: const T[])
+{
+    for(i in 0 < arr.len)
+    {
+        if((i & 15) == 0)
+        {
+            linefeed();
+        }
+
+        print("{x} ",arr[i]);
+    }
+
+    linefeed();   
 }

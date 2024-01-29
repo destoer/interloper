@@ -26,6 +26,10 @@ func min_u64(v1 : u64, v2 : u64) u64
     return min<u64>(v1,v2);
 }
 
+func min_u32(v1 : u32, v2 : u32) u32
+{
+    return min<u32>(v1,v2);
+}
 
 func max<T>(v1 : T, v2 : T) T
 {

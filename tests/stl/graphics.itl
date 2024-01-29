@@ -3,16 +3,34 @@ import <graphics>
 
 func main() s32
 {
-    win := open_window("interloper",640,480);
+    constant X : u32 = 640;
+    constant Y : u32 = 480;
+
+    screen: u32[] = arr_heap<u32>(&global_heap,X * Y);
+
+    fill_array<u32>(screen,0x0000_ff00);
+
+    screen[((Y / 2) * X) + (X / 2)] = 0x0000_00ff;
+
+    win := open_window("interloper",X,Y);
 
     quit : bool = false;
+
+    // sleep an entire second 
+    sleep_ms(1000);
+
+    draw_window(&win,screen);
 
     while(!quit)
     {
         proccess_events(&win);
 
-        sleep_ms(16);
+        //draw_window(&win,screen);
+
+        sleep_ms(1000);
     }
+
+    destroy_arr_heap<u32>(&global_heap,&screen);
 
     close_window(&win);
 

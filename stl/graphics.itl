@@ -24,8 +24,15 @@ struct OSWindow
     root_win : u32;
     screen_x : u32;
     screen_y : u32;
+    scanline_pad : u32;
+
+    max_req : u32;
+
+    max_lines : u32;
 
     window_id : u32;
+    gfx_ctx : u32;
+
 
     seq_count : u32;
 
@@ -89,7 +96,7 @@ func build_auth_packet(buf: Array@)
 func read_x11_reply(win: OSWindow@, size : u32)
 {
     // get our specified bytes
-    recv_clear_arr(&win.sock,&win.buf,size);
+    recv_clear_array(&win.sock,&win.buf,size);
 }
 
 
@@ -209,17 +216,22 @@ func read_setup_info(win: OSWindow@)
 
     log(X11_PREFIX,"resource {b} : {b}\n\n",info.resource_id_base,info.resource_id_mask);
 
+    log(X11_PREFIX,"max req len: {}\n",info.max_req_len * 4);
+
     win.resource_base = info.resource_id_base;
     win.resource_mask = info.resource_id_mask;
+
+    win.max_req = info.max_req_len * 4;
 
     for(i in 0 < info.format_size)
     {
         fmt := recv_var<XFormat>(&win.sock);
-        
+    /*
         log(X11_PREFIX,"format {}\n",i);
         log(X11_PREFIX,"depth {}\n",fmt.depth);
         log(X11_PREFIX,"bits per pixel {}\n",fmt.bpp);
         log(X11_PREFIX,"scanline pad {}\n\n",fmt.scanline_pad);
+    */
     }
 
     for(i in 0 < info.screen_count)
@@ -243,15 +255,16 @@ func read_setup_info(win: OSWindow@)
         {
             depth := recv_var<XDepth>(&win.sock);
 
-            log(X11_PREFIX,"depth {}\n\n",depth.depth);
+            //log(X11_PREFIX,"depth {}\n\n",depth.depth);
 
             for(v in 0 < depth.vis_size)
             {
                 visual_type := recv_var<XVisualType>(&win.sock);
-
+                /*
                 log(X11_PREFIX,"id {}\n",visual_type.id);
                 log(X11_PREFIX,"class {}\n",visual_type.class);
                 log(X11_PREFIX,"bpr {}\n\n",visual_type.bpr); 
+                */
             }
         }
     }
@@ -366,6 +379,7 @@ func x11_destroy_window(win : OSWindow@, id : u32)
 
 enum x_reply_type : u8
 {
+    error = 0,
     reply = 1,
 }
 
@@ -379,6 +393,104 @@ func process_reply(win : OSWindow@)
     recv_ignore(&win.sock,len);
 }
 
+#attr(no_reorder)
+struct XError
+{
+    error: u8 = 0;
+    code: u8;
+    seq_number: u16;
+    data: u32;
+    minor_opcode: u16;
+    major_opcode: u8;
+    pad1: u8[21];
+}
+
+func process_error(win : OSWindow@)
+{
+    buf := &win.buf;
+
+    error := cast(XError@,buf.buf.data);
+
+    log(X11_PREFIX,"Error: {}\n",error.code);
+    log(X11_PREFIX,"Seq: {}\n",error.seq_number);
+    log(X11_PREFIX,"Data: {}\n",error.data);
+    log(X11_PREFIX,"Opcode: {} {}\n\n",error.major_opcode,error.minor_opcode);
+}
+
+
+#attr(no_reorder)
+struct XPutImage
+{
+    opcode: u8 = 72;
+    format: u8 = 2;
+    len: u16 = 6;
+    drawable: u32;
+    gc: u32;
+    width: u16;
+    height: u16;
+    dst_x: s16;
+    dst_y: s16;
+    left_pad : u8;
+    depth: u8;
+    pad1: u16;
+}
+
+func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride: u32)
+{
+    // calc data size
+    pixel_size := cast(u32,lines * stride * sizeof_type(u32));
+
+    pad := pad_x11(pixel_size);
+
+    // send image req
+    put_image: XPutImage;
+
+    put_image.gc = win.gfx_ctx;
+    put_image.depth = 24;
+
+    put_image.dst_y = cast(s16,start_y);
+
+    put_image.width = cast(u16,stride);
+    put_image.height = cast(u16,lines);
+
+    put_image.drawable = win.window_id;
+   
+    put_image.len += cast(u16,(pixel_size + pad) / 4);
+    
+    send_req<XPutImage>(win,&put_image);
+
+    // send pending data
+    send_raw(&win.sock,ptr,pixel_size);
+    
+    // send pad 
+    // NOTE: uses screen data just because its easy
+    send_raw(&win.sock,ptr,pad);
+
+    //print("sent {}\n",put_image.len * 4);
+}
+
+func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u32)
+{
+    lines := win.max_lines;
+    ptr := screen.data;
+
+    offset := width * lines;
+
+    for(y : u32 = 0; y < height; y += lines)
+    {
+        to_draw := min_u32(lines,height - y);
+
+        draw_lines(win,ptr,y,to_draw,width);
+
+        ptr += offset;
+    }
+}
+
+func draw_window(win : Window@, screen: const u32[])
+{
+    os_draw_window(&win.os_win,screen,win.width,win.height);
+}
+
 func proccess_response(win : OSWindow@)
 {
     while(socket_has_data(&win.sock))
@@ -386,12 +498,17 @@ func proccess_response(win : OSWindow@)
         buf := &win.buf;
 
         // TODO: we probably want to peek this...
-        recv_clear_arr(&win.sock,buf,32);
+        recv_clear_array(&win.sock,buf,32);
 
         type := read_array<x_reply_type>(buf,0);
 
         switch(type)
         {
+            case x_reply_type::error:
+            {
+                process_error(win);
+            }
+
             case x_reply_type::reply:
             {
                 process_reply(win);
@@ -399,7 +516,7 @@ func proccess_response(win : OSWindow@)
 
             default:
             {
-                
+                log(X11_PREFIX,"Notify: {}\n",cast(u8,type));
             }
         }
     }
@@ -518,6 +635,46 @@ func create_window(win : OSWindow@, x : u32, y : u32) bool
     return false;
 }
 
+#attr(no_reorder)
+struct XCreateGC
+{
+    opcode: u8 = 55;
+    pad1: u8;
+    len: u16 = 4;
+    cid: u32;
+    drawable: u32;
+    value_mask: u32;
+}
+
+func create_gfx_ctx(win: OSWindow@) bool
+{
+    // reserve id for gfx ctx
+    win.gfx_ctx = alloc_resource(win);
+
+    gc: XCreateGC;
+
+    gc.cid = win.gfx_ctx;
+    gc.drawable = win.window_id;
+
+    send_req<XCreateGC>(win,&gc);
+
+    return false;
+}
+
+/*
+struct XQueryExtension
+{
+
+}
+
+func enable_big_req(win: OSWindow@) bool
+{
+    "BIG-REQUESTS"
+
+    return false;
+}
+*/
+
 func os_open_window(str : const string, x : u32, y : u32) OSWindow 
 {
     win : OSWindow;
@@ -530,17 +687,35 @@ func os_open_window(str : const string, x : u32, y : u32) OSWindow
         crash_and_burn("window socket not valid");
     }
 
-
     if(authenticate(&win))
     {
         crash_and_burn("could not authenticate to server");
     }
 
-
     if(create_window(&win,x,y))
     {
         crash_and_burn("could not create window");
     }
+
+    if(create_gfx_ctx(&win))
+    {
+        crash_and_burn("could not create gfx ctx");
+    }
+
+/*
+    // TODO: this should be allowed to fail
+    if(enable_big_req(&win))
+    {
+        crash_and_burn("could not enable big req");
+    }
+*/
+    // what is the max number of lines we can push in one go?
+    win.max_lines = win.max_req / (x * sizeof_type(u32));
+
+    log(X11_PREFIX,"max lines: {}\n",win.max_lines);
+
+    // should be able to push atleast one scanline in a go
+    assert(win.max_lines >= 1);
 
     return win;
 }
