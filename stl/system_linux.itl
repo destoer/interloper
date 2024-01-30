@@ -16,6 +16,8 @@ constant SYSCALL_SOCKET : u32 = 41;
 constant SYSCALL_CONNECT : u32 = 42;
 
 constant SYSCALL_IOCTL: u32 = 16;
+constant SYSCALL_FCNTL: u32 = 72;
+constant SYSCALL_SENDTO: u32 = 44;
 
 // memory
 
@@ -339,12 +341,17 @@ func connect_unix_domain(name : const string) Socket
     return sock;
 }
 
-func linux_ioctl(fd : s64,type: u32, param: byte@)
+constant FIONREAD : u32 = 0x0000_541B;
+
+func linux_ioctl(fd : s64,type: u32, param: byte@) s64
 {
-    intrin_syscall(SYSCALL_IOCTL,fd,type,param);
+    return intrin_syscall(SYSCALL_IOCTL,fd,type,param);
 }
 
-constant FIONREAD : u32 = 0x0000_541B;
+func linux_fcntl(fd : s64,type: u32, param: byte@) s64
+{
+    return intrin_syscall(SYSCALL_FCNTL,fd,type,param);
+}
 
 func os_socket_has_data(socket: Socket@) bool
 {
@@ -407,9 +414,11 @@ func os_connect(ip: const string, port: u16, type: net_type) byte@
     return cast(byte@,handle);
 }
 
+constant MSG_NOSIGNAL : u32 = 0x4000;
+
 func os_send(socket: Socket@,ptr : const byte@, len : u64) s64
 {
-    return os_write(socket.handle,ptr,len);
+    return intrin_syscall(SYSCALL_SENDTO,socket.handle,ptr,len,MSG_NOSIGNAL,NULL,NULL);
 }
 
 func os_recv(socket: Socket@,ptr : byte@, len : u64) s64

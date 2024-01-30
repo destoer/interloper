@@ -126,6 +126,9 @@ u32 special_reg_to_reg(arch_target arch,SymSlot slot)
         case RDX_IR: return u32(x86_reg::rdx);
         case RDI_IR: return u32(x86_reg::rdi); 
         case RSI_IR: return u32(x86_reg::rsi); 
+        case R8_IR: return u32(x86_reg::r8);
+        case R9_IR: return u32(x86_reg::r9);
+        case R10_IR: return u32(x86_reg::r10);
 
         default: crash_and_burn("unhandled special reg %x\n",slot); 
     }    

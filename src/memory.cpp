@@ -176,9 +176,18 @@ void do_addr_load(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot src_a
 
     else if(is_struct(type))
     {
-        const auto dst_addr = make_struct_addr(dst_slot,0);
+        // copy into hidden pointer
+        if(dst_slot.handle == RV_IR)
+        {
+            const auto dst_addr = make_addr(func.sig.args[0],0);
+            ir_memcpy(itl,func,dst_addr,src_addr,size);
+        }
 
-        ir_memcpy(itl,func,dst_addr,src_addr,size);
+        else
+        {
+            const auto dst_addr = make_struct_addr(dst_slot,0);
+            ir_memcpy(itl,func,dst_addr,src_addr,size);
+        }
     }
 
     else if(size <= GPR_SIZE)

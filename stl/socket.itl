@@ -4,6 +4,7 @@ import <array>
 struct Socket
 {
     handle: byte@ = NULL;
+    type: net_type;
 }
 
 // TODO: add udp
@@ -51,12 +52,18 @@ func ip_to_net_addr(str: const string) [u32,bool]
 
 func socket_valid(sock: const Socket@) bool
 {
+    if(!sock)
+    {
+        return false;
+    }
+
     return sock.handle != cast(byte@,INVALID_SOCKET_HANDLE);
 }
 
 func connect(ip: const string, port: u16, type: net_type) Socket
 {
     sock : Socket;
+    sock.type = type;
 
     sock.handle = os_connect(ip,port,type);
 
@@ -78,12 +85,20 @@ func listen(port: u32, type: net_type) Socket
 
 func recv_raw(sock: Socket@, ptr: byte@, size : u64) s64
 {
-    if(!sock || !socket_valid(sock))
+    if(!socket_valid(sock))
     {
         return -1;
     }
 
-    return os_recv(sock,ptr,size);
+
+    rc := os_recv(sock,ptr,size);
+
+    if(rc < 0)
+    {
+        close_sock(sock);
+    }
+
+    return rc;
 }
 
 func recv(sock: Socket@, buf : byte[]) s64
@@ -148,7 +163,6 @@ func recv_clear_array(sock: Socket@, arr: Array@, size: u64) s64
 
 func recv_var<T>(sock: Socket@) T
 {
-
     // NOTE: we want to only read till the end of data without padding
     // incase we have differing alignemnts
     v : T;
@@ -164,12 +178,19 @@ func send_var<T>(sock: Socket@, v : const T@)
 
 func send_raw(sock : Socket@, ptr: const byte@, size : u64) s64
 {
-    if(!sock || !socket_valid(sock))
+    if(!socket_valid(sock))
     {
         return -1;
     }
 
-    return os_send(sock,ptr,size);
+    rc := os_send(sock,ptr,size);
+
+    if(rc < 0)
+    {
+        close_sock(sock);
+    }
+
+    return rc;
 }
 
 func send(sock: Socket@, buf: const byte[]) s64
@@ -200,7 +221,7 @@ func send_str(sock: Socket@, str: const string) s64
 
 func close_sock(sock: Socket@)
 {
-    if(!sock || !socket_valid(sock))
+    if(!socket_valid(sock))
     {
         return;
     }

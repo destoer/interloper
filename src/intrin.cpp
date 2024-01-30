@@ -108,7 +108,6 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     }
 }
 
-
 Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 {
     UNUSED(dst_slot);
@@ -120,6 +119,7 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
     if(arg_size < 1)
     {
         panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
     // make sure this register doesn't get reused
@@ -127,40 +127,21 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
     mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
     
-    if(arg_size >= 2)
+    const u32 REGISTERS[6] = {RDI_IR,RSI_IR,RDX_IR,R10_IR,R8_IR,R9_IR};
+
+    for(u32 arg = 1; arg <= 6; arg++)
     {
-        lock_reg(itl,func,sym_from_idx(RDI_IR));
-        const auto v1_type = compile_expression(itl,func,func_call->args[1],sym_from_idx(RDI_IR));
-
-        if(!is_trivial_copy(v1_type))
+        if(arg_size >= arg + 1)
         {
-            panic(itl,itl_error::mismatched_args,"arg1 of type %s does not fit inside a gpr\n",type_name(itl,v1_type).buf);
-            return make_builtin(itl,builtin_type::void_t);   
-        }
-    }
+            const auto reg = sym_from_idx(REGISTERS[arg-1]);
+            lock_reg(itl,func,reg);
+            const auto type = compile_expression(itl,func,func_call->args[arg],reg);
 
-    if(arg_size >= 3)
-    {
-        lock_reg(itl,func,sym_from_idx(RSI_IR));
-        const auto v2_type = compile_expression(itl,func,func_call->args[2],sym_from_idx(RSI_IR));
-
-        if(!is_trivial_copy(v2_type))
-        {
-            panic(itl,itl_error::mismatched_args,"arg2 of type %s does not fit inside a gpr\n",type_name(itl,v2_type).buf);
-            return make_builtin(itl,builtin_type::void_t);
-        }
-    }
-
-    if(arg_size >= 4)
-    {
-        lock_reg(itl,func,sym_from_idx(RDX_IR));
-        const auto v3_type = compile_expression(itl,func,func_call->args[3],sym_from_idx(RDX_IR));
-
-
-        if(!is_trivial_copy(v3_type))
-        {
-            panic(itl,itl_error::mismatched_args,"arg3 of type %s does not fit inside a gpr\n",type_name(itl,v3_type).buf);
-            return make_builtin(itl,builtin_type::void_t);
+            if(!is_trivial_copy(type))
+            {
+                panic(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr\n",arg,type_name(itl,type).buf);
+                return make_builtin(itl,builtin_type::void_t);  
+            }
         }
     }
 
