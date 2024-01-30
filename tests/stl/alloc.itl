@@ -41,12 +41,37 @@ func test_heap() bool
     heap_usage(&global_heap);
 
     // check data is also free
-    return res == 150 && vla.data == NULL;
+    return res == 150 && vla.data == NULL && vla.len == 0;
+}
+
+func test_realloc() bool
+{
+    vla : byte[];
+    array_realloc<byte>(&global_heap,&vla,100);
+
+    for(i in 0 < 5)
+    {
+        array_realloc<byte>(&global_heap,&vla,vla.len * 2);
+
+        for([@v , j] in vla)
+        {
+            @v = cast(byte,j);
+        }
+
+        print("alloc round {}\n",i);
+        heap_usage(&global_heap);
+    }
+
+    res := vla.len;
+
+    destroy_arr_heap<byte>(&global_heap,&vla);
+
+    return res == 3200;
 }
 
 func main() s32
 {
-    pass := test_arena() && test_heap();
+    pass := test_arena() && test_heap() && test_realloc();
 
     return cast(s32,pass);
 }

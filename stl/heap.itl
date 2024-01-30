@@ -36,10 +36,31 @@ func heap_usage(heap: const Heap@)
     putchar('\n');
 }
 
+func print_heap(heap: const Heap@)
+{
+    cur := heap.free_list;
+
+    if(!cur)
+    {
+        return;
+    }
+
+    // TODO: need to work on rtti so we dont need casts for this
+    while(cur)
+    {
+        print("node {} : {} -> {}\n",cast(byte@,cur),cur.blocks,cast(byte@,cur.next));
+        cur = cur.next;
+    }
+}
+
 // internal function to add node back to free list
 // NOTE: null checking must be done by higher level functions
 func free_heap_node(heap: Heap@, insert: HeapNode@)
 {
+    print("before free\n");
+    print_heap(heap);
+    print("free ptr: {}\n",cast(byte@,insert));
+
     cur := heap.free_list;
 
     // handle insertion at start
@@ -101,6 +122,9 @@ func free_heap_node(heap: Heap@, insert: HeapNode@)
     {
         cur.next = insert;
     }
+
+    print("after free");
+    print_heap(heap);
 }
 
 
@@ -142,9 +166,7 @@ func alloc_heap(heap : Heap@, count : u64, size : u64) byte@
 {
     bytes := count * size;
 
-    // TODO: this overstimates block aligned data
-    // we are just gonna ignore this for now
-    req_blocks := (bytes / HEAP_BLOCK_SIZE) + 2;
+    req_blocks := ((bytes + HEAP_BLOCK_SIZE - 1) / HEAP_BLOCK_SIZE) + 1;
 
     // attempt to find a block big enough for allocation?
     cur := heap.free_list;
@@ -154,30 +176,59 @@ func alloc_heap(heap : Heap@, count : u64, size : u64) byte@
     {
         if(cur.blocks >= req_blocks)
         {
+            // NOTE: need to make sure this doesn't trip
+            // while stdout is being set up
+            print("frag: {} {} {}\n",cur.blocks,req_blocks,bytes);
+            print_heap(heap);
+            
+
             // exact size just skip over
             if(cur.blocks == req_blocks)
             {
-                prev.next = cur.next;
+                // we are returning start
+                // update the tracking
+                if(cur == heap.free_list)
+                {
+                    heap.free_list = cur.next;
+                }
+                
+                else
+                {
+                    prev.next = cur.next;
+                }
+
+                // cleave old link
+                cur.next = NULL;
             }
 
             // fragment the block
             else
             {
                 // cur block gets remaining
-                remaining_blocks := cur.blocks - req_blocks;
                 cur.blocks -= req_blocks;
 
+                print("bump {} : {}\n",cast(byte@,cur),cur.blocks);
 
                 // new block contains the requested allocation
-                cur += remaining_blocks;
+                cur += cur.blocks;
+
+
+                // setup the new block
                 cur.blocks = req_blocks;
+                cur.next = NULL;
+
+
+                print("setup\n");
+                
             }
             
             // mark heap usage
             heap.used += cur.blocks;
 
+            print("done\n");
+            
             // data is after buffer
-            return cast(byte@,(cur + 1));
+            return cast(byte@,cur + 1);
         }
 
         prev = cur;
@@ -204,7 +255,9 @@ func realloc_heap(heap : Heap@, ptr: byte@@, size: u64) bool
     // first alloc just behave like alloc
     if(!old)
     {
+        //exit(4);
         @ptr = alloc_heap(heap,1,size);
+        //exit(6);
         return @ptr == NULL;
     }
 
@@ -234,7 +287,7 @@ func realloc_heap(heap : Heap@, ptr: byte@@, size: u64) bool
     // actually overwrite the old pointer
     @ptr = new;
 
-    return false;
+    return new == NULL;
 }
 
 func realloc_heap_panic(heap : Heap@, ptr: byte@@, size: u64)

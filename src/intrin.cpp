@@ -127,13 +127,13 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
     mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
     
-    const u32 REGISTERS[6] = {RDI_IR,RSI_IR,RDX_IR,R10_IR,R8_IR,R9_IR};
+    const u32 REG_ARGS[6] = {RDI_IR,RSI_IR,RDX_IR,R10_IR,R8_IR,R9_IR};
 
     for(u32 arg = 1; arg <= 6; arg++)
     {
         if(arg_size >= arg + 1)
         {
-            const auto reg = sym_from_idx(REGISTERS[arg-1]);
+            const auto reg = sym_from_idx(REG_ARGS[arg-1]);
             lock_reg(itl,func,reg);
             const auto type = compile_expression(itl,func,func_call->args[arg],reg);
 

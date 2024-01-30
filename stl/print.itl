@@ -247,6 +247,12 @@ func print_arg(arg : Any, specifier : c8)
 
 func print_args(fmt : const string, args : const Any[])
 {
+    // preven print if stdout aint setup
+    if(!global_setup)
+    {
+        return;
+    }
+
     arg_count : u32 = 0;
 
     for(i in 0 < fmt.len)

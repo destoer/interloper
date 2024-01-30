@@ -1,10 +1,14 @@
 import <system>
 
+global global_setup : bool = false;
+
 // TODO: need to define for each arch
 func start()
 {
     // NOTE: the compiler will internally set this up for us
     init_global();
+
+    global_setup = true;
 
     rc : s32 = main();
     exit(rc);

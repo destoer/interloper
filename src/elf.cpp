@@ -794,6 +794,18 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 break;
             }
 
+            case op_type::sb:
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
+
+            case op_type::sh:
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
+
             case op_type::sw:
             {
                 rewrite_rel_load_store(itl,elf,link);

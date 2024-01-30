@@ -537,12 +537,15 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
         {
             // compile expr
             auto [rtype,slot] = compile_oper(itl,func,node);
+              
+            check_assign_init(itl,type,rtype);
             
-            if(is_array(rtype))
+            if(itl.error)
             {
-                compile_move(itl,func,arr_slot,slot,type,rtype);
-                check_assign_init(itl,type,rtype);
+                return;
             }
+
+            compile_move(itl,func,arr_slot,slot,type,rtype);
 
             break;
         }
