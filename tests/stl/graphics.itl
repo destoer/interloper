@@ -12,6 +12,11 @@ func main() s32
     {
         process_events(&win);
 
+        for(i in 0 < 25)
+        {
+            win.screen[rand_range_u64(0,(X * Y) - 1)] = rand_range_u32(0,0xffff_ffff);
+        }
+
         draw_window(&win,win.screen);
 
         sleep_ms(16);

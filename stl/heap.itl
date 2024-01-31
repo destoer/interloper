@@ -80,7 +80,7 @@ func verify_node(heap: const Heap@,node: const HeapNode@)
 
     if(node.canary_start != HEAP_CANARY_START || node.canary_end != HEAP_CANARY_END) 
     {
-        crash_and_burn("[HEAP]: {} : {x} Heap canary trashed {x} : {x} -> {x} : {x}",
+        crash_and_burn("[HEAP]: node {} : {x} canary trashed {x} : {x} -> {x} : {x}",
             cast(byte@,node),node.blocks,HEAP_CANARY_START,HEAP_CANARY_END,node.canary_start,node.canary_end);
     }
 }
