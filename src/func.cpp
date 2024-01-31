@@ -124,7 +124,8 @@ StringBuffer func_generic_name(Interloper& itl, const String& old_name,Array<Typ
             {
                 case POINTER:
                 {
-                    assert(false);
+                    push_string(buffer,"_ptr@_");
+                    type = deref_pointer(type);
                     break;
                 }
 

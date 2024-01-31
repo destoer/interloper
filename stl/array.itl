@@ -57,9 +57,7 @@ func u32_arr_arena(arena : Arena@, size : u64) u32[]
 
 func array_realloc<T>(heap : Heap@,arr: T@[], size : u64)
 {
-    bytes := sizeof_type(T) * size;
-
-    realloc_heap_panic(heap,&arr.data,bytes);
+    realloc_heap_panic(heap,&arr.data,size,sizeof_type(T));
 
     arr.len = size;
 }

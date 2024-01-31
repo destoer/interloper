@@ -697,15 +697,18 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
         case ARRAY:
         {
             ArrayType* array_type = (ArrayType*)type;
-            Type* contained_type = copy_type_internal(itl,index_arr(array_type));
+            Type* contained_type = copy_type_internal(itl,array_type->contained_type);
 
             return make_array(itl,contained_type,array_type->size,type->is_const);
         }
 
         case POINTER:
         {
-            assert(false);
-            break;
+            PointerType* pointer_type = (PointerType*)type;
+
+            Type* contained_type = copy_type_internal(itl,pointer_type->contained_type);
+            
+            return make_pointer(itl,contained_type,type->is_const);
         }
 
         case STRUCT:
