@@ -14,7 +14,7 @@ func main() s32
 
         for(i in 0 < 25)
         {
-            win.screen[rand_range_u64(0,(X * Y) - 1)] = rand_range_u32(0,0xffff_ffff);
+            win.screen[rand_arr_idx<u32>(win.screen)] = rand_range_u32(0,0xffff_ffff);
         }
 
         draw_window(&win,win.screen);

@@ -69,9 +69,45 @@ func test_realloc() bool
     return res == 3200;
 }
 
+func stress_heap() bool
+{
+    arr : byte[10]@;
+
+    for(@ptr in arr)
+    {
+        @ptr = alloc_heap(&global_heap,1,55);
+    }
+
+    pattern : u32[?] = 
+    {
+        0,2,3,4,5,7,2,1,8,9,5,6,6,2,1,9,8,3,4,0
+    };
+
+    for(i in pattern)
+    {
+        if(arr[i])
+        {
+            free_heap(&global_heap,&arr[i]);
+        }
+
+        else
+        {
+            arr[i] = alloc_heap(&global_heap,1,i);
+        }
+    }
+
+    for(@ptr in arr)
+    {
+        free_heap(&global_heap,ptr);
+    }
+
+    heap_usage(&global_heap);
+    return global_heap.used == 0;
+}
+
 func main() s32
 {
-    pass := test_arena() && test_heap() && test_realloc();
+    pass := test_arena() && test_heap() && test_realloc() && stress_heap();
 
     return cast(s32,pass);
 }

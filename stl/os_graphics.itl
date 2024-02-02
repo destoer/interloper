@@ -506,6 +506,15 @@ func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u
 
         ptr += offset;
     }
+/*
+    // handle screen sizes not on a multiple of 4
+    pad := pad_x11(width * height) * 4;
+
+    if(pad)
+    {
+        send_raw(&win.sock,screen.data,pad);
+    }
+*/
 }
 
 
@@ -740,7 +749,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     win.win_y = y;
 
     // open connection to x server
-    win.sock = connect_unix_domain("/tmp/.X11-unix/X1");
+    win.sock = connect_unix_domain("/tmp/.X11-unix/X0");
 
     if(!socket_valid(&win.sock))
     {
