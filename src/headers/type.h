@@ -166,6 +166,7 @@ struct TypeDef
 {
     String name;
     String filename;
+    String name_space;
 
     def_kind kind;
     def_state state;

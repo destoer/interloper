@@ -76,6 +76,15 @@ static const char* ERROR_NAME[] =
     "unimplemented",
 };
 
+struct FileContext
+{
+    AstNode *expr = nullptr;
+    String file_name = "";
+
+    String name_space = "";
+};
+
+
 struct Interloper
 {
     Array<u8> program;
@@ -88,6 +97,9 @@ struct Interloper
     AstNode *cur_expr = nullptr;
     String cur_file = "";
     String stl_path = "";
+
+    Array<FileContext> saved_ctx;
+    FileContext ctx;
 
     FunctionTable func_table;
     Array<DeclNode*> global_def;

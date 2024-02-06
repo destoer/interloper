@@ -50,6 +50,25 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 #include "control_flow.cpp"
 #include "arith.cpp"
 
+void push_context(Interloper& itl)
+{
+    push_var(itl.saved_ctx,itl.ctx);
+}
+
+void pop_context(Interloper& itl)
+{
+    itl.ctx = pop(itl.saved_ctx);
+}
+
+void switch_context(Interloper& itl, String name_space, String file_name, AstNode* expr)
+{
+    itl.ctx.name_space = name_space;
+    itl.ctx.file_name = file_name;
+    itl.ctx.expr = expr;
+}
+
+
+
 void dump_sym_ir(Interloper &itl)
 {
     for(u32 f = 0; f < count(itl.func_table.used); f++)

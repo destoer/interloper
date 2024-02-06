@@ -4,7 +4,7 @@
 void type_panic(Parser &parser);
 BlockNode *block(Parser &parser);
 
-FuncNode* parse_func_sig(Parser& parser, const String& filename, const String& func_name,const Token& token);
+FuncNode* parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
 static constexpr u32 ATTR_FLAG = (1 << 1);
@@ -188,7 +188,7 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
         {
             TypeNode* type = (TypeNode*)ast_type_decl(parser,"func_pointer",plain_tok);
             type->type_idx = FUNC_POINTER;
-            type->func_type = parse_func_sig(parser,parser.cur_file,"func_pointer",plain_tok);
+            type->func_type = parse_func_sig(parser,"func_pointer",plain_tok);
             return type;
         }
 
@@ -1158,7 +1158,7 @@ BlockNode *block(Parser &parser)
 }
 
 
-void type_alias(Interloper& itl, Parser &parser, const String& filename)
+void type_alias(Interloper& itl, Parser &parser)
 {
     // type_alias literal '=' type ';'
     const auto token = next_token(parser);
@@ -1177,11 +1177,11 @@ void type_alias(Interloper& itl, Parser &parser, const String& filename)
             return;
         }
 
-        AstNode* alias_node = ast_alias(parser,rtype,name,filename,token);
+        AstNode* alias_node = ast_alias(parser,rtype,name,parser.cur_file,parser.cur_name_space,token);
     
         consume(parser,token_type::semi_colon);
 
-        add_type_def(itl, def_kind::alias_t,alias_node, name, filename);
+        add_type_def(itl, def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_name_space);
     }
 
     else 
@@ -1192,9 +1192,9 @@ void type_alias(Interloper& itl, Parser &parser, const String& filename)
 
 // parse just the function signature
 // NOTE: this is used to parse signatures for function pointers
-FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& func_name, const Token& token)
+FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
-    FuncNode *f = (FuncNode*)ast_func(parser,func_name,filename,token);
+    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.cur_file,parser.cur_name_space,token);
 
     // generic decl
     if(match(parser,token_type::logical_lt))
@@ -1348,7 +1348,7 @@ FuncNode* parse_func_sig(Parser& parser, const String& filename,const String& fu
     return f;
 }
 
-void func_decl(Interloper& itl, Parser &parser, const String& filename)
+void func_decl(Interloper& itl, Parser &parser)
 {
 
     // func_dec = func ident(arg...) return_type 
@@ -1369,7 +1369,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
         return;
     }
 
-    FuncNode* f = parse_func_sig(parser,filename,func_name.literal,func_name);
+    FuncNode* f = parse_func_sig(parser,func_name.literal,func_name);
 
     if(!f)
     {
@@ -1382,7 +1382,7 @@ void func_decl(Interloper& itl, Parser &parser, const String& filename)
     add_func(itl,func_name.literal,f);
 }
 
-void struct_decl(Interloper& itl,Parser& parser, const String& filename, u32 flags = 0)
+void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
 {
     const auto name = next_token(parser);
 
@@ -1398,7 +1398,7 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename, u32 fla
         return;
     }
 
-    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,filename,name);
+    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.cur_file,parser.cur_name_space,name);
 
     struct_node->attr_flags = flags;
 
@@ -1434,10 +1434,10 @@ void struct_decl(Interloper& itl,Parser& parser, const String& filename, u32 fla
     }
 
 
-    add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, filename);
+    add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_name_space);
 }
 
-void enum_decl(Interloper& itl,Parser& parser, const String& filename, u32 flags)
+void enum_decl(Interloper& itl,Parser& parser, u32 flags)
 {
     const auto name_tok = next_token(parser);
 
@@ -1457,7 +1457,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename, u32 flags
         return;
     }
 
-    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,filename,name_tok);
+    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.cur_file,parser.cur_name_space,name_tok);
 
 
     if(match(parser,token_type::colon))
@@ -1539,7 +1539,7 @@ void enum_decl(Interloper& itl,Parser& parser, const String& filename, u32 flags
     }
 
     // add the type decl
-    add_type_def(itl, def_kind::enum_t,(AstNode*)enum_node, enum_node->name, filename);
+    add_type_def(itl, def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_name_space);
 }
 
 StringBuffer read_source_file(const String& filename)
@@ -1655,7 +1655,7 @@ void parse_directive(Interloper& itl,Parser& parser)
             {
                 consume(parser,token_type::struct_t);
                 
-                struct_decl(itl,parser,parser.cur_file,flags);
+                struct_decl(itl,parser,flags);
                 break;
             }
 
@@ -1663,7 +1663,7 @@ void parse_directive(Interloper& itl,Parser& parser)
             {
                 consume(parser,token_type::enum_t);
                 
-                enum_decl(itl,parser,parser.cur_file,flags); 
+                enum_decl(itl,parser,flags); 
                 break; 
             }
 
@@ -1737,25 +1737,25 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
         // function declartion
         case token_type::func:
         {
-            func_decl(itl,parser,parser.cur_file);
+            func_decl(itl,parser);
             break;
         }
 
         case token_type::struct_t:
         {
-            struct_decl(itl,parser,parser.cur_file);
+            struct_decl(itl,parser);
             break;
         }
 
         case token_type::enum_t:
         {
-            enum_decl(itl,parser,parser.cur_file,0);
+            enum_decl(itl,parser,0);
             break;
         }
 
         case token_type::type_alias:
         {
-            type_alias(itl,parser,parser.cur_file);
+            type_alias(itl,parser);
             break;
         }
 
@@ -1764,7 +1764,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
         {
             DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon,true);
 
-            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,t);
+            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_name_space,t);
 
             push_var(itl.constant_decl,const_decl);
             break; 
@@ -1775,7 +1775,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
         {
             DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
 
-            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,t);
+            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_name_space,t);
 
             push_var(itl.global_decl,global_decl);
             break; 

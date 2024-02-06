@@ -2033,12 +2033,13 @@ void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind 
 }
 
 
-void add_type_def(Interloper& itl, def_kind kind,AstNode* root, const String& name, const String& filename)
+void add_type_def(Interloper& itl, def_kind kind,AstNode* root, const String& name, const String& filename, const String& name_space)
 {
     TypeDef def;
 
     def.name = name;
     def.filename = filename;
+    def.name_space = name_space;
     def.root = root;
     def.kind = kind;
     def.state = def_state::not_checked;

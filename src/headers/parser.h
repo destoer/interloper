@@ -369,6 +369,7 @@ struct GlobalDeclNode
 
     DeclNode *decl = nullptr;
     String filename;
+    String name_space;
 };
 
 struct BlockNode
@@ -385,6 +386,7 @@ struct FuncNode
 
     String name;
     String filename;
+    String name_space;
 
     Array<TypeNode*> return_type;
     BlockNode* block = nullptr;
@@ -403,6 +405,7 @@ struct StructNode
 
     String name;
     String filename;
+    String name_space;
     Array<DeclNode*> members;
     // is there a member forced to be first in the memory layout?
     DeclNode* forced_first = nullptr;
@@ -422,6 +425,7 @@ struct EnumNode
 
     String name;
     String filename;
+    String name_space;
     Array<EnumMemberDecl> member;
 
     // types
@@ -442,6 +446,7 @@ struct AliasNode
 
     String name;
     String filename;
+    String name_space;
 
     TypeNode* type;
 };
@@ -565,6 +570,7 @@ struct Parser
     String expression_name;
 
     String cur_file = "";
+    String cur_name_space = "";
     String cur_path = "";
 
     // error handling
@@ -618,7 +624,7 @@ AstNode *ast_char(Parser& parser,const char character, const Token& token)
 }
 
 
-AstNode *ast_func(Parser& parser,const String &name, const String& filename, const Token& token)
+AstNode *ast_func(Parser& parser,const String &name, const String& filename,const String& name_space, const Token& token)
 {
     FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
 
@@ -628,11 +634,12 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
 
     func_node->name = name;
     func_node->filename = filename;
+    func_node->name_space = name_space;
 
     return (AstNode*)func_node;
 }
 
-AstNode *ast_struct(Parser& parser,const String &name, const String& filename, const Token& token)
+AstNode *ast_struct(Parser& parser,const String &name, const String& filename,const String& name_space, const Token& token)
 {
     StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,ast_fmt::struct_t,token);
 
@@ -640,6 +647,8 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename, c
 
     struct_node->name = name;
     struct_node->filename = filename;
+    struct_node->name_space = name_space;
+
 
     return (AstNode*)struct_node;
 }    
@@ -822,22 +831,24 @@ AstNode* ast_tuple_assign(Parser& parser, const Token& token)
     return (AstNode*)tuple_node;
 }
 
-AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const String& filename, const Token& token)
+AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const String& filename,const String& name_space, const Token& token)
 {
     AliasNode* alias_node = alloc_node<AliasNode>(parser,ast_type::type_alias,ast_fmt::type_alias,token);
 
     alias_node->filename = filename;
+    alias_node->name_space = name_space;
     alias_node->name = literal;
     alias_node->type = type;
 
     return (AstNode*)alias_node;
 }
 
-AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename, const Token& token)
+AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename,const String& name_space, const Token& token)
 {
     GlobalDeclNode* global_node = alloc_node<GlobalDeclNode>(parser,ast_type::global_declaration,ast_fmt::global_declaration,token);
 
     global_node->filename = filename;
+    global_node->name_space = name_space;
     global_node->decl = decl_node;
 
     return (AstNode*)global_node;
@@ -853,12 +864,13 @@ AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& fie
     return (AstNode*)builtin_access;
 }
 
-AstNode* ast_enum(Parser& parser, const String& name,const String& filename, const Token& token)
+AstNode* ast_enum(Parser& parser, const String& name,const String& filename,const String& name_space, const Token& token)
 {
     EnumNode* enum_node = alloc_node<EnumNode>(parser,ast_type::enum_t,ast_fmt::enum_t,token);
 
     enum_node->name = name;
     enum_node->filename = filename;
+    enum_node->name_space = name_space;
     
     add_ast_pointer(parser,&enum_node->member.data);
 
