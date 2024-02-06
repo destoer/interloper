@@ -153,20 +153,19 @@ b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* t
 }
 
 // returns member loc
-u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count, const String& filename, b32 forced_first, u32 flags)
+u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
 {
     Member member;
     member.name = m->name;
 
     TypeNode* type_decl = m->type;
 
+    itl.ctx.expr = (AstNode*)m; 
+
     // copy the init expr
     member.expr = m->expr;
 
-
     u32 type_idx_override = INVALID_TYPE;
-
-    itl.cur_file = filename;
 
     // TODO: function pointer currently requires in order decl
     // or deduction will fail
@@ -320,6 +319,9 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
 {
     StructNode* node = (StructNode*)def.root;
 
+    // NOTE: we expect the caller to save this
+    trash_context(itl,node->filename,node->name_space,def.root);
+
     TypeDecl* user_type = lookup(itl.type_table,node->name);
     if(user_type)
     {
@@ -350,7 +352,7 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     // force this to be at the first location in mem
     if(node->forced_first)
     {
-        forced_first_loc = add_member(itl,structure,node->forced_first,size_count,node->filename,true,flags);
+        forced_first_loc = add_member(itl,structure,node->forced_first,size_count,true,flags);
     }
 
     // parse out members
@@ -361,7 +363,7 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
             return;
         }
 
-        add_member(itl,structure,node->members[i],size_count,node->filename,false,flags);
+        add_member(itl,structure,node->members[i],size_count,false,flags);
     }
 
 

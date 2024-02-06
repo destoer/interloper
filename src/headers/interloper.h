@@ -79,7 +79,7 @@ static const char* ERROR_NAME[] =
 struct FileContext
 {
     AstNode *expr = nullptr;
-    String file_name = "";
+    String filename = "";
 
     String name_space = "";
 };
@@ -94,8 +94,6 @@ struct Interloper
 
     u32 arith_depth = 0;
 
-    AstNode *cur_expr = nullptr;
-    String cur_file = "";
     String stl_path = "";
 
     Array<FileContext> saved_ctx;
@@ -177,12 +175,11 @@ inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
         return;
     }
 
-    if(itl.cur_expr)
+    if(itl.ctx.expr)
     {
-        const auto [line,col] = get_line_info(itl.cur_file,itl.cur_expr->idx);
-        const String filename = itl.cur_file;
+        const auto [line,col] = get_line_info(itl.ctx.filename,itl.ctx.expr->idx);
 
-        printf("error: %s %d:%d: ",filename.buf,line,col);
+        printf("error: %s %d:%d: ",itl.ctx.filename.buf,line,col);
 
 
         va_list args; 
@@ -190,7 +187,7 @@ inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
         vprintf(fmt,args);
         va_end(args);
 
-        print_line(filename,line);
+        print_line(itl.ctx.filename,line);
     }
 
     else 
@@ -236,3 +233,8 @@ inline u32 log2(u32 idx)
 std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
 SymSlot mul_imm_pow2_res(Interloper& itl, Function& func, SymSlot src,s32 imm);
+
+void push_context(Interloper& itl);
+void pop_context(Interloper& itl);
+void trash_context(Interloper& itl, String filename,String name_space, AstNode* expr);
+void switch_context(Interloper& itl, String filename,String name_space, AstNode* expr);

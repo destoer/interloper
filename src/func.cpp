@@ -182,7 +182,7 @@ void push_generic_type_alias(Interloper& itl, Function& func)
 {
     for(u32 g = 0; g < count(func.generic_override); g++)
     {
-        push_temp_type_alias(itl,func.generic_override[g],func.generic_override_name[g],itl.cur_file);
+        push_temp_type_alias(itl,func.generic_override[g],func.generic_override_name[g],itl.ctx.filename);
     }
 }
 
@@ -1020,19 +1020,17 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
 void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
 {
-    // save old expression offsets
-    // because this is in a different ctx
-    auto old_file = itl.cur_file;
-    auto old_expr = itl.cur_expr;
+    // about to move to a different context
+    push_context(itl);
 
-    itl.cur_file = node.filename;
+    trash_context(itl,node.filename,node.name_space,(AstNode*)&node);
 
     u32 arg_offset = 0;
 
     // NOTE: void return's will have a void type
     if(count(node.return_type) == 1)
     {
-        itl.cur_expr = (AstNode*)node.return_type[0];
+        itl.ctx.expr = (AstNode*)node.return_type[0];
 
         push_var(sig.return_type,get_complete_type(itl,node.return_type[0]));
 
@@ -1049,7 +1047,7 @@ void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
     {
         for(u32 a = 0; a < count(node.return_type); a++)
         {
-            itl.cur_expr = (AstNode*)node.return_type[a];
+            itl.ctx.expr = (AstNode*)node.return_type[a];
 
             push_var(sig.return_type,get_complete_type(itl,node.return_type[a]));
 
@@ -1067,7 +1065,7 @@ void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
     for(u32 i = 0; i < count(decl); i++)
     {
         const auto a = decl[i];
-        itl.cur_expr = (AstNode*)a;
+        itl.ctx.expr = (AstNode*)a;
 
         const auto name = a->name;
         const auto type = get_complete_type(itl,a->type);
@@ -1104,8 +1102,7 @@ void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
         sig.va_args = true;
     }
 
-    itl.cur_file = old_file;
-    itl.cur_expr = old_expr;
+    pop_context(itl);
 }
 
 
@@ -1119,8 +1116,10 @@ void compile_function(Interloper& itl, Function& func)
     if(func.root)
     {
         const auto &node = *func.root;
-        itl.cur_file = node.filename;
 
+        // inside a new function we dont care about the old context
+        // so just trash it
+        trash_context(itl,node.filename,node.name_space,(AstNode*)func.root);
         
         // put arguments on the symbol table they are marked as args
         // so we know to access them "above" to stack pointer
@@ -1188,7 +1187,7 @@ void compile_function(Interloper& itl, Function& func)
     {
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
-        itl.cur_expr = (AstNode*)func.root;   
+        itl.ctx.expr = (AstNode*)func.root;   
         panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);  
     }
 
@@ -1202,7 +1201,7 @@ void compile_function(Interloper& itl, Function& func)
             auto& block = block_from_slot(func,slot);
             auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
 
-            itl.cur_expr = (AstNode*)func.root;   
+            itl.ctx.expr = (AstNode*)func.root;   
             panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
         }
     }

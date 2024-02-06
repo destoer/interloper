@@ -38,7 +38,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 {
     EnumNode* node = (EnumNode*)def.root;    
 
-    itl.cur_file = node->filename;
+    trash_context(itl,node->filename,node->name_space,def.root);
 
     Enum enumeration;
 
@@ -93,11 +93,6 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         }
     }
 
-    
-
-    // reset filename incase struct clobbers it
-    itl.cur_file = node->filename;
-
     // setup enum info
     enumeration.name = node->name;
     enumeration.filename = node->filename;
@@ -138,7 +133,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
                 {
                     case ast_type::initializer_list:
                     {
-                        itl.cur_expr = (AstNode*)member_decl.initializer;
+                        itl.ctx.expr = (AstNode*)member_decl.initializer;
                         const u32 offset = m * structure.size;
 
                         compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);

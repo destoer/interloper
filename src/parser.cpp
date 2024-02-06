@@ -16,6 +16,8 @@ Parser make_parser(const String& cur_file,ArenaAllocator* ast_allocator,ArenaAll
     Parser parser;
     parser.allocator = ast_allocator;
     parser.string_allocator = string_allocator;
+
+    // NOTE: this relies on get_program_name to allocate the string correctly
     parser.cur_file = cur_file;
     parser.cur_path = extract_path(parser.cur_file);
     parser.ast_arrays = ast_arrays;

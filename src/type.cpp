@@ -2122,9 +2122,9 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set);
 
 void parse_def(Interloper& itl, TypeDef& def)
 {
-    // this may cross a file boundary
-    // save the old file
-    const auto old_file = itl.cur_file;
+    // this node make be from a different context
+    // save the current one
+    push_context(itl);
 
     if(def.state == def_state::not_checked)
     {
@@ -2165,7 +2165,7 @@ void parse_def(Interloper& itl, TypeDef& def)
         return;
     }
 
-    itl.cur_file = old_file;
+    pop_context(itl);
 }
 
 

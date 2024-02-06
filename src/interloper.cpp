@@ -60,13 +60,19 @@ void pop_context(Interloper& itl)
     itl.ctx = pop(itl.saved_ctx);
 }
 
-void switch_context(Interloper& itl, String name_space, String file_name, AstNode* expr)
+void trash_context(Interloper& itl, String filename,String name_space, AstNode* expr)
 {
     itl.ctx.name_space = name_space;
-    itl.ctx.file_name = file_name;
+    itl.ctx.filename = filename;
     itl.ctx.expr = expr;
 }
 
+// save and overwrite the ctx
+void switch_context(Interloper& itl, String filename,String name_space, AstNode* expr)
+{
+    push_context(itl);
+    trash_context(itl,filename,name_space,expr);
+}
 
 
 void dump_sym_ir(Interloper &itl)
@@ -129,7 +135,7 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 
     // for error printing
-    itl.cur_expr = node;
+    itl.ctx.expr = node;
 
 
     switch(node->type)
@@ -157,7 +163,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         return make_builtin(itl,builtin_type::void_t);
     }
 
-    itl.cur_expr = node;
+    itl.ctx.expr = node;
    
     switch(node->type)
     {
@@ -766,7 +772,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             return;
         }
 
-        itl.cur_expr = line;
+        itl.ctx.expr = line;
     
         switch(line->type)
         {
@@ -1033,8 +1039,13 @@ void compile_globals(Interloper& itl)
 
     for(u32 c = 0; c < count(itl.global_decl); c++)
     {
-        itl.cur_file = itl.global_decl[c]->filename;
-        compile_decl(itl,func,(AstNode*)itl.global_decl[c]->decl,true);
+        GlobalDeclNode* decl_node = itl.global_decl[c];
+
+        switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
+        
+        compile_decl(itl,func,(AstNode*)decl_node->decl,true);
+
+        pop_context(itl);
 
         if(itl.error)
         {
@@ -1045,16 +1056,13 @@ void compile_globals(Interloper& itl)
     finalise_global_offset(itl);
 }
 
-// -> impl static assert
-// -> improve const expressions
 // -> handle block args inside the reg allocator and get a proper global allocator
 
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-// function_pointers
-// -> early stl  -> function pointers -> compile time execution ->
-// better enums -> unions? -> debug memory guards -> ...
+// namespace -> compile time execution ->
+// -> unions? -> debug memory guards -> ...
 
 void destroy_ast(Interloper& itl)
 {
@@ -1073,9 +1081,11 @@ void destroy_ast(Interloper& itl)
 
     destroy_table(itl.type_def);
     destroy_arr(itl.global_def);
+    destroy_arr(itl.saved_ctx);
 
-    itl.cur_expr = nullptr;
-    itl.cur_file = ""; 
+    itl.ctx.expr = nullptr;
+    itl.ctx.filename = ""; 
+    itl.ctx.name_space = "";
 }
 
 void destroy_itl(Interloper &itl)

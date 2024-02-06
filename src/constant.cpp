@@ -918,12 +918,11 @@ void compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
 
 void compile_constant(Interloper& itl, GlobalDeclNode* node)
 {
-    // setup the correct file for error reporting
-    itl.cur_file = node->filename;
-
-    itl.cur_expr = (AstNode*)node;
+    switch_context(itl,node->filename,node->name_space,(AstNode*)node);
 
     compile_constant_decl(itl,node->decl,true);
+
+    pop_context(itl);
 }
 
 void compile_constants(Interloper& itl)
