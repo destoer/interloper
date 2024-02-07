@@ -227,3 +227,39 @@ const Label& label_from_slot(const LabelLookup& lookup, LabelSlot slot)
 {
     return lookup[slot.handle];
 }
+
+
+String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space, const String& name)
+{
+    // just as is
+    if(name_space == "")
+    {
+        return copy_string(allocator,name);
+    }
+
+    // name_space + "::" + name;
+    StringBuffer buffer;
+
+    push_string(allocator,buffer,name_space);
+    push_string(allocator,buffer,"::");
+    push_string(allocator,buffer,name);
+
+    return make_string(buffer);
+}
+
+String tmp_name_space_name(Interloper& itl,const String& name_space, const String& name)
+{
+    // just return the name
+    if(name_space == "")
+    {
+        return name;
+    }
+
+    clear_arr(itl.name_space_buffer);
+
+    push_string(itl.name_space_buffer,name_space);
+    push_string(itl.name_space_buffer,"::");
+    push_string(itl.name_space_buffer,name);
+
+    return make_string(itl.name_space_buffer);
+}

@@ -1,3 +1,4 @@
+namespace std;
 
 func assert(cond : bool)
 {

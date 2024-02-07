@@ -1,3 +1,4 @@
+namespace std;
 
 import <array>
 

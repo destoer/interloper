@@ -1,3 +1,4 @@
+namespace std;
 
 constant BITS_IN_BYTE : u32 = 8;
 

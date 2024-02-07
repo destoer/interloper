@@ -18,6 +18,8 @@ const char* KEYWORD[][2] =
     {tok_name(token_type::const_t),"token_type::const_t"},
     {tok_name(token_type::constant_t),"token_type::constant_t"},
     {tok_name(token_type::global_t),"token_type::global_t"},
+    
+    {tok_name(token_type::namespace_t),"token_type::namespace_t"},
 
     {tok_name(token_type::u8),"token_type::u8"},
     {tok_name(token_type::u16),"token_type::u16"},

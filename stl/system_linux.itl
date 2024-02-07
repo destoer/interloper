@@ -1,3 +1,5 @@
+namespace std;
+
 // NOTE: abstracts away bottom level os primitives
 
 constant SYSCALL_READ : u32 = 0;

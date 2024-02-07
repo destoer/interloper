@@ -6,23 +6,23 @@ func main() s32
     constant X : u32 = 640;
     constant Y : u32 = 480;
 
-    win := open_window("interloper",X,Y);
+    win := gfx::open_window("interloper",X,Y);
 
     while(!win.quit)
     {
-        process_events(&win);
+        gfx::process_events(&win);
 
         for(i in 0 < 25)
         {
-            win.screen[rand_arr_idx<u32>(win.screen)] = rand_range_u32(0,0xffff_ffff);
+            win.screen[std::rand_arr_idx<u32>(win.screen)] = std::rand_range_u32(0,0xffff_ffff);
         }
 
-        draw_window(&win,win.screen);
+        gfx::draw_window(&win,win.screen);
 
-        sleep_ms(16);
+        std::sleep_ms(16);
     }
 
-    close_window(&win);
+    gfx::close_window(&win);
 
     return 0;
 }

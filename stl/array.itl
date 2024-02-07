@@ -1,3 +1,4 @@
+namespace std;
 
 func arr_arena<T>(arena : Arena@, size : u64) T[]
 {

@@ -26,13 +26,14 @@ void destroy_func_table(FunctionTable& func_table)
     destroy_allocator(func_table.arena);
 }
 
-void add_func(Interloper& itl, const String& name, FuncNode* root)
+void add_func(Interloper& itl, const String& name, const String& name_space, FuncNode* root)
 {
     FunctionDef func_def;
 
     // Make sure our function is not allocated on the
     // same string allocator as the AST
-    func_def.name = copy_string(itl.string_allocator,name);
+    func_def.name = alloc_name_space_name(itl.string_allocator,name_space,name);
+
     func_def.root = root;
     func_def.func = nullptr;
     
@@ -84,32 +85,67 @@ Function* finalise_func_internal(Interloper& itl, FunctionDef& func_def, b32 par
     return func_def.func;   
 }
 
+// NOTE: we probably want to switch over to a global definiton table
+// for any top level statement to make this less cumbersome to implement
+// it will also let make sure different domains dont have the same name
 
-FunctionDef* lookup_func_def(Interloper& itl, const String& name)
+
+// NOTE: this gets a function ONLY in the requested scope
+FunctionDef* lookup_func_def_scope(Interloper& itl, const String& name, const String& name_space)
 {
+    // attempt to find in the specified scope and nothing else
+    const auto full_name = tmp_name_space_name(itl,name_space,name);
+
+    //printf("lookup scoped: %s\n",full_name.buf);
+
+    return lookup(itl.func_table.table,full_name);
+}
+
+// get a function only in the global scope
+FunctionDef* lookup_func_def_global(Interloper& itl, const String& name)
+{
+    //printf("lookup global: %s\n",name.buf);
+
     return lookup(itl.func_table.table,name);
 }
 
+// Search each scope from the bottom for a function
+FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
+{
+    // attempt to find in current name space first
+    FunctionDef* opt = lookup_func_def_scope(itl,name,itl.ctx.name_space);
+
+    // found in current scope
+    if(opt)
+    {
+        return opt;
+    }
+
+    // fail attempt to find globally
+    return lookup_func_def_global(itl,name);
+}
+
+
+ 
 Function& create_dummy_func(Interloper& itl, const String& name)
 {
-    add_func(itl,name,nullptr);
+    add_func(itl,name,"",nullptr);
 
-    FunctionDef& func_def = *lookup_func_def(itl,name);
+    FunctionDef& func_def = *lookup_func_def_global(itl,name);
     
     finalise_func_internal(itl,func_def);
 
     // get its new home
-    return lookup_complete_function(itl,name);
+    return lookup_internal_function(itl,name);
 }
 
 StringBuffer func_generic_name(Interloper& itl, const String& old_name,Array<TypeNode*> generic)
 {
-    UNUSED(itl);
     StringBuffer buffer;
 
-    // old name prefixed with _g_
-    push_string(buffer,"_g_");
+    // old name appended with _g_
     push_string(buffer,old_name);
+    push_string(buffer,"_g_");
 
     
     for(u32 g = 0; g < count(generic); g++)
@@ -205,7 +241,7 @@ Function* specialise_func(Interloper& itl, FunctionDef& base_func, FuncCallNode*
 
     // check if function has allready been specialised
     // if so just return it
-    auto spec_func_opt = lookup_opt_function(itl,specialised_name);
+    auto spec_func_opt = lookup_opt_scoped_function(itl,specialised_name,"");
 
     if(spec_func_opt)
     {
@@ -217,9 +253,11 @@ Function* specialise_func(Interloper& itl, FunctionDef& base_func, FuncCallNode*
     // we need to build a specialised version
     
     // duplicate function so we can specilaise it
-    add_func(itl,specialised_name,base_func.root);
 
-    auto& spec_func = *finalise_func_internal(itl,*lookup_func_def(itl,specialised_name),false);
+    // NOTE: this puts this implicitly puts the function in the same namespace as the old one
+    add_func(itl,specialised_name,"",base_func.root);
+
+    auto& spec_func = *finalise_func_internal(itl,*lookup_func_def_global(itl,specialised_name),false);
 
     // add in the type overrides so we can finalise the function
 
@@ -296,14 +334,14 @@ Function* finalise_func(Interloper& itl, FunctionDef& base_func, AstNode* ast_no
     }
 }
 
-b32 func_exists(Interloper& itl, const String& name)
+b32 func_exists(Interloper& itl, const String& name, const String& name_space)
 {
-    return contains(itl.func_table.table,name);
+    return lookup_func_def_scope(itl,name,name_space) != nullptr;
 }
 
-void check_startup_func(Interloper& itl, const String& name)
+void check_startup_func(Interloper& itl, const String& name, const String& name_space)
 {
-    auto def_opt = lookup_func_def(itl,name);
+    auto def_opt = lookup_func_def_scope(itl,name,name_space);
 
     // ensure the entry functions are defined
     if(!def_opt)
@@ -315,9 +353,9 @@ void check_startup_func(Interloper& itl, const String& name)
     finalise_func_internal(itl,*def_opt);    
 }
 
-Function* lookup_opt_function(Interloper& itl, const String& name)
+Function* lookup_opt_scoped_function(Interloper& itl, const String& name,const String& name_space)
 {
-    FunctionDef* func_def_opt = lookup_func_def(itl, name);
+    FunctionDef* func_def_opt = lookup_func_def_scope(itl,name,name_space);
 
     if(!func_def_opt)
     {
@@ -329,10 +367,25 @@ Function* lookup_opt_function(Interloper& itl, const String& name)
     return func_def.func;
 }
 
-Function& lookup_complete_function(Interloper& itl, const String& name)
+Function* lookup_opt_global_function(Interloper& itl, const String& name)
 {
-    Function* func_opt = lookup_opt_function(itl,name);
+    FunctionDef* func_def_opt = lookup_func_def_global(itl,name);
 
+    if(!func_def_opt)
+    {
+        return nullptr;
+    }
+
+    auto& func_def = *func_def_opt;
+
+    return func_def.func;
+}
+
+Function& lookup_internal_function(Interloper& itl, const String& name)
+{
+    Function* func_opt = lookup_opt_scoped_function(itl,name,"");
+
+    // assert this just for saftey
     assert(func_opt);
 
     return *func_opt;
@@ -770,8 +823,10 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     }    
 }
 
-FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
+FuncCall get_calling_sig(Interloper& itl,const String& name_space,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
 {
+    UNUSED(name_space);
+
     FuncCall call_info;
 
     AstNode* expr = call_node->expr;
@@ -782,7 +837,10 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
         const LiteralNode* literal_node = (LiteralNode*)expr;
         const String& name = literal_node->literal;
 
-        FunctionDef* func_call_def = lookup(itl.func_table.table,name);
+        // are we looking in the global namespace or no?
+        const b32 global = name_space == "";
+
+        FunctionDef* func_call_def = global? lookup_func_def_default(itl,name) : lookup_func_def_scope(itl,name,name_space);
 
         // no known function
         if(!func_call_def)
@@ -815,9 +873,16 @@ FuncCall get_calling_sig(Interloper& itl,Function& func,FuncCallNode* call_node,
 
             else
             {
-                // cant find any context that would be a function call
-                // this is an error
-                panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
+                if(name_space == "")
+                {
+                    panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
+                }
+
+                else
+                {
+                    panic(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared\n",name_space.buf,name.buf);
+                }
+
                 return {};
             }
         }
@@ -924,7 +989,7 @@ void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_no
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_function_call(Interloper &itl,const String& name_space,Function &func,AstNode *node, SymSlot dst_slot)
 {
     TupleAssignNode* tuple_node = nullptr;
 
@@ -954,7 +1019,7 @@ Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlo
 
     // get the signature of what we are actually calling
     // NOTE: this might be plain function, or it could be a function pointer
-    const auto call_info = get_calling_sig(itl,func,call_node,tuple_node);
+    const auto call_info = get_calling_sig(itl,name_space,func,call_node,tuple_node);
     auto& sig = call_info.sig;
 
     if(itl.error)

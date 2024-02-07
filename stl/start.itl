@@ -11,5 +11,5 @@ func start()
     global_setup = true;
 
     rc : s32 = main();
-    exit(rc);
+    std::exit(rc);
 }

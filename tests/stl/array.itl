@@ -7,21 +7,21 @@ func main() s32
     
     for(i in 1 <= 4)
     {
-        push_array<u32>(&arr,i);
+        std::push_array<u32>(&arr,i);
     }
 
-    linefeed();
+    std::linefeed();
 
     for(i in 0 < 4)
     {
-        if(read_array<u32>(&arr,i) != i + 1)
+        if(std::read_array<u32>(&arr,i) != i + 1)
         {
-            destroy_array(&arr);
+            std::destroy_array(&arr);
             return 0;
         }
     }
 
-    destroy_array(&arr);
+    std::destroy_array(&arr);
 
     return 1;
 }

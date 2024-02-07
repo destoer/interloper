@@ -1,0 +1,7 @@
+// TODO: do we event want this
+use std;
+
+func main() s32
+{
+    return min_u64(5,100);
+}

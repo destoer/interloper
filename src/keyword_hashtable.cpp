@@ -8,7 +8,7 @@ static constexpr HashNode<String,token_type> KEYWORD_TABLE[KEYWORD_TABLE_SIZE] =
     {"",token_type::error},
     {"",token_type::error},
     {"",token_type::error},
-    {"",token_type::error},
+    {"namespace",token_type::namespace_t},
     {"u16",token_type::u16},
     {"",token_type::error},
     {"",token_type::error},

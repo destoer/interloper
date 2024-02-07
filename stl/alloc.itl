@@ -1,4 +1,4 @@
-
+namespace std;
 
 import <arena>
 import <heap>

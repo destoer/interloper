@@ -3,9 +3,9 @@
 func test_arena() bool
 {
     buf : byte[1024];
-    arena : Arena = make_arena(buf);
+    arena : Arena = std::make_arena(buf);
 
-    vla : byte[] = byte_arr_arena(&arena,25);
+    vla : byte[] = std::byte_arr_arena(&arena,25);
 
     for [@v , i] in vla
     {
@@ -19,14 +19,14 @@ func test_arena() bool
 
 func test_heap() bool
 {
-    print("before alloc:\n");
-    heap_usage(&global_heap);
+    std::print("before alloc:\n");
+    std::heap_usage(&global_heap);
 
 
-    vla : byte[] = byte_arr_heap(&global_heap,25);
+    vla : byte[] = std::byte_arr_heap(&global_heap,25);
 
-    print("after alloc:\n");
-    heap_usage(&global_heap);
+    std::print("after alloc:\n");
+    std::heap_usage(&global_heap);
 
     for [@v , i] in vla
     {
@@ -35,10 +35,10 @@ func test_heap() bool
 
     res := vla.len * vla[3];
 
-    destroy_arr_heap<byte>(&global_heap,&vla);
+    std::destroy_arr_heap<byte>(&global_heap,&vla);
     
-    print("after free:\n");
-    heap_usage(&global_heap);
+    std::print("after free:\n");
+    std::heap_usage(&global_heap);
 
     // check data is also free
     return res == 150 && vla.data == NULL && vla.len == 0;
@@ -47,24 +47,24 @@ func test_heap() bool
 func test_realloc() bool
 {
     vla : byte[];
-    array_realloc<byte>(&global_heap,&vla,100);
+    std::array_realloc<byte>(&global_heap,&vla,100);
 
     for(i in 0 < 5)
     {
-        array_realloc<byte>(&global_heap,&vla,vla.len * 2);
+        std::array_realloc<byte>(&global_heap,&vla,vla.len * 2);
 
         for([@v , j] in vla)
         {
             @v = cast(byte,j);
         }
 
-        print("alloc round {}\n",i);
-        heap_usage(&global_heap);
+        std::print("alloc round {}\n",i);
+        std::heap_usage(&global_heap);
     }
 
     res := vla.len;
 
-    destroy_arr_heap<byte>(&global_heap,&vla);
+    std::destroy_arr_heap<byte>(&global_heap,&vla);
 
     return res == 3200;
 }
@@ -75,7 +75,7 @@ func stress_heap() bool
 
     for(@ptr in arr)
     {
-        @ptr = alloc_heap(&global_heap,1,55);
+        @ptr = std::alloc_heap(&global_heap,1,55);
     }
 
     pattern : u32[?] = 
@@ -87,21 +87,21 @@ func stress_heap() bool
     {
         if(arr[i])
         {
-            free_heap(&global_heap,&arr[i]);
+            std::free_heap(&global_heap,&arr[i]);
         }
 
         else
         {
-            arr[i] = alloc_heap(&global_heap,1,i);
+            arr[i] = std::alloc_heap(&global_heap,1,i);
         }
     }
 
     for(@ptr in arr)
     {
-        free_heap(&global_heap,ptr);
+        std::free_heap(&global_heap,ptr);
     }
 
-    heap_usage(&global_heap);
+    std::heap_usage(&global_heap);
     return global_heap.used == 0;
 }
 

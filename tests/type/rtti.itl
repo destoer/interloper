@@ -5,7 +5,7 @@ func check_builtin_type(any : Any, expected : itl_type) bool
 {
     type := any.type;
 
-    if(is_builtin(type.type_idx))
+    if(std::is_builtin(type.type_idx))
     {
         return type.type_idx == expected;
     }
@@ -45,9 +45,9 @@ func check_ptr(any : Any, expected : itl_type) bool
 {
     type := any.type;
 
-    if(is_pointer(type))
+    if(std::is_pointer(type))
     {
-        contained_type := deref_pointer(type);
+        contained_type := std::deref_pointer(type);
 
         return expected == contained_type.type_idx;
     }
@@ -75,7 +75,7 @@ func test_array(any : Any, expected_len : u32) bool
 {
     type : const Type@ = any.type;
 
-    if(is_array(type))
+    if(std::is_array(type))
     {
         array_type := cast(const ArrayType@,type);
 

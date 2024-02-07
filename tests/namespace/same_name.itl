@@ -1,0 +1,16 @@
+import "test.itl"
+
+func get_num() s32
+{
+    return 20;
+}
+
+func no_space() s32
+{
+    return 5;
+}
+
+func main() s32
+{
+    return get_num() + test::get_num();
+}

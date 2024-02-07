@@ -1,5 +1,4 @@
-
-
+namespace std;
 
 func is_even(v : u64) bool 
 {

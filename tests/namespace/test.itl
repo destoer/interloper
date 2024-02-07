@@ -1,0 +1,7 @@
+
+namespace test;
+
+func get_num() s32
+{
+    return 55 + no_space();
+}

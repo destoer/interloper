@@ -5,11 +5,11 @@ func main() s32
 {
     x : u8[4] = {1,2,3,4};
 
-    zero_mem(&x[0],x.len);
+    std::zero_mem(&x[0],x.len);
 
-    res1 := handle_read<s32>(&x[0]) == 0;
+    res1 := std::handle_read<s32>(&x[0]) == 0;
 
-    res2 := bswap<u16>(0xdead) == 0xadde;
+    res2 := std::bswap<u16>(0xdead) == 0xadde;
 
     ans := res1 && res2;
 

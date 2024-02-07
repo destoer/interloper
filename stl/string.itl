@@ -1,3 +1,4 @@
+namespace std;
 
 constant ASCII_CASE_GAP : u8 = 'a' - 'A';
 

@@ -361,7 +361,8 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
             if(!sym_ptr)
             {
                 // could be attempting to take a function pointer?
-                auto func_def = lookup_func_def(itl,name);
+                // TODO: we cant scope this yet
+                auto func_def = lookup_func_def_global(itl,name);
 
                 if(func_def)
                 {

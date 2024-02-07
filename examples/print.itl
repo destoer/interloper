@@ -3,29 +3,29 @@ func main() s32
 {
     for(i in 0 < 10)
     {
-        print("count {}\n",i);
+        std::print("count {}\n",i);
     }
 
-    putchar('\n');
+    std::putchar('\n');
 
-    print("{} is {} years old\n","john",20);
+    std::print("{} is {} years old\n","john",20);
 
     v := 87;
     ptr := &v;
 
-    print("{} : {b} : {x} : {}\n",v,v,v,ptr);
+    std::print("{} : {b} : {x} : {}\n",v,v,v,ptr);
 
     s := -5;
     ptr_s := &s;
-    print("{} : {b} : {x} : {}\n",s,s,s,ptr_s);
+    std::print("{} : {b} : {x} : {}\n",s,s,s,ptr_s);
 
-    print("{}\n",NULL);
+    std::print("{}\n",NULL);
 
     b := 0xdead_beef_cafe_babe;
-    print("{x}\n",b);
+    std::print("{x}\n",b);
 
     //invalid print
-    //print("{} : {}\n","boop");
+    //std::print("{} : {}\n","boop");
 
     return 0;
 }

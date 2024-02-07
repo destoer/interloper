@@ -1,3 +1,5 @@
+namespace std;
+
 import <basic>
 
 constant FILE_BLOCK_SIZE : u32 = 4096;

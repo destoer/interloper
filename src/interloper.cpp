@@ -20,7 +20,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
 void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
 std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
-void add_func(Interloper& itl, const String& name, FuncNode* root);
+void add_func(Interloper& itl, const String& name, const String& name_space, FuncNode* root);
 
 void alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
 
@@ -154,6 +154,46 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 }
 
+void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, const String& name_space)
+{
+    switch(node->type)
+    {
+        case ast_type::function_call:
+        {
+            compile_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            break;
+        }
+
+        case ast_type::tuple_assign:
+        {
+            compile_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            break;      
+        }
+
+        default:
+        {
+            panic(itl,itl_error::invalid_expr,"Scope is not valid for stmt: %s\n",AST_NAMES[u32(node->type)]);
+            return;
+        }
+    }
+}
+
+Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, const String& name_space)
+{
+    switch(node->type)
+    {
+        case ast_type::function_call:
+        {
+            return compile_function_call(itl,name_space,func,node,dst_slot);
+        }
+
+        default:
+        {
+            panic(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s\n",AST_NAMES[u32(node->type)]);
+            return make_builtin(itl,builtin_type::void_t);
+        }
+    }
+}
 
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot dst_slot)
 {
@@ -546,7 +586,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::function_call:
         {
-            return compile_function_call(itl,func,node,dst_slot);
+            return compile_function_call(itl,"",func,node,dst_slot);
         }
 
         case ast_type::scope:
@@ -600,9 +640,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             // TODO: we dont have namespacing
             else 
             {
-                // TODO: this wont print a full scope
-                panic(itl,itl_error::none,"no such scope %s\n",scope_node->scope.buf);
-                return make_builtin(itl,builtin_type::void_t);
+                return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,scope_node->scope);
             }
         }
 
@@ -938,9 +976,16 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 break;
             }
 
+            case ast_type::scope:
+            {
+                ScopeNode* scope_node = (ScopeNode*)line;
+                compile_scoped_stmt(itl,func,scope_node->expr,scope_node->scope);
+                break;
+            }
+
             case ast_type::function_call:
             {
-                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,"",func,line,sym_from_idx(NO_SLOT));
                 break;
             }            
 
@@ -984,7 +1029,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,"",func,line,sym_from_idx(NO_SLOT));
                 break;
             }
 
@@ -1109,6 +1154,8 @@ void destroy_itl(Interloper &itl)
     destroy_arr(itl.alias_table);
     destroy_arr(itl.tmp_alias_table);
 
+    destroy_arr(itl.name_space_buffer);
+
     destroy_allocator(itl.list_allocator);
     destroy_allocator(itl.string_allocator);
 
@@ -1145,11 +1192,11 @@ void check_startup_defs(Interloper& itl)
         cache_rtti_structs(itl);
     }
 
-    check_startup_func(itl,"main");
-    check_startup_func(itl,"start");
+    check_startup_func(itl,"main","");
+    check_startup_func(itl,"start","");
 
-    check_startup_func(itl,"memcpy");
-    check_startup_func(itl,"zero_mem");
+    check_startup_func(itl,"memcpy","std");
+    check_startup_func(itl,"zero_mem","std");
 }
 
 void compile(Interloper &itl,const String& initial_filename)

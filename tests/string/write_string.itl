@@ -5,7 +5,7 @@ func main() s32
 {
     str : const string = "Go for broke\n";
 
-    write_string(str);
+    std::write_string(str);
 
     return 0;
 }

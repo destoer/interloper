@@ -1,6 +1,6 @@
 
 func main() s32
 {
-    write_string("Go for broke\n");
+    std::write_string("Go for broke\n");
     return 0;
 }

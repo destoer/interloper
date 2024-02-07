@@ -9,14 +9,14 @@ func main() s32
     
     for c in str
     {
-        l := to_lower(c);
+        l := std::to_lower(c);
         
         if(l >= 'a' && l <= 'z')
         {
             x : u8 = l - 'a';
-            set = set_bit(set,x);
+            set = std::set_bit(set,x);
         }
     }
 
-    return hamming_weight(set);
+    return std::hamming_weight(set);
 }

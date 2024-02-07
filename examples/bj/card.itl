@@ -43,7 +43,7 @@ struct Card
 
 func print_card(card : const Card@)
 {
-    print("{}:{} ",card.suit.name,card.face.name);
+    std::print("{}:{} ",card.suit.name,card.face.name);
 }
 
 struct Hand
@@ -84,7 +84,7 @@ func shuffle_deck(deck : const Deck@)
 {
     for(i in deck.card.len - 1 > 0)
     {
-        idx := rand_range_u64(0,cast(u32,i)); 
+        idx := std::rand_range_u64(0,cast(u32,i)); 
 
         // perform swap
         tmp := deck.card[i];
@@ -95,14 +95,14 @@ func shuffle_deck(deck : const Deck@)
 
 func print_hand(hand : const Hand@, name : const string)
 {
-    print("{}: ",name);
+    std::print("{}: ",name);
 
     for(c in 0 < hand.count)
     {
         print_card(&hand.card[c]);
     }
     
-    print("value: {}\n",hand.value);
+    std::print("value: {}\n",hand.value);
 }
 
 func value_hand(hand : Hand@)

@@ -4,11 +4,11 @@ func main() s32
 {
     buf : c8[256];
 
-    print("Enter some text: ");
+    std::print("Enter some text: ");
 
-    out := read_string(buf);
+    out := std::read_string(buf);
 
-    print("You said: {}\n",out);
+    std::print("You said: {}\n",out);
 
     return 0;
 }

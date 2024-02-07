@@ -1,4 +1,4 @@
-
+namespace std;
 
 constant MS_TO_SEC : u32 = 1000;
 constant MS_TO_NSEC : u32 = 1000_000;

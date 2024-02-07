@@ -2,20 +2,20 @@
 
 func main() s32
 {
-    [buf, err] := read_bin("tests/stl/lines.txt");
+    [buf, err] := std::read_bin("tests/stl/lines.txt");
 
     if(err)
     {
         return -1;
     }
 
-    write_str_raw(cast(c8@,&buf[0]),buf.len);
-    write_string("\n");
+    std::write_str_raw(cast(c8@,&buf[0]),buf.len);
+    std::write_string("\n");
 
     ans := buf.len >= 57;
 
     // free buffer
-    destroy_arr_heap<byte>(&global_heap,&buf);
+    std::destroy_arr_heap<byte>(&global_heap,&buf);
 
     return cast(s32,ans);
 }

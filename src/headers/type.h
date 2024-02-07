@@ -448,10 +448,12 @@ struct FunctionTable
 };
 
 
-b32 func_exists(Interloper& itl, const String& name);
+b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 
-Function* lookup_opt_function(Interloper& itl, const String& name);
-Function& lookup_complete_function(Interloper& itl, const String& name);
+Function* lookup_opt_scoped_function(Interloper& itl, const String& name,const String& name_space);
+Function* lookup_opt_global_function(Interloper& itl, const String& name);
+
+Function& lookup_internal_function(Interloper& itl, const String& name);
 
 void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node);
 

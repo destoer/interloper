@@ -1,11 +1,11 @@
 
 func test_str() s32
 {
-    [fp,err] := open_file("tests/stl/lines.txt",file_mode::read,file_opt::open);
+    [fp,err] := std::open_file("tests/stl/lines.txt",file_mode::read,file_opt::open);
 
     if(err)
     {
-        crash_and_burn("could not open str test file");
+        std::crash_and_burn("could not open str test file");
     }
 
     buf : c8[256];
@@ -15,12 +15,12 @@ func test_str() s32
 
     while(rc == file_read_res::success)
     {
-        [str,rc] := read_file_str(&fp,buf);
-        print("{}\n",str);
+        [str,rc] := std::read_file_str(&fp,buf);
+        std::print("{}\n",str);
         lines += 1;
     }
 
-    close_file(&fp);
+    std::close_file(&fp);
 
     return lines;
 }

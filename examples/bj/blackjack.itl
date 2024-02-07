@@ -56,7 +56,7 @@ func play_round()
 
     if(bj.player.value == 21)
     {
-        print("Blackjack!\n");
+        std::print("Blackjack!\n");
     }
 
     user_input : c8[256] = {?};
@@ -64,29 +64,29 @@ func play_round()
     while(!done)
     {
         // show the dealer hand
-        print("Dealer: ");
+        std::print("Dealer: ");
 
         print_card(&bj.dealer.card[0]);
 
         // only first card shown
         for(i in 0 < bj.dealer.count - 1)
         {
-            print("? ");
+            std::print("? ");
         }
-        linefeed();
+        std::linefeed();
 
 
         // show the player hand
         print_hand(&bj.player,"Player");
 
         // hit or stand?
-        print("Stand?: ");
-        out := read_string(user_input);
+        std::print("Stand?: ");
+        out := std::read_string(user_input);
 
         // player stand, game will end
         if(out[0] == 'y')
         {
-            print("Player stood\n");
+            std::print("Player stood\n");
 
             bj.player.stand = true;
 
@@ -119,10 +119,10 @@ func play_round()
         }
 
         // seperate each deal
-        linefeed();
+        std::linefeed();
     }
 
-    print("Round over:\n");
+    std::print("Round over:\n");
 
     // show final set of cards
     print_hand(&bj.player,"Player");
@@ -138,31 +138,31 @@ func play_round()
     // if player busts they lose regardless
     if(player_value > 21)
     {
-        print("Player busted!\n");
+        std::print("Player busted!\n");
     }
 
     // draw
     else if(player_value == dealer_value)
     {
-        print("Push!\n");
+        std::print("Push!\n");
     }
 
     // dealer bust
     else if(dealer_value > 21)
     {
-        print("Dealer busted!\n");
+        std::print("Dealer busted!\n");
     }
 
     // all other states have been accounted for
     // highest value wins
     else if(dealer_value > player_value)
     {
-        print("Dealer wins\n");
+        std::print("Dealer wins\n");
     }
 
     else
     {
-        print("Player wins!\n");
+        std::print("Player wins!\n");
     }
 }
 
@@ -176,12 +176,12 @@ func play_blackjack()
     {
         play_round();
 
-        print("continue playing?: ");
-        out := read_string(user_input);
+        std::print("continue playing?: ");
+        out := std::read_string(user_input);
 
         // player stand
         done = out[0] == 'n';
 
-        linefeed();
+        std::linefeed();
     }
 }

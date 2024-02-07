@@ -1,3 +1,4 @@
+namespace std;
 // TODO: for now just hardbake this
 import <system_linux>
 

@@ -421,11 +421,27 @@ AstNode* tuple_assign(Parser& parser, const Token& t)
                     consume(parser,token_type::equal);
                 }
 
-                const auto sym_tok = next_token(parser);
+                const auto next = next_token(parser);
 
-                tuple_node->func_call = (FuncCallNode*)func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
-                consume(parser,token_type::semi_colon);
-                done = true;
+                // handle scope
+                if(match(parser,token_type::scope))
+                {
+                    consume(parser,token_type::scope);
+                    
+                    const auto sym_tok = next_token(parser);
+
+                    tuple_node->func_call = (FuncCallNode*)func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
+
+                    return ast_scope(parser,(AstNode*)tuple_node,next.literal,next);
+                }
+
+                else
+                {
+                    tuple_node->func_call = (FuncCallNode*)func_call(parser,ast_literal(parser,ast_type::symbol,next.literal,next),next);
+                    consume(parser,token_type::semi_colon);
+                    done = true;
+                }
+
                 break;
             }
 
@@ -919,6 +935,12 @@ AstNode *statement(Parser &parser)
                     return statement_terminate(parser,"struct access");
                 }
 
+                case token_type::scope:
+                {
+                    prev_token(parser);
+                    return statement_terminate(parser,"scope stmt");
+                }
+
 
                 default:
                 {
@@ -1365,7 +1387,7 @@ void func_decl(Interloper& itl, Parser &parser)
         return;
     }
 
-    if(func_exists(itl,func_name.literal))
+    if(func_exists(itl,func_name.literal,parser.cur_name_space))
     {
         panic(itl,itl_error::redeclaration,"function %s has been declared twice!\n",func_name.literal.buf);
         return;
@@ -1381,7 +1403,7 @@ void func_decl(Interloper& itl, Parser &parser)
     f->block = block(parser); 
 
     // finally add the function def
-    add_func(itl,func_name.literal,f);
+    add_func(itl,func_name.literal,parser.cur_name_space,f);
 }
 
 void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
@@ -1783,6 +1805,28 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
             break; 
         }
 
+        case token_type::namespace_t:
+        {
+            const auto name = next_token(parser);
+
+            if(name.type != token_type::symbol)
+            {
+                panic(parser,name,"Expected name for namespace got: %s",tok_name(name.type));
+            }   
+
+            // read out the name space, and put it on string allocator
+            // so we can freely pass it
+            parser.cur_name_space = copy_string(*parser.string_allocator,name.literal);
+
+
+            if(match(parser,token_type::semi_colon))
+            {
+                consume(parser,token_type::semi_colon);
+            }
+
+            break;
+        }
+
 
         default:
         {
@@ -2050,7 +2094,15 @@ void print(const AstNode *root, b32 override_seperator)
         {
             EnumNode* enum_node = (EnumNode*) root;
 
-            printf("enum %s:%s : %s\n",enum_node->filename.buf,enum_node->name.buf,enum_node->struct_name.buf);
+            if(enum_node->kind == enum_type::struct_t)
+            {
+                printf("enum %s:%s : %s\n",enum_node->filename.buf,enum_node->name.buf,enum_node->struct_name.buf);
+            }
+
+            else
+            {
+                printf("enum %s:%s : type idx %d\n",enum_node->filename.buf,enum_node->name.buf,u32(enum_node->type));
+            }
 
             
             for(u32 m = 0; m < count(enum_node->member); m++)

@@ -107,6 +107,9 @@ struct Interloper
 
     ConstPool const_pool;
 
+    // TODO: do we want a temp string buffer for other things?
+    StringBuffer name_space_buffer;
+
     // Arena's
     ArenaAllocator list_allocator;
     ArenaAllocator ast_allocator;

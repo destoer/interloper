@@ -1,4 +1,4 @@
-
+namespace std;
 
 func memcpy(dst: byte@, src: const byte@, size: u64)
 {
