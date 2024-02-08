@@ -554,21 +554,15 @@ enum class termination_type
 
 struct Parser
 {
-    Array<Token> tokens;
-
-    // pratt parser
-    Token expr_tok;
+    // what is our current token?
     u32 tok_idx = 0;
-    b32 terminate = false;
-    token_type terminating_tok = token_type::eof;
-    termination_type term_type = termination_type::normal;
+
+    Array<Token> tokens;
 
     ArenaAllocator* allocator;
     ArenaAllocator* string_allocator;
     AstPointers* ast_arrays;
     
-    String expression_name;
-
     String cur_file = "";
     String cur_name_space = "";
     String cur_path = "";
@@ -578,6 +572,31 @@ struct Parser
     u32 idx = 0;
     u32 line = 0;
     u32 col = 0;
+};
+
+
+// Current state of the expression parser
+struct ExprCtx
+{
+    // what kind of expression are we in?
+    // NOTE: this is only used for error messaging
+    String expression_name = "";
+
+    // current token
+    Token expr_tok;
+
+    // has the parser hit a termination condition?
+    b32 terminate = false;
+
+    // parser must terminate on a specifed token
+    b32 must_terminate = false;
+
+    // are we in a list etc
+    termination_type term_type = termination_type::normal;
+
+    // make pratt parser terminate as soon as it sees
+    // this token
+    token_type term = token_type::error; 
 };
 
 void add_ast_pointer(Parser& parser, void* pointer);

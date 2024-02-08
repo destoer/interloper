@@ -514,7 +514,7 @@ func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u
 
     if(pad)
     {
-        send_raw(&win.sock,screen.data,pad);
+        std::send_raw(&win.sock,screen.data,pad);
     }
 */
 }
