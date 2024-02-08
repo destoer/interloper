@@ -14,21 +14,20 @@ void next_expr_token(Parser& parser,ExprCtx& ctx)
 {
     ctx.expr_tok = next_token(parser);
 
-    // what will cause early termination?
-    switch(ctx.term_type)
-    {
-        case termination_type::normal:
-        {
-            ctx.terminate |= (ctx.expr_tok.type == ctx.term);
-            break;         
-        }
+    b32 should_term = false;
 
-        case termination_type::list: 
-        {
-            ctx.terminate |= (ctx.expr_tok.type == token_type::comma) || (ctx.expr_tok.type == ctx.term);
-            break;
-        }
+    // what will cause early termination?
+    if(ctx.expr_flags & EXPR_TERM_LIST_FLAG)
+    {
+        should_term = (ctx.expr_tok.type == token_type::comma) || (ctx.expr_tok.type == ctx.term);
     }
+
+    else
+    {
+        should_term = (ctx.expr_tok.type == ctx.term);
+    }
+
+    ctx.expr_flags |= (should_term << EXPR_TERMINATED_FLAG_BIT);
 }
 
 void consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
@@ -89,7 +88,7 @@ AstNode *oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type oper
     return n;    
 }
 
-AstNode *led(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
+AstNode *parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 {
     switch(t.type)
     {
@@ -234,7 +233,7 @@ AstNode *led(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
 
 
-AstNode* nud_sym(Parser& parser,ExprCtx& ctx, const Token& t)
+AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
 {
     // look ahead extra tokens that would change the meaning of this
     switch(ctx.expr_tok.type)
@@ -275,7 +274,7 @@ AstNode* nud_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             const auto cur = ctx.expr_tok;
             next_expr_token(parser,ctx);
 
-            return ast_scope(parser,nud_sym(parser,ctx,cur),t.literal,t);
+            return ast_scope(parser,parse_sym(parser,ctx,cur),t.literal,t);
         }
 
 
@@ -338,7 +337,7 @@ AstNode* type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
 }
 
 // unary operators
-AstNode *nud(Parser &parser,ExprCtx& ctx, const Token &t)
+AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 {
     switch(t.type)
     {
@@ -524,7 +523,7 @@ AstNode *nud(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::symbol:
         {
-            return nud_sym(parser,ctx,t);
+            return parse_sym(parser,ctx,t);
         }
 
         case token_type::minus:
@@ -584,9 +583,9 @@ AstNode *expression(Parser &parser,ExprCtx& ctx,s32 rbp)
     auto cur = ctx.expr_tok;
     next_expr_token(parser,ctx);
 
-    auto left = nud(parser,ctx,cur);
+    auto left = parse_unary(parser,ctx,cur);
 
-    if(ctx.terminate || parser.error)
+    if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || parser.error)
     {
         return left;
     }
@@ -595,9 +594,9 @@ AstNode *expression(Parser &parser,ExprCtx& ctx,s32 rbp)
     {
         cur = ctx.expr_tok;
         next_expr_token(parser,ctx);
-        left = led(parser,ctx,cur,left);
+        left = parse_binary(parser,ctx,cur,left);
 
-        if(ctx.terminate || parser.error)
+        if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || parser.error)
         {
             return left;
         }
@@ -612,7 +611,7 @@ AstNode *expr_terminate_internal(Parser &parser,ExprCtx& ctx)
     const auto e = expression(parser,ctx,0);
 
     // expression must terminate on this token
-    if(!ctx.terminate && ctx.must_terminate)
+    if(!(ctx.expr_flags & EXPR_TERMINATED_FLAG) && (ctx.expr_flags & EXPR_MUST_TERMINATE_FLAG))
     {
         panic(parser,ctx.expr_tok,"%s should terminate with '%s' terminated with '%s'\n",ctx.expression_name.buf,
             tok_name(ctx.term),tok_name(ctx.expr_tok.type));
@@ -647,7 +646,7 @@ AstNode *expr_terminate(Parser &parser,const String& expression_name,token_type 
     ctx.term = t;
     ctx.expression_name = expression_name;
     ctx.expr_tok = next_token(parser);
-    ctx.must_terminate = true;
+    ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG;
 
     return expr_terminate_internal(parser,ctx);
 }
@@ -664,8 +663,7 @@ std::pair<AstNode*,b32> expr_list(Parser& parser,const String& expression_name, 
     ctx.term = type;
     ctx.expression_name = expression_name;
     ctx.expr_tok = next_token(parser);
-    ctx.must_terminate = true;
-    ctx.term_type = termination_type::list;
+    ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG | EXPR_TERM_LIST_FLAG;
 
     AstNode* e = expr_terminate_internal(parser,ctx);
 
@@ -681,7 +679,7 @@ AstNode* expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& ex
     ctx.term = type;
     ctx.expression_name = expression_name;
     ctx.expr_tok = old_ctx.expr_tok;
-    ctx.must_terminate = true;
+    ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG;
 
     AstNode* e = expr_terminate_internal(parser,ctx);
 
@@ -696,8 +694,7 @@ std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const 
     ctx.term = type;
     ctx.expression_name = expression_name;
     ctx.expr_tok = old_ctx.expr_tok;
-    ctx.must_terminate = true;
-    ctx.term_type = termination_type::list;
+    ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG | EXPR_TERM_LIST_FLAG;
 
     AstNode* e = expr_terminate_internal(parser,ctx);
 

@@ -546,12 +546,6 @@ struct TupleAssignNode
 
 using AstPointers = Array<void***>;
 
-enum class termination_type
-{
-    normal,
-    list,
-};
-
 struct Parser
 {
     // what is our current token?
@@ -575,6 +569,12 @@ struct Parser
 };
 
 
+const u32 EXPR_TERMINATED_FLAG_BIT = 0;
+const u32 EXPR_TERMINATED_FLAG = (1 << EXPR_TERMINATED_FLAG_BIT);
+const u32 EXPR_MUST_TERMINATE_FLAG = (1 << 1);
+const u32 EXPR_TERM_LIST_FLAG = (1 << 2);
+
+
 // Current state of the expression parser
 struct ExprCtx
 {
@@ -585,14 +585,7 @@ struct ExprCtx
     // current token
     Token expr_tok;
 
-    // has the parser hit a termination condition?
-    b32 terminate = false;
-
-    // parser must terminate on a specifed token
-    b32 must_terminate = false;
-
-    // are we in a list etc
-    termination_type term_type = termination_type::normal;
+    u32 expr_flags = 0;
 
     // make pratt parser terminate as soon as it sees
     // this token
