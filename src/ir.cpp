@@ -846,6 +846,9 @@ void allocate_registers(Interloper& itl,Function &func)
     {
         auto& block = func.emitter.program[b];
         
+        // what is out starting register block?
+        //read_reg_block_entry(alloc.reg_alloc,block);
+
         ListNode *node = block.list.start;
 
         // ignore empty blocks
@@ -863,29 +866,7 @@ void allocate_registers(Interloper& itl,Function &func)
             alloc.pc++;
         }
 
-        auto opcode = block.list.end->opcode;
-
-        const auto& ENTRY = info_from_op(opcode); 
-
-        // block has ended spill variables still live 
-        // TODO: we want to get rid of this with a proper global allocator...
-        if(ENTRY.group == op_group::branch_t)
-        {
-            // free any regs dead on the last opcode
-            clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,false);
-
-            spill_all(alloc,itl.symbol_table,block,block.list.end,false);
-        }
-
-        else
-        {
-            // free any regs dead on the last opcode
-            clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,true);
-
-
-            // fall through spill after data has been written out
-            spill_all(alloc,itl.symbol_table,block,block.list.end,true);
-        }
+        reconcile_regs(itl,func,alloc,block);
     }
 
     // Figure out how large a stack we need and put everything on it

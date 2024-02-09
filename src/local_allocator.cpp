@@ -176,7 +176,7 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
         bool used_beyond = contains(block.live_out,slot); 
 
         // only bother saving this register it has been modified
-        if(ir_reg.dirty)
+        if(is_dirty(alloc.reg_alloc,ir_reg.location))
         {
             // requires a spill due to being volatile 
             if(!is_local_reg(ir_reg) || used_beyond)
@@ -253,7 +253,7 @@ void reload_slot(LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg)
     const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot.handle,alloc.stack_alloc.stack_offset);
     insert_at(block.list,node,opcode); 
 
-    ir_reg.dirty = false;    
+    mark_clean(alloc.reg_alloc,ir_reg.location);
 }
 
 void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg, b32 is_src)
@@ -482,7 +482,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
     log_reg(alloc.print,table,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
 
     // if the value has only been used as a source and not modifed then we can just treat this as a free_reg
-    if(ir_reg.dirty)
+    if(is_dirty(alloc.reg_alloc,ir_reg.location))
     {
         const auto opcode = Opcode(op_type::spill,reg,ir_reg.slot.handle,alloc.stack_alloc.stack_offset);
 
@@ -496,7 +496,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
             insert_after(block.list,node,opcode);
         }
 
-        ir_reg.dirty = false;
+        mark_clean(alloc.reg_alloc,ir_reg.location);
     }
 
     free_ir_reg(alloc.reg_alloc,ir_reg);
@@ -525,5 +525,60 @@ void finish_stack_alloc(SymbolTable& table, LocalAlloc& alloc)
         auto& ir_reg = reg_from_slot(slot,table,alloc);
 
         finish_alloc(ir_reg,table,alloc);
+    }
+}
+
+void reconcile_regs(Interloper& itl, Function& func,LocalAlloc& alloc, Block& block)
+{
+    UNUSED(func);
+
+    auto opcode = block.list.end->opcode;
+
+    const auto& ENTRY = info_from_op(opcode); 
+
+    b32 spill_regs = true;
+/*
+    // if every exit can only be reached from this block
+    // then there is no need to perform any spilling
+    for(u32 e = 0; e < count(block.exit); e++)
+    {
+        const auto exit = block_from_slot(func,block.exit[e]);
+
+        if(count(exit.entry) > 1)
+        {
+            spill_regs = true;
+            break;
+        }
+
+        else
+        {
+            write_reg_block_entry(alloc,exit);
+        }
+    }
+*/
+
+    // block has ended spill variables still live 
+    // TODO: we want to get rid of this with a proper global allocator...
+    if(ENTRY.group == op_group::branch_t)
+    {
+        // free any regs dead on the last opcode
+        clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,false);
+
+        if(spill_regs)
+        {
+            spill_all(alloc,itl.symbol_table,block,block.list.end,false);
+        }
+    }
+
+    else
+    {
+        // free any regs dead on the last opcode
+        clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,true);
+
+        if(spill_regs)
+        {
+            // fall through spill after data has been written out
+            spill_all(alloc,itl.symbol_table,block,block.list.end,true);
+        }
     }
 }

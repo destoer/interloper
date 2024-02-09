@@ -1,6 +1,16 @@
 // our bitset can only store 32 regs
 static_assert(MACHINE_REG_SIZE <= 32);
 
+struct BlockRegStart
+{
+    // register allocation
+    // is this free or does it hold a var?
+    SymSlot regs[MACHINE_REG_SIZE];  
+
+    // set of free registers
+    u32 free_set = 0;    
+};
+
 struct RegAlloc
 {
     // register allocation
@@ -9,6 +19,11 @@ struct RegAlloc
 
     // set of free registers
     u32 free_set = 0;
+
+    // which registers are dirty
+    u32 dirty = 0;
+
+    u32 blank_set = 0;
 
     // keep track of freeable regs
     SymSlot dead_slot[MACHINE_REG_SIZE] = {0};
@@ -34,6 +49,54 @@ void remove_reg(RegAlloc& alloc, u32 reg)
 {
     alloc.free_set = deset_bit(alloc.free_set,reg);
 }
+
+/*
+void read_reg_block_entry(Interloper& itl,RegAlloc& alloc, const Block& block)
+{
+    memcpy(alloc.regs,block.reg_start.regs,sizeof(alloc.regs));
+
+    // reset the register set
+    alloc.blank_set = free_set;
+
+    // check which registers aern't free and reallocate them
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        if(block.start_regs[r] != sym_from_idx(REG_FREE))
+        {
+            auto& reg = reg_from_slot(alloc.regs[r]);
+
+            reg.location = r;
+            alloc.dirty = is_set(block.reg_start_dirty,r);
+
+            remove_reg(alloc,reg);
+        }
+    }
+
+}
+
+void write_reg_block_entry(Interloper& itl,const RegAlloc& alloc, Block& block)
+{
+    memcpy(block.reg_start.regs,alloc.regs,sizeof(alloc.regs));
+    block.reg_start_dirty = alloc.dirty;
+}
+*/
+
+
+void mark_clean(RegAlloc& alloc,u32 reg)
+{
+    alloc.dirty = deset_bit(alloc.dirty,reg);
+}
+
+void mark_dirty(RegAlloc& alloc,u32 reg)
+{
+    alloc.dirty = set_bit(alloc.dirty,reg);
+}
+
+b32 is_dirty(RegAlloc& alloc,u32 reg)
+{
+    return is_set(alloc.dirty,reg);
+}
+
 
 void add_gpr(RegAlloc& alloc, x86_reg reg)
 {
@@ -80,6 +143,9 @@ RegAlloc make_reg_alloc(b32 print, arch_target arch)
             break;
         }
     }
+
+    // what is the default allocation state?
+    alloc.blank_set = alloc.free_set;
 
     assert(popcount(alloc.free_set) <= info.gpr);
 
@@ -513,7 +579,7 @@ void mark_reg_usage(RegAlloc& alloc, Reg& ir_reg, bool is_dst)
     // is this is a dst we need to write this back when spilled
     if(is_dst)
     {
-        ir_reg.dirty = true;
+        mark_dirty(alloc,ir_reg.location);
     }
 
     check_dead_reg(alloc,ir_reg);

@@ -13,6 +13,11 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
     block.live_in = make_set<SymSlot>();
     block.live_out = make_set<SymSlot>();
 
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        block.reg_start[i] = {REG_FREE};
+    }
+
     return block;
 }
 
