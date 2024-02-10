@@ -582,9 +582,6 @@ struct Block
 
     // what blocks are reachable from this block?
     Array<BlockSlot> links;
-
-    SymSlot reg_start[MACHINE_REG_SIZE];
-    u64 reg_start_dirty[MACHINE_REG_SIZE] = {0};
 };
 
 void add_func_exit(Function& func, BlockSlot slot);

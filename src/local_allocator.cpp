@@ -537,25 +537,6 @@ void reconcile_regs(Interloper& itl, Function& func,LocalAlloc& alloc, Block& bl
     const auto& ENTRY = info_from_op(opcode); 
 
     b32 spill_regs = true;
-/*
-    // if every exit can only be reached from this block
-    // then there is no need to perform any spilling
-    for(u32 e = 0; e < count(block.exit); e++)
-    {
-        const auto exit = block_from_slot(func,block.exit[e]);
-
-        if(count(exit.entry) > 1)
-        {
-            spill_regs = true;
-            break;
-        }
-
-        else
-        {
-            write_reg_block_entry(alloc,exit);
-        }
-    }
-*/
 
     // block has ended spill variables still live 
     // TODO: we want to get rid of this with a proper global allocator...

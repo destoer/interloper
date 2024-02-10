@@ -50,38 +50,6 @@ void remove_reg(RegAlloc& alloc, u32 reg)
     alloc.free_set = deset_bit(alloc.free_set,reg);
 }
 
-/*
-void read_reg_block_entry(Interloper& itl,RegAlloc& alloc, const Block& block)
-{
-    memcpy(alloc.regs,block.reg_start.regs,sizeof(alloc.regs));
-
-    // reset the register set
-    alloc.blank_set = free_set;
-
-    // check which registers aern't free and reallocate them
-    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
-    {
-        if(block.start_regs[r] != sym_from_idx(REG_FREE))
-        {
-            auto& reg = reg_from_slot(alloc.regs[r]);
-
-            reg.location = r;
-            alloc.dirty = is_set(block.reg_start_dirty,r);
-
-            remove_reg(alloc,reg);
-        }
-    }
-
-}
-
-void write_reg_block_entry(Interloper& itl,const RegAlloc& alloc, Block& block)
-{
-    memcpy(block.reg_start.regs,alloc.regs,sizeof(alloc.regs));
-    block.reg_start_dirty = alloc.dirty;
-}
-*/
-
-
 void mark_clean(RegAlloc& alloc,u32 reg)
 {
     alloc.dirty = deset_bit(alloc.dirty,reg);
