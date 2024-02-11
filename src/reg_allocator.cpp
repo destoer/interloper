@@ -438,6 +438,39 @@ u32 find_reg_opt(RegAlloc& alloc, SymSlot slot)
     return slot_ptr_to_reg(alloc,slot_opt);
 }
 
+u32 aquire_reg(Reg& ir_reg,RegAlloc& alloc, u32 reg);
+
+void read_reg_block_entry(Interloper& itl,Function& func,RegAlloc& alloc, const Block& block)
+{
+    // reset the register set
+    alloc.free_set = alloc.blank_set;
+
+    // check which registers aern't free and reallocate them
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        // default to free
+        alloc.regs[r] = {REG_FREE};
+
+        if(is_var(block.reg_start[r]))
+        {
+            auto& ir_reg = reg_from_slot(itl.symbol_table,func,block.reg_start[r]);
+            aquire_reg(ir_reg,alloc,r);
+        }
+    }
+
+    // copy across the "old" dirty flags
+    alloc.dirty = block.reg_start_dirty;
+}
+
+void write_reg_block_entry(const RegAlloc& alloc, Block& block, b32 spill)
+{
+    memcpy(block.reg_start,alloc.regs,sizeof(alloc.regs));
+
+    // if we require spilling because one of targets
+    // has multiple entrys then we dont need to mark the regs as dirty
+    block.reg_start_dirty = spill? 0 : alloc.dirty;
+}
+
 
 b32 is_dirty(RegAlloc& alloc, Reg& ir_reg)
 {
@@ -464,8 +497,6 @@ void mark_used(RegAlloc& alloc, u32 reg)
     alloc.used_regs = set_bit(alloc.used_regs,reg);
 }
 
-// TODO: we need to make this prefer certain free registers
-
 u32 aquire_reg(Reg& ir_reg,RegAlloc& alloc, u32 reg)
 {
     remove_reg(alloc,reg);
@@ -476,7 +507,7 @@ u32 aquire_reg(Reg& ir_reg,RegAlloc& alloc, u32 reg)
     return reg;
 }
 
-u32 find_register(u32 set,u32 used,u32 group[], u32 size)
+u32 find_free_register(u32 set,u32 used,u32 group[], u32 size)
 {
     u32 reg = FFS_EMPTY;
 
@@ -533,7 +564,7 @@ u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
             group[size++] = LOWER_REGS_X86;
             group[size++] = HIGHER_REGS_X86;
         
-            reg = find_register(alloc.free_set,alloc.used_regs,group,size);
+            reg = find_free_register(alloc.free_set,alloc.used_regs,group,size);
             break;
         }
     }
@@ -564,7 +595,7 @@ u32 realloc_reg(Reg& ir_reg,RegAlloc& alloc)
             group[size++] = HIGHER_REGS_X86;
             group[size++] = LOWER_REGS_X86;
         
-            reg = find_register(alloc.free_set,alloc.used_regs,group,size);
+            reg = find_free_register(alloc.free_set,alloc.used_regs,group,size);
             break;
         }
     }
@@ -574,6 +605,12 @@ u32 realloc_reg(Reg& ir_reg,RegAlloc& alloc)
 
     // allocate in the reg
     aquire_reg(ir_reg,alloc,reg);
+
+    // copy across the dirty flag
+    if(is_dirty(alloc,old))
+    {
+        mark_dirty(alloc,reg);
+    }
 
     // actually get rid of the old register
     free_reg_internal(alloc,old);

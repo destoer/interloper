@@ -166,7 +166,9 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
     if(!is_free(alloc.reg_alloc.regs[reg]))
     {
         const auto slot = alloc.reg_alloc.regs[reg];
-
+    #if 0
+        spill(slot,alloc,table,block,node);
+    #else 
         log_reg(alloc.print,table,"%r evicted from %s\n",slot,reg_name(alloc.arch,reg));
         
         auto& ir_reg = reg_from_slot(slot,table,alloc);
@@ -184,6 +186,8 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
             // out of usage simply purge it
             else if(ir_reg.uses >= count(ir_reg.usage))
             {
+                log_reg(alloc.print,table,"evict: %r freed dirty from %s\n",slot,reg_name(alloc.arch,reg));
+
                 free_ir_reg(alloc.reg_alloc,ir_reg);
             }
 
@@ -198,7 +202,7 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
             {
                 const u32 new_reg = realloc_reg(ir_reg,alloc.reg_alloc);
 
-                log(alloc.reg_alloc.print,"eviction moving to %s\n",reg_name(alloc.arch,new_reg));
+                log_reg(alloc.print,table,"evict: %r moving to %s\n",slot,reg_name(alloc.arch,new_reg));
 
                 // need to preserve this via a copy
                 const auto op = make_op(op_type::mov_reg,new_reg,reg);
@@ -209,8 +213,11 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
         // just get rid of the register it hasn't been modified
         else
         {
+            log_reg(alloc.print,table,"evict: %r free clean from %s\n",slot,reg_name(alloc.arch,reg));
+
             free_ir_reg(alloc.reg_alloc,ir_reg);
         }
+    #endif
     }
 }
 
@@ -538,30 +545,50 @@ void reconcile_regs(Interloper& itl, Function& func,LocalAlloc& alloc, Block& bl
 
     const auto& ENTRY = info_from_op(opcode); 
 
-    b32 spill_regs = true;
 
-    // block has ended spill variables still live 
-    // TODO: we want to get rid of this with a proper global allocator...
-    if(ENTRY.group == op_group::branch_t)
+    bool after = ENTRY.group != op_group::branch_t;
+
+    // free any regs dead on the last opcode
+    clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,after);
+
+    // if every exit can only be reached from this block
+    // then there is no need to perform any spilling
+
+    // as we can just directly pass the current registers
+
+    // this is fine even even we spill for some of the blocks
+    // as the correct values are still inside the registers, we dont require a reg register to
+    // do any of our spills
+
+    b32 spill_regs = false;
+
+    // do a scan to figure out if we need to do a spill
+    for(u32 e = 0; e < count(block.exit); e++)
     {
-        // free any regs dead on the last opcode
-        clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,false);
+        Block& exit = block_from_slot(func,block.exit[e]);
 
-        if(spill_regs)
+        if(count(exit.entry) > 1)
         {
-            spill_all(alloc,itl.symbol_table,block,block.list.end,false);
+            spill_regs = true;
+            break;
         }
     }
 
-    else
+    // now that we know the spill, copy in the register entries for the blocks
+    // we are using
+    for(u32 e = 0; e < count(block.exit); e++)
     {
-        // free any regs dead on the last opcode
-        clean_dead_regs(itl.symbol_table,alloc,block,block.list.end,true);
+        Block& exit = block_from_slot(func,block.exit[e]);
 
-        if(spill_regs)
+        if(count(exit.entry) <= 1)
         {
-            // fall through spill after data has been written out
-            spill_all(alloc,itl.symbol_table,block,block.list.end,true);
+            write_reg_block_entry(alloc.reg_alloc,exit,spill_regs);
         }
+    }
+
+    // finally handle any spills
+    if(spill_regs)
+    {
+        spill_all(alloc,itl.symbol_table,block,block.list.end,after);
     }
 }

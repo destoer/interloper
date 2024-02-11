@@ -664,6 +664,10 @@ ListNode* rewrite_directives(Interloper& itl,LocalAlloc &alloc,Block& block, Lis
             SymSlot slot = sym_from_idx(opcode.v[1]);
 
             auto& reg = reg_from_slot(slot,itl.symbol_table,alloc);
+
+            // double check this value has actually been put into memory...
+            //assert(reg.offset != UNALLOCATED_OFFSET);
+
             const s32 stack_offset = opcode.v[2];
 
 
@@ -837,7 +841,7 @@ void allocate_registers(Interloper& itl,Function &func)
 {
     auto alloc = make_local_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers,itl.arch);
 
-    log(alloc.reg_alloc.print,"allocating registers for %s:\n\n",func.name.buf);
+    log(alloc.reg_alloc.print,"allocating registers for %s:\n",func.name.buf);
 
     // figure out how long each sym lives
     mark_lifetimes(func,func.registers,itl.symbol_table);
@@ -845,9 +849,11 @@ void allocate_registers(Interloper& itl,Function &func)
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
+
+        log(alloc.reg_alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
         
         // what is out starting register block?
-        //read_reg_block_entry(alloc.reg_alloc,block);
+        read_reg_block_entry(itl,func,alloc.reg_alloc,block);
 
         ListNode *node = block.list.start;
 
