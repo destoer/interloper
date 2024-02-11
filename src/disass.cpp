@@ -1,4 +1,4 @@
-void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char specifier, u64 handle)
+void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char specifier, u64 handle)
 {
     switch(specifier)
     {
@@ -10,7 +10,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
             if(is_special_reg(slot))
             {
                 const u32 idx = slot.handle - SPECIAL_PURPOSE_REG_START;
-                push_mem(buffer,SPECIAL_REG_NAMES[idx]);
+                push_string(buffer,SPECIAL_REG_NAMES[idx]);
             }
 
             // print a sym
@@ -19,7 +19,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
                 const auto& sym = sym_from_slot(table,slot);
                 const String& name = sym.name;
 
-                push_mem(buffer,name);
+                push_string(buffer,name);
             }
 
 
@@ -51,7 +51,7 @@ void fmt_sym_specifier(Array<char> &buffer, const SymbolTable& table, char speci
         case 'a':
         {
             const String& name = table.label_lookup[handle].name;
-            push_mem(buffer,name);
+            push_string(buffer,name);
             break;
         }
 

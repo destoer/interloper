@@ -477,7 +477,7 @@ SymSlot mul_imm_pow2_res(Interloper& itl, Function& func, SymSlot src,s32 imm)
 {
     u32 shift = log2(imm);
 
-    return lsl_imm_res(itl,func,src,shift);
+    return shift == 0? src : lsl_imm_res(itl,func,src,shift);
 }
 
 void compile_switch_block(Interloper& itl,Function& func, AstNode* node)

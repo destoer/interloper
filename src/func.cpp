@@ -145,9 +145,10 @@ StringBuffer func_generic_name(Interloper& itl, const String& old_name,Array<Typ
 
     // old name appended with _g_
     push_string(buffer,old_name);
-    push_string(buffer,"_g_");
+    push_string(buffer,"_g");
 
-    
+    //printf("gen %s : %s\n",old_name.buf,make_string(buffer).buf);
+
     for(u32 g = 0; g < count(generic); g++)
     {
         Type* type = get_type(itl,generic[g]);

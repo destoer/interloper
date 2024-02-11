@@ -120,6 +120,13 @@ void remove_block_exit(Function& func, BlockSlot slot, BlockSlot exit)
 void add_func_exit(Function& func, BlockSlot slot)
 {
     auto& block = block_from_slot(func,slot);
+
+    // if this block exits then we cant actually reach any other blocks
+    for(u32 e = 0; e < count(block.exit); e++)
+    {
+        remove_block_exit(func,slot,block.exit[e]);
+    }
+
     block.flags = block.flags | HAS_FUNC_EXIT | REACH_FUNC_EXIT;
 }
 

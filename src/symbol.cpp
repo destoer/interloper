@@ -244,6 +244,9 @@ String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space,
     push_string(allocator,buffer,"::");
     push_string(allocator,buffer,name);
 
+    // null term the buffer
+    push_char(allocator,buffer,'\0');
+
     return make_string(buffer);
 }
 
@@ -260,6 +263,9 @@ String tmp_name_space_name(Interloper& itl,const String& name_space, const Strin
     push_string(itl.name_space_buffer,name_space);
     push_string(itl.name_space_buffer,"::");
     push_string(itl.name_space_buffer,name);
+
+    // null term the buffer
+    push_var(itl.name_space_buffer,'\0');
 
     return make_string(itl.name_space_buffer);
 }
