@@ -146,11 +146,20 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             // then the lock the register so it can no longer be freely allocated
             else if(is_special_reg(dst))
             {
+                ListNode* old = node;
+
+                // allready in the correct reg we dont need to do the move
+                if(in_reg(alloc,src,dst))
+                {
+                    node = remove(block.list,node);
+                    break;
+                }
+
                 const auto reg = special_reg_to_reg(alloc.arch,dst);
 
                 if(!is_restricted(alloc.reg_alloc,reg))
                 {
-                    lock_reg(alloc,table,block,node,dst);
+                    lock_reg(alloc,table,block,old,dst);
                 }
             }
 
