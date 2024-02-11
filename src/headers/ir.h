@@ -413,14 +413,6 @@ struct Reg
     u32 offset = UNALLOCATED_OFFSET;
 
     u32 flags = 0;
-
-    // how many times has this currently been used?
-    u32 uses = 0;
-
-    // NOTE: this uses absolute offsets
-    // but we dont really care if they are broken by insertions during reg alloc 
-    // because we only want to know when usage gap is largest
-    Array<u32> usage = {};
 };
 
 struct Interloper;
@@ -578,9 +570,6 @@ struct Block
 
     // what blocks are reachable from this block?
     Array<BlockSlot> links;
-
-    SymSlot reg_start[MACHINE_REG_SIZE];
-    u32 reg_start_dirty = 0;
 };
 
 void add_func_exit(Function& func, BlockSlot slot);

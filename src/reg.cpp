@@ -6,7 +6,7 @@ static constexpr u32 REG_TMP_START = 0x00000000;
 
 void destroy_reg(Reg& ir_reg)
 {
-    destroy_arr(ir_reg.usage);
+    UNUSED(ir_reg);
 }
 
 b32 is_sym(SymSlot s)
@@ -59,6 +59,40 @@ u32 gpr_count(u32 size)
 {
     return size / GPR_SIZE;
 }
+
+
+b32 is_mem_unallocated(Reg& reg)
+{
+    return reg.offset == UNALLOCATED_OFFSET;
+}
+
+b32 is_mem_allocated(Reg& reg)
+{
+    return reg.offset != UNALLOCATED_OFFSET;
+}
+
+b32 is_stack_unallocated(Reg& reg)
+{
+    return is_mem_unallocated(reg) && (reg.kind == reg_kind::local || reg.kind == reg_kind::tmp);
+}
+
+
+b32 pending_stack_allocation(Reg& reg)
+{
+    return reg.flags & PENDING_STACK_ALLOCATION;
+}
+
+
+b32 is_stored_in_mem(Reg& reg)
+{
+    return reg.flags & STORED_IN_MEM;
+}
+
+b32 is_var(SymSlot slot)
+{
+    return is_tmp(slot) || is_sym(slot);
+}
+
 
 // NOTE: this only works for structs, vars i.e power of two aligned sizes
 // not arrays
@@ -187,13 +221,6 @@ void print(const Reg& reg)
     printf("count: %d\n",reg.count);
 
     printf("offset: 0x%x\n",reg.offset);
-
-    printf("uses: %d\n",reg.uses);
-
-    for(u32 i = 0; i < count(reg.usage); i++)
-    {
-        printf("use[%d] -> %d\n",i,reg.usage[i]);
-    }
 }
 
 const char* spec_reg_name(SymSlot spec_reg)
@@ -312,6 +339,167 @@ b32 is_callee_saved(arch_target arch,u32 reg_idx)
             const x86_reg reg = x86_reg(reg_idx);
 
             return reg != x86_reg::rax && reg != x86_reg::rsp;
+        }
+    }
+
+    assert(false);
+}
+
+
+
+void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
+{  
+    if(!print)
+    {
+        return;
+    }
+
+    va_list args;
+    va_start(args,fmt_string);
+
+    for(u32 i = 0; i < fmt_string.size; i++)
+    {
+        if(fmt_string[i] == '%')
+        {
+            switch(fmt_string[i + 1])
+            {
+                // string
+                case 's':
+                {
+                    const auto str = va_arg(args, const char*);
+                    printf("%s",str);
+                    break;
+                }
+
+                // hex
+                case 'x':
+                {
+                    const auto v = va_arg(args, u32);
+
+                    printf("%x",v);
+                    break;
+                }
+
+                // int
+                case 'd':
+                {
+                    const auto v = va_arg(args, s32);
+
+                    printf("%d",v);
+                    break;
+                }
+
+                // reg
+                case 'r':
+                {
+                    const auto slot = sym_from_idx(va_arg(args,u32));
+
+                    if(is_special_reg(slot))
+                    {
+                        printf("%s",spec_reg_name(slot));
+                    }
+
+                    else if(is_tmp(slot))
+                    {
+                        printf("t%d",slot.handle);
+                    }
+
+                    else if(is_sym(slot))
+                    {
+                        const auto &sym = sym_from_slot(table,slot);
+                        printf("%s",sym.name.buf);
+                    }
+                    break;
+                }
+
+                default: assert(false);
+            }
+
+
+            // account for format
+            i += 1;
+        }
+
+        else
+        {
+            putchar(fmt_string[i]);
+        }
+    }
+
+    va_end(args);
+}
+
+
+u32 special_reg_to_reg(arch_target arch,SymSlot slot)
+{
+    switch(slot.handle)
+    {
+        case SP_IR:
+        { 
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rsp;
+                }
+            }
+            assert(false);
+        }
+
+
+        case RV_IR: 
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rax;
+                }
+            }
+            assert(false);
+        }
+
+        case RAX_IR: return u32(x86_reg::rax);
+        case RCX_IR: return u32(x86_reg::rcx);
+        case RDX_IR: return u32(x86_reg::rdx);
+        case RDI_IR: return u32(x86_reg::rdi); 
+        case RSI_IR: return u32(x86_reg::rsi); 
+        case R8_IR: return u32(x86_reg::r8);
+        case R9_IR: return u32(x86_reg::r9);
+        case R10_IR: return u32(x86_reg::r10);
+
+        default: crash_and_burn("unhandled special reg %x\n",slot); 
+    }    
+}
+
+std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
+{
+    UNUSED(itl);
+
+    switch(ir_reg.kind)
+    {
+        case reg_kind::local:
+        case reg_kind::tmp:
+        {
+            const u32 SP = arch_sp(itl.arch);
+
+            const u32 offset = ir_reg.offset + stack_offset;
+            return std::pair{SP,offset};
+        }
+
+        case reg_kind::constant:
+        {
+            const u32 handle = ir_reg.offset;
+
+            const PoolSlot pool_slot = pool_slot_from_idx(handle);
+            auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+
+            return std::pair{CONST_IR,section.offset};
+        }
+
+        case reg_kind::global:
+        {
+            return std::pair{GP_IR,ir_reg.offset};
         }
     }
 
