@@ -391,11 +391,69 @@ void free_reg_internal(RegAlloc& alloc,u32 reg)
     add_reg(alloc,reg);      
 }
 
+// TODO: might want to switch to a better struct than this
+// but we dont leak any internals beyond these four functions
+// so its fine for now
+SymSlot* find_slot(RegAlloc& alloc, SymSlot slot)
+{
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        if(alloc.regs[r] == slot)
+        {
+            return &alloc.regs[r];
+        }
+    }
+
+    return nullptr;
+}
+
+b32 is_allocated(RegAlloc& alloc, Reg& ir_reg)
+{
+    return find_slot(alloc,ir_reg.slot) != nullptr;
+}
+
+u32 slot_ptr_to_reg(RegAlloc& alloc, SymSlot* slot_ptr)
+{
+    return slot_ptr - alloc.regs;
+}
+
+u32 find_reg(RegAlloc& alloc, SymSlot slot)
+{
+    SymSlot* slot_opt = find_slot(alloc,slot);
+
+    assert(slot_opt);
+
+    return slot_ptr_to_reg(alloc,slot_opt);
+}
+
+u32 find_reg_opt(RegAlloc& alloc, SymSlot slot)
+{
+    SymSlot* slot_opt = find_slot(alloc,slot);
+
+    if(!slot_opt)
+    {
+        return LOCATION_MEM;
+    }
+
+    return slot_ptr_to_reg(alloc,slot_opt);
+}
+
+
+b32 is_dirty(RegAlloc& alloc, Reg& ir_reg)
+{
+    const u32 reg = find_reg_opt(alloc,ir_reg.slot);
+
+    if(reg == LOCATION_MEM)
+    {
+        return false;
+    }
+
+    return is_dirty(alloc,reg);
+}
+
 void free_ir_reg(RegAlloc& alloc, Reg& ir_reg)
 {
-    const u32 reg = ir_reg.location;
-
-    ir_reg.location = LOCATION_MEM;
+    const u32 reg = find_reg(alloc,ir_reg.slot);
 
     // add back to the free list
     free_reg_internal(alloc,reg);
@@ -413,7 +471,6 @@ u32 aquire_reg(Reg& ir_reg,RegAlloc& alloc, u32 reg)
     remove_reg(alloc,reg);
     mark_used(alloc,reg);
 
-    ir_reg.location = reg;
     alloc.regs[reg] = ir_reg.slot;
 
     return reg;
@@ -491,7 +548,7 @@ u32 alloc_reg(Reg& ir_reg,RegAlloc& alloc)
 // it does not actually copy it
 u32 realloc_reg(Reg& ir_reg,RegAlloc& alloc)
 {
-    const u32 old = ir_reg.location;
+    const u32 old = find_reg(alloc,ir_reg.slot);
 
     u32 reg = FFS_EMPTY;
 
@@ -547,7 +604,7 @@ void mark_reg_usage(RegAlloc& alloc, Reg& ir_reg, bool is_dst)
     // is this is a dst we need to write this back when spilled
     if(is_dst)
     {
-        mark_dirty(alloc,ir_reg.location);
+        mark_dirty(alloc,find_reg(alloc,ir_reg.slot));
     }
 
     check_dead_reg(alloc,ir_reg);
@@ -560,6 +617,12 @@ b32 allocate_into_reg(RegAlloc& alloc,Reg& ir_reg,SymSlot spec_reg)
 
     if(request_reg(alloc,reg))
     {
+        // free any old reg we have
+        if(is_allocated(alloc,ir_reg))
+        {
+            free_ir_reg(alloc,ir_reg);
+        }
+
         // take this for ourself
         aquire_reg(ir_reg,alloc,reg);
         return true;

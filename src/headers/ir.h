@@ -412,10 +412,6 @@ struct Reg
     // where is the current offset for its section?
     u32 offset = UNALLOCATED_OFFSET;
 
-    // where is this item stored?
-    // is it in memory or is it in register?
-    u32 location = LOCATION_MEM;
-
     u32 flags = 0;
 
     // how many times has this currently been used?

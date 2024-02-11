@@ -183,7 +183,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
 
             // src is allready in the right reg 
             // just save it if need be and then restrict its usage
-            if(in_reg(alloc,table,src,spec_reg))
+            if(in_reg(alloc,src,spec_reg))
             {
                 auto& ir_reg = reg_from_slot(src,table,alloc);
 
@@ -409,7 +409,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             const SymSlot slot = sym_from_idx(opcode.v[0]);
             auto& reg = reg_from_slot(itl.symbol_table,func,slot);
 
-            if(reg.location != LOCATION_MEM)
+            if(is_allocated(alloc.reg_alloc,reg))
             {
                 reload_slot(alloc,block,node,reg);
             }
@@ -453,7 +453,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             node->opcode = Opcode(op_type::add_imm2,SP_IR,stack_clean,0);
             alloc.stack_alloc.stack_offset -= stack_clean; 
 
-            rewrite_regs(itl.symbol_table,alloc,node->opcode);
+            rewrite_regs(alloc,node->opcode);
 
             log(alloc.stack_alloc.print,"clean args: %x\n",stack_clean);
     
@@ -475,7 +475,7 @@ ListNode *allocate_opcode(Interloper& itl,Function &func,LocalAlloc &alloc,Block
             node->opcode = make_op(op_type::sub_imm2,SP_IR,size);
             alloc.stack_alloc.stack_offset += size;
 
-            rewrite_regs(itl.symbol_table,alloc,node->opcode);
+            rewrite_regs(alloc,node->opcode);
 
             if(alloc.stack_alloc.print)
             {

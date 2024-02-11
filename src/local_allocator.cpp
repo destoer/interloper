@@ -50,7 +50,7 @@ Reg& reg_from_slot(SymSlot slot, SymbolTable& table, LocalAlloc& alloc)
 }
 
 // NOTE: use this to force rewrites of directives
-void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
+void rewrite_reg_internal(LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
     const SymSlot slot = sym_from_idx(opcode.v[reg]);
 
@@ -64,31 +64,28 @@ void rewrite_reg_internal(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u
 
     else
     {
-        auto& ir_reg = reg_from_slot(slot,table,alloc);
-        assert(ir_reg.location < MACHINE_REG_SIZE);
-
-        opcode.v[reg] = ir_reg.location;
+        opcode.v[reg] = find_reg(alloc.reg_alloc,slot);
     }         
 }
 
-void rewrite_reg(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode, u32 reg)
+void rewrite_reg(LocalAlloc& alloc,Opcode &opcode, u32 reg)
 {
     const auto info = info_from_op(opcode);
 
     // only want to rewrite regs
     if(is_arg_reg(info.type[reg]))
     {
-        rewrite_reg_internal(table,alloc,opcode,reg);
+        rewrite_reg_internal(alloc,opcode,reg);
     }
 }
 
-void rewrite_regs(SymbolTable& table,LocalAlloc& alloc,Opcode &opcode)
+void rewrite_regs(LocalAlloc& alloc,Opcode &opcode)
 {   
     const auto info = info_from_op(opcode);
 
     for(u32 r = 0; r < info.args; r++)
     {
-        rewrite_reg(table,alloc,opcode,r);
+        rewrite_reg(alloc,opcode,r);
     }
 }
 
@@ -105,13 +102,13 @@ void stack_reserve_slot(LocalAlloc& alloc,SymbolTable table, SymSlot slot)
 
 void free_reg(Reg& ir_reg, SymbolTable& table,LocalAlloc& alloc)
 {
+    const u32 reg = find_reg_opt(alloc.reg_alloc,ir_reg.slot);
+
     // this register is allready in memory
-    if(ir_reg.location == LOCATION_MEM)
+    if(reg == LOCATION_MEM)
     {
         return;
     }
-
-    const u32 reg = ir_reg.location;
 
     log_reg(alloc.print,table,"freed %r from %s\n",ir_reg.slot,reg_name(alloc.arch,reg));
 
@@ -170,13 +167,13 @@ void evict_reg(LocalAlloc& alloc, SymbolTable& table, Block& block, ListNode* no
     {
         const auto slot = alloc.reg_alloc.regs[reg];
 
-        log_reg(alloc.print,table,"%r evicted from %s",slot,reg_name(alloc.arch,reg));
+        log_reg(alloc.print,table,"%r evicted from %s\n",slot,reg_name(alloc.arch,reg));
         
         auto& ir_reg = reg_from_slot(slot,table,alloc);
         bool used_beyond = contains(block.live_out,slot); 
 
         // only bother saving this register it has been modified
-        if(is_dirty(alloc.reg_alloc,ir_reg.location))
+        if(is_dirty(alloc.reg_alloc,ir_reg))
         {
             // requires a spill due to being volatile 
             if(!is_local_reg(ir_reg) || used_beyond)
@@ -224,12 +221,11 @@ void lock_reg(LocalAlloc& alloc,SymbolTable& table, Block& block, ListNode* node
 }
 
 // is a ir register housed in a specifed machine register?
-b32 in_reg(LocalAlloc& alloc, SymbolTable& table,SymSlot sym_slot,SymSlot spec_reg)
+b32 in_reg(LocalAlloc& alloc, SymSlot sym_slot,SymSlot spec_reg)
 {
-    auto& ir_reg = reg_from_slot(sym_slot,table,alloc);
     const u32 reg = special_reg_to_reg(alloc.arch,spec_reg);
 
-    return ir_reg.location == reg;
+    return find_reg_opt(alloc.reg_alloc,sym_slot) == reg;
 }
 
 void alloc_internal(Reg& ir_reg, SymbolTable& table,LocalAlloc &alloc,Block& block, ListNode* node)
@@ -250,16 +246,18 @@ void reload_slot(LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg)
 {
     // we need to save the current stack offset here 
     // as by the time we load it it may be different
-    const auto opcode = Opcode(op_type::load,ir_reg.location,ir_reg.slot.handle,alloc.stack_alloc.stack_offset);
+    const u32 location = find_reg(alloc.reg_alloc,ir_reg.slot);
+
+    const auto opcode = Opcode(op_type::load,location,ir_reg.slot.handle,alloc.stack_alloc.stack_offset);
     insert_at(block.list,node,opcode); 
 
-    mark_clean(alloc.reg_alloc,ir_reg.location);
+    mark_clean(alloc.reg_alloc,location);
 }
 
 void allocate_slot(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNode* node, Reg& ir_reg, b32 is_src)
 {
     // is this thing allocated?
-    if(ir_reg.location == LOCATION_MEM)
+    if(!is_allocated(alloc.reg_alloc,ir_reg))
     {
         // reallocate the register
         alloc_internal(ir_reg, table, alloc, block, node);
@@ -278,7 +276,7 @@ void clean_dead_reg(SymbolTable& table, LocalAlloc& alloc, Block& block, ListNod
     auto& ir_reg = reg_from_slot(slot,table,alloc);
 
     // something else has freed us
-    if(ir_reg.location == LOCATION_MEM)
+    if(!is_allocated(alloc.reg_alloc,ir_reg))
     {
         return;
     }
@@ -316,7 +314,7 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
     // special purpose ir reg dont allocate just rewrite it
     if(is_special_reg(slot))
     {
-        rewrite_reg(table,alloc,node->opcode,reg);
+        rewrite_reg(alloc,node->opcode,reg);
     
         // make sure callee saved regs are marked as used for saving
         const u32 spec_reg = node->opcode.v[reg];
@@ -332,7 +330,7 @@ void allocate_and_rewrite(SymbolTable& table,LocalAlloc& alloc,Block& block, Lis
 
     // Never a source as this is an initial alloc
     allocate_slot(table,alloc,block,node,ir_reg,is_src);
-    rewrite_reg_internal(table,alloc,node->opcode,reg);
+    rewrite_reg_internal(alloc,node->opcode,reg);
 
     mark_reg_usage(alloc.reg_alloc,ir_reg,is_dst); 
 }
@@ -444,7 +442,9 @@ void rewrite_opcode(Interloper &itl,LocalAlloc& alloc,Block &block, ListNode *no
 
 void reserve_offset(LocalAlloc& alloc,SymbolTable& table, Reg& ir_reg)
 {
-    log_reg(alloc.print,table,"reserve offset for %r in %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.location));
+    const u32 location = find_reg_opt(alloc.reg_alloc,ir_reg.slot);
+    
+    log_reg(alloc.print,table,"reserve offset for %r in %s\n",ir_reg.slot,reg_name(alloc.arch,location));
     stack_reserve_reg(alloc.stack_alloc,ir_reg);
 }
 
@@ -452,8 +452,10 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
 
+    const u32 reg = find_reg_opt(alloc.reg_alloc,ir_reg.slot);
+
     // no need to spill
-    if(ir_reg.location == LOCATION_MEM)
+    if(reg == LOCATION_MEM)
     {
         // make sure it has a stack pos
         if(is_stack_unallocated(ir_reg))
@@ -466,7 +468,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
         return;
     }
 
-    const u32 reg = ir_reg.location;
+    
     const u32 size = ir_reg.size * ir_reg.count;
 
     // TODO: handle if structs aernt always in emory
@@ -479,10 +481,10 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
         reserve_offset(alloc,table,ir_reg);
     }
 
-    log_reg(alloc.print,table,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.location),ir_reg.size);
+    log_reg(alloc.print,table,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
 
     // if the value has only been used as a source and not modifed then we can just treat this as a free_reg
-    if(is_dirty(alloc.reg_alloc,ir_reg.location))
+    if(is_dirty(alloc.reg_alloc,ir_reg))
     {
         const auto opcode = Opcode(op_type::spill,reg,ir_reg.slot.handle,alloc.stack_alloc.stack_offset);
 
@@ -496,7 +498,7 @@ void spill(SymSlot slot,LocalAlloc& alloc,SymbolTable& table,Block& block,ListNo
             insert_after(block.list,node,opcode);
         }
 
-        mark_clean(alloc.reg_alloc,ir_reg.location);
+        mark_clean(alloc.reg_alloc,reg);
     }
 
     free_ir_reg(alloc.reg_alloc,ir_reg);

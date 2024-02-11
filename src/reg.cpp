@@ -187,7 +187,6 @@ void print(const Reg& reg)
     printf("count: %d\n",reg.count);
 
     printf("offset: 0x%x\n",reg.offset);
-    printf("locaiton: 0x%x\n",reg.location);
 
     printf("uses: %d\n",reg.uses);
 
