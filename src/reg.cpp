@@ -150,6 +150,11 @@ b32 is_local(const Reg& reg)
     return !is_global(reg);  
 }
 
+b32 is_arg(const Reg& reg)
+{
+    return reg.flags & FUNC_ARG;
+}
+
 Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
 {
     Reg reg;
@@ -289,7 +294,7 @@ void free_sym(Interloper& itl,Function& func, Symbol& sym)
 
 bool is_local_reg(const Reg &reg)
 {
-    return !is_aliased(reg) && is_local(reg);
+    return !is_aliased(reg) && !is_arg(reg) && is_local(reg);
 }
 
 const OpInfo& info_from_op(const Opcode& opcode)

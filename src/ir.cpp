@@ -12,6 +12,32 @@
 #include "linear_alloc.cpp"
 #include "disass.cpp"
 
+u32 get_mov_register(LinearAlloc& alloc,SymSlot slot)
+{
+    if(is_var(slot))
+    {
+        const auto reg_opt = lookup(alloc.location,slot);
+
+        // var is allocated
+        if(reg_opt)
+        {
+            return *reg_opt;
+        }
+
+        // not allocated
+        return REG_FREE;
+    }
+    
+    // special reg
+    else 
+    {
+        const u32 location = special_reg_to_reg(alloc.arch,slot);
+        mark_used(alloc,location);
+
+        return location;
+    }
+}
+
 ListNode* move(Interloper& itl,LinearAlloc& alloc, Block& block, ListNode* node)
 {
     auto &table = itl.symbol_table;
@@ -20,78 +46,40 @@ ListNode* move(Interloper& itl,LinearAlloc& alloc, Block& block, ListNode* node)
     const auto dst = sym_from_idx(opcode.v[0]);
     const auto src = sym_from_idx(opcode.v[1]);
 
-    if(is_var(dst))
+    const u32 src_reg = get_mov_register(alloc,src);
+    const u32 dst_reg = get_mov_register(alloc,dst);
+
+    const b32 dst_free = dst_reg == REG_FREE;
+    const b32 src_free = src_reg == REG_FREE;
+
+    // no dst and src
+    // do memory to memory move
+    if(dst_free && src_free)
     {
-        u32* dst_reg_opt = lookup(alloc.location,dst);
-
-        if(dst_reg_opt)
-        {
-            assert(false);
-            node = node->next;
-        }
-
-        // not stored just dump straight into memory
-        else
-        {
-            // dump spec reg out to src
-            if(is_special_reg(src))
-            {
-                const u32 src_reg = special_reg_to_reg(alloc.arch,src);
-                spill_reg(alloc,table,block,node, dst, src_reg, false);
-            }
-
-            else
-            {
-                u32 *src_reg_opt = lookup(alloc.location,src);
-
-                if(src_reg_opt)
-                {
-                    assert(false);
-                }
-
-                // issue a memory to memory copy
-                else
-                {
-                    reload_reg(alloc,table,block,node,src,alloc.scratch_regs[1]);
-
-                    spill_reg(alloc,table,block,node, dst, alloc.scratch_regs[1], false);
-                }
-            }
-
-
-            node = remove(block.list,node);
-        }
+        reload_reg(alloc,table,block,node,src,alloc.scratch_regs[1]);
+        spill_reg(alloc,table,block,node, dst, alloc.scratch_regs[1], false);
+        node = remove(block.list,node);
     }
 
-    // dst is a spec reg
+    // spill src into dst
+    else if(dst_free)
+    {
+        spill_reg(alloc,table,block,node, dst, src_reg, false);
+        node = remove(block.list,node);
+    }
+
+    // reload src into dst
+    else if(src_free)
+    {
+        reload_reg(alloc,table,block,node,src,dst_reg);
+        node = remove(block.list,node);
+    }
+
+    // reg to reg move just rewrite
     else
     {
-        // both spec regs just rewrite
-        if(is_special_reg(src))
-        {
-            rewrite_opcode(alloc,table,block,node);
-            node = node->next;
-        }
-
-        else
-        {
-            const u32 dst_reg = special_reg_to_reg(alloc.arch,dst);
-
-            u32 *src_reg_opt = lookup(alloc.location,src);
-
-            if(src_reg_opt)
-            {
-                assert(false);
-            }
-
-            // just directly load the dst
-            else
-            {
-                reload_reg(alloc,table,block,node,src,dst_reg);
-            }
-
-            node = remove(block.list,node);     
-        }
+        rewrite_opcode(alloc,table,block,node);
+        node = node->next;
     }
 
     return node;
@@ -101,6 +89,9 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,SymbolTable& table,Block& b
 {
     // save where our dst is being forced into
     const auto dst = sym_from_idx(node->opcode.v[0]);
+
+    mark_used(alloc,u32(x86_reg::rax));
+    mark_used(alloc,u32(x86_reg::rdx));
 
     // rewrite src
     allocate_and_rewrite(alloc,table,block,node,1);
@@ -694,6 +685,8 @@ void allocate_registers(Interloper& itl,Function &func)
 {
     auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers,itl.arch);
 
+    linear_allocate(alloc,itl,func);
+
     log(alloc.print,"allocating registers for %s:\n",func.name.buf);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
@@ -737,9 +730,10 @@ void allocate_registers(Interloper& itl,Function &func)
 
     // R0 is callee saved
     static constexpr u32 CALLEE_SAVED_MASK = 1;
+    const u32 SCRATCH_MASK = (1 << alloc.scratch_regs[0]) | (1 << alloc.scratch_regs[1]) | (1 << alloc.scratch_regs[2]); 
 
     // make sure callee saved regs are not saved inside the func
-    const u32 saved_regs = alloc.used_set & ~CALLEE_SAVED_MASK;
+    const u32 saved_regs = alloc.used_set & ~(CALLEE_SAVED_MASK | SCRATCH_MASK);
     const u32 save_count = popcount(saved_regs);
 
     const bool insert_callee_saves = func.name != "main" && save_count != 0;

@@ -152,8 +152,31 @@ void write_struct_u64(Interloper& itl, Function& func, SymSlot src, AddrSlot add
 
 void lock_reg(Interloper& itl, Function& func, SymSlot reg)
 {
+    const u32 machine_reg = special_reg_to_reg(itl.arch,reg);
+
+    func.locked_set |= (1 << machine_reg);
+
     UNUSED(itl);
     emit_block_internal(func,cur_block(func),op_type::lock_reg,reg.handle,0,0);
+}
+
+ListNode* insert_lock(Interloper& itl,Function& func,Block& block, ListNode* node, SymSlot reg, bool after)
+{
+    const auto lock = make_op(op_type::lock_reg,reg.handle);
+
+    const u32 machine_reg = special_reg_to_reg(itl.arch,reg);
+
+    func.locked_set |= (1 << machine_reg);
+
+    if(after)
+    {
+        return insert_after(block.list,node,lock);
+    }
+
+    else
+    {
+        return insert_at(block.list,node,lock);
+    }
 }
 
 void unlock_reg(Interloper& itl, Function& func, SymSlot reg)

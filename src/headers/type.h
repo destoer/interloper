@@ -427,6 +427,10 @@ struct Function
     Array<Type*> generic_override;
 
     b32 used = false;
+
+    // TODO: we need locked ranges
+    // this is just nice and simple for now
+    u32 locked_set = 0;
 };
 
 

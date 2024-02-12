@@ -150,11 +150,11 @@ ListNode* x86_fixed_arith_oper(Interloper& itl, Function& func,Block& block, Lis
     const auto v2 = node->opcode.v[2];
 
     // move in numerator
-    lock_reg(itl,func,sym_from_idx(RAX_IR));
+    insert_lock(itl,func,block,node,sym_from_idx(RAX_IR),false); 
     node->opcode = make_op(op_type::mov_reg,RAX_IR,v1);
 
     // make sure rdx is free and cannot be used for allocation
-    node = insert_after(block.list,node,make_op(op_type::lock_reg,RDX_IR));            
+    node = insert_lock(itl,func,block,node,sym_from_idx(RDX_IR),true);          
 
     if(is_unsigned)
     {
@@ -189,7 +189,8 @@ ListNode* x86_shift(Interloper& itl, Function& func,Block& block, ListNode* node
     // mov dst, v1
     // lsl dst, rcx
 
-    lock_reg(itl,func,sym_from_idx(RCX_IR));
+    insert_lock(itl,func,block,node,sym_from_idx(RCX_IR),false); 
+
     node->opcode = make_op(op_type::mov_reg,RCX_IR,v2);
     node = insert_after(block.list,node,make_op(op_type::mov_reg,dst,v1));
     node = insert_after(block.list,node,make_op(type,dst,RCX_IR));

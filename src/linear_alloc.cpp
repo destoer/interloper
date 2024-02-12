@@ -5,6 +5,7 @@ struct LinearRange
     u32 start = 0xffff'ffff;
     u32 end = 0;
     SymSlot slot = {SYMBOL_NO_SLOT}; 
+    u32 location = LOCATION_MEM;
 };
 
 // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
@@ -20,8 +21,6 @@ struct LinearAlloc
     Array<Reg> tmp_regs;
 
     HashTable<SymSlot,u32> location;
-
-    Array<LinearRange> range;
 
     b32 print = false;
 
@@ -78,28 +77,247 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers
 
     return alloc;
 }
-/*
-void linear_alloc(LinearAlloc& alloc,Interloper& itl, Function& func)
+
+void update_range(Interloper& itl, Function& func,HashTable<SymSlot,LinearRange> table, SymSlot slot,u32 pc)
+{
+    auto& ir_reg = reg_from_slot(itl,func,slot);
+
+    // if this register has side effects we aint
+    // interested in it
+    if(!is_local_reg(ir_reg))
+    {
+        return;
+    }
+
+    auto range_opt = lookup(table,slot);
+
+    // add the intial entry
+    if(!range_opt)
+    {
+        LinearRange range;
+        range.slot = slot;
+        range_opt = add(table,slot,range);
+    }
+
+    auto& range = *range_opt;
+
+    range.start = std::min(range.start,pc);
+    range.end = std::max(range.end,pc);
+}
+
+Array<LinearRange> find_range(Interloper& itl, Function& func)
 {
 
+    auto table = make_table<SymSlot,LinearRange>();
+
+    u32 pc = 0;
+
+    // for each block
+    for(u32 b = 0; b < count(func.emitter.program); b++)
+    {
+        auto& block = func.emitter.program[b];
+
+        ListNode *node = block.list.start;
+
+        // for each opcode
+        while(node)
+        {
+            // scan each opcode for any vars
+            const auto opcode = node->opcode;
+            const auto info = info_from_op(opcode); 
+
+            for(u32 a = 0; a < info.args; a++)
+            {
+                const auto slot = sym_from_idx(opcode.v[a]);
+
+                if(is_arg_reg(info.type[a]) && is_var(slot))
+                {
+                    update_range(itl,func,table,slot,pc);
+                }
+            }
+
+            pc += 1;
+            node = node->next;
+        }
+        
+        // if its live out then consider it allocated till the end of the block
+        for(u32 i = 0; i < count(block.live_out.buf); i++)
+        {
+            const auto& bucket = block.live_out.buf[i];
+
+            for(u32 j = 0; j < count(bucket); j++)
+            {
+                const auto slot = bucket[j];
+                update_range(itl,func,table,slot,pc);
+            }
+        }
+    }
+
+    // okay we have all the ranges now flatten this into a sorted array
+    Array<LinearRange> range;
+
+    // first copy the hash table contents into the array
+    for(u32 i = 0; i < count(table.buf); i++)
+    {
+        const auto& bucket = table.buf[i];
+
+        for(u32 j = 0; j < count(bucket); j++)
+        {
+            push_var(range,bucket[j].v);
+        }
+    }
+
+    // finally sort it
+    heap_sort(range,[](const LinearRange& v1, const LinearRange& v2)
+    {
+        return v1.start > v2.start;
+    });
+
+    destroy_table(table); 
+    return range;
 }
+
+void add_reg(LinearAlloc& alloc, u32 reg)
+{
+    alloc.free_set = set_bit(alloc.free_set,reg);
+}
+
+void remove_reg(LinearAlloc& alloc, u32 reg)
+{
+    alloc.free_set = deset_bit(alloc.free_set,reg);
+}
+
+void add_gpr(LinearAlloc& alloc, x86_reg reg, u32 locked_set)
+{
+    const u32 locked = (1 << u32(reg)) & locked_set;
+
+    // check register not locked
+    if(!locked)
+    {
+        add_reg(alloc,u32(reg));
+    }
+}
+
+u32 find_free_register(u32 set,u32 used)
+{
+    u32 reg = FFS_EMPTY;
+
+    // prefer used regs
+    reg = ffs(set & used);
+
+    // get any reg we can
+    if(reg == FFS_EMPTY)
+    {
+        reg = ffs(set);
+    }
+
+    return reg;
+}
+
+u32 alloc_reg(LinearAlloc& alloc)
+{
+    const u32 reg = find_free_register(alloc.free_set,alloc.used_set);
+
+    if(reg != FFS_EMPTY)
+    {
+        remove_reg(alloc,reg);
+        mark_used(alloc,reg);
+    }
+
+    return reg;
+}
+    
+
+// TODO: we need to dynamically lock the registers for each function
+void init_regs(LinearAlloc& alloc, u32 locked_set)
+{
+    // return reg reserved
+    // add_gpr(alloc,x86_reg::rax);
+
+    add_gpr(alloc,x86_reg::rcx,locked_set);
+    add_gpr(alloc,x86_reg::rdx,locked_set);
+    add_gpr(alloc,x86_reg::rbx,locked_set);
+    add_gpr(alloc,x86_reg::rdp,locked_set);
+    add_gpr(alloc,x86_reg::rsi,locked_set);
+    add_gpr(alloc,x86_reg::rdi,locked_set);
+
+    add_gpr(alloc,x86_reg::r8,locked_set);
+    add_gpr(alloc,x86_reg::r9,locked_set);
+    add_gpr(alloc,x86_reg::r10,locked_set);
+
+    // scratch regs
+/*
+    add_gpr(alloc,x86_reg::r11);
+    add_gpr(alloc,x86_reg::r12);
 */
+    add_gpr(alloc,x86_reg::r13,locked_set);
+    add_gpr(alloc,x86_reg::r14,locked_set);
+    add_gpr(alloc,x86_reg::r15,locked_set);
+}
+
+void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
+{
+    auto range = find_range(itl,func);
+    Array<LinearRange> active;
+/*
+    printf("%s:\n",func.name.buf);
+
+    // print the range
+    for(u32 r = 0; r < count(range); r++)
+    {
+        const auto &entry = range[r];
+
+        printf("%x [%d,%d]\n",entry.slot.handle,entry.start,entry.end);
+    }
+*/
+    // init our register set
+    init_regs(alloc,func.locked_set);
+
+    // perform the allocation
+    // NOTE: currently we dont bother spilling regs
+    for(u32 r = 0; r < count(range); r++)
+    {
+        auto& cur = range[r];
+
+        // expire any dead sets
+        // TODO: for now we will just let it run out
+        // clean_dead_reg(alloc,cur);
+
+        const u32 reg = alloc_reg(alloc);
+
+        // we have a register
+        if(reg != FFS_EMPTY)
+        {
+            // set location
+            cur.location = reg;
+            add(alloc.location,cur.slot,cur.location);
+
+            // add to active register set 
+            
+        }
+
+        // TODO: do a spill for now we just default
+        // it into memory
+        else
+        {
+
+        }
+    }
+
+
+    destroy_arr(active);
+    destroy_arr(range);
+}
 
 void destroy_linear_alloc(LinearAlloc& alloc)
 {
     destroy_table(alloc.location);
-    destroy_arr(alloc.range);
 }
 
 Reg& reg_from_slot(SymSlot slot, SymbolTable& table, LinearAlloc& alloc)
 {
     return reg_from_slot(table,alloc.tmp_regs,slot);
 }
-
-// TODO: for now we will be operating everything off the stack
-// and not actually making use of location
-// we should later add a flag that renables this mode of operation
-// as a debugging tool!
 
 void reload_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, SymSlot slot, u32 reg)
 {
@@ -185,6 +403,7 @@ void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, Sy
 }
 
 
+// TODO: add a flag that forces stack usage
 void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, u32 reg)
 {
     const auto opcode = node->opcode;
@@ -199,36 +418,57 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
     // check we are dealing with a var
     if(is_var(slot))
     {
-        // src do a reload
-        if(is_src) 
+        const auto reg_opt = lookup(alloc.location,slot);
+
+        // var is allocated
+        if(reg_opt)
         {
-            // issue a load
-            reload_reg(alloc,table,block,node,slot,alloc.scratch_regs[reg]);
+            const u32 loc = *reg_opt;
 
-            // rewrite in the register
-            node->opcode.v[reg] = alloc.scratch_regs[reg];
-
-            // do the writeback as well
-            if(is_dst)
+            if(is_src || is_dst)
             {
-                spill_reg(alloc,table,block,node,slot,node->opcode.v[reg],true);
+                node->opcode.v[reg] = loc;
             }
         }
 
-        // just a dst
-        else if(is_dst)
-        {
-            // rewrite in the register
-            node->opcode.v[reg] = alloc.scratch_regs[reg];
 
-            spill_reg(alloc,table,block,node,slot,node->opcode.v[reg],true);      
+        // use scratch regs
+        else
+        {
+            // src do a reload
+            if(is_src) 
+            {
+                // issue a load
+                reload_reg(alloc,table,block,node,slot,alloc.scratch_regs[reg]);
+
+                // rewrite in the register
+                node->opcode.v[reg] = alloc.scratch_regs[reg];
+
+                // do the writeback as well
+                if(is_dst)
+                {
+                    spill_reg(alloc,table,block,node,slot,node->opcode.v[reg],true);
+                }
+            }
+
+            // just a dst
+            else if(is_dst)
+            {
+                // rewrite in the register
+                node->opcode.v[reg] = alloc.scratch_regs[reg];
+
+                spill_reg(alloc,table,block,node,slot,node->opcode.v[reg],true);      
+            }
         }
     }
 
     // special reg just rewrite it to whatever it wants
     else if(is_special_reg(slot))
     {
-        node->opcode.v[reg] = special_reg_to_reg(alloc.arch,slot);
+        // make sure the spec regs are marked as used
+        const u32 location = special_reg_to_reg(alloc.arch,slot);
+        mark_used(alloc,location);
+        node->opcode.v[reg] = location;
     }
 }
 
