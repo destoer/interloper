@@ -142,7 +142,7 @@ void emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
     }
 }
 
-ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type, bool is_unsigned)
+ListNode* x86_fixed_arith_oper(Interloper& itl, Function& func,Block& block, ListNode* node, op_type type, bool is_unsigned)
 {
     // div dst, v1 , v2    
     const auto dst = node->opcode.v[0];
@@ -150,7 +150,8 @@ ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type, bool 
     const auto v2 = node->opcode.v[2];
 
     // move in numerator
-    node->opcode = make_op(op_type::replace_reg,RAX_IR,v1);
+    lock_reg(itl,func,sym_from_idx(RAX_IR));
+    node->opcode = make_op(op_type::mov_reg,RAX_IR,v1);
 
     // make sure rdx is free and cannot be used for allocation
     node = insert_after(block.list,node,make_op(op_type::lock_reg,RDX_IR));            
@@ -176,7 +177,7 @@ ListNode* x86_fixed_arith_oper(Block& block, ListNode* node, op_type type, bool 
 
 
 
-ListNode* x86_shift(Block& block, ListNode* node, op_type type)
+ListNode* x86_shift(Interloper& itl, Function& func,Block& block, ListNode* node, op_type type)
 {
     // lsl dst, v1 , v2    
     const auto dst = node->opcode.v[0];
@@ -188,52 +189,53 @@ ListNode* x86_shift(Block& block, ListNode* node, op_type type)
     // mov dst, v1
     // lsl dst, rcx
 
-    node->opcode = make_op(op_type::replace_reg,RCX_IR,v2);
+    lock_reg(itl,func,sym_from_idx(RCX_IR));
+    node->opcode = make_op(op_type::mov_reg,RCX_IR,v2);
     node = insert_after(block.list,node,make_op(op_type::mov_reg,dst,v1));
     node = insert_after(block.list,node,make_op(type,dst,RCX_IR));
 
     return node->next;
 }
 
-ListNode* mul_x86(Block& block, ListNode* node)
+ListNode* mul_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::mul_x86,false);
+    return x86_fixed_arith_oper(itl,func,block,node,op_type::mul_x86,false);
 }
 
-ListNode* udiv_x86(Block& block, ListNode* node)
+ListNode* udiv_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::udiv_x86,true);
+    return x86_fixed_arith_oper(itl,func,block,node,op_type::udiv_x86,true);
 }
 
-ListNode* sdiv_x86(Block& block, ListNode* node)
+ListNode* sdiv_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::sdiv_x86,false);
+    return x86_fixed_arith_oper(itl,func,block,node,op_type::sdiv_x86,false);
 }
 
 
-ListNode* umod_x86(Block& block, ListNode* node)
+ListNode* umod_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::umod_x86,true);
+    return x86_fixed_arith_oper(itl,func,block,node,op_type::umod_x86,true);
 }
 
-ListNode* smod_x86(Block& block, ListNode* node)
+ListNode* smod_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_fixed_arith_oper(block,node,op_type::smod_x86,false);
+    return x86_fixed_arith_oper(itl,func,block,node,op_type::smod_x86,false);
 }
 
-ListNode* lsl_x86(Block& block, ListNode* node)
+ListNode* lsl_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_shift(block,node,op_type::lsl_x86);
+    return x86_shift(itl,func,block,node,op_type::lsl_x86);
 }
 
-ListNode* asr_x86(Block& block, ListNode* node)
+ListNode* asr_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_shift(block,node,op_type::asr_x86);
+    return x86_shift(itl,func,block,node,op_type::asr_x86);
 }
 
-ListNode* lsr_x86(Block& block, ListNode* node)
+ListNode* lsr_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
 {
-    return x86_shift(block,node,op_type::lsr_x86);
+    return x86_shift(itl,func,block,node,op_type::lsr_x86);
 }
 
 
@@ -423,17 +425,38 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::lsl_reg:
         {
-            return lsl_x86(block,node);
+            switch(itl.arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return lsl_x86(itl,func,block,node);
+                }
+            }
+            break;
         }
 
         case op_type::asr_reg:
         {
-            return asr_x86(block,node);
+            switch(itl.arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return asr_x86(itl,func,block,node);
+                }
+            }
+            break;
         }
 
         case op_type::lsr_reg:
         {
-            return lsr_x86(block,node); 
+            switch(itl.arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return lsr_x86(itl,func,block,node); 
+                }
+            }
+            break;
         }
 
         case op_type::sub_reg: 
@@ -452,7 +475,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return udiv_x86(block,node);
+                    return udiv_x86(itl,func,block,node);
                 }
             }
             break;
@@ -464,7 +487,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return sdiv_x86(block,node);
+                    return sdiv_x86(itl,func,block,node);
                 }
             }
             break;
@@ -476,7 +499,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return umod_x86(block,node);
+                    return umod_x86(itl,func,block,node);
                 }
             }
             break;
@@ -488,7 +511,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return smod_x86(block,node);
+                    return smod_x86(itl,func,block,node);
                 }
             }
             break;
@@ -500,7 +523,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return mul_x86(block,node);
+                    return mul_x86(itl,func,block,node);
                 }
             }
             break;

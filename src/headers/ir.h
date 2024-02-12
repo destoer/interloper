@@ -187,7 +187,6 @@ enum class op_type
     // used when the end of the block is read past in the optimiser
     placeholder,
 
-    replace_reg,
     lock_reg,
     unlock_reg,
 

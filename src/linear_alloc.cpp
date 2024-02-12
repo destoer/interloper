@@ -160,6 +160,7 @@ void spill_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node
 
 void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, SymSlot slot, bool after)
 {
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
     const u32* reg_opt = lookup(alloc.location,slot);
 
     // is actually in a reg and not immediatly spilled
@@ -169,6 +170,12 @@ void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, Sy
 
         spill_reg(alloc,table,block,node,slot,reg,after);
     }
+
+    // reserve a space for this
+    else if(is_stack_unallocated(ir_reg))
+    {
+        reserve_offset(alloc,table,ir_reg,LOCATION_MEM);
+    }   
 }
 
 

@@ -149,14 +149,12 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
 
     BinNode* cmp_node = (BinNode*)for_node->cond;
 
-
-
     // grab end
     // NOTE: we need to regrab this later incase it is not a const
     const auto [entry_end_type,entry_end] = compile_oper(itl,func,cmp_node->right);
 
     // make index the same sign as the end stmt
-    const auto& sym = add_symbol(itl,for_node->name_one,entry_end_type); 
+    const auto& sym = add_symbol(itl,for_node->name_one,make_builtin(itl,inc? builtin_type::u32_t : builtin_type::s32_t)); 
 
     const SymSlot index = sym.reg.slot;
 

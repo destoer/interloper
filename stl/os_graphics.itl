@@ -656,10 +656,10 @@ func create_window(win : OSWindow@, x : u32, y : u32)
     win_req : XCreateWindow;
     win_req.req_len += x11_req_len(buf.size);
 
-    win_req.window = win.window_id;
-
     // rgb888
-    win_req.depth = 24;
+    // win_req.depth = 24;
+
+    win_req.window = win.window_id;
 
     win_req.class = WINDOW_CLASS_INPUT_OUTPUT;
 

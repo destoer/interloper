@@ -97,6 +97,56 @@ ListNode* move(Interloper& itl,LinearAlloc& alloc, Block& block, ListNode* node)
     return node;
 }
 
+ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,SymbolTable& table,Block& block, ListNode* node, SymSlot out)
+{
+    // save where our dst is being forced into
+    const auto dst = sym_from_idx(node->opcode.v[0]);
+
+    // rewrite src
+    allocate_and_rewrite(alloc,table,block,node,1);
+
+    // mark the output reg
+    node->opcode.v[0] = out.handle;
+
+    // insert the mov to move it from the out reg into the new one
+    const auto mov = make_op(op_type::mov_reg,dst.handle,out.handle);
+    node = insert_after(block.list,node,mov);
+
+    // NOTE: RAX, and RDX would be considered unlocked again here
+
+    return node;
+}   
+
+ListNode* rewrite_x86_shift(LinearAlloc& alloc,SymbolTable& table,Block& block, ListNode* node)
+{
+    // NOTE: RCX would be considered unlocked again
+
+    rewrite_opcode(alloc,table,block,node);
+    return node->next;
+}
+
+ListNode* rewrite_access_struct(LinearAlloc &alloc,SymbolTable& table,Block &block, ListNode *node)
+{
+    const auto slot = sym_from_idx(node->opcode.v[1]);
+    auto& reg = reg_from_slot(slot,table,alloc);
+
+    if(is_stack_unallocated(reg))
+    {
+        assert(stored_in_mem(reg));
+
+        stack_reserve_reg(alloc.stack_alloc,reg);
+    }
+
+    if(is_local(reg))
+    {
+        // add the stack offset, so this correctly offset for when we fully rewrite this
+        node->opcode.v[2] += alloc.stack_alloc.stack_offset;
+    }
+
+    allocate_and_rewrite(alloc,table,block,node,0);
+    return node->next;
+}
+
 ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, ListNode* node)
 {
     UNUSED(func);
@@ -111,53 +161,54 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
             node = move(itl,alloc,block,node);
             break;
         }
-    
-
-        case op_type::replace_reg:
-        {   
-            assert(false);
-            break;
-        }
 
         case op_type::udiv_x86:
         {
-            assert(false);
+            node = rewrite_x86_fixed_arith(alloc,table,block,node,sym_from_idx(RAX_IR));
+            break;
         }
 
         case op_type::sdiv_x86:
         {
-            assert(false);
+            node = rewrite_x86_fixed_arith(alloc,table,block,node,sym_from_idx(RAX_IR));
+            break;
         }
 
 
         case op_type::umod_x86:
         {
-            assert(false);
+            node = rewrite_x86_fixed_arith(alloc,table,block,node,sym_from_idx(RDX_IR));
+            break;
         }
 
         case op_type::smod_x86:
         {
-            assert(false);
+            node = rewrite_x86_fixed_arith(alloc,table,block,node,sym_from_idx(RDX_IR));
+            break;
         }
 
         case op_type::mul_x86:
         {
-            assert(false);
+            node = rewrite_x86_fixed_arith(alloc,table,block,node,sym_from_idx(RAX_IR));
+            break;
         }
 
         case op_type::lsl_x86:
         {
-            assert(false);
+            node = rewrite_x86_shift(alloc,table,block,node);
+            break;
         }
 
         case op_type::lsr_x86:
         {
-            assert(false);
+            node = rewrite_x86_shift(alloc,table,block,node);
+            break;
         }
 
         case op_type::asr_x86:
         {
-            assert(false);
+            node = rewrite_x86_shift(alloc,table,block,node);
+            break;
         }
 
         case op_type::lock_reg:
@@ -176,10 +227,11 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         {
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
-
             const auto slot = sym_from_idx(opcode.v[1]);
+            const auto dst = sym_from_idx(opcode.v[0]);
             auto& reg = reg_from_slot(slot,table,alloc);
 
+            log_reg(alloc.print,table,"addrof %r <- %r\n",dst,slot);
 
             if(is_stack_unallocated(reg))
             {
@@ -219,12 +271,17 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         case op_type::store_struct_u32:
         case op_type::store_struct_u64:
         {
-            assert(false);
+            node = rewrite_access_struct(alloc,table,block,node);
+            break;
         }
 
         case op_type::load_func_addr:
         {
-            assert(false);
+            // just rewrite the 1st reg
+            allocate_and_rewrite(alloc,table,block,node,0);
+
+            node = node->next;
+            break;
         }
 
         case op_type::reload_slot:
@@ -282,7 +339,27 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
 
         case op_type::alloc_stack:
         {
-            assert(false);
+            const u32 size = opcode.v[0];
+
+            // nothing to do
+            if(size == 0)
+            {
+                node = remove(block.list,node);
+                break;
+            }
+
+            node->opcode = make_op(op_type::sub_imm2,SP_IR,size);
+            rewrite_opcode(alloc,table,block,node);
+
+            alloc.stack_alloc.stack_offset += size;
+
+            if(alloc.stack_alloc.print)
+            {
+                printf("allocate stack %x\n",size);
+            }
+
+            node = node->next;
+            break;
         }
 
         case op_type::alloc_slot:
@@ -304,7 +381,19 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
 
         case op_type::alloc_local_array:
         {
-            assert(false);
+            const u32 size = opcode.v[1];
+            const u32 count = opcode.v[2];
+
+            const SymSlot slot = sym_from_idx(opcode.v[0]);
+
+            const u32 offset = allocate_stack_array(alloc.stack_alloc,table,slot,size,count);
+
+            node->opcode = Opcode(op_type::alloc_local_array,opcode.v[0],offset,0);
+
+            allocate_and_rewrite(alloc,table,block,node,0);
+
+            node = node->next;
+            break;
         }
 
         case op_type::alloc_global_array:
@@ -342,7 +431,11 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         // pools (NOTE: we resolve this during linking)
         case op_type::pool_addr:
         {
-            assert(false);
+            // pool_addr <dst>, <offset>, <pool>
+            allocate_and_rewrite(alloc,table,block,node,0);
+
+            node = node->next;
+            break;
         }
 
 
