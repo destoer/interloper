@@ -1,11 +1,12 @@
 
-// expected 8
+// expected 16
 struct Foo
 {
     v1 : u32;
     v2 : u8;
     v3 : u16; 
     v4 : u8;
+    v5 : u16;
 };
 
 func main() s32 

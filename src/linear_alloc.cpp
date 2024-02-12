@@ -78,6 +78,12 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers
 
     return alloc;
 }
+/*
+void linear_alloc(LinearAlloc& alloc,Interloper& itl, Function& func)
+{
+
+}
+*/
 
 void destroy_linear_alloc(LinearAlloc& alloc)
 {

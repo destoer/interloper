@@ -145,7 +145,7 @@ u32 calc_alloc_sections(u32* start,u32* count, u32 byte_start = 0)
         printf("alloc: %d, %d\n",start[i],count[i]);
     }
 */
-    return align(size,16);
+    return align_val(size,16);
 }
 
 u32 calc_final_offset(const u32* start, u32 size, u32 idx)

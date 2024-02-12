@@ -771,8 +771,6 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     // NOTE: func struct will hold a void value if it has nothing
     const bool returns_value = sig.return_type[0]->type_idx != u32(builtin_type::void_t);
 
-
-
     if(!call_info.func_pointer)
     {
         // emit call to label slot
