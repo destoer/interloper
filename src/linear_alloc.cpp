@@ -6,6 +6,9 @@ struct LinearRange
     u32 end = 0;
     SymSlot slot = {SYMBOL_NO_SLOT}; 
     u32 location = LOCATION_MEM;
+    ListNode* node = nullptr;
+    BlockSlot block_slot = {NO_SLOT};
+    b32 dst_live = false;
 };
 
 // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
@@ -81,7 +84,7 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,b32 stack_only,Array
     return alloc;
 }
 
-void update_range(Interloper& itl, Function& func,HashTable<SymSlot,LinearRange> table, SymSlot slot,u32 pc)
+void update_range(Interloper& itl, Function& func,HashTable<SymSlot,LinearRange> table, SymSlot slot,Block& block, ListNode* node,b32 dst_live,u32 pc)
 {
     auto& ir_reg = reg_from_slot(itl,func,slot);
 
@@ -104,7 +107,14 @@ void update_range(Interloper& itl, Function& func,HashTable<SymSlot,LinearRange>
 
     auto& range = *range_opt;
 
-    range.start = std::min(range.start,pc);
+    if(pc < range.start)
+    {
+        range.block_slot = block.block_slot;
+        range.node = node;
+        range.start = pc;
+        range.dst_live = dst_live;
+    }
+
     range.end = std::max(range.end,pc);
 }
 
@@ -139,9 +149,13 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
                     if(info.type[a] == arg_type::dst_reg)
                     {
                         pc += 1;
+                        update_range(itl,func,table,slot,block,node,true,pc);
                     }
 
-                    update_range(itl,func,table,slot,pc);
+                    else
+                    {
+                        update_range(itl,func,table,slot,block,node,false,pc);
+                    }
                 }
             }
 
@@ -150,6 +164,8 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
             node = node->next;
         }
         
+        ListNode* last = block.list.end;
+
         // if its live out then consider it allocated till the end of the block
         for(u32 i = 0; i < count(block.live_out.buf); i++)
         {
@@ -158,7 +174,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
             for(u32 j = 0; j < count(bucket); j++)
             {
                 const auto slot = bucket[j];
-                update_range(itl,func,table,slot,pc);
+                update_range(itl,func,table,slot,block,last,false,pc);
             }
         }
     }
@@ -368,6 +384,21 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
     for(u32 r = 0; r < count(range); r++)
     {
         auto& cur = range[r];
+
+        auto& ir_reg = reg_from_slot(itl,func,cur.slot);
+
+        // insert the live ir op, so we know to load it
+        // if live first as dst then we dont care...
+        if(is_arg(ir_reg) && !cur.dst_live)
+        {
+            auto& block = block_from_slot(func,cur.block_slot);
+
+            const auto live_op = make_op(op_type::live_var,cur.slot.handle);
+            insert_at(block.list,cur.node,live_op);
+        }
+
+
+        // actually run the allocation
 
         // expire any dead sets
         clean_dead_reg(alloc,active,cur);

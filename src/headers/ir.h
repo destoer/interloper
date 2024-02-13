@@ -219,6 +219,8 @@ enum class op_type
 
     pool_addr,
 
+    live_var,
+
     // just c++ things not used
     END,
 };

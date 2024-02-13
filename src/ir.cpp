@@ -154,6 +154,23 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
             break;
         }
 
+        case op_type::live_var:
+        {
+            const auto slot = sym_from_idx(opcode.v[0]);
+
+            const auto loc_opt = lookup(alloc.location,slot);
+
+            // issue a reload
+            if(loc_opt)
+            {
+                const u32 loc = *loc_opt;
+                reload_reg(alloc,table,block,node,slot,loc);
+            }
+
+            node = remove(block.list,node);
+            break;
+        }
+
         case op_type::udiv_x86:
         {
             node = rewrite_x86_fixed_arith(alloc,table,block,node,sym_from_idx(RAX_IR));
@@ -734,7 +751,7 @@ void allocate_registers(Interloper& itl,Function &func)
         const u32 call_align = 1 + popcount(saved_regs) + (func.sig.call_stack_size / GPR_SIZE);
 
         // add pad to align the stack on the correct boundary
-        if(call_align & 1)
+        if(call_align & 1 && !func.leaf_func)
         {
             log(alloc.stack_alloc.print,"adding + GPR_SIZE padding to align stack\n");
             alloc.stack_alloc.stack_size += GPR_SIZE;

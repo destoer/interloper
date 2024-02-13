@@ -54,6 +54,7 @@ import <file>
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
+
 /*
 global stdout : File;
 global stdin : File;

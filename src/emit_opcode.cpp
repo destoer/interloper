@@ -68,6 +68,7 @@ void not_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
 
 void call(Interloper& itl,Function& func, LabelSlot slot)
 {
+    func.leaf_func = false;
     spill_func_bounds(itl,func);
 
     emit_label1<op_type::call>(itl,func,slot);
@@ -75,6 +76,7 @@ void call(Interloper& itl,Function& func, LabelSlot slot)
 
 void call_reg(Interloper& itl,Function& func, SymSlot slot)
 {
+    func.leaf_func = false;
     spill_func_bounds(itl,func);
 
     emit_reg1<op_type::call_reg>(itl,func,slot);
@@ -95,6 +97,7 @@ void ret(Interloper& itl, Function& func)
 
 void syscall(Interloper& itl, Function& func)
 {
+    func.leaf_func = false;
     emit_implicit<op_type::syscall>(itl,func);
 }
 
