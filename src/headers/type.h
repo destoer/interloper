@@ -393,6 +393,7 @@ struct FuncSig
 
     b32 va_args = false;
     u32 hidden_args = 0;
+    u32 call_stack_size = 0;
 };
 
 

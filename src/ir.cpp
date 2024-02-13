@@ -90,6 +90,7 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,SymbolTable& table,Block& b
     // save where our dst is being forced into
     const auto dst = sym_from_idx(node->opcode.v[0]);
 
+    // need to mark the two implict regs
     mark_used(alloc,u32(x86_reg::rax));
     mark_used(alloc,u32(x86_reg::rdx));
 
@@ -459,8 +460,8 @@ ListNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, ListNo
 }
 
 // 2nd pass of rewriting on the IR
-ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, ListNode *node,const u32 saved_regs,
-    const Opcode& stack_clean, bool insert_callee_saves)
+ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, ListNode *node,
+    const u32 saved_regs,const Opcode& stack_clean)
 {
     const auto opcode = node->opcode;
 
@@ -493,10 +494,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
             }
 
             // make sure callee restore comes after stack clean
-            if(insert_callee_saves)
-            {
-                emit_popm(itl,block,node,saved_regs);
-            }
+            emit_popm(itl,block,node,saved_regs);
 
             node = node->next;
             break;
@@ -683,7 +681,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers,itl.arch);
+    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_only,func.registers,itl.arch);
 
     linear_allocate(alloc,itl,func);
 
@@ -709,10 +707,44 @@ void allocate_registers(Interloper& itl,Function &func)
     // Figure out how large a stack we need and put everything on it
     finish_stack_alloc(itl.symbol_table,alloc);
 
+    log(alloc.stack_alloc.print,"calling stack size: %d\n",func.sig.call_stack_size + GPR_SIZE);
+
     if(alloc.print)
     {
         print_reg_alloc(alloc);
     }
+
+    // iterate over the function by here and add callee cleanup at every ret
+    // and insert the stack offsets and load and spill directives
+
+    // RA is callee saved
+    const u32 CALLEE_SAVED_MASK = (1 << arch_rv(alloc.arch));
+    const u32 SCRATCH_MASK = (1 << alloc.scratch_regs[0]) | (1 << alloc.scratch_regs[1]) | (1 << alloc.scratch_regs[2]); 
+
+   
+    u32 saved_regs = 0;
+    
+    // we dont want to save these on start
+    if(func.name != "start")
+    {
+        // make sure callee saved regs are not saved inside the func
+        saved_regs = alloc.used_set & ~(CALLEE_SAVED_MASK | SCRATCH_MASK | (1 << arch_sp(alloc.arch)));
+
+        // return addr + saved regs + call stack
+        const u32 call_align = 1 + popcount(saved_regs) + (func.sig.call_stack_size / GPR_SIZE);
+
+        // add pad to align the stack on the correct boundary
+        if(call_align & 1)
+        {
+            log(alloc.stack_alloc.print,"adding + GPR_SIZE padding to align stack\n");
+            alloc.stack_alloc.stack_size += GPR_SIZE;
+        }
+    }
+
+
+    const u32 save_count = popcount(saved_regs);
+
+    log(alloc.print,"saved registers: %d\n",save_count);
 
     // only allocate a stack if we need it
     if(alloc.stack_alloc.stack_size)
@@ -721,33 +753,13 @@ void allocate_registers(Interloper& itl,Function &func)
         insert_front(func.emitter.program[0].list,make_op(op_type::sub_imm2,SP,alloc.stack_alloc.stack_size));
     }
 
-
-    // iterate over the function by here and add callee cleanup at every ret
-    // and insert the stack offsets and load and spill directives
-
-    // TODO: this might be good to loop jam with somethign but just have a seperate loop for simplictiy atm
-
-
-    // R0 is callee saved
-    static constexpr u32 CALLEE_SAVED_MASK = 1;
-    const u32 SCRATCH_MASK = (1 << alloc.scratch_regs[0]) | (1 << alloc.scratch_regs[1]) | (1 << alloc.scratch_regs[2]); 
-
-    // make sure callee saved regs are not saved inside the func
-    const u32 saved_regs = alloc.used_set & ~(CALLEE_SAVED_MASK | SCRATCH_MASK);
-    const u32 save_count = popcount(saved_regs);
-
-    const bool insert_callee_saves = func.name != "main" && save_count != 0;
-
-
-    alloc_args(func,alloc.stack_alloc,itl.symbol_table,insert_callee_saves? GPR_SIZE * save_count : 0);
+    alloc_args(func,alloc.stack_alloc,itl.symbol_table,GPR_SIZE * save_count);
 
     // entry point does not need to preserve regs
-    if(insert_callee_saves)
-    {
-        auto& start_block = func.emitter.program[0];
+    auto& start_block = func.emitter.program[0];
 
-        emit_pushm(itl,start_block,start_block.list.start,saved_regs);
-    }
+    emit_pushm(itl,start_block,start_block.list.start,saved_regs);
+    
 
     const u32 SP = arch_sp(itl.arch);
     const auto stack_clean = Opcode(op_type::add_imm2,SP,alloc.stack_alloc.stack_size,0);
@@ -760,7 +772,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         while(node)
         {
-            node = rewrite_directives(itl,alloc,block,node,saved_regs,stack_clean,insert_callee_saves);
+            node = rewrite_directives(itl,alloc,block,node,saved_regs,stack_clean);
         }
     }
 

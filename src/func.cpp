@@ -520,8 +520,10 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             const auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
             check_assign_arg(itl,arg_type,rtype);
 
+            const u32 aligned_size = align_val(structure.size,GPR_SIZE);
+
             // alloc the struct size for our copy
-            alloc_stack(itl,func,structure.size);
+            alloc_stack(itl,func,aligned_size);
 
             // need to save SP as it will get pushed last
             const SymSlot dst_ptr = copy_reg(itl,func,sym_from_idx(SP_IR));
@@ -532,7 +534,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
 
             // clean up the stack push
-            arg_clean += structure.size / GPR_SIZE;
+            arg_clean += aligned_size / GPR_SIZE;
         }
 
         // plain builtin in variable
@@ -583,7 +585,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     // this is easy because we know how many args we have
     auto& rtti_cache = itl.rtti_cache;
 
-    const u32 any_arr_size = any_args * rtti_cache.any_struct_size;
+    const u32 any_arr_size = align_val(any_args * rtti_cache.any_struct_size,GPR_SIZE);
 
     alloc_stack(itl,func,any_arr_size);
 
@@ -1162,8 +1164,13 @@ void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
 
         push_var(sig.args,sym.reg.slot);
 
+        arg_offset += type_size(itl,type);
+
         sig.va_args = true;
     }
+
+    sig.call_stack_size = arg_offset;
+
 
     pop_context(itl);
 }

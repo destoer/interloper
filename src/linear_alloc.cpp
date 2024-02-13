@@ -24,6 +24,8 @@ struct LinearAlloc
 
     b32 print = false;
 
+    b32 stack_only = false;
+
     // need's to be as large as the code size
     // i.e 2 on x86 3 on mips
     // NOTE: we dont have to mark these as used
@@ -50,11 +52,12 @@ void mark_used(LinearAlloc& alloc, u32 reg)
     alloc.used_set = set_bit(alloc.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,b32 stack_only,Array<Reg> registers,arch_target arch)
 {
     LinearAlloc alloc;
 
     alloc.print = print_reg;
+    alloc.stack_only = stack_only;
     alloc.stack_alloc = make_stack_alloc(print_stack);
 
     alloc.arch = arch;
@@ -126,16 +129,23 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
             const auto opcode = node->opcode;
             const auto info = info_from_op(opcode); 
 
-            for(u32 a = 0; a < info.args; a++)
+            for(s32 a = info.args - 1; a >= 0; a--)
             {
                 const auto slot = sym_from_idx(opcode.v[a]);
 
                 if(is_arg_reg(info.type[a]) && is_var(slot))
                 {
+                    // dst only has a later lifetime
+                    if(info.type[a] == arg_type::dst_reg)
+                    {
+                        pc += 1;
+                    }
+
                     update_range(itl,func,table,slot,pc);
                 }
             }
 
+            // next opcode
             pc += 1;
             node = node->next;
         }
@@ -226,6 +236,11 @@ u32 alloc_reg(LinearAlloc& alloc)
 
     return reg;
 }
+
+void free_reg(LinearAlloc& alloc, u32 reg)
+{
+    add_reg(alloc,reg);
+}
     
 
 // TODO: we need to dynamically lock the registers for each function
@@ -255,12 +270,88 @@ void init_regs(LinearAlloc& alloc, u32 locked_set)
     add_gpr(alloc,x86_reg::r15,locked_set);
 }
 
+// NOTE: this relieso on pow2
+static_assert(MACHINE_REG_SIZE == 16);
+
+struct ActiveReg
+{
+    LinearRange arr[MACHINE_REG_SIZE];
+    u32 size = 0;
+};
+
+void clean_dead_reg(LinearAlloc& alloc,ActiveReg &active, const LinearRange& cur)
+{
+    u32 i;
+    for(i = 0; i < active.size; i++)
+    {
+        auto& cmp = active.arr[i];
+    /*
+        printf("clean %d %d: %x [%d,%d] : %x [%d,%d]\n",i,active.size,
+            cur.slot.handle,cur.start,cur.end,
+            cmp.slot.handle,cmp.start,cmp.end);
+    */
+        // stopping point for purging entires
+        if(cmp.end >= cur.start)
+        {
+            break;
+        }
+
+        // free the expired range
+        else
+        {
+            //printf("free %d %d: %x [%d,%d] -> %x\n",i,active.size,cmp.slot.handle,cmp.start,cmp.end,cmp.location);
+            free_reg(alloc,cmp.location);
+        }
+    }
+
+    // copy over the entries, to remove purged ones from the list
+    if(i != 0)
+    {
+        memmove(&active.arr[0],&active.arr[i],(active.size - i) * sizeof(LinearRange));
+        active.size -= i;
+    }
+
+    //putchar('\n');
+}
+
+void add_active(ActiveReg &active, const LinearRange& cur)
+{
+    u32 i;
+
+    for(i = 0; i < active.size; i++)
+    {
+        // look for insertion point
+        if(cur.end < active.arr[i].end)
+        {
+            break;
+        }
+    }
+
+    //printf("add   %d %d: %x [%d,%d]\n",i,active.size,cur.slot.handle,cur.start,cur.end);
+
+    // copy over by one 
+    if(i < active.size)
+    {
+        memmove(&active.arr[i + 1],&active.arr[i],(active.size - i) * sizeof(LinearRange));
+    }
+
+    // write in the entry
+    active.arr[i] = cur;
+    active.size += 1;
+}
+
 void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 {
+    if(alloc.stack_only)
+    {
+        return;
+    }
+
     auto range = find_range(itl,func);
-    Array<LinearRange> active;
+    ActiveReg active;
+
 /*
-    printf("%s:\n",func.name.buf);
+    printf("\n%s:\n",func.name.buf);
 
     // print the range
     for(u32 r = 0; r < count(range); r++)
@@ -274,14 +365,12 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
     init_regs(alloc,func.locked_set);
 
     // perform the allocation
-    // NOTE: currently we dont bother spilling regs
     for(u32 r = 0; r < count(range); r++)
     {
         auto& cur = range[r];
 
         // expire any dead sets
-        // TODO: for now we will just let it run out
-        // clean_dead_reg(alloc,cur);
+        clean_dead_reg(alloc,active,cur);
 
         const u32 reg = alloc_reg(alloc);
 
@@ -293,10 +382,10 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
             add(alloc.location,cur.slot,cur.location);
 
             // add to active register set 
-            
+            add_active(active,cur);
         }
 
-        // TODO: do a spill for now we just default
+        // TODO: do a spill, for now we just default
         // it into memory
         else
         {
@@ -304,14 +393,13 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
         }
     }
 
-
-    destroy_arr(active);
     destroy_arr(range);
 }
 
 void destroy_linear_alloc(LinearAlloc& alloc)
 {
     destroy_table(alloc.location);
+    destroy_stack_alloc(alloc.stack_alloc);
 }
 
 Reg& reg_from_slot(SymSlot slot, SymbolTable& table, LinearAlloc& alloc)

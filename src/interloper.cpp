@@ -22,7 +22,7 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, const String& name_space, FuncNode* root);
 
-void alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
+ListNode* alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
 
 SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
 SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
@@ -764,7 +764,21 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
         return;
     }
 
-    const auto [type,reg] = compile_oper(itl,func,auto_decl->expr);
+    // add the symbol
+    SymSlot sym_slot;
+
+    // add new symbol table entry
+    {
+        const auto &sym = add_symbol(itl,name,make_builtin(itl,builtin_type::void_t));
+        sym_slot = sym.reg.slot;
+    }
+
+    // save the alloc node so we can fill the info in later
+    ListNode* alloc = alloc_slot(itl,func,sym_slot,false);
+
+    // compile the expression so we can get the type!
+    Type* type = compile_expression(itl,func,auto_decl->expr,sym_slot);
+
 
     if(itl.error)
     {
@@ -778,13 +792,14 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
         return;
     }
 
-    // add the symbol
 
-    // add new symbol table entry
-    const auto &sym = add_symbol(itl,name,type);
+    // setup the allocation info now we have it
+    alloc->opcode.v[1] = !is_plain_type(type);
 
-    alloc_slot(itl,func,sym.reg.slot,!is_plain_type(type));
-    compile_move(itl,func,sym.reg.slot,reg,sym.type,type);
+    // also assign back the correct type and register info
+    auto& sym = sym_from_slot(itl.symbol_table,sym_slot);
+    sym.reg = make_reg(itl,reg_kind::local,sym_slot.handle,type);
+    sym.type = type;
 }
 
 

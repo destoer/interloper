@@ -261,9 +261,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
         }
 
         structure.data_size = offset;
-
-        // align final offset against GPR_SIZE to get the final size
-        structure.size = align_val(offset,GPR_SIZE);   
+        structure.size = align_val(structure.data_size,GPR_SIZE);
     }
 
     // default: reorder the struct for size

@@ -128,7 +128,7 @@ u32 calc_alloc_sections(u32* start,u32* count, u32 byte_start = 0)
     // u16
     start[1] = start[0] + (count[0] * sizeof(u8));
     align(start,sizeof(u16));
-
+    
     // u32
     start[2] = start[1] + (count[1] * sizeof(u16));
     align(start,sizeof(u32));
@@ -145,7 +145,7 @@ u32 calc_alloc_sections(u32* start,u32* count, u32 byte_start = 0)
         printf("alloc: %d, %d\n",start[i],count[i]);
     }
 */
-    return align_val(size,16);
+    return size;
 }
 
 u32 calc_final_offset(const u32* start, u32 size, u32 idx)
@@ -170,6 +170,8 @@ void finalise_offset(StackAlloc& alloc, Reg& ir_reg)
 void calc_allocation(StackAlloc& alloc)
 {
     alloc.stack_size = calc_alloc_sections(alloc.stack_alloc,alloc.size_count);
+
+    align_val(alloc.stack_size,GPR_SIZE * 2);
 
     if(alloc.print)
     {

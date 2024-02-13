@@ -294,7 +294,7 @@ void free_sym(Interloper& itl,Function& func, Symbol& sym)
 
 bool is_local_reg(const Reg &reg)
 {
-    return !is_aliased(reg) && !is_arg(reg) && is_local(reg);
+    return !is_aliased(reg) && !is_arg(reg) && is_local(reg) && !stored_in_mem(reg);
 }
 
 const OpInfo& info_from_op(const Opcode& opcode)

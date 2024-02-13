@@ -27,7 +27,7 @@ func make_blackjack() Blackjack
 
     // dealer may start the game stood
     bj.dealer.stand = bj.dealer.value >= DEALER_STAND;    
-
+    
     return bj;
 }
 
