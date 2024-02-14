@@ -361,12 +361,6 @@ void add_active(ActiveReg &active, const LinearRange& cur)
 
 void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 {
-#if 0
-    if(func.name == "std::alloc_heap")
-    {
-        return;
-    }
-#endif
     if(alloc.stack_only)
     {
         return;
