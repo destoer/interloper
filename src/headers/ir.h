@@ -187,7 +187,6 @@ enum class op_type
     // used when the end of the block is read past in the optimiser
     placeholder,
 
-    replace_reg,
     lock_reg,
     unlock_reg,
 
@@ -219,6 +218,8 @@ enum class op_type
     store_struct_u64,
 
     pool_addr,
+
+    live_var,
 
     // just c++ things not used
     END,
@@ -394,6 +395,7 @@ static constexpr u32 STORED_IN_MEM = 1 << 1;
 static constexpr u32 ALIASED = 1 << 2;
 static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
 static constexpr u32 CONST = 1 << 4;
+static constexpr u32 FUNC_ARG = 1 << 5;
 
 struct Reg
 {
@@ -413,14 +415,6 @@ struct Reg
     u32 offset = UNALLOCATED_OFFSET;
 
     u32 flags = 0;
-
-    // how many times has this currently been used?
-    u32 uses = 0;
-
-    // NOTE: this uses absolute offsets
-    // but we dont really care if they are broken by insertions during reg alloc 
-    // because we only want to know when usage gap is largest
-    Array<u32> usage = {};
 };
 
 struct Interloper;
@@ -578,9 +572,6 @@ struct Block
 
     // what blocks are reachable from this block?
     Array<BlockSlot> links;
-
-    SymSlot reg_start[MACHINE_REG_SIZE];
-    u32 reg_start_dirty = 0;
 };
 
 void add_func_exit(Function& func, BlockSlot slot);

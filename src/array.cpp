@@ -607,9 +607,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    alloc_slot(itl,func,slot,true);
-    ListNode* alloc = get_cur_end(func.emitter);
-
+    ListNode* alloc = alloc_slot(itl,func,slot,true);
 
     // has an initalizer
     if(decl_node->expr)

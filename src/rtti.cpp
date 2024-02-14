@@ -369,7 +369,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
 u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
 {
     // for now this just allways takes size of the any struct
-    const u32 size = itl.rtti_cache.any_struct_size;
+    const u32 size = align_val(itl.rtti_cache.any_struct_size,GPR_SIZE);
 
     // Handle stack alloc and store itself caller will handle deallocation of stack
     compile_any_internal(itl,func,arg_node);

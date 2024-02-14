@@ -191,7 +191,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_of_ptr",154},
     {"tests/struct/struct_of_arrays",28},
     {"tests/struct/struct_assign",6},
-    {"tests/struct/reorder",8},
+    {"tests/struct/reorder",16},
     {"tests/struct/struct_ptr",10},
 
 

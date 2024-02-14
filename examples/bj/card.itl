@@ -86,11 +86,20 @@ func shuffle_deck(deck : const Deck@)
     {
         idx := std::rand_range_u64(0,cast(u32,i)); 
 
-        // perform swap
-        tmp := deck.card[i];
-        deck.card[i] = deck.card[idx];
-        deck.card[idx] = tmp;
+        std::swap<Card>(&deck.card[i],&deck.card[idx]);
     }
+}
+
+func print_deck(deck : const Deck@)
+{
+    std::print("deck: \n");
+
+    for(@card in deck.card)
+    {
+        print_card(card);
+    }
+
+    std::linefeed();
 }
 
 func print_hand(hand : const Hand@, name : const string)

@@ -51,10 +51,14 @@ func os_req_mem(size : u64) byte@
 
 import <file>
 
-
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
+
+/*
+global stdout : File;
+global stdin : File;
+*/
 
 func open_stdout() File
 {

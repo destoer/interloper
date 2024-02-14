@@ -12,11 +12,6 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
     block.def = make_set<SymSlot>();
     block.live_in = make_set<SymSlot>();
     block.live_out = make_set<SymSlot>();
-    
-    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
-    {
-        block.reg_start[i] = {REG_FREE};
-    }
 
     return block;
 }
@@ -500,7 +495,19 @@ void compute_var_live(Interloper& itl, Function& func)
                     add(seen,entry);
                     push_var(to_visit,entry);            
                 }
-            } 
+            }
+
+            // add any exits while we are at it 
+            for(u32 e = 0; e < count(block.exit); e++)
+            {
+                const auto exit = block.exit[e];
+
+                if(!contains(seen,exit))
+                {
+                    add(seen,exit);
+                    push_var(to_visit,exit);            
+                }
+            }
         }
 
         // cleanup mem for current pass

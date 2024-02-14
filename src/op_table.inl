@@ -180,7 +180,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::implicit_t,"placeholder",0,{arg_type::none,arg_type::none,arg_type::none}},
 
-    {op_group::reg_t,"replace %r, %r",2,{arg_type::directive,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"lock %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::reg_t,"unlock %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
@@ -213,6 +212,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::dst_reg,arg_type::directive,arg_type::none}},
 
+    {op_group::slot_t,"live_var %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 
     // not used
     {op_group::implicit_t,"END",0,{arg_type::none,arg_type::none,arg_type::none}},
