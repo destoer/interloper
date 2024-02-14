@@ -164,6 +164,9 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
             node = node->next;
         }
         
+        // live out has a higher start point
+        pc += 1;
+
         ListNode* last = block.list.end;
 
         // if its live out then consider it allocated till the end of the block
@@ -358,6 +361,12 @@ void add_active(ActiveReg &active, const LinearRange& cur)
 
 void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 {
+#if 0
+    if(func.name == "std::alloc_heap")
+    {
+        return;
+    }
+#endif
     if(alloc.stack_only)
     {
         return;
@@ -388,7 +397,7 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
         auto& ir_reg = reg_from_slot(itl,func,cur.slot);
 
         // insert the live ir op, so we know to load it
-        // if live first as dst then we dont care...
+        // but if live first as dst then we dont care...
         if(is_arg(ir_reg) && !cur.dst_live)
         {
             auto& block = block_from_slot(func,cur.block_slot);
@@ -416,11 +425,11 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
             add_active(active,cur);
         }
 
-        // TODO: do a spill, for now we just default
+        // TODO: do a spill of a existing reg, for now we just default
         // it into memory
         else
         {
-
+            
         }
     }
 

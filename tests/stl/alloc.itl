@@ -92,7 +92,7 @@ func stress_heap() bool
 
         else
         {
-            arr[i] = std::alloc_heap(&global_heap,1,i);
+            arr[i] = std::alloc_heap(&global_heap,1,i * 128);
         }
     }
 

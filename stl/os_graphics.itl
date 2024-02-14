@@ -594,7 +594,7 @@ func os_process_events(std_win: Window@) bool
             {
                 process_reply(win);
             }
-
+        
             case x_reply_type::configure_notify:
             {
                 config := std::read_array<XConfigureNotify>(buf,0);
@@ -602,7 +602,7 @@ func os_process_events(std_win: Window@) bool
                 os_window_resized(win,config.width,config.height);
                 window_resized(std_win,win.win_x,win.win_y);
             }
-
+        
             case x_reply_type::map_notify:
             {
                 win.window_mapped = true;

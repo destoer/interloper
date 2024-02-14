@@ -495,7 +495,19 @@ void compute_var_live(Interloper& itl, Function& func)
                     add(seen,entry);
                     push_var(to_visit,entry);            
                 }
-            } 
+            }
+
+            // add any exits while we are at it 
+            for(u32 e = 0; e < count(block.exit); e++)
+            {
+                const auto exit = block.exit[e];
+
+                if(!contains(seen,exit))
+                {
+                    add(seen,exit);
+                    push_var(to_visit,exit);            
+                }
+            }
         }
 
         // cleanup mem for current pass
