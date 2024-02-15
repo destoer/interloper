@@ -743,6 +743,59 @@ func os_window_resized(win: OSWindow@,x : u32, y: u32)
     std::assert(win.max_lines >= 1);
 }
 
+
+constant X11_CHANGE_PROPERTY : u8 = 0;
+
+#attr(no_reorder)
+struct XChangeProperty
+{
+    opcode: u8 = 18;
+    mode: u8 = X11_CHANGE_PROPERTY;
+    len: u16 = 6;
+    window: u32;
+    property: u32;
+    type: u32;
+    format: u8;
+    pad1: u8[3];
+    data_len: u32;
+};
+
+
+
+constant XA_WM_ICON_NAME: u32 = 37;
+constant XA_WM_NAME: u32 = 39;
+constant STRING_TYPE : u32 = 31;
+
+func x11_set_str_property(win: OSWindow@, property: u32,str: const string)
+{
+    prop : XChangeProperty;
+    prop.window = win.window_id;
+    prop.property = property;
+    prop.type = STRING_TYPE;
+    prop.format = 8;
+
+    prop.data_len = cast(u32,str.len);
+
+    pad := pad_x11(prop.data_len);
+    bytes := x11_req_len(pad + str.len);
+    prop.len += bytes;
+
+    send_req<XChangeProperty>(win,&prop);
+
+    std::send_str(&win.sock,str);
+
+    // just send struct as padding
+    std::send_raw(&win.sock,&prop,pad);
+}
+
+func os_set_window_name(win: OSWindow@, str: const string)
+{
+    x11_set_str_property(win,XA_WM_NAME,str);
+    x11_set_str_property(win,XA_WM_ICON_NAME,str);
+
+    std::log(X11_PREFIX,"change window name: {}\n",str);
+}
+
 func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
 {
     win := &std_win.os_win;
@@ -751,7 +804,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     win.win_y = y;
 
     // open connection to x server
-    win.sock = std::connect_unix_domain("/tmp/.X11-unix/X0");
+    win.sock = std::connect_unix_domain("/tmp/.X11-unix/X1");
 
     if(!std::socket_valid(&win.sock))
     {
@@ -776,6 +829,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
         }
     }
 
+    os_set_window_name(win,str);
 /*
     // TODO: this should be allowed to fail
     if(enable_big_req(&win))
