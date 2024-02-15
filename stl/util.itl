@@ -11,7 +11,7 @@ func assert(cond : bool)
 global seed : u64 = cast(u64,time());
 
 // basic LCG
-func rand_internal() u64
+func rand() u64
 {
     seed = (6364136223846793005 * seed) + 1442695040888963407; 
     return seed;
@@ -19,12 +19,12 @@ func rand_internal() u64
 
 func rand_range_u64(min : u64, max : u64) u64
 {
-    return (rand_internal() % ((max + 1) - min)) + min;
+    return (rand() % ((max + 1) - min)) + min;
 }
 
 func rand_range_u32(min : u32, max : u32) u32
 {
-    return cast(u32,rand_range_u64(min,max));
+    return cast(u32,rand(min,max));
 }
 
 func rand_arr_idx<T>(arr: const T[]) u64

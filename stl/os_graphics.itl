@@ -19,6 +19,7 @@ struct OSWindow
 
     root_win : u32;
 
+    // dimenstions
     screen_x : u32;
     screen_y : u32;
 
@@ -31,16 +32,31 @@ struct OSWindow
 
     max_lines : u32;
 
+    // window info
     window_id : u32;
     gfx_ctx : u32;
 
     window_mapped : bool;
 
-    seq_count : u32;
+    // request info
+    seq_count : u32 = 1;
 
     resource_base : u32;
     resource_mask : u32;
     resource_id: u32;
+
+    // extenstions
+
+    ext_query_seq: u32;
+    ext_query_reply : bool;
+
+    // was the last ext queried enabled
+    ext_enabled : bool;
+    ext_opcode : u8;
+
+    big_req_reply: bool;
+    big_req_seq : u32;
+    big_req : bool;
 }
 
 
@@ -109,10 +125,15 @@ func pad_x11(E : u32) u32
     return (4 - (E & 3)) & 3;
 }
 
-func send_req<T>(win : OSWindow@, v : const T@)
+func send_req<T>(win : OSWindow@, v : const T@) u32
 {
     std::send_var<T>(&win.sock,v);
+
+    seq := win.seq_count;
+
     win.seq_count += 1;
+
+    return seq;
 }
 
 func build_auth_packet(buf: Array@)
@@ -412,10 +433,31 @@ func process_reply(win : OSWindow@)
 {
     buf := &win.buf;
 
-    len := std::read_array<u32>(buf,4) * 4;
+    seq := std::read_buffer<u16>(buf,2);
+    len := std::read_buffer<u32>(buf,4) * 4;
 
-    // burn through this reply
-    std::recv_ignore(&win.sock,len);
+    //std::print("reply: {} {}\n",seq,len);
+
+    // query ext reply
+    if(win.ext_query_seq == seq)
+    {
+        win.ext_query_reply = true;
+        win.ext_enabled = cast(bool,std::read_buffer<u8>(buf,8));
+        win.ext_opcode = std::read_buffer<u8>(buf,9);
+    }
+
+    // big request enable reply
+    else if(win.big_req_seq == seq)
+    {
+        win.big_req_reply = true;
+        win.max_req = std::read_buffer<u32>(buf,8) * 4;
+    }
+
+    // just burn the reply
+    else
+    {
+        std::recv_ignore(&win.sock,len);
+    }
 }
 
 #attr(no_reorder)
@@ -458,6 +500,24 @@ struct XPutImage
     pad1: u16;
 }
 
+#attr(no_reorder)
+struct XPutImageBig
+{
+    opcode: u8 = 72;
+    format: u8 = 2;
+    extend: u16 = 0;
+    len: u32 = 7;
+    drawable: u32;
+    gc: u32;
+    width: u16;
+    height: u16;
+    dst_x: s16;
+    dst_y: s16;
+    left_pad : u8;
+    depth: u8;
+    pad2: u16;
+}
+
 
 func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride: u32)
 {
@@ -466,22 +526,50 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
 
     pad := pad_x11(pixel_size);
 
-    // send image req
-    put_image: XPutImage;
+    bytes := (pixel_size + pad) / 4;
 
-    put_image.gc = win.gfx_ctx;
-    put_image.depth = 24;
+    // we can use the ext send big image req
+    if(win.big_req)
+    {
+        // send image req
+        put_image: XPutImageBig;
 
-    put_image.dst_y = cast(s16,start_y);
+        put_image.gc = win.gfx_ctx;
+        put_image.depth = 24;
 
-    put_image.width = cast(u16,stride);
-    put_image.height = cast(u16,lines);
+        put_image.dst_y = cast(s16,start_y);
 
-    put_image.drawable = win.window_id;
-   
-    put_image.len += cast(u16,(pixel_size + pad) / 4);
+        put_image.width = cast(u16,stride);
+        put_image.height = cast(u16,lines);
+
+        put_image.drawable = win.window_id;
     
-    send_req<XPutImage>(win,&put_image);
+        put_image.len += bytes;
+        
+        //std::print("len: {}\n",put_image.len);
+
+        send_req<XPutImageBig>(win,&put_image);
+    }
+
+    // small req
+    else
+    {
+        put_image: XPutImage;
+
+        put_image.gc = win.gfx_ctx;
+        put_image.depth = 24;
+
+        put_image.dst_y = cast(s16,start_y);
+
+        put_image.width = cast(u16,stride);
+        put_image.height = cast(u16,lines);
+
+        put_image.drawable = win.window_id;
+    
+        put_image.len += cast(u16,bytes);
+        
+        send_req<XPutImage>(win,&put_image);
+    }
 
     // send pending data
     std::send_raw(&win.sock,ptr,pixel_size);
@@ -490,7 +578,7 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
     // NOTE: uses screen data just because its easy
     std::send_raw(&win.sock,ptr,pad);
 
-    //print("sent {}\n",put_image.len * 4);
+    //std::print("sent {}\n",pixel_size + pad);
 }
 
 func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u32)
@@ -508,15 +596,6 @@ func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u
 
         ptr += offset;
     }
-/*
-    // handle screen sizes not on a multiple of 4
-    pad := pad_x11(width * height) * 4;
-
-    if(pad)
-    {
-        std::send_raw(&win.sock,screen.data,pad);
-    }
-*/
 }
 
 
@@ -577,7 +656,7 @@ func os_process_events(std_win: Window@) bool
         // TODO: we probably want to peek this...
         std::recv_clear_array(&win.sock,buf,32);
 
-        type := std::read_array<x_reply_type>(buf,0);
+        type := std::read_buffer<x_reply_type>(buf,0);
 
         rc = cast(s32,type);
 
@@ -714,30 +793,21 @@ func create_gfx_ctx(win: OSWindow@)
     send_req<XCreateGC>(win,&gc);
 }
 
-/*
-struct XQueryExtension
+
+func update_max_lines(win: OSWindow@)
 {
+    // what is the max number of lines we can push in one go?
+    win.max_lines = win.max_req / (win.win_x * sizeof_type(u32));
 
+    std::log(X11_PREFIX,"max lines: {}\n",win.max_lines);
 }
-
-func enable_big_req(win: OSWindow@) bool
-{
-    "BIG-REQUESTS"
-
-    return false;
-}
-*/
-
 
 func os_window_resized(win: OSWindow@,x : u32, y: u32)
 {
     win.win_x = x;
     win.win_y = y;
 
-    // what is the max number of lines we can push in one go?
-    win.max_lines = win.max_req / (win.win_x * sizeof_type(u32));
-
-    std::log(X11_PREFIX,"max lines: {}\n",win.max_lines);
+    update_max_lines(win);
 
     // should be able to push atleast one scanline in a go
     std::assert(win.max_lines >= 1);
@@ -796,6 +866,86 @@ func os_set_window_name(win: OSWindow@, str: const string)
     std::log(X11_PREFIX,"change window name: {}\n",str);
 }
 
+#attr(no_reorder)
+struct XQueryExtension
+{
+    opcode: u8 = 98;
+    pad1: u8;
+    len: u16 = 2;
+    str_len: u16;
+    pad2: u16;
+}
+
+func query_extenstion(std_win: Window@, str: const string) bool
+{
+    win := &std_win.os_win;
+
+    query : XQueryExtension;
+
+    query.str_len = cast(u16,str.len);
+
+    pad := pad_x11(query.str_len);
+    bytes := x11_req_len(pad + str.len);
+    query.len += bytes;
+
+    win.ext_query_seq = send_req<XQueryExtension>(win,&query);
+
+    std::send_str(&win.sock,str);
+
+    // just send struct as padding
+    std::send_raw(&win.sock,&query,pad);
+
+    while(!win.ext_query_reply)
+    {
+        if(process_events(std_win))
+        {
+            std::crash_and_burn("could not query extenstion {}",str);
+        }       
+    }
+
+    win.ext_query_reply = false;
+
+    return win.ext_enabled;
+}
+
+#attr(no_reorder)
+struct XBigReqEnable
+{
+    opcode: u8;
+    req_op: u8 = 0;
+    len: u16 = 1;
+}
+
+func enable_big_req(std_win: Window@)
+{
+    win := &std_win.os_win;
+
+    // send ext query
+    win.big_req = query_extenstion(std_win,"BIG-REQUESTS");
+
+    if(!win.big_req)
+    {
+        return;
+    }
+
+    enable: XBigReqEnable;
+
+    enable.opcode = win.ext_opcode;
+
+    // send the opcode
+    win.big_req_seq = send_req<XBigReqEnable>(win,&enable);
+
+    while(!win.big_req_reply)
+    {
+        if(process_events(std_win))
+        {
+            std::crash_and_burn("could not enable big req\n");
+        } 
+    }
+
+    update_max_lines(win);
+}
+
 func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
 {
     win := &std_win.os_win;
@@ -830,13 +980,9 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     }
 
     os_set_window_name(win,str);
-/*
-    // TODO: this should be allowed to fail
-    if(enable_big_req(&win))
-    {
-        crash_and_burn("could not enable big req");
-    }
-*/
+
+    // try to enable the big request exenstion
+    enable_big_req(std_win);
 
 }
 

@@ -12,6 +12,7 @@ constant SYSCALL_EXIT : u32 = 60;
 constant SYSCALL_BRK : u32 = 12;
 
 constant SYSCALL_TIME : u32 = 201;
+constant SYSCALL_TIME_OF_DAY: u32 = 96;
 constant SYSCALL_NANOSLEEP : u32 = 35;
 
 constant SYSCALL_SOCKET : u32 = 41;
@@ -267,6 +268,25 @@ func time() s64
     intrin_syscall(SYSCALL_TIME,&x);
 
     return x;
+}
+
+#attr(no_reorder)
+struct TimeVal
+{
+    sec : s64;
+    usec : s64;
+}
+
+func os_timestamp_ms() u64
+{
+    time : TimeVal;
+    intrin_syscall(SYSCALL_TIME_OF_DAY,&time,NULL);
+
+    ms := (time.sec * 1000) + (time.usec / 1000);
+
+    //std::print("time {} {} {}\n",ms,time.sec,time.usec);
+
+    return cast(u64,ms);
 }
 
 struct TimeSpec
