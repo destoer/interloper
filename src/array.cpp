@@ -555,7 +555,7 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
     }
 }
 
-void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, SymSlot addr, u32 offset)
+void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
 {
     if(is_fixed_array(type))
     {
@@ -572,7 +572,10 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, SymS
 
             for(u32 i = 0; i < type->size; i++)
             {
-                default_construct_arr(itl,func,next_type,addr,(i * next_type->sub_size) + offset);
+                auto sub_addr = addr_slot;
+                sub_addr.offset += (i * next_type->sub_size);
+
+                default_construct_arr(itl,func,next_type,sub_addr);
             }
         }
 
@@ -583,16 +586,22 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, SymS
             // if the struct has no initalizers
             const auto structure = struct_from_type(itl.struct_table,type->contained_type);
 
+            auto struct_addr = addr_slot;
+
             for(u32 i = 0; i < type->size; i++)
             {
-                compile_struct_decl_default(itl,func,structure,addr,(i * structure.size) + offset);
+                struct_addr.offset += structure.size;
+
+                // TODO: just default construct it for now!
+                compile_struct_decl_default(itl,func,structure,struct_addr);
             }
         }
 
         // final plain values
         else
         {
-            ir_zero(itl,func,lea_res(itl,func,addr,offset),type->size * type->sub_size);
+            collapse_struct_offset(itl,func,&addr_slot);
+            ir_zero(itl,func,addr_slot.slot,type->size * type->sub_size);
         }
     }
 
@@ -601,8 +610,11 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, SymS
     {
         const auto zero = mov_imm_res(itl,func,0);
 
-        store_ptr(itl,func,zero,addr,0 + offset,GPR_SIZE);
-        store_ptr(itl,func,zero,addr,GPR_SIZE + offset,GPR_SIZE);
+        store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE);
+        addr_slot.offset += GPR_SIZE;
+
+        store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE);
+        addr_slot.offset += GPR_SIZE;
     }        
 }
 
@@ -638,12 +650,14 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         // default construct
         if(!is_fixed_array(array.type))
         {
-            default_construct_arr(itl,func,array_type,addrof_res(itl,func,array.reg.slot),0);
+            const auto addr_slot = make_struct_addr(array.reg.slot,0);
+            default_construct_arr(itl,func,array_type,addr_slot);
         }
 
         else
         {
-            default_construct_arr(itl,func,array_type,array.reg.slot,0);
+            const auto addr_slot = make_addr(array.reg.slot,0);
+            default_construct_arr(itl,func,array_type,addr_slot);
         }
     }
 

@@ -809,7 +809,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
     } 
 }
 
-void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,SymSlot addr_slot, u32 offset)
+void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot)
 {
     // TODO: add a opt to just memset the entire thing in one go
     // NOTE: this should apply all the way down i.e if we contain a struct
@@ -820,6 +820,9 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     for(u32 m = 0; m < count(structure.members); m++)
     {
         const auto& member = structure.members[m];
+
+        auto member_addr = addr_slot;
+        member_addr.offset += member.offset;
 
         if(member.expr)
         {
@@ -842,7 +845,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
                     const auto [rtype,slot] = compile_oper(itl,func,member.expr);
                     check_assign_init(itl,member.type,rtype); 
 
-                    do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
+                    do_addr_store(itl,func,slot,member_addr,member.type);
                     break;                    
                 }
             }
@@ -852,19 +855,19 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
         else if(is_struct(member.type))
         {
             const auto structure = struct_from_type(itl.struct_table,member.type);
-            compile_struct_decl_default(itl,func,structure,addr_slot,member.offset + offset);
+            compile_struct_decl_default(itl,func,structure,member_addr);
         }
 
         else if(is_array(member.type))
         {
-            default_construct_arr(itl,func,(ArrayType*)member.type,addr_slot,member.offset + offset);
+            default_construct_arr(itl,func,(ArrayType*)member.type,member_addr);
         }
 
         else
         {
             const SymSlot tmp = imm_zero(itl,func);
 
-            do_ptr_store(itl,func,tmp,addr_slot,member.type,member.offset + offset);
+            do_addr_store(itl,func,tmp,member_addr,member.type);
         }
     }
 }
@@ -912,7 +915,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     // default init
     else
     {
-        const SymSlot addr_slot = addrof_res(itl,func,slot);
-        compile_struct_decl_default(itl,func,structure,addr_slot,0);
+        const AddrSlot addr_slot = make_struct_addr(slot,0);
+        compile_struct_decl_default(itl,func,structure,addr_slot);
     }
 }
