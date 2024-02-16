@@ -756,7 +756,7 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
 }
 
 
-void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, const SymSlot addr_slot, const Struct& structure, u32 offset = 0)
+void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, AddrSlot addr_slot, const Struct& structure)
 {
     const u32 node_len = count(node->nodes);
     const u32 member_size = count(structure.members);
@@ -771,21 +771,28 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
     {
         const auto member = structure.members[i];
     
+        // generate a new offset
+        auto addr_member = addr_slot;
+        addr_member.offset += member.offset;
+
         // either sub struct OR array member initializer
         if(node->nodes[i]->type == ast_type::initializer_list)
         {
             if(is_array(member.type))
             {
-               u32 arr_offset = offset + member.offset;
-               auto type = member.type;
+                auto type = member.type;
 
-               traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],addr_slot,(ArrayType*)type,&arr_offset);
+                // just collapse it for now its easier
+                collapse_struct_offset(itl,func,&addr_member);
+                u32 arr_offset = 0;
+
+                traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],addr_member.slot,(ArrayType*)type,&arr_offset);
             }
 
             else if(is_struct(member.type))
             {
                 const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-                traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_slot,sub_struct,offset + member.offset);
+                traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_member,sub_struct);
             }
 
             else
@@ -802,7 +809,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
             const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i]);
             check_assign(itl,member.type,rtype);
 
-            do_ptr_store(itl,func,slot,addr_slot,member.type,member.offset + offset);
+            do_addr_store(itl,func,slot,addr_member,member.type);
         }
     } 
 }
@@ -888,7 +895,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
         {
             case ast_type::initializer_list:
             {
-                const SymSlot addr_slot = addrof_res(itl,func,slot);
+                const auto addr_slot = make_struct_addr(slot,0);
                 traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
                 break;                
             }

@@ -811,13 +811,12 @@ BlockSlot compile_basic_block(Interloper& itl, Function& func, BlockNode* block_
     return block_slot;
 }
 
-void compile_init_list(Interloper& itl, Function& func, Type* ltype, SymSlot slot, AstNode* node)
+void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node)
 {
     if(is_struct(ltype))
     {
         const auto structure = struct_from_type(itl.struct_table,ltype);
 
-        const SymSlot addr_slot = addrof_res(itl,func,slot);
         traverse_struct_initializer(itl,func,(RecordNode*)node,addr_slot,structure);                        
     }
 
@@ -909,12 +908,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             if(assign_node->right->type == ast_type::initializer_list)
                             {
                                 auto [ltype, addr_slot] = compute_member_addr(itl,func,assign_node->left);
-                                const auto structure = struct_from_type(itl.struct_table,ltype);
 
-                                // TODO: for now its just fair easier to collapse the slot
-                                collapse_struct_offset(itl,func,&addr_slot);
-
-                                traverse_struct_initializer(itl,func,(RecordNode*)assign_node->right,addr_slot.slot,structure);            
+                                compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
                             }
 
                             else
@@ -954,7 +949,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // handle initializer list
                     if(assign_node->right->type == ast_type::initializer_list)
                     {
-                        compile_init_list(itl,func,ltype,slot,assign_node->right);
+                        const auto addr_slot = make_struct_addr(slot,0);
+                        compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
                     }
 
                     else

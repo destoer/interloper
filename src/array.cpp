@@ -374,7 +374,9 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                 if(list->nodes[i]->type == ast_type::initializer_list)
                 {
                     const auto structure = struct_from_type(itl.struct_table,base_type);
-                    traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],addr_slot,structure,*offset);
+
+                    const auto struct_addr = make_addr(addr_slot,*offset);
+                    traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],struct_addr,structure);
                 }
 
                 // allready finished struct
