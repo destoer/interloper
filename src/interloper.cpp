@@ -12,7 +12,7 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
 void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
 Type* read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
 std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
-void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const SymSlot addr_slot, ArrayType* type, u32* offset);
+void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
 std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, SymSlot ptr_slot, SymSlot dst_slot);
 

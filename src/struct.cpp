@@ -772,6 +772,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
         const auto member = structure.members[i];
     
         // generate a new offset
+        // NOTE: make sure this is a copy
         auto addr_member = addr_slot;
         addr_member.offset += member.offset;
 
@@ -780,13 +781,7 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
         {
             if(is_array(member.type))
             {
-                auto type = member.type;
-
-                // just collapse it for now its easier
-                collapse_struct_offset(itl,func,&addr_member);
-                u32 arr_offset = 0;
-
-                traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],addr_member.slot,(ArrayType*)type,&arr_offset);
+                traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],&addr_member,(ArrayType*)member.type);
             }
 
             else if(is_struct(member.type))

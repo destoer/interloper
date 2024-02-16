@@ -253,7 +253,7 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, Sy
     }
 }
 
-void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,const SymSlot addr_slot, ArrayType* type, u32* offset)
+void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type)
 {
     if(itl.error)
     {
@@ -299,7 +299,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
             {
                 case ast_type::initializer_list:
                 {
-                    traverse_arr_initializer_internal(itl,func,(RecordNode*)node,addr_slot,next_arr,offset);
+                    traverse_arr_initializer_internal(itl,func,(RecordNode*)node,addr_slot,next_arr);
                     break;
                 }
 
@@ -323,12 +323,14 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                             const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
 
                             const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
-                            store_ptr(itl,func,arr_data,addr_slot,0 + *offset,GPR_SIZE);
+                            store_addr_slot(itl,func,arr_data,*addr_slot,GPR_SIZE);
+
+                            addr_slot->offset += GPR_SIZE;
 
                             const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
-                            store_ptr(itl,func,arr_size,addr_slot,GPR_SIZE + *offset,GPR_SIZE);
+                            store_addr_slot(itl,func,arr_size,*addr_slot,GPR_SIZE);
 
-                            *offset += VLA_SIZE;
+                            addr_slot->offset += GPR_SIZE;
                         }
 
                         else
@@ -374,9 +376,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                 if(list->nodes[i]->type == ast_type::initializer_list)
                 {
                     const auto structure = struct_from_type(itl.struct_table,base_type);
-
-                    const auto struct_addr = make_addr(addr_slot,*offset);
-                    traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],struct_addr,structure);
+                    traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],*addr_slot,structure);
                 }
 
                 // allready finished struct
@@ -385,10 +385,10 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                     auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
                     check_assign_init(itl,base_type,rtype);
 
-                    do_ptr_store(itl,func,reg,addr_slot,base_type,*offset);
+                    do_addr_store(itl,func,reg,*addr_slot,base_type);
                 }
 
-                *offset = *offset + size;
+                addr_slot->offset += size;
             }
         }
 
@@ -400,8 +400,8 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                 auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
                 check_assign_init(itl,base_type,rtype);
 
-                do_ptr_store(itl,func,reg,addr_slot,base_type,*offset);
-                *offset = *offset + size;
+                do_addr_store(itl,func,reg,*addr_slot,base_type);
+                addr_slot->offset += size;
             }
         }           
     }   
@@ -469,12 +469,11 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
     return std::pair{size,count};
 }
 
-void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,const SymSlot addr_slot, Type* type)
+void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,AddrSlot addr_slot, Type* type)
 {
     RecordNode* list = (RecordNode*)node;
 
-    u32 idx = 0;
-    traverse_arr_initializer_internal(itl,func,list,addr_slot,(ArrayType*)type,&idx);
+    traverse_arr_initializer_internal(itl,func,list,&addr_slot,(ArrayType*)type);
 }
 
 
@@ -484,7 +483,9 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
     {
         case ast_type::initializer_list:
         {
-            const SymSlot addr_slot = load_arr_data(itl,func,arr_slot,type);
+            const SymSlot ptr_slot = load_arr_data(itl,func,arr_slot,type);
+            const auto addr_slot = make_addr(ptr_slot,0);
+
             traverse_arr_initializer(itl,func,node,addr_slot,type);
             break;
         }
