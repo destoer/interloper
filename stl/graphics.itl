@@ -5,8 +5,7 @@ import <input>
 
 struct Window
 {
-    width : u32;
-    height : u32;
+    size: Vec2D;
     screen: u32[];
 
     os_win : OSWindow;
@@ -29,8 +28,8 @@ func window_resized(win: Window@,x : u32, y : u32)
 {
     std::log(WINDOW_PREFIX,"resized {} {}\n",x,y);
 
-    win.width = x;
-    win.height = y;
+    win.size.x = x;
+    win.size.y = y;
 
     // realloc our buffer
     std::array_realloc<u32>(&global_heap,&win.screen,x * y);
@@ -58,7 +57,7 @@ func close_window(win : Window@)
 
 func draw_window(win : Window@, screen: const u32[])
 {
-    os_draw_window(&win.os_win,screen,win.width,win.height);
+    os_draw_window(&win.os_win,screen,cast(u32,win.size.x),cast(u32,win.size.y));
 }
 
 func process_events(win: Window@) bool

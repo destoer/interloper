@@ -436,12 +436,12 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 UnaryNode* unary_node = (UnaryNode*)node;
 
                 // negate by doing 0 - v
-                const auto [t,dst] = compile_oper(itl,func,unary_node->next);
+                const auto [t,v1] = compile_oper(itl,func,unary_node->next);
 
 
                 // TODO: make sure our optimiser sees through this
                 const SymSlot slot = mov_imm_res(itl,func,0);
-                sub(itl,func,dst,slot,dst);
+                sub(itl,func,dst_slot,slot,v1);
                 
                 return t;
             }
@@ -811,6 +811,22 @@ BlockSlot compile_basic_block(Interloper& itl, Function& func, BlockNode* block_
     return block_slot;
 }
 
+void compile_init_list(Interloper& itl, Function& func, Type* ltype, SymSlot slot, AstNode* node)
+{
+    if(is_struct(ltype))
+    {
+        const auto structure = struct_from_type(itl.struct_table,ltype);
+
+        const SymSlot addr_slot = addrof_res(itl,func,slot);
+        traverse_struct_initializer(itl,func,(RecordNode*)node,addr_slot,structure);                        
+    }
+
+    else
+    {
+        panic(itl,itl_error::undefined_type_oper,"initializer list assign not allowed on type: %s\n",type_name(itl,ltype).buf);
+    }
+}
+
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
     new_scope(itl.symbol_table);
@@ -857,12 +873,12 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 
                 if(assign_node->left->type != ast_type::symbol)
                 {
-                    const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
-
                     switch(assign_node->left->type)
                     {
                         case ast_type::deref:
                         {
+                            const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
+
                             UnaryNode* deref_node = (UnaryNode*)assign_node->left;
 
                             const auto [ptr_type,addr_slot] = take_pointer(itl,func,deref_node->next);
@@ -881,6 +897,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     
                         case ast_type::index:
                         {
+                            const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
+
                             write_arr(itl,func,assign_node->left,rtype,slot);
                             break;
                         }
@@ -888,7 +906,22 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                         // write on struct member!
                         case ast_type::access_struct:
                         {
-                            write_struct(itl,func,slot,rtype,assign_node->left);
+                            if(assign_node->right->type == ast_type::initializer_list)
+                            {
+                                auto [ltype, addr_slot] = compute_member_addr(itl,func,assign_node->left);
+                                const auto structure = struct_from_type(itl.struct_table,ltype);
+
+                                // TODO: for now its just fair easier to collapse the slot
+                                collapse_struct_offset(itl,func,&addr_slot);
+
+                                traverse_struct_initializer(itl,func,(RecordNode*)assign_node->right,addr_slot.slot,structure);            
+                            }
+
+                            else
+                            {
+                                const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
+                                write_struct(itl,func,slot,rtype,assign_node->left);
+                            }
                             break;
                         }
                     
@@ -918,12 +951,21 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     const auto size = sym_ptr->reg.size;
                     const auto ltype = sym_ptr->type;
 
-                    const auto rtype = compile_expression(itl,func,assign_node->right,slot);
-                    check_assign(itl,ltype,rtype);
-
-                    if(is_unsigned_integer(ltype))
+                    // handle initializer list
+                    if(assign_node->right->type == ast_type::initializer_list)
                     {
-                        clip_arith_type(itl,func,slot,slot,size);
+                        compile_init_list(itl,func,ltype,slot,assign_node->right);
+                    }
+
+                    else
+                    {
+                        const auto rtype = compile_expression(itl,func,assign_node->right,slot);
+                        check_assign(itl,ltype,rtype);
+
+                        if(is_unsigned_integer(ltype))
+                        {
+                            clip_arith_type(itl,func,slot,slot,size);
+                        }
                     }
                 }
                 break;

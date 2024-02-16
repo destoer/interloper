@@ -63,6 +63,22 @@ func in_range_s64(v : u64,lo : u64, hi : u64) bool
 
 struct Vec2D
 {
-    x : u64;
-    y : u64;
+    x : s64;
+    y : s64;
 };
+
+
+func vec2_add(v1: Vec2D, v2: Vec2D) Vec2D
+{
+    ans: Vec2D = {?};
+
+    ans.x = v1.x + v2.x;
+    ans.y = v1.y + v2.y;
+
+    return ans;
+}
+
+func print_vec2(v1: Vec2D)
+{
+    print("vec: {} : {}\n",v1.x,v1.y);
+}

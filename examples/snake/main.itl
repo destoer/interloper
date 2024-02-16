@@ -1,55 +1,46 @@
-import <graphics>
+import "snake"
 
 func main() s32
 {
-    import <graphics>
+    snake: Snake = make_snake();
 
-    func main() s32
+    target : s32 = 16;
+
+    win := gfx::open_window("snake",640,480);
+
+    while(!win.quit)
     {
-        constant X : u32 = 640;
-        constant Y : u32 = 480;
-    
-        win := gfx::open_window("snake",X,Y);
-    
-        target : s32 = 16;
-    
-        // current drawing offset
-        draw : u32 = 0;
-    
-        colour := cast(u32,std::rand());
-    
-        while(!win.quit)
-        {
-            start := std::timestamp_ms();
-    
-            gfx::process_events(&win);
-    
+        start := std::timestamp_ms();
 
-            gfx::draw_window(&win,win.screen);
-    
-            end := std::timestamp_ms();
-    
-            taken := cast(s32,end - start);
-    
-            sleep := target - taken;
-    
-            if(sleep > 0)
-            {
-                target = 16;
-                std::sleep_ms(cast(u32,sleep));
-            }
-    
-            // overshot the frame
-            else
-            {
-                target = 16 + sleep;
-            }
+        gfx::process_events(&win);
+
+        if(update(&snake,&win.input,win.screen,win.size))
+        {
+            win.quit = true;
         }
-    
-        gfx::close_window(&win);
-    
-        return 0;
+
+        gfx::draw_window(&win,win.screen);
+
+        end := std::timestamp_ms();
+
+        taken := cast(s32,end - start);
+
+        sleep := target - taken;
+
+        if(sleep > 0)
+        {
+            target = 16;
+            std::sleep_ms(cast(u32,sleep));
+        }
+
+        // overshot the frame
+        else
+        {
+            target = 16 + sleep;
+        }
     }
 
+    gfx::close_window(&win);
+    
     return 0;
 }
