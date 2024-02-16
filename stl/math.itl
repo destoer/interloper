@@ -59,3 +59,10 @@ func in_range_s64(v : u64,lo : u64, hi : u64) bool
 {
     return v >= lo && v <= hi;
 }
+
+
+struct Vec2D
+{
+    x : u64;
+    y : u64;
+};

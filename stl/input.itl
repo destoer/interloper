@@ -1,0 +1,55 @@
+namespace input;
+
+enum button_t
+{
+    a,
+    b,
+    x,
+    y,
+
+    up,
+    down,
+    left,
+    right,
+};
+
+struct Input
+{
+    button: bool[button_t.len];
+}
+
+func set_input(input: Input@, key: c8, pressed: bool)
+{
+    switch(key)
+    {
+        case 'w':
+        {
+            set_button(input,button_t::up,pressed);
+        }
+
+        case 's':
+        {
+            set_button(input,button_t::down,pressed);
+        }
+
+        case 'a':
+        {
+            set_button(input,button_t::left,pressed);
+        }
+
+        case 'd':
+        {
+            set_button(input,button_t::right,pressed);
+        }
+    }   
+}
+
+func set_button(input: Input@, type: button_t, pressed: bool)
+{
+    input.button[cast(u32,type)] = pressed;
+}
+
+func is_pressed(input: const Input@, type: button_t) bool
+{
+    return input.button[cast(u32,type)];
+}

@@ -1,19 +1,7 @@
 namespace gfx;
 
 import <os_graphics>
-
-struct Input
-{
-    a : bool;
-    b : bool;
-    x : bool;
-    y : bool;
-
-    up : bool;
-    down : bool;
-    left : bool;
-    right : bool;
-}
+import <input>
 
 struct Window
 {

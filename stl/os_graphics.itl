@@ -45,6 +45,14 @@ struct OSWindow
     resource_mask : u32;
     resource_id: u32;
 
+    // key code
+    min_keycode: u8;
+    max_keycode: u8;
+
+    get_key_map_seq: u32;
+
+    key_code_to_sym: u8[255];
+
     // extenstions
 
     ext_query_seq: u32;
@@ -295,6 +303,11 @@ func read_setup_info(win: OSWindow@)
 
     std::log(X11_PREFIX,"max req len: {}\n",info.max_req_len * 4);
 
+    win.min_keycode = info.min_keycode;
+    win.max_keycode = info.max_keycode;
+
+    std::log(X11_PREFIX,"keycode: {} {}\n",win.min_keycode, win.max_keycode);
+
     win.resource_base = info.resource_id_base;
     win.resource_mask = info.resource_id_mask;
 
@@ -425,6 +438,8 @@ enum x_reply_type : u8
 {
     error = 0,
     reply = 1,
+    key_press = 2,
+    key_release = 3,
     map_notify = 19,
     configure_notify = 22,
 }
@@ -451,6 +466,25 @@ func process_reply(win : OSWindow@)
     {
         win.big_req_reply = true;
         win.max_req = std::read_buffer<u32>(buf,8) * 4;
+    }
+
+    // key mapping
+    else if(win.get_key_map_seq == seq)
+    {
+        std::log(X11_PREFIX,"Key mapping setup\n");
+
+        n := std::read_buffer<u8>(buf,1);
+
+        read_x11_reply(win,len);
+        
+        cur : u32 = 0;
+        offset := n * 4;
+
+        for(i in win.min_keycode < win.max_keycode)
+        {
+            win.key_code_to_sym[i] = std::read_buffer<u8>(buf,cur);
+            cur += offset;
+        }
     }
 
     // just burn the reply
@@ -635,6 +669,19 @@ struct XConfigureNotify
     pad2 : u8[5];
 }
 
+// todo: can we assume lat1 is the first keyset?
+func x_key_code_to_sym(win: OSWindow@, keycode: u8) u8
+{
+    return win.key_code_to_sym[keycode];
+}
+
+func x_key_event(std_win: Window@, keycode: u8, down: bool)
+{
+    sym := x_key_code_to_sym(&std_win.os_win,keycode);
+
+    input::set_input(&std_win.input,sym,down);
+}
+
 
 func os_process_events(std_win: Window@) bool
 {
@@ -673,7 +720,21 @@ func os_process_events(std_win: Window@) bool
             {
                 process_reply(win);
             }
-        
+
+            case x_reply_type::key_press:
+            {
+                key := std::read_buffer<u8>(buf,1);
+
+                x_key_event(std_win,key,true);
+            }
+
+            case x_reply_type::key_release:
+            {
+                key := std::read_buffer<u8>(buf,1);
+
+                x_key_event(std_win,key,false);         
+            }
+
             case x_reply_type::configure_notify:
             {
                 config := std::read_array<XConfigureNotify>(buf,0);
@@ -946,6 +1007,54 @@ func enable_big_req(std_win: Window@)
     update_max_lines(win);
 }
 
+#attr(no_reorder)
+struct XGrabKey
+{
+    opcode: u8 = 33;
+    owner_events: u8;
+    req_len: u16 = 4;
+    window: u32;
+    mask: u16;
+    keycode: u8;
+    pointer_mode: u8;
+    keyboard_mode: u8;
+    pad1: u8[3];
+}
+
+func grab_keyboard(win: OSWindow@)
+{
+    grab: XGrabKey;
+
+    grab.window = win.window_id;
+    grab.keyboard_mode = 1;
+    grab.pointer_mode = 1;
+
+    // grab any key
+    grab.mask = 0x8000;
+
+    send_req<XGrabKey>(win,&grab);
+}
+
+#attr(no_reorder)
+struct XGetKeyboardMapping
+{
+    opcode: u8 = 101;
+    pad1: u8;
+    len: u16 = 2;
+    first_keycode: u8;
+    count: u8;
+    pad2: u16;
+}
+
+func get_keyboard_mapping(win: OSWindow@)
+{
+    map: XGetKeyboardMapping;
+    map.first_keycode = win.min_keycode;
+    map.count = win.max_keycode - map.first_keycode;
+
+    win.get_key_map_seq = send_req<XGetKeyboardMapping>(win,&map);
+}
+
 func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
 {
     win := &std_win.os_win;
@@ -984,6 +1093,9 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     // try to enable the big request exenstion
     enable_big_req(std_win);
 
+    get_keyboard_mapping(win);
+
+    grab_keyboard(win);
 }
 
 func os_destroy_window(win : OSWindow@)

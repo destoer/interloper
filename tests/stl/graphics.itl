@@ -19,9 +19,9 @@ func main() s32
     {
         start := std::timestamp_ms();
 
-        draw_amt : u32 = cast(u32,win.screen.len / 256);
-
         gfx::process_events(&win);
+
+        draw_amt : u32 = cast(u32,win.screen.len / 256);
 
         for(i : u32 = 0; i < draw_amt && (i + draw) < win.screen.len; i += 1)
         {

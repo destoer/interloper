@@ -1,0 +1,13 @@
+import <input>
+
+struct Snake
+{
+    Vec2D pos;
+}
+
+func update(screen: u32[],input: Input)
+{
+    
+
+
+}
