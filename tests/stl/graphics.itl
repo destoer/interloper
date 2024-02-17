@@ -20,6 +20,11 @@ func main() s32
         start := std::timestamp_ms();
 
         gfx::process_events(&win);
+    
+        if(input::is_pressed(&win.input,button_t::start))
+        {
+            win.quit = true;
+        }
 
         draw_amt : u32 = cast(u32,win.screen.len / 256);
 

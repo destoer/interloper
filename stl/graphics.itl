@@ -41,6 +41,7 @@ func window_resized(win: Window@,x : u32, y : u32)
 func open_window(str : const string, x : u32, y : u32) Window
 {
     win : Window;
+    win.input = input::make_input();
 
     os_open_window(&win,str,x,y);
 

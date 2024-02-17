@@ -456,3 +456,21 @@ func os_socket_close(socket: Socket@)
 {
     os_close(socket.handle);
 }
+
+
+constant KEYCODE_W: u32 = 25;
+constant KEYCODE_S: u32 = 39;
+constant KEYCODE_D: u32 = 40;
+constant KEYCODE_A: u32 = 38;
+
+constant KEYCODE_ESC: u32 = 9;
+
+func os_default_key_map(map: button_t[256])
+{
+    map[KEYCODE_W] = button_t::up;
+    map[KEYCODE_S] = button_t::down;
+    map[KEYCODE_D] = button_t::right;
+    map[KEYCODE_A] = button_t::left;
+
+    map[KEYCODE_ESC] = button_t::start;
+}

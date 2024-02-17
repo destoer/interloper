@@ -673,11 +673,9 @@ func x_key_code_to_sym(win: OSWindow@, keycode: u8) u8
 
 func x_key_event(std_win: Window@, keycode: u8, down: bool)
 {
-    sym := x_key_code_to_sym(&std_win.os_win,keycode);
+    //std::print("key event {x} : {}\n",keycode,down);
 
-    //std::print("key event {x} : {x} : {}\n",keycode,sym,down);
-
-    input::set_input(&std_win.input,sym,down);
+    input::set_input(&std_win.input,keycode,down);
 }
 
 

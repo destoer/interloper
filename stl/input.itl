@@ -2,6 +2,8 @@ namespace input;
 
 enum button_t
 {
+    none,
+
     a,
     b,
     x,
@@ -11,37 +13,31 @@ enum button_t
     down,
     left,
     right,
+
+    start,
 };
 
 struct Input
 {
+    map: button_t[256];
+
     button: u32 = 0;
 }
 
-func set_input(input: Input@, key: c8, pressed: bool)
+func make_input() Input
 {
-    switch(key)
-    {
-        case 'w':
-        {
-            set_button(input,button_t::up,pressed);
-        }
+    input: Input;
 
-        case 's':
-        {
-            set_button(input,button_t::down,pressed);
-        }
+    std::os_default_key_map(input.map);
 
-        case 'a':
-        {
-            set_button(input,button_t::left,pressed);
-        }
+    return input;
+}
 
-        case 'd':
-        {
-            set_button(input,button_t::right,pressed);
-        }
-    }   
+func set_input(input: Input@, key: u8, pressed: bool)
+{
+    //std::print("key input: {} : {}\n",key,pressed);
+    button := input.map[key];
+    set_button(input,button,pressed);  
 }
 
 func set_button(input: Input@, type: button_t, pressed: bool)
