@@ -14,13 +14,25 @@ global seed : u64 = cast(u64,time());
 func rand() u64
 {
     seed = (6364136223846793005 * seed) + 1442695040888963407; 
-    return seed;
+    return deset_bit(seed,63);
 }
 
 func rand_range_u64(min : u64, max : u64) u64
 {
     return (rand() % ((max + 1) - min)) + min;
 }
+
+func rand_range_s64(min : s64, max : s64) s64
+{
+    return (rand() % ((max + 1) - min)) + min;
+}
+
+
+func rand_range_s32(min : s32, max : s32) s32
+{
+    return cast(s32,rand_range_s32(min,max));
+}
+
 
 func rand_range_u32(min : u32, max : u32) u32
 {

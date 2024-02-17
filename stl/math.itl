@@ -68,6 +68,12 @@ struct Vec2D
 };
 
 
+func vec2_aabb_intersect(p1: Vec2D,s1: Vec2D, p2: Vec2D, s2: Vec2D) bool
+{
+    return (p1.x < p2.x + s2.x) && (p1.x + s1.x > p2.x)
+        && (p1.y < p2.y + s2.y) && (p1.y + s1.y > p2.y);
+}
+
 func vec2_add(v1: Vec2D, v2: Vec2D) Vec2D
 {
     ans: Vec2D = {?};
@@ -78,7 +84,40 @@ func vec2_add(v1: Vec2D, v2: Vec2D) Vec2D
     return ans;
 }
 
-func print_vec2(v1: Vec2D)
+
+func vec2_sub(v1: Vec2D, v2: Vec2D) Vec2D
 {
-    print("vec: {} : {}\n",v1.x,v1.y);
+    ans: Vec2D = {?};
+
+    ans.x = v1.x - v2.x;
+    ans.y = v1.y - v2.y;
+
+    return ans;
+}
+
+func vec2_scale(v1: Vec2D, scale: u32) Vec2D
+{
+    ans: Vec2D = {?};
+
+    ans.x = v1.x * scale;
+    ans.y = v1.y * scale;
+
+    return ans;
+}
+
+
+func rand_vec2(x0: s64, x1: s64, y0: s64, y1: s64) Vec2D
+{
+    out: Vec2D = {?};
+
+    out.x = std::rand_range_s64(x0,x1);
+    out.y = std::rand_range_s64(y0,y1);
+
+    return out;
+}
+
+
+func print_vec2(tag: const string,v1: Vec2D)
+{
+    print("{}: {} : {}\n",tag,v1.x,v1.y);
 }

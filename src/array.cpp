@@ -641,13 +641,13 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         }
     }
 
+    // default construct
     else 
     {
         auto& array = sym_from_slot(itl.symbol_table,slot);
 
         ArrayType* array_type = (ArrayType*)array.type;
 
-        // default construct
         if(!is_fixed_array(array.type))
         {
             const auto addr_slot = make_struct_addr(array.reg.slot,0);

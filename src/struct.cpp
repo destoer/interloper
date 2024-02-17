@@ -830,7 +830,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
             {
                 case ast_type::initializer_list:
                 {
-                    unimplemented("initializer list");
+                    compile_init_list(itl,func,member.type,member_addr,member.expr);
                     break;
                 }
 

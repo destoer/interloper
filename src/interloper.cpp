@@ -34,6 +34,8 @@ void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot
 
 std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 
+void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
+
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"

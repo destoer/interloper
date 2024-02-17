@@ -1,5 +1,5 @@
 
-// expected 31
+// expected 29
 
 func main() s32
 {
@@ -11,5 +11,7 @@ func main() s32
 
     s : s32 = 7 - 2;
 
-    return a + d + m + s;
+    v : s32 = -5 % 3;
+
+    return a + d + m + s + v;
 }

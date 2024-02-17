@@ -90,7 +90,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 {
     // basic
     {"tests/basic/first",9},
-    {"tests/basic/arith",31},
+    {"tests/basic/arith",29},
     {"tests/basic/assign",0}, // 1190
     {"tests/basic/unary",0},// -11
     {"tests/basic/scope",16},

@@ -15,7 +15,7 @@ enum button_t
 
 struct Input
 {
-    button: bool[button_t.len];
+    button: u32 = 0;
 }
 
 func set_input(input: Input@, key: c8, pressed: bool)
@@ -46,10 +46,18 @@ func set_input(input: Input@, key: c8, pressed: bool)
 
 func set_button(input: Input@, type: button_t, pressed: bool)
 {
-    input.button[cast(u32,type)] = pressed;
+    //std::print("input: {} : {}\n",cast(u32,type),pressed);
+
+    bit := cast(u32,type);
+    input.button = (input.button & ~(1 << bit)) | (cast(u32,pressed) << bit);
+}
+
+func reset_input(input: Input@)
+{
+    input.button = 0;
 }
 
 func is_pressed(input: const Input@, type: button_t) bool
 {
-    return input.button[cast(u32,type)];
+    return std::is_set(input.button,cast(u32,type));
 }

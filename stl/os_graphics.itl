@@ -5,10 +5,6 @@ import <socket>
 
 constant X11_PREFIX : string = "[X WINDOW]: ";
 
-// TODO: namespace this lot under x11::
-
-// TODO: need to figure out how to detect the pipe closure...
-
 // https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
 struct OSWindow
 {
@@ -679,6 +675,8 @@ func x_key_event(std_win: Window@, keycode: u8, down: bool)
 {
     sym := x_key_code_to_sym(&std_win.os_win,keycode);
 
+    //std::print("key event {x} : {x} : {}\n",keycode,sym,down);
+
     input::set_input(&std_win.input,sym,down);
 }
 
@@ -728,6 +726,7 @@ func os_process_events(std_win: Window@) bool
                 x_key_event(std_win,key,true);
             }
 
+            // TODO: why are the key release events not allways firing?
             case x_reply_type::key_release:
             {
                 key := std::read_buffer<u8>(buf,1);

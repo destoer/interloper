@@ -1,0 +1,5 @@
+namespace colour;
+
+constant RED: u32 = 0xff_ff_00_00;
+constant BLACK: u32 = 0xff_00_00_00;
+constant WHITE: u32 = 0xff_ff_ff_ff;
