@@ -1,2 +1,17 @@
 # interloper
-hobby compiler (this shouldn't exist)
+
+```
+func main() s32
+{
+    buf : c8[256];
+
+    std::print("Enter some text: ");
+
+    out := std::read_string(buf);
+
+    std::print("You said: {}\n",out);
+
+    return 0;
+}
+
+```

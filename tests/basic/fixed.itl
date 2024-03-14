@@ -1,0 +1,47 @@
+
+
+constant N: u32 = 16;
+
+func make_fixed(v : s32) s32
+{
+    return v << N;
+}
+
+func fixed_div(v1: s32, v2: s32) s32
+{
+    ans: s64 = (cast(s64,v1) << N) / v2;
+
+    //std::print("boop {}\n",ans);
+
+    return cast(s32,ans);
+}
+
+func fixed_mul(v1: s32, v2: s32) s32
+{
+    ans := cast(s64,v1) * cast(s64,v2);
+
+    return cast(s32,ans >> N);
+}
+
+func print_fixed(v1 : s32)
+{
+    whole := v1 >> N;
+    fract := ((v1 & 0xffff) * 10000) / (1 << N);
+    std::print("fixed: {}.{}\n",whole,fract);
+}
+
+func main() s32
+{
+    v1 := make_fixed(10);
+    v2 := make_fixed(3);
+
+    v3 := fixed_div(v1,v2);
+
+    v4 := fixed_mul(v1,v3);
+
+    std::print("ans {x} / {x} = {x} {}\n",v1,v2,v3,5 / 2);
+    print_fixed(v3);
+    print_fixed(v4);
+
+    return 0;
+}

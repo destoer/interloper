@@ -1060,7 +1060,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     win.win_y = y;
 
     // open connection to x server
-    win.sock = std::connect_unix_domain("/tmp/.X11-unix/X1");
+    win.sock = std::connect_unix_domain("/tmp/.X11-unix/X0");
 
     if(!std::socket_valid(&win.sock))
     {

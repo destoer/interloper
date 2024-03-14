@@ -1,5 +1,3 @@
-// TODO: atm this is just a basic stack spill allocator
-
 struct LinearRange
 {
     u32 start = 0xffff'ffff;
