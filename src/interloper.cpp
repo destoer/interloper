@@ -1345,6 +1345,8 @@ void compile(Interloper &itl,const String& initial_filename)
     compile_constants(itl);
     compile_globals(itl);
 
+    declare_compiler_constants(itl);
+
     if(itl.error)
     {
         destroy_itl(itl);

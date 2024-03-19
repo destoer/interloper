@@ -925,6 +925,30 @@ void compile_constant(Interloper& itl, GlobalDeclNode* node)
     pop_context(itl);
 }
 
+void add_compiler_constant(Interloper& itl, const String& name, builtin_type builtin, u64 value)
+{
+    auto type = make_builtin(itl,builtin);
+
+    auto& sym = add_global(itl,name,type,true);
+
+    // push to const pool and save handle as offset for later loading...
+    const auto slot = push_const_pool(itl.const_pool,pool_type::var,&value,builtin_size(builtin));
+    sym.reg.offset = slot.handle;    
+}
+
+
+void declare_compiler_constants(Interloper& itl)
+{
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            add_compiler_constant(itl,"LITTLE_ENDIAN",builtin_type::bool_t,true);
+            break;
+        }
+    }
+}
+
 void compile_constants(Interloper& itl)
 {
     for(u32 c = 0; c < count(itl.constant_decl); c++)
