@@ -18,6 +18,9 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 
     {builtin_type::bool_t, false, false ,1,  0, 1},
 
+    // note: the range limits on this aernt really integeral
+    {builtin_type::f64_t, false, false ,8,  0, u64(0xffffffff'ffffffff)},
+
     {builtin_type::null_t, false,false, GPR_SIZE,0,0},
 
     // internal

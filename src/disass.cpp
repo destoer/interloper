@@ -47,6 +47,15 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
             break;
         }
 
+        case 'f':
+        {
+            char name[40];
+            const u32 len = sprintf(name,"%lf",bit_cast_to_f64(handle));
+
+            push_mem(buffer,name,len);
+            break;
+        }
+
         // address
         case 'a':
         {

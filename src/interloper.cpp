@@ -216,6 +216,14 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             return t1;
         }
 
+        case ast_type::float_t:
+        {
+            FloatNode* float_node = (FloatNode*)node;
+            movf_imm(itl,func,dst_slot,float_node->value);
+
+            return make_builtin(itl,builtin_type::f64_t);
+        }
+
         case ast_type::symbol:
         {
             const auto [type, slot] = symbol(itl,node);

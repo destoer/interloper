@@ -235,6 +235,28 @@ inline u32 log2(u32 idx)
     return std::bit_width(idx) - 1;      
 }
 
+
+template<typename T, typename Y>
+inline T bit_cast(Y v)
+{
+    static_assert(sizeof(T) == sizeof(Y));
+
+    T out;
+    memcpy(&out,&v,sizeof(out));
+
+    return out;
+}
+
+inline u64 bit_cast_from_f64(f64 v)
+{
+    return bit_cast<u64,f64>(v);
+}
+
+inline f64 bit_cast_to_f64(u64 v)
+{
+    return bit_cast<f64,u64>(v);
+}
+
 std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
 SymSlot mul_imm_pow2_res(Interloper& itl, Function& func, SymSlot src,s32 imm);

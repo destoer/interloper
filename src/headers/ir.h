@@ -28,6 +28,7 @@ enum class op_type
     sxw,
 
     mov_imm,
+    movf_imm,
     add_imm,
     sub_imm,
     mul_imm,

@@ -244,6 +244,21 @@ void emit_imm2(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 im
 }
 
 template<const op_type type>
+void emit_fp_imm1(Interloper& itl, Function& func, SymSlot dst, f64 imm)
+{
+    // sanity checking fmt
+    constexpr auto OP_INFO = opcode_three_info(type);
+
+    static_assert(OP_INFO.type[0] == arg_type::dst_reg);
+    static_assert(OP_INFO.type[1] == arg_type::imm);
+    static_assert(OP_INFO.args == 2);
+
+    emit_block_internal(func,cur_block(func),type,dst.handle,bit_cast_from_f64(imm),0);    
+
+    handle_dst_storage(itl,func,dst);
+}
+
+template<const op_type type>
 void emit_label1(Interloper& itl,Function& func, LabelSlot slot)
 {
     UNUSED(itl);

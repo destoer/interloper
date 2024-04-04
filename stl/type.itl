@@ -38,6 +38,8 @@ enum builtin_type : BuiltinTypeData
 
     bool_t = {false, false ,1,  0, 1},
 
+    f64_t = {false,false,8,0,0xffffffff_ffffffff},
+
     // TODO: i think we need usize
     null_t = {false,false, 8,0,0},
 }
@@ -59,6 +61,8 @@ enum itl_type
     byte_t,
 
     bool_t,
+
+    f64_t,
 
     null_t,
 

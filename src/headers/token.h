@@ -4,6 +4,7 @@
 enum class token_type
 {
     value,
+    float_t,
     symbol, 
     char_t,
     string,
@@ -60,6 +61,8 @@ enum class token_type
     byte_t,
 
     bool_t,
+
+    f64_t,
 
     cast,
     sizeof_t,
@@ -143,6 +146,7 @@ static constexpr size_t TOKEN_SIZE = static_cast<size_t>(token_type::END)+1;
 static const TokInfo TOKEN_INFO[TOKEN_SIZE] = 
 {
     {token_type::value,"value",0},
+    {token_type::float_t,"float",0},
     {token_type::symbol,"symbol",0},
     {token_type::char_t,"char",0},
     {token_type::string,"string",0},
@@ -199,6 +203,8 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::byte_t,"byte",-1},
 
     {token_type::bool_t,"bool",-1},
+
+    {token_type::f64_t,"f64",-1},
 
     {token_type::cast,"cast",-1},
     {token_type::sizeof_t,"sizeof",-1},
@@ -323,6 +329,7 @@ struct Token
         String literal;
         Value value;
         char character;
+        f64 fp;
     };
 };
 
@@ -367,6 +374,17 @@ Token token_value(const Value& value, u32 idx = 0)
     token.type = token_type::value;
     token.idx = idx;
     token.value = value;
+
+    return token;
+}
+
+Token token_float(f64 v, u32 idx = 0)
+{
+    Token token;
+
+    token.type = token_type::float_t;
+    token.idx = idx;
+    token.fp = v;
 
     return token;
 }

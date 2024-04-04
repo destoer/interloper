@@ -159,6 +159,11 @@ func print_arg(arg : Any, specifier : c8)
             format_int(arg,specifier);
         }
 
+        case itl_type::f64_t:
+        {
+            crash_and_burn("print float");
+        }
+
         case itl_type::bool_t:
         {
             res := bool_from_any(arg);

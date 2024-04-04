@@ -5,6 +5,11 @@ void add(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
     emit_reg3<op_type::add_reg>(itl,func,dst,v1,v2);
 }
 
+void movf_imm(Interloper& itl, Function& func, SymSlot dst, f64 v1)
+{
+    emit_fp_imm1<op_type::movf_imm>(itl,func,dst,v1);
+}
+
 SymSlot add_res(Interloper& itl,Function& func, SymSlot v1, SymSlot v2)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);

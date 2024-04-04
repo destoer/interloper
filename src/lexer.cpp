@@ -16,6 +16,11 @@ void insert_token(Lexer &lexer, token_type type)
 }
 
 
+void insert_token_float(Lexer& lexer, f64 value)
+{
+    push_var(lexer.tokens,token_float(value,lexer.idx));
+}
+
 void insert_token(Lexer &lexer, token_type type, const String &literal)
 {
     push_var(lexer.tokens,token_literal(type,literal,lexer.idx));
@@ -318,17 +323,54 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
 
             case LEX_STATE_INT_FIN:
             {
-                src = start;
-                const auto [value,err] = parse_value(&src);
+                const char* tmp = start;
 
-                if(err)
+                // scan ahead to see if there is a dp
+                if(*tmp == '-')
                 {
-                    panic(lexer,file_name,"Invalid integer literal\n");
-                    destroy_lexer(lexer);
-                    return true;
+                    tmp++;
                 }
 
-                insert_token_value(lexer,value);
+                while(isdigit(*tmp))
+                {
+                    tmp++;
+                }
+
+                // we are dealing with a float
+                if(*tmp == '.')
+                {
+                    tmp++;
+
+                    // TODO: we want our own function that ignores _
+                    const f64 value = atof(start);
+
+                    // find the end
+                    while(isdigit(*tmp))
+                    {
+                        tmp++;
+                    }
+
+                    src = tmp;
+
+                    insert_token_float(lexer,value);
+                }
+
+                // integer
+                else
+                {
+                    src = start;
+
+                    const auto [value,err] = parse_value(&src);
+
+                    if(err)
+                    {
+                        panic(lexer,file_name,"Invalid integer literal\n");
+                        destroy_lexer(lexer);
+                        return true;
+                    }
+
+                    insert_token_value(lexer,value);
+                }
                 break;
             }
 

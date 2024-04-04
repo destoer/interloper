@@ -93,7 +93,7 @@ void type_panic(Parser &parser)
 
 bool is_builtin_type_tok(const Token &tok)
 {
-   return tok.type >= token_type::u8 && tok.type <= token_type::bool_t; 
+   return tok.type >= token_type::u8 && tok.type <= token_type::f64_t; 
 }
 
 builtin_type builtin_type_from_tok(const Token& tok)
@@ -2035,6 +2035,14 @@ void print(const AstNode *root, b32 override_seperator)
             {
                 printf("value: %lu\n",value_node->value.v);
             }
+            break;
+        }
+
+        case ast_fmt::float_t:
+        {
+            FloatNode* float_node = (FloatNode*)root;
+
+            printf("float: %lf\n",float_node->value);
             break;
         }
 

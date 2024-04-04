@@ -5,7 +5,7 @@
 
 
 // if type idx is >= to this then this is a custom defined type
-static constexpr u32 BUILTIN_TYPE_SIZE = 13;
+static constexpr u32 BUILTIN_TYPE_SIZE = 14;
 static constexpr u32 USER_TYPE = 0xf0000000;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
@@ -27,6 +27,8 @@ enum class builtin_type
     byte_t,
 
     bool_t,
+
+    f64_t,
 
     null_t,
 
@@ -67,6 +69,8 @@ static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
     "byte",
 
     "bool",
+
+    "f64",
 
     "NULL",
 

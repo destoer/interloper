@@ -230,12 +230,12 @@ u32 find_free_register(u32 set,u32 used)
     u32 reg = FFS_EMPTY;
 
     // prefer used regs
-    reg = ffs(set & used);
+    reg = destoer::ffs(set & used);
 
     // get any reg we can
     if(reg == FFS_EMPTY)
     {
-        reg = ffs(set);
+        reg = destoer::ffs(set);
     }
 
     return reg;
