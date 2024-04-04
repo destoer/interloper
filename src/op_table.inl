@@ -25,7 +25,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"sxw %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
 
     {op_group::imm_t,"mov %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
-    {op_group::imm_t,"movf %r, %f",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
     {op_group::imm_t,"add %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::imm_t,"sub %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::imm_t,"mul %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
@@ -72,6 +71,21 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
     {op_group::reg_t,"not %r",1,{arg_type::dst_src_reg,arg_type::none,arg_type::none}},
+
+    // float
+    {op_group::imm_t,"movf %r, %f",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::reg_t,"addf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"subf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"mulf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"divf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    {op_group::reg_t,"addf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"subf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mulf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"divf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+
+    {op_group::reg_t,"cvtfi %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"cvtif %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
 
     // load
     {op_group::load_t,"lb %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},

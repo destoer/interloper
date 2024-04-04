@@ -30,8 +30,45 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         emit_reg3<type>(itl,func,dst_slot,v1,offset_slot);
     }
 
-    // normal arith
-    else
+    // floating point arith
+    else if(is_float(t1) && is_float(t2))
+    {
+        switch(type)
+        {
+            case op_type::add_reg:
+            {
+                addf(itl,func,dst_slot,v1,v2);
+                break;
+            }
+
+            case op_type::sub_reg:
+            {
+                subf(itl,func,dst_slot,v1,v2);
+                break;
+            }
+
+            case op_type::mul_reg:
+            {
+                mulf(itl,func,dst_slot,v1,v2);
+                break;
+            }
+
+            case op_type::udiv_reg:
+            {
+                divf(itl,func,dst_slot,v1,v2);
+                break;
+            }
+
+            default:
+            {
+                panic(itl,itl_error::invalid_expr,"operation is not defined for floats");
+                return make_builtin(itl,builtin_type::void_t);
+            }
+        }
+    }
+
+    // integer arith
+    else if(is_integer(t1) && is_integer(t2))
     {
         // figure out correct division type
         if constexpr (type == op_type::udiv_reg)
@@ -64,6 +101,12 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         {
             emit_reg3<type>(itl,func,dst_slot,v1,v2);
         }
+    }
+
+    else
+    {
+        panic(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
+        return make_builtin(itl,builtin_type::void_t);
     }
 
     // produce effective type

@@ -62,6 +62,11 @@ b32 is_integer(const Type* type)
     return is_builtin(type) && is_integer(builtin_type(type->type_idx));
 }
 
+b32 is_float(const Type* type)
+{
+    return builtin_type(type->type_idx) == builtin_type::f64_t;
+}
+
 b32 is_signed(const Type *type)
 {
     return is_builtin(type) && builtin_type_info[type->type_idx].is_signed;
@@ -1106,6 +1111,12 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_
             return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype; 
         }
 
+        // both floats, just a float
+        if(is_float(rtype) && is_float(ltype))
+        {
+            return make_builtin(itl,builtin_type::f64_t);
+        }
+
         // something else
         else
         {
@@ -1868,6 +1879,16 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                 cmp_unsigned_gt_imm(itl,func,dst_slot,src_slot,0);
             }
         }        
+
+        else if(is_float(old_type) && is_integer(new_type))
+        {
+            cvt_fi(itl,func,dst_slot,src_slot);
+        }
+
+        else if(is_integer(old_type) && is_float(new_type))
+        {
+            cvt_if(itl,func,dst_slot,src_slot);
+        }
 
         else
         {

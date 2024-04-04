@@ -28,7 +28,6 @@ enum class op_type
     sxw,
 
     mov_imm,
-    movf_imm,
     add_imm,
     sub_imm,
     mul_imm,
@@ -74,6 +73,18 @@ enum class op_type
     asr_x86,
 
     not_reg1,
+
+    movf_imm,
+    addf_reg,
+    subf_reg,
+    mulf_reg,
+    divf_reg,
+    addf_reg2,
+    subf_reg2,
+    mulf_reg2,
+    divf_reg2,
+    cvt_fi,
+    cvt_if,
 
     lb,
     lh,
@@ -610,6 +621,10 @@ struct GlobalAlloc
 void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 void sign_extend_half(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 void sign_extend_word(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
+
+void cvt_fi(Interloper& itl, Function& func, SymSlot dst, SymSlot v1);
+void cvt_if(Interloper& itl, Function& func, SymSlot dst, SymSlot v1);
+
 
 void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
 

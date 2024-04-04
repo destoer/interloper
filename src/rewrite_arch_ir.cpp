@@ -545,6 +545,29 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_x86_cond_branch(block,node,true);
         }
 
+        case op_type::addf_reg: 
+        {
+            return rewrite_reg3_two_commutative(block,node,op_type::addf_reg2);
+        }
+    
+        case op_type::subf_reg: 
+        {
+            return rewrite_reg3_two(func,block,node,op_type::subf_reg2);
+        }
+
+        case op_type::mulf_reg: 
+        {
+            return rewrite_reg3_two_commutative(block,node,op_type::mulf_reg2);
+        }
+
+        case op_type::divf_reg: 
+        {
+            return rewrite_reg3_two(func,block,node,op_type::divf_reg2);
+        }
+
+        case op_type::cvt_fi: break;
+        case op_type::cvt_if: break;
+
         case op_type::call: break;
         case op_type::call_reg: break;
         case op_type::b: break;
