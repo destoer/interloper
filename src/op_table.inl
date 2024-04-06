@@ -74,6 +74,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     // float
     {op_group::imm_t,"movf %r, %f",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::load_t,"lf %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::reg_t,"addf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"subf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"mulf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
@@ -226,6 +227,8 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::store_t,"store_struct_u64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
 
     {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::dst_reg,arg_type::directive,arg_type::none}},
+
+    {op_group::reg_t,"load_const_float %r, %x, %f",3,arg_type::dst_reg,arg_type::directive,arg_type::directive},
 
     {op_group::slot_t,"live_var %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
 

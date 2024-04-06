@@ -32,7 +32,7 @@ u32 get_mov_register(LinearAlloc& alloc,SymSlot slot)
     else 
     {
         const u32 location = special_reg_to_reg(alloc.arch,slot);
-        mark_used(alloc,location);
+        mark_used(alloc.gpr,location);
 
         return location;
     }
@@ -52,12 +52,16 @@ ListNode* move(Interloper& itl,LinearAlloc& alloc, Block& block, ListNode* node)
     const b32 dst_free = dst_reg == REG_FREE;
     const b32 src_free = src_reg == REG_FREE;
 
+    // TODO_FPR: add optimised move's for fpr but for now
+    // we can just let it use dumb copys
+    auto& reg_file = alloc.gpr;
+
     // no dst and src
     // do memory to memory move
     if(dst_free && src_free)
     {
-        reload_reg(alloc,table,block,node,src,alloc.scratch_regs[1]);
-        spill_reg(alloc,table,block,node, dst, alloc.scratch_regs[1], false);
+        reload_reg(alloc,table,block,node,src,reg_file.scratch_regs[1]);
+        spill_reg(alloc,table,block,node, dst, reg_file.scratch_regs[1], false);
         node = remove(block.list,node);
     }
 
@@ -91,8 +95,8 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,SymbolTable& table,Block& b
     const auto dst = sym_from_idx(node->opcode.v[0]);
 
     // need to mark the two implict regs
-    mark_used(alloc,u32(x86_reg::rax));
-    mark_used(alloc,u32(x86_reg::rdx));
+    mark_used(alloc.gpr,u32(x86_reg::rax));
+    mark_used(alloc.gpr,u32(x86_reg::rdx));
 
     // rewrite src
     allocate_and_rewrite(alloc,table,block,node,1);
@@ -151,6 +155,21 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         case op_type::mov_reg:
         {
             node = move(itl,alloc,block,node);
+            break;
+        }
+
+        case op_type::load_const_float:
+        {
+            // grab the offset we want
+            const auto pool_slot = pool_slot_from_idx(opcode.v[1]);
+            auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+
+            // just rewrite the 1st reg we dont want the address of the 2nd
+            allocate_and_rewrite(alloc,table,block,node,0);
+
+            node->opcode = make_op(op_type::lf,node->opcode.v[0],CONST_IR,section.offset);
+
+            node = node->next;
             break;
         }
 
@@ -735,20 +754,20 @@ void allocate_registers(Interloper& itl,Function &func)
     // and insert the stack offsets and load and spill directives
 
     // RA is callee saved
-    const u32 CALLEE_SAVED_MASK = (1 << arch_rv(alloc.arch));
-    const u32 SCRATCH_MASK = (1 << alloc.scratch_regs[0]) | (1 << alloc.scratch_regs[1]) | (1 << alloc.scratch_regs[2]); 
+    const u32 CALLEE_GPR_SAVED_MASK = (1 << arch_rv(alloc.arch));
+    const u32 SCRATCH_GPR_MASK = (1 << alloc.gpr.scratch_regs[0]) | (1 << alloc.gpr.scratch_regs[1]) | (1 << alloc.gpr.scratch_regs[2]); 
 
    
-    u32 saved_regs = 0;
+    u32 saved_gpr = 0;
     
     // we dont want to save these on start
     if(func.name != "start")
     {
         // make sure callee saved regs are not saved inside the func
-        saved_regs = alloc.used_set & ~(CALLEE_SAVED_MASK | SCRATCH_MASK | (1 << arch_sp(alloc.arch)));
+        saved_gpr = alloc.gpr.used_set & ~(CALLEE_GPR_SAVED_MASK | SCRATCH_GPR_MASK | (1 << arch_sp(alloc.arch)));
 
         // return addr + saved regs + call stack
-        const u32 call_align = 1 + popcount(saved_regs) + (func.sig.call_stack_size / GPR_SIZE);
+        const u32 call_align = 1 + popcount(saved_gpr) + (func.sig.call_stack_size / GPR_SIZE);
 
         // add pad to align the stack on the correct boundary
         if(call_align & 1 && !func.leaf_func)
@@ -759,9 +778,9 @@ void allocate_registers(Interloper& itl,Function &func)
     }
 
 
-    const u32 save_count = popcount(saved_regs);
+    const u32 save_count = popcount(saved_gpr);
 
-    log(alloc.print,"saved registers: %d\n",save_count);
+    log(alloc.print,"saved registers: %d (0x%x)\n",save_count,saved_gpr);
 
     // only allocate a stack if we need it
     if(alloc.stack_alloc.stack_size)
@@ -775,7 +794,7 @@ void allocate_registers(Interloper& itl,Function &func)
     // entry point does not need to preserve regs
     auto& start_block = func.emitter.program[0];
 
-    emit_pushm(itl,start_block,start_block.list.start,saved_regs);
+    emit_pushm(itl,start_block,start_block.list.start,saved_gpr);
     
 
     const u32 SP = arch_sp(itl.arch);
@@ -789,7 +808,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         while(node)
         {
-            node = rewrite_directives(itl,alloc,block,node,saved_regs,stack_clean);
+            node = rewrite_directives(itl,alloc,block,node,saved_gpr,stack_clean);
         }
     }
 

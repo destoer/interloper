@@ -1,6 +1,9 @@
 namespace x86
 {
 
+// https://wheremyfoodat.github.io/floating-point-arithmetic-in-x86/
+// https://wiki.osdev.org/X86_Instruction_Encoding
+
 
 // base rex
 static constexpr u8 REX = 0x40;
@@ -957,6 +960,15 @@ void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
     }
 }
 
+void lf(AsmEmitter& emitter, x86_reg dst, x86_reg src, u64 imm)
+{
+    // convert to movsd r, [rm64]
+    push_u16(emitter,0x0f'f2);
+    push_u8(emitter,0x10);
+
+    push_reg_base_disp(emitter,dst,src,imm);
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
     UNUSED(emitter);
@@ -1352,6 +1364,13 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::sxw:
         {
             sxw(emitter,dst,v1);
+            break;
+        }
+
+
+        case op_type::lf:
+        {
+            emit_load_store(emitter,opcode,lf);
             break;
         }
 

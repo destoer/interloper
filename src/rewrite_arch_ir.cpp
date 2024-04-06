@@ -565,6 +565,16 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_reg3_two(func,block,node,op_type::divf_reg2);
         }
 
+        case op_type::movf_imm:
+        {
+            const f64 v = bit_cast_to_f64(opcode.v[1]);
+
+            // dump float in the const pool table so we can do a relative load
+            const auto pool_slot = push_const_pool(itl.const_pool,pool_type::var,&v,sizeof(f64));
+            node->opcode = make_op(op_type::load_const_float,opcode.v[0],pool_slot.handle,bit_cast_from_f64(v));
+            return node->next;
+        }
+
         case op_type::cvt_fi: break;
         case op_type::cvt_if: break;
 
@@ -574,8 +584,9 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::b_reg: break;
 
         case op_type::mov_imm: break;
-        case op_type::movf_imm: break;
         case op_type::mov_reg: break;
+
+        case op_type::lf: break;
 
         case op_type::lb: break;
         case op_type::lh: break;

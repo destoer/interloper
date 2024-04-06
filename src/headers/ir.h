@@ -75,6 +75,7 @@ enum class op_type
     not_reg1,
 
     movf_imm,
+    lf,
     addf_reg,
     subf_reg,
     mulf_reg,
@@ -230,6 +231,8 @@ enum class op_type
     store_struct_u64,
 
     pool_addr,
+
+    load_const_float,
 
     live_var,
 
@@ -742,11 +745,31 @@ enum x86_reg : u64
     r14,
     r15,
 
+
+    // sse regs
+    xmm0,
+    xmm1,
+    xmm2,
+    xmm3,
+    xmm4,
+    xmm5,
+    xmm6,
+    xmm7,
+    xmm8,
+
+    xmm9,
+    xmm10,
+    xmm11,
+    xmm12,
+    xmm13,
+    xmm14,
+    xmm15,
+
     // special regs (needs special encoding to access)
     rip,
 };
 
-static constexpr u32 X86_REG_SIZE = 17;
+static constexpr u32 X86_REG_SIZE = 33;
 
 static const char* X86_NAMES[X86_REG_SIZE] =
 {
@@ -767,6 +790,23 @@ static const char* X86_NAMES[X86_REG_SIZE] =
     "r13",
     "r14",
     "r15",
+
+    "xmm0",
+    "xmm1",
+    "xmm2",
+    "xmm3",
+    "xmm4",
+    "xmm5",
+    "xmm6",
+    "xmm7",
+    "xmm8",
+
+    "xmm10",
+    "xmm11",
+    "xmm12",
+    "xmm13",
+    "xmm14",
+    "xmm15",      
 
     "rip",
 };
