@@ -411,6 +411,7 @@ static constexpr u32 ALIASED = 1 << 2;
 static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
 static constexpr u32 CONST = 1 << 4;
 static constexpr u32 FUNC_ARG = 1 << 5;
+static constexpr u32 REG_FLOAT = 1 << 6;
 
 struct Reg
 {

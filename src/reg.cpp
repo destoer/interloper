@@ -193,6 +193,12 @@ Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
         reg.flags |= CONST;
     }
 
+    if(is_float(type))
+    {
+        reg.flags |= REG_FLOAT;
+    }
+
+
     reg.slot = {slot};
 
     return reg;
