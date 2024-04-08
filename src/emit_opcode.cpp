@@ -156,6 +156,10 @@ void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
     emit_reg2<op_type::mov_reg>(itl,func,dst,src);
 }
 
+void mov_float(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
+{
+    emit_reg2<op_type::movf_reg>(itl,func,dst,src);
+}
 
 void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
@@ -231,6 +235,11 @@ void store_double(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u64
     emit_store<op_type::sd>(itl,func,src,addr,imm);
 }
 
+void store_float(Interloper& itl,Function& func, SymSlot src, SymSlot addr, u64 imm)
+{
+    emit_store<op_type::sf>(itl,func,src,addr,imm);
+}
+
 void load_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
     emit_load<op_type::lb>(itl,func,dst,addr,imm);
@@ -250,6 +259,13 @@ void load_double(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 
 {
     emit_load<op_type::ld>(itl,func,dst,addr,imm);
 }
+
+void load_float(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
+{
+    emit_load<op_type::lf>(itl,func,dst,addr,imm);
+}
+
+
 
 void load_signed_byte(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
@@ -309,6 +325,11 @@ SymSlot copy_reg(Interloper& itl, Function& func, SymSlot src)
 void push_arg(Interloper& itl, Function& func, SymSlot src)
 {
     emit_reg1<op_type::push_arg>(itl,func,src);
+}
+
+void push_float_arg(Interloper& itl, Function& func, SymSlot src)
+{
+    emit_reg1<op_type::push_float_arg>(itl,func,src);
 }
 
 

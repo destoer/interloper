@@ -75,11 +75,32 @@ enum class op_type
     not_reg1,
 
     movf_imm,
+    movf_reg,
     lf,
+    sf,
     addf_reg,
     subf_reg,
     mulf_reg,
     divf_reg,
+
+    cmpflt_reg,
+    cmpfle_reg,
+    cmpfgt_reg,
+    cmpfge_reg,
+
+    cmpfeq_reg,
+    cmpfne_reg,
+
+    cmp_flags_float,
+
+    setflt,
+    setfle,
+    setfgt,
+    setfge,
+
+    setfeq,
+    setfne,
+
     addf_reg2,
     subf_reg2,
     mulf_reg2,
@@ -188,6 +209,7 @@ enum class op_type
     // give a function call arg
     // how it will be passed will be decided in reg alloc
     push_arg,
+    push_float_arg,
 
     // perform cleanup after a function call
     // free the stack space for args
@@ -224,11 +246,13 @@ enum class op_type
     load_struct_u16,
     load_struct_u32,
     load_struct_u64,
+    load_struct_f64,
 
     store_struct_u8,
     store_struct_u16,
     store_struct_u32,
     store_struct_u64,
+    store_struct_f64,
 
     pool_addr,
 
@@ -249,8 +273,6 @@ b32 is_directive(op_type type)
 // will be convered to a specific conterpart in op_type
 enum class logic_op
 {
-    cmpgt_imm,
-
     cmplt_reg,
     cmple_reg,
     cmpgt_reg,
@@ -263,7 +285,7 @@ enum class logic_op
     or_reg,
 };
 
-static constexpr u32 LOGIC_OP_SIZE = 9;
+static constexpr u32 LOGIC_OP_SIZE = 8;
 
 static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 
@@ -455,7 +477,7 @@ static constexpr SymSlot SYM_ERROR = {SYMBOL_START + 0};
 // for now hardcode this to the limits of our vm
 // we will move this into a struct as part of a config
 // when we actually want to define multiple targets
-static constexpr u32 MACHINE_REG_SIZE = 16;
+static constexpr u32 MACHINE_REG_SIZE = 32;
 
 // TAC wont function on less than 3 regs
 static_assert(MACHINE_REG_SIZE >= 3);
@@ -465,33 +487,35 @@ static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
 static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START + 0;
 static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
 static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
+static constexpr u32 RV_FLOAT_IR = SPECIAL_PURPOSE_REG_START + 3;
 
 // x86 regs
-static constexpr u32 RAX_IR = SPECIAL_PURPOSE_REG_START + 3;
-static constexpr u32 RCX_IR = SPECIAL_PURPOSE_REG_START + 4;
-static constexpr u32 RDX_IR = SPECIAL_PURPOSE_REG_START + 5;
-static constexpr u32 RDI_IR = SPECIAL_PURPOSE_REG_START + 6;
-static constexpr u32 RSI_IR = SPECIAL_PURPOSE_REG_START + 7;
-static constexpr u32 R8_IR = SPECIAL_PURPOSE_REG_START + 8;
-static constexpr u32 R9_IR = SPECIAL_PURPOSE_REG_START + 9;
-static constexpr u32 R10_IR = SPECIAL_PURPOSE_REG_START + 10;
+static constexpr u32 RAX_IR = SPECIAL_PURPOSE_REG_START + 4;
+static constexpr u32 RCX_IR = SPECIAL_PURPOSE_REG_START + 5;
+static constexpr u32 RDX_IR = SPECIAL_PURPOSE_REG_START + 6;
+static constexpr u32 RDI_IR = SPECIAL_PURPOSE_REG_START + 7;
+static constexpr u32 RSI_IR = SPECIAL_PURPOSE_REG_START + 8;
+static constexpr u32 R8_IR = SPECIAL_PURPOSE_REG_START + 9;
+static constexpr u32 R9_IR = SPECIAL_PURPOSE_REG_START + 10;
+static constexpr u32 R10_IR = SPECIAL_PURPOSE_REG_START + 11;
 
 // dummy reg to tell compilier loads are not necessary for fixed arrays
-static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 11;
+static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 12;
 
 static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
 
 // dont perform any moves
-static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 12;
+static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 13;
 
-static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 13;
-static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 14;
+static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 14;
+static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 15;
 
-const String SPECIAL_REG_NAMES[15] = 
+const String SPECIAL_REG_NAMES[16] = 
 {
     "sp",
     "pc",
     "rv",
+    "rv_float",
     "rax",
     "rcx",
     "rdx",
@@ -723,7 +747,6 @@ namespace x86
 void emit_asm(Interloper& itl);
 
 }
-
 
 enum x86_reg : u64
 {

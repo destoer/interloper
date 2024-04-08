@@ -74,16 +74,35 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     // float
     {op_group::imm_t,"movf %r, %f",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
+    {op_group::reg_t,"movf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
     {op_group::load_t,"lf %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::store_t,"sf %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::reg_t,"addf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"subf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"mulf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"divf %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    {op_group::reg_t,"addf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"subf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"mulf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"divf %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"cmpflt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpfle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpfgt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpfge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpfeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpfne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    {op_group::reg_t,"cmp_flags_float %r, %r",2,{arg_type::src_reg,arg_type::src_reg,arg_type::none}},
+
+    {op_group::reg_t,"setflt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfle %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+    {op_group::reg_t,"setfeq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+    {op_group::reg_t,"addf %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"subf %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mulf %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"divf %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
     {op_group::reg_t,"cvtfi %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"cvtif %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
@@ -185,6 +204,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::slot_t,"state_dump %x, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     {op_group::reg_t,"push_arg %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"push_float_arg %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
 
     // perform cleanup after a function call
     // free the stack space for args
@@ -220,11 +240,13 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::load_t,"load_struct_u16 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
     {op_group::load_t,"load_struct_u32 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
     {op_group::load_t,"load_struct_u64 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::store_t,"load_struct_f64 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
 
     {op_group::store_t,"store_struct_u8 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
     {op_group::store_t,"store_struct_u16 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
     {op_group::store_t,"store_struct_u32 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
     {op_group::store_t,"store_struct_u64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::store_t,"store_struct_f64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
 
     {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::dst_reg,arg_type::directive,arg_type::none}},
 

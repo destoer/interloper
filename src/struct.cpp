@@ -496,7 +496,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
     else
     {
         enum_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,enum_slot,struct_slot->slot,struct_slot->offset,ENUM_SIZE,false);
+        load_ptr(itl,func,enum_slot,struct_slot->slot,struct_slot->offset,ENUM_SIZE,false,false);
     }
 
     // update for new offset

@@ -292,7 +292,10 @@ void init_regs(LinearAlloc& alloc, u32 locked_set)
 
 
     // add sse regs
-    add_reg(alloc.fpr,x86_reg::xmm0,0);
+
+    // return reg reserved
+    //add_reg(alloc.fpr,x86_reg::xmm0,0);
+
     add_reg(alloc.fpr,x86_reg::xmm1,0);
     add_reg(alloc.fpr,x86_reg::xmm2,0);
     add_reg(alloc.fpr,x86_reg::xmm3,0);
@@ -307,7 +310,7 @@ void init_regs(LinearAlloc& alloc, u32 locked_set)
 }
 
 // NOTE: this relieso on pow2
-static_assert(MACHINE_REG_SIZE == 16);
+static_assert(MACHINE_REG_SIZE == 32);
 
 struct ActiveReg
 {
@@ -315,7 +318,7 @@ struct ActiveReg
     u32 size = 0;
 };
 
-void clean_dead_reg(RegisterFile& reg_file,ActiveReg &active, const LinearRange& cur)
+void clean_dead_reg(Interloper& itl, Function& func,LinearAlloc& alloc,ActiveReg &active, const LinearRange& cur)
 {
     u32 i;
     for(i = 0; i < active.size; i++)
@@ -335,6 +338,10 @@ void clean_dead_reg(RegisterFile& reg_file,ActiveReg &active, const LinearRange&
         // free the expired range
         else
         {
+            // check which register file to use
+            auto& ir_reg = reg_from_slot(itl,func,cmp.slot);
+            auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+
             //printf("free %d %d: %x [%d,%d] -> %x\n",i,active.size,cmp.slot.handle,cmp.start,cmp.end,cmp.location);
             free_reg(reg_file,cmp.location);
         }
@@ -420,11 +427,11 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 
         // actually run the allocation
 
+        // expire any dead sets
+        clean_dead_reg(itl,func,alloc,active,cur);
+
         // check which register file to use
         auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
-
-        // expire any dead sets
-        clean_dead_reg(reg_file,active,cur);
 
         const u32 reg = alloc_reg(reg_file);
 
@@ -583,15 +590,12 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
         // use scratch regs
         else
         {
-        #if 1
             // check which register file to use
             auto& ir_reg = reg_from_slot(slot,table,alloc);
             auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
 
             const u32 scratch_reg = reg_file.scratch_regs[reg];
-        #else 
-            const u32 scratch_reg = alloc.gpr.scratch_regs[reg];
-        #endif
+
 
             // rewrite in the register
             node->opcode.v[reg] = scratch_reg;
@@ -618,12 +622,11 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
     }
 
     // special reg just rewrite it to whatever it wants
-    // TODO_FPR: atm their are no special purpose fprs
     else if(is_special_reg(slot))
     {
         // make sure the spec regs are marked as used
         const u32 location = special_reg_to_reg(alloc.arch,slot);
-        mark_used(alloc.gpr,location);
+        mark_used(is_fpr(slot)? alloc.fpr : alloc.gpr,location);
         node->opcode.v[reg] = location;
     }
 }

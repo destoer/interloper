@@ -12,7 +12,7 @@
 #include "linear_alloc.cpp"
 #include "disass.cpp"
 
-u32 get_mov_register(LinearAlloc& alloc,SymSlot slot)
+u32 get_mov_register(LinearAlloc& alloc,RegisterFile& reg_file,SymSlot slot)
 {
     if(is_var(slot))
     {
@@ -32,13 +32,13 @@ u32 get_mov_register(LinearAlloc& alloc,SymSlot slot)
     else 
     {
         const u32 location = special_reg_to_reg(alloc.arch,slot);
-        mark_used(alloc.gpr,location);
+        mark_used(reg_file,location);
 
         return location;
     }
 }
 
-ListNode* move(Interloper& itl,LinearAlloc& alloc, Block& block, ListNode* node)
+ListNode* move(Interloper& itl,LinearAlloc& alloc,RegisterFile& reg_file, Block& block, ListNode* node)
 {
     auto &table = itl.symbol_table;
     const auto &opcode = node->opcode;
@@ -46,15 +46,11 @@ ListNode* move(Interloper& itl,LinearAlloc& alloc, Block& block, ListNode* node)
     const auto dst = sym_from_idx(opcode.v[0]);
     const auto src = sym_from_idx(opcode.v[1]);
 
-    const u32 src_reg = get_mov_register(alloc,src);
-    const u32 dst_reg = get_mov_register(alloc,dst);
+    const u32 src_reg = get_mov_register(alloc,reg_file,src);
+    const u32 dst_reg = get_mov_register(alloc,reg_file,dst);
 
     const b32 dst_free = dst_reg == REG_FREE;
     const b32 src_free = src_reg == REG_FREE;
-
-    // TODO_FPR: add optimised move's for fpr but for now
-    // we can just let it use dumb copys
-    auto& reg_file = alloc.gpr;
 
     // no dst and src
     // do memory to memory move
@@ -154,7 +150,13 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
     {
         case op_type::mov_reg:
         {
-            node = move(itl,alloc,block,node);
+            node = move(itl,alloc,alloc.gpr,block,node);
+            break;
+        }
+
+        case op_type::movf_reg:
+        {
+            node = move(itl,alloc,alloc.fpr,block,node);
             break;
         }
 
@@ -294,10 +296,12 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         case op_type::load_struct_u16:
         case op_type::load_struct_u32:
         case op_type::load_struct_u64:
+        case op_type::load_struct_f64:
         case op_type::store_struct_u8:
         case op_type::store_struct_u16:
         case op_type::store_struct_u32:
         case op_type::store_struct_u64:
+        case op_type::store_struct_f64:
         {
             node = rewrite_access_struct(alloc,table,block,node);
             break;
@@ -497,18 +501,19 @@ ListNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, ListNo
 
 // 2nd pass of rewriting on the IR
 ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, ListNode *node,
-    const u32 saved_regs,const Opcode& stack_clean)
+    const u32 saved_gpr, const u32 saved_fpr,const Opcode& stack_clean)
 {
     const auto opcode = node->opcode;
 
     switch(node->opcode.op)
     {
 
+        case op_type::movf_reg:
         case op_type::mov_reg:
         {
             // remove dead stores (still need to perform reg correction)
             // so it has to be done in the 2nd pass
-            if(opcode.op == op_type::mov_reg && opcode.v[0] == opcode.v[1])
+            if(opcode.v[0] == opcode.v[1])
             {
                 return remove(block.list,node);
             }
@@ -530,7 +535,10 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
             }
 
             // make sure callee restore comes after stack clean
-            emit_popm(itl,block,node,saved_regs);
+
+            // NOTE: as floats were last thing saved, they are tthe first to restore
+            ListNode* float_node = emit_popm_float(itl,block,node,saved_fpr);
+            emit_popm(itl,block,float_node,saved_gpr);
 
             node = node->next;
             break;
@@ -551,24 +559,31 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
 
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
 
-
-            // reload the spilled var
-            if(is_signed(reg))
+            if(!(reg.flags & REG_FLOAT))
             {
-                // word is register size (we dont need to extend it)
-                static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
+                // reload the spilled var
+                if(is_signed(reg))
+                {
+                    // word is register size (we dont need to extend it)
+                    static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
 
-                // this here does not otherwhise need rewriting so we will emit SP directly
-                node->opcode = Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);
+                    // this here does not otherwhise need rewriting so we will emit SP directly
+                    node->opcode = Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);
+                }
+
+                // "plain data"
+                // just move by size
+                else
+                {
+                    static const op_type instr[4] = {op_type::lb, op_type::lh, op_type::lw,op_type::ld};
+
+                    node->opcode =  Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);
+                }
             }
 
-            // "plain data"
-            // just move by size
             else
             {
-                static const op_type instr[4] = {op_type::lb, op_type::lh, op_type::lw,op_type::ld};
-
-                node->opcode =  Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);
+                node->opcode =  Opcode(op_type::lf,opcode.v[0],offset_reg,offset);
             }
 
             node = node->next;
@@ -635,6 +650,12 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
             break;
         }
 
+        case op_type::load_struct_f64:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::lf);
+            break;
+        }
+
         case op_type::store_struct_u8:
         {
             node = rewrite_access_struct_addr(itl,alloc,node,op_type::sb);
@@ -656,6 +677,12 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
         case op_type::store_struct_u64:
         {
             node = rewrite_access_struct_addr(itl,alloc,node,op_type::sd);
+            break;
+        }
+
+        case op_type::store_struct_f64:
+        {
+            node = rewrite_access_struct_addr(itl,alloc,node,op_type::sf);
             break;
         }
 
@@ -689,16 +716,18 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
             const s32 stack_offset = opcode.v[2];
 
             // write value back out into mem
-            // TODO: are these offsets aligned?
-
-            // TODO: we need to not bother storing these back if the varaible spilled has not been modified
-            // and is just used as a const for a calc (how do we impl this?)
-
-            static const op_type instr[4] = {op_type::sb, op_type::sh, op_type::sw,op_type::sd};
-
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
 
-            node->opcode = Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);
+            if(!(reg.flags & REG_FLOAT))
+            {
+                static const op_type instr[4] = {op_type::sb, op_type::sh, op_type::sw,op_type::sd};
+                node->opcode = Opcode(instr[log2(reg.size)],opcode.v[0],offset_reg,offset);
+            }
+
+            else
+            {
+                node->opcode = Opcode(op_type::sf,opcode.v[0],offset_reg,offset);
+            }
 
             node = node->next;
             break;
@@ -757,17 +786,23 @@ void allocate_registers(Interloper& itl,Function &func)
     const u32 CALLEE_GPR_SAVED_MASK = (1 << arch_rv(alloc.arch));
     const u32 SCRATCH_GPR_MASK = (1 << alloc.gpr.scratch_regs[0]) | (1 << alloc.gpr.scratch_regs[1]) | (1 << alloc.gpr.scratch_regs[2]); 
 
+    // RA is callee saved
+    const u32 CALLEE_FPR_SAVED_MASK = (1 << arch_frv(alloc.arch));
+    const u32 SCRATCH_FPR_MASK = (1 << alloc.fpr.scratch_regs[0]) | (1 << alloc.fpr.scratch_regs[1]) | (1 << alloc.fpr.scratch_regs[2]); 
+
    
     u32 saved_gpr = 0;
+    u32 saved_fpr = 0;
     
     // we dont want to save these on start
     if(func.name != "start")
     {
         // make sure callee saved regs are not saved inside the func
         saved_gpr = alloc.gpr.used_set & ~(CALLEE_GPR_SAVED_MASK | SCRATCH_GPR_MASK | (1 << arch_sp(alloc.arch)));
+        saved_fpr = alloc.fpr.used_set & ~(CALLEE_FPR_SAVED_MASK | SCRATCH_FPR_MASK);
 
         // return addr + saved regs + call stack
-        const u32 call_align = 1 + popcount(saved_gpr) + (func.sig.call_stack_size / GPR_SIZE);
+        const u32 call_align = 1 + popcount(saved_gpr) + popcount(saved_fpr) + (func.sig.call_stack_size / GPR_SIZE);
 
         // add pad to align the stack on the correct boundary
         if(call_align & 1 && !func.leaf_func)
@@ -778,7 +813,7 @@ void allocate_registers(Interloper& itl,Function &func)
     }
 
 
-    const u32 save_count = popcount(saved_gpr);
+    const u32 save_count = popcount(saved_gpr) + popcount(saved_fpr);
 
     log(alloc.print,"saved registers: %d (0x%x)\n",save_count,saved_gpr);
 
@@ -794,7 +829,8 @@ void allocate_registers(Interloper& itl,Function &func)
     // entry point does not need to preserve regs
     auto& start_block = func.emitter.program[0];
 
-    emit_pushm(itl,start_block,start_block.list.start,saved_gpr);
+    auto float_node = emit_pushm(itl,start_block,start_block.list.start,saved_gpr);
+    emit_pushm_float(itl,start_block,float_node,saved_fpr);
     
 
     const u32 SP = arch_sp(itl.arch);
@@ -808,7 +844,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         while(node)
         {
-            node = rewrite_directives(itl,alloc,block,node,saved_gpr,stack_clean);
+            node = rewrite_directives(itl,alloc,block,node,saved_gpr,saved_fpr,stack_clean);
         }
     }
 

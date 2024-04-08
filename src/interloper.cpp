@@ -29,8 +29,8 @@ SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
 SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type);
 SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type);
 
-void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed);
-void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size);
+void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed,b32 is_float);
+void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_float);
 
 std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 
@@ -988,7 +988,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // single return
                     if(count(record_node->nodes) == 1)
                     {
-                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],sym_from_idx(RV_IR));
+                        const SymSlot rv = is_float(func.sig.return_type[0])? sym_from_idx(RV_FLOAT_IR): sym_from_idx(RV_IR);
+                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],rv);
         
                         if(itl.error)
                         {

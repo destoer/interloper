@@ -38,6 +38,8 @@ enum class builtin_type
     void_t, 
 };
 
+static constexpr u32 FLOAT_SIZE = 8;
+
 static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
 static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
 static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;

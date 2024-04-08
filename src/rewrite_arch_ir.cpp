@@ -3,7 +3,7 @@
 // The machine code translator is basically a 1 to 1 mapping
 // outside of optimal instruction selection
 
-ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type)
+ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type, b32 is_float)
 {
     const auto dst = node->opcode.v[0];
     const auto v1 = node->opcode.v[1];
@@ -28,7 +28,7 @@ ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type
     // -> add dst, v2
     else
     {
-        node->opcode = Opcode(op_type::mov_reg,dst,v1,0);
+        node->opcode = Opcode(is_float? op_type::movf_reg : op_type::mov_reg,dst,v1,0);
         node = insert_after(block.list,node,Opcode(type,dst,v2,0));
     }
 
@@ -60,11 +60,13 @@ ListNode* rewrite_imm3_two(Block& block, ListNode* node,op_type type)
     return node->next;
 }
 
-ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type type)
+ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type type, b32 is_float)
 {
     const auto dst = node->opcode.v[0];
     const auto v1 = node->opcode.v[1];
     const auto v2 = node->opcode.v[2];
+
+    const op_type mov_op = is_float? op_type::movf_reg : op_type::mov_reg;
 
     // sub dst, dst, v2
     // -> sub dst, v2
@@ -79,10 +81,10 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     // -> mov dst, t0
     else if(dst == v2)
     {
-        const auto tmp = new_tmp(func,GPR_SIZE);
-        node->opcode = Opcode(op_type::mov_reg,tmp.handle,v1,0);
+        const auto tmp = is_float? new_float(func) : new_tmp(func,GPR_SIZE);
+        node->opcode = Opcode(mov_op,tmp.handle,v1,0);
         node = insert_after(block.list,node,Opcode(type,tmp.handle,v2,0));
-        node = insert_after(block.list,node,Opcode(op_type::mov_reg,dst,tmp.handle,0));
+        node = insert_after(block.list,node,Opcode(mov_op,dst,tmp.handle,0));
     }
 
     // sub dst, v1, v2
@@ -90,7 +92,7 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     // -> sub dst, v2
     else
     {
-        node->opcode = Opcode(op_type::mov_reg,dst,v1,0);
+        node->opcode = Opcode(mov_op,dst,v1,0);
         node = insert_after(block.list,node,Opcode(type,dst,v2,0));
     }
 
@@ -114,7 +116,7 @@ void assert_bound(u64 v,u64 min, u64 max)
 }
 
 // TODO: this assumes we have no access to the instruction
-void emit_popm(Interloper& itl, Block& block, ListNode* node, u32 bitset)
+ListNode* emit_popm(Interloper& itl, Block& block, ListNode* node, u32 bitset)
 {
     UNUSED(itl);
 
@@ -126,9 +128,11 @@ void emit_popm(Interloper& itl, Block& block, ListNode* node, u32 bitset)
             node = node->next;
         }
     }
+
+    return node;
 }
 
-void emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
+ListNode* emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
 {
     UNUSED(itl);
 
@@ -138,6 +142,63 @@ void emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
         {
             node = insert_at(block.list,node,Opcode(op_type::push,i,0,0));
             node = node->next;
+        }
+    }
+
+    return node;
+}
+
+ListNode* emit_popm_float(Interloper& itl, Block& block, ListNode* node, u32 bitset)
+{
+    if(!bitset)
+    {
+        return node;
+    }
+
+    const u32 size = popcount(bitset) * FLOAT_SIZE;
+
+    u32 offset = size - FLOAT_SIZE;
+
+    const u32 sp = arch_sp(itl.arch);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,Opcode(op_type::lf,i,sp,offset));
+            node = node->next;
+            offset -= FLOAT_SIZE;
+        }
+    }
+
+    node = insert_at(block.list,node,make_op(op_type::add_imm2,sp,size));
+    node = node->next;
+
+    return node;
+}
+
+void emit_pushm_float(Interloper& itl, Block& block, ListNode* node,u32 bitset)
+{
+    if(!bitset)
+    {
+        return;
+    }
+
+    const u32 size = popcount(bitset) * FLOAT_SIZE;
+    u32 offset = size - FLOAT_SIZE;
+
+    const u32 sp = arch_sp(itl.arch);
+
+    node = insert_at(block.list,node,make_op(op_type::sub_imm2,sp,size));
+    node = node->next;
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,Opcode(op_type::sf,i,sp,offset));
+            node = node->next;
+            offset -= FLOAT_SIZE;
         }
     }
 }
@@ -251,6 +312,22 @@ ListNode* rewrite_cmp_flag_reg(Block& block, ListNode* node, op_type set)
     // -> cmp_flags v1, v2
     // -> setsgt dst
     node->opcode = make_op(op_type::cmp_flags,v1,v2);
+    node = insert_after(block.list,node,make_op(set,dst));
+
+    return node->next;
+}
+
+
+ListNode* rewrite_cmp_flag_float(Block& block, ListNode* node, op_type set)
+{
+    const auto dst = node->opcode.v[0];
+    const auto v1 = node->opcode.v[1];
+    const auto v2 = node->opcode.v[2];
+
+    // cmpfgt dst,v1,v2
+    // -> cmp_flags_float v1, v2
+    // -> setugt dst
+    node->opcode = make_op(op_type::cmp_flags_float,v1,v2);
     node = insert_after(block.list,node,make_op(set,dst));
 
     return node->next;
@@ -381,7 +458,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::add_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::add_reg2);
+            return rewrite_reg3_two_commutative(block,node,op_type::add_reg2,false);
         }
 
         case op_type::add_imm:
@@ -391,7 +468,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::and_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::and_reg2);
+            return rewrite_reg3_two_commutative(block,node,op_type::and_reg2,false);
         }
 
         case op_type::lsl_imm:
@@ -406,7 +483,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::xor_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::xor_reg2);
+            return rewrite_reg3_two_commutative(block,node,op_type::xor_reg2,false);
         }
 
         case op_type::xor_imm: 
@@ -416,7 +493,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::or_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::or_reg2);
+            return rewrite_reg3_two_commutative(block,node,op_type::or_reg2,false);
         }
 
         case op_type::not_reg:
@@ -462,7 +539,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::sub_reg: 
         {
-            return rewrite_reg3_two(func,block,node,op_type::sub_reg2);
+            return rewrite_reg3_two(func,block,node,op_type::sub_reg2,false);
         }
 
         case op_type::sub_imm:
@@ -547,22 +624,22 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::addf_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::addf_reg2);
+            return rewrite_reg3_two_commutative(block,node,op_type::addf_reg2,true);
         }
     
         case op_type::subf_reg: 
         {
-            return rewrite_reg3_two(func,block,node,op_type::subf_reg2);
+            return rewrite_reg3_two(func,block,node,op_type::subf_reg2,true);
         }
 
         case op_type::mulf_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::mulf_reg2);
+            return rewrite_reg3_two_commutative(block,node,op_type::mulf_reg2,true);
         }
 
         case op_type::divf_reg: 
         {
-            return rewrite_reg3_two(func,block,node,op_type::divf_reg2);
+            return rewrite_reg3_two(func,block,node,op_type::divf_reg2,true);
         }
 
         case op_type::movf_imm:
@@ -571,12 +648,52 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
             // dump float in the const pool table so we can do a relative load
             const auto pool_slot = push_const_pool(itl.const_pool,pool_type::var,&v,sizeof(f64));
-            node->opcode = make_op(op_type::load_const_float,opcode.v[0],pool_slot.handle,bit_cast_from_f64(v));
+            node->opcode = make_op(op_type::load_const_float,opcode.v[0],pool_slot.handle,opcode.v[1]);
             return node->next;
+        }
+
+        case op_type::cmpflt_reg:
+        {
+            return rewrite_cmp_flag_float(block,node,op_type::setflt);
+        }
+
+        case op_type::cmpfle_reg:
+        {
+            return rewrite_cmp_flag_float(block,node,op_type::setfle);
+        }
+
+        case op_type::cmpfgt_reg:
+        {
+            return rewrite_cmp_flag_float(block,node,op_type::setfgt);
+        }
+
+        case op_type::cmpfge_reg:
+        {
+            return rewrite_cmp_flag_float(block,node,op_type::setfge);
+        }
+
+        case op_type::cmpfeq_reg:
+        {
+            return rewrite_cmp_flag_float(block,node,op_type::setfeq);
+        }
+
+        case op_type::cmpfne_reg:
+        {
+            return rewrite_cmp_flag_float(block,node,op_type::setfne);
+        }
+
+        case op_type::push_float_arg:
+        {
+            const auto src = node->opcode.v[0];
+
+            node->opcode = make_op(op_type::alloc_stack,8);
+            node = insert_after(block.list,node,make_op(op_type::sf,src,SP_IR,0));
+            break;
         }
 
         case op_type::cvt_fi: break;
         case op_type::cvt_if: break;
+        case op_type::cmp_flags_float: break;
 
         case op_type::call: break;
         case op_type::call_reg: break;
@@ -586,7 +703,9 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         case op_type::mov_imm: break;
         case op_type::mov_reg: break;
 
+        case op_type::movf_reg: break;
         case op_type::lf: break;
+        case op_type::sf: break;
 
         case op_type::lb: break;
         case op_type::lh: break;

@@ -548,7 +548,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             check_assign_arg(itl,arg_type,rtype);
 
             // finally push the arg
-            push_arg(itl,func,reg);
+            is_float(rtype)? push_float_arg(itl,func,reg) : push_arg(itl,func,reg);
 
             arg_clean++;
         }
@@ -607,8 +607,8 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     const SymSlot any_len_slot = mov_imm_res(itl,func,any_args);
 
     // store data
-    store_ptr(itl,func,any_arr_ptr,sym_from_idx(SP_IR),0,GPR_SIZE);
-    store_ptr(itl,func,any_len_slot,sym_from_idx(SP_IR),GPR_SIZE,GPR_SIZE);      
+    store_ptr(itl,func,any_arr_ptr,sym_from_idx(SP_IR),0,GPR_SIZE,false);
+    store_ptr(itl,func,any_len_slot,sym_from_idx(SP_IR),GPR_SIZE,GPR_SIZE,false);      
 
     
     const u32 total_size = any_arr_size + VLA_SIZE;
@@ -804,7 +804,9 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     // store the return value back into a reg (if its actually binded)
     if(returns_value && dst_slot.handle != NO_SLOT && !sig.hidden_args)
     {
-        compile_move(itl,func,dst_slot,sym_from_idx(RV_IR),sig.return_type[0],sig.return_type[0]);
+        const SymSlot rv = is_float(sig.return_type[0])? sym_from_idx(RV_FLOAT_IR): sym_from_idx(RV_IR);
+
+        compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]);
     }
     
 

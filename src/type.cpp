@@ -1166,6 +1166,12 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
             }
         }
 
+        // both float
+        else if(is_float(rtype) && is_float(ltype))
+        {
+
+        }
+
         // both bool
         else if(builtin_r == builtin_type::bool_t && builtin_l == builtin_type::bool_t)
         {

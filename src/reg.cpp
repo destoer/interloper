@@ -204,7 +204,7 @@ Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
     return reg;
 }
 
-Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
+Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed, b32 is_float)
 {
     Reg reg;
     reg.kind = kind;
@@ -214,6 +214,11 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed)
     if(is_signed)
     {
         reg.flags |= SIGNED_FLAG;
+    }
+
+    if(is_float)
+    {
+        reg.flags |= REG_FLOAT;
     }
 
     reg.slot = {slot};
@@ -265,10 +270,20 @@ SymSlot new_tmp(Function& func, u32 size)
 {
     const u32 slot = count(func.registers);
 
-    const auto reg = make_reg(reg_kind::tmp,size,slot,false);
+    const auto reg = make_reg(reg_kind::tmp,size,slot,false,false);
     push_var(func.registers,reg);
 
     return sym_from_idx(slot);
+}
+
+SymSlot new_float(Function& func)
+{
+    const u32 slot = count(func.registers);
+
+    const auto reg = make_reg(reg_kind::tmp,8,slot,false,true);
+    push_var(func.registers,reg);
+
+    return sym_from_idx(slot);   
 }
 
 SymSlot new_tmp_ptr(Function &func)
@@ -312,12 +327,14 @@ struct ArchInfo
 {
     u32 sp;
     u32 rv;
+    u32 frv;
     u32 gpr;
+    u32 fpr;
 };
 
 static constexpr ArchInfo ARCH_TABLE[ARCH_SIZE] = 
 {
-    {u32(x86_reg::rsp),u32(x86_reg::rax),15}, // x86
+    {u32(x86_reg::rsp),u32(x86_reg::rax),u32(x86_reg::xmm0),15,15}, // x86
 };
 
 ArchInfo info_from_arch(arch_target arch)
@@ -338,6 +355,14 @@ u32 arch_rv(arch_target arch)
 
     return info.rv;
 }
+
+u32 arch_frv(arch_target arch)
+{
+    const auto info = info_from_arch(arch);
+
+    return info.frv;
+}
+
 
 
 
@@ -470,6 +495,19 @@ u32 special_reg_to_reg(arch_target arch,SymSlot slot)
             assert(false);
         }
 
+        case RV_FLOAT_IR: 
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::xmm0;
+                }
+            }
+            assert(false);
+        }
+
+
         case RAX_IR: return u32(x86_reg::rax);
         case RCX_IR: return u32(x86_reg::rcx);
         case RDX_IR: return u32(x86_reg::rdx);
@@ -481,6 +519,12 @@ u32 special_reg_to_reg(arch_target arch,SymSlot slot)
 
         default: crash_and_burn("unhandled special reg %x\n",slot); 
     }    
+}
+
+// TODO: we may want a table to back this at some point
+b32 is_fpr(SymSlot slot)
+{
+    return slot.handle == RV_FLOAT_IR;
 }
 
 std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)

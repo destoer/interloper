@@ -233,17 +233,19 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
     if(is_trivial_copy(type))
     {
         // store type struct
-        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE);  
+        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false);  
+
+        const b32 fp = is_float(type);
 
         // store data
-        store_ptr(itl,func,src,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);              
+        store_ptr(itl,func,src,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,fp);              
     } 
 
     // allready in memory just store a the pointer to it
     else if(is_array(type))
     {
         // store type struct
-        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE); 
+        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false); 
 
         // directly store array pointer into the data pointer
         if(is_fixed_array(type))
@@ -251,7 +253,7 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
             const auto arr_data_slot = load_arr_data(itl,func,src,type);
 
             // store data
-            store_ptr(itl,func,arr_data_slot,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);
+            store_ptr(itl,func,arr_data_slot,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
         }
 
         // runtime size
@@ -260,7 +262,7 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
             const auto arr_ptr = addrof_res(itl,func,src);
 
             // store data
-            store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);
+            store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
         }   
     }
 

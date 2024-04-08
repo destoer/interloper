@@ -196,13 +196,13 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
 {
     BinNode* bin_node = (BinNode*)node;
 
-    auto [type_left,v1] = compile_oper(itl,func,bin_node->left);
-    auto [type_right,v2] = compile_oper(itl,func,bin_node->right);
+    auto [ltype,v1] = compile_oper(itl,func,bin_node->left);
+    auto [rtype,v2] = compile_oper(itl,func,bin_node->right);
 
 
 
     // if one side is a value do type checking
-    if(is_integer(type_left) && is_integer(type_right))
+    if(is_integer(ltype) && is_integer(rtype))
     {
         if(bin_node->left->type == ast_type::value || bin_node->right->type == ast_type::value)
         {
@@ -211,12 +211,12 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
                 ValueNode* value_node = (ValueNode*)bin_node->left;
                 const u64 v = value_node->value.v;
 
-                const b32 coerce = check_static_cmp(itl,type_left,type_right,v);
+                const b32 coerce = check_static_cmp(itl,ltype,rtype,v);
 
                 // within range coerce value type to variable type
                 if(coerce)
                 {
-                    type_left = type_right;
+                    ltype = rtype;
                 }
             }
 
@@ -227,12 +227,12 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
                 const u64 v = value_node->value.v;
 
                 
-                const b32 coerce = check_static_cmp(itl,type_right,type_left,v);
+                const b32 coerce = check_static_cmp(itl,rtype,ltype,v);
 
                 // within range coerce value type to variable type
                 if(coerce)
                 {
-                    type_right = type_left;
+                    rtype = ltype;
                 }
             }
         } 
@@ -249,7 +249,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
 
         case logic_op::or_reg: case logic_op::and_reg:
         {
-            if(!is_bool(type_left) && is_bool(type_right))
+            if(!is_bool(ltype) && is_bool(rtype))
             {
                 panic(itl,itl_error::bool_type_error,"operations || and && are only defined on bools\n");
             }
@@ -263,7 +263,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
         case logic_op::cmplt_reg: case logic_op::cmple_reg: case logic_op::cmpgt_reg:
         case logic_op::cmpge_reg: case logic_op::cmpeq_reg: case logic_op::cmpne_reg:
         {
-            check_logical_operation(itl,type_left,type_right,type);
+            check_logical_operation(itl,ltype,rtype,type);
             break;
         }
 
@@ -276,31 +276,48 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
 
     if(!itl.error)
     {
-        // 0 is unsigned, 1 is signed
-        static constexpr op_type LOGIC_OPCODE[2][LOGIC_OP_SIZE] = 
+        // float 
+        if(is_float(ltype))
         {
-            {op_type::cmpugt_imm,op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
-            op_type::cmpeq_reg,op_type::cmpne_reg,op_type::and_reg,op_type::or_reg},
+            static constexpr op_type LOGIC_OPCODE[LOGIC_OP_SIZE] = 
+            {
+                op_type::cmpflt_reg,op_type::cmpfle_reg,op_type::cmpfgt_reg,op_type::cmpfge_reg,
+                op_type::cmpfeq_reg,op_type::cmpfne_reg,op_type::and_reg,op_type::or_reg,         
+            };
 
-            {op_type::cmpsgt_imm,op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
-            op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg, op_type::and_reg,op_type::or_reg},
-        };
-
-
-        // TODO: fixme this should only be done when we know we have a builtin type
-        // else we dont care
-        const b32 sign = is_signed(type_left);
-
-        if(sign)
-        {
-            constexpr op_type opcode_type = LOGIC_OPCODE[1][u32(type)];
+            constexpr op_type opcode_type = LOGIC_OPCODE[u32(type)];
             emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
         }
 
+        // integer operation
         else
         {
-            constexpr op_type opcode_type = LOGIC_OPCODE[0][u32(type)];
-            emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+            // 0 is unsigned, 1 is signed
+            static constexpr op_type LOGIC_OPCODE[2][LOGIC_OP_SIZE] = 
+            {
+                {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
+                op_type::cmpeq_reg,op_type::cmpne_reg,op_type::and_reg,op_type::or_reg},
+
+                {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
+                op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg, op_type::and_reg,op_type::or_reg},
+            };
+
+
+            // TODO: fixme this should only be done when we know we have a builtin type
+            // else we dont care
+            const b32 sign = is_signed(ltype);
+
+            if(sign)
+            {
+                constexpr op_type opcode_type = LOGIC_OPCODE[1][u32(type)];
+                emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+            }
+
+            else
+            {
+                constexpr op_type opcode_type = LOGIC_OPCODE[0][u32(type)];
+                emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+            }
         }
 
         return make_builtin(itl,builtin_type::bool_t);
@@ -327,7 +344,15 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
     // NOTE: we use this here so we dont have to care about the underyling type if its a pointer
     if(is_trivial_copy(dst_type) && is_trivial_copy(src_type))
     {
-        mov_reg(itl,func,dst_slot,src_slot);
+        if(is_float(dst_type))
+        {
+            mov_float(itl,func,dst_slot,src_slot);
+        }
+
+        else
+        {
+            mov_reg(itl,func,dst_slot,src_slot);
+        }
     }
 
     else if(is_array(dst_type) && is_array(src_type))
@@ -353,10 +378,10 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
             }
 
             const SymSlot data_slot = load_arr_data(itl,func,src_slot,src_type);
-            store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE);
+            store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE,false);
 
             const SymSlot len_slot = load_arr_len(itl,func,src_slot,src_type);
-            store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE);
+            store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false);
         } 
     }
 

@@ -48,9 +48,14 @@ void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_sl
 }
 
 
-void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed)
+void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed, b32 is_float)
 {
-    if(is_signed)
+    if(is_float)
+    {
+        load_float(itl,func,dst_slot,addr_slot,offset);
+    }
+
+    else if(is_signed)
     {
         switch(size)
         {
@@ -115,9 +120,14 @@ void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,
     }
 }
 
-void load_struct(Interloper &itl,Function& func,SymSlot dst_slot,AddrSlot addr_slot,u32 size, b32 is_signed)
+void load_struct(Interloper &itl,Function& func,SymSlot dst_slot,AddrSlot addr_slot,u32 size, b32 is_signed, b32 is_float)
 {
-    if(is_signed)
+    if(is_float)
+    {
+        load_struct_internal(itl,func,op_type::load_struct_f64,dst_slot,addr_slot);  
+    }
+
+    else if(is_signed)
     {
         const op_type SIGNED_LOAD_STRUCT_TABLE[] = {op_type::load_struct_s8,op_type::load_struct_s16,op_type::load_struct_s32,op_type::load_struct_u64};
         const u32 idx = log2(size);
@@ -138,16 +148,16 @@ void load_struct(Interloper &itl,Function& func,SymSlot dst_slot,AddrSlot addr_s
     }
 }
 
-void load_addr_slot(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, u32 size, b32 sign)
+void load_addr_slot(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, u32 size, b32 sign, b32 is_float)
 {
     if(addr_slot.struct_addr)
     {
-        load_struct(itl,func,dst_slot,addr_slot,size,sign);
+        load_struct(itl,func,dst_slot,addr_slot,size,sign,is_float);
     }
 
     else
     {
-        load_ptr(itl,func,dst_slot,addr_slot.slot,addr_slot.offset,size,sign);
+        load_ptr(itl,func,dst_slot,addr_slot.slot,addr_slot.offset,size,sign,is_float);
     }
 }
 
@@ -193,8 +203,9 @@ void do_addr_load(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot src_a
     else if(size <= GPR_SIZE)
     {
         const b32 sign = is_signed(type);
+        const b32 fp = is_float(type);
 
-        load_addr_slot(itl,func,dst_slot,src_addr,size,sign);
+        load_addr_slot(itl,func,dst_slot,src_addr,size,sign,fp);
     }            
 
     else
@@ -211,59 +222,75 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot ptr_slo
 
 
 
-void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot dst_addr,u32 offset,u32 size)
+void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot dst_addr,u32 offset,u32 size, b32 is_float)
 {
-    switch(size)
+    if(is_float)
     {
-        case 1:
-        {
-            store_byte(itl,func,src_slot,dst_addr,offset);
-            break;
-        }
-
-        case 2: 
-        {
-            store_half(itl,func,src_slot,dst_addr,offset);
-            break;
-        }
-
-        case 4:
-        {
-            store_word(itl,func,src_slot,dst_addr,offset);
-            break;
-        }
-
-        case 8:
-        {
-            store_double(itl,func,src_slot,dst_addr,offset);
-            break;
-        }
-
-        default: assert(false);
-    }    
-}
-
-
-void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot dst_addr,u32 size)
-{
-    const op_type STORE_STRUCT_TABLE[] = {op_type::store_struct_u8,op_type::store_struct_u16,op_type::store_struct_u32,op_type::store_struct_u64};
-    const u32 idx = log2(size);
-
-    assert(idx <= 3);
-
-    load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,dst_addr);      
-}
-
-void store_addr_slot(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_addr, u32 size)
-{
-    if(dst_addr.struct_addr)
-    {
-        store_struct(itl,func,src_slot,dst_addr,size);
+        store_float(itl,func,src_slot,dst_addr,offset);
     }
 
     else
     {
-        store_ptr(itl,func,src_slot,dst_addr.slot,dst_addr.offset,size);
+        switch(size)
+        {
+            case 1:
+            {
+                store_byte(itl,func,src_slot,dst_addr,offset);
+                break;
+            }
+
+            case 2: 
+            {
+                store_half(itl,func,src_slot,dst_addr,offset);
+                break;
+            }
+
+            case 4:
+            {
+                store_word(itl,func,src_slot,dst_addr,offset);
+                break;
+            }
+
+            case 8:
+            {
+                store_double(itl,func,src_slot,dst_addr,offset);
+                break;
+            }
+
+            default: assert(false);
+        }
+    }    
+}
+
+
+void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot dst_addr,u32 size, b32 is_float)
+{
+    if(is_float)
+    {
+        load_struct_internal(itl,func,op_type::store_struct_f64,src_slot,dst_addr);
+    }
+
+    else
+    {
+        const op_type STORE_STRUCT_TABLE[] = {op_type::store_struct_u8,op_type::store_struct_u16,op_type::store_struct_u32,op_type::store_struct_u64};
+        const u32 idx = log2(size);
+
+        assert(idx <= 3);
+
+        load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,dst_addr);
+    }      
+}
+
+void store_addr_slot(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_addr, u32 size,b32 is_float)
+{
+    if(dst_addr.struct_addr)
+    {
+        store_struct(itl,func,src_slot,dst_addr,size,is_float);
+    }
+
+    else
+    {
+        store_ptr(itl,func,src_slot,dst_addr.slot,dst_addr.offset,size,is_float);
     }
 }
 
@@ -274,7 +301,8 @@ void do_addr_store(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_
 
     if(size <= GPR_SIZE)
     {
-        store_addr_slot(itl,func,src_slot,dst_addr,size);
+        const b32 fp = is_float(type);
+        store_addr_slot(itl,func,src_slot,dst_addr,size,fp);
     }
 
     // large copy
