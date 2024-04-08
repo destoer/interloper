@@ -866,7 +866,6 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
         else
         {
             const SymSlot tmp = imm_zero(itl,func);
-
             do_addr_store(itl,func,tmp,member_addr,member.type);
         }
     }

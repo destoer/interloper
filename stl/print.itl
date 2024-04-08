@@ -101,6 +101,133 @@ func linefeed()
     putchar('\n');
 }
 
+func print_float(v : f64, spec_dp: u32)
+{
+    //printf("stl: %lf\n",v);
+
+    // we need to pull apart the components to handle special values
+    // because of strict aliasing the only way is to use memcpy
+    // and int cast will floor the value which is not what we want
+    raw := bit_cast<f64,u64>(v);
+
+    sign : bool = cast(bool,raw >> 63);
+    exp := (raw >> 52) & 0b1111_1111_111;
+    sig := raw & ~(0b1111_1111_1111_11 << 52);
+
+    if(exp == 0b1111_1111_111)
+    {
+        if(sig == 0)
+        {
+            if(sign)
+            {
+                print("-inf\n");
+            }
+
+            else
+            {
+                print("+inf\n");
+            }
+        }
+
+        else
+        {
+            print("NaN\n");
+        }
+
+        return;
+    }
+
+
+    constant BUF_SIZE: u32 = 256;
+
+    buffer: c8[BUF_SIZE];
+
+    dp: u32 = 0;
+    idx: u32 = 0;
+
+    // adjust so its +ve for the below algorithm
+    if(sign)
+    {
+        buffer[idx] = '-';
+        idx += 1;
+        v = -v;
+
+        // offset dp
+        dp += 1;
+    }
+
+    whole_digits: u32 = 0;
+    digits: u32 = 0;
+
+    // rescale so we have it 10^1 units
+    if(v > 1.0)
+    {
+        // resacle this to have so we have a single whole digit
+        // TODO: how do you actually compute these?
+    /*
+        power := cast(u32,log10(v));
+        v = v / cast(f64,pow(10.0,power));
+    */
+        power := 0;
+
+        // if we have say 10^2 we have 100 i.e 3 whole digits
+        whole_digits = power + 1;
+        dp += whole_digits;
+    }
+
+    // special case '0' digit
+    else
+    {
+        whole_digits = 1;
+
+        buffer[idx] = '0';
+        idx += 1;
+        digits += 1;
+
+        dp += 1;
+        v *= 10.0;
+    }
+
+
+    // can print whole digits plus number of dp
+    allowed_prec := whole_digits + spec_dp;
+
+    // okay at this point we can just shift each digit out the rhs
+    // until the number hits zero like any other printing algorithm
+    // this will cause precision problems using floats to calculate this however
+    while(v > 0.0 && idx < BUF_SIZE && digits < allowed_prec)
+    {
+        // set dp
+        if(idx == dp)
+        {
+            buffer[idx] = '.';
+            idx += 1;
+        }
+
+        digit := cast(s32,v);
+
+        // convert digit to char
+        buffer[idx] = cast(c8,'0' + digit);
+        idx += 1;
+        digits += 1;
+
+        // move in next digit
+        v -= cast(f64,digit);
+        v *= 10.0;
+    }
+
+    // pad with 0 till desired formatting
+    while(digits < allowed_prec)
+    {
+        buffer[idx] = '0';
+        idx += 1;
+        digits += 1;
+    }
+
+    // write out the result
+    write_str_raw(&buffer[0],idx);
+}
+
 func print_arg(arg : Any, specifier : c8)
 {
     type := arg.type;
@@ -161,7 +288,9 @@ func print_arg(arg : Any, specifier : c8)
 
         case itl_type::f64_t:
         {
-            crash_and_burn("print float");
+            float := float_from_any(arg);
+
+            print_float(float,6);
         }
 
         case itl_type::bool_t:

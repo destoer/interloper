@@ -733,7 +733,15 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         // default init
         else
         {
-            mov_imm(itl,func,slot,0);
+            if(is_float(ltype))
+            {
+                movf_imm(itl,func,slot,0.0);
+            }
+
+            else
+            {
+                mov_imm(itl,func,slot,0);
+            }
         }
     } 
 

@@ -172,6 +172,11 @@ func int_from_any(any : const Any) u64
     return cast(u64,any.data);
 }
 
+func float_from_any(any : const Any) f64
+{
+    return bit_cast<u64,f64>(cast(u64,any.data));
+}
+
 func bool_from_any(any : const Any) bool
 {
     type : builtin_type;

@@ -24,6 +24,8 @@ func main() s32
     b := 0xdead_beef_cafe_babe;
     std::print("{x}\n",b);
 
+    std::print("{}\n",5.5 + 2.25);
+
     //invalid print
     //std::print("{} : {}\n","boop");
 

@@ -1225,19 +1225,33 @@ FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& to
     {
         consume(parser,token_type::logical_lt);
 
-        if(match(parser,token_type::symbol))
-        {
-            const auto name = next_token(parser);
-            push_var(f->generic_name,name.literal);
-        }
+        bool done = false;
 
-        else
+        while(!done)
         {
-            panic(parser,token,"unexecpted token in generic decl");
-            return nullptr;
-        }
+            if(match(parser,token_type::symbol))
+            {
+                const auto name = next_token(parser);
+                push_var(f->generic_name,name.literal);
+            }
 
-        consume(parser,token_type::logical_gt);
+            else
+            {
+                panic(parser,token,"unexecpted token in generic decl");
+                return nullptr;
+            }
+
+            if(match(parser,token_type::comma))
+            {
+                consume(parser,token_type::comma);
+            }
+
+            else
+            {
+                consume(parser,token_type::logical_gt);
+                done = true;
+            }
+        }
     }
 
     if(parser.error)

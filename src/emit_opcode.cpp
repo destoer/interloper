@@ -10,6 +10,15 @@ void movf_imm(Interloper& itl, Function& func, SymSlot dst, f64 v1)
     emit_fp_imm1<op_type::movf_imm>(itl,func,dst,v1);
 }
 
+SymSlot movf_imm_res(Interloper& itl, Function& func, f64 v1)
+{
+    const auto dst = new_float(func);
+
+    emit_fp_imm1<op_type::movf_imm>(itl,func,dst,v1);
+
+    return dst;
+}
+
 void addf(Interloper& itl, Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
     emit_reg3<op_type::addf_reg>(itl,func,dst,v1,v2);

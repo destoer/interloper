@@ -1047,6 +1047,17 @@ void cvt_fi(AsmEmitter& emitter, x86_reg dst, x86_reg src)
     push_u8(emitter,mod_rm(dst,src));
 }
 
+
+
+void cvt_if(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // cvtsi2sd r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x2a'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
 void cmp_flags_float(AsmEmitter& emitter, x86_reg dst, x86_reg src)
 {
     // ucomisd r, m
@@ -1574,6 +1585,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::setfne:
         {
             setfne(emitter,dst);
+            break;
+        }
+
+        case op_type::cvt_if:
+        {
+            cvt_if(emitter,dst,v1);
             break;
         }
 
