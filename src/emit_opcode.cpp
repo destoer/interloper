@@ -21,22 +21,22 @@ SymSlot movf_imm_res(Interloper& itl, Function& func, f64 v1)
 
 void addf(Interloper& itl, Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
-    emit_reg3<op_type::addf_reg>(itl,func,dst,v1,v2);
+    emit_float3<op_type::addf_reg>(itl,func,dst,v1,v2);
 }
 
 void subf(Interloper& itl, Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
-    emit_reg3<op_type::subf_reg>(itl,func,dst,v1,v2);
+    emit_float3<op_type::subf_reg>(itl,func,dst,v1,v2);
 }
 
 void mulf(Interloper& itl, Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
-    emit_reg3<op_type::mulf_reg>(itl,func,dst,v1,v2);
+    emit_float3<op_type::mulf_reg>(itl,func,dst,v1,v2);
 }
 
 void divf(Interloper& itl, Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
-    emit_reg3<op_type::divf_reg>(itl,func,dst,v1,v2);
+    emit_float3<op_type::divf_reg>(itl,func,dst,v1,v2);
 }
 
 void cvt_fi(Interloper& itl, Function& func, SymSlot dst, SymSlot v1)
@@ -128,7 +128,7 @@ void call_reg(Interloper& itl,Function& func, SymSlot slot)
 
 void branch_reg(Interloper& itl, Function&func, SymSlot target)
 {
-    emit_reg1<op_type::b_reg>(itl,func,target);
+    emit_branch_reg<op_type::b_reg>(itl,func,target);
 }
 
 void ret(Interloper& itl, Function& func)
@@ -167,7 +167,7 @@ void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
 
 void mov_float(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
 {
-    emit_reg2<op_type::movf_reg>(itl,func,dst,src);
+    emit_float2<op_type::movf_reg>(itl,func,dst,src);
 }
 
 void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)

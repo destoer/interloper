@@ -293,6 +293,7 @@ static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 enum class op_group
 {
     reg_t,
+    float_t,
     regm_t,
     imm_t,
     load_t,
