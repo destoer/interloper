@@ -77,7 +77,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
             {
                 const auto tmp = new_tmp_ptr(func);
 
-                load_ptr(itl,func,tmp,last_slot,0,GPR_SIZE,false);
+                load_ptr(itl,func,tmp,last_slot,0,GPR_SIZE,false,false);
 
                 last_slot = tmp;
             }
@@ -323,12 +323,12 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                             const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
 
                             const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
-                            store_addr_slot(itl,func,arr_data,*addr_slot,GPR_SIZE);
+                            store_addr_slot(itl,func,arr_data,*addr_slot,GPR_SIZE,false);
 
                             addr_slot->offset += GPR_SIZE;
 
                             const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
-                            store_addr_slot(itl,func,arr_size,*addr_slot,GPR_SIZE);
+                            store_addr_slot(itl,func,arr_size,*addr_slot,GPR_SIZE,false);
 
                             addr_slot->offset += GPR_SIZE;
                         }
@@ -610,10 +610,10 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
     {
         const auto zero = mov_imm_res(itl,func,0);
 
-        store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE);
+        store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE,false);
         addr_slot.offset += GPR_SIZE;
 
-        store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE);
+        store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE,false);
         addr_slot.offset += GPR_SIZE;
     }        
 }

@@ -93,7 +93,7 @@ void type_panic(Parser &parser)
 
 bool is_builtin_type_tok(const Token &tok)
 {
-   return tok.type >= token_type::u8 && tok.type <= token_type::bool_t; 
+   return tok.type >= token_type::u8 && tok.type <= token_type::f64_t; 
 }
 
 builtin_type builtin_type_from_tok(const Token& tok)
@@ -1225,19 +1225,33 @@ FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& to
     {
         consume(parser,token_type::logical_lt);
 
-        if(match(parser,token_type::symbol))
-        {
-            const auto name = next_token(parser);
-            push_var(f->generic_name,name.literal);
-        }
+        bool done = false;
 
-        else
+        while(!done)
         {
-            panic(parser,token,"unexecpted token in generic decl");
-            return nullptr;
-        }
+            if(match(parser,token_type::symbol))
+            {
+                const auto name = next_token(parser);
+                push_var(f->generic_name,name.literal);
+            }
 
-        consume(parser,token_type::logical_gt);
+            else
+            {
+                panic(parser,token,"unexecpted token in generic decl");
+                return nullptr;
+            }
+
+            if(match(parser,token_type::comma))
+            {
+                consume(parser,token_type::comma);
+            }
+
+            else
+            {
+                consume(parser,token_type::logical_gt);
+                done = true;
+            }
+        }
     }
 
     if(parser.error)
@@ -2035,6 +2049,14 @@ void print(const AstNode *root, b32 override_seperator)
             {
                 printf("value: %lu\n",value_node->value.v);
             }
+            break;
+        }
+
+        case ast_fmt::float_t:
+        {
+            FloatNode* float_node = (FloatNode*)root;
+
+            printf("float: %lf\n",float_node->value);
             break;
         }
 

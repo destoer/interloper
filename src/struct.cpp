@@ -496,7 +496,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
     else
     {
         enum_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,enum_slot,struct_slot->slot,struct_slot->offset,ENUM_SIZE,false);
+        load_ptr(itl,func,enum_slot,struct_slot->slot,struct_slot->offset,ENUM_SIZE,false,false);
     }
 
     // update for new offset
@@ -866,7 +866,6 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
         else
         {
             const SymSlot tmp = imm_zero(itl,func);
-
             do_addr_store(itl,func,tmp,member_addr,member.type);
         }
     }

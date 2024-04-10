@@ -9,6 +9,21 @@ struct LinearRange
     b32 dst_live = false;
 };
 
+struct RegisterFile
+{
+    // need's to be as large as the code size
+    // i.e 2 on x86 3 on mips
+    // NOTE: we dont have to mark these as used
+    // as by definition we dont care about their values
+    u32 scratch_regs[3];
+
+    // what registers have we used total for this function?
+    u32 used_set = 0;
+
+    // what registers are we allowed to use?
+    u32 free_set = 0;
+};
+
 // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
 struct LinearAlloc
 {
@@ -27,17 +42,8 @@ struct LinearAlloc
 
     b32 stack_only = false;
 
-    // need's to be as large as the code size
-    // i.e 2 on x86 3 on mips
-    // NOTE: we dont have to mark these as used
-    // as by definition we dont care about their values
-    u32 scratch_regs[3];
-
-    // what registers have we used total for this function?
-    u32 used_set = 0;
-
-    // what registers are we allowed to use?
-    u32 free_set = 0;
+    RegisterFile gpr;
+    RegisterFile fpr;
 
     StackAlloc stack_alloc;
 };
@@ -48,9 +54,9 @@ void print_reg_alloc(LinearAlloc& alloc)
     UNUSED(alloc);
 }
 
-void mark_used(LinearAlloc& alloc, u32 reg)
+void mark_used(RegisterFile& regs, u32 reg)
 {
-    alloc.used_set = set_bit(alloc.used_set,reg);
+    regs.used_set = set_bit(regs.used_set,reg);
 }
 
 LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,b32 stack_only,Array<Reg> registers,arch_target arch)
@@ -69,9 +75,13 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,b32 stack_only,Array
         case arch_target::x86_64_t:
         {
             // setup our two scratch regs
-            alloc.scratch_regs[0] = u32(x86_reg::r11);
-            alloc.scratch_regs[1] = u32(x86_reg::r12);
-            alloc.scratch_regs[2] = REG_FREE;
+            alloc.gpr.scratch_regs[0] = u32(x86_reg::r11);
+            alloc.gpr.scratch_regs[1] = u32(x86_reg::r12);
+            alloc.gpr.scratch_regs[2] = REG_FREE;
+
+            alloc.fpr.scratch_regs[0] = u32(x86_reg::xmm6);
+            alloc.fpr.scratch_regs[1] = u32(x86_reg::xmm7);
+            alloc.fpr.scratch_regs[2] = REG_FREE;
 
             break;
         }
@@ -204,24 +214,24 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
     return range;
 }
 
-void add_reg(LinearAlloc& alloc, u32 reg)
+void free_reg(RegisterFile& regs,u32 reg)
 {
-    alloc.free_set = set_bit(alloc.free_set,reg);
+    regs.free_set = set_bit(regs.free_set,reg);
 }
 
-void remove_reg(LinearAlloc& alloc, u32 reg)
+void remove_reg(RegisterFile& regs, u32 reg)
 {
-    alloc.free_set = deset_bit(alloc.free_set,reg);
+    regs.free_set = deset_bit(regs.free_set,reg);
 }
 
-void add_gpr(LinearAlloc& alloc, x86_reg reg, u32 locked_set)
+void add_reg(RegisterFile& regs, x86_reg reg, u32 locked_set)
 {
     const u32 locked = (1 << u32(reg)) & locked_set;
 
     // check register not locked
     if(!locked)
     {
-        add_reg(alloc,u32(reg));
+        free_reg(regs,u32(reg));
     }
 }
 
@@ -230,65 +240,77 @@ u32 find_free_register(u32 set,u32 used)
     u32 reg = FFS_EMPTY;
 
     // prefer used regs
-    reg = ffs(set & used);
+    reg = destoer::ffs(set & used);
 
     // get any reg we can
     if(reg == FFS_EMPTY)
     {
-        reg = ffs(set);
+        reg = destoer::ffs(set);
     }
 
     return reg;
 }
 
-u32 alloc_reg(LinearAlloc& alloc)
+u32 alloc_reg(RegisterFile& regs)
 {
-    const u32 reg = find_free_register(alloc.free_set,alloc.used_set);
+    const u32 reg = find_free_register(regs.free_set,regs.used_set);
 
     if(reg != FFS_EMPTY)
     {
-        remove_reg(alloc,reg);
-        mark_used(alloc,reg);
+        remove_reg(regs,reg);
+        mark_used(regs,reg);
     }
 
     return reg;
 }
-
-void free_reg(LinearAlloc& alloc, u32 reg)
-{
-    add_reg(alloc,reg);
-}
-    
 
 // TODO: we need to dynamically lock the registers for each function
 void init_regs(LinearAlloc& alloc, u32 locked_set)
 {
     // return reg reserved
-    // add_gpr(alloc,x86_reg::rax);
+    // add_reg(alloc.gpr,x86_reg::rax);
 
-    add_gpr(alloc,x86_reg::rcx,locked_set);
-    add_gpr(alloc,x86_reg::rdx,locked_set);
-    add_gpr(alloc,x86_reg::rbx,locked_set);
-    add_gpr(alloc,x86_reg::rdp,locked_set);
-    add_gpr(alloc,x86_reg::rsi,locked_set);
-    add_gpr(alloc,x86_reg::rdi,locked_set);
+    add_reg(alloc.gpr,x86_reg::rcx,locked_set);
+    add_reg(alloc.gpr,x86_reg::rdx,locked_set);
+    add_reg(alloc.gpr,x86_reg::rbx,locked_set);
+    add_reg(alloc.gpr,x86_reg::rdp,locked_set);
+    add_reg(alloc.gpr,x86_reg::rsi,locked_set);
+    add_reg(alloc.gpr,x86_reg::rdi,locked_set);
 
-    add_gpr(alloc,x86_reg::r8,locked_set);
-    add_gpr(alloc,x86_reg::r9,locked_set);
-    add_gpr(alloc,x86_reg::r10,locked_set);
+    add_reg(alloc.gpr,x86_reg::r8,locked_set);
+    add_reg(alloc.gpr,x86_reg::r9,locked_set);
+    add_reg(alloc.gpr,x86_reg::r10,locked_set);
 
     // scratch regs
 /*
-    add_gpr(alloc,x86_reg::r11);
-    add_gpr(alloc,x86_reg::r12);
+    add_reg(alloc.gpr,x86_reg::r11);
+    add_reg(alloc.gpr,x86_reg::r12);
 */
-    add_gpr(alloc,x86_reg::r13,locked_set);
-    add_gpr(alloc,x86_reg::r14,locked_set);
-    add_gpr(alloc,x86_reg::r15,locked_set);
+    add_reg(alloc.gpr,x86_reg::r13,locked_set);
+    add_reg(alloc.gpr,x86_reg::r14,locked_set);
+    add_reg(alloc.gpr,x86_reg::r15,locked_set);
+
+
+    // add sse regs
+
+    // return reg reserved
+    //add_reg(alloc.fpr,x86_reg::xmm0,0);
+
+    add_reg(alloc.fpr,x86_reg::xmm1,0);
+    add_reg(alloc.fpr,x86_reg::xmm2,0);
+    add_reg(alloc.fpr,x86_reg::xmm3,0);
+    add_reg(alloc.fpr,x86_reg::xmm4,0);
+    add_reg(alloc.fpr,x86_reg::xmm5,0);
+
+    // scratch regs
+/*
+    add_reg(alloc.fpr,x86_reg::xmm6,0);
+    add_reg(alloc.fpr,x86_reg::xmm7,0);
+*/
 }
 
 // NOTE: this relieso on pow2
-static_assert(MACHINE_REG_SIZE == 16);
+static_assert(MACHINE_REG_SIZE == 32);
 
 struct ActiveReg
 {
@@ -296,7 +318,7 @@ struct ActiveReg
     u32 size = 0;
 };
 
-void clean_dead_reg(LinearAlloc& alloc,ActiveReg &active, const LinearRange& cur)
+void clean_dead_reg(Interloper& itl, Function& func,LinearAlloc& alloc,ActiveReg &active, const LinearRange& cur)
 {
     u32 i;
     for(i = 0; i < active.size; i++)
@@ -316,8 +338,12 @@ void clean_dead_reg(LinearAlloc& alloc,ActiveReg &active, const LinearRange& cur
         // free the expired range
         else
         {
+            // check which register file to use
+            auto& ir_reg = reg_from_slot(itl,func,cmp.slot);
+            auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+
             //printf("free %d %d: %x [%d,%d] -> %x\n",i,active.size,cmp.slot.handle,cmp.start,cmp.end,cmp.location);
-            free_reg(alloc,cmp.location);
+            free_reg(reg_file,cmp.location);
         }
     }
 
@@ -402,9 +428,12 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
         // actually run the allocation
 
         // expire any dead sets
-        clean_dead_reg(alloc,active,cur);
+        clean_dead_reg(itl,func,alloc,active,cur);
 
-        const u32 reg = alloc_reg(alloc);
+        // check which register file to use
+        auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+
+        const u32 reg = alloc_reg(reg_file);
 
         // we have a register
         if(reg != FFS_EMPTY)
@@ -532,6 +561,12 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
     const b32 is_dst = is_arg_dst(info.type[reg]);
     const b32 is_src = is_arg_src(info.type[reg]);
 
+    // not a src or dst, not interested
+    if(!is_dst && !is_src)
+    {
+        return;
+    }
+
     // save slot so we can use it if it gets rewritten
     SymSlot slot = sym_from_idx(node->opcode.v[reg]);
 
@@ -555,29 +590,33 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
         // use scratch regs
         else
         {
+            // check which register file to use
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
+            auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+
+            const u32 scratch_reg = reg_file.scratch_regs[reg];
+
+
+            // rewrite in the register
+            node->opcode.v[reg] = scratch_reg;
+
             // src do a reload
             if(is_src) 
             {
                 // issue a load
-                reload_reg(alloc,table,block,node,slot,alloc.scratch_regs[reg]);
-
-                // rewrite in the register
-                node->opcode.v[reg] = alloc.scratch_regs[reg];
+                reload_reg(alloc,table,block,node,slot,scratch_reg);
 
                 // do the writeback as well
                 if(is_dst)
                 {
-                    spill_reg(alloc,table,block,node,slot,node->opcode.v[reg],true);
+                    spill_reg(alloc,table,block,node,slot,scratch_reg,true);
                 }
             }
 
             // just a dst
             else if(is_dst)
             {
-                // rewrite in the register
-                node->opcode.v[reg] = alloc.scratch_regs[reg];
-
-                spill_reg(alloc,table,block,node,slot,node->opcode.v[reg],true);      
+                spill_reg(alloc,table,block,node,slot,scratch_reg,true);      
             }
         }
     }
@@ -587,7 +626,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
     {
         // make sure the spec regs are marked as used
         const u32 location = special_reg_to_reg(alloc.arch,slot);
-        mark_used(alloc,location);
+        mark_used(is_fpr(slot)? alloc.fpr : alloc.gpr,location);
         node->opcode.v[reg] = location;
     }
 }

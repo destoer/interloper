@@ -28,8 +28,8 @@ func window_resized(win: Window@,x : u32, y : u32)
 {
     std::log(WINDOW_PREFIX,"resized {} {}\n",x,y);
 
-    win.size.x = x;
-    win.size.y = y;
+    win.size.x = cast(f64,x);
+    win.size.y = cast(f64,y);
 
     // realloc our buffer
     std::array_realloc<u32>(&global_heap,&win.screen,x * y);

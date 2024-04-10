@@ -29,8 +29,8 @@ SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
 SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type);
 SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type);
 
-void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed);
-void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size);
+void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed,b32 is_float);
+void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_float);
 
 std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 
@@ -214,6 +214,14 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
         {
             const auto t1 = value(itl,func,node,dst_slot);
             return t1;
+        }
+
+        case ast_type::float_t:
+        {
+            FloatNode* float_node = (FloatNode*)node;
+            movf_imm(itl,func,dst_slot,float_node->value);
+
+            return make_builtin(itl,builtin_type::f64_t);
         }
 
         case ast_type::symbol:
@@ -440,10 +448,25 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 // negate by doing 0 - v
                 const auto [t,v1] = compile_oper(itl,func,unary_node->next);
 
+                if(is_integer(t))
+                {
+                    // TODO: make sure our optimiser sees through this
+                    const SymSlot slot = mov_imm_res(itl,func,0);
+                    sub(itl,func,dst_slot,slot,v1);
+                }
 
-                // TODO: make sure our optimiser sees through this
-                const SymSlot slot = mov_imm_res(itl,func,0);
-                sub(itl,func,dst_slot,slot,v1);
+                else if(is_float(t))
+                {
+                    // TODO: make sure our optimiser sees through this
+                    const SymSlot slot = movf_imm_res(itl,func,0.0);
+                    subf(itl,func,dst_slot,slot,v1);
+                }
+
+                else
+                {
+                    panic(itl,itl_error::undefined_type_oper,"unary minus not valid for type %s\n",type_name(itl,t).buf);
+                    return make_builtin(itl,builtin_type::void_t);
+                }
                 
                 return t;
             }
@@ -725,7 +748,15 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         // default init
         else
         {
-            mov_imm(itl,func,slot,0);
+            if(is_float(ltype))
+            {
+                movf_imm(itl,func,slot,0.0);
+            }
+
+            else
+            {
+                mov_imm(itl,func,slot,0);
+            }
         }
     } 
 
@@ -980,7 +1011,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // single return
                     if(count(record_node->nodes) == 1)
                     {
-                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],sym_from_idx(RV_IR));
+                        const SymSlot rv = is_float(func.sig.return_type[0])? sym_from_idx(RV_FLOAT_IR): sym_from_idx(RV_IR);
+                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],rv);
         
                         if(itl.error)
                         {

@@ -12,6 +12,7 @@ enum class ast_type
     function_call,
 
     value,
+    float_t,
     symbol,
     char_t,
     string,
@@ -116,6 +117,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "function_call",
 
     "value",
+    "float",
     "symbol",
     "char",
     "string",
@@ -216,6 +218,7 @@ enum class ast_fmt
     unary,
     literal,
     value,
+    float_t,
     function,
     struct_t,
     enum_t,
@@ -245,6 +248,7 @@ inline const char *FMT_NAMES[] =
     "unary",
     "literal",
     "value",
+    "float",
     "function",
     "struct",
     "enum",
@@ -310,6 +314,13 @@ struct ValueNode
     AstNode node;
 
     Value value;
+};
+
+struct FloatNode
+{
+    AstNode node;
+
+    f64 value = 0.0;
 };
 
 struct CharNode
@@ -692,6 +703,15 @@ AstNode *ast_value(Parser& parser,Value value, const Token& token)
     value_node->value = value;
 
     return (AstNode*)value_node;  
+}
+
+AstNode *ast_float(Parser& parser, f64 value, const Token& token)
+{
+    FloatNode* float_node = alloc_node<FloatNode>(parser,ast_type::float_t,ast_fmt::float_t,token);
+
+    float_node->value = value;
+
+    return (AstNode*)float_node;  
 }
 
 AstNode* ast_type_decl(Parser& parser, const String& name, const Token& token)

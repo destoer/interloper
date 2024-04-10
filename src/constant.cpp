@@ -787,6 +787,12 @@ void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
                 break;                
             }
 
+            case builtin_type::f64_t:
+            {
+                assert(false);
+                break;
+            }
+
             // these should not be possible...
             case builtin_type::null_t:
             {

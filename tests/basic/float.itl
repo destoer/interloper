@@ -1,0 +1,70 @@
+
+func basic() bool
+{
+    // test basic arithmetic
+    res1 := 7.0 + 2.5 == 9.5;
+
+    res2 := 7.0 / 2.0 == 3.5;
+
+    res3 := 7.0 * 3.0 == 21.0;
+
+    res4 := 7.0 - 2.5 == 4.5;
+
+    // test logical operations
+    res5 := 5.0 == 5.0;
+
+    res6 := 5.0 != 5.5;
+
+    res7 := -6.0 < 6.0;
+
+    res8 := 10.75 > 4.0;
+
+    res9 := 5.0 <= 5.0;
+
+    res10 := 5.0 >= 5.0;
+
+    return res1 && res2 && res3 && res4  && res5 && res6
+        && res7 && res8 && res9 && res10;
+}
+
+func add(v1: f64, v2: f64) f64
+{
+    return v1 + v2;
+}
+
+func sub(v1: f64, v2: f64) f64
+{
+    return v1 - v2;
+}
+
+func test_func() bool
+{
+    v1 := 5.25;
+    v2 := 5.75;
+
+    res1 := add(v1,v2) == 11.0;
+    res2 := sub(v2,v1) == 0.5;
+
+    return res1 && res2;
+}
+
+struct Point
+{
+    v1 : f64;
+    v2 : f64;
+};
+
+func test_struct() bool
+{
+    p : Point = {3.0,5.0};
+
+    return (p.v1 + p.v2) == 8.0;
+}
+
+
+func main() s32
+{
+    ans := test_struct();
+
+    return cast(s32,ans);
+}

@@ -11,7 +11,7 @@ void emit_directive_dst1(Interloper& itl,Function& func, SymSlot dst, u32 v2, u3
 
     emit_block_internal(func,cur_block(func),type,dst.handle,v2,v3);
 
-    handle_dst_storage(itl,func,dst);
+    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
 }
 
 

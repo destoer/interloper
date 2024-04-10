@@ -60,11 +60,16 @@ func in_range_s64(v : u64,lo : u64, hi : u64) bool
     return v >= lo && v <= hi;
 }
 
+/*
+func log10(v: f64) u64
+
+func pow(double: f64,pow: f64) f64
+*/
 
 struct Vec2D
 {
-    x : s64;
-    y : s64;
+    x : f64;
+    y : f64;
 };
 
 

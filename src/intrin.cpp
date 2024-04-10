@@ -31,8 +31,8 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
         for(u32 i = 0; i < count; i++)
         {
-            load_addr_slot(itl,func,tmp,src_addr,8,false);
-            store_addr_slot(itl,func,tmp,dst_addr,8);
+            load_addr_slot(itl,func,tmp,src_addr,8,false,false);
+            store_addr_slot(itl,func,tmp,dst_addr,8,false);
 
             src_addr.offset += 8;
             dst_addr.offset += 8;

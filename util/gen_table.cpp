@@ -35,6 +35,8 @@ const char* KEYWORD[][2] =
     {tok_name(token_type::byte_t),"token_type::byte_t"},
     {tok_name(token_type::bool_t),"token_type::bool_t"},
 
+    {tok_name(token_type::f64_t),"token_type::f64_t"},
+
     {tok_name(token_type::false_t),"token_type::false_t"},
     {tok_name(token_type::true_t),"token_type::true_t"},
     {tok_name(token_type::null_t),"token_type::null_t"},

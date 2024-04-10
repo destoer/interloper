@@ -496,6 +496,11 @@ AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             return ast_value(parser,t.value,t);
         }
 
+        case token_type::float_t:
+        {
+            return ast_float(parser,t.fp,t);
+        }
+
         case token_type::char_t:
         {
             return ast_char(parser,t.character,t);

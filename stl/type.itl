@@ -38,6 +38,8 @@ enum builtin_type : BuiltinTypeData
 
     bool_t = {false, false ,1,  0, 1},
 
+    f64_t = {false,false,8,0,0xffffffff_ffffffff},
+
     // TODO: i think we need usize
     null_t = {false,false, 8,0,0},
 }
@@ -59,6 +61,8 @@ enum itl_type
     byte_t,
 
     bool_t,
+
+    f64_t,
 
     null_t,
 
@@ -166,6 +170,11 @@ func is_array(type : const Type@) bool
 func int_from_any(any : const Any) u64
 {
     return cast(u64,any.data);
+}
+
+func float_from_any(any : const Any) f64
+{
+    return bit_cast<u64,f64>(cast(u64,any.data));
 }
 
 func bool_from_any(any : const Any) bool

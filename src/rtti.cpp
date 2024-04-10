@@ -119,7 +119,7 @@ void cache_rtti_structs(Interloper& itl)
 
 PoolSlot make_rtti(Interloper& itl, const Type* type)
 {
-    const auto& rtti = itl.rtti_cache;
+    auto& rtti = itl.rtti_cache;
 
     // TODO: for now we wont bother trying to unique this
 
@@ -143,6 +143,8 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             write_const_pool(itl.const_pool,section,rtti.array_size_offset,array_type->size);
             write_const_pool(itl.const_pool,section,rtti.array_sub_size_offset,array_type->sub_size);
 
+            rtti.type_data_size += section.size;
+
             return slot;
         }
 
@@ -162,6 +164,8 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
 
             // push in pointer type
             write_const_pool_pointer(itl.const_pool,section,rtti.pointer_contained_offset,contained_type);
+
+            rtti.type_data_size += section.size;
 
             return slot;
         }
@@ -194,6 +198,8 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             // write in base type struct
             write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
             write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
+
+            rtti.type_data_size += section.size;
 
             return slot;
         }
@@ -233,17 +239,19 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
     if(is_trivial_copy(type))
     {
         // store type struct
-        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE);  
+        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false);  
+
+        const b32 fp = is_float(type);
 
         // store data
-        store_ptr(itl,func,src,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);              
+        store_ptr(itl,func,src,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,fp);              
     } 
 
     // allready in memory just store a the pointer to it
     else if(is_array(type))
     {
         // store type struct
-        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE); 
+        store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false); 
 
         // directly store array pointer into the data pointer
         if(is_fixed_array(type))
@@ -251,7 +259,7 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
             const auto arr_data_slot = load_arr_data(itl,func,src,type);
 
             // store data
-            store_ptr(itl,func,arr_data_slot,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);
+            store_ptr(itl,func,arr_data_slot,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
         }
 
         // runtime size
@@ -260,7 +268,7 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
             const auto arr_ptr = addrof_res(itl,func,src);
 
             // store data
-            store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE);
+            store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
         }   
     }
 

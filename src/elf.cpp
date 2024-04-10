@@ -596,6 +596,7 @@ void finalise_elf(Interloper& itl,Elf& elf)
     finalise_section_data(itl,elf);
 
     printf("program size: %d\n",elf.buffer.size);
+    printf("rtti size: %d\n",itl.rtti_cache.type_data_size);
 }
 
 void destroy_elf(Elf& elf)
@@ -817,6 +818,9 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 rewrite_rel_load_store(itl,elf,link);
                 break;
             }
+
+            case op_type::lf:
+
 
             case op_type::lea:
             {

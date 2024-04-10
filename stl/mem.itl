@@ -71,3 +71,11 @@ func host_to_network<T>(v : T) T
     // we allready have variables in a native order!
     return v;
 }
+
+func bit_cast<T,Y>(conv: T) Y
+{
+    v : Y;
+
+    memcpy(cast(byte@,&v), cast(byte@,&conv),sizeof_type(Y));
+    return v;
+}

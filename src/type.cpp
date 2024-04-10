@@ -18,6 +18,9 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 
     {builtin_type::bool_t, false, false ,1,  0, 1},
 
+    // note: the range limits on this aernt really integeral
+    {builtin_type::f64_t, false, false ,8,  0, u64(0xffffffff'ffffffff)},
+
     {builtin_type::null_t, false,false, GPR_SIZE,0,0},
 
     // internal
@@ -57,6 +60,11 @@ b32 is_integer(builtin_type type)
 b32 is_integer(const Type* type)
 {
     return is_builtin(type) && is_integer(builtin_type(type->type_idx));
+}
+
+b32 is_float(const Type* type)
+{
+    return builtin_type(type->type_idx) == builtin_type::f64_t;
 }
 
 b32 is_signed(const Type *type)
@@ -1103,6 +1111,12 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_
             return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype; 
         }
 
+        // both floats, just a float
+        if(is_float(rtype) && is_float(ltype))
+        {
+            return make_builtin(itl,builtin_type::f64_t);
+        }
+
         // something else
         else
         {
@@ -1150,6 +1164,12 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
             {
                 panic(itl,itl_error::int_type_error,"logical comparision on different signs %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }
+        }
+
+        // both float
+        else if(is_float(rtype) && is_float(ltype))
+        {
+
         }
 
         // both bool
@@ -1495,7 +1515,7 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 
             else
             {
-                unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::undefined_type_oper,"invalid assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }           
         }
     }
@@ -1865,6 +1885,16 @@ void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_sl
                 cmp_unsigned_gt_imm(itl,func,dst_slot,src_slot,0);
             }
         }        
+
+        else if(is_float(old_type) && is_integer(new_type))
+        {
+            cvt_fi(itl,func,dst_slot,src_slot);
+        }
+
+        else if(is_integer(old_type) && is_float(new_type))
+        {
+            cvt_if(itl,func,dst_slot,src_slot);
+        }
 
         else
         {

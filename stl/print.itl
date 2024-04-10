@@ -101,6 +101,128 @@ func linefeed()
     putchar('\n');
 }
 
+func print_float(v : f64, spec_dp: u32)
+{
+    // bit cast so we can pull apart the components 
+    // as we need to check for magic constants
+    raw := bit_cast<f64,u64>(v);
+
+    sign : bool = cast(bool,raw >> 63);
+    exp := (raw >> 52) & 0b1111_1111_111;
+    sig := raw & ~(0b1111_1111_1111_11 << 52);
+
+    if(exp == 0b1111_1111_111)
+    {
+        if(sig == 0)
+        {
+            if(sign)
+            {
+                print("-inf\n");
+            }
+
+            else
+            {
+                print("+inf\n");
+            }
+        }
+
+        else
+        {
+            print("NaN\n");
+        }
+
+        return;
+    }
+
+
+    buffer: c8[256];
+
+    dp: u32 = 0;
+    idx: u32 = 0;
+
+    // adjust so its +ve for the below algorithm
+    if(sign)
+    {
+        buffer[idx] = '-';
+        idx += 1;
+        v = -v;
+
+        // offset dp
+        dp += 1;
+    }
+
+    whole_digits: u32 = 0;
+    digits: u32 = 0;
+
+    // rescale so we have it 10^1 units
+    if(v > 1.0)
+    {
+        power : u32 = 0;
+
+        while(v >= 10.0)
+        {
+            power += 1;
+            v /= 10.0;
+        }
+
+        // if we have say 10^2 we have 100 i.e 3 whole digits
+        whole_digits = power + 1;
+        dp += whole_digits;
+    }
+
+    // special case '0' digit
+    else
+    {
+        whole_digits = 1;
+
+        buffer[idx] = '0';
+        idx += 1;
+        digits += 1;
+
+        dp += 1;
+        v *= 10.0;
+    }
+
+
+    // can print whole digits plus number of dp
+    allowed_prec := whole_digits + spec_dp;
+
+    // okay at this point we can just shift each digit out the rhs
+    // until the number hits zero like any other printing algorithm
+    // TODO: their are precision problems using floats to calculate this 
+    while(v > 0.0 && idx < buffer.len && digits < allowed_prec)
+    {
+        // set dp
+        if(idx == dp)
+        {
+            buffer[idx] = '.';
+            idx += 1;
+        }
+
+        digit := cast(s32,v);
+
+        // convert digit to char
+        buffer[idx] = cast(c8,'0' + digit);
+        idx += 1;
+        digits += 1;
+
+        // move in next digit
+        v -= cast(f64,digit);
+        v *= 10.0;
+    }
+
+    // pad with 0 till desired formatting
+    while(digits < allowed_prec && idx < buffer.len)
+    {
+        buffer[idx] = '0';
+        idx += 1;
+        digits += 1;
+    }
+
+    // write out the result
+    write_str_raw(&buffer[0],idx);
+}
+
 func print_arg(arg : Any, specifier : c8)
 {
     type := arg.type;
@@ -157,6 +279,13 @@ func print_arg(arg : Any, specifier : c8)
         case itl_type::byte_t:
         {
             format_int(arg,specifier);
+        }
+
+        case itl_type::f64_t:
+        {
+            float := float_from_any(arg);
+
+            print_float(float,6);
         }
 
         case itl_type::bool_t:

@@ -1,6 +1,9 @@
 namespace x86
 {
 
+// https://wheremyfoodat.github.io/floating-point-arithmetic-in-x86/
+// https://wiki.osdev.org/X86_Instruction_Encoding
+
 
 // base rex
 static constexpr u8 REX = 0x40;
@@ -77,7 +80,7 @@ void prefix_u16_reg(AsmEmitter& emitter)
 
 b32 is_extended_reg(x86_reg reg)
 {
-    return reg >= x86_reg::r8 && reg <= x86_reg::r15;
+    return (reg >= x86_reg::r8 && reg <= x86_reg::r15) || (reg >= x86_reg::xmm8 && reg <= x86_reg::xmm15);
 }
 
 u8 rex_rm(x86_reg r, x86_reg m)
@@ -957,6 +960,145 @@ void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
     }
 }
 
+void push_xmm_f2(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // push rex
+    const u8 rex = rex_rm64(dst,src);
+    push_u16(emitter,(rex << 8) | 0xf2);
+}
+
+void push_xmm_66(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // push rex
+    const u8 rex = rex_rm64(dst,src);
+    push_u16(emitter,(rex << 8) | 0x66);
+}
+
+void lf(AsmEmitter& emitter, x86_reg dst, x86_reg src, u64 imm)
+{
+    // movsd r, [m]
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x10'0f);
+
+    push_reg_base_disp(emitter,dst,src,imm);
+}
+
+void sf(AsmEmitter& emitter, x86_reg dst, x86_reg src, u64 imm)
+{
+    // movsd [m], r
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x11'0f);
+
+    push_reg_base_disp(emitter,dst,src,imm);
+}
+
+void movf(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // movsd r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x10'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+
+void addf(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // addsd r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x58'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+void subf(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // subsd r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x5C'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+void mulf(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // mulsd r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x59'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+void divf(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // divsd r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x5E'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+void cvt_fi(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // cvttsd2si r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x2c'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+
+
+void cvt_if(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // cvtsi2sd r, m
+    push_xmm_f2(emitter,dst,src);
+    push_u16(emitter,0x2a'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+void cmp_flags_float(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+{
+    // ucomisd r, m
+    push_xmm_66(emitter,dst,src);
+    push_u16(emitter,0x2e'0f);
+
+    push_u8(emitter,mod_rm(dst,src));
+}
+
+// these all happen to use the same flags as their unsigned counterparts
+// put we still want to name them properly externally
+void setflt(AsmEmitter& emitter, x86_reg dst)
+{
+    setult(emitter,dst);
+}
+
+void setfle(AsmEmitter& emitter, x86_reg dst)
+{
+    setule(emitter,dst);
+}
+
+void setfgt(AsmEmitter& emitter, x86_reg dst)
+{
+    setugt(emitter,dst);
+}
+
+void setfge(AsmEmitter& emitter, x86_reg dst)
+{
+    setuge(emitter,dst);
+}
+
+void setfeq(AsmEmitter& emitter, x86_reg dst)
+{
+    seteq(emitter,dst);
+}
+
+void setfne(AsmEmitter& emitter, x86_reg dst)
+{
+    setne(emitter,dst);
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
     UNUSED(emitter);
@@ -1355,6 +1497,102 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+
+        case op_type::lf:
+        {
+            emit_load_store(emitter,opcode,lf);
+            break;
+        }
+
+        case op_type::sf:
+        {
+            emit_load_store(emitter,opcode,sf);
+            break;
+        }
+
+        case op_type::movf_reg:
+        {
+            movf(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::addf_reg2:
+        {
+            addf(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::subf_reg2:
+        {
+            subf(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::mulf_reg2:
+        {
+            mulf(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::divf_reg2:
+        {
+            divf(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::cvt_fi:
+        {
+            cvt_fi(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::cmp_flags_float:
+        {
+            cmp_flags_float(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::setfgt:
+        {
+            setfgt(emitter,dst);
+            break;
+        }
+
+        case op_type::setfge:
+        {
+            setfge(emitter,dst);
+            break;
+        }
+
+        case op_type::setflt:
+        {
+            setflt(emitter,dst);
+            break;
+        }
+
+        case op_type::setfle:
+        {
+            setfle(emitter,dst);
+            break;
+        }
+
+        case op_type::setfeq:
+        {
+            setfeq(emitter,dst);
+            break;
+        }
+
+        case op_type::setfne:
+        {
+            setfne(emitter,dst);
+            break;
+        }
+
+        case op_type::cvt_if:
+        {
+            cvt_if(emitter,dst,v1);
+            break;
+        }
 
         default:
         {
