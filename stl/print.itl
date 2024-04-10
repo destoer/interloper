@@ -135,9 +135,7 @@ func print_float(v : f64, spec_dp: u32)
     }
 
 
-    constant BUF_SIZE: u32 = 256;
-
-    buffer: c8[BUF_SIZE];
+    buffer: c8[256];
 
     dp: u32 = 0;
     idx: u32 = 0;
@@ -192,7 +190,7 @@ func print_float(v : f64, spec_dp: u32)
     // okay at this point we can just shift each digit out the rhs
     // until the number hits zero like any other printing algorithm
     // TODO: their are precision problems using floats to calculate this 
-    while(v > 0.0 && idx < BUF_SIZE && digits < allowed_prec)
+    while(v > 0.0 && idx < buffer.len && digits < allowed_prec)
     {
         // set dp
         if(idx == dp)
@@ -214,7 +212,7 @@ func print_float(v : f64, spec_dp: u32)
     }
 
     // pad with 0 till desired formatting
-    while(digits < allowed_prec)
+    while(digits < allowed_prec && idx < buffer.len)
     {
         buffer[idx] = '0';
         idx += 1;
