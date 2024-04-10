@@ -119,7 +119,7 @@ void cache_rtti_structs(Interloper& itl)
 
 PoolSlot make_rtti(Interloper& itl, const Type* type)
 {
-    const auto& rtti = itl.rtti_cache;
+    auto& rtti = itl.rtti_cache;
 
     // TODO: for now we wont bother trying to unique this
 
@@ -143,6 +143,8 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             write_const_pool(itl.const_pool,section,rtti.array_size_offset,array_type->size);
             write_const_pool(itl.const_pool,section,rtti.array_sub_size_offset,array_type->sub_size);
 
+            rtti.type_data_size += section.size;
+
             return slot;
         }
 
@@ -162,6 +164,8 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
 
             // push in pointer type
             write_const_pool_pointer(itl.const_pool,section,rtti.pointer_contained_offset,contained_type);
+
+            rtti.type_data_size += section.size;
 
             return slot;
         }
@@ -194,6 +198,8 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             // write in base type struct
             write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
             write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
+
+            rtti.type_data_size += section.size;
 
             return slot;
         }

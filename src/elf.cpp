@@ -596,6 +596,7 @@ void finalise_elf(Interloper& itl,Elf& elf)
     finalise_section_data(itl,elf);
 
     printf("program size: %d\n",elf.buffer.size);
+    printf("rtti size: %d\n",itl.rtti_cache.type_data_size);
 }
 
 void destroy_elf(Elf& elf)

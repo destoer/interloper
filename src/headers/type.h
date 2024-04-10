@@ -236,6 +236,11 @@ static constexpr u32 VLA_SIZE = GPR_SIZE * 2;
 // so that any struct differences as a result of compile target is handled for us
 struct RttiCache
 {
+    //PoolSlot[BUILTIN_TYPE_SIZE][2] rtti_type_cache;
+
+    // how many bytes does this take in the binary?
+    u32 type_data_size = 0;
+
     b32 struct_cached = false;
 
     // any cache

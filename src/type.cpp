@@ -1515,7 +1515,7 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 
             else
             {
-                unimplemented("non integer assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                panic(itl,itl_error::undefined_type_oper,"invalid assign %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             }           
         }
     }
