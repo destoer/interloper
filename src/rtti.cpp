@@ -117,19 +117,62 @@ void cache_rtti_structs(Interloper& itl)
 
 }
 
-PoolSlot make_rtti(Interloper& itl, const Type* type)
+
+void destroy_trie(TypeTrieNode& root)
+{
+    // try find an existing node
+    for(u32 i = 0; i < count(root.nodes); i++)
+    {
+        destroy_trie(root.nodes[i]);
+        destroy_arr(root.nodes);
+
+        root = {};
+    }
+}
+
+void destroy_rtti_cache(RttiCache& cache)
+{
+    for(u32 i = 0; i < TYPE_ATTR; i++)
+    {
+        for(u32 j = 0; j < BUILTIN_TYPE_SIZE; j++)
+        {
+            destroy_trie(cache.builtin_type_cache[i][j]);
+
+            cache.builtin_type_cache[i][j] = {};
+        }
+    }
+}
+
+TypeTrieNode& make_rtti_internal(Interloper& itl, Type* type)
 {
     auto& rtti = itl.rtti_cache;
-
-    // TODO: for now we wont bother trying to unique this
 
     switch(type->type_idx)
     {
         case ARRAY:
         {
             ArrayType* array_type = (ArrayType*)type;
-            const PoolSlot contained_type = make_rtti(itl,array_type->contained_type);
+            TypeTrieNode& root = make_rtti_internal(itl,array_type->contained_type);
             
+            // try find an existing node
+            for(u32 i = 0; i < count(root.nodes); i++)
+            {
+                auto& node = root.nodes[i];
+
+                // if we find a complete match return
+                if(is_array(node.type))
+                {
+                    ArrayType* node_type = (ArrayType*)node.type;
+                    
+                    if(node_type->size == array_type->size && node_type->type.is_const == array_type->type.is_const)
+                    {
+                        return node;
+                    }
+                }
+            }
+
+            // there is no node that meets the requirements we will have to dump in another
+
             // reserve room for array type
             const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.array_struct_size);
             auto& section = pool_section_from_slot(itl.const_pool,slot);
@@ -139,20 +182,46 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             write_const_pool(itl.const_pool,section,rtti.type_idx_offset,ARRAY_RTTI);   
 
             // write in array type
-            write_const_pool_pointer(itl.const_pool,section,rtti.array_contained_offset,contained_type);
+            write_const_pool_pointer(itl.const_pool,section,rtti.array_contained_offset,root.slot);
             write_const_pool(itl.const_pool,section,rtti.array_size_offset,array_type->size);
             write_const_pool(itl.const_pool,section,rtti.array_sub_size_offset,array_type->sub_size);
 
             rtti.type_data_size += section.size;
 
-            return slot;
+            TypeTrieNode node;
+
+            node.slot = slot;
+            node.type = type;
+
+            push_var(root.nodes,node);
+
+            //return newly inserted node
+            return root.nodes[count(root.nodes) - 1];
         }
 
         case POINTER:
         {
             // get contained type
             const PointerType* pointer_type = (PointerType*)type;
-            const PoolSlot contained_type = make_rtti(itl,pointer_type->contained_type);
+            TypeTrieNode& root  = make_rtti_internal(itl,pointer_type->contained_type);
+
+            // try find an existing node
+            for(u32 i = 0; i < count(root.nodes); i++)
+            {
+                auto& node = root.nodes[i];
+
+                if(is_pointer(node.type))
+                {
+                    PointerType* node_type = (PointerType*)node.type;
+
+                    if(node_type->type.is_const == pointer_type->type.is_const)
+                    {
+                        return node;
+                    }
+                }
+            }
+
+            // no matching pointer make one
 
             // reserve room for pointer type
             const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.pointer_struct_size);
@@ -163,11 +232,17 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
             write_const_pool(itl.const_pool,section,rtti.type_idx_offset,POINTER_RTTI);            
 
             // push in pointer type
-            write_const_pool_pointer(itl.const_pool,section,rtti.pointer_contained_offset,contained_type);
+            write_const_pool_pointer(itl.const_pool,section,rtti.pointer_contained_offset,root.slot);
 
-            rtti.type_data_size += section.size;
+            TypeTrieNode node;
 
-            return slot;
+            node.slot = slot;
+            node.type = type;
+
+            push_var(root.nodes,node);
+
+            // return newly inserted node
+            return root.nodes[count(root.nodes) - 1];
         }
 
         case ENUM:
@@ -191,15 +266,10 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
         // builtin just insert as is
         default:
         {
-            PoolSlot* cache_slot = &rtti.builtin_type_cache[type->is_const][type->type_idx];
+            auto& root = rtti.builtin_type_cache[type->is_const][type->type_idx];
 
-            // allready in the cache no need to insert another
-            if(cache_slot->handle != NO_SLOT)
-            {
-                return *cache_slot;
-            }
-
-            else
+            // base type is not yet in the pool
+            if(root.slot.handle == NO_SLOT)
             {
                 // allocate a slot in the pool for us
                 const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.type_struct_size);
@@ -209,22 +279,27 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
                 write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
                 write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
 
+                root.slot = slot;
+
                 rtti.type_data_size += section.size;
-
-                // we can now cache this pool data
-                *cache_slot = slot;
-
-                return slot;
             }
+
+            return root;
         }
     }
 
     assert(false);
-    return {0xffff'ffff};
+    return rtti.builtin_type_cache[0][0];
 }
 
 
-SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
+PoolSlot make_rtti(Interloper& itl, Type* type)
+{
+    const auto node = make_rtti_internal(itl,type);
+    return node.slot;
+}
+
+SymSlot aquire_rtti(Interloper& itl, Function& func, Type* type)
 {
     const PoolSlot pool_slot = make_rtti(itl,type);
 
@@ -242,7 +317,7 @@ u32 promote_size(u32 size)
 }
 
 // TODO: we need to pass in a slot + offset for storing data copies...
-void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const SymSlot src, const Type* type)
+void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const SymSlot src, Type* type)
 {
     auto& rtti = itl.rtti_cache;
 

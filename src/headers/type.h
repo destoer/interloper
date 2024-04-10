@@ -247,10 +247,18 @@ struct TypeCacheNode
 
 */
 
+struct TypeTrieNode
+{
+    PoolSlot slot = {NO_SLOT};
+    Type* type = nullptr;
+
+    Array<TypeTrieNode> nodes;
+};
+
 
 struct RttiCache
 {
-    PoolSlot builtin_type_cache[TYPE_ATTR][BUILTIN_TYPE_SIZE];
+    TypeTrieNode builtin_type_cache[TYPE_ATTR][BUILTIN_TYPE_SIZE];
 
     // how many bytes does this take in the binary?
     u32 type_data_size = 0;

@@ -1254,6 +1254,8 @@ void destroy_itl(Interloper &itl)
 
     destroy_arr(itl.func_pointer);
 
+    destroy_rtti_cache(itl.rtti_cache);
+
     destroy_allocator(itl.type_allocator);
 }
 
@@ -1276,15 +1278,6 @@ void check_startup_defs(Interloper& itl)
 {   
     if(itl.rtti_enable)
     {
-        // set rtti cache as empty
-        for(u32 i = 0; i < TYPE_ATTR; i++)
-        {
-            for(u32 j = 0; j < BUILTIN_TYPE_SIZE; j++)
-            {
-                itl.rtti_cache.builtin_type_cache[i][j] = {NO_SLOT};
-            }
-        }
-
         cache_rtti_structs(itl);
     }
 
