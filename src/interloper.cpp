@@ -448,10 +448,25 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 // negate by doing 0 - v
                 const auto [t,v1] = compile_oper(itl,func,unary_node->next);
 
+                if(is_integer(t))
+                {
+                    // TODO: make sure our optimiser sees through this
+                    const SymSlot slot = mov_imm_res(itl,func,0);
+                    sub(itl,func,dst_slot,slot,v1);
+                }
 
-                // TODO: make sure our optimiser sees through this
-                const SymSlot slot = mov_imm_res(itl,func,0);
-                sub(itl,func,dst_slot,slot,v1);
+                else if(is_float(t))
+                {
+                    // TODO: make sure our optimiser sees through this
+                    const SymSlot slot = movf_imm_res(itl,func,0.0);
+                    subf(itl,func,dst_slot,slot,v1);
+                }
+
+                else
+                {
+                    panic(itl,itl_error::undefined_type_oper,"unary minus not valid for type %s\n",type_name(itl,t).buf);
+                    return make_builtin(itl,builtin_type::void_t);
+                }
                 
                 return t;
             }

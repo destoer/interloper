@@ -325,9 +325,12 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
             {
                 const char* tmp = start;
 
+                b32 sign = false;
+
                 // scan ahead to see if there is a dp
                 if(*tmp == '-')
                 {
+                    sign = true;
                     tmp++;
                 }
 
@@ -342,7 +345,12 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     tmp++;
 
                     // TODO: we want our own function that ignores _
-                    const f64 value = atof(start);
+                    f64 value = atof(start);
+
+                    if(sign)
+                    {
+                        value = -value;
+                    }
 
                     // find the end
                     while(isdigit(*tmp))

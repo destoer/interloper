@@ -103,11 +103,8 @@ func linefeed()
 
 func print_float(v : f64, spec_dp: u32)
 {
-    //printf("stl: %lf\n",v);
-
-    // we need to pull apart the components to handle special values
-    // because of strict aliasing the only way is to use memcpy
-    // and int cast will floor the value which is not what we want
+    // bit cast so we can pull apart the components 
+    // as we need to check for magic constants
     raw := bit_cast<f64,u64>(v);
 
     sign : bool = cast(bool,raw >> 63);
@@ -162,13 +159,13 @@ func print_float(v : f64, spec_dp: u32)
     // rescale so we have it 10^1 units
     if(v > 1.0)
     {
-        // resacle this to have so we have a single whole digit
-        // TODO: how do you actually compute these?
-    /*
-        power := cast(u32,log10(v));
-        v = v / cast(f64,pow(10.0,power));
-    */
-        power := 0;
+        power : u32 = 0;
+
+        while(v >= 10.0)
+        {
+            power += 1;
+            v /= 10.0;
+        }
 
         // if we have say 10^2 we have 100 i.e 3 whole digits
         whole_digits = power + 1;
