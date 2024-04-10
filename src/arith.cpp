@@ -286,7 +286,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
             };
 
             constexpr op_type opcode_type = LOGIC_OPCODE[u32(type)];
-            emit_cmp_float3<opcode_type>(itl,func,dst_slot,v1,v2);
+            emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
         }
 
         // integer operation

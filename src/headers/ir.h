@@ -293,7 +293,6 @@ static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 enum class op_group
 {
     reg_t,
-    float_t,
     regm_t,
     imm_t,
     load_t,
@@ -308,9 +307,14 @@ enum class arg_type
 {
     // NOTE: these 3 must be first
     src_reg,
+    src_float,
+
     dst_reg,
+    dst_float,
+
     // double duty, used in reg2 opcodes
     // i.e add dst, v1
+    dst_src_float,
     dst_src_reg,
 
 
@@ -716,7 +720,7 @@ enum class os_target
 
 void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table,arch_target arch);
 void disass_opcode_raw(const Opcode &opcode,arch_target arch);
-
+void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table);
 
 struct AsmFunc
 {

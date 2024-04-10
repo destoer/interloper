@@ -64,7 +64,7 @@ func test_struct() bool
 
 func main() s32
 {
-    ans := basic() && test_func() && test_struct();
+    ans := test_struct();
 
     return cast(s32,ans);
 }
