@@ -120,7 +120,6 @@ void cache_rtti_structs(Interloper& itl)
 
 void destroy_trie(TypeTrieNode& root)
 {
-    // try find an existing node
     for(u32 i = 0; i < count(root.nodes); i++)
     {
         destroy_trie(root.nodes[i]);
@@ -143,7 +142,7 @@ void destroy_rtti_cache(RttiCache& cache)
     }
 }
 
-TypeTrieNode& make_rtti_internal(Interloper& itl, Type* type)
+TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 {
     auto& rtti = itl.rtti_cache;
 
@@ -293,13 +292,13 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, Type* type)
 }
 
 
-PoolSlot make_rtti(Interloper& itl, Type* type)
+PoolSlot make_rtti(Interloper& itl, const Type* type)
 {
     const auto node = make_rtti_internal(itl,type);
     return node.slot;
 }
 
-SymSlot aquire_rtti(Interloper& itl, Function& func, Type* type)
+SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
 {
     const PoolSlot pool_slot = make_rtti(itl,type);
 
@@ -317,7 +316,7 @@ u32 promote_size(u32 size)
 }
 
 // TODO: we need to pass in a slot + offset for storing data copies...
-void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const SymSlot src, Type* type)
+void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const SymSlot src, const Type* type)
 {
     auto& rtti = itl.rtti_cache;
 
