@@ -1276,6 +1276,15 @@ void check_startup_defs(Interloper& itl)
 {   
     if(itl.rtti_enable)
     {
+        // set rtti cache as empty
+        for(u32 i = 0; i < TYPE_ATTR; i++)
+        {
+            for(u32 j = 0; j < BUILTIN_TYPE_SIZE; j++)
+            {
+                itl.rtti_cache.builtin_type_cache[i][j] = {NO_SLOT};
+            }
+        }
+
         cache_rtti_structs(itl);
     }
 

@@ -191,17 +191,31 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
         // builtin just insert as is
         default:
         {
-            // allocate a slot in the pool for us
-            const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.type_struct_size);
-            auto& section = pool_section_from_slot(itl.const_pool,slot);
+            PoolSlot* cache_slot = &rtti.builtin_type_cache[type->is_const][type->type_idx];
 
-            // write in base type struct
-            write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
-            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
+            // allready in the cache no need to insert another
+            if(cache_slot->handle != NO_SLOT)
+            {
+                return *cache_slot;
+            }
 
-            rtti.type_data_size += section.size;
+            else
+            {
+                // allocate a slot in the pool for us
+                const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.type_struct_size);
+                auto& section = pool_section_from_slot(itl.const_pool,slot);
 
-            return slot;
+                // write in base type struct
+                write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
+                write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
+
+                rtti.type_data_size += section.size;
+
+                // we can now cache this pool data
+                *cache_slot = slot;
+
+                return slot;
+            }
         }
     }
 

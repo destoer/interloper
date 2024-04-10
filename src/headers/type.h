@@ -192,6 +192,7 @@ struct Type
     b32 is_const;
 };
 
+static constexpr u32 TYPE_ATTR = 2;
 
 struct PointerType
 {
@@ -234,9 +235,22 @@ static constexpr u32 VLA_SIZE = GPR_SIZE * 2;
 // cache for rtti, these contain offsets and struct idx for all rtti structs
 // NOTE: These are pulled from the defs in the type.itl file rather than having the compiler insert them
 // so that any struct differences as a result of compile target is handled for us
+
+// TODO: im quite sure for caching compound types
+// we need to have a trie with a node holding something like
+/*
+struct TypeCacheNode
+{
+    Type* type;
+    PoolSlot slot;
+}
+
+*/
+
+
 struct RttiCache
 {
-    //PoolSlot[BUILTIN_TYPE_SIZE][2] rtti_type_cache;
+    PoolSlot builtin_type_cache[TYPE_ATTR][BUILTIN_TYPE_SIZE];
 
     // how many bytes does this take in the binary?
     u32 type_data_size = 0;
