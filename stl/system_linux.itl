@@ -277,16 +277,16 @@ struct TimeVal
     usec : s64;
 }
 
-func os_timestamp_ms() u64
+func os_timestamp_ms() f64
 {
     time : TimeVal;
     intrin_syscall(SYSCALL_TIME_OF_DAY,&time,NULL);
 
-    ms := (time.sec * 1000) + (time.usec / 1000);
+    ms := (cast(f64,time.sec) * 1000.0) + (cast(f64,time.usec) / 1000.0);
 
     //std::print("time {} {} {}\n",ms,time.sec,time.usec);
 
-    return cast(u64,ms);
+    return ms;
 }
 
 struct TimeSpec

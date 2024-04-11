@@ -117,18 +117,18 @@ func print_float(v : f64, spec_dp: u32)
         {
             if(sign)
             {
-                print("-inf\n");
+                print("-inf");
             }
 
             else
             {
-                print("+inf\n");
+                print("+inf");
             }
         }
 
         else
         {
-            print("NaN\n");
+            print("NaN");
         }
 
         return;

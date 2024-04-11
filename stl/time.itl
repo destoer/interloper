@@ -13,7 +13,7 @@ func sleep_s(s : u32)
     sleep_ms(s * MS_TO_SEC);
 }
 
-func timestamp_ms() u64
+func timestamp_ms() f64
 {
     return os_timestamp_ms();
 }

@@ -12,6 +12,12 @@ struct Window
 
     quit : bool = false;
     input : Input;
+
+    start_timestamp: f64;
+    end_timestamp: f64;
+
+    target: f64;
+    limit: f64;
 }
 
 constant WINDOW_PREFIX :  string = "[WINDOW]: ";
@@ -47,6 +53,9 @@ func open_window(str : const string, x : u32, y : u32) Window
 
     window_resized(&win,x,y);
 
+    win.limit = 1000.0 / 60.0;
+    win.target = win.limit;
+
     return win;
 }
 
@@ -60,6 +69,38 @@ func draw_window(win : Window@, screen: const u32[])
 {
     os_draw_window(&win.os_win,screen,cast(u32,win.size.x),cast(u32,win.size.y));
 }
+
+// NOTE: these are just general helpers we should still be able to
+// mess with this manually if we want
+func start_frame(win : Window@)
+{
+    win.start_timestamp = std::timestamp_ms();
+
+    gfx::process_events(win);
+}
+
+func end_frame(win : Window@)
+{
+    win.end_timestamp = std::timestamp_ms();
+
+    taken := win.end_timestamp - win.start_timestamp;
+
+    sleep := win.target - taken;
+
+    //std::print("fps: {}\n",cast(u32,1000.0 / sleep));
+
+    if(sleep > 0.0)
+    {
+        std::sleep_ms(cast(u32,sleep));
+    }
+
+    // overshot the frame
+    else
+    {
+        win.target = win.limit + sleep;
+    }
+}
+
 
 func process_events(win: Window@) bool
 {

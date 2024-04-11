@@ -8,8 +8,6 @@ func main() s32
 
     win := gfx::open_window("interloper",X,Y);
 
-    target : s32 = 16;
-
     // current drawing offset
     draw : u32 = 0;
 
@@ -17,15 +15,14 @@ func main() s32
 
     while(!win.quit)
     {
-        start := std::timestamp_ms();
+        gfx::start_frame(&win);
 
-        gfx::process_events(&win);
-    
         if(input::is_pressed(&win.input,button_t::start))
         {
             win.quit = true;
         }
 
+        // main drawing
         draw_amt : u32 = cast(u32,win.screen.len / 256);
 
         for(i : u32 = 0; i < draw_amt && (i + draw) < win.screen.len; i += 1)
@@ -44,23 +41,7 @@ func main() s32
 
         gfx::draw_window(&win,win.screen);
 
-        end := std::timestamp_ms();
-
-        taken := cast(s32,end - start);
-
-        sleep := target - taken;
-
-        if(sleep > 0)
-        {
-            target = 16;
-            std::sleep_ms(cast(u32,sleep));
-        }
-
-        // overshot the frame
-        else
-        {
-            target = 16 + sleep;
-        }
+        gfx::end_frame(&win);
     }
 
     gfx::close_window(&win);

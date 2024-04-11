@@ -1,0 +1,35 @@
+
+import <graphics> 
+
+func render(win: Window@)
+{
+    
+}
+
+func main() s32
+{
+    constant X : u32 = 640;
+    constant Y : u32 = 480;
+
+    win := gfx::open_window("interloper",X,Y);
+
+    while(!win.quit)
+    {
+        gfx::start_frame(&win);
+    
+        if(input::is_pressed(&win.input,button_t::start))
+        {
+            win.quit = true;
+        }
+
+        render(&win);
+
+        gfx::draw_window(&win,win.screen);
+
+        gfx::end_frame(&win);
+    }
+
+    gfx::close_window(&win);
+
+    return 0;
+}
