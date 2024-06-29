@@ -1,17 +1,81 @@
 
 import <graphics> 
 
-func render(win: Window@)
+struct Context
 {
-    
+    map : u32[];
+};
+
+constant TILE_SIZE: u32 = 8;
+constant SCREEN_X: u32 = 640;
+constant SCREEN_Y: u32 = 360;
+
+constant TILE_X: u32 = SCREEN_X / TILE_SIZE;
+constant TILE_Y: u32 = SCREEN_Y / TILE_SIZE;
+
+func draw_tile(win: Window@, ctx: Context@, tile_id: u32, x: u32, y: u32)
+{
+    colour: u32 = 0xff_00_00_00;
+
+    if(tile_id == 1)
+    {
+        colour = 0xff_ff_ff_ff;
+    }
+
+    // work out top left tile
+    offset : u32 = (y * SCREEN_X * TILE_SIZE) + (x * TILE_SIZE);
+
+    // scan each 8 lines
+    for(tile_y in 0 < TILE_SIZE)
+    {
+        for(tile_x in 0 < TILE_SIZE)
+        {
+            win.screen[offset + tile_x] = colour;
+        }
+
+        offset += SCREEN_X;
+    }
+}
+
+func render(win: Window@, ctx: Context@)
+{
+    offset : u32 = 0;
+
+    // scan every tile
+    for(y in 0 < TILE_Y)
+    {
+        for(x in 0 < TILE_X)
+        {
+            tile_id := ctx.map[offset + x];
+
+            draw_tile(win,ctx,tile_id,x,y);
+        }
+
+        offset += TILE_X;
+    }
+}
+
+func make_context() Context
+{
+    ctx: Context;
+
+    ctx.map = std::arr_heap<u32>(&global_heap,TILE_X * TILE_Y);
+
+    return ctx;
 }
 
 func main() s32
 {
-    constant X : u32 = 640;
-    constant Y : u32 = 480;
+    win := gfx::open_window("interloper",SCREEN_X,SCREEN_Y);
 
-    win := gfx::open_window("interloper",X,Y);
+    ctx := make_context();
+
+    ctx.map[0] = 1;
+    ctx.map[TILE_X - 1] = 1;
+    ctx.map[(TILE_X * TILE_Y) - 1] = 1;
+    ctx.map[TILE_X * (TILE_Y - 1)] = 1;
+
+    ctx.map[((TILE_Y / 2) * TILE_X) + TILE_X / 2] = 1;
 
     while(!win.quit)
     {
@@ -22,7 +86,7 @@ func main() s32
             win.quit = true;
         }
 
-        render(&win);
+        render(&win,&ctx);
 
         gfx::draw_window(&win,win.screen);
 
