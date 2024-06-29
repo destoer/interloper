@@ -1,6 +1,6 @@
 namespace std;
 
-func arr_arena<T>(arena : Arena@, size : u64) T[]
+func arr_arena<T>(arena : Arena@, size : usize) T[]
 {
     buf : T[];
 
@@ -11,7 +11,7 @@ func arr_arena<T>(arena : Arena@, size : u64) T[]
 }
 
 
-func arr_heap<T>(heap : Heap@, size : u64) T[]
+func arr_heap<T>(heap : Heap@, size : usize) T[]
 {
     buf : T[];
 
@@ -36,27 +36,27 @@ func fill_array<T>(array: T[], v: T)
 }
 
 
-func byte_arr_heap(heap : Heap@, size : u64) byte[]
+func byte_arr_heap(heap : Heap@, size : usize) byte[]
 {
     return arr_heap<byte>(heap,size);
 }
 
-func byte_arr_arena(arena : Arena@, size : u64) byte[]
+func byte_arr_arena(arena : Arena@, size : usize) byte[]
 {
     return arr_arena<byte>(arena,size);
 }
 
-func u32_arr_heap(heap : Heap@, size : u64) u32[]
+func u32_arr_heap(heap : Heap@, size : usize) u32[]
 {
     return arr_heap<u32>(heap,size);
 }
 
-func u32_arr_arena(arena : Arena@, size : u64) u32[]
+func u32_arr_arena(arena : Arena@, size : usize) u32[]
 {
     return arr_arena<u32>(arena,size);
 }
 
-func array_realloc<T>(heap : Heap@,arr: T@[], size : u64)
+func array_realloc<T>(heap : Heap@,arr: T@[], size : usize)
 {
     realloc_heap_panic(heap,&arr.data,size,sizeof_type(T));
 
@@ -68,7 +68,7 @@ struct Array
     // internally treated as a set of bytes
     // regardless of indexing
     buf : byte[];
-    size : u64;
+    size : usize;
 };
 
 /*
@@ -89,12 +89,12 @@ func destroy_array(arr: Array@)
     arr.size = 0;
 }
 
-func reserve_array_mem(arr: Array@, size : u64)
+func reserve_array_mem(arr: Array@, size : usize)
 {
     array_realloc<byte>(&global_heap,&arr.buf,size);
 }
 
-func resize_array(arr : Array@, size : u64)
+func resize_array(arr : Array@, size : usize)
 {
     // we have to capacity increase len
     if(arr.buf.len < size)
@@ -110,7 +110,7 @@ func resize_array(arr : Array@, size : u64)
     }
 }
 
-func reserve_array(arr : Array@, size: u64)
+func reserve_array(arr : Array@, size: usize)
 {
     free_size := arr.buf.len - arr.size;
 

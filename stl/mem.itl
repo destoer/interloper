@@ -1,6 +1,6 @@
 namespace std;
 
-func memcpy(dst: byte@, src: const byte@, size: u64)
+func memcpy(dst: byte@, src: const byte@, size: usize)
 {
     end : const byte@ = dst + size;
 
@@ -14,7 +14,7 @@ func memcpy(dst: byte@, src: const byte@, size: u64)
 }
 
 
-func zero_mem(dst: byte@, size : u64)
+func zero_mem(dst: byte@, size : usize)
 {
     end : const byte@ = dst + size;
 
@@ -43,8 +43,9 @@ func handle_write<T>(dst: byte@, v : const T)
 // TODO: we need to expose an intrin?
 /*
     #if INTRIN_BSWAP
+    {
         return intrin_bswap(v);
-    #endif
+    }
 */
 
 func bswap<T>(v : T) T

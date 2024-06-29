@@ -40,8 +40,8 @@ struct File
     mode : file_mode;
 
     // inside our buffer, how much data do we have?
-    buffer_offset : u64;
-    buffer_size : u64;
+    buffer_offset : usize;
+    buffer_size : usize;
 }
 
 enum file_read_res
@@ -110,7 +110,7 @@ func flush_write(file : File@)
 }
 
 // NOTE: this does no error checking
-func buffer_file_write(file : File@, buf : const byte@, len : u64)
+func buffer_file_write(file : File@, buf : const byte@, len : usize)
 {
     memcpy(&file.buf[file.buffer_offset],buf,len);
 
@@ -123,7 +123,7 @@ func write_file_str(file : File@, str : const string) s64
     return write_file_mem(file,str.data, str.len); 
 }
 
-func write_file_line_buffer(file : File@, buf : const byte@, len : u64) s64
+func write_file_line_buffer(file : File@, buf : const byte@, len : usize) s64
 {
     if(!file_valid(file))
     {
@@ -159,7 +159,7 @@ func write_file_line_buffer(file : File@, buf : const byte@, len : u64) s64
     return len;    
 }
 
-func write_file_mem(file : File@,buf : const byte@, len : u64) s64
+func write_file_mem(file : File@,buf : const byte@, len : usize) s64
 {
     if(!file_valid(file))
     {
@@ -181,7 +181,7 @@ func write_file_mem(file : File@,buf : const byte@, len : u64) s64
     }
 
     remain := len;
-    offset : u64 = 0;
+    offset : usize = 0;
 
     // buffer the file writes in
     while(remain != 0)
@@ -228,7 +228,7 @@ func buffer_file_read(file : File@) file_read_res
 }
 
 // flush file buffer, into passed buffer
-func flush_read(file : File@, ptr : byte@, len : u64)
+func flush_read(file : File@, ptr : byte@, len : usize)
 {
     memcpy(ptr,&file.buf[file.buffer_offset],len);
 
@@ -259,7 +259,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
     // attempt to find the first occurence of a '\n' 
     // now we have a buffer to work with
     remain := str.len; 
-    out_offset : u64 = 0;
+    out_offset : usize = 0;
 
     while(true)
     { 
@@ -326,13 +326,13 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
     return buf,file_read_res::error;
 }
 
-func read_file_mem(file : File@, buf : byte[]) [u64, file_read_res]
+func read_file_mem(file : File@, buf : byte[]) [usize, file_read_res]
 {
     [len,res] := read_file_raw(file,buf.data,buf.len);
     return len,res;
 }
 
-func read_file_raw(file : File@,buf : byte@, len : u64) [u64, file_read_res]
+func read_file_raw(file : File@,buf : byte@, len : usize) [usize, file_read_res]
 {
     if(!file_valid(file))
     {

@@ -43,7 +43,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     {
         // emit a call to memcpy with args
         // check function is declared
-        Function* func_def = find_complete_func(itl,String("memcpy"),String("std"));
+        Function* func_def = find_complete_func(itl,"memcpy","std");
 
         if(!func_def)
         {
@@ -88,7 +88,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     // call into zero_mem
     else
     {
-        Function* func_def = find_complete_func(itl,String("zero_mem"),String("std"));
+        Function* func_def = find_complete_func(itl,"zero_mem","std");
 
         if(!func_def)
         {

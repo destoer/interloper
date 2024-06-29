@@ -1,5 +1,5 @@
 
-// expected 0
+// expected 1
 
 func main() s32 
 {
@@ -10,6 +10,12 @@ func main() s32
     res1 := std::handle_read<s32>(&x[0]) == 0;
 
     res2 := std::bswap<u16>(0xdead) == 0xadde;
+
+    buf : u8[?] = {0x2,0x4};
+    std::swap<u8>(&buf[0],&buf[1]);
+
+    std::print("buf: {} {}\n",buf[0],buf[1]);
+    std::print("{} : {} : {x}\n",res1,res2,std::bswap<u16>(0xdead));
 
     ans := res1 && res2;
 

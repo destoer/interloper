@@ -387,6 +387,7 @@ Function& lookup_internal_function(Interloper& itl, const String& name)
     Function* func_opt = lookup_opt_scoped_function(itl,name,"");
 
     // assert this just for saftey
+    // functions looked up by this should never be missing
     assert(func_opt);
 
     return *func_opt;

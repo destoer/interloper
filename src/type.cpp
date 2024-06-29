@@ -128,9 +128,7 @@ b32 is_trivial_copy(const Type *type)
 // for arrays
 b32 is_runtime_size(const ArrayType* type)
 {
-    const ArrayType* array_type = (ArrayType*)type;
-
-    return array_type->size == RUNTIME_SIZE;
+    return type->size == RUNTIME_SIZE;
 }
 
 b32 is_runtime_size(const Type* type)
@@ -169,18 +167,14 @@ b32 is_fixed_array_pointer(const Type* type)
 
 b32 is_string(const ArrayType* type)
 {
-    const ArrayType* array_type = (ArrayType*)type;
-
-    return array_type->contained_type->type_idx == u32(builtin_type::c8_t);
+    return type->contained_type->type_idx == u32(builtin_type::c8_t);
 }
 
 b32 is_string(const Type* type)
 {
     if(is_array(type))
     {
-        const ArrayType* array_type = (ArrayType*)type;
-
-        return array_type->contained_type->type_idx == u32(builtin_type::c8_t);
+        return is_string((ArrayType*)type);
     }
 
     return false;
@@ -189,18 +183,14 @@ b32 is_string(const Type* type)
 
 b32 is_const_string(const ArrayType* type)
 {
-    const ArrayType* array_type = (ArrayType*)type;
-
-    return array_type->contained_type->type_idx == u32(builtin_type::c8_t) && array_type->contained_type->is_const; 
+    return type->contained_type->type_idx == u32(builtin_type::c8_t) && type->contained_type->is_const; 
 }
 
 b32 is_const_string(const Type* type)
 {
     if(is_array(type))
     {
-        const ArrayType* array_type = (ArrayType*)type;
-
-        return array_type->contained_type->type_idx == u32(builtin_type::c8_t) && array_type->contained_type->is_const; 
+        return is_const_string((ArrayType*)type);
     }
 
     return false;
@@ -419,7 +409,7 @@ void init_arr_sub_sizes(Interloper&itl,Type* type);
 u32 init_arr_sub_sizes_internal(Interloper& itl, Type* type)
 {
     /* 
-        decsned until the bottom is reached mark the size
+        descend until the bottom is reached mark the size
         return up the sub size and mark it across each level of the type
 
 
@@ -2123,6 +2113,12 @@ void parse_alias_def(Interloper& itl, TypeDef& def)
     add_alias(itl,itl.alias_table,type,node->name,node->filename,false);   
 }
 
+void declare_compiler_type_aliases(Interloper& itl) 
+{
+    /// usize
+    add_alias(itl,itl.alias_table,make_builtin(itl,builtin_type::u64_t),"usize","ITL_COMPILER",false);
+}
+
 void push_temp_type_alias(Interloper& itl, Type* type,const String &name, const String& filename)
 {
     add_alias(itl,itl.tmp_alias_table,type,name,filename,true);
@@ -2138,9 +2134,9 @@ void pop_temp_type_alias(Interloper& itl)
     // correct the decl entry appropiately
     if(count(itl.tmp_alias_table))
     {
-        const u32 slot = count(itl.alias_table) - 1;
+        const u32 slot = count(itl.tmp_alias_table) - 1;
 
-        // reinstate the old alais
+        // reinstate the old alias
         add_type_decl(itl,slot,itl.tmp_alias_table[slot].name,type_kind::tmp_alias_t);  
     }
 }

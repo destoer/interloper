@@ -74,6 +74,7 @@ func verify_node(heap: const Heap@,node: const HeapNode@)
 
     if(node > heap.max || node < heap.min)
     {
+        // TODO: need to work on rtti so we dont need casts for this
         crash_and_burn("[HEAP]: node {} is out of range: {} : {}",
             cast(byte@,node),cast(byte@,heap.min),cast(byte@,heap.max));
     }
@@ -94,7 +95,6 @@ func verify_heap(heap: const Heap@)
         return;
     }
 
-    // TODO: need to work on rtti so we dont need casts for this
     while(cur)
     {
         verify_node(heap,cur);
@@ -133,8 +133,7 @@ func free_heap_node(heap: Heap@, insert: HeapNode@)
 
 
     // scan for correct insertion location
-    // i.e insert > cur && insert < next
-    while(cur.next != NULL && !(insert > cur && insert < cur.next))
+    while(cur.next != NULL && insert > cur.next)
     {
         cur = cur.next;
     }
@@ -194,7 +193,7 @@ func free_heap(heap : Heap@, ptr : byte@@)
     free_heap_node(heap,insert);
 }
 
-func request_buffer(heap : Heap@, size : u64) bool
+func request_buffer(heap : Heap@, size : usize) bool
 {
     ptr := os_req_mem(size);
 
@@ -207,7 +206,7 @@ func request_buffer(heap : Heap@, size : u64) bool
     return true;
 }
 
-func alloc_heap(heap : Heap@, count : u64, size : u64) byte@
+func alloc_heap(heap : Heap@, count : usize, size : usize) byte@
 {
     verify_heap(heap);
 
@@ -283,7 +282,7 @@ func alloc_heap(heap : Heap@, count : u64, size : u64) byte@
     return NULL;
 }
 
-func realloc_heap(heap : Heap@, ptr: byte@@, count: u64,size: u64) bool
+func realloc_heap(heap : Heap@, ptr: byte@@, count: usize,size: usize) bool
 {
     // get the actual data pointer
     old := @ptr;
@@ -325,7 +324,7 @@ func realloc_heap(heap : Heap@, ptr: byte@@, count: u64,size: u64) bool
     return false;
 }
 
-func realloc_heap_panic(heap : Heap@, ptr: byte@@, count: u64,size: u64)
+func realloc_heap_panic(heap : Heap@, ptr: byte@@, count: usize,size: usize)
 {
     if(realloc_heap(heap,ptr,count,size))
     {
@@ -334,7 +333,7 @@ func realloc_heap_panic(heap : Heap@, ptr: byte@@, count: u64,size: u64)
 }
 
 
-func alloc_heap_panic(heap : Heap@, count : u64, size : u64) byte@
+func alloc_heap_panic(heap : Heap@, count : usize, size : usize) byte@
 {
     ptr := alloc_heap(heap,count,size);
 
@@ -346,7 +345,7 @@ func alloc_heap_panic(heap : Heap@, count : u64, size : u64) byte@
     return ptr;
 }
 
-func add_buffer(heap : Heap@, ptr : byte@, size : u64)
+func add_buffer(heap : Heap@, ptr : byte@, size : usize)
 {
     if(!ptr)
     {

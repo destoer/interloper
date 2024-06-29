@@ -84,7 +84,7 @@ func listen(port: u32, type: net_type) Socket
     return sock;   
 }
 
-func recv_raw(sock: Socket@, ptr: byte@, size : u64) s64
+func recv_raw(sock: Socket@, ptr: byte@, size : usize) s64
 {
     if(!socket_valid(sock))
     {
@@ -116,7 +116,7 @@ func recv_ignore(sock: Socket@, size : u32)
     }
 }
 
-func recv_raw_all(sock: Socket@, ptr : byte@, size : u64) s64
+func recv_raw_all(sock: Socket@, ptr : byte@, size : usize) s64
 {
     to_read := size;
 
@@ -137,7 +137,7 @@ func recv_raw_all(sock: Socket@, ptr : byte@, size : u64) s64
     return size;
 }
 
-func recv_array_all(sock: Socket@, arr: Array@, size: u64) s64
+func recv_array_all(sock: Socket@, arr: Array@, size: usize) s64
 {
     // make sure we can read all this in
     reserve_array(arr,size);
@@ -155,7 +155,7 @@ func recv_array_all(sock: Socket@, arr: Array@, size: u64) s64
     return read;
 }
 
-func recv_clear_array(sock: Socket@, arr: Array@, size: u64) s64
+func recv_clear_array(sock: Socket@, arr: Array@, size: usize) s64
 {
     clear_array(arr);
 
@@ -177,7 +177,7 @@ func send_var<T>(sock: Socket@, v : const T@)
     send_raw(sock,v,sizeof_data(T));
 }
 
-func send_raw(sock : Socket@, ptr: const byte@, size : u64) s64
+func send_raw(sock : Socket@, ptr: const byte@, size : usize) s64
 {
     if(!socket_valid(sock))
     {

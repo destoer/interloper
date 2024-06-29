@@ -20,6 +20,13 @@ struct Window
     limit: f64;
 }
 
+struct Colour
+{
+    r : f64;
+    g : f64;
+    b : f64;
+};
+
 constant WINDOW_PREFIX :  string = "[WINDOW]: ";
 
 func test_pattern(screen: u32[], x: u32, y: u32)
@@ -71,7 +78,8 @@ func draw_window(win : Window@, screen: const u32[])
 }
 
 // NOTE: these are just general helpers we should still be able to
-// mess with this manually if we want
+// mess with this manually if we want, this just makes it simpler
+// to get a standard 60 fps limited window
 func start_frame(win : Window@)
 {
     win.start_timestamp = std::timestamp_ms();

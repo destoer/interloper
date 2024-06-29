@@ -66,6 +66,27 @@ func log10(v: f64) u64
 func pow(double: f64,pow: f64) f64
 */
 
+
+func clamp<T>(min: T, max: T, v: T) T
+{
+    if(v < min)
+    {
+        return min;
+    }
+
+    else if(v > max)
+    {
+        return max;
+    }
+
+    return v;
+}
+
+func in_range<T>(min: T, max: T, v: T) b32
+{
+    return v >= min && v <= max;
+}
+
 struct Vec2D
 {
     x : f64;

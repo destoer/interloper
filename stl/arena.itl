@@ -5,7 +5,7 @@ struct Arena
     buf : byte[];
 
     // how much of the arena have we used
-    len : u64;
+    len : usize;
 }
 
 
@@ -19,7 +19,7 @@ func make_arena(buf : byte[]) Arena
     return arena;
 }
 
-func alloc_arena(arena : Arena@, size : u64) byte@
+func alloc_arena(arena : Arena@, size : usize) byte@
 {
     // allocation failed
     if(arena.len + size >= arena.buf.len)
@@ -33,7 +33,7 @@ func alloc_arena(arena : Arena@, size : u64) byte@
     return alloc_ptr;    
 }
 
-func alloc_arena_panic(arena : Arena@, size : u64) byte@
+func alloc_arena_panic(arena : Arena@, size : usize) byte@
 {
     ptr := alloc_arena(arena,size);
 

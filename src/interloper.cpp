@@ -1308,6 +1308,7 @@ void compile(Interloper &itl,const String& initial_filename)
     itl.type_def = make_table<String,TypeDef>();
 
     setup_type_table(itl);
+    declare_compiler_type_aliases(itl);
 
     // add an dummy error value as the first handle
     // see SYM_ERROR
