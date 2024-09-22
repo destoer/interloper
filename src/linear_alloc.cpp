@@ -294,7 +294,7 @@ void init_regs(LinearAlloc& alloc, u32 locked_set)
     // add sse regs
 
     // return reg reserved
-    //add_reg(alloc.fpr,x86_reg::xmm0,0);
+    // add_reg(alloc.fpr,x86_reg::xmm0,0);
 
     add_reg(alloc.fpr,x86_reg::xmm1,0);
     add_reg(alloc.fpr,x86_reg::xmm2,0);

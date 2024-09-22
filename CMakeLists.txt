@@ -22,5 +22,8 @@ endif()
 
 include_directories("src/headers")
 include_directories("src/")
-include_directories("destoer-lib/src")
+
+add_subdirectory("destoer-lib")
+
 add_executable(interloper ${src_files})
+target_link_libraries(interloper destoer)

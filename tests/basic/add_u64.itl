@@ -1,0 +1,14 @@
+
+func add(v1: u64, v2: u64) u64 
+{
+    return v1 + v2;
+}
+
+func main() s32 
+{
+    ans := add(0xffff_ffff,80);
+
+    // std::print("answer: {x}\n",ans);
+
+    return cast(s32,ans == 0x10000004F);   
+}

@@ -1,3 +1,4 @@
+#include <interloper.h>
 
 std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot ptr_slot,SymSlot dst_slot,IndexNode* index_node,PointerType* type)
 {
