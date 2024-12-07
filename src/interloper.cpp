@@ -1152,6 +1152,38 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 break;
             }
 
+            case ast_type::struct_return:
+            {
+                StructReturnNode* struct_return = (StructReturnNode*)line;
+
+                // Check we have a valid struct
+                const auto struct_decl = lookup_type(itl,struct_return->struct_name);
+
+                if(!struct_decl || struct_decl->kind != type_kind::struct_t)
+                {
+                    panic(itl,itl_error::struct_error,"No such struct: %s\n",struct_return->struct_name);
+                    break;
+                }
+
+                if(count(func.sig.return_type) != 1)
+                {
+                    panic(itl,itl_error::struct_error,"Expected single return for struct return func expects: %d\n",count(func.sig.return_type));
+                    break;
+                }
+
+
+                // Check the return type matches
+                const auto struct_type = make_struct(itl,struct_decl->type_idx);
+                check_assign(itl,func.sig.return_type[0],struct_type);
+
+                // Compile a initializer list into the return type
+                const auto &structure = itl.struct_table[struct_decl->type_idx];
+                traverse_struct_initializer(itl,func,struct_return->record,make_addr(func.sig.args[0],0),structure);
+
+                ret(itl,func);
+                break;            
+            }
+
             default:
             {
                 panic(itl,itl_error::invalid_statement,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);

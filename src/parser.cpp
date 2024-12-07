@@ -758,6 +758,33 @@ AstNode *statement(Parser &parser)
             // return value is optional
             if(!match(parser,token_type::semi_colon))
             {
+                if(peek(parser,1).type == token_type::left_c_brace)
+                {
+                    if(!match(parser,token_type::symbol))
+                    {
+                        panic(parser,t,"Expected struct name for struct return");
+                        return nullptr;
+                    }
+                    
+                    const auto name_tok = next_token(parser);
+
+
+                    const auto list = expr_terminate(parser,"struct return intializer",token_type::semi_colon);
+
+                    if(!list)
+                    {
+                        return nullptr;
+                    }
+
+                    if(list->type != ast_type::initializer_list)
+                    {
+                        panic(parser,t,"Expected initializer list for struct return");
+                        return nullptr;
+                    }
+
+                    return ast_struct_return(parser,name_tok.literal,(RecordNode*)list,t);
+                }
+
                 RecordNode* record = (RecordNode*)ast_record(parser,ast_type::ret,t);
 
                 b32 done = false;
@@ -2139,6 +2166,20 @@ void print(const AstNode *root, b32 override_seperator)
             for(u32 n = 0; n < count(record_node->nodes); n++)
             {
                 print(record_node->nodes[n]);
+            }                 
+
+            break;
+        }
+
+        case ast_fmt::struct_return:
+        {
+            StructReturnNode* struct_return_node = (StructReturnNode*)root;
+
+            printf("struct return %s\n",struct_return_node->struct_name.buf);
+
+            for(u32 n = 0; n < count(struct_return_node->record->nodes); n++)
+            {
+                print(struct_return_node->record->nodes[n]);
             }                 
 
             break;

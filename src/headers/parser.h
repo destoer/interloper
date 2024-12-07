@@ -27,6 +27,7 @@ enum class ast_type
     scope,
     type_alias,
 
+    struct_return,
     ret,
 
     type,
@@ -132,6 +133,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "scope",
     "type_alias",
 
+    "struct_return",
     "return",
 
     "type",
@@ -239,6 +241,7 @@ enum class ast_fmt
     tuple_assign,
     type_alias,
     builtin_type_info,
+    struct_return,
 };
 
 inline const char *FMT_NAMES[] =
@@ -269,6 +272,7 @@ inline const char *FMT_NAMES[] =
     "tuple_assign",
     "type_alias",
     "builtin_type_info",
+    "struct_return",
 };
 
 
@@ -552,6 +556,14 @@ struct TupleAssignNode
     b32 auto_decl;
 };
 
+struct StructReturnNode
+{
+    AstNode node;
+
+    String struct_name;
+    RecordNode* record;
+};
+
 using AstPointers = Array<void***>;
 
 struct Parser
@@ -616,6 +628,16 @@ T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
     node->idx = token.idx;
 
     return ret_node;
+}
+
+AstNode *ast_struct_return(Parser& parser,const String& literal, RecordNode* record, const Token& token)
+{
+    StructReturnNode* struct_return_node = alloc_node<StructReturnNode>(parser,ast_type::struct_return,ast_fmt::struct_return,token);
+
+    struct_return_node->struct_name = literal;
+    struct_return_node->record = record;
+
+    return (AstNode*)struct_return_node;
 }
 
 AstNode *ast_plain(Parser& parser,ast_type type, const Token& token)

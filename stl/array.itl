@@ -24,7 +24,7 @@ func destroy_arr_heap_byte(heap : Heap@, vla: byte@[])
 func arr_heap_u32(heap : Heap@, size : usize) u32[]
 {
     buf: u32[];
-    buf.data = cast(u32@,alloc_heap_panic(&global_heap,size,sizeof_type(byte)));
+    buf.data = cast(u32@,alloc_heap_panic(&global_heap,size,sizeof_type(u32)));
     buf.len = size;
 
     return buf;
@@ -65,10 +65,9 @@ struct Array
     element_size: usize = 1;
 };
 
-func make_array(element_size: usize) Array {
-    // return Array {{NULL,0},0,element_size};
-    array: Array = {{NULL,0},0,element_size};
-    return array;
+func make_array(element_size: usize) Array 
+{
+    return Array {{NULL,0},0,element_size};
 }
 
 func clear_array(arr: Array@)
@@ -168,28 +167,28 @@ func push_u64(arr : Array@, v : u64)
     push_buffer(arr,&v,sizeof(v));
 }
 
-func read_u8(arr: Array@, offset: u64) u8
+func read_u8(arr: const Array@, offset: u64) u8
 {
     v: u8;
     read_buffer(arr,offset,&v,sizeof(v));
     return v;
 }
 
-func read_u16(arr: Array@, offset: u64) u16
+func read_u16(arr: const Array@, offset: u64) u16
 {
     v: u16;
     read_buffer(arr,offset,&v,sizeof(v));
     return v;
 }
 
-func read_u32(arr: Array@, offset: u64) u32
+func read_u32(arr: const Array@, offset: u64) u32
 {
     v: u32;
     read_buffer(arr,offset,&v,sizeof(v));
     return v;
 }
 
-func read_u64(arr: Array@, offset: u64) u64
+func read_u64(arr: const Array@, offset: u64) u64
 {
     v: u64;
     read_buffer(arr,offset,&v,sizeof(v));

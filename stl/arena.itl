@@ -11,12 +11,10 @@ struct Arena
 
 func make_arena(buf : byte[]) Arena
 {
-    arena : Arena = {?};
-
-    arena.len = 0;
-    arena.buf = buf;
-
-    return arena;
+    return Arena {
+        buf,
+        0
+    };
 }
 
 func alloc_arena(arena : Arena@, size : usize) byte@
