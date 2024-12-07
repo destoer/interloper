@@ -579,11 +579,11 @@ AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call)
     return node;
 }
 
-AstNode* func_call(Parser& parser,AstNode *expr, const Token& t, Array<TypeNode*>* generic)
+AstNode* func_call(Parser& parser,AstNode *expr, const Token& t)
 {
     consume(parser,token_type::left_paren);
 
-    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,expr,generic,t);
+    FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,expr,t);
 
 
     // keep reading args till we run out of commas
@@ -747,66 +747,6 @@ AstNode* parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 take
     return (AstNode*)for_node;
 }
 
-AstNode* parse_template(Parser& parser, const Token& t)
-{
-    Array<TypeNode*> generic;
-
-    b32 done = false;
-
-    while(!done)
-    {
-        TypeNode* type = parse_type(parser,true);
-
-        if(parser.error)
-        {
-            destroy_arr(generic);
-            return nullptr;
-        }
-
-        push_var(generic,type);
-
-        // more args
-        if(match(parser,token_type::comma))
-        {
-            consume(parser,token_type::comma);
-        }
-
-        // end
-        else if(match(parser,token_type::logical_gt))
-        {
-            consume(parser,token_type::logical_gt);
-            done = true;
-        }
-
-        // we have a problem!
-        else
-        {
-            destroy_arr(generic);
-            return nullptr;  
-        }
-    }
-
-    return func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t,&generic);
-}
-
-AstNode* template_or_var(Parser& parser, const Token& t)
-{
-    const auto old = parser.tok_idx;
-
-    AstNode* call = parse_template(parser,t);
-
-    if(call)
-    {
-        return call;
-    }
-
-    // did not find function template
-    // walk back the parser behind <
-    parser.tok_idx = old - 1;
-
-    return var(parser,t,true);
-}
-
 AstNode *statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -906,13 +846,6 @@ AstNode *statement(Parser &parser)
 
                 // check for brackets
                 // array indexes etc here 
-
-                // template usage
-                case token_type::logical_lt:
-                {
-                    consume(parser,token_type::logical_lt);
-                    return template_or_var(parser,t);
-                }
 
                 // function call
                 case token_type::left_paren:
@@ -1219,45 +1152,6 @@ void type_alias(Interloper& itl, Parser &parser)
 FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
     FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.cur_file,parser.cur_name_space,token);
-
-    // generic decl
-    if(match(parser,token_type::logical_lt))
-    {
-        consume(parser,token_type::logical_lt);
-
-        bool done = false;
-
-        while(!done)
-        {
-            if(match(parser,token_type::symbol))
-            {
-                const auto name = next_token(parser);
-                push_var(f->generic_name,name.literal);
-            }
-
-            else
-            {
-                panic(parser,token,"unexecpted token in generic decl");
-                return nullptr;
-            }
-
-            if(match(parser,token_type::comma))
-            {
-                consume(parser,token_type::comma);
-            }
-
-            else
-            {
-                consume(parser,token_type::logical_gt);
-                done = true;
-            }
-        }
-    }
-
-    if(parser.error)
-    {
-        return nullptr;
-    }
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
@@ -2065,21 +1959,7 @@ void print(const AstNode *root, b32 override_seperator)
         {
             FuncNode* func_node = (FuncNode*)root;
 
-            printf("function %s:%s",func_node->filename.buf,func_node->name.buf);
-
-            if(count(func_node->generic_name))
-            {
-                putchar('<');
-
-                for(u32 t = 0; t < count(func_node->generic_name); t++)
-                {
-                    printf("%s,",func_node->generic_name[t].buf);
-                }
-
-                putchar('>');  
-            }
-
-            putchar('\n');
+            printf("function %s:%s\n",func_node->filename.buf,func_node->name.buf);
 
             for(u32 a = 0; a < count(func_node->args); a++)
             {
@@ -2215,11 +2095,6 @@ void print(const AstNode *root, b32 override_seperator)
             printf("function call\n");
 
             print(func_call->expr);
-
-            for(u32 g = 0; g < count(func_call->generic); g++)
-            {
-                print((AstNode*)func_call->generic[g]);
-            }
 
             for(u32 a = 0; a < count(func_call->args); a++)
             {

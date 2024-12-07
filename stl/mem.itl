@@ -25,20 +25,6 @@ func zero_mem(dst: byte@, size : usize)
     }  
 }
 
-func zero_var<T>(dst: T@)
-{
-    zero_mem(dst,sizeof_type(T));
-}
-
-func handle_read<T>(src: const byte@) T
-{
-    return @cast(T@,src);
-}
-
-func handle_write<T>(dst: byte@, v : const T)
-{
-    @cast(T@,dst) = v;
-}
 
 // TODO: we need to expose an intrin?
 /*
@@ -48,35 +34,19 @@ func handle_write<T>(dst: byte@, v : const T)
     }
 */
 
-func bswap<T>(v : T) T
+func bswap_u16(v: u16) u16
 {
-    buf := cast(byte@,&v);
-
-    for(i in 0 < sizeof_type(T) / 2)
-    {
-        // swap opposing ends
-        swap<byte>(&buf[i],&buf[sizeof_type(T) - i - 1]);
-    }
-
-    return v;
+    return (v >> 8) | ((v & 0xff) << 8);
 }
 
-func host_to_network<T>(v : T) T
+func host_to_network_u16(v : u16)
 {
     // if we are on little endian we need to do a byteswap
     if(LITTLE_ENDIAN)
     {
-        return bswap<T>(v);
+        return bswap_u16(v);
     }
 
     // we allready have variables in a native order!
-    return v;
-}
-
-func bit_cast<T,Y>(conv: T) Y
-{
-    v : Y;
-
-    memcpy(cast(byte@,&v), cast(byte@,&conv),sizeof_type(Y));
     return v;
 }

@@ -162,21 +162,6 @@ func recv_clear_array(sock: Socket@, arr: Array@, size: usize) s64
     return recv_array_all(sock,arr,size);
 }
 
-func recv_var<T>(sock: Socket@) T
-{
-    // NOTE: we want to only read till the end of data without padding
-    // incase we have differing alignemnts
-    v : T;
-    recv_raw_all(sock,&v,sizeof_data(T));
-
-    return v;
-}
-
-func send_var<T>(sock: Socket@, v : const T@)
-{
-    send_raw(sock,v,sizeof_data(T));
-}
-
 func send_raw(sock : Socket@, ptr: const byte@, size : usize) s64
 {
     if(!socket_valid(sock))
@@ -203,12 +188,6 @@ func send_array(sock: Socket@, arr : const Array@) s64
 {
     return send_raw(sock,arr.buf.data,arr.size);
 }
-
-func send_arr<T>(sock: Socket@, arr : const T[]) s64
-{
-    return send_raw(sock,arr.data,arr.len * sizeof_type(T));
-}
-
 
 func send_str(sock: Socket@, str: const string) s64
 {

@@ -7,15 +7,13 @@ func main() s32
 
     std::zero_mem(&x[0],x.len);
 
-    res1 := std::handle_read<s32>(&x[0]) == 0;
+    v : s32;
+    std::memcpy(&v,&x[0],sizeof_type(s32));
+    res1 := v == 0;
 
-    res2 := std::bswap<u16>(0xdead) == 0xadde;
+    res2 := std::bswap_u16(0xdead) == 0xadde;
 
-    buf : u8[?] = {0x2,0x4};
-    std::swap<u8>(&buf[0],&buf[1]);
-
-    std::print("buf: {} {}\n",buf[0],buf[1]);
-    std::print("{} : {} : {x}\n",res1,res2,std::bswap<u16>(0xdead));
+    std::print("{} : {} : {x}\n",res1,res2,std::bswap_u16(0xdead));
 
     ans := res1 && res2;
 

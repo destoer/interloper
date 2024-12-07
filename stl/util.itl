@@ -38,16 +38,3 @@ func rand_range_u32(min : u32, max : u32) u32
 {
     return cast(u32,rand(min,max));
 }
-
-func rand_arr_idx<T>(arr: const T[]) u64
-{
-    return rand_range_u64(0,arr.len - 1);
-}
-
-func swap<T>(v1 : T@, v2 : T@)
-{
-    tmp := @v1;
-
-    @v1 = @v2;
-    @v2 = tmp;
-}

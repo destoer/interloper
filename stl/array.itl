@@ -1,67 +1,59 @@
 namespace std;
 
-func arr_arena<T>(arena : Arena@, size : usize) T[]
-{
-    buf : T[];
-
-    buf.data = cast(T@,alloc_arena_panic(arena,size * sizeof_type(T)));
-    buf.len = size;
-
-    return buf;
-}
-
-
-func arr_heap<T>(heap : Heap@, size : usize) T[]
-{
-    buf : T[];
-
-    buf.data = cast(T@,alloc_heap_panic(heap,size,sizeof_type(T)));
-    buf.len = size;
-
-    return buf;
-}
-
-func destroy_arr_heap<T>(heap : Heap@,arr: T@[])
-{
-    free_heap(heap,&arr.data);
-    arr.len = 0;
-}
-
-func fill_array<T>(array: T[], v: T)
-{
-    for(@p in array)
-    {
-        @p = v;
-    }
-}
-
-
 func byte_arr_heap(heap : Heap@, size : usize) byte[]
 {
-    return arr_heap<byte>(heap,size);
+    buf: byte[];
+    buf.data = alloc_heap_panic(&global_heap,size,sizeof_type(byte));
+    buf.len = size;
+
+    return buf;
 }
+
+func arr_realloc_byte(heap: Heap@, vla: byte@[], size: usize) 
+{
+    realloc_heap_panic(&global_heap,&vla.data,size,sizeof_type(byte));
+    vla.len = size;
+}
+
+func destroy_arr_heap_byte(heap : Heap@, vla: byte@[])
+{
+    free_heap(&global_heap,&vla.data);
+    vla.len = 0;
+}
+
+func arr_heap_u32(heap : Heap@, size : usize) u32[]
+{
+    buf: u32[];
+    buf.data = cast(u32@,alloc_heap_panic(&global_heap,size,sizeof_type(byte)));
+    buf.len = size;
+
+    return buf;
+}
+
+
+func arr_realloc_u32(heap: Heap@, vla: byte@[], size: usize) 
+{
+    realloc_heap_panic(&global_heap,&vla.data,size,sizeof_type(u32));
+    vla.len = size;
+}
+
+func destroy_arr_heap_u32(heap : Heap@, vla: u32@[])
+{
+    free_heap(&global_heap,&vla.data);
+    vla.len = 0;
+}
+
 
 func byte_arr_arena(arena : Arena@, size : usize) byte[]
 {
-    return arr_arena<byte>(arena,size);
+    buf: byte[];
+    buf.data = alloc_arena_panic(arena,size);
+    buf.len = size;
+
+    return buf;
 }
 
-func u32_arr_heap(heap : Heap@, size : usize) u32[]
-{
-    return arr_heap<u32>(heap,size);
-}
 
-func u32_arr_arena(arena : Arena@, size : usize) u32[]
-{
-    return arr_arena<u32>(arena,size);
-}
-
-func array_realloc<T>(heap : Heap@,arr: T@[], size : usize)
-{
-    realloc_heap_panic(heap,&arr.data,size,sizeof_type(T));
-
-    arr.len = size;
-}
 
 struct Array
 {
@@ -69,14 +61,17 @@ struct Array
     // regardless of indexing
     buf : byte[];
     size : usize;
+
+    element_size: usize = 1;
 };
 
-/*
-func index<T>(arr: Array<T>@,index: u32)
-{
+func make_array(element_size: usize) Array {
+    // return Array {{NULL,0},0,element_size};
+    buffer: byte[];
+    array: Array = {buffer,0,element_size};
 
+    return array;
 }
-*/
 
 func clear_array(arr: Array@)
 {
@@ -91,7 +86,8 @@ func destroy_array(arr: Array@)
 
 func reserve_array_mem(arr: Array@, size : usize)
 {
-    array_realloc<byte>(&global_heap,&arr.buf,size);
+    realloc_heap_panic(&global_heap,&arr.buf.data,size,sizeof_type(byte));
+    arr.buf.len = size;
 }
 
 func resize_array(arr : Array@, size : usize)
@@ -128,48 +124,80 @@ func reserve_array(arr : Array@, size: usize)
     }
 }
 
-func read_buffer<T>(arr : const Array@, offset : u32) T
+func read_buffer(arr : const Array@, offset : usize, data: byte@, size: usize)
 {
-    return handle_read<T>(&arr.buf[offset]);
+    memcpy(data,&arr.buf[offset],size);
 }
 
-func read_array<T>(arr : const Array@, idx: u32) T
+func read_array(array : const Array@, idx: usize,data: byte@)
 {
-    offset := idx * sizeof_type(T);
-    return read_buffer<T>(arr,offset);
+    offset := idx * array.element_size;
+    read_buffer(array,offset,data,array.element_size);
 }
 
 
-func push_array<T>(arr : Array@, v : T)
+func push_buffer(arr : Array@, v: const byte@,size: usize)
 {
-    size := sizeof_type(T);
-
     reserve_array(arr,size);
 
     // actually write in the data
-    handle_write<T>(&arr.buf[arr.size],v);
+    memcpy(&arr.buf[arr.size],v,size);
     arr.size += size;
+}
+
+func push_array(arr: Array@, data: const byte@) 
+{
+    push_buffer(arr,data,arr.element_size);
 }
 
 func push_u8(arr : Array@, v : u8)
 {
-    push_array<u8>(arr,v);
+    push_buffer(arr,&v,sizeof(v));
 }
 
 func push_u16(arr : Array@, v : u16)
 {
-    push_array<u16>(arr,v);
+    push_buffer(arr,&v,sizeof(v));
 }
 
 func push_u32(arr : Array@, v : u32)
 {
-    push_array<u32>(arr,v);
+    push_buffer(arr,&v,sizeof(v));
 }
 
 func push_u64(arr : Array@, v : u64)
 {
-    push_array<u64>(arr,v);
+    push_buffer(arr,&v,sizeof(v));
 }
+
+func read_u8(arr: Array@, offset: u64) u8
+{
+    v: u8;
+    read_buffer(arr,offset,&v,sizeof(v));
+    return v;
+}
+
+func read_u16(arr: Array@, offset: u64) u16
+{
+    v: u16;
+    read_buffer(arr,offset,&v,sizeof(v));
+    return v;
+}
+
+func read_u32(arr: Array@, offset: u64) u32
+{
+    v: u32;
+    read_buffer(arr,offset,&v,sizeof(v));
+    return v;
+}
+
+func read_u64(arr: Array@, offset: u64) u64
+{
+    v: u64;
+    read_buffer(arr,offset,&v,sizeof(v));
+    return v;
+}
+
 
 func str_from_array(arr : Array@) string
 {
@@ -194,19 +222,4 @@ func dump_array_bytes(arr: const Array@)
     }
 
     linefeed();
-}
-
-func dump_arr<T>(arr: const T[])
-{
-    for(i in 0 < arr.len)
-    {
-        if((i & 15) == 0)
-        {
-            linefeed();
-        }
-
-        print("{x} ",arr[i]);
-    }
-
-    linefeed();   
 }

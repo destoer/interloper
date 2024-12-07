@@ -86,7 +86,9 @@ func shuffle_deck(deck : const Deck@)
     {
         idx := std::rand_range_u64(0,cast(u32,i)); 
 
-        std::swap<Card>(&deck.card[i],&deck.card[idx]);
+        tmp := deck.card[i];
+        deck.card[i] = deck.card[idx];
+        deck.card[idx] = tmp;
     }
 }
 

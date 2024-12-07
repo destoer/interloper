@@ -4,7 +4,5 @@ import <system_linux>
 
 constant EXIT_INVALID_FILE : s32 = -3;
 
-constant ENABLE_LOGS : bool = true;
-
 constant FAILURE_OPEN_STDOUT : s32 = -200;
 constant FAILURE_OPEN_STDIN : s32 = -201;
