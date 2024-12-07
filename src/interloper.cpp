@@ -36,6 +36,8 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 
 void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
 
+void store_const_string(Interloper& itl, Function& func, const String& literal, const SymSlot arr_slot);
+
 #include "lexer.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
@@ -678,6 +680,14 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,scope_node->scope);
         }
 
+        case ast_type::string:
+        {
+            const auto literal_node = (LiteralNode*)node;
+            store_const_string(itl,func,literal_node->literal,dst_slot);
+
+            return make_array(itl,make_builtin(itl,builtin_type::c8_t,true),RUNTIME_SIZE);
+        }
+        
         default:
         {
             panic(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);

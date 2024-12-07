@@ -478,6 +478,18 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,AddrS
 }
 
 
+void store_const_string(Interloper& itl, Function& func, const String& literal, const SymSlot arr_slot)
+{
+    // we can set this up directly from the const pool
+    const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
+
+    const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
+    store_arr_data(itl,func,arr_slot,arr_data);
+
+    const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
+    store_arr_len(itl,func,arr_slot,arr_size);
+}
+
 void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const SymSlot arr_slot, Type* type)
 {
     switch(node->type)
@@ -510,14 +522,7 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
             {
                 if(is_const_string(type))
                 {
-                    // we can set this up directly from the const pool
-                    const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
-
-                    const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
-                    store_arr_data(itl,func,arr_slot,arr_data);
-
-                    const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
-                    store_arr_len(itl,func,arr_slot,arr_size);
+                    store_const_string(itl,func,literal,arr_slot);
                 }
 
                 else

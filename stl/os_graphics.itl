@@ -1070,7 +1070,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     win.win_x = x;
     win.win_y = y;
 
-    socket_name: const string = "/tmp/.X11-unix/X2";
+    socket_name := "/tmp/.X11-unix/X0";
     std::log_debug(X11_PREFIX,"connecting to {}",socket_name);
 
     // open connection to x server
