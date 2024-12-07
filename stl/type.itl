@@ -174,8 +174,9 @@ func int_from_any(any : const Any) u64
 
 func float_from_any(any : const Any) f64
 {
+    v := cast(u64,any.data);
     out: f64;
-    memcpy(&out,any.data,sizeof(out));
+    memcpy(&out,&v,sizeof(out));
     return out;
 }
 
