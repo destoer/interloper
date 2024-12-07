@@ -271,7 +271,24 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
 
     else if(is_runtime_size(type))
     {
-        panic(itl,itl_error::array_type_error,"cannot assign initalizer to vla\n");
+        if(node_len != 2)
+        {
+            panic(itl,itl_error::missing_initializer,"vla initializer expects 2 initializers {POINTER,SIZE}");
+            return;
+        }
+
+        const auto [ptr_type,ptr_slot] = compile_oper(itl,func,list->nodes[0]);
+        check_assign(itl,make_pointer(itl,type->contained_type),ptr_type);
+
+        store_addr_slot(itl,func,ptr_slot,*addr_slot,GPR_SIZE,false);
+        addr_slot->offset += GPR_SIZE;
+
+        const auto [size_type,size_slot] = compile_oper(itl,func,list->nodes[1]);
+        check_assign(itl,make_builtin(itl,GPR_SIZE_TYPE),size_type);
+
+        store_addr_slot(itl,func,size_slot,*addr_slot,GPR_SIZE,false);
+        addr_slot->offset += GPR_SIZE;
+
         return;
     }
 

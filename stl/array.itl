@@ -67,9 +67,7 @@ struct Array
 
 func make_array(element_size: usize) Array {
     // return Array {{NULL,0},0,element_size};
-    buffer: byte[];
-    array: Array = {buffer,0,element_size};
-
+    array: Array = {{NULL,0},0,element_size};
     return array;
 }
 
