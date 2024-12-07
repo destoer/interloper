@@ -456,10 +456,6 @@ struct Function
     LabelSlot label_slot;
 
     FuncNode* root = nullptr;
-
-    Array<String> generic_override_name;
-    Array<Type*> generic_override;
-
     b32 used = false;
 
     // TODO: we need locked ranges

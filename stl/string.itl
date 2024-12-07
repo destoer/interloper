@@ -49,7 +49,9 @@ func str_copy_term(dst: string,src: const string) usize
 
 func swap_c8(v1 : c8@, v2 : c8@)
 {
-    swap<c8>(v1,v2);
+    tmp := @v1;
+    @v1 = @v2;
+    @v2 = tmp;
 }
 
 func reverse_str(str : string, len : usize)

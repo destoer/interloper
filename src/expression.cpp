@@ -250,16 +250,6 @@ AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             return call;
         }
 
-        // potential generic instantiation
-        case token_type::logical_lt:
-        {
-            auto ans = template_or_var(parser,t);
-            next_expr_token(parser,ctx);
-
-            return ans;
-        }
-    
-
         // TODO: for now this is just for hanlding enums
         case token_type::scope:
         {

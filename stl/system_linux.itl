@@ -350,7 +350,7 @@ func connect_unix_domain(name : const string) Socket
 
     // open connection
     addr : SockAddrUn;
-    zero_var<SockAddrUn>(&addr);
+    zero_mem(&addr,sizeof(addr));
 
     addr.family = AF_UNIX;
 
@@ -414,11 +414,11 @@ func os_connect(ip: const string, port: u16, type: net_type) byte@
 
     // actually connect
     addr : SockAddrIn;
-    zero_var<SockAddrIn>(&addr);
+    zero_mem(&addr,sizeof(addr));
 
     // fill out our details
     addr.family = AF_INET;
-    addr.port = host_to_network<u16>(port);
+    addr.port = host_to_network_u16(port);
 
     [addr.addr,err] := ip_to_net_addr(ip);
 

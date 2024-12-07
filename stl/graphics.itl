@@ -31,7 +31,10 @@ constant WINDOW_PREFIX :  string = "[WINDOW]: ";
 
 func test_pattern(screen: u32[], x: u32, y: u32)
 {
-    std::fill_array<u32>(screen,0x0000_ff00);
+    for @v in screen
+    {
+        @v = 0x0000_ff00;
+    }
 
     screen[((y / 2) * x) + (x / 2)] = 0x0000_00ff;
 }
@@ -39,13 +42,13 @@ func test_pattern(screen: u32[], x: u32, y: u32)
 // called when os window is resized
 func window_resized(win: Window@,x : u32, y : u32)
 {
-    std::log(WINDOW_PREFIX,"resized {} {}\n",x,y);
+    std::log_info(WINDOW_PREFIX,"resized {} {}\n",x,y);
 
     win.size.x = cast(f64,x);
     win.size.y = cast(f64,y);
 
     // realloc our buffer
-    std::array_realloc<u32>(&global_heap,&win.screen,x * y);
+    std::arr_realloc_u32(&global_heap,&win.screen,x * y);
 
     // blank the screen
     test_pattern(win.screen,x,y);
@@ -68,7 +71,7 @@ func open_window(str : const string, x : u32, y : u32) Window
 
 func close_window(win : Window@)
 {
-    std::destroy_arr_heap<u32>(&global_heap,&win.screen);
+    std::destroy_arr_heap_u32(&global_heap,&win.screen);
     os_destroy_window(&win.os_win);
 }
 

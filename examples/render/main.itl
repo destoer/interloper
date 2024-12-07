@@ -59,7 +59,7 @@ func make_context() Context
 {
     ctx: Context;
 
-    ctx.map = std::arr_heap<u32>(&global_heap,TILE_X * TILE_Y);
+    ctx.map = std::arr_heap_u32(&global_heap,TILE_X * TILE_Y);
 
     return ctx;
 }

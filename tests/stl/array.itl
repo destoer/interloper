@@ -2,19 +2,21 @@
 
 func main() s32
 {
-    arr : Array;
+    arr : Array = std::make_array(sizeof_type(u32));
 
     
     for(i in 1 <= 4)
     {
-        std::push_array<u32>(&arr,i);
+        std::push_array(&arr,&i);
     }
 
     std::linefeed();
 
     for(i in 0 < 4)
     {
-        if(std::read_array<u32>(&arr,i) != i + 1)
+        v : u32;
+        std::read_array(&arr,i,&v);
+        if(v != i + 1)
         {
             std::destroy_array(&arr);
             return 0;

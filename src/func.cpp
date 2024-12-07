@@ -41,7 +41,7 @@ void add_func(Interloper& itl, const String& name, const String& name_space, Fun
     add(itl.func_table.table,func_def.name,func_def);    
 }
 
-Function* finalise_func_internal(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
+Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
 {
     // havent finalised this func
     if(!func_def.func)
@@ -133,206 +133,10 @@ Function& create_dummy_func(Interloper& itl, const String& name)
 
     FunctionDef& func_def = *lookup_func_def_global(itl,name);
     
-    finalise_func_internal(itl,func_def);
+    finalise_func(itl,func_def);
 
     // get its new home
     return lookup_internal_function(itl,name);
-}
-
-StringBuffer func_generic_name(Interloper& itl, const String& old_name,Array<TypeNode*> generic)
-{
-    StringBuffer buffer;
-
-    // old name appended with _g_
-    push_string(buffer,old_name);
-    push_string(buffer,"_g");
-
-    //printf("gen %s : %s\n",old_name.buf,make_string(buffer).buf);
-
-    for(u32 g = 0; g < count(generic); g++)
-    {
-        Type* type = get_type(itl,generic[g]);
-
-        b32 done = false;
-
-        while(!done)
-        {
-            switch(type->type_idx)
-            {
-                case POINTER:
-                {
-                    push_string(buffer,"_ptr@_");
-                    type = deref_pointer(type);
-                    break;
-                }
-
-                case STRUCT: 
-                {
-                    auto& structure  = struct_from_type(itl.struct_table,type);
-                    push_var(buffer,'_');
-                    push_string(buffer,structure.name);
-                    done = true;
-                    break;               
-                }
-
-                case ENUM: 
-                {
-                    const auto& enumeration = enum_from_type(itl.enum_table,type);
-                    push_var(buffer,'_');
-                    push_string(buffer,enumeration.name);
-                    done = true;
-                    break;             
-                }
-
-                case ARRAY:
-                {
-                    assert(false);
-                    break;
-                }
-
-                case FUNC_POINTER:
-                {
-                    assert(false);
-                    break;
-                }
-
-                // builtin
-                default:
-                {
-                    const auto plain = builtin_type_name(builtin_type(type->type_idx));
-                    push_var(buffer,'_');
-                    push_string(buffer,plain);
-                    done = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    // null term string
-    push_var(buffer,'\0');
-
-    return buffer;
-}
-
-void push_generic_type_alias(Interloper& itl, Function& func)
-{
-    for(u32 g = 0; g < count(func.generic_override); g++)
-    {
-        push_temp_type_alias(itl,func.generic_override[g],func.generic_override_name[g],itl.ctx.filename);
-    }
-}
-
-void pop_generic_type_alias(Interloper& itl, Function& func)
-{
-    for(u32 g = 0; g < count(func.generic_override); g++)
-    {
-        pop_temp_type_alias(itl);
-    }
-}
-
-Function* specialise_func(Interloper& itl, FunctionDef& base_func, FuncCallNode* call_node)
-{
-    // pull specialised name
-    auto specialised_name_buffer = func_generic_name(itl,base_func.name,call_node->generic);
-
-    // NOTE: we need to copy this string onto the main pool
-    // as the buffer we used to build it is going to get freed
-    const auto specialised_name = make_string(specialised_name_buffer);
-
-    // check if function has allready been specialised
-    // if so just return it
-    auto spec_func_opt = lookup_opt_scoped_function(itl,specialised_name,"");
-
-    if(spec_func_opt)
-    {
-        destroy_arr(specialised_name_buffer);
-        return spec_func_opt;
-    }
-
-    // okay this generic has not been generated for with this signature before
-    // we need to build a specialised version
-    
-    // duplicate function so we can specilaise it
-
-    // NOTE: this puts this implicitly puts the function in the same namespace as the old one
-    add_func(itl,specialised_name,"",base_func.root);
-
-    auto& spec_func = *finalise_func_internal(itl,*lookup_func_def_global(itl,specialised_name),false);
-
-    // add in the type overrides so we can finalise the function
-
-    // copy over all the generic names to the func
-    // so we don't get dead refs when the ast dies
-
-    // along with the type
-    for(u32 g = 0; g < count(base_func.root->generic_name); g++)
-    {
-        const auto str = copy_string(itl.string_allocator,base_func.root->generic_name[g]);
-        push_var(spec_func.generic_override_name,str);
-
-        // TODO: this requires modification for a proper array later
-        auto type = get_type(itl,call_node->generic[g]);
-        push_var(spec_func.generic_override,type);
-    }
-
-    // push overrides so we can build the sig
-    push_generic_type_alias(itl,spec_func);
-
-    // now parse the sig
-    parse_func_sig(itl,spec_func.sig,*spec_func.root);
-
-    // now remove the override
-    pop_generic_type_alias(itl,spec_func);
-
-    // cleanup our mem now that we have copied it
-    destroy_arr(specialised_name_buffer);
-
-    // return newly overrided function
-    return &spec_func;
-}
-
-Function* finalise_func(Interloper& itl, FunctionDef& base_func, AstNode* ast_node)
-{ 
-    const b32 is_generic = base_func.root != nullptr && count(base_func.root->generic_name);
-
-    switch(ast_node->type)
-    {
-        case ast_type::function_call:
-        {
-            FuncCallNode* call_node = (FuncCallNode*)ast_node;
-
-            // check we aernt accidentally invoking a generic
-            // on a plain function
-            if(count(call_node->generic) && !is_generic)
-            {
-                panic(itl,itl_error::generic_type_error,"Function %s is not a generic\n",base_func.name.buf);
-                return nullptr;
-            }
-
-            // ordinary function just return it
-            if(!is_generic)
-            {
-                return finalise_func_internal(itl,base_func);
-            }
-
-            // else this is a generic function
-
-            // check we are actually specifying the types
-            if(!count(call_node->generic))
-            {
-                panic(itl,itl_error::generic_type_error,"Missing type specification for generic function call: %s\n",base_func.name.buf);
-                return nullptr;
-            } 
-
-            return specialise_func(itl,base_func,call_node);
-        }
-
-        default:
-        {
-            return finalise_func_internal(itl,base_func);
-        }
-    }
 }
 
 b32 func_exists(Interloper& itl, const String& name, const String& name_space)
@@ -351,7 +155,7 @@ void check_startup_func(Interloper& itl, const String& name, const String& name_
         return;
     }
 
-    finalise_func_internal(itl,*def_opt);    
+    finalise_func(itl,*def_opt);    
 }
 
 Function* lookup_opt_scoped_function(Interloper& itl, const String& name,const String& name_space)
@@ -1182,8 +986,6 @@ void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
 
 void compile_function(Interloper& itl, Function& func)
 {
-    push_generic_type_alias(itl,func);
-
     // NOTE: for compiler generated functions we dont want to 
     // compile this via a standard node
     if(func.root)
@@ -1278,8 +1080,6 @@ void compile_function(Interloper& itl, Function& func)
             panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
         }
     }
-
-    pop_generic_type_alias(itl,func);
 }
 
 void compile_functions(Interloper &itl)
