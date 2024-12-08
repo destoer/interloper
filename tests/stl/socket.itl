@@ -2,11 +2,11 @@ import <socket>
 
 func main() s32
 {
-    sock := connect("127.0.0.1",1234,net_type::tcp);
+    sock := std::connect("127.0.0.1",1234,net_type::tcp);
 
-    send_str(&sock,"Hello\n");
+    std::send_str(&sock,"Hello\n");
 
-    close_sock(&sock);
+    std::close_sock(&sock);
 
     return 0;
 }

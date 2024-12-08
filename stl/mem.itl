@@ -39,7 +39,7 @@ func bswap_u16(v: u16) u16
     return (v >> 8) | ((v & 0xff) << 8);
 }
 
-func host_to_network_u16(v : u16)
+func host_to_network_u16(v : u16) u16
 {
     // if we are on little endian we need to do a byteswap
     if(LITTLE_ENDIAN)
