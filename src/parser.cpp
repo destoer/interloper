@@ -1834,9 +1834,19 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,FileQ
     destroy_arr(parser.tokens);
     return false;
 }
-
+#include <unistd.h>
 bool parse(Interloper& itl, const String& initial_filename)
 {
+    char *stl_path = getenv("INTERLOPER_INSTALL_DIR");
+
+    if(!stl_path)
+    {
+        fprintf(stderr,"Could not find install dir env var INTERLOPER_INSTALL_DIR\n");
+        return true;
+    }
+
+    itl.stl_path = cat_string(itl.string_allocator,stl_path,"/stl/");
+
     FileQueue queue;
     queue.set = make_set<String>();
 
@@ -1844,9 +1854,6 @@ bool parse(Interloper& itl, const String& initial_filename)
     // add the initial file
     add_file(queue,get_program_name(itl.string_allocator,initial_filename));
 
-
-    // TODO: this should probably be a SHELL VAR but just hard code it for now
-    itl.stl_path = make_static_string("stl/",strlen("stl/"));
 
     // import basic by default
     add_file(queue,cat_string(itl.string_allocator,itl.stl_path,"basic.itl"));
