@@ -1,6 +1,5 @@
 #include <interloper.h>
 
-
 struct ProgramCorrectTest
 {
     const char *name;
@@ -231,7 +230,8 @@ b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const 
     itl.optimise = optimized;
 
     parse_flags(itl,flags);
-    compile(itl,test.name);
+
+    compile(itl,test.name,"./out");
 
     printf("%s: ",optimized? "optimized" : "unoptimized");
     
@@ -241,7 +241,7 @@ b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const 
         return true;
     }
 
-    const auto r = WEXITSTATUS(system("./test-prog"));     
+    const auto r = WEXITSTATUS(system("./out"));     
 
 
     if(test.expected != r)
@@ -257,6 +257,13 @@ b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const 
 
 void run_tests(const char* flags)
 {
+    const char* itl_path = getenv("INTERLOPER_INSTALL_DIR");
+    if(chdir(itl_path) == -1)
+    {
+        const int saved_errno = errno;
+        crash_and_burn("Could not change to interloper dir %s: %s",itl_path,strerror(saved_errno));
+    }
+
     puts("running tests....");
     auto start = std::chrono::system_clock::now();
 
@@ -292,8 +299,8 @@ void run_tests(const char* flags)
             destroy_itl(itl);
             
             const auto &test = PROGRAM_ERROR_TEST[i];
-            
-            compile(itl,test.name);
+
+            compile(itl,test.name,"./out");
 
             if(itl.error_code != test.error)
             {
@@ -306,6 +313,7 @@ void run_tests(const char* flags)
         }
     }
 
+    remove("./out");
     destroy_itl(itl);
 
     puts("\nfinished testing\n");

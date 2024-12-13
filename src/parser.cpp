@@ -1837,15 +1837,15 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,FileQ
 #include <unistd.h>
 bool parse(Interloper& itl, const String& initial_filename)
 {
-    char *stl_path = getenv("INTERLOPER_INSTALL_DIR");
+    const char *itl_path = getenv("INTERLOPER_INSTALL_DIR");
 
-    if(!stl_path)
+    if(!itl_path)
     {
         fprintf(stderr,"Could not find install dir env var INTERLOPER_INSTALL_DIR\n");
         return true;
     }
 
-    itl.stl_path = cat_string(itl.string_allocator,stl_path,"/stl/");
+    itl.stl_path = cat_string(itl.string_allocator,itl_path,"/stl/");
 
     FileQueue queue;
     queue.set = make_set<String>();

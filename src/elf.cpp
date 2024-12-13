@@ -1,6 +1,8 @@
 // https://www.sco.com/developers/gabi/latest/contents.html
 
 #include <elf.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 struct ElfFunc
 {
@@ -846,9 +848,9 @@ void link_elf(Interloper& itl, Elf& elf)
     link_opcodes(itl,elf);
 }
 
-void emit_elf(Interloper& itl)
+void emit_elf(Interloper& itl, const String& executable_path)
 {
-    Elf elf = make_elf(itl,"test-prog");
+    Elf elf = make_elf(itl,executable_path);
 
     // Add every function in the emitter
     // NOTE: this adds just the definitons
@@ -870,4 +872,7 @@ void emit_elf(Interloper& itl)
 
     write_elf(elf);
     destroy_elf(elf);
+
+    // Make out put executable
+    chmod(executable_path.buf,S_IWUSR | S_IRUSR | S_IXUSR);
 }

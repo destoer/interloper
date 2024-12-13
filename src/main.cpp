@@ -32,23 +32,28 @@ void parse_flags(Interloper& itl,const char* flags)
     }
 }
 
+void print_usage(const char* name)
+{
+    printf("usage: %s <flags> <file to compile> <output name>\n",name);
+    puts("-i print ir");
+    puts("-a print ast");
+    puts("-r print register allocation");
+    puts("-s print stack allocation");
+    puts("-g print global");
+    puts("-c print types");
+    puts("-l print tokens");
+    puts("-q compile only");
+    puts("-z optimize");
+    puts("-y disable register allocation (stack only)");
+    puts("-t run tests");
+}
+
 int main(int argc, char *argv[])
 {
     // just one file arg for now
     if(argc <= 1)
     {
-        printf("usage: %s <flags> <file to compile> <output name>\n",argv[0]);
-        puts("-i print ir");
-        puts("-a print ast");
-        puts("-r print register allocation");
-        puts("-s print stack allocation");
-        puts("-g print global");
-        puts("-c print types");
-        puts("-l print tokens");
-        puts("-q compile only");
-        puts("-z optimize");
-        puts("-y disable register allocation (stack only)");
-        puts("-t run tests");
+        print_usage(argv[0]);
         return -1;
     }
 
@@ -63,7 +68,8 @@ int main(int argc, char *argv[])
     Interloper itl;
 
     // parse compiler flags
-    const char* filename = "";
+    const char* source_filename = "";
+    const char* executable_path = "./out";
 
     if(argv[1][0] == '-')
     {
@@ -71,19 +77,35 @@ int main(int argc, char *argv[])
         parse_flags(itl,argv[1]);
 
         // for now just assume flags are in a batch
-        if(argc == 3)
+        if(argc >= 3)
         {
-            filename = argv[2];
+            source_filename = argv[2];
+        }
+
+        if(argc >= 4)
+        {
+            executable_path = argv[3];
+        }
+    }
+
+    else if(argc >= 2)
+    {
+        source_filename = argv[1];
+
+        if(argc >= 3)
+        {
+            executable_path = argv[2];
         }
     }
 
     else
     {
-        filename = argv[1];
+        print_usage(argv[0]);
+        return -1;
     }
 
 
-    compile(itl,filename);
+    compile(itl,source_filename,executable_path);
 
     if(itl.error)
     {
@@ -95,7 +117,7 @@ int main(int argc, char *argv[])
 
     if(!itl.compile_only)
     {
-        s32 rc = WEXITSTATUS(system("./test-prog"));
+        s32 rc = WEXITSTATUS(system(executable_path));
 
         printf("exit code: %d\n",rc);
 

@@ -1339,7 +1339,7 @@ void check_startup_defs(Interloper& itl)
     check_startup_func(itl,"zero_mem","std");
 }
 
-void compile(Interloper &itl,const String& initial_filename)
+void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
 {
     printf("compiling file: %s\n",initial_filename.buf);
 
@@ -1506,7 +1506,7 @@ void compile(Interloper &itl,const String& initial_filename)
     {
         case os_target::linux_t:
         {
-            emit_elf(itl);
+            emit_elf(itl,executable_path);
             break;
         }
     }
