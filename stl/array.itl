@@ -65,6 +65,11 @@ struct Array
     element_size: usize = 1;
 };
 
+func count_array(arr: Array@) usize 
+{
+    return arr.size / arr.element_size;
+}
+
 func make_array(element_size: usize) Array 
 {
     return Array {{NULL,0},0,element_size};
@@ -90,7 +95,7 @@ func reserve_array_mem(arr: Array@, size : usize)
 func resize_array(arr : Array@, size : usize)
 {
     // we have to capacity increase len
-    if(arr.buf.len < size)
+    if(arr.buf.len > size)
     {
         arr.size = size;
     }

@@ -30,6 +30,12 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         emit_reg3<type>(itl,func,dst_slot,v1,offset_slot);
     }
 
+    // allow pointer subtraction
+    else if(is_pointer(t1) && is_pointer(t2) && type == op_type::sub_reg)
+    {
+        emit_reg3<op_type::sub_reg>(itl,func,dst_slot,v1,v2);
+    }
+
     // floating point arith
     else if(is_float(t1) && is_float(t2))
     {

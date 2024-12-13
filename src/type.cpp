@@ -1128,6 +1128,11 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_
         return ltype;
     }
 
+    else if(is_pointer(ltype) && is_pointer(rtype) && op_kind == op_type::sub_reg)
+    {
+        return make_builtin(itl,builtin_type::s64_t);
+    }
+
 
     // one or more user defined
     else

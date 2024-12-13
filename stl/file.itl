@@ -293,7 +293,6 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
             {
                 // we have read out this char
                 ptr += 1;
-                remain -= 1;
 
                 // correct the buffer offsets for the last scan
                 read := cast(u64,ptr) - cast(u64,start);
@@ -302,7 +301,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
                 flush_read(file,&str[out_offset],read);
 
                 // produce the final res
-                buf := clip_str(str,str.len - remain - 1);
+                buf := clip_str(str,str.len - remain);
 
                 return buf,file_read_res::success;
             }
