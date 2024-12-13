@@ -804,8 +804,6 @@ AstNode *statement(Parser &parser)
                     push_var(record->nodes,e);
                 }
 
-                
-
                 return (AstNode*)record;
             }
 

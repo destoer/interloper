@@ -37,7 +37,18 @@ int main(int argc, char *argv[])
     // just one file arg for now
     if(argc <= 1)
     {
-        printf("usage: %s <flags> <file to compile>\n",argv[0]);
+        printf("usage: %s <flags> <file to compile> <output name>\n",argv[0]);
+        puts("-i print ir");
+        puts("-a print ast");
+        puts("-r print register allocation");
+        puts("-s print stack allocation");
+        puts("-g print global");
+        puts("-c print types");
+        puts("-l print tokens");
+        puts("-q compile only");
+        puts("-z optimize");
+        puts("-y disable register allocation (stack only)");
+        puts("-t run tests");
         return -1;
     }
 
