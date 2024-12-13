@@ -940,9 +940,10 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             }
 
                             // store into the pointer
-                            auto type = deref_pointer(ptr_type); 
+                            auto ltype = deref_pointer(ptr_type); 
+                            do_ptr_store(itl,func,slot,addr_slot,ltype);
 
-                            do_ptr_store(itl,func,slot,addr_slot,type);
+                            check_assign(itl,ltype,rtype);
                             break;                        
                         }
                     
