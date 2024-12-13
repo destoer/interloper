@@ -17,9 +17,7 @@ constant MAX_INT_CHARS : u32 = 64;
 
 func clip_str(str : string, len : usize) string
 {
-    buf : string;
-    buf.data = str.data;
-    buf.len = len;
+    buf: string = {str.data,len};
 
     return buf;
 }

@@ -254,6 +254,29 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, Sy
     }
 }
 
+void assign_vla_initializer(Interloper& itl, Function& func, RecordNode* list, AddrSlot* addr_slot, ArrayType* type)
+{
+    const u32 node_len = count(list->nodes);
+
+    if(node_len != 2)
+    {
+        panic(itl,itl_error::missing_initializer,"vla initializer expects 2 initializers {POINTER,SIZE}");
+        return;
+    }
+
+    const auto [ptr_type,ptr_slot] = compile_oper(itl,func,list->nodes[0]);
+    check_assign(itl,make_pointer(itl,type->contained_type),ptr_type);
+
+    store_addr_slot(itl,func,ptr_slot,*addr_slot,GPR_SIZE,false);
+    addr_slot->offset += GPR_SIZE;
+
+    const auto [size_type,size_slot] = compile_oper(itl,func,list->nodes[1]);
+    check_assign(itl,make_builtin(itl,GPR_SIZE_TYPE),size_type);
+
+    store_addr_slot(itl,func,size_slot,*addr_slot,GPR_SIZE,false);
+    addr_slot->offset += GPR_SIZE;
+}
+
 void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type)
 {
     if(itl.error)
@@ -271,24 +294,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
 
     else if(is_runtime_size(type))
     {
-        if(node_len != 2)
-        {
-            panic(itl,itl_error::missing_initializer,"vla initializer expects 2 initializers {POINTER,SIZE}");
-            return;
-        }
-
-        const auto [ptr_type,ptr_slot] = compile_oper(itl,func,list->nodes[0]);
-        check_assign(itl,make_pointer(itl,type->contained_type),ptr_type);
-
-        store_addr_slot(itl,func,ptr_slot,*addr_slot,GPR_SIZE,false);
-        addr_slot->offset += GPR_SIZE;
-
-        const auto [size_type,size_slot] = compile_oper(itl,func,list->nodes[1]);
-        check_assign(itl,make_builtin(itl,GPR_SIZE_TYPE),size_type);
-
-        store_addr_slot(itl,func,size_slot,*addr_slot,GPR_SIZE,false);
-        addr_slot->offset += GPR_SIZE;
-
+        assign_vla_initializer(itl,func,list,addr_slot,type);
         return;
     }
 
@@ -513,10 +519,19 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
     {
         case ast_type::initializer_list:
         {
-            const SymSlot ptr_slot = load_arr_data(itl,func,arr_slot,type);
-            const auto addr_slot = make_addr(ptr_slot,0);
+            // initialize the actual struct
+            if(is_runtime_size(type))
+            {
+                auto addr_slot = make_struct_addr(arr_slot,0);
+                assign_vla_initializer(itl,func,(RecordNode*)node,&addr_slot,(ArrayType*)type);
+            }
 
-            traverse_arr_initializer(itl,func,node,addr_slot,type);
+            else 
+            {
+                const SymSlot ptr_slot = load_arr_data(itl,func,arr_slot,type);
+                const auto addr_slot = make_addr(ptr_slot,0);
+                traverse_arr_initializer(itl,func,node,addr_slot,type);
+            }
             break;
         }
 

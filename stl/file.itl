@@ -80,6 +80,18 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
     return file,false;
 }
 
+func open_file_or_panic(str : const string, mode : file_mode, opt : file_opt) File
+{
+    [file,err] := open_file(str,mode,opt);
+
+    if(err)
+    {
+        std::crash_and_burn("could not open file {}\n",str);
+    }
+
+    return file;
+}
+
 func close_file(file : File@)
 {
     // allready closed
@@ -290,7 +302,7 @@ func read_file_str(file : File@, str : string) [string, file_read_res]
                 flush_read(file,&str[out_offset],read);
 
                 // produce the final res
-                buf := clip_str(str,str.len - remain);
+                buf := clip_str(str,str.len - remain - 1);
 
                 return buf,file_read_res::success;
             }
