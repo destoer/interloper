@@ -165,3 +165,54 @@ func str_equal(v1 : const string, v2 : const string) bool
 
     return true;
 }
+
+func find_str(str: const string, search: const string) const string
+{
+    blank: string = {NULL,0};
+    if search.len == 0
+    {
+        return blank;
+    }
+
+    for i: s32 = 0; i + search.len < str.len; i += 1
+    {
+        scan: const string = {str.data + i, search.len};
+        if(std::str_equal(scan,search))
+        {
+            return scan;
+        }
+    }
+
+    return blank;
+}
+
+func split_str(str: const string, delimitter: const string) Array
+{
+    arr := std::make_array(sizeof_type(string));
+
+    done := false;
+
+    while !done
+    {
+        found := find_str(str,delimitter);
+
+        if found.len != 0
+        {
+            scanned := found.data - str.data;
+            split: const string = {str.data,cast(usize,scanned)};
+
+            str.len -= scanned + delimitter.len;
+            str.data = found.data + delimitter.len;
+            
+            std::push_array(&arr,&split);
+        } 
+
+        else 
+        {
+            done = true;
+        }
+    }
+
+    std::push_array(&arr,&str);
+    return arr;   
+}

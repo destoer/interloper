@@ -808,16 +808,6 @@ Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_const
             return copy_type(itl,alias.type);
         }
 
-        case type_kind::tmp_alias_t:
-        {
-            TypeAlias alias = itl.tmp_alias_table[type_idx];
-
-            *is_alias = true;
-
-            // alias must be copied so specifiers cannot tamper with it
-            return copy_type(itl,alias.type);
-        }
-
         case type_kind::builtin:
         {
             return make_builtin(itl,builtin_type(type_idx),is_constant);
@@ -1130,7 +1120,7 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_
 
     else if(is_pointer(ltype) && is_pointer(rtype) && op_kind == op_type::sub_reg)
     {
-        return make_builtin(itl,builtin_type::s64_t);
+        return make_builtin(itl,GPR_SIZE_TYPE);
     }
 
 
@@ -1384,6 +1374,11 @@ b32 type_equal(const Type* ltype, const Type* rtype)
 }
 
 
+bool is_byte_ptr(const Type* type)
+{
+    return is_pointer(type) && deref_pointer(type)->type_idx == u32(builtin_type::byte_t);
+}
+
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 {
     // null rtype auto converted 
@@ -1392,6 +1387,12 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
         return;
     }
     
+    // any rtype can be assigned to a byte ptr
+    if(is_byte_ptr(ltype) && is_pointer(rtype))
+    {
+        return;
+    }
+
 
     b32 indirection = true;
 
@@ -1450,12 +1451,6 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
     // anything else
     else
     {
-        // any rtype can be assigned to a byte
-        if(ltype->type_idx == u32(builtin_type::byte_t))
-        {
-            return;
-        }
-
         // if base types still aernt equal we have a problem!
         if(!plain_type_equal(ltype,rtype))
         {
@@ -2025,12 +2020,6 @@ std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl,
             panic(itl,itl_error::generic_type_error,"cannot access type properties on alias %s\n",type_decl.name.buf);
             return std::pair{make_builtin(itl,builtin_type::u32_t),0};
         }
-
-        case type_kind::tmp_alias_t:
-        {
-            panic(itl,itl_error::generic_type_error,"cannot access type properties on alias %s\n",type_decl.name.buf);
-            return std::pair{make_builtin(itl,builtin_type::u32_t),0};
-        }
     }
 
     assert(false);
@@ -2087,7 +2076,7 @@ TypeAlias make_alias(const String& name, const String& filename, Type* type)
     return alias;
 }
 
-void add_alias(Interloper& itl, AliasTable& table,Type* type,const String& name, const String& filename, b32 tmp)
+void add_alias(Interloper& itl, AliasTable& table,Type* type,const String& name, const String& filename)
 {
     const u32 slot = count(table);
 
@@ -2096,7 +2085,7 @@ void add_alias(Interloper& itl, AliasTable& table,Type* type,const String& name,
     // add the alias
     push_var(table,alias);
 
-    add_type_decl(itl,slot,name,tmp? type_kind::tmp_alias_t : type_kind::alias_t);       
+    add_type_decl(itl,slot,name,type_kind::alias_t);       
 }
 
 void parse_alias_def(Interloper& itl, TypeDef& def)
@@ -2115,37 +2104,17 @@ void parse_alias_def(Interloper& itl, TypeDef& def)
         printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
     }
 
-    add_alias(itl,itl.alias_table,type,node->name,node->filename,false);   
+    add_alias(itl,itl.alias_table,type,node->name,node->filename);   
 }
 
 void declare_compiler_type_aliases(Interloper& itl) 
 {
     /// usize
-    add_alias(itl,itl.alias_table,make_builtin(itl,builtin_type::u64_t),"usize","ITL_COMPILER",false);
+    add_alias(itl,itl.alias_table,make_builtin(itl,builtin_type::u64_t),"usize","ITL_COMPILER");
+
+    // ssize
+    add_alias(itl,itl.alias_table,make_builtin(itl,builtin_type::s64_t),"ssize","ITL_COMPILER");
 }
-
-void push_temp_type_alias(Interloper& itl, Type* type,const String &name, const String& filename)
-{
-    add_alias(itl,itl.tmp_alias_table,type,name,filename,true);
-}
-
-void pop_temp_type_alias(Interloper& itl)
-{
-    const auto alias = pop(itl.tmp_alias_table);
-
-    // remove the old alias
-    remove(itl.type_def,alias.name);
-
-    // correct the decl entry appropiately
-    if(count(itl.tmp_alias_table))
-    {
-        const u32 slot = count(itl.tmp_alias_table) - 1;
-
-        // reinstate the old alias
-        add_type_decl(itl,slot,itl.tmp_alias_table[slot].name,type_kind::tmp_alias_t);  
-    }
-}
-
 
 void parse_struct_def(Interloper& itl, TypeDef& def);
 void parse_alias_def(Interloper& itl, TypeDef& def);

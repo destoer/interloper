@@ -116,7 +116,6 @@ enum class type_kind
     enum_t,
     struct_t,
     alias_t,
-    tmp_alias_t,
     builtin,
 };
 

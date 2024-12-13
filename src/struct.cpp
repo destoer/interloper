@@ -396,7 +396,7 @@ Type* access_array_member(Interloper& itl, Type* type, const String& member_name
         else
         {
             struct_slot->offset += GPR_SIZE;
-            return make_builtin(itl,builtin_type::u64_t);
+            return make_builtin(itl,GPR_SIZE_TYPE);
         }
     }
 

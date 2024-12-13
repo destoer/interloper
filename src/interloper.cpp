@@ -1290,7 +1290,6 @@ void destroy_itl(Interloper &itl)
     destroy_enum_table(itl.enum_table);
     destroy_table(itl.type_table);
     destroy_arr(itl.alias_table);
-    destroy_arr(itl.tmp_alias_table);
 
     destroy_arr(itl.name_space_buffer);
 

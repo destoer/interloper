@@ -1,0 +1,63 @@
+namespace std;
+
+func heapify(array: Array@, idx: ssize, len: ssize, cmp_func: func(v1 : byte@, v2: byte@) bool)
+{
+    elem_size := array.element_size;
+
+    heap := array.buf;
+
+    // check children satisfy the heap property
+    while(idx <= len)
+    {
+        target := idx;
+        l := (2 * idx) + 1;
+        r := (2 * idx) + 2;
+
+        // swap idx with targer if its not allready
+        if(l < len && cmp_func(&heap[l * elem_size],&heap[target * elem_size]))
+        {
+            target = l;
+        }
+        
+        if(r < len && cmp_func(&heap[r * elem_size],&heap[target * elem_size]))
+        {
+            target = r;
+        }
+        
+        // not allready in the right place
+        if(target != idx)
+        {
+            swap_mem(&heap[target * elem_size],&heap[idx * elem_size],array.element_size);
+            idx = target;
+        }
+
+        // we are allready in the right place we are done!
+        else
+        {
+            return;
+        }
+    }
+}
+
+func sort(array: Array@,cmp_func: func(v1 : byte@, v2: byte@) bool)
+{
+    size := std::count_array(array);
+    
+    // setup the heap
+    for i: ssize = (size / 2) - 1; i >= 0; i -= 1
+    {
+        heapify(array,i,size,cmp_func);
+    }
+
+    heap := array.buf;
+
+    for i: ssize = size - 1; i > 0; i -= 1
+    {
+        // extract each item to end of array
+        // then "hide" it from the heap
+        swap_mem(&heap[0 * array.element_size],&heap[i * array.element_size],array.element_size);
+
+        // heap property is now violated fix it
+        heapify(array,0,i,cmp_func);
+    }
+}

@@ -50,3 +50,14 @@ func host_to_network_u16(v : u16) u16
     // we allready have variables in a native order!
     return v;
 }
+
+func swap_mem(v1: byte@, v2: byte@, size: usize)
+{
+    // TODO: optimize with 64 bit swaps
+    for i in 0 < size
+    {
+        v1[i] = v2[i] ^ v1[i];
+        v2[i] = v1[i] ^ v2[i];
+        v1[i] = v2[i] ^ v1[i];
+    }
+}
