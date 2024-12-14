@@ -19,6 +19,7 @@ enum class ast_type
 
     const_assert,
     cast,
+    recast_arr,
     sizeof_t,
     sizeof_type_t,
     sizeof_data_t,
@@ -125,6 +126,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "const_assert",
     "cast",
+    "recast_arr",
     "sizeof",
     "sizeof_type",
     "sizeof_data",

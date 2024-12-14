@@ -416,6 +416,30 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             return new_type;
         }
 
+        case ast_type::recast_arr:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            const auto [old_arr_type,slot] = compile_oper(itl,func,bin_node->right);
+            const auto new_type = get_type(itl,(TypeNode*)bin_node->left);
+
+            if(!is_byte_array(old_arr_type))
+            {
+                panic(itl,itl_error::array_type_error,"Expected recast from byte array got: %s\n",type_name(itl,old_arr_type).buf);
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
+            const auto new_arr_type = make_array(itl,new_type,RUNTIME_SIZE);
+
+            const auto data_slot = load_arr_data(itl,func,slot,old_arr_type);
+            store_arr_data(itl,func,dst_slot,data_slot);
+
+            const auto len_slot = load_arr_len(itl,func,slot,old_arr_type);
+            const auto converted_len = udiv_imm_res(itl,func,len_slot,type_size(itl,new_type));
+            store_arr_len(itl,func,dst_slot,converted_len);
+
+            return new_arr_type;            
+        }
 
         case ast_type::plus:
         {

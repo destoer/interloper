@@ -1379,6 +1379,11 @@ bool is_byte_ptr(const Type* type)
     return is_pointer(type) && deref_pointer(type)->type_idx == u32(builtin_type::byte_t);
 }
 
+bool is_byte_array(const Type* type)
+{
+    return is_array(type) && index_arr(type)->type_idx == u32(builtin_type::byte_t);
+}
+
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 {
     const auto base_ltype = ltype;

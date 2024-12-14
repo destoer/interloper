@@ -326,12 +326,38 @@ AstNode* type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
     return ast_type_operator(type,kind);   
 }
 
+AstNode* parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_type)
+{
+    consume_expr(parser,ctx,token_type::left_paren);
+
+    // get_type is inside the normal parser we need
+    // to correct the tok idx
+    prev_token(parser);
+
+    AstNode* type = (AstNode*)parse_type(parser);
+
+    if(!type)
+    {
+        type_panic(parser);
+        return nullptr;
+    }
+
+    // correct our state machine
+    // NOTE: we bypass the normal function here because commas require special handling
+    ctx.expr_tok = next_token(parser);
+
+    consume_expr(parser,ctx,token_type::comma);
+
+    const auto right = expr_terminate_in_expr(parser,ctx,"cast",token_type::right_paren);
+
+    return ast_binary(parser,type,right,cast_type,t); 
+}
+
 // unary operators
 AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 {
     switch(t.type)
     {
-    
         case token_type::u8:
         {
             return builtin_type_info_access(parser,ctx,builtin_type::u8_t);
@@ -391,32 +417,15 @@ AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         // cast(<type>,<expr>)
         case token_type::cast:
         {
-            consume_expr(parser,ctx,token_type::left_paren);
-
-
-            // get_type is inside the normal parser we need
-            // to correct the tok idx
-            prev_token(parser);
-
-            AstNode* type = (AstNode*)parse_type(parser);
-
-            if(!type)
-            {
-                type_panic(parser);
-                return nullptr;
-            }
-
-            // correct our state machine
-            // NOTE: we bypass the normal function here because commas require special handling
-            ctx.expr_tok = next_token(parser);
-
-            consume_expr(parser,ctx,token_type::comma);
-
-            const auto right = expr_terminate_in_expr(parser,ctx,"cast",token_type::right_paren);
-
-            return ast_binary(parser,type,right,ast_type::cast,t);    
+            return parse_cast(parser,ctx,t,ast_type::cast);
         }
     
+        // recast_arr(<type>,<expr>)
+        case token_type::recast_arr:
+        {
+            return parse_cast(parser,ctx,t,ast_type::recast_arr);
+        }
+
         // sizeof(<expr>)
         case token_type::sizeof_t:
         {

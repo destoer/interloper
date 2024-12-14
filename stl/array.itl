@@ -75,9 +75,23 @@ func count_array(arr: Array@) usize
     return arr.size / arr.element_size;
 }
 
+func array_buffer(arr: Array@) byte[]
+{
+    out: byte[] = {arr.buf.data,arr.size};
+    return out;
+}
+
 func make_array(element_size: usize) Array 
 {
     return Array {{NULL,0},0,element_size};
+}
+
+func make_sized_array(element_size: usize, array_size: usize) Array
+{
+    array := make_array(element_size);
+    resize_array(&array,array_size);
+    
+    return array;
 }
 
 func clear_array(arr: Array@)
@@ -206,12 +220,7 @@ func read_buffer_u32(arr: const Array@, offset: u64) u32
 
 func str_from_array(arr : Array@) string
 {
-    str : string;
-
-    str.data = cast(c8@,arr.buf.data);
-    str.len = arr.size;
-
-    return str;
+    return recast_arr(c8,array_buffer(arr));
 }
 
 func dump_array_bytes(arr: const Array@)

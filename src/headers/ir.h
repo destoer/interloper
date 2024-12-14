@@ -33,6 +33,7 @@ enum class op_type
     mul_imm,
 
     lsl_imm,
+    lsr_imm,
     and_imm,
     xor_imm,
 
@@ -58,6 +59,7 @@ enum class op_type
     mul_imm2,
 
     lsl_imm2,
+    lsr_imm2,
     and_imm2,
     xor_imm2,
 

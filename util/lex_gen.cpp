@@ -1,4 +1,4 @@
-#include <destoer.h>
+#include <destoer/destoer.h>
 using namespace destoer;
 
 #include <lexer_lut.cpp>

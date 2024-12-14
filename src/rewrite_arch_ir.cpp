@@ -476,6 +476,11 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             return rewrite_imm3_two(block,node,op_type::lsl_imm2);
         }
 
+        case op_type::lsr_imm:
+        {
+            return rewrite_imm3_two(block,node,op_type::lsr_imm2);
+        }
+
         case op_type::and_imm:
         {
             return rewrite_imm3_two(block,node,op_type::and_imm2);

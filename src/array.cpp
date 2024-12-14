@@ -21,7 +21,7 @@ std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot pt
         return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
     }
 
-    const SymSlot offset = mul_imm_pow2_res(itl,func,subscript_slot,size);  
+    const SymSlot offset = mul_imm_res(itl,func,subscript_slot,size);  
 
     add(itl,func,dst_slot,ptr_slot,offset);
     return std::pair{(Type*)type,dst_slot};
@@ -63,7 +63,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
         const u32 size = array_type->sub_size;
 
-        const SymSlot mul_slot = mul_imm_pow2_res(itl,func,subscript_slot,size);   
+        const SymSlot mul_slot = mul_imm_res(itl,func,subscript_slot,size);   
 
         const SymSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
         add(itl,func,add_slot,last_slot,mul_slot);

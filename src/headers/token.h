@@ -65,6 +65,7 @@ enum class token_type
     f64_t,
 
     cast,
+    recast_arr,
     sizeof_t,
     sizeof_type_t,
     sizeof_data_t,
@@ -207,6 +208,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::f64_t,"f64",-1},
 
     {token_type::cast,"cast",-1},
+    {token_type::recast_arr,"recast_arr",-1},
     {token_type::sizeof_t,"sizeof",-1},
     {token_type::sizeof_type_t,"sizeof_type",-1},
     {token_type::sizeof_data_t,"sizeof_data",-1},

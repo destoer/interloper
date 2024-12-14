@@ -169,6 +169,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_multi_fixed_size",1}, // 7200
     {"tests/array/array_vla_from_parts",11},
     {"tests/array/array_assign_vla",15},
+    {"tests/array/array_recast",1},
 
     // strings
     {"tests/string/char_array",6},

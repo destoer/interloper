@@ -26,7 +26,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
 
-        const SymSlot offset_slot = mul_imm_pow2_res(itl,func,v2,type_size(itl,contained_type));
+        const SymSlot offset_slot = mul_imm_res(itl,func,v2,type_size(itl,contained_type));
         emit_reg3<type>(itl,func,dst_slot,v1,offset_slot);
     }
 

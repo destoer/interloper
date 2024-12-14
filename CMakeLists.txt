@@ -24,6 +24,7 @@ include_directories("src/headers")
 include_directories("src/")
 
 add_subdirectory("destoer-lib")
+add_subdirectory("util")
 
 add_executable(interloper ${src_files})
 target_link_libraries(interloper destoer)

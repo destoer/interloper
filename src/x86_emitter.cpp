@@ -650,6 +650,11 @@ void lsl_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
     emit_shift_imm(emitter,dst,v1,4);
 }
 
+void lsr_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
+{
+    emit_shift_imm(emitter,dst,v1,5);
+}
+
 void cmp_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
     emit_arith_imm(emitter,dst,v1,7);
@@ -1385,6 +1390,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::lsl_imm2:
         {
             lsl_imm(emitter,dst,u32(v1));
+            break;
+        }
+
+        case op_type::lsr_imm2:
+        {
+            lsr_imm(emitter,dst,u32(v1));
             break;
         }
 

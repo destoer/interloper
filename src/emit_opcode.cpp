@@ -5,6 +5,19 @@ void add(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
     emit_reg3<op_type::add_reg>(itl,func,dst,v1,v2);
 }
 
+void mov_imm(Interloper& itl, Function& func, SymSlot dst, u64 imm)
+{
+    emit_imm1<op_type::mov_imm>(itl,func,dst,imm);
+}
+
+SymSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    mov_imm(itl,func,tmp,imm);
+
+    return tmp;
+}
+
 void movf_imm(Interloper& itl, Function& func, SymSlot dst, f64 v1)
 {
     emit_fp_imm1<op_type::movf_imm>(itl,func,dst,v1);
@@ -86,6 +99,20 @@ void lsr(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
     emit_reg3<op_type::lsr_reg>(itl,func,dst,v1,v2);
 }
 
+void lsr_imm(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, s32 v2)
+{
+    emit_imm2<op_type::lsr_imm>(itl,func,dst,v1,v2);
+}
+
+SymSlot lsr_imm_res(Interloper& itl,Function& func, SymSlot v1, s32 v2)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    lsr_imm(itl,func,tmp,v1,v2);
+
+    return tmp;
+}
+
+
 void lsl(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, SymSlot v2)
 {
     emit_reg3<op_type::lsl_reg>(itl,func,dst,v1,v2);
@@ -99,10 +126,74 @@ void lsl_imm(Interloper& itl,Function& func, SymSlot dst, SymSlot v1, s32 v2)
 SymSlot lsl_imm_res(Interloper& itl,Function& func, SymSlot v1, s32 v2)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
-
     lsl_imm(itl,func,tmp,v1,v2);
 
     return tmp;
+}
+
+void mul_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
+{
+    // Not sure if we should have a higher level function for this?
+    if(is_pow2(imm))
+    {
+        const u32 shift = log2(imm);
+
+        if(shift == 0)
+        {
+            mov_reg(itl,func,dst,src);
+        } 
+
+        else 
+        {
+            lsl_imm(itl,func,dst,src,shift);
+        }
+    }
+
+    else
+    {
+        emit_imm2<op_type::mul_imm>(itl,func,dst,src,imm);
+    }
+}
+
+SymSlot mul_imm_res(Interloper& itl, Function& func, SymSlot src,u32 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    mul_imm(itl,func,tmp,src,imm);
+
+    return tmp;   
+}
+
+void udiv_imm(Interloper& itl, Function& func, SymSlot dst,SymSlot src,u32 imm)
+{
+    if(is_pow2(imm))
+    {
+        const u32 shift = log2(imm);
+
+        if(shift == 0)
+        {
+            mov_reg(itl,func,dst,src);
+        } 
+
+        else 
+        {
+            lsr_imm(itl,func,dst,src,shift);
+        }
+    }
+
+    else
+    {
+        // just emulate this instr as no arch is likely to have it
+        const auto v2 = mov_imm_res(itl,func,imm);
+        emit_reg3<op_type::udiv_reg>(itl,func,dst,src,v2);
+    }
+}
+
+SymSlot udiv_imm_res(Interloper& itl, Function& func, SymSlot src,u32 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    udiv_imm(itl,func,tmp,src,imm);
+
+    return tmp;   
 }
 
 void not_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src)
@@ -175,23 +266,9 @@ void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
     emit_imm2<op_type::and_imm>(itl,func,dst,src,imm);
 }
 
-void mul_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
-{
-    emit_imm2<op_type::mul_imm>(itl,func,dst,src,imm);
-}
-
 void xor_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
 {
     emit_imm2<op_type::xor_imm>(itl,func,dst,src,imm);
-}
-
-SymSlot mul_imm_res(Interloper& itl, Function& func, SymSlot src, u64 imm)
-{
-    const auto tmp = new_tmp(func,GPR_SIZE);
-
-    mul_imm(itl,func,tmp,src,imm);
-
-    return tmp;
 }
 
 void add_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm)
@@ -289,20 +366,6 @@ void load_signed_half(Interloper& itl,Function& func, SymSlot dst, SymSlot addr,
 void load_signed_word(Interloper& itl,Function& func, SymSlot dst, SymSlot addr, u64 imm)
 {
     emit_load<op_type::lsw>(itl,func,dst,addr,imm);
-}
-
-// TODO: this doesn't support 64 bit values
-void mov_imm(Interloper& itl, Function& func, SymSlot dst, u64 imm)
-{
-    emit_imm1<op_type::mov_imm>(itl,func,dst,imm);
-}
-
-SymSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
-{
-    const auto tmp = new_tmp(func,GPR_SIZE);
-    mov_imm(itl,func,tmp,imm);
-
-    return tmp;
 }
 
 void lea(Interloper& itl,Function& func, SymSlot dst, SymSlot ptr, u32 offset)

@@ -22,13 +22,8 @@ struct HashTable
 
 func hash_table_new_buckets(size: usize) Array
 {
-    buckets := make_array(sizeof_type(Bucket));
-
-    resize_array(&buckets,size);
-
-    bucket_data := cast(Bucket@,array_data(&buckets));
-    bucket_size := count_array(&buckets);
-    bucket_array: Bucket[] = {bucket_data,bucket_size};
+    buckets := make_sized_array(sizeof_type(Bucket),size);
+    bucket_array := recast_arr(Bucket,array_buffer(&buckets));
 
     for @bucket in bucket_array
     {
@@ -53,9 +48,7 @@ func make_hash_table(key_size: usize, value_size: usize, hash_func: func(key: co
 
 func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key: const byte@) HashNode@
 {
-    node_data := cast(HashNode@,array_data(&bucket.node));
-    node_size := count_array(&bucket.node);
-    node_array: HashNode[] = {node_data,node_size};
+    node_array := recast_arr(HashNode,array_buffer(&bucket.node));
 
     for @node in node_array
     {
@@ -90,30 +83,26 @@ func hash_table_contains(table: const HashTable@, key: const byte@) bool
 
 func rehash(table: HashTable@, new_size: usize)
 {
-    new_buckets := hash_table_new_buckets(new_size);
-    new_buckets_array := cast(Bucket@,array_data(&new_buckets));
+    new_bucket := hash_table_new_buckets(new_size);
+    new_bucket_array := recast_arr(Bucket,array_buffer(&new_bucket));
 
-    table_size := count_array(&table.bucket);
-    bucket_data := cast(Bucket@,array_data(&table.bucket));
+    bucket_array := recast_arr(Bucket,array_buffer(&table.bucket));
 
-    bucket_array: Bucket[] = {bucket_data,table_size};
     for @bucket in bucket_array
     {
-        node_data := cast(HashNode@,array_data(&bucket.node));
-        node_size := count_array(&bucket.node);
-        node_array: HashNode[] = {node_data,node_size};
+        node_array := recast_arr(HashNode,array_buffer(&bucket.node));
 
         for @node in node_array
         {
             slot := table.hash_func(node.key,new_size);
-            push_array(&new_buckets_array[slot].node,node);
+            push_array(&new_bucket_array[slot].node,node);
         }
 
         destroy_array(&bucket.node);
     }
 
     destroy_array(&table.bucket);
-    table.bucket = new_buckets;
+    table.bucket = new_bucket;
 }
 
 
@@ -150,17 +139,11 @@ func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byt
 
 func destroy_hash_table(table: HashTable@)
 {
-    bucket_size := count_array(&table.bucket);
-    bucket_data := cast(Bucket@,array_data(&table.bucket));
-
-    bucket_array: Bucket[] = {bucket_data,bucket_size};
+    bucket_array := recast_arr(Bucket,array_buffer(&table.bucket));
 
     for @bucket in bucket_array
     {
-        node_data := cast(HashNode@,array_data(&bucket.node));
-        node_size := count_array(&bucket.node);
-
-        node_array: HashNode[] = {node_data,node_size};
+        node_array := recast_arr(HashNode,array_buffer(&bucket.node));
 
         for @node in node_array
         {
