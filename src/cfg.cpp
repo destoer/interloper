@@ -435,6 +435,23 @@ void compute_var_live(Interloper& itl, Function& func)
     // backprop until we get no changes to account for loops!
     b32 modified = true;
 
+    // Find last node that is reachable from the first node
+    const BlockSlot entry_slot = block_from_idx(0);
+    auto& entry_block = block_from_slot(func,entry_slot);
+
+    BlockSlot last_reachable_block = entry_slot;
+
+
+    for(u32 l = 0; l < count(entry_block.links); l++)
+    {
+        auto& link = entry_block.links[l];
+
+        if(link.handle > last_reachable_block.handle)
+        {
+            last_reachable_block = block_from_idx(link.handle);
+        }
+    }
+
     while(modified)
     {
         modified = false;
@@ -444,9 +461,8 @@ void compute_var_live(Interloper& itl, Function& func)
         Array<BlockSlot> to_visit;
 
         // run complete analysis from last node
-        const BlockSlot end = block_from_idx(count(func.emitter.program) - 1);
-        add(seen,end);
-        push_var(to_visit,end);
+        add(seen,last_reachable_block);
+        push_var(to_visit,last_reachable_block);
 
         // run pass on cur block
         while(count(to_visit))
