@@ -14,6 +14,22 @@ func memcpy(dst: byte@, src: const byte@, size: usize)
 }
 
 
+func mem_equal(v1: const byte@, v2: const byte@, size: usize) bool
+{
+    for i in 0 < size
+    {
+        if(@v1 != @v2)
+        {
+            return false;
+        }
+
+        v1 += 1;
+        v2 += 1;
+    }
+
+    return true;   
+}
+
 func zero_mem(dst: byte@, size : usize)
 {
     end : const byte@ = dst + size;
@@ -56,8 +72,8 @@ func swap_mem(v1: byte@, v2: byte@, size: usize)
     // TODO: optimize with 64 bit swaps
     for i in 0 < size
     {
-        v1[i] = v2[i] ^ v1[i];
-        v2[i] = v1[i] ^ v2[i];
-        v1[i] = v2[i] ^ v1[i];
+        tmp := v1[i];
+        v1[i] = v2[i];
+        v2[i] = tmp;
     }
 }

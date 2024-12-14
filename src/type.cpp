@@ -1381,6 +1381,9 @@ bool is_byte_ptr(const Type* type)
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 {
+    const auto base_ltype = ltype;
+    const auto base_rtype = rtype;
+
     // null rtype auto converted 
     if(is_pointer(ltype) && is_pointer(rtype) && deref_pointer(rtype)->type_idx == u32(builtin_type::null_t))
     {
@@ -1444,7 +1447,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 
     if(!is_plain(ltype) || !is_plain(rtype))
     {
-        panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,base_ltype).buf,type_name(itl,base_rtype).buf);
         return;
     }
 
@@ -1454,7 +1457,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
         // if base types still aernt equal we have a problem!
         if(!plain_type_equal(ltype,rtype))
         {
-            panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,base_ltype).buf,type_name(itl,base_rtype).buf);
             return;
         }
     }

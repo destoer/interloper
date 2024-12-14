@@ -1,0 +1,176 @@
+namespace std;
+
+struct HashNode
+{
+    key: byte@;
+    value: byte@;
+}
+
+struct Bucket
+{
+    node: Array;
+}
+
+struct HashTable
+{
+    bucket: Array;
+    key_size: usize;
+    value_size: usize;
+    hash_func: func(key: const byte@, size: usize) usize;
+    table_size: usize;
+}
+
+func hash_table_new_buckets(size: usize) Array
+{
+    buckets := make_array(sizeof_type(Bucket));
+
+    resize_array(&buckets,size);
+
+    bucket_data := cast(Bucket@,array_data(&buckets));
+    bucket_size := count_array(&buckets);
+    bucket_array: Bucket[] = {bucket_data,bucket_size};
+
+    for @bucket in bucket_array
+    {
+        bucket.node = make_array(sizeof_type(HashNode));
+    }
+
+    return buckets;
+}
+
+func make_hash_table(key_size: usize, value_size: usize, hash_func: func(key: const byte@, size: usize) usize) HashTable
+{
+    constant INITIAL_BUCKET_SIZE: usize = 256;
+
+    table: HashTable;
+    table.bucket = hash_table_new_buckets(INITIAL_BUCKET_SIZE);
+    table.key_size = key_size;
+    table.value_size = value_size;
+    table.hash_func = hash_func;
+
+    return table;
+}
+
+func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key: const byte@) HashNode@
+{
+    node_data := cast(HashNode@,array_data(&bucket.node));
+    node_size := count_array(&bucket.node);
+    node_array: HashNode[] = {node_data,node_size};
+
+    for @node in node_array
+    {
+        if mem_equal(node.key,key,table.key_size)
+        {
+            return node;
+        }
+    }
+
+    return NULL;
+}
+
+func hash_table_lookup(table: const HashTable@, key: const byte@) byte@
+{
+    slot := table.hash_func(key,count_array(&table.bucket));
+    bucket := cast(Bucket@,array_index(&table.bucket,slot));
+
+    node := hash_table_lookup_bucket(table,bucket,key);
+
+    if(node)
+    {
+        return node.value;
+    }
+
+    return NULL;
+}
+
+func hash_table_contains(table: const HashTable@, key: const byte@) bool
+{
+    return hash_table_lookup(table,key) != NULL;
+}
+
+func rehash(table: HashTable@, new_size: usize)
+{
+    new_buckets := hash_table_new_buckets(new_size);
+    new_buckets_array := cast(Bucket@,array_data(&new_buckets));
+
+    table_size := count_array(&table.bucket);
+    bucket_data := cast(Bucket@,array_data(&table.bucket));
+
+    bucket_array: Bucket[] = {bucket_data,table_size};
+    for @bucket in bucket_array
+    {
+        node_data := cast(HashNode@,array_data(&bucket.node));
+        node_size := count_array(&bucket.node);
+        node_array: HashNode[] = {node_data,node_size};
+
+        for @node in node_array
+        {
+            slot := table.hash_func(node.key,new_size);
+            push_array(&new_buckets_array[slot].node,node);
+        }
+
+        destroy_array(&bucket.node);
+    }
+
+    destroy_array(&table.bucket);
+    table.bucket = new_buckets;
+}
+
+
+func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byte@
+{
+    bucket_size := count_array(&table.bucket);
+    if(table.table_size == bucket_size)
+    {
+        rehash(table,bucket_size * 2);
+    }
+
+    slot := table.hash_func(key,count_array(&table.bucket));
+
+    bucket := cast(Bucket@, array_index(&table.bucket,slot));
+    node := hash_table_lookup_bucket(table,bucket,key);
+
+    // key present just memcpy it
+    if(node)
+    {
+        memcpy(node.value,value,table.value_size);
+        return node.value;
+    }
+
+    // did not exist in bucket add it
+    new_node: HashNode = {?};
+    new_node.key = heap_duplicate(&global_heap,key,table.key_size);
+    new_node.value = heap_duplicate(&global_heap,value,table.value_size);
+
+    push_array(&bucket.node,&new_node);
+    table.table_size += 1;
+
+    return new_node.value;
+}
+
+func destroy_hash_table(table: HashTable@)
+{
+    bucket_size := count_array(&table.bucket);
+    bucket_data := cast(Bucket@,array_data(&table.bucket));
+
+    bucket_array: Bucket[] = {bucket_data,bucket_size};
+
+    for @bucket in bucket_array
+    {
+        node_data := cast(HashNode@,array_data(&bucket.node));
+        node_size := count_array(&bucket.node);
+
+        node_array: HashNode[] = {node_data,node_size};
+
+        for @node in node_array
+        {
+            free_heap(&global_heap,&node.key);
+            free_heap(&global_heap,&node.value);
+        }
+
+        destroy_array(&bucket.node);
+    }    
+
+    destroy_array(&table.bucket);
+    table.table_size = 0;
+}

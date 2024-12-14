@@ -31,15 +31,15 @@ func arr_heap_u32(heap : Heap@, size : usize) u32[]
 }
 
 
-func arr_realloc_u32(heap: Heap@, vla: byte@[], size: usize) 
+func arr_realloc_u32(heap: Heap@, vla: u32@[], size: usize) 
 {
-    realloc_heap_panic(&global_heap,&vla.data,size,sizeof_type(u32));
+    realloc_heap_panic(&global_heap,cast(byte@@,&vla.data),size,sizeof_type(u32));
     vla.len = size;
 }
 
 func destroy_arr_heap_u32(heap : Heap@, vla: u32@[])
 {
-    free_heap(&global_heap,&vla.data);
+    free_heap(&global_heap,cast(byte@@,&vla.data));
     vla.len = 0;
 }
 
@@ -64,6 +64,11 @@ struct Array
 
     element_size: usize = 1;
 };
+
+func array_data(arr: Array@) byte@
+{
+    return arr.buf.data;
+}
 
 func count_array(arr: Array@) usize 
 {
@@ -94,8 +99,10 @@ func reserve_array_mem(arr: Array@, size : usize)
 
 func resize_array(arr : Array@, size : usize)
 {
+    bytes := size * arr.element_size;
+
     // we have to capacity increase len
-    if(arr.buf.len > size)
+    if(arr.buf.len > bytes)
     {
         arr.size = size;
     }
@@ -103,8 +110,8 @@ func resize_array(arr : Array@, size : usize)
     // need to ask for more memory
     else
     {
-        reserve_array_mem(arr,size * 2);
-        arr.size = size;
+        reserve_array_mem(arr,bytes * 2);
+        arr.size = bytes;
     }
 }
 
@@ -131,12 +138,16 @@ func read_buffer(arr : const Array@, offset : usize, data: byte@, size: usize)
     memcpy(data,&arr.buf[offset],size);
 }
 
-func read_array(array : const Array@, idx: usize,data: byte@)
+func array_index(array: const Array@, idx: usize) byte@
 {
     offset := idx * array.element_size;
-    read_buffer(array,offset,data,array.element_size);
+    return &array.buf[offset];
 }
 
+func array_end(array: const Array@) byte@
+{
+    return &array.buf[array.size];
+}
 
 func push_buffer(arr : Array@, v: const byte@,size: usize)
 {
@@ -172,34 +183,26 @@ func push_u64(arr : Array@, v : u64)
     push_buffer(arr,&v,sizeof(v));
 }
 
-func read_u8(arr: const Array@, offset: u64) u8
+func read_buffer_u8(arr: const Array@, offset: u64) u8
 {
     v: u8;
     read_buffer(arr,offset,&v,sizeof(v));
     return v;
 }
 
-func read_u16(arr: const Array@, offset: u64) u16
+func read_buffer_u16(arr: const Array@, offset: u64) u16
 {
     v: u16;
     read_buffer(arr,offset,&v,sizeof(v));
     return v;
 }
 
-func read_u32(arr: const Array@, offset: u64) u32
+func read_buffer_u32(arr: const Array@, offset: u64) u32
 {
     v: u32;
     read_buffer(arr,offset,&v,sizeof(v));
     return v;
 }
-
-func read_u64(arr: const Array@, offset: u64) u64
-{
-    v: u64;
-    read_buffer(arr,offset,&v,sizeof(v));
-    return v;
-}
-
 
 func str_from_array(arr : Array@) string
 {

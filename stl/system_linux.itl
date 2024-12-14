@@ -144,12 +144,12 @@ func read_string(str : string) string
 
 
 // PROCESS
-
-// TODO: os specific global cleanup?
 func at_exit()
 {
-    //close_file(&stdin);
-    //close_file(&stdout);
+    // heap_usage(&global_heap);
+
+    // close_file(&stdin);
+    // close_file(&stdout);
 }
 
 func exit(exit_code: s32)

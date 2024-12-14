@@ -10,6 +10,8 @@ import <system>
 import <mem>
 import <alloc>
 import <array>
+import <hash_table>
+import <hashing>
 
 import <bit>
 import <util>

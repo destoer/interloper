@@ -1,0 +1,26 @@
+
+func main() s32
+{
+    table := std::make_hash_table(sizeof_type(u32),sizeof_type(u32),&hash_u32);
+
+    key: u32 = 1;
+    value: u32 = 5;
+
+    std::hash_table_add(&table,&key,&value);
+
+    res1 := @cast(u32@,std::hash_table_lookup(&table,&key)) == 5;
+    res2 := std::hash_table_contains(&table,&key);
+
+    value += 1;
+    std::hash_table_add(&table,&key,&value);
+    res3 := @cast(u32@,std::hash_table_lookup(&table,&key)) == 6;
+
+    key = 4;
+    res4 := std::hash_table_lookup(&table,&key) == NULL;
+
+
+    std::destroy_hash_table(&table);
+
+    ans := res1 && res2 && res3 && res4;
+    return cast(s32,ans);
+}

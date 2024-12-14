@@ -155,15 +155,7 @@ func str_equal(v1 : const string, v2 : const string) bool
         return false;
     }
 
-    for(i in 0 < v1.len)
-    {
-        if(v1[i] != v2[i])
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return mem_equal(v1.data,v2.data,v1.len);
 }
 
 func find_str(str: const string, search: const string) const string

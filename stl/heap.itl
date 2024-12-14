@@ -23,6 +23,8 @@ struct Heap
     // NOTE: this is in block counts
     used : u64;
     capacity : u64;
+
+    total_allocation_bytes: u64;
 }
 
 
@@ -32,6 +34,14 @@ constant HEAP_DEFAULT_ALLOC_SIZE : u32 = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_CO
 
 constant HEAP_CANARY_START : u64 = 0xCAFE_DEAD_C0DE_BABE;
 constant HEAP_CANARY_END : u64 = 0xFACE_DEAD_FEED_CAFE;
+
+func heap_duplicate(heap: Heap@, data: const byte@, size: usize) byte@
+{
+    buffer := alloc_heap_panic(heap,size,sizeof_type(byte));
+    memcpy(buffer,data,size);
+
+    return buffer;
+}
 
 func usable_blocks(heap: const Heap@) u64
 {
@@ -44,6 +54,7 @@ func heap_usage(heap: const Heap@)
     print("used: {}\n",heap.used * HEAP_BLOCK_SIZE);
     print("capacity: {}\n",heap.capacity * HEAP_BLOCK_SIZE);
     print("free: {}\n",usable_blocks(heap) * HEAP_BLOCK_SIZE);
+    print("total allocation bytes: {}",heap.total_allocation_bytes);
 
     putchar('\n');
 }
@@ -261,6 +272,8 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte@
 
             // mark heap usage
             heap.used += cur.blocks;
+
+            heap.total_allocation_bytes += size;
 
             // data is after buffer
             return cast(byte@,cur + 1);

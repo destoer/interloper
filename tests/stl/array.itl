@@ -14,8 +14,7 @@ func main() s32
 
     for(i in 0 < 4)
     {
-        v : u32;
-        std::read_array(&arr,i,&v);
+        v := @cast(u32@,std::array_index(&arr,i));
         if(v != i + 1)
         {
             std::destroy_array(&arr);

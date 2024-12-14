@@ -281,9 +281,9 @@ func read_setup_info(win: OSWindow@)
     // read in our first batch of data
     read_x11_reply(win,6);
 
-    std::log_debug(X11_PREFIX,"version {}.{}",std::read_u16(buf,0),std::read_u16(buf,2));
+    std::log_debug(X11_PREFIX,"version {}.{}",std::read_buffer_u16(buf,0),std::read_buffer_u16(buf,2));
 
-    len : u32 = std::read_u16(buf,4) * 4;
+    len : u32 = std::read_buffer_u16(buf,4) * 4;
 
     std::log_debug(X11_PREFIX,"len {}",len);
 
@@ -452,8 +452,8 @@ func process_reply(win : OSWindow@)
 {
     buf := &win.buf;
 
-    seq := std::read_u16(buf,2);
-    len := std::read_u32(buf,4) * 4;
+    seq := std::read_buffer_u16(buf,2);
+    len := std::read_buffer_u32(buf,4) * 4;
 
     //std::print("reply: {} {}\n",seq,len);
 
@@ -461,15 +461,15 @@ func process_reply(win : OSWindow@)
     if(win.ext_query_seq == seq)
     {
         win.ext_query_reply = true;
-        win.ext_enabled = cast(bool,std::read_u8(buf,8));
-        win.ext_opcode = std::read_u8(buf,9);
+        win.ext_enabled = cast(bool,std::read_buffer_u8(buf,8));
+        win.ext_opcode = std::read_buffer_u8(buf,9);
     }
 
     // big request enable reply
     else if(win.big_req_seq == seq)
     {
         win.big_req_reply = true;
-        win.max_req = std::read_u32(buf,8) * 4;
+        win.max_req = std::read_buffer_u32(buf,8) * 4;
     }
 
     // key mapping
@@ -477,7 +477,7 @@ func process_reply(win : OSWindow@)
     {
         std::log_debug(X11_PREFIX,"Key mapping setup");
 
-        n := std::read_u8(buf,1);
+        n := std::read_buffer_u8(buf,1);
 
         read_x11_reply(win,len);
         
@@ -486,7 +486,7 @@ func process_reply(win : OSWindow@)
 
         for(i in win.min_keycode < win.max_keycode)
         {
-            win.key_code_to_sym[i] = std::read_u8(buf,cur);
+            win.key_code_to_sym[i] = std::read_buffer_u8(buf,cur);
             cur += offset;
         }
     }
@@ -729,7 +729,7 @@ func os_process_events(std_win: Window@) bool
 
             case x_reply_type::key_press:
             {
-                key := std::read_u8(buf,1);
+                key := std::read_buffer_u8(buf,1);
 
                 x_key_event(std_win,key,true);
             }
@@ -737,7 +737,7 @@ func os_process_events(std_win: Window@) bool
             // TODO: why are the key release events not allways firing?
             case x_reply_type::key_release:
             {
-                key := std::read_u8(buf,1);
+                key := std::read_buffer_u8(buf,1);
 
                 x_key_event(std_win,key,false);         
             }
