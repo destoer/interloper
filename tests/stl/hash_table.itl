@@ -1,9 +1,9 @@
 
 func main() s32
 {
-    table := std::make_hash_table(sizeof_type(u32),sizeof_type(u32),&hash_u32);
+    table := std::make_hash_table(sizeof_type(u64),sizeof_type(u32),&hash_u64);
 
-    key: u32 = 1;
+    key: u64 = 1;
     value: u32 = 5;
 
     std::hash_table_add(&table,&key,&value);

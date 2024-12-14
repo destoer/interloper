@@ -147,6 +147,18 @@ func parse_value(str : const string) [Value, const string]
     return value, new;
 }
 
+func parse_u64(str: const string) u64
+{
+    [value,next] := parse_value(str);
+    return value.v;
+}
+
+func parse_s64(str: const string) s64
+{
+    [value,next] := parse_value(str);
+    return cast(s64,value.v);
+}
+
 func str_equal(v1 : const string, v2 : const string) bool
 {
     // different len, not equal
