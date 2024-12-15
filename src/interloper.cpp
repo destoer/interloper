@@ -15,8 +15,7 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
 std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, SymSlot ptr_slot, SymSlot dst_slot);
-
-
+Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot dst_slot);
 
 void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
 std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
@@ -341,6 +340,11 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
             const auto type = read_arr(itl,func,node,dst_slot);
 
             return type;
+        }
+
+        case ast_type::slice:
+        {
+            return slice_array(itl,func,(SliceNode*)node,dst_slot);
         }
 
         case ast_type::addrof:

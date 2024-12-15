@@ -191,10 +191,7 @@ func send_array(sock: Socket@, arr : const Array@) s64
 
 func send_str(sock: Socket@, str: const string) s64
 {
-    buf: const byte[];
-    buf.data = str.data;
-    buf.len = str.len;
-
+    buf: const byte[] = {str.data,str.len};
     return send(sock,buf);
 }
 

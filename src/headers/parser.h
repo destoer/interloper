@@ -101,6 +101,7 @@ enum class ast_type
     access_struct,
     member,
     index,
+    slice,
 
     builtin_type_info,
 
@@ -207,6 +208,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "access_struct",
     "member",
     "index",
+    "slice",
 
     "builtin_type_info",
 
@@ -237,6 +239,7 @@ enum class ast_fmt
     for_range,
     record,
     index,
+    slice,
     switch_t,
     case_t,
     scope,
@@ -268,6 +271,7 @@ inline const char *FMT_NAMES[] =
     "for_range",
     "record",
     "index",
+    "slice",
     "switch",
     "case",
     "scope",
@@ -368,6 +372,17 @@ struct IndexNode
     String name;
     Array<AstNode*> indexes;
 };
+
+
+struct SliceNode
+{
+    AstNode node;
+
+    String name;
+    AstNode* lower = nullptr;
+    AstNode* upper = nullptr;
+};
+
 
 // can be ast_type::declaration
 // or ast_type::const_decl
@@ -834,6 +849,13 @@ AstNode* ast_index(Parser& parser,const String &name, const Token& token)
     return (AstNode*)index_node;
 }
 
+AstNode* ast_slice(Parser& parser,const String &name, const Token& token)
+{
+    SliceNode* slice_node = alloc_node<SliceNode>(parser,ast_type::slice,ast_fmt::slice,token);
+    slice_node->name = name;
+
+    return (AstNode*)slice_node;
+}
 
 AstNode* ast_switch(Parser& parser, AstNode* expr, const Token& token)
 {

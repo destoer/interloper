@@ -15,12 +15,6 @@ func to_lower(char: c8) c8
 // if printed in base 2, its 64 bits
 constant MAX_INT_CHARS : u32 = 64;
 
-func clip_str(str : string, len : usize) string
-{
-    buf: string = {str.data,len};
-
-    return buf;
-}
 
 func str_copy(dst: string,src: const string) usize
 {
@@ -86,13 +80,13 @@ func parse_value(str : const string) [Value, const string]
     // empty string
     if(!str_valid(str))
     {
-        return value, str; 
+        return value, str;
     }
 
     if(str[0] == '-')
     {
         data += 1;
-        value.sign = true; 
+        value.sign = true;
     }
 
     done := false;
@@ -118,9 +112,9 @@ func parse_value(str : const string) [Value, const string]
             else
             {
                 // letters terminate
-                done  = true;     
+                done  = true;
             }
-            
+
             if(!done)
             {
                 // accumulate digits
@@ -139,10 +133,8 @@ func parse_value(str : const string) [Value, const string]
     }
 
     used := cast(u64,data) - cast(u64,str.data);
-    
-    new : const string;
-    new.data = data;
-    new.len = str.len - used;
+
+    new: const string = {data,str.len - used};
 
     return value, new;
 }
@@ -180,10 +172,10 @@ func find_str(str: const string, search: const string) const string
 
     for i: s32 = 0; i + search.len < str.len; i += 1
     {
-        scan: const string = {str.data + i, search.len};
+        scan := str[i : i + search.len];
         if(std::str_equal(scan,search))
         {
-            return scan;
+            return str[i:];
         }
     }
 
@@ -203,20 +195,18 @@ func split_str(str: const string, delimitter: const string) Array
         if found.len != 0
         {
             scanned := found.data - str.data;
-            split: const string = {str.data,cast(usize,scanned)};
-
-            str.len -= scanned + delimitter.len;
-            str.data = found.data + delimitter.len;
-            
+            split := str[:scanned];
             std::push_array(&arr,&split);
-        } 
 
-        else 
+            str = found[delimitter.len:];
+        }
+
+        else
         {
             done = true;
         }
     }
 
     std::push_array(&arr,&str);
-    return arr;   
+    return arr;
 }

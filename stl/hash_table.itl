@@ -68,7 +68,7 @@ func hash_table_lookup(table: const HashTable@, key: const byte@) byte@
 
     node := hash_table_lookup_bucket(table,bucket,key);
 
-    if(node)
+    if node
     {
         return node.value;
     }

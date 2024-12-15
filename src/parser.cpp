@@ -527,8 +527,58 @@ AstNode* array_index(Parser& parser,const Token& t)
     return (AstNode*)arr_access;
 }
 
+AstNode* arr_slice(Parser& parser,const Token& t)
+{
+    consume(parser,token_type::sl_brace);
+
+    SliceNode* slice_node = (SliceNode*)ast_slice(parser,t.literal,t);
+
+    // check if left side is empty.
+    if(match(parser,token_type::colon))
+    {
+        consume(parser,token_type::colon);
+    }
+
+    else
+    {
+        slice_node->lower = expr_terminate(parser,"slice lower",token_type::colon);
+    }
+
+    // check if right side is empty
+    if(match(parser,token_type::sr_brace))
+    {
+        if(!slice_node->lower)
+        {
+            panic(parser,t,"Array slice with empty lower and upper bounds!");
+            return nullptr;
+        }
+
+        consume(parser,token_type::sr_brace);
+    }
+
+    else
+    {
+        slice_node->upper = expr_terminate(parser,"slice upper",token_type::sr_brace);
+    }
+
+    return (AstNode*)slice_node;
+}
+
 AstNode* arr_access(Parser& parser, const Token& t)
 {
+    // Check for a ':' to detect slicing.
+    // For now only support it on the first index.
+    u32 peek_offset = 0;
+    while(peek(parser,peek_offset).type != token_type::sr_brace)
+    {
+        if(peek(parser,peek_offset).type == token_type::colon)
+        {
+            return arr_slice(parser,t);
+        }
+        peek_offset += 1;
+    }
+
+    // Standard array access.
     AstNode* arr_access = array_index(parser,t);
 
     if(match(parser,token_type::dot))
@@ -2201,6 +2251,24 @@ void print(const AstNode *root, b32 override_seperator)
                 print(index_node->indexes[i]);
             }
 
+            break;
+        }
+
+        case ast_fmt::slice:
+        {
+            SliceNode* slice_node = (SliceNode*)root;
+
+            printf("slice: %s\n",slice_node->name.buf);
+
+            if(slice_node->lower)
+            {
+                print(slice_node->lower);
+            }
+
+            if(slice_node->upper)
+            {
+                print(slice_node->upper);
+            }
             break;
         }
 

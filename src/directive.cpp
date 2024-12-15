@@ -145,11 +145,6 @@ SymSlot load_struct_u64_res(Interloper& itl, Function& func, AddrSlot addr_slot)
     return dst;
 }
 
-void write_struct_u64(Interloper& itl, Function& func, SymSlot src, AddrSlot addr_slot)
-{
-    store_struct_internal(itl,func,op_type::store_struct_u64,src,addr_slot);
-}
-
 void lock_reg(Interloper& itl, Function& func, SymSlot reg)
 {
     const u32 machine_reg = special_reg_to_reg(itl.arch,reg);

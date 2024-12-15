@@ -144,14 +144,30 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
 // NOTE: this has to be a vla
 void store_arr_data(Interloper& itl, Function& func, SymSlot slot, SymSlot data)
 {
-    const auto addr_slot = make_struct_addr(slot,0);
-    write_struct_u64(itl,func,data,addr_slot);
+    if(slot.handle != RV_IR)
+    {
+        const auto dst_addr = make_struct_addr(slot,0);
+        store_struct(itl,func,data,dst_addr,GPR_SIZE,false);
+    }
+
+    else
+    {
+        store_ptr(itl,func,data,func.sig.args[0],0,GPR_SIZE,false);
+    }
 }
 
 void store_arr_len(Interloper& itl, Function& func, SymSlot slot,SymSlot len)
 {
-    const auto addr_slot = make_struct_addr(slot,GPR_SIZE);
-    write_struct_u64(itl,func,len,addr_slot);
+    if(slot.handle != RV_IR)
+    {
+        const auto dst_addr = make_struct_addr(slot,GPR_SIZE);
+        store_struct(itl,func,len,dst_addr,GPR_SIZE,false);
+    }
+
+    else
+    {
+        store_ptr(itl,func,len,func.sig.args[0],GPR_SIZE,GPR_SIZE,false);
+    }
 }
 
 SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type)
@@ -745,4 +761,87 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
             }
         }
     }
+}
+
+Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot dst_slot)
+{
+    const auto arr_name = slice_node->name;
+    const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
+
+    if(!arr_ptr)
+    {
+        panic(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
+        return make_builtin(itl,builtin_type::void_t);      
+    }
+
+    const auto arr = *arr_ptr;
+
+    if(!is_array(arr.type))
+    {
+        panic(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s\n",type_name(itl,arr.type).buf);
+        return make_builtin(itl,builtin_type::void_t);         
+    }
+
+    const auto arr_slot = arr.reg.slot;
+
+    SymSlot data_slot = load_arr_data(itl,func,arr_slot,arr.type);
+    SymSlot slice_lower = {SYMBOL_NO_SLOT};
+
+    // Lower is populated add to data
+    if(slice_node->lower)
+    {
+        const auto [index_type,index_slot] = compile_oper(itl,func,slice_node->lower);
+        slice_lower = index_slot;
+
+        if(!is_integer(index_type))
+        {
+            panic(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice lower bound got %s\n",type_name(itl,index_type).buf);
+            return make_builtin(itl,builtin_type::void_t);      
+        }
+
+        const SymSlot offset_slot = mul_imm_res(itl,func,index_slot,type_size(itl,index_arr(arr.type)));
+        data_slot = add_res(itl,func,data_slot,offset_slot);
+    }
+
+    store_arr_data(itl,func,dst_slot,data_slot);
+
+    SymSlot data_len = {SYMBOL_NO_SLOT};
+    
+    // Upper is populated set the length
+    if(slice_node->upper)
+    {
+        const auto [t2,v2] = compile_oper(itl,func,slice_node->upper);
+
+        if(!is_integer(t2))
+        {
+            panic(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice upper bound got %s\n",type_name(itl,t2).buf);
+            return make_builtin(itl,builtin_type::void_t);      
+        }
+
+        data_len = v2;
+    }
+
+    else
+    {
+        data_len = load_arr_len(itl,func,arr_slot,arr.type);
+    }
+    
+    // Sub lower slice if present
+    if(slice_node->lower)
+    {
+        data_len = sub_res(itl,func,data_len,slice_lower);
+    }
+
+    store_arr_len(itl,func,dst_slot,data_len);
+
+    // If array type is not runtime size make it!
+    if(!is_runtime_size(arr.type))
+    {
+        auto copy_arr_type = (ArrayType*)copy_type(itl,arr.type);
+        copy_arr_type->size = RUNTIME_SIZE;
+
+        return (Type*)copy_arr_type;
+    }
+
+    return arr.type;
 }
