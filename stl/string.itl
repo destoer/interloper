@@ -172,8 +172,7 @@ func find_str(str: const string, search: const string) const string
 
     for i: s32 = 0; i + search.len < str.len; i += 1
     {
-        scan := str[i : i + search.len];
-        if(std::str_equal(scan,search))
+        if(std::str_equal(str[i : i + search.len],search))
         {
             return str[i:];
         }

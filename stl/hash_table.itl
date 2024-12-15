@@ -37,13 +37,13 @@ func make_hash_table(key_size: usize, value_size: usize, hash_func: func(key: co
 {
     constant INITIAL_BUCKET_SIZE: usize = 256;
 
-    table: HashTable;
-    table.bucket = hash_table_new_buckets(INITIAL_BUCKET_SIZE);
-    table.key_size = key_size;
-    table.value_size = value_size;
-    table.hash_func = hash_func;
-
-    return table;
+    return HashTable {
+        hash_table_new_buckets(INITIAL_BUCKET_SIZE),
+        key_size,
+        value_size,
+        hash_func,
+        0
+    };
 }
 
 func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key: const byte@) HashNode@
@@ -127,9 +127,10 @@ func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byt
     }
 
     // did not exist in bucket add it
-    new_node: HashNode = {?};
-    new_node.key = heap_duplicate(&global_heap,key,table.key_size);
-    new_node.value = heap_duplicate(&global_heap,value,table.value_size);
+    new_node: HashNode = {
+        heap_duplicate(&global_heap,key,table.key_size),
+        heap_duplicate(&global_heap,value,table.value_size)
+    };
 
     push_array(&bucket.node,&new_node);
     table.table_size += 1;
