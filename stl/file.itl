@@ -248,7 +248,7 @@ func flush_read(file : File@, ptr : byte@, len : usize)
     file.buffer_size -= len;  
 }
 
-func read_file_str(file : File@, str : string) [string, file_read_res]
+func read_file_line(file : File@, str : string) [string, file_read_res]
 {
     if(!file_valid(file))
     {
@@ -381,8 +381,9 @@ func read_file_raw(file : File@,buf : byte@, len : usize) [usize, file_read_res]
 
         flush_read(file,buf,flush_size);
 
-        // less byte to read
-        remain -= pending;
+        // less bytes to read
+        buf += flush_size;
+        remain -= flush_size;
 
         // buffer next ammount of file in
         res = buffer_file_read(file);
@@ -460,4 +461,13 @@ func read_bin(name : const string) [byte[],bool]
     }
 
     return buf,false;
+}
+
+
+func read_string(name: const string) [string,bool]
+{
+    [bytes, err] := read_bin(name);
+    str := recast_arr(c8,bytes);
+
+    return str,err;
 }

@@ -15,7 +15,7 @@ func test_str() s32
 
     while(rc == file_read_res::success)
     {
-        [str,rc] := std::read_file_str(&fp,buf);
+        [str,rc] := std::read_file_line(&fp,buf);
         std::print("{}\n",str);
         lines += 1;
     }

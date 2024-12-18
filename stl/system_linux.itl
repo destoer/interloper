@@ -123,7 +123,7 @@ func write_string(str: const string)
     }
 }
 
-func read_string(str : string) string
+func read_line(str : string) string
 {
     // if we are going to request input
     // flush any stdout so we get our prompt
@@ -132,7 +132,7 @@ func read_string(str : string) string
         flush_write(&stdout);
     }
 
-    [str,rc] := read_file_str(&stdin,str);
+    [str,rc] := read_file_line(&stdin,str);
 
     if(rc != file_read_res::success)
     {

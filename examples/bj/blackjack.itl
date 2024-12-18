@@ -81,7 +81,7 @@ func play_round()
 
         // hit or stand?
         std::print("Stand?: ");
-        out := std::read_string(user_input);
+        out := std::read_line(user_input);
 
         // player stand, game will end
         if(out[0] == 'y')
@@ -177,7 +177,7 @@ func play_blackjack()
         play_round();
 
         std::print("continue playing?: ");
-        out := std::read_string(user_input);
+        out := std::read_line(user_input);
 
         // player stand
         done = out[0] == 'n';

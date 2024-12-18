@@ -6,7 +6,7 @@ func main() s32
 
     std::print("Enter some text: ");
 
-    out := std::read_string(buf);
+    out := std::read_line(buf);
 
     std::print("You said: {}\n",out);
 

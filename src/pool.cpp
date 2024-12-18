@@ -231,6 +231,7 @@ void write_const_builtin(Interloper& itl,PoolSlot slot, u32 offset,const ConstDa
 }
 
 // used for writing into compound data, i.e structs, arrays
+// NOTE: make sure data type written is an exact match.
 void write_const_data(Interloper& itl, PoolSlot slot, u32 offset, const ConstData& data)
 {
     // write out based on type

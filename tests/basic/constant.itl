@@ -1,12 +1,12 @@
 
 struct Point
 {
-    x : u32;
-    y : u32;
+    x : s32;
+    y : s32;
 };
 
 
-constant POINT : Point = {3,4};
+constant POINT : Point = {-1,4};
 
 
 // constant HELLO : string = "Hello";
@@ -41,7 +41,7 @@ func main() s32
     // test string
 
     // test struct
-    res3 := (POINT.x * POINT.y) == 12;
+    res3 := (POINT.x * POINT.y) == -4;
 
     // test array of structs
     res4 := ((STRUCT_TABLE[0].x * STRUCT_TABLE[0].y) + (STRUCT_TABLE[1].x * STRUCT_TABLE[1].y)) == 41;

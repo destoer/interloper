@@ -545,6 +545,7 @@ void compile_const_arr_list_internal(Interloper& itl,RecordNode* list, ArrayType
                 {
                     auto data = compile_const_expression(itl,list->nodes[i]);
                     check_assign_init(itl,base_type,data.type);
+                    data.type = base_type;
 
                     write_const_data(itl,slot,*offset,data);
                 }
@@ -560,6 +561,7 @@ void compile_const_arr_list_internal(Interloper& itl,RecordNode* list, ArrayType
             {
                 auto data = compile_const_expression(itl,list->nodes[i]);
                 check_assign_init(itl,base_type,data.type);
+                data.type = base_type;
 
                 write_const_data(itl,slot,*offset,data);
                 *offset = *offset + size;
@@ -697,8 +699,9 @@ void compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const 
             default:
             {
                 // get the operand and type check it
-                const auto data = compile_const_expression(itl,list->nodes[i]);
+                auto data = compile_const_expression(itl,list->nodes[i]);
                 check_assign(itl,member.type,data.type);
+                data.type = member.type;
 
                 write_const_data(itl,slot,member.offset + offset,data);
             }
