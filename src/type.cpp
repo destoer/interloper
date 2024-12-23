@@ -688,6 +688,8 @@ void print_type(Interloper& itl, const Type* type)
     printf("type: %s\n",type_name(itl,type).buf);
 }
 
+Type* copy_type(Interloper& itl, const Type* type);
+
 Type* copy_type_internal(Interloper& itl, const Type* type)
 {
     switch(type->type_idx)
@@ -725,8 +727,29 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
 
         case FUNC_POINTER:
         {
-            assert(false);
-            break;
+            FuncPointerType* func_pointer_type = (FuncPointerType*)type;
+
+            FuncPointerType* copy = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
+
+            const auto& sig = func_pointer_type->sig;
+
+            for(u32 a = 0; a < count(sig.args); a++)
+            {
+                push_var(copy->sig.args,sig.args[a]);
+            }
+
+            for(u32 r = 0; r < count(sig.return_type); r++)
+            {
+                push_var(copy->sig.return_type,copy_type(itl,sig.return_type[r]));
+            }
+
+            copy->sig.va_args = sig.va_args;
+            copy->sig.hidden_args = sig.hidden_args;
+            copy->sig.call_stack_size = sig.call_stack_size;
+
+            push_var(itl.func_pointer,&copy->sig);
+
+            return (Type*)copy;
         }
 
         default:

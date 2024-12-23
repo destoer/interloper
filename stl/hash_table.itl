@@ -11,12 +11,14 @@ struct Bucket
     node: Array;
 }
 
+type_alias HASH_FUNC = func(key: const byte@, size: usize) usize;
+
 struct HashTable
 {
     bucket: Array;
     key_size: usize;
     value_size: usize;
-    hash_func: func(key: const byte@, size: usize) usize;
+    hash_func: HASH_FUNC;
     table_size: usize;
 }
 
@@ -33,7 +35,7 @@ func hash_table_new_buckets(size: usize) Array
     return buckets;
 }
 
-func make_hash_table(key_size: usize, value_size: usize, hash_func: func(key: const byte@, size: usize) usize) HashTable
+func make_hash_table(key_size: usize, value_size: usize, hash_func: HASH_FUNC) HashTable
 {
     constant INITIAL_BUCKET_SIZE: usize = 256;
 

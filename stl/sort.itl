@@ -1,6 +1,8 @@
 namespace std;
 
-func heapify(array: Array@, idx: ssize, len: ssize, cmp_func: func(v1 : const byte@, v2: const byte@) bool)
+type_alias SORT_CMP_FUNC = func(v1 : const byte@, v2: const byte@) bool;
+
+func heapify(array: Array@, idx: ssize, len: ssize, cmp_func: SORT_CMP_FUNC)
 {
     elem_size := array.element_size;
     heap := array.buf;
@@ -42,7 +44,7 @@ func heapify(array: Array@, idx: ssize, len: ssize, cmp_func: func(v1 : const by
     }
 }
 
-func sort(array: Array@,cmp_func: func(v1 : const byte@, v2: const byte@) bool)
+func sort(array: Array@,cmp_func: SORT_CMP_FUNC)
 {
     size := std::count_array(array);
     
