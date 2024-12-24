@@ -2,6 +2,7 @@
 #include <destoer/destoer.h>
 #include <token.h>
 #include <type.h>
+#include <sym.h>
 
 enum class ast_type
 {

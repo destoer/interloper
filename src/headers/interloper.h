@@ -7,6 +7,7 @@ using namespace destoer;
 #include <parser.h>
 #include <pool.h>
 #include <type.h>
+#include <sym.h>
 #include <ir.h>
 #include <interpretter.h>
 
@@ -103,6 +104,8 @@ struct Interloper
     FunctionTable func_table;
     Array<DeclNode*> global_def;
 
+    DefNode* root = nullptr;
+
     SymbolTable symbol_table;
     GlobalAlloc global_alloc;
 
@@ -124,11 +127,8 @@ struct Interloper
     // allocating all things types!
     ArenaAllocator type_allocator;
 
-    // Type lookup
-    HashTable<String,TypeDecl> type_table;
-
     // type definitions
-    HashTable<String,TypeDef> type_def;
+    Array<TypeDef> type_def;
 
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;
