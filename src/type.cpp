@@ -783,7 +783,7 @@ TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
 {
     TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
 
-    if (type_decl->type_idx == INVALID_TYPE_IDX)
+    if (type_decl->state != def_state::checked)
     {
         return nullptr;
     }
@@ -818,7 +818,7 @@ TypeDecl* lookup_type(Interloper& itl,const String& name)
 
     // currently type does not exist
     // attempt to parse the def
-    if(user_type->type_idx == INVALID_TYPE_IDX)
+    if(user_type->state != def_state::checked)
     {
         // no such definiton exists
         // NOTE: this is allowed to not panic the 
@@ -844,7 +844,7 @@ TypeDecl* lookup_type(Interloper& itl,const String& name)
     return user_type;
 }
 
-Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_constant, b32 *is_alias)
+Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_constant)
 {
     switch(kind)
     {
@@ -856,16 +856,6 @@ Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_const
         case type_kind::enum_t:
         {
             return make_enum(itl,type_idx,is_constant);
-        }
-
-        case type_kind::alias_t:
-        {
-            TypeAlias alias = itl.alias_table[type_idx];
-
-            *is_alias = true;
-
-            // alias must be copied so specifiers cannot tamper with it
-            return copy_type(itl,alias.type);
         }
 
         case type_kind::builtin:
@@ -907,29 +897,25 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         // to handle out of order decl so we directly query the type table
         // rather than using lookup_type
         const auto name = type_decl->name;
-        TypeDecl* user_type = lookup(itl.type_table,name);
+        TypeDecl* user_type = lookup_incomplete_decl(itl,name);
+
+        // check we have a type definiton
+        // no such definiton exists, nothing we can do
+        if(!user_type || !(user_type->flags & TYPE_DECL_DEF_FLAG))
+        {
+            panic(itl,itl_error::undeclared,"type %s is not defined\n",type_decl->name.buf);
+            return make_builtin(itl,builtin_type::void_t);
+        }
 
         // user type does not exist yet
-        if(!user_type)
+        if(user_type->state != def_state::checked)
         {
-            // check we have a type definiton
-            TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
-
-            // no such definiton exists, nothing we can do
-            if(!def_ptr)
-            {
-                panic(itl,itl_error::undeclared,"type %s is not defined\n",type_decl->name.buf);
-                return make_builtin(itl,builtin_type::void_t);
-            }
-
-            TypeDef& def = *def_ptr;
-
-
             // if this is not currently being checked 
             // parse it
-            if(def.state == def_state::not_checked)
+            if(user_type->state == def_state::not_checked)
             {
-                parse_def(itl,def);
+                TypeDef& type_def = *((TypeDef*)user_type);
+                parse_def(itl,type_def);
 
                 // def checking went wrong!
                 if(itl.error)
@@ -938,8 +924,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 }
 
                 // okay now we have a complete type build it!
-                user_type = lookup(itl.type_table,name);
-                type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant,&is_alias);
+                type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
             }
 
             // type is being currently checked?
@@ -949,7 +934,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 // indirection, this is fine we dont need details of the type yet
                 if(def_has_indirection(type_decl))
                 {
-                    type = make_base_type(itl,def.slot,type_kind(def.kind),is_constant,&is_alias);
+                    type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
                 }
 
                 // this is no indirection and we have attempted to parse a type twice
@@ -957,7 +942,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
                 else
                 {
                     // TODO: add huertsics to scan for where!
-                    panic(itl,itl_error::black_hole,"type %s is recursively defined\n",def.name.buf);
+                    panic(itl,itl_error::black_hole,"type %s is recursively defined\n",name.buf);
                     return make_builtin(itl,builtin_type::void_t);               
                 }
             }
@@ -966,8 +951,10 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         // user defined type allready exists, just pull the info out
         else
         {   
-            type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant,&is_alias);
-        }       
+            type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
+        }
+
+        is_alias = (user_type->flags & TYPE_DECL_ALIAS_FLAG) != 0;       
     }
 
     else if(type_decl->type_idx == FUNC_POINTER)
@@ -2082,12 +2069,6 @@ std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl,
                 return std::pair{make_builtin(itl,builtin_type::u32_t),0};
             }
         }
-
-        case type_kind::alias_t:
-        {
-            panic(itl,itl_error::generic_type_error,"cannot access type properties on alias %s\n",type_decl.name.buf);
-            return std::pair{make_builtin(itl,builtin_type::u32_t),0};
-        }
     }
 
     assert(false);
@@ -2102,58 +2083,87 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
     return type;
 }
 
+void add_type_scope(Interloper& itl, TypeDecl* decl);
 
-void add_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
+template<typename T>
+T* alloc_type_decl(Interloper& itl)
 {
-    TypeDecl type_decl;
+    T* out = (T*)allocate(itl.type_allocator,sizeof(T));
+    *out = {};
 
-    type_decl.type_idx = type_idx;
-    type_decl.name = name;
-    type_decl.kind = kind;
+    return out;
+}
 
-    add(itl.type_table,type_decl.name,type_decl);    
+void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind,b32 is_alias)
+{
+    TypeDecl* type_decl = alloc_type_decl<TypeDecl>(itl);
+
+    type_decl->type_idx = type_idx;
+    type_decl->name = name;
+    type_decl->kind = kind;
+    
+    if(is_alias)
+    {
+        type_decl->flags |= TYPE_DECL_ALIAS_FLAG;
+    }
+
+    add_type_scope(itl,type_decl);    
 }
 
 
-void add_type_def(Interloper& itl, def_kind kind,AstNode* root, const String& name, const String& filename, const String& name_space)
+void add_type_definition(Interloper& itl, def_kind kind,AstNode* root, const String& name, const String& filename, const String& name_space, b32 is_alias)
 {
-    TypeDef def;
+    // TODO: Handle namespacec insertion
+    UNUSED(name_space);
+    assert(false);
 
-    def.name = name;
-    def.filename = filename;
-    def.name_space = name_space;
-    def.root = root;
-    def.kind = kind;
-    def.state = def_state::not_checked;
+    TypeDef* definition = alloc_type_decl<TypeDef>(itl);
 
-    add(itl.type_def,def.name,def);
+    definition->decl.name = name;
+    definition->decl.flags = TYPE_DECL_DEF_FLAG;
+
+    if(is_alias)
+    {
+        definition->decl.flags |= TYPE_DECL_ALIAS_FLAG;
+    }
+
+    definition->filename = filename;
+    definition->root = root;
+    definition->kind = kind;
+
+
+    add_type_scope(itl,(TypeDecl*)definition);
 }
 
 b32 type_exists(Interloper& itl, const String& name)
 {
-    return contains(itl.type_table,name);
+    return lookup_complete_decl(itl,name) != nullptr;
 }
 
-TypeAlias make_alias(const String& name, const String& filename, Type* type)
+type_kind type_kind_from_type(const Type* type)
 {
-    TypeAlias alias;
-    alias.name = name;
-    alias.filename = filename;
-    alias.type = type;
+    if(is_builtin(type))
+    {
+        return type_kind::builtin;
+    }
 
-    return alias;
+    switch(type->type_idx)
+    {
+        case STRUCT: return type_kind::struct_t;
+        case ENUM: return type_kind::enum_t;
+        default: assert(false);
+    }
 }
 
-void add_alias(Interloper& itl, AliasTable& table,Type* type,const String& name, const String& filename)
+void add_internal_alias(Interloper& itl, Type* type,const String& name)
 {
-    const u32 slot = count(table);
+    add_internal_type_decl(itl,type->type_idx,name,type_kind_from_type(type),true);   
+}
 
-    const TypeAlias alias = make_alias(name,filename,type);
-
-    // add the alias
-    push_var(table,alias);
-
-    add_type_decl(itl,slot,name,type_kind::alias_t);       
+void finalise_type(TypeDef& def, u32 type_idx)
+{
+    def.decl.type_idx = type_idx;
+    def.decl.state = def_state::checked;
 }
 
 void parse_alias_def(Interloper& itl, TypeDef& def)
@@ -2172,16 +2182,16 @@ void parse_alias_def(Interloper& itl, TypeDef& def)
         printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
     }
 
-    add_alias(itl,itl.alias_table,type,node->name,node->filename);   
+    finalise_type(def,type->type_idx);  
 }
 
 void declare_compiler_type_aliases(Interloper& itl) 
 {
     /// usize
-    add_alias(itl,itl.alias_table,make_builtin(itl,builtin_type::u64_t),"usize","ITL_COMPILER");
+    add_internal_alias(itl,make_builtin(itl,builtin_type::u64_t),"usize");
 
     // ssize
-    add_alias(itl,itl.alias_table,make_builtin(itl,builtin_type::s64_t),"ssize","ITL_COMPILER");
+    add_internal_alias(itl,make_builtin(itl,builtin_type::s64_t),"ssize");
 }
 
 void parse_struct_def(Interloper& itl, TypeDef& def);
@@ -2194,10 +2204,10 @@ void parse_def(Interloper& itl, TypeDef& def)
     // save the current one
     push_context(itl);
 
-    if(def.state == def_state::not_checked)
+    if(def.decl.state == def_state::not_checked)
     {
         // mark as checking to lock this against recursion!
-        def.state = def_state::checking;
+        def.decl.state = def_state::checking;
 
         switch(def.kind)
         {
@@ -2222,14 +2232,12 @@ void parse_def(Interloper& itl, TypeDef& def)
                 break;
             }
         }
-
-        def.state = def_state::checked;
     }
 
     else
     {
         // TODO: add huertsics to scan for where!
-        panic(itl,itl_error::black_hole,"type %s is recursively defined\n",def.name.buf);
+        panic(itl,itl_error::black_hole,"type %s is recursively defined\n",def.decl.name.buf);
         return;
     }
 

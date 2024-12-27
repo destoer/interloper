@@ -162,8 +162,11 @@ struct TypeDecl
     String name;
     // what kind of type is it, and what index does it hold 
     // in the relevant typing table
-    type_kind kind;
+    type_kind kind = type_kind::builtin;
     u32 type_idx = INVALID_TYPE_IDX;
+
+    // current definition state
+    def_state state = def_state::not_checked;
 
     u32 flags = 0;
 };
@@ -176,9 +179,6 @@ struct TypeDef
     TypeDecl decl;
 
     String filename;
-
-    // current definition state
-    def_state state;
     def_kind kind;
 
     // the defintion root -> depends on the type!
@@ -376,14 +376,3 @@ Struct& struct_from_type(StructTable& struct_table, const Type* type);
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u64_t;
 
 std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name);
-
-
-struct TypeAlias
-{
-    String name;
-    String filename;
-
-    Type* type;
-};
-
-using AliasTable = Array<TypeAlias>;

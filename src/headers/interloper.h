@@ -138,7 +138,6 @@ struct Interloper
 
     StructTable struct_table;
     EnumTable enum_table;
-    AliasTable alias_table;
     RttiCache rtti_cache;
 
     // targetting info
