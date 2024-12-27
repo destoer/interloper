@@ -764,34 +764,74 @@ Type* copy_type(Interloper& itl, const Type* type)
     return copy_type_internal(itl,type);
 }
 
+TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name)
+{
+    // TODO: this needs the cur node for the namespace
+    const auto definition_opt = lookup_definition(itl.def_root,name);
+
+    // No defintion of any kind
+    if(!definition_opt)
+    {
+        return nullptr;
+    }
+
+    const auto definition = *definition_opt;
+    return itl.type_table[definition.handle];
+}
+
+TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
+{
+    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
+
+    if (type_decl->type_idx == INVALID_TYPE_IDX)
+    {
+        return nullptr;
+    }
+
+    return type_decl;
+}
+
+TypeDef* lookup_type_def(Interloper& itl, const String& name)
+{
+    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
+
+    if(!type_decl || !(type_decl->flags & TYPE_DECL_DEF_FLAG))
+    {
+        return nullptr;
+    }
+
+    return (TypeDef*)type_decl;
+}
+
 // NOTE: 
 // to be used externally when attempting to find a type decl
 // dont look it up in the type table directly as the definition might not
 // have been parsed yet
 TypeDecl* lookup_type(Interloper& itl,const String& name)
 {
-    TypeDecl* user_type = lookup(itl.type_table,name);
+    TypeDecl* user_type = lookup_incomplete_decl(itl,name);
+
+    if(!user_type)
+    {
+        return nullptr;
+    }
 
     // currently type does not exist
     // attempt to parse the def
-    if(!user_type)
+    if(user_type->type_idx == INVALID_TYPE_IDX)
     {
-        // look if there is a defintion for this type!
-        // if there is not then we have an error
-        TypeDef *def_ptr = lookup(itl.type_def,name);
-
         // no such definiton exists
         // NOTE: this is allowed to not panic the 
         // caller is expected to check the pointer and not just
         // compiler error state
-        if(!def_ptr)
+        if(!(user_type->flags & TYPE_DECL_DEF_FLAG))
         {
             return nullptr;
         }
 
         // okay attempt to parse the def
-        TypeDef& def = *def_ptr;
-        parse_def(itl,def);
+        TypeDef& type_def = *((TypeDef*)user_type);
+        parse_def(itl,type_def);
 
         // def parsing failed in some fashion just bail out
         // there are no options left
@@ -799,9 +839,6 @@ TypeDecl* lookup_type(Interloper& itl,const String& name)
         {
             return nullptr;
         }
-
-        // okay now we have the type
-        user_type = lookup(itl.type_table,name);
     }
 
     return user_type;

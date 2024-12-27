@@ -115,22 +115,19 @@ enum class type_kind
 {
     enum_t,
     struct_t,
-    alias_t,
     builtin,
 };
 
 
-static constexpr u32 KIND_SIZE = 4;
+static constexpr u32 KIND_SIZE = 3;
 
 
 inline const char* KIND_NAMES[KIND_SIZE] = 
 {
     "enum",
     "struct",
-    "alias",
     "builtin",
 };
-
 
 
 struct Enum;
@@ -143,6 +140,14 @@ b32 invalid_type_idx(u32 type_idx)
     return type_idx == INVALID_TYPE_IDX;
 }
 
+enum class def_kind
+{
+    enum_t,
+    struct_t,
+    alias_t,
+};
+
+
 enum class def_state
 {
     not_checked,
@@ -152,18 +157,29 @@ enum class def_state
 
 struct AstNode;
 
-struct TypeDef
+struct TypeDecl
 {
     String name;
+    // what kind of type is it, and what index does it hold 
+    // in the relevant typing table
+    type_kind kind;
+    u32 type_idx = INVALID_TYPE_IDX;
+
+    u32 flags = 0;
+};
+
+static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
+static constexpr u32 TYPE_DECL_ALIAS_FLAG = (1 << 1);
+
+struct TypeDef
+{
+    TypeDecl decl;
+
     String filename;
 
     // current definition state
     def_state state;
-    
-    // what kind of type is it, and what index does it hold 
-    // in the relevant typing table
-    type_kind kind;
-    u32 type_idx;
+    def_kind kind;
 
     // the defintion root -> depends on the type!
     AstNode* root;

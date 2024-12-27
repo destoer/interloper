@@ -104,7 +104,7 @@ struct Interloper
     FunctionTable func_table;
     Array<DeclNode*> global_def;
 
-    DefNode* root = nullptr;
+    DefNode* def_root = nullptr;
 
     SymbolTable symbol_table;
     GlobalAlloc global_alloc;
@@ -128,7 +128,7 @@ struct Interloper
     ArenaAllocator type_allocator;
 
     // type definitions
-    Array<TypeDef> type_def;
+    Array<TypeDecl*> type_table;
 
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;
@@ -169,6 +169,7 @@ struct Interloper
     b32 compile_only = false;
 };
 
+std::optional<DefInfo> lookup_definition(DefNode* root, const String& name);
 
 void print(const AstNode *root, b32 override_seperator = false);
 
