@@ -19,7 +19,7 @@ Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot
 
 void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
 std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
-void add_func(Interloper& itl, const String& name, const String& name_space, FuncNode* root);
+void add_func(Interloper& itl, const String& name, DefNode* name_space, FuncNode* root);
 
 ListNode* alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
 

@@ -26,19 +26,21 @@ void destroy_func_table(FunctionTable& func_table)
     destroy_allocator(func_table.arena);
 }
 
-void add_func(Interloper& itl, const String& name, const String& name_space, FuncNode* root)
+void add_func(Interloper& itl, const String& name, DefNode* name_space, FuncNode* root)
 {
     FunctionDef func_def;
 
     // Make sure our function is not allocated on the
     // same string allocator as the AST
-    func_def.name = alloc_name_space_name(itl.string_allocator,name_space,name);
-
+    func_def.name = alloc_name_space_name(itl.string_allocator,def_node->full_name,name);
     func_def.root = root;
     func_def.func = nullptr;
     
-    // add def
-    add(itl.func_table.table,func_def.name,func_def);    
+    const auto handle = count(itl.func_table.table);
+    push_var(itl.func_table.table,func_def);
+
+    const DefInfo info = {definition_type::function,handle};
+    add(name_space->table,func.name, info);  
 }
 
 Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)

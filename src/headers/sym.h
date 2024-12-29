@@ -131,10 +131,14 @@ inline const char* DEFINITION_TYPE_NAMES[] =
 struct DefInfo
 {
     definition_type type = definition_type::variable;
-    u32 handle = INVALID_HANDLE;
+    union
+    {
+        u32 handle;
+        TypeDecl* type_decl = nullptr;
+    };
 };
 
-inline const char* definition_type_name(DefInfo* info)
+inline const char* definition_type_name(const DefInfo* info)
 {
     return DEFINITION_TYPE_NAMES[u32(info->type)];
 }

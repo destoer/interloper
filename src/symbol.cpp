@@ -65,9 +65,9 @@ Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
     return reg_from_slot(itl.symbol_table,func,slot);
 }
 
-DefInfo* lookup_def(SymbolTable &sym_table, const String& name)
+DefInfo* lookup_definition(DefNode* root, const String& name)
 {
-    DefNode* cur_scope = sym_table.scope;
+    DefNode* cur_scope = root;
 
     while(cur_scope)
     {
@@ -86,7 +86,7 @@ DefInfo* lookup_def(SymbolTable &sym_table, const String& name)
 
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
-    const DefInfo* def_info = lookup_def(sym_table,sym);
+    const DefInfo* def_info = lookup_definition(sym_table.scope,sym);
 
     if(def_info && def_info->type == definition_type::variable)
     {
@@ -137,7 +137,7 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 }
 
 // add symbol to the scope table
-void add_scope(SymbolTable &sym_table, Symbol &sym)
+void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
     const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
     add(sym_table.scope->table,sym.name, info);
@@ -150,7 +150,7 @@ Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
     auto sym = make_sym(itl,name,type);
     push_var(sym_table.slot_lookup,sym);
 
-    add_scope(sym_table,sym);
+    add_sym_to_scope(sym_table,sym);
 
     return sym_from_slot(sym_table,sym.reg.slot);
 }
@@ -264,24 +264,4 @@ String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space,
     push_char(allocator,buffer,'\0');
 
     return make_string(buffer);
-}
-
-String tmp_name_space_name(Interloper& itl,const String& name_space, const String& name)
-{
-    // just return the name
-    if(name_space == "")
-    {
-        return name;
-    }
-
-    clear_arr(itl.name_space_buffer);
-
-    push_string(itl.name_space_buffer,name_space);
-    push_string(itl.name_space_buffer,"::");
-    push_string(itl.name_space_buffer,name);
-
-    // null term the buffer
-    push_var(itl.name_space_buffer,'\0');
-
-    return make_string(itl.name_space_buffer);
 }

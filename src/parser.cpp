@@ -1189,6 +1189,18 @@ BlockNode *block(Parser &parser)
     return b;
 }
 
+bool check_redeclaration(Interloper& itl, DefNode* root, const String& name, const String& checked_def_type)
+{
+    const DefInfo* existing_def = lookup_definition(root,name);
+
+    if(existing_def)
+    {
+        panic(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!\n",name,definition_type_name(existing_def),checked_def_type);
+        return true;
+    }
+
+    return false;  
+}
 
 void type_alias(Interloper& itl, Parser &parser)
 {
@@ -1202,19 +1214,17 @@ void type_alias(Interloper& itl, Parser &parser)
         TypeNode* rtype = parse_type(parser);
 
         const String& name = token.literal;
-        DefInfo* existing_def = lookup_def(itl.symbol_table,name);
 
-        if(existing_def)
+        if(check_redeclaration(itl,parser.cur_name_space,name,"type alias"))
         {
-            panic(itl,itl_error::redeclaration,"redeclaration of symbol %s (%s) as type alias\n",name.buf,definition_type_name(existing_def));
             return;
         }
 
-        AstNode* alias_node = ast_alias(parser,rtype,name,parser.cur_file,parser.cur_name_space,token);
+        AstNode* alias_node = ast_alias(parser,rtype,name,parser.cur_file,token);
     
         consume(parser,token_type::semi_colon);
 
-        add_type_def(itl, type_def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_name_space);
+        add_type_definition(itl, type_def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_name_space);
     }
 
     else 
@@ -1227,7 +1237,7 @@ void type_alias(Interloper& itl, Parser &parser)
 // NOTE: this is used to parse signatures for function pointers
 FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
-    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.cur_file,parser.cur_name_space,token);
+    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.cur_file,token);
 
     const auto paren = peek(parser,0);
     consume(parser,token_type::left_paren);
@@ -1371,9 +1381,8 @@ void func_decl(Interloper& itl, Parser &parser)
         return;
     }
 
-    if(func_exists(itl,func_name.literal,parser.cur_name_space))
+    if(check_redeclaration(itl,parser.cur_name_space,func_name.literal,"function"))
     {
-        panic(itl,itl_error::redeclaration,"function %s has been declared twice!\n",func_name.literal.buf);
         return;
     }
 
@@ -1400,13 +1409,12 @@ void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
         return;
     }
 
-    if(contains(itl.type_def,name.literal))
+    if(check_redeclaration(itl,parser.cur_name_space,name.literal,"struct"))
     {
-        panic(itl,itl_error::redeclaration,"type %s redeclared as struct\n",name.literal.buf);
         return;
     }
 
-    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.cur_file,parser.cur_name_space,name);
+    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.cur_file,name);
 
     struct_node->attr_flags = flags;
 
@@ -1442,7 +1450,7 @@ void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
     }
 
 
-    add_type_def(itl, type_def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_name_space);
+    add_type_definition(itl, type_def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_name_space);
 }
 
 void enum_decl(Interloper& itl,Parser& parser, u32 flags)
@@ -1455,17 +1463,12 @@ void enum_decl(Interloper& itl,Parser& parser, u32 flags)
         return;
     }
 
-
-    // check redeclaration
-    TypeDef* type_def = lookup(itl.type_def,name_tok.literal);
-
-    if(type_def)
+    if(check_redeclaration(itl,parser.cur_name_space,name_tok.literal,"enum"))
     {
-        panic(itl,itl_error::redeclaration,"%s %s redeclared as enum\n",KIND_NAMES[u32(type_def->kind)],name_tok.literal.buf);
         return;
     }
 
-    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.cur_file,parser.cur_name_space,name_tok);
+    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.cur_file,name_tok);
 
 
     if(match(parser,token_type::colon))
@@ -1547,7 +1550,7 @@ void enum_decl(Interloper& itl,Parser& parser, u32 flags)
     }
 
     // add the type decl
-    add_type_def(itl, type_def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_name_space);
+    add_type_definition(itl, type_def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_name_space);
 }
 
 StringBuffer read_source_file(const String& filename)
@@ -1798,10 +1801,12 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
                 panic(parser,name,"Expected name for namespace got: %s",tok_name(name.type));
             }   
 
+            // Convert literal to a scope node so we know how to scan
+
+
             // read out the name space, and put it on string allocator
             // so we can freely pass it
             parser.cur_name_space = copy_string(*parser.string_allocator,name.literal);
-
 
             if(match(parser,token_type::semi_colon))
             {

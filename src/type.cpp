@@ -1,5 +1,7 @@
 #include <interloper.h>
 
+DefInfo* lookup_definition(DefNode* root, const String& name);
+
 const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 {
     {builtin_type::u8_t, true, false, 1, 0, 0xff},
@@ -766,17 +768,14 @@ Type* copy_type(Interloper& itl, const Type* type)
 
 TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name)
 {
-    // TODO: this needs the cur node for the namespace
-    const auto definition_opt = lookup_definition(itl.def_root,name);
+    const auto definition = lookup_definition(itl.symbol_table.scope,name);
 
-    // No defintion of any kind
-    if(!definition_opt)
+    if(definition && definition->type == definition_type::type)
     {
-        return nullptr;
+        return definition->type_decl;
     }
 
-    const auto definition = *definition_opt;
-    return itl.type_table[definition.handle];
+    return nullptr;
 }
 
 TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
@@ -2083,7 +2082,14 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
     return type;
 }
 
-void add_type_scope(Interloper& itl, TypeDecl* decl);
+void add_type_scope(DefNode* name_space, TypeDecl* decl)
+{
+    DefInfo info;
+    info.type = definition_type::type;
+    info.type_decl = decl;
+
+    add(name_space->table,decl->name,info);
+}
 
 template<typename T>
 T* alloc_type_decl(Interloper& itl)
@@ -2107,22 +2113,18 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
         type_decl->flags |= TYPE_DECL_ALIAS_FLAG;
     }
 
-    add_type_scope(itl,type_decl);    
+    add_type_scope(itl.def_root,type_decl);    
 }
 
 
-void add_type_definition(Interloper& itl, type_def_kind kind,AstNode* root, const String& name, const String& filename, const String& name_space, b32 is_alias)
+void add_type_definition(Interloper& itl, type_def_kind kind,AstNode* root, const String& name, const String& filename, DefNode* name_space)
 {
-    // TODO: Handle namespacec insertion
-    UNUSED(name_space);
-    assert(false);
-
     TypeDef* definition = alloc_type_decl<TypeDef>(itl);
 
     definition->decl.name = name;
     definition->decl.flags = TYPE_DECL_DEF_FLAG;
 
-    if(is_alias)
+    if(kind == type_def_kind::alias_t)
     {
         definition->decl.flags |= TYPE_DECL_ALIAS_FLAG;
     }
@@ -2132,7 +2134,7 @@ void add_type_definition(Interloper& itl, type_def_kind kind,AstNode* root, cons
     definition->kind = kind;
 
 
-    add_type_scope(itl,(TypeDecl*)definition);
+    add_type_scope(name_space,(TypeDecl*)definition);
 }
 
 b32 type_exists(Interloper& itl, const String& name)
