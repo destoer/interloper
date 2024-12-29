@@ -189,7 +189,7 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name)
 
 Function& lookup_internal_function(Interloper& itl, const String& name)
 {
-    Function* func_opt = lookup_opt_scoped_function(itl,name,"");
+    Function* func_opt = lookup_opt_scoped_function(itl,itl.def_root,name);
 
     // assert this just for saftey
     // functions looked up by this should never be missing due to startup checks

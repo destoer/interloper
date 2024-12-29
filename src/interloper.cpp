@@ -1373,16 +1373,16 @@ void check_startup_defs(Interloper& itl)
     check_startup_func(itl,"main",itl.def_root);
     check_startup_func(itl,"start",itl.def_root);
 
-    auto std_name_space = find_name_space(itl,"std");
+    itl.std_name_space = find_name_space(itl,"std");
 
-    if(!std_name_space)
+    if(!itl.std_name_space)
     {
-        panic(itl,itl_error::undeclared,"std namespace is not declared!?");
+        panic(itl,itl_error::undeclared,"std namespace is not declared");
         return;
     }
 
-    check_startup_func(itl,"memcpy",std_name_space);
-    check_startup_func(itl,"zero_mem",std_name_space);
+    check_startup_func(itl,"memcpy",itl.std_name_space);
+    check_startup_func(itl,"zero_mem",itl.std_name_space);
 }
 
 void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
@@ -1402,6 +1402,10 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     itl.symbol_table.string_allocator = &itl.string_allocator;
 
     itl.func_table = make_func_table();
+
+    itl.def_root = alloc_new_scope(itl.symbol_table);
+    itl.ctx.cur_scope = itl.def_root;
+    itl.symbol_table.scope = itl.def_root;
 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);

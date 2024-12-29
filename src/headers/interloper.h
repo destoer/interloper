@@ -105,6 +105,7 @@ struct Interloper
 
     // Cur scope saved in FileContext
     DefNode* def_root = nullptr;
+    DefNode* std_name_space = nullptr;
 
     SymbolTable symbol_table;
     GlobalAlloc global_alloc;

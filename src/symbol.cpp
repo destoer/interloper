@@ -2,12 +2,22 @@
 #include "type.cpp"
 
 
-void new_anon_scope(SymbolTable &sym_table)
+
+DefNode* alloc_new_scope(SymbolTable& sym_table)
 {
+    UNUSED(sym_table);
     DefNode* new_scope = (DefNode*)malloc(sizeof(DefNode));
     assert(new_scope);
 
     *new_scope = {};
+    new_scope->table = make_table<String,DefInfo>();
+
+    return new_scope;
+}
+
+void new_anon_scope(SymbolTable &sym_table)
+{
+    auto new_scope = alloc_new_scope(sym_table);
 
     // Insert the new scope
     new_scope->parent = sym_table.scope;
