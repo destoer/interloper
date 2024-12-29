@@ -156,6 +156,7 @@ enum class type_def_state
 };
 
 struct AstNode;
+struct DefNode;
 
 struct TypeDecl
 {
@@ -167,6 +168,7 @@ struct TypeDecl
 
     // current definition state
     type_def_state state = type_def_state::not_checked;
+    DefNode* name_space = nullptr;
 
     u32 flags = 0;
 };

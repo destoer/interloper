@@ -2107,6 +2107,7 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
     type_decl->type_idx = type_idx;
     type_decl->name = name;
     type_decl->kind = kind;
+    type_decl->name_space = itl.def_root;
     
     if(is_alias)
     {
@@ -2128,6 +2129,8 @@ void add_type_definition(Interloper& itl, type_def_kind kind,AstNode* root, cons
     {
         definition->decl.flags |= TYPE_DECL_ALIAS_FLAG;
     }
+
+    definition->decl.name_space = name_space;
 
     definition->filename = filename;
     definition->root = root;
@@ -2162,10 +2165,10 @@ void add_internal_alias(Interloper& itl, Type* type,const String& name)
     add_internal_type_decl(itl,type->type_idx,name,type_kind_from_type(type),true);   
 }
 
-void finalise_type(TypeDef& def, u32 type_idx)
+void finalise_type(TypeDecl& decl, u32 type_idx)
 {
-    def.decl.type_idx = type_idx;
-    def.decl.state = type_def_state::checked;
+    decl.type_idx = type_idx;
+    decl.state = type_def_state::checked;
 }
 
 void parse_alias_def(Interloper& itl, TypeDef& def)
@@ -2184,7 +2187,7 @@ void parse_alias_def(Interloper& itl, TypeDef& def)
         printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
     }
 
-    finalise_type(def,type->type_idx);  
+    finalise_type(def.decl,type->type_idx);  
 }
 
 void declare_compiler_type_aliases(Interloper& itl) 

@@ -16,12 +16,12 @@ void print_struct(Interloper& itl, const Struct& structure)
     printf("size: %d\n",structure.size);
 }
 
-void add_struct(Interloper& itl, Struct& structure, u32 slot)
+void add_struct(Interloper& itl, Struct& structure, TypeDecl& decl)
 {
-    structure.type_idx = slot;
-    itl.struct_table[slot] = structure;
-    
-    add_type_decl(itl,slot,structure.name,type_kind::struct_t);
+    structure.type_idx = decl.type_idx;
+    itl.struct_table[structure.type_idx] = structure;
+
+    finalise_type(decl,structure.type_idx);
 }
 
 
@@ -110,7 +110,7 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
     // member is struct that has not had its defintion parsed yet
-    TypeDef *def_ptr = lookup(itl.type_def,type_decl->name);
+    TypeDef *def_ptr = lookup_type_def(itl,type_decl->name);
 
     // no such definiton exists
     if(!def_ptr)
@@ -122,13 +122,13 @@ b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* t
     TypeDef& def = *def_ptr;
 
     // if we attempt to check a partial defintion twice that the definition is recursive
-    if(def.state == def_state::checking)
+    if(def.decl.state == type_def_state::checking)
     {
         // if its a pointer we dont need the complete inormation yet as they are all alike
         // so just override the type idx from the one reserved inside the def
         if(def_has_indirection(type_decl))
         {
-            *type_idx_override = def.slot;
+            *type_idx_override = def.decl.type_idx;
         }
 
         else
@@ -318,21 +318,19 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     StructNode* node = (StructNode*)def.root;
 
     // NOTE: we expect the caller to save this
-    trash_context(itl,node->filename,node->name_space,def.root);
+    trash_context(itl,node->filename,def.decl.name_space,def.root);
 
-    TypeDecl* user_type = lookup(itl.type_table,node->name);
+    TypeDecl* user_type = lookup_incomplete_decl(itl,node->name);
     if(user_type)
     {
-        panic(itl,itl_error::redeclaration,"%s %s redeclared as struct\n",KIND_NAMES[u32(user_type->kind)],node->name.buf);
+        panic(itl,itl_error::redeclaration,"%s %s redeclared as struct\n",TYPE_KIND_NAMES[u32(user_type->kind)],node->name.buf);
         return;
     }
 
     Struct structure;
     
     // allocate a reserved slot for the struct
-    const u32 slot = count(itl.struct_table);
-    def.slot = slot;
-
+    def.decl.type_idx = count(itl.struct_table);
     resize(itl.struct_table,count(itl.struct_table) + 1);
 
 
@@ -374,8 +372,7 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     }
 
 
-    add_struct(itl,structure,def.slot);
-
+    add_struct(itl,structure,def.decl);
 }
 
 

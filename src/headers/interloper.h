@@ -262,5 +262,5 @@ u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);
 void pop_context(Interloper& itl);
-void trash_context(Interloper& itl, String filename,String name_space, AstNode* expr);
-void switch_context(Interloper& itl, String filename,String name_space, AstNode* expr);
+void trash_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr);
+void switch_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr);
