@@ -507,13 +507,13 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         case ast_type::scope:
         {
             ScopeNode* first_stmt = (ScopeNode*)first_case->statement;
-
-            TypeDecl* type_decl = lookup_type(itl,first_stmt->scope);
+            // TODO: First part of scope is just presumed as the enum this is probably technically wrong
+            TypeDecl* type_decl = lookup_type(itl,first_stmt->scope[0]);
 
             if(!(type_decl && type_decl->kind == type_kind::enum_t))
             {
                 // case is not an enum
-                panic(itl,itl_error::enum_type_error,"case is not an emum %s\n",first_stmt->scope.buf);
+                panic(itl,itl_error::enum_type_error,"case is not an emum %s\n",first_stmt->scope[0].buf);
                 return;
             }
 
@@ -535,9 +535,9 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
                 ScopeNode* scope_node = (ScopeNode*)case_node->statement;
 
-                if(first_stmt->scope != scope_node->scope)
+                if(first_stmt->scope[0] != scope_node->scope[0])
                 {
-                    panic(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",first_stmt->scope.buf,scope_node->scope.buf);
+                    panic(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",first_stmt->scope[0].buf,scope_node->scope[0].buf);
                     return;
                 }
 
@@ -548,7 +548,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
                 if(!enum_member)
                 {
-                    panic(itl,itl_error::enum_type_error,"enum %s no such member %s\n",scope_node->scope.buf,member_node->literal);
+                    panic(itl,itl_error::enum_type_error,"enum %s no such member %s\n",scope_node->scope[0].buf,member_node->literal);
                     return;
                 }
 

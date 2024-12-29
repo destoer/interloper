@@ -161,7 +161,7 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 }
 
-void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, const String& name_space)
+void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, DefNode* name_space)
 {
     switch(node->type)
     {
@@ -189,12 +189,12 @@ Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, SymSlo
 {
     // TODO: this assumes an enum, we should 
     // check if the last scope happens to be an enum
-    TypeDecl* type_decl = lookup_type(itl,scope_node->scope);
+    TypeDecl* type_decl = lookup_type(itl,scope_node->scope[0]);
 
 
     if(type_decl && type_decl->kind == type_kind::enum_t)
     {
-        const String &enum_name = scope_node->scope;
+        const String &enum_name = scope_node->scope[0];
 
         auto enumeration = itl.enum_table[type_decl->type_idx];
 
@@ -234,7 +234,7 @@ Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, SymSlo
     return make_builtin(itl,builtin_type::void_t);
 }
 
-Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, const String& name_space)
+Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, DefNode* name_space)
 {
     switch(node->type)
     {
@@ -694,7 +694,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::function_call:
         {
-            return compile_function_call(itl,"",func,node,dst_slot);
+            return compile_function_call(itl,itl.symbol_table.scope,func,node,dst_slot);
         }
 
         case ast_type::scope:
@@ -709,7 +709,15 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 return type;
             }
 
-            return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,scope_node->scope);
+            DefNode* name_space = scan_namespace(itl.def_root,scope_node->scope);
+
+            if(!name_space)
+            {
+                panic(itl,itl_error::undeclared,"Could not find namespace");
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
+            return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,name_space);
         }
 
         case ast_type::string:
@@ -1118,13 +1126,21 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             case ast_type::scope:
             {
                 ScopeNode* scope_node = (ScopeNode*)line;
-                compile_scoped_stmt(itl,func,scope_node->expr,scope_node->scope);
+                DefNode* name_space = scan_namespace(itl.def_root,scope_node->scope);
+
+                if(!name_space)
+                {
+                    panic(itl,itl_error::undeclared,"Could not find namespace");
+                    return;
+                }
+
+                compile_scoped_stmt(itl,func,scope_node->expr,name_space);
                 break;
             }
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,"",func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,itl.symbol_table.scope,func,line,sym_from_idx(NO_SLOT));
                 break;
             }            
 
@@ -1168,7 +1184,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,"",func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,itl.symbol_table.scope,func,line,sym_from_idx(NO_SLOT));
                 break;
             }
 
@@ -1225,24 +1241,6 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
         }
     }
 
-    auto &table = itl.symbol_table.table[count(itl.symbol_table.table) - 1];
-
-    for(u32 b = 0; b < count(table.buf); b++)
-    {
-        auto& bucket = table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& sym = sym_from_slot(itl.symbol_table,bucket[i].v);
-
-            // free the stack alloc for each var thats about to go out of scope
-            if(sym.arg_offset == NON_ARG)
-            {
-                free_sym(itl,func,sym);
-            }
-        }
-    }
-
     destroy_scope(itl.symbol_table);
 }
 
@@ -1295,13 +1293,12 @@ void destroy_ast(Interloper& itl)
     destroy_allocator(itl.ast_allocator);
     destroy_allocator(itl.ast_string_allocator);
 
-    destroy_table(itl.type_def);
     destroy_arr(itl.global_def);
     destroy_arr(itl.saved_ctx);
 
     itl.ctx.expr = nullptr;
     itl.ctx.filename = ""; 
-    itl.ctx.name_space = "";
+    itl.ctx.cur_scope = nullptr;
 }
 
 void destroy_itl(Interloper &itl)
@@ -1321,7 +1318,6 @@ void destroy_itl(Interloper &itl)
     // destroy typing tables
     destroy_struct_table(itl.struct_table);
     destroy_enum_table(itl.enum_table);
-    destroy_table(itl.type_table);
 
     destroy_arr(itl.name_space_buffer);
 
@@ -1347,13 +1343,24 @@ static constexpr u32 TYPE_INITIAL_SIZE =  4 * 1024;
 
 void setup_type_table(Interloper& itl)
 {
-    itl.type_table = make_table<String,TypeDecl>();
-
     // add all the builtin types  
     for(u32 i = 0; i < BUILTIN_TYPE_SIZE; i++)
     {
-        add_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin);
+        add_internal_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin,false);
     }
+}
+
+DefNode* find_name_space(Interloper& itl, const String& name)
+{
+    for(size_t i = 0; i < count(itl.def_root->nodes); i++)
+    {
+        if(itl.def_root->nodes[i]->name_space == name)
+        {
+            return itl.def_root->nodes[i];
+        }
+    }
+
+    return nullptr;
 }
 
 void check_startup_defs(Interloper& itl)
@@ -1363,11 +1370,19 @@ void check_startup_defs(Interloper& itl)
         cache_rtti_structs(itl);
     }
 
-    check_startup_func(itl,"main","");
-    check_startup_func(itl,"start","");
+    check_startup_func(itl,"main",itl.def_root);
+    check_startup_func(itl,"start",itl.def_root);
 
-    check_startup_func(itl,"memcpy","std");
-    check_startup_func(itl,"zero_mem","std");
+    auto std_name_space = find_name_space(itl,"std");
+
+    if(!std_name_space)
+    {
+        panic(itl,itl_error::undeclared,"std namespace is not declared!?");
+        return;
+    }
+
+    check_startup_func(itl,"memcpy",std_name_space);
+    check_startup_func(itl,"zero_mem",std_name_space);
 }
 
 void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
@@ -1387,7 +1402,6 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     itl.symbol_table.string_allocator = &itl.string_allocator;
 
     itl.func_table = make_func_table();
-    itl.type_def = make_table<String,TypeDef>();
 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);
@@ -1417,30 +1431,26 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
 
     if(itl.print_ast)
     {
-        // print all type defs
-        for(u32 b = 0; b < count(itl.type_def.buf); b++)
-        {
-            auto &bucket = itl.type_def.buf[b];
+        assert(false);
+        // TODO: re add this
+        // // print all type defs
+        // for(u32 b = 0; b < count(itl.type_def.buf); b++)
+        // {
+        //     auto &bucket = itl.type_def.buf[b];
 
-            for(u32 i = 0; i < count(bucket); i++)
-            {
-                auto& def = bucket[i].v;
-                print(def.root);
-            }
-        }
+        //     for(u32 i = 0; i < count(bucket); i++)
+        //     {
+        //         auto& def = bucket[i].v;
+        //         print(def.root);
+        //     }
+        // }
 
 
         // print function defs
-        for(u32 b = 0; b < count(itl.func_table.table.buf); b++)
+        for(u32 f = 0; f < count(itl.func_table.table); f++)
         {
-            auto &bucket = itl.func_table.table.buf[b];
-
-            for(u32 i = 0; i < count(bucket); i++)
-            {
-                auto& func = bucket[i].v;
-
-                print((AstNode*)func.root);
-            }
+            auto& func = itl.func_table.table[f];
+            print((AstNode*)func.root);    
         }
     }
 
