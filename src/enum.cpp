@@ -38,7 +38,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 {
     EnumNode* node = (EnumNode*)def.root;    
 
-    trash_context(itl,node->filename,node->name_space,def.root);
+    trash_context(itl,node->filename,def.decl.name_space,def.root);
 
     Enum enumeration;
 
@@ -222,7 +222,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
     enumeration.type_idx = slot;
 
     push_var(itl.enum_table,enumeration);
-    add_type_decl(itl,slot,enumeration.name,type_kind::enum_t);
+    finalise_type(def.decl,enumeration.type_idx);
 
     if(itl.print_types)
     {
