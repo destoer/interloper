@@ -964,7 +964,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         type->sig = {};
 
         // parse the function sig
-        parse_func_sig(itl,type->sig,*type_decl->func_type);
+        parse_func_sig(itl,itl.symbol_table.scope,type->sig,*type_decl->func_type);
 
         return (Type*)type;
     }

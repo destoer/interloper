@@ -56,6 +56,7 @@ struct FuncPointerType
 struct Function
 {
     String name;
+    DefNode* name_space = nullptr;
 
     FuncSig sig;
 
@@ -85,6 +86,7 @@ struct FunctionDef
     // we also don't want the memory to move when we insert
     // new ones
     Function* func = nullptr;
+    DefNode* name_space = nullptr;
     String name;
 };
 
@@ -103,7 +105,7 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
 Function& lookup_internal_function(Interloper& itl, const String& name);
 
-void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node);
+void parse_func_sig(Interloper& itl,DefNode* name_space,FuncSig& sig,const FuncNode& node);
 
 struct Interloper;
 
