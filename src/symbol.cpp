@@ -84,6 +84,32 @@ DefInfo* lookup_definition(DefNode* root, const String& name)
     return nullptr;    
 }
 
+DefNode* scan_namespace(const DefNode* root, const Array<String>& name_space)
+{
+    u32 name_idx = 0;
+    DefNode *result = nullptr;
+
+    while(name_idx != count(name_space))
+    {
+        for(size_t i = 0; i < count(root->nodes); i++)
+        {
+            const auto node = root->nodes[i];
+            if(node->name_space == name_space[name_idx])
+            {
+                name_idx++;
+                root = node;
+
+                if(name_idx == count(name_space))
+                {
+                    result = node;
+                }
+            }
+        }
+    }
+    
+    return result;
+}
+
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
     const DefInfo* def_info = lookup_definition(sym_table.scope,sym);

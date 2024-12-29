@@ -553,9 +553,8 @@ struct ScopeNode
 {
     AstNode node;
 
-    // TODO: this should probably be an array
-    // when we add scopes
-    String scope;
+    // NOTE: depending on the context the last member may be an enum member
+    Array<String> scope;
 
     AstNode* expr;
 };
@@ -873,12 +872,13 @@ AstNode* ast_case(Parser& parser, AstNode* expr, BlockNode* block, const Token& 
     return (AstNode*)case_node;
 }
 
-AstNode* ast_scope(Parser& parser, AstNode* expr, String scope, const Token& token)
+AstNode* ast_scope(Parser& parser, AstNode* expr, Array<String> scope, const Token& token)
 {
     ScopeNode* scope_node = alloc_node<ScopeNode>(parser,ast_type::scope,ast_fmt::scope,token);
     
     scope_node->expr = expr;
     scope_node->scope = scope;
+    add_ast_pointer(parser,&scope_node->scope.data);
 
     return (AstNode*)scope_node;
 }

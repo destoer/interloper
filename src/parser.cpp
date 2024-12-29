@@ -426,13 +426,14 @@ AstNode* tuple_assign(Parser& parser, const Token& t)
                 // handle scope
                 if(match(parser,token_type::scope))
                 {
-                    consume(parser,token_type::scope);
+                    prev_token(parser);
+                    const auto name_space = split_namespace(parser);
                     
                     const auto sym_tok = next_token(parser);
 
                     tuple_node->func_call = (FuncCallNode*)func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
 
-                    return ast_scope(parser,(AstNode*)tuple_node,next.literal,next);
+                    return ast_scope(parser,(AstNode*)tuple_node,name_space,next);
                 }
 
                 else
@@ -1693,6 +1694,53 @@ void parse_directive(Interloper& itl,Parser& parser)
     }
 }
 
+Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
+{
+    Array<String> name_space;
+
+    while(!match(parser,token_type::eof))
+    {
+        if(full_namespace && peek(parser,1).type != token_type::scope)
+        {
+            return name_space;
+        }
+
+        const auto name = next_token(parser);
+
+        if(name.type != token_type::symbol)
+        {
+            panic(parser,name,"Expected name for namespace got: %s",tok_name(name.type));
+            return name_space;
+        }   
+
+        push_var(name_space,name.literal);
+
+        if(match(parser,token_type::scope))
+        {
+            consume(parser,token_type::scope);
+        }
+
+        else
+        {
+            return name_space;
+        }
+    }
+
+    return name_space;
+}
+
+Array<String> split_namespace(Parser& parser)
+{
+    return split_namespace_internal(parser,true);
+}
+
+Array<String> split_full_namespace(Parser& parser)
+{
+    return split_namespace_internal(parser,false);
+}
+
+
+
 void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 {
     const auto &t = next_token(parser);
@@ -1794,25 +1842,20 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 
         case token_type::namespace_t:
         {
-            const auto name = next_token(parser);
+            auto name_space = split_namespace(parser);
 
-            if(name.type != token_type::symbol)
+            if(parser.error)
             {
-                panic(parser,name,"Expected name for namespace got: %s",tok_name(name.type));
-            }   
+                return;
+            }
 
-            // Convert literal to a scope node so we know how to scan
-
-
-            // read out the name space, and put it on string allocator
-            // so we can freely pass it
-            parser.cur_name_space = copy_string(*parser.string_allocator,name.literal);
+            parser.cur_name_space = scan_namespace(itl.def_root,name_space);
+            destroy_arr(name_space);
 
             if(match(parser,token_type::semi_colon))
             {
                 consume(parser,token_type::semi_colon);
             }
-
             break;
         }
 
@@ -2314,7 +2357,12 @@ void print(const AstNode *root, b32 override_seperator)
 
             ScopeNode* scope_node = (ScopeNode*)root;
 
-            printf("%s\n",scope_node->scope.buf);
+            for(size_t i = 0; i < count(scope_node->scope); i++)
+            {
+                printf("%s::",scope_node->scope[i].buf);
+            }
+            putchar('\n');
+
             print(scope_node->expr);
 
             break;

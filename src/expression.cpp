@@ -9,6 +9,7 @@ Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
 TypeNode *parse_type(Parser &parser, b32 allow_fail = false);
+Array<String> split_namespace(Parser& parser);
 
 void next_expr_token(Parser& parser,ExprCtx& ctx)
 {
@@ -250,21 +251,17 @@ AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             return call;
         }
 
-        // TODO: for now this is just for hanlding enums
         case token_type::scope:
         {
-            consume_expr(parser,ctx,token_type::scope);
+            // correct state machine
+            prev_token(parser);
 
-            if(ctx.expr_tok.type != token_type::symbol)
-            {
-                panic(parser,ctx.expr_tok,"expected name after scope, got %s\n",tok_name(ctx.expr_tok.type));
-                return nullptr;
-            }
+            const auto name_space = split_namespace(parser);
 
-            const auto cur = ctx.expr_tok;
+            const auto cur = next_token(parser);
             next_expr_token(parser,ctx);
 
-            return ast_scope(parser,parse_sym(parser,ctx,cur),t.literal,t);
+            return ast_scope(parser,parse_sym(parser,ctx,cur),name_space,t);
         }
 
 
