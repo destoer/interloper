@@ -1202,10 +1202,11 @@ void type_alias(Interloper& itl, Parser &parser)
         TypeNode* rtype = parse_type(parser);
 
         const String& name = token.literal;
+        DefInfo* existing_def = lookup_def(itl.symbol_table,name);
 
-        if(contains(itl.type_def,name))
+        if(existing_def)
         {
-            panic(itl,itl_error::redeclaration,"type %s redeclared as alias\n",name.buf);
+            panic(itl,itl_error::redeclaration,"redeclaration of symbol %s (%s) as type alias\n",name.buf,definition_type_name(existing_def));
             return;
         }
 
@@ -1213,7 +1214,7 @@ void type_alias(Interloper& itl, Parser &parser)
     
         consume(parser,token_type::semi_colon);
 
-        add_type_def(itl, def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_name_space);
+        add_type_def(itl, type_def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_name_space);
     }
 
     else 
@@ -1441,7 +1442,7 @@ void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
     }
 
 
-    add_type_def(itl, def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_name_space);
+    add_type_def(itl, type_def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_name_space);
 }
 
 void enum_decl(Interloper& itl,Parser& parser, u32 flags)
@@ -1546,7 +1547,7 @@ void enum_decl(Interloper& itl,Parser& parser, u32 flags)
     }
 
     // add the type decl
-    add_type_def(itl, def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_name_space);
+    add_type_def(itl, type_def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_name_space);
 }
 
 StringBuffer read_source_file(const String& filename)

@@ -82,8 +82,7 @@ struct FileContext
 {
     AstNode *expr = nullptr;
     String filename = "";
-
-    String name_space = "";
+    DefNode *cur_scope = nullptr;
 };
 
 
@@ -104,6 +103,7 @@ struct Interloper
     FunctionTable func_table;
     Array<DeclNode*> global_def;
 
+    // Cur scope saved in FileContext
     DefNode* def_root = nullptr;
 
     SymbolTable symbol_table;

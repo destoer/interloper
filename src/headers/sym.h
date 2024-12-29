@@ -121,14 +121,27 @@ enum class definition_type
 };
 
 
+inline const char* DEFINITION_TYPE_NAMES[] = 
+{
+    "function",
+    "variable",
+    "type",
+};
+
 struct DefInfo
 {
     definition_type type = definition_type::variable;
     u32 handle = INVALID_HANDLE;
 };
 
+inline const char* definition_type_name(DefInfo* info)
+{
+    return DEFINITION_TYPE_NAMES[u32(info->type)];
+}
+
 struct DefNode
 {
+    DefNode* parent = nullptr;
     String name_space;
     String full_name;
     HashTable<String,DefInfo> table;
@@ -146,10 +159,10 @@ struct SymbolTable
     LabelLookup label_lookup;
 
     ArenaAllocator *string_allocator;
-
-    // Copy of root from interloper (Not owned).
-    // Held here for convenience
-    DefNode* root;
+    
+    // Current symbol table scope
+    // TODO: it may be better if this was accessed by reference to the file ctx
+    DefNode* scope;
 };
 
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);

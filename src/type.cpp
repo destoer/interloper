@@ -783,7 +783,7 @@ TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
 {
     TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
 
-    if (type_decl->state != def_state::checked)
+    if (type_decl->state != type_def_state::checked)
     {
         return nullptr;
     }
@@ -818,7 +818,7 @@ TypeDecl* lookup_type(Interloper& itl,const String& name)
 
     // currently type does not exist
     // attempt to parse the def
-    if(user_type->state != def_state::checked)
+    if(user_type->state != type_def_state::checked)
     {
         // no such definiton exists
         // NOTE: this is allowed to not panic the 
@@ -908,11 +908,11 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         }
 
         // user type does not exist yet
-        if(user_type->state != def_state::checked)
+        if(user_type->state != type_def_state::checked)
         {
             // if this is not currently being checked 
             // parse it
-            if(user_type->state == def_state::not_checked)
+            if(user_type->state == type_def_state::not_checked)
             {
                 TypeDef& type_def = *((TypeDef*)user_type);
                 parse_def(itl,type_def);
@@ -2111,7 +2111,7 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
 }
 
 
-void add_type_definition(Interloper& itl, def_kind kind,AstNode* root, const String& name, const String& filename, const String& name_space, b32 is_alias)
+void add_type_definition(Interloper& itl, type_def_kind kind,AstNode* root, const String& name, const String& filename, const String& name_space, b32 is_alias)
 {
     // TODO: Handle namespacec insertion
     UNUSED(name_space);
@@ -2163,7 +2163,7 @@ void add_internal_alias(Interloper& itl, Type* type,const String& name)
 void finalise_type(TypeDef& def, u32 type_idx)
 {
     def.decl.type_idx = type_idx;
-    def.decl.state = def_state::checked;
+    def.decl.state = type_def_state::checked;
 }
 
 void parse_alias_def(Interloper& itl, TypeDef& def)
@@ -2204,26 +2204,26 @@ void parse_def(Interloper& itl, TypeDef& def)
     // save the current one
     push_context(itl);
 
-    if(def.decl.state == def_state::not_checked)
+    if(def.decl.state == type_def_state::not_checked)
     {
         // mark as checking to lock this against recursion!
-        def.decl.state = def_state::checking;
+        def.decl.state = type_def_state::checking;
 
         switch(def.kind)
         {
-            case def_kind::struct_t:
+            case type_def_kind::struct_t:
             {
                 parse_struct_def(itl,def);
                 break;
             }
 
-            case def_kind::alias_t:
+            case type_def_kind::alias_t:
             {
                 parse_alias_def(itl,def);
                 break;
             }
 
-            case def_kind::enum_t: 
+            case type_def_kind::enum_t: 
             {
                 auto set = make_set<u64>();
 

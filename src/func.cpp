@@ -998,7 +998,7 @@ void compile_function(Interloper& itl, Function& func)
         
         // put arguments on the symbol table they are marked as args
         // so we know to access them "above" to stack pointer
-        new_scope(itl.symbol_table);
+        new_anon_scope(itl.symbol_table);
 
 
         // put each arg into scope

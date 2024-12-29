@@ -2,16 +2,22 @@
 #include "type.cpp"
 
 
-void new_scope(SymbolTable &sym_table)
+void new_anon_scope(SymbolTable &sym_table)
 {
-    push_var<HashTable<String,SymSlot>,HashTable<String,SymSlot>>(sym_table.table,make_table<String,SymSlot>());
+    DefNode* new_scope = (DefNode*)malloc(sizeof(DefNode));
+    assert(new_scope);
+
+    *new_scope = {};
+
+    // Insert the new scope
+    new_scope->parent = sym_table.scope;
+    push_var(sym_table.scope->nodes,new_scope);
+    sym_table.scope = new_scope;
 }
 
 void destroy_scope(SymbolTable &sym_table)
 {
-    sym_table.sym_count -= sym_table.table[count(sym_table.table) - 1].size;
-    auto table = pop(sym_table.table);
-    destroy_table(table);
+    sym_table.scope = sym_table.scope->parent;
 }
 
 u32 sym_to_idx(SymSlot s)
@@ -59,16 +65,33 @@ Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
     return reg_from_slot(itl.symbol_table,func,slot);
 }
 
+DefInfo* lookup_def(SymbolTable &sym_table, const String& name)
+{
+    DefNode* cur_scope = sym_table.scope;
+
+    while(cur_scope)
+    {
+        DefInfo* def_info = lookup(cur_scope->table,name);
+
+        if(def_info)
+        {
+            return def_info;
+        }
+   
+        cur_scope = cur_scope->parent;
+    }
+
+    return nullptr;    
+}
+
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
-    for(s32 i = count(sym_table.table) - 1; i >= 0; i--)
-    {
-        const SymSlot* slot = lookup(sym_table.table[i],sym);
+    const DefInfo* def_info = lookup_def(sym_table,sym);
 
-        if(slot)
-        {
-            return &sym_from_slot(sym_table,*slot);
-        }
+    if(def_info && def_info->type == definition_type::variable)
+    {
+        const auto slot = sym_from_idx(def_info->handle);
+        return &sym_from_slot(sym_table,slot);
     }
 
     return nullptr;
@@ -116,8 +139,8 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 // add symbol to the scope table
 void add_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    add(sym_table.table[count(sym_table.table) - 1],sym.name, sym.reg.slot);
-    sym_table.sym_count++;
+    const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
+    add(sym_table.scope->table,sym.name, info);
 }    
 
 Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
@@ -147,8 +170,8 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
     }
 
     // add this into the top level scope
-    add(sym_table.table[0],sym.name, sym.reg.slot);
-    sym_table.sym_count++;       
+    const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
+    add(itl.def_root->table,sym.name, info);    
 
     return sym_from_slot(sym_table,sym.reg.slot);
 }
@@ -176,12 +199,7 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
 
 void destroy_sym_table(SymbolTable &sym_table)
 {
-    for(u32 h = 0; h < count(sym_table.table); h++)
-    {
-        destroy_table(sym_table.table[h]);
-    }
-
-    destroy_arr(sym_table.table);
+    // TODO: Destroy the scoping tree
 
     for(u32 s = 0; s < count(sym_table.slot_lookup); s++)
     {
@@ -192,9 +210,6 @@ void destroy_sym_table(SymbolTable &sym_table)
     destroy_arr(sym_table.slot_lookup);
     destroy_arr(sym_table.label_lookup);
     destroy_arr(sym_table.global);
-
-    sym_table.sym_count = 0;
-    sym_table.var_count = 0;
 }
 
 

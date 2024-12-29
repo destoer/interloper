@@ -55,26 +55,30 @@ void store_const_string(Interloper& itl, Function& func, const String& literal, 
 
 void push_context(Interloper& itl)
 {
+    itl.ctx.cur_scope = itl.symbol_table.scope;
     push_var(itl.saved_ctx,itl.ctx);
 }
 
 void pop_context(Interloper& itl)
 {
     itl.ctx = pop(itl.saved_ctx);
+    itl.symbol_table.scope = itl.ctx.cur_scope;
 }
 
-void trash_context(Interloper& itl, String filename,String name_space, AstNode* expr)
+void trash_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr)
 {
-    itl.ctx.name_space = name_space;
+    itl.ctx.cur_scope = cur_scope;
     itl.ctx.filename = filename;
     itl.ctx.expr = expr;
+
+    itl.symbol_table.scope = itl.ctx.cur_scope;
 }
 
 // save and overwrite the ctx
-void switch_context(Interloper& itl, String filename,String name_space, AstNode* expr)
+void switch_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr)
 {
     push_context(itl);
-    trash_context(itl,filename,name_space,expr);
+    trash_context(itl,filename,cur_scope,expr);
 }
 
 
@@ -908,7 +912,7 @@ void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot ad
 
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
-    new_scope(itl.symbol_table);
+    new_anon_scope(itl.symbol_table);
 
     const u32 size = count(block_node->statements);
     for(u32 s = 0; s < size; s++)
@@ -1452,7 +1456,7 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     putchar('\n');
 
     // global scope
-    new_scope(itl.symbol_table);
+    new_anon_scope(itl.symbol_table);
 
     // compile all our constant values 
     compile_constants(itl);

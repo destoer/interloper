@@ -122,7 +122,7 @@ enum class type_kind
 static constexpr u32 KIND_SIZE = 3;
 
 
-inline const char* KIND_NAMES[KIND_SIZE] = 
+inline const char* TYPE_KIND_NAMES[KIND_SIZE] = 
 {
     "enum",
     "struct",
@@ -140,7 +140,7 @@ b32 invalid_type_idx(u32 type_idx)
     return type_idx == INVALID_TYPE_IDX;
 }
 
-enum class def_kind
+enum class type_def_kind
 {
     enum_t,
     struct_t,
@@ -148,7 +148,7 @@ enum class def_kind
 };
 
 
-enum class def_state
+enum class type_def_state
 {
     not_checked,
     checking,
@@ -166,7 +166,7 @@ struct TypeDecl
     u32 type_idx = INVALID_TYPE_IDX;
 
     // current definition state
-    def_state state = def_state::not_checked;
+    type_def_state state = type_def_state::not_checked;
 
     u32 flags = 0;
 };
@@ -179,7 +179,7 @@ struct TypeDef
     TypeDecl decl;
 
     String filename;
-    def_kind kind;
+    type_def_kind kind;
 
     // the defintion root -> depends on the type!
     AstNode* root;
