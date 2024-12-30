@@ -20,8 +20,7 @@ void add_struct(Interloper& itl, Struct& structure, TypeDecl& decl)
 {
     structure.type_idx = decl.type_idx;
     itl.struct_table[structure.type_idx] = structure;
-
-    finalise_type(decl,structure.type_idx);
+    finalise_type(decl,structure.type_idx,type_kind::struct_t);
 }
 
 
@@ -109,17 +108,23 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 
 b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
-    // member is struct that has not had its defintion parsed yet
-    TypeDef *def_ptr = lookup_type_def(itl,type_decl->name);
+    TypeDecl *decl_ptr = lookup_incomplete_decl(itl,type_decl->name);
 
-    // no such definiton exists
-    if(!def_ptr)
+    // no such decl exists
+    if(!decl_ptr)
     {
         panic(itl,itl_error::undeclared,"%s : member type %s is not defined\n",struct_name.buf,type_decl->name.buf);
         return false;
     }
 
-    TypeDef& def = *def_ptr;
+    // Type is allways complete we don't need any further checking
+    if(!(decl_ptr->flags & TYPE_DECL_DEF_FLAG))
+    {
+        return true;
+    }
+
+
+    TypeDef& def = *((TypeDef*)decl_ptr);
 
     // if we attempt to check a partial defintion twice that the definition is recursive
     if(def.decl.state == type_def_state::checking)
@@ -319,13 +324,6 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
 
     // NOTE: we expect the caller to save this
     trash_context(itl,node->filename,def.decl.name_space,def.root);
-
-    TypeDecl* user_type = lookup_incomplete_decl(itl,node->name);
-    if(user_type)
-    {
-        panic(itl,itl_error::redeclaration,"%s %s redeclared as struct\n",TYPE_KIND_NAMES[u32(user_type->kind)],node->name.buf);
-        return;
-    }
 
     Struct structure;
     

@@ -342,9 +342,7 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
 void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
 {
     // scope for any var decls in the stmt
-    new_anon_scope(itl.symbol_table);
-
-
+    enter_new_anon_scope(itl.symbol_table);
 
     // check our loop index does not exist
     if(symbol_exists(itl.symbol_table,for_node->name_one))
@@ -396,7 +394,7 @@ void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
 void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 {
     // scope for any var decls in the stmt
-    new_anon_scope(itl.symbol_table);
+    enter_new_anon_scope(itl.symbol_table);
 
     const BlockSlot initial_block = cur_block(func);
   

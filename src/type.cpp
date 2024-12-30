@@ -1,6 +1,7 @@
 #include <interloper.h>
 
 DefInfo* lookup_definition(DefNode* root, const String& name);
+void print_namespace_tree(DefNode* root, u32 depth);
 
 const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 {
@@ -861,6 +862,11 @@ Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_const
         {
             return make_builtin(itl,builtin_type(type_idx),is_constant);
         }
+
+        case type_kind::alias_t:
+        {
+            return copy_type(itl,itl.alias_table[type_idx]);
+        }
     }
 
     assert(false);
@@ -900,15 +906,20 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
         // check we have a type definiton
         // no such definiton exists, nothing we can do
-        if(!user_type || !(user_type->flags & TYPE_DECL_DEF_FLAG))
+        if(!user_type)
         {
             panic(itl,itl_error::undeclared,"type %s is not defined\n",type_decl->name.buf);
             return make_builtin(itl,builtin_type::void_t);
         }
 
+        is_alias = user_type->kind == type_kind::alias_t;   
+
         // user type does not exist yet
         if(user_type->state != type_def_state::checked)
         {
+            // By this point only types that have definitions can not be finalised
+            assert(user_type->flags & TYPE_DECL_DEF_FLAG);
+
             // if this is not currently being checked 
             // parse it
             if(user_type->state == type_def_state::not_checked)
@@ -950,10 +961,10 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         // user defined type allready exists, just pull the info out
         else
         {   
-            type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
+            type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant); 
         }
 
-        is_alias = (user_type->flags & TYPE_DECL_ALIAS_FLAG) != 0;       
+            
     }
 
     else if(type_decl->type_idx == FUNC_POINTER)
@@ -2068,6 +2079,12 @@ std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl,
                 return std::pair{make_builtin(itl,builtin_type::u32_t),0};
             }
         }
+
+        case type_kind::alias_t:
+        {
+            panic(itl,itl_error::generic_type_error,"cannot access type properties on alias %s\n",type_decl.name.buf);
+            return std::pair{make_builtin(itl,builtin_type::u32_t),0};
+        }
     }
 
     assert(false);
@@ -2100,7 +2117,7 @@ T* alloc_type_decl(Interloper& itl)
     return out;
 }
 
-void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind,b32 is_alias)
+void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
 {
     TypeDecl* type_decl = alloc_type_decl<TypeDecl>(itl);
 
@@ -2108,28 +2125,18 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
     type_decl->name = name;
     type_decl->kind = kind;
     type_decl->name_space = itl.def_root;
+    type_decl->state = type_def_state::checked;
     
-    if(is_alias)
-    {
-        type_decl->flags |= TYPE_DECL_ALIAS_FLAG;
-    }
-
     add_type_scope(itl.def_root,type_decl);    
 }
 
 
-void add_type_definition(Interloper& itl, type_def_kind kind,AstNode* root, const String& name, const String& filename, DefNode* name_space)
+void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, const String& name, const String& filename, DefNode* name_space)
 {
     TypeDef* definition = alloc_type_decl<TypeDef>(itl);
 
     definition->decl.name = name;
     definition->decl.flags = TYPE_DECL_DEF_FLAG;
-
-    if(kind == type_def_kind::alias_t)
-    {
-        definition->decl.flags |= TYPE_DECL_ALIAS_FLAG;
-    }
-
     definition->decl.name_space = name_space;
 
     definition->filename = filename;
@@ -2145,30 +2152,18 @@ b32 type_exists(Interloper& itl, const String& name)
     return lookup_complete_decl(itl,name) != nullptr;
 }
 
-type_kind type_kind_from_type(const Type* type)
-{
-    if(is_builtin(type))
-    {
-        return type_kind::builtin;
-    }
-
-    switch(type->type_idx)
-    {
-        case STRUCT: return type_kind::struct_t;
-        case ENUM: return type_kind::enum_t;
-        default: assert(false);
-    }
-}
-
 void add_internal_alias(Interloper& itl, Type* type,const String& name)
 {
-    add_internal_type_decl(itl,type->type_idx,name,type_kind_from_type(type),true);   
+    const u32 type_idx = count(itl.alias_table);
+    add_internal_type_decl(itl,type_idx,name,type_kind::alias_t); 
+    push_var(itl.alias_table,type);   
 }
 
-void finalise_type(TypeDecl& decl, u32 type_idx)
+void finalise_type(TypeDecl& decl, u32 type_idx,type_kind kind)
 {
     decl.type_idx = type_idx;
     decl.state = type_def_state::checked;
+    decl.kind = kind;
 }
 
 void parse_alias_def(Interloper& itl, TypeDef& def)
@@ -2187,7 +2182,9 @@ void parse_alias_def(Interloper& itl, TypeDef& def)
         printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
     }
 
-    finalise_type(def.decl,type->type_idx);  
+    const u32 type_idx = count(itl.alias_table);
+    finalise_type(def.decl,type_idx,type_kind::alias_t);
+    push_var(itl.alias_table,type); 
 }
 
 void declare_compiler_type_aliases(Interloper& itl) 

@@ -694,7 +694,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::function_call:
         {
-            return compile_function_call(itl,itl.symbol_table.scope,func,node,dst_slot);
+            return compile_function_call(itl,nullptr,func,node,dst_slot);
         }
 
         case ast_type::scope:
@@ -920,7 +920,7 @@ void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot ad
 
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
-    new_anon_scope(itl.symbol_table);
+    enter_new_anon_scope(itl.symbol_table);
 
     const u32 size = count(block_node->statements);
     for(u32 s = 0; s < size; s++)
@@ -1140,7 +1140,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,itl.symbol_table.scope,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,nullptr,func,line,sym_from_idx(NO_SLOT));
                 break;
             }            
 
@@ -1184,7 +1184,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,itl.symbol_table.scope,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,nullptr,func,line,sym_from_idx(NO_SLOT));
                 break;
             }
 
@@ -1346,7 +1346,7 @@ void setup_type_table(Interloper& itl)
     // add all the builtin types  
     for(u32 i = 0; i < BUILTIN_TYPE_SIZE; i++)
     {
-        add_internal_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin,false);
+        add_internal_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin);
     }
 }
 
@@ -1403,7 +1403,10 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
 
     itl.func_table = make_func_table();
 
-    itl.def_root = alloc_new_scope(itl.symbol_table);
+    // Setup the global scope
+    itl.def_root = alloc_new_scope();
+    itl.def_root->name_space = "global";
+    itl.def_root->full_name = itl.def_root->name_space;
     itl.ctx.cur_scope = itl.def_root;
     itl.symbol_table.scope = itl.def_root;
 
@@ -1468,9 +1471,6 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     }
 
     putchar('\n');
-
-    // global scope
-    new_anon_scope(itl.symbol_table);
 
     // compile all our constant values 
     compile_constants(itl);

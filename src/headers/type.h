@@ -116,10 +116,11 @@ enum class type_kind
     enum_t,
     struct_t,
     builtin,
+    alias_t,
 };
 
 
-static constexpr u32 KIND_SIZE = 3;
+static constexpr u32 KIND_SIZE = 4;
 
 
 inline const char* TYPE_KIND_NAMES[KIND_SIZE] = 
@@ -127,6 +128,7 @@ inline const char* TYPE_KIND_NAMES[KIND_SIZE] =
     "enum",
     "struct",
     "builtin",
+    "alias",
 };
 
 
@@ -174,7 +176,6 @@ struct TypeDecl
 };
 
 static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
-static constexpr u32 TYPE_DECL_ALIAS_FLAG = (1 << 1);
 
 struct TypeDef
 {

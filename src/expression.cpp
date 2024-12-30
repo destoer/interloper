@@ -9,7 +9,7 @@ Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
 TypeNode *parse_type(Parser &parser, b32 allow_fail = false);
-Array<String> split_namespace(Parser& parser);
+Array<String> split_namespace(Parser& parser, const Token& start);
 
 void next_expr_token(Parser& parser,ExprCtx& ctx)
 {
@@ -255,8 +255,14 @@ AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
         {
             // correct state machine
             prev_token(parser);
+            prev_token(parser);
 
-            const auto name_space = split_namespace(parser);
+            const auto name_space = split_namespace(parser,ctx.expr_tok);
+
+            if(parser.error)
+            {
+                return nullptr;
+            }
 
             const auto cur = next_token(parser);
             next_expr_token(parser,ctx);

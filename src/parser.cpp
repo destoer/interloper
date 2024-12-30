@@ -11,7 +11,7 @@ static constexpr u32 ATTR_FLAG = (1 << 1);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
-Parser make_parser(const String& cur_file,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
+Parser make_parser(const String& cur_file,DefNode* root,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
 {
     Parser parser;
     parser.allocator = ast_allocator;
@@ -21,6 +21,7 @@ Parser make_parser(const String& cur_file,ArenaAllocator* ast_allocator,ArenaAll
     parser.cur_file = cur_file;
     parser.cur_path = extract_path(parser.cur_file);
     parser.ast_arrays = ast_arrays;
+    parser.cur_name_space = root;
 
     return parser;
 }
@@ -427,8 +428,13 @@ AstNode* tuple_assign(Parser& parser, const Token& t)
                 if(match(parser,token_type::scope))
                 {
                     prev_token(parser);
-                    const auto name_space = split_namespace(parser);
+                    const auto name_space = split_namespace(parser,next);
                     
+                    if(parser.error)
+                    {
+                        return nullptr;
+                    }
+
                     const auto sym_tok = next_token(parser);
 
                     tuple_node->func_call = (FuncCallNode*)func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
@@ -1196,7 +1202,7 @@ bool check_redeclaration(Interloper& itl, DefNode* root, const String& name, con
 
     if(existing_def)
     {
-        panic(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!\n",name,definition_type_name(existing_def),checked_def_type);
+        panic(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!\n",name.buf,definition_type_name(existing_def),checked_def_type.buf);
         return true;
     }
 
@@ -1700,16 +1706,11 @@ Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
 
     while(!match(parser,token_type::eof))
     {
-        if(full_namespace && peek(parser,1).type != token_type::scope)
-        {
-            return name_space;
-        }
-
         const auto name = next_token(parser);
 
         if(name.type != token_type::symbol)
         {
-            panic(parser,name,"Expected name for namespace got: %s",tok_name(name.type));
+            panic(parser,name,"Expected name for namespace got: %s\n",tok_name(name.type));
             return name_space;
         }   
 
@@ -1718,6 +1719,12 @@ Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
         if(match(parser,token_type::scope))
         {
             consume(parser,token_type::scope);
+
+            // Last token after :: is not to be treated as part of the namespace
+            if(peek(parser,1).type != token_type::scope && !full_namespace)
+            {
+                return name_space;
+            }
         }
 
         else
@@ -1729,14 +1736,28 @@ Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
     return name_space;
 }
 
-Array<String> split_namespace(Parser& parser)
+Array<String> split_namespace(Parser& parser, const Token& start)
 {
-    return split_namespace_internal(parser,true);
+    auto name_space = split_namespace_internal(parser,false);
+
+    if(count(name_space) == 0)
+    {
+        panic(parser,start,"Namespace is empty",0);
+    }
+
+    return name_space;
 }
 
-Array<String> split_full_namespace(Parser& parser)
+Array<String> split_full_namespace(Parser& parser, const Token& start)
 {
-    return split_namespace_internal(parser,false);
+    auto name_space = split_namespace_internal(parser,true);
+
+    if(count(name_space) == 0)
+    {
+        panic(parser,start,"Namespace is empty",0);
+    }
+
+    return name_space;
 }
 
 
@@ -1842,15 +1863,21 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 
         case token_type::namespace_t:
         {
-            auto name_space = split_namespace(parser);
+            auto name_space = split_full_namespace(parser,t);
+            parser.cur_name_space = scan_namespace(itl.def_root,name_space);
 
             if(parser.error)
             {
+                destroy_arr(name_space);
                 return;
             }
 
-            parser.cur_name_space = scan_namespace(itl.def_root,name_space);
-            destroy_arr(name_space);
+            // Namespace does not allready exist create it!
+            if(!parser.cur_name_space)
+            {
+                parser.cur_name_space = new_named_scope(itl,itl.def_root,name_space);
+                destroy_arr(name_space);
+            }
 
             if(match(parser,token_type::semi_colon))
             {
@@ -1880,7 +1907,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 bool parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
 {
     // Parse out the file
-    Parser parser = make_parser(filename,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
+    Parser parser = make_parser(filename,itl.def_root,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
 
     if(tokenize(file,filename,parser.string_allocator,parser.tokens))
     {

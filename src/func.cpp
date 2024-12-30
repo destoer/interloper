@@ -40,7 +40,7 @@ void add_func(Interloper& itl, const String& name, DefNode* name_space, FuncNode
     push_var(itl.func_table.table,func_def);
 
     const DefInfo info = {definition_type::function,handle};
-    add(name_space->table,func_def.name, info);  
+    add(name_space->table,name, info);  
 }
 
 Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
@@ -646,7 +646,7 @@ FuncCall get_calling_sig(Interloper& itl,DefNode* name_space,Function& func,Func
         const String& name = literal_node->literal;
 
         // are we looking in the global namespace or no?
-        const b32 global = name_space != nullptr;
+        const b32 global = name_space == nullptr;
 
         FunctionDef* func_call_def = global? lookup_func_def_default(itl,name) : lookup_func_def_scope(itl,name_space,name);
 
@@ -997,7 +997,7 @@ void compile_function(Interloper& itl, Function& func)
         
         // put arguments on the symbol table they are marked as args
         // so we know to access them "above" to stack pointer
-        new_anon_scope(itl.symbol_table);
+        enter_new_anon_scope(itl.symbol_table);
 
 
         // put each arg into scope

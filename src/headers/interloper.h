@@ -128,6 +128,8 @@ struct Interloper
     // allocating all things types!
     ArenaAllocator type_allocator;
 
+    Array<Type*> alias_table;
+
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;
 

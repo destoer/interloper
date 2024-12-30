@@ -28,7 +28,7 @@ u32 cache_struct(Interloper& itl, const String& name)
 
     if(type_decl->kind != type_kind::struct_t)
     {
-        panic(itl,itl_error::struct_error,"could not find struct %s for rtti\n",name.buf);
+        panic(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti\n",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
         return INVALID_TYPE_IDX;
     }
 
