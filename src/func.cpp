@@ -87,46 +87,6 @@ Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = 
 
     return func_def.func;   
 }
-
-
-// NOTE: this gets a function ONLY in the requested scope
-FunctionDef* lookup_func_def_scope(Interloper& itl, DefNode* name_space, const String& name)
-{
-    auto func_def = lookup(name_space->table,name);
-
-    if(func_def && func_def->type == definition_type::function)
-    {
-        return &itl.func_table.table[func_def->handle];
-    }
-
-    //printf("lookup scoped: %s\n",full_name.buf);
-
-    return nullptr;
-}
-
-// get a function only in the global scope
-FunctionDef* lookup_func_def_global(Interloper& itl, const String& name)
-{
-    //printf("lookup global: %s\n",name.buf);
-
-    return lookup_func_def_scope(itl,itl.def_root, name);
-}
-
-// Search each scope from the bottom for a function
-FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
-{
-    auto func_def = lookup_definition(itl.symbol_table.scope,name);
-
-    if(func_def && func_def->type == definition_type::function)
-    {
-        return &itl.func_table.table[func_def->handle];
-    }
-
-    // fail attempt to find globally
-    return nullptr;
-}
-
-
  
 Function& create_dummy_func(Interloper& itl, const String& name)
 {
@@ -683,6 +643,7 @@ FuncCall get_calling_sig(Interloper& itl,DefNode* name_space,Function& func,Func
             {
                 if(global)
                 {
+                    print_namespace_tree(itl.def_root,0);
                     panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
                 }
 

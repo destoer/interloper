@@ -38,6 +38,7 @@ void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot ad
 void store_const_string(Interloper& itl, Function& func, const String& literal, const SymSlot arr_slot);
 
 #include "lexer.cpp"
+#include "namespace.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
 #include "ir.cpp"
@@ -1348,19 +1349,6 @@ void setup_type_table(Interloper& itl)
     {
         add_internal_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin);
     }
-}
-
-DefNode* find_name_space(Interloper& itl, const String& name)
-{
-    for(size_t i = 0; i < count(itl.def_root->nodes); i++)
-    {
-        if(itl.def_root->nodes[i]->name_space == name)
-        {
-            return itl.def_root->nodes[i];
-        }
-    }
-
-    return nullptr;
 }
 
 void check_startup_defs(Interloper& itl)

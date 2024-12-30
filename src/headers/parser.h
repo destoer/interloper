@@ -348,6 +348,15 @@ struct RecordNode
     Array<AstNode*> nodes;
 };
 
+struct ScopeNode 
+{
+    AstNode node;
+
+    // NOTE: depending on the context the last member may be an enum member
+    Array<String> scope;
+
+    AstNode* expr;
+};
 
 
 struct TypeNode
@@ -361,6 +370,7 @@ struct TypeNode
     u32 type_idx;
 
     FuncNode* func_type = nullptr;
+    DefNode* name_space = nullptr;
 
     Array<AstNode*> compound_type;
 };
@@ -549,17 +559,6 @@ struct SwitchNode
 };
 
 
-struct ScopeNode 
-{
-    AstNode node;
-
-    // NOTE: depending on the context the last member may be an enum member
-    Array<String> scope;
-
-    AstNode* expr;
-};
-
-
 struct TupleAssignNode
 {
     AstNode node;
@@ -591,7 +590,8 @@ struct Parser
     AstPointers* ast_arrays;
     
     String cur_file = "";
-    DefNode* cur_name_space = nullptr;
+    DefNode* cur_namespace = nullptr;
+    DefNode* global_namespace = nullptr;
     String cur_path = "";
 
     // error handling
@@ -743,11 +743,12 @@ AstNode *ast_float(Parser& parser, f64 value, const Token& token)
     return (AstNode*)float_node;  
 }
 
-AstNode* ast_type_decl(Parser& parser, const String& name, const Token& token)
+AstNode* ast_type_decl(Parser& parser, DefNode* name_space, const String& name, const Token& token)
 {
     TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,ast_fmt::type,token);
 
     type_node->name = name;
+    type_node->name_space = name_space;
 
     add_ast_pointer(parser,&type_node->compound_type.data);
 

@@ -16,9 +16,9 @@ b32 is_any(Interloper& itl, const Type* type)
     return false;
 }
 
-u32 cache_struct(Interloper& itl, const String& name)
+u32 cache_struct(Interloper& itl, DefNode* name_space, const String& name)
 {
-    TypeDecl* type_decl = lookup_type(itl,name);
+    TypeDecl* type_decl = lookup_type_scoped(itl,name_space,name);
 
     if(!type_decl)
     {
@@ -53,8 +53,10 @@ void cache_rtti_structs(Interloper& itl)
 {
     auto& rtti = itl.rtti_cache;
     
+    DefNode* rtti_name_space = find_name_space(itl,"rtti");
+
     // cache Any struct info
-    rtti.any_idx = cache_struct(itl,"Any");
+    rtti.any_idx = cache_struct(itl,rtti_name_space,"Any");
 
     if(invalid_type_idx(rtti.any_idx))
     {
@@ -68,7 +70,7 @@ void cache_rtti_structs(Interloper& itl)
 
 
     // cache Type struct info
-    const u32 type_struct_idx = cache_struct(itl,"Type");
+    const u32 type_struct_idx = cache_struct(itl,rtti_name_space,"Type");
 
     if(invalid_type_idx(type_struct_idx))
     {
@@ -81,7 +83,7 @@ void cache_rtti_structs(Interloper& itl)
     rtti.type_struct_size = type_struct.size;
 
 
-    const u32 pointer_struct_idx = cache_struct(itl,"PointerType");
+    const u32 pointer_struct_idx = cache_struct(itl,rtti_name_space,"PointerType");
 
     if(invalid_type_idx(pointer_struct_idx))
     {
@@ -94,7 +96,7 @@ void cache_rtti_structs(Interloper& itl)
 
 
 
-    const u32 array_struct_idx = cache_struct(itl,"ArrayType");
+    const u32 array_struct_idx = cache_struct(itl,rtti_name_space,"ArrayType");
 
     if(invalid_type_idx(array_struct_idx))
     {

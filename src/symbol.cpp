@@ -1,48 +1,10 @@
 #include <interloper.h>
 #include "type.cpp"
 
-
-
-DefNode* alloc_new_scope()
-{
-    DefNode* new_scope = (DefNode*)malloc(sizeof(DefNode));
-    assert(new_scope);
-
-    *new_scope = {};
-    new_scope->table = make_table<String,DefInfo>();
-    new_scope->name_space = "0__anon__0";
-    new_scope->full_name = "0__anon__0";
-
-    return new_scope;
-}
-
-DefNode* new_anon_scope(DefNode* root)
-{
-    auto new_scope = alloc_new_scope();
-
-    // Insert the new scope
-    new_scope->parent = root;
-    push_var(root->nodes,new_scope);
-    return new_scope;
-}
-
 void enter_new_anon_scope(SymbolTable& sym_table)
 {
     sym_table.scope = new_anon_scope(sym_table.scope);
 }
-
-DefNode* new_named_scope(Interloper& itl,DefNode* root, const Array<String>& name)
-{
-    // TODO: this is wrong but we don't have nested scopes atm so we dont care
-    assert(count(name) == 1);
-
-    DefNode* new_scope = new_anon_scope(root);
-    new_scope->name_space = copy_string(itl.string_allocator,name[0]);
-    new_scope->full_name = new_scope->name_space;
-
-    return new_scope;
-}
-
 
 void destroy_scope(SymbolTable &sym_table)
 {
@@ -92,93 +54,6 @@ Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
 Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
 {
     return reg_from_slot(itl.symbol_table,func,slot);
-}
-
-DefInfo* lookup_definition(DefNode* root, const String& name)
-{
-    DefNode* cur_scope = root;
-
-    while(cur_scope)
-    {
-        DefInfo* def_info = lookup(cur_scope->table,name);
-
-        if(def_info)
-        {
-            return def_info;
-        }
-   
-        cur_scope = cur_scope->parent;
-    }
-
-    return nullptr;    
-}
-
-DefNode* scan_namespace(const DefNode* root, const Array<String>& name_space)
-{
-    u32 name_idx = 0;
-    DefNode *result = nullptr;
-
-    while(name_idx != count(name_space))
-    {
-        bool found = false;
-
-        for(size_t i = 0; i < count(root->nodes); i++)
-        {
-            const auto node = root->nodes[i];
-            if(node->name_space == name_space[name_idx])
-            {
-                found = true;
-                name_idx++;
-                root = node;
-
-                if(name_idx == count(name_space))
-                {
-                    result = node;
-                }
-            }
-        }
-
-        if(!found)
-        {
-            return nullptr;
-        }
-    }
-    
-    return result;
-}
-
-void print_depth(int depth);
-
-void print_namespace_tree(DefNode* root, u32 depth)
-{
-    print_depth(depth);
-
-    if(!root)
-    {
-        puts("namespace: NULL");
-        return;
-    }
-
-    printf("namespace %s: \n",root->name_space.buf);
-
-    auto table = root->table;
-
-    for(u32 i = 0; i < count(table.buf); i++)
-    {
-        auto& bucket = table.buf[i];
-
-        for(u32 j = 0; j < count(bucket); j++)
-        {
-            print_depth(depth + 1);
-            printf("def %s %s\n",bucket[j].key.buf,definition_type_name(&bucket[j].v));
-        }
-    }    
-
-
-    for(size_t i = 0; i < count(root->nodes); i++)
-    {
-        print_namespace_tree(root->nodes[i],depth + 2);
-    }
 }
 
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)

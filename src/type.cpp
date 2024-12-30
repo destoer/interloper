@@ -767,49 +767,14 @@ Type* copy_type(Interloper& itl, const Type* type)
     return copy_type_internal(itl,type);
 }
 
-TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name)
-{
-    const auto definition = lookup_definition(itl.symbol_table.scope,name);
-
-    if(definition && definition->type == definition_type::type)
-    {
-        return definition->type_decl;
-    }
-
-    return nullptr;
-}
-
-TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
-{
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
-
-    if (type_decl->state != type_def_state::checked)
-    {
-        return nullptr;
-    }
-
-    return type_decl;
-}
-
-TypeDef* lookup_type_def(Interloper& itl, const String& name)
-{
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
-
-    if(!type_decl || !(type_decl->flags & TYPE_DECL_DEF_FLAG))
-    {
-        return nullptr;
-    }
-
-    return (TypeDef*)type_decl;
-}
 
 // NOTE: 
 // to be used externally when attempting to find a type decl
 // dont look it up in the type table directly as the definition might not
 // have been parsed yet
-TypeDecl* lookup_type(Interloper& itl,const String& name)
+TypeDecl* lookup_type_internal(Interloper& itl,DefNode* name_space,const String& name)
 {
-    TypeDecl* user_type = lookup_incomplete_decl(itl,name);
+    TypeDecl* user_type = name_space == nullptr? lookup_incomplete_decl(itl,name) : lookup_incomplete_decl_scoped(name_space,name);
 
     if(!user_type)
     {
@@ -842,6 +807,16 @@ TypeDecl* lookup_type(Interloper& itl,const String& name)
     }
 
     return user_type;
+}
+
+TypeDecl* lookup_type(Interloper& itl,const String& name)
+{
+    return lookup_type_internal(itl,nullptr,name);
+}
+
+TypeDecl* lookup_type_scoped(Interloper& itl,DefNode* name_space,const String& name)
+{
+    return lookup_type_internal(itl,name_space,name);
 }
 
 Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_constant)
@@ -902,7 +877,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         // to handle out of order decl so we directly query the type table
         // rather than using lookup_type
         const auto name = type_decl->name;
-        TypeDecl* user_type = lookup_incomplete_decl(itl,name);
+        TypeDecl* user_type = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
 
         // check we have a type definiton
         // no such definiton exists, nothing we can do

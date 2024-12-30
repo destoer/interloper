@@ -21,7 +21,8 @@ Parser make_parser(const String& cur_file,DefNode* root,ArenaAllocator* ast_allo
     parser.cur_file = cur_file;
     parser.cur_path = extract_path(parser.cur_file);
     parser.ast_arrays = ast_arrays;
-    parser.cur_name_space = root;
+    parser.global_namespace = root;
+    parser.cur_namespace = parser.global_namespace;
 
     return parser;
 }
@@ -161,6 +162,29 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
         default: break;
     }
 
+    // See if this type is name spaced
+    DefNode* name_space = nullptr;
+
+    // We have a namespace to parse
+    if(peek(parser,1).type == token_type::scope)
+    {
+        auto strings = split_namespace(parser,peek(parser,0));
+        name_space = scan_namespace(parser.global_namespace,strings);
+
+        if(parser.error)
+        {
+            destroy_arr(strings);
+            return nullptr;
+        }
+
+        // Namespace does not allready exist create it!
+        if(!name_space)
+        {
+            name_space = new_named_scope(*parser.string_allocator,parser.global_namespace,strings);
+            destroy_arr(strings);
+        }
+    }
+
     // read out the plain type
 
     auto plain_tok = next_token(parser);
@@ -189,7 +213,7 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
 
         case FUNC_POINTER:
         {
-            TypeNode* type = (TypeNode*)ast_type_decl(parser,"func_pointer",plain_tok);
+            TypeNode* type = (TypeNode*)ast_type_decl(parser,nullptr,"func_pointer",plain_tok);
             type->type_idx = FUNC_POINTER;
             type->func_type = parse_func_sig(parser,"func_pointer",plain_tok);
             return type;
@@ -202,7 +226,7 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
         }
     }
 
-    TypeNode* type = (TypeNode*)ast_type_decl(parser,type_literal,plain_tok);
+    TypeNode* type = (TypeNode*)ast_type_decl(parser,name_space,type_literal,plain_tok);
     type->type_idx = type_idx;
     type->is_const = is_const;
     type->is_constant = is_constant;
@@ -1222,7 +1246,7 @@ void type_alias(Interloper& itl, Parser &parser)
 
         const String& name = token.literal;
 
-        if(check_redeclaration(itl,parser.cur_name_space,name,"type alias"))
+        if(check_redeclaration(itl,parser.cur_namespace,name,"type alias"))
         {
             return;
         }
@@ -1231,7 +1255,7 @@ void type_alias(Interloper& itl, Parser &parser)
     
         consume(parser,token_type::semi_colon);
 
-        add_type_definition(itl, type_def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_name_space);
+        add_type_definition(itl, type_def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_namespace);
     }
 
     else 
@@ -1261,8 +1285,6 @@ FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& to
         }
 
         // for each arg pull type, name
-       
-
         const auto lit_tok = next_token(parser);
 
         if(lit_tok.type != token_type::symbol)
@@ -1364,7 +1386,7 @@ FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& to
     // void
     else
     {
-        TypeNode* return_type = (TypeNode*)ast_type_decl(parser,"void",token); 
+        TypeNode* return_type = (TypeNode*)ast_type_decl(parser,nullptr,"void",token); 
         return_type->type_idx = u32(builtin_type::void_t);
 
         push_var(f->return_type,return_type);
@@ -1388,7 +1410,7 @@ void func_decl(Interloper& itl, Parser &parser)
         return;
     }
 
-    if(check_redeclaration(itl,parser.cur_name_space,func_name.literal,"function"))
+    if(check_redeclaration(itl,parser.cur_namespace,func_name.literal,"function"))
     {
         return;
     }
@@ -1403,7 +1425,7 @@ void func_decl(Interloper& itl, Parser &parser)
     f->block = block(parser); 
 
     // finally add the function def
-    add_func(itl,func_name.literal,parser.cur_name_space,f);
+    add_func(itl,func_name.literal,parser.cur_namespace,f);
 }
 
 void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
@@ -1416,7 +1438,7 @@ void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
         return;
     }
 
-    if(check_redeclaration(itl,parser.cur_name_space,name.literal,"struct"))
+    if(check_redeclaration(itl,parser.cur_namespace,name.literal,"struct"))
     {
         return;
     }
@@ -1457,7 +1479,7 @@ void struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
     }
 
 
-    add_type_definition(itl, type_def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_name_space);
+    add_type_definition(itl, type_def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_namespace);
 }
 
 void enum_decl(Interloper& itl,Parser& parser, u32 flags)
@@ -1470,7 +1492,7 @@ void enum_decl(Interloper& itl,Parser& parser, u32 flags)
         return;
     }
 
-    if(check_redeclaration(itl,parser.cur_name_space,name_tok.literal,"enum"))
+    if(check_redeclaration(itl,parser.cur_namespace,name_tok.literal,"enum"))
     {
         return;
     }
@@ -1557,7 +1579,7 @@ void enum_decl(Interloper& itl,Parser& parser, u32 flags)
     }
 
     // add the type decl
-    add_type_definition(itl, type_def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_name_space);
+    add_type_definition(itl, type_def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_namespace);
 }
 
 StringBuffer read_source_file(const String& filename)
@@ -1844,7 +1866,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
         {
             DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon,true);
 
-            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_name_space,t);
+            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_namespace,t);
 
             push_var(itl.constant_decl,const_decl);
             break; 
@@ -1855,7 +1877,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
         {
             DeclNode* decl = (DeclNode*)declaration(parser,token_type::semi_colon);
 
-            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_name_space,t);
+            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_namespace,t);
 
             push_var(itl.global_decl,global_decl);
             break; 
@@ -1864,7 +1886,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
         case token_type::namespace_t:
         {
             auto name_space = split_full_namespace(parser,t);
-            parser.cur_name_space = scan_namespace(itl.def_root,name_space);
+            parser.cur_namespace = scan_namespace(itl.def_root,name_space);
 
             if(parser.error)
             {
@@ -1873,9 +1895,9 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
             }
 
             // Namespace does not allready exist create it!
-            if(!parser.cur_name_space)
+            if(!parser.cur_namespace)
             {
-                parser.cur_name_space = new_named_scope(itl,itl.def_root,name_space);
+                parser.cur_namespace = new_named_scope(*parser.string_allocator,parser.global_namespace,name_space);
                 destroy_arr(name_space);
             }
 
