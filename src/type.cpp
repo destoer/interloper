@@ -2171,6 +2171,8 @@ void declare_compiler_type_aliases(Interloper& itl)
 
     // ssize
     add_internal_alias(itl,make_builtin(itl,builtin_type::s64_t),"ssize");
+
+    add_internal_alias(itl,make_array(itl,make_builtin(itl,builtin_type::c8_t,false),RUNTIME_SIZE),"string");
 }
 
 void parse_struct_def(Interloper& itl, TypeDef& def);

@@ -1,6 +1,3 @@
-// string type alias
-type_alias string = c8[];
-
 namespace rtti;
 
 constant RUNTIME_SIZE : u32 = 0xfffffff0;
