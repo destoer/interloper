@@ -244,3 +244,116 @@ Type* make_enum_type(Interloper& itl,Enum& enumeration)
 {
     return make_enum(itl,enumeration.type_idx);
 }
+
+
+enum class enum_decode_res
+{
+    ok,
+    invalid_namespace,
+    invalid_enum,
+    invalid_member,
+};
+
+static const char* ENUM_DECODE_RES_MESSAGE[] = 
+{
+    "ok",
+    "invalid namespace",
+    "undefined enum",
+    "invalid member",
+};
+
+const char* enum_decode_msg(enum_decode_res res)
+{
+    return ENUM_DECODE_RES_MESSAGE[u32(res)];
+}
+
+enum_decode_res decode_enum(Interloper& itl,ScopeNode* scope_node, Enum** enumeration, EnumMember** member)
+{
+    TypeDecl* type_decl = nullptr;
+
+    if(count(scope_node->scope) == 1)
+    {
+        type_decl = lookup_type(itl,scope_node->scope[0]);
+    }
+
+    else
+    {
+        const u32 count_minus_one = count(scope_node->scope) - 1;
+        DefNode* name_space = scan_namespace(itl.def_root,clip_array(scope_node->scope,count_minus_one));
+
+        if(!name_space)
+        {
+            return enum_decode_res::invalid_namespace;
+        }
+
+        type_decl = lookup_type_scoped(itl,name_space,scope_node->scope[count_minus_one]);
+    }
+
+    if(!type_decl || type_decl->kind != type_kind::enum_t)
+    {
+        return enum_decode_res::invalid_enum;
+    }
+
+    *enumeration = &itl.enum_table[type_decl->type_idx];
+
+    if(scope_node->expr->type != ast_type::symbol)
+    {
+        return enum_decode_res::invalid_member;
+    }
+
+    LiteralNode *member_node = (LiteralNode*)scope_node->expr;
+    *member = lookup((*enumeration)->member_map,member_node->literal);
+
+    if(!*member)
+    {
+        return enum_decode_res::invalid_member;
+    }
+
+    return enum_decode_res::ok;
+}
+
+// Note: if this can't find an enum it will fail without a panic
+Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, SymSlot dst_slot)
+{
+    Enum* enumeration = nullptr;
+    EnumMember* enum_member = nullptr;
+
+    auto decode_res = decode_enum(itl,scope_node,&enumeration,&enum_member);
+
+
+    switch(decode_res)
+    {
+        case enum_decode_res::ok:
+        {
+            // emit mov on the enum value
+            mov_imm(itl,func,dst_slot,enum_member->value);
+
+            // normal enum type
+            if(enumeration->kind != enum_type::int_t)
+            {
+                return make_enum_type(itl,*enumeration);
+            }
+
+            // implictly type to underlying integer value
+            else
+            {
+                return make_builtin(itl,builtin_type(enumeration->underlying_type_idx));
+            }
+        }
+
+        case enum_decode_res::invalid_enum:
+        case enum_decode_res::invalid_namespace:
+        {
+            return make_builtin(itl,builtin_type::void_t);
+        }
+        
+        case enum_decode_res::invalid_member:
+        {
+            panic(itl,itl_error::enum_type_error,"enum %s no such member\n",enumeration->name.buf);
+            return make_builtin(itl,builtin_type::void_t);     
+        }
+    }
+
+    assert(false);
+    return make_builtin(itl,builtin_type::void_t);
+}

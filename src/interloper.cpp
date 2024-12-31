@@ -186,55 +186,6 @@ void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, DefNode
     }
 }
 
-Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, SymSlot dst_slot)
-{
-    // TODO: this assumes an enum, we should 
-    // check if the last scope happens to be an enum
-    TypeDecl* type_decl = lookup_type(itl,scope_node->scope[0]);
-
-
-    if(type_decl && type_decl->kind == type_kind::enum_t)
-    {
-        const String &enum_name = scope_node->scope[0];
-
-        auto enumeration = itl.enum_table[type_decl->type_idx];
-
-        if(scope_node->expr->type != ast_type::symbol)
-        {
-            panic(itl,itl_error::enum_type_error,"expected enum member of enum %s\n",enum_name.buf);
-            return make_builtin(itl,builtin_type::void_t);
-        }
-
-        LiteralNode *member_node = (LiteralNode*)scope_node->expr;
-
-
-        EnumMember* enum_member = lookup(enumeration.member_map,member_node->literal);
-
-        if(!enum_member)
-        {
-            panic(itl,itl_error::enum_type_error,"enum %s no such member %s\n",enum_name.buf,member_node->literal);
-            return make_builtin(itl,builtin_type::void_t);
-        }
-
-        // emit mov on the enum value
-        mov_imm(itl,func,dst_slot,enum_member->value);
-
-        // normal enum type
-        if(enumeration.kind != enum_type::int_t)
-        {
-            return make_enum_type(itl,enumeration);
-        }
-
-        // implictly type to underlying integer value
-        else
-        {
-            return make_builtin(itl,builtin_type(enumeration.underlying_type_idx));
-        }
-    }
-
-    return make_builtin(itl,builtin_type::void_t);
-}
-
 Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, DefNode* name_space)
 {
     switch(node->type)
@@ -714,7 +665,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
             if(!name_space)
             {
-                panic(itl,itl_error::undeclared,"Could not find namespace");
+                panic(itl,itl_error::undeclared,"Could not find namespace\n");
                 return make_builtin(itl,builtin_type::void_t);
             }
 
@@ -1131,7 +1082,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                 if(!name_space)
                 {
-                    panic(itl,itl_error::undeclared,"Could not find namespace");
+                    panic(itl,itl_error::undeclared,"Could not find namespace\n");
                     return;
                 }
 

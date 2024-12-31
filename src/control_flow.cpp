@@ -485,9 +485,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
     switch_kind switch_type;
 
-    // used for checking enums match
-    u32 type_idx = 0;
-    
+    Enum* enumeration = nullptr;
 
     if(size == 0)
     {
@@ -505,48 +503,45 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         case ast_type::scope:
         {
             ScopeNode* first_stmt = (ScopeNode*)first_case->statement;
-            // TODO: First part of scope is just presumed as the enum this is probably technically wrong
-            TypeDecl* type_decl = lookup_type(itl,first_stmt->scope[0]);
 
-            if(!(type_decl && type_decl->kind == type_kind::enum_t))
+            EnumMember* enum_member = nullptr;
+            // TODO: Technically we should check for namespaced values
+            auto decode_res = decode_enum(itl,first_stmt,&enumeration,&enum_member);
+
+            if(decode_res != enum_decode_res::ok)
             {
-                // case is not an enum
-                panic(itl,itl_error::enum_type_error,"case is not an emum %s\n",first_stmt->scope[0].buf);
+                itl.ctx.expr = (AstNode*)first_stmt;
+                panic(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
                 return;
             }
-
-            type_idx = type_decl->type_idx;
-            Enum& enumeration = itl.enum_table[type_idx];
-
 
             for(u32 i = 0; i < size; i++)
             {
                 CaseNode* case_node = switch_node->statements[i];
 
-
                 // check we have a matching enum
                 if(case_node->statement->type != ast_type::scope)
                 {
+                    itl.ctx.expr = (AstNode*)case_node;
                     panic(itl,itl_error::enum_type_error,"switch: one or more cases are not an enum\n");
                     return;
                 }
 
                 ScopeNode* scope_node = (ScopeNode*)case_node->statement;
 
-                if(first_stmt->scope[0] != scope_node->scope[0])
+                Enum* case_enum = nullptr;
+                decode_res = decode_enum(itl,scope_node,&case_enum,&enum_member);
+
+                if(decode_res != enum_decode_res::ok)
                 {
-                    panic(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",first_stmt->scope[0].buf,scope_node->scope[0].buf);
+                    panic(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
                     return;
                 }
 
 
-                // pull the member value
-                LiteralNode *member_node = (LiteralNode*)scope_node->expr;
-                EnumMember* enum_member = lookup(enumeration.member_map,member_node->literal);
-
-                if(!enum_member)
+                if(case_enum->type_idx != enumeration->type_idx)
                 {
-                    panic(itl,itl_error::enum_type_error,"enum %s no such member %s\n",scope_node->scope[0].buf,member_node->literal);
+                    panic(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",enumeration->name.buf,case_enum->name.buf);
                     return;
                 }
 
@@ -582,10 +577,10 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     });
 
     // check every statement on a enum has a handler
-    if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != itl.enum_table[type_idx].member_map.size)
+    if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != enumeration->member_map.size)
     {
         // TODO: print the missing cases
-        panic(itl,itl_error::undeclared,"switch on enum %s missing cases:\n",itl.enum_table[type_idx].name.buf);
+        panic(itl,itl_error::undeclared,"switch on enum %s missing cases:\n",enumeration->name.buf);
         return;     
     }
 
@@ -651,16 +646,16 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                 if(is_enum(rtype))
                 {
                     EnumType* enum_type = (EnumType*)rtype;
-                    if(enum_type->enum_idx != type_idx)
+                    if(enum_type->enum_idx != enumeration->type_idx)
                     {
-                        panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",itl.enum_table[type_idx].name.buf,type_name(itl,rtype));
+                        panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
                         return;                        
                     }
                 }
 
                 else
                 {
-                    panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",itl.enum_table[type_idx].name.buf,type_name(itl,rtype));
+                    panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
                     return;                    
                 }
                 break;

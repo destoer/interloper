@@ -61,13 +61,13 @@ func print_hex(v : u64)
 
 func format_int(any : rtti::Any, specifier: c8)
 {
-    v := int_from_any(any);
+    v := rtti::int_from_any(any);
 
     switch(specifier)
     {
         case 'd':
         {
-            sign := is_signed(any.type);
+            sign := rtti::is_signed(any.type);
             print_dec(v,sign);
         }
 
@@ -83,7 +83,7 @@ func format_int(any : rtti::Any, specifier: c8)
 
         default:
         {
-            sign := is_signed(any.type);
+            sign := rtti::is_signed(any.type);
             print_dec(v,sign);
         }
     }
@@ -270,7 +270,7 @@ func print_arg(arg : rtti::Any, specifier : c8)
 
         case rtti::itl_type::c8_t:
         {
-            char := char_from_any(arg);
+            char := rtti::char_from_any(arg);
 
             putchar(char);
         }
@@ -282,14 +282,14 @@ func print_arg(arg : rtti::Any, specifier : c8)
 
         case rtti::itl_type::f64_t:
         {
-            float := float_from_any(arg);
+            float := rtti::float_from_any(arg);
 
             print_float(float,6);
         }
 
         case rtti::itl_type::bool_t:
         {
-            res := bool_from_any(arg);
+            res := rtti::bool_from_any(arg);
 
             if(res)
             {
@@ -309,7 +309,7 @@ func print_arg(arg : rtti::Any, specifier : c8)
 
         case rtti::itl_type::pointer_t:
         {
-            v := int_from_any(arg);
+            v := rtti::int_from_any(arg);
 
             if(!v)
             {
@@ -325,16 +325,16 @@ func print_arg(arg : rtti::Any, specifier : c8)
 
         case rtti::itl_type::array_t:
         {
-            array_type := cast(const ArrayType@,type);
+            array_type := cast(const rtti::ArrayType@,type);
 
             contained_type := array_type.contained_type;
 
-            if(is_runtime_size(array_type.size))
+            if(rtti::is_runtime_size(array_type.size))
             {
                 // vla string
-                if(contained_type.type_idx == itl_type::c8_t)
+                if(contained_type.type_idx == rtti::itl_type::c8_t)
                 {
-                    vla := cast(Vla@,arg.data);
+                    vla := cast(rtti::Vla@,arg.data);
                     write_str_raw(cast(c8@,vla.data),vla.len);
                 }
 
@@ -347,9 +347,9 @@ func print_arg(arg : rtti::Any, specifier : c8)
             // fixed size
             else
             {
-                if(contained_type.type_idx == itl_type::c8_t)
+                if(contained_type.type_idx == rtti::itl_type::c8_t)
                 {
-                    v := int_from_any(arg);
+                    v := rtti::int_from_any(arg);
 
                     char_ptr : const c8@ = cast(const c8@,v);
                     write_str_raw(char_ptr,array_type.size);

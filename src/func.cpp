@@ -643,7 +643,6 @@ FuncCall get_calling_sig(Interloper& itl,DefNode* name_space,Function& func,Func
             {
                 if(global)
                 {
-                    print_namespace_tree(itl.def_root,0);
                     panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
                 }
 
