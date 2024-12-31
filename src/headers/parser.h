@@ -370,7 +370,7 @@ struct TypeNode
     u32 type_idx;
 
     FuncNode* func_type = nullptr;
-    DefNode* name_space = nullptr;
+    NameSpace* name_space = nullptr;
 
     Array<AstNode*> compound_type;
 };
@@ -412,7 +412,7 @@ struct GlobalDeclNode
 
     DeclNode *decl = nullptr;
     String filename;
-    DefNode* name_space;
+    NameSpace* name_space;
 };
 
 struct BlockNode
@@ -594,8 +594,8 @@ struct Parser
     AstPointers* ast_arrays;
     
     String cur_file = "";
-    DefNode* cur_namespace = nullptr;
-    DefNode* global_namespace = nullptr;
+    NameSpace* cur_namespace = nullptr;
+    NameSpace* global_namespace = nullptr;
     String cur_path = "";
 
     // error handling
@@ -747,7 +747,7 @@ AstNode *ast_float(Parser& parser, f64 value, const Token& token)
     return (AstNode*)float_node;  
 }
 
-AstNode* ast_type_decl(Parser& parser, DefNode* name_space, const String& name, const Token& token)
+AstNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& name, const Token& token)
 {
     TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,ast_fmt::type,token);
 
@@ -910,7 +910,7 @@ AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const St
     return (AstNode*)alias_node;
 }
 
-AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename,DefNode* name_space, const Token& token)
+AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename,NameSpace* name_space, const Token& token)
 {
     GlobalDeclNode* global_node = alloc_node<GlobalDeclNode>(parser,ast_type::global_declaration,ast_fmt::global_declaration,token);
 

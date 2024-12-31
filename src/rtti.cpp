@@ -16,7 +16,7 @@ b32 is_any(Interloper& itl, const Type* type)
     return false;
 }
 
-u32 cache_struct(Interloper& itl, DefNode* name_space, const String& name)
+u32 cache_struct(Interloper& itl, NameSpace* name_space, const String& name)
 {
     TypeDecl* type_decl = lookup_type_scoped(itl,name_space,name);
 
@@ -53,7 +53,7 @@ void cache_rtti_structs(Interloper& itl)
 {
     auto& rtti = itl.rtti_cache;
     
-    DefNode* rtti_name_space = find_name_space(itl,"rtti");
+    NameSpace* rtti_name_space = find_name_space(itl,"rtti");
 
     // cache Any struct info
     rtti.any_idx = cache_struct(itl,rtti_name_space,"Any");

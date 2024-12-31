@@ -11,7 +11,7 @@ static constexpr u32 ATTR_FLAG = (1 << 1);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
-Parser make_parser(const String& cur_file,DefNode* root,ArenaAllocator *global_string_allocator,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
+Parser make_parser(const String& cur_file,NameSpace* root,ArenaAllocator *global_string_allocator,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
 {
     Parser parser;
     parser.ast_allocator = ast_allocator;
@@ -164,7 +164,7 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
     }
 
     // See if this type is name spaced
-    DefNode* name_space = nullptr;
+    NameSpace* name_space = nullptr;
 
     // We have a namespace to parse
     if(peek(parser,1).type == token_type::scope)
@@ -1221,7 +1221,7 @@ BlockNode *block(Parser &parser)
     return b;
 }
 
-bool check_redeclaration(Interloper& itl, DefNode* root, const String& name, const String& checked_def_type)
+bool check_redeclaration(Interloper& itl, NameSpace* root, const String& name, const String& checked_def_type)
 {
     const DefInfo* existing_def = lookup_definition(root,name);
 
@@ -1887,7 +1887,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
         case token_type::namespace_t:
         {
             auto name_space = split_full_namespace(parser,t);
-            parser.cur_namespace = scan_namespace(itl.def_root,name_space);
+            parser.cur_namespace = scan_namespace(itl.global_namespace,name_space);
 
             if(parser.error)
             {
@@ -1930,7 +1930,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 bool parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
 {
     // Parse out the file
-    Parser parser = make_parser(filename,itl.def_root,&itl.string_allocator,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
+    Parser parser = make_parser(filename,itl.global_namespace,&itl.string_allocator,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
 
     if(tokenize(file,filename,parser.string_allocator,parser.tokens))
     {

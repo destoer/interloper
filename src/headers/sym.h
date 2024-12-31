@@ -56,7 +56,7 @@ struct FuncPointerType
 struct Function
 {
     String name;
-    DefNode* name_space = nullptr;
+    NameSpace* name_space = nullptr;
 
     FuncSig sig;
 
@@ -86,7 +86,7 @@ struct FunctionDef
     // we also don't want the memory to move when we insert
     // new ones
     Function* func = nullptr;
-    DefNode* name_space = nullptr;
+    NameSpace* name_space = nullptr;
     String name;
 };
 
@@ -100,12 +100,12 @@ struct FunctionTable
 
 b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 
-Function* lookup_opt_scoped_function(Interloper& itl, DefNode* name_space, const String& name);
+Function* lookup_opt_scoped_function(Interloper& itl, NameSpace* name_space, const String& name);
 Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
 Function& lookup_internal_function(Interloper& itl, const String& name);
 
-void parse_func_sig(Interloper& itl,DefNode* name_space,FuncSig& sig,const FuncNode& node);
+void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
 
 struct Interloper;
 
@@ -145,13 +145,13 @@ inline const char* definition_type_name(const DefInfo* info)
     return DEFINITION_TYPE_NAMES[u32(info->type)];
 }
 
-struct DefNode
+struct NameSpace
 {
-    DefNode* parent = nullptr;
+    NameSpace* parent = nullptr;
     String name_space;
     String full_name;
     HashTable<String,DefInfo> table;
-    Array<DefNode*> nodes;
+    Array<NameSpace*> nodes;
 };
 
 struct SymbolTable
@@ -168,7 +168,7 @@ struct SymbolTable
     
     // Current symbol table scope
     // TODO: it may be better if this was accessed by reference to the file ctx
-    DefNode* scope;
+    NameSpace* cur_namespace;
 };
 
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);

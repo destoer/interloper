@@ -1,6 +1,6 @@
-DefNode* alloc_new_scope()
+NameSpace* alloc_new_scope()
 {
-    DefNode* new_scope = (DefNode*)malloc(sizeof(DefNode));
+    NameSpace* new_scope = (NameSpace*)malloc(sizeof(NameSpace));
     assert(new_scope);
 
     *new_scope = {};
@@ -11,7 +11,7 @@ DefNode* alloc_new_scope()
     return new_scope;
 }
 
-DefNode* new_anon_scope(DefNode* root)
+NameSpace* new_anon_scope(NameSpace* root)
 {
     auto new_scope = alloc_new_scope();
 
@@ -21,9 +21,9 @@ DefNode* new_anon_scope(DefNode* root)
     return new_scope;
 }
 
-DefInfo* lookup_definition(DefNode* name_space, const String& name)
+DefInfo* lookup_definition(NameSpace* name_space, const String& name)
 {
-    DefNode* cur_scope = name_space;
+    NameSpace* cur_scope = name_space;
 
     while(cur_scope)
     {
@@ -40,12 +40,12 @@ DefInfo* lookup_definition(DefNode* name_space, const String& name)
     return nullptr;    
 }
 
-DefInfo* lookup_definition_scoped(DefNode* name_space, const String& name)
+DefInfo* lookup_definition_scoped(NameSpace* name_space, const String& name)
 {
    return lookup(name_space->table,name);
 }
 
-DefInfo* lookup_typed_definition_scoped(DefNode* name_space, const String& name, definition_type type)
+DefInfo* lookup_typed_definition_scoped(NameSpace* name_space, const String& name, definition_type type)
 {
     DefInfo* definition = lookup_definition_scoped(name_space,name);
 
@@ -57,7 +57,7 @@ DefInfo* lookup_typed_definition_scoped(DefNode* name_space, const String& name,
     return nullptr; 
 }
 
-DefInfo* lookup_typed_definition(DefNode* name_space, const String& name, definition_type type)
+DefInfo* lookup_typed_definition(NameSpace* name_space, const String& name, definition_type type)
 {
     DefInfo* definition = lookup_definition(name_space,name);
 
@@ -70,12 +70,12 @@ DefInfo* lookup_typed_definition(DefNode* name_space, const String& name, defini
 }
 
 
-DefNode* new_named_scope(ArenaAllocator& string_allocator,DefNode* root, const Array<String>& name)
+NameSpace* new_named_scope(ArenaAllocator& string_allocator,NameSpace* root, const Array<String>& name)
 {
     // TODO: this is wrong but we don't have nested scopes atm so we dont care
     assert(count(name) == 1);
 
-    DefNode* new_scope = new_anon_scope(root);
+    NameSpace* new_scope = new_anon_scope(root);
     new_scope->name_space = copy_string(string_allocator,name[0]);
     new_scope->full_name = new_scope->name_space;
 
@@ -83,10 +83,10 @@ DefNode* new_named_scope(ArenaAllocator& string_allocator,DefNode* root, const A
 }
 
 
-DefNode* scan_namespace(const DefNode* root, const Array<String>& name_space)
+NameSpace* scan_namespace(const NameSpace* root, const Array<String>& name_space)
 {
     u32 name_idx = 0;
-    DefNode *result = nullptr;
+    NameSpace *result = nullptr;
 
     while(name_idx != count(name_space))
     {
@@ -118,13 +118,13 @@ DefNode* scan_namespace(const DefNode* root, const Array<String>& name_space)
     return result;
 }
 
-DefNode* find_name_space(Interloper& itl, const String& name)
+NameSpace* find_name_space(Interloper& itl, const String& name)
 {
-    for(size_t i = 0; i < count(itl.def_root->nodes); i++)
+    for(size_t i = 0; i < count(itl.global_namespace->nodes); i++)
     {
-        if(itl.def_root->nodes[i]->name_space == name)
+        if(itl.global_namespace->nodes[i]->name_space == name)
         {
-            return itl.def_root->nodes[i];
+            return itl.global_namespace->nodes[i];
         }
     }
 
@@ -133,7 +133,7 @@ DefNode* find_name_space(Interloper& itl, const String& name)
 
 void print_depth(int depth);
 
-void print_namespace_tree(DefNode* root, u32 depth)
+void print_namespace_tree(NameSpace* root, u32 depth)
 {
     print_depth(depth);
 
@@ -165,7 +165,7 @@ void print_namespace_tree(DefNode* root, u32 depth)
     }
 }
 
-TypeDecl* lookup_incomplete_decl_scoped(DefNode* name_space, const String& name)
+TypeDecl* lookup_incomplete_decl_scoped(NameSpace* name_space, const String& name)
 {
     DefInfo* info = lookup_typed_definition_scoped(name_space,name,definition_type::type);
 
@@ -179,7 +179,7 @@ TypeDecl* lookup_incomplete_decl_scoped(DefNode* name_space, const String& name)
 
 TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name)
 {
-    DefInfo* info = lookup_typed_definition(itl.symbol_table.scope,name,definition_type::type);
+    DefInfo* info = lookup_typed_definition(itl.symbol_table.cur_namespace,name,definition_type::type);
 
     if(info)
     {
@@ -215,7 +215,7 @@ TypeDef* lookup_type_def(Interloper& itl, const String& name)
 
 
 // NOTE: this gets a function ONLY in the requested scope
-FunctionDef* lookup_func_def_scope(Interloper& itl, DefNode* name_space, const String& name)
+FunctionDef* lookup_func_def_scope(Interloper& itl, NameSpace* name_space, const String& name)
 {
     auto func_def = lookup_typed_definition_scoped(name_space,name,definition_type::function);
 
@@ -232,13 +232,13 @@ FunctionDef* lookup_func_def_scope(Interloper& itl, DefNode* name_space, const S
 FunctionDef* lookup_func_def_global(Interloper& itl, const String& name)
 {
     //printf("lookup global: %s\n",name.buf);
-    return lookup_func_def_scope(itl,itl.def_root, name);
+    return lookup_func_def_scope(itl,itl.global_namespace, name);
 }
 
 // Search each scope from the bottom for a function
 FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
 {
-    auto func_def = lookup_typed_definition(itl.symbol_table.scope,name,definition_type::function);
+    auto func_def = lookup_typed_definition(itl.symbol_table.cur_namespace,name,definition_type::function);
 
     if(func_def)
     {

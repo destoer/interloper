@@ -2,7 +2,7 @@
 
 using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 
-Function* find_complete_func(Interloper& itl, DefNode* name_space, const String& name)
+Function* find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
     Function* func_def = lookup_opt_scoped_function(itl,name_space,name);
 

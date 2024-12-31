@@ -1,7 +1,7 @@
 #include <interloper.h>
 
-DefInfo* lookup_definition(DefNode* root, const String& name);
-void print_namespace_tree(DefNode* root, u32 depth);
+DefInfo* lookup_definition(NameSpace* root, const String& name);
+void print_namespace_tree(NameSpace* root, u32 depth);
 
 const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 {
@@ -772,7 +772,7 @@ Type* copy_type(Interloper& itl, const Type* type)
 // to be used externally when attempting to find a type decl
 // dont look it up in the type table directly as the definition might not
 // have been parsed yet
-TypeDecl* lookup_type_internal(Interloper& itl,DefNode* name_space,const String& name)
+TypeDecl* lookup_type_internal(Interloper& itl,NameSpace* name_space,const String& name)
 {
     TypeDecl* user_type = name_space == nullptr? lookup_incomplete_decl(itl,name) : lookup_incomplete_decl_scoped(name_space,name);
 
@@ -814,7 +814,7 @@ TypeDecl* lookup_type(Interloper& itl,const String& name)
     return lookup_type_internal(itl,nullptr,name);
 }
 
-TypeDecl* lookup_type_scoped(Interloper& itl,DefNode* name_space,const String& name)
+TypeDecl* lookup_type_scoped(Interloper& itl,NameSpace* name_space,const String& name)
 {
     return lookup_type_internal(itl,name_space,name);
 }
@@ -950,7 +950,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         type->sig = {};
 
         // parse the function sig
-        parse_func_sig(itl,itl.symbol_table.scope,type->sig,*type_decl->func_type);
+        parse_func_sig(itl,itl.symbol_table.cur_namespace,type->sig,*type_decl->func_type);
 
         return (Type*)type;
     }
@@ -2074,7 +2074,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
     return type;
 }
 
-void add_type_to_scope(DefNode* name_space, TypeDecl* decl)
+void add_type_to_scope(NameSpace* name_space, TypeDecl* decl)
 {
     DefInfo info;
     info.type = definition_type::type;
@@ -2099,14 +2099,14 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
     type_decl->type_idx = type_idx;
     type_decl->name = name;
     type_decl->kind = kind;
-    type_decl->name_space = itl.def_root;
+    type_decl->name_space = itl.global_namespace;
     type_decl->state = type_def_state::checked;
     
-    add_type_to_scope(itl.def_root,type_decl);    
+    add_type_to_scope(itl.global_namespace,type_decl);    
 }
 
 
-void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, const String& name, const String& filename, DefNode* name_space)
+void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, const String& name, const String& filename, NameSpace* name_space)
 {
     TypeDef* definition = alloc_type_decl<TypeDef>(itl);
 

@@ -3,12 +3,12 @@
 
 void enter_new_anon_scope(SymbolTable& sym_table)
 {
-    sym_table.scope = new_anon_scope(sym_table.scope);
+    sym_table.cur_namespace = new_anon_scope(sym_table.cur_namespace);
 }
 
 void destroy_scope(SymbolTable &sym_table)
 {
-    sym_table.scope = sym_table.scope->parent;
+    sym_table.cur_namespace = sym_table.cur_namespace->parent;
 }
 
 u32 sym_to_idx(SymSlot s)
@@ -58,7 +58,7 @@ Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
 
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
-    const DefInfo* def_info = lookup_definition(sym_table.scope,sym);
+    const DefInfo* def_info = lookup_definition(sym_table.cur_namespace,sym);
 
     if(def_info && def_info->type == definition_type::variable)
     {
@@ -112,7 +112,7 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
     const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
-    add(sym_table.scope->table,sym.name, info);
+    add(sym_table.cur_namespace->table,sym.name, info);
 }    
 
 Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
@@ -143,7 +143,7 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 
     // add this into the top level scope
     const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
-    add(itl.def_root->table,sym.name, info);    
+    add(itl.global_namespace->table,sym.name, info);    
 
     return sym_from_slot(sym_table,sym.reg.slot);
 }

@@ -1,6 +1,6 @@
 
 
-func check_val(v : u64, sign : bool, value : Value) bool
+func check_val(v : u64, sign : bool, value : std::Value) bool
 {
     return value.v == v && sign == value.sign;
 }

@@ -279,7 +279,7 @@ enum_decode_res decode_enum(Interloper& itl,ScopeNode* scope_node, Enum** enumer
     else
     {
         const u32 count_minus_one = count(scope_node->scope) - 1;
-        DefNode* name_space = scan_namespace(itl.def_root,clip_array(scope_node->scope,count_minus_one));
+        NameSpace* name_space = scan_namespace(itl.global_namespace,clip_array(scope_node->scope,count_minus_one));
 
         if(!name_space)
         {

@@ -19,7 +19,7 @@ Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot
 
 void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
 std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
-void add_func(Interloper& itl, const String& name, DefNode* name_space, FuncNode* root);
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 ListNode* alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
 
@@ -56,27 +56,27 @@ void store_const_string(Interloper& itl, Function& func, const String& literal, 
 
 void push_context(Interloper& itl)
 {
-    itl.ctx.cur_scope = itl.symbol_table.scope;
+    itl.ctx.cur_scope = itl.symbol_table.cur_namespace;
     push_var(itl.saved_ctx,itl.ctx);
 }
 
 void pop_context(Interloper& itl)
 {
     itl.ctx = pop(itl.saved_ctx);
-    itl.symbol_table.scope = itl.ctx.cur_scope;
+    itl.symbol_table.cur_namespace = itl.ctx.cur_scope;
 }
 
-void trash_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr)
+void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr)
 {
     itl.ctx.cur_scope = cur_scope;
     itl.ctx.filename = filename;
     itl.ctx.expr = expr;
 
-    itl.symbol_table.scope = itl.ctx.cur_scope;
+    itl.symbol_table.cur_namespace = itl.ctx.cur_scope;
 }
 
 // save and overwrite the ctx
-void switch_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr)
+void switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr)
 {
     push_context(itl);
     trash_context(itl,filename,cur_scope,expr);
@@ -162,7 +162,7 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 }
 
-void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, DefNode* name_space)
+void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpace* name_space)
 {
     switch(node->type)
     {
@@ -186,7 +186,7 @@ void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, DefNode
     }
 }
 
-Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, DefNode* name_space)
+Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, NameSpace* name_space)
 {
     switch(node->type)
     {
@@ -661,7 +661,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 return type;
             }
 
-            DefNode* name_space = scan_namespace(itl.def_root,scope_node->scope);
+            NameSpace* name_space = scan_namespace(itl.global_namespace,scope_node->scope);
 
             if(!name_space)
             {
@@ -1078,7 +1078,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             case ast_type::scope:
             {
                 ScopeNode* scope_node = (ScopeNode*)line;
-                DefNode* name_space = scan_namespace(itl.def_root,scope_node->scope);
+                NameSpace* name_space = scan_namespace(itl.global_namespace,scope_node->scope);
 
                 if(!name_space)
                 {
@@ -1307,8 +1307,8 @@ void check_startup_defs(Interloper& itl)
         cache_rtti_structs(itl);
     }
 
-    check_startup_func(itl,"main",itl.def_root);
-    check_startup_func(itl,"start",itl.def_root);
+    check_startup_func(itl,"main",itl.global_namespace);
+    check_startup_func(itl,"start",itl.global_namespace);
 
     itl.std_name_space = find_name_space(itl,"std");
 
@@ -1341,11 +1341,11 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     itl.func_table = make_func_table();
 
     // Setup the global scope
-    itl.def_root = alloc_new_scope();
-    itl.def_root->name_space = "global";
-    itl.def_root->full_name = itl.def_root->name_space;
-    itl.ctx.cur_scope = itl.def_root;
-    itl.symbol_table.scope = itl.def_root;
+    itl.global_namespace = alloc_new_scope();
+    itl.global_namespace->name_space = "global";
+    itl.global_namespace->full_name = itl.global_namespace->name_space;
+    itl.ctx.cur_scope = itl.global_namespace;
+    itl.symbol_table.cur_namespace = itl.global_namespace;
 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);

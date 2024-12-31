@@ -82,7 +82,7 @@ struct FileContext
 {
     AstNode *expr = nullptr;
     String filename = "";
-    DefNode *cur_scope = nullptr;
+    NameSpace *cur_scope = nullptr;
 };
 
 
@@ -104,8 +104,8 @@ struct Interloper
     Array<DeclNode*> global_def;
 
     // Cur scope saved in FileContext
-    DefNode* def_root = nullptr;
-    DefNode* std_name_space = nullptr;
+    NameSpace* global_namespace = nullptr;
+    NameSpace* std_name_space = nullptr;
 
     SymbolTable symbol_table;
     GlobalAlloc global_alloc;
@@ -265,5 +265,5 @@ u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);
 void pop_context(Interloper& itl);
-void trash_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr);
-void switch_context(Interloper& itl, String filename,DefNode* cur_scope, AstNode* expr);
+void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
+void switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);

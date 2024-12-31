@@ -329,6 +329,7 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     
     // allocate a reserved slot for the struct
     def.decl.type_idx = count(itl.struct_table);
+    def.decl.kind = type_kind::struct_t; // won't correctly handle recursive type defs otherwhise
     resize(itl.struct_table,count(itl.struct_table) + 1);
 
 

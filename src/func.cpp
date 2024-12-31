@@ -25,7 +25,7 @@ void destroy_func_table(FunctionTable& func_table)
     destroy_allocator(func_table.arena);
 }
 
-void add_func(Interloper& itl, const String& name, DefNode* name_space, FuncNode* root)
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root)
 {
     FunctionDef func_def;
 
@@ -90,7 +90,7 @@ Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = 
  
 Function& create_dummy_func(Interloper& itl, const String& name)
 {
-    add_func(itl,name,itl.def_root,nullptr);
+    add_func(itl,name,itl.global_namespace,nullptr);
 
     FunctionDef& func_def = *lookup_func_def_global(itl,name);
     
@@ -100,12 +100,12 @@ Function& create_dummy_func(Interloper& itl, const String& name)
     return lookup_internal_function(itl,name);
 }
 
-b32 func_exists(Interloper& itl, const String& name, DefNode* name_space)
+b32 func_exists(Interloper& itl, const String& name, NameSpace* name_space)
 {
     return lookup_func_def_scope(itl,name_space,name) != nullptr;
 }
 
-void check_startup_func(Interloper& itl, const String& name, DefNode* name_space)
+void check_startup_func(Interloper& itl, const String& name, NameSpace* name_space)
 {
     auto def_opt = lookup_func_def_scope(itl,name_space,name);
 
@@ -119,7 +119,7 @@ void check_startup_func(Interloper& itl, const String& name, DefNode* name_space
     finalise_func(itl,*def_opt);    
 }
 
-Function* lookup_opt_scoped_function(Interloper& itl, DefNode* name_space, const String& name)
+Function* lookup_opt_scoped_function(Interloper& itl, NameSpace* name_space, const String& name)
 {
     FunctionDef* func_def_opt = lookup_func_def_scope(itl,name_space, name);
 
@@ -149,7 +149,7 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name)
 
 Function& lookup_internal_function(Interloper& itl, const String& name)
 {
-    Function* func_opt = lookup_opt_scoped_function(itl,itl.def_root,name);
+    Function* func_opt = lookup_opt_scoped_function(itl,itl.global_namespace,name);
 
     // assert this just for saftey
     // functions looked up by this should never be missing due to startup checks
@@ -591,7 +591,7 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     }    
 }
 
-FuncCall get_calling_sig(Interloper& itl,DefNode* name_space,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
+FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
 {
     UNUSED(name_space);
 
@@ -757,7 +757,7 @@ void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_no
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_function_call(Interloper &itl,DefNode* name_space,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, SymSlot dst_slot)
 {
     TupleAssignNode* tuple_node = nullptr;
 
@@ -851,7 +851,7 @@ Type* compile_function_call(Interloper &itl,DefNode* name_space,Function &func,A
     return handle_call(itl,func,call_info,dst_slot,arg_clean);
 }
 
-void parse_func_sig(Interloper& itl,DefNode* name_space,FuncSig& sig,const FuncNode& node)
+void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node)
 {
     // about to move to a different context
     switch_context(itl,node.filename,name_space,(AstNode*)&node);
