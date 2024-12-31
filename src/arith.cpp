@@ -422,6 +422,22 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 // TODO: should we make this more flexible?
 std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot)
 {
+    NameSpace* name_space = nullptr;
+
+    if(node->type == ast_type::scope)
+    {
+        ScopeNode* scope_node = (ScopeNode*)node;
+        name_space = scan_namespace(itl.global_namespace,scope_node->scope);
+
+        if(!name_space)
+        {
+            panic(itl,itl_error::undeclared,"Could not find namespace\n");
+            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+        }
+
+        node = scope_node->expr;
+    }
+
     // figure out what the addr is
     switch(node->type)
     {
@@ -435,8 +451,7 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
             if(!sym_ptr)
             {
                 // could be attempting to take a function pointer?
-                // TODO: we cant scope this yet
-                auto func_def = lookup_func_def_global(itl,name);
+                auto func_def = name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_global(itl,name);
 
                 if(func_def)
                 {

@@ -13,6 +13,18 @@ struct Bucket
 
 type_alias HASH_FUNC = func(key: const byte@, size: usize) usize;
 
+
+func hash_u64(key_ptr: byte@, size: usize) usize
+{
+    key := @cast(u64@,key_ptr);
+
+    // TODO: impl a better integer hash func
+    hash := key;
+    slot := hash & (size - 1); 
+
+    return slot;
+}
+
 struct HashTable
 {
     bucket: Array;

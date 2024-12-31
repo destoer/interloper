@@ -58,9 +58,9 @@ Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
 
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
-    const DefInfo* def_info = lookup_definition(sym_table.ctx->name_space,sym);
+    const DefInfo* def_info = lookup_typed_definition(sym_table.ctx->name_space,sym,definition_type::variable);
 
-    if(def_info && def_info->type == definition_type::variable)
+    if(def_info)
     {
         const auto slot = sym_from_idx(def_info->handle);
         return &sym_from_slot(sym_table,slot);
