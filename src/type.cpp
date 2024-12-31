@@ -951,7 +951,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         type->sig = {};
 
         // parse the function sig
-        parse_func_sig(itl,itl.symbol_table.cur_namespace,type->sig,*type_decl->func_type);
+        parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type);
 
         return (Type*)type;
     }
@@ -2122,6 +2122,7 @@ void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, con
 
 
     add_type_to_scope(name_space,(TypeDecl*)definition);
+    push_var(itl.type_decl,root);
 }
 
 b32 type_exists(Interloper& itl, const String& name)

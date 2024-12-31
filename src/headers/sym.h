@@ -154,6 +154,8 @@ struct NameSpace
     Array<NameSpace*> nodes;
 };
 
+struct FileContext;
+
 struct SymbolTable
 {
     SlotLookup slot_lookup;
@@ -165,10 +167,9 @@ struct SymbolTable
     LabelLookup label_lookup;
 
     ArenaAllocator *string_allocator;
+    ArenaAllocator *namespace_allocator;
     
-    // Current symbol table scope
-    // TODO: it may be better if this was accessed by reference to the file ctx
-    NameSpace* cur_namespace;
+    FileContext* ctx;
 };
 
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);

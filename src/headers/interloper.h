@@ -82,7 +82,7 @@ struct FileContext
 {
     AstNode *expr = nullptr;
     String filename = "";
-    NameSpace *cur_scope = nullptr;
+    NameSpace *name_space = nullptr;
 };
 
 
@@ -119,6 +119,7 @@ struct Interloper
     ArenaAllocator list_allocator;
     ArenaAllocator ast_allocator;
     ArenaAllocator ast_string_allocator;
+    ArenaAllocator namespace_allocator;
 
     AstPointers ast_arrays;
     
@@ -129,6 +130,8 @@ struct Interloper
     ArenaAllocator type_allocator;
 
     Array<Type*> alias_table;
+    // Array copy for debug printing of ast
+    Array<AstNode*> type_decl;
 
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;

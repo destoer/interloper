@@ -3,12 +3,12 @@
 
 void enter_new_anon_scope(SymbolTable& sym_table)
 {
-    sym_table.cur_namespace = new_anon_scope(sym_table.cur_namespace);
+    sym_table.ctx->name_space = new_anon_scope(*sym_table.namespace_allocator,sym_table.ctx->name_space);
 }
 
 void destroy_scope(SymbolTable &sym_table)
 {
-    sym_table.cur_namespace = sym_table.cur_namespace->parent;
+    sym_table.ctx->name_space = sym_table.ctx->name_space->parent;
 }
 
 u32 sym_to_idx(SymSlot s)
@@ -58,7 +58,7 @@ Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
 
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
-    const DefInfo* def_info = lookup_definition(sym_table.cur_namespace,sym);
+    const DefInfo* def_info = lookup_definition(sym_table.ctx->name_space,sym);
 
     if(def_info && def_info->type == definition_type::variable)
     {
@@ -112,7 +112,7 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
     const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
-    add(sym_table.cur_namespace->table,sym.name, info);
+    add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
 Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
@@ -171,8 +171,6 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
 
 void destroy_sym_table(SymbolTable &sym_table)
 {
-    // TODO: Destroy the scoping tree
-
     for(u32 s = 0; s < count(sym_table.slot_lookup); s++)
     {
         auto& sym = sym_table.slot_lookup[s];

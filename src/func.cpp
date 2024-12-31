@@ -757,7 +757,7 @@ void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_no
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, SymSlot dst_slot)
 {
     TupleAssignNode* tuple_node = nullptr;
 
@@ -849,6 +849,12 @@ Type* compile_function_call(Interloper &itl,NameSpace* name_space,Function &func
 
     // handle calling and returns
     return handle_call(itl,func,call_info,dst_slot,arg_clean);
+}
+
+// used for both tuples and ordinary function calls
+Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+{
+    return compile_scoped_function_call(itl,nullptr,func,node,dst_slot);
 }
 
 void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node)

@@ -1,6 +1,6 @@
-NameSpace* alloc_new_scope()
+NameSpace* alloc_new_scope(ArenaAllocator& arena)
 {
-    NameSpace* new_scope = (NameSpace*)malloc(sizeof(NameSpace));
+    NameSpace* new_scope = (NameSpace*)allocate(arena,sizeof(NameSpace));
     assert(new_scope);
 
     *new_scope = {};
@@ -11,9 +11,9 @@ NameSpace* alloc_new_scope()
     return new_scope;
 }
 
-NameSpace* new_anon_scope(NameSpace* root)
+NameSpace* new_anon_scope(ArenaAllocator& arena,NameSpace* root)
 {
-    auto new_scope = alloc_new_scope();
+    auto new_scope = alloc_new_scope(arena);
 
     // Insert the new scope
     new_scope->parent = root;
@@ -70,12 +70,12 @@ DefInfo* lookup_typed_definition(NameSpace* name_space, const String& name, defi
 }
 
 
-NameSpace* new_named_scope(ArenaAllocator& string_allocator,NameSpace* root, const Array<String>& name)
+NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocator,NameSpace* root, const Array<String>& name)
 {
     // TODO: this is wrong but we don't have nested scopes atm so we dont care
     assert(count(name) == 1);
 
-    NameSpace* new_scope = new_anon_scope(root);
+    NameSpace* new_scope = new_anon_scope(arena,root);
     new_scope->name_space = copy_string(string_allocator,name[0]);
     new_scope->full_name = new_scope->name_space;
 
@@ -179,7 +179,7 @@ TypeDecl* lookup_incomplete_decl_scoped(NameSpace* name_space, const String& nam
 
 TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name)
 {
-    DefInfo* info = lookup_typed_definition(itl.symbol_table.cur_namespace,name,definition_type::type);
+    DefInfo* info = lookup_typed_definition(itl.symbol_table.ctx->name_space,name,definition_type::type);
 
     if(info)
     {
@@ -238,7 +238,7 @@ FunctionDef* lookup_func_def_global(Interloper& itl, const String& name)
 // Search each scope from the bottom for a function
 FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
 {
-    auto func_def = lookup_typed_definition(itl.symbol_table.cur_namespace,name,definition_type::function);
+    auto func_def = lookup_typed_definition(itl.symbol_table.ctx->name_space,name,definition_type::function);
 
     if(func_def)
     {
@@ -247,4 +247,36 @@ FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
 
     // fail attempt to find globally
     return nullptr;
+}
+
+void destroy_namespace_node(NameSpace* root)
+{
+    if(!root)
+    {
+        return;
+    }
+
+    for(size_t i = 0; i < count(root->nodes); i++)
+    {
+        destroy_namespace_node(root->nodes[i]);
+    }
+
+    destroy_table(root->table);
+    destroy_arr(root->nodes);
+}
+
+void destroy_namespace_tree(Interloper& itl)
+{
+    destroy_namespace_node(itl.global_namespace);
+    destroy_allocator(itl.namespace_allocator);
+    itl.global_namespace = nullptr;
+}
+
+void setup_namespace(Interloper& itl)
+{
+    // Setup the global scope
+    itl.global_namespace = alloc_new_scope(itl.namespace_allocator);
+    itl.global_namespace->name_space = "global";
+    itl.global_namespace->full_name = itl.global_namespace->name_space;
+    itl.ctx.name_space = itl.global_namespace;
 }

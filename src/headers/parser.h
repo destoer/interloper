@@ -592,6 +592,8 @@ struct Parser
     // Longer lived string allocator lasts until compiler end
     ArenaAllocator* global_string_allocator;
     AstPointers* ast_arrays;
+
+    ArenaAllocator* namespace_allocator;
     
     String cur_file = "";
     NameSpace* cur_namespace = nullptr;

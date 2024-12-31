@@ -11,12 +11,14 @@ static constexpr u32 ATTR_FLAG = (1 << 1);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
-Parser make_parser(const String& cur_file,NameSpace* root,ArenaAllocator *global_string_allocator,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
+Parser make_parser(const String& cur_file,NameSpace* root, ArenaAllocator* namespace_allocator,
+    ArenaAllocator *global_string_allocator,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
 {
     Parser parser;
     parser.ast_allocator = ast_allocator;
     parser.string_allocator = string_allocator;
     parser.global_string_allocator = global_string_allocator;
+    parser.namespace_allocator = namespace_allocator;
 
     // NOTE: this relies on get_program_name to allocate the string correctly
     parser.cur_file = cur_file;
@@ -181,9 +183,10 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
         // Namespace does not allready exist create it!
         if(!name_space)
         {
-            name_space = new_named_scope(*parser.global_string_allocator,parser.global_namespace,strings);
-            destroy_arr(strings);
+            name_space = new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,strings);
         }
+
+        destroy_arr(strings);
     }
 
     // read out the plain type
@@ -1734,6 +1737,7 @@ Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
         if(name.type != token_type::symbol)
         {
             panic(parser,name,"Expected name for namespace got: %s\n",tok_name(name.type));
+            destroy_arr(name_space);
             return name_space;
         }   
 
@@ -1898,9 +1902,10 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
             // Namespace does not allready exist create it!
             if(!parser.cur_namespace)
             {
-                parser.cur_namespace = new_named_scope(*parser.global_string_allocator,parser.global_namespace,name_space);
-                destroy_arr(name_space);
+                parser.cur_namespace = new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,name_space);
             }
+
+            destroy_arr(name_space);
 
             if(match(parser,token_type::semi_colon))
             {
@@ -1930,7 +1935,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 bool parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
 {
     // Parse out the file
-    Parser parser = make_parser(filename,itl.global_namespace,&itl.string_allocator,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
+    Parser parser = make_parser(filename,itl.global_namespace,&itl.namespace_allocator,&itl.string_allocator,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
 
     if(tokenize(file,filename,parser.string_allocator,parser.tokens))
     {

@@ -56,30 +56,26 @@ void store_const_string(Interloper& itl, Function& func, const String& literal, 
 
 void push_context(Interloper& itl)
 {
-    itl.ctx.cur_scope = itl.symbol_table.cur_namespace;
     push_var(itl.saved_ctx,itl.ctx);
 }
 
 void pop_context(Interloper& itl)
 {
     itl.ctx = pop(itl.saved_ctx);
-    itl.symbol_table.cur_namespace = itl.ctx.cur_scope;
 }
 
-void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr)
+void trash_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
 {
-    itl.ctx.cur_scope = cur_scope;
+    itl.ctx.name_space = name_space;
     itl.ctx.filename = filename;
     itl.ctx.expr = expr;
-
-    itl.symbol_table.cur_namespace = itl.ctx.cur_scope;
 }
 
 // save and overwrite the ctx
-void switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr)
+void switch_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
 {
     push_context(itl);
-    trash_context(itl,filename,cur_scope,expr);
+    trash_context(itl,filename,name_space,expr);
 }
 
 
@@ -168,13 +164,13 @@ void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpa
     {
         case ast_type::function_call:
         {
-            compile_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            compile_scoped_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
             break;
         }
 
         case ast_type::tuple_assign:
         {
-            compile_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            compile_scoped_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
             break;      
         }
 
@@ -192,7 +188,7 @@ Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, 
     {
         case ast_type::function_call:
         {
-            return compile_function_call(itl,name_space,func,node,dst_slot);
+            return compile_scoped_function_call(itl,name_space,func,node,dst_slot);
         }
 
         default:
@@ -646,7 +642,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::function_call:
         {
-            return compile_function_call(itl,nullptr,func,node,dst_slot);
+            return compile_function_call(itl,func,node,dst_slot);
         }
 
         case ast_type::scope:
@@ -1092,7 +1088,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,nullptr,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
                 break;
             }            
 
@@ -1136,7 +1132,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,nullptr,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
                 break;
             }
 
@@ -1248,7 +1244,7 @@ void destroy_ast(Interloper& itl)
 
     itl.ctx.expr = nullptr;
     itl.ctx.filename = ""; 
-    itl.ctx.cur_scope = nullptr;
+    itl.ctx.name_space = nullptr;
 }
 
 void destroy_itl(Interloper &itl)
@@ -1257,6 +1253,8 @@ void destroy_itl(Interloper &itl)
     destroy_arr(itl.program);
     destroy_const_pool(itl.const_pool);
     destroy_sym_table(itl.symbol_table);
+    destroy_namespace_tree(itl);
+    destroy_arr(itl.type_decl);
     destroy_arr(itl.constant_decl);
     destroy_arr(itl.global_decl);
     destroy_arr(itl.global_alloc.array_allocation);
@@ -1268,6 +1266,7 @@ void destroy_itl(Interloper &itl)
     // destroy typing tables
     destroy_struct_table(itl.struct_table);
     destroy_enum_table(itl.enum_table);
+    destroy_arr(itl.alias_table);
 
     destroy_arr(itl.name_space_buffer);
 
@@ -1335,17 +1334,15 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
     itl.type_allocator = make_allocator(TYPE_INITIAL_SIZE);
+    itl.namespace_allocator = make_allocator(2 * 1024);
 
     itl.symbol_table.string_allocator = &itl.string_allocator;
+    itl.symbol_table.namespace_allocator = &itl.namespace_allocator;
+    itl.symbol_table.ctx = &itl.ctx;
 
     itl.func_table = make_func_table();
 
-    // Setup the global scope
-    itl.global_namespace = alloc_new_scope();
-    itl.global_namespace->name_space = "global";
-    itl.global_namespace->full_name = itl.global_namespace->name_space;
-    itl.ctx.cur_scope = itl.global_namespace;
-    itl.symbol_table.cur_namespace = itl.global_namespace;
+    setup_namespace(itl);
 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);
@@ -1375,20 +1372,11 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
 
     if(itl.print_ast)
     {
-        assert(false);
-        // TODO: re add this
-        // // print all type defs
-        // for(u32 b = 0; b < count(itl.type_def.buf); b++)
-        // {
-        //     auto &bucket = itl.type_def.buf[b];
-
-        //     for(u32 i = 0; i < count(bucket); i++)
-        //     {
-        //         auto& def = bucket[i].v;
-        //         print(def.root);
-        //     }
-        // }
-
+        // print type defs
+        for(u32 t = 0; t < count(itl.type_decl); t++)
+        {
+            print(itl.type_decl[t]);
+        }
 
         // print function defs
         for(u32 f = 0; f < count(itl.func_table.table); f++)
