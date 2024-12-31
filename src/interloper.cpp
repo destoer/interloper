@@ -19,7 +19,7 @@ Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot
 
 void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
 std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
-void add_func(Interloper& itl, const String& name, const String& name_space, FuncNode* root);
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 ListNode* alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
 
@@ -38,6 +38,7 @@ void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot ad
 void store_const_string(Interloper& itl, Function& func, const String& literal, const SymSlot arr_slot);
 
 #include "lexer.cpp"
+#include "namespace.cpp"
 #include "symbol.cpp"
 #include "parser.cpp"
 #include "ir.cpp"
@@ -63,7 +64,7 @@ void pop_context(Interloper& itl)
     itl.ctx = pop(itl.saved_ctx);
 }
 
-void trash_context(Interloper& itl, String filename,String name_space, AstNode* expr)
+void trash_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
 {
     itl.ctx.name_space = name_space;
     itl.ctx.filename = filename;
@@ -71,7 +72,7 @@ void trash_context(Interloper& itl, String filename,String name_space, AstNode* 
 }
 
 // save and overwrite the ctx
-void switch_context(Interloper& itl, String filename,String name_space, AstNode* expr)
+void switch_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
 {
     push_context(itl);
     trash_context(itl,filename,name_space,expr);
@@ -157,19 +158,19 @@ std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 }
 
-void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, const String& name_space)
+void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpace* name_space)
 {
     switch(node->type)
     {
         case ast_type::function_call:
         {
-            compile_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            compile_scoped_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
             break;
         }
 
         case ast_type::tuple_assign:
         {
-            compile_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            compile_scoped_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
             break;      
         }
 
@@ -181,62 +182,13 @@ void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, const S
     }
 }
 
-Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, SymSlot dst_slot)
-{
-    // TODO: this assumes an enum, we should 
-    // check if the last scope happens to be an enum
-    TypeDecl* type_decl = lookup_type(itl,scope_node->scope);
-
-
-    if(type_decl && type_decl->kind == type_kind::enum_t)
-    {
-        const String &enum_name = scope_node->scope;
-
-        auto enumeration = itl.enum_table[type_decl->type_idx];
-
-        if(scope_node->expr->type != ast_type::symbol)
-        {
-            panic(itl,itl_error::enum_type_error,"expected enum member of enum %s\n",enum_name.buf);
-            return make_builtin(itl,builtin_type::void_t);
-        }
-
-        LiteralNode *member_node = (LiteralNode*)scope_node->expr;
-
-
-        EnumMember* enum_member = lookup(enumeration.member_map,member_node->literal);
-
-        if(!enum_member)
-        {
-            panic(itl,itl_error::enum_type_error,"enum %s no such member %s\n",enum_name.buf,member_node->literal);
-            return make_builtin(itl,builtin_type::void_t);
-        }
-
-        // emit mov on the enum value
-        mov_imm(itl,func,dst_slot,enum_member->value);
-
-        // normal enum type
-        if(enumeration.kind != enum_type::int_t)
-        {
-            return make_enum_type(itl,enumeration);
-        }
-
-        // implictly type to underlying integer value
-        else
-        {
-            return make_builtin(itl,builtin_type(enumeration.underlying_type_idx));
-        }
-    }
-
-    return make_builtin(itl,builtin_type::void_t);
-}
-
-Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, const String& name_space)
+Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, NameSpace* name_space)
 {
     switch(node->type)
     {
         case ast_type::function_call:
         {
-            return compile_function_call(itl,name_space,func,node,dst_slot);
+            return compile_scoped_function_call(itl,name_space,func,node,dst_slot);
         }
 
         default:
@@ -690,7 +642,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
 
         case ast_type::function_call:
         {
-            return compile_function_call(itl,"",func,node,dst_slot);
+            return compile_function_call(itl,func,node,dst_slot);
         }
 
         case ast_type::scope:
@@ -705,7 +657,15 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 return type;
             }
 
-            return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,scope_node->scope);
+            NameSpace* name_space = scan_namespace(itl.global_namespace,scope_node->scope);
+
+            if(!name_space)
+            {
+                panic(itl,itl_error::undeclared,"Could not find namespace\n");
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
+            return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,name_space);
         }
 
         case ast_type::string:
@@ -908,7 +868,7 @@ void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot ad
 
 void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
-    new_scope(itl.symbol_table);
+    enter_new_anon_scope(itl.symbol_table);
 
     const u32 size = count(block_node->statements);
     for(u32 s = 0; s < size; s++)
@@ -1114,13 +1074,21 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             case ast_type::scope:
             {
                 ScopeNode* scope_node = (ScopeNode*)line;
-                compile_scoped_stmt(itl,func,scope_node->expr,scope_node->scope);
+                NameSpace* name_space = scan_namespace(itl.global_namespace,scope_node->scope);
+
+                if(!name_space)
+                {
+                    panic(itl,itl_error::undeclared,"Could not find namespace\n");
+                    return;
+                }
+
+                compile_scoped_stmt(itl,func,scope_node->expr,name_space);
                 break;
             }
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,"",func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
                 break;
             }            
 
@@ -1164,7 +1132,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,"",func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
                 break;
             }
 
@@ -1221,24 +1189,6 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
         }
     }
 
-    auto &table = itl.symbol_table.table[count(itl.symbol_table.table) - 1];
-
-    for(u32 b = 0; b < count(table.buf); b++)
-    {
-        auto& bucket = table.buf[b];
-
-        for(u32 i = 0; i < count(bucket); i++)
-        {
-            auto& sym = sym_from_slot(itl.symbol_table,bucket[i].v);
-
-            // free the stack alloc for each var thats about to go out of scope
-            if(sym.arg_offset == NON_ARG)
-            {
-                free_sym(itl,func,sym);
-            }
-        }
-    }
-
     destroy_scope(itl.symbol_table);
 }
 
@@ -1268,8 +1218,6 @@ void compile_globals(Interloper& itl)
     finalise_global_offset(itl);
 }
 
-// -> handle block args inside the reg allocator and get a proper global allocator
-
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
@@ -1291,13 +1239,12 @@ void destroy_ast(Interloper& itl)
     destroy_allocator(itl.ast_allocator);
     destroy_allocator(itl.ast_string_allocator);
 
-    destroy_table(itl.type_def);
     destroy_arr(itl.global_def);
     destroy_arr(itl.saved_ctx);
 
     itl.ctx.expr = nullptr;
     itl.ctx.filename = ""; 
-    itl.ctx.name_space = "";
+    itl.ctx.name_space = nullptr;
 }
 
 void destroy_itl(Interloper &itl)
@@ -1306,6 +1253,8 @@ void destroy_itl(Interloper &itl)
     destroy_arr(itl.program);
     destroy_const_pool(itl.const_pool);
     destroy_sym_table(itl.symbol_table);
+    destroy_namespace_tree(itl);
+    destroy_arr(itl.type_decl);
     destroy_arr(itl.constant_decl);
     destroy_arr(itl.global_decl);
     destroy_arr(itl.global_alloc.array_allocation);
@@ -1317,7 +1266,6 @@ void destroy_itl(Interloper &itl)
     // destroy typing tables
     destroy_struct_table(itl.struct_table);
     destroy_enum_table(itl.enum_table);
-    destroy_table(itl.type_table);
     destroy_arr(itl.alias_table);
 
     destroy_arr(itl.name_space_buffer);
@@ -1344,12 +1292,10 @@ static constexpr u32 TYPE_INITIAL_SIZE =  4 * 1024;
 
 void setup_type_table(Interloper& itl)
 {
-    itl.type_table = make_table<String,TypeDecl>();
-
     // add all the builtin types  
     for(u32 i = 0; i < BUILTIN_TYPE_SIZE; i++)
     {
-        add_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin);
+        add_internal_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin);
     }
 }
 
@@ -1360,11 +1306,19 @@ void check_startup_defs(Interloper& itl)
         cache_rtti_structs(itl);
     }
 
-    check_startup_func(itl,"main","");
-    check_startup_func(itl,"start","");
+    check_startup_func(itl,"main",itl.global_namespace);
+    check_startup_func(itl,"start",itl.global_namespace);
 
-    check_startup_func(itl,"memcpy","std");
-    check_startup_func(itl,"zero_mem","std");
+    itl.std_name_space = find_name_space(itl,"std");
+
+    if(!itl.std_name_space)
+    {
+        panic(itl,itl_error::undeclared,"std namespace is not declared");
+        return;
+    }
+
+    check_startup_func(itl,"memcpy",itl.std_name_space);
+    check_startup_func(itl,"zero_mem",itl.std_name_space);
 }
 
 void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
@@ -1380,11 +1334,15 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
     itl.type_allocator = make_allocator(TYPE_INITIAL_SIZE);
+    itl.namespace_allocator = make_allocator(2 * 1024);
 
     itl.symbol_table.string_allocator = &itl.string_allocator;
+    itl.symbol_table.namespace_allocator = &itl.namespace_allocator;
+    itl.symbol_table.ctx = &itl.ctx;
 
     itl.func_table = make_func_table();
-    itl.type_def = make_table<String,TypeDef>();
+
+    setup_namespace(itl);
 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);
@@ -1414,30 +1372,17 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
 
     if(itl.print_ast)
     {
-        // print all type defs
-        for(u32 b = 0; b < count(itl.type_def.buf); b++)
+        // print type defs
+        for(u32 t = 0; t < count(itl.type_decl); t++)
         {
-            auto &bucket = itl.type_def.buf[b];
-
-            for(u32 i = 0; i < count(bucket); i++)
-            {
-                auto& def = bucket[i].v;
-                print(def.root);
-            }
+            print(itl.type_decl[t]);
         }
 
-
         // print function defs
-        for(u32 b = 0; b < count(itl.func_table.table.buf); b++)
+        for(u32 f = 0; f < count(itl.func_table.table); f++)
         {
-            auto &bucket = itl.func_table.table.buf[b];
-
-            for(u32 i = 0; i < count(bucket); i++)
-            {
-                auto& func = bucket[i].v;
-
-                print((AstNode*)func.root);
-            }
+            auto& func = itl.func_table.table[f];
+            print((AstNode*)func.root);    
         }
     }
 
@@ -1451,9 +1396,6 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     }
 
     putchar('\n');
-
-    // global scope
-    new_scope(itl.symbol_table);
 
     // compile all our constant values 
     compile_constants(itl);
@@ -1471,8 +1413,6 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     // how do we want to handle getting to the entry point / address allocation?
     // do we want a "label" for each function? 
     compile_functions(itl);
-
-    destroy_scope(itl.symbol_table);     
 
     // okay we dont need the parse tree anymore
     // free it

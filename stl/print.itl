@@ -59,15 +59,15 @@ func print_hex(v : u64)
     print_int(v,16);
 }
 
-func format_int(any : Any, specifier: c8)
+func format_int(any : rtti::Any, specifier: c8)
 {
-    v := int_from_any(any);
+    v := rtti::int_from_any(any);
 
     switch(specifier)
     {
         case 'd':
         {
-            sign := is_signed(any.type);
+            sign := rtti::is_signed(any.type);
             print_dec(v,sign);
         }
 
@@ -83,7 +83,7 @@ func format_int(any : Any, specifier: c8)
 
         default:
         {
-            sign := is_signed(any.type);
+            sign := rtti::is_signed(any.type);
             print_dec(v,sign);
         }
     }
@@ -222,74 +222,74 @@ func print_float(v : f64, spec_dp: u32)
     write_str_raw(&buffer[0],idx);
 }
 
-func print_arg(arg : Any, specifier : c8)
+func print_arg(arg : rtti::Any, specifier : c8)
 {
     type := arg.type;
 
     switch(type.type_idx)
     {
-        case itl_type::u8_t:
+        case rtti::itl_type::u8_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::u16_t:
+        case rtti::itl_type::u16_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::u32_t:
+        case rtti::itl_type::u32_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::u64_t:
+        case rtti::itl_type::u64_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::s8_t:
+        case rtti::itl_type::s8_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::s16_t:
+        case rtti::itl_type::s16_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::s32_t:
+        case rtti::itl_type::s32_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::s64_t:
+        case rtti::itl_type::s64_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::c8_t:
+        case rtti::itl_type::c8_t:
         {
-            char := char_from_any(arg);
+            char := rtti::char_from_any(arg);
 
             putchar(char);
         }
 
-        case itl_type::byte_t:
+        case rtti::itl_type::byte_t:
         {
             format_int(arg,specifier);
         }
 
-        case itl_type::f64_t:
+        case rtti::itl_type::f64_t:
         {
-            float := float_from_any(arg);
+            float := rtti::float_from_any(arg);
 
             print_float(float,6);
         }
 
-        case itl_type::bool_t:
+        case rtti::itl_type::bool_t:
         {
-            res := bool_from_any(arg);
+            res := rtti::bool_from_any(arg);
 
             if(res)
             {
@@ -302,14 +302,14 @@ func print_arg(arg : Any, specifier : c8)
             }
         }
 
-        case itl_type::null_t:
+        case rtti::itl_type::null_t:
         {
             write_string("NULL");
         }
 
-        case itl_type::pointer_t:
+        case rtti::itl_type::pointer_t:
         {
-            v := int_from_any(arg);
+            v := rtti::int_from_any(arg);
 
             if(!v)
             {
@@ -323,18 +323,18 @@ func print_arg(arg : Any, specifier : c8)
             }
         }
 
-        case itl_type::array_t:
+        case rtti::itl_type::array_t:
         {
-            array_type := cast(const ArrayType@,type);
+            array_type := cast(const rtti::ArrayType@,type);
 
             contained_type := array_type.contained_type;
 
-            if(is_runtime_size(array_type.size))
+            if(rtti::is_runtime_size(array_type.size))
             {
                 // vla string
-                if(contained_type.type_idx == itl_type::c8_t)
+                if(contained_type.type_idx == rtti::itl_type::c8_t)
                 {
-                    vla := cast(Vla@,arg.data);
+                    vla := cast(rtti::Vla@,arg.data);
                     write_str_raw(cast(c8@,vla.data),vla.len);
                 }
 
@@ -347,9 +347,9 @@ func print_arg(arg : Any, specifier : c8)
             // fixed size
             else
             {
-                if(contained_type.type_idx == itl_type::c8_t)
+                if(contained_type.type_idx == rtti::itl_type::c8_t)
                 {
-                    v := int_from_any(arg);
+                    v := rtti::int_from_any(arg);
 
                     char_ptr : const c8@ = cast(const c8@,v);
                     write_str_raw(char_ptr,array_type.size);
@@ -362,12 +362,12 @@ func print_arg(arg : Any, specifier : c8)
             }
         }
 
-        case itl_type::struct_t:
+        case rtti::itl_type::struct_t:
         {
             unimplemented("struct print");
         }
 
-        case itl_type::enum_t:
+        case rtti::itl_type::enum_t:
         {
             unimplemented("enum print");
         }
@@ -375,7 +375,7 @@ func print_arg(arg : Any, specifier : c8)
 }
 
 
-func print_args(fmt : const string, args : const Any[])
+func print_args(fmt : const string, args : const rtti::Any[])
 {
     // preven print if stdout aint setup
     if(!global_setup)
@@ -452,7 +452,7 @@ enum log_level : LogLevelData
 
 global max_log_level: log_level = log_level::debug;
 
-func log(level: log_level,prefix: const string,fmt: const string, args : const Any[])
+func log(level: log_level,prefix: const string,fmt: const string, args : const rtti::Any[])
 {
     if(cast(u32,level) <= cast(u32,max_log_level))
     {
@@ -488,7 +488,7 @@ func log_trace(prefix: const string,fmt: const string, args : ...)
 }
 
 // TODO: add line and file info? (what mechanism should be used for this)
-func unimplemented_args(fmt: const string, args: const Any[])
+func unimplemented_args(fmt: const string, args: const rtti::Any[])
 {
     write_string("\nunimplemented: ");
     print_args(fmt,args);
@@ -498,7 +498,7 @@ func unimplemented_args(fmt: const string, args: const Any[])
     exit(2);
 }
 
-func crash_and_burn_args(fmt: const string, args: const Any[])
+func crash_and_burn_args(fmt: const string, args: const rtti::Any[])
 {
     write_string("\ncrash and burn: ");
     print_args(fmt,args);

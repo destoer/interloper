@@ -396,14 +396,14 @@ func read_file_raw(file : File@,buf : byte@, len : usize) [usize, file_read_res]
 }
 
 
-enum file_seek
+enum file_seek_mode
 {
     start,
     cur,
     end,
 };
 
-func file_seek(file: File@, seek: file_seek, offset : s64)
+func file_seek(file: File@, seek: file_seek_mode, offset : s64)
 {
     os_seek(file.handle,seek,offset);
 }
@@ -419,11 +419,11 @@ func file_size(file: File@) s64
     old := file_tell(file);
 
     // seek to end and get pos 
-    file_seek(file,file_seek::end,0);
+    file_seek(file,file_seek_mode::end,0);
     size := file_tell(file);
 
     // reset the file pos
-    file_seek(file,file_seek::start,old);
+    file_seek(file,file_seek_mode::start,old);
 
     return size;
 }

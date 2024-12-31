@@ -1,17 +1,14 @@
 #include <interloper.h>
 #include "type.cpp"
 
-
-void new_scope(SymbolTable &sym_table)
+void enter_new_anon_scope(SymbolTable& sym_table)
 {
-    push_var<HashTable<String,SymSlot>,HashTable<String,SymSlot>>(sym_table.table,make_table<String,SymSlot>());
+    sym_table.ctx->name_space = new_anon_scope(*sym_table.namespace_allocator,sym_table.ctx->name_space);
 }
 
 void destroy_scope(SymbolTable &sym_table)
 {
-    sym_table.sym_count -= sym_table.table[count(sym_table.table) - 1].size;
-    auto table = pop(sym_table.table);
-    destroy_table(table);
+    sym_table.ctx->name_space = sym_table.ctx->name_space->parent;
 }
 
 u32 sym_to_idx(SymSlot s)
@@ -61,14 +58,12 @@ Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
 
 Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 {
-    for(s32 i = count(sym_table.table) - 1; i >= 0; i--)
-    {
-        const SymSlot* slot = lookup(sym_table.table[i],sym);
+    const DefInfo* def_info = lookup_typed_definition(sym_table.ctx->name_space,sym,definition_type::variable);
 
-        if(slot)
-        {
-            return &sym_from_slot(sym_table,*slot);
-        }
+    if(def_info)
+    {
+        const auto slot = sym_from_idx(def_info->handle);
+        return &sym_from_slot(sym_table,slot);
     }
 
     return nullptr;
@@ -114,10 +109,10 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 }
 
 // add symbol to the scope table
-void add_scope(SymbolTable &sym_table, Symbol &sym)
+void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    add(sym_table.table[count(sym_table.table) - 1],sym.name, sym.reg.slot);
-    sym_table.sym_count++;
+    const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
+    add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
 Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
@@ -127,7 +122,7 @@ Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
     auto sym = make_sym(itl,name,type);
     push_var(sym_table.slot_lookup,sym);
 
-    add_scope(sym_table,sym);
+    add_sym_to_scope(sym_table,sym);
 
     return sym_from_slot(sym_table,sym.reg.slot);
 }
@@ -147,8 +142,8 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
     }
 
     // add this into the top level scope
-    add(sym_table.table[0],sym.name, sym.reg.slot);
-    sym_table.sym_count++;       
+    const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
+    add(itl.global_namespace->table,sym.name, info);    
 
     return sym_from_slot(sym_table,sym.reg.slot);
 }
@@ -176,13 +171,6 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
 
 void destroy_sym_table(SymbolTable &sym_table)
 {
-    for(u32 h = 0; h < count(sym_table.table); h++)
-    {
-        destroy_table(sym_table.table[h]);
-    }
-
-    destroy_arr(sym_table.table);
-
     for(u32 s = 0; s < count(sym_table.slot_lookup); s++)
     {
         auto& sym = sym_table.slot_lookup[s];
@@ -192,9 +180,6 @@ void destroy_sym_table(SymbolTable &sym_table)
     destroy_arr(sym_table.slot_lookup);
     destroy_arr(sym_table.label_lookup);
     destroy_arr(sym_table.global);
-
-    sym_table.sym_count = 0;
-    sym_table.var_count = 0;
 }
 
 
@@ -249,24 +234,4 @@ String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space,
     push_char(allocator,buffer,'\0');
 
     return make_string(buffer);
-}
-
-String tmp_name_space_name(Interloper& itl,const String& name_space, const String& name)
-{
-    // just return the name
-    if(name_space == "")
-    {
-        return name;
-    }
-
-    clear_arr(itl.name_space_buffer);
-
-    push_string(itl.name_space_buffer,name_space);
-    push_string(itl.name_space_buffer,"::");
-    push_string(itl.name_space_buffer,name);
-
-    // null term the buffer
-    push_var(itl.name_space_buffer,'\0');
-
-    return make_string(itl.name_space_buffer);
 }

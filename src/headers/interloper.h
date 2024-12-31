@@ -7,6 +7,7 @@ using namespace destoer;
 #include <parser.h>
 #include <pool.h>
 #include <type.h>
+#include <sym.h>
 #include <ir.h>
 #include <interpretter.h>
 
@@ -81,8 +82,7 @@ struct FileContext
 {
     AstNode *expr = nullptr;
     String filename = "";
-
-    String name_space = "";
+    NameSpace *name_space = nullptr;
 };
 
 
@@ -103,6 +103,10 @@ struct Interloper
     FunctionTable func_table;
     Array<DeclNode*> global_def;
 
+    // Cur scope saved in FileContext
+    NameSpace* global_namespace = nullptr;
+    NameSpace* std_name_space = nullptr;
+
     SymbolTable symbol_table;
     GlobalAlloc global_alloc;
 
@@ -115,6 +119,7 @@ struct Interloper
     ArenaAllocator list_allocator;
     ArenaAllocator ast_allocator;
     ArenaAllocator ast_string_allocator;
+    ArenaAllocator namespace_allocator;
 
     AstPointers ast_arrays;
     
@@ -124,11 +129,9 @@ struct Interloper
     // allocating all things types!
     ArenaAllocator type_allocator;
 
-    // Type lookup
-    HashTable<String,TypeDecl> type_table;
-
-    // type definitions
-    HashTable<String,TypeDef> type_def;
+    Array<Type*> alias_table;
+    // Array copy for debug printing of ast
+    Array<AstNode*> type_decl;
 
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;
@@ -138,7 +141,6 @@ struct Interloper
 
     StructTable struct_table;
     EnumTable enum_table;
-    AliasTable alias_table;
     RttiCache rtti_cache;
 
     // targetting info
@@ -168,7 +170,6 @@ struct Interloper
 
     b32 compile_only = false;
 };
-
 
 void print(const AstNode *root, b32 override_seperator = false);
 
@@ -267,5 +268,5 @@ u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);
 void pop_context(Interloper& itl);
-void trash_context(Interloper& itl, String filename,String name_space, AstNode* expr);
-void switch_context(Interloper& itl, String filename,String name_space, AstNode* expr);
+void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
+void switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);

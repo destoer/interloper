@@ -1,8 +1,4 @@
-namespace std;
-
-// string type alias
-type_alias string = c8[];
-
+namespace rtti;
 
 constant RUNTIME_SIZE : u32 = 0xfffffff0;
 
@@ -159,7 +155,7 @@ func is_signed(type : const Type@) bool
 {
     idx := cast(u32,type.type_idx);
 
-    return in_range_u64(idx,cast(u32,itl_type::s8_t),cast(u32,itl_type::s64_t));
+    return std::in_range_u64(idx,cast(u32,itl_type::s8_t),cast(u32,itl_type::s64_t));
 }
 
 func is_array(type : const Type@) bool
@@ -176,7 +172,7 @@ func float_from_any(any : const Any) f64
 {
     v := cast(u64,any.data);
     out: f64;
-    memcpy(&out,&v,sizeof(out));
+    std::memcpy(&out,&v,sizeof(out));
     return out;
 }
 

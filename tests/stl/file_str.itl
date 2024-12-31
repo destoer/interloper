@@ -1,7 +1,7 @@
 
 func test_str() s32
 {
-    [fp,err] := std::open_file("tests/stl/lines.txt",file_mode::read,file_opt::open);
+    [fp,err] := std::open_file("tests/stl/lines.txt",std::file_mode::read,std::file_opt::open);
 
     if(err)
     {
@@ -11,9 +11,9 @@ func test_str() s32
     buf : c8[256];
     lines : s32 = 0;
 
-    rc := file_read_res::success;
+    rc := std::file_read_res::success;
 
-    while(rc == file_read_res::success)
+    while(rc == std::file_read_res::success)
     {
         [str,rc] := std::read_file_line(&fp,buf);
         std::print("{}\n",str);

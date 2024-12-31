@@ -2,7 +2,7 @@
 
 func main() s32
 {
-    arr : Array = std::make_array(sizeof_type(u32));
+    arr : std::Array = std::make_array(sizeof_type(u32));
 
     
     for(i in 1 <= 4)

@@ -2,6 +2,7 @@
 #include <destoer/destoer.h>
 #include <token.h>
 #include <type.h>
+#include <sym.h>
 
 enum class ast_type
 {
@@ -347,6 +348,15 @@ struct RecordNode
     Array<AstNode*> nodes;
 };
 
+struct ScopeNode 
+{
+    AstNode node;
+
+    // NOTE: depending on the context the last member may be an enum member
+    Array<String> scope;
+
+    AstNode* expr;
+};
 
 
 struct TypeNode
@@ -360,6 +370,7 @@ struct TypeNode
     u32 type_idx;
 
     FuncNode* func_type = nullptr;
+    NameSpace* name_space = nullptr;
 
     Array<AstNode*> compound_type;
 };
@@ -401,7 +412,7 @@ struct GlobalDeclNode
 
     DeclNode *decl = nullptr;
     String filename;
-    String name_space;
+    NameSpace* name_space;
 };
 
 struct BlockNode
@@ -418,7 +429,6 @@ struct FuncNode
 
     String name;
     String filename;
-    String name_space;
 
     Array<TypeNode*> return_type;
     BlockNode* block = nullptr;
@@ -435,7 +445,6 @@ struct StructNode
 
     String name;
     String filename;
-    String name_space;
     Array<DeclNode*> members;
     // is there a member forced to be first in the memory layout?
     DeclNode* forced_first = nullptr;
@@ -455,7 +464,6 @@ struct EnumNode
 
     String name;
     String filename;
-    String name_space;
     Array<EnumMemberDecl> member;
 
     // types
@@ -476,7 +484,6 @@ struct AliasNode
 
     String name;
     String filename;
-    String name_space;
 
     TypeNode* type;
 };
@@ -552,18 +559,6 @@ struct SwitchNode
 };
 
 
-struct ScopeNode 
-{
-    AstNode node;
-
-    // TODO: this should probably be an array
-    // when we add scopes
-    String scope;
-
-    AstNode* expr;
-};
-
-
 struct TupleAssignNode
 {
     AstNode node;
@@ -590,12 +585,19 @@ struct Parser
 
     Array<Token> tokens;
 
-    ArenaAllocator* allocator;
+    // Destroy with ast
+    ArenaAllocator* ast_allocator;
     ArenaAllocator* string_allocator;
+
+    // Longer lived string allocator lasts until compiler end
+    ArenaAllocator* global_string_allocator;
     AstPointers* ast_arrays;
+
+    ArenaAllocator* namespace_allocator;
     
     String cur_file = "";
-    String cur_name_space = "";
+    NameSpace* cur_namespace = nullptr;
+    NameSpace* global_namespace = nullptr;
     String cur_path = "";
 
     // error handling
@@ -634,7 +636,7 @@ void add_ast_pointer(Parser& parser, void* pointer);
 template<typename T>
 T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
 {
-    AstNode* node = (AstNode*)allocate(*parser.allocator,sizeof(T));
+    AstNode* node = (AstNode*)allocate(*parser.ast_allocator,sizeof(T));
 
     // default init the actual type
     T* ret_node = (T*)node;
@@ -683,7 +685,7 @@ AstNode *ast_char(Parser& parser,const char character, const Token& token)
 }
 
 
-AstNode *ast_func(Parser& parser,const String &name, const String& filename,const String& name_space, const Token& token)
+AstNode *ast_func(Parser& parser,const String &name, const String& filename, const Token& token)
 {
     FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
 
@@ -692,12 +694,11 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename,cons
 
     func_node->name = name;
     func_node->filename = filename;
-    func_node->name_space = name_space;
 
     return (AstNode*)func_node;
 }
 
-AstNode *ast_struct(Parser& parser,const String &name, const String& filename,const String& name_space, const Token& token)
+AstNode *ast_struct(Parser& parser,const String &name, const String& filename, const Token& token)
 {
     StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,ast_fmt::struct_t,token);
 
@@ -705,7 +706,6 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename,co
 
     struct_node->name = name;
     struct_node->filename = filename;
-    struct_node->name_space = name_space;
 
 
     return (AstNode*)struct_node;
@@ -749,11 +749,12 @@ AstNode *ast_float(Parser& parser, f64 value, const Token& token)
     return (AstNode*)float_node;  
 }
 
-AstNode* ast_type_decl(Parser& parser, const String& name, const Token& token)
+AstNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& name, const Token& token)
 {
     TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,ast_fmt::type,token);
 
     type_node->name = name;
+    type_node->name_space = name_space;
 
     add_ast_pointer(parser,&type_node->compound_type.data);
 
@@ -878,12 +879,13 @@ AstNode* ast_case(Parser& parser, AstNode* expr, BlockNode* block, const Token& 
     return (AstNode*)case_node;
 }
 
-AstNode* ast_scope(Parser& parser, AstNode* expr, String scope, const Token& token)
+AstNode* ast_scope(Parser& parser, AstNode* expr, Array<String> scope, const Token& token)
 {
     ScopeNode* scope_node = alloc_node<ScopeNode>(parser,ast_type::scope,ast_fmt::scope,token);
     
     scope_node->expr = expr;
     scope_node->scope = scope;
+    add_ast_pointer(parser,&scope_node->scope.data);
 
     return (AstNode*)scope_node;
 }
@@ -899,19 +901,18 @@ AstNode* ast_tuple_assign(Parser& parser, const Token& token)
     return (AstNode*)tuple_node;
 }
 
-AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const String& filename,const String& name_space, const Token& token)
+AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const String& filename, const Token& token)
 {
     AliasNode* alias_node = alloc_node<AliasNode>(parser,ast_type::type_alias,ast_fmt::type_alias,token);
 
     alias_node->filename = filename;
-    alias_node->name_space = name_space;
     alias_node->name = literal;
     alias_node->type = type;
 
     return (AstNode*)alias_node;
 }
 
-AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename,const String& name_space, const Token& token)
+AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename,NameSpace* name_space, const Token& token)
 {
     GlobalDeclNode* global_node = alloc_node<GlobalDeclNode>(parser,ast_type::global_declaration,ast_fmt::global_declaration,token);
 
@@ -932,13 +933,12 @@ AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& fie
     return (AstNode*)builtin_access;
 }
 
-AstNode* ast_enum(Parser& parser, const String& name,const String& filename,const String& name_space, const Token& token)
+AstNode* ast_enum(Parser& parser, const String& name,const String& filename,const Token& token)
 {
     EnumNode* enum_node = alloc_node<EnumNode>(parser,ast_type::enum_t,ast_fmt::enum_t,token);
 
     enum_node->name = name;
     enum_node->filename = filename;
-    enum_node->name_space = name_space;
     
     add_ast_pointer(parser,&enum_node->member.data);
 

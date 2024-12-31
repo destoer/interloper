@@ -2,9 +2,9 @@
 
 using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
 
-Function* find_complete_func(Interloper& itl, const String& name, const String& name_space)
+Function* find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
-    Function* func_def = lookup_opt_scoped_function(itl,name,name_space);
+    Function* func_def = lookup_opt_scoped_function(itl,name_space,name);
 
     if(!func_def)
     {
@@ -43,7 +43,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     {
         // emit a call to memcpy with args
         // check function is declared
-        Function* func_def = find_complete_func(itl,"memcpy","std");
+        Function* func_def = find_complete_func(itl,itl.std_name_space,"memcpy");
 
         if(!func_def)
         {
@@ -88,7 +88,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     // call into zero_mem
     else
     {
-        Function* func_def = find_complete_func(itl,"zero_mem","std");
+        Function* func_def = find_complete_func(itl,itl.std_name_space,"zero_mem");
 
         if(!func_def)
         {

@@ -7,7 +7,6 @@ void print_func_decl(Interloper& itl,const Function &func);
 FunctionTable make_func_table()
 {
     FunctionTable func_table;
-    func_table.table = make_table<String,FunctionDef>();
     func_table.arena = make_allocator(16 * 1024);
 
     return func_table;
@@ -21,24 +20,27 @@ void destroy_func_table(FunctionTable& func_table)
         destroy_func(func);
     }
 
-    destroy_table(func_table.table);
+    destroy_arr(func_table.table);
     destroy_arr(func_table.used);
     destroy_allocator(func_table.arena);
 }
 
-void add_func(Interloper& itl, const String& name, const String& name_space, FuncNode* root)
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root)
 {
     FunctionDef func_def;
 
     // Make sure our function is not allocated on the
     // same string allocator as the AST
-    func_def.name = alloc_name_space_name(itl.string_allocator,name_space,name);
-
+    func_def.name = alloc_name_space_name(itl.string_allocator,name_space->full_name,name);
     func_def.root = root;
     func_def.func = nullptr;
+    func_def.name_space = name_space;
     
-    // add def
-    add(itl.func_table.table,func_def.name,func_def);    
+    const auto handle = count(itl.func_table.table);
+    push_var(itl.func_table.table,func_def);
+
+    const DefInfo info = {definition_type::function,handle};
+    add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 
 Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
@@ -49,13 +51,14 @@ Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = 
         Function func;
         func.name = func_def.name;
         func.root = func_def.root;
+        func.name_space = func_def.name_space;
 
         // parse in function signature on demand
         if(func.root)
         {
             if(parse_sig)
             {
-                parse_func_sig(itl,func.sig,*func.root);
+                parse_func_sig(itl,func_def.name_space,func.sig,*func.root);
             }
         }
 
@@ -84,52 +87,10 @@ Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = 
 
     return func_def.func;   
 }
-
-// NOTE: we probably want to switch over to a global definiton table
-// for any top level statement to make this less cumbersome to implement
-// it will also let make sure different domains dont have the same name
-
-
-// NOTE: this gets a function ONLY in the requested scope
-FunctionDef* lookup_func_def_scope(Interloper& itl, const String& name, const String& name_space)
-{
-    // attempt to find in the specified scope and nothing else
-    const auto full_name = tmp_name_space_name(itl,name_space,name);
-
-    //printf("lookup scoped: %s\n",full_name.buf);
-
-    return lookup(itl.func_table.table,full_name);
-}
-
-// get a function only in the global scope
-FunctionDef* lookup_func_def_global(Interloper& itl, const String& name)
-{
-    //printf("lookup global: %s\n",name.buf);
-
-    return lookup(itl.func_table.table,name);
-}
-
-// Search each scope from the bottom for a function
-FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
-{
-    // attempt to find in current name space first
-    FunctionDef* opt = lookup_func_def_scope(itl,name,itl.ctx.name_space);
-
-    // found in current scope
-    if(opt)
-    {
-        return opt;
-    }
-
-    // fail attempt to find globally
-    return lookup_func_def_global(itl,name);
-}
-
-
  
 Function& create_dummy_func(Interloper& itl, const String& name)
 {
-    add_func(itl,name,"",nullptr);
+    add_func(itl,name,itl.global_namespace,nullptr);
 
     FunctionDef& func_def = *lookup_func_def_global(itl,name);
     
@@ -139,14 +100,14 @@ Function& create_dummy_func(Interloper& itl, const String& name)
     return lookup_internal_function(itl,name);
 }
 
-b32 func_exists(Interloper& itl, const String& name, const String& name_space)
+b32 func_exists(Interloper& itl, const String& name, NameSpace* name_space)
 {
-    return lookup_func_def_scope(itl,name,name_space) != nullptr;
+    return lookup_func_def_scope(itl,name_space,name) != nullptr;
 }
 
-void check_startup_func(Interloper& itl, const String& name, const String& name_space)
+void check_startup_func(Interloper& itl, const String& name, NameSpace* name_space)
 {
-    auto def_opt = lookup_func_def_scope(itl,name,name_space);
+    auto def_opt = lookup_func_def_scope(itl,name_space,name);
 
     // ensure the entry functions are defined
     if(!def_opt)
@@ -158,9 +119,9 @@ void check_startup_func(Interloper& itl, const String& name, const String& name_
     finalise_func(itl,*def_opt);    
 }
 
-Function* lookup_opt_scoped_function(Interloper& itl, const String& name,const String& name_space)
+Function* lookup_opt_scoped_function(Interloper& itl, NameSpace* name_space, const String& name)
 {
-    FunctionDef* func_def_opt = lookup_func_def_scope(itl,name,name_space);
+    FunctionDef* func_def_opt = lookup_func_def_scope(itl,name_space, name);
 
     if(!func_def_opt)
     {
@@ -188,10 +149,10 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name)
 
 Function& lookup_internal_function(Interloper& itl, const String& name)
 {
-    Function* func_opt = lookup_opt_scoped_function(itl,name,"");
+    Function* func_opt = lookup_opt_scoped_function(itl,itl.global_namespace,name);
 
     // assert this just for saftey
-    // functions looked up by this should never be missing
+    // functions looked up by this should never be missing due to startup checks
     assert(func_opt);
 
     return *func_opt;
@@ -630,7 +591,7 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     }    
 }
 
-FuncCall get_calling_sig(Interloper& itl,const String& name_space,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
+FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
 {
     UNUSED(name_space);
 
@@ -645,9 +606,9 @@ FuncCall get_calling_sig(Interloper& itl,const String& name_space,Function& func
         const String& name = literal_node->literal;
 
         // are we looking in the global namespace or no?
-        const b32 global = name_space == "";
+        const b32 global = name_space == nullptr;
 
-        FunctionDef* func_call_def = global? lookup_func_def_default(itl,name) : lookup_func_def_scope(itl,name,name_space);
+        FunctionDef* func_call_def = global? lookup_func_def_default(itl,name) : lookup_func_def_scope(itl,name_space,name);
 
         // no known function
         if(!func_call_def)
@@ -680,14 +641,14 @@ FuncCall get_calling_sig(Interloper& itl,const String& name_space,Function& func
 
             else
             {
-                if(name_space == "")
+                if(global)
                 {
                     panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
                 }
 
                 else
                 {
-                    panic(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared\n",name_space.buf,name.buf);
+                    panic(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared\n",name_space->full_name.buf,name.buf);
                 }
 
                 return {};
@@ -796,7 +757,7 @@ void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_no
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_function_call(Interloper &itl,const String& name_space,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, SymSlot dst_slot)
 {
     TupleAssignNode* tuple_node = nullptr;
 
@@ -890,12 +851,16 @@ Type* compile_function_call(Interloper &itl,const String& name_space,Function &f
     return handle_call(itl,func,call_info,dst_slot,arg_clean);
 }
 
-void parse_func_sig(Interloper& itl,FuncSig& sig,const FuncNode& node)
+// used for both tuples and ordinary function calls
+Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+{
+    return compile_scoped_function_call(itl,nullptr,func,node,dst_slot);
+}
+
+void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node)
 {
     // about to move to a different context
-    push_context(itl);
-
-    trash_context(itl,node.filename,node.name_space,(AstNode*)&node);
+    switch_context(itl,node.filename,name_space,(AstNode*)&node);
 
     u32 arg_offset = 0;
 
@@ -994,11 +959,11 @@ void compile_function(Interloper& itl, Function& func)
 
         // inside a new function we dont care about the old context
         // so just trash it
-        trash_context(itl,node.filename,node.name_space,(AstNode*)func.root);
+        trash_context(itl,node.filename,func.name_space,(AstNode*)func.root);
         
         // put arguments on the symbol table they are marked as args
         // so we know to access them "above" to stack pointer
-        new_scope(itl.symbol_table);
+        enter_new_anon_scope(itl.symbol_table);
 
 
         // put each arg into scope
@@ -1007,7 +972,7 @@ void compile_function(Interloper& itl, Function& func)
             const SymSlot slot = func.sig.args[a];
 
             auto &sym = sym_from_slot(itl.symbol_table,slot);
-            add_scope(itl.symbol_table,sym);
+            add_sym_to_scope(itl.symbol_table,sym);
         }
 
 
