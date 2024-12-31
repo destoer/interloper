@@ -222,7 +222,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
     enumeration.type_idx = slot;
 
     push_var(itl.enum_table,enumeration);
-    finalise_type(def.decl,enumeration.type_idx,type_kind::enum_t);
+    finalise_type(def.decl,enumeration.type_idx);
 
     if(itl.print_types)
     {

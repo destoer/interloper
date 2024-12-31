@@ -733,6 +733,7 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
             FuncPointerType* func_pointer_type = (FuncPointerType*)type;
 
             FuncPointerType* copy = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
+            copy->sig = {};
 
             const auto& sig = func_pointer_type->sig;
 
@@ -2113,6 +2114,7 @@ void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, con
     definition->decl.name = name;
     definition->decl.flags = TYPE_DECL_DEF_FLAG;
     definition->decl.name_space = name_space;
+    definition->decl.kind = type_kind(kind);
 
     definition->filename = filename;
     definition->root = root;
@@ -2134,11 +2136,10 @@ void add_internal_alias(Interloper& itl, Type* type,const String& name)
     push_var(itl.alias_table,type);   
 }
 
-void finalise_type(TypeDecl& decl, u32 type_idx,type_kind kind)
+void finalise_type(TypeDecl& decl, u32 type_idx)
 {
     decl.type_idx = type_idx;
     decl.state = type_def_state::checked;
-    decl.kind = kind;
 }
 
 void parse_alias_def(Interloper& itl, TypeDef& def)
@@ -2158,7 +2159,7 @@ void parse_alias_def(Interloper& itl, TypeDef& def)
     }
 
     const u32 type_idx = count(itl.alias_table);
-    finalise_type(def.decl,type_idx,type_kind::alias_t);
+    finalise_type(def.decl,type_idx);
     push_var(itl.alias_table,type); 
 }
 

@@ -110,13 +110,13 @@ inline int conv_builtin_type(builtin_type t)
     return static_cast<int>(t);
 }
 
-
+// First 3 same as first 3 in type_def_kind
 enum class type_kind
 {
     enum_t,
     struct_t,
-    builtin,
     alias_t,
+    builtin,
 };
 
 
@@ -127,8 +127,8 @@ inline const char* TYPE_KIND_NAMES[KIND_SIZE] =
 {
     "enum",
     "struct",
-    "builtin",
     "alias",
+    "builtin",
 };
 
 
