@@ -257,7 +257,7 @@ AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             prev_token(parser);
             prev_token(parser);
 
-            const auto name_space = split_namespace(parser,ctx.expr_tok);
+            Array<String> name_space = split_namespace(parser,ctx.expr_tok);
 
             if(parser.error)
             {

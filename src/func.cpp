@@ -40,7 +40,7 @@ void add_func(Interloper& itl, const String& name, DefNode* name_space, FuncNode
     push_var(itl.func_table.table,func_def);
 
     const DefInfo info = {definition_type::function,handle};
-    add(name_space->table,name, info);  
+    add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 
 Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)

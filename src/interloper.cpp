@@ -1222,8 +1222,6 @@ void compile_globals(Interloper& itl)
     finalise_global_offset(itl);
 }
 
-// -> handle block args inside the reg allocator and get a proper global allocator
-
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
@@ -1427,8 +1425,6 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     // how do we want to handle getting to the entry point / address allocation?
     // do we want a "label" for each function? 
     compile_functions(itl);
-
-    destroy_scope(itl.symbol_table);     
 
     // okay we dont need the parse tree anymore
     // free it

@@ -585,8 +585,12 @@ struct Parser
 
     Array<Token> tokens;
 
-    ArenaAllocator* allocator;
+    // Destroy with ast
+    ArenaAllocator* ast_allocator;
     ArenaAllocator* string_allocator;
+
+    // Longer lived string allocator lasts until compiler end
+    ArenaAllocator* global_string_allocator;
     AstPointers* ast_arrays;
     
     String cur_file = "";
@@ -630,7 +634,7 @@ void add_ast_pointer(Parser& parser, void* pointer);
 template<typename T>
 T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
 {
-    AstNode* node = (AstNode*)allocate(*parser.allocator,sizeof(T));
+    AstNode* node = (AstNode*)allocate(*parser.ast_allocator,sizeof(T));
 
     // default init the actual type
     T* ret_node = (T*)node;

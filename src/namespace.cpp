@@ -103,7 +103,7 @@ DefNode* scan_namespace(const DefNode* root, const Array<String>& name_space)
 
                 if(name_idx == count(name_space))
                 {
-                    result = node;
+                    return node;
                 }
             }
         }
@@ -114,6 +114,7 @@ DefNode* scan_namespace(const DefNode* root, const Array<String>& name_space)
         }
     }
     
+    assert(false);
     return result;
 }
 

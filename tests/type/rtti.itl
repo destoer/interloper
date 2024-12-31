@@ -47,7 +47,7 @@ func check_ptr(any : rtti::Any, expected : rtti::itl_type) bool
 
     if(rtti::is_pointer(type))
     {
-        contained_type := std::deref_pointer(type);
+        contained_type := rtti::deref_pointer(type);
 
         return expected == contained_type.type_idx;
     }
@@ -63,8 +63,8 @@ func check_pointer() bool
     y : s32 = 5;
     ptr_false : s32@ = &y;
 
-    res1 := check_ptr(ptr,itl_type::u32_t);
-    res2 := !check_ptr(ptr_false,itl_type::u32_t);
+    res1 := check_ptr(ptr,rtti::itl_type::u32_t);
+    res2 := !check_ptr(ptr_false,rtti::itl_type::u32_t);
 
     res := res1 && res2;
 
@@ -73,7 +73,7 @@ func check_pointer() bool
 
 func test_array(any : rtti::Any, expected_len : u32) bool
 {
-    type : const Type@ = any.type;
+    type: const rtti::Type@ = any.type;
 
     if(rtti::is_array(type))
     {

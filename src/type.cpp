@@ -2074,7 +2074,7 @@ Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const 
     return type;
 }
 
-void add_type_scope(DefNode* name_space, TypeDecl* decl)
+void add_type_to_scope(DefNode* name_space, TypeDecl* decl)
 {
     DefInfo info;
     info.type = definition_type::type;
@@ -2102,7 +2102,7 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
     type_decl->name_space = itl.def_root;
     type_decl->state = type_def_state::checked;
     
-    add_type_scope(itl.def_root,type_decl);    
+    add_type_to_scope(itl.def_root,type_decl);    
 }
 
 
@@ -2119,7 +2119,7 @@ void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, con
     definition->kind = kind;
 
 
-    add_type_scope(name_space,(TypeDecl*)definition);
+    add_type_to_scope(name_space,(TypeDecl*)definition);
 }
 
 b32 type_exists(Interloper& itl, const String& name)
