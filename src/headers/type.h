@@ -301,13 +301,6 @@ struct EnumMember
     u32 value;
 };
 
-enum class enum_type
-{
-    plain_t,
-    struct_t,
-    int_t,
-};
-
 struct Enum
 {
     String name;
@@ -317,14 +310,9 @@ struct Enum
 
     // self referential idx
     u32 type_idx = 0;
-
-    // idx of struct for enum struct
-    // or of a builtin type for a integer 
-    u32 underlying_type_idx = INVALID_TYPE_IDX;
+    Type* underlying_type = nullptr;
 
     PoolSlot struct_slot;
-
-    enum_type kind;
 };
 
 

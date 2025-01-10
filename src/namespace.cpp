@@ -193,7 +193,7 @@ TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
 {
     TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
 
-    if (type_decl->state != type_def_state::checked)
+    if (!type_decl || type_decl->state != type_def_state::checked)
     {
         return nullptr;
     }

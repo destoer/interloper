@@ -42,56 +42,26 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
     Enum enumeration;
 
-    enumeration.kind = node->kind; 
-
-    switch(enumeration.kind)
+    if(node->type)
     {
-        case enum_type::struct_t:
+        enumeration.underlying_type = get_type(itl,node->type);
+
+        if(is_struct(enumeration.underlying_type))
         {
-            // check we have a valid struct
-            TypeDecl* type_decl = lookup_type(itl,node->struct_name);
-
-            if(!type_decl)
-            {
-                panic(itl,itl_error::struct_error,"no such struct %s for enum struct %s\n",node->struct_name.buf,node->name.buf);
-                return; 
-            }
-
-            if(type_decl->kind != type_kind::struct_t)
-            {
-                panic(itl,itl_error::struct_error,"type %s is not a struct for enum struct %s\n",node->struct_name.buf,node->name.buf);
-                return;        
-            }
-
-            // mark struct idx
-            enumeration.underlying_type_idx = type_decl->type_idx;
-
             // reserve space for it inside the const pool
-            const u32 data_size = itl.struct_table[enumeration.underlying_type_idx].size * count(node->member);
+            const auto& structure = struct_from_type(itl.struct_table,enumeration.underlying_type);
+            
+            const u32 data_size = structure.size * count(node->member);
             enumeration.struct_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
-        
-            break;
-        }
-
-        case enum_type::int_t:
-        {
-            if(!is_integer(node->type))
-            {
-                panic(itl,itl_error::enum_type_error,"Only integers can be used an builtin underlying enum type");
-                return;
-            }
-
-            enumeration.underlying_type_idx = u32(node->type);
-
-            break;
-        }
-
-        // dont care
-        case enum_type::plain_t:
-        {
-            break;
         }
     }
+
+    if((node->attr_flags & ATTR_FLAG) && (!enumeration.underlying_type || !is_integer(enumeration.underlying_type)))
+    {
+        panic(itl,itl_error::enum_type_error,"Flag enum must specify underlying integer type\n");
+        return;
+    }
+
 
     // setup enum info
     enumeration.name = node->name;
@@ -120,98 +90,89 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
             return;
         }
 
-        switch(enumeration.kind)
+        if(!enumeration.underlying_type)
         {
-            case enum_type::struct_t:
+            member.value = member_count++;
+
+            if(member_decl.initializer)
             {
-                member.value = member_count++;
-
-                // compile in member access
-                auto& structure = itl.struct_table[enumeration.underlying_type_idx];
-
-                switch(member_decl.initializer->type)
-                {
-                    case ast_type::initializer_list:
-                    {
-                        itl.ctx.expr = (AstNode*)member_decl.initializer;
-                        const u32 offset = m * structure.size;
-
-                        compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);
-                        break;
-                    }
-
-                    default:
-                    {
-                        unimplemented("enum struct expr init");
-                        break;
-                    }
-                }
-                break;
+                panic(itl,itl_error::enum_type_error,"Plain enum's cannot have initializers");
+                return;
             }
+        }
 
-            // specify values by hand
-            case enum_type::int_t:
+        else if(is_struct(enumeration.underlying_type))
+        {
+            member.value = member_count++;
+
+            // compile in member access
+            auto& structure = struct_from_type(itl.struct_table,enumeration.underlying_type);
+
+            switch(member_decl.initializer->type)
             {
-                if(member_decl.initializer)
+                case ast_type::initializer_list:
                 {
-                    value_used = true;
+                    itl.ctx.expr = (AstNode*)member_decl.initializer;
+                    const u32 offset = m * structure.size;
 
-                    const auto [value,type] = compile_const_int_expression(itl,member_decl.initializer);
+                    compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);
+                    break;
+                }
 
-                    if(!is_integer(type))
-                    {
-                        return;
-                    }
+                default:
+                {
+                    unimplemented("enum struct expr init");
+                    break;
+                }
+            }
+        }
 
-                    member.value = value;
+        else if(is_integer(enumeration.underlying_type))
+        {
+            if(member_decl.initializer)
+            {
+                value_used = true;
 
-                    // TODO: check for overlapping values
-                    if(contains(set,value))
-                    {
-                        panic(itl,itl_error::enum_type_error,"Duplicate enum value: %s",member.name.buf);
-                        return;
-                    }
+                const auto [value,type] = compile_const_int_expression(itl,member_decl.initializer);
 
-                    else
-                    {
-                        add(set,value);
-                    }
+                if(!is_integer(type))
+                {
+                    return;
+                }
+
+                member.value = value;
+
+                // TODO: check for overlapping values
+                if(contains(set,value))
+                {
+                    panic(itl,itl_error::enum_type_error,"Duplicate enum value: %s",member.name.buf);
+                    return;
                 }
 
                 else
                 {
-                    // TODO: maybe we should relax this to pick a valid int
-                    if(value_used)
-                    {
-                        panic(itl,itl_error::enum_type_error,"Integer enums must assign all values manually when used");
-                        return;
-                    }
-
-                    // we have flags automatically assign the next value
-                    if(node->attr_flags & ATTR_FLAG)
-                    {
-                        member.value = (1 << member_count);
-                    }
+                    add(set,value);
                 }
-
-                member_count++;
-                break;
             }
 
-            case enum_type::plain_t:
+            else
             {
-                member.value = member_count++;
-
-                if(member_decl.initializer)
+                // TODO: maybe we should relax this to pick a valid int
+                if(value_used)
                 {
-                    panic(itl,itl_error::enum_type_error,"Plain enum's cannot have initializers");
+                    panic(itl,itl_error::enum_type_error,"Integer enums must assign all values manually when used");
                     return;
                 }
 
-                break;
+                // we have flags automatically assign the next value
+                if(node->attr_flags & ATTR_FLAG)
+                {
+                    member.value = (1 << member_count);
+                }
             }
-        }
 
+            member_count++;
+        }
 
         // add member to enum
         add(enumeration.member_map,member.name,member);
@@ -328,17 +289,14 @@ Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, SymSlo
             // emit mov on the enum value
             mov_imm(itl,func,dst_slot,enum_member->value);
 
-            // normal enum type
-            if(enumeration->kind != enum_type::int_t)
+            // implictly type to underlying integer value
+            if(enumeration->underlying_type && is_integer(enumeration->underlying_type))
             {
-                return make_enum_type(itl,*enumeration);
+                return copy_type(itl,enumeration->underlying_type);
             }
 
-            // implictly type to underlying integer value
-            else
-            {
-                return make_builtin(itl,builtin_type(enumeration->underlying_type_idx));
-            }
+            // normal enum type
+            return make_enum_type(itl,*enumeration);
         }
 
         case enum_decode_res::invalid_enum:

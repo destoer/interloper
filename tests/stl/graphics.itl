@@ -17,7 +17,7 @@ func main() s32
     {
         gfx::start_frame(&win);
 
-        if(input::is_pressed(&win.input,button_t::start))
+        if(input::is_pressed(&win.input,input::button_t::start))
         {
             win.quit = true;
         }

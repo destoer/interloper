@@ -9,9 +9,9 @@ constant X11_PREFIX : string = "X WINDOW";
 struct OSWindow
 {
     // protocol buffer
-    buf : Array;
+    buf : std::Array;
 
-    sock : Socket;
+    sock : net::Socket;
 
     root_win : u32;
 
@@ -132,7 +132,7 @@ func pad_x11(E : u32) u32
 func send_req(win : OSWindow@, v : const byte@, size: usize) u32
 {
     std::log_debug(X11_PREFIX,"Send req seq: {} op: {}",win.seq_count,@v);
-    std::send_raw(&win.sock,v,size);
+    net::send_raw(&win.sock,v,size);
 
     seq := win.seq_count;
 
@@ -141,7 +141,7 @@ func send_req(win : OSWindow@, v : const byte@, size: usize) u32
     return seq;
 }
 
-func build_auth_packet(buf: Array@)
+func build_auth_packet(buf: std::Array@)
 {
     // reset our working buffer
     std::clear_array(buf);
@@ -177,7 +177,7 @@ func build_auth_packet(buf: Array@)
 func read_x11_reply(win: OSWindow@, size : u32)
 {
     // get our specified bytes
-    std::recv_clear_array(&win.sock,&win.buf,size);
+    net::recv_clear_array(&win.sock,&win.buf,size);
 }
 
 
@@ -276,7 +276,7 @@ func read_setup_info(win: OSWindow@)
 {
     buf := &win.buf;
 
-    std::recv_ignore(&win.sock,1);
+    net::recv_ignore(&win.sock,1);
 
     // read in our first batch of data
     read_x11_reply(win,6);
@@ -288,14 +288,14 @@ func read_setup_info(win: OSWindow@)
     std::log_debug(X11_PREFIX,"len {}",len);
 
     info: XSetupInfo = {?};
-    std::recv_raw(&win.sock,&info,sizeof_data(XSetupInfo));
+    net::recv_raw(&win.sock,&info,sizeof_data(XSetupInfo));
 
     std::log_debug(X11_PREFIX,"big endian bitmap order: {}",cast(bool,info.bitmap_order));
 
     read_x11_reply(win,info.vendor_size);
     std::log_debug(X11_PREFIX,"vendor {}",std::str_from_array(buf),info.vendor_size);
 
-    std::recv_ignore(&win.sock,pad_x11(info.vendor_size));
+    net::recv_ignore(&win.sock,pad_x11(info.vendor_size));
 
     std::log_debug(X11_PREFIX,"resource {b} : {b}\n",info.resource_id_base,info.resource_id_mask);
 
@@ -314,7 +314,7 @@ func read_setup_info(win: OSWindow@)
     for(i in 0 < info.format_size)
     {
         fmt: XFormat = {?};
-        std::recv_raw(&win.sock,&fmt,sizeof_data(XFormat));
+        net::recv_raw(&win.sock,&fmt,sizeof_data(XFormat));
     
         std::log_trace(X11_PREFIX,"format {}",i);
         std::log_trace(X11_PREFIX,"depth {}",fmt.depth);
@@ -325,7 +325,7 @@ func read_setup_info(win: OSWindow@)
     for(i in 0 < info.screen_count)
     {
         screen : XScreen = {?};
-        std::recv_raw(&win.sock,&screen,sizeof_data(XScreen));
+        net::recv_raw(&win.sock,&screen,sizeof_data(XScreen));
         std::log_debug(X11_PREFIX,"screen {}",i);
         std::log_debug(X11_PREFIX,"root {}",screen.root);
         std::log_debug(X11_PREFIX,"measurements {}mm : {}mm",screen.width_m,screen.height_m);
@@ -343,14 +343,14 @@ func read_setup_info(win: OSWindow@)
         for(d in 0 < screen.depth_count)
         {
             depth: XDepth = {?};
-            std::recv_raw(&win.sock,&depth,sizeof_data(XDepth));
+            net::recv_raw(&win.sock,&depth,sizeof_data(XDepth));
 
             std::log_trace(X11_PREFIX,"depth {}",depth.depth);
 
             for(v in 0 < depth.vis_size)
             {
                 visual_type: XVisualType = {?};
-                std::recv_raw(&win.sock,&visual_type,sizeof_data(XVisualType));
+                net::recv_raw(&win.sock,&visual_type,sizeof_data(XVisualType));
                 
                 std::log_trace(X11_PREFIX,"id {}",visual_type.id);
                 std::log_trace(X11_PREFIX,"class {}",visual_type.class);
@@ -368,11 +368,11 @@ func authenticate(win: OSWindow@) bool
     build_auth_packet(buf);
 
     // actually send the packet
-    std::send_array(&win.sock,buf);
+    net::send_array(&win.sock,buf);
 
     // recv back our data
     rc: u8;
-    if(std::recv_raw(&win.sock,&rc,sizeof(rc)) < 0) 
+    if(net::recv_raw(&win.sock,&rc,sizeof(rc)) < 0) 
     {
         return false;
     }
@@ -494,7 +494,7 @@ func process_reply(win : OSWindow@)
     // just burn the reply
     else
     {
-        std::recv_ignore(&win.sock,len);
+        net::recv_ignore(&win.sock,len);
     }
 }
 
@@ -611,11 +611,11 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
     }
 
     // send pending data
-    std::send_raw(&win.sock,ptr,pixel_size);
+    net::send_raw(&win.sock,ptr,pixel_size);
     
     // send pad 
     // NOTE: uses screen data just because its easy
-    std::send_raw(&win.sock,ptr,pad);
+    net::send_raw(&win.sock,ptr,pad);
 
     //std::print("sent {}\n",pixel_size + pad);
 }
@@ -692,7 +692,7 @@ func os_process_events(std_win: Window@) bool
 {
     win := &std_win.os_win;
 
-    if(!std::socket_valid(&win.sock))
+    if(!net::socket_valid(&win.sock))
     {
         std_win.quit = true;
         return false;
@@ -701,12 +701,12 @@ func os_process_events(std_win: Window@) bool
     rc : s32 = -1;
 
     // while socket has data or we are waiting for specific notificaiton
-    while(std::socket_has_data(&win.sock))
+    while(net::socket_has_data(&win.sock))
     {
         buf := &win.buf;
 
         // TODO: we probably want to peek this...
-        std::recv_clear_array(&win.sock,buf,32);
+        net::recv_clear_array(&win.sock,buf,32);
 
         type: x_reply_type;
         std::read_buffer(buf,0,&type,sizeof_data(x_reply_type));
@@ -832,7 +832,7 @@ func create_window(win : OSWindow@, x : u32, y : u32)
     send_req(win,&win_req,sizeof_data(XCreateWindow));
 
     // send end list
-    std::send_array(&win.sock,buf);
+    net::send_array(&win.sock,buf);
 
     // now map in the window
     map_window(win,win.window_id);
@@ -921,10 +921,10 @@ func x11_set_str_property(win: OSWindow@, property: u32,str: const string)
 
     send_req(win,&prop,sizeof_data(XChangeProperty));
 
-    std::send_str(&win.sock,str);
+    net::send_str(&win.sock,str);
 
     // just send struct as padding
-    std::send_raw(&win.sock,&prop,pad);
+    net::send_raw(&win.sock,&prop,pad);
 }
 
 func os_set_window_name(win: OSWindow@, str: const string)
@@ -959,10 +959,10 @@ func query_extenstion(std_win: Window@, str: const string) bool
 
     win.ext_query_seq = send_req(win,&query,sizeof_data(XQueryExtension));
 
-    std::send_str(&win.sock,str);
+    net::send_str(&win.sock,str);
 
     // just send struct as padding
-    std::send_raw(&win.sock,&query,pad);
+    net::send_raw(&win.sock,&query,pad);
 
     while(!win.ext_query_reply)
     {
@@ -1076,7 +1076,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     // open connection to x server
     win.sock = std::connect_unix_domain(socket_name);
 
-    if(!std::socket_valid(&win.sock))
+    if(!net::socket_valid(&win.sock))
     {
         std::crash_and_burn("window socket {} not valid",socket_name);
     }
@@ -1118,5 +1118,5 @@ func os_destroy_window(win : OSWindow@)
 
     // close down our socket and free our working buffer
     std::destroy_array(&win.buf);
-    std::close_sock(&win.sock);
+    net::close_sock(&win.sock);
 }

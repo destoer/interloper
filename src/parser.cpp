@@ -1507,30 +1507,11 @@ void enum_decl(Interloper& itl,Parser& parser, u32 flags)
     if(match(parser,token_type::colon))
     {
         consume(parser,token_type::colon);
-
-        const auto type_tok = next_token(parser);
-
-        if(type_tok.type == token_type::symbol)
-        {
-            enum_node->struct_name = type_tok.literal;
-            enum_node->kind = enum_type::struct_t;
-        }
-
-        else if(is_builtin_type_tok(type_tok))
-        {
-            enum_node->kind = enum_type::int_t;
-            enum_node->type = builtin_type_from_tok(type_tok);
-        }
-
-        else
-        {
-            panic(parser,next_token(parser),"Expected type name got %s\n",type_tok.type);
-            return;            
-        }
+        enum_node->type = parse_type(parser);
     }
 
 
-    if((flags & ATTR_FLAG) && enum_node->kind != enum_type::int_t)
+    if((flags & ATTR_FLAG) && !enum_node->type)
     {
         panic(parser,next_token(parser),"Flag enum must specify underlying intergeral type");
         return;        
@@ -2182,17 +2163,7 @@ void print(const AstNode *root, b32 override_seperator)
         {
             EnumNode* enum_node = (EnumNode*) root;
 
-            if(enum_node->kind == enum_type::struct_t)
-            {
-                printf("enum %s:%s : %s\n",enum_node->filename.buf,enum_node->name.buf,enum_node->struct_name.buf);
-            }
-
-            else
-            {
-                printf("enum %s:%s : type idx %d\n",enum_node->filename.buf,enum_node->name.buf,u32(enum_node->type));
-            }
-
-            
+            print((AstNode*)enum_node->type);            
             for(u32 m = 0; m < count(enum_node->member); m++)
             {
                 // we store this directly as its not used anywher else
