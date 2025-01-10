@@ -5,13 +5,13 @@ import <input>
 
 struct Window
 {
-    size: Vec2I;
+    size: std::Vec2I;
     screen: u32[];
 
     os_win : OSWindow;
 
     quit : bool = false;
-    input : Input;
+    input : input::Input;
 
     start_timestamp: f64;
     end_timestamp: f64;

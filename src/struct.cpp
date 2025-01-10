@@ -108,7 +108,8 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 
 b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
-    TypeDecl *decl_ptr = lookup_incomplete_decl(itl,type_decl->name);
+    const auto name = type_decl->name;
+    TypeDecl* decl_ptr = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
 
     // no such decl exists
     if(!decl_ptr)
