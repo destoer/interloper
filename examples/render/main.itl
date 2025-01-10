@@ -13,7 +13,7 @@ constant SCREEN_Y: u32 = 360;
 constant TILE_X: u32 = SCREEN_X / TILE_SIZE;
 constant TILE_Y: u32 = SCREEN_Y / TILE_SIZE;
 
-func draw_tile(win: Window@, ctx: Context@, tile_id: u32, x: u32, y: u32)
+func draw_tile(win: gfx::Window@, ctx: Context@, tile_id: u32, x: u32, y: u32)
 {
     colour: u32 = 0xff_00_00_00;
 
@@ -37,7 +37,7 @@ func draw_tile(win: Window@, ctx: Context@, tile_id: u32, x: u32, y: u32)
     }
 }
 
-func render(win: Window@, ctx: Context@)
+func render(win: gfx::Window@, ctx: Context@)
 {
     offset : u32 = 0;
 
@@ -81,7 +81,7 @@ func main() s32
     {
         gfx::start_frame(&win);
     
-        if(input::is_pressed(&win.input,button_t::start))
+        if(input::is_pressed(&win.input,input::button_t::start))
         {
             win.quit = true;
         }
