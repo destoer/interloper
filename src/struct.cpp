@@ -455,14 +455,14 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
 {
     const auto& enumeration = enum_from_type(itl.enum_table,struct_type);
 
-    if(enumeration.kind != enum_type::struct_t)
+    if(!enumeration.underlying_type || !is_struct(enumeration.underlying_type))
     {
         panic(itl,itl_error::struct_error,"member access on plain enum %s\n",enumeration.name.buf);
         return make_builtin(itl,builtin_type::void_t);                    
     }
 
     // pull info on enum struct member
-    auto& enum_struct = itl.struct_table[enumeration.underlying_type_idx];
+    auto& enum_struct = struct_from_type(itl.struct_table,enumeration.underlying_type);
 
     const auto enum_struct_member_opt = get_member(enum_struct, member_name);
 

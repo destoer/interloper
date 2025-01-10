@@ -466,14 +466,7 @@ struct EnumNode
     String filename;
     Array<EnumMemberDecl> member;
 
-    // types
-    union
-    {
-        String struct_name = "";
-        builtin_type type;
-    };
-
-    enum_type kind = enum_type::plain_t;
+    TypeNode* type = nullptr; 
     u32 attr_flags = 0;
 };
 

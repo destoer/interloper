@@ -277,16 +277,13 @@ u32 type_size(Interloper& itl,const Type *type)
         {
             const auto& enumeration = enum_from_type(itl.enum_table,type);
 
-            if(enumeration.kind != enum_type::int_t)
+            // return size of underyling integeral type
+            if(enumeration.underlying_type && is_integer(enumeration.underlying_type))
             {
-                return ENUM_SIZE;
+                return type_size(itl,enumeration.underlying_type);
             }
 
-            // return size of underyling integeral type
-            else
-            {
-                return builtin_size(builtin_type(enumeration.underlying_type_idx));
-            }
+            return ENUM_SIZE;
         }
 
         case ARRAY:
