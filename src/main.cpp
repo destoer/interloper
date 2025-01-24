@@ -22,7 +22,6 @@ void parse_flags(Interloper& itl,const char* flags)
             case 'l': itl.print_tokens = true; break;
             case 'q': itl.compile_only = true; break;
             case 'z': itl.optimise = true; break;
-            case 'y': itl.stack_only = true; break;
             case 't': break;
 
             default: crash_and_burn("unknown flag: %c\n",flags[i]); 

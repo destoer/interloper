@@ -2,8 +2,13 @@ struct LinearRange
 {
     u32 start = 0xffff'ffff;
     u32 end = 0;
-    SymSlot slot = {SYMBOL_NO_SLOT}; 
-    u32 location = LOCATION_MEM;
+    SymSlot slot = {SYMBOL_NO_SLOT};
+    // Where does this varible reside in memory if at all
+    u32 memory_location = UNALLOCATED_OFFSET; 
+    // Where is this register globally allocated if at all
+    u32 global_reg = UNALLOCATED_OFFSET;
+    // Where does this register reside in the current block?
+    u32 local_reg = UNALLOCATED_OFFSET;
     ListNode* node = nullptr;
     BlockSlot block_slot = {NO_SLOT};
     b32 dst_live = false;
@@ -11,12 +16,6 @@ struct LinearRange
 
 struct RegisterFile
 {
-    // need's to be as large as the code size
-    // i.e 2 on x86 3 on mips
-    // NOTE: we dont have to mark these as used
-    // as by definition we dont care about their values
-    u32 scratch_regs[3];
-
     // what registers have we used total for this function?
     u32 used_set = 0;
 
@@ -40,8 +39,6 @@ struct LinearAlloc
 
     b32 print = false;
 
-    b32 stack_only = false;
-
     RegisterFile gpr;
     RegisterFile fpr;
 
@@ -59,33 +56,15 @@ void mark_used(RegisterFile& regs, u32 reg)
     regs.used_set = set_bit(regs.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,b32 stack_only,Array<Reg> registers,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers,arch_target arch)
 {
     LinearAlloc alloc;
 
     alloc.print = print_reg;
-    alloc.stack_only = stack_only;
     alloc.stack_alloc = make_stack_alloc(print_stack);
 
     alloc.arch = arch;
     alloc.tmp_regs = registers;
-
-    switch(arch)
-    {
-        case arch_target::x86_64_t:
-        {
-            // setup our two scratch regs
-            alloc.gpr.scratch_regs[0] = u32(x86_reg::r11);
-            alloc.gpr.scratch_regs[1] = u32(x86_reg::r12);
-            alloc.gpr.scratch_regs[2] = REG_FREE;
-
-            alloc.fpr.scratch_regs[0] = u32(x86_reg::xmm6);
-            alloc.fpr.scratch_regs[1] = u32(x86_reg::xmm7);
-            alloc.fpr.scratch_regs[2] = REG_FREE;
-
-            break;
-        }
-    }
 
     alloc.location = make_table<SymSlot,u32>();
 
@@ -267,9 +246,7 @@ u32 alloc_reg(RegisterFile& regs)
 // TODO: we need to dynamically lock the registers for each function
 void init_regs(LinearAlloc& alloc, u32 locked_set)
 {
-    // return reg reserved
-    // add_reg(alloc.gpr,x86_reg::rax);
-
+    add_reg(alloc.gpr,x86_reg::rax,locked_set);
     add_reg(alloc.gpr,x86_reg::rcx,locked_set);
     add_reg(alloc.gpr,x86_reg::rdx,locked_set);
     add_reg(alloc.gpr,x86_reg::rbx,locked_set);
@@ -280,33 +257,22 @@ void init_regs(LinearAlloc& alloc, u32 locked_set)
     add_reg(alloc.gpr,x86_reg::r8,locked_set);
     add_reg(alloc.gpr,x86_reg::r9,locked_set);
     add_reg(alloc.gpr,x86_reg::r10,locked_set);
-
-    // scratch regs
-/*
-    add_reg(alloc.gpr,x86_reg::r11);
-    add_reg(alloc.gpr,x86_reg::r12);
-*/
+    add_reg(alloc.gpr,x86_reg::r11,locked_set);
+    add_reg(alloc.gpr,x86_reg::r12,locked_set);
     add_reg(alloc.gpr,x86_reg::r13,locked_set);
     add_reg(alloc.gpr,x86_reg::r14,locked_set);
     add_reg(alloc.gpr,x86_reg::r15,locked_set);
 
 
     // add sse regs
-
-    // return reg reserved
-    // add_reg(alloc.fpr,x86_reg::xmm0,0);
-
-    add_reg(alloc.fpr,x86_reg::xmm1,0);
-    add_reg(alloc.fpr,x86_reg::xmm2,0);
-    add_reg(alloc.fpr,x86_reg::xmm3,0);
-    add_reg(alloc.fpr,x86_reg::xmm4,0);
-    add_reg(alloc.fpr,x86_reg::xmm5,0);
-
-    // scratch regs
-/*
-    add_reg(alloc.fpr,x86_reg::xmm6,0);
-    add_reg(alloc.fpr,x86_reg::xmm7,0);
-*/
+    add_reg(alloc.fpr,x86_reg::xmm0,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm1,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm2,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm3,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm4,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm5,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm6,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm7,locked_set);
 }
 
 // NOTE: this relieso on pow2
@@ -385,11 +351,6 @@ void add_active(ActiveReg &active, const LinearRange& cur)
 
 void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 {
-    if(alloc.stack_only)
-    {
-        return;
-    }
-
     auto range = find_range(itl,func);
     ActiveReg active;
 

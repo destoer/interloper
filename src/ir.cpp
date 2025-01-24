@@ -746,7 +746,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_only,func.registers,itl.arch);
+    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers,itl.arch);
 
     linear_allocate(alloc,itl,func);
 
@@ -784,12 +784,9 @@ void allocate_registers(Interloper& itl,Function &func)
 
     // RA is callee saved
     const u32 CALLEE_GPR_SAVED_MASK = (1 << arch_rv(alloc.arch));
-    const u32 SCRATCH_GPR_MASK = (1 << alloc.gpr.scratch_regs[0]) | (1 << alloc.gpr.scratch_regs[1]) | (1 << alloc.gpr.scratch_regs[2]); 
 
     // RA is callee saved
     const u32 CALLEE_FPR_SAVED_MASK = (1 << arch_frv(alloc.arch));
-    const u32 SCRATCH_FPR_MASK = (1 << alloc.fpr.scratch_regs[0]) | (1 << alloc.fpr.scratch_regs[1]) | (1 << alloc.fpr.scratch_regs[2]); 
-
    
     u32 saved_gpr = 0;
     u32 saved_fpr = 0;
@@ -798,8 +795,8 @@ void allocate_registers(Interloper& itl,Function &func)
     if(func.name != "start")
     {
         // make sure callee saved regs are not saved inside the func
-        saved_gpr = alloc.gpr.used_set & ~(CALLEE_GPR_SAVED_MASK | SCRATCH_GPR_MASK | (1 << arch_sp(alloc.arch)));
-        saved_fpr = alloc.fpr.used_set & ~(CALLEE_FPR_SAVED_MASK | SCRATCH_FPR_MASK);
+        saved_gpr = alloc.gpr.used_set & ~(CALLEE_GPR_SAVED_MASK | (1 << arch_sp(alloc.arch)));
+        saved_fpr = alloc.fpr.used_set & ~(CALLEE_FPR_SAVED_MASK);
 
         // return addr + saved regs + call stack
         const u32 call_align = 1 + popcount(saved_gpr) + popcount(saved_fpr) + (func.sig.call_stack_size / GPR_SIZE);

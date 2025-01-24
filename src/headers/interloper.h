@@ -164,8 +164,6 @@ struct Interloper
     // compiler options
     b32 rtti_enable = true;
 
-    b32 stack_only = false;
-
     b32 optimise = false;
 
     b32 compile_only = false;
