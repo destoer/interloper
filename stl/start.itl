@@ -1,15 +1,32 @@
-import <system>
+// import <system>
+import <mem>
 
 global global_setup : bool = false;
+
+// // TODO: need to define for each arch
+// func start()
+// {
+//     // NOTE: the compiler will internally set this up for us
+//     init_global();
+
+//     global_setup = true;
+
+//     rc: s32 = main();
+//     std::exit(rc);
+// }
+
+constant SYSCALL_EXIT : u32 = 60;
+
+func exit(exit_code: s32)
+{
+    intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
+}
 
 // TODO: need to define for each arch
 func start()
 {
-    // NOTE: the compiler will internally set this up for us
-    init_global();
-
     global_setup = true;
 
     rc: s32 = main();
-    std::exit(rc);
+    exit(rc);
 }
