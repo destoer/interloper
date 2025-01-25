@@ -47,6 +47,11 @@ struct LinearAlloc
 };
 
 
+RegisterFile& get_register_file(LinearAlloc& alloc, Reg& reg)
+{
+    return (reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+}
+
 void print_reg_alloc(LinearAlloc& alloc)
 {
     assert(false);
@@ -330,7 +335,7 @@ void clean_dead_reg(Interloper& itl, Function& func,LinearAlloc& alloc,ActiveReg
         {
             // check which register file to use
             auto& ir_reg = reg_from_slot(itl,func,cmp.slot);
-            auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+            auto& reg_file = get_register_file(alloc,ir_reg);
 
             //printf("free %d %d: %x [%d,%d] -> %x\n",i,active.size,cmp.slot.handle,cmp.start,cmp.end,cmp.location);
             free_reg(reg_file,cmp.global_reg);
@@ -416,7 +421,7 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
         clean_dead_reg(itl,func,alloc,active,cur);
 
         // check which register file to use
-        auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+        auto& reg_file = get_register_file(alloc,ir_reg);
 
         const u32 reg = alloc_reg(reg_file);
 
@@ -524,7 +529,7 @@ void spill_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node
     // Mark the register as freed
     assert(is_reg_locally_allocated(ir_reg));
 
-    free_location(ir_reg,(ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr);
+    free_location(ir_reg,get_register_file(alloc,ir_reg));
 }
 
 // Spill a slot to memory
@@ -597,7 +602,7 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, SymbolTable& table, const Set<S
             
             if(is_reg_locally_allocated(ir_reg))
             {
-                auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+                auto& reg_file = get_register_file(alloc,ir_reg);
                 remove_reg(reg_file, ir_reg.local_reg);
                 reg_file.allocated[ir_reg.local_reg] = slot;
             }
@@ -653,7 +658,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
         else
         {
             // check which register file to use
-            auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+            auto& reg_file = get_register_file(alloc,ir_reg);
 
             acquire_local_reg(alloc,ir_reg,reg_file,block);
 
