@@ -1,7 +1,7 @@
 // import <system>
 import <mem>
 
-global global_setup : bool = false;
+// global global_setup : bool = false;
 
 // // TODO: need to define for each arch
 // func start()
@@ -25,8 +25,6 @@ func exit(exit_code: s32)
 // TODO: need to define for each arch
 func start()
 {
-    global_setup = true;
-
     rc: s32 = main();
     exit(rc);
 }

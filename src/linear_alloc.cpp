@@ -540,6 +540,36 @@ void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, Sy
     }   
 }
 
+// TODO: We need to redefine the structs we use for data flow analysis
+// to make operations like this simpler
+void set_local_reg_from_set(LinearAlloc& alloc, Set<SymSlot>& set)
+{
+    for(u32 i = 0; i < count(set.buf); i++)
+    {
+        const auto bucket = set.buf[i];
+
+        for(u32 j = 0; j < count(bucket); j++)
+        {
+            const auto slot = bucket[j];
+
+            RegisterLocation* reg_opt = lookup(alloc.location,slot);
+            
+            if(reg_opt)
+            {
+                reg_opt->local_reg = reg_opt->global_reg;
+            }
+        }
+    }
+}
+
+void linear_setup_new_block(LinearAlloc& alloc, Block& block) 
+{
+    // Set the local register location for every used register
+    // This means any def or live in register
+    set_local_reg_from_set(alloc,block.def);
+    set_local_reg_from_set(alloc,block.live_in);
+}
+
 void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, u32 reg)
 {
     const auto opcode = node->opcode;

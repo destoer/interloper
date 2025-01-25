@@ -755,6 +755,7 @@ void allocate_registers(Interloper& itl,Function &func)
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
+        linear_setup_new_block(alloc,block);
 
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
         
