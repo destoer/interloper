@@ -398,6 +398,8 @@ static constexpr u32 UNALLOCATED_OFFSET = 0xffff'ffff;
 static constexpr u32 LOCATION_MEM = 0xffffffff;
 static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
+static constexpr u32 UNALLOCATED_REG = 0xffff'fffd;
+
 
 b32 is_var(SymSlot slot);
 
@@ -672,7 +674,6 @@ void mov_imm(Interloper& itl, Function& func, SymSlot dst, u64 imm);
 
 void spill_func_bounds(Interloper& itl, Function& func);
 
-void reload_slot(Interloper& itl, Function& func, const Reg& reg);
 void spill_slot(Interloper& itl, Function& func, const Reg& reg);
 
 void free_fixed_array(Interloper& itl,Function& func,SymSlot src,u32 size,u32 count);

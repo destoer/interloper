@@ -1,5 +1,7 @@
 #include <reg.cpp>
 
+void reload_slot(Interloper& itl, Function& func, const Reg& reg);
+
 List& get_cur_list(IrEmitter& emitter)
 {
     return emitter.program[count(emitter.program)-1].list; 
@@ -42,7 +44,7 @@ constexpr OpInfo opcode_three_info(op_type type)
     return OP_INFO;    
 }
 
-// NOTE: we could have handled this with higher level checks at hte point we request the symbol
+// NOTE: we could have handled this with higher level checks at the point we request the symbol
 // from the table and strongly type src and dst slots, but it seems too error prone,
 // even though the current solution is a bit heavyweight
 

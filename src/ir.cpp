@@ -19,9 +19,9 @@ u32 get_mov_register(LinearAlloc& alloc,RegisterFile& reg_file,SymSlot slot)
         const auto reg_opt = lookup(alloc.location,slot);
 
         // var is allocated
-        if(reg_opt)
+        if(is_reg_locally_allocated(reg_opt))
         {
-            return *reg_opt;
+            return reg_opt->local_reg;
         }
 
         // not allocated
@@ -56,8 +56,8 @@ ListNode* move(Interloper& itl,LinearAlloc& alloc,RegisterFile& reg_file, Block&
     // do memory to memory move
     if(dst_free && src_free)
     {
-        reload_reg(alloc,table,block,node,src,reg_file.scratch_regs[1]);
-        spill_reg(alloc,table,block,node, dst, reg_file.scratch_regs[1], false);
+        // Need to regrab a register
+        assert(false);
         node = remove(block.list,node);
     }
 
@@ -179,13 +179,13 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         {
             const auto slot = sym_from_idx(opcode.v[0]);
 
-            const auto loc_opt = lookup(alloc.location,slot);
+            const auto reg_opt = lookup(alloc.location,slot);
 
             // issue a reload
-            if(loc_opt)
+            if(is_reg_locally_allocated(reg_opt))
             {
-                const u32 loc = *loc_opt;
-                reload_reg(alloc,table,block,node,slot,loc);
+                const u32 reg = reg_opt->local_reg;
+                reload_reg(alloc,table,block,node,slot,reg);
             }
 
             node = remove(block.list,node);
