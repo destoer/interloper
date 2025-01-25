@@ -440,6 +440,8 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
     
         case op_type::spill_func_bounds:
         {
+            // clear our any caller saved regs
+            save_caller_saved_regs(alloc,table,block,node);
             return remove(block.list,node);
         }
     

@@ -13,8 +13,6 @@ static constexpr u32 INVALID_LOCAL_USES = 0xffff'ffff;
 
 struct RegisterLocation
 {
-    // Where does this varible reside in memory if at all
-    u32 memory_location = UNALLOCATED_OFFSET; 
     // Where is this register globally allocated if at all
     u32 global_reg = UNALLOCATED_REG;
     // Where does this register reside in the current block?
@@ -23,11 +21,20 @@ struct RegisterLocation
     // For now we can just spill randomly and generate poor code
     // How many uses does this register have in the current block
     u32 local_uses = INVALID_LOCAL_USES;
+
+    // Is this register a float
+    bool is_float = false;
 };
 
-RegisterLocation make_register_loc(u32 global_reg)
+RegisterLocation make_register_loc(b32 is_float)
 {
-    RegisterLocation location = {UNALLOCATED_OFFSET,global_reg,UNALLOCATED_REG};
+    RegisterLocation location = {UNALLOCATED_REG,UNALLOCATED_REG,is_float};
+    return location;
+}
+
+RegisterLocation make_register_loc(u32 global_reg, b32 is_float)
+{
+    RegisterLocation location = {global_reg,UNALLOCATED_REG,is_float};
     return location;
 }
 
@@ -43,6 +50,9 @@ struct RegisterFile
 
     // what registers are we allowed to use?
     u32 free_set = 0;
+
+    // What slot is being used by a register?
+    SymSlot allocated[MACHINE_REG_SIZE];
 };
 
 // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
@@ -219,6 +229,12 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
 void free_reg(RegisterFile& regs,u32 reg)
 {
     regs.free_set = set_bit(regs.free_set,reg);
+    regs.allocated[reg] = {INVALID_HANDLE};
+}
+
+bool is_reg_free(RegisterFile& regs,u32 reg)
+{
+    return is_set(regs.free_set,reg);
 }
 
 void remove_reg(RegisterFile& regs, u32 reg)
@@ -488,13 +504,19 @@ void reserve_offset(LinearAlloc& alloc,SymbolTable& table, Reg& ir_reg,u32 reg)
     stack_reserve_reg(alloc.stack_alloc,ir_reg);
 }
 
+void free_location(RegisterLocation *location,RegisterFile& regs)
+{
+    free_reg(regs, location->local_reg);
+    location->local_reg = UNALLOCATED_REG;
+}
 
+// Spill a register to memory
 void spill_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, SymSlot slot, u32 reg, bool after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
     const u32 size = ir_reg.size * ir_reg.count;
 
-    // TODO: handle if structs aernt always in emory
+    // TODO: handle if structs aernt always in memory
     assert(size <= GPR_SIZE);
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
@@ -518,8 +540,15 @@ void spill_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node
     {
         insert_after(block.list,node,opcode);
     }
+
+    // Mark the register as freed
+    RegisterLocation *reg_loc = lookup(alloc.location,slot);
+    assert(reg_loc);
+
+    free_location(reg_loc,reg_loc->is_float? alloc.fpr : alloc.gpr);
 }
 
+// Spill a slot to memory
 void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, SymSlot slot, bool after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
@@ -540,9 +569,28 @@ void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, Sy
     }   
 }
 
+// Save a register, this can either be a copy to a free reg
+// Or by spilling it to memory
+void save_reg(LinearAlloc& alloc,SymbolTable& table, Block& block, ListNode* node, RegisterFile& file, u32 reg)
+{
+    // TODO: for now just spill back out to memory 
+    if(!is_reg_free(file,reg))
+    {
+        spill(alloc,table,block,node,file.allocated[reg],false);
+    }
+}
+
+void save_caller_saved_regs(LinearAlloc& alloc, SymbolTable& table, Block& block, ListNode* node)
+{
+    const auto& abi_info = get_abi_info(alloc.arch);
+
+    // then save the caller saved registers
+    save_reg(alloc,table,block,node,alloc.gpr,abi_info.rv);
+}
+
 // TODO: We need to redefine the structs we use for data flow analysis
 // to make operations like this simpler
-void set_local_reg_from_set(LinearAlloc& alloc, Set<SymSlot>& set)
+void set_local_reg_from_set(LinearAlloc& alloc, const Set<SymSlot>& set)
 {
     for(u32 i = 0; i < count(set.buf); i++)
     {
@@ -562,12 +610,40 @@ void set_local_reg_from_set(LinearAlloc& alloc, Set<SymSlot>& set)
     }
 }
 
+void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<SymSlot>& live_in)
+{
+    for(u32 i = 0; i < count(live_in.buf); i++)
+    {
+        const auto bucket = live_in.buf[i];
+
+        for(u32 j = 0; j < count(bucket); j++)
+        {
+            const auto slot = bucket[j];
+
+            // allocate the register into the appropiate register file
+            RegisterLocation* reg_opt = lookup(alloc.location,slot);
+            
+            if(is_reg_locally_allocated(reg_opt))
+            {
+                auto& reg_file = reg_opt->is_float? alloc.fpr : alloc.gpr;
+                remove_reg(reg_file, reg_opt->local_reg);
+                reg_file.allocated[reg_opt->local_reg] = slot;
+            }
+        }
+    }
+}
+
 void linear_setup_new_block(LinearAlloc& alloc, Block& block) 
 {
+    // All registers free at block start bar live in
+    init_regs(alloc,0);
+
     // Set the local register location for every used register
     // This means any def or live in register
     set_local_reg_from_set(alloc,block.def);
     set_local_reg_from_set(alloc,block.live_in);
+
+    alloc_regs_from_live_in(alloc,block.live_in);
 }
 
 void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, u32 reg)

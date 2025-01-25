@@ -487,6 +487,26 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
 }
 
 
+struct AbiInfo
+{
+    u32 rv;
+    u32 sp;
+
+    // u32 args[32];
+    // u32 arg_count;
+};
+
+static constexpr AbiInfo ABI_INFO[] = 
+{
+    {x86_reg::rax,x86_reg::rsp}, // arch_target::x86_64_t
+};
+
+// TODO: This should not just be down to arch
+const AbiInfo& get_abi_info(arch_target arch)
+{
+    return ABI_INFO[u32(arch)];
+}
+
 u32 special_reg_to_reg(arch_target arch,SymSlot slot)
 {
     switch(slot.handle)
