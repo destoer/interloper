@@ -461,6 +461,13 @@ struct Reg
     // where is the current offset for its section?
     u32 offset = UNALLOCATED_OFFSET;
 
+    // Where is this register globally allocated if at all
+    u32 global_reg = UNALLOCATED_REG;
+    // Where does this register reside in the current block?
+    u32 local_reg = UNALLOCATED_REG;
+
+    // TODO: do we want to hold a copy of its uses?
+
     u32 flags = 0;
 };
 

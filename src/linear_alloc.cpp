@@ -9,38 +9,9 @@ struct LinearRange
     b32 dst_live = false;
 };
 
-static constexpr u32 INVALID_LOCAL_USES = 0xffff'ffff;
-
-struct RegisterLocation
+bool is_reg_locally_allocated(const Reg& reg)
 {
-    // Where is this register globally allocated if at all
-    u32 global_reg = UNALLOCATED_REG;
-    // Where does this register reside in the current block?
-    u32 local_reg = UNALLOCATED_REG;
-    // TODO: Think we may need the old system of a list of uses that we have to scan for?
-    // For now we can just spill randomly and generate poor code
-    // How many uses does this register have in the current block
-    u32 local_uses = INVALID_LOCAL_USES;
-
-    // Is this register a float
-    bool is_float = false;
-};
-
-RegisterLocation make_register_loc(b32 is_float)
-{
-    RegisterLocation location = {UNALLOCATED_REG,UNALLOCATED_REG,is_float};
-    return location;
-}
-
-RegisterLocation make_register_loc(u32 global_reg, b32 is_float)
-{
-    RegisterLocation location = {global_reg,UNALLOCATED_REG,is_float};
-    return location;
-}
-
-bool is_reg_locally_allocated(const RegisterLocation* reg)
-{
-    return reg != nullptr && reg->local_reg != UNALLOCATED_REG;
+    return reg.local_reg != UNALLOCATED_REG;
 }
 
 struct RegisterFile
@@ -66,8 +37,6 @@ struct LinearAlloc
     // allcation info of tmp's for current function
     // NOTE: this is owned by the func and we dont have to free it
     Array<Reg> tmp_regs;
-
-    HashTable<SymSlot,RegisterLocation> location;
 
     b32 print = false;
 
@@ -98,8 +67,6 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers
 
     alloc.arch = arch;
     alloc.tmp_regs = registers;
-
-    alloc.location = make_table<SymSlot,RegisterLocation>();
 
     return alloc;
 }
@@ -282,6 +249,24 @@ u32 alloc_reg(RegisterFile& regs)
     return reg;
 }
 
+// TODO: This should look for a register furthest in the future.
+// We may have to have a look back over our local allocator
+void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block& block)
+{
+    UNUSED(alloc);
+    UNUSED(block);
+    u32 reg = alloc_reg(regs);
+
+    // Spill a register for room
+    if(reg == FFS_EMPTY)
+    {
+        assert(false);
+    }
+
+    ir_reg.local_reg = reg;
+    regs.allocated[reg] = ir_reg.slot;
+}
+
 // TODO: we need to dynamically lock the registers for each function
 void init_regs(LinearAlloc& alloc, u32 locked_set)
 {
@@ -440,7 +425,7 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
         {
             // set location
             cur.global_reg = reg;
-            add(alloc.location,cur.slot,make_register_loc(cur.global_reg));
+            ir_reg.global_reg = cur.global_reg;
 
             // add to active register set 
             add_active(active,cur);
@@ -450,9 +435,7 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
         // it into memory
         else
         {
-            // Add a unallocated location
-            RegisterLocation location;
-            add(alloc.location,cur.slot,location);
+
         }
     }
 
@@ -461,7 +444,6 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 
 void destroy_linear_alloc(LinearAlloc& alloc)
 {
-    destroy_table(alloc.location);
     destroy_stack_alloc(alloc.stack_alloc);
 }
 
@@ -485,15 +467,13 @@ void reload_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* nod
 
 void reload_slot(LinearAlloc& alloc, SymbolTable& table,Block& block, ListNode* node, SymSlot slot)
 {
-    const RegisterLocation* reg_opt = lookup(alloc.location,slot);
+    auto& ir_reg = reg_from_slot(slot,table,alloc);
 
     // If this register is not allocated then let the next instruction that uses it
     // Deal with handling the reload.
-    if(is_reg_locally_allocated(reg_opt))
+    if(is_reg_locally_allocated(ir_reg))
     {
-        const u32 reg = reg_opt->global_reg;
-
-        reload_reg(alloc,table,block,node,slot,reg);
+        reload_reg(alloc,table,block,node,slot,ir_reg.local_reg);
     }
 }
 
@@ -504,10 +484,10 @@ void reserve_offset(LinearAlloc& alloc,SymbolTable& table, Reg& ir_reg,u32 reg)
     stack_reserve_reg(alloc.stack_alloc,ir_reg);
 }
 
-void free_location(RegisterLocation *location,RegisterFile& regs)
+void free_location(Reg& ir_reg,RegisterFile& regs)
 {
-    free_reg(regs, location->local_reg);
-    location->local_reg = UNALLOCATED_REG;
+    free_reg(regs, ir_reg.local_reg);
+    ir_reg.local_reg = UNALLOCATED_REG;
 }
 
 // Spill a register to memory
@@ -542,24 +522,20 @@ void spill_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node
     }
 
     // Mark the register as freed
-    RegisterLocation *reg_loc = lookup(alloc.location,slot);
-    assert(reg_loc);
+    assert(is_reg_locally_allocated(ir_reg));
 
-    free_location(reg_loc,reg_loc->is_float? alloc.fpr : alloc.gpr);
+    free_location(ir_reg,(ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr);
 }
 
 // Spill a slot to memory
 void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, SymSlot slot, bool after)
 {
     auto& ir_reg = reg_from_slot(slot,table,alloc);
-    const RegisterLocation *reg_opt = lookup(alloc.location,slot);
 
     // is actually in a reg and not immediatly spilled
-    if(is_reg_locally_allocated(reg_opt))
+    if(is_reg_locally_allocated(ir_reg))
     {
-        const u32 reg = reg_opt->local_reg;
-
-        spill_reg(alloc,table,block,node,slot,reg,after);
+        spill_reg(alloc,table,block,node,slot,ir_reg.local_reg,after);
     }
 
     // reserve a space for this for a later spill
@@ -590,7 +566,7 @@ void save_caller_saved_regs(LinearAlloc& alloc, SymbolTable& table, Block& block
 
 // TODO: We need to redefine the structs we use for data flow analysis
 // to make operations like this simpler
-void set_local_reg_from_set(LinearAlloc& alloc, const Set<SymSlot>& set)
+void set_local_reg_from_set(LinearAlloc& alloc, SymbolTable& table, const Set<SymSlot>& set)
 {
     for(u32 i = 0; i < count(set.buf); i++)
     {
@@ -599,18 +575,14 @@ void set_local_reg_from_set(LinearAlloc& alloc, const Set<SymSlot>& set)
         for(u32 j = 0; j < count(bucket); j++)
         {
             const auto slot = bucket[j];
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
 
-            RegisterLocation* reg_opt = lookup(alloc.location,slot);
-            
-            if(reg_opt)
-            {
-                reg_opt->local_reg = reg_opt->global_reg;
-            }
+            ir_reg.local_reg = ir_reg.global_reg;
         }
     }
 }
 
-void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<SymSlot>& live_in)
+void alloc_regs_from_live_in(LinearAlloc& alloc, SymbolTable& table, const Set<SymSlot>& live_in)
 {
     for(u32 i = 0; i < count(live_in.buf); i++)
     {
@@ -621,29 +593,29 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<SymSlot>& live_in)
             const auto slot = bucket[j];
 
             // allocate the register into the appropiate register file
-            RegisterLocation* reg_opt = lookup(alloc.location,slot);
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
             
-            if(is_reg_locally_allocated(reg_opt))
+            if(is_reg_locally_allocated(ir_reg))
             {
-                auto& reg_file = reg_opt->is_float? alloc.fpr : alloc.gpr;
-                remove_reg(reg_file, reg_opt->local_reg);
-                reg_file.allocated[reg_opt->local_reg] = slot;
+                auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+                remove_reg(reg_file, ir_reg.local_reg);
+                reg_file.allocated[ir_reg.local_reg] = slot;
             }
         }
     }
 }
 
-void linear_setup_new_block(LinearAlloc& alloc, Block& block) 
+void linear_setup_new_block(LinearAlloc& alloc, SymbolTable& table, Block& block) 
 {
     // All registers free at block start bar live in
     init_regs(alloc,0);
 
     // Set the local register location for every used register
     // This means any def or live in register
-    set_local_reg_from_set(alloc,block.def);
-    set_local_reg_from_set(alloc,block.live_in);
+    set_local_reg_from_set(alloc,table,block.def);
+    set_local_reg_from_set(alloc,table,block.live_in);
 
-    alloc_regs_from_live_in(alloc,block.live_in);
+    alloc_regs_from_live_in(alloc,table,block.live_in);
 }
 
 void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, u32 reg)
@@ -666,53 +638,36 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
     // check we are dealing with a var
     if(is_var(slot))
     {
-        const RegisterLocation *reg_opt = lookup(alloc.location,slot);
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
 
         // var is allocated
-        if(is_reg_locally_allocated(reg_opt))
+        if(is_reg_locally_allocated(ir_reg))
         {
-            const u32 loc = reg_opt->local_reg;
-
             if(is_src || is_dst)
             {
-                node->opcode.v[reg] = loc;
+                node->opcode.v[reg] = ir_reg.local_reg;
             }
         }
 
         // Aquire a new register and reload it
         else
         {
-            UNUSED(table); UNUSED(block);
-            assert(false);
+            // check which register file to use
+            auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
 
-            // // check which register file to use
-            // auto& ir_reg = reg_from_slot(slot,table,alloc);
-            // auto& reg_file = (ir_reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+            acquire_local_reg(alloc,ir_reg,reg_file,block);
 
-            // const u32 scratch_reg = reg_file.scratch_regs[reg];
+            if(is_src || is_dst)
+            {
+                node->opcode.v[reg] = ir_reg.local_reg;
+            }
 
-
-            // // rewrite in the register
-            // node->opcode.v[reg] = scratch_reg;
-
-            // // src do a reload
-            // if(is_src) 
-            // {
-            //     // issue a load
-            //     reload_reg(alloc,table,block,node,slot,scratch_reg);
-
-            //     // do the writeback as well
-            //     if(is_dst)
-            //     {
-            //         spill_reg(alloc,table,block,node,slot,scratch_reg,true);
-            //     }
-            // }
-
-            // // just a dst
-            // else if(is_dst)
-            // {
-            //     spill_reg(alloc,table,block,node,slot,scratch_reg,true);      
-            // }
+            // src do a reload
+            if(is_src) 
+            {
+                // issue a load
+                reload_reg(alloc,table,block,node,slot, ir_reg.local_reg);
+            }
         }
     }
 

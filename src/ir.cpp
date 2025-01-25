@@ -12,16 +12,16 @@
 #include "linear_alloc.cpp"
 #include "disass.cpp"
 
-u32 get_mov_register(LinearAlloc& alloc,RegisterFile& reg_file,SymSlot slot)
+u32 get_mov_register(LinearAlloc& alloc,SymbolTable& table,RegisterFile& reg_file,SymSlot slot)
 {
     if(is_var(slot))
     {
-        const auto reg_opt = lookup(alloc.location,slot);
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
 
         // var is allocated
-        if(is_reg_locally_allocated(reg_opt))
+        if(is_reg_locally_allocated(ir_reg))
         {
-            return reg_opt->local_reg;
+            return ir_reg.local_reg;
         }
 
         // not allocated
@@ -46,8 +46,8 @@ ListNode* move(Interloper& itl,LinearAlloc& alloc,RegisterFile& reg_file, Block&
     const auto dst = sym_from_idx(opcode.v[0]);
     const auto src = sym_from_idx(opcode.v[1]);
 
-    const u32 src_reg = get_mov_register(alloc,reg_file,src);
-    const u32 dst_reg = get_mov_register(alloc,reg_file,dst);
+    const u32 src_reg = get_mov_register(alloc,table,reg_file,src);
+    const u32 dst_reg = get_mov_register(alloc,table,reg_file,dst);
 
     const b32 dst_free = dst_reg == REG_FREE;
     const b32 src_free = src_reg == REG_FREE;
@@ -178,14 +178,12 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         case op_type::live_var:
         {
             const auto slot = sym_from_idx(opcode.v[0]);
-
-            const auto reg_opt = lookup(alloc.location,slot);
+            auto& ir_reg = reg_from_slot(itl,func,slot);
 
             // issue a reload
-            if(is_reg_locally_allocated(reg_opt))
+            if(is_reg_locally_allocated(ir_reg))
             {
-                const u32 reg = reg_opt->local_reg;
-                reload_reg(alloc,table,block,node,slot,reg);
+                reload_reg(alloc,table,block,node,slot,ir_reg.local_reg);
             }
 
             node = remove(block.list,node);
@@ -757,7 +755,7 @@ void allocate_registers(Interloper& itl,Function &func)
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
-        linear_setup_new_block(alloc,block);
+        linear_setup_new_block(alloc,itl.symbol_table,block);
 
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
         
