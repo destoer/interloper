@@ -52,10 +52,27 @@ RegisterFile& get_register_file(LinearAlloc& alloc, Reg& reg)
     return (reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
 }
 
-void print_reg_alloc(LinearAlloc& alloc)
+void print_reg_alloc(LinearAlloc& alloc, SymbolTable &table)
 {
-    assert(false);
-    UNUSED(alloc);
+    const u32 free_regs = popcount(alloc.gpr.free_set);
+    const u32 used_regs = popcount(alloc.gpr.used_set);
+
+    printf("free gpr registers: %d\n",free_regs);
+    printf("total used gpr registers: %d\n",used_regs);
+
+    for(u32 i = 0; i < X86_GPR_SIZE; i++)
+    {
+        const SymSlot slot = alloc.gpr.allocated[i];
+
+        if(slot.handle == REG_FREE)
+        {
+            continue;
+        }
+
+        log_reg(alloc.print,table,"reg %s -> %r\n",reg_name(alloc.arch,i),slot);
+    }
+
+    putchar('\n');
 }
 
 void mark_used(RegisterFile& regs, u32 reg)
@@ -201,7 +218,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
 void free_reg(RegisterFile& regs,u32 reg)
 {
     regs.free_set = set_bit(regs.free_set,reg);
-    regs.allocated[reg] = {INVALID_HANDLE};
+    regs.allocated[reg] = {REG_FREE};
 }
 
 bool is_reg_free(RegisterFile& regs,u32 reg)
@@ -275,6 +292,12 @@ void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block
 // TODO: we need to dynamically lock the registers for each function
 void init_regs(LinearAlloc& alloc, u32 locked_set)
 {
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        alloc.gpr.allocated[i] = {REG_FREE};
+        alloc.fpr.allocated[i] = {REG_FREE};
+    }
+
     add_reg(alloc.gpr,x86_reg::rax,locked_set);
     add_reg(alloc.gpr,x86_reg::rcx,locked_set);
     add_reg(alloc.gpr,x86_reg::rdx,locked_set);

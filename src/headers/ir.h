@@ -809,6 +809,8 @@ enum x86_reg : u64
 };
 
 static constexpr u32 X86_REG_SIZE = 33;
+static constexpr u32 X86_GPR_SIZE = 16;
+static constexpr u32 X86_FPR_SIZE = 16;
 
 static const char* X86_NAMES[X86_REG_SIZE] =
 {

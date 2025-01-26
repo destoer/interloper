@@ -777,7 +777,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
     if(alloc.print)
     {
-        print_reg_alloc(alloc);
+        print_reg_alloc(alloc,itl.symbol_table);
     }
 
     // iterate over the function by here and add callee cleanup at every ret

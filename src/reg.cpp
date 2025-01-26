@@ -451,7 +451,17 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
                 {
                     const auto slot = sym_from_idx(va_arg(args,u32));
 
-                    if(is_special_reg(slot))
+                    if(slot.handle == INVALID_HANDLE)
+                    {
+                        printf("Invalid");
+                    }
+
+                    else if(slot.handle == REG_FREE)
+                    {
+                        printf("Free");
+                    }
+
+                    else if(is_special_reg(slot))
                     {
                         printf("%s",spec_reg_name(slot));
                     }
