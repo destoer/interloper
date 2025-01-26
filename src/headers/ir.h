@@ -398,8 +398,6 @@ static constexpr u32 UNALLOCATED_OFFSET = 0xffff'ffff;
 static constexpr u32 LOCATION_MEM = 0xffffffff;
 static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
-static constexpr u32 UNALLOCATED_REG = 0xffff'fffd;
-
 
 b32 is_var(SymSlot slot);
 
@@ -444,42 +442,6 @@ static constexpr u32 CONST = 1 << 4;
 static constexpr u32 FUNC_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
 
-struct Reg
-{
-    reg_kind kind;
-
-    // what slot does this symbol hold inside the ir?
-    SymSlot slot = {SYMBOL_NO_SLOT};
-
-    // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
-    // i.e this is for stack allocation to get actual var sizes use type_size();
-    u32 size = 0;
-    u32 count = 0;
-
-    // intialized during register allocation
-
-    // where is the current offset for its section?
-    u32 offset = UNALLOCATED_OFFSET;
-
-    // Where is this register globally allocated if at all
-    u32 global_reg = UNALLOCATED_REG;
-    // Where does this register reside in the current block?
-    u32 local_reg = UNALLOCATED_REG;
-
-    // TODO: do we want to hold a copy of its uses?
-
-    u32 flags = 0;
-};
-
-struct Interloper;
-struct Function;
-struct Type;
-
-Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed);
-Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type);
-b32 is_special_reg(SymSlot r);
-void destroy_reg(Reg& ir_reg);
-void print(const Reg& reg);
 
 // standard symbols
 static constexpr u32 SYMBOL_START = 0x80000000;
@@ -525,6 +487,48 @@ static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 13;
 
 static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 14;
 static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 15;
+
+static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
+static constexpr u32 TMP_END = REG_FREE - 1;
+static constexpr u32 REG_TMP_START = 0x00000000;
+
+struct Reg
+{
+    reg_kind kind;
+
+    // what slot does this symbol hold inside the ir?
+    SymSlot slot = {SYMBOL_NO_SLOT};
+
+    // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
+    // i.e this is for stack allocation to get actual var sizes use type_size();
+    u32 size = 0;
+    u32 count = 0;
+
+    // intialized during register allocation
+
+    // where is the current offset for its section?
+    u32 offset = UNALLOCATED_OFFSET;
+
+    // Where is this register globally allocated if at all
+    u32 global_reg = REG_FREE;
+    // Where does this register reside in the current block?
+    u32 local_reg = REG_FREE;
+
+    // TODO: do we want to hold a copy of its uses?
+
+    u32 flags = 0;
+};
+
+struct Interloper;
+struct Function;
+struct Type;
+
+Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed);
+Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type);
+b32 is_special_reg(SymSlot r);
+void destroy_reg(Reg& ir_reg);
+void print(const Reg& reg);
+
 
 const String SPECIAL_REG_NAMES[16] = 
 {

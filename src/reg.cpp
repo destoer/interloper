@@ -1,9 +1,5 @@
 #include <ir.h>
 
-static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
-static constexpr u32 TMP_END = REG_FREE - 1;
-static constexpr u32 REG_TMP_START = 0x00000000;
-
 void destroy_reg(Reg& ir_reg)
 {
     UNUSED(ir_reg);

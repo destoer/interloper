@@ -3,7 +3,7 @@ struct LinearRange
     u32 start = 0xffff'ffff;
     u32 end = 0;
     SymSlot slot = {SYMBOL_NO_SLOT};
-    u32 global_reg = UNALLOCATED_REG;
+    u32 global_reg = REG_FREE;
     ListNode* node = nullptr;
     BlockSlot block_slot = {NO_SLOT};
     b32 dst_live = false;
@@ -11,7 +11,7 @@ struct LinearRange
 
 bool is_reg_locally_allocated(const Reg& reg)
 {
-    return reg.local_reg != UNALLOCATED_REG;
+    return reg.local_reg != REG_FREE;
 }
 
 struct RegisterFile
@@ -21,6 +21,9 @@ struct RegisterFile
 
     // what registers are we allowed to use?
     u32 free_set = 0;
+
+    // which regs are currently unusable
+    u32 locked_set = 0;
 
     // What slot is being used by a register?
     SymSlot allocated[MACHINE_REG_SIZE];
@@ -223,7 +226,12 @@ void free_reg(RegisterFile& regs,u32 reg)
 
 bool is_reg_free(RegisterFile& regs,u32 reg)
 {
-    return is_set(regs.free_set,reg);
+    return is_set(regs.free_set & ~regs.locked_set,reg);
+}
+
+bool is_locked(RegisterFile& regs,u32 reg)
+{
+    return is_set(regs.locked_set,reg);
 }
 
 void remove_reg(RegisterFile& regs, u32 reg)
@@ -231,15 +239,10 @@ void remove_reg(RegisterFile& regs, u32 reg)
     regs.free_set = deset_bit(regs.free_set,reg);
 }
 
-void add_reg(RegisterFile& regs, x86_reg reg, u32 locked_set)
+void add_reg(RegisterFile& regs, x86_reg reg)
 {
-    const u32 locked = (1 << u32(reg)) & locked_set;
-
-    // check register not locked
-    if(!locked)
-    {
-        free_reg(regs,u32(reg));
-    }
+    free_reg(regs,u32(reg));
+    regs.locked_set = deset_bit(regs.locked_set,u32(reg));
 }
 
 u32 find_free_register(u32 set,u32 used)
@@ -260,7 +263,7 @@ u32 find_free_register(u32 set,u32 used)
 
 u32 alloc_reg(RegisterFile& regs)
 {
-    const u32 reg = find_free_register(regs.free_set,regs.used_set);
+    const u32 reg = find_free_register(regs.free_set & ~regs.locked_set,regs.used_set);
 
     if(reg != FFS_EMPTY)
     {
@@ -271,26 +274,41 @@ u32 alloc_reg(RegisterFile& regs)
     return reg;
 }
 
+void assign_local_reg(RegisterFile& regs,Reg& ir_reg, u32 reg)
+{
+    ir_reg.local_reg = reg;
+    regs.allocated[ir_reg.local_reg] = ir_reg.slot;
+}
+
+bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
+{
+    const u32 reg = alloc_reg(regs);
+
+    if(reg != FFS_EMPTY)
+    {
+        assign_local_reg(regs,ir_reg,reg);
+        return true;
+    }
+
+    return false;
+}
+
 // TODO: This should look for a register furthest in the future.
 // We may have to have a look back over our local allocator
 void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block& block)
 {
     UNUSED(alloc);
     UNUSED(block);
-    u32 reg = alloc_reg(regs);
 
     // Spill a register for room
-    if(reg == FFS_EMPTY)
+    if(!alloc_ir_reg(regs,ir_reg))
     {
         assert(false);
     }
-
-    ir_reg.local_reg = reg;
-    regs.allocated[reg] = ir_reg.slot;
 }
 
 // TODO: we need to dynamically lock the registers for each function
-void init_regs(LinearAlloc& alloc, u32 locked_set)
+void init_regs(LinearAlloc& alloc)
 {
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
@@ -298,33 +316,41 @@ void init_regs(LinearAlloc& alloc, u32 locked_set)
         alloc.fpr.allocated[i] = {REG_FREE};
     }
 
-    add_reg(alloc.gpr,x86_reg::rax,locked_set);
-    add_reg(alloc.gpr,x86_reg::rcx,locked_set);
-    add_reg(alloc.gpr,x86_reg::rdx,locked_set);
-    add_reg(alloc.gpr,x86_reg::rbx,locked_set);
-    add_reg(alloc.gpr,x86_reg::rdp,locked_set);
-    add_reg(alloc.gpr,x86_reg::rsi,locked_set);
-    add_reg(alloc.gpr,x86_reg::rdi,locked_set);
+    // All regs free (though this does not imply they are usable)
+    alloc.gpr.free_set = 0xffff'ffff;
+    alloc.fpr.free_set = 0xffff'ffff;
 
-    add_reg(alloc.gpr,x86_reg::r8,locked_set);
-    add_reg(alloc.gpr,x86_reg::r9,locked_set);
-    add_reg(alloc.gpr,x86_reg::r10,locked_set);
-    add_reg(alloc.gpr,x86_reg::r11,locked_set);
-    add_reg(alloc.gpr,x86_reg::r12,locked_set);
-    add_reg(alloc.gpr,x86_reg::r13,locked_set);
-    add_reg(alloc.gpr,x86_reg::r14,locked_set);
-    add_reg(alloc.gpr,x86_reg::r15,locked_set);
+    // reg is locked until added
+    alloc.gpr.locked_set = 0xffff'ffff;
+    alloc.fpr.locked_set = 0xffff'ffff;
+
+    // add_reg(alloc.gpr,x86_reg::rax);
+    add_reg(alloc.gpr,x86_reg::rcx);
+    add_reg(alloc.gpr,x86_reg::rdx);
+    add_reg(alloc.gpr,x86_reg::rbx);
+    add_reg(alloc.gpr,x86_reg::rdp);
+    add_reg(alloc.gpr,x86_reg::rsi);
+    add_reg(alloc.gpr,x86_reg::rdi);
+
+    add_reg(alloc.gpr,x86_reg::r8);
+    add_reg(alloc.gpr,x86_reg::r9);
+    add_reg(alloc.gpr,x86_reg::r10);
+    add_reg(alloc.gpr,x86_reg::r11);
+    add_reg(alloc.gpr,x86_reg::r12);
+    add_reg(alloc.gpr,x86_reg::r13);
+    add_reg(alloc.gpr,x86_reg::r14);
+    add_reg(alloc.gpr,x86_reg::r15);
 
 
     // add sse regs
-    add_reg(alloc.fpr,x86_reg::xmm0,locked_set);
-    add_reg(alloc.fpr,x86_reg::xmm1,locked_set);
-    add_reg(alloc.fpr,x86_reg::xmm2,locked_set);
-    add_reg(alloc.fpr,x86_reg::xmm3,locked_set);
-    add_reg(alloc.fpr,x86_reg::xmm4,locked_set);
-    add_reg(alloc.fpr,x86_reg::xmm5,locked_set);
-    add_reg(alloc.fpr,x86_reg::xmm6,locked_set);
-    add_reg(alloc.fpr,x86_reg::xmm7,locked_set);
+    add_reg(alloc.fpr,x86_reg::xmm0);
+    add_reg(alloc.fpr,x86_reg::xmm1);
+    add_reg(alloc.fpr,x86_reg::xmm2);
+    add_reg(alloc.fpr,x86_reg::xmm3);
+    add_reg(alloc.fpr,x86_reg::xmm4);
+    add_reg(alloc.fpr,x86_reg::xmm5);
+    add_reg(alloc.fpr,x86_reg::xmm6);
+    add_reg(alloc.fpr,x86_reg::xmm7);
 }
 
 // NOTE: this relieso on pow2
@@ -418,7 +444,7 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
     }
 */
     // init our register set
-    init_regs(alloc,func.locked_set);
+    init_regs(alloc);
 
     // perform the allocation
     for(u32 r = 0; r < count(range); r++)
@@ -512,10 +538,10 @@ void reserve_offset(LinearAlloc& alloc,SymbolTable& table, Reg& ir_reg,u32 reg)
     stack_reserve_reg(alloc.stack_alloc,ir_reg);
 }
 
-void free_location(Reg& ir_reg,RegisterFile& regs)
+void free_ir_reg(Reg& ir_reg,RegisterFile& regs)
 {
     free_reg(regs, ir_reg.local_reg);
-    ir_reg.local_reg = UNALLOCATED_REG;
+    ir_reg.local_reg = REG_FREE;
 }
 
 // Spill a register to memory
@@ -552,7 +578,7 @@ void spill_reg(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node
     // Mark the register as freed
     assert(is_reg_locally_allocated(ir_reg));
 
-    free_location(ir_reg,get_register_file(alloc,ir_reg));
+    free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
 }
 
 // Spill a slot to memory
@@ -578,8 +604,9 @@ void spill(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, Sy
 void save_reg(LinearAlloc& alloc,SymbolTable& table, Block& block, ListNode* node, RegisterFile& file, u32 reg)
 {
     // TODO: for now just spill back out to memory 
-    if(!is_reg_free(file,reg))
+    if(!is_reg_free(file,reg) && !is_locked(file,reg))
     {
+        log_reg(alloc.print,table,"Saving %r from %s\n",file.allocated[reg],reg_name(alloc.arch,reg));
         spill(alloc,table,block,node,file.allocated[reg],false);
     }
 }
@@ -590,24 +617,6 @@ void save_caller_saved_regs(LinearAlloc& alloc, SymbolTable& table, Block& block
 
     // then save the caller saved registers
     save_reg(alloc,table,block,node,alloc.gpr,abi_info.rv);
-}
-
-// TODO: We need to redefine the structs we use for data flow analysis
-// to make operations like this simpler
-void set_local_reg_from_set(LinearAlloc& alloc, SymbolTable& table, const Set<SymSlot>& set)
-{
-    for(u32 i = 0; i < count(set.buf); i++)
-    {
-        const auto bucket = set.buf[i];
-
-        for(u32 j = 0; j < count(bucket); j++)
-        {
-            const auto slot = bucket[j];
-            auto& ir_reg = reg_from_slot(slot,table,alloc);
-
-            ir_reg.local_reg = ir_reg.global_reg;
-        }
-    }
 }
 
 void alloc_regs_from_live_in(LinearAlloc& alloc, SymbolTable& table, const Set<SymSlot>& live_in)
@@ -626,8 +635,10 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, SymbolTable& table, const Set<S
             if(is_reg_locally_allocated(ir_reg))
             {
                 auto& reg_file = get_register_file(alloc,ir_reg);
+
+                assign_local_reg(get_register_file(alloc,ir_reg),ir_reg,ir_reg.global_reg);
                 remove_reg(reg_file, ir_reg.local_reg);
-                reg_file.allocated[ir_reg.local_reg] = slot;
+                mark_used(reg_file,ir_reg.local_reg);
             }
         }
     }
@@ -636,13 +647,9 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, SymbolTable& table, const Set<S
 void linear_setup_new_block(LinearAlloc& alloc, SymbolTable& table, Block& block) 
 {
     // All registers free at block start bar live in
-    init_regs(alloc,0);
+    init_regs(alloc);
 
-    // Set the local register location for every used register
-    // This means any def or live in register
-    set_local_reg_from_set(alloc,table,block.def);
-    set_local_reg_from_set(alloc,table,block.live_in);
-
+    // Regs coming rom live in are already allocated
     alloc_regs_from_live_in(alloc,table,block.live_in);
 }
 
@@ -684,6 +691,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
             auto& reg_file = get_register_file(alloc,ir_reg);
 
             acquire_local_reg(alloc,ir_reg,reg_file,block);
+            log_reg(alloc.print,table,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
 
             if(is_src || is_dst)
             {

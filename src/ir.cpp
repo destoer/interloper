@@ -38,53 +38,6 @@ u32 get_mov_register(LinearAlloc& alloc,SymbolTable& table,RegisterFile& reg_fil
     }
 }
 
-ListNode* move(Interloper& itl,LinearAlloc& alloc,RegisterFile& reg_file, Block& block, ListNode* node)
-{
-    auto &table = itl.symbol_table;
-    const auto &opcode = node->opcode;
-
-    const auto dst = sym_from_idx(opcode.v[0]);
-    const auto src = sym_from_idx(opcode.v[1]);
-
-    const u32 src_reg = get_mov_register(alloc,table,reg_file,src);
-    const u32 dst_reg = get_mov_register(alloc,table,reg_file,dst);
-
-    const b32 dst_free = dst_reg == REG_FREE;
-    const b32 src_free = src_reg == REG_FREE;
-
-    // no dst and src
-    // do memory to memory move
-    if(dst_free && src_free)
-    {
-        // Need to regrab a register
-        assert(false);
-        node = remove(block.list,node);
-    }
-
-    // spill src into dst
-    else if(dst_free)
-    {
-        spill_reg(alloc,table,block,node, dst, src_reg, false);
-        node = remove(block.list,node);
-    }
-
-    // reload src into dst
-    else if(src_free)
-    {
-        reload_reg(alloc,table,block,node,src,dst_reg);
-        node = remove(block.list,node);
-    }
-
-    // reg to reg move just rewrite
-    else
-    {
-        rewrite_opcode(alloc,table,block,node);
-        node = node->next;
-    }
-
-    return node;
-}
-
 ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,SymbolTable& table,Block& block, ListNode* node, SymSlot out)
 {
     // save where our dst is being forced into
@@ -148,18 +101,6 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
 
     switch(node->opcode.op)
     {
-        case op_type::mov_reg:
-        {
-            node = move(itl,alloc,alloc.gpr,block,node);
-            break;
-        }
-
-        case op_type::movf_reg:
-        {
-            node = move(itl,alloc,alloc.fpr,block,node);
-            break;
-        }
-
         case op_type::load_const_float:
         {
             // grab the offset we want
