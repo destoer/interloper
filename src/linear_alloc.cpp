@@ -46,6 +46,10 @@ struct LinearAlloc
     RegisterFile gpr;
     RegisterFile fpr;
 
+    // Registers marked for expiry
+    SymSlot dead_slot[3];
+    u32 dead_count = 0;
+
     StackAlloc stack_alloc;
 };
 
@@ -229,6 +233,32 @@ bool is_reg_free(RegisterFile& regs,u32 reg)
     return is_set(regs.free_set & ~regs.locked_set,reg);
 }
 
+void lock_reg(RegisterFile& regs, u32 reg)
+{
+    regs.locked_set = set_bit(regs.locked_set,reg);
+}
+
+void lock_special_reg(LinearAlloc& alloc, SymSlot slot)
+{
+    const u32 reg = special_reg_to_reg(alloc.arch,slot);
+    RegisterFile& reg_file = is_special_reg_fpr(alloc.arch,slot)? alloc.fpr : alloc.gpr;
+
+    lock_reg(reg_file,reg);
+}
+
+void unlock_reg(RegisterFile& regs, u32 reg)
+{
+    regs.locked_set = deset_bit(regs.locked_set,reg);
+}
+
+void unlock_special_reg(LinearAlloc& alloc, SymSlot slot)
+{
+    const u32 reg = special_reg_to_reg(alloc.arch,slot);
+    RegisterFile& reg_file = is_special_reg_fpr(alloc.arch,slot)? alloc.fpr : alloc.gpr;
+
+    unlock_reg(reg_file,reg);
+}
+
 bool is_locked(RegisterFile& regs,u32 reg)
 {
     return is_set(regs.locked_set,reg);
@@ -324,7 +354,7 @@ void init_regs(LinearAlloc& alloc)
     alloc.gpr.locked_set = 0xffff'ffff;
     alloc.fpr.locked_set = 0xffff'ffff;
 
-    // add_reg(alloc.gpr,x86_reg::rax);
+    add_reg(alloc.gpr,x86_reg::rax);
     add_reg(alloc.gpr,x86_reg::rcx);
     add_reg(alloc.gpr,x86_reg::rdx);
     add_reg(alloc.gpr,x86_reg::rbx);
@@ -644,6 +674,44 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, SymbolTable& table, const Set<S
     }
 }
 
+void compute_local_uses(LinearAlloc& alloc, SymbolTable& table, Block& block)
+{
+    List& list = block.list;
+
+    ListNode *node = list.start;
+
+    u32 pc = 0;
+
+    while(node)
+    {
+        const auto opcode = node->opcode;
+        const auto info = info_from_op(opcode);
+
+
+        for(u32 a = 0; a < info.args; a++)
+        {
+            // only interested in registers
+            if(!is_arg_reg(info.type[a]))
+            {
+                continue;
+            }
+
+            const SymSlot slot = sym_from_idx(opcode.v[a]);
+
+            if(is_special_reg(slot))
+            {
+                continue;
+            }
+
+            auto& ir_reg = reg_from_slot(slot,table,alloc);
+            push_var(ir_reg.local_uses,pc);
+        }
+
+        node = node->next;
+        pc++;
+    }    
+}
+
 void linear_setup_new_block(LinearAlloc& alloc, SymbolTable& table, Block& block) 
 {
     // All registers free at block start bar live in
@@ -651,6 +719,8 @@ void linear_setup_new_block(LinearAlloc& alloc, SymbolTable& table, Block& block
 
     // Regs coming rom live in are already allocated
     alloc_regs_from_live_in(alloc,table,block.live_in);
+
+    compute_local_uses(alloc,table,block);
 }
 
 void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node, u32 reg)
@@ -674,6 +744,9 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
     if(is_var(slot))
     {
         auto& ir_reg = reg_from_slot(slot,table,alloc);
+        auto& reg_file = get_register_file(alloc,ir_reg);
+
+        ir_reg.cur_local_uses++;
 
         // var is allocated
         if(is_reg_locally_allocated(ir_reg))
@@ -687,9 +760,6 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
         // Aquire a new register and reload it
         else
         {
-            // check which register file to use
-            auto& reg_file = get_register_file(alloc,ir_reg);
-
             acquire_local_reg(alloc,ir_reg,reg_file,block);
             log_reg(alloc.print,table,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
 
@@ -705,6 +775,23 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
                 reload_reg(alloc,table,block,node,slot, ir_reg.local_reg);
             }
         }
+
+        // Local uses have expried and it does not live beyond this block we can free the fregister
+        if(ir_reg.cur_local_uses >= count(ir_reg.local_uses))
+        {
+            // We still need to clear out the local uses!
+            if(contains(block.live_out,ir_reg.slot))
+            {
+                clear_arr(ir_reg.local_uses);
+            }
+
+            else
+            {
+                log_reg(alloc.print,table,"Mark %s in %r for expiry\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
+                // Don't terminate the regs during it as we need them allocated
+                alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
+            }            
+        }
     }
 
     // special reg just rewrite it to whatever it wants
@@ -717,16 +804,40 @@ void allocate_and_rewrite(LinearAlloc& alloc,SymbolTable& table,Block& block,Lis
     }
 }
 
+void clean_dead_regs(LinearAlloc& alloc, SymbolTable& table)
+{
+    while(alloc.dead_count)
+    {
+        const SymSlot slot = alloc.dead_slot[--alloc.dead_count];
+        auto& ir_reg = reg_from_slot(slot,table,alloc);
+
+        clear_arr(ir_reg.local_uses);
+        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+    }    
+}
+
 void rewrite_opcode(LinearAlloc& alloc,SymbolTable& table,Block& block,ListNode* node)
 {
     const auto opcode = node->opcode;
     const auto info = info_from_op(opcode);
 
-    // rewrite each arguement
-    for(u32 a = 0; a < info.args; a++)
+    // rewrite sourcec
+    for(u32 a = 1; a < info.args; a++)
     {
         allocate_and_rewrite(alloc,table,block,node,a);
     }
+
+    // free regs early to get reuse out of operands
+    // NOTE: this cannot happen on a src
+    // because otherwhise a reload will be inserted before
+    // the current instruction that clobbers the var we have just rewritten
+    if(info.type[0] == arg_type::dst_reg)
+    {
+        clean_dead_regs(alloc,table);
+    }
+
+    // rewrite dst
+    allocate_and_rewrite(alloc,table,block,node,0);
 }
 
 void finish_alloc(Reg& reg,SymbolTable& table,LinearAlloc& alloc)

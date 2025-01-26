@@ -514,7 +514,8 @@ struct Reg
     // Where does this register reside in the current block?
     u32 local_reg = REG_FREE;
 
-    // TODO: do we want to hold a copy of its uses?
+    u32 cur_local_uses = 0;
+    Array<u32> local_uses;
 
     u32 flags = 0;
 };

@@ -246,7 +246,7 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed, b32 is_float)
 
 void print(const Reg& reg)
 {
-    const char* KIND_NAMES[] = {"local","global","tmp"};
+    const char* KIND_NAMES[] = {"local","global","constant","tmp"};
     printf("kind: %s\n",KIND_NAMES[u32(reg.kind)]);
     printf("slot: 0x%x\n",reg.slot.handle);
 
@@ -254,6 +254,16 @@ void print(const Reg& reg)
     printf("count: %d\n",reg.count);
 
     printf("offset: 0x%x\n",reg.offset);
+
+    printf("local reg: r%x\n",reg.local_reg);
+    printf("global reg: r%x\n",reg.global_reg);
+
+    printf("uses: %d\n",reg.cur_local_uses);
+
+    for(u32 i = 0; i < count(reg.local_uses); i++)
+    {
+        printf("use[%d] -> %d\n",i,reg.local_uses[i]);
+    }
 }
 
 const char* spec_reg_name(SymSlot spec_reg)
@@ -511,6 +521,12 @@ static constexpr AbiInfo ABI_INFO[] =
 const AbiInfo& get_abi_info(arch_target arch)
 {
     return ABI_INFO[u32(arch)];
+}
+
+bool is_special_reg_fpr(arch_target arch, SymSlot slot)
+{
+    UNUSED(arch);
+    return slot.handle == RV_FLOAT_IR;
 }
 
 u32 special_reg_to_reg(arch_target arch,SymSlot slot)

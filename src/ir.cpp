@@ -182,13 +182,17 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
 
         case op_type::lock_reg:
         {
-            // we dont need to acually use this yet
+            const SymSlot spec = sym_from_idx(opcode.v[0]);
+            lock_special_reg(alloc,spec);
+
             return remove(block.list,node);
         }
 
         case op_type::unlock_reg:
         {
-            // we dont need to acually use this yet
+            const SymSlot spec = sym_from_idx(opcode.v[0]);
+            unlock_special_reg(alloc,spec);
+
             return remove(block.list,node);
         }
 
@@ -704,9 +708,14 @@ void allocate_registers(Interloper& itl,Function &func)
 
         while(node)
         {
+            clean_dead_regs(alloc,itl.symbol_table);
+
             node = allocate_opcode(itl,func,alloc,block,node);
             alloc.pc++;
         }
+
+        // clean any from block end
+        clean_dead_regs(alloc,itl.symbol_table);
     }
 
     // perform 2nd pass!
