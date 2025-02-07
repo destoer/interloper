@@ -38,12 +38,12 @@ b32 is_arg_reg(arg_type type)
 
 b32 is_arg_src(arg_type type)
 {
-    return type == arg_type::dst_src_reg || type == arg_type::src_reg || type == arg_type::src_float;
+    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
 }
 
 constexpr b32 is_arg_src_const(arg_type type)
 {
-    return type == arg_type::dst_src_reg || type == arg_type::src_reg || type == arg_type::src_float;
+    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
 }
 
 b32 is_arg_dst(arg_type type)

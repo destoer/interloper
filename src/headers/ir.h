@@ -421,7 +421,7 @@ struct Opcode
     u64 v[3];
 };
 
-inline Opcode make_op(op_type type, u32 dst = 0, u32 v1 = 0, u32 v2 = 0)
+inline Opcode make_op(op_type type, u64 dst = 0, u64 v1 = 0, u64 v2 = 0)
 {
     return Opcode(type,dst,v1,v2);
 }
