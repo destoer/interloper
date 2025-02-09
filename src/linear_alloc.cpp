@@ -55,6 +55,8 @@ struct LinearAlloc
 };
 
 
+bool marked_for_exipiry(LinearAlloc& alloc, SymSlot slot);
+
 RegisterFile& get_register_file(LinearAlloc& alloc, Reg& reg)
 {
     return (reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
@@ -731,6 +733,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,Block& block,ListNode* node, u32 re
         return;
     }
 
+
     // save slot so we can use it if it gets rewritten
     SymSlot slot = sym_from_idx(node->opcode.v[reg]);
 
@@ -781,7 +784,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,Block& block,ListNode* node, u32 re
 
             else
             {
-                log_reg(alloc.print,*alloc.table,"Mark %s in %r for expiry\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
+                log_reg(alloc.print,*alloc.table,"Mark %r in %s for expiry\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
                 // Don't terminate the regs during it as we need them allocated
                 alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
             }            
@@ -791,11 +794,49 @@ void allocate_and_rewrite(LinearAlloc& alloc,Block& block,ListNode* node, u32 re
     // special reg just rewrite it to whatever it wants
     else if(is_special_reg(slot))
     {
-        // make sure the spec regs are marked as used
         const u32 location = special_reg_to_reg(alloc.arch,slot);
+        const b32 is_float = is_special_reg_fpr(alloc.arch,slot);
+        auto& reg_file = is_float? alloc.fpr : alloc.gpr;
+
+        // Whatever is in a special reg is about to be clobbered
+        if(is_dst)
+        {
+            const SymSlot saved_slot = reg_file.allocated[location];
+
+            // Check reg is locked to prevent regs we never allocate from attempting to be saved
+            if(!is_reg_free(reg_file,location) && !is_locked(reg_file,location) && !marked_for_exipiry(alloc,saved_slot))
+            {
+                log_reg(alloc.print,*alloc.table,"Saving %r clobbered in special reg %r\n",saved_slot,slot);
+
+                auto& ir_reg = reg_from_slot(saved_slot,alloc);
+
+                // Save the register if it has a later use.
+                // But feel free to leave the current location for this rewrite
+                // As the dst is last thing rewritten 
+                save_reg(alloc,block,node,reg_file,ir_reg.local_reg);
+            }
+
+            lock_reg(reg_file,location);
+        }
+
+        // make sure the spec regs are marked as used
+        
         mark_used(is_fpr(slot)? alloc.fpr : alloc.gpr,location);
         node->opcode.v[reg] = location;
     }
+}
+
+bool marked_for_exipiry(LinearAlloc& alloc, SymSlot slot)
+{
+    for(u32 i = 0; i < alloc.dead_count; i++)
+    {
+        if(alloc.dead_slot[i] == slot)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void clean_dead_regs(LinearAlloc& alloc)
@@ -851,11 +892,95 @@ void finish_stack_alloc(LinearAlloc& alloc)
 
     auto& stack_alloc = alloc.stack_alloc;
 
-    for(u32 r = 0; r < count(stack_alloc.pending_allocation); r++)
+    for(const SymSlot slot : stack_alloc.pending_allocation)
     {
-        const SymSlot slot = stack_alloc.pending_allocation[r];
         auto& ir_reg = reg_from_slot(slot,alloc);
-
         finish_alloc(ir_reg,alloc);
     }
+}
+
+void correct_live_out(LinearAlloc& alloc, Block& block)
+{
+    // nothing to correct
+    if(!block.list.start)
+    {
+        return;
+    }
+
+    Array<SymSlot> misplaced;
+
+    // Get a list of all register in the wrong posistion
+    for(const SymSlot slot : block.live_out)
+    {
+        auto& ir_reg = reg_from_slot(slot,alloc);
+        assert(ir_reg.global_reg != REG_FREE);
+
+        if(ir_reg.local_reg != ir_reg.global_reg)
+        {
+            assert(!is_locked(get_register_file(alloc,ir_reg),ir_reg.local_reg));
+            push_var(misplaced,slot);
+            log_reg(alloc.print,*alloc.table,"misplaced %r %s %s\n",slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
+        }
+    }
+
+    // Keep running passes until we are done
+    while(count(misplaced))
+    {
+        // while we can keep copying regs
+        bool copied_register = true;
+
+        while(copied_register)
+        {
+            copied_register = false;
+
+            // First pass are there any registers we can simply copy over a dead register
+            for(u32 m = 0; m < count(misplaced); m++)
+            {
+                auto& ir_reg = reg_from_slot(misplaced[m],alloc);
+                auto& reg_file = get_register_file(alloc,ir_reg);
+
+                // Register we want it go into is free
+                if(is_reg_free(reg_file,ir_reg.global_reg))
+                {
+                    // If this is not locally allocated we need to issue a reload into it.
+                    if(!is_reg_locally_allocated(ir_reg))
+                    {
+                        reload_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.global_reg);
+                    }
+
+                    // Otherwhise just move it
+                    else
+                    {
+                        const bool is_float = ir_reg.flags & REG_FLOAT;
+                        const auto opcode = make_op(is_float? op_type::movf_reg : op_type::mov_reg,ir_reg.global_reg,ir_reg.local_reg);
+                        insert_at(block.list,block.list.finish,opcode);
+
+                        free_ir_reg(ir_reg,reg_file);
+                    }
+
+                    // Allocate this register
+                    assign_local_reg(reg_file,ir_reg,ir_reg.global_reg);
+                    remove_reg(reg_file, ir_reg.local_reg);
+
+                    remove_out_of_place(misplaced,m);
+                    copied_register = true;
+                }
+            }
+        }
+
+        // If we are still not done evict the first register then start copying again
+        // As we have allready done copies any register free that we use will not be needed for live out.
+        for(u32 m = 0; m < count(misplaced); m++)
+        {
+            auto& ir_reg = reg_from_slot(misplaced[m],alloc);
+            if(is_reg_locally_allocated(ir_reg))
+            {
+                auto& reg_file = get_register_file(alloc,ir_reg);
+                save_reg(alloc,block,block.list.finish,reg_file,ir_reg.local_reg);
+                break;
+            }
+        }
+    }
+
+    destroy_arr(misplaced);
 }

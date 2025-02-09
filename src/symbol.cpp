@@ -30,7 +30,7 @@ const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
 
 Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, SymSlot slot)
 {
-    if(is_special_reg(slot))
+    if(is_special_reg(slot) || slot.handle == REG_FREE)
     {
         assert(false);
     }

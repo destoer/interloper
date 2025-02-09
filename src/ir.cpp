@@ -830,9 +830,8 @@ void allocate_registers(Interloper& itl,Function &func)
 
     log(alloc.print,"allocating registers for %s:\n",func.name.buf);
 
-    for(u32 b = 0; b < count(func.emitter.program); b++)
+    for(auto& block : func.emitter.program)
     {
-        auto& block = func.emitter.program[b];
         linear_setup_new_block(alloc,block);
 
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
@@ -847,8 +846,8 @@ void allocate_registers(Interloper& itl,Function &func)
             alloc.pc++;
         }
 
-        // clean any from block end
         clean_dead_regs(alloc);
+        correct_live_out(alloc,block);
     }
 
     // perform 2nd pass!

@@ -283,6 +283,11 @@ const char* reg_name(arch_target arch, u32 reg)
                 return X86_NAMES[reg];
             }
 
+            else if(reg == REG_FREE)
+            {
+                return "Free";
+            }
+
             else
             {
                 return "ERROR";
