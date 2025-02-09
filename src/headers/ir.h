@@ -584,6 +584,38 @@ struct ListNode
     ListNode *prev = nullptr;
 };
 
+struct ListIterator
+{
+
+    ListIterator(ListNode* node)
+    {
+        this->node = node;
+    }
+
+    bool operator==(const ListIterator& it) const 
+    {
+        return node == it.node;
+    }
+
+    ListIterator& operator++()
+    {
+        node = node->next;
+        return *this;
+    }
+
+    ListNode& operator*()
+    {
+        return *node;
+    }
+
+    const ListNode& operator*() const
+    {
+        return *node;
+    }
+
+    ListNode* node = nullptr;
+};
+
 struct List
 {
     // global list Arena allocator
@@ -591,8 +623,29 @@ struct List
 
     ListNode *start = nullptr;
 
-    ListNode *end = nullptr;
+    ListNode *finish = nullptr;
+
+    ListIterator begin()
+    {
+        return ListIterator(start);
+    }
+
+    ListIterator end()
+    {
+        return ListIterator(nullptr);
+    }
+
+    const ListIterator begin() const
+    {
+        return ListIterator(start);
+    }
+
+    const ListIterator end() const
+    {
+        return ListIterator(nullptr);
+    }
 };
+
 List make_list(ArenaAllocator* allocator);
 
 

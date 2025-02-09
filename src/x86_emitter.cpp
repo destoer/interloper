@@ -1621,15 +1621,12 @@ void emit_func(Interloper& itl, Function& func)
 
     for(auto& block : func.emitter.program)
     {
-        ListNode* node = block.list.start;
-
         // store cur relative offset to finalise later
         write_cur_rel_offset(itl,block.label_slot);
 
-        while(node)
+        for(const ListNode node : block.list)
         {
-            emit_opcode(itl.asm_emitter,node->opcode);
-            node = node->next;
+            emit_opcode(itl.asm_emitter,node.opcode);
         }
     }
 

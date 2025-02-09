@@ -243,12 +243,10 @@ void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table)
         printf("%s:\n",label.name.buf);
         
 
-        auto node = block.list.start;
-        while(node)
+        for(const ListNode node : block.list)
         {
             printf("\t");
-            disass_opcode_sym(node->opcode,table,itl.arch);
-            node = node->next;
+            disass_opcode_sym(node.opcode,table,itl.arch);
         }
 
         l++;
@@ -272,12 +270,10 @@ void dump_ir_reg(Interloper& itl,Function &func,SymbolTable& table)
         printf("%s:\n",label.name.buf);
         
 
-        auto node = block.list.start;
-        while(node)
+        for(const ListNode node : block.list)
         {
             printf("\t");
-            disass_opcode_reg(node->opcode,table,itl.arch);
-            node = node->next;
+            disass_opcode_reg(node.opcode,table,itl.arch);
         }
 
         l++;

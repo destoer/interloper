@@ -351,20 +351,17 @@ void compute_use_def(Interloper& itl,Function& func)
         const BlockSlot slot = block_from_idx(b);
         auto& block = block_from_slot(func,slot);
 
-        // run pass on block
-        ListNode *node = block.list.start;
-
         // ignore empty blocks
-        if(!node)
+        if(!block.list.start)
         {
             continue;
         }
         
-        // for each opcode
-        while(node)
+        // run a pass on the block
+        for(const ListNode node : block.list)
         {
             // mark three address code
-            const auto opcode = node->opcode;
+            const auto opcode = node.opcode;
 
             const auto info = info_from_op(opcode);
 
@@ -398,8 +395,6 @@ void compute_use_def(Interloper& itl,Function& func)
                     }
                 }
             }
-
-            node = node->next;
         }
 
         // if block has a use of a var it must be an input

@@ -9,7 +9,7 @@ List& get_cur_list(IrEmitter& emitter)
 
 ListNode* get_cur_end(IrEmitter& emitter)
 {
-    return get_cur_list(emitter).end;    
+    return get_cur_list(emitter).finish;    
 }
 
 void destroy_block(Block& block)
@@ -117,7 +117,7 @@ ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type,
     auto &list = block.list;
     append(list,opcode);
 
-    return list.end;    
+    return list.finish;    
 }
 
 ListNode* emit_block_internal_slot(Function& func,BlockSlot block_slot, op_type type, SymSlot v1, SymSlot v2, SymSlot v3)

@@ -185,7 +185,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
         // live out has a higher start point
         pc += 1;
 
-        ListNode* last = block.list.end;
+        ListNode* last = block.list.finish;
 
         // if its live out then consider it allocated till the end of the block
         for(const SymSlot slot : block.live_out)
@@ -676,17 +676,12 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<SymSlot>& live_in)
 
 void compute_local_uses(LinearAlloc& alloc, Block& block)
 {
-    List& list = block.list;
-
-    ListNode *node = list.start;
-
     u32 pc = 0;
     
-    while(node)
+    for(const ListNode node : block.list)
     {
-        const auto opcode = node->opcode;
+        const auto opcode = node.opcode;
         const auto info = info_from_op(opcode);
-
 
         for(u32 a = 0; a < info.args; a++)
         {
@@ -707,7 +702,6 @@ void compute_local_uses(LinearAlloc& alloc, Block& block)
             push_var(ir_reg.local_uses,pc);
         }
 
-        node = node->next;
         pc++;
     }    
 }
