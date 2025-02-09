@@ -102,7 +102,7 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers
     return alloc;
 }
 
-void update_range(Interloper& itl, Function& func,HashTable<SymSlot,LinearRange> table, SymSlot slot,Block& block, ListNode* node,b32 dst_live,u32 pc)
+void update_range(Interloper& itl, Function& func,HashTable<SymSlot,LinearRange> &table, SymSlot slot,Block& block, ListNode* node,b32 dst_live,u32 pc)
 {
     auto& ir_reg = reg_from_slot(itl,func,slot);
 
@@ -188,15 +188,9 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
         ListNode* last = block.list.end;
 
         // if its live out then consider it allocated till the end of the block
-        for(u32 i = 0; i < count(block.live_out.buf); i++)
+        for(const SymSlot slot : block.live_out)
         {
-            const auto& bucket = block.live_out.buf[i];
-
-            for(u32 j = 0; j < count(bucket); j++)
-            {
-                const auto slot = bucket[j];
-                update_range(itl,func,table,slot,block,last,false,pc);
-            }
+            update_range(itl,func,table,slot,block,last,false,pc);
         }
     }
 
@@ -204,14 +198,10 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
     Array<LinearRange> range;
 
     // first copy the hash table contents into the array
-    for(u32 i = 0; i < count(table.buf); i++)
+    for(const auto& hash_node : table)
     {
-        const auto& bucket = table.buf[i];
-
-        for(u32 j = 0; j < count(bucket); j++)
-        {
-            push_var(range,bucket[j].v);
-        }
+        const LinearRange linear_range = hash_node.v;
+        push_var(range,linear_range);
     }
 
     // finally sort it
@@ -668,25 +658,18 @@ void save_caller_saved_regs(LinearAlloc& alloc, Block& block, ListNode* node)
 
 void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<SymSlot>& live_in)
 {
-    for(u32 i = 0; i < count(live_in.buf); i++)
+    for(const SymSlot slot : live_in)
     {
-        const auto bucket = live_in.buf[i];
-
-        for(u32 j = 0; j < count(bucket); j++)
+        // allocate the register into the appropiate register file
+        auto& ir_reg = reg_from_slot(slot,alloc);
+        
+        if(is_reg_locally_allocated(ir_reg))
         {
-            const auto slot = bucket[j];
+            auto& reg_file = get_register_file(alloc,ir_reg);
 
-            // allocate the register into the appropiate register file
-            auto& ir_reg = reg_from_slot(slot,alloc);
-            
-            if(is_reg_locally_allocated(ir_reg))
-            {
-                auto& reg_file = get_register_file(alloc,ir_reg);
-
-                assign_local_reg(get_register_file(alloc,ir_reg),ir_reg,ir_reg.global_reg);
-                remove_reg(reg_file, ir_reg.local_reg);
-                mark_used(reg_file,ir_reg.local_reg);
-            }
+            assign_local_reg(get_register_file(alloc,ir_reg),ir_reg,ir_reg.global_reg);
+            remove_reg(reg_file, ir_reg.local_reg);
+            mark_used(reg_file,ir_reg.local_reg);
         }
     }
 }
@@ -698,7 +681,7 @@ void compute_local_uses(LinearAlloc& alloc, Block& block)
     ListNode *node = list.start;
 
     u32 pc = 0;
-
+    
     while(node)
     {
         const auto opcode = node->opcode;

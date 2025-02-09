@@ -211,10 +211,8 @@ void connect_node(Function& func,BlockSlot slot)
         const auto& scan_block = block_from_slot(func,cur);
 
         // iter over edges add any unseen
-        for(u32 e = 0; e < count(scan_block.exit); e++)
+        for(const auto& edge_slot : scan_block.exit)
         {
-            const BlockSlot edge_slot = scan_block.exit[e];
-
             // can reach self this means we have a loop!
             if(slot == edge_slot)
             {
@@ -249,26 +247,18 @@ void print_ir_set(Interloper& itl, const Set<SymSlot>& set, const char* tag)
 {
     printf("%s: {",tag);
 
-    // dump each value
-    for(u32 i = 0; i < count(set.buf); i++)
+    for(const SymSlot slot : set)
     {
-        const SetBucket<SymSlot>& bucket = set.buf[i];
-
-        for(u32 j = 0; j < count(bucket); j++)
+        // print var name
+        if(is_sym(slot))
         {
-            const auto slot = bucket[j];
+            auto& sym = sym_from_slot(itl.symbol_table,slot);
+            printf("%s,",sym.name.buf);
+        }
 
-            // print var name
-            if(is_sym(slot))
-            {
-                auto& sym = sym_from_slot(itl.symbol_table,slot);
-                printf("%s,",sym.name.buf);
-            }
-
-            else
-            {
-                printf("t%d,",slot.handle);
-            }
+        else
+        {
+            printf("t%d,",slot.handle);
         }
     }
 
@@ -279,9 +269,9 @@ void print_block_connection(Function& func, const Array<BlockSlot> con, const ch
 {
     printf("%s: {",tag);
 
-    for(u32 c = 0; c < count(con); c++)
+    for(const BlockSlot block_slot : con)
     {
-        auto& block = block_from_slot(func,con[c]);
+        auto& block = block_from_slot(func, block_slot);
         printf("L%d,",block.label_slot.handle);
     }
 
@@ -326,10 +316,8 @@ void dump_cfg(Interloper& itl, Function& func)
         print_block_connection(func,block.exit,"exit: ");
 
         // add any we havent seen for a print
-        for(u32 e = 0; e < count(block.exit); e++)
+        for(const BlockSlot exit : block.exit)
         {
-            const auto exit = block.exit[e];
-
             if(!contains(seen,exit))
             {
                 add(seen,exit);
@@ -441,11 +429,8 @@ void compute_var_live(Interloper& itl, Function& func)
 
     BlockSlot last_reachable_block = entry_slot;
 
-
-    for(u32 l = 0; l < count(entry_block.links); l++)
+    for(const BlockSlot link : entry_block.links)
     {
-        auto& link = entry_block.links[l];
-
         if(link.handle > last_reachable_block.handle)
         {
             last_reachable_block = block_from_idx(link.handle);
@@ -476,36 +461,25 @@ void compute_var_live(Interloper& itl, Function& func)
             // set_union(block.input,block.use);
 
             // input of exit -> output
-            for(u32 e = 0; e < count(block.exit); e++)
+            for(const auto& block_slot : block.exit)
             {
-                const auto& exit = block_from_slot(func,block.exit[e]);
-
+                const auto& exit = block_from_slot(func,block_slot);
                 modified |= set_union(block.live_out,exit.live_in);
             }
-            
+
             // finally if there is no def for an output 
-            // then it must be an input (the value must arise somewhere)
-            for(u32 i = 0; i < count(block.live_out.buf); i++)
+            // then it must be an input (the value must arise somewhere)  
+            for(const SymSlot slot : block.live_out)
             {
-                const auto bucket = block.live_out.buf[i];
-
-                for(u32 j = 0; j < count(bucket); j++)
+                if(!contains(block.def,slot))
                 {
-                    const auto slot = bucket[j];
-
-                    if(!contains(block.def,slot))
-                    {
-                        modified |= add(block.live_in,slot);
-                    }
+                    modified |= add(block.live_in,slot);
                 }
             }
 
-
             // add entrys we havent seen for parsing
-            for(u32 e = 0; e < count(block.entry); e++)
+            for(const BlockSlot entry : block.entry)
             {
-                const auto entry = block.entry[e];
-
                 if(!contains(seen,entry))
                 {
                     add(seen,entry);
@@ -514,10 +488,8 @@ void compute_var_live(Interloper& itl, Function& func)
             }
 
             // add any exits while we are at it 
-            for(u32 e = 0; e < count(block.exit); e++)
+            for(const BlockSlot exit : block.exit)
             {
-                const auto exit = block.exit[e];
-
                 if(!contains(seen,exit))
                 {
                     add(seen,exit);

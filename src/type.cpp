@@ -2234,9 +2234,9 @@ void destroy_func(Function& func)
 {
     destroy_sig(func.sig);
 
-    for(u32 r = 0; r < count(func.registers); r++)
+    for(auto& reg : func.registers)
     {
-        destroy_reg(func.registers[r]);
+        destroy_reg(reg);
     }
 
     destroy_arr(func.registers);

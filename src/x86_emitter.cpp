@@ -1619,9 +1619,8 @@ void emit_func(Interloper& itl, Function& func)
 {
     const u32 func_idx = add_func(itl.asm_emitter,func);
 
-    for(u32 b = 0; b < count(func.emitter.program); b++)
+    for(auto& block : func.emitter.program)
     {
-        auto& block = func.emitter.program[b];
         ListNode* node = block.list.start;
 
         // store cur relative offset to finalise later
@@ -1639,10 +1638,9 @@ void emit_func(Interloper& itl, Function& func)
 
 void emit_asm(Interloper& itl)
 {
-    for(u32 f = 0; f < count(itl.func_table.used); f++)
+    for(auto& func : itl.func_table.used)
     {
-        auto& func = *itl.func_table.used[f];
-        emit_func(itl,func);
+        emit_func(itl,*func);
     }
 }
 

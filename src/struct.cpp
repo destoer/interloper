@@ -7,9 +7,9 @@ void print_struct(Interloper& itl, const Struct& structure)
 {
     printf("struct %s\n{\n",structure.name.buf);
 
-    for(u32 m = 0; m < count(structure.members); m++)
+    for(const auto& member : structure.members)
     {
-        print_member(itl,structure.members[m]);
+        print_member(itl,member);
     }
 
     printf("};\n");
@@ -33,9 +33,8 @@ void destroy_struct(Struct& structure)
 void destroy_struct_table(StructTable& struct_table)
 {
     // delete all struct defs
-    for(u32 s = 0; s < count(struct_table); s++)
-    {   
-        auto& structure = struct_table[s];
+    for(auto& structure : struct_table)
+    {
         destroy_struct(structure);
     }
 

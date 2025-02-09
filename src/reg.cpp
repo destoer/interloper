@@ -259,7 +259,7 @@ void print(const Reg& reg)
     printf("global reg: r%x\n",reg.global_reg);
 
     printf("uses: %d\n",reg.cur_local_uses);
-
+    
     for(u32 i = 0; i < count(reg.local_uses); i++)
     {
         printf("use[%d] -> %d\n",i,reg.local_uses[i]);
