@@ -984,3 +984,58 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
 
     destroy_arr(misplaced);
 }
+
+
+void lock_out_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg)
+{
+    // If its allready free we don't have to do anything just claim it
+    if(!is_reg_free(reg_file,reg))
+    {
+        save_reg(alloc,block,node,reg_file,reg);
+    }
+    claim_register(reg_file,reg);
+}
+
+void force_into_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg, SymSlot dst)
+{
+    auto& ir_reg = reg_from_slot(dst,alloc);
+
+    // issue a load
+    if(!is_reg_locally_allocated(ir_reg))
+    {
+        reload_reg(alloc,block,node,dst,reg);
+    }
+
+    // Copy the register and then free the other one
+    else
+    {
+        const auto copy = make_op(ir_reg.flags & REG_FLOAT? op_type::movf_reg : op_type::mov_reg,reg, ir_reg.local_reg);
+        free_ir_reg(ir_reg,reg_file);
+        insert_at(block.list,node,copy);
+    }
+}
+
+void lock_out_dst(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg, SymSlot dst)
+{
+    // Allready in the correct register just lock it down
+    if(reg_file.allocated[reg] == dst)
+    {
+        claim_register(reg_file,reg);
+    }
+
+    // Lock out the register and then move it into place
+    else 
+    {
+        lock_out_reg(alloc,block,node,reg_file,reg);
+        force_into_reg(alloc,block,node,reg_file,reg,dst);
+    }
+}
+
+
+
+void unlock_dst_reg(RegisterFile& reg_file, Reg& ir_reg,u32 reg)
+{
+    release_register(reg_file,reg);
+    assign_local_reg(reg_file,ir_reg,reg);
+    remove_reg(reg_file,reg);
+}

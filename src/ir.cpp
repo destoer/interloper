@@ -38,60 +38,6 @@ u32 get_mov_register(LinearAlloc& alloc,RegisterFile& reg_file,SymSlot slot)
     }
 }
 
-void lock_out_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg)
-{
-    // If its allready free we don't have to do anything just claim it
-    if(!is_reg_free(reg_file,reg))
-    {
-        save_reg(alloc,block,node,reg_file,reg);
-    }
-    claim_register(reg_file,reg);
-}
-
-void force_into_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg, SymSlot dst)
-{
-    auto& ir_reg = reg_from_slot(dst,alloc);
-
-    // issue a load
-    if(!is_reg_locally_allocated(ir_reg))
-    {
-        reload_reg(alloc,block,node,dst,reg);
-    }
-
-    // Copy the register and then free the other one
-    else
-    {
-        const auto copy = make_op(ir_reg.flags & REG_FLOAT? op_type::movf_reg : op_type::mov_reg,reg, ir_reg.local_reg);
-        free_ir_reg(ir_reg,reg_file);
-        insert_at(block.list,node,copy);
-    }
-}
-
-void lock_out_dst(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg, SymSlot dst)
-{
-    // Allready in the correct register just lock it down
-    if(reg_file.allocated[reg] == dst)
-    {
-        claim_register(reg_file,reg);
-    }
-
-    // Lock out the register and then move it into place
-    else 
-    {
-        lock_out_reg(alloc,block,node,reg_file,reg);
-        force_into_reg(alloc,block,node,reg_file,reg,dst);
-    }
-}
-
-
-
-void unlock_dst_reg(RegisterFile& reg_file, Reg& ir_reg,u32 reg)
-{
-    release_register(reg_file,reg);
-    assign_local_reg(reg_file,ir_reg,reg);
-    remove_reg(reg_file,reg);
-}
-
 // We want to be more clever about reshuffling regs, for now lets just do it simply.
 // ideally if our dst is in rdx we can just spill rax and copy it over
 void lock_out_fixed_arith(LinearAlloc& alloc, Block& block, ListNode* node, SymSlot dst)
@@ -173,34 +119,18 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
         default: assert(false);
     }
 
-    // // rewrite src
-    // allocate_and_rewrite(alloc,table,block,node,1);
-
-    // // need to mark the two implict regs
-    // mark_used(alloc.gpr,u32(x86_reg::rax));
-    // mark_used(alloc.gpr,u32(x86_reg::rdx));
-
-    // // rewrite src
-    // allocate_and_rewrite(alloc,table,block,node,1);
-
-    // // mark the output reg
-    // node->opcode.v[0] = out.handle;
-
-    // // insert the mov to move it from the out reg into the new one
-    // const auto mov = make_op(op_type::mov_reg,dst.handle,out.handle);
-    // node = insert_after(block.list,node,mov);
-
-    // NOTE: RAX, and RDX would be considered unlocked again here
-
-
     return node->next;
 }   
 
 ListNode* rewrite_x86_shift(LinearAlloc& alloc,Block& block, ListNode* node)
 {
+    const auto src = sym_from_idx(node->opcode.v[1]);
+
     // NOTE: RCX would be considered unlocked again
+    lock_out_dst(alloc,block,node,alloc.gpr,x86_reg::rcx,src);
 
     rewrite_opcode(alloc,block,node);
+    unlock_reg(alloc.gpr,x86_reg::rcx);
     return node->next;
 }
 
