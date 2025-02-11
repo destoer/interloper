@@ -589,6 +589,13 @@ void spill_reg(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, u32
     auto& ir_reg = reg_from_slot(slot,alloc);
     const u32 size = ir_reg.size * ir_reg.count;
 
+    if(ir_reg.kind == reg_kind::constant)
+    {
+        log_reg(alloc.print,*alloc.table,"Constant %r deallocated from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
+        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+        return;
+    }
+
     // TODO: handle if structs aernt always in memory
     assert(size <= GPR_SIZE);
 
@@ -789,6 +796,12 @@ void allocate_and_rewrite(LinearAlloc& alloc,Block& block,ListNode* node, u32 re
                 alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
             }            
         }
+
+        // if dst and not a local register it needs to be spilled
+        if(is_dst && !is_local_reg(ir_reg))
+        {
+            spill(alloc,block,node,slot,true);
+        }
     }
 
     // special reg just rewrite it to whatever it wants
@@ -847,7 +860,10 @@ void clean_dead_regs(LinearAlloc& alloc)
         auto& ir_reg = reg_from_slot(slot,alloc);
 
         clear_arr(ir_reg.local_uses);
-        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+        if(is_reg_locally_allocated(ir_reg))
+        {
+            free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+        }
     }    
 }
 
@@ -899,10 +915,11 @@ void finish_stack_alloc(LinearAlloc& alloc)
     }
 }
 
+// TODO: Consider using xchg to swap them
 void correct_live_out(LinearAlloc& alloc, Block& block)
 {
     // nothing to correct
-    if(!block.list.start)
+    if(!block.list.start || block.flags & HAS_FUNC_EXIT)
     {
         return;
     }
@@ -913,7 +930,6 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
     for(const SymSlot slot : block.live_out)
     {
         auto& ir_reg = reg_from_slot(slot,alloc);
-        assert(ir_reg.global_reg != REG_FREE);
 
         if(ir_reg.local_reg != ir_reg.global_reg)
         {
@@ -939,8 +955,20 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                 auto& ir_reg = reg_from_slot(misplaced[m],alloc);
                 auto& reg_file = get_register_file(alloc,ir_reg);
 
+                // Not inside a register just go ahead and spill it.
+                if(ir_reg.global_reg == REG_FREE)
+                {
+                    if(is_reg_locally_allocated(ir_reg))
+                    {
+                        spill_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.local_reg,false);
+                    }
+
+                    remove_out_of_place(misplaced,m);
+                    copied_register = true;
+                }
+
                 // Register we want it go into is free
-                if(is_reg_free(reg_file,ir_reg.global_reg))
+                else if(is_reg_free(reg_file,ir_reg.global_reg))
                 {
                     // If this is not locally allocated we need to issue a reload into it.
                     if(!is_reg_locally_allocated(ir_reg))
@@ -954,6 +982,8 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                         const bool is_float = ir_reg.flags & REG_FLOAT;
                         const auto opcode = make_op(is_float? op_type::movf_reg : op_type::mov_reg,ir_reg.global_reg,ir_reg.local_reg);
                         insert_at(block.list,block.list.finish,opcode);
+
+                        log_reg(alloc.print,*alloc.table,"Copying %r from %s to %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
 
                         free_ir_reg(ir_reg,reg_file);
                     }

@@ -75,7 +75,6 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
             insert_at(block.list,node,UNSIGNED_SETUP);
 
             unlock_fixed_arith(alloc,dst,x86_reg::rax,x86_reg::rdx);
-            node->opcode.v[0] = x86_reg::rax;
             break;
         }
 
@@ -84,7 +83,6 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
             insert_at(block.list,node,SIGNED_SETUP);
 
             unlock_fixed_arith(alloc,dst,x86_reg::rax,x86_reg::rdx);
-            node->opcode.v[0] = x86_reg::rax;
             break;
         }
 
@@ -93,7 +91,6 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
             insert_at(block.list,node,UNSIGNED_SETUP);
 
             unlock_fixed_arith(alloc,dst,x86_reg::rdx,x86_reg::rax);
-            node->opcode.v[0] = x86_reg::rdx;
             break;
         }
 
@@ -102,7 +99,6 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
             insert_at(block.list,node,SIGNED_SETUP);
 
             unlock_fixed_arith(alloc,dst,x86_reg::rdx,x86_reg::rax);
-            node->opcode.v[0] = x86_reg::rdx;
             break;
         }
         
@@ -112,12 +108,14 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
             insert_at(block.list,node,UNSIGNED_SETUP);
 
             unlock_fixed_arith(alloc,dst,x86_reg::rax,x86_reg::rdx);
-            node->opcode.v[0] = x86_reg::rax;
             break;
         }
 
         default: assert(false);
     }
+
+    // rewrite the dst
+    allocate_and_rewrite(alloc,block,node,0);
 
     return node->next;
 }   

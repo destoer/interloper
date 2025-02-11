@@ -1,19 +1,19 @@
 // required for operation
 import <internal> 
 
-// import <file>
-// import <string>
-// import <print>
-// import <time>
-// import <system>
+import <file>
+import <string>
+import <print>
+import <time>
+import <system>
 
-// import <mem>
-// import <alloc>
-// import <array>
-// import <hash_table>
+import <mem>
+import <alloc>
+import <array>
+import <hash_table>
 
-// import <bit>
-// import <util>
-// import <sort>
+import <bit>
+import <util>
+import <sort>
 
-// import <math>
+import <math>
