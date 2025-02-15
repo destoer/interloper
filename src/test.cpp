@@ -260,11 +260,21 @@ b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const 
 
 void run_tests(const char* flags)
 {
-    const char* itl_path = getenv("INTERLOPER_INSTALL_DIR");
-    if(chdir(itl_path) == -1)
+    const char* itl_path = nullptr;
+
+    if(file_exists("interloper"))
     {
-        const int saved_errno = errno;
-        crash_and_burn("Could not change to interloper dir %s: %s",itl_path,strerror(saved_errno));
+        itl_path = ".";
+    }
+
+    else
+    {
+        itl_path = getenv("INTERLOPER_INSTALL_DIR");
+        if(chdir(itl_path) == -1)
+        {
+            const int saved_errno = errno;
+            crash_and_burn("Could not change to interloper dir %s: %s",itl_path,strerror(saved_errno));
+        }
     }
 
     puts("running tests....");

@@ -1972,12 +1972,22 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,FileQ
 #include <unistd.h>
 bool parse(Interloper& itl, const String& initial_filename)
 {
-    const char *itl_path = getenv("INTERLOPER_INSTALL_DIR");
+    const char *itl_path = nullptr;
 
-    if(!itl_path)
+    if(file_exists("interloper"))
     {
-        fprintf(stderr,"Could not find install dir env var INTERLOPER_INSTALL_DIR\n");
-        return true;
+        itl_path = ".";
+    }
+
+    else
+    {
+        itl_path = getenv("INTERLOPER_INSTALL_DIR");
+
+        if(!itl_path)
+        {
+            fprintf(stderr,"Could not find install dir env var INTERLOPER_INSTALL_DIR\n");
+            return true;
+        }
     }
 
     itl.stl_path = cat_string(itl.string_allocator,itl_path,"/stl/");
