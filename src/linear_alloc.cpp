@@ -970,7 +970,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                 auto& reg_file = get_register_file(alloc,ir_reg);
 
                 // Not inside a register just go ahead and spill it.
-                if(ir_reg.global_reg == REG_FREE)
+                if(!is_reg_globally_allocated(ir_reg))
                 {
                     if(is_reg_locally_allocated(ir_reg))
                     {
@@ -1061,9 +1061,15 @@ void force_into_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile
     }
 }
 
-void lock_out_dst(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg, SymSlot dst)
+void lock_into_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& reg_file,u32 reg, SymSlot dst)
 {
     log_reg(alloc.print,*alloc.table,"Locking %r into %s\n",dst,reg_name(alloc.arch,reg));
+
+    if(is_special_reg(dst))
+    {
+        assert(reg == special_reg_to_reg(alloc.arch,dst));
+        return;
+    }
 
     // Allready in the correct register just lock it down
     if(reg_file.allocated[reg] == dst)
@@ -1080,10 +1086,19 @@ void lock_out_dst(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& 
 }
 
 
-
-void unlock_dst_reg(LinearAlloc& alloc,RegisterFile& reg_file, Reg& ir_reg,u32 reg)
+// If this is not allready in the correct register then we will get bugs
+void unlock_into_reg(LinearAlloc& alloc,RegisterFile& reg_file, SymSlot dst,u32 reg)
 {
-    log_reg(alloc.print,*alloc.table,"Unlocking %r into %s\n",ir_reg.slot,reg_name(alloc.arch,reg));
+    log_reg(alloc.print,*alloc.table,"Unlocking %r into %s\n",dst,reg_name(alloc.arch,reg));
+
+    if(is_special_reg(dst))
+    {
+        assert(reg == special_reg_to_reg(alloc.arch,dst));
+        release_register(reg_file,reg);
+        return;
+    }
+
+    auto& ir_reg = reg_from_slot(dst,alloc);
 
     release_register(reg_file,reg);
     take_local_reg(reg_file,ir_reg,reg);

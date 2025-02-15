@@ -42,13 +42,13 @@ u32 get_mov_register(LinearAlloc& alloc,RegisterFile& reg_file,SymSlot slot)
 // ideally if our dst is in rdx we can just spill rax and copy it over
 void lock_out_fixed_arith(LinearAlloc& alloc, Block& block, ListNode* node, SymSlot dst)
 {
-    lock_out_dst(alloc,block,node,alloc.gpr,x86_reg::rax,dst);
+    lock_into_reg(alloc,block,node,alloc.gpr,x86_reg::rax,dst);
     lock_out_reg(alloc,block,node,alloc.gpr,x86_reg::rdx);
 }
 
 void unlock_fixed_arith(LinearAlloc& alloc, SymSlot dst, x86_reg x86_dst, x86_reg x86_oper)
 {
-    unlock_dst_reg(alloc,alloc.gpr,reg_from_slot(dst,alloc),x86_dst);
+    unlock_into_reg(alloc,alloc.gpr,dst,x86_dst);
     release_register(alloc.gpr,x86_oper);
 }
 
@@ -123,12 +123,11 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
 ListNode* rewrite_x86_shift(LinearAlloc& alloc,Block& block, ListNode* node)
 {
     const auto src = sym_from_idx(node->opcode.v[1]);
-    auto& ir_reg = reg_from_slot(src,alloc);
 
-    lock_out_dst(alloc,block,node,alloc.gpr,x86_reg::rcx,src);
+    lock_into_reg(alloc,block,node,alloc.gpr,x86_reg::rcx,src);
     rewrite_opcode(alloc,block,node);
 
-    unlock_dst_reg(alloc,alloc.gpr,ir_reg,x86_reg::rcx);
+    unlock_into_reg(alloc,alloc.gpr,src,x86_reg::rcx);
     return node->next;
 }
 
