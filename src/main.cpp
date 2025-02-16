@@ -3,9 +3,6 @@
 #include "interloper.cpp"
 #include "test.cpp"
 
-
-
-
 void parse_flags(Interloper& itl,const char* flags)
 {
     u32 i = 1;

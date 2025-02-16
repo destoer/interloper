@@ -557,13 +557,14 @@ Reg& reg_from_slot(SymSlot slot, LinearAlloc& alloc)
     return reg_from_slot(*alloc.table,alloc.tmp_regs,slot);
 }
 
-void reload_reg(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, u32 reg)
+void reload_reg(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, u32 reg,insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
     const auto opcode = make_op(op_type::load,reg,slot.handle,alloc.stack_alloc.stack_offset);
     log_reg(alloc.print,*alloc.table,"reload %r to %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
 
-    insert_at(block.list,node,opcode);
+    insert_node(block.list,node,opcode,type);
+
     assert(!is_stack_unallocated(ir_reg));
 }
 
@@ -578,7 +579,7 @@ void reload_slot(LinearAlloc& alloc,Block& block, ListNode* node, SymSlot slot)
     // Deal with handling the reload.
     if(is_reg_locally_allocated(ir_reg))
     {
-        reload_reg(alloc,block,node,slot,ir_reg.local_reg);
+        reload_reg(alloc,block,node,slot,ir_reg.local_reg,insertion_type::before);
     }
 }
 
@@ -596,7 +597,7 @@ void free_ir_reg(Reg& ir_reg,RegisterFile& regs)
 }
 
 // Spill a register to memory
-void spill_reg(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, u32 reg, bool after)
+void spill_reg(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, u32 reg, insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
     const u32 size = ir_reg.size * ir_reg.count;
@@ -623,15 +624,7 @@ void spill_reg(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, u32
 
     const auto opcode = make_op(op_type::spill,reg,slot.handle,alloc.stack_alloc.stack_offset);
 
-    if(!after)
-    {
-        insert_at(block.list,node,opcode); 
-    }
-
-    else 
-    {
-        insert_after(block.list,node,opcode);
-    }
+    insert_node(block.list,node,opcode,type);
 
     // Mark the register as freed
     assert(is_reg_locally_allocated(ir_reg));
@@ -640,14 +633,14 @@ void spill_reg(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, u32
 }
 
 // Spill a slot to memory
-void spill(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, bool after)
+void spill(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
 
     // is actually in a reg and not immediatly spilled
     if(is_reg_locally_allocated(ir_reg))
     {
-        spill_reg(alloc,block,node,slot,ir_reg.local_reg,after);
+        spill_reg(alloc,block,node,slot,ir_reg.local_reg,type);
     }
 
     // reserve a space for this for a later spill
@@ -659,13 +652,13 @@ void spill(LinearAlloc& alloc,Block& block,ListNode* node, SymSlot slot, bool af
 
 // Save a register, this can either be a copy to a free reg
 // Or by spilling it to memory
-void save_reg(LinearAlloc& alloc, Block& block, ListNode* node, RegisterFile& file, u32 reg)
+void save_reg(LinearAlloc& alloc, Block& block, ListNode* node, RegisterFile& file, u32 reg, insertion_type type)
 {
     // TODO: for now just spill back out to memory 
     if(!is_reg_free(file,reg) && !is_locked(file,reg))
     {
         log_reg(alloc.print,*alloc.table,"Saving %r from %s\n",file.allocated[reg],reg_name(alloc.arch,reg));
-        spill(alloc,block,node,file.allocated[reg],false);
+        spill(alloc,block,node,file.allocated[reg],type);
     }
 }
 
@@ -674,7 +667,7 @@ void save_caller_saved_regs(LinearAlloc& alloc, Block& block, ListNode* node)
     const auto& abi_info = get_abi_info(alloc.arch);
 
     // then save the caller saved registers
-    save_reg(alloc,block,node,alloc.gpr,abi_info.rv);
+    save_reg(alloc,block,node,alloc.gpr,abi_info.rv,insertion_type::before);
 }
 
 void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<SymSlot>& live_in)
@@ -687,6 +680,7 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<SymSlot>& live_in)
         if(is_reg_globally_allocated(ir_reg))
         {
             auto& reg_file = get_register_file(alloc,ir_reg);
+            log_reg(alloc.print,*alloc.table,"%r is live in on %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.global_reg));
             take_local_reg(reg_file,ir_reg,ir_reg.global_reg);
         }
     }
@@ -785,7 +779,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,Block& block,ListNode* node, u32 re
             if(is_src) 
             {
                 // issue a load
-                reload_reg(alloc,block,node,slot, ir_reg.local_reg);
+                reload_reg(alloc,block,node,slot, ir_reg.local_reg,insertion_type::before);
             }
         }
 
@@ -811,7 +805,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,Block& block,ListNode* node, u32 re
         // if dst and not a local register it needs to be spilled
         if(is_dst && !is_local_reg(ir_reg))
         {
-            spill(alloc,block,node,slot,true);
+            spill(alloc,block,node,slot,insertion_type::after);
         }
     }
 
@@ -837,7 +831,7 @@ void allocate_and_rewrite(LinearAlloc& alloc,Block& block,ListNode* node, u32 re
                 // Save the register if it has a later use.
                 // But feel free to leave the current location for this rewrite
                 // As the dst is last thing rewritten 
-                save_reg(alloc,block,node,reg_file,ir_reg.local_reg);
+                save_reg(alloc,block,node,reg_file,ir_reg.local_reg,insertion_type::before);
             }
 
             lock_reg(reg_file,location);
@@ -913,7 +907,7 @@ void finish_alloc(Reg& reg,LinearAlloc& alloc)
 
     const auto print = alloc.stack_alloc.print;
 
-    log_reg(print,*alloc.table,"final offset %r = [%x,%x] -> %x\n",reg.slot,reg.size,reg.count,reg.offset);
+    log_reg(print,*alloc.table,"final offset %r = [%x,%x] -> 0x%x\n",reg.slot,reg.size,reg.count,reg.offset);
 }
 
 void finish_stack_alloc(LinearAlloc& alloc)
@@ -953,6 +947,10 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
         }
     }
 
+    const auto& end_info = info_from_op(block.list.finish->opcode);
+
+    const insertion_type insert_type = is_group_branch(end_info.group)? insertion_type::before : insertion_type::after;
+
     // Keep running passes until we are done
     while(count(misplaced))
     {
@@ -974,7 +972,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                 {
                     if(is_reg_locally_allocated(ir_reg))
                     {
-                        spill_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.local_reg,false);
+                        spill_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.local_reg,insert_type);
                     }
 
                     remove_out_of_place(misplaced,m);
@@ -987,7 +985,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                     // If this is not locally allocated we need to issue a reload into it.
                     if(!is_reg_locally_allocated(ir_reg))
                     {
-                        reload_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.global_reg);
+                        reload_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.global_reg,insert_type);
                     }
 
                     // Otherwhise just move it
@@ -995,7 +993,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                     {
                         const bool is_float = ir_reg.flags & REG_FLOAT;
                         const auto opcode = make_op(is_float? op_type::movf_reg : op_type::mov_reg,ir_reg.global_reg,ir_reg.local_reg);
-                        insert_at(block.list,block.list.finish,opcode);
+                        insert_node(block.list,block.list.finish,opcode,insert_type);
 
                         log_reg(alloc.print,*alloc.table,"Copying %r from %s to %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
 
@@ -1018,7 +1016,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
             if(is_reg_locally_allocated(ir_reg))
             {
                 auto& reg_file = get_register_file(alloc,ir_reg);
-                save_reg(alloc,block,block.list.finish,reg_file,ir_reg.local_reg);
+                save_reg(alloc,block,block.list.finish,reg_file,ir_reg.local_reg,insert_type);
                 break;
             }
         }
@@ -1035,7 +1033,7 @@ void lock_out_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile& 
     // If its allready free we don't have to do anything just claim it
     if(!is_reg_free(reg_file,reg))
     {
-        save_reg(alloc,block,node,reg_file,reg);
+        save_reg(alloc,block,node,reg_file,reg,insertion_type::before);
     }
 
     claim_register(reg_file,reg);
@@ -1048,7 +1046,7 @@ void force_into_reg(LinearAlloc& alloc,Block& block, ListNode* node,RegisterFile
     // issue a load
     if(!is_reg_locally_allocated(ir_reg))
     {
-        reload_reg(alloc,block,node,dst,reg);
+        reload_reg(alloc,block,node,dst,reg,insertion_type::before);
     }
 
     // Copy the register and then free the other one

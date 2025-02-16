@@ -184,7 +184,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
             // issue a reload
             if(is_reg_locally_allocated(ir_reg))
             {
-                reload_reg(alloc,block,node,slot,ir_reg.local_reg);
+                reload_reg(alloc,block,node,slot,ir_reg.local_reg,insertion_type::before);
             }
 
             node = remove(block.list,node);
@@ -333,7 +333,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         {
             const SymSlot slot = sym_from_idx(opcode.v[0]);
 
-            spill(alloc,block,node,slot,false);
+            spill(alloc,block,node,slot,insertion_type::before);
 
             node = remove(block.list,node);
             break;
@@ -759,10 +759,10 @@ void allocate_registers(Interloper& itl,Function &func)
 
     for(auto& block : func.emitter.program)
     {
+        log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
+
         linear_setup_new_block(alloc,block);
 
-        log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
-        
         ListNode *node = block.list.start;
 
         while(node)

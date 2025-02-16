@@ -305,6 +305,11 @@ enum class op_group
     slot_t,
 };
 
+inline bool is_group_branch(op_group group) 
+{
+    return group == op_group::branch_t || group == op_group::branch_reg_t;
+}
+
 enum class arg_type
 {
     // NOTE: these 3 must be first
@@ -644,6 +649,12 @@ struct List
     {
         return ListIterator(nullptr);
     }
+};
+
+enum class insertion_type
+{
+    after,
+    before,
 };
 
 List make_list(ArenaAllocator* allocator);

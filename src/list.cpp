@@ -97,6 +97,16 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
     return node;
 }
 
+ListNode* insert_node(List& list, ListNode* cur, const Opcode& opcode, insertion_type type) 
+{
+    if(type == insertion_type::after)
+    {
+        return insert_after(list,cur,opcode);
+    }
+
+    return insert_at(list,cur,opcode);
+}
+
 void append(List &list, const Opcode opcode)
 {
     insert_after(list,list.finish,opcode);
