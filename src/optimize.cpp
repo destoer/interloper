@@ -766,9 +766,15 @@ void optimise_func(Interloper& itl, Function& func)
 
 void optimise_ir(Interloper &itl)
 {   
+    auto start = std::chrono::high_resolution_clock::now();
+    
     for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
         auto& func = *itl.func_table.used[f];
         optimise_func(itl,func);
     }
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    itl.optimise_time = std::chrono::duration<double, std::milli>(end-start).count();
 }

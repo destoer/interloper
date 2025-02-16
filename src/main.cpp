@@ -111,6 +111,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    printf("Parsing time %.2lf ms\n",itl.parsing_time);
+    printf("Code gen and type checking %0.2lf ms\n",itl.code_gen_time);
+    printf("Optimisation time %.2lf ms\n",itl.optimise_time);
+    printf("Backend time %.2lf ms\n",itl.backend_time);
+    printf("Total compiler time: %.2lf ms\n",itl.parsing_time + itl.code_gen_time + itl.optimise_time + itl.backend_time);
 
     destroy_itl(itl);
 

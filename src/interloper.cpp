@@ -1321,115 +1321,10 @@ void check_startup_defs(Interloper& itl)
     check_startup_func(itl,"zero_mem",itl.std_name_space);
 }
 
-void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
+void backend(Interloper& itl, const String& executable_path)
 {
-    printf("compiling file: %s\n",initial_filename.buf);
+    auto start = std::chrono::high_resolution_clock::now();
 
-    itl.error = false;
-    itl.error_code = itl_error::none;
-
-    itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
-    itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
-
-    itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
-    itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
-    itl.type_allocator = make_allocator(TYPE_INITIAL_SIZE);
-    itl.namespace_allocator = make_allocator(2 * 1024);
-
-    itl.symbol_table.string_allocator = &itl.string_allocator;
-    itl.symbol_table.namespace_allocator = &itl.namespace_allocator;
-    itl.symbol_table.ctx = &itl.ctx;
-
-    itl.func_table = make_func_table();
-
-    setup_namespace(itl);
-
-    setup_type_table(itl);
-    declare_compiler_type_aliases(itl);
-
-    // add an dummy error value as the first handle
-    // see SYM_ERROR
-    make_sym(itl,"ITL_ERROR",make_builtin(itl,builtin_type::void_t));
-
-    // parse intial input file
-    {
-        // build ast
-        const b32 parser_error = parse(itl,initial_filename);
-
-        if(parser_error)
-        {
-            // flag as generic parser error
-            if(itl.error_code == itl_error::none)
-            {
-                itl.error = true;
-                itl.error_code = itl_error::parse_error;
-            }
-
-            destroy_itl(itl);
-            return;
-        }
-    }
-
-    if(itl.print_ast)
-    {
-        // print type defs
-        for(u32 t = 0; t < count(itl.type_decl); t++)
-        {
-            print(itl.type_decl[t]);
-        }
-
-        // print function defs
-        for(u32 f = 0; f < count(itl.func_table.table); f++)
-        {
-            auto& func = itl.func_table.table[f];
-            print((AstNode*)func.root);    
-        }
-    }
-
-
-    check_startup_defs(itl);
-
-    if(itl.error)
-    {
-        destroy_itl(itl);
-        return;
-    }
-
-    putchar('\n');
-
-    // compile all our constant values 
-    compile_constants(itl);
-    compile_globals(itl);
-
-    declare_compiler_constants(itl);
-
-    if(itl.error)
-    {
-        destroy_itl(itl);
-        return;
-    }
-
-    // go through each function and compile
-    // how do we want to handle getting to the entry point / address allocation?
-    // do we want a "label" for each function? 
-    compile_functions(itl);
-
-    // okay we dont need the parse tree anymore
-    // free it
-    destroy_ast(itl);
-
-    if(itl.error)
-    {
-        destroy_itl(itl);
-        return;
-    }
-
-
-    if(itl.optimise)
-    {
-        optimise_ir(itl);
-    }
-    
     if(itl.print_ir)
     {
         dump_sym_ir(itl);
@@ -1479,5 +1374,145 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
         }
     }
 
+    auto end = std::chrono::high_resolution_clock::now();
+    itl.backend_time = std::chrono::duration<double, std::milli>(end-start).count();
+
     printf("OK\n\n");
+}
+
+void code_generation(Interloper& itl)
+{
+    auto start = std::chrono::high_resolution_clock::now();
+
+    check_startup_defs(itl);
+
+    if(itl.error)
+    {
+        destroy_itl(itl);
+        return;
+    }
+
+    putchar('\n');
+
+    // compile all our constant values 
+    compile_constants(itl);
+    compile_globals(itl);
+
+    declare_compiler_constants(itl);
+
+    if(itl.error)
+    {
+        destroy_itl(itl);
+        return;
+    }
+
+    // go through each function and compile
+    // how do we want to handle getting to the entry point / address allocation?
+    // do we want a "label" for each function? 
+    compile_functions(itl);
+
+    // okay we dont need the parse tree anymore
+    // free it
+    destroy_ast(itl);
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    itl.code_gen_time = std::chrono::duration<double, std::milli>(end-start).count();
+}
+
+void parsing(Interloper& itl, const String& initial_filename)
+{
+    // parse intial input file
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // build ast
+    const b32 parser_error = parse(itl,initial_filename);
+
+    if(parser_error)
+    {
+        // flag as generic parser error
+        if(itl.error_code == itl_error::none)
+        {
+            itl.error = true;
+            itl.error_code = itl_error::parse_error;
+        }
+
+        destroy_itl(itl);
+        return;
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    itl.parsing_time = std::chrono::duration<double, std::milli>(end-start).count();
+
+    if(itl.print_ast)
+    {
+        // print type defs
+        for(u32 t = 0; t < count(itl.type_decl); t++)
+        {
+            print(itl.type_decl[t]);
+        }
+
+        // print function defs
+        for(u32 f = 0; f < count(itl.func_table.table); f++)
+        {
+            auto& func = itl.func_table.table[f];
+            print((AstNode*)func.root);    
+        }
+    }
+
+}
+
+void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
+{
+    printf("compiling file: %s\n",initial_filename.buf);
+
+    itl.error = false;
+    itl.error_code = itl_error::none;
+
+    itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+    itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
+
+    itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
+    itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
+    itl.type_allocator = make_allocator(TYPE_INITIAL_SIZE);
+    itl.namespace_allocator = make_allocator(2 * 1024);
+
+    itl.symbol_table.string_allocator = &itl.string_allocator;
+    itl.symbol_table.namespace_allocator = &itl.namespace_allocator;
+    itl.symbol_table.ctx = &itl.ctx;
+
+    itl.func_table = make_func_table();
+
+    setup_namespace(itl);
+
+    setup_type_table(itl);
+    declare_compiler_type_aliases(itl);
+
+    // add an dummy error value as the first handle
+    // see SYM_ERROR
+    make_sym(itl,"ITL_ERROR",make_builtin(itl,builtin_type::void_t));
+
+    parsing(itl,initial_filename);
+
+    if(itl.error)
+    {
+        destroy_itl(itl);
+        return;
+    }
+
+    code_generation(itl);
+
+    if(itl.error)
+    {
+        destroy_itl(itl);
+        return;
+    }
+
+    if(itl.optimise)
+    {
+        optimise_ir(itl);
+    }
+    
+    backend(itl,executable_path);
 }
