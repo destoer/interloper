@@ -193,10 +193,10 @@ void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved
 
         auto &sym = sym_from_slot(table,slot);
 
-        //printf("%s : %x\n",sym.name.buf,sym.arg_offset);
-
         // alloc above the stack frame
         sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + GPR_SIZE;
+
+        log_reg(alloc.print,table,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,sym.reg.offset);
     }           
 }
 

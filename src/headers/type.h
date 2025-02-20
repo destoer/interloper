@@ -253,7 +253,7 @@ struct TypeCacheNode
 
 struct TypeTrieNode
 {
-    PoolSlot slot = {NO_SLOT};
+    PoolSlot slot = {INVALID_HANDLE};
     const Type* type = nullptr;
 
     Array<TypeTrieNode> nodes;

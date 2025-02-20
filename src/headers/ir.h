@@ -344,6 +344,8 @@ struct OpInfo
 enum class slot_type
 {
     symbol,
+    tmp,
+    spec,
     label,
     block,
     pool,
@@ -376,13 +378,17 @@ u32 hash_slot(u32 size, Slot<type> v)
 }
 
 
-static constexpr u32 SYMBOL_NO_SLOT = 0xffff'ffff;
 using SymSlot = Slot<slot_type::symbol>;
+using TmpSlot = Slot<slot_type::tmp>;
+using SpecSlot = Slot<slot_type::spec>;
 
 SymSlot sym_from_idx(u32 idx)
 {
     return {idx};
 }
+
+static constexpr SymSlot SYMBOL_NO_SLOT = {0xffff'fffe};
+static constexpr SymSlot SYM_ERROR = {0xffff'ffff};
 
 template<slot_type type>
 b32 operator==(const Slot<type> v1,const Slot<type> v2)
@@ -406,134 +412,16 @@ static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
 b32 is_var(SymSlot slot);
 
-struct Opcode
+enum class operand_type
 {
-    Opcode() {}
-
-    Opcode(op_type op, u64 v1, u64 v2, u64 v3)
-    {
-        this->op = op;
-        this->v[0] = v1;
-        this->v[1] = v2;
-        this->v[2] = v3;
-    }
-
-    op_type op; 
-
-    // operands (either a register id)
-    // or an immediate (depends implictly on opcode type)
-    // or a label number
-    u64 v[3];
+    decimal,
+    imm,
+    spec,
+    reg,
+    label,
+    // Post rewrite raw operaend
+    raw,
 };
-
-inline Opcode make_op(op_type type, u64 dst = 0, u64 v1 = 0, u64 v2 = 0)
-{
-    return Opcode(type,dst,v1,v2);
-}
-
-enum class reg_kind
-{
-    local,
-    global,
-    constant,
-    tmp,
-};
-
-static constexpr u32 SIGNED_FLAG = 1 << 0;
-static constexpr u32 STORED_IN_MEM = 1 << 1;
-static constexpr u32 ALIASED = 1 << 2;
-static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
-static constexpr u32 CONST = 1 << 4;
-static constexpr u32 FUNC_ARG = 1 << 5;
-static constexpr u32 REG_FLOAT = 1 << 6;
-
-
-// standard symbols
-static constexpr u32 SYMBOL_START = 0x80000000;
-
-// first index of symslot is reserved
-static constexpr SymSlot SYM_ERROR = {SYMBOL_START + 0};
-
-
-
-// TODO:
-// for now hardcode this to the limits of our vm
-// we will move this into a struct as part of a config
-// when we actually want to define multiple targets
-static constexpr u32 MACHINE_REG_SIZE = 32;
-
-// TAC wont function on less than 3 regs
-static_assert(MACHINE_REG_SIZE >= 3);
-
-static constexpr u32 SPECIAL_PURPOSE_REG_START = 0x7fffff00;
-
-static constexpr u32 SP_IR = SPECIAL_PURPOSE_REG_START + 0;
-static constexpr u32 PC_IR = SPECIAL_PURPOSE_REG_START + 1;
-static constexpr u32 RV_IR = SPECIAL_PURPOSE_REG_START + 2;
-static constexpr u32 RV_FLOAT_IR = SPECIAL_PURPOSE_REG_START + 3;
-
-// x86 regs
-static constexpr u32 RAX_IR = SPECIAL_PURPOSE_REG_START + 4;
-static constexpr u32 RCX_IR = SPECIAL_PURPOSE_REG_START + 5;
-static constexpr u32 RDX_IR = SPECIAL_PURPOSE_REG_START + 6;
-static constexpr u32 RDI_IR = SPECIAL_PURPOSE_REG_START + 7;
-static constexpr u32 RSI_IR = SPECIAL_PURPOSE_REG_START + 8;
-static constexpr u32 R8_IR = SPECIAL_PURPOSE_REG_START + 9;
-static constexpr u32 R9_IR = SPECIAL_PURPOSE_REG_START + 10;
-static constexpr u32 R10_IR = SPECIAL_PURPOSE_REG_START + 11;
-
-// dummy reg to tell compilier loads are not necessary for fixed arrays
-static constexpr u32 ACCESS_FIXED_LEN_REG = SPECIAL_PURPOSE_REG_START + 12;
-
-static constexpr SymSlot ACCESS_FIXED_LEN_REG_SLOT = {ACCESS_FIXED_LEN_REG};
-
-// dont perform any moves
-static constexpr u32 NO_SLOT = SPECIAL_PURPOSE_REG_START + 13;
-
-static constexpr u32 CONST_IR = SPECIAL_PURPOSE_REG_START + 14;
-static constexpr u32 GP_IR = SPECIAL_PURPOSE_REG_START + 15;
-
-static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
-static constexpr u32 TMP_END = REG_FREE - 1;
-static constexpr u32 REG_TMP_START = 0x00000000;
-
-struct Reg
-{
-    reg_kind kind;
-
-    // what slot does this symbol hold inside the ir?
-    SymSlot slot = {SYMBOL_NO_SLOT};
-
-    // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
-    // i.e this is for stack allocation to get actual var sizes use type_size();
-    u32 size = 0;
-    u32 count = 0;
-
-    // intialized during register allocation
-
-    // where is the current offset for its section?
-    u32 offset = UNALLOCATED_OFFSET;
-
-    // Where is this register globally allocated if at all
-    u32 global_reg = REG_FREE;
-    // Where does this register reside in the current block?
-    u32 local_reg = REG_FREE;
-
-    u32 cur_local_uses = 0;
-    Array<u32> local_uses;
-
-    u32 flags = 0;
-};
-
-struct Interloper;
-struct Function;
-struct Type;
-
-Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed);
-Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type);
-b32 is_special_reg(SymSlot r);
-void destroy_reg(Reg& ir_reg);
-void print(const Reg& reg);
 
 
 const String SPECIAL_REG_NAMES[16] = 
@@ -560,6 +448,149 @@ static constexpr u32 SP_NAME_IDX = 0;
 static constexpr u32 PC_NAME_IDX = 1;
 
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
+
+enum class spec_reg
+{
+    // generic
+    sp,
+    pc,
+    rv,
+    rv_float,
+
+    // x86
+    rax,
+    rcx,
+    rdx,
+    rdi,
+    rsi,
+    r8,
+    r9,
+    r10,
+
+    // dummy reg to tell compilier loads are not necessary for fixed arrays
+    access_fixed_len_reg,
+
+    // dont perform any moves
+    no_move,
+
+    const_seg,
+    global_seg,
+};
+
+enum class reg_kind
+{
+    local,
+    global,
+    constant,
+    tmp,
+    spec,
+};
+
+struct RegSlot
+{
+    union 
+    {
+        TmpSlot tmp_slot;
+        SymSlot sym_slot = {SYMBOL_NO_SLOT};
+        spec_reg spec;
+    };
+
+    reg_kind kind = reg_kind::local;
+};
+
+RegSlot make_sym_reg_slot(SymSlot slot, reg_kind kind)
+{
+    RegSlot handle;
+    handle.sym_slot = slot;
+    handle.kind = kind;
+
+    return handle;
+}
+
+RegSlot make_tmp_reg_slot(TmpSlot slot)
+{
+    RegSlot handle;
+    handle.tmp_slot = slot;
+    handle.kind = reg_kind::tmp;
+
+    return handle;
+}
+
+struct Operand
+{
+    union 
+    {
+        f64 decimal;
+        u64 imm;
+        u64 raw = 0;
+        RegSlot reg;
+        LabelSlot label;
+    };
+
+    operand_type type = operand_type::raw;
+};
+
+struct Opcode
+{
+    op_type op; 
+    Operand v[3];
+};
+
+static constexpr u32 SIGNED_FLAG = 1 << 0;
+static constexpr u32 STORED_IN_MEM = 1 << 1;
+static constexpr u32 ALIASED = 1 << 2;
+static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
+static constexpr u32 CONST = 1 << 4;
+static constexpr u32 FUNC_ARG = 1 << 5;
+static constexpr u32 REG_FLOAT = 1 << 6;
+
+
+// TODO:
+// for now hardcode this to the limits of our vm
+// we will move this into a struct as part of a config
+// when we actually want to define multiple targets
+static constexpr u32 MACHINE_REG_SIZE = 32;
+
+// TAC wont function on less than 3 regs
+static_assert(MACHINE_REG_SIZE >= 3);
+
+static constexpr u32 REG_FREE = 0xffff'ffff;
+
+struct Reg
+{
+    // what slot does this symbol hold inside the ir?
+    RegSlot slot;
+
+    // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
+    // i.e this is for stack allocation to get actual var sizes use type_size();
+    u32 size = 0;
+    u32 count = 0;
+
+    // intialized during register allocation
+
+    // where is the current offset for its section?
+    u32 offset = UNALLOCATED_OFFSET;
+
+    // Where is this register globally allocated if at all
+    u32 global_reg = REG_FREE;
+    // Where does this register reside in the current block?
+    u32 local_reg = REG_FREE;
+
+    u32 cur_local_uses = 0;
+    Array<u32> local_uses;
+
+    u32 flags = 0;
+};
+
+struct Interloper;
+struct Function;
+struct Type;
+
+Reg make_reg(const RegSlot& slot, u32 size, b32 is_signed, b32 is_float);
+Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type);
+b32 is_special_reg(SymSlot r);
+void destroy_reg(Reg& ir_reg);
+void print(const Reg& reg);
 
 
 static constexpr u32 GPR_SIZE = sizeof(u64);
@@ -731,29 +762,29 @@ struct GlobalAlloc
     Array<ArrayAllocation> array_allocation;
 };
 
-void sign_extend_byte(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
-void sign_extend_half(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
-void sign_extend_word(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
+void sign_extend_byte(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
+void sign_extend_half(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
+void sign_extend_word(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
 
-void cvt_fi(Interloper& itl, Function& func, SymSlot dst, SymSlot v1);
-void cvt_if(Interloper& itl, Function& func, SymSlot dst, SymSlot v1);
+void cvt_fi(Interloper& itl, Function& func, RegSlot dst, RegSlot v1);
+void cvt_if(Interloper& itl, Function& func, RegSlot dst, RegSlot v1);
 
 
-void mov_reg(Interloper& itl, Function& func, SymSlot dst, SymSlot src);
+void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
 
-void and_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm);
+void and_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
 
-void cmp_signed_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm);
-void cmp_unsigned_gt_imm(Interloper& itl, Function& func, SymSlot dst, SymSlot src, u64 imm);
+void cmp_signed_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
+void cmp_unsigned_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
 
-void mov_imm(Interloper& itl, Function& func, SymSlot dst, u64 imm);
+void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm);
 
 void spill_func_bounds(Interloper& itl, Function& func);
 
 void spill_slot(Interloper& itl, Function& func, const Reg& reg);
 
-void free_fixed_array(Interloper& itl,Function& func,SymSlot src,u32 size,u32 count);
-void free_slot(Interloper& itl,Function& func, SymSlot slot);
+void free_fixed_array(Interloper& itl,Function& func,RegSlot src,u32 size,u32 count);
+void free_slot(Interloper& itl,Function& func, RegSlot slot);
 
 
 BlockSlot block_from_idx(u32 v);
@@ -764,12 +795,6 @@ Block& block_from_slot(Function& func, BlockSlot slot);
 void destroy_emitter(IrEmitter& emitter);
 
 b32 is_tmp(SymSlot s);
-
-inline u32 symbol(u32 s)
-{
-    return SYMBOL_START + s;
-}
-
 
 
 struct AddrSlot

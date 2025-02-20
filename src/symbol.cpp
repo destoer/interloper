@@ -11,47 +11,58 @@ void destroy_scope(SymbolTable &sym_table)
     sym_table.ctx->name_space = sym_table.ctx->name_space->parent;
 }
 
-u32 sym_to_idx(SymSlot s)
+SymSlot slot_from_sym(const Symbol& sym)
 {
-    return s.handle - SYMBOL_START;
+    return sym.reg.slot.sym_slot;
 }
 
+u32 handle_from_sym(const Symbol& sym)
+{
+    return slot_from_sym(sym).handle;
+}
 
 // NOTE: reference may move, hold the slot if needed for extended periods
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot)
 {
-    return table.slot_lookup[sym_to_idx(slot)]; 
+    return table.slot_lookup[slot.handle]; 
 }
 
 const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
 {
-    return table.slot_lookup[sym_to_idx(slot)]; 
+    return table.slot_lookup[slot.handle]; 
 }
 
-Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, SymSlot slot)
+Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, const RegSlot& slot)
 {
-    if(is_special_reg(slot) || slot.handle == REG_FREE)
+    switch(slot.kind)
     {
-        assert(false);
-    }
+        case reg_kind::tmp:
+        {
+            return tmp_regs[slot.tmp_slot.handle];
+        }
 
-    if(!is_tmp(slot))
-    {
-        return sym_from_slot(table,slot).reg;
-    }
+        case reg_kind::local:
+        case reg_kind::global:
+        case reg_kind::constant:
+        {
+            return sym_from_slot(table,slot.sym_slot).reg;
+        }
 
-    else
-    {
-        return tmp_regs[slot.handle];
+        // These don't have registers backing them
+        case reg_kind::spec:
+        {
+            assert(false);
+            break;
+        }
     }
 }
 
-Reg& reg_from_slot(SymbolTable &table,Function& func, SymSlot slot)
+Reg& reg_from_slot(SymbolTable &table,Function& func, const RegSlot& slot)
 {
     return reg_from_slot(table,func.registers,slot);
 }
 
-Reg& reg_from_slot(Interloper& itl,Function& func, SymSlot slot)
+Reg& reg_from_slot(Interloper& itl,Function& func, const RegSlot& slot)
 {
     return reg_from_slot(itl.symbol_table,func,slot);
 }
@@ -79,7 +90,7 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
 {
     auto& table = itl.symbol_table;
 
-    const u32 slot = symbol(count(table.slot_lookup));
+    const SymSlot sym_slot = {count(table.slot_lookup)};
 
     Symbol symbol = {};
     symbol.name = copy_string(*table.string_allocator,name);
@@ -87,7 +98,9 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
     symbol.arg_offset = arg;
     symbol.scope_end = block_from_idx(0xffff'ffff);
 
-    symbol.reg = make_reg(itl,reg_kind::local,slot,type);
+    const auto reg_slot = make_sym_reg_slot(sym_slot,reg_kind::local);
+
+    symbol.reg = make_reg(itl,reg_slot,type);
 
     // mark an offset so it is not unallocated
     if(symbol.arg_offset != NON_ARG)
@@ -111,7 +124,7 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 // add symbol to the scope table
 void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
+    const DefInfo info = {definition_type::variable,handle_from_sym(sym)};
     add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
@@ -124,7 +137,7 @@ Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
 
     add_sym_to_scope(sym_table,sym);
 
-    return sym_from_slot(sym_table,sym.reg.slot);
+    return sym_from_slot(sym_table,slot_from_sym(sym));
 }
 
 Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
@@ -132,20 +145,22 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
     auto& sym_table = itl.symbol_table;
 
     auto sym = make_sym(itl,name,type);
-    sym.reg.kind = constant? reg_kind::constant : reg_kind::global;
+    sym.reg.slot.kind = constant? reg_kind::constant : reg_kind::global;
 
     push_var(sym_table.slot_lookup,sym);
 
+    const auto slot = slot_from_sym(sym);
+
     if(!constant)
     {
-        push_var(sym_table.global,sym.reg.slot);
+        push_var(sym_table.global,slot);
     }
 
     // add this into the top level scope
-    const DefInfo info = {definition_type::variable,sym.reg.slot.handle};
+    const DefInfo info = {definition_type::variable,handle_from_sym(sym)};
     add(itl.global_namespace->table,sym.name, info);    
 
-    return sym_from_slot(sym_table,sym.reg.slot);
+    return sym_from_slot(sym_table,slot);
 }
 
 LabelSlot label_from_idx(u32 handle)

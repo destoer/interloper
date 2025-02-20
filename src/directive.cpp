@@ -67,13 +67,13 @@ SymSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 o
     return tmp;
 }
 
-void free_slot(Interloper& itl,Function& func, SymSlot slot)
+void free_slot(Interloper& itl,Function& func, RegSlot slot)
 {
     UNUSED(itl);
     emit_block_internal(func,cur_block(func),op_type::free_slot,slot.handle,0,0);
 }
 
-void free_fixed_array(Interloper& itl,Function& func,SymSlot src,u32 size,u32 count)
+void free_fixed_array(Interloper& itl,Function& func,RegSlot src,u32 size,u32 count)
 {
     UNUSED(itl);
     emit_block_internal(func,cur_block(func),op_type::free_fixed_array,src.handle,size,count);
