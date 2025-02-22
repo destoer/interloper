@@ -926,12 +926,9 @@ Block& block_from_slot(Function& func, BlockSlot slot);
 
 void destroy_emitter(IrEmitter& emitter);
 
-b32 is_tmp(SymSlot s);
-
-
 struct AddrSlot
 {
-    SymSlot slot = {SYMBOL_NO_SLOT};
+    RegSlot slot;
     u32 offset = 0;
 
     // slot is not a pointer and refers to an actual variable

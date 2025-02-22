@@ -120,12 +120,12 @@ void load_func_addr(Interloper& itl, Function& func, RegSlot dst, LabelSlot labe
 
 void load_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot dst, AddrSlot addr_slot)
 {
-    emit_directive_internal(itl,func,type,make_reg_operand(dst),make_raw_operand(addr_slot.slot.handle),make_imm_operand(addr_slot.offset));
+    emit_directive_internal(itl,func,type,make_reg_operand(dst),make_reg_operand(addr_slot.slot),make_imm_operand(addr_slot.offset));
 }
 
 void store_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot src, AddrSlot addr_slot)
 {
-    emit_directive_internal(itl,func,type,make_reg_operand(src),make_raw_operand(addr_slot.slot.handle),make_imm_operand(addr_slot.offset));
+    emit_directive_internal(itl,func,type,make_reg_operand(src),make_reg_operand(addr_slot.slot),make_imm_operand(addr_slot.offset));
 }
 
 
