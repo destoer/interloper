@@ -50,7 +50,7 @@ u32 stack_reserve_internal(StackAlloc& alloc, u32 size, u32 count)
     return cur;    
 }
 
-u32 allocate_stack_array(StackAlloc& alloc,SymbolTable& table ,SymSlot slot, u32 size, u32 alloc_count)
+u32 allocate_stack_array(StackAlloc& alloc,SymbolTable& table, SymSlot slot, u32 size, u32 alloc_count)
 {
     ArrayAllocation allocation;
     allocation.slot = slot;

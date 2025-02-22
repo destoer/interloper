@@ -93,7 +93,7 @@ ListNode* alloc_slot(Interloper& itl,Function& func, const RegSlot slot, b32 for
 
 ListNode* alloc_stack(Interloper& itl, Function& func, u32 size)
 {
-    return emit_directive_internal(itl,func,op_type::alloc_stack,make_raw_operand(size));    
+    return emit_directive_internal(itl,func,op_type::alloc_stack,make_imm_operand(size));    
 }
 
 
