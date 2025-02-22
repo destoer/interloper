@@ -41,9 +41,7 @@ Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, const RegSlot& slot)
             return tmp_regs[slot.tmp_slot.handle];
         }
 
-        case reg_kind::local:
-        case reg_kind::global:
-        case reg_kind::constant:
+        case reg_kind::sym:
         {
             return sym_from_slot(table,slot.sym_slot).reg;
         }
@@ -98,7 +96,7 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
     symbol.arg_offset = arg;
     symbol.scope_end = block_from_idx(0xffff'ffff);
 
-    const auto reg_slot = make_sym_reg_slot(sym_slot,reg_kind::local);
+    const auto reg_slot = make_sym_reg_slot(sym_slot,reg_kind::sym);
 
     symbol.reg = make_reg(itl,reg_slot,type);
 
@@ -145,7 +143,7 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
     auto& sym_table = itl.symbol_table;
 
     auto sym = make_sym(itl,name,type);
-    sym.reg.slot.kind = constant? reg_kind::constant : reg_kind::global;
+    sym.reg.segment = constant? reg_segment::constant : reg_segment::global;
 
     push_var(sym_table.slot_lookup,sym);
 

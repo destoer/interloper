@@ -405,7 +405,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
             log_reg(alloc.print,*alloc.table,"alloc slot: %r : %s\n",slot,opcode.v[1]? "forced" : "unforced");
 
             // explictly force a stack alloc now
-            if(opcode.v[1] && reg.kind != reg_kind::global)
+            if(opcode.v[1] && reg.kind != reg_segment::global)
             {
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }

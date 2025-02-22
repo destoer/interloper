@@ -416,7 +416,6 @@ enum class operand_type
 {
     decimal,
     imm,
-    spec,
     reg,
     label,
     // Post rewrite raw operaend
@@ -479,11 +478,16 @@ enum class spec_reg
 
 enum class reg_kind
 {
-    local,
-    global,
-    constant,
+    sym,
     tmp,
     spec,
+};
+
+enum class reg_segment
+{
+    local,
+    constant,
+    global,
 };
 
 struct RegSlot
@@ -495,8 +499,23 @@ struct RegSlot
         spec_reg spec;
     };
 
-    reg_kind kind = reg_kind::local;
+    reg_kind kind = reg_kind::sym;
 };
+
+inline bool operator == (const RegSlot& v1, const RegSlot &v2)
+{
+    if(v1.kind != v2.kind)
+    {
+        return false;
+    }
+
+    switch(v1.kind)
+    {
+        case reg_kind::sym: return v1.sym_slot == v2.sym_slot;
+        case reg_kind::tmp: return v1.tmp_slot == v2.tmp_slot;
+        case reg_kind::spec: return v1.spec == v2.spec;
+    }
+}
 
 RegSlot make_sym_reg_slot(SymSlot slot, reg_kind kind)
 {
@@ -530,11 +549,33 @@ struct Operand
     operand_type type = operand_type::raw;
 };
 
+inline bool operator == (const Operand& v1, const Operand &v2)
+{
+    if(v1.type != v2.type)
+    {
+        return false;
+    }
+
+    switch(v1.type)
+    {
+        case operand_type::decimal: return v1.decimal == v2.decimal;
+        case operand_type::imm: return v1.imm == v2.imm;
+        case operand_type::reg: return v1.reg == v2.reg;
+        case operand_type::label: return v1.label == v2.label;
+        case operand_type::raw: return v1.raw == v2.raw;
+    }
+}
+
 struct Opcode
 {
     op_type op; 
     Operand v[3];
 };
+
+Opcode make_op(op_type type, Operand v1, Operand v2, Operand v3)
+{
+    return Opcode {type,v1,v2,v3};
+}
 
 static constexpr u32 SIGNED_FLAG = 1 << 0;
 static constexpr u32 STORED_IN_MEM = 1 << 1;
@@ -558,6 +599,9 @@ static constexpr u32 REG_FREE = 0xffff'ffff;
 
 struct Reg
 {
+    // Where is this register allocated
+    reg_segment segment = reg_segment::local;
+
     // what slot does this symbol hold inside the ir?
     RegSlot slot;
 

@@ -60,7 +60,7 @@ b32 is_mem_allocated(Reg& reg)
 
 b32 is_stack_unallocated(Reg& reg)
 {
-    return is_mem_unallocated(reg) && (reg.slot.kind == reg_kind::local || reg.slot.kind == reg_kind::tmp);
+    return is_mem_unallocated(reg) && (reg.slot.kind == reg_kind::sym || reg.slot.kind == reg_kind::tmp);
 }
 
 
@@ -123,7 +123,7 @@ b32 is_signed(const Reg& reg)
 
 b32 is_global(const Reg& reg)
 {
-    return reg.slot.kind == reg_kind::global || reg.slot.kind == reg_kind::constant;
+    return reg.segment == reg_segment::global || reg.segment == reg_segment::constant;
 }
 
 b32 is_local(const Reg& reg)
@@ -292,7 +292,7 @@ void free_slot(Interloper& itl,Function& func, const Reg& reg)
 
 void free_sym(Interloper& itl,Function& func, Symbol& sym)
 {
-    if(is_fixed_array(sym.type) && (sym.reg.slot.kind == reg_kind::local || sym.reg.slot.kind == reg_kind::tmp))
+    if(is_fixed_array(sym.type) && (sym.reg.slot.kind == reg_kind::sym || sym.reg.slot.kind == reg_kind::tmp))
     {
         auto [size,count] = calc_arr_allocation(itl,sym);
         free_fixed_array(itl,func,sym.reg.slot,size,count);
@@ -432,9 +432,7 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
                             break;
                         }
 
-                        case reg_kind::local:
-                        case reg_kind::global:
-                        case reg_kind::constant:
+                        case reg_kind::sym:
                         {
                             const auto &sym = sym_from_slot(table,slot.sym_slot);
                             printf("%s",sym.name.buf);
@@ -545,10 +543,9 @@ u32 special_reg_to_reg(arch_target arch,spec_reg spec)
 
 std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
 {
-    switch(ir_reg.slot.kind)
+    switch(ir_reg.segment)
     {
-        case reg_kind::local:
-        case reg_kind::tmp:
+        case reg_segment::local:
         {
             const u32 SP = arch_sp(itl.arch);
 
@@ -556,7 +553,7 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
             return std::pair{SP,offset};
         }
 
-        case reg_kind::constant:
+        case reg_segment::constant:
         {
             const u32 handle = ir_reg.offset;
 
@@ -566,15 +563,9 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
             return std::pair{u32(spec_reg::const_seg),section.offset};
         }
 
-        case reg_kind::global:
+        case reg_segment::global:
         {
             return std::pair{u32(spec_reg::global_seg),ir_reg.offset};
-        }
-
-        case reg_kind::spec:
-        {
-            assert(false);
-            break;
         }
     }
 

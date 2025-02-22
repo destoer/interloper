@@ -730,22 +730,15 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         if(is_fixed_array(array.type))
         {
             // we have the allocation information now complete it
-            switch(array.reg.kind)
+            switch(array.reg.segment)
             {
-                case reg_kind::local:
+                case reg_segment::local:
                 {
                     alloc->opcode = Opcode(op_type::alloc_local_array,array.reg.slot.handle,arr_size,arr_count);
                     break;
                 }
-
-                case reg_kind::tmp:
-                {
-                    alloc->opcode = Opcode(op_type::alloc_local_array,array.reg.slot.handle,arr_size,arr_count);
-                    break;
-                }
-
                 // just dump addr
-                case reg_kind::global:
+                case reg_segment::global:
                 {
                     const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,array.reg.slot,arr_size,arr_count);
                     alloc->opcode = Opcode(op_type::alloc_global_array,array.reg.slot.handle,alloc_idx,0);
@@ -753,7 +746,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
                 }
 
                 // constants should not go through this function!
-                case reg_kind::constant:
+                case reg_segment::constant:
                 {
                     assert(false);
                     break;
