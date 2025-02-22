@@ -1,12 +1,37 @@
 
 
+ListNode* emit_directive_internal(Interloper& itl,Function& func, op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
+{
+    UNUSED(itl);
+
+    const auto info = opcode_three_info(type);
+
+    // Rewrite these to ignore the rewrites
+    if(info.args >= 1 && info.type[0] == arg_type::directive && v1.type == operand_type::reg)
+    {
+        v1.type = operand_type::directive_reg;
+    }
+    
+    if(info.args >= 2 && info.type[1] == arg_type::directive && v2.type == operand_type::reg)
+    {
+        v2.type = operand_type::directive_reg;
+    }
+
+    if(info.args >= 3 && info.type[2] == arg_type::directive && v3.type == operand_type::reg)
+    {
+        v3.type = operand_type::directive_reg;
+    }
+
+    return emit_block_internal(func,cur_block(func),type,v1,v2,v2);
+}
+
 void addrof(Interloper& itl,Function& func, RegSlot dst, RegSlot src, u32 offset = 0)
 {
     // mark reg as aliased
     auto& reg = reg_from_slot(itl,func,src);
     reg.flags |= ALIASED;
 
-    emit_block_internal(func,cur_block(func),op_type::addrof,make_reg_operand(dst),make_reg_operand(src),make_imm_operand(offset));
+    emit_directive_internal(itl,func,op_type::addrof,make_reg_operand(dst),make_reg_operand(src),make_imm_operand(offset));
 }
 
 RegSlot addrof_res(Interloper& itl, Function& func, RegSlot src, u32 offset = 0)
@@ -40,8 +65,7 @@ void emit_exit_block(Interloper& itl, Function& func)
 
 void pool_addr(Interloper& itl, Function& func, RegSlot dst_slot, PoolSlot pool_slot, u32 offset)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::addrof,make_reg_operand(dst_slot),make_raw_operand(pool_slot.handle),make_imm_operand(offset));
+    emit_directive_internal(itl,func,op_type::addrof,make_reg_operand(dst_slot),make_raw_operand(pool_slot.handle),make_imm_operand(offset));
 }
 
 RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 offset)
@@ -54,66 +78,54 @@ RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 o
 
 void free_slot(Interloper& itl,Function& func, RegSlot slot)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::free_slot,make_reg_operand(slot),BLANK_OPERAND,BLANK_OPERAND);
+    emit_directive_internal(itl,func,op_type::free_slot,make_reg_operand(slot));
 }
 
 void free_fixed_array(Interloper& itl,Function& func,RegSlot src,u32 size,u32 count)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::free_fixed_array,make_reg_operand(src),make_raw_operand(size),make_raw_operand(count));
+    emit_directive_internal(itl,func,op_type::free_fixed_array,make_reg_operand(src),make_raw_operand(size),make_raw_operand(count));
 }
 
 ListNode* alloc_slot(Interloper& itl,Function& func, const RegSlot slot, b32 force_alloc)
 {
-    UNUSED(itl);
-    return emit_block_internal(func,cur_block(func),op_type::alloc_slot,make_reg_operand(slot),make_raw_operand(force_alloc),BLANK_OPERAND);
+    return emit_directive_internal(itl,func,op_type::alloc_slot,make_reg_operand(slot),make_raw_operand(force_alloc));
 }
 
 ListNode* alloc_stack(Interloper& itl, Function& func, u32 size)
 {
-    UNUSED(itl);
-    return emit_block_internal(func,cur_block(func),op_type::alloc_stack,make_raw_operand(size),BLANK_OPERAND,BLANK_OPERAND);    
+    return emit_directive_internal(itl,func,op_type::alloc_stack,make_raw_operand(size));    
 }
 
 
 void reload_slot(Interloper& itl, Function& func, const Reg& reg)
 {
-    UNUSED(itl);
-
     if(!stored_in_mem(reg))
     {
-        emit_block_internal(func,cur_block(func),op_type::reload_slot,make_reg_operand(reg.slot),BLANK_OPERAND,BLANK_OPERAND);
+        emit_directive_internal(itl,func,op_type::reload_slot,make_reg_operand(reg.slot));
     }
 }
 
 void spill_slot(Interloper& itl, Function& func, const Reg& reg)
 {
-    UNUSED(itl);
-
     if(!stored_in_mem(reg))
     {
-        emit_block_internal(func,cur_block(func),op_type::spill_slot,make_reg_operand(reg.slot),BLANK_OPERAND,BLANK_OPERAND);
+        emit_directive_internal(itl,func,op_type::spill_slot,make_reg_operand(reg.slot));
     }
 }
 
 void load_func_addr(Interloper& itl, Function& func, RegSlot dst, LabelSlot label)
 {
-    UNUSED(itl);
-
-    emit_block_internal(func,cur_block(func),op_type::load_func_addr,make_reg_operand(dst),make_label_operand(label),BLANK_OPERAND);
+    emit_directive_internal(itl,func,op_type::load_func_addr,make_reg_operand(dst),make_label_operand(label));
 }
 
 void load_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot dst, AddrSlot addr_slot)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),type,make_reg_operand(dst),make_raw_operand(addr_slot.slot.handle),make_imm_operand(addr_slot.offset));
+    emit_directive_internal(itl,func,type,make_reg_operand(dst),make_raw_operand(addr_slot.slot.handle),make_imm_operand(addr_slot.offset));
 }
 
 void store_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot src, AddrSlot addr_slot)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),type,make_reg_operand(src),make_raw_operand(addr_slot.slot.handle),make_imm_operand(addr_slot.offset));
+    emit_directive_internal(itl,func,type,make_reg_operand(src),make_raw_operand(addr_slot.slot.handle),make_imm_operand(addr_slot.offset));
 }
 
 
@@ -136,11 +148,10 @@ void lock_reg(Interloper& itl, Function& func, RegSlot reg)
     const u32 machine_reg = special_reg_to_reg(itl.arch,reg.spec);
     func.locked_set |= (1 << machine_reg);
 
-    emit_block_internal(func,cur_block(func),op_type::lock_reg,make_reg_operand(reg),BLANK_OPERAND,BLANK_OPERAND);
+    emit_directive_internal(itl,func,op_type::lock_reg,make_reg_operand(reg));
 }
 
 void unlock_reg(Interloper& itl, Function& func, RegSlot reg)
 {
-    UNUSED(itl);
-    emit_block_internal(func,cur_block(func),op_type::unlock_reg,make_reg_operand(reg),BLANK_OPERAND,BLANK_OPERAND);
+   emit_directive_internal(itl,func,op_type::unlock_reg,make_reg_operand(reg));
 }

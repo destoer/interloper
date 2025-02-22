@@ -8,10 +8,10 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
     block.label_slot = label_slot;
     block.block_slot = block_slot;
 
-    block.use = make_set<SymSlot>();
-    block.def = make_set<SymSlot>();
-    block.live_in = make_set<SymSlot>();
-    block.live_out = make_set<SymSlot>();
+    block.use = make_set<RegSlot>();
+    block.def = make_set<RegSlot>();
+    block.live_in = make_set<RegSlot>();
+    block.live_out = make_set<RegSlot>();
 
     return block;
 }
@@ -165,7 +165,7 @@ BlockSlot add_fall(Interloper& itl,Function& func)
     return exit;
 }
 
-void emit_cond_branch(Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, SymSlot sym, b32 cond)
+void emit_cond_branch(Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot, b32 cond)
 {
     const op_type branch_type = cond? op_type::bc : op_type::bnc;
 
@@ -173,7 +173,7 @@ void emit_cond_branch(Function& func, BlockSlot block,BlockSlot target,BlockSlot
 
     // TODO: handle src storage
 
-    emit_block_internal(func,block,branch_type,target_block.label_slot.handle,sym.handle,0);
+    emit_block_internal(func,block,branch_type,make_label_operand(target_block.label_slot),make_reg_operand(reg_slot),BLANK_OPERAND);
 
     // build links into the cfg 
     add_cond_exit(func,block,target,fall);
@@ -183,7 +183,7 @@ void emit_branch(Function& func, BlockSlot block,BlockSlot target)
 {
     const auto& target_block = block_from_slot(func,target);
 
-    emit_block_internal(func,block,op_type::b,target_block.label_slot.handle,0,0);
+    emit_block_internal(func,block,op_type::b,make_label_operand(target_block.label_slot),BLANK_OPERAND,BLANK_OPERAND);
     add_block_exit(func,block,target);
 }
 
@@ -243,22 +243,31 @@ void connect_node(Function& func,BlockSlot slot)
 }
 
 
-void print_ir_set(Interloper& itl, const Set<SymSlot>& set, const char* tag)
+void print_ir_set(Interloper& itl, const Set<RegSlot>& set, const char* tag)
 {
     printf("%s: {",tag);
 
-    for(const SymSlot slot : set)
+    for(const auto slot : set)
     {
-        // print var name
-        if(is_sym(slot))
+        switch(slot.kind)
         {
-            auto& sym = sym_from_slot(itl.symbol_table,slot);
-            printf("%s,",sym.name.buf);
-        }
+            case reg_kind::sym:
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,slot.sym_slot);
+                printf("%s,",sym.name.buf);
+            }
 
-        else
-        {
-            printf("t%d,",slot.handle);
+            case reg_kind::tmp:
+            {
+                printf("t%d,",slot.tmp_slot.handle);
+            }
+
+            // This should not flow through blocks
+            case reg_kind::spec:
+            {
+                assert(false);
+                break;
+            }
         }
     }
 
@@ -358,7 +367,7 @@ void compute_use_def(Interloper& itl,Function& func)
         }
         
         // run a pass on the block
-        for(const ListNode node : block.list)
+        for(const ListNode& node : block.list)
         {
             // mark three address code
             const auto opcode = node.opcode;
@@ -368,11 +377,17 @@ void compute_use_def(Interloper& itl,Function& func)
             // look at src regs first, then dst!
             for(s32 r = info.args - 1; r >= 0; r--)
             {
-                // assume some kind of slot
-                const auto slot = sym_from_idx(opcode.v[r]);
+                const auto operand = opcode.v[r];
 
-                // make sure this is actually a reg
-                if(is_special_reg(slot) || !is_arg_reg(info.type[r]))
+                if(operand.type != operand_type::reg)
+                {
+                    continue;
+                }
+
+                const auto slot = operand.reg;
+
+                // Not interested in special regs
+                if(slot.kind == reg_kind::spec)
                 {
                     continue;
                 }
@@ -464,7 +479,7 @@ void compute_var_live(Interloper& itl, Function& func)
 
             // finally if there is no def for an output 
             // then it must be an input (the value must arise somewhere)  
-            for(const SymSlot slot : block.live_out)
+            for(const RegSlot slot : block.live_out)
             {
                 if(!contains(block.def,slot))
                 {

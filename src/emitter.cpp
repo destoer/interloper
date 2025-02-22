@@ -12,53 +12,6 @@ ListNode* get_cur_end(IrEmitter& emitter)
     return get_cur_list(emitter).finish;    
 }
 
-Operand make_reg_operand(RegSlot slot)
-{
-    Operand oper;
-    oper.reg = slot;
-    oper.type = operand_type::reg;
-
-    return oper;
-}
-
-Operand make_decimal_operand(f64 decimal)
-{
-    Operand oper;
-    oper.decimal = decimal;
-    oper.type = operand_type::decimal;
-
-    return oper;
-}
-
-Operand make_imm_operand(u64 imm)
-{
-    Operand oper;
-    oper.imm = imm;
-    oper.type = operand_type::imm;
-
-    return oper;
-}
-
-Operand make_label_operand(LabelSlot slot)
-{
-    Operand oper;
-    oper.label = slot;
-    oper.type = operand_type::label;
-
-    return oper;
-}
-
-Operand make_raw_operand(u64 value)
-{
-    Operand oper;
-    oper.raw = value;
-    oper.type = operand_type::raw;
-
-    return oper;
-}
-
-static const Operand BLANK_OPERAND = make_raw_operand(0);
-
 void destroy_block(Block& block)
 {
     destroy_arr(block.entry);
@@ -156,7 +109,7 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot, b32 i
 
 
 // NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
-ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, Operand v1, Operand v2, Operand v3)
+ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
 {
     const Opcode opcode = {type,v1,v2,v3};
 
@@ -186,7 +139,7 @@ void emit_branch_reg(Interloper& itl, Function& func, RegSlot v1)
     static_assert(OP_INFO.type[0] == arg_type::src_reg);
     static_assert(OP_INFO.args == 1);
 
-    emit_block_internal(func,cur_block(func),type,make_reg_operand(v1),BLANK_OPERAND,BLANK_OPERAND);    
+    emit_block_internal(func,cur_block(func),type,make_reg_operand(v1));    
 }
 
 template<const op_type type>
@@ -198,7 +151,7 @@ void emit_implicit(Interloper& itl,Function& func)
     constexpr auto OP_INFO = opcode_three_info(type);
     static_assert(OP_INFO.args == 0);
 
-    emit_block_internal(func,cur_block(func),type,BLANK_OPERAND,BLANK_OPERAND,BLANK_OPERAND);
+    emit_block_internal(func,cur_block(func),type);
 }
 
 
@@ -217,7 +170,7 @@ void emit_reg2(Interloper& itl,Function& func, RegSlot dst, RegSlot src)
 
     handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[1]));
 
-    emit_block_internal(func,cur_block(func),type,make_reg_operand(dst),make_reg_operand(src),BLANK_OPERAND);
+    emit_block_internal(func,cur_block(func),type,make_reg_operand(dst),make_reg_operand(src));
 
     handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
 }
@@ -255,7 +208,7 @@ void emit_reg1(Interloper& itl, Function& func, RegSlot src)
     static_assert(is_arg_src_const(OP_INFO.type[0]));
     static_assert(OP_INFO.args == 1);
 
-    emit_block_internal(func,cur_block(func),type,make_reg_operand(src),BLANK_OPERAND,BLANK_OPERAND);
+    emit_block_internal(func,cur_block(func),type,make_reg_operand(src));
 
     handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[0]));
 }
@@ -313,7 +266,7 @@ void emit_imm1(Interloper& itl, Function& func, RegSlot dst, u64 imm)
     static_assert(OP_INFO.type[1] == arg_type::imm);
     static_assert(OP_INFO.args == 2);
 
-    emit_block_internal(func,cur_block(func),type,make_reg_operand(dst),make_imm_operand(imm),BLANK_OPERAND);    
+    emit_block_internal(func,cur_block(func),type,make_reg_operand(dst),make_imm_operand(imm));    
 
     handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
 }
@@ -331,7 +284,7 @@ void emit_imm0(Interloper& itl, Function& func, u64 imm)
     static_assert(OP_INFO.type[0] == arg_type::imm);
     static_assert(OP_INFO.args == 1);
 
-    emit_block_internal(func,cur_block(func),type,make_imm_operand(imm),BLANK_OPERAND,BLANK_OPERAND);    
+    emit_block_internal(func,cur_block(func),type,make_imm_operand(imm));    
 }
 
 template<const op_type type>
@@ -366,7 +319,7 @@ void emit_fp_imm1(Interloper& itl, Function& func, RegSlot dst, f64 decimal)
     static_assert(OP_INFO.type[1] == arg_type::imm);
     static_assert(OP_INFO.args == 2);
 
-    emit_block_internal(func,cur_block(func),type,make_reg_operand(dst),make_decimal_operand(decimal),BLANK_OPERAND);    
+    emit_block_internal(func,cur_block(func),type,make_reg_operand(dst),make_decimal_operand(decimal));    
 
     handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
 }
@@ -381,7 +334,7 @@ void emit_label1(Interloper& itl,Function& func, LabelSlot slot)
     static_assert(OP_INFO.type[0] == arg_type::label);
     static_assert(OP_INFO.args == 1);
 
-    emit_block_internal(func,cur_block(func),type,make_label_operand(slot),BLANK_OPERAND,BLANK_OPERAND);
+    emit_block_internal(func,cur_block(func),type,make_label_operand(slot));
 }
 
 #include <emit_opcode.cpp>

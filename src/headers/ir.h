@@ -418,6 +418,8 @@ enum class operand_type
     imm,
     reg,
     label,
+    // Register thatt should not be re written
+    directive_reg,
     // Post rewrite raw operaend
     raw,
 };
@@ -535,6 +537,16 @@ RegSlot make_tmp_reg_slot(TmpSlot slot)
     return handle;
 }
 
+RegSlot make_spec_reg_slot(spec_reg reg)
+{
+    RegSlot handle;
+    handle.spec = reg;
+    handle.kind = reg_kind::spec;
+
+    return handle;
+}
+
+
 struct Operand
 {
     union 
@@ -563,6 +575,7 @@ inline bool operator == (const Operand& v1, const Operand &v2)
         case operand_type::reg: return v1.reg == v2.reg;
         case operand_type::label: return v1.label == v2.label;
         case operand_type::raw: return v1.raw == v2.raw;
+        case operand_type::directive_reg: return v1.reg == v2.reg; 
     }
 }
 
@@ -572,9 +585,66 @@ struct Opcode
     Operand v[3];
 };
 
-Opcode make_op(op_type type, Operand v1, Operand v2, Operand v3)
+inline Operand make_reg_operand(RegSlot slot)
+{
+    Operand oper;
+    oper.reg = slot;
+    oper.type = operand_type::reg;
+
+    return oper;
+}
+
+inline Operand make_decimal_operand(f64 decimal)
+{
+    Operand oper;
+    oper.decimal = decimal;
+    oper.type = operand_type::decimal;
+
+    return oper;
+}
+
+inline Operand make_imm_operand(u64 imm)
+{
+    Operand oper;
+    oper.imm = imm;
+    oper.type = operand_type::imm;
+
+    return oper;
+}
+
+inline Operand make_label_operand(LabelSlot slot)
+{
+    Operand oper;
+    oper.label = slot;
+    oper.type = operand_type::label;
+
+    return oper;
+}
+
+inline Operand make_raw_operand(u64 value)
+{
+    Operand oper;
+    oper.raw = value;
+    oper.type = operand_type::raw;
+
+    return oper;
+}
+
+inline Operand make_spec_operand(spec_reg reg)
+{
+    return make_reg_operand(make_spec_reg_slot(reg));
+}
+
+static const Operand BLANK_OPERAND = make_raw_operand(0);
+
+inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
 {
     return Opcode {type,v1,v2,v3};
+}
+
+inline Opcode make_raw_op(op_type type, u64 v1 = 0, u64 v2 = 0, u64 v3 = 0)
+{
+    return Opcode {type,make_raw_operand(v1),make_raw_operand(v2),make_raw_operand(v3)};
 }
 
 static constexpr u32 SIGNED_FLAG = 1 << 0;
@@ -765,10 +835,10 @@ struct Block
     // block we exit to
     Array<BlockSlot> exit;
 
-    Set<SymSlot> live_in;
-    Set<SymSlot> live_out;
-    Set<SymSlot> def;
-    Set<SymSlot> use;
+    Set<RegSlot> live_in;
+    Set<RegSlot> live_out;
+    Set<RegSlot> def;
+    Set<RegSlot> use;
 
     // what blocks are reachable from this block?
     Array<BlockSlot> links;
