@@ -50,7 +50,7 @@ constexpr OpInfo opcode_three_info(op_type type)
 
 void handle_src_storage(Interloper& itl, Function& func, RegSlot src_slot, b32 is_float)
 {
-    if(src_slot.kind == reg_kind::spec)
+    if(is_special_reg(src_slot))
     {
         return;
     }
@@ -79,7 +79,7 @@ void handle_src_storage(Interloper& itl, Function& func, RegSlot src_slot, b32 i
 
 void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot, b32 is_float)
 {
-    if(dst_slot.kind == reg_kind::spec)
+    if(is_special_reg(dst_slot))
     {
         return;
     }

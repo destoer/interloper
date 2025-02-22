@@ -949,7 +949,7 @@ void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
     auto addr = x86_reg(opcode.v[1]);
     s64 offset = s64(opcode.v[2]);
 
-    const bool is_data_sect = (addr == CONST_IR || addr == GP_IR);
+    const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 
     if(is_data_sect)
     {
@@ -1106,13 +1106,8 @@ void setfne(AsmEmitter& emitter, x86_reg dst)
 
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
-    UNUSED(emitter);
-
-    const auto dst = x86_reg(opcode.v[0]);
-    const auto v1 = x86_reg(opcode.v[1]);
-    const auto v2 = x86_reg(opcode.v[2]);
-
-    UNUSED(v2);
+    const auto dst = x86_reg(opcode.v[0].raw);
+    const auto v1 = x86_reg(opcode.v[1].raw);
 
     switch(opcode.op)
     {
@@ -1624,7 +1619,7 @@ void emit_func(Interloper& itl, Function& func)
         // store cur relative offset to finalise later
         write_cur_rel_offset(itl,block.label_slot);
 
-        for(const ListNode node : block.list)
+        for(const ListNode &node : block.list)
         {
             emit_opcode(itl.asm_emitter,node.opcode);
         }

@@ -450,33 +450,42 @@ static constexpr u32 PC_NAME_IDX = 1;
 
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
 
+static constexpr u32 SPECIAL_REG_START = 0x7000'0000;
+static constexpr u32 SPECIAL_REG_END = SPECIAL_REG_START + SPECIAL_REG_SIZE;
+
+// These constants are large so they cant be confused with any legitmate register
 enum class spec_reg
 {
     // generic
-    sp,
-    pc,
-    rv,
-    rv_float,
+    sp = SPECIAL_REG_START,
+    pc = 0x7000'0001,
+    rv = 0x7000'0002,
+    rv_float = 0x7000'0003,
 
     // x86
-    rax,
-    rcx,
-    rdx,
-    rdi,
-    rsi,
-    r8,
-    r9,
-    r10,
+    rax = 0x7000'0004,
+    rcx = 0x7000'0005,
+    rdx = 0x7000'0006,
+    rdi = 0x7000'0007,
+    rsi = 0x7000'0008,
+    r8 = 0x7000'0009,
+    r9 = 0x7000'000a,
+    r10 = 0x7000'000b,
 
     // dummy reg to tell compilier loads are not necessary for fixed arrays
-    access_fixed_len_reg,
+    access_fixed_len_reg = 0x7000'000c,
 
     // dont perform any moves
-    no_move,
+    no_move = 0x7000'000d,
 
-    const_seg,
-    global_seg,
+    const_seg = 0x7000'000e,
+    global_seg = SPECIAL_REG_END,
 };
+
+b32 is_raw_special_reg(u32 reg)
+{
+    return reg >= SPECIAL_REG_START && reg <= SPECIAL_REG_END;
+}
 
 enum class reg_kind
 {
@@ -633,6 +642,15 @@ inline Operand make_raw_operand(u64 value)
 inline Operand make_spec_operand(spec_reg reg)
 {
     return make_reg_operand(make_spec_reg_slot(reg));
+}
+
+inline Operand make_directive_reg(RegSlot slot)
+{
+    Operand oper;
+    oper.reg = slot;
+    oper.type = operand_type::directive_reg;
+
+    return oper;   
 }
 
 static const Operand BLANK_OPERAND = make_raw_operand(0);

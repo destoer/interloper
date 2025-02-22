@@ -387,7 +387,7 @@ void compute_use_def(Interloper& itl,Function& func)
                 const auto slot = operand.reg;
 
                 // Not interested in special regs
-                if(slot.kind == reg_kind::spec)
+                if(is_special_reg(slot))
                 {
                     continue;
                 }

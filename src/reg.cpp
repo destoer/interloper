@@ -136,6 +136,21 @@ b32 is_arg(const Reg& reg)
     return reg.flags & FUNC_ARG;
 }
 
+b32 is_special_reg_fpr(spec_reg reg)
+{
+    return reg == spec_reg::rv_float;
+}
+
+b32 is_special_reg(RegSlot slot)
+{
+    return slot.kind == reg_kind::spec;
+}
+
+b32 is_var(RegSlot slot)
+{
+    return !is_special_reg(slot);
+}
+
 Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
 {
     Reg reg;

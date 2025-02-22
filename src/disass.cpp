@@ -1,35 +1,34 @@
-void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char specifier, u64 handle)
+void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char specifier, Operand operand)
 {
     switch(specifier)
     {
         case 'r':
         {
-            
-            SymSlot slot = sym_from_idx(handle);
-
-            if(is_special_reg(slot))
+            const auto reg = operand.reg;
+            switch(reg.kind)
             {
-                const u32 idx = slot.handle - SPECIAL_PURPOSE_REG_START;
-                push_string(buffer,SPECIAL_REG_NAMES[idx]);
-            }
+                case reg_kind::spec:
+                {
+                    push_string(buffer,SPECIAL_REG_NAMES[u32(reg.spec)]);
+                    break;
+                }
 
-            // print a sym
-            else if(is_sym(slot))
-            {
-                const auto& sym = sym_from_slot(table,slot);
-                const String& name = sym.name;
+                // print a sym
+                case reg_kind::sym:
+                {
+                    const auto& sym = sym_from_slot(table,reg.sym_slot);
+                    const String& name = sym.name;
 
-                push_string(buffer,name);
-            }
+                    push_string(buffer,name);
+                }
 
+                case reg_kind::tmp:
+                {
+                    char name[40];
+                    const u32 len = sprintf(name,"t%d",reg.tmp_slot.handle);
 
-            // print a tmp
-            else
-            {
-                char name[40];
-                const u32 len = sprintf(name,"t%d",slot.handle);
-
-                push_mem(buffer,name,len);
+                    push_mem(buffer,name,len);
+                }
             }
 
 
@@ -41,7 +40,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
         case 'x':
         {
             char name[40];
-            const u32 len = sprintf(name,"0x%lx",handle);
+            const u32 len = sprintf(name,"0x%lx",operand.imm);
 
             push_mem(buffer,name,len);
             break;
@@ -50,7 +49,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
         case 'f':
         {
             char name[40];
-            const u32 len = sprintf(name,"%lf",bit_cast_to_f64(handle));
+            const u32 len = sprintf(name,"%lf",operand.decimal);
 
             push_mem(buffer,name,len);
             break;
@@ -59,7 +58,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
         // address
         case 'a':
         {
-            const String& name = table.label_lookup[handle].name;
+            const String& name = table.label_lookup[operand.label.handle].name;
             push_string(buffer,name);
             break;
         }
@@ -79,11 +78,9 @@ void fmt_raw_specifier(Array<char> &buffer,const SymbolTable* table, char specif
         // raw register
         case 'r':
         {
-            SymSlot spec = sym_from_idx(slot);
-
-            if(is_special_reg(spec))
+            if(is_raw_special_reg(slot))
             {
-                const u32 idx = spec.handle - SPECIAL_PURPOSE_REG_START;
+                const u32 idx = slot - SPECIAL_REG_START;
                 push_mem(buffer,SPECIAL_REG_NAMES[idx]);
                 break;
             }
@@ -184,7 +181,7 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table,b32 f
 
             if(format_reg)
             {
-                fmt_raw_specifier(buffer,table,specifier,opcode.v[args++],arch);
+                fmt_raw_specifier(buffer,table,specifier,opcode.v[args++].raw,arch);
             }
 
             else
@@ -243,7 +240,7 @@ void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table)
         printf("%s:\n",label.name.buf);
         
 
-        for(const ListNode node : block.list)
+        for(const ListNode& node : block.list)
         {
             printf("\t");
             disass_opcode_sym(node.opcode,table,itl.arch);
@@ -270,7 +267,7 @@ void dump_ir_reg(Interloper& itl,Function &func,SymbolTable& table)
         printf("%s:\n",label.name.buf);
         
 
-        for(const ListNode node : block.list)
+        for(const ListNode& node : block.list)
         {
             printf("\t");
             disass_opcode_reg(node.opcode,table,itl.arch);
