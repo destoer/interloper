@@ -5,7 +5,7 @@ std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,
 // void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 // void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
 // void compile_block(Interloper &itl,Function &func,BlockNode *node);
-// BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
+BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 // void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
@@ -17,8 +17,8 @@ std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,Inde
      Type* type, RegSlot ptr_slot, RegSlot dst_slot);
 // Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot dst_slot);
 
-// void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
-// std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
+void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
+std::pair<Type*,RegSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 // ListNode* alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);

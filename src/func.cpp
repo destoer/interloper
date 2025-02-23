@@ -233,13 +233,13 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                 check_assign_arg(itl,arg_type,rtype);
                 
                 // push the len offset
-                const SymSlot len_slot = mov_imm_res(itl,func,size);
+                const RegSlot len_slot = mov_imm_res(itl,func,size);
                 push_arg(itl,func,len_slot);
 
                 // push the data offset
                 const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
 
-                const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
+                const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
                 push_arg(itl,func,addr_slot);
 
                 arg_clean += 2;
@@ -260,10 +260,10 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                 if(is_runtime_size(arg_type))
                 {
                     // push in reverse order let our internal functions handle vla conversion
-                    const SymSlot len_slot = load_arr_len(itl,func,reg,rtype);
+                    const RegSlot len_slot = load_arr_len(itl,func,reg,rtype);
                     push_arg(itl,func,len_slot);
 
-                    const SymSlot data_slot = load_arr_data(itl,func,reg,rtype);
+                    const RegSlot data_slot = load_arr_data(itl,func,reg,rtype);
                     push_arg(itl,func,data_slot);
 
                     arg_clean += 2;  
@@ -292,7 +292,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             alloc_stack(itl,func,aligned_size);
 
             // need to save SP as it will get pushed last
-            const SymSlot dst_ptr = copy_reg(itl,func,sym_from_idx(SP_IR));
+            const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
             const auto dst_addr = make_addr(dst_ptr,0);
 
             const auto src_addr = make_struct_addr(reg,0);
@@ -355,7 +355,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
 
     alloc_stack(itl,func,any_arr_size);
 
-    const SymSlot any_arr_ptr = copy_reg(itl,func,sym_from_idx(SP_IR));
+    const RegSlot any_arr_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
 
     for(u32 a = 0; a < any_args; a++)
     {
@@ -370,11 +370,13 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     alloc_stack(itl,func,VLA_SIZE);
 
     // and store it
-    const SymSlot any_len_slot = mov_imm_res(itl,func,any_args);
+    const RegSlot any_len_slot = mov_imm_res(itl,func,any_args);
+
+    const auto SP_SLOT = make_spec_reg_slot(spec_reg::sp);
 
     // store data
-    store_ptr(itl,func,any_arr_ptr,sym_from_idx(SP_IR),0,GPR_SIZE,false);
-    store_ptr(itl,func,any_len_slot,sym_from_idx(SP_IR),GPR_SIZE,GPR_SIZE,false);      
+    store_ptr(itl,func,any_arr_ptr,SP_SLOT,0,GPR_SIZE,false);
+    store_ptr(itl,func,any_len_slot,SP_SLOT,GPR_SIZE,GPR_SIZE,false);      
 
     
     const u32 total_size = any_arr_size + VLA_SIZE;
@@ -384,7 +386,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     return arg_clean;
 }
 
-u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_node, SymSlot dst_slot)
+u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_node, RegSlot dst_slot)
 {
     u32 arg_clean = 0;
 
@@ -413,7 +415,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                     const auto &sym = *sym_ptr;
                     spill_slot(itl,func,sym.reg);
 
-                    const SymSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
+                    const RegSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
                     push_arg(itl,func,addr_slot);
 
                     break;
@@ -467,50 +469,56 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
     // use the dst slot
     else
     {
-        if(dst_slot.handle == NO_SLOT)
+        switch(dst_slot.kind)
         {
-            // TODO: pass some dummy memory
-            unimplemented("no_slot: binding on large return type");
-        }
-
-        else if(dst_slot.handle == RV_IR)
-        {
-            // this is nested pass in the current hidden return
-            if(func.sig.hidden_args == 1)
+            case reg_kind::sym:
             {
                 arg_clean++;
-                push_arg(itl,func,func.sig.args[0]);
+
+                const RegSlot addr = addrof_res(itl,func,dst_slot);
+                push_arg(itl,func,addr);
+                break;
             }
 
-            else
+            case reg_kind::tmp:
             {
-                panic(itl,itl_error::missing_return,"Attempted to return invalid large var inside func");
-                return arg_clean;
+                arg_clean++;
+
+                alloc_slot(itl,func,dst_slot,true);
+                
+                const RegSlot addr = addrof_res(itl,func,dst_slot);
+                push_arg(itl,func,addr);
+                break;
             }
-        }
 
-        else if(is_special_reg(dst_slot))
-        {
-            dump_ir_sym(itl,func,itl.symbol_table);   
-            assert(false);
-        }
+            case reg_kind::spec:
+            {
+                switch(dst_slot.spec)
+                {
+                    case spec_reg::rv: 
+                    {
+                        // this is nested pass in the current hidden return
+                        if(func.sig.hidden_args == 1)
+                        {
+                            arg_clean++;
+                            push_arg(itl,func,make_sym_reg_slot(func.sig.args[0]));
+                        }
 
-        else if(is_sym(dst_slot))
-        {
-            arg_clean++;
+                        else
+                        {
+                            panic(itl,itl_error::missing_return,"Attempted to return invalid large var inside func");
+                            return arg_clean;
+                        }
+                        break;
+                    }
 
-            const SymSlot addr = addrof_res(itl,func,dst_slot);
-            push_arg(itl,func,addr);
-        }
-
-        else
-        {
-            arg_clean++;
-
-            alloc_slot(itl,func,dst_slot,true);
-            
-            const SymSlot addr = addrof_res(itl,func,dst_slot);
-            push_arg(itl,func,addr);
+                    default:
+                    {
+                        dump_ir_sym(itl,func,itl.symbol_table);   
+                        assert(false);
+                    } 
+                }
+            }
         }
     }
 
@@ -525,14 +533,14 @@ struct FuncCall
     union
     {
         LabelSlot label_slot;
-        SymSlot sym_slot;
+        RegSlot reg_slot = {};
     };
 
     // tag for above union
     b32 func_pointer = false;
 };
 
-Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, SymSlot dst_slot, u32 arg_clean)
+Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, RegSlot dst_slot, u32 arg_clean)
 {
     auto& sig = call_info.sig;
 
@@ -550,7 +558,7 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
     // func pointer
     else
     {
-        call_reg(itl,func,call_info.sym_slot);
+        call_reg(itl,func,call_info.reg_slot);
     }
 
 
@@ -568,9 +576,9 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Sy
 
     // normal return
     // store the return value back into a reg (if its actually binded)
-    if(returns_value && dst_slot.handle != NO_SLOT && !sig.hidden_args)
+    if(returns_value && !is_special_reg(dst_slot,spec_reg::null) && !sig.hidden_args)
     {
-        const SymSlot rv = is_float(sig.return_type[0])? sym_from_idx(RV_FLOAT_IR): sym_from_idx(RV_IR);
+        const RegSlot rv = is_float(sig.return_type[0])? make_spec_reg_slot(spec_reg::rv_float): make_spec_reg_slot(spec_reg::rv);
 
         compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]);
     }
@@ -626,7 +634,7 @@ FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,Fu
                 {
                     FuncPointerType* func_type = (FuncPointerType*)sym.type;
 
-                    call_info.sym_slot = sym.reg.slot;
+                    call_info.reg_slot = sym.reg.slot;
                     call_info.sig = func_type->sig;
                     call_info.name = sym.name;
                     call_info.func_pointer = true;
@@ -688,7 +696,7 @@ FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,Fu
 
         FuncPointerType* func_type = (FuncPointerType*)type;
 
-        call_info.sym_slot = slot;
+        call_info.reg_slot = slot;
         call_info.sig = func_type->sig;
         call_info.name = "call_expr";
         call_info.func_pointer = true;
@@ -757,7 +765,7 @@ void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_no
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, RegSlot dst_slot)
 {
     TupleAssignNode* tuple_node = nullptr;
 
@@ -852,7 +860,7 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     return compile_scoped_function_call(itl,nullptr,func,node,dst_slot);
 }
