@@ -193,7 +193,7 @@ SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
     return load_arr_len(itl,func,sym.reg.slot,sym.type);
 }
 
-std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+std::pair<Type*, RegSlot> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     IndexNode* index_node = (IndexNode*)node;
 

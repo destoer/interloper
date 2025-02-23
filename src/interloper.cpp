@@ -1,41 +1,41 @@
 #include <interloper.h>
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
-std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
-void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
-void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
-void compile_block(Interloper &itl,Function &func,BlockNode *node);
-BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
-void compile_if_block(Interloper &itl,Function &func,AstNode *node);
-std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
+Type* compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
+// void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
+// void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
+// void compile_block(Interloper &itl,Function &func,BlockNode *node);
+// BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
+// void compile_if_block(Interloper &itl,Function &func,AstNode *node);
+std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
-void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
-Type* read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
-std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
+// void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, u32 slot);
+// Type* read_arr(Interloper &itl,Function &func,AstNode *node, u32 dst_slot);
+std::pair<Type*, RegSlot> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
-std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
-     Type* type, SymSlot ptr_slot, SymSlot dst_slot);
-Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot dst_slot);
+std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+     Type* type, RegSlot ptr_slot, RegSlot dst_slot);
+// Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot dst_slot);
 
-void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
-std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
+// void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type);
+// std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
-ListNode* alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
+// ListNode* alloc_slot(Interloper& itl,Function& func, const SymSlot slot, b32 force_alloc);
 
-SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
-SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
-SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type);
-SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type);
+RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
+RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
+RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* type);
+RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* type);
 
-void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed,b32 is_float);
-void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_float);
+// void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed,b32 is_float);
+// void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_float);
 
-std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
+// std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 
 void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
 
-void store_const_string(Interloper& itl, Function& func, const String& literal, const SymSlot arr_slot);
+// void store_const_string(Interloper& itl, Function& func, const String& literal, const SymSlot arr_slot);
 
 #include "lexer.cpp"
 #include "namespace.cpp"

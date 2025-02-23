@@ -476,7 +476,7 @@ enum class spec_reg
     access_fixed_len_reg = 0x7000'000c,
 
     // dont perform any moves
-    no_move = 0x7000'000d,
+    null = 0x7000'000d,
 
     const_seg = 0x7000'000e,
     global_seg = SPECIAL_REG_END,
@@ -554,6 +554,8 @@ RegSlot make_spec_reg_slot(spec_reg reg)
 
     return handle;
 }
+
+const RegSlot INVALID_SYM_REG_SLOT = make_sym_reg_slot({SYMBOL_NO_SLOT});
 
 
 struct Operand

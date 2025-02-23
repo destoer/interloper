@@ -274,7 +274,7 @@ enum_decode_res decode_enum(Interloper& itl,ScopeNode* scope_node, Enum** enumer
 }
 
 // Note: if this can't find an enum it will fail without a panic
-Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, SymSlot dst_slot)
+Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, RegSlot dst_slot)
 {
     Enum* enumeration = nullptr;
     EnumMember* enum_member = nullptr;
