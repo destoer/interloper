@@ -96,7 +96,7 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
     symbol.arg_offset = arg;
     symbol.scope_end = block_from_idx(0xffff'ffff);
 
-    const auto reg_slot = make_sym_reg_slot(sym_slot,reg_kind::sym);
+    const auto reg_slot = make_sym_reg_slot(sym_slot);
 
     symbol.reg = make_reg(itl,reg_slot,type);
 

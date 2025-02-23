@@ -528,11 +528,11 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
     }
 }
 
-RegSlot make_sym_reg_slot(SymSlot slot, reg_kind kind)
+RegSlot make_sym_reg_slot(SymSlot slot)
 {
     RegSlot handle;
     handle.sym_slot = slot;
-    handle.kind = kind;
+    handle.kind = reg_kind::sym;
 
     return handle;
 }
