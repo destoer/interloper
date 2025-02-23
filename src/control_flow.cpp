@@ -124,7 +124,7 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 
     const BlockSlot end_block = cur_block(func);
 
-    SymSlot exit_cond;
+    RegSlot exit_cond;
     std::tie(std::ignore,exit_cond) = compile_oper(itl,func,while_node->left);
 
     // integer or pointer, check not zero
@@ -156,7 +156,7 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     // make index the same sign as the end stmt
     const auto& sym = add_symbol(itl,for_node->name_one,make_builtin(itl,inc? builtin_type::u32_t : builtin_type::s32_t)); 
 
-    const SymSlot index = sym.reg.slot;
+    const RegSlot index = sym.reg.slot;
 
     // grab initalizer
     const auto entry_init_type = compile_expression(itl,func,cmp_node->left,index);
@@ -169,7 +169,7 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     }    
 
     // compile in cmp for entry
-    SymSlot entry_cond = new_tmp(func,GPR_SIZE);
+    RegSlot entry_cond = new_tmp(func,GPR_SIZE);
     emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index,entry_end);
 
     // compile the main loop body
@@ -192,7 +192,7 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     // regrab end
     const auto [exit_end_type,exit_end] = compile_oper(itl,func,cmp_node->right);
 
-    SymSlot exit_cond = new_tmp(func,GPR_SIZE);
+    RegSlot exit_cond = new_tmp(func,GPR_SIZE);
     emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index,exit_end);
 
     // compile in branches
@@ -230,9 +230,8 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     const BlockSlot initial_block = cur_block(func);
 
     const b32 track_idx = for_node->name_two.buf != nullptr;
-    SymSlot index = SYM_ERROR;
-
-    SymSlot data = SYM_ERROR;
+    RegSlot index = make_spec_reg_slot(spec_reg::null);
+    RegSlot data = make_spec_reg_slot(spec_reg::null);
 
     // create var to hold data
     if(!for_node->take_pointer)
@@ -275,7 +274,7 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     // compute array end
     const auto arr_end = add_res(itl,func,arr_data,arr_bytes);
 
-    SymSlot entry_cond = {SYMBOL_NO_SLOT};
+    RegSlot entry_cond = make_spec_reg_slot(spec_reg::null);
 
     // if this is a fixed size array we dont need to check it
     // on entry apart from the zero check handled above ^
@@ -455,7 +454,7 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     const BlockSlot end_block = cur_block(func);
 
 
-    SymSlot exit_cond;
+    RegSlot exit_cond;
     std::tie(std::ignore,exit_cond) = compile_oper(itl,func,for_node->cond);
 
     const BlockSlot exit_block = new_basic_block(itl,func);
@@ -666,10 +665,10 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const BlockSlot range_block = cur_block(func);
 
         // finally emit the dispatch on the table now we know where to exit if the table bounds get execeeded
-        const SymSlot switch_slot = new_tmp(func,GPR_SIZE);
+        const RegSlot switch_slot = new_tmp(func,GPR_SIZE);
         sub_imm(itl,func,switch_slot,expr_slot,min);
 
-        const SymSlot default_cmp = new_tmp(func,GPR_SIZE);
+        const RegSlot default_cmp = new_tmp(func,GPR_SIZE);
         cmp_unsigned_gt_imm(itl,func,default_cmp,switch_slot,max - min);
 
         // NOTE: branch is emitted later as we dont know where it goes yet
@@ -678,18 +677,18 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         const BlockSlot dispatch_block = new_basic_block(itl,func);
 
         // mulitply to get a jump table index
-        const SymSlot table_index = mul_imm_res(itl,func,switch_slot,GPR_SIZE);
+        const RegSlot table_index = mul_imm_res(itl,func,switch_slot,GPR_SIZE);
 
         
         // reserve space for the table inside the constant pool
         const PoolSlot pool_slot = reserve_const_pool_section(itl.const_pool,pool_type::jump_table,GPR_SIZE * range);
-        const SymSlot table_addr = pool_addr_res(itl,func,pool_slot,0);
+        const RegSlot table_addr = pool_addr_res(itl,func,pool_slot,0);
 
         // get address in the tabel we want
-        const SymSlot final_offset = add_res(itl,func,table_addr,table_index);
+        const RegSlot final_offset = add_res(itl,func,table_addr,table_index);
 
         // load the address out of the jump table
-        const SymSlot target = new_tmp_ptr(func);
+        const RegSlot target = new_tmp_ptr(func);
         load_ptr(itl,func,target, final_offset,0, GPR_SIZE,false,false);
 
         // branch on it

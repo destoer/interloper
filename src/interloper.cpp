@@ -2,9 +2,9 @@
 
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
-// void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
-// void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
-// void compile_block(Interloper &itl,Function &func,BlockNode *node);
+void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
+void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
+void compile_block(Interloper &itl,Function &func,BlockNode *node);
 BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 // void compile_if_block(Interloper &itl,Function &func,AstNode *node);
 std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
