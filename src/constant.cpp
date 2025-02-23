@@ -1,7 +1,7 @@
 
 b32 is_constant(const Symbol& sym)
 {
-    return sym.reg.kind == reg_kind::constant;
+    return sym.reg.segment == reg_segment::constant;
 }
 
 // NOTE: type checking rules are less strict than in "runtime" expressions
@@ -919,7 +919,7 @@ void compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
 
     // make sure this is marked as constant
     // incase it is declared locally
-    sym.reg.kind = reg_kind::constant;
+    sym.reg.segment = reg_segment::constant;
 
     // compile the expression
     compile_constant_initializer(itl,sym,decl_node->expr);    

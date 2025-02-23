@@ -31,7 +31,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* ty
 // void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed,b32 is_float);
 // void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_float);
 
-// std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
+std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
 
 void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
 
