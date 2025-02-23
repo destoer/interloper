@@ -523,6 +523,8 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
         case reg_kind::tmp: return v1.tmp_slot == v2.tmp_slot;
         case reg_kind::spec: return v1.spec == v2.spec;
     }
+
+    assert(false);
 }
 
 
@@ -534,6 +536,8 @@ u32 hash_slot(u32 size, RegSlot slot)
         case reg_kind::sym: return hash_slot(size,slot.sym_slot);
         case reg_kind::spec: return u32_hash_func(size,u32(slot.spec));
     }
+
+    assert(false);
 }
 
 RegSlot make_sym_reg_slot(SymSlot slot)
@@ -596,6 +600,8 @@ inline bool operator == (const Operand& v1, const Operand &v2)
         case operand_type::raw: return v1.raw == v2.raw;
         case operand_type::directive_reg: return v1.reg == v2.reg; 
     }
+
+    assert(false);
 }
 
 struct Opcode

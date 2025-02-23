@@ -53,6 +53,8 @@ Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, const RegSlot& slot)
             break;
         }
     }
+
+    assert(false);
 }
 
 Reg& reg_from_slot(SymbolTable &table,Function& func, const RegSlot& slot)
