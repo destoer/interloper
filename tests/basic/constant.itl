@@ -31,7 +31,6 @@ func sum_arr(arr : const u32[]) s32
 // expected 32
 func main() s32
 {
-
     // test basic
     res1 := (u32.size * BITS_IN_BYTE) == 32;
 

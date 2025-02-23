@@ -22,7 +22,7 @@ ListNode* emit_directive_internal(Interloper& itl,Function& func, op_type type, 
         v3.type = operand_type::directive_reg;
     }
 
-    return emit_block_internal(func,cur_block(func),type,v1,v2,v2);
+    return emit_block_internal(func,cur_block(func),type,v1,v2,v3);
 }
 
 void addrof(Interloper& itl,Function& func, RegSlot dst, RegSlot src, u32 offset = 0)

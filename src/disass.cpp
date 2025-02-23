@@ -9,7 +9,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
             {
                 case reg_kind::spec:
                 {
-                    push_string(buffer,SPECIAL_REG_NAMES[u32(reg.spec)]);
+                    push_string(buffer,spec_reg_name(reg.spec));
                     break;
                 }
 
@@ -84,15 +84,17 @@ void fmt_raw_specifier(Array<char> &buffer,const SymbolTable* table, char specif
             {
                 const u32 idx = slot - SPECIAL_REG_START;
                 push_mem(buffer,SPECIAL_REG_NAMES[idx]);
-                break;
             }
 
-            switch(arch)
+            else 
             {
-                case arch_target::x86_64_t:
+                switch(arch)
                 {
-                    push_mem(buffer,X86_NAMES[slot],strlen(X86_NAMES[slot]));
-                    break;
+                    case arch_target::x86_64_t:
+                    {
+                        push_mem(buffer,X86_NAMES[slot],strlen(X86_NAMES[slot]));
+                        break;
+                    }
                 }
             }
 

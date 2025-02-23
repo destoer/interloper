@@ -428,55 +428,56 @@ const String SPECIAL_REG_NAMES[16] =
     "pc",
     "rv",
     "rv_float",
+
     "rax",
     "rcx",
     "rdx",
     "rdi",
     "rsi",
+
     "r8",
     "r9",
     "r10",
+
     "fixed_len",
     "null_slot",
     "const",
     "global",
 };
 
-static constexpr u32 SP_NAME_IDX = 0;
-static constexpr u32 PC_NAME_IDX = 1;
-
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
 
 static constexpr u32 SPECIAL_REG_START = 0x7000'0000;
-static constexpr u32 SPECIAL_REG_END = SPECIAL_REG_START + SPECIAL_REG_SIZE;
+static constexpr u32 SPECIAL_REG_END = (SPECIAL_REG_START + SPECIAL_REG_SIZE) - 1;
 
 // These constants are large so they cant be confused with any legitmate register
 enum class spec_reg
 {
     // generic
     sp = SPECIAL_REG_START,
-    pc = 0x7000'0001,
-    rv = 0x7000'0002,
-    rv_float = 0x7000'0003,
+    pc = SPECIAL_REG_START + 1,
+    rv = SPECIAL_REG_START + 2,
+    rv_float = SPECIAL_REG_START + 3,
 
     // x86
-    rax = 0x7000'0004,
-    rcx = 0x7000'0005,
-    rdx = 0x7000'0006,
-    rdi = 0x7000'0007,
-    rsi = 0x7000'0008,
-    r8 = 0x7000'0009,
-    r9 = 0x7000'000a,
-    r10 = 0x7000'000b,
+    rax = SPECIAL_REG_START + 4,
+    rcx = SPECIAL_REG_START + 5,
+    rdx = SPECIAL_REG_START + 6,
+    rdi = SPECIAL_REG_START + 7,
+    rsi = SPECIAL_REG_START + 8,
+
+    r8 = SPECIAL_REG_START + 9,
+    r9 = SPECIAL_REG_START + 10,
+    r10 = SPECIAL_REG_START + 11,
 
     // dummy reg to tell compilier loads are not necessary for fixed arrays
-    access_fixed_len_reg = 0x7000'000c,
+    access_fixed_len_reg = SPECIAL_REG_START + 12,
 
     // dont perform any moves
-    null = 0x7000'000d,
+    null = SPECIAL_REG_START + 13,
 
-    const_seg = 0x7000'000e,
-    global_seg = SPECIAL_REG_END,
+    const_seg = SPECIAL_REG_START + 14,
+    global_seg = SPECIAL_REG_START + 15,
 };
 
 b32 is_raw_special_reg(u32 reg)
@@ -1080,6 +1081,7 @@ static const char* X86_NAMES[X86_REG_SIZE] =
     "xmm7",
     "xmm8",
 
+    "xmm9",
     "xmm10",
     "xmm11",
     "xmm12",

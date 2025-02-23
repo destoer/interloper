@@ -84,7 +84,7 @@ void print_reg_alloc(LinearAlloc& alloc)
     {
         const RegSlot slot = alloc.gpr.allocated[i];
 
-        if(!is_reg_free(alloc.gpr,i))
+        if(is_reg_free(alloc.gpr,i))
         {
             continue;
         }
@@ -236,7 +236,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
 void free_reg(RegisterFile& regs,u32 reg)
 {
     regs.free_set = set_bit(regs.free_set,reg);
-    regs.allocated[reg] = {REG_FREE};
+    regs.allocated[reg] = make_spec_reg_slot(spec_reg::null);
 }
 
 void lock_reg(RegisterFile& regs, u32 reg)
@@ -370,8 +370,8 @@ void init_regs(LinearAlloc& alloc)
 {
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
-        alloc.gpr.allocated[i] = {REG_FREE};
-        alloc.fpr.allocated[i] = {REG_FREE};
+        alloc.gpr.allocated[i] = make_spec_reg_slot(spec_reg::null);
+        alloc.fpr.allocated[i] = make_spec_reg_slot(spec_reg::null);
     }
 
     // All regs free (though this does not imply they are usable)

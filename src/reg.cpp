@@ -247,7 +247,7 @@ void print(const Reg& reg)
 
 const char* spec_reg_name(spec_reg reg)
 {
-    return SPECIAL_REG_NAMES[u32(reg)].buf;    
+    return SPECIAL_REG_NAMES[u32(reg) - SPECIAL_REG_START].buf;    
 }
 
 

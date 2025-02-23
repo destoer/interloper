@@ -816,7 +816,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     {
         const auto& member = structure.members[m];
 
-        auto member_addr = addr_slot;
+        AddrSlot member_addr = addr_slot;
         member_addr.offset += member.offset;
 
         if(member.expr)
