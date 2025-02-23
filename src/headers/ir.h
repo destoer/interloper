@@ -387,9 +387,6 @@ SymSlot sym_from_idx(u32 idx)
     return {idx};
 }
 
-static constexpr SymSlot SYMBOL_NO_SLOT = {0xffff'fffe};
-static constexpr SymSlot SYM_ERROR = {0xffff'ffff};
-
 template<slot_type type>
 b32 operator==(const Slot<type> v1,const Slot<type> v2)
 {
@@ -503,7 +500,7 @@ struct RegSlot
     union 
     {
         TmpSlot tmp_slot;
-        SymSlot sym_slot = {SYMBOL_NO_SLOT};
+        SymSlot sym_slot = {INVALID_HANDLE};
         spec_reg spec;
     };
 
@@ -552,7 +549,7 @@ RegSlot make_spec_reg_slot(spec_reg reg)
     return handle;
 }
 
-const RegSlot INVALID_SYM_REG_SLOT = make_sym_reg_slot({SYMBOL_NO_SLOT});
+const RegSlot INVALID_SYM_REG_SLOT = make_sym_reg_slot({INVALID_HANDLE});
 
 
 struct Operand
