@@ -671,14 +671,14 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
 
     const auto opcode = link.opcode;
 
-    const s64 section_offset = opcode.v[2];
-    const SymSlot spec = sym_from_idx(opcode.v[1]);
+    const s64 section_offset = opcode.v[2].raw;
+    const auto spec = spec_reg(opcode.v[1].raw);
 
     const u32 text_offset = itl.asm_emitter.base_offset;
 
-    switch(spec.handle)
+    switch(spec)
     {
-        case CONST_IR:
+        case spec_reg::const_seg:
         {
             const u32 const_addr = (const_pool.base_vaddr + section_offset);
             const u32 instr_addr = (asm_emitter.base_vaddr + link.offset);
@@ -689,7 +689,7 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
             break;
         }
 
-        case GP_IR:
+        case spec_reg::global_seg:
         {
             const u32 global_addr = (global.base_vaddr + section_offset);
             const u32 instr_addr = (asm_emitter.base_vaddr + link.offset);
@@ -722,42 +722,42 @@ void link_opcodes(Interloper& itl, Elf& elf)
         {
             case op_type::call:
             {
-                const LabelSlot slot = label_from_idx(opcode.v[0]);
+                const LabelSlot slot = opcode.v[0].label;
                 rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
 
             case op_type::load_func_addr:
             {
-                const LabelSlot slot = label_from_idx(opcode.v[1]);
+                const LabelSlot slot = opcode.v[1].label;
                 rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
 
             case op_type::je:
             {
-                const LabelSlot slot = label_from_idx(opcode.v[0]);
+                const LabelSlot slot = opcode.v[0].label;
                 rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
 
             case op_type::jne:
             {
-                const LabelSlot slot = label_from_idx(opcode.v[0]);
+                const LabelSlot slot = opcode.v[0].label;
                 rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
 
             case op_type::b:
             {
-                const LabelSlot slot = label_from_idx(opcode.v[0]);
+                const LabelSlot slot = opcode.v[0].label;
                 rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
 
             case op_type::pool_addr:
             {
-                const PoolSlot slot = pool_slot_from_idx(opcode.v[1]);
+                const PoolSlot slot = pool_slot_from_idx(opcode.v[1].raw);
                 rewrite_rel_const_pool(itl,elf,link,slot);
                 break;
             }

@@ -12,35 +12,6 @@
 #include "linear_alloc.cpp"
 #include "disass.cpp"
 
-u32 get_mov_register(LinearAlloc& alloc,RegisterFile& reg_file,RegSlot slot)
-{
-    switch(slot.kind)
-    {
-        case reg_kind::sym:
-        case reg_kind::tmp:
-        {
-            auto& ir_reg = reg_from_slot(slot,alloc);
-
-            // var is allocated
-            if(is_reg_locally_allocated(ir_reg))
-            {
-                return ir_reg.local_reg;
-            }
-
-            // not allocated
-            return REG_FREE;
-        }
-
-        case reg_kind::spec:
-        {
-            const u32 location = special_reg_to_reg(alloc.arch,slot.spec);
-            mark_used(reg_file,location);
-
-            return location;
-        }
-    }
-}
-
 // We want to be more clever about reshuffling regs, for now lets just do it simply.
 // ideally if our dst is in rdx we can just spill rax and copy it over
 void lock_out_fixed_arith(LinearAlloc& alloc, Block& block, ListNode* node, RegSlot dst)
