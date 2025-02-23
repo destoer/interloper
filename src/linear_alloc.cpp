@@ -897,6 +897,7 @@ void allocate_and_rewrite(LinearAlloc& alloc, Block& block, ListNode* node, u32 
         {
             operand.raw = operand.imm;
             operand.type = operand_type::raw;
+            break;
         }
 
         case operand_type::reg: 

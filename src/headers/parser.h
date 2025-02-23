@@ -569,7 +569,7 @@ struct StructReturnNode
     RecordNode* record;
 };
 
-using AstPointers = Array<void***>;
+using AstPointers = Array<void**>;
 
 struct Parser
 {

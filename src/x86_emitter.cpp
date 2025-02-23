@@ -945,9 +945,9 @@ void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
 template<typename FUNC_PTR>
 void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
 {
-    const auto dst = x86_reg(opcode.v[0]);
-    auto addr = x86_reg(opcode.v[1]);
-    s64 offset = s64(opcode.v[2]);
+    const auto dst = x86_reg(opcode.v[0].raw);
+    auto addr = x86_reg(opcode.v[1].raw);
+    s64 offset = s64(opcode.v[2].raw);
 
     const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 

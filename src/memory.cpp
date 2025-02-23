@@ -193,6 +193,7 @@ void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
             {
                 const auto dst_addr = make_struct_addr(dst_slot,0);
                 ir_memcpy(itl,func,dst_addr,src_addr,size);
+                break;
             }
 
             case reg_kind::spec:

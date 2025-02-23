@@ -20,6 +20,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
                     const String& name = sym.name;
 
                     push_string(buffer,name);
+                    break;
                 }
 
                 case reg_kind::tmp:
@@ -28,6 +29,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
                     const u32 len = sprintf(name,"t%d",reg.tmp_slot.handle);
 
                     push_mem(buffer,name,len);
+                    break;
                 }
             }
 

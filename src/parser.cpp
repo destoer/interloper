@@ -32,7 +32,7 @@ Parser make_parser(const String& cur_file,NameSpace* root, ArenaAllocator* names
 
 void add_ast_pointer(Parser& parser, void* pointer)
 {
-    push_var(*parser.ast_arrays,pointer);
+    push_raw_var(*parser.ast_arrays,pointer);
 }
 
 Token next_token(Parser &parser)
@@ -1076,7 +1076,7 @@ AstNode *statement(Parser &parser)
 
             BinNode *if_stmt = (BinNode*)ast_binary(parser,if_expr,if_body,ast_type::if_t,t);
 
-            push_var(if_block->statements,if_stmt);
+            push_var(if_block->statements,(AstNode*)if_stmt);
             
             bool done = false;
             
@@ -1096,7 +1096,7 @@ AstNode *statement(Parser &parser)
 
                         BinNode* else_if_stmt = (BinNode*)ast_binary(parser,else_if_expr,else_if_body,ast_type::else_if_t,else_tok);
 
-                        push_var(if_block->statements,else_if_stmt);
+                        push_var(if_block->statements,(AstNode*)else_if_stmt);
                     }
 
                     // just a plain else

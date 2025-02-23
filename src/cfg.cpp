@@ -255,11 +255,13 @@ void print_ir_set(Interloper& itl, const Set<RegSlot>& set, const char* tag)
             {
                 auto& sym = sym_from_slot(itl.symbol_table,slot.sym_slot);
                 printf("%s,",sym.name.buf);
+                break;
             }
 
             case reg_kind::tmp:
             {
                 printf("t%d,",slot.tmp_slot.handle);
+                break;
             }
 
             // This should not flow through blocks

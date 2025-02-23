@@ -161,28 +161,33 @@ Function& lookup_internal_function(Interloper& itl, const String& name)
 #include "intrin.cpp"
 
 
-
-void print_func_decl(Interloper& itl,const Function &func)
+void print_func_sig(Interloper& itl, const FuncSig& sig)
 {
-    printf("func: %s\n\n",func.name.buf);
+    printf("arg count: %d\n",count(sig.args));
+    printf("hidden args: %d\n",sig.hidden_args);
+    printf("va args: %s\n",sig.va_args? "true" : "false");
 
-    printf("hidden args: %d\n",func.sig.hidden_args);
-
-    for(u32 a = 0; a < count(func.sig.args); a++)
+    for(u32 a = 0; a < count(sig.args); a++)
     {
-        const SymSlot slot = func.sig.args[a];
+        const SymSlot slot = sig.args[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
 
         print(itl,sym); 
         putchar('\n');
     }
 
-    for(u32 r = 0; r < count(func.sig.return_type); r++)
+    for(u32 r = 0; r < count(sig.return_type); r++)
     {
-        printf("return type %s\n",type_name(itl,func.sig.return_type[r]).buf);
+        printf("return type %s\n",type_name(itl,sig.return_type[r]).buf);
     }
 
     printf("\n\n");
+}
+
+void print_func_decl(Interloper& itl,const Function &func)
+{
+    printf("func: %s\n\n",func.name.buf);
+    print_func_sig(itl,func.sig);
 }
 
 
@@ -194,7 +199,7 @@ void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* 
     Symbol sym = make_sym(itl,name,ptr_type,*arg_offset);
     add_var(itl.symbol_table,sym);
 
-    push_var(sig.args,sym.reg.slot);     
+    push_var(sig.args,sym.reg.slot.sym_slot);     
 
     *arg_offset += GPR_SIZE;
     sig.hidden_args++;
@@ -835,6 +840,7 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
         // check we have the right number of params
         if(actual_args != count(call_node->args))
         {
+            print_func_sig(itl,sig);
             panic(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",actual_args,count(call_node->args));
             return make_builtin(itl,builtin_type::void_t);
         }        
@@ -903,7 +909,6 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         }
     }
 
-
     const auto decl = node.args;
 
     // rip every arg
@@ -915,13 +920,12 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         const auto name = a->name;
         const auto type = get_complete_type(itl,a->type);
 
-
         // add the var to slot lookup and link to function
         // we will do a add_scope to put it into the scope later
         Symbol sym = make_sym(itl,name,type,arg_offset);
         add_var(itl.symbol_table,sym);
 
-        push_var(sig.args,sym.reg.slot);
+        push_var(sig.args,sym.reg.slot.sym_slot);
 
         const u32 size = type_size(itl,type);
 
@@ -929,8 +933,6 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         const u32 arg_size = promote_size(size);
 
         arg_offset += arg_size;
-
-        //printf("arg slot %s: %d : %d\n",sym.name.buf,sym.slot, args[args.size()-1]);
     }
 
     // add va args
@@ -942,7 +944,7 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
         add_var(itl.symbol_table,sym);
 
-        push_var(sig.args,sym.reg.slot);
+        push_var(sig.args,sym.reg.slot.sym_slot);
 
         arg_offset += type_size(itl,type);
 

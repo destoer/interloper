@@ -149,7 +149,7 @@ u32 push_string(ElfStringTable& string_table, const String& name)
 {
     // add a string and null term it
     const u32 offset = push_mem(string_table.buffer,name);
-    push_var(string_table.buffer,'\0');
+    push_raw_var(string_table.buffer,'\0');
     
     string_table.cur_string_idx += 1;
 
@@ -271,7 +271,7 @@ void setup_global(Interloper& itl,Elf& elf)
 
 void setup_string(Elf& elf, ElfStringTable& string_table, const String& name)
 {
-    push_var(string_table.buffer,'\0');
+    push_raw_var(string_table.buffer,'\0');
 
     memset(&string_table.header,0,sizeof(string_table.header));
     
