@@ -360,27 +360,30 @@ struct Slot
     u32 handle;
 };
 
+using SymSlot = Slot<slot_type::symbol>;
+using TmpSlot = Slot<slot_type::tmp>;
+
 template<slot_type T>
 b32 is_valid_slot(Slot<T> slot)
 {
     return slot.handle != INVALID_HANDLE;
 }
 
-
-template<slot_type type>
-u32 hash_slot(u32 size, Slot<type> v)
+inline u32 u32_hash_func(u32 size, u32 v)
 {
     // TODO: impl a better integer hash func
-    const u32 hash = v.handle;
+    const u32 hash = v;
     const u32 slot = hash & (size - 1); 
 
     return slot;
 }
 
 
-using SymSlot = Slot<slot_type::symbol>;
-using TmpSlot = Slot<slot_type::tmp>;
-using SpecSlot = Slot<slot_type::spec>;
+template<slot_type type>
+u32 hash_slot(u32 size, Slot<type> v)
+{
+    return u32_hash_func(size,v.handle);
+}
 
 SymSlot sym_from_idx(u32 idx)
 {
@@ -519,6 +522,17 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
         case reg_kind::sym: return v1.sym_slot == v2.sym_slot;
         case reg_kind::tmp: return v1.tmp_slot == v2.tmp_slot;
         case reg_kind::spec: return v1.spec == v2.spec;
+    }
+}
+
+
+u32 hash_slot(u32 size, RegSlot slot)
+{
+    switch(slot.kind)
+    {
+        case reg_kind::tmp: return hash_slot(size,slot.tmp_slot);
+        case reg_kind::sym: return hash_slot(size,slot.sym_slot);
+        case reg_kind::spec: return u32_hash_func(size,u32(slot.spec));
     }
 }
 

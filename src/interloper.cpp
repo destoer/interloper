@@ -31,7 +31,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* ty
 // void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed,b32 is_float);
 // void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_float);
 
-std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node);
+std::pair<Type*,RegSlot> symbol(Interloper &itl, AstNode *node);
 
 void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
 
@@ -99,7 +99,7 @@ void dump_reg_ir(Interloper &itl)
 }
 
 
-std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node)
+std::pair<Type*,RegSlot> symbol(Interloper &itl, AstNode *node)
 {
     LiteralNode* lit_node = (LiteralNode*)node;
 
@@ -109,7 +109,7 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node)
     if(!sym_ptr)
     {
         panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
     }
 
     const auto &sym = *sym_ptr;
@@ -118,7 +118,7 @@ std::pair<Type*,SymSlot> symbol(Interloper &itl, AstNode *node)
 }
 
 
-Type* value(Interloper& itl,Function& func,AstNode *node, SymSlot dst_slot)
+Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 {
     ValueNode* value_node = (ValueNode*)node;
     Value value = value_node->value;
@@ -131,7 +131,7 @@ Type* value(Interloper& itl,Function& func,AstNode *node, SymSlot dst_slot)
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
-std::pair<Type*,SymSlot> compile_oper(Interloper& itl,Function &func,AstNode *node)
+std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node)
 {
     if(!node)
     {
@@ -164,13 +164,13 @@ void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpa
     {
         case ast_type::function_call:
         {
-            compile_scoped_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
             break;
         }
 
         case ast_type::tuple_assign:
         {
-            compile_scoped_function_call(itl,name_space,func,node,sym_from_idx(NO_SLOT));
+            compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
             break;      
         }
 
@@ -182,7 +182,7 @@ void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpa
     }
 }
 
-Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, SymSlot dst_slot, NameSpace* name_space)
+Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot, NameSpace* name_space)
 {
     switch(node->type)
     {
@@ -199,7 +199,7 @@ Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, 
     }
 }
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot dst_slot)
+Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)
     {
@@ -482,14 +482,14 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,SymSlot ds
                 if(is_integer(t))
                 {
                     // TODO: make sure our optimiser sees through this
-                    const SymSlot slot = mov_imm_res(itl,func,0);
+                    const RegSlot slot = mov_imm_res(itl,func,0);
                     sub(itl,func,dst_slot,slot,v1);
                 }
 
                 else if(is_float(t))
                 {
                     // TODO: make sure our optimiser sees through this
-                    const SymSlot slot = movf_imm_res(itl,func,0.0);
+                    const RegSlot slot = movf_imm_res(itl,func,0.0);
                     subf(itl,func,dst_slot,slot,v1);
                 }
 
@@ -700,17 +700,16 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         return;
     }
 
-    SymSlot slot = {NO_SLOT};
+    SymSlot slot = {INVALID_HANDLE};
 
     // add new symbol table entry
     {
         // dont hold this sym reference as its no doubt going to be invalidated
         // as we are actively compiling expressions
         Symbol &sym = global? add_global(itl,name,ltype,false) : add_symbol(itl,name,ltype);
-        slot = sym.reg.slot;
+        slot = sym.reg.slot.sym_slot;
     }
 
-    
 
     if(is_array(ltype))
     {
@@ -725,7 +724,8 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     // simple type
     else 
     {
-        alloc_slot(itl,func,slot,false);
+        const auto reg_slot = make_sym_reg_slot(slot);
+        alloc_slot(itl,func,reg_slot,false);
         
         // initalizer
         if(decl_node->expr)
@@ -733,7 +733,7 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
             if(decl_node->expr->type != ast_type::no_init)
             {
                 // normal assign
-                const auto rtype = compile_expression(itl,func,decl_node->expr,slot);
+                const auto rtype = compile_expression(itl,func,decl_node->expr,reg_slot);
             
                 // our symbol reference might have moved because of compile_expression
                 auto &sym = sym_from_slot(itl.symbol_table,slot);
@@ -757,12 +757,12 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         {
             if(is_float(ltype))
             {
-                movf_imm(itl,func,slot,0.0);
+                movf_imm(itl,func,reg_slot,0.0);
             }
 
             else
             {
-                mov_imm(itl,func,slot,0);
+                mov_imm(itl,func,reg_slot,0);
             }
         }
     } 
@@ -776,14 +776,14 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     }
 }
 
-std::pair<Type*, SymSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
+std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
     // assume a size then refine it with expr result
-    const SymSlot dst_slot = new_tmp(func,GPR_SIZE);
+    const RegSlot dst_slot = new_tmp(func,GPR_SIZE);
 
     Type* type = compile_expression(itl,func,node,dst_slot);
 
-    func.registers[dst_slot.handle] = make_reg(itl,reg_kind::tmp,dst_slot.handle,type);
+    func.registers[dst_slot.tmp_slot.handle] = make_reg(itl,dst_slot,type);
 
     return std::pair{type,dst_slot};
 }
@@ -805,19 +805,21 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     }
 
     // add the symbol
-    SymSlot sym_slot;
+    SymSlot sym_slot = {INVALID_HANDLE};
 
     // add new symbol table entry
     {
         const auto &sym = add_symbol(itl,name,make_builtin(itl,builtin_type::void_t));
-        sym_slot = sym.reg.slot;
+        sym_slot = sym.reg.slot.sym_slot;
     }
 
+    const auto reg_slot = make_sym_reg_slot(sym_slot);
+
     // save the alloc node so we can fill the info in later
-    ListNode* alloc = alloc_slot(itl,func,sym_slot,false);
+    ListNode* alloc = alloc_slot(itl,func,reg_slot,false);
 
     // compile the expression so we can get the type!
-    Type* type = compile_expression(itl,func,auto_decl->expr,sym_slot);
+    Type* type = compile_expression(itl,func,auto_decl->expr,reg_slot);
 
 
     if(itl.error)
@@ -834,11 +836,11 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 
 
     // setup the allocation info now we have it
-    alloc->opcode.v[1] = !is_plain_type(type);
+    alloc->opcode.v[1].imm = !is_plain_type(type);
 
     // also assign back the correct type and register info
     auto& sym = sym_from_slot(itl.symbol_table,sym_slot);
-    sym.reg = make_reg(itl,reg_kind::local,sym_slot.handle,type);
+    sym.reg = make_reg(itl,reg_slot,type);
     sym.type = type;
 }
 
@@ -1019,7 +1021,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // single return
                     if(count(record_node->nodes) == 1)
                     {
-                        const SymSlot rv = is_float(func.sig.return_type[0])? sym_from_idx(RV_FLOAT_IR): sym_from_idx(RV_IR);
+                        const RegSlot rv = is_float(func.sig.return_type[0])? make_spec_reg_slot(spec_reg::rv_float) : make_spec_reg_slot(spec_reg::rv);
                         const auto rtype = compile_expression(itl,func,record_node->nodes[0],rv);
         
                         if(itl.error)
@@ -1051,7 +1053,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             // check each param
                             check_assign(itl,func.sig.return_type[r],rtype);
 
-                            do_ptr_store(itl,func,ret_slot,func.sig.args[r],func.sig.return_type[r]);
+                            do_ptr_store(itl,func,ret_slot,make_sym_reg_slot(func.sig.args[r]),func.sig.return_type[r]);
                         }
                     }
                 
@@ -1088,7 +1090,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
                 break;
             }            
 
@@ -1132,7 +1134,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,func,line,sym_from_idx(NO_SLOT));
+                compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
                 break;
             }
 
@@ -1175,7 +1177,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                 // Compile a initializer list into the return type
                 const auto &structure = itl.struct_table[struct_decl->type_idx];
-                traverse_struct_initializer(itl,func,struct_return->record,make_addr(func.sig.args[0],0),structure);
+                traverse_struct_initializer(itl,func,struct_return->record,make_addr(make_sym_reg_slot(func.sig.args[0]),0),structure);
 
                 ret(itl,func);
                 break;            
