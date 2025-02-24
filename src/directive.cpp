@@ -65,7 +65,7 @@ void emit_exit_block(Interloper& itl, Function& func)
 
 void pool_addr(Interloper& itl, Function& func, RegSlot dst_slot, PoolSlot pool_slot, u32 offset)
 {
-    emit_directive_internal(itl,func,op_type::addrof,make_reg_operand(dst_slot),make_raw_operand(pool_slot.handle),make_imm_operand(offset));
+    emit_directive_internal(itl,func,op_type::pool_addr,make_reg_operand(dst_slot),make_raw_operand(pool_slot.handle),make_imm_operand(offset));
 }
 
 RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 offset)

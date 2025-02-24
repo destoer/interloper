@@ -250,7 +250,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::store_t,"store_struct_u64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
     {op_group::store_t,"store_struct_f64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
 
-    {op_group::slot_t,"pool_addr %r, %x",2,{arg_type::dst_reg,arg_type::directive,arg_type::none}},
+    {op_group::slot_t,"pool_addr %r, %x %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::imm}},
 
     {op_group::reg_t,"load_const_float %r, %x, %f",3,arg_type::dst_reg,arg_type::directive,arg_type::directive},
 
