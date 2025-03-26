@@ -11,99 +11,8 @@
 #include "stack_allocator.cpp"
 #include "linear_alloc.cpp"
 #include "disass.cpp"
+#include "ir_x86.cpp"
 
-// We want to be more clever about reshuffling regs, for now lets just do it simply.
-// ideally if our dst is in rdx we can just spill rax and copy it over
-void lock_out_fixed_arith(LinearAlloc& alloc, Block& block, ListNode* node, RegSlot dst)
-{
-    lock_into_reg(alloc,block,node,alloc.gpr,x86_reg::rax,dst);
-    lock_out_reg(alloc,block,node,alloc.gpr,x86_reg::rdx);
-}
-
-void unlock_fixed_arith(LinearAlloc& alloc, RegSlot dst, x86_reg x86_dst, x86_reg x86_oper)
-{
-    unlock_into_reg(alloc,alloc.gpr,dst,x86_dst);
-    release_register(alloc.gpr,x86_oper);
-}
-
-ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* node, op_type type)
-{
-    // save where our dst is being forced into
-    const auto dst = node->opcode.v[0].reg;
-
-    // RAX, is allways the "dst" with RDX an implicit operand
-    // What register we actually want the result out of varys
-    lock_out_fixed_arith(alloc,block,node,dst);
-
-    // rewrite src for flexible operand and we are done!
-    allocate_and_rewrite(alloc,block,node,1);
-
-    // NOTE: these are both fully rewritten so we can just dump them in into the instruction stream
-    static const Opcode UNSIGNED_SETUP = make_raw_op(op_type::mov_imm,u32(x86_reg::rdx),0);
-    static const Opcode SIGNED_SETUP = make_raw_op(op_type::cqo);
-
-    switch(type)
-    {
-        case op_type::udiv_x86: 
-        {
-            insert_at(block.list,node,UNSIGNED_SETUP);
-
-            unlock_fixed_arith(alloc,dst,x86_reg::rax,x86_reg::rdx);
-            break;
-        }
-
-        case op_type::sdiv_x86:
-        {
-            insert_at(block.list,node,SIGNED_SETUP);
-
-            unlock_fixed_arith(alloc,dst,x86_reg::rax,x86_reg::rdx);
-            break;
-        }
-
-        case op_type::umod_x86:
-        {
-            insert_at(block.list,node,UNSIGNED_SETUP);
-
-            unlock_fixed_arith(alloc,dst,x86_reg::rdx,x86_reg::rax);
-            break;
-        }
-
-        case op_type::smod_x86:
-        {
-            insert_at(block.list,node,SIGNED_SETUP);
-
-            unlock_fixed_arith(alloc,dst,x86_reg::rdx,x86_reg::rax);
-            break;
-        }
-        
-        // We should just switch this over to imul (but its good for testing our system works :D)
-        case op_type::mul_x86:
-        {   
-            insert_at(block.list,node,UNSIGNED_SETUP);
-
-            unlock_fixed_arith(alloc,dst,x86_reg::rax,x86_reg::rdx);
-            break;
-        }
-
-        default: assert(false);
-    }
-
-    // rewrite the dst
-    allocate_and_rewrite(alloc,block,node,0);
-
-    return node->next;
-}   
-
-ListNode* rewrite_x86_shift(LinearAlloc& alloc,Block& block, ListNode* node)
-{
-    const auto src = node->opcode.v[1].reg;
-
-    lock_into_reg(alloc,block,node,alloc.gpr,x86_reg::rcx,src);
-    rewrite_opcode(alloc,block,node);
-
-    unlock_into_reg(alloc,alloc.gpr,src,x86_reg::rcx);
-    return node->next;
-}
 
 ListNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, ListNode *node)
 {
@@ -723,7 +632,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,func.registers,&itl.symbol_table,itl.arch);
+    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,func.registers,&itl.symbol_table,itl.arch);
 
     linear_allocate(alloc,itl,func);
 

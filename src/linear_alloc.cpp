@@ -32,6 +32,9 @@ struct RegisterFile
 
     // What slot is being used by a register?
     RegSlot allocated[MACHINE_REG_SIZE];
+
+    // What registers to use for loading from the stack
+    u32 stack_scratch_registers[3];
 };
 
 // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
@@ -57,6 +60,8 @@ struct LinearAlloc
     u32 dead_count = 0;
 
     StackAlloc stack_alloc;
+
+    b32 stack_only = false;
 };
 
 
@@ -100,7 +105,7 @@ void mark_used(RegisterFile& regs, u32 reg)
     regs.used_set = set_bit(regs.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers, SymbolTable* table,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only,Array<Reg> registers, SymbolTable* table,arch_target arch)
 {
     LinearAlloc alloc;
 
@@ -110,6 +115,7 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack,Array<Reg> registers
     alloc.arch = arch;
     alloc.tmp_regs = registers;
     alloc.table = table;
+    alloc.stack_only = stack_only;
 
     return alloc;
 }
@@ -381,7 +387,8 @@ void init_regs(LinearAlloc& alloc)
     // reg is locked until added
     alloc.gpr.locked_set = 0xffff'ffff;
     alloc.fpr.locked_set = 0xffff'ffff;
-
+    
+    // add grps
     add_reg(alloc.gpr,x86_reg::rax);
     add_reg(alloc.gpr,x86_reg::rcx);
     add_reg(alloc.gpr,x86_reg::rdx);
@@ -399,6 +406,10 @@ void init_regs(LinearAlloc& alloc)
     add_reg(alloc.gpr,x86_reg::r14);
     add_reg(alloc.gpr,x86_reg::r15);
 
+    alloc.gpr.stack_scratch_registers[0] = x86_reg::r11;
+    alloc.gpr.stack_scratch_registers[1] = x86_reg::r12;
+    alloc.gpr.stack_scratch_registers[2] = x86_reg::r13;
+
 
     // add sse regs
     add_reg(alloc.fpr,x86_reg::xmm0);
@@ -409,6 +420,11 @@ void init_regs(LinearAlloc& alloc)
     add_reg(alloc.fpr,x86_reg::xmm5);
     add_reg(alloc.fpr,x86_reg::xmm6);
     add_reg(alloc.fpr,x86_reg::xmm7);
+
+    alloc.fpr.stack_scratch_registers[0] = x86_reg::xmm5;
+    alloc.fpr.stack_scratch_registers[1] = x86_reg::xmm6;
+    alloc.fpr.stack_scratch_registers[2] = x86_reg::xmm7;
+
 }
 
 // NOTE: this relieso on pow2
@@ -487,6 +503,12 @@ void add_active(ActiveReg &active, const LinearRange& cur)
 
 void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 {
+    // Don't need to calculate the ranges if doing stack allocation.
+    if(itl.stack_alloc)
+    {
+        return;
+    }
+
     auto range = find_range(itl,func);
     ActiveReg active;
 
@@ -634,9 +656,11 @@ void spill_reg(LinearAlloc& alloc,Block& block,ListNode* node, RegSlot slot, u32
     insert_node(block.list,node,opcode,type);
 
     // Mark the register as freed
-    assert(is_reg_locally_allocated(ir_reg));
-
-    free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+    if(!alloc.stack_only)
+    {
+        assert(is_reg_locally_allocated(ir_reg));
+        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+    }
 }
 
 // Spill a slot to memory
@@ -733,8 +757,52 @@ void linear_setup_new_block(LinearAlloc& alloc, Block& block)
     compute_local_uses(alloc,block);
 }
 
+void allocate_and_rewrite_var_stack(LinearAlloc& alloc,Block& block,ListNode* node, RegSlot slot, u32 reg)
+{
+    const auto opcode = node->opcode;
+    const auto info = info_from_op(opcode);
+
+    const b32 is_dst = is_arg_dst(info.type[reg]);
+    const b32 is_src = is_arg_src(info.type[reg]);
+
+    auto& ir_reg = reg_from_slot(slot,alloc);
+    auto& reg_file = get_register_file(alloc,ir_reg);
+
+    const u32 scratch_reg = reg_file.stack_scratch_registers[reg];
+
+    // rewrite in the register
+    node->opcode.v[reg] = make_raw_operand(scratch_reg);
+
+    // src do a reload
+    if(is_src) 
+    {
+        // issue a load
+        reload_reg(alloc,block,node,slot,scratch_reg,insertion_type::before);
+
+        // do the writeback as well
+        if(is_dst)
+        {
+            spill_reg(alloc,block,node,slot,scratch_reg,insertion_type::after);
+        }
+    }
+
+    // just a dst
+    else if(is_dst)
+    {
+        spill_reg(alloc,block,node,slot,scratch_reg,insertion_type::after);      
+    }
+}
+
 void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,ListNode* node, RegSlot slot, u32 reg)
 {
+    // just rewrite the register simply
+    if(alloc.stack_only)
+    {
+        allocate_and_rewrite_var_stack(alloc,block,node,slot,reg);
+        return;
+    }
+
+
     auto& ir_reg = reg_from_slot(slot,alloc);
     auto& reg_file = get_register_file(alloc,ir_reg);
 
@@ -969,6 +1037,12 @@ void finish_stack_alloc(LinearAlloc& alloc)
 // TODO: Consider using xchg to swap them
 void correct_live_out(LinearAlloc& alloc, Block& block)
 {
+    // No need to correct across blocks
+    if(alloc.stack_only)
+    {
+        return;
+    }
+
     // nothing to correct
     if(!block.list.start || block.flags & HAS_FUNC_EXIT)
     {
