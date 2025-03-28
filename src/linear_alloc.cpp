@@ -179,7 +179,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
             {
                 const auto operand = opcode.v[a];
 
-                if(operand.type != operand_type::reg)
+                if(!is_arg_reg(info.type[a]))
                 {
                     continue;
                 }
@@ -730,7 +730,7 @@ void compute_local_uses(LinearAlloc& alloc, Block& block)
         {
             const auto operand = opcode.v[a];
 
-            if(operand.type != operand_type::reg)
+            if(!is_arg_reg(info.type[a]))
             {
                 continue;
             }

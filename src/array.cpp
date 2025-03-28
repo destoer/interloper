@@ -719,40 +719,39 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         return;
     }
 
-    else
+
+    auto& array = sym_from_slot(itl.symbol_table,slot);
+
+    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
+
+    // allocate fixed array if needed, and initalize it to its data pointer
+    if(is_fixed_array(array.type))
     {
-        auto& array = sym_from_slot(itl.symbol_table,slot);
-
-        const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
-
-        // allocate fixed array if needed, and initalize it to its data pointer
-        if(is_fixed_array(array.type))
+        // we have the allocation information now complete it
+        switch(array.reg.segment)
         {
-            // we have the allocation information now complete it
-            switch(array.reg.segment)
+            case reg_segment::local:
             {
-                case reg_segment::local:
-                {
-                    alloc->opcode = make_op(op_type::alloc_local_array,make_reg_operand(array.reg.slot),make_imm_operand(arr_size),make_imm_operand(arr_count));
-                    break;
-                }
-                // just dump addr
-                case reg_segment::global:
-                {
-                    const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,slot,arr_size,arr_count);
-                    alloc->opcode = make_op(op_type::alloc_global_array,make_reg_operand(array.reg.slot),make_imm_operand(alloc_idx));
-                    break;
-                }
+                alloc->opcode = make_op(op_type::alloc_local_array,make_reg_operand(array.reg.slot),make_imm_operand(arr_size),make_imm_operand(arr_count));
+                break;
+            }
+            // just dump addr
+            case reg_segment::global:
+            {
+                const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,slot,arr_size,arr_count);
+                alloc->opcode = make_op(op_type::alloc_global_array,make_reg_operand(array.reg.slot),make_imm_operand(alloc_idx));
+                break;
+            }
 
-                // constants should not go through this function!
-                case reg_segment::constant:
-                {
-                    assert(false);
-                    break;
-                }
+            // constants should not go through this function!
+            case reg_segment::constant:
+            {
+                assert(false);
+                break;
             }
         }
     }
+    
 }
 
 Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
