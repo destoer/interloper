@@ -748,6 +748,16 @@ void compute_local_uses(LinearAlloc& alloc, Block& block)
 
 void linear_setup_new_block(LinearAlloc& alloc, Block& block) 
 {
+    // clean any local registers that aernt live in, so the register is in a correct state
+    for(const RegSlot slot : block.def)
+    {
+        auto& ir_reg = reg_from_slot(slot,alloc);
+        if(is_reg_locally_allocated(ir_reg))
+        {
+            free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+        }
+    }
+
     // All registers free at block start bar live in
     init_regs(alloc);
 
