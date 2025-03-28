@@ -644,10 +644,9 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
 
             for(u32 i = 0; i < type->size; i++)
             {
-                struct_addr.offset += structure.size;
-
                 // TODO: just default construct it for now!
                 compile_struct_decl_default(itl,func,structure,struct_addr);
+                struct_addr.offset += structure.size;
             }
         }
 

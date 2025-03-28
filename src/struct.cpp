@@ -849,8 +849,8 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
         // (basically we need to just recurse this method)
         else if(is_struct(member.type))
         {
-            const auto structure = struct_from_type(itl.struct_table,member.type);
-            compile_struct_decl_default(itl,func,structure,member_addr);
+            const auto nested_structure = struct_from_type(itl.struct_table,member.type);
+            compile_struct_decl_default(itl,func,nested_structure,member_addr);
         }
 
         else if(is_array(member.type))
