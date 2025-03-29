@@ -68,7 +68,6 @@ enum class op_type
     sdiv_x86,
     umod_x86,
     smod_x86,
-    mul_x86,
 
     lsl_x86,
     lsr_x86,

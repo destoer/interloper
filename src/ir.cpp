@@ -99,12 +99,6 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
             break;
         }
 
-        case op_type::mul_x86:
-        {
-            node = rewrite_x86_fixed_arith(alloc,block,node,op_type::mul_x86);
-            break;
-        }
-
         case op_type::lsl_x86:
         {
             node = rewrite_x86_shift(alloc,block,node);
@@ -662,7 +656,7 @@ void allocate_registers(Interloper& itl,Function &func)
     {
         log(alloc.print,"%s: Total misplaced %d\n",func.name.buf,alloc.total_misplaced);
     }
-    
+
     // perform 2nd pass!
 
     // Figure out how large a stack we need and put everything on it

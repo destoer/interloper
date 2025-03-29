@@ -515,14 +515,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::mul_reg:
         {
-            switch(itl.arch)
-            {
-                case arch_target::x86_64_t:
-                {
-                    return rewrite_x86_fixed(block,node,op_type::mul_x86);
-                }
-            }
-            break;
+            return rewrite_reg3_two_commutative(block,node,op_type::mul_reg2,false);
         }
 
         case op_type::mul_imm:

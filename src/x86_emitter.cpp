@@ -895,12 +895,6 @@ void sdiv_x86(AsmEmitter& emitter, x86_reg src)
     emit_arith_fixed(emitter,src,7);
 }
 
-void mul_x86(AsmEmitter& emitter, x86_reg src)
-{
-    // mul r64
-    emit_arith_fixed(emitter,src,4);
-}
-
 void lsl_x86(AsmEmitter& emitter, x86_reg src)
 {
     // lsl r64, cl
@@ -926,6 +920,13 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
     push_u16(emitter,(opcode << 8) |  rex_rm64(dst,v1));
 
     push_reg_base_disp(emitter,dst,v1,imm);
+}
+
+void mul(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // imul r64, m64
+    const u16 opcode = 0xAF0F;
+    emit_reg2_rm_extended_64(emitter,opcode,dst,v1);
 }
 
 void lea(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s64 imm)
@@ -1120,6 +1121,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::add_reg2: 
         {
             add(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::mul_reg2:
+        {
+            mul(emitter,dst,v1);
             break;
         }
 
@@ -1367,12 +1374,6 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         {
             // same as div just different result reg used
             sdiv_x86(emitter,v1);
-            break;
-        }
-
-        case op_type::mul_x86:
-        {
-            mul_x86(emitter,v1);
             break;
         }
 
