@@ -658,6 +658,11 @@ void allocate_registers(Interloper& itl,Function &func)
         correct_live_out(alloc,block);
     }
 
+    if(alloc.total_misplaced != 0)
+    {
+        log(alloc.print,"%s: Total misplaced %d\n",func.name.buf,alloc.total_misplaced);
+    }
+    
     // perform 2nd pass!
 
     // Figure out how large a stack we need and put everything on it

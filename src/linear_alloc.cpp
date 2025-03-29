@@ -57,6 +57,7 @@ struct LinearAlloc
     // Registers marked for expiry
     RegSlot dead_slot[3];
     u32 dead_count = 0;
+    u32 total_misplaced = 0;
 
     StackAlloc stack_alloc;
 
@@ -355,6 +356,13 @@ void take_local_reg(RegisterFile& reg_file,Reg& ir_reg, u32 reg)
 
 bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
 {
+    // If global register is free prefer its allocation
+    if(is_reg_free(regs,ir_reg.global_reg))
+    {
+        take_local_reg(regs,ir_reg,ir_reg.global_reg);
+        return true;
+    }
+
     const u32 reg = alloc_reg(regs);
 
     if(reg != FFS_EMPTY)
@@ -1070,6 +1078,8 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
             log_reg(alloc.print,*alloc.table,"misplaced %r %s %s\n",slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
         }
     }
+
+    alloc.total_misplaced += count(misplaced);
 
     const auto& end_info = info_from_op(block.list.finish->opcode);
 
