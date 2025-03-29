@@ -250,25 +250,9 @@ void lock_reg(RegisterFile& regs, u32 reg)
     regs.locked_set = set_bit(regs.locked_set,reg);
 }
 
-void lock_special_reg(LinearAlloc& alloc, spec_reg reg)
-{
-    const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
-
-    claim_register(reg_file,location);
-}
-
 void unlock_reg(RegisterFile& regs, u32 reg)
 {
     regs.locked_set = deset_bit(regs.locked_set,reg);
-}
-
-void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
-{
-    const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
-
-    release_register(reg_file,location);
 }
 
 bool is_locked(RegisterFile& regs,u32 reg)
@@ -1235,4 +1219,22 @@ void unlock_into_reg(LinearAlloc& alloc,RegisterFile& reg_file, RegSlot dst,u32 
             break;
         }
     }
+}
+
+void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
+{
+    const u32 location = special_reg_to_reg(alloc.arch,reg);
+    RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
+
+    log_reg(alloc.print,*alloc.table,"Unlocking special register %s\n",spec_reg_name(reg));
+
+    release_register(reg_file,location);
+}
+
+void lock_special_reg(LinearAlloc& alloc,Block& block, ListNode* node, spec_reg reg)
+{
+    const u32 location = special_reg_to_reg(alloc.arch,reg);
+    RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
+
+    lock_out_reg(alloc,block,node,reg_file,location);
 }

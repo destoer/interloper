@@ -4,6 +4,7 @@ import <internal>
 import <file>
 import <string>
 import <print>
+import <log>
 import <time>
 import <system>
 

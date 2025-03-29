@@ -1,0 +1,54 @@
+namespace log
+
+struct LogLevelData
+{
+    name: const string;
+}
+
+enum log_level : LogLevelData
+{
+    none = {"none"},
+    error = {"error"},
+    warn = {"warn"},
+    info = {"info"},
+    debug = {"debug"},
+    trace = {"trace"},
+}
+
+
+global max_log_level: log_level = log_level::debug;
+
+func log(level: log_level,prefix: const string,fmt: const string, args : const rtti::Any[])
+{
+    if(cast(u32,level) <= cast(u32,max_log_level))
+    {
+        std::print("[{} {}]: ",level.name,prefix);
+        std::print_args(fmt,args);
+        std::linefeed();
+    }
+}
+
+func error(prefix: const string,fmt: const string, args : ...) 
+{
+    log(log_level::error,prefix,fmt,args);
+}
+
+func warn(prefix: const string,fmt: const string, args : ...) 
+{
+    log(log_level::warn,prefix,fmt,args);
+}
+
+func info(prefix: const string,fmt: const string, args : ...) 
+{
+    log(log_level::info,prefix,fmt,args);
+}
+
+func debug(prefix: const string,fmt: const string, args : ...) 
+{
+    log(log_level::debug,prefix,fmt,args);
+}
+
+func trace(prefix: const string,fmt: const string, args : ...) 
+{
+    log(log_level::trace,prefix,fmt,args);
+}

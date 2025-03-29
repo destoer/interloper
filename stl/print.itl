@@ -434,59 +434,6 @@ func println(fmt: const string, args : ...)
     linefeed();
 }
 
-struct LogLevelData
-{
-    name: const string;
-}
-
-enum log_level : LogLevelData
-{
-    none = {"none"},
-    error = {"error"},
-    warn = {"warn"},
-    info = {"info"},
-    debug = {"debug"},
-    trace = {"trace"},
-}
-
-
-global max_log_level: log_level = log_level::debug;
-
-func log(level: log_level,prefix: const string,fmt: const string, args : const rtti::Any[])
-{
-    if(cast(u32,level) <= cast(u32,max_log_level))
-    {
-        print("[{} {}]: ",level.name,prefix);
-        print_args(fmt,args);
-        linefeed();
-    }
-}
-
-func log_error(prefix: const string,fmt: const string, args : ...) 
-{
-    log(log_level::error,prefix,fmt,args);
-}
-
-func log_warn(prefix: const string,fmt: const string, args : ...) 
-{
-    log(log_level::warn,prefix,fmt,args);
-}
-
-func log_info(prefix: const string,fmt: const string, args : ...) 
-{
-    log(log_level::info,prefix,fmt,args);
-}
-
-func log_debug(prefix: const string,fmt: const string, args : ...) 
-{
-    log(log_level::debug,prefix,fmt,args);
-}
-
-func log_trace(prefix: const string,fmt: const string, args : ...) 
-{
-    log(log_level::trace,prefix,fmt,args);
-}
-
 // TODO: add line and file info? (what mechanism should be used for this)
 func unimplemented_args(fmt: const string, args: const rtti::Any[])
 {

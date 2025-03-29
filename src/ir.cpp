@@ -126,7 +126,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         case op_type::lock_reg:
         {
             const auto reg = opcode.v[0].reg;
-            lock_special_reg(alloc,reg.spec);
+            lock_special_reg(alloc,block,node,reg.spec);
 
             return remove(block.list,node);
         }
