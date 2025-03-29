@@ -255,7 +255,7 @@ void lock_special_reg(LinearAlloc& alloc, spec_reg reg)
     const u32 location = special_reg_to_reg(alloc.arch,reg);
     RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
 
-    lock_reg(reg_file,location);
+    claim_register(reg_file,location);
 }
 
 void unlock_reg(RegisterFile& regs, u32 reg)
@@ -268,7 +268,7 @@ void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
     const u32 location = special_reg_to_reg(alloc.arch,reg);
     RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
 
-    unlock_reg(reg_file,location);
+    release_register(reg_file,location);
 }
 
 bool is_locked(RegisterFile& regs,u32 reg)
