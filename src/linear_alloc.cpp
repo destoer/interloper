@@ -6,7 +6,6 @@ struct LinearRange
     u32 global_reg = REG_FREE;
     ListNode* node = nullptr;
     BlockSlot block_slot = {INVALID_HANDLE};
-    b32 dst_live = false;
 };
 
 bool is_reg_locally_allocated(const Reg& reg)
@@ -120,7 +119,7 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only,Arra
     return alloc;
 }
 
-void update_range(Interloper& itl, Function& func,HashTable<RegSlot,LinearRange> &table, RegSlot slot,Block& block, ListNode* node,b32 dst_live,u32 pc)
+void update_range(Interloper& itl, Function& func,HashTable<RegSlot,LinearRange> &table, RegSlot slot,Block& block, ListNode* node,u32 pc)
 {
     auto& ir_reg = reg_from_slot(itl,func,slot);
 
@@ -148,7 +147,6 @@ void update_range(Interloper& itl, Function& func,HashTable<RegSlot,LinearRange>
         range.block_slot = block.block_slot;
         range.node = node;
         range.start = pc;
-        range.dst_live = dst_live;
     }
 
     range.end = std::max(range.end,pc);
@@ -167,6 +165,33 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
         auto& block = func.emitter.program[b];
 
         ListNode *node = block.list.start;
+
+        // If we are live in on a block as a arg (for the first time) we have to force it live from block start
+        // This is not a problem for locals because they will actually defined and assigned before use.
+        // Function args on the other hand are going to be in memory from being passed, and not a reg they may be put in.
+        // We can return to this when we have the ablitly to setup more granular ranges for blocks via block args.
+        /*
+        live_in: ptr in rax
+            lock rax
+            mov rax, ptr <-- This is not loaded until here, but the register has already been locked we have a problem
+        */
+
+        for(const RegSlot slot : block.live_in)
+        {
+            if(is_special_reg(slot))
+            {
+                continue;
+            }
+
+            auto& ir_reg = reg_from_slot(itl,func,slot);
+
+            if(is_arg(ir_reg) && !contains(table,slot))
+            {
+                const auto live_op = make_op(op_type::live_var,make_reg_operand(slot));
+                node = insert_at(block.list,node,live_op);
+                update_range(itl,func,table,slot,block,node,pc);
+            }
+        }
 
         // for each opcode
         while(node)
@@ -192,12 +217,12 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
                     if(info.type[a] == arg_type::dst_reg)
                     {
                         pc += 1;
-                        update_range(itl,func,table,slot,block,node,true,pc);
+                        update_range(itl,func,table,slot,block,node,pc);
                     }
 
                     else
                     {
-                        update_range(itl,func,table,slot,block,node,false,pc);
+                        update_range(itl,func,table,slot,block,node,pc);
                     }
                 }
             }
@@ -215,7 +240,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
         // if its live out then consider it allocated till the end of the block
         for(const RegSlot slot : block.live_out)
         {
-            update_range(itl,func,table,slot,block,last,false,pc);
+            update_range(itl,func,table,slot,block,last,pc);
         }
     }
 
@@ -515,20 +540,8 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
     {
         auto& cur = range[r];
 
-        auto& ir_reg = reg_from_slot(itl,func,cur.slot);
-
-        // insert the live ir op, so we know to load it
-        // but if live first as dst then we dont care...
-        if(is_arg(ir_reg) && !cur.dst_live)
-        {
-            auto& block = block_from_slot(func,cur.block_slot);
-
-            const auto live_op = make_op(op_type::live_var,make_reg_operand(cur.slot));
-            insert_at(block.list,cur.node,live_op);
-        }
-
-
         // actually run the allocation
+        auto& ir_reg = reg_from_slot(itl,func,cur.slot);
 
         // expire any dead sets
         clean_dead_reg(itl,func,alloc,active,cur);

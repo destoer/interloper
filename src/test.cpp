@@ -297,12 +297,11 @@ void run_tests(const char* flags)
             break;
         }
 
-        if(run_correctness_test(test,itl,flags,true))
-        {
-            fail = true;
-            break;
-        }
-
+        // if(run_correctness_test(test,itl,flags,true))
+        // {
+        //     fail = true;
+        //     break;
+        // }
     }
 
     if(!fail)

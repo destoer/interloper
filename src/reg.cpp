@@ -151,6 +151,11 @@ b32 is_special_reg(RegSlot slot, spec_reg reg)
     return slot.kind == reg_kind::spec && slot.spec == reg;
 }
 
+b32 is_null_reg(RegSlot slot)
+{
+    return is_special_reg(slot,spec_reg::null);
+}
+
 b32 is_var(RegSlot slot)
 {
     return !is_special_reg(slot);
