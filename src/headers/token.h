@@ -436,6 +436,12 @@ inline void print_token(const Token& t)
             break;
         }
 
+        case token_type::float_t:
+        {
+            printf("float: %f\n",t.fp);
+            break;
+        }
+
         default:
         {
             if(t.literal.buf)
