@@ -270,7 +270,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
             auto& root = rtti.builtin_type_cache[type->is_const][type->type_idx];
 
             // base type is not yet in the pool
-            if(root.slot.handle == NO_SLOT)
+            if(root.slot.handle == INVALID_HANDLE)
             {
                 // allocate a slot in the pool for us
                 const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.type_struct_size);
@@ -300,7 +300,7 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
     return node.slot;
 }
 
-SymSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
+RegSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
 {
     const PoolSlot pool_slot = make_rtti(itl,type);
 
@@ -318,12 +318,12 @@ u32 promote_size(u32 size)
 }
 
 // TODO: we need to pass in a slot + offset for storing data copies...
-void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const SymSlot src, const Type* type)
+void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const RegSlot src, const Type* type)
 {
     auto& rtti = itl.rtti_cache;
 
     // aquire a copy of the typing information from the const pool
-    const SymSlot rtti_ptr = aquire_rtti(itl,func,type); 
+    const RegSlot rtti_ptr = aquire_rtti(itl,func,type); 
 
     // goes directly in the pointer
     if(is_trivial_copy(type))
@@ -375,11 +375,10 @@ void make_any(Interloper& itl,Function& func, SymSlot any_ptr, u32 offset, const
 }
 
 
-void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, SymSlot any_ptr = {SYMBOL_NO_SLOT}, u32 offset = 0)
+void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
 {
     const auto& rtti = itl.rtti_cache;
-
-    const b32 handle_storage = any_ptr.handle == SYMBOL_NO_SLOT;
+    const b32 handle_storage = is_special_reg(any_ptr,spec_reg::null);
 
     // push const str as fixed size array
     if(arg_node->type == ast_type::string)
@@ -391,14 +390,14 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
 
         // push the data offset
         const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
-        const SymSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
+        const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
 
         if(handle_storage)
         {
             // alloc the struct size for our copy
             alloc_stack(itl,func,rtti.any_struct_size);
 
-            const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+            const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
             make_any(itl,func,SP_SLOT,0,addr_slot,rtype);
         }
 
@@ -424,10 +423,10 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
                 // alloc the struct size for our copy
                 alloc_stack(itl,func,stack_size);
 
-                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
+                const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
 
                 // need to save SP as it will get pushed last
-                const SymSlot dst_ptr = copy_reg(itl,func,SP_SLOT);
+                const RegSlot dst_ptr = copy_reg(itl,func,SP_SLOT);
                 const auto dst_addr = make_addr(dst_ptr,0);
 
                 const auto src_addr = make_struct_addr(reg,0);
@@ -450,8 +449,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Sy
                 // alloc the struct size for our copy
                 alloc_stack(itl,func,stack_size);
 
-                const SymSlot SP_SLOT = sym_from_idx(SP_IR);
-
+                const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
                 make_any(itl,func,SP_SLOT,0,reg,arg_type);
             }
 
@@ -469,14 +467,16 @@ u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
     // for now this just allways takes size of the any struct
     const u32 size = align_val(itl.rtti_cache.any_struct_size,GPR_SIZE);
 
+    const auto NULL_SLOT = make_spec_reg_slot(spec_reg::null);
+
     // Handle stack alloc and store itself caller will handle deallocation of stack
-    compile_any_internal(itl,func,arg_node);
+    compile_any_internal(itl,func,arg_node,NULL_SLOT,0);
 
     return size;
 }
 
 
-void compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, SymSlot any_ptr, u32 offset)
+void compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
 {
     // storage allocation handled by caller
     compile_any_internal(itl,func,arg_node,any_ptr,offset);

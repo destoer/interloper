@@ -895,12 +895,6 @@ void sdiv_x86(AsmEmitter& emitter, x86_reg src)
     emit_arith_fixed(emitter,src,7);
 }
 
-void mul_x86(AsmEmitter& emitter, x86_reg src)
-{
-    // mul r64
-    emit_arith_fixed(emitter,src,4);
-}
-
 void lsl_x86(AsmEmitter& emitter, x86_reg src)
 {
     // lsl r64, cl
@@ -928,6 +922,13 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
     push_reg_base_disp(emitter,dst,v1,imm);
 }
 
+void mul(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
+{
+    // imul r64, m64
+    const u16 opcode = 0xAF0F;
+    emit_reg2_rm_extended_64(emitter,opcode,dst,v1);
+}
+
 void lea(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s64 imm)
 {
     add(emitter,dst,addr,imm);
@@ -945,11 +946,11 @@ void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
 template<typename FUNC_PTR>
 void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
 {
-    const auto dst = x86_reg(opcode.v[0]);
-    auto addr = x86_reg(opcode.v[1]);
-    s64 offset = s64(opcode.v[2]);
+    const auto dst = x86_reg(opcode.v[0].raw);
+    auto addr = x86_reg(opcode.v[1].raw);
+    s64 offset = s64(opcode.v[2].raw);
 
-    const bool is_data_sect = (addr == CONST_IR || addr == GP_IR);
+    const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 
     if(is_data_sect)
     {
@@ -1106,13 +1107,8 @@ void setfne(AsmEmitter& emitter, x86_reg dst)
 
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
-    UNUSED(emitter);
-
-    const auto dst = x86_reg(opcode.v[0]);
-    const auto v1 = x86_reg(opcode.v[1]);
-    const auto v2 = x86_reg(opcode.v[2]);
-
-    UNUSED(v2);
+    const auto dst = x86_reg(opcode.v[0].raw);
+    const auto v1 = x86_reg(opcode.v[1].raw);
 
     switch(opcode.op)
     {
@@ -1125,6 +1121,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::add_reg2: 
         {
             add(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::mul_reg2:
+        {
+            mul(emitter,dst,v1);
             break;
         }
 
@@ -1375,12 +1377,6 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
-        case op_type::mul_x86:
-        {
-            mul_x86(emitter,v1);
-            break;
-        }
-
         case op_type::lsl_x86:
         {
             lsl_x86(emitter,dst);
@@ -1619,18 +1615,14 @@ void emit_func(Interloper& itl, Function& func)
 {
     const u32 func_idx = add_func(itl.asm_emitter,func);
 
-    for(u32 b = 0; b < count(func.emitter.program); b++)
+    for(auto& block : func.emitter.program)
     {
-        auto& block = func.emitter.program[b];
-        ListNode* node = block.list.start;
-
         // store cur relative offset to finalise later
         write_cur_rel_offset(itl,block.label_slot);
 
-        while(node)
+        for(const ListNode &node : block.list)
         {
-            emit_opcode(itl.asm_emitter,node->opcode);
-            node = node->next;
+            emit_opcode(itl.asm_emitter,node.opcode);
         }
     }
 
@@ -1639,10 +1631,9 @@ void emit_func(Interloper& itl, Function& func)
 
 void emit_asm(Interloper& itl)
 {
-    for(u32 f = 0; f < count(itl.func_table.used); f++)
+    for(auto& func : itl.func_table.used)
     {
-        auto& func = *itl.func_table.used[f];
-        emit_func(itl,func);
+        emit_func(itl,*func);
     }
 }
 

@@ -32,7 +32,7 @@ Parser make_parser(const String& cur_file,NameSpace* root, ArenaAllocator* names
 
 void add_ast_pointer(Parser& parser, void* pointer)
 {
-    push_var(*parser.ast_arrays,pointer);
+    push_raw_var(*parser.ast_arrays,pointer);
 }
 
 Token next_token(Parser &parser)
@@ -1076,7 +1076,7 @@ AstNode *statement(Parser &parser)
 
             BinNode *if_stmt = (BinNode*)ast_binary(parser,if_expr,if_body,ast_type::if_t,t);
 
-            push_var(if_block->statements,if_stmt);
+            push_var(if_block->statements,(AstNode*)if_stmt);
             
             bool done = false;
             
@@ -1096,7 +1096,7 @@ AstNode *statement(Parser &parser)
 
                         BinNode* else_if_stmt = (BinNode*)ast_binary(parser,else_if_expr,else_if_body,ast_type::else_if_t,else_tok);
 
-                        push_var(if_block->statements,else_if_stmt);
+                        push_var(if_block->statements,(AstNode*)else_if_stmt);
                     }
 
                     // just a plain else
@@ -1972,12 +1972,22 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,FileQ
 #include <unistd.h>
 bool parse(Interloper& itl, const String& initial_filename)
 {
-    const char *itl_path = getenv("INTERLOPER_INSTALL_DIR");
+    const char *itl_path = nullptr;
 
-    if(!itl_path)
+    if(file_exists("interloper"))
     {
-        fprintf(stderr,"Could not find install dir env var INTERLOPER_INSTALL_DIR\n");
-        return true;
+        itl_path = ".";
+    }
+
+    else
+    {
+        itl_path = getenv("INTERLOPER_INSTALL_DIR");
+
+        if(!itl_path)
+        {
+            fprintf(stderr,"Could not find install dir env var INTERLOPER_INSTALL_DIR\n");
+            return true;
+        }
     }
 
     itl.stl_path = cat_string(itl.string_allocator,itl_path,"/stl/");

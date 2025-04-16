@@ -7,9 +7,9 @@ void print_struct(Interloper& itl, const Struct& structure)
 {
     printf("struct %s\n{\n",structure.name.buf);
 
-    for(u32 m = 0; m < count(structure.members); m++)
+    for(const auto& member : structure.members)
     {
-        print_member(itl,structure.members[m]);
+        print_member(itl,member);
     }
 
     printf("};\n");
@@ -33,9 +33,8 @@ void destroy_struct(Struct& structure)
 void destroy_struct_table(StructTable& struct_table)
 {
     // delete all struct defs
-    for(u32 s = 0; s < count(struct_table); s++)
-    {   
-        auto& structure = struct_table[s];
+    for(auto& structure : struct_table)
+    {
         destroy_struct(structure);
     }
 
@@ -383,7 +382,7 @@ Type* access_array_member(Interloper& itl, Type* type, const String& member_name
     {
         if(!is_runtime_size(type))
         {
-            struct_slot->slot = ACCESS_FIXED_LEN_REG_SLOT;
+            struct_slot->slot = make_spec_reg_slot(spec_reg::access_fixed_len_reg);
             struct_slot->struct_addr = false;
             return type;
         }
@@ -478,7 +477,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
     const auto enum_table_slot = pool_addr_res(itl,func,enumeration.struct_slot,0);
 
     // get the enum index
-    SymSlot enum_slot = sym_from_idx(SYMBOL_NO_SLOT);
+    RegSlot enum_slot = INVALID_SYM_REG_SLOT;
     
     // we allready directly have the enum
     if(struct_slot->struct_addr)
@@ -502,7 +501,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
     // finally index the table
     
     // scale index
-    const SymSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
+    const RegSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
 
     // compute final addr
     const auto addr_slot = add_res(itl,func,enum_table_slot,table_offset);
@@ -580,7 +579,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
 
         case ast_type::index:
         {
-            SymSlot addr_slot;
+            RegSlot addr_slot;
             std::tie(struct_type, addr_slot) = index_arr(itl,func,expr_node,new_tmp_ptr(func));
 
             struct_slot = make_addr(addr_slot,0);
@@ -616,7 +615,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                 // auto deferef pointers first
                 if(is_pointer(struct_type))
                 {
-                    SymSlot addr_slot = new_tmp_ptr(func);
+                    RegSlot addr_slot = new_tmp_ptr(func);
                     do_addr_load(itl,func,addr_slot,struct_slot,struct_type);
 
                     struct_slot = make_addr(addr_slot,0);
@@ -659,7 +658,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                 
                 if(is_runtime_size(struct_type))
                 {
-                    const SymSlot vla_ptr = new_tmp_ptr(func);
+                    const RegSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
                     do_addr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
                     struct_slot = make_addr(vla_ptr,0);
@@ -671,7 +670,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                     collapse_struct_offset(itl,func,&struct_slot);
                 }
 
-                SymSlot addr_slot;
+                RegSlot addr_slot;
                 std::tie(struct_type,addr_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
 
                 struct_slot = make_addr(addr_slot,0);
@@ -692,7 +691,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
     return std::tuple{struct_type,struct_slot};
 }
 
-std::pair<Type*,SymSlot> compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
+std::pair<Type*,RegSlot> compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 {
     auto [type,addr_slot] = compute_member_addr(itl,func,node);
 
@@ -701,7 +700,7 @@ std::pair<Type*,SymSlot> compute_member_ptr(Interloper& itl, Function& func, Ast
     return std::pair{make_pointer(itl,type),addr_slot.slot};
 }
 
-void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype, AstNode *node)
+void write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)
 {
     const auto [accessed_type, addr_slot] = compute_member_addr(itl,func,node);
 
@@ -715,7 +714,7 @@ void write_struct(Interloper& itl,Function& func, SymSlot src_slot, Type* rtype,
 }
 
 
-Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *node)
+Type* read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
 {
     const List list_old = get_cur_list(func.emitter);
 
@@ -727,7 +726,7 @@ Type* read_struct(Interloper& itl,Function& func, SymSlot dst_slot, AstNode *nod
     }
 
     // len access on fixed sized array
-    if(addr_slot.slot.handle == ACCESS_FIXED_LEN_REG)
+    if(is_special_reg(addr_slot.slot,spec_reg::access_fixed_len_reg))
     {
         // dont need any of the new instrs for this
         // get rid of them
@@ -817,7 +816,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     {
         const auto& member = structure.members[m];
 
-        auto member_addr = addr_slot;
+        AddrSlot member_addr = addr_slot;
         member_addr.offset += member.offset;
 
         if(member.expr)
@@ -850,8 +849,8 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
         // (basically we need to just recurse this method)
         else if(is_struct(member.type))
         {
-            const auto structure = struct_from_type(itl.struct_table,member.type);
-            compile_struct_decl_default(itl,func,structure,member_addr);
+            const auto nested_structure = struct_from_type(itl.struct_table,member.type);
+            compile_struct_decl_default(itl,func,nested_structure,member_addr);
         }
 
         else if(is_array(member.type))
@@ -861,7 +860,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
         else
         {
-            const SymSlot tmp = imm_zero(itl,func);
+            const RegSlot tmp = imm_zero(itl,func);
             do_addr_store(itl,func,tmp,member_addr,member.type);
         }
     }
@@ -871,10 +870,12 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 {
     Type* ltype = nullptr;
 
+    const auto reg_slot = make_sym_reg_slot(slot);
+
     // isolate our symbol as it may move
     {
         auto& sym = sym_from_slot(itl.symbol_table,slot);
-        alloc_slot(itl,func,slot,true);
+        alloc_slot(itl,func,reg_slot,true);
 
         ltype = sym.type;
     }
@@ -888,7 +889,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
         {
             case ast_type::initializer_list:
             {
-                const auto addr_slot = make_struct_addr(slot,0);
+                const auto addr_slot = make_struct_addr(reg_slot,0);
                 traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
                 break;                
             }
@@ -900,7 +901,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
 
             default:
             {
-                const auto rtype = compile_expression(itl,func,decl_node->expr,slot);
+                const auto rtype = compile_expression(itl,func,decl_node->expr,reg_slot);
                 check_assign_init(itl,ltype,rtype);
                 break;    
             }
@@ -910,7 +911,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     // default init
     else
     {
-        const AddrSlot addr_slot = make_struct_addr(slot,0);
+        const AddrSlot addr_slot = make_struct_addr(reg_slot,0);
         compile_struct_decl_default(itl,func,structure,addr_slot);
     }
 }

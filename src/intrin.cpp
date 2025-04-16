@@ -1,6 +1,6 @@
 
 
-using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot);
+using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 
 Function* find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
@@ -52,7 +52,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
         Function &func_call = *func_def;
 
-        const SymSlot imm_slot = mov_imm_res(itl,func,size);
+        const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
         collapse_struct_offset(itl,func,&src_addr);
         collapse_struct_offset(itl,func,&dst_addr);
@@ -67,7 +67,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     }
 }
 
-void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
+void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 {
 
     static constexpr u32 INLINE_LIMIT = 256;
@@ -97,7 +97,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
 
         Function &func_call = *func_def;
 
-        const SymSlot imm_slot = mov_imm_res(itl,func,size);
+        const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
         push_arg(itl,func,imm_slot);
         push_arg(itl,func,dst_ptr);
@@ -108,7 +108,7 @@ void ir_zero(Interloper&itl, Function& func, SymSlot dst_ptr, u32 size)
     }
 }
 
-Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     UNUSED(dst_slot);
     
@@ -123,17 +123,17 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
     }
 
     // make sure this register doesn't get reused
-    lock_reg(itl,func,sym_from_idx(RAX_IR));
+    lock_reg(itl,func,make_spec_reg_slot(spec_reg::rax));
     const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
-    mov_imm(itl,func,sym_from_idx(RAX_IR),syscall_number);
+    mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_number);
     
-    const u32 REG_ARGS[6] = {RDI_IR,RSI_IR,RDX_IR,R10_IR,R8_IR,R9_IR};
+    const spec_reg REG_ARGS[6] = {spec_reg::rdi,spec_reg::rsi,spec_reg::rdx,spec_reg::r10,spec_reg::r8,spec_reg::r9};
 
     for(u32 arg = 1; arg <= 6; arg++)
     {
         if(arg_size >= arg + 1)
         {
-            const auto reg = sym_from_idx(REG_ARGS[arg-1]);
+            const auto reg = make_spec_reg_slot(REG_ARGS[arg-1]);
             lock_reg(itl,func,reg);
             const auto type = compile_expression(itl,func,func_call->args[arg],reg);
 
@@ -147,16 +147,16 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, SymSlot d
 
     syscall(itl,func);
 
-    if(dst_slot.handle != NO_SLOT)
+    if(!is_special_reg(dst_slot,spec_reg::null))
     {
         // move result
-        mov_reg(itl,func,dst_slot,sym_from_idx(RV_IR));
+        mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rv));
     }
     
     return make_builtin(itl,builtin_type::s64_t);   
 }
 
-Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     switch(itl.arch)
     {

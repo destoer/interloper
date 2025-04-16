@@ -42,7 +42,7 @@ func test_pattern(screen: u32[], x: u32, y: u32)
 // called when os window is resized
 func window_resized(win: Window@,x : u32, y : u32)
 {
-    std::log_info(WINDOW_PREFIX,"resized {} {}\n",x,y);
+    log::info(WINDOW_PREFIX,"resized {} {}\n",x,y);
 
     win.size.x = x;
     win.size.y = y;

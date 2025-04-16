@@ -13,14 +13,14 @@ ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type
     // -> add dst, v2
     if(dst == v1)
     {
-        node->opcode = Opcode(type,dst,v2,0);
+        node->opcode = make_op(type,dst,v2);
     }
 
     // add dst, v1, dst
     // -> add dst, v1
     else if(dst == v2)
     {
-        node->opcode = Opcode(type,dst,v1,0);
+        node->opcode = make_op(type,dst,v1);
     }
 
     // add dst, v1, v2
@@ -28,8 +28,8 @@ ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type
     // -> add dst, v2
     else
     {
-        node->opcode = Opcode(is_float? op_type::movf_reg : op_type::mov_reg,dst,v1,0);
-        node = insert_after(block.list,node,Opcode(type,dst,v2,0));
+        node->opcode = make_op(is_float? op_type::movf_reg : op_type::mov_reg,dst,v1);
+        node = insert_after(block.list,node,make_op(type,dst,v2));
     }
 
     return node->next;
@@ -53,7 +53,7 @@ ListNode* rewrite_imm3_two(Block& block, ListNode* node,op_type type)
     // -> add dst, imm
     else
     {
-        node->opcode = Opcode(op_type::mov_reg,dst,v1,0);
+        node->opcode = make_op(op_type::mov_reg,dst,v1);
         node = insert_after(block.list,node,make_op(type,dst,imm));
     }
 
@@ -72,7 +72,7 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     // -> sub dst, v2
     if(dst == v1)
     {
-        node->opcode = Opcode(type,dst,v2,0);
+        node->opcode = make_op(type,dst,v2);
     }
 
     // sub dst, v1, dst
@@ -81,10 +81,11 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     // -> mov dst, t0
     else if(dst == v2)
     {
-        const auto tmp = is_float? new_float(func) : new_tmp(func,GPR_SIZE);
-        node->opcode = Opcode(mov_op,tmp.handle,v1,0);
-        node = insert_after(block.list,node,Opcode(type,tmp.handle,v2,0));
-        node = insert_after(block.list,node,Opcode(mov_op,dst,tmp.handle,0));
+        const auto tmp_slot = is_float? new_float(func) : new_tmp(func,GPR_SIZE);
+        const auto tmp = make_reg_operand(tmp_slot);
+        node->opcode = make_op(mov_op,tmp,v1);
+        node = insert_after(block.list,node,make_op(type,tmp,v2));
+        node = insert_after(block.list,node,make_op(mov_op,dst,tmp));
     }
 
     // sub dst, v1, v2
@@ -92,8 +93,8 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     // -> sub dst, v2
     else
     {
-        node->opcode = Opcode(mov_op,dst,v1,0);
-        node = insert_after(block.list,node,Opcode(type,dst,v2,0));
+        node->opcode = make_op(mov_op,dst,v1);
+        node = insert_after(block.list,node,make_op(type,dst,v2));
     }
 
     return node->next;
@@ -104,7 +105,7 @@ ListNode* rewrite_reg2_one(Block& block, ListNode* node,op_type type)
     const auto dst = node->opcode.v[0];
     const auto v1 = node->opcode.v[1];
 
-    node->opcode = Opcode(op_type::mov_reg,dst,v1,0);
+    node->opcode = make_op(op_type::mov_reg,dst,v1);
     node = insert_after(block.list,node,make_op(type,dst));
 
     return node->next;
@@ -124,7 +125,7 @@ ListNode* emit_popm(Interloper& itl, Block& block, ListNode* node, u32 bitset)
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,Opcode(op_type::pop,i,0,0));
+            node = insert_at(block.list,node,make_raw_op(op_type::pop,i,0,0));
             node = node->next;
         }
     }
@@ -140,7 +141,7 @@ ListNode* emit_pushm(Interloper& itl, Block& block, ListNode* node,u32 bitset)
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,Opcode(op_type::push,i,0,0));
+            node = insert_at(block.list,node,make_raw_op(op_type::push,i,0,0));
             node = node->next;
         }
     }
@@ -165,13 +166,13 @@ ListNode* emit_popm_float(Interloper& itl, Block& block, ListNode* node, u32 bit
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,Opcode(op_type::lf,i,sp,offset));
+            node = insert_at(block.list,node,make_raw_op(op_type::lf,i,sp,offset));
             node = node->next;
             offset -= FLOAT_SIZE;
         }
     }
 
-    node = insert_at(block.list,node,make_op(op_type::add_imm2,sp,size));
+    node = insert_at(block.list,node,make_raw_op(op_type::add_imm2,sp,size,0));
     node = node->next;
 
     return node;
@@ -189,118 +190,19 @@ void emit_pushm_float(Interloper& itl, Block& block, ListNode* node,u32 bitset)
 
     const u32 sp = arch_sp(itl.arch);
 
-    node = insert_at(block.list,node,make_op(op_type::sub_imm2,sp,size));
+    node = insert_at(block.list,node,make_raw_op(op_type::sub_imm2,sp,size,0));
     node = node->next;
 
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,Opcode(op_type::sf,i,sp,offset));
+            node = insert_at(block.list,node,make_raw_op(op_type::sf,i,sp,offset));
             node = node->next;
             offset -= FLOAT_SIZE;
         }
     }
 }
-
-ListNode* x86_fixed_arith_oper(Interloper& itl, Function& func,Block& block, ListNode* node, op_type type, bool is_unsigned)
-{
-    // div dst, v1 , v2    
-    const auto dst = node->opcode.v[0];
-    const auto v1 = node->opcode.v[1];
-    const auto v2 = node->opcode.v[2];
-
-    // move in numerator
-    insert_lock(itl,func,block,node,sym_from_idx(RAX_IR),false); 
-    node->opcode = make_op(op_type::mov_reg,RAX_IR,v1);
-
-    // make sure rdx is free and cannot be used for allocation
-    node = insert_lock(itl,func,block,node,sym_from_idx(RDX_IR),true);          
-
-    if(is_unsigned)
-    {
-        // sign extend rax into rdx
-        node = insert_after(block.list,node,make_op(op_type::mov_imm,RDX_IR,0));
-    }
-
-    else
-    {
-        // sign extend rax into rdx
-        node = insert_after(block.list,node,make_op(op_type::cqo));
-    }
-
-    // perform the operation!
-    // NOTE: the operation should unlock both registers
-    node = insert_after(block.list,node,make_op(type,dst,v2));
-
-    return node->next;
-}
-
-
-
-ListNode* x86_shift(Interloper& itl, Function& func,Block& block, ListNode* node, op_type type)
-{
-    // lsl dst, v1 , v2    
-    const auto dst = node->opcode.v[0];
-    const auto v1 = node->opcode.v[1];
-    const auto v2 = node->opcode.v[2];
-
-    // rewrite to
-    // replace rcx, v2
-    // mov dst, v1
-    // lsl dst, rcx
-
-    insert_lock(itl,func,block,node,sym_from_idx(RCX_IR),false); 
-
-    node->opcode = make_op(op_type::mov_reg,RCX_IR,v2);
-    node = insert_after(block.list,node,make_op(op_type::mov_reg,dst,v1));
-    node = insert_after(block.list,node,make_op(type,dst,RCX_IR));
-
-    return node->next;
-}
-
-ListNode* mul_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_fixed_arith_oper(itl,func,block,node,op_type::mul_x86,false);
-}
-
-ListNode* udiv_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_fixed_arith_oper(itl,func,block,node,op_type::udiv_x86,true);
-}
-
-ListNode* sdiv_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_fixed_arith_oper(itl,func,block,node,op_type::sdiv_x86,false);
-}
-
-
-ListNode* umod_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_fixed_arith_oper(itl,func,block,node,op_type::umod_x86,true);
-}
-
-ListNode* smod_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_fixed_arith_oper(itl,func,block,node,op_type::smod_x86,false);
-}
-
-ListNode* lsl_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_shift(itl,func,block,node,op_type::lsl_x86);
-}
-
-ListNode* asr_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_shift(itl,func,block,node,op_type::asr_x86);
-}
-
-ListNode* lsr_x86(Interloper& itl, Function& func,Block& block, ListNode* node)
-{
-    return x86_shift(itl,func,block,node,op_type::lsr_x86);
-}
-
-
 
 ListNode* rewrite_cmp_flag_reg(Block& block, ListNode* node, op_type set)
 {
@@ -357,9 +259,11 @@ ListNode* rewrite_no_imm(Function& func, Block& block,ListNode* node, op_type ty
     // mul dst, v1, imm
     // -> mov t0, imm
     // -> mul dst, v1, t0
-    const auto tmp = new_tmp(func,GPR_SIZE);
-    node->opcode = make_op(op_type::mov_imm,tmp.handle,imm);
-    node = insert_after(block.list,node,make_op(type,dst,v1,tmp.handle));
+    const auto tmp_slot = new_tmp(func,GPR_SIZE);
+    const auto tmp = make_reg_operand(tmp_slot);
+
+    node->opcode = make_op(op_type::mov_imm,tmp,imm);
+    node = insert_after(block.list,node,make_op(type,dst,v1,tmp));
 
     // NOTE: another writing pass has to happen on this opcode
     return node;   
@@ -367,12 +271,21 @@ ListNode* rewrite_no_imm(Function& func, Block& block,ListNode* node, op_type ty
 
 ListNode* rewrite_x86_cond_branch(Block& block, ListNode* node, b32 if_true)
 {
-    const u32 handle = node->opcode.v[0];
-    const u32 cond = node->opcode.v[1];
+    const auto slot = node->opcode.v[0];
+    const auto cond = node->opcode.v[1];
 
     node->opcode = make_op(op_type::test,cond,cond);
-    node = insert_after(block.list,node,make_op(if_true? op_type::jne : op_type::je,handle));
+    node = insert_after(block.list,node,make_op(if_true? op_type::jne : op_type::je,slot));
             
+    return node->next;
+}
+
+ListNode* rewrite_x86_fixed(Block& block, ListNode* node, op_type op)
+{
+    const auto dst = node->opcode.v[0];
+    insert_at(block.list,node,make_op(op_type::mov_reg,dst,node->opcode.v[1]));
+    node->opcode = make_op(op,dst,node->opcode.v[2]);
+
     return node->next;
 }
 
@@ -512,7 +425,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return lsl_x86(itl,func,block,node);
+                    return rewrite_x86_fixed(block,node,op_type::lsl_x86);
                 }
             }
             break;
@@ -524,7 +437,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return asr_x86(itl,func,block,node);
+                    return rewrite_x86_fixed(block,node,op_type::asr_x86);
                 }
             }
             break;
@@ -536,7 +449,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return lsr_x86(itl,func,block,node); 
+                    return rewrite_x86_fixed(block,node,op_type::lsr_x86);
                 }
             }
             break;
@@ -558,7 +471,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return udiv_x86(itl,func,block,node);
+                    return rewrite_x86_fixed(block,node,op_type::udiv_x86);
                 }
             }
             break;
@@ -570,7 +483,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return sdiv_x86(itl,func,block,node);
+                    return rewrite_x86_fixed(block,node,op_type::sdiv_x86);
                 }
             }
             break;
@@ -582,7 +495,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return umod_x86(itl,func,block,node);
+                    return rewrite_x86_fixed(block,node,op_type::umod_x86);
                 }
             }
             break;
@@ -594,7 +507,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
             {
                 case arch_target::x86_64_t:
                 {
-                    return smod_x86(itl,func,block,node);
+                    return rewrite_x86_fixed(block,node,op_type::smod_x86);
                 }
             }
             break;
@@ -602,14 +515,7 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::mul_reg:
         {
-            switch(itl.arch)
-            {
-                case arch_target::x86_64_t:
-                {
-                    return mul_x86(itl,func,block,node);
-                }
-            }
-            break;
+            return rewrite_reg3_two_commutative(block,node,op_type::mul_reg2,false);
         }
 
         case op_type::mul_imm:
@@ -649,11 +555,9 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
 
         case op_type::movf_imm:
         {
-            const f64 v = bit_cast_to_f64(opcode.v[1]);
-
             // dump float in the const pool table so we can do a relative load
-            const auto pool_slot = push_const_pool(itl.const_pool,pool_type::var,&v,sizeof(f64));
-            node->opcode = make_op(op_type::load_const_float,opcode.v[0],pool_slot.handle,opcode.v[1]);
+            const auto pool_slot = push_const_pool(itl.const_pool,pool_type::var,&opcode.v[1].decimal,sizeof(f64));
+            node->opcode = make_op(op_type::load_const_float,opcode.v[0],make_raw_operand(pool_slot.handle),opcode.v[1]);
             return node->next;
         }
 
@@ -691,8 +595,8 @@ ListNode* rewrite_three_address_code(Interloper& itl, Function& func, Block& blo
         {
             const auto src = node->opcode.v[0];
 
-            node->opcode = make_op(op_type::alloc_stack,8);
-            node = insert_after(block.list,node,make_op(op_type::sf,src,SP_IR,0));
+            node->opcode = make_raw_op(op_type::alloc_stack,8);
+            node = insert_after(block.list,node,make_op(op_type::sf,src,make_spec_operand(spec_reg::sp),make_imm_operand(0)));
             break;
         }
 

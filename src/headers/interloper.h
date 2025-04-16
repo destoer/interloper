@@ -164,11 +164,15 @@ struct Interloper
     // compiler options
     b32 rtti_enable = true;
 
-    b32 stack_only = false;
-
     b32 optimise = false;
+    b32 stack_alloc = false;
 
     b32 compile_only = false;
+
+    double backend_time = 0.0;
+    double code_gen_time = 0.0;
+    double parsing_time = 0.0;
+    double optimise_time = 0.0;
 };
 
 void print(const AstNode *root, b32 override_seperator = false);

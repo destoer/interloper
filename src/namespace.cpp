@@ -147,21 +147,15 @@ void print_namespace_tree(NameSpace* root, u32 depth)
 
     auto table = root->table;
 
-    for(u32 i = 0; i < count(table.buf); i++)
+    for(auto& table_node : table)
     {
-        auto& bucket = table.buf[i];
-
-        for(u32 j = 0; j < count(bucket); j++)
-        {
-            print_depth(depth + 1);
-            printf("def %s %s\n",bucket[j].key.buf,definition_type_name(&bucket[j].v));
-        }
+        print_depth(depth + 1);
+        printf("def %s %s\n",table_node.key.buf,definition_type_name(&table_node.v));
     }    
 
-
-    for(size_t i = 0; i < count(root->nodes); i++)
+    for(NameSpace* node : root->nodes)
     {
-        print_namespace_tree(root->nodes[i],depth + 2);
+        print_namespace_tree(node,depth + 2);
     }
 }
 

@@ -55,11 +55,8 @@ import <file>
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
-
-/*
-global stdout : File;
-global stdin : File;
-*/
+// global stdout : File;
+// global stdin : File;
 
 func open_stdout() File
 {
@@ -88,6 +85,11 @@ func open_stdin() File
 
 func write_str_raw(data : const c8@, len : usize)
 {
+    if(!global_setup)
+    {
+        std::exit(0xbb);
+    }
+
     if(len == 0)
     {
         return;
@@ -107,6 +109,11 @@ func write_str_raw(data : const c8@, len : usize)
 
 func write_string(str: const string)
 {
+    if(!global_setup)
+    {
+        std::exit(0xbb);
+    }
+
     if(str.len == 0)
     {
         return;

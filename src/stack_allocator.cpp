@@ -18,7 +18,7 @@ struct StackAlloc
     // what is the total ammount of space that this functions stack requires!
     u32 stack_size = 0;
 
-    Array<SymSlot> pending_allocation;
+    Array<RegSlot> pending_allocation;
 
     b32 print = false;
 };
@@ -50,7 +50,7 @@ u32 stack_reserve_internal(StackAlloc& alloc, u32 size, u32 count)
     return cur;    
 }
 
-u32 allocate_stack_array(StackAlloc& alloc,SymbolTable& table ,SymSlot slot, u32 size, u32 alloc_count)
+u32 allocate_stack_array(StackAlloc& alloc,SymbolTable& table, SymSlot slot, u32 size, u32 alloc_count)
 {
     ArrayAllocation allocation;
     allocation.slot = slot;
@@ -75,13 +75,13 @@ u32 allocate_stack_array(StackAlloc& alloc,SymbolTable& table ,SymSlot slot, u32
 void stack_reserve_reg(StackAlloc& alloc, Reg& ir_reg)
 {
     // if we attempt to reserve space for a global we have trouble
-    assert(ir_reg.kind == reg_kind::local || ir_reg.kind == reg_kind::tmp);
+    assert(is_local(ir_reg));
 
     ir_reg.offset = stack_reserve_internal(alloc,ir_reg.size,ir_reg.count);
 
     ir_reg.flags |= PENDING_STACK_ALLOCATION;
 
-    log(alloc.print,"initial stack offset for register %x at %x allocated\n",ir_reg.slot.handle,ir_reg.offset);
+    log(alloc.print,"initial stack offset for register %r at %x allocated\n",ir_reg.slot,ir_reg.offset);
 
     // mark this so we can finalise these later
     push_var(alloc.pending_allocation,ir_reg.slot);
@@ -193,10 +193,10 @@ void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved
 
         auto &sym = sym_from_slot(table,slot);
 
-        //printf("%s : %x\n",sym.name.buf,sym.arg_offset);
-
         // alloc above the stack frame
         sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + GPR_SIZE;
+
+        log_reg(alloc.print,table,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,sym.reg.offset);
     }           
 }
 

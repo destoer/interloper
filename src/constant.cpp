@@ -1,7 +1,7 @@
 
 b32 is_constant(const Symbol& sym)
 {
-    return sym.reg.kind == reg_kind::constant;
+    return sym.reg.segment == reg_segment::constant;
 }
 
 // NOTE: type checking rules are less strict than in "runtime" expressions
@@ -156,7 +156,7 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
 
             // TODO: atm this requires correct decl order
             // as we dont have a locking mechanism or a way to lookup exprs
-            auto [type,sym_slot] = symbol(itl,node);
+            auto [type,slot] = symbol(itl,node);
 
             if(itl.error)
             {
@@ -164,7 +164,7 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
             }
 
             // pull sym
-            auto& sym = sym_from_slot(itl.symbol_table,sym_slot);
+            auto& sym = sym_from_slot(itl.symbol_table,slot.sym_slot);
 
             if(!is_constant(sym))
             {
@@ -919,7 +919,7 @@ void compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
 
     // make sure this is marked as constant
     // incase it is declared locally
-    sym.reg.kind = reg_kind::constant;
+    sym.reg.segment = reg_segment::constant;
 
     // compile the expression
     compile_constant_initializer(itl,sym,decl_node->expr);    

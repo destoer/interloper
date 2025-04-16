@@ -1785,7 +1785,7 @@ void check_assign_init(Interloper& itl, const Type* ltype, const Type* rtype)
 }
 
 
-void clip_arith_type(Interloper &itl, Function& func,SymSlot dst_slot, SymSlot src_slot, u32 size)
+void clip_arith_type(Interloper &itl, Function& func,RegSlot dst_slot, RegSlot src_slot, u32 size)
 {
     switch(size)
     {
@@ -1820,7 +1820,7 @@ void clip_arith_type(Interloper &itl, Function& func,SymSlot dst_slot, SymSlot s
     }    
 }
 
-void handle_cast(Interloper& itl,Function& func, SymSlot dst_slot,SymSlot src_slot,const Type *old_type, const Type *new_type)
+void handle_cast(Interloper& itl,Function& func, RegSlot dst_slot,RegSlot src_slot,const Type *old_type, const Type *new_type)
 {
     if(itl.error)
     {
@@ -1997,7 +1997,7 @@ std::pair<Type*,u64> access_builtin_type_info(Interloper& itl, builtin_type type
 
 
 
-Type* access_builtin_type_info(Interloper& itl, Function& func, SymSlot dst_slot, builtin_type type, const String& member_name)
+Type* access_builtin_type_info(Interloper& itl, Function& func, RegSlot dst_slot, builtin_type type, const String& member_name)
 {
     auto [rtype,ans] = access_builtin_type_info(itl,type,member_name);
 
@@ -2063,7 +2063,7 @@ std::pair<Type*,u32> access_type_info(Interloper& itl,const TypeDecl& type_decl,
     assert(false);
 }
 
-Type* access_type_info(Interloper& itl, Function& func, SymSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
+Type* access_type_info(Interloper& itl, Function& func, RegSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
 {
     auto [type,ans] = access_type_info(itl,type_decl,member_name);
 
@@ -2234,9 +2234,9 @@ void destroy_func(Function& func)
 {
     destroy_sig(func.sig);
 
-    for(u32 r = 0; r < count(func.registers); r++)
+    for(auto& reg : func.registers)
     {
-        destroy_reg(func.registers[r]);
+        destroy_reg(reg);
     }
 
     destroy_arr(func.registers);

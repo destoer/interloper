@@ -1,38 +1,8 @@
 #include <ir.h>
 
-static constexpr u32 REG_FREE = SPECIAL_PURPOSE_REG_START - 1;
-static constexpr u32 TMP_END = REG_FREE - 1;
-static constexpr u32 REG_TMP_START = 0x00000000;
-
 void destroy_reg(Reg& ir_reg)
 {
     UNUSED(ir_reg);
-}
-
-b32 is_sym(SymSlot s)
-{
-    return s.handle >= SYMBOL_START;
-}
-
-u32 tmp(u32 ir_reg)
-{
-    return ir_reg + REG_TMP_START;
-}
-
-// dont correct special regs
-b32 is_reg(SymSlot r)
-{
-    return r.handle < MACHINE_REG_SIZE;
-}
-
-b32 is_special_reg(SymSlot r)
-{
-    return r.handle >= SPECIAL_PURPOSE_REG_START && r.handle <= SPECIAL_PURPOSE_REG_START + SPECIAL_REG_SIZE;
-}
-
-b32 is_tmp(SymSlot s)
-{
-    return s.handle < TMP_END;
 }
 
 b32 is_arg_reg(arg_type type)
@@ -42,12 +12,12 @@ b32 is_arg_reg(arg_type type)
 
 b32 is_arg_src(arg_type type)
 {
-    return type == arg_type::dst_src_reg || type == arg_type::src_reg || type == arg_type::src_float;
+    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
 }
 
 constexpr b32 is_arg_src_const(arg_type type)
 {
-    return type == arg_type::dst_src_reg || type == arg_type::src_reg || type == arg_type::src_float;
+    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
 }
 
 b32 is_arg_dst(arg_type type)
@@ -71,10 +41,6 @@ constexpr b32 is_arg_float_const(arg_type type)
     return type == arg_type::dst_src_float || type == arg_type::src_float || type ==  arg_type::dst_float;
 }
 
-u32 slot_to_idx(SymSlot slot)
-{
-    return is_sym(slot)? sym_to_idx(slot) : slot.handle;
-}
 
 u32 gpr_count(u32 size)
 {
@@ -94,7 +60,7 @@ b32 is_mem_allocated(Reg& reg)
 
 b32 is_stack_unallocated(Reg& reg)
 {
-    return is_mem_unallocated(reg) && (reg.kind == reg_kind::local || reg.kind == reg_kind::tmp);
+    return is_mem_unallocated(reg) && (reg.slot.kind == reg_kind::sym || reg.slot.kind == reg_kind::tmp);
 }
 
 
@@ -108,12 +74,6 @@ b32 is_stored_in_mem(Reg& reg)
 {
     return reg.flags & STORED_IN_MEM;
 }
-
-b32 is_var(SymSlot slot)
-{
-    return is_tmp(slot) || is_sym(slot);
-}
-
 
 // NOTE: this only works for structs, vars i.e power of two aligned sizes
 // not arrays
@@ -163,7 +123,7 @@ b32 is_signed(const Reg& reg)
 
 b32 is_global(const Reg& reg)
 {
-    return reg.kind == reg_kind::global || reg.kind == reg_kind::constant;
+    return reg.segment == reg_segment::global || reg.segment == reg_segment::constant;
 }
 
 b32 is_local(const Reg& reg)
@@ -176,18 +136,43 @@ b32 is_arg(const Reg& reg)
     return reg.flags & FUNC_ARG;
 }
 
-Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
+b32 is_special_reg_fpr(spec_reg reg)
+{
+    return reg == spec_reg::rv_float;
+}
+
+b32 is_special_reg(RegSlot slot)
+{
+    return slot.kind == reg_kind::spec;
+}
+
+b32 is_special_reg(RegSlot slot, spec_reg reg)
+{
+    return slot.kind == reg_kind::spec && slot.spec == reg;
+}
+
+b32 is_null_reg(RegSlot slot)
+{
+    return is_special_reg(slot,spec_reg::null);
+}
+
+b32 is_var(RegSlot slot)
+{
+    return !is_special_reg(slot);
+}
+
+Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
 {
     Reg reg;
 
-    reg.kind = kind;
+    reg.slot = slot;
 
     u32 size = type_size(itl,type);
 
     // tmp's derived from expression are allways atleast gpr sized
     // this ensures that intermediate results allways get stored at 
     // "max" precision
-    if(kind == reg_kind::tmp && size < GPR_SIZE)
+    if(slot.kind == reg_kind::tmp && size < GPR_SIZE)
     {
         size = GPR_SIZE;
     }
@@ -219,16 +204,13 @@ Reg make_reg(Interloper& itl, reg_kind kind,u32 slot, const Type* type)
         reg.flags |= REG_FLOAT;
     }
 
-
-    reg.slot = {slot};
-
     return reg;
 }
 
-Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed, b32 is_float)
+Reg make_reg(const RegSlot& slot, u32 size, b32 is_signed, b32 is_float)
 {
     Reg reg;
-    reg.kind = kind;
+    reg.slot = slot;
 
     assign_reg_size(reg,size);
 
@@ -242,27 +224,35 @@ Reg make_reg(reg_kind kind,u32 size, u32 slot, b32 is_signed, b32 is_float)
         reg.flags |= REG_FLOAT;
     }
 
-    reg.slot = {slot};
-
     return reg;
 }
 
 
 void print(const Reg& reg)
 {
-    const char* KIND_NAMES[] = {"local","global","tmp"};
-    printf("kind: %s\n",KIND_NAMES[u32(reg.kind)]);
-    printf("slot: 0x%x\n",reg.slot.handle);
+    const char* KIND_NAMES[] = {"local","global","constant","tmp"};
+    printf("kind: %s\n",KIND_NAMES[u32(reg.slot.kind)]);
+    printf("slot: 0x%x\n",reg.slot.kind == reg_kind::tmp? reg.slot.tmp_slot.handle : reg.slot.sym_slot.handle);
 
     printf("size: %d\n",reg.size);
     printf("count: %d\n",reg.count);
 
     printf("offset: 0x%x\n",reg.offset);
+
+    printf("local reg: r%x\n",reg.local_reg);
+    printf("global reg: r%x\n",reg.global_reg);
+
+    printf("uses: %d\n",reg.cur_local_uses);
+    
+    for(u32 i = 0; i < count(reg.local_uses); i++)
+    {
+        printf("use[%d] -> %d\n",i,reg.local_uses[i]);
+    }
 }
 
-const char* spec_reg_name(SymSlot spec_reg)
+const char* spec_reg_name(spec_reg reg)
 {
-    return SPECIAL_REG_NAMES[spec_reg.handle - SPECIAL_PURPOSE_REG_START].buf;    
+    return SPECIAL_REG_NAMES[u32(reg) - SPECIAL_REG_START].buf;    
 }
 
 
@@ -277,6 +267,11 @@ const char* reg_name(arch_target arch, u32 reg)
                 return X86_NAMES[reg];
             }
 
+            else if(reg == REG_FREE)
+            {
+                return "Free";
+            }
+
             else
             {
                 return "ERROR";
@@ -287,27 +282,30 @@ const char* reg_name(arch_target arch, u32 reg)
     return nullptr;
 }
 
-SymSlot new_tmp(Function& func, u32 size)
+RegSlot new_tmp(Function& func, u32 size)
 {
-    const u32 slot = count(func.registers);
+    const TmpSlot tmp_slot = {count(func.registers)};
 
-    const auto reg = make_reg(reg_kind::tmp,size,slot,false,false);
+    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
+
+    const auto reg = make_reg(reg_slot,size,false,false);
     push_var(func.registers,reg);
 
-    return sym_from_idx(slot);
+    return reg_slot;
 }
 
-SymSlot new_float(Function& func)
+RegSlot new_float(Function& func)
 {
-    const u32 slot = count(func.registers);
+    const TmpSlot tmp_slot = {count(func.registers)};
+    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
 
-    const auto reg = make_reg(reg_kind::tmp,8,slot,false,true);
+    auto reg = make_reg(reg_slot,sizeof(f64),false,true);
     push_var(func.registers,reg);
 
-    return sym_from_idx(slot);   
+    return reg_slot;  
 }
 
-SymSlot new_tmp_ptr(Function &func)
+RegSlot new_tmp_ptr(Function &func)
 {
     return new_tmp(func,GPR_SIZE);
 }
@@ -319,7 +317,7 @@ void free_slot(Interloper& itl,Function& func, const Reg& reg)
 
 void free_sym(Interloper& itl,Function& func, Symbol& sym)
 {
-    if(is_fixed_array(sym.type) && (sym.reg.kind == reg_kind::local || sym.reg.kind == reg_kind::tmp))
+    if(is_fixed_array(sym.type) && (sym.reg.slot.kind == reg_kind::sym || sym.reg.slot.kind == reg_kind::tmp))
     {
         auto [size,count] = calc_arr_allocation(itl,sym);
         free_fixed_array(itl,func,sym.reg.slot,size,count);
@@ -449,22 +447,28 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
                 // reg
                 case 'r':
                 {
-                    const auto slot = sym_from_idx(va_arg(args,u32));
+                    const auto slot = va_arg(args,RegSlot);
 
-                    if(is_special_reg(slot))
+                    switch(slot.kind)
                     {
-                        printf("%s",spec_reg_name(slot));
-                    }
+                        case reg_kind::spec:
+                        {
+                            printf("%s",spec_reg_name(slot.spec));
+                            break;
+                        }
 
-                    else if(is_tmp(slot))
-                    {
-                        printf("t%d",slot.handle);
-                    }
+                        case reg_kind::sym:
+                        {
+                            const auto &sym = sym_from_slot(table,slot.sym_slot);
+                            printf("%s",sym.name.buf);
+                            break;
+                        }
 
-                    else if(is_sym(slot))
-                    {
-                        const auto &sym = sym_from_slot(table,slot);
-                        printf("%s",sym.name.buf);
+                        case reg_kind::tmp:
+                        {
+                            printf("t%d",slot.tmp_slot.handle);
+                            break;
+                        }
                     }
                     break;
                 }
@@ -487,11 +491,31 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
 }
 
 
-u32 special_reg_to_reg(arch_target arch,SymSlot slot)
+struct AbiInfo
 {
-    switch(slot.handle)
+    u32 rv;
+    u32 sp;
+
+    // u32 args[32];
+    // u32 arg_count;
+};
+
+static constexpr AbiInfo ABI_INFO[] = 
+{
+    {x86_reg::rax,x86_reg::rsp}, // arch_target::x86_64_t
+};
+
+// TODO: This should not just be down to arch
+const AbiInfo& get_abi_info(arch_target arch)
+{
+    return ABI_INFO[u32(arch)];
+}
+
+u32 special_reg_to_reg(arch_target arch,spec_reg spec)
+{
+    switch(spec)
     {
-        case SP_IR:
+        case spec_reg::sp:
         { 
             switch(arch)
             {
@@ -504,7 +528,7 @@ u32 special_reg_to_reg(arch_target arch,SymSlot slot)
         }
 
 
-        case RV_IR: 
+        case spec_reg::rv: 
         {
             switch(arch)
             {
@@ -516,7 +540,7 @@ u32 special_reg_to_reg(arch_target arch,SymSlot slot)
             assert(false);
         }
 
-        case RV_FLOAT_IR: 
+        case spec_reg::rv_float: 
         {
             switch(arch)
             {
@@ -529,33 +553,24 @@ u32 special_reg_to_reg(arch_target arch,SymSlot slot)
         }
 
 
-        case RAX_IR: return u32(x86_reg::rax);
-        case RCX_IR: return u32(x86_reg::rcx);
-        case RDX_IR: return u32(x86_reg::rdx);
-        case RDI_IR: return u32(x86_reg::rdi); 
-        case RSI_IR: return u32(x86_reg::rsi); 
-        case R8_IR: return u32(x86_reg::r8);
-        case R9_IR: return u32(x86_reg::r9);
-        case R10_IR: return u32(x86_reg::r10);
+        case spec_reg::rax: return u32(x86_reg::rax);
+        case spec_reg::rcx: return u32(x86_reg::rcx);
+        case spec_reg::rdx: return u32(x86_reg::rdx);
+        case spec_reg::rdi: return u32(x86_reg::rdi); 
+        case spec_reg::rsi: return u32(x86_reg::rsi); 
+        case spec_reg::r8: return u32(x86_reg::r8);
+        case spec_reg::r9: return u32(x86_reg::r9);
+        case spec_reg::r10: return u32(x86_reg::r10);
 
-        default: crash_and_burn("unhandled special reg %x\n",slot); 
+        default: crash_and_burn("unhandled special reg %x\n",u32(spec)); 
     }    
-}
-
-// TODO: we may want a table to back this at some point
-b32 is_fpr(SymSlot slot)
-{
-    return slot.handle == RV_FLOAT_IR;
 }
 
 std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
 {
-    UNUSED(itl);
-
-    switch(ir_reg.kind)
+    switch(ir_reg.segment)
     {
-        case reg_kind::local:
-        case reg_kind::tmp:
+        case reg_segment::local:
         {
             const u32 SP = arch_sp(itl.arch);
 
@@ -563,19 +578,19 @@ std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offse
             return std::pair{SP,offset};
         }
 
-        case reg_kind::constant:
+        case reg_segment::constant:
         {
             const u32 handle = ir_reg.offset;
 
             const PoolSlot pool_slot = pool_slot_from_idx(handle);
             auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
-            return std::pair{CONST_IR,section.offset};
+            return std::pair{u32(spec_reg::const_seg),section.offset};
         }
 
-        case reg_kind::global:
+        case reg_segment::global:
         {
-            return std::pair{GP_IR,ir_reg.offset};
+            return std::pair{u32(spec_reg::global_seg),ir_reg.offset};
         }
     }
 

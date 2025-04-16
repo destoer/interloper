@@ -1,27 +1,27 @@
 
-AddrSlot make_addr(SymSlot slot, u32 offset)
+AddrSlot make_addr(RegSlot slot, u32 offset)
 {
     return {slot,offset,false};
 }
 
-AddrSlot make_struct_addr(SymSlot slot, u32 offset)
+AddrSlot make_struct_addr(RegSlot slot, u32 offset)
 {
     return {slot,offset,true};
 }
 
 
-AddrSlot take_addr(Interloper& itl, Function& func, SymSlot src, u32 offset)
+AddrSlot take_addr(Interloper& itl, Function& func, RegSlot src, u32 offset)
 {
     const auto src_ptr = addrof_res(itl,func,src,offset);
     return make_addr(src_ptr,0);
 }
 
 // get back a complete pointer
-SymSlot collapse_offset(Interloper& itl,Function&func, SymSlot addr_slot, u32 *offset)
+RegSlot collapse_offset(Interloper& itl,Function&func, RegSlot addr_slot, u32 *offset)
 {
     if(*offset)
     {
-        const SymSlot final_addr = add_imm_res(itl,func,addr_slot,*offset);
+        const RegSlot final_addr = add_imm_res(itl,func,addr_slot,*offset);
         *offset = 0;
 
         return final_addr;
@@ -48,7 +48,7 @@ void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_sl
 }
 
 
-void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,u32 offset,u32 size, b32 is_signed, b32 is_float)
+void load_ptr(Interloper &itl,Function& func,RegSlot dst_slot,RegSlot addr_slot,u32 offset,u32 size, b32 is_signed, b32 is_float)
 {
     if(is_float)
     {
@@ -120,7 +120,7 @@ void load_ptr(Interloper &itl,Function& func,SymSlot dst_slot,SymSlot addr_slot,
     }
 }
 
-void load_struct(Interloper &itl,Function& func,SymSlot dst_slot,AddrSlot addr_slot,u32 size, b32 is_signed, b32 is_float)
+void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,AddrSlot addr_slot,u32 size, b32 is_signed, b32 is_float)
 {
     if(is_float)
     {
@@ -148,7 +148,7 @@ void load_struct(Interloper &itl,Function& func,SymSlot dst_slot,AddrSlot addr_s
     }
 }
 
-void load_addr_slot(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot addr_slot, u32 size, b32 sign, b32 is_float)
+void load_addr_slot(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot addr_slot, u32 size, b32 sign, b32 is_float)
 {
     if(addr_slot.struct_addr)
     {
@@ -161,7 +161,7 @@ void load_addr_slot(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot add
     }
 }
 
-void do_addr_load(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot src_addr, const Type* type)
+void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_addr, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
@@ -186,17 +186,33 @@ void do_addr_load(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot src_a
 
     else if(is_struct(type))
     {
-        // copy into hidden pointer
-        if(dst_slot.handle == RV_IR)
+        switch(dst_slot.kind)
         {
-            const auto dst_addr = make_addr(func.sig.args[0],0);
-            ir_memcpy(itl,func,dst_addr,src_addr,size);
-        }
+            case reg_kind::sym:
+            case reg_kind::tmp:
+            {
+                const auto dst_addr = make_struct_addr(dst_slot,0);
+                ir_memcpy(itl,func,dst_addr,src_addr,size);
+                break;
+            }
 
-        else
-        {
-            const auto dst_addr = make_struct_addr(dst_slot,0);
-            ir_memcpy(itl,func,dst_addr,src_addr,size);
+            case reg_kind::spec:
+            {
+                const auto spec = dst_slot.spec;
+
+                switch(spec)
+                { 
+                    // copy into hidden pointer
+                    case spec_reg::rv:
+                    {
+                        const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                        ir_memcpy(itl,func,dst_addr,src_addr,size);
+                        break;
+                    }
+
+                    default: assert(false);
+                }
+            }
         }
     }
 
@@ -214,7 +230,7 @@ void do_addr_load(Interloper &itl,Function &func,SymSlot dst_slot,AddrSlot src_a
     }
 }
 
-void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot ptr_slot, const Type* type, u32 offset = 0)
+void do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,RegSlot ptr_slot, const Type* type, u32 offset = 0)
 {
     const auto src_addr = make_addr(ptr_slot,offset);
     do_addr_load(itl,func,dst_slot,src_addr,type);
@@ -222,7 +238,7 @@ void do_ptr_load(Interloper &itl,Function &func,SymSlot dst_slot,SymSlot ptr_slo
 
 
 
-void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot dst_addr,u32 offset,u32 size, b32 is_float)
+void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot dst_addr,u32 offset,u32 size, b32 is_float)
 {
     if(is_float)
     {
@@ -263,7 +279,7 @@ void store_ptr(Interloper &itl,Function& func,SymSlot src_slot,SymSlot dst_addr,
 }
 
 
-void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot dst_addr,u32 size, b32 is_float)
+void store_struct(Interloper &itl,Function& func,RegSlot src_slot,AddrSlot dst_addr,u32 size, b32 is_float)
 {
     if(is_float)
     {
@@ -281,7 +297,7 @@ void store_struct(Interloper &itl,Function& func,SymSlot src_slot,AddrSlot dst_a
     }      
 }
 
-void store_addr_slot(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_addr, u32 size,b32 is_float)
+void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot dst_addr, u32 size,b32 is_float)
 {
     if(dst_addr.struct_addr)
     {
@@ -295,7 +311,7 @@ void store_addr_slot(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot ds
 }
 
 
-void do_addr_store(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_addr, const Type* type)
+void do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot dst_addr, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
@@ -313,7 +329,7 @@ void do_addr_store(Interloper &itl,Function &func,SymSlot src_slot,AddrSlot dst_
     } 
 }
 
-void do_ptr_store(Interloper &itl,Function &func,SymSlot src_slot,SymSlot ptr_slot, const Type* type, u32 offset = 0)
+void do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,RegSlot ptr_slot, const Type* type, u32 offset = 0)
 {
     const auto dst_addr = make_addr(ptr_slot,offset);
     do_addr_store(itl,func,src_slot,dst_addr,type);

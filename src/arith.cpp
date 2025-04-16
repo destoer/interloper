@@ -1,6 +1,6 @@
 // NOTE: pass umod or udiv and it will figure out the correct one
 template<const op_type type>
-Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     static_assert(
         type == op_type::add_reg || type == op_type::sub_reg || type == op_type::mul_reg ||
@@ -26,7 +26,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
 
-        const SymSlot offset_slot = mul_imm_res(itl,func,v2,type_size(itl,contained_type));
+        const RegSlot offset_slot = mul_imm_res(itl,func,v2,type_size(itl,contained_type));
         emit_reg3<type>(itl,func,dst_slot,v1,offset_slot);
     }
 
@@ -123,7 +123,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst
 
 
 
-Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, SymSlot dst_slot)
+Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, RegSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
@@ -198,7 +198,7 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v
 
 // handles <, <=, >, >=, &&, ||, ==, !=
 template<const logic_op type>
-Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
@@ -341,9 +341,8 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, SymSlot d
 
 //  we dont want the 2nd stage IR handling how things need to be copied
 // as it does not have the information required easily accessible
-void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src_slot, const Type* dst_type, const Type* src_type)
+void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type)
 {
-    UNUSED(itl);
     // check the operation is even legal
 
     // can be moved by a simple data copy 
@@ -371,22 +370,38 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
         // runtime
         else
         {
-            SymSlot addr_slot;
-
-            if(dst_slot.handle == RV_IR)
+            RegSlot addr_slot;
+            
+            switch(dst_slot.kind)
             {
-                addr_slot = func.sig.args[0];
+                case reg_kind::tmp:
+                case reg_kind::sym:
+                {
+                    addr_slot = addrof_res(itl,func,dst_slot);
+                    break;
+                }
+
+                case reg_kind::spec:
+                {
+                    switch(dst_slot.spec)
+                    {
+                        case spec_reg::rv:
+                        {
+                            addr_slot = make_sym_reg_slot(func.sig.args[0]);
+                            break;
+                        }
+
+                        default: assert(false);
+                    }
+
+                    break;
+                }
             }
 
-            else
-            {   
-                addr_slot = addrof_res(itl,func,dst_slot);
-            }
-
-            const SymSlot data_slot = load_arr_data(itl,func,src_slot,src_type);
+            const RegSlot data_slot = load_arr_data(itl,func,src_slot,src_type);
             store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE,false);
 
-            const SymSlot len_slot = load_arr_len(itl,func,src_slot,src_type);
+            const RegSlot len_slot = load_arr_len(itl,func,src_slot,src_type);
             store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false);
         } 
     }
@@ -394,21 +409,36 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
     // requires special handling to move
     else if(is_struct(dst_type) && is_struct(src_type))
     {
-        // copy out the strucutre using the hidden pointer in the first arg
-        if(dst_slot.handle == RV_IR)
+        switch(dst_slot.kind)
         {
-            const auto src_addr = make_struct_addr(src_slot,0);
-            const auto dst_addr = make_addr(func.sig.args[0],0);
+            case reg_kind::sym:
+            case reg_kind::tmp:
+            {
+                const auto src_addr = make_struct_addr(src_slot,0);
+                const auto dst_addr = make_struct_addr(dst_slot,0);
 
-            ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
-        } 
+                ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
+                break;
+            }
 
-        else
-        {
-            const auto src_addr = make_struct_addr(src_slot,0);
-            const auto dst_addr = make_struct_addr(dst_slot,0);
+            case reg_kind::spec:
+            {
+                switch(dst_slot.spec)
+                {
+                    // copy out the strucutre using the hidden pointer in the first arg
+                    case spec_reg::rv:
+                    {
+                        const auto src_addr = make_struct_addr(src_slot,0);
+                        const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
 
-            ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
+                        ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
+                        break;
+                    }
+
+                    default: assert(false);
+                }
+                break;
+            }
         }
     }
 
@@ -420,7 +450,7 @@ void compile_move(Interloper &itl, Function &func, SymSlot dst_slot, SymSlot src
 
 
 // TODO: should we make this more flexible?
-std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,SymSlot slot)
+std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 {
     NameSpace* name_space = nullptr;
 
@@ -432,7 +462,7 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
         if(!name_space)
         {
             panic(itl,itl_error::undeclared,"Could not find namespace\n");
-            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+            return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
         }
 
         node = scope_node->expr;
@@ -460,7 +490,7 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
 
                     if(!func_call_opt)
                     {
-                        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+                        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
                     }
 
                     auto& func_call = *func_call_opt;
@@ -475,7 +505,7 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
                 
                 // nothing found!
                 panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+                return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
             }
 
             // get addr on symbol
@@ -486,7 +516,7 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
             if(is_fixed_array(sym.type))
             {
                 panic(itl,itl_error::array_type_error,"[COMPILE]: cannot take pointer to fixed sized array\n");
-                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+                return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
             }
 
             Type* pointer_type = make_pointer(itl,sym.type);
@@ -519,7 +549,7 @@ std::pair<Type*,SymSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
     }
 }
 
-std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node)
+std::pair<Type*,RegSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node)
 {
     const auto [ptr_type,slot] = compile_oper(itl,func,deref_node);
 
@@ -527,7 +557,7 @@ std::pair<Type*,SymSlot> take_pointer(Interloper& itl,Function& func, AstNode* d
     if(!is_pointer(ptr_type))
     {
         panic(itl,itl_error::pointer_type_error,"Expected pointer got: %s\n",type_name(itl,ptr_type));
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};
+        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
     }
 
     return {ptr_type,slot};

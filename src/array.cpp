@@ -1,13 +1,13 @@
 #include <interloper.h>
 
-std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot ptr_slot,SymSlot dst_slot,IndexNode* index_node,PointerType* type)
+std::pair<Type*,RegSlot> index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,RegSlot dst_slot,IndexNode* index_node,PointerType* type)
 {
     const u32 indexes = count(index_node->indexes);
 
     if(indexes != 1)
     {
         panic(itl,itl_error::array_type_error,"[COMPILE]: expected single index for pointer\n");
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
+        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
     }
 
     Type* plain = type->contained_type;
@@ -18,27 +18,27 @@ std::pair<Type*,SymSlot> index_pointer(Interloper& itl,Function& func,SymSlot pt
     if(!is_integer(subscript_type))
     {
         panic(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
+        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
     }
 
-    const SymSlot offset = mul_imm_res(itl,func,subscript_slot,size);  
+    const RegSlot offset = mul_imm_res(itl,func,subscript_slot,size);  
 
     add(itl,func,dst_slot,ptr_slot,offset);
     return std::pair{(Type*)type,dst_slot};
 }
 
 // indexes off a given type + ptr
-std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
-     Type* type, SymSlot ptr_slot, SymSlot dst_slot)
+std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+     Type* type, RegSlot ptr_slot, RegSlot dst_slot)
 {
     // standard array index
     if(!is_array(type))
     {
         panic(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
+        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
     }
 
-    SymSlot last_slot = ptr_slot;
+    RegSlot last_slot = ptr_slot;
 
     ArrayType* array_type = (ArrayType*)type;
 
@@ -53,7 +53,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
         if(!is_integer(subscript_type))
         {
             panic(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
-            return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};  
+            return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
         }
         
         const bool last_index = i == indexes - 1;
@@ -63,9 +63,9 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
         const u32 size = array_type->sub_size;
 
-        const SymSlot mul_slot = mul_imm_res(itl,func,subscript_slot,size);   
+        const RegSlot mul_slot = mul_imm_res(itl,func,subscript_slot,size);   
 
-        const SymSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
+        const RegSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
         add(itl,func,add_slot,last_slot,mul_slot);
 
         last_slot = add_slot;
@@ -111,7 +111,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
             else 
             {
                 panic(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
-                return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};                          
+                return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};                          
             }
         } 
         
@@ -126,7 +126,7 @@ std::pair<Type*,SymSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
 // TODO: these multidimensional handwave vla's
 
-SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* type)
+RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* type)
 {
     if(is_runtime_size(type))
     {
@@ -142,9 +142,9 @@ SymSlot load_arr_data(Interloper& itl,Function& func,SymSlot slot, const Type* t
 }
 
 // NOTE: this has to be a vla
-void store_arr_data(Interloper& itl, Function& func, SymSlot slot, SymSlot data)
+void store_arr_data(Interloper& itl, Function& func, RegSlot slot, RegSlot data)
 {
-    if(slot.handle != RV_IR)
+    if(!is_special_reg(slot,spec_reg::rv))
     {
         const auto dst_addr = make_struct_addr(slot,0);
         store_struct(itl,func,data,dst_addr,GPR_SIZE,false);
@@ -152,13 +152,13 @@ void store_arr_data(Interloper& itl, Function& func, SymSlot slot, SymSlot data)
 
     else
     {
-        store_ptr(itl,func,data,func.sig.args[0],0,GPR_SIZE,false);
+        store_ptr(itl,func,data,make_sym_reg_slot(func.sig.args[0]),0,GPR_SIZE,false);
     }
 }
 
-void store_arr_len(Interloper& itl, Function& func, SymSlot slot,SymSlot len)
+void store_arr_len(Interloper& itl, Function& func, RegSlot slot,RegSlot len)
 {
-    if(slot.handle != RV_IR)
+    if(!is_special_reg(slot,spec_reg::rv))
     {
         const auto dst_addr = make_struct_addr(slot,GPR_SIZE);
         store_struct(itl,func,len,dst_addr,GPR_SIZE,false);
@@ -166,11 +166,11 @@ void store_arr_len(Interloper& itl, Function& func, SymSlot slot,SymSlot len)
 
     else
     {
-        store_ptr(itl,func,len,func.sig.args[0],GPR_SIZE,GPR_SIZE,false);
+        store_ptr(itl,func,len,make_sym_reg_slot(func.sig.args[0]),GPR_SIZE,GPR_SIZE,false);
     }
 }
 
-SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* type)
+RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* type)
 {
     if(is_runtime_size(type))
     {
@@ -183,17 +183,17 @@ SymSlot load_arr_len(Interloper& itl,Function& func,SymSlot slot, const Type* ty
     return mov_imm_res(itl,func,array_type->size);   
 }
 
-SymSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym)
+RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym)
 {
     return load_arr_data(itl,func,sym.reg.slot,sym.type);
 }
 
-SymSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
+RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
 {
     return load_arr_len(itl,func,sym.reg.slot,sym.type);
 }
 
-std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+std::pair<Type*, RegSlot> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     IndexNode* index_node = (IndexNode*)node;
 
@@ -204,7 +204,7 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
     if(!arr_ptr)
     {
         panic(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};       
+        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};       
     }
 
     const auto arr = *arr_ptr;
@@ -212,7 +212,7 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
     if(is_array(arr.type))
     {
         // get the initial data ptr
-        const SymSlot data_slot = load_arr_data(itl,func,arr);
+        const RegSlot data_slot = load_arr_data(itl,func,arr);
 
         return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
     }
@@ -225,11 +225,11 @@ std::pair<Type*, SymSlot> index_arr(Interloper &itl,Function &func,AstNode *node
     else
     {
         panic(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for index got %s\n",type_name(itl,arr.type));
-        return std::pair{make_builtin(itl,builtin_type::void_t),SYM_ERROR};          
+        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};          
     }
 }
 
-Type* read_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
+Type* read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
 
@@ -248,7 +248,7 @@ Type* read_arr(Interloper &itl,Function &func,AstNode *node, SymSlot dst_slot)
 
 
 // TODO: our type checking for our array assigns has to be done out here to ensure locals are type checked correctly
-void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, SymSlot slot)
+void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, RegSlot slot)
 {
     auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
 
@@ -362,12 +362,12 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                             // we can set this up directly from the const pool
                             const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
 
-                            const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
+                            const RegSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
                             store_addr_slot(itl,func,arr_data,*addr_slot,GPR_SIZE,false);
 
                             addr_slot->offset += GPR_SIZE;
 
-                            const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
+                            const RegSlot arr_size = mov_imm_res(itl,func,literal.size);
                             store_addr_slot(itl,func,arr_size,*addr_slot,GPR_SIZE,false);
 
                             addr_slot->offset += GPR_SIZE;
@@ -517,19 +517,19 @@ void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,AddrS
 }
 
 
-void store_const_string(Interloper& itl, Function& func, const String& literal, const SymSlot arr_slot)
+void store_const_string(Interloper& itl, Function& func, const String& literal, const RegSlot arr_slot)
 {
     // we can set this up directly from the const pool
     const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
 
-    const SymSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
+    const RegSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
     store_arr_data(itl,func,arr_slot,arr_data);
 
-    const SymSlot arr_size = mov_imm_res(itl,func,literal.size);
+    const RegSlot arr_size = mov_imm_res(itl,func,literal.size);
     store_arr_len(itl,func,arr_slot,arr_size);
 }
 
-void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const SymSlot arr_slot, Type* type)
+void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const RegSlot arr_slot, Type* type)
 {
     switch(node->type)
     {
@@ -544,7 +544,7 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Sy
 
             else 
             {
-                const SymSlot ptr_slot = load_arr_data(itl,func,arr_slot,type);
+                const RegSlot ptr_slot = load_arr_data(itl,func,arr_slot,type);
                 const auto addr_slot = make_addr(ptr_slot,0);
                 traverse_arr_initializer(itl,func,node,addr_slot,type);
             }
@@ -644,10 +644,9 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
 
             for(u32 i = 0; i < type->size; i++)
             {
-                struct_addr.offset += structure.size;
-
                 // TODO: just default construct it for now!
                 compile_struct_decl_default(itl,func,structure,struct_addr);
+                struct_addr.offset += structure.size;
             }
         }
 
@@ -676,7 +675,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    ListNode* alloc = alloc_slot(itl,func,slot,true);
+    ListNode* alloc = alloc_slot(itl,func,make_sym_reg_slot(slot),true);
 
     // has an initalizer
     if(decl_node->expr)
@@ -720,50 +719,42 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         return;
     }
 
-    else
+
+    auto& array = sym_from_slot(itl.symbol_table,slot);
+
+    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
+
+    // allocate fixed array if needed, and initalize it to its data pointer
+    if(is_fixed_array(array.type))
     {
-        auto& array = sym_from_slot(itl.symbol_table,slot);
-
-        const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
-
-        // allocate fixed array if needed, and initalize it to its data pointer
-        if(is_fixed_array(array.type))
+        // we have the allocation information now complete it
+        switch(array.reg.segment)
         {
-            // we have the allocation information now complete it
-            switch(array.reg.kind)
+            case reg_segment::local:
             {
-                case reg_kind::local:
-                {
-                    alloc->opcode = Opcode(op_type::alloc_local_array,array.reg.slot.handle,arr_size,arr_count);
-                    break;
-                }
+                alloc->opcode = make_op(op_type::alloc_local_array,make_reg_operand(array.reg.slot),make_imm_operand(arr_size),make_imm_operand(arr_count));
+                break;
+            }
+            // just dump addr
+            case reg_segment::global:
+            {
+                const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,slot,arr_size,arr_count);
+                alloc->opcode = make_op(op_type::alloc_global_array,make_reg_operand(array.reg.slot),make_imm_operand(alloc_idx));
+                break;
+            }
 
-                case reg_kind::tmp:
-                {
-                    alloc->opcode = Opcode(op_type::alloc_local_array,array.reg.slot.handle,arr_size,arr_count);
-                    break;
-                }
-
-                // just dump addr
-                case reg_kind::global:
-                {
-                    const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,array.reg.slot,arr_size,arr_count);
-                    alloc->opcode = Opcode(op_type::alloc_global_array,array.reg.slot.handle,alloc_idx,0);
-                    break;
-                }
-
-                // constants should not go through this function!
-                case reg_kind::constant:
-                {
-                    assert(false);
-                    break;
-                }
+            // constants should not go through this function!
+            case reg_segment::constant:
+            {
+                assert(false);
+                break;
             }
         }
     }
+    
 }
 
-Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot dst_slot)
+Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
 {
     const auto arr_name = slice_node->name;
     const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
@@ -784,8 +775,8 @@ Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot
 
     const auto arr_slot = arr.reg.slot;
 
-    SymSlot data_slot = load_arr_data(itl,func,arr_slot,arr.type);
-    SymSlot slice_lower = {SYMBOL_NO_SLOT};
+    RegSlot data_slot = load_arr_data(itl,func,arr_slot,arr.type);
+    RegSlot slice_lower = make_spec_reg_slot(spec_reg::null);
 
     // Lower is populated add to data
     if(slice_node->lower)
@@ -799,13 +790,13 @@ Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, SymSlot
             return make_builtin(itl,builtin_type::void_t);      
         }
 
-        const SymSlot offset_slot = mul_imm_res(itl,func,index_slot,type_size(itl,index_arr(arr.type)));
+        const RegSlot offset_slot = mul_imm_res(itl,func,index_slot,type_size(itl,index_arr(arr.type)));
         data_slot = add_res(itl,func,data_slot,offset_slot);
     }
 
     store_arr_data(itl,func,dst_slot,data_slot);
 
-    SymSlot data_len = {SYMBOL_NO_SLOT};
+    RegSlot data_len = make_spec_reg_slot(spec_reg::null);
     
     // Upper is populated set the length
     if(slice_node->upper)

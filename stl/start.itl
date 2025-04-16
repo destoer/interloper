@@ -1,4 +1,5 @@
 import <system>
+import <mem>
 
 global global_setup : bool = false;
 
@@ -13,3 +14,17 @@ func start()
     rc: s32 = main();
     std::exit(rc);
 }
+
+// constant SYSCALL_EXIT : u32 = 60;
+
+// func exit(exit_code: s32)
+// {
+//     intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
+// }
+
+// // TODO: need to define for each arch
+// func start()
+// {
+//     rc: s32 = main();
+//     exit(rc);
+// }

@@ -3,9 +3,6 @@
 #include "interloper.cpp"
 #include "test.cpp"
 
-
-
-
 void parse_flags(Interloper& itl,const char* flags)
 {
     u32 i = 1;
@@ -22,7 +19,7 @@ void parse_flags(Interloper& itl,const char* flags)
             case 'l': itl.print_tokens = true; break;
             case 'q': itl.compile_only = true; break;
             case 'z': itl.optimise = true; break;
-            case 'y': itl.stack_only = true; break;
+            case 'y': itl.stack_alloc = true; break;
             case 't': break;
 
             default: crash_and_burn("unknown flag: %c\n",flags[i]); 
@@ -112,6 +109,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    printf("Parsing time %.2lf ms\n",itl.parsing_time);
+    printf("Code gen and type checking %0.2lf ms\n",itl.code_gen_time);
+    printf("Optimisation time %.2lf ms\n",itl.optimise_time);
+    printf("Backend time %.2lf ms\n",itl.backend_time);
+    printf("Total compiler time: %.2lf ms\n",itl.parsing_time + itl.code_gen_time + itl.optimise_time + itl.backend_time);
 
     destroy_itl(itl);
 

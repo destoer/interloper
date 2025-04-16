@@ -40,7 +40,7 @@ ListNode *insert_at(List &list, ListNode *cur, const Opcode &opcode)
     if(!list.start)
     {
         list.start = node;
-        list.end = node;
+        list.finish = node;
     }
 
     else
@@ -74,7 +74,7 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
     if(!list.start)
     {
         list.start = node;
-        list.end = node;        
+        list.finish = node;        
     }
 
     else
@@ -83,9 +83,9 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
         node->prev = cur;
         cur->next = node;
 
-        if(cur == list.end)
+        if(cur == list.finish)
         {
-            list.end = node;
+            list.finish = node;
         }
 
         else if(node->next)
@@ -97,9 +97,19 @@ ListNode *insert_after(List &list, ListNode *cur, const Opcode &opcode)
     return node;
 }
 
+ListNode* insert_node(List& list, ListNode* cur, const Opcode& opcode, insertion_type type) 
+{
+    if(type == insertion_type::after)
+    {
+        return insert_after(list,cur,opcode);
+    }
+
+    return insert_at(list,cur,opcode);
+}
+
 void append(List &list, const Opcode opcode)
 {
-    insert_after(list,list.end,opcode);
+    insert_after(list,list.finish,opcode);
 }
 
 void insert_front(List &list, const Opcode opcode)
@@ -127,13 +137,13 @@ ListNode *remove(List &list, ListNode* node)
         return list.start;
     }
 
-    else if(node == list.end)
+    else if(node == list.finish)
     {
-        list.end = node->prev;
+        list.finish = node->prev;
 
-        if(list.end)
+        if(list.finish)
         {
-            list.end->next = nullptr;
+            list.finish->next = nullptr;
         }
 
         return nullptr;

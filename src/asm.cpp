@@ -10,7 +10,7 @@ void destroy_asm_emitter(AsmEmitter& emitter)
 template<typename T>
 void push(AsmEmitter& emitter, T v)
 {
-    push_var(emitter.buffer,v);
+    push_raw_var(emitter.buffer,v);
 }
 
 void push_u8(AsmEmitter& emitter, u8 v)
