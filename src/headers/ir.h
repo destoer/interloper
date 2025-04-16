@@ -576,12 +576,12 @@ struct Operand
     {
         f64 decimal;
         u64 imm;
-        u64 raw = 0;
-        RegSlot reg;
+        u64 raw;
+        RegSlot reg = {INVALID_SYM_REG_SLOT};
         LabelSlot label;
     };
 
-    operand_type type = operand_type::raw;
+    operand_type type = operand_type::reg;
 };
 
 inline bool operator == (const Operand& v1, const Operand &v2)
