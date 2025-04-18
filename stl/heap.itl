@@ -6,9 +6,12 @@ struct HeapNode
     canary_start : u64;
 
     next : HeapNode@;
+    prev : HeapNode@;
 
     // NOTE: inclusive Node
     blocks : u64;
+
+    free: bool;
 
     canary_end : u64;
 }
@@ -23,6 +26,7 @@ struct Heap
     // NOTE: this is in block counts
     used : u64;
     capacity : u64;
+    max_allocation: u64;
 
     total_allocation_bytes: u64;
 }
@@ -83,6 +87,11 @@ func verify_node(heap: const Heap@,node: const HeapNode@)
         return;
     }
 
+    if(node.blocks > heap.capacity)
+    {
+        crash_and_burn("Blocks exceeded on node {} {}",cast(byte@,node),heap.capacity);
+    }
+
     if(node > heap.max || node < heap.min)
     {
         // TODO: need to work on rtti so we dont need casts for this
@@ -106,83 +115,20 @@ func verify_heap(heap: const Heap@)
         return;
     }
 
+    prev : HeapNode@ = NULL;
+
     while(cur)
     {
+        if(cur.prev != prev)
+        {
+            crash_and_burn("Prev does not match on heap: {}",cast(byte@,cur));
+        }
+
         verify_node(heap,cur);
+        prev = cur;
         cur = cur.next;
     }
 }
-
-// internal function to add node back to free list
-// NOTE: null checking must be done by higher level functions
-func free_heap_node(heap: Heap@, insert: HeapNode@)
-{
-    verify_node(heap,insert);
-    verify_heap(heap);
-
-    cur := heap.free_list;
-
-    // handle insertion at start
-    if(!cur || insert < cur)
-    {
-        heap.free_list = insert;
-
-        // attempt to collapse with old first
-        if((insert + insert.blocks) == cur)
-        {
-            insert.blocks += cur.blocks;
-            insert.next = cur.next;
-        }
-
-        else
-        {
-            insert.next = cur;
-        }
-
-        return;
-    }
-
-
-    // scan for correct insertion location
-    while(cur.next != NULL && insert > cur.next)
-    {
-        cur = cur.next;
-    }
-    
-    // at this point cur contains the lower bound
-    // and cur.next contains the upper bound
-    // insert is in the middle
-
-    next := cur.next;
-
-    // attempt to collapse upper
-    if((insert + insert.blocks) == next)
-    {
-        insert.blocks += next.blocks;
-        insert.next = next.next;
-    }
-    
-    // cant collapse insert.next = next
-    else
-    {
-        insert.next = next;
-    }
-
-    // attempt to collapse lower
-    if((cur + cur.blocks) == insert)
-    {
-        cur.blocks += insert.blocks;
-        cur.next = insert.next;
-    }
-
-    // cant collapse cur.next = insert
-    else
-    {
-        cur.next = insert;
-    }
-}
-
-
 
 func free_heap(heap : Heap@, ptr : byte@@)
 {
@@ -191,17 +137,63 @@ func free_heap(heap : Heap@, ptr : byte@@)
         return;
     }
 
+    verify_heap(heap);
+
     // block info is behind the buffer
-    insert := cast(HeapNode@,@ptr) - 1;
+    node := cast(HeapNode@,@ptr) - 1;
+
+    if(node.blocks > heap.max_allocation)
+    {
+        crash_and_burn("Node exceeds max allocation {} {} {}",cast(byte@,node),node.blocks,heap.max_allocation);
+    }
 
     // set our ptr to null
     @ptr = NULL;
 
-    // track memory reclaim
-    heap.used -= insert.blocks;
-
     // actually add it back to the free list
-    free_heap_node(heap,insert);
+    node.free = true;
+    heap.used -= node.blocks;
+
+    next := node.next;
+
+    // TODO: remove this with short circuit deteciton
+    if(next)
+    {
+        // attempt to collapse upper
+        if(next.free && (node + node.blocks) == next)
+        {
+            node.blocks += next.blocks;
+
+            // Link over next
+            node.next = next.next;
+
+            // Link prev of new next
+            if(node.next)
+            {
+                node.next.prev = node;
+            }
+        }
+    }
+
+    prev := node.prev;
+     // TODO: remove this with short circuit deteciton
+    if(prev)
+    {
+        // Attempt to collapse lower
+        if(prev.free && (prev + prev.blocks) == node)
+        {
+            prev.blocks += node.blocks;
+
+            // Link over node
+            prev.next = node.next;
+
+            // Link back prev of node next
+            if(prev.next) 
+            {
+                prev.next.prev = prev;
+            }
+        }
+    }
 }
 
 func request_buffer(heap : Heap@, size : usize) bool
@@ -217,6 +209,23 @@ func request_buffer(heap : Heap@, size : usize) bool
     return true;
 }
 
+func find_first_fit(heap: Heap@, req_blocks: usize) HeapNode@
+{
+    cur := heap.free_list;
+
+    while(cur)
+    {
+        if(cur.blocks >= req_blocks && cur.free)
+        {
+            return cur;
+        }
+
+        cur = cur.next;
+    }
+
+    return NULL;
+}
+
 func alloc_heap(heap : Heap@, count : usize, size : usize) byte@
 {
     verify_heap(heap);
@@ -225,74 +234,69 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte@
 
     req_blocks := ((bytes + HEAP_BLOCK_SIZE - 1) / HEAP_BLOCK_SIZE) + 1;
 
-    // attempt to find a block big enough for allocation?
-    cur := heap.free_list;
-    prev := cur;
 
-    while(cur)
+    cur := find_first_fit(heap,req_blocks);
+
+    if(!cur)
     {
-        if(cur.blocks >= req_blocks)
+        req := max_u64(req_blocks * HEAP_BLOCK_SIZE,HEAP_DEFAULT_ALLOC_SIZE);
+
+        // out of memory try get some more
+        if(!request_buffer(heap,req))
         {
-            // exact size just skip over
-            if(cur.blocks == req_blocks)
-            {
-                // we are returning start
-                // update the tracking
-                if(cur == heap.free_list)
-                {
-                    heap.free_list = cur.next;
-                }
-                
-                else
-                {
-                    prev.next = cur.next;
-                }
+            return NULL;
+        }
+        
+        cur = find_first_fit(heap,req_blocks);
 
-                // cleave old link
-                cur.next = NULL;
-            }
+        if(!cur)
+        {
+            return NULL;
+        }
+        
+    }
 
-            // fragment the block
-            else
-            {
-                // cur block gets remaining
-                cur.blocks -= req_blocks;
+    if(cur.blocks == req_blocks)
+    {
+        cur.free = false;
+    }
 
-                // new block contains the requested allocation
-                cur += cur.blocks;
+    else if(cur.blocks >= req_blocks)
+    {
+        new := cur;
 
+        remain := cur.blocks - req_blocks;
 
-                // setup the new block
-                cur.blocks = req_blocks;
-                cur.next = NULL; 
-            }
-            
-            cur.canary_start = HEAP_CANARY_START;
-            cur.canary_end = HEAP_CANARY_END;
+        // fragment the block
+        cur.blocks = req_blocks;
+        cur.free = false;
 
-            // mark heap usage
-            heap.used += cur.blocks;
+        new += cur.blocks;
+        new.blocks = remain;
+        new.free = true;
 
-            heap.total_allocation_bytes += size;
+        new.canary_start = HEAP_CANARY_START;
+        new.canary_end = HEAP_CANARY_END;
 
-            // data is after buffer
-            return cast(byte@,cur + 1);
+        // Point new block at its neighbours
+        new.prev = cur;
+        new.next = cur.next;
+
+        // Repoint the surrounding blocks
+        if(new.next)
+        {
+            new.next.prev = new;
         }
 
-        prev = cur;
-        cur = cur.next;
+        cur.next = new;
     }
 
-    req := max_u64(req_blocks * HEAP_BLOCK_SIZE,HEAP_DEFAULT_ALLOC_SIZE);
-
-    // out of memory try get some more
-    if(request_buffer(heap,req))
-    {
-        return alloc_heap(heap,count,size);
-    }
-
-    // cannot aquire any more memory we are out
-    return NULL;
+    // mark heap usage
+    heap.used += cur.blocks;
+    heap.total_allocation_bytes += size;
+    heap.max_allocation = max_u64(heap.max_allocation,cur.blocks);
+    
+    return cur + 1;
 }
 
 func realloc_heap(heap : Heap@, ptr: byte@@, count: usize,size: usize) bool
@@ -311,7 +315,6 @@ func realloc_heap(heap : Heap@, ptr: byte@@, count: usize,size: usize) bool
     // TODO: make this check if we can just extend the old block
     // rather than just allways requesting we get a new one...
     new := alloc_heap(heap,count,size);
-
 
     // failed to get a new buffer just back out
     // and leave the old one in place
@@ -358,6 +361,28 @@ func alloc_heap_panic(heap : Heap@, count : usize, size : usize) byte@
     return ptr;
 }
 
+
+func add_heap_block(heap : Heap@, node: HeapNode@)
+{
+    cur := heap.free_list;
+
+    // Handle insertion at start
+    if(!cur)
+    {
+        heap.free_list = node;
+        return;
+    }
+
+    // just insert at end
+    while(cur.next)
+    {
+        cur = cur.next;
+    }
+
+    cur.next = node;
+    node.prev = cur;
+}
+
 func add_buffer(heap : Heap@, ptr : byte@, size : usize)
 {
     if(!ptr)
@@ -371,6 +396,8 @@ func add_buffer(heap : Heap@, ptr : byte@, size : usize)
     node := cast(HeapNode@,ptr);
     node.blocks = blocks;
     node.next = NULL;
+    node.prev = NULL;
+    node.free = true;
 
     node.canary_start = HEAP_CANARY_START;
     node.canary_end = HEAP_CANARY_END;
@@ -378,19 +405,22 @@ func add_buffer(heap : Heap@, ptr : byte@, size : usize)
     // new memory added
     heap.capacity += blocks;
 
-    // dignostic checking
-    if(node + blocks > heap.max)
-    {
-        heap.max = node + blocks;
-    }
-
     if(node < heap.min)
     {
         heap.min = node;
     }
 
+    end := node + node.blocks;
+
+    if(end > heap.max)
+    {
+        heap.max = end;
+    }
+
     // directly pass new block
-    free_heap_node(heap,node);  
+    add_heap_block(heap,node); 
+
+    verify_heap(heap); 
 }
 
 func make_heap(buf : byte[]) Heap
