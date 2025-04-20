@@ -167,10 +167,10 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
 
     auto plain_tok = next_token(parser);
 
-    builtin_type builtin = builtin_type::null_t;
-    type_node_kind kind = type_node_kind::builtin;
-    FuncNode* func_type = nullptr;
-    String type_literal;
+    TypeNode* type = (TypeNode*)ast_type_decl(parser,name_space,"",plain_tok);
+
+    type->is_const = is_const;
+    type->is_constant = is_constant;
 
     // plain type
     if(is_builtin_type_tok(plain_tok))
@@ -183,25 +183,25 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
             return nullptr;
         }
 
-        type_literal = TYPE_NAMES[u32(builtin)];
-        kind = type_node_kind::builtin;
-        builtin = builtin;
+        type->name = TYPE_NAMES[u32(builtin)];
+        type->kind = type_node_kind::builtin;
+        type->builtin = builtin;
     }
 
     // function pointer
     else if(plain_tok.type == token_type::func)
     {
         TypeNode* type = (TypeNode*)ast_type_decl(parser,nullptr,"func_pointer",plain_tok);
-        kind = type_node_kind::func_pointer;
-        func_type = parse_func_sig(parser,"func_pointer",plain_tok);
+        type->kind = type_node_kind::func_pointer;
+        type->func_type = parse_func_sig(parser,"func_pointer",plain_tok);
         return type;
     }
 
     // we might not know what this is yet so we will resolve the idx properly later...
     else if(plain_tok.type == token_type::symbol)
     {
-        kind = type_node_kind::user;
-        type_literal = plain_tok.literal;
+        type->kind = type_node_kind::user;
+        type->name = plain_tok.literal;
     }
 
     else
@@ -209,13 +209,6 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
         panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
         return nullptr;
     }    
-
-    TypeNode* type = (TypeNode*)ast_type_decl(parser,name_space,type_literal,plain_tok);
-    type->is_const = is_const;
-    type->is_constant = is_constant;
-    type->kind = kind;
-    type->builtin = builtin;
-    type->func_type = func_type;
 
     b32 quit = false;
 

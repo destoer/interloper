@@ -550,7 +550,7 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Re
     auto& sig = call_info.sig;
 
     // NOTE: func struct will hold a void value if it has nothing
-    const bool returns_value = sig.return_type[0]->type_idx != u32(builtin_type::void_t);
+    const bool returns_value = !is_void(sig.return_type[0]);
 
     if(!call_info.func_pointer)
     {
@@ -600,7 +600,7 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Re
     // tuple 
     else
     {
-        return make_raw(itl,TUPLE);
+        return make_builtin(itl,builtin_type::void_t);
     }    
 }
 
@@ -1009,7 +1009,7 @@ void compile_function(Interloper& itl, Function& func)
     }
  
     // if final block has no return and this is a void func insert one
-    if(func.sig.return_type[0]->type_idx == u32(builtin_type::void_t))
+    if(is_void(func.sig.return_type[0]))
     {    
         auto& end_block = block_from_slot(func,cur_block(func));
 

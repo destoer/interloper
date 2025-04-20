@@ -50,8 +50,8 @@ void handle_const_cast(Interloper& itl, Type* new_type, ConstData& data)
     // builtin type
     if(is_plain_builtin(old_type) && is_plain_builtin(new_type))
     {
-        const auto builtin_old = builtin_type(old_type->type_idx);
-        const auto builtin_new = builtin_type(new_type->type_idx);
+        const auto builtin_old = cast_builtin(old_type);
+        const auto builtin_new = cast_builtin(new_type);
 
         // integer
         // any cast is fine, just make sure to clip if the new type has smaller storage
@@ -733,7 +733,7 @@ void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
     // check it is correct for the kind of type we expect from this assignment
     if(is_builtin(sym.type))
     {
-        const builtin_type type = builtin_type(sym.type->type_idx);
+        const builtin_type type = cast_builtin(sym.type);
         
         switch(type)
         {

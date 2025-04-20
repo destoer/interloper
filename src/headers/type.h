@@ -54,6 +54,7 @@ static constexpr u32 RTTI_BUILTIN_SIZE = BUILTIN_TYPE_SIZE - 1;
 
 enum class rtti_type_class
 {
+    builtin_t,
     pointer_t,
     array_t,
     struct_t,
@@ -291,12 +292,17 @@ struct RttiCache
     // type struct cache
     u32 type_struct_size = 0;
     u32 is_const_offset = 0;
-    u32 type_idx_offset = 0;
+    u32 type_class_offset = 0;
+
+    // builtin
+    u32 builtin_type_offset = 0;
+    u32 builtin_type_struct_size = 0;
 
     // pointer struct cache
     u32 pointer_contained_offset = 0;
     u32 pointer_struct_size = 0;
 
+    // array
     u32 array_contained_offset = 0;
     u32 array_size_offset = 0;
     u32 array_sub_size_offset = 0;

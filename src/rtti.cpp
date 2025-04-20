@@ -79,10 +79,25 @@ void cache_rtti_structs(Interloper& itl)
 
     auto& type_struct = itl.struct_table[type_struct_idx];
     rtti.is_const_offset = cache_offset(itl,type_struct,"is_const");
-    rtti.type_idx_offset = cache_offset(itl,type_struct,"type_idx");
+    rtti.type_class_offset = cache_offset(itl,type_struct,"kind");
     rtti.type_struct_size = type_struct.size;
 
 
+    // Builtin type cache
+    // cache Type struct info
+    const u32 builtin_type_struct_idx = cache_struct(itl,rtti_name_space,"BuiltinType");
+
+    if(invalid_type_idx(builtin_type_struct_idx))
+    {
+        return;
+    }
+
+    auto& builtin_type_struct = itl.struct_table[builtin_type_struct_idx];
+    rtti.builtin_type_offset = cache_offset(itl,builtin_type_struct,"builtin");
+    rtti.builtin_type_struct_size = builtin_type_struct.size;
+
+
+    // Pointer type cache
     const u32 pointer_struct_idx = cache_struct(itl,rtti_name_space,"PointerType");
 
     if(invalid_type_idx(pointer_struct_idx))
@@ -95,7 +110,7 @@ void cache_rtti_structs(Interloper& itl)
     rtti.pointer_struct_size = pointer_struct.size;
 
 
-
+    // Array type cache
     const u32 array_struct_idx = cache_struct(itl,rtti_name_space,"ArrayType");
 
     if(invalid_type_idx(array_struct_idx))
@@ -180,7 +195,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 
             // push in base type
             write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
-            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,u32(rtti_type_class::array_t));   
+            write_const_pool(itl.const_pool,section,rtti.type_class_offset,u32(rtti_type_class::array_t));   
 
             // write in array type
             write_const_pool_pointer(itl.const_pool,section,rtti.array_contained_offset,root.slot);
@@ -230,7 +245,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 
             // push in base type
             write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
-            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,u32(rtti_type_class::pointer_t));            
+            write_const_pool(itl.const_pool,section,rtti.type_class_offset,u32(rtti_type_class::pointer_t));            
 
             // push in pointer type
             write_const_pool_pointer(itl.const_pool,section,rtti.pointer_contained_offset,root.slot);
@@ -248,32 +263,34 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 
         case type_class::builtin_t:
         {
-            assert(false);
-            break;
-            // auto& root = rtti.builtin_type_cache[type->is_const][type->type_idx];
+            const builtin_type builtin = cast_builtin(type);
+            auto& root = rtti.builtin_type_cache[type->is_const][u32(builtin)];
 
-            // // base type is not yet in the pool
-            // if(root.slot.handle == INVALID_HANDLE)
-            // {
-            //     // allocate a slot in the pool for us
-            //     const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.type_struct_size);
-            //     auto& section = pool_section_from_slot(itl.const_pool,slot);
+            // base type is not yet in the pool
+            if(root.slot.handle == INVALID_HANDLE)
+            {
+                // allocate a slot in the pool for us
+                const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.builtin_type_struct_size);
+                auto& section = pool_section_from_slot(itl.const_pool,slot);
 
-            //     // write in base type struct
-            //     write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
-            //     write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
+                // write in base type struct
+                write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
+                write_const_pool(itl.const_pool,section,rtti.type_class_offset,u32(rtti_type_class::builtin_t));
+                write_const_pool(itl.const_pool,section,rtti.builtin_type_offset,u32(builtin));
 
-            //     root.slot = slot;
 
-            //     rtti.type_data_size += section.size;
-            // }
+                root.slot = slot;
 
-            // return root;
+                rtti.type_data_size += section.size;
+            }
+
+            return root;
         }
 
         default:
         {
             assert(false);
+            break;
         }
     }
 

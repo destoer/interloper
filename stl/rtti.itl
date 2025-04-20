@@ -16,8 +16,9 @@ struct BuiltinTypeData
     max : u64;
 }
 
-enum type_class : u32
+enum type_class
 {
+    builtin_t,
     pointer_t,
     array_t,
     struct_t,
@@ -48,29 +49,6 @@ enum builtin_type : BuiltinTypeData
     null_t = {false,false, 8,0,0},
 }
 
-enum builtin_type : u32
-{
-    u8_t,
-    u16_t,
-    u32_t,
-    u64_t,
-
-    s8_t,
-    s16_t,
-    s32_t,
-    s64_t,
-
-    c8_t,
-
-    byte_t,
-
-    bool_t,
-
-    f64_t,
-
-    null_t,
-}
-
 // NOTE: these structs are directly interfaced with by the compiler
 // editing cause rtti to fail to compile
 
@@ -84,7 +62,7 @@ struct Type
 
 struct BuiltinType (type : const Type)
 {
-    builtin_type : const builtin;
+    builtin : const builtin_type;
 }
 
 struct PointerType (type : const Type)
@@ -129,17 +107,26 @@ struct Vla
     len : u64;
 }
 
-func is_builtin(type_idx : itl_type) bool
+func is_builtin(type: const Type@) bool
 {
-    return cast(u32,type_idx) < cast(u32,itl_type::pointer_t);
+    return type.kind == type_class::builtin_t;
 }
 
-
-func is_builtin_type(type : const Type@) bool
+func is_builtin_type(type: const Type@, expected: builtin_type) bool
 {
-    return is_builtin(type.type_idx);
+    if(!is_builtin(type))
+    {
+        return false;
+    }
+
+    return cast_builtin(type) == expected;
 }
 
+func cast_builtin(type: const Type@) builtin_type
+{
+    underlying := cast(BuiltinType@,type);
+    return underlying.builtin;
+}
 
 func deref_pointer(type: const Type@) const Type@
 {
@@ -155,19 +142,24 @@ func is_runtime_size(size : u32) bool
 
 func is_pointer(type : const Type@) bool
 {
-    return type.type_idx == itl_type::pointer_t;
+    return type.kind == type_class::pointer_t;
 }
 
 func is_signed(type : const Type@) bool
 {
-    idx := cast(u32,type.type_idx);
+    if(type.kind != type_class::builtin_t)
+    {
+        return false;
+    }
 
-    return std::in_range_u64(idx,cast(u32,itl_type::s8_t),cast(u32,itl_type::s64_t));
+    idx := cast(u32,cast_builtin(type));
+
+    return std::in_range_u64(idx,cast(u32,builtin_type::s8_t),cast(u32,builtin_type::s64_t));
 }
 
 func is_array(type : const Type@) bool
 {
-    return type.type_idx == itl_type::array_t;
+    return type.kind == type_class::array_t;
 }
 
 func int_from_any(any : const Any) u64
