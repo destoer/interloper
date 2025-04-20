@@ -52,27 +52,51 @@ void parse_def(Interloper& itl, TypeDef& def);
 
 b32 is_builtin(const Type* type)
 {
-    return type->type_idx  < BUILTIN_TYPE_SIZE;
+    return type->kind == type_class::builtin_t;
 }
 
 b32 is_integer(builtin_type type)
-{
+{    
     return builtin_type_info[u32(type)].is_integer;
 }
 
 b32 is_integer(const Type* type)
 {
-    return is_builtin(type) && is_integer(builtin_type(type->type_idx));
+    if(!is_builtin(type))
+    {
+        return false;
+    }
+
+    const BuiltinType* underlying = (BuiltinType*)type;
+    return is_integer(underlying->builtin);
 }
+
+bool is_builtin_type(const Type* type,builtin_type builtin)
+{
+    if(!is_builtin(type))
+    {
+        return false;
+    }
+
+    const BuiltinType* underlying = (BuiltinType*)type;
+    return underlying->builtin == builtin;
+}
+
 
 b32 is_float(const Type* type)
 {
-    return builtin_type(type->type_idx) == builtin_type::f64_t;
+    return is_builtin_type(type,builtin_type::f64_t);
 }
 
 b32 is_signed(const Type *type)
 {
-    return is_builtin(type) && builtin_type_info[type->type_idx].is_signed;
+    if(!is_builtin(type))
+    {
+        return false;
+    }
+
+    const BuiltinType* underlying = (BuiltinType*)type;
+    return builtin_type_info[u32(underlying->builtin)].is_signed;
 }
 
 b32 is_signed_integer(const Type *type)
@@ -88,38 +112,38 @@ b32 is_unsigned_integer(const Type *type)
 
 b32 is_array(const Type* type)
 {
-    return type->type_idx == ARRAY;
+    return type->kind == type_class::array_t;
 }
 
 b32 is_struct(const Type* type)
 {
-    return type->type_idx == STRUCT;
+    return type->kind == type_class::struct_t;
 }
 
 b32 is_func_pointer(const Type* type)
 {
-    return type->type_idx == FUNC_POINTER;
+    return type->kind == type_class::func_pointer_t;
 }
 
 
 b32 is_enum(const Type* type)
 {
-    return type->type_idx == ENUM;
+    return type->kind == type_class::enum_t;
 }
 
 b32 is_pointer(const Type* type)
 {
-    return type->type_idx == POINTER;
+    return type->kind == type_class::pointer_t;
 }
 
 b32 is_bool(const Type* type)
 {
-    return type->type_idx == u32(builtin_type::bool_t);
+    return is_builtin_type(type,builtin_type::bool_t);
 }
 
 b32 is_void(const Type* type)
 {
-    return type->type_idx == u32(builtin_type::void_t);
+    return is_builtin_type(type,builtin_type::void_t);
 }
 
 b32 is_trivial_copy(const Type *type)
@@ -170,7 +194,7 @@ b32 is_fixed_array_pointer(const Type* type)
 
 b32 is_string(const ArrayType* type)
 {
-    return type->contained_type->type_idx == u32(builtin_type::c8_t);
+    return is_builtin_type(type->contained_type,builtin_type::c8_t);
 }
 
 b32 is_string(const Type* type)
@@ -186,7 +210,7 @@ b32 is_string(const Type* type)
 
 b32 is_const_string(const ArrayType* type)
 {
-    return type->contained_type->type_idx == u32(builtin_type::c8_t) && type->contained_type->is_const; 
+    return is_builtin_type(type->contained_type,builtin_type::c8_t) && type->contained_type->is_const;
 }
 
 b32 is_const_string(const Type* type)
@@ -253,27 +277,28 @@ const char *builtin_type_name(builtin_type t)
 
 builtin_type cast_builtin(const Type *type)
 {
-    return builtin_type(type->type_idx);
+    const BuiltinType* underlying = (BuiltinType*)type;
+    return underlying->builtin;
 }
 
 static constexpr u32 ENUM_SIZE = 4;
 
 u32 type_size(Interloper& itl,const Type *type)
 {
-    switch(type->type_idx)
+    switch(type->kind)
     {
-        case FUNC_POINTER:
+        case type_class::func_pointer_t:
         {
             return GPR_SIZE;
         }
 
-        case STRUCT:
+        case type_class::struct_t:
         {
             const auto& structure = struct_from_type(itl.struct_table,type);
             return structure.size;
         }
 
-        case ENUM:
+        case type_class::enum_t:
         {
             const auto& enumeration = enum_from_type(itl.enum_table,type);
 
@@ -286,7 +311,7 @@ u32 type_size(Interloper& itl,const Type *type)
             return ENUM_SIZE;
         }
 
-        case ARRAY:
+        case type_class::array_t:
         {
             if(is_runtime_size(type))
             {
@@ -296,14 +321,20 @@ u32 type_size(Interloper& itl,const Type *type)
             return GPR_SIZE;            
         }
 
-        case POINTER:
+        case type_class::pointer_t:
         {
             return GPR_SIZE;
         }
 
-        default:
+        case type_class::tuple_t:
         {
-            return builtin_size(builtin_type(type->type_idx));
+            assert(false);
+        }
+
+        case type_class::builtin_t:
+        {
+            const BuiltinType* underlying = (BuiltinType*)type;
+            return builtin_size(underlying->builtin);
         }
     }
 }
@@ -311,9 +342,9 @@ u32 type_size(Interloper& itl,const Type *type)
 
 u32 data_size(Interloper& itl,const Type *type)
 {
-    switch(type->type_idx)
+    switch(type->kind)
     {
-        case STRUCT:
+        case type_class::struct_t:
         {
             const auto& structure = struct_from_type(itl.struct_table,type);
             return structure.data_size;
@@ -373,15 +404,15 @@ Type* get_plain_type(Type* type)
 {
     for(;;)
     {
-        switch(type->type_idx)
+        switch(type->kind)
         {
-            case ARRAY:
+            case type_class::array_t:
             {
                 type = index_arr(type);
                 break;
             }
 
-            case POINTER:
+            case type_class::pointer_t:
             {
                 type = deref_pointer(type);
                 break;
@@ -416,10 +447,9 @@ u32 init_arr_sub_sizes_internal(Interloper& itl, Type* type)
         do this for any sub indirecitons i.e pointers VLA's
     */
 
-
-    switch(type->type_idx)
+    switch(type->kind)
     {
-        case ARRAY:
+        case type_class::array_t:
         {
             ArrayType* array_type = (ArrayType*)type;
                 
@@ -439,7 +469,7 @@ u32 init_arr_sub_sizes_internal(Interloper& itl, Type* type)
         }
 
         
-        case POINTER:
+        case type_class::pointer_t:
         {
             PointerType* pointer_type = (PointerType*)type; 
 
@@ -469,30 +499,27 @@ void init_arr_sub_sizes(Interloper&itl,Type* type)
 
 // type creation helpers
 template<typename T>
-Type* alloc_type(Interloper& itl, enum class type_class, b32 is_const)
+Type* alloc_type(Interloper& itl, type_class kind, b32 is_const)
 {
     Type* type = (Type*)allocate(itl.type_allocator,sizeof(T));
-    type->type_class = type_class;
+    type->kind = kind;
     type->is_const = is_const;
 
     return type;
 }
 
 
-Type* make_raw(Interloper& itl, u32 type, b32 is_constant = false)
-{
-    return alloc_type<Type>(itl,type,is_constant);
-}
-
 Type* make_builtin(Interloper& itl, builtin_type type, b32 is_const = false)
 {
-    return alloc_type<Type>(itl,u32(type),is_const);
-}
+    BuiltinType* builtin = (BuiltinType*)alloc_type<BuiltinType>(itl,type_class::builtin_t,is_const);
+    builtin->builtin = type;
 
+    return (Type*)builtin;
+}
 
 Type* make_pointer(Interloper& itl,Type* contained_type, b32 is_constant = false)
 {
-    PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,POINTER,is_constant);
+    PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,type_class::pointer_t,is_constant);
 
     pointer_type->contained_type = contained_type;
 
@@ -501,7 +528,7 @@ Type* make_pointer(Interloper& itl,Type* contained_type, b32 is_constant = false
 
 Type* make_struct(Interloper& itl, u32 struct_idx, b32 is_constant = false)
 {
-    StructType* struct_type = (StructType*)alloc_type<StructType>(itl,STRUCT,is_constant);
+    StructType* struct_type = (StructType*)alloc_type<StructType>(itl,type_class::struct_t,is_constant);
 
     struct_type->struct_idx = struct_idx;
 
@@ -510,7 +537,7 @@ Type* make_struct(Interloper& itl, u32 struct_idx, b32 is_constant = false)
 
 Type* make_enum(Interloper& itl, u32 enum_idx, b32 is_constant = false)
 {
-    EnumType* enum_type = (EnumType*)alloc_type<EnumType>(itl,ENUM,is_constant);
+    EnumType* enum_type = (EnumType*)alloc_type<EnumType>(itl,type_class::enum_t,is_constant);
 
     enum_type->enum_idx = enum_idx;
 
@@ -520,7 +547,7 @@ Type* make_enum(Interloper& itl, u32 enum_idx, b32 is_constant = false)
 
 Type* make_array(Interloper& itl, Type* contained_type, u32 size, b32 is_constant = false)
 {
-    ArrayType* array_type = (ArrayType*)alloc_type<ArrayType>(itl,ARRAY,is_constant);
+    ArrayType* array_type = (ArrayType*)alloc_type<ArrayType>(itl,type_class::array_t,is_constant);
 
     array_type->size = size;
     array_type->contained_type = contained_type;
@@ -563,9 +590,9 @@ String type_name(Interloper& itl,const Type *type)
 
     while(!done)
     {
-        switch(type->type_idx)
+        switch(type->kind)
         {
-            case POINTER:
+            case type_class::pointer_t:
             {
                 push_const_name(itl,compound,type," const");
                 push_char(itl.string_allocator,compound,'@');
@@ -575,7 +602,7 @@ String type_name(Interloper& itl,const Type *type)
                 break;
             }
 
-            case STRUCT: 
+            case type_class::struct_t: 
             {
                 push_const_name(itl,prefix,type,"const ");
 
@@ -585,7 +612,7 @@ String type_name(Interloper& itl,const Type *type)
                 break;                
             }
 
-            case ENUM: 
+            case type_class::enum_t: 
             {
                 push_const_name(itl,prefix,type,"const ");
 
@@ -595,7 +622,7 @@ String type_name(Interloper& itl,const Type *type)
                 break;              
             }
 
-            case ARRAY:
+            case type_class::array_t:
             {
                 push_const_name(itl,compound,type," const");
 
@@ -606,7 +633,7 @@ String type_name(Interloper& itl,const Type *type)
                 break;
             }
 
-            case FUNC_POINTER:
+            case type_class::func_pointer_t:
             {
                 FuncPointerType* func_type = (FuncPointerType*)type;
                 const FuncSig& sig = func_type->sig;
@@ -658,12 +685,18 @@ String type_name(Interloper& itl,const Type *type)
             }
 
             // builtin
-            default:
+            case type_class::builtin_t:
             {
                 push_const_name(itl,prefix,type,"const ");
 
-                plain = builtin_type_name(builtin_type(type->type_idx));
+                plain = builtin_type_name(cast_builtin(type));
                 done = true;
+                break;
+            }
+
+            case type_class::tuple_t:
+            {
+                assert(false);
                 break;
             }
         }
@@ -692,9 +725,9 @@ Type* copy_type(Interloper& itl, const Type* type);
 
 Type* copy_type_internal(Interloper& itl, const Type* type)
 {
-    switch(type->type_idx)
+    switch(type->kind)
     {
-        case ARRAY:
+        case type_class::array_t:
         {
             ArrayType* array_type = (ArrayType*)type;
             Type* contained_type = copy_type_internal(itl,array_type->contained_type);
@@ -702,7 +735,7 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
             return make_array(itl,contained_type,array_type->size,type->is_const);
         }
 
-        case POINTER:
+        case type_class::pointer_t:
         {
             PointerType* pointer_type = (PointerType*)type;
 
@@ -711,25 +744,25 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
             return make_pointer(itl,contained_type,type->is_const);
         }
 
-        case STRUCT:
+        case type_class::struct_t:
         {
             StructType* struct_type = (StructType*)type;
 
             return make_struct(itl,struct_type->struct_idx,type->is_const);
         }
 
-        case ENUM:
+        case type_class::enum_t:
         {
             EnumType* enum_type = (EnumType*)type;
 
             return make_enum(itl,enum_type->enum_idx,type->is_const);        
         }
 
-        case FUNC_POINTER:
+        case type_class::func_pointer_t:
         {
             FuncPointerType* func_pointer_type = (FuncPointerType*)type;
 
-            FuncPointerType* copy = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
+            FuncPointerType* copy = (FuncPointerType*)alloc_type<FuncPointerType>(itl,type_class::func_pointer_t,true);
             copy->sig = {};
 
             const auto& sig = func_pointer_type->sig;
@@ -753,9 +786,11 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
             return (Type*)copy;
         }
 
-        default:
+        case type_class::tuple_t: assert(false); break;
+
+        case type_class::builtin_t:
         {
-            return make_raw(itl,type->type_idx,type->is_const);
+            return make_builtin(itl,cast_builtin(type),type->is_const);
         }
     }    
 }
@@ -869,94 +904,101 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
         type = make_struct(itl,struct_idx_override,is_constant);
     }
 
-    else if(type_decl->type_idx == USER_TYPE)
+    else
     {
-        // NOTE: here we are doing the heavy lifting on defs by our self
-        // to handle out of order decl so we directly query the type table
-        // rather than using lookup_type
-        const auto name = type_decl->name;
-        TypeDecl* user_type = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
-
-        // check we have a type definiton
-        // no such definiton exists, nothing we can do
-        if(!user_type)
+        switch(type_decl->kind)
         {
-            panic(itl,itl_error::undeclared,"type %s is not defined\n",type_decl->name.buf);
-            return make_builtin(itl,builtin_type::void_t);
-        }
-
-        is_alias = user_type->kind == type_kind::alias_t;   
-
-        // user type does not exist yet
-        if(user_type->state != type_def_state::checked)
-        {
-            // By this point only types that have definitions can not be finalised
-            assert(user_type->flags & TYPE_DECL_DEF_FLAG);
-
-            // if this is not currently being checked 
-            // parse it
-            if(user_type->state == type_def_state::not_checked)
+            case type_node_kind::user:
             {
-                TypeDef& type_def = *((TypeDef*)user_type);
-                parse_def(itl,type_def);
+                // NOTE: here we are doing the heavy lifting on defs by our self
+                // to handle out of order decl so we directly query the type table
+                // rather than using lookup_type
+                const auto name = type_decl->name;
+                TypeDecl* user_type = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
 
-                // def checking went wrong!
-                if(itl.error)
+                // check we have a type definiton
+                // no such definiton exists, nothing we can do
+                if(!user_type)
                 {
+                    panic(itl,itl_error::undeclared,"type %s is not defined\n",type_decl->name.buf);
                     return make_builtin(itl,builtin_type::void_t);
                 }
 
-                // okay now we have a complete type build it!
-                type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
-            }
+                is_alias = user_type->kind == type_kind::alias_t;   
 
-            // type is being currently checked?
-            // we might have a potential black hole
-            else
-            {
-                // indirection, this is fine we dont need details of the type yet
-                if(def_has_indirection(type_decl))
+                // user type does not exist yet
+                if(user_type->state != type_def_state::checked)
                 {
-                    type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
+                    // By this point only types that have definitions can not be finalised
+                    assert(user_type->flags & TYPE_DECL_DEF_FLAG);
+
+                    // if this is not currently being checked 
+                    // parse it
+                    if(user_type->state == type_def_state::not_checked)
+                    {
+                        TypeDef& type_def = *((TypeDef*)user_type);
+                        parse_def(itl,type_def);
+
+                        // def checking went wrong!
+                        if(itl.error)
+                        {
+                            return make_builtin(itl,builtin_type::void_t);
+                        }
+
+                        // okay now we have a complete type build it!
+                        type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
+                    }
+
+                    // type is being currently checked?
+                    // we might have a potential black hole
+                    else
+                    {
+                        // indirection, this is fine we dont need details of the type yet
+                        if(def_has_indirection(type_decl))
+                        {
+                            type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant);
+                        }
+
+                        // this is no indirection and we have attempted to parse a type twice
+                        // this means recursion is happening somewhere
+                        else
+                        {
+                            // TODO: add huertsics to scan for where!
+                            panic(itl,itl_error::black_hole,"type %s is recursively defined\n",name.buf);
+                            return make_builtin(itl,builtin_type::void_t);               
+                        }
+                    }
                 }
 
-                // this is no indirection and we have attempted to parse a type twice
-                // this means recursion is happening somewhere
+                // user defined type allready exists, just pull the info out
                 else
-                {
-                    // TODO: add huertsics to scan for where!
-                    panic(itl,itl_error::black_hole,"type %s is recursively defined\n",name.buf);
-                    return make_builtin(itl,builtin_type::void_t);               
+                {   
+                    type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant); 
                 }
+
+                break;
+            }
+        
+
+            case type_node_kind::func_pointer:
+            {
+                // allocate and create function pointer type
+                FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,type_class::func_pointer_t,is_constant);
+                push_var(itl.func_pointer,&type->sig);
+                type->sig = {};
+
+                // parse the function sig
+                parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type);
+
+                return (Type*)type;
+            }
+
+            case type_node_kind::builtin:
+            {
+                type = make_builtin(itl,type_decl->type,is_constant);
+                break;
             }
         }
-
-        // user defined type allready exists, just pull the info out
-        else
-        {   
-            type = make_base_type(itl,user_type->type_idx,user_type->kind,is_constant); 
-        }
-
-            
-    }
-
-    else if(type_decl->type_idx == FUNC_POINTER)
-    {
-        // allocate and create function pointer type
-        FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,is_constant);
-        push_var(itl.func_pointer,&type->sig);
-        type->sig = {};
-
-        // parse the function sig
-        parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type);
-
-        return (Type*)type;
-    }
-
-    // plain old type
-    else
-    {
-        type = make_raw(itl,type_decl->type_idx,is_constant);
     }
 
     if(!is_constant)
@@ -1114,8 +1156,8 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_
         // both integers
         if(is_integer(rtype) && is_integer(ltype))
         {
-            const auto builtin_r = builtin_type(rtype->type_idx);
-            const auto builtin_l = builtin_type(ltype->type_idx);
+            const auto builtin_r = cast_builtin(rtype);
+            const auto builtin_l = cast_builtin(ltype);
 
             // return the larger size of the type (promotion)
             return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype; 
@@ -1169,8 +1211,8 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
     // both are builtin
     if(is_builtin(rtype) && is_builtin(ltype))
     {
-        const auto builtin_r = builtin_type(rtype->type_idx);
-        const auto builtin_l = builtin_type(ltype->type_idx);
+        const auto builtin_r = cast_builtin(rtype);
+        const auto builtin_l = cast_builtin(ltype);
 
         // both integers 
         if(is_integer(rtype) && is_integer(ltype))
@@ -1213,7 +1255,10 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
             return;
         }
 
-        if(ltype->type_idx != rtype->type_idx)
+        const EnumType* enum_ltype = (EnumType*)ltype;
+        const EnumType* enum_rtype = (EnumType*)rtype;
+
+        if(enum_ltype->enum_idx != enum_rtype->enum_idx)
         {
             panic(itl,itl_error::enum_type_error,"expected enum of the same type for comparsions %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
             return;
@@ -1284,9 +1329,9 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_ty
     // check const specifiers at every level
     while(!done)
     {
-        switch(ltype->type_idx)
+        switch(ltype->kind)
         {
-            case ARRAY:
+            case type_class::array_t:
             {
                 check_const_internal(itl,ltype,rtype,type,was_reference);
 
@@ -1299,7 +1344,7 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_ty
                 break;
             }
 
-            case POINTER:
+            case type_class::pointer_t:
             {
                 check_const_internal(itl,ltype,rtype,type,was_reference);
 
@@ -1311,29 +1356,31 @@ void check_const(Interloper&itl, const Type* ltype, const Type* rtype, assign_ty
                 break;
             }
 
-            case STRUCT:
+            case type_class::struct_t:
             {
                 check_const_internal(itl,ltype,rtype,type,was_reference);
                 done = true;
                 break;
             }
 
-            case ENUM:
+            case type_class::enum_t:
             {
                 check_const_internal(itl,ltype,rtype,type,was_reference);
                 done = true;
                 break;
             }
 
-            case FUNC_POINTER:
+            case type_class::func_pointer_t:
             {
                 check_const_internal(itl,ltype,rtype,type,was_reference);
                 done = true;
                 break;
             }
+
+            case type_class::tuple_t: assert(false); break;
 
             // check end type
-            default:
+            case type_class::builtin_t:
             {
                 check_const_internal(itl,ltype,rtype,type,was_reference);
                 done = true;
@@ -1350,9 +1397,14 @@ b32 is_plain_type(const Type* type)
 
 b32 plain_type_equal(const Type* ltype, const Type* rtype)
 {
-    switch(ltype->type_idx)
+    if(ltype->kind != rtype->kind)
     {
-        case STRUCT:
+        return false;
+    }
+
+    switch(ltype->kind)
+    {
+        case type_class::struct_t:
         {
             StructType* struct_ltype = (StructType*)ltype;
             StructType* struct_rtype = (StructType*)rtype;
@@ -1360,33 +1412,34 @@ b32 plain_type_equal(const Type* ltype, const Type* rtype)
             return struct_ltype->struct_idx == struct_rtype->struct_idx;
         }
 
-        case ENUM:
+        case type_class::builtin_t:
         {
-            assert(false);
-        }
-
-        case FUNC_POINTER:
-        {
-            assert(false);
+            return cast_builtin(ltype) == cast_builtin(rtype);
         }
 
         default:
         {
-            return ltype->type_idx == rtype->type_idx;
+            assert(false);
+            break;
         }
     }
 }
 
 b32 type_equal(const Type* ltype, const Type* rtype)
 {
-    switch(ltype->type_idx)
+    if(ltype->kind != rtype->kind)
     {
-        case ARRAY:
+        return false;
+    }
+
+    switch(ltype->kind)
+    {
+        case type_class::array_t:
         {
             assert(false);
         }
 
-        case POINTER:
+        case type_class::pointer_t:
         {
             if(ltype->is_const != rtype->is_const)
             {
@@ -1406,12 +1459,12 @@ b32 type_equal(const Type* ltype, const Type* rtype)
 
 bool is_byte_ptr(const Type* type)
 {
-    return is_pointer(type) && deref_pointer(type)->type_idx == u32(builtin_type::byte_t);
+    return is_pointer(type) && is_builtin_type(deref_pointer(type),builtin_type::byte_t);
 }
 
 bool is_byte_array(const Type* type)
 {
-    return is_array(type) && index_arr(type)->type_idx == u32(builtin_type::byte_t);
+    return is_array(type) && is_builtin_type(index_arr(type),builtin_type::byte_t);
 }
 
 void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
@@ -1420,7 +1473,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
     const auto base_rtype = rtype;
 
     // null rtype auto converted 
-    if(is_pointer(ltype) && is_pointer(rtype) && deref_pointer(rtype)->type_idx == u32(builtin_type::null_t))
+    if(is_pointer(ltype) && is_pointer(rtype) && is_builtin_type(deref_pointer(rtype),builtin_type::null_t))
     {
         return;
     }
@@ -1439,16 +1492,16 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
     while(indirection)
     {
         // types are mismatched we are done
-        if(ltype->type_idx != rtype->type_idx)
+        if(ltype->kind != rtype->kind)
         {
             indirection = false;
         }
 
         else
         {
-            switch(ltype->type_idx)
+            switch(ltype->kind)
             {
-                case POINTER:
+                case type_class::pointer_t:
                 {
                     ltype = deref_pointer(ltype);
                     rtype = deref_pointer(rtype);
@@ -1456,7 +1509,7 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
                     break;
                 }
 
-                case ARRAY:
+                case type_class::array_t:
                 {
                     if(!is_runtime_size(ltype) || !is_runtime_size(rtype))
                     {
@@ -1505,8 +1558,8 @@ void check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
     // both are builtin
     if(is_builtin(rtype) && is_builtin(ltype))
     {
-        const auto builtin_r = builtin_type(rtype->type_idx);
-        const auto builtin_l = builtin_type(ltype->type_idx);
+        const auto builtin_r = cast_builtin(rtype);
+        const auto builtin_l = cast_builtin(ltype);
 
         // both integers
         if(is_integer(ltype) && is_integer(rtype))
@@ -1690,15 +1743,15 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
 
             while(!done)
             {
-                if(ltype->type_idx != rtype->type_idx)
+                if(ltype->kind != rtype->kind)
                 {
                     panic(itl,itl_error::array_type_error,"expected array of underlying type %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
                     return;
                 }
 
-                switch(ltype->type_idx)
+                switch(ltype->kind)
                 {
-                    case ARRAY:
+                    case type_class::array_t:
                     {
                         ArrayType* array_ltype = (ArrayType*)ltype;
                         ArrayType* array_rtype = (ArrayType*)rtype;
@@ -1737,7 +1790,7 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
                         break;
                     }
 
-                    case POINTER:
+                    case type_class::pointer_t:
                     {
                         assert(false);
                     }
@@ -1831,8 +1884,8 @@ void handle_cast(Interloper& itl,Function& func, RegSlot dst_slot,RegSlot src_sl
     // builtin type
     if(is_plain_builtin(old_type) && is_plain_builtin(new_type))
     {
-        const auto builtin_old = builtin_type(old_type->type_idx);
-        const auto builtin_new = builtin_type(new_type->type_idx);
+        const auto builtin_old = cast_builtin(old_type);
+        const auto builtin_new = cast_builtin(new_type);
 
         // integer
         if(is_integer(old_type) && is_integer(new_type))

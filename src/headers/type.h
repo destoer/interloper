@@ -6,7 +6,6 @@
 
 // if type idx is >= to this then this is a custom defined type
 static constexpr u32 BUILTIN_TYPE_SIZE = 14;
-static constexpr u32 USER_TYPE = 0xf0000000;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
 // NOTE: expects to be defined in same order as tokens
@@ -46,8 +45,9 @@ enum class type_class
     pointer_t,
     array_t,
     enum_t,
-    tuple_t,
+    struct_t,
     func_pointer_t,
+    tuple_t,
 };
 
 static constexpr u32 RTTI_BUILTIN_SIZE = BUILTIN_TYPE_SIZE - 1;
@@ -193,7 +193,7 @@ struct TypeDef
 
 struct Type
 {
-    enum class type_class;
+    type_class kind;
 
     // specifiers
     b32 is_const;
@@ -205,7 +205,7 @@ struct BuiltinType
 {
     Type type;
 
-    builtin_type type;
+    builtin_type builtin;
 };
 
 struct PointerType
