@@ -1799,6 +1799,17 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
                         assert(false);
                     }
 
+                    case type_class::builtin_t:
+                    {
+                        if(cast_builtin(ltype) != cast_builtin(rtype))
+                        {
+                            panic(itl,itl_error::array_type_error,"Cannot assign array with different underlying type %s != %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                            return;
+                        }
+                        done = true;
+                        break;
+                    }
+
                     default:
                     {
                         done = true;
