@@ -495,7 +495,7 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
 
                     auto& func_call = *func_call_opt;
 
-                    FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,FUNC_POINTER,true);
+                    FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,type_class::func_pointer_t,true);
                     type->sig = func_call.sig;
 
                     load_func_addr(itl,func,slot,func_call.label_slot);

@@ -359,6 +359,13 @@ struct ScopeNode
 };
 
 
+enum class type_node_kind
+{
+    builtin,
+    func_pointer,
+    user
+};
+
 struct TypeNode
 {
     AstNode node;
@@ -367,7 +374,9 @@ struct TypeNode
 
     b32 is_const;
     b32 is_constant;
-    u32 type_idx;
+    builtin_type builtin = builtin_type::void_t;
+    type_node_kind kind = type_node_kind::builtin;
+    
 
     FuncNode* func_type = nullptr;
     NameSpace* name_space = nullptr;

@@ -237,42 +237,20 @@ void write_const_data(Interloper& itl, PoolSlot slot, u32 offset, const ConstDat
     // write out based on type
     Type* type = data.type;
 
-    // builtin type can just be directly read out as is from here
-    if(is_builtin(type))
+    switch(type->kind)
     {
-        write_const_builtin(itl,slot,offset,data);
+        case type_class::builtin_t:
+        {
+            write_const_builtin(itl,slot,offset,data);
+            break;
+        }
+
+        default: 
+        {
+            assert(false);
+            break;
+        }
     }
-
-    // this is technically just an int
-    // return in place
-    else if(is_enum(type))
-    {
-        assert(false);
-    }
-
-    
-    else if(is_array(type))
-    {
-        // this should only be legal for vla assigns
-
-        assert(false);
-    }
-
-    else if(is_struct(type))
-    {
-        assert(false);
-    }
-
-    else if(is_pointer(type))
-    {
-        assert(false);
-    }
-
-    // whoops
-    else
-    {
-        assert(false);
-    }   
 }
 
 PoolSlot pool_slot_from_sym(const Symbol& sym)
@@ -311,50 +289,22 @@ ConstData read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset
 {
     // read out based on type
 
-    // builtin type can just be directly read out as is from here
-    if(is_builtin(type))
+    switch(type->kind)
     {
-        ConstData data;
+        case type_class::builtin_t:
+        {
+            ConstData data;
 
-        data.v = builtin_from_const(itl,type,slot,offset);
-        data.type = type;
+            data.v = builtin_from_const(itl,type,slot,offset);
+            data.type = type;
 
-        return data;
+            return data;
+        }
+
+        default: assert(false);
     }
 
-    // this is technically just an int
-    // return in place
-    else if(is_enum(type))
-    {
-        assert(false);
-    }
-
-    // return the array pointer
-    // NOTE: this works the same as arrays normally
-    // if this is a vla we will get a pointer to the struct
-    // for fixed arrays this is the data pointer
-    else if(is_array(type))
-    {
-        assert(false);
-    }
-
-    // return slot
-    else if(is_struct(type))
-    {
-        assert(false);
-    }
-
-    // return pointer data
-    else if(is_pointer(type))
-    {
-        assert(false);
-    }
-
-    // whoops
-    else
-    {
-        assert(false);
-    }        
+    assert(false);
 }
 
 ConstData read_const_sym(Interloper& itl, Symbol& sym)

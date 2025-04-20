@@ -6,7 +6,6 @@
 
 // if type idx is >= to this then this is a custom defined type
 static constexpr u32 BUILTIN_TYPE_SIZE = 14;
-static constexpr u32 USER_TYPE = 0xf0000000;
 static constexpr u32 INVALID_TYPE = 0xffffffff;
 
 // NOTE: expects to be defined in same order as tokens
@@ -40,19 +39,27 @@ enum class builtin_type
 
 static constexpr u32 FLOAT_SIZE = 8;
 
-static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
-static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
-static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;
-static constexpr u32 ENUM = BUILTIN_TYPE_SIZE + 4;
-static constexpr u32 TUPLE = BUILTIN_TYPE_SIZE + 5;
-static constexpr u32 FUNC_POINTER = BUILTIN_TYPE_SIZE + 6;
+enum class type_class
+{
+    builtin_t,
+    pointer_t,
+    array_t,
+    enum_t,
+    struct_t,
+    func_pointer_t,
+    tuple_t,
+};
 
 static constexpr u32 RTTI_BUILTIN_SIZE = BUILTIN_TYPE_SIZE - 1;
 
-static constexpr u32 POINTER_RTTI = RTTI_BUILTIN_SIZE;
-static constexpr u32 ARRAY_RTTI = RTTI_BUILTIN_SIZE + 1;
-static constexpr u32 STRUCT_RTTI = RTTI_BUILTIN_SIZE + 3;
-static constexpr u32 ENUM_RTTI = RTTI_BUILTIN_SIZE + 4;
+enum class rtti_type_class
+{
+    builtin_t,
+    pointer_t,
+    array_t,
+    struct_t,
+    enum_t,
+};
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
 {
@@ -190,13 +197,20 @@ struct TypeDef
 
 struct Type
 {
-    u32 type_idx;
+    type_class kind;
 
     // specifiers
     b32 is_const;
 };
 
 static constexpr u32 TYPE_ATTR = 2;
+
+struct BuiltinType
+{
+    Type type;
+
+    builtin_type builtin;
+};
 
 struct PointerType
 {
@@ -278,12 +292,17 @@ struct RttiCache
     // type struct cache
     u32 type_struct_size = 0;
     u32 is_const_offset = 0;
-    u32 type_idx_offset = 0;
+    u32 type_class_offset = 0;
+
+    // builtin
+    u32 builtin_type_offset = 0;
+    u32 builtin_type_struct_size = 0;
 
     // pointer struct cache
     u32 pointer_contained_offset = 0;
     u32 pointer_struct_size = 0;
 
+    // array
     u32 array_contained_offset = 0;
     u32 array_size_offset = 0;
     u32 array_sub_size_offset = 0;

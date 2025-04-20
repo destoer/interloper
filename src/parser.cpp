@@ -107,32 +107,6 @@ builtin_type builtin_type_from_tok(const Token& tok)
     return builtin_type(s32(tok.type) - s32(token_type::u8));
 }
 
-u32 plain_type_idx(const Token &tok)
-{
-    // within the plain type range
-    if(is_builtin_type_tok(tok))
-    {
-        return u32(builtin_type_from_tok(tok));
-    }
-
-    else if(tok.type == token_type::func)
-    {
-        return FUNC_POINTER;
-    }
-
-    // we might not know what this is yet so we will resolve the idx properly later...
-    else if(tok.type == token_type::symbol)
-    {
-        return USER_TYPE;
-    }
-
-    else
-    {
-        return INVALID_TYPE;
-    }    
-}
-
-
 TypeNode *parse_type(Parser &parser, b32 allow_fail)
 {
     // parse out any specifiers
@@ -193,48 +167,48 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
 
     auto plain_tok = next_token(parser);
 
-    u32 type_idx = plain_type_idx(plain_tok);
+    TypeNode* type = (TypeNode*)ast_type_decl(parser,name_space,"",plain_tok);
 
-
-    if(type_idx == INVALID_TYPE || type_idx == u32(builtin_type::null_t))
-    {
-        if(!allow_fail)
-        {
-            panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
-        }
-        return nullptr;
-    }
-
-    String type_literal;
-    
-    switch(type_idx)
-    {
-        case USER_TYPE:
-        {
-            type_literal = plain_tok.literal;
-            break;
-        }
-
-        case FUNC_POINTER:
-        {
-            TypeNode* type = (TypeNode*)ast_type_decl(parser,nullptr,"func_pointer",plain_tok);
-            type->type_idx = FUNC_POINTER;
-            type->func_type = parse_func_sig(parser,"func_pointer",plain_tok);
-            return type;
-        }
-
-        default:
-        {
-            type_literal = TYPE_NAMES[type_idx];
-            break;
-        }
-    }
-
-    TypeNode* type = (TypeNode*)ast_type_decl(parser,name_space,type_literal,plain_tok);
-    type->type_idx = type_idx;
     type->is_const = is_const;
     type->is_constant = is_constant;
 
+    // plain type
+    if(is_builtin_type_tok(plain_tok))
+    {
+        builtin_type builtin = builtin_type_from_tok(plain_tok);
+
+        if(!allow_fail && builtin == builtin_type::null_t)
+        {
+            panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
+            return nullptr;
+        }
+
+        type->name = TYPE_NAMES[u32(builtin)];
+        type->kind = type_node_kind::builtin;
+        type->builtin = builtin;
+    }
+
+    // function pointer
+    else if(plain_tok.type == token_type::func)
+    {
+        TypeNode* type = (TypeNode*)ast_type_decl(parser,nullptr,"func_pointer",plain_tok);
+        type->kind = type_node_kind::func_pointer;
+        type->func_type = parse_func_sig(parser,"func_pointer",plain_tok);
+        return type;
+    }
+
+    // we might not know what this is yet so we will resolve the idx properly later...
+    else if(plain_tok.type == token_type::symbol)
+    {
+        type->kind = type_node_kind::user;
+        type->name = plain_tok.literal;
+    }
+
+    else
+    {
+        panic(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
+        return nullptr;
+    }    
 
     b32 quit = false;
 
@@ -1391,7 +1365,8 @@ FuncNode* parse_func_sig(Parser& parser,const String& func_name, const Token& to
     else
     {
         TypeNode* return_type = (TypeNode*)ast_type_decl(parser,nullptr,"void",token); 
-        return_type->type_idx = u32(builtin_type::void_t);
+        return_type->builtin = builtin_type::void_t;
+        return_type->kind = type_node_kind::builtin;
 
         push_var(f->return_type,return_type);
     }

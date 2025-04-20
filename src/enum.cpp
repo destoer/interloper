@@ -169,6 +169,11 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
                 {
                     member.value = (1 << member_count);
                 }
+
+                else
+                {
+                    member.value = member_count;
+                }
             }
 
             member_count++;
