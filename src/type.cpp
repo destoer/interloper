@@ -469,10 +469,10 @@ void init_arr_sub_sizes(Interloper&itl,Type* type)
 
 // type creation helpers
 template<typename T>
-Type* alloc_type(Interloper& itl, u32 type_idx, b32 is_const)
+Type* alloc_type(Interloper& itl, enum class type_class, b32 is_const)
 {
     Type* type = (Type*)allocate(itl.type_allocator,sizeof(T));
-    type->type_idx = type_idx;
+    type->type_class = type_class;
     type->is_const = is_const;
 
     return type;

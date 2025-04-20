@@ -40,12 +40,15 @@ enum class builtin_type
 
 static constexpr u32 FLOAT_SIZE = 8;
 
-static constexpr u32 POINTER = BUILTIN_TYPE_SIZE;
-static constexpr u32 ARRAY = BUILTIN_TYPE_SIZE + 1;
-static constexpr u32 STRUCT = BUILTIN_TYPE_SIZE + 3;
-static constexpr u32 ENUM = BUILTIN_TYPE_SIZE + 4;
-static constexpr u32 TUPLE = BUILTIN_TYPE_SIZE + 5;
-static constexpr u32 FUNC_POINTER = BUILTIN_TYPE_SIZE + 6;
+enum class type_class
+{
+    builtin_t,
+    pointer_t,
+    array_t,
+    enum_t,
+    tuple_t,
+    func_pointer_t,
+};
 
 static constexpr u32 RTTI_BUILTIN_SIZE = BUILTIN_TYPE_SIZE - 1;
 
@@ -190,13 +193,20 @@ struct TypeDef
 
 struct Type
 {
-    u32 type_idx;
+    enum class type_class;
 
     // specifiers
     b32 is_const;
 };
 
 static constexpr u32 TYPE_ATTR = 2;
+
+struct BuiltinType
+{
+    Type type;
+
+    builtin_type type;
+};
 
 struct PointerType
 {
