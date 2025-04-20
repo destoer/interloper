@@ -729,170 +729,162 @@ void compile_const_struct_initializer_list(Interloper& itl, Symbol& structure, A
 
 void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
 {
-    // switch on top level expression
-    // check it is correct for the kind of type we expect from this assignment
-    if(is_builtin(sym.type))
+    switch(sym.type->kind)
     {
-        const builtin_type type = cast_builtin(sym.type);
-        
-        switch(type)
+        case type_class::builtin_t:
         {
-            // integers
-            case builtin_type::u8_t:
-            case builtin_type::u16_t:
-            case builtin_type::u32_t:
-            case builtin_type::u64_t:
-            case builtin_type::s8_t:
-            case builtin_type::s16_t:
-            case builtin_type::s32_t:
-            case builtin_type::s64_t:
-            case builtin_type::byte_t:
-            case builtin_type::c8_t:
+            const builtin_type type = cast_builtin(sym.type);
+            
+            switch(type)
             {
-                // compile expression
-                auto [v, rtype] = compile_const_int_expression(itl,node);
-
-                // now we know the value we can get an exact type out of the result
-                Value value;
-                value.v = v;
-                value.sign = is_signed(rtype);
-                
-                rtype = value_type(itl,value);
-
-                // type check the integer
-                check_assign_init(itl,sym.type,rtype);
-
-                if(itl.error)
+                // integers
+                case builtin_type::u8_t:
+                case builtin_type::u16_t:
+                case builtin_type::u32_t:
+                case builtin_type::u64_t:
+                case builtin_type::s8_t:
+                case builtin_type::s16_t:
+                case builtin_type::s32_t:
+                case builtin_type::s64_t:
+                case builtin_type::byte_t:
+                case builtin_type::c8_t:
                 {
+                    // compile expression
+                    auto [v, rtype] = compile_const_int_expression(itl,node);
+
+                    // now we know the value we can get an exact type out of the result
+                    Value value;
+                    value.v = v;
+                    value.sign = is_signed(rtype);
+                    
+                    rtype = value_type(itl,value);
+
+                    // type check the integer
+                    check_assign_init(itl,sym.type,rtype);
+
+                    if(itl.error)
+                    {
+                        return;
+                    }
+
+                    // push to const pool and save handle as offset for later loading...
+                    const auto slot = push_const_pool(itl.const_pool,pool_type::var,&v,builtin_size(type));
+                    sym.reg.offset = slot.handle;
+
+                    break;
+                }
+
+
+                case builtin_type::bool_t:
+                {
+                    const auto res = compile_const_bool_expression(itl,node);
+
+                    if(itl.error)
+                    {
+                        return;
+                    }
+
+                    const auto slot = push_const_pool(itl.const_pool,pool_type::var,&res,GPR_SIZE);
+                    sym.reg.offset = slot.handle;
+
+                    break;                
+                }
+
+                case builtin_type::f64_t:
+                {
+                    assert(false);
+                    break;
+                }
+
+                // these should not be possible...
+                case builtin_type::null_t:
+                {
+                    panic(itl,itl_error::undefined_type_oper,"null as dst type in constant expression!?\n");
                     return;
                 }
 
-                // push to const pool and save handle as offset for later loading...
-                const auto slot = push_const_pool(itl.const_pool,pool_type::var,&v,builtin_size(type));
-                sym.reg.offset = slot.handle;
-
-                break;
-            }
-
-
-            case builtin_type::bool_t:
-            {
-                const auto res = compile_const_bool_expression(itl,node);
-
-                if(itl.error)
+                case builtin_type::void_t:
                 {
+                    panic(itl,itl_error::undefined_type_oper,"void as dst type in constant expression!?\n");
                     return;
-                }
-
-                const auto slot = push_const_pool(itl.const_pool,pool_type::var,&res,GPR_SIZE);
-                sym.reg.offset = slot.handle;
-
-                break;                
+                } 
             }
 
-            case builtin_type::f64_t:
-            {
-                assert(false);
-                break;
-            }
 
-            // these should not be possible...
-            case builtin_type::null_t:
-            {
-                panic(itl,itl_error::undefined_type_oper,"null as dst type in constant expression!?\n");
-                return;
-            }
-
-            case builtin_type::void_t:
-            {
-                panic(itl,itl_error::undefined_type_oper,"void as dst type in constant expression!?\n");
-                return;
-            } 
+            break;   
         }
-    }
 
-    else if(is_enum(sym.type))
-    {
-        assert(false);
-    }
-
-
-    else if(is_array(sym.type))
-    {
-        // initializer
-        switch(node->type)
+        case type_class::array_t:
         {
-            case ast_type::initializer_list:
+            // initializer
+            switch(node->type)
             {
-                compile_const_arr_initializer_list(itl,sym,node);
-                break;
-            }
-
-            case ast_type::string:
-            {
-                if(!is_string(sym.type))
+                case ast_type::initializer_list:
                 {
-                    panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,sym.type).buf);
-                    return;
+                    compile_const_arr_initializer_list(itl,sym,node);
+                    break;
                 }
 
-                LiteralNode* literal_node = (LiteralNode*)node;
-                const String literal = literal_node->literal;
-
-                if(is_runtime_size(sym.type))
+                case ast_type::string:
                 {
-                    const auto data_slot = push_const_pool_string(itl.const_pool,literal);
+                    if(!is_string(sym.type))
+                    {
+                        panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,sym.type).buf);
+                        return;
+                    }
 
-                    const auto pointer_slot = push_const_pool_vla(itl.const_pool,data_slot,literal.size);
+                    LiteralNode* literal_node = (LiteralNode*)node;
+                    const String literal = literal_node->literal;
 
-                    // mark as location
-                    sym.reg.offset = pointer_slot.handle; 
+                    if(is_runtime_size(sym.type))
+                    {
+                        const auto data_slot = push_const_pool_string(itl.const_pool,literal);
+
+                        const auto pointer_slot = push_const_pool_vla(itl.const_pool,data_slot,literal.size);
+
+                        // mark as location
+                        sym.reg.offset = pointer_slot.handle; 
+                    }
+
+                    // fixed size
+                    else
+                    {
+                        panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+                        return;         
+                    }
+                    break;
                 }
 
-                // fixed size
-                else
+                default:
                 {
-                    panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
-                    return;         
+                    unimplemented("arbitary assign const array");
+                    break;
                 }
-                break;
             }
-
-            default:
-            {
-                unimplemented("arbitary assign const array");
-                break;
-            }
+            break;
         }
-    }
 
-    else if(is_struct(sym.type))
-    {
-        switch(node->type)
+        case type_class::struct_t:
         {
-            case ast_type::initializer_list:
+            switch(node->type)
             {
-                compile_const_struct_initializer_list(itl,sym,node);
-                break;
+                case ast_type::initializer_list:
+                {
+                    compile_const_struct_initializer_list(itl,sym,node);
+                    break;
+                }
+
+                default:
+                {
+                    unimplemented("arbitary assign const struct");
+                    break;
+                }            
             }
 
-            default:
-            {
-                unimplemented("arbitary assign const struct");
-                break;
-            }            
+            break;
         }
-    }
 
-    else if(is_pointer(sym.type))
-    {
-        assert(false);
-    }
-
-    // whoops
-    else
-    {
-        assert(false);
+        default: assert(false);
     }
 }
 
