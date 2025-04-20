@@ -484,6 +484,12 @@ b32 is_raw_special_reg(u32 reg)
     return reg >= SPECIAL_REG_START && reg <= SPECIAL_REG_END;
 }
 
+enum class reg_type
+{
+    float_t,
+    gpr_t,
+};
+
 enum class reg_kind
 {
     sym,

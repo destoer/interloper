@@ -3,7 +3,7 @@
 // The machine code translator is basically a 1 to 1 mapping
 // outside of optimal instruction selection
 
-ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type, b32 is_float)
+ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type opcode_type, reg_type register_type)
 {
     const auto dst = node->opcode.v[0];
     const auto v1 = node->opcode.v[1];
@@ -13,14 +13,14 @@ ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type
     // -> add dst, v2
     if(dst == v1)
     {
-        node->opcode = make_op(type,dst,v2);
+        node->opcode = make_op(opcode_type,dst,v2);
     }
 
     // add dst, v1, dst
     // -> add dst, v1
     else if(dst == v2)
     {
-        node->opcode = make_op(type,dst,v1);
+        node->opcode = make_op(opcode_type,dst,v1);
     }
 
     // add dst, v1, v2
@@ -28,8 +28,8 @@ ListNode* rewrite_reg3_two_commutative(Block& block, ListNode* node,op_type type
     // -> add dst, v2
     else
     {
-        node->opcode = make_op(is_float? op_type::movf_reg : op_type::mov_reg,dst,v1);
-        node = insert_after(block.list,node,make_op(type,dst,v2));
+        node->opcode = make_op(register_type == reg_type::float_t? op_type::movf_reg : op_type::mov_reg,dst,v1);
+        node = insert_after(block.list,node,make_op(opcode_type,dst,v2));
     }
 
     return node->next;
@@ -60,19 +60,19 @@ ListNode* rewrite_imm3_two(Block& block, ListNode* node,op_type type)
     return node->next;
 }
 
-ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type type, b32 is_float)
+ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type opcode_type, reg_type register_type)
 {
     const auto dst = node->opcode.v[0];
     const auto v1 = node->opcode.v[1];
     const auto v2 = node->opcode.v[2];
 
-    const op_type mov_op = is_float? op_type::movf_reg : op_type::mov_reg;
+    const op_type mov_op = register_type == reg_type::float_t? op_type::movf_reg : op_type::mov_reg;
 
     // sub dst, dst, v2
     // -> sub dst, v2
     if(dst == v1)
     {
-        node->opcode = make_op(type,dst,v2);
+        node->opcode = make_op(opcode_type,dst,v2);
     }
 
     // sub dst, v1, dst
@@ -81,10 +81,10 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     // -> mov dst, t0
     else if(dst == v2)
     {
-        const auto tmp_slot = is_float? new_float(func) : new_tmp(func,GPR_SIZE);
+        const auto tmp_slot = register_type == reg_type::float_t? new_float(func) : new_tmp(func,GPR_SIZE);
         const auto tmp = make_reg_operand(tmp_slot);
         node->opcode = make_op(mov_op,tmp,v1);
-        node = insert_after(block.list,node,make_op(type,tmp,v2));
+        node = insert_after(block.list,node,make_op(opcode_type,tmp,v2));
         node = insert_after(block.list,node,make_op(mov_op,dst,tmp));
     }
 
@@ -94,7 +94,7 @@ ListNode* rewrite_reg3_two(Function& func, Block& block, ListNode* node,op_type 
     else
     {
         node->opcode = make_op(mov_op,dst,v1);
-        node = insert_after(block.list,node,make_op(type,dst,v2));
+        node = insert_after(block.list,node,make_op(opcode_type,dst,v2));
     }
 
     return node->next;

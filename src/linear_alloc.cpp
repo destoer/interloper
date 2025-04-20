@@ -378,8 +378,7 @@ bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
 // We may have to have a look back over our local allocator
 void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block& block)
 {
-    UNUSED(alloc);
-    UNUSED(block);
+    UNUSED(block); UNUSED(alloc);
 
     // Spill a register for room
     if(!alloc_ir_reg(regs,ir_reg))
