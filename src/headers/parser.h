@@ -374,7 +374,7 @@ struct TypeNode
 
     b32 is_const;
     b32 is_constant;
-    builtin_type type = builtin_type::void_t;
+    builtin_type builtin = builtin_type::void_t;
     type_node_kind kind = type_node_kind::builtin;
     
 

@@ -337,6 +337,8 @@ u32 type_size(Interloper& itl,const Type *type)
             return builtin_size(underlying->builtin);
         }
     }
+
+    assert(false);
 }
 
 
@@ -792,7 +794,9 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
         {
             return make_builtin(itl,cast_builtin(type),type->is_const);
         }
-    }    
+    }
+
+    assert(false);    
 }
 
 Type* copy_type(Interloper& itl, const Type* type)
@@ -995,7 +999,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 
             case type_node_kind::builtin:
             {
-                type = make_builtin(itl,type_decl->type,is_constant);
+                type = make_builtin(itl,type_decl->builtin,is_constant);
                 break;
             }
         }

@@ -52,10 +52,13 @@ enum class type_class
 
 static constexpr u32 RTTI_BUILTIN_SIZE = BUILTIN_TYPE_SIZE - 1;
 
-static constexpr u32 POINTER_RTTI = RTTI_BUILTIN_SIZE;
-static constexpr u32 ARRAY_RTTI = RTTI_BUILTIN_SIZE + 1;
-static constexpr u32 STRUCT_RTTI = RTTI_BUILTIN_SIZE + 3;
-static constexpr u32 ENUM_RTTI = RTTI_BUILTIN_SIZE + 4;
+enum class rtti_type_class
+{
+    pointer_t,
+    array_t,
+    struct_t,
+    enum_t,
+};
 
 static const char *TYPE_NAMES[BUILTIN_TYPE_SIZE] =
 {

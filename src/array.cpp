@@ -460,9 +460,9 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
 
     while(!done)
     {
-        switch(type->type_idx)
+        switch(type->kind)
         {
-            case POINTER:
+            case type_class::pointer_t:
             {
                 size = GPR_SIZE;
 
@@ -472,7 +472,7 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
                 break;
             }
 
-            case ARRAY:
+            case type_class::array_t:
             {
                 ArrayType* array_type = (ArrayType*)type;
 

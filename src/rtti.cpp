@@ -148,9 +148,9 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 {
     auto& rtti = itl.rtti_cache;
 
-    switch(type->type_idx)
+    switch(type->kind)
     {
-        case ARRAY:
+        case type_class::array_t:
         {
             ArrayType* array_type = (ArrayType*)type;
             TypeTrieNode& root = make_rtti_internal(itl,array_type->contained_type);
@@ -180,7 +180,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 
             // push in base type
             write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
-            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,ARRAY_RTTI);   
+            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,u32(rtti_type_class::array_t));   
 
             // write in array type
             write_const_pool_pointer(itl.const_pool,section,rtti.array_contained_offset,root.slot);
@@ -200,7 +200,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
             return root.nodes[count(root.nodes) - 1];
         }
 
-        case POINTER:
+        case type_class::pointer_t:
         {
             // get contained type
             const PointerType* pointer_type = (PointerType*)type;
@@ -230,7 +230,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 
             // push in base type
             write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
-            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,POINTER_RTTI);            
+            write_const_pool(itl.const_pool,section,rtti.type_idx_offset,u32(rtti_type_class::pointer_t));            
 
             // push in pointer type
             write_const_pool_pointer(itl.const_pool,section,rtti.pointer_contained_offset,root.slot);
@@ -246,46 +246,34 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
             return root.nodes[count(root.nodes) - 1];
         }
 
-        case ENUM:
+        case type_class::builtin_t:
         {
             assert(false);
             break;
+            // auto& root = rtti.builtin_type_cache[type->is_const][type->type_idx];
+
+            // // base type is not yet in the pool
+            // if(root.slot.handle == INVALID_HANDLE)
+            // {
+            //     // allocate a slot in the pool for us
+            //     const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.type_struct_size);
+            //     auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+            //     // write in base type struct
+            //     write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
+            //     write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
+
+            //     root.slot = slot;
+
+            //     rtti.type_data_size += section.size;
+            // }
+
+            // return root;
         }
 
-        case STRUCT:
-        {
-            assert(false);
-            break;
-        }
-
-        case FUNC_POINTER:
-        {
-            assert(false);
-            break;
-        }
-
-        // builtin just insert as is
         default:
         {
-            auto& root = rtti.builtin_type_cache[type->is_const][type->type_idx];
-
-            // base type is not yet in the pool
-            if(root.slot.handle == INVALID_HANDLE)
-            {
-                // allocate a slot in the pool for us
-                const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.type_struct_size);
-                auto& section = pool_section_from_slot(itl.const_pool,slot);
-
-                // write in base type struct
-                write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
-                write_const_pool(itl.const_pool,section,rtti.type_idx_offset,type->type_idx);
-
-                root.slot = slot;
-
-                rtti.type_data_size += section.size;
-            }
-
-            return root;
+            assert(false);
         }
     }
 
