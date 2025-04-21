@@ -255,7 +255,7 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, RegSlot d
 
         case logic_op::or_reg: case logic_op::and_reg:
         {
-            if(!is_bool(ltype) && is_bool(rtype))
+            if(!is_bool(ltype) || !is_bool(rtype))
             {
                 panic(itl,itl_error::bool_type_error,"operations || and && are only defined on bools\n");
             }
