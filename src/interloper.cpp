@@ -674,6 +674,51 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
     }
 }
 
+void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Type* ltype, SymSlot slot)
+{
+    const auto reg_slot = make_sym_reg_slot(slot);
+    alloc_slot(itl,func,reg_slot,false);
+    
+    // No initalizer
+    if(!decl_node->expr)
+    {
+        if(is_float(ltype))
+        {
+            movf_imm(itl,func,reg_slot,0.0);
+        }
+
+        else
+        {
+            mov_imm(itl,func,reg_slot,0);
+        }
+
+        return;
+    }
+
+    if(decl_node->expr->type == ast_type::no_init)
+    {
+        return;
+    }
+
+    // normal assign
+    const auto rtype = compile_expression(itl,func,decl_node->expr,reg_slot);
+
+    // our symbol reference might have moved because of compile_expression
+    auto &sym = sym_from_slot(itl.symbol_table,slot);
+
+    if(is_unsigned_integer(sym.type))
+    {
+        clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
+    }
+
+    if(itl.error)
+    {
+        return;
+    }
+
+    check_assign_init(itl,ltype,rtype);
+}
+
 void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
 {
     // get entry into symbol table
@@ -701,61 +746,26 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     }
 
 
-    if(is_array(ltype))
+    switch(ltype->kind)
     {
-        compile_arr_decl(itl,func,decl_node,slot);
-    }
-
-    else if(is_struct(ltype))
-    {
-        compile_struct_decl(itl,func,decl_node,slot);
-    }
-
-    // simple type
-    else 
-    {
-        const auto reg_slot = make_sym_reg_slot(slot);
-        alloc_slot(itl,func,reg_slot,false);
-        
-        // initalizer
-        if(decl_node->expr)
-        {
-            if(decl_node->expr->type != ast_type::no_init)
-            {
-                // normal assign
-                const auto rtype = compile_expression(itl,func,decl_node->expr,reg_slot);
-            
-                // our symbol reference might have moved because of compile_expression
-                auto &sym = sym_from_slot(itl.symbol_table,slot);
-
-                if(is_unsigned_integer(sym.type))
-                {
-                    clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
-                }
-            
-                if(itl.error)
-                {
-                    return;
-                }
-
-                check_assign_init(itl,ltype,rtype);
-            }             
+        case type_class::array_t:
+        {   
+            compile_arr_decl(itl,func,decl_node,slot);
+            break;
         }
 
-        // default init
-        else
+        case type_class::struct_t:
         {
-            if(is_float(ltype))
-            {
-                movf_imm(itl,func,reg_slot,0.0);
-            }
-
-            else
-            {
-                mov_imm(itl,func,reg_slot,0);
-            }
+            compile_struct_decl(itl,func,decl_node,slot);
+            break;
         }
-    } 
+
+        default:
+        {
+            compile_basic_decl(itl,func,decl_node,ltype,slot);
+            break;
+        }
+    }
 
     // need to perform sizing AFTER initalizers have been parsed
     // just in case we need to do any size deduction
