@@ -1208,7 +1208,7 @@ Type* effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_
     }
 }
 
-void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtype, logic_op type)
+void check_comparison_operation(Interloper& itl,const Type *ltype, const Type *rtype, comparison_op type)
 {
     UNUSED(itl);
 
@@ -1253,7 +1253,7 @@ void check_logical_operation(Interloper& itl,const Type *ltype, const Type *rtyp
 
     else if(is_enum(ltype) && is_enum(rtype))
     {
-        if(type != logic_op::cmpeq_reg && type != logic_op::cmpne_reg)
+        if(type != comparison_op::cmpeq_reg && type != comparison_op::cmpne_reg)
         {
             panic(itl,itl_error::enum_type_error,"comparision on enums is only defined for '==' and '!='");
             return;

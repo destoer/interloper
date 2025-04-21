@@ -272,7 +272,7 @@ b32 is_directive(op_type type)
 
 // general operation defined for unsigned or unsigned ints
 // will be convered to a specific conterpart in op_type
-enum class logic_op
+enum class comparison_op
 {
     cmplt_reg,
     cmple_reg,
@@ -281,12 +281,15 @@ enum class logic_op
 
     cmpeq_reg,
     cmpne_reg,
-
-    and_reg,
-    or_reg,
 };
 
-static constexpr u32 LOGIC_OP_SIZE = 8;
+enum class boolean_logic_op
+{
+    and_t,
+    or_t,
+};
+
+static constexpr u32 LOGIC_OP_SIZE = 6;
 
 static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 

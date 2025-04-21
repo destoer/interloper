@@ -5,21 +5,10 @@ b32 is_constant(const Symbol& sym)
 }
 
 // NOTE: type checking rules are less strict than in "runtime" expressions
-void check_const_cmp(Interloper& itl, Type* ltype, Type* rtype, logic_op type)
+void check_const_cmp(Interloper& itl, Type* ltype, Type* rtype)
 {
-    b32 valid = false;
-
-    // only allowed on bools
-    if(type == logic_op::or_reg || type == logic_op::and_reg)
-    {
-        valid = is_bool(ltype) && is_bool(rtype);
-    }
-
-    else
-    {
-        valid = (is_integer(ltype) && is_integer(rtype)) || (is_bool(ltype) && is_bool(rtype));
-    }
-
+    b32 valid = (is_integer(ltype) && is_integer(rtype)) || (is_bool(ltype) && is_bool(rtype));
+    
     if(!valid)
     {
         panic(itl,itl_error::const_type_error,"Could not compare types: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
@@ -333,7 +322,7 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
             const auto left = compile_const_expression(itl,bin_node->left);
             const auto right = compile_const_expression(itl,bin_node->right);
 
-            check_const_cmp(itl,left.type,right.type,logic_op::cmpeq_reg);
+            check_const_cmp(itl,left.type,right.type);
 
             const b32 ans = left.v == right.v;
 

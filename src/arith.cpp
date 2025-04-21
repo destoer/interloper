@@ -196,16 +196,45 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v
     return false;
 }
 
-// handles <, <=, >, >=, &&, ||, ==, !=
-template<const logic_op type>
-Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
+Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type)
 {
     BinNode* bin_node = (BinNode*)node;
 
     auto [ltype,v1] = compile_oper(itl,func,bin_node->left);
     auto [rtype,v2] = compile_oper(itl,func,bin_node->right);
 
+    if(!is_bool(ltype) || !is_bool(rtype))
+    {
+        panic(itl,itl_error::bool_type_error,"Logical && and || are only defined on bools got %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return make_builtin(itl,builtin_type::void_t);
+    }
 
+    switch(type)
+    {
+        case boolean_logic_op::and_t:
+        {
+            emit_reg3<op_type::and_reg>(itl,func,dst_slot,v1,v2);
+            break;
+        }
+
+        case boolean_logic_op::or_t:
+        {
+            emit_reg3<op_type::or_reg>(itl,func,dst_slot,v1,v2);
+            break;
+        }
+    }
+
+    return make_builtin(itl,builtin_type::bool_t);
+}
+
+// handles <, <=, >, >=, ==, !=
+template<const comparison_op type>
+Type* compile_comparison_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
+{
+    BinNode* bin_node = (BinNode*)node;
+
+    auto [ltype,v1] = compile_oper(itl,func,bin_node->left);
+    auto [rtype,v2] = compile_oper(itl,func,bin_node->right);
 
     // if one side is a value do type checking
     if(is_integer(ltype) && is_integer(rtype))
@@ -244,96 +273,58 @@ Type* compile_logical_op(Interloper& itl,Function &func,AstNode *node, RegSlot d
         } 
     }
 
-    // okay now then does a boolean operation make sense for this operator
-    // with these types?
+    check_comparison_operation(itl,ltype,rtype,type);
 
-
-    switch(type)
-    {
-        // only bools are valid
-        // || &&
-
-        case logic_op::or_reg: case logic_op::and_reg:
-        {
-            if(!is_bool(ltype) || !is_bool(rtype))
-            {
-                panic(itl,itl_error::bool_type_error,"operations || and && are only defined on bools\n");
-            }
-            break;
-        }
-
-        // <, <=, >, >=, ==, !=
-        // valid if the underlying type is the same
-        // and can somehow by interpretted as a integer
-        // i.e pointers, ints, bools
-        case logic_op::cmplt_reg: case logic_op::cmple_reg: case logic_op::cmpgt_reg:
-        case logic_op::cmpge_reg: case logic_op::cmpeq_reg: case logic_op::cmpne_reg:
-        {
-            check_logical_operation(itl,ltype,rtype,type);
-            break;
-        }
-
-        // this shouldunt happen
-        default: 
-        {
-            crash_and_burn("%d is not a logical operation\n",s32(type));
-        }
-    }
-
-    if(!itl.error)
-    {
-        // float 
-        if(is_float(ltype))
-        {
-            static constexpr op_type LOGIC_OPCODE[LOGIC_OP_SIZE] = 
-            {
-                op_type::cmpflt_reg,op_type::cmpfle_reg,op_type::cmpfgt_reg,op_type::cmpfge_reg,
-                op_type::cmpfeq_reg,op_type::cmpfne_reg,op_type::and_reg,op_type::or_reg,         
-            };
-
-            constexpr op_type opcode_type = LOGIC_OPCODE[u32(type)];
-            emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
-        }
-
-        // integer operation
-        else
-        {
-            // 0 is unsigned, 1 is signed
-            static constexpr op_type LOGIC_OPCODE[2][LOGIC_OP_SIZE] = 
-            {
-                {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
-                op_type::cmpeq_reg,op_type::cmpne_reg,op_type::and_reg,op_type::or_reg},
-
-                {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
-                op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg, op_type::and_reg,op_type::or_reg},
-            };
-
-
-            // TODO: fixme this should only be done when we know we have a builtin type
-            // else we dont care
-            const b32 sign = is_signed(ltype);
-
-            if(sign)
-            {
-                constexpr op_type opcode_type = LOGIC_OPCODE[1][u32(type)];
-                emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
-            }
-
-            else
-            {
-                constexpr op_type opcode_type = LOGIC_OPCODE[0][u32(type)];
-                emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
-            }
-        }
-
-        return make_builtin(itl,builtin_type::bool_t);
-    }
-
-    // operation is not valid for given types..
-    else
+    if(itl.error)
     {
         return make_builtin(itl,builtin_type::void_t);
     }
+
+    // float 
+    if(is_float(ltype))
+    {
+        static constexpr op_type LOGIC_OPCODE[LOGIC_OP_SIZE] = 
+        {
+            op_type::cmpflt_reg,op_type::cmpfle_reg,op_type::cmpfgt_reg,op_type::cmpfge_reg,
+            op_type::cmpfeq_reg,op_type::cmpfne_reg,        
+        };
+
+        constexpr op_type opcode_type = LOGIC_OPCODE[u32(type)];
+        emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+    }
+
+    // integer operation
+    else
+    {
+        // 0 is unsigned, 1 is signed
+        static constexpr op_type LOGIC_OPCODE[2][LOGIC_OP_SIZE] = 
+        {
+            {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
+            op_type::cmpeq_reg,op_type::cmpne_reg},
+
+            {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
+            op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg},
+        };
+
+
+        // TODO: fixme this should only be done when we know we have a builtin type
+        // else we dont care
+        const b32 sign = is_signed(ltype);
+
+        if(sign)
+        {
+            constexpr op_type opcode_type = LOGIC_OPCODE[1][u32(type)];
+            emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+        }
+
+        else
+        {
+            constexpr op_type opcode_type = LOGIC_OPCODE[0][u32(type)];
+            emit_reg3<opcode_type>(itl,func,dst_slot,v1,v2);
+        }
+    }
+
+    return make_builtin(itl,builtin_type::bool_t);
 }
 
 

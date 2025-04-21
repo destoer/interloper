@@ -591,42 +591,42 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         // how should we do it?
         case ast_type::logical_lt:
         {
-            return compile_logical_op<logic_op::cmplt_reg>(itl,func,node,dst_slot);
+            return compile_comparison_op<comparison_op::cmplt_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_le:
         {
-            return compile_logical_op<logic_op::cmple_reg>(itl,func,node,dst_slot);
+            return compile_comparison_op<comparison_op::cmple_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_gt:
         {
-            return compile_logical_op<logic_op::cmpgt_reg>(itl,func,node,dst_slot);
+            return compile_comparison_op<comparison_op::cmpgt_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_ge:
         {
-            return compile_logical_op<logic_op::cmpge_reg>(itl,func,node,dst_slot);
+            return compile_comparison_op<comparison_op::cmpge_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_eq:
         {
-            return compile_logical_op<logic_op::cmpeq_reg>(itl,func,node,dst_slot);
+            return compile_comparison_op<comparison_op::cmpeq_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_ne:
         {
-            return compile_logical_op<logic_op::cmpne_reg>(itl,func,node,dst_slot);
+            return compile_comparison_op<comparison_op::cmpne_reg>(itl,func,node,dst_slot);
         }
 
         case ast_type::logical_and:
         {
-            return compile_logical_op<logic_op::and_reg>(itl,func,node,dst_slot);
+            return compile_boolean_logic_op(itl,func,node,dst_slot,boolean_logic_op::and_t);
         }
 
         case ast_type::logical_or:
         {
-            return compile_logical_op<logic_op::or_reg>(itl,func,node,dst_slot);
+            return compile_boolean_logic_op(itl,func,node,dst_slot,boolean_logic_op::or_t);
         }
 
 
