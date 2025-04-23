@@ -208,18 +208,18 @@ Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, Reg
         panic(itl,itl_error::bool_type_error,"Logical && and || are only defined on bools got %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         return make_builtin(itl,builtin_type::void_t);
     }
-
+    
     switch(type)
     {
         case boolean_logic_op::and_t:
         {
-            emit_reg3<op_type::and_reg>(itl,func,dst_slot,v1,v2);
+            emit_reg3<op_type::and_reg>(itl,func,dst_slot,v1,v2);   
             break;
         }
 
         case boolean_logic_op::or_t:
         {
-            emit_reg3<op_type::or_reg>(itl,func,dst_slot,v1,v2);
+            emit_reg3<op_type::or_reg>(itl,func,dst_slot,v1,v2);   
             break;
         }
     }

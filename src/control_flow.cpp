@@ -12,17 +12,17 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         BinNode* if_stmt = (BinNode*)if_block->statements[n];
 
         // compile the compare expr if conditon
-        auto [t,r] = compile_oper(itl,func,if_stmt->left);
+        auto [type,reg] = compile_oper(itl,func,if_stmt->left);
 
         // integer or pointer is fine check they aernt zero as a shorthand
-        if(is_integer(t) || is_pointer(t))
+        if(is_integer(type) || is_pointer(type))
         {
-            r = cmp_ne_imm_res(itl,func,r,0);
+            reg = cmp_ne_imm_res(itl,func,reg,0);
         }
         
-        else if(!is_bool(t))
+        else if(!is_bool(type))
         {
-            panic(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,t).buf);
+            panic(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,type).buf);
             return;
         }
 
@@ -47,7 +47,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 const BlockSlot else_slot = compile_basic_block(itl,func,(BlockNode*)else_stmt->next);
 
                 // add branch over body we compiled to else statement
-                emit_cond_branch(func,cmp_block,else_slot,body_slot,r,false);
+                emit_cond_branch(func,cmp_block,else_slot,body_slot,reg,false);
 
                 exit_block = add_fall(itl,func);
                 break;
@@ -60,7 +60,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 const BlockSlot chain_slot = new_basic_block(itl,func);
 
                 // add branch over the body we compiled earlier
-                emit_cond_branch(func,cmp_block,chain_slot,body_slot,r,false);
+                emit_cond_branch(func,cmp_block,chain_slot,body_slot,reg,false);
             }
         }
 
@@ -70,7 +70,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             exit_block = add_fall(itl,func);
 
             // if cond not met just branch into exit block
-            emit_cond_branch(func,cmp_block,exit_block,body_slot,r,false);          
+            emit_cond_branch(func,cmp_block,exit_block,body_slot,reg,false);          
         }
     }
 

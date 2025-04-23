@@ -1038,6 +1038,7 @@ void compile_function(Interloper& itl, Function& func)
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
         itl.ctx.expr = (AstNode*)func.root;   
+        dump_ir_sym(itl,func,itl.symbol_table);
         panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);  
     }
 
@@ -1052,6 +1053,7 @@ void compile_function(Interloper& itl, Function& func)
             auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
 
             itl.ctx.expr = (AstNode*)func.root;   
+            dump_ir_sym(itl,func,itl.symbol_table);
             panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
         }
     }
