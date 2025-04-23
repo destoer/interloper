@@ -196,32 +196,68 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v
     return false;
 }
 
-Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type)
+
+void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot start_block, BlockSlot exit_block, RegSlot dst_slot, enum boolean_logic_op type)
+{
+    UNUSED(itl);
+    auto &blocks = func.emitter.program;
+
+    for(u32 b = start_block.handle; b < count(blocks) - 1; b++)
+    {
+        auto &block = func.emitter.program[b];
+        const BlockSlot next = block_from_idx(b + 1);
+
+        if(block.list.finish)
+        {
+            if(block.list.finish->opcode.op == op_type::exit_block)
+            {
+                remove(block.list,block.list.finish);
+                emit_cond_branch(func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);
+            }
+        }
+    }
+}
+
+
+
+// TODO: Detect when short ciruciting is unecessary due to a lack of side effects
+Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type, u32 depth)
 {
     BinNode* bin_node = (BinNode*)node;
-
-    auto [ltype,v1] = compile_oper(itl,func,bin_node->left);
-    auto [rtype,v2] = compile_oper(itl,func,bin_node->right);
-
-    if(!is_bool(ltype) || !is_bool(rtype))
-    {
-        panic(itl,itl_error::bool_type_error,"Logical && and || are only defined on bools got %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-        return make_builtin(itl,builtin_type::void_t);
-    }
     
-    switch(type)
-    {
-        case boolean_logic_op::and_t:
-        {
-            emit_reg3<op_type::and_reg>(itl,func,dst_slot,v1,v2);   
-            break;
-        }
+    const BlockSlot left_block = cur_block(func);
 
-        case boolean_logic_op::or_t:
-        {
-            emit_reg3<op_type::or_reg>(itl,func,dst_slot,v1,v2);   
-            break;
-        }
+    if(bin_node->left->type == ast_type::logical_and || bin_node->left->type == ast_type::logical_or)
+    {
+        compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1);
+    }
+
+    else
+    {
+        compile_expression(itl,func,bin_node->left,dst_slot);
+    }
+
+    // First block needs to jump to exit
+    if(depth == 0)
+    {
+        emit_block_internal(func,left_block,op_type::exit_block);
+    }
+
+    // Give this a new block we can jump over
+    const BlockSlot right_block = new_basic_block(itl,func);
+    compile_expression(itl,func,bin_node->right,dst_slot);
+
+    // We are now at the top of the stack create and then rewrite in all the block exits
+    if(depth == 0)
+    {
+        const BlockSlot exit_block = add_fall(itl,func);
+        emit_short_circuit_branches(itl,func,left_block,exit_block,dst_slot,type);
+    }
+
+    // Any further blocks need an exit jump after compilation
+    else
+    {
+        emit_block_internal(func,right_block,op_type::exit_block);
     }
 
     return make_builtin(itl,builtin_type::bool_t);

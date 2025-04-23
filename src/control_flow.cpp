@@ -99,12 +99,13 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
 void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 {
-    const BlockSlot initial_block = cur_block(func);
+    
 
     BinNode* while_node = (BinNode*)node;
 
     // compile cond
     auto [cond_type,entry_cond] = compile_oper(itl,func,while_node->left);
+    const BlockSlot initial_block = cur_block(func);
 
     // integer or pointer, check not zero
     if(is_integer(cond_type) || is_pointer(cond_type))
@@ -122,8 +123,6 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     // compile body
     const BlockSlot while_block = compile_basic_block(itl,func,(BlockNode*)while_node->right); 
 
-    const BlockSlot end_block = cur_block(func);
-
     RegSlot exit_cond;
     std::tie(std::ignore,exit_cond) = compile_oper(itl,func,while_node->left);
 
@@ -132,6 +131,8 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     {
         exit_cond = cmp_ne_imm_res(itl,func,exit_cond,0);
     }
+
+    const BlockSlot end_block = cur_block(func);
 
     const BlockSlot exit_block = new_basic_block(itl,func);
 
@@ -395,9 +396,6 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     // scope for any var decls in the stmt
     enter_new_anon_scope(itl.symbol_table);
 
-    const BlockSlot initial_block = cur_block(func);
-  
-
    // compile the first stmt (ussualy an assign)
 
     
@@ -432,7 +430,8 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     
     // compile cond for entry and check it is a bool
     const auto [cond_type,entry_cond] = compile_oper(itl,func,for_node->cond);
-
+    const BlockSlot initial_block = cur_block(func);
+  
     if(!is_bool(cond_type))
     {
         panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,cond_type).buf);
@@ -451,11 +450,10 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
         return;
     }
 
-    const BlockSlot end_block = cur_block(func);
-
-
     RegSlot exit_cond;
     std::tie(std::ignore,exit_cond) = compile_oper(itl,func,for_node->cond);
+    const BlockSlot end_block = cur_block(func);
+
 
     const BlockSlot exit_block = new_basic_block(itl,func);
 

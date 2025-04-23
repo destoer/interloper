@@ -621,12 +621,24 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
         case ast_type::logical_and:
         {
-            return compile_boolean_logic_op(itl,func,node,dst_slot,boolean_logic_op::and_t);
+            // TODO: This is to work around the output var getting locked by reg alloc
+            // If its a special reg
+            const RegSlot dst_tmp = mov_imm_res(itl,func,0); 
+            const auto ltype = compile_boolean_logic_op(itl,func,node,dst_tmp,boolean_logic_op::and_t,0);
+            mov_reg(itl,func,dst_slot,dst_tmp);
+
+            return ltype;
         }
 
         case ast_type::logical_or:
         {
-            return compile_boolean_logic_op(itl,func,node,dst_slot,boolean_logic_op::or_t);
+            // TODO: This is to work around the output var getting locked by reg alloc
+            // If its a special reg
+            const RegSlot dst_tmp = mov_imm_res(itl,func,0); 
+            const auto ltype = compile_boolean_logic_op(itl,func,node,dst_tmp,boolean_logic_op::or_t, 0);
+            mov_reg(itl,func,dst_slot,dst_tmp);
+
+            return ltype;
         }
 
 

@@ -1063,6 +1063,8 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
         return;
     }
 
+    log(alloc.print,"Correcting live out on: L%d\n",block.label_slot.handle);
+
     Array<RegSlot> misplaced;
 
     // Get a list of all register in the wrong posistion
@@ -1072,7 +1074,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
 
         if(ir_reg.local_reg != ir_reg.global_reg)
         {
-            assert(!is_locked(get_register_file(alloc,ir_reg),ir_reg.local_reg));
+            assert(!is_locked(get_register_file(alloc,ir_reg),ir_reg.global_reg));
             push_var(misplaced,slot);
             log_reg(alloc.print,*alloc.table,"misplaced %r %s %s\n",slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
         }

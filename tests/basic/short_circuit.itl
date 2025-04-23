@@ -16,8 +16,29 @@ func main() s32
     res3 := taken && taken && not_taken && never_run(3);
     res4 := not_taken || not_taken || taken || never_run(4);
     res5 := not_taken || (not_taken && never_run(5));
+    res6 := (not_taken && not_taken && not_taken) || (taken && taken && taken);
 
-    ans := res1 && res2 && res3 && res4 && res5;
+    ans := !res1 && res2 && !res3 && res4 && !res5 && res6;
  
+    while(not_taken && never_run(6))
+    {
+        std::exit(7);
+    }
+
+    for(i : u32 = 0; not_taken && never_run(8); i += 1)
+    {
+        std::exit(8);
+    }
+
+    if(not_taken && never_run(9))
+    {
+        std::exit(9);
+    }
+
+    else
+    {
+
+    }
+
     return cast(s32,ans);
 }
