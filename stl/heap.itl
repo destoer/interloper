@@ -156,42 +156,35 @@ func free_heap(heap : Heap@, ptr : byte@@)
 
     next := node.next;
 
-    // TODO: remove this with short circuit deteciton
-    if(next)
+    // attempt to collapse upper
+    if(next && next.free && (node + node.blocks) == next)
     {
-        // attempt to collapse upper
-        if(next.free && (node + node.blocks) == next)
+        node.blocks += next.blocks;
+
+        // Link over next
+        node.next = next.next;
+
+        // Link prev of new next
+        if(node.next)
         {
-            node.blocks += next.blocks;
-
-            // Link over next
-            node.next = next.next;
-
-            // Link prev of new next
-            if(node.next)
-            {
-                node.next.prev = node;
-            }
+            node.next.prev = node;
         }
     }
-
+    
     prev := node.prev;
-     // TODO: remove this with short circuit deteciton
-    if(prev)
+
+    // Attempt to collapse lower
+    if(prev && prev.free && (prev + prev.blocks) == node)
     {
-        // Attempt to collapse lower
-        if(prev.free && (prev + prev.blocks) == node)
+        prev.blocks += node.blocks;
+
+        // Link over node
+        prev.next = node.next;
+
+        // Link back prev of node next
+        if(prev.next) 
         {
-            prev.blocks += node.blocks;
-
-            // Link over node
-            prev.next = node.next;
-
-            // Link back prev of node next
-            if(prev.next) 
-            {
-                prev.next.prev = prev;
-            }
+            prev.next.prev = prev;
         }
     }
 }

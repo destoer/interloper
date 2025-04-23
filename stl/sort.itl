@@ -14,23 +14,16 @@ func heapify(array: Array@, idx: ssize, len: ssize, cmp_func: SORT_CMP_FUNC)
         l := (2 * idx) + 1;
         r := (2 * idx) + 2;
 
-        // TODO: We need to add short circuit deteciton.
 
-        if l < len 
+        // swap idx with target if its not allready
+        if l < len && cmp_func(&heap[l * elem_size],&heap[target * elem_size])
         {
-            // swap idx with target if its not allready
-            if cmp_func(&heap[l * elem_size],&heap[target * elem_size])
-            {
-                target = l;
-            }
+            target = l;
         }
         
-        if r < len 
+        if r < len && cmp_func(&heap[r * elem_size],&heap[target * elem_size])
         {
-            if cmp_func(&heap[r * elem_size],&heap[target * elem_size])
-            {
-                target = r;
-            }
+            target = r;
         }
         
         // already in the right place we are done!
