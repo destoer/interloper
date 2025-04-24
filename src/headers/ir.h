@@ -862,6 +862,7 @@ static constexpr u32 IN_LOOP = 1 << 2;
 struct Block
 {
     List list;
+    u32 branch_count = 0;
 
     u32 flags = 0;
 

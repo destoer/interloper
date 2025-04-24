@@ -342,47 +342,30 @@ func print_arg(arg : rtti::Any, specifier : c8)
 
             contained_type := array_type.contained_type;
 
-            // TODO: Fix with short circuit detection
             if(rtti::is_runtime_size(array_type.size))
             {
-                if(contained_type.kind == rtti::type_class::builtin_t)
+                // vla string
+                if(contained_type.kind == rtti::type_class::builtin_t && rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t)
                 {
-                    // vla string
-                    if(rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t)
-                    {
-                        vla := cast(rtti::Vla@,arg.data);
-                        write_str_raw(cast(c8@,vla.data),vla.len);
-                    }
-
-                    else
-                    {   
-                        unimplemented("vla array print");
-                    }
+                    vla := cast(rtti::Vla@,arg.data);
+                    write_str_raw(cast(c8@,vla.data),vla.len);
                 }
 
                 else
-                {
-                   
+                {   
+                    unimplemented("vla array print");
                 }
             }
             
             // fixed size
             else
             {
-                if(contained_type.kind == rtti::type_class::builtin_t)
+                if(contained_type.kind == rtti::type_class::builtin_t && rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t)
                 {
-                    if(rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t)
-                    {
-                        v := rtti::int_from_any(arg);
+                    v := rtti::int_from_any(arg);
 
-                        char_ptr : const c8@ = cast(const c8@,v);
-                        write_str_raw(char_ptr,array_type.size);
-                    }
-
-                    else
-                    {
-                        unimplemented("array print");
-                    }
+                    char_ptr : const c8@ = cast(const c8@,v);
+                    write_str_raw(char_ptr,array_type.size);
                 }
 
                 else
