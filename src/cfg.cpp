@@ -165,7 +165,19 @@ BlockSlot add_fall(Interloper& itl,Function& func)
     return exit;
 }
 
-void emit_cond_branch(Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot, b32 cond)
+void check_block_branch(Interloper& itl,Function& func, BlockSlot& block_slot)
+{
+    auto& block = block_from_slot(func,block_slot);
+    block.branch_count += 1;
+
+    if(block.branch_count > 1)
+    {
+        dump_ir_sym(itl,func,itl.symbol_table);
+        panic(itl,itl_error::out_of_bounds,"Basic block has too many branches: at L%d\n",block.label_slot.handle);
+    }
+}
+
+void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot, b32 cond)
 {
     const op_type branch_type = cond? op_type::bc : op_type::bnc;
 
@@ -177,14 +189,18 @@ void emit_cond_branch(Function& func, BlockSlot block,BlockSlot target,BlockSlot
 
     // build links into the cfg 
     add_cond_exit(func,block,target,fall);
+
+    check_block_branch(itl,func,block);
 }
 
-void emit_branch(Function& func, BlockSlot block,BlockSlot target)
+void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot target)
 {
     const auto& target_block = block_from_slot(func,target);
 
     emit_block_internal(func,block,op_type::b,make_label_operand(target_block.label_slot),BLANK_OPERAND,BLANK_OPERAND);
     add_block_exit(func,block,target);
+
+    check_block_branch(itl,func,block);
 }
 
 

@@ -47,7 +47,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 const BlockSlot else_slot = compile_basic_block(itl,func,(BlockNode*)else_stmt->next);
 
                 // add branch over body we compiled to else statement
-                emit_cond_branch(func,cmp_block,else_slot,body_slot,reg,false);
+                emit_cond_branch(itl,func,cmp_block,else_slot,body_slot,reg,false);
 
                 exit_block = add_fall(itl,func);
                 break;
@@ -60,7 +60,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 const BlockSlot chain_slot = new_basic_block(itl,func);
 
                 // add branch over the body we compiled earlier
-                emit_cond_branch(func,cmp_block,chain_slot,body_slot,reg,false);
+                emit_cond_branch(itl,func,cmp_block,chain_slot,body_slot,reg,false);
             }
         }
 
@@ -70,7 +70,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             exit_block = add_fall(itl,func);
 
             // if cond not met just branch into exit block
-            emit_cond_branch(func,cmp_block,exit_block,body_slot,reg,false);          
+            emit_cond_branch(itl,func,cmp_block,exit_block,body_slot,reg,false);          
         }
     }
 
@@ -91,7 +91,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             if(block.list.finish->opcode.op == op_type::exit_block)
             {
                 remove(block.list,block.list.finish);
-                emit_branch(func,block_from_idx(b),exit_block);
+                emit_branch(itl,func,block_from_idx(b),exit_block);
             }
         }
     }
@@ -137,10 +137,10 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // keep looping to while block if cond is true
-    emit_cond_branch(func,end_block,while_block,exit_block,exit_cond,true);
+    emit_cond_branch(itl,func,end_block,while_block,exit_block,exit_cond,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(func,initial_block,exit_block,while_block,entry_cond,false);   
+    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond,false);   
 }
 
 void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_node, b32 inc, op_type cmp_type)
@@ -200,10 +200,10 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // emit loop branch
-    emit_cond_branch(func,end_block,for_block,exit_block,exit_cond,true);
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);    
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);    
 }
 
 void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
@@ -322,12 +322,12 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // emit loop branch
-    emit_cond_branch(func,end_block,for_block,exit_block,exit_cond,true);
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
 
     if(is_runtime_size(arr_type))
     {
         // emit branch over the loop body if array is empty
-        emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);  
+        emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);  
     }
 
     // fixed size array only need to add a fall
@@ -457,10 +457,10 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 
     const BlockSlot exit_block = new_basic_block(itl,func);
 
-    emit_cond_branch(func,end_block,for_block,exit_block,exit_cond,true);
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(func,initial_block,exit_block,for_block,entry_cond,false);
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
 
     destroy_scope(itl.symbol_table);    
 }
@@ -743,7 +743,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // we have default posisiton now we can emit the branch for the range checking failing
-        emit_cond_branch(func,range_block,default_block,dispatch_block,default_cmp,true);
+        emit_cond_branch(itl,func,range_block,default_block,dispatch_block,default_cmp,true);
 
 
 
@@ -771,7 +771,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                 case_idx++;
 
                 // add jump to the exit block
-                emit_branch(func,case_node->end_block,exit_block);
+                emit_branch(itl,func,case_node->end_block,exit_block);
             }
 
             // as statements as sorted this means there is no match emit default

@@ -212,7 +212,7 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
             if(block.list.finish->opcode.op == op_type::exit_block)
             {
                 remove(block.list,block.list.finish);
-                emit_cond_branch(func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);
+                emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);
             }
         }
     }
@@ -225,9 +225,12 @@ Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, Reg
 {
     BinNode* bin_node = (BinNode*)node;
     
-    const BlockSlot left_block = cur_block(func);
+    BlockSlot left_block = cur_block(func);
 
-    if(bin_node->left->type == ast_type::logical_and || bin_node->left->type == ast_type::logical_or)
+    const ast_type syntax_nested = type == boolean_logic_op::and_t? ast_type::logical_and : ast_type::logical_or;
+    const ast_type syntax_switch = type == boolean_logic_op::and_t? ast_type::logical_or : ast_type::logical_and;
+
+    if(bin_node->left->type == syntax_nested)
     {
         compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1);
     }
@@ -235,6 +238,13 @@ Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, Reg
     else
     {
         compile_expression(itl,func,bin_node->left,dst_slot);
+
+        // switched from and to or
+        // Which means our skip needs to be placed after all of these have compiled
+        if(bin_node->left->type == syntax_switch)
+        {
+            left_block = cur_block(func);
+        }
     }
 
     // First block needs to jump to exit
