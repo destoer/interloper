@@ -144,29 +144,47 @@ RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* t
 // NOTE: this has to be a vla
 void store_arr_data(Interloper& itl, Function& func, RegSlot slot, RegSlot data)
 {
-    if(!is_special_reg(slot,spec_reg::rv))
+    if(is_special_reg(slot))
     {
-        const auto dst_addr = make_struct_addr(slot,0);
-        store_struct(itl,func,data,dst_addr,GPR_SIZE,false);
+        switch(slot.spec)
+        {
+            case spec_reg::rv_struct:
+            {
+                store_ptr(itl,func,data,make_sym_reg_slot(func.sig.args[0]),0,GPR_SIZE,false);
+                break;
+            }
+
+            default: assert(false);
+        }
     }
 
     else
     {
-        store_ptr(itl,func,data,make_sym_reg_slot(func.sig.args[0]),0,GPR_SIZE,false);
+        const auto dst_addr = make_struct_addr(slot,0);
+        store_struct(itl,func,data,dst_addr,GPR_SIZE,false);
     }
 }
 
 void store_arr_len(Interloper& itl, Function& func, RegSlot slot,RegSlot len)
 {
-    if(!is_special_reg(slot,spec_reg::rv))
+    if(is_special_reg(slot))
     {
-        const auto dst_addr = make_struct_addr(slot,GPR_SIZE);
-        store_struct(itl,func,len,dst_addr,GPR_SIZE,false);
+        switch(slot.spec)
+        {
+            case spec_reg::rv_struct:
+            {
+                store_ptr(itl,func,len,make_sym_reg_slot(func.sig.args[0]),GPR_SIZE,GPR_SIZE,false);
+                break;
+            }
+
+            default: assert(false);
+        }
     }
 
     else
     {
-        store_ptr(itl,func,len,make_sym_reg_slot(func.sig.args[0]),GPR_SIZE,GPR_SIZE,false);
+        const auto dst_addr = make_struct_addr(slot,GPR_SIZE);
+        store_struct(itl,func,len,dst_addr,GPR_SIZE,false);
     }
 }
 

@@ -203,7 +203,7 @@ void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
                 switch(spec)
                 { 
                     // copy into hidden pointer
-                    case spec_reg::rv:
+                    case spec_reg::rv_struct:
                     {
                         const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
                         ir_memcpy(itl,func,dst_addr,src_addr,size);

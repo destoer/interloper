@@ -150,7 +150,7 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot d
     if(!is_special_reg(dst_slot,spec_reg::null))
     {
         // move result
-        mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rv));
+        mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rv_gpr));
     }
     
     return make_builtin(itl,builtin_type::s64_t);   

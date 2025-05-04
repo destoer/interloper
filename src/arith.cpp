@@ -422,7 +422,7 @@ void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src
                 {
                     switch(dst_slot.spec)
                     {
-                        case spec_reg::rv:
+                        case spec_reg::rv_struct:
                         {
                             addr_slot = make_sym_reg_slot(func.sig.args[0]);
                             break;
@@ -463,7 +463,7 @@ void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src
                 switch(dst_slot.spec)
                 {
                     // copy out the strucutre using the hidden pointer in the first arg
-                    case spec_reg::rv:
+                    case spec_reg::rv_struct:
                     {
                         const auto src_addr = make_struct_addr(src_slot,0);
                         const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);

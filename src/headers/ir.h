@@ -425,12 +425,12 @@ enum class operand_type
 };
 
 
-const String SPECIAL_REG_NAMES[16] = 
+const String SPECIAL_REG_NAMES[17] = 
 {
     "sp",
     "pc",
-    "rv",
-    "rv_float",
+    "rv_gpr",
+    "rv_fpr",
 
     "rax",
     "rcx",
@@ -443,6 +443,7 @@ const String SPECIAL_REG_NAMES[16] =
     "r10",
 
     "fixed_len",
+    "rv_struct",
     "null_slot",
     "const",
     "global",
@@ -459,8 +460,8 @@ enum class spec_reg
     // generic
     sp = SPECIAL_REG_START,
     pc = SPECIAL_REG_START + 1,
-    rv = SPECIAL_REG_START + 2,
-    rv_float = SPECIAL_REG_START + 3,
+    rv_gpr = SPECIAL_REG_START + 2,
+    rv_fpr = SPECIAL_REG_START + 3,
 
     // x86
     rax = SPECIAL_REG_START + 4,
@@ -476,11 +477,14 @@ enum class spec_reg
     // dummy reg to tell compilier loads are not necessary for fixed arrays
     access_fixed_len_reg = SPECIAL_REG_START + 12,
 
-    // dont perform any moves
-    null = SPECIAL_REG_START + 13,
+    // Return that requires a memory copy
+    rv_struct = SPECIAL_REG_START + 13,
 
-    const_seg = SPECIAL_REG_START + 14,
-    global_seg = SPECIAL_REG_START + 15,
+    // dont perform any moves
+    null = SPECIAL_REG_START + 14,
+
+    const_seg = SPECIAL_REG_START + 15,
+    global_seg = SPECIAL_REG_START + 16,
 };
 
 b32 is_raw_special_reg(u32 reg)

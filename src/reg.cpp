@@ -138,7 +138,7 @@ b32 is_arg(const Reg& reg)
 
 b32 is_special_reg_fpr(spec_reg reg)
 {
-    return reg == spec_reg::rv_float;
+    return reg == spec_reg::rv_fpr;
 }
 
 b32 is_special_reg(RegSlot slot)
@@ -528,7 +528,7 @@ u32 special_reg_to_reg(arch_target arch,spec_reg spec)
         }
 
 
-        case spec_reg::rv: 
+        case spec_reg::rv_gpr: 
         {
             switch(arch)
             {
@@ -540,7 +540,7 @@ u32 special_reg_to_reg(arch_target arch,spec_reg spec)
             assert(false);
         }
 
-        case spec_reg::rv_float: 
+        case spec_reg::rv_fpr: 
         {
             switch(arch)
             {
@@ -564,6 +564,24 @@ u32 special_reg_to_reg(arch_target arch,spec_reg spec)
 
         default: crash_and_burn("unhandled special reg %x\n",u32(spec)); 
     }    
+}
+
+spec_reg return_reg_from_type(const Type* type)
+{
+    if(is_float(type))
+    {
+        return spec_reg::rv_fpr;
+    }
+
+    else if(is_struct(type) || is_array(type))
+    {
+        return spec_reg::rv_struct;
+    }
+
+    else
+    {
+        return spec_reg::rv_gpr;
+    }
 }
 
 std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)

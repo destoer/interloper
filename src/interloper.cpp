@@ -621,24 +621,12 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
         case ast_type::logical_and:
         {
-            // TODO: This is to work around the output var getting locked by reg alloc
-            // If its a special reg
-            const RegSlot dst_tmp = mov_imm_res(itl,func,0); 
-            const auto ltype = compile_boolean_logic_op(itl,func,node,dst_tmp,boolean_logic_op::and_t,0);
-            mov_reg(itl,func,dst_slot,dst_tmp);
-
-            return ltype;
+            return compile_boolean_logic_op(itl,func,node,dst_slot,boolean_logic_op::and_t,0);
         }
 
         case ast_type::logical_or:
         {
-            // TODO: This is to work around the output var getting locked by reg alloc
-            // If its a special reg
-            const RegSlot dst_tmp = mov_imm_res(itl,func,0); 
-            const auto ltype = compile_boolean_logic_op(itl,func,node,dst_tmp,boolean_logic_op::or_t, 0);
-            mov_reg(itl,func,dst_slot,dst_tmp);
-
-            return ltype;
+            return compile_boolean_logic_op(itl,func,node,dst_slot,boolean_logic_op::or_t, 0);
         }
 
 
@@ -1033,15 +1021,46 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                     // single return
                     if(count(record_node->nodes) == 1)
                     {
-                        const RegSlot rv = is_float(func.sig.return_type[0])? make_spec_reg_slot(spec_reg::rv_float) : make_spec_reg_slot(spec_reg::rv);
-                        const auto rtype = compile_expression(itl,func,record_node->nodes[0],rv);
-        
+                        const RegSlot rv = make_spec_reg_slot(return_reg_from_type(func.sig.return_type[0]));
+
+                        switch(rv.spec)
+                        {
+                            case spec_reg::rv_struct:
+                            {
+                                const auto rtype = compile_expression(itl,func,record_node->nodes[0],rv);
+                                check_assign_init(itl,func.sig.return_type[0],rtype);
+                                break;
+                            }
+
+                            case spec_reg::rv_fpr:
+                            {
+                                // Compile this into a tmp and then move it out so its easy to lock.
+                                const auto tmp = new_tmp(func,GPR_SIZE);
+                                const auto rtype = compile_expression(itl,func,record_node->nodes[0],tmp);
+
+                                check_assign_init(itl,func.sig.return_type[0],rtype);  
+                                mov_float(itl,func,rv,tmp);
+                                break;
+                            }
+
+                            case spec_reg::rv_gpr:
+                            {
+                                // Compile this into a tmp and then move it out so its easy to lock.
+                                const auto tmp = new_tmp(func,GPR_SIZE);
+                                const auto rtype = compile_expression(itl,func,record_node->nodes[0],tmp);
+
+                                check_assign_init(itl,func.sig.return_type[0],rtype);  
+                                mov_reg(itl,func,rv,tmp);
+                                break;
+                            }
+
+                            default: assert(false);
+                        }
+
                         if(itl.error)
                         {
                             break;
                         }
-
-                        check_assign_init(itl,func.sig.return_type[0],rtype);
                     }
 
                     // multiple return

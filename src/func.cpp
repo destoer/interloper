@@ -500,7 +500,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
             {
                 switch(dst_slot.spec)
                 {
-                    case spec_reg::rv: 
+                    case spec_reg::rv_struct: 
                     {
                         // this is nested pass in the current hidden return
                         if(func.sig.hidden_args == 1)
@@ -583,8 +583,7 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Re
     // store the return value back into a reg (if its actually binded)
     if(returns_value && !is_special_reg(dst_slot,spec_reg::null) && !sig.hidden_args)
     {
-        const RegSlot rv = is_float(sig.return_type[0])? make_spec_reg_slot(spec_reg::rv_float): make_spec_reg_slot(spec_reg::rv);
-
+        const RegSlot rv = make_spec_reg_slot(return_reg_from_type(sig.return_type[0]));
         compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]);
     }
     
