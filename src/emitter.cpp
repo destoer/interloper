@@ -2,12 +2,12 @@
 
 void reload_slot(Interloper& itl, Function& func, const Reg& reg);
 
-List& get_cur_list(IrEmitter& emitter)
+OpcodeList& get_cur_list(IrEmitter& emitter)
 {
     return emitter.program[count(emitter.program)-1].list; 
 }
 
-ListNode* get_cur_end(IrEmitter& emitter)
+OpcodeNode* get_cur_end(IrEmitter& emitter)
 {
     return get_cur_list(emitter).finish;    
 }
@@ -109,7 +109,7 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot, b32 i
 
 
 // NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
-ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
+OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
 {
     const Opcode opcode = {type,v1,v2,v3};
 
@@ -120,7 +120,7 @@ ListNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type,
     return list.finish;    
 }
 
-ListNode* emit_block_internal_slot(Function& func,BlockSlot block_slot, op_type type, RegSlot v1, RegSlot v2, RegSlot v3)
+OpcodeNode* emit_block_internal_slot(Function& func,BlockSlot block_slot, op_type type, RegSlot v1, RegSlot v2, RegSlot v3)
 {
     return emit_block_internal(func,block_slot,type,make_reg_operand(v1),make_reg_operand(v2),make_reg_operand(v3));
 }

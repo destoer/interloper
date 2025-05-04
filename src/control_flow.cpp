@@ -88,7 +88,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
         if(block.list.finish)
         {
-            if(block.list.finish->opcode.op == op_type::exit_block)
+            if(block.list.finish->value.op == op_type::exit_block)
             {
                 remove(block.list,block.list.finish);
                 emit_branch(itl,func,block_from_idx(b),exit_block);

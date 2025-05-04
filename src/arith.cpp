@@ -209,7 +209,7 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
 
         if(block.list.finish)
         {
-            if(block.list.finish->opcode.op == op_type::exit_block)
+            if(block.list.finish->value.op == op_type::exit_block)
             {
                 remove(block.list,block.list.finish);
                 emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);

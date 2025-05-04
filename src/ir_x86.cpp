@@ -1,6 +1,6 @@
 // We want to be more clever about reshuffling regs, for now lets just do it simply.
 // ideally if our dst is in rdx we can just spill rax and copy it over
-void lock_out_fixed_arith(LinearAlloc& alloc, Block& block, ListNode* node, RegSlot dst)
+void lock_out_fixed_arith(LinearAlloc& alloc, Block& block, OpcodeNode* node, RegSlot dst)
 {
     lock_into_reg(alloc,block,node,alloc.gpr,x86_reg::rax,dst);
     lock_out_reg(alloc,block,node,alloc.gpr,x86_reg::rdx);
@@ -13,7 +13,7 @@ void unlock_fixed_arith(LinearAlloc& alloc, RegSlot dst, x86_reg x86_dst, x86_re
 }
 
 
-void reload_fixed_reg_stack(LinearAlloc alloc, Block& block, ListNode* node, RegSlot dst, x86_reg reg, u32 arg)
+void reload_fixed_reg_stack(LinearAlloc alloc, Block& block, OpcodeNode* node, RegSlot dst, x86_reg reg, u32 arg)
 {   
     // spec just rewrite it
     if(dst.kind == reg_kind::spec)
@@ -24,14 +24,14 @@ void reload_fixed_reg_stack(LinearAlloc alloc, Block& block, ListNode* node, Reg
     else
     {
         reload_reg(alloc,block,node,dst,reg,insertion_type::before);
-        node->opcode.v[arg] = make_raw_operand(reg);
+        node->value.v[arg] = make_raw_operand(reg);
     }
 }
 
-ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* node, op_type type)
+OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode* node, op_type type)
 {
     // save where our dst is being forced into
-    const auto dst = node->opcode.v[0].reg;
+    const auto dst = node->value.v[0].reg;
 
     // RAX, is allways the "dst" with RDX an implicit operand
     // What register we actually want the result out of varies
@@ -67,7 +67,7 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
 
         }
 
-        node->opcode.v[0] = make_raw_operand(out_reg);
+        node->value.v[0] = make_raw_operand(out_reg);
     }
 
     else
@@ -81,9 +81,9 @@ ListNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, ListNode* nod
     return node->next;
 }   
 
-ListNode* rewrite_x86_shift(LinearAlloc& alloc,Block& block, ListNode* node)
+OpcodeNode* rewrite_x86_shift(LinearAlloc& alloc,Block& block, OpcodeNode* node)
 {
-    const auto src = node->opcode.v[1].reg;
+    const auto src = node->value.v[1].reg;
 
     if(alloc.stack_only)
     {

@@ -1620,9 +1620,9 @@ void emit_func(Interloper& itl, Function& func)
         // store cur relative offset to finalise later
         write_cur_rel_offset(itl,block.label_slot);
 
-        for(const ListNode &node : block.list)
+        for(const OpcodeNode &node : block.list)
         {
-            emit_opcode(itl.asm_emitter,node.opcode);
+            emit_opcode(itl.asm_emitter,node.value);
         }
     }
 

@@ -1,6 +1,6 @@
 
 
-ListNode* emit_directive_internal(Interloper& itl,Function& func, op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
+OpcodeNode* emit_directive_internal(Interloper& itl,Function& func, op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
 {
     UNUSED(itl);
 
@@ -86,12 +86,12 @@ void free_fixed_array(Interloper& itl,Function& func,RegSlot src,u32 size,u32 co
     emit_directive_internal(itl,func,op_type::free_fixed_array,make_reg_operand(src),make_raw_operand(size),make_raw_operand(count));
 }
 
-ListNode* alloc_slot(Interloper& itl,Function& func, const RegSlot slot, b32 force_alloc)
+OpcodeNode* alloc_slot(Interloper& itl,Function& func, const RegSlot slot, b32 force_alloc)
 {
     return emit_directive_internal(itl,func,op_type::alloc_slot,make_reg_operand(slot),make_raw_operand(force_alloc));
 }
 
-ListNode* alloc_stack(Interloper& itl, Function& func, u32 size)
+OpcodeNode* alloc_stack(Interloper& itl, Function& func, u32 size)
 {
     return emit_directive_internal(itl,func,op_type::alloc_stack,make_imm_operand(size));    
 }

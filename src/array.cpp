@@ -675,7 +675,7 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
-    ListNode* alloc = alloc_slot(itl,func,make_sym_reg_slot(slot),true);
+    OpcodeNode* alloc = alloc_slot(itl,func,make_sym_reg_slot(slot),true);
 
     // has an initalizer
     if(decl_node->expr)
@@ -732,14 +732,14 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         {
             case reg_segment::local:
             {
-                alloc->opcode = make_op(op_type::alloc_local_array,make_reg_operand(array.reg.slot),make_imm_operand(arr_size),make_imm_operand(arr_count));
+                alloc->value = make_op(op_type::alloc_local_array,make_reg_operand(array.reg.slot),make_imm_operand(arr_size),make_imm_operand(arr_count));
                 break;
             }
             // just dump addr
             case reg_segment::global:
             {
                 const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,slot,arr_size,arr_count);
-                alloc->opcode = make_op(op_type::alloc_global_array,make_reg_operand(array.reg.slot),make_imm_operand(alloc_idx));
+                alloc->value = make_op(op_type::alloc_global_array,make_reg_operand(array.reg.slot),make_imm_operand(alloc_idx));
                 break;
             }
 

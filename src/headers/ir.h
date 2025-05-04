@@ -1,5 +1,6 @@
 #pragma once
 #include <destoer/destoer.h>
+#include "list.inl"
 
 enum class op_type
 {
@@ -768,85 +769,6 @@ inline const char *block_names[] =
 };
 
 
-
-struct ListNode
-{
-    Opcode opcode;
-    ListNode *next = nullptr;
-    ListNode *prev = nullptr;
-};
-
-struct ListIterator
-{
-
-    ListIterator(ListNode* node)
-    {
-        this->node = node;
-    }
-
-    bool operator==(const ListIterator& it) const 
-    {
-        return node == it.node;
-    }
-
-    ListIterator& operator++()
-    {
-        node = node->next;
-        return *this;
-    }
-
-    ListNode& operator*()
-    {
-        return *node;
-    }
-
-    const ListNode& operator*() const
-    {
-        return *node;
-    }
-
-    ListNode* node = nullptr;
-};
-
-struct List
-{
-    // global list Arena allocator
-    ArenaAllocator *allocator = nullptr;
-
-    ListNode *start = nullptr;
-
-    ListNode *finish = nullptr;
-
-    ListIterator begin()
-    {
-        return ListIterator(start);
-    }
-
-    ListIterator end()
-    {
-        return ListIterator(nullptr);
-    }
-
-    const ListIterator begin() const
-    {
-        return ListIterator(start);
-    }
-
-    const ListIterator end() const
-    {
-        return ListIterator(nullptr);
-    }
-};
-
-enum class insertion_type
-{
-    after,
-    before,
-};
-
-List make_list(ArenaAllocator* allocator);
-
-
 static constexpr u32 SPECIAL_PURPOSE_BLOCK_START_HANDLE = 0xffff'fff0;
 static constexpr u32 INVALID_BLOCK_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 0;
 static constexpr u32 BLOCK_FUNC_EXIT_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 1;
@@ -859,9 +781,12 @@ static constexpr u32 HAS_FUNC_EXIT = 1 << 0;
 static constexpr u32 REACH_FUNC_EXIT = 1 << 1;
 static constexpr u32 IN_LOOP = 1 << 2;
 
+using OpcodeNode = ListNode<Opcode>;
+using OpcodeList = List<Opcode>;
+
 struct Block
 {
-    List list;
+    OpcodeList list;
     u32 branch_count = 0;
 
     u32 flags = 0;

@@ -828,7 +828,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     const auto reg_slot = make_sym_reg_slot(sym_slot);
 
     // save the alloc node so we can fill the info in later
-    ListNode* alloc = alloc_slot(itl,func,reg_slot,false);
+    OpcodeNode* alloc = alloc_slot(itl,func,reg_slot,false);
 
     // compile the expression so we can get the type!
     Type* type = compile_expression(itl,func,auto_decl->expr,reg_slot);
@@ -848,7 +848,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 
 
     // setup the allocation info now we have it
-    alloc->opcode.v[1].imm = !is_plain_type(type);
+    alloc->value.v[1].imm = !is_plain_type(type);
 
     // also assign back the correct type and register info
     auto& sym = sym_from_slot(itl.symbol_table,sym_slot);

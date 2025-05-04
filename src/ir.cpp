@@ -14,9 +14,9 @@
 #include "ir_x86.cpp"
 
 
-ListNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, ListNode *node)
+OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* node)
 {
-    const auto slot = node->opcode.v[1].reg;
+    const auto slot = node->value.v[1].reg;
     auto& reg = reg_from_slot(slot,alloc);
 
     if(is_stack_unallocated(reg))
@@ -29,20 +29,20 @@ ListNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, ListNode *node)
     if(is_local(reg))
     {
         // add the stack offset, so this correctly offset for when we fully rewrite this
-        node->opcode.v[2].imm += alloc.stack_alloc.stack_offset;
+        node->value.v[2].imm += alloc.stack_alloc.stack_offset;
     }
 
     allocate_and_rewrite(alloc,block,node,0);
     return node->next;
 }
 
-ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, ListNode* node)
+OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
 {
     UNUSED(func);
 
-    const auto &opcode = node->opcode;
+    const auto &opcode = node->value;
 
-    switch(node->opcode.op)
+    switch(node->value.op)
     {
         case op_type::load_const_float:
         {
@@ -53,7 +53,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(alloc,block,node,0);
 
-            node->opcode = make_raw_op(op_type::lf,node->opcode.v[0].raw,u32(spec_reg::const_seg),section.offset);
+            node->value = make_raw_op(op_type::lf,node->value.v[0].raw,u32(spec_reg::const_seg),section.offset);
 
             node = node->next;
             break;
@@ -150,7 +150,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }
 
-            u32 offset = node->opcode.v[2].imm;
+            u32 offset = node->value.v[2].imm;
 
             // local add the stack offset
             if(is_local(reg))
@@ -160,7 +160,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
 
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
-            node->opcode = make_op(op_type::addrof,opcode.v[0],opcode.v[1],make_imm_operand(offset));
+            node->value = make_op(op_type::addrof,opcode.v[0],opcode.v[1],make_imm_operand(offset));
 
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(alloc,block,node,0);
@@ -219,7 +219,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
         // have to do opcode rewriting by here to make sure hte offset is applied after any reloads occur
         case op_type::push_arg:
         {
-            node->opcode =  make_op(op_type::push,opcode.v[0]);
+            node->value =  make_op(op_type::push,opcode.v[0]);
 
             // adjust opcode for reg alloc
             rewrite_opcode(alloc,block,node);
@@ -237,7 +237,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
             // clean up args
             const auto stack_clean = GPR_SIZE * opcode.v[0].imm;
 
-            node->opcode = make_op(op_type::add_imm2,make_spec_operand(spec_reg::sp),make_imm_operand(stack_clean));
+            node->value = make_op(op_type::add_imm2,make_spec_operand(spec_reg::sp),make_imm_operand(stack_clean));
             alloc.stack_alloc.stack_offset -= stack_clean;
 
             // adjust opcode for reg alloc
@@ -260,7 +260,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
                 break;
             }
 
-            node->opcode = make_op(op_type::sub_imm2,make_spec_operand(spec_reg::sp),make_imm_operand(size));
+            node->value = make_op(op_type::sub_imm2,make_spec_operand(spec_reg::sp),make_imm_operand(size));
             rewrite_opcode(alloc,block,node);
 
             alloc.stack_alloc.stack_offset += size;
@@ -299,7 +299,7 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
 
             const u32 offset = allocate_stack_array(alloc.stack_alloc,*alloc.table,slot.sym_slot,size,count);
 
-            node->opcode = make_op(op_type::alloc_local_array,opcode.v[0],make_imm_operand(offset));
+            node->value = make_op(op_type::alloc_local_array,opcode.v[0],make_imm_operand(offset));
 
             allocate_and_rewrite(alloc,block,node,0);
 
@@ -363,10 +363,10 @@ ListNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Bl
     return node;
 }
 
-ListNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, ListNode* node, op_type type)
+OpcodeNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, OpcodeNode* node, op_type type)
 {
-    const u32 base_offset = node->opcode.v[2].imm;
-    const RegSlot slot = node->opcode.v[1].reg;
+    const u32 base_offset = node->value.v[2].imm;
+    const RegSlot slot = node->value.v[1].reg;
 
     auto &reg = reg_from_slot(slot,alloc);
 
@@ -374,18 +374,18 @@ ListNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, ListNo
 
     const auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
-    node->opcode = make_op(type,node->opcode.v[0],make_imm_operand(offset_reg),make_imm_operand(offset + base_offset));
+    node->value = make_op(type,node->value.v[0],make_imm_operand(offset_reg),make_imm_operand(offset + base_offset));
 
     return node->next;
 }
 
 // 2nd pass of rewriting on the IR
-ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, ListNode *node,
+OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, OpcodeNode* node,
     const u32 saved_gpr, const u32 saved_fpr,const Opcode& stack_clean)
 {
-    const auto opcode = node->opcode;
+    const auto opcode = node->value;
 
-    switch(node->opcode.op)
+    switch(node->value.op)
     {
 
         case op_type::movf_reg:
@@ -417,7 +417,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
             // make sure callee restore comes after stack clean
 
             // NOTE: as floats were last thing saved, they are tthe first to restore
-            ListNode* float_node = emit_popm_float(itl,block,node,saved_fpr);
+            OpcodeNode* float_node = emit_popm_float(itl,block,node,saved_fpr);
             emit_popm(itl,block,float_node,saved_gpr);
 
             node = node->next;
@@ -448,7 +448,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
                     static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
 
                     // this here does not otherwhise need rewriting so we will emit SP directly
-                    node->opcode = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                    node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
                 }
 
                 // "plain data"
@@ -457,13 +457,13 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
                 {
                     static const op_type instr[4] = {op_type::lb, op_type::lh, op_type::lw,op_type::ld};
 
-                    node->opcode = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                    node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
                 }
             }
 
             else
             {
-                node->opcode = make_raw_op(op_type::lf,opcode.v[0].raw,offset_reg,offset);
+                node->value = make_raw_op(op_type::lf,opcode.v[0].raw,offset_reg,offset);
             }
 
             node = node->next;
@@ -482,7 +482,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
 
             auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
-            node->opcode = make_raw_op(op_type::lea,opcode.v[0].raw,offset_reg,base_offset + offset);
+            node->value = make_raw_op(op_type::lea,opcode.v[0].raw,offset_reg,base_offset + offset);
 
             node = node->next;
             break;
@@ -569,7 +569,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
 
         case op_type::alloc_local_array:
         {
-            const u32 idx = node->opcode.v[1].imm;
+            const u32 idx = node->value.v[1].imm;
 
             ArrayAllocation &allocation = alloc.stack_alloc.array_allocation[idx];
 
@@ -582,7 +582,7 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
             }
 
             // NOTE: this is allways on the stack, globals handle their own allocation...
-            node->opcode = make_raw_op(op_type::lea,opcode.v[0].raw,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
+            node->value = make_raw_op(op_type::lea,opcode.v[0].raw,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
 
             node = node->next;
             break;
@@ -601,12 +601,12 @@ ListNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, Li
             if(!(reg.flags & REG_FLOAT))
             {
                 static const op_type instr[4] = {op_type::sb, op_type::sh, op_type::sw,op_type::sd};
-                node->opcode = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
             }
 
             else
             {
-                node->opcode = make_raw_op(op_type::sf,opcode.v[0].raw,offset_reg,offset);
+                node->value = make_raw_op(op_type::sf,opcode.v[0].raw,offset_reg,offset);
             }
 
             node = node->next;
@@ -638,7 +638,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
         linear_setup_new_block(alloc,block);
 
-        ListNode *node = block.list.start;
+        OpcodeNode *node = block.list.start;
 
         while(node)
         {

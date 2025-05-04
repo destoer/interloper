@@ -4,7 +4,7 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
 {
     Block block;
 
-    block.list = make_list(list_allocator);
+    block.list = make_list<Opcode>(list_allocator);
     block.label_slot = label_slot;
     block.block_slot = block_slot;
 
@@ -385,10 +385,10 @@ void compute_use_def(Interloper& itl,Function& func)
         }
         
         // run a pass on the block
-        for(const ListNode& node : block.list)
+        for(const OpcodeNode& node : block.list)
         {
             // mark three address code
-            const auto opcode = node.opcode;
+            const auto opcode = node.value;
 
             const auto info = info_from_op(opcode);
 

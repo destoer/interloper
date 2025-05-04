@@ -1,28 +1,28 @@
-ListNode* rewrite_x86_cond_branch(Block& block, ListNode* node, b32 if_true)
+OpcodeNode* rewrite_x86_cond_branch(Block& block, OpcodeNode* node, b32 if_true)
 {
-    const auto slot = node->opcode.v[0];
-    const auto cond = node->opcode.v[1];
+    const auto slot = node->value.v[0];
+    const auto cond = node->value.v[1];
 
-    node->opcode = make_op(op_type::test,cond,cond);
+    node->value = make_op(op_type::test,cond,cond);
     node = insert_after(block.list,node,make_op(if_true? op_type::jne : op_type::je,slot));
             
     return node->next;
 }
 
-ListNode* rewrite_x86_fixed(Block& block, ListNode* node, op_type op)
+OpcodeNode* rewrite_x86_fixed(Block& block, OpcodeNode* node, op_type op)
 {
-    const auto dst = node->opcode.v[0];
-    insert_at(block.list,node,make_op(op_type::mov_reg,dst,node->opcode.v[1]));
-    node->opcode = make_op(op,dst,node->opcode.v[2]);
+    const auto dst = node->value.v[0];
+    insert_at(block.list,node,make_op(op_type::mov_reg,dst,node->value.v[1]));
+    node->value = make_op(op,dst,node->value.v[2]);
 
     return node->next;
 }
 
 // TODO: we need a mechanism for rewriting large imm
 // on RISC ISA
-ListNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,ListNode* node)
+OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
-    const auto& opcode = node->opcode;
+    const auto& opcode = node->value;
 
     switch(opcode.op)
     {
@@ -235,7 +235,7 @@ ListNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,ListN
         {
             // dump float in the const pool table so we can do a relative load
             const auto pool_slot = push_const_pool(itl.const_pool,pool_type::var,&opcode.v[1].decimal,sizeof(f64));
-            node->opcode = make_op(op_type::load_const_float,opcode.v[0],make_raw_operand(pool_slot.handle),opcode.v[1]);
+            node->value = make_op(op_type::load_const_float,opcode.v[0],make_raw_operand(pool_slot.handle),opcode.v[1]);
             return node->next;
         }
 
@@ -271,9 +271,9 @@ ListNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,ListN
 
         case op_type::push_float_arg:
         {
-            const auto src = node->opcode.v[0];
+            const auto src = node->value.v[0];
 
-            node->opcode = make_raw_op(op_type::alloc_stack,8);
+            node->value = make_raw_op(op_type::alloc_stack,8);
             node = insert_after(block.list,node,make_op(op_type::sf,src,make_spec_operand(spec_reg::sp),make_imm_operand(0)));
             break;
         }
@@ -291,7 +291,7 @@ void rewrite_x86_func(Interloper& itl, Function& func)
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
-        ListNode* node = block.list.start;
+        OpcodeNode* node = block.list.start;
 
         while(node)
         {
