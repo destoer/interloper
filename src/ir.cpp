@@ -9,12 +9,12 @@
 #include "asm.cpp"
 #include "x86_emitter.cpp"
 #include "stack_allocator.cpp"
-#include "linear_alloc.cpp"
+#include "graph_alloc.cpp"
 #include "disass.cpp"
 #include "ir_x86.cpp"
 
 
-OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* node)
+OpcodeNode* rewrite_access_struct(GraphAlloc& alloc,Block &block, OpcodeNode* node)
 {
     const auto slot = node->value.v[1].reg;
     auto& reg = reg_from_slot(slot,alloc);
@@ -36,7 +36,7 @@ OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* n
     return node->next;
 }
 
-OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
+OpcodeNode* allocate_opcode(Interloper& itl,Function &func, GraphAlloc& alloc, Block& block, OpcodeNode* node)
 {
     UNUSED(func);
 
@@ -56,21 +56,6 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
             node->value = make_raw_op(op_type::lf,node->value.v[0].raw,u32(spec_reg::const_seg),section.offset);
 
             node = node->next;
-            break;
-        }
-
-        case op_type::live_var:
-        {
-            const auto slot = opcode.v[0].reg;
-            auto& ir_reg = reg_from_slot(itl,func,slot);
-
-            // issue a reload
-            if(is_reg_locally_allocated(ir_reg))
-            {
-                reload_reg(alloc,block,node,slot,ir_reg.local_reg,insertion_type::before);
-            }
-
-            node = remove(block.list,node);
             break;
         }
 
@@ -119,17 +104,11 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
         case op_type::lock_reg:
         {
-            const auto reg = opcode.v[0].reg;
-            lock_special_reg(alloc,block,node,reg.spec);
-
             return remove(block.list,node);
         }
 
         case op_type::unlock_reg:
         {
-            const auto reg = opcode.v[0].reg;
-            unlock_special_reg(alloc,reg.spec);
-
             return remove(block.list,node);
         }
 
@@ -320,7 +299,6 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
         case op_type::spill_func_bounds:
         {
             // clear our any caller saved regs
-            save_caller_saved_regs(alloc,block,node);
             return remove(block.list,node);
         }
     
@@ -363,7 +341,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
     return node;
 }
 
-OpcodeNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, OpcodeNode* node, op_type type)
+OpcodeNode* rewrite_access_struct_addr(Interloper& itl, GraphAlloc& alloc, OpcodeNode* node, op_type type)
 {
     const u32 base_offset = node->value.v[2].imm;
     const RegSlot slot = node->value.v[1].reg;
@@ -380,7 +358,7 @@ OpcodeNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, Opco
 }
 
 // 2nd pass of rewriting on the IR
-OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, OpcodeNode* node,
+OpcodeNode* rewrite_directives(Interloper& itl,GraphAlloc& alloc,Block& block, OpcodeNode* node,
     const u32 saved_gpr, const u32 saved_fpr,const Opcode& stack_clean)
 {
     const auto opcode = node->value;
@@ -626,9 +604,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,func.registers,&itl.symbol_table,itl.arch);
-
-    linear_allocate(alloc,itl,func);
+    auto alloc = make_graph_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,func.registers,&itl.symbol_table,itl.arch);
 
     log(alloc.print,"allocating registers for %s:\n",func.name.buf);
 
@@ -636,25 +612,12 @@ void allocate_registers(Interloper& itl,Function &func)
     {
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
 
-        linear_setup_new_block(alloc,block);
-
         OpcodeNode *node = block.list.start;
 
         while(node)
         {
-            clean_dead_regs(alloc);
-
             node = allocate_opcode(itl,func,alloc,block,node);
-            alloc.pc++;
         }
-
-        clean_dead_regs(alloc);
-        correct_live_out(alloc,block);
-    }
-
-    if(alloc.total_misplaced != 0)
-    {
-        log(alloc.print,"%s: Total misplaced %d\n",func.name.buf,alloc.total_misplaced);
     }
 
     // perform 2nd pass!
@@ -734,5 +697,5 @@ void allocate_registers(Interloper& itl,Function &func)
         }
     }
 
-    destroy_linear_alloc(alloc);
+    destroy_graph_alloc(alloc);
 }

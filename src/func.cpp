@@ -320,7 +320,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
 
             // finally push the arg
             is_float(rtype)? push_float_arg(itl,func,reg) : push_arg(itl,func,reg);
-
+            
             arg_clean++;
         }
     }

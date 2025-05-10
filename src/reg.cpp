@@ -238,16 +238,6 @@ void print(const Reg& reg)
     printf("count: %d\n",reg.count);
 
     printf("offset: 0x%x\n",reg.offset);
-
-    printf("local reg: r%x\n",reg.local_reg);
-    printf("global reg: r%x\n",reg.global_reg);
-
-    printf("uses: %d\n",reg.cur_local_uses);
-    
-    for(u32 i = 0; i < count(reg.local_uses); i++)
-    {
-        printf("use[%d] -> %d\n",i,reg.local_uses[i]);
-    }
 }
 
 const char* spec_reg_name(spec_reg reg)

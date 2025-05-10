@@ -260,8 +260,6 @@ enum class op_type
 
     load_const_float,
 
-    live_var,
-
     // just c++ things not used
     END,
 };
@@ -732,14 +730,6 @@ struct Reg
 
     // where is the current offset for its section?
     u32 offset = UNALLOCATED_OFFSET;
-
-    // Where is this register globally allocated if at all
-    u32 global_reg = REG_FREE;
-    // Where does this register reside in the current block?
-    u32 local_reg = REG_FREE;
-
-    u32 cur_local_uses = 0;
-    Array<u32> local_uses;
 
     u32 flags = 0;
 };

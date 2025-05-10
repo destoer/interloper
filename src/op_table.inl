@@ -253,8 +253,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::reg_t,"load_const_float %r, %x, %f",3,arg_type::dst_reg,arg_type::directive,arg_type::directive},
 
-    {op_group::slot_t,"live_var %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
-
     // not used
     {op_group::implicit_t,"END",0,{arg_type::none,arg_type::none,arg_type::none}},
 };
