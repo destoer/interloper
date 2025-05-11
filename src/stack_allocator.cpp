@@ -189,6 +189,11 @@ void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved
 {
     for(u32 a = 0; a < count(func.sig.args); a++)
     {
+        if(func.sig.pass_as_reg[a] != NON_ARG)
+        {
+            continue;
+        }
+
         const SymSlot slot = func.sig.args[a];
 
         auto &sym = sym_from_slot(table,slot);

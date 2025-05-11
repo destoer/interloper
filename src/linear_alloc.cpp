@@ -410,8 +410,8 @@ void init_regs(LinearAlloc& alloc)
     add_reg(alloc.gpr,x86_reg::rdx);
     add_reg(alloc.gpr,x86_reg::rbx);
     add_reg(alloc.gpr,x86_reg::rdp);
-    add_reg(alloc.gpr,x86_reg::rsi);
-    add_reg(alloc.gpr,x86_reg::rdi);
+    // add_reg(alloc.gpr,x86_reg::rsi);
+    // add_reg(alloc.gpr,x86_reg::rdi);
 
     add_reg(alloc.gpr,x86_reg::r8);
     add_reg(alloc.gpr,x86_reg::r9);

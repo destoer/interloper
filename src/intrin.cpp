@@ -52,18 +52,22 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
         Function &func_call = *func_def;
 
+        ArgPass pass = make_arg_pass(func_call.sig);
+
         const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
         collapse_struct_offset(itl,func,&src_addr);
         collapse_struct_offset(itl,func,&dst_addr);
 
-        push_arg(itl,func,imm_slot);
-        push_arg(itl,func,src_addr.slot);
-        push_arg(itl,func,dst_addr.slot);
+        pass_arg(itl,func,pass,imm_slot,make_builtin(itl,GPR_SIZE_TYPE),2);
+        pass_arg(itl,func,pass,src_addr.slot,make_pointer(itl,make_builtin(itl,builtin_type::byte_t)),1);
+        pass_arg(itl,func,pass,dst_addr.slot,make_pointer(itl,make_builtin(itl,builtin_type::byte_t)),0);
+
+        pass_args(itl,func,pass);
 
         call(itl,func,func_call.label_slot);
 
-        clean_args(itl,func,3);
+        clean_args(itl,func,pass.arg_clean);
     }
 }
 
@@ -97,14 +101,18 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 
         Function &func_call = *func_def;
 
+        ArgPass pass = make_arg_pass(func_call.sig);
+
         const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
-        push_arg(itl,func,imm_slot);
-        push_arg(itl,func,dst_ptr);
+        pass_arg(itl,func,pass,imm_slot,make_builtin(itl,GPR_SIZE_TYPE),1);
+        pass_arg(itl,func,pass,dst_ptr,make_pointer(itl,make_builtin(itl,builtin_type::byte_t)),0);
+
+        pass_args(itl,func,pass);
 
         call(itl,func,func_call.label_slot);
 
-        clean_args(itl,func,2);        
+        clean_args(itl,func,pass.arg_clean);        
     }
 }
 

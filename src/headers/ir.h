@@ -226,7 +226,7 @@ enum class op_type
 
     lock_reg,
     unlock_reg,
-
+    unlock_reg_set,
 
     spill,
     spill_all,
@@ -425,7 +425,7 @@ enum class operand_type
 };
 
 
-const String SPECIAL_REG_NAMES[17] = 
+const String SPECIAL_REG_NAMES[19] = 
 {
     "sp",
     "pc",
@@ -447,6 +447,9 @@ const String SPECIAL_REG_NAMES[17] =
     "null_slot",
     "const",
     "global",
+
+    "a1",
+    "a2",
 };
 
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
@@ -485,7 +488,13 @@ enum class spec_reg
 
     const_seg = SPECIAL_REG_START + 15,
     global_seg = SPECIAL_REG_START + 16,
+
+    // args
+    a1 = SPECIAL_REG_START + 17,
+    a2 = SPECIAL_REG_START + 18,
 };
+
+static constexpr u32 SPECIAL_REG_ARG_START = u32(spec_reg::a1);
 
 b32 is_raw_special_reg(u32 reg)
 {

@@ -133,6 +133,16 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
             return remove(block.list,node);
         }
 
+        case op_type::unlock_reg_set:
+        {
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                unlock_reg(alloc.gpr,r);
+            }
+
+            return remove(block.list,node);
+        }
+
         case op_type::addrof:
         {
             // -> <addrof> <alloced reg> <slot> <stack offset>
@@ -673,7 +683,11 @@ void allocate_registers(Interloper& itl,Function &func)
     // and insert the stack offsets and load and spill directives
 
     // RA is callee saved
-    const u32 CALLEE_GPR_SAVED_MASK = (1 << arch_rv(alloc.arch));
+    const u32 CALLEE_GPR_SAVED_MASK = (
+        1 << arch_rv(alloc.arch) | 
+        1 << special_reg_to_reg(alloc.arch,spec_reg::a1) |
+        1 << special_reg_to_reg(alloc.arch,spec_reg::a2)
+    );
 
     // RA is callee saved
     const u32 CALLEE_FPR_SAVED_MASK = (1 << arch_frv(alloc.arch));

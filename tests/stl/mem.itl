@@ -13,8 +13,6 @@ func main() s32
 
     res2 := std::bswap_u16(0xdead) == 0xadde;
 
-    std::print("{} : {} : {x}\n",res1,res2,std::bswap_u16(0xdead));
-
     ans := res1 && res2;
 
     return cast(s32,ans);

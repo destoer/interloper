@@ -562,6 +562,33 @@ u32 special_reg_to_reg(arch_target arch,spec_reg spec)
         case spec_reg::r9: return u32(x86_reg::r9);
         case spec_reg::r10: return u32(x86_reg::r10);
 
+        case spec_reg::a1:
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rdi;
+                }
+            }
+            assert(false);
+            break;
+        }
+
+        case spec_reg::a2:
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rsi;
+                }
+            }
+            assert(false);
+            break;
+        }
+
+
         default: crash_and_burn("unhandled special reg %x\n",u32(spec)); 
     }    
 }

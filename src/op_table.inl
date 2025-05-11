@@ -219,6 +219,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::reg_t,"lock %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::reg_t,"unlock %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::regm_t,"unlock_reg_set %m",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     {op_group::reg_t,"spill %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     {op_group::implicit_t,"spill_all",0,{arg_type::none,arg_type::none,arg_type::none}},

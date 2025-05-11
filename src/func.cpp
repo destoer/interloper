@@ -191,24 +191,80 @@ void print_func_decl(Interloper& itl,const Function &func)
 }
 
 
+void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
+{
+    if(is_trivial_copy(type) && !is_float(type) && count(sig.args) < 2)
+    {
+        Symbol sym = make_sym(itl,name,type);
+        add_var(itl.symbol_table,sym);
+        push_var(sig.args,sym.reg.slot.sym_slot);
+
+        push_var(sig.pass_as_reg,sig.max_reg_pass);
+
+        const u32 location = special_reg_to_reg(itl.arch,spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass));
+
+        sig.locked_set = set_bit(sig.locked_set,location);
+
+        sig.max_reg_pass += 1;
+    }   
+
+    else
+    {
+        Symbol sym = make_sym(itl,name,type,*arg_offset);
+        add_var(itl.symbol_table,sym);
+
+        push_var(sig.args,sym.reg.slot.sym_slot);
+
+        push_var(sig.pass_as_reg,NON_ARG);
+        *arg_offset += promote_size(type_size(itl,type));
+    }
+}
+
 // add hidden arg pointers for return
 void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* return_type, u32* arg_offset)
 {
     Type* ptr_type = make_pointer(itl,return_type);
 
-    Symbol sym = make_sym(itl,name,ptr_type,*arg_offset);
-    add_var(itl.symbol_table,sym);
-
-    push_var(sig.args,sym.reg.slot.sym_slot);     
-
-    *arg_offset += GPR_SIZE;
+    add_sig_arg(itl,sig,name,ptr_type,arg_offset);
     sig.hidden_args++;
 }
 
-u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
+ArgPass make_arg_pass(const FuncSig& sig)
 {
-    u32 arg_clean = 0;
+    ArgPass pass;
 
+    resize(pass.args,sig.max_reg_pass);
+    pass.pass_as_reg = sig.pass_as_reg;
+    return pass;
+}
+
+void pass_arg(Interloper& itl, Function& func, ArgPass& pass,RegSlot arg, Type* type, u32 arg_idx)
+{
+    if(pass.pass_as_reg[arg_idx] == NON_ARG)
+    {
+        is_float(type)? push_float_arg(itl,func,arg) : push_arg(itl,func,arg);
+        pass.arg_clean++;
+    }
+
+    else
+    {
+
+        pass.args[pass.pass_as_reg[arg_idx]] = arg;
+    }
+}
+
+void pass_args(Interloper& itl, Function& func, ArgPass& pass)
+{
+    // Move the passed args into place
+    for(u32 a = 0; a < count(pass.args); a++)
+    {
+        const RegSlot arg_slot = make_spec_reg_slot(spec_reg(SPECIAL_REG_ARG_START + a));
+        mov_reg(itl,func,arg_slot,pass.args[a]);
+    }
+}
+
+void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
+{
     const s32 hidden_args = sig.hidden_args;
 
     // push args in reverse order and type check them
@@ -222,7 +278,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
         if(is_any(itl,arg_type))
         {
             const u32 size = compile_any(itl,func,call_node->args[arg_idx]);
-            arg_clean += size / GPR_SIZE;
+            pass.arg_clean += size / GPR_SIZE;
         }
 
         else if(is_array(arg_type))
@@ -247,7 +303,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                 const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
                 push_arg(itl,func,addr_slot);
 
-                arg_clean += 2;
+                pass.arg_clean += 2;
             }
 
             else
@@ -258,7 +314,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
 
                 if(itl.error)
                 {
-                    return arg_clean;
+                    return;
                 }
 
 
@@ -271,7 +327,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                     const RegSlot data_slot = load_arr_data(itl,func,reg,rtype);
                     push_arg(itl,func,data_slot);
 
-                    arg_clean += 2;  
+                    pass.arg_clean += 2;  
                 }
 
                 // fixed sized array
@@ -279,7 +335,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
                 {
                     push_arg(itl,func,reg);
 
-                    arg_clean += 1;
+                    pass.arg_clean += 1;
                 }
             }
         }
@@ -305,7 +361,7 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
             ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
 
             // clean up the stack push
-            arg_clean += aligned_size / GPR_SIZE;
+            pass.arg_clean += aligned_size / GPR_SIZE;
         }
 
         // plain builtin in variable
@@ -317,15 +373,9 @@ u32 push_args(Interloper& itl, Function& func, FuncCallNode* call_node,const Fun
 
             // type check the arg
             check_assign_arg(itl,arg_type,rtype);
-
-            // finally push the arg
-            is_float(rtype)? push_float_arg(itl,func,reg) : push_arg(itl,func,reg);
-
-            arg_clean++;
+            pass_arg(itl,func,pass,reg,rtype,i);
         }
     }
-
-    return arg_clean;
 }
 
 u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const String& name, u32 actual_args)
@@ -391,7 +441,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     return arg_clean;
 }
 
-u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_node, RegSlot dst_slot)
+u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, RegSlot dst_slot, Type* return_type)
 {
     u32 arg_clean = 0;
 
@@ -421,8 +471,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                     spill_slot(itl,func,sym.reg);
 
                     const RegSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
-                    push_arg(itl,func,addr_slot);
-
+                    pass_arg(itl,func,pass,addr_slot,make_pointer(itl,sym.type),a);
                     break;
                 }
 
@@ -430,16 +479,14 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                 {
                     // get the addr and push it
                     auto [type,ptr_slot] = compute_member_ptr(itl,func,var_node);
-
-                    push_arg(itl,func,ptr_slot);
+                    pass_arg(itl,func,pass,ptr_slot,type,a);
                     break;
                 }
 
                 case ast_type::index:
                 {
                     auto [type,ptr_slot] = index_arr(itl,func,var_node,new_tmp_ptr(func));
-
-                    push_arg(itl,func,ptr_slot);
+                    pass_arg(itl,func,pass,ptr_slot,type,a);
                     break;
                 }
 
@@ -454,7 +501,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                         return arg_clean;
                     }
 
-                    push_arg(itl,func,ptr_slot);
+                    pass_arg(itl,func,pass,ptr_slot,ptr_type,a);
                     break;                     
                 }
 
@@ -464,9 +511,6 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                     return arg_clean;
                 }
             }
-
-            arg_clean++;
-        
         }
     }
 
@@ -478,10 +522,8 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
         {
             case reg_kind::sym:
             {
-                arg_clean++;
-
                 const RegSlot addr = addrof_res(itl,func,dst_slot);
-                push_arg(itl,func,addr);
+                pass_arg(itl,func,pass,addr,make_pointer(itl,return_type),0);
                 break;
             }
 
@@ -492,7 +534,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                 alloc_slot(itl,func,dst_slot,true);
                 
                 const RegSlot addr = addrof_res(itl,func,dst_slot);
-                push_arg(itl,func,addr);
+                pass_arg(itl,func,pass,addr,make_pointer(itl,return_type),0);
                 break;
             }
 
@@ -505,8 +547,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_nod
                         // this is nested pass in the current hidden return
                         if(func.sig.hidden_args == 1)
                         {
-                            arg_clean++;
-                            push_arg(itl,func,make_sym_reg_slot(func.sig.args[0]));
+                            pass_arg(itl,func,pass,make_sym_reg_slot(func.sig.args[0]),make_pointer(itl,return_type),0);
                         }
 
                         else
@@ -586,10 +627,13 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Re
         const RegSlot rv = make_spec_reg_slot(return_reg_from_type(sig.return_type[0]));
         compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]);
     }
-    
+
+    if(sig.max_reg_pass != 0)
+    {
+        unlock_reg_set(itl,func,sig.locked_set);
+    }
 
     // give back the function's return type
-
     if(count(sig.return_type) == 1)
     {
         // result of expr is the return type
@@ -813,6 +857,7 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
         handle_tuple_decl(itl,func,tuple_node,sig);
     }
 
+    ArgPass pass = make_arg_pass(sig);
     
     // handle argument pushing
     const s32 hidden_args = sig.hidden_args;
@@ -845,7 +890,7 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
         }        
     }
 
-    arg_clean += push_args(itl,func,call_node,sig,start_arg);
+    push_args(itl,func,pass,call_node,sig,start_arg);
 
     if(itl.error)
     {
@@ -856,12 +901,13 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
 
     if(hidden_args)
     {
-        arg_clean += push_hidden_args(itl,func,tuple_node,dst_slot);
+        push_hidden_args(itl,func,pass,tuple_node,dst_slot,sig.return_type[0]);
     }
 
+    pass_args(itl,func,pass);
 
     // handle calling and returns
-    return handle_call(itl,func,call_info,dst_slot,arg_clean);
+    return handle_call(itl,func,call_info,dst_slot,pass.arg_clean);
 }
 
 // used for both tuples and ordinary function calls
@@ -919,19 +965,7 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         const auto name = a->name;
         const auto type = get_complete_type(itl,a->type);
 
-        // add the var to slot lookup and link to function
-        // we will do a add_scope to put it into the scope later
-        Symbol sym = make_sym(itl,name,type,arg_offset);
-        add_var(itl.symbol_table,sym);
-
-        push_var(sig.args,sym.reg.slot.sym_slot);
-
-        const u32 size = type_size(itl,type);
-
-        // if size is below GPR just make it take that much
-        const u32 arg_size = promote_size(size);
-
-        arg_offset += arg_size;
+        add_sig_arg(itl,sig,name,type,&arg_offset);
     }
 
     // add va args
@@ -940,13 +974,7 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
         Type* array_type = make_array(itl,type,RUNTIME_SIZE);
 
-        Symbol sym = make_sym(itl,node.args_name,array_type,arg_offset);
-        add_var(itl.symbol_table,sym);
-
-        push_var(sig.args,sym.reg.slot.sym_slot);
-
-        arg_offset += type_size(itl,type);
-
+        add_sig_arg(itl,sig,node.args_name,array_type,&arg_offset);
         sig.va_args = true;
     }
 
@@ -974,20 +1002,26 @@ void compile_function(Interloper& itl, Function& func)
         // so we know to access them "above" to stack pointer
         enter_new_anon_scope(itl.symbol_table);
 
-
-        // put each arg into scope
+        new_basic_block(itl,func);
+        
+        // put each arg into scope and copy it regs into args
         for(u32 a = 0; a < count(func.sig.args); a++)
         {
             const SymSlot slot = func.sig.args[a];
 
             auto &sym = sym_from_slot(itl.symbol_table,slot);
             add_sym_to_scope(itl.symbol_table,sym);
+
+            const u32 arg_reg = func.sig.pass_as_reg[a];
+
+            if(arg_reg != NON_ARG)
+            {
+                const spec_reg arg = spec_reg(SPECIAL_REG_ARG_START + arg_reg);
+                mov_reg(itl,func,make_sym_reg_slot(func.sig.args[a]),make_spec_reg_slot(arg));
+            }
         }
 
-
-
-        // parse out each line of the function
-        compile_basic_block(itl,func,node.block);
+        compile_block(itl,func,node.block);
 
         destroy_scope(itl.symbol_table);
 

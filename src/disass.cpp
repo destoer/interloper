@@ -1,3 +1,24 @@
+void format_regm(StringBuffer& buffer, u64 slot)
+{
+    char name[128];
+
+    push_var(buffer,'{');
+
+    u32 count = 0;
+
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        if(is_set(slot,r))
+        {
+            const u32 len = sprintf(name,"%s%s",count != 0? "," : "",X86_NAMES[r]);
+            push_mem(buffer,name,len);
+            count++;
+        }
+    }
+
+    push_var(buffer,'}');
+}
+
 void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char specifier, Operand operand)
 {
     switch(specifier)
@@ -54,6 +75,12 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
             const u32 len = sprintf(name,"%lf",operand.decimal);
 
             push_mem(buffer,name,len);
+            break;
+        }
+
+        case 'm':
+        {
+            format_regm(buffer,operand.imm);
             break;
         }
 
@@ -136,23 +163,8 @@ void fmt_raw_specifier(Array<char> &buffer,const SymbolTable* table, char specif
         // regm
         case 'm':
         {
-            char name[128];
-
-            push_var(buffer,'{');
-
-            u32 count = 0;
-
-            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
-            {
-                if(is_set(slot,r))
-                {
-                    const u32 len = sprintf(name,"%sr%d",count != 0? "," : "",r);
-                    push_mem(buffer,name,len);
-                    count++;
-                }
-            }
-
-            push_var(buffer,'}');
+            format_regm(buffer,slot);
+            break;
         }
 
         // ignore printing the fmt

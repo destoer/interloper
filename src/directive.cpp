@@ -155,3 +155,8 @@ void unlock_reg(Interloper& itl, Function& func, RegSlot reg)
 {
    emit_directive_internal(itl,func,op_type::unlock_reg,make_reg_operand(reg));
 }
+
+void unlock_reg_set(Interloper& itl, Function& func, u32 set)
+{
+   emit_directive_internal(itl,func,op_type::unlock_reg_set,make_imm_operand(set));
+}
