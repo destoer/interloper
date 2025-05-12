@@ -22,8 +22,8 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
     static constexpr u32 COPY_LIMIT = 64;
 
-    // multiple of 8 and under the copy limit
-    if(size < COPY_LIMIT && (size & 7) == 0) 
+    // multiple of 8 and under the copy limit (don't do this when stack only, as it generates awful code)
+    if(size < COPY_LIMIT && (size & 7) == 0 && !itl.stack_alloc) 
     {
         const auto tmp = new_tmp(func, 8);
 
@@ -77,7 +77,7 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     static constexpr u32 INLINE_LIMIT = 256;
 
     // multiple of 8 and under the copy limit
-    if(size < INLINE_LIMIT && (size & 7) == 0) 
+    if(size < INLINE_LIMIT && (size & 7) == 0 && !itl.stack_alloc) 
     {
         const auto zero = imm_zero(itl,func);
 

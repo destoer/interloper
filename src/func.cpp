@@ -441,10 +441,8 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     return arg_clean;
 }
 
-u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, RegSlot dst_slot, Type* return_type)
+void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, RegSlot dst_slot, Type* return_type)
 {
-    u32 arg_clean = 0;
-
     // pass in tuple dst
     if(tuple_node)
     {
@@ -464,7 +462,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssign
                     if(!sym_ptr)
                     {
                         panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
-                        return arg_clean;
+                        return;
                     }
 
                     const auto &sym = *sym_ptr;
@@ -498,7 +496,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssign
 
                     if(itl.error)
                     {
-                        return arg_clean;
+                        return;
                     }
 
                     pass_arg(itl,func,pass,ptr_slot,ptr_type,a);
@@ -508,7 +506,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssign
                 default:
                 {
                     panic(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
-                    return arg_clean;
+                    return;
                 }
             }
         }
@@ -529,8 +527,6 @@ u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssign
 
             case reg_kind::tmp:
             {
-                arg_clean++;
-
                 alloc_slot(itl,func,dst_slot,true);
                 
                 const RegSlot addr = addrof_res(itl,func,dst_slot);
@@ -553,7 +549,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssign
                         else
                         {
                             panic(itl,itl_error::missing_return,"Attempted to return invalid large var inside func");
-                            return arg_clean;
+                            return;
                         }
                         break;
                     }
@@ -566,9 +562,7 @@ u32 push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssign
                 }
             }
         }
-    }
-
-    return arg_clean;    
+    }  
 }
 
 struct FuncCall
@@ -862,17 +856,13 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
     // handle argument pushing
     const s32 hidden_args = sig.hidden_args;
 
-    // how many args are we pushing to the stack?
-    u32 arg_clean = 0;
-
-
     u32 start_arg = count(sig.args) - 1;
 
     const u32 actual_args = count(sig.args) - hidden_args;
 
     if(sig.va_args)
     {
-        arg_clean += push_va_args(itl,func,call_node,call_info.name,actual_args);
+        pass.arg_clean += push_va_args(itl,func,call_node,call_info.name,actual_args);
 
         // skip over our va_args
         start_arg = actual_args - 2;
