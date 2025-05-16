@@ -1,4 +1,3 @@
-
 // expected 9
 func main() s32
 {
