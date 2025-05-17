@@ -992,6 +992,11 @@ void compile_function(Interloper& itl, Function& func)
 
         new_basic_block(itl,func);
         
+        if(func.sig.max_reg_pass != 0)
+        {
+            lock_reg_set(itl,func,func.sig.locked_set);
+        }
+
         // put each arg into scope and copy it regs into args
         for(u32 a = 0; a < count(func.sig.args); a++)
         {
@@ -1005,7 +1010,7 @@ void compile_function(Interloper& itl, Function& func)
             if(arg_reg != NON_ARG)
             {
                 const spec_reg arg = spec_reg(SPECIAL_REG_ARG_START + arg_reg);
-                mov_reg(itl,func,make_sym_reg_slot(func.sig.args[a]),make_spec_reg_slot(arg));
+                mov_unlock(itl,func,make_sym_reg_slot(func.sig.args[a]),make_spec_reg_slot(arg));
             }
         }
 

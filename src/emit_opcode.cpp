@@ -262,6 +262,11 @@ void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
     emit_reg2<op_type::mov_reg>(itl,func,dst,src);
 }
 
+void mov_unlock(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
+{
+    emit_reg2<op_type::mov_unlock>(itl,func,dst,src);
+}
+
 void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 {
     emit_reg2<op_type::movf_reg>(itl,func,dst,src);

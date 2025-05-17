@@ -2,6 +2,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 {
     // main arith reg3
     {op_group::reg_t,"mov %r, %r    ",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"mov_unlock %r, %r    ",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"add %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"sub %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"mul %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
@@ -218,6 +219,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::implicit_t,"placeholder",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     {op_group::reg_t,"lock %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
+    {op_group::regm_t,"lock_reg_set %m",1,{arg_type::imm,arg_type::none,arg_type::none}},
     {op_group::reg_t,"unlock %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::regm_t,"unlock_reg_set %m",1,{arg_type::imm,arg_type::none,arg_type::none}},
 

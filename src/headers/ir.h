@@ -5,6 +5,7 @@
 enum class op_type
 {
     mov_reg,
+    mov_unlock,
     add_reg,
     sub_reg,
     mul_reg,
@@ -225,6 +226,7 @@ enum class op_type
     placeholder,
 
     lock_reg,
+    lock_reg_set,
     unlock_reg,
     unlock_reg_set,
 
