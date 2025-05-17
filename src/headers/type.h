@@ -195,6 +195,14 @@ struct TypeDef
     AstNode* root;
 };
 
+enum class assign_type
+{
+    assign,
+    arg,
+    initializer,
+    none,
+};
+
 struct Type
 {
     type_class kind;

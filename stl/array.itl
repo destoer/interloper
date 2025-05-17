@@ -83,7 +83,8 @@ func array_buffer(arr: Array@) byte[]
 
 func make_array(element_size: usize) Array 
 {
-    return Array {{NULL,0},0,element_size};
+    // Arrays should be checked by size for validity not by pointer
+    return Array {{cast(byte@,NULL),0},0,element_size};
 }
 
 func make_sized_array(element_size: usize, array_size: usize) Array

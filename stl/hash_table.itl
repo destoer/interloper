@@ -60,7 +60,7 @@ func make_hash_table(key_size: usize, value_size: usize, hash_func: HASH_FUNC) H
     };
 }
 
-func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key: const byte@) HashNode@
+func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key: const byte@) HashNode?
 {
     node_array := recast_arr(HashNode,array_buffer(&bucket.node));
 
@@ -75,7 +75,7 @@ func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key
     return NULL;
 }
 
-func hash_table_lookup(table: const HashTable@, key: const byte@) byte@
+func hash_table_lookup(table: const HashTable@, key: const byte@) byte?
 {
     slot := table.hash_func(key,count_array(&table.bucket));
     bucket := cast(Bucket@,array_index(&table.bucket,slot));

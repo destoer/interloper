@@ -24,19 +24,16 @@ constant SYSCALL_SENDTO: u32 = 44;
 
 // memory
 
-
-constant OS_INVALID_PTR : usize = 0; 
-
 // NOTE: we need to declare this first so that any file handles can alloc memory
 // globals are intialized in declaration order
-global current_os_brk : byte@ = brk(NULL);
+global current_os_brk : byte? = brk(NULL);
 
-func brk(ptr : byte@) byte@
+func brk(ptr : byte?) byte?
 {
-    return cast(byte@,intrin_syscall(SYSCALL_BRK,ptr,0,0));
+    return cast(byte?,intrin_syscall(SYSCALL_BRK,ptr,0,0));
 }
 
-func os_req_mem(size : usize) byte@
+func os_req_mem(size : usize) byte?
 {
     // this is basically just a bump allocator
     old := current_os_brk;
