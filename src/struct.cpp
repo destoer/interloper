@@ -632,28 +632,32 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                     struct_type = deref_pointer(struct_type);
                 }
 
-
-
-                if(is_array(struct_type))
+                switch(struct_type->kind)
                 {
-                    struct_type = access_array_member(itl,struct_type,member_name,&struct_slot);
-                }
-
-                // do enum member access
-                else if(is_enum(struct_type))
-                {
-                    struct_type = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
-
-                    if(itl.error)
+                    case type_class::array_t:
                     {
-                        return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot}; 
+                        struct_type = access_array_member(itl,struct_type,member_name,&struct_slot);
+                        break;
                     }
-                }
 
-                // actual struct member
-                else
-                {
-                    struct_type = access_struct_member(itl,struct_type,member_name,&struct_slot);
+                    // do enum member access
+                    case type_class::enum_t:
+                    {
+                        struct_type = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
+
+                        if(itl.error)
+                        {
+                            return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot}; 
+                        }
+                        break;
+                    }
+
+                    // actual struct member
+                    default:
+                    {
+                        struct_type = access_struct_member(itl,struct_type,member_name,&struct_slot);
+                        break;
+                    }
                 }   
                 break;
             }
