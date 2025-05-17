@@ -620,6 +620,14 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
 
                     struct_slot = make_addr(addr_slot,0);
 
+                    PointerType* ptr_type = (PointerType*)struct_type;
+
+                    if(ptr_type->pointer_kind == pointer_type::nullable)
+                    {
+                        panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,(Type*)ptr_type).buf);
+                        return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                    }
+
                     // now we are back to a straight pointer
                     struct_type = deref_pointer(struct_type);
                 }

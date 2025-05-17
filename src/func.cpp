@@ -497,7 +497,7 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
                         return;
                     }
 
-                    pass_arg(itl,func,pass,ptr_slot,ptr_type,a);
+                    pass_arg(itl,func,pass,ptr_slot,(Type*)ptr_type,a);
                     break;                     
                 }
 

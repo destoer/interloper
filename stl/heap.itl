@@ -167,7 +167,8 @@ func free_heap(heap : Heap@, ptr : byte@?)
         // Link prev of new next
         if(node.next)
         {
-            node.next.prev = node;
+            ref_next := cast(HeapNode@,node.next);
+            ref_next.prev = node;
         }
     }
     
@@ -184,7 +185,8 @@ func free_heap(heap : Heap@, ptr : byte@?)
         // Link back prev of node next
         if(prev.next) 
         {
-            prev.next.prev = prev;
+            ref_next := cast(HeapNode@,prev.next);
+            ref_next.prev = prev;
         }
     }
 }
@@ -278,7 +280,8 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
         // Repoint the surrounding blocks
         if(new.next)
         {
-            new.next.prev = new;
+            new_next := cast(HeapNode@,new.next);
+            new_next.prev = new;
         }
 
         cur.next = new;
