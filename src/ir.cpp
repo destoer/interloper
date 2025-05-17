@@ -125,10 +125,51 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
             return remove(block.list,node);
         }
 
+        case op_type::mov_unlock:
+        {
+            const auto reg = opcode.v[1].reg;
+            unlock_special_reg(alloc,reg.spec);
+            rewrite_opcode(alloc,block,node);
+            node->value.op = op_type::mov_reg;
+            node = node->next;
+            break;
+        }
+
         case op_type::unlock_reg:
         {
             const auto reg = opcode.v[0].reg;
             unlock_special_reg(alloc,reg.spec);
+
+            return remove(block.list,node);
+        }
+
+        case op_type::lock_reg_set:
+        {
+            const auto set = opcode.v[0].imm;
+
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                if(is_set(set,r))
+                {
+                    lock_reg(alloc.gpr,r);
+                }
+            }
+
+            return remove(block.list,node);
+        }
+
+
+        case op_type::unlock_reg_set:
+        {
+            const auto set = opcode.v[0].imm;
+
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                if(is_set(set,r))
+                {
+                    unlock_reg(alloc.gpr,r);
+                }
+            }
 
             return remove(block.list,node);
         }
@@ -673,7 +714,11 @@ void allocate_registers(Interloper& itl,Function &func)
     // and insert the stack offsets and load and spill directives
 
     // RA is callee saved
-    const u32 CALLEE_GPR_SAVED_MASK = (1 << arch_rv(alloc.arch));
+    const u32 CALLEE_GPR_SAVED_MASK = (
+        1 << arch_rv(alloc.arch) | 
+        1 << special_reg_to_reg(alloc.arch,spec_reg::a1) |
+        1 << special_reg_to_reg(alloc.arch,spec_reg::a2)
+    );
 
     // RA is callee saved
     const u32 CALLEE_FPR_SAVED_MASK = (1 << arch_frv(alloc.arch));

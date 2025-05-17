@@ -3,7 +3,7 @@ namespace std;
 func byte_arr_heap(heap : Heap@, size : usize) byte[]
 {
     buf: byte[];
-    buf.data = alloc_heap_panic(&global_heap,size,sizeof_type(byte));
+    buf.data = alloc_heap_panic(heap,size,sizeof_type(byte));
     buf.len = size;
 
     return buf;
@@ -11,20 +11,20 @@ func byte_arr_heap(heap : Heap@, size : usize) byte[]
 
 func arr_realloc_byte(heap: Heap@, vla: byte@[], size: usize) 
 {
-    realloc_heap_panic(&global_heap,&vla.data,size,sizeof_type(byte));
+    realloc_heap_panic(heap,&vla.data,size,sizeof_type(byte));
     vla.len = size;
 }
 
 func destroy_arr_heap_byte(heap : Heap@, vla: byte@[])
 {
-    free_heap(&global_heap,&vla.data);
+    free_heap(heap,&vla.data);
     vla.len = 0;
 }
 
 func arr_heap_u32(heap : Heap@, size : usize) u32[]
 {
     buf: u32[];
-    buf.data = cast(u32@,alloc_heap_panic(&global_heap,size,sizeof_type(u32)));
+    buf.data = cast(u32@,alloc_heap_panic(heap,size,sizeof_type(u32)));
     buf.len = size;
 
     return buf;
@@ -33,13 +33,13 @@ func arr_heap_u32(heap : Heap@, size : usize) u32[]
 
 func arr_realloc_u32(heap: Heap@, vla: u32@[], size: usize) 
 {
-    realloc_heap_panic(&global_heap,cast(byte@@,&vla.data),size,sizeof_type(u32));
+    realloc_heap_panic(heap,cast(byte@@,&vla.data),size,sizeof_type(u32));
     vla.len = size;
 }
 
 func destroy_arr_heap_u32(heap : Heap@, vla: u32@[])
 {
-    free_heap(&global_heap,cast(byte@@,&vla.data));
+    free_heap(heap,cast(byte@@,&vla.data));
     vla.len = 0;
 }
 

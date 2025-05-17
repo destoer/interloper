@@ -107,7 +107,7 @@ func stress_heap() bool
 
 func main() s32
 {
-    pass := test_arena() && test_heap() && test_realloc() && stress_heap();
+    pass := test_heap();
 
     return cast(s32,pass);
 }

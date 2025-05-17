@@ -5,6 +5,7 @@
 enum class op_type
 {
     mov_reg,
+    mov_unlock,
     add_reg,
     sub_reg,
     mul_reg,
@@ -225,8 +226,9 @@ enum class op_type
     placeholder,
 
     lock_reg,
+    lock_reg_set,
     unlock_reg,
-
+    unlock_reg_set,
 
     spill,
     spill_all,
@@ -425,7 +427,7 @@ enum class operand_type
 };
 
 
-const String SPECIAL_REG_NAMES[17] = 
+const String SPECIAL_REG_NAMES[19] = 
 {
     "sp",
     "pc",
@@ -447,6 +449,9 @@ const String SPECIAL_REG_NAMES[17] =
     "null_slot",
     "const",
     "global",
+
+    "a1",
+    "a2",
 };
 
 static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
@@ -485,7 +490,13 @@ enum class spec_reg
 
     const_seg = SPECIAL_REG_START + 15,
     global_seg = SPECIAL_REG_START + 16,
+
+    // args
+    a1 = SPECIAL_REG_START + 17,
+    a2 = SPECIAL_REG_START + 18,
 };
+
+static constexpr u32 SPECIAL_REG_ARG_START = u32(spec_reg::a1);
 
 b32 is_raw_special_reg(u32 reg)
 {
@@ -737,6 +748,10 @@ struct Reg
     u32 global_reg = REG_FREE;
     // Where does this register reside in the current block?
     u32 local_reg = REG_FREE;
+
+    // Registers that it has fixed interactions with
+    // Attempt to allocate register into here to avoid shuffles.
+    u32 hint = 0;
 
     u32 cur_local_uses = 0;
     Array<u32> local_uses;

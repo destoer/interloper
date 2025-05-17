@@ -496,13 +496,19 @@ struct AbiInfo
     u32 rv;
     u32 sp;
 
-    // u32 args[32];
-    // u32 arg_count;
+    u32 gpr_args[MACHINE_REG_SIZE];
+    u32 gpr_arg_count;
 };
 
 static constexpr AbiInfo ABI_INFO[] = 
 {
-    {x86_reg::rax,x86_reg::rsp}, // arch_target::x86_64_t
+    // arch_target::x86_64_t
+    {
+        x86_reg::rax,
+        x86_reg::rsp,
+        {x86_reg::rdi,x86_reg::rsi},
+        2,
+    }, 
 };
 
 // TODO: This should not just be down to arch
@@ -561,6 +567,33 @@ u32 special_reg_to_reg(arch_target arch,spec_reg spec)
         case spec_reg::r8: return u32(x86_reg::r8);
         case spec_reg::r9: return u32(x86_reg::r9);
         case spec_reg::r10: return u32(x86_reg::r10);
+
+        case spec_reg::a1:
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rdi;
+                }
+            }
+            assert(false);
+            break;
+        }
+
+        case spec_reg::a2:
+        {
+            switch(arch)
+            {
+                case arch_target::x86_64_t:
+                {
+                    return x86_reg::rsi;
+                }
+            }
+            assert(false);
+            break;
+        }
+
 
         default: crash_and_burn("unhandled special reg %x\n",u32(spec)); 
     }    

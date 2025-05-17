@@ -233,8 +233,6 @@ void branch_reg(Interloper& itl, Function&func, RegSlot target)
 void ret(Interloper& itl, Function& func)
 {
     add_func_exit(func,cur_block(func));
-
-    spill_func_bounds(itl,func);
     emit_implicit<op_type::ret>(itl,func);
 }
 
@@ -262,6 +260,11 @@ void sign_extend_word(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 {
     emit_reg2<op_type::mov_reg>(itl,func,dst,src);
+}
+
+void mov_unlock(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
+{
+    emit_reg2<op_type::mov_unlock>(itl,func,dst,src);
 }
 
 void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)

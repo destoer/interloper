@@ -55,9 +55,6 @@ import <file>
 global stdout : File = open_stdout();
 global stdin : File = open_stdin();
 
-// global stdout : File;
-// global stdin : File;
-
 func open_stdout() File
 {
     [fp,err] := open_file("/dev/stdout",file_mode::write,file_opt::open);

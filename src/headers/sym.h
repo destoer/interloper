@@ -35,6 +35,9 @@ struct FuncSig
 
     // gives slots into the main symbol table
     Array<SymSlot> args;
+    Array<u32> pass_as_reg;
+    u32 max_reg_pass = 0;
+    u32 locked_set = 0;
 
     b32 va_args = false;
     u32 hidden_args = 0;
@@ -42,6 +45,16 @@ struct FuncSig
 };
 
 
+struct ArgPass
+{
+    Array<RegSlot> args;
+    Array<u32> pass_as_reg;
+    u32 arg_clean = 0;
+};
+
+ArgPass make_arg_pass(const FuncSig& sig);
+void pass_args(Interloper& itl, Function& func, ArgPass& pass);
+void pass_arg(Interloper& itl, Function& func, ArgPass& pass,RegSlot arg, Type* type, u32 arg_idx);
 
 // NOTE: a func pointer is not a pointer to this struct
 // just this struct  
@@ -70,10 +83,6 @@ struct Function
 
     FuncNode* root = nullptr;
     b32 used = false;
-
-    // TODO: we need locked ranges
-    // this is just nice and simple for now
-    u32 locked_set = 0;
 
     b32 leaf_func = true;
 };
