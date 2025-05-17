@@ -47,7 +47,7 @@ b32 fit_into_u32(s64 v1)
     return in_range<u64>(v1,0,0xffffffff);
 }
 
-void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype);
+void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype, assign_type assign_kind);
 void parse_def(Interloper& itl, TypeDef& def);
 
 b32 is_builtin(const Type* type)
@@ -134,6 +134,11 @@ b32 is_enum(const Type* type)
 b32 is_pointer(const Type* type)
 {
     return type->kind == type_class::pointer_t;
+}
+
+b32 is_reference(const Type* type)
+{
+    return type->kind == type_class::pointer_t && ((PointerType*)type)->pointer_kind == pointer_type::reference;
 }
 
 b32 is_bool(const Type* type)
@@ -519,14 +524,26 @@ Type* make_builtin(Interloper& itl, builtin_type type, b32 is_const = false)
     return (Type*)builtin;
 }
 
-Type* make_pointer(Interloper& itl,Type* contained_type, b32 is_constant = false)
+Type* make_pointer(Interloper& itl,Type* contained_type, pointer_type pointer_kind, b32 is_constant = false)
 {
     PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,type_class::pointer_t,is_constant);
 
     pointer_type->contained_type = contained_type;
+    pointer_type->pointer_kind = pointer_kind;
 
     return (Type*)pointer_type;
 }
+
+Type* make_reference(Interloper& itl,Type* contained_type, b32 is_constant = false)
+{
+    return make_pointer(itl,contained_type,pointer_type::reference,is_constant);
+}
+
+Type* make_nullable_ptr(Interloper& itl,Type* contained_type, b32 is_constant = false)
+{
+    return make_pointer(itl,contained_type,pointer_type::nullable,is_constant);   
+}
+
 
 Type* make_struct(Interloper& itl, u32 struct_idx, b32 is_constant = false)
 {
@@ -596,10 +613,11 @@ String type_name(Interloper& itl,const Type *type)
         {
             case type_class::pointer_t:
             {
-                push_const_name(itl,compound,type," const");
-                push_char(itl.string_allocator,compound,'@');
-
                 PointerType* pointer_type = (PointerType*)type;
+                const bool nullable = pointer_type->pointer_kind == pointer_type::nullable;
+                push_const_name(itl,compound,type," const");
+                push_char(itl.string_allocator,compound,nullable? '?' : '@');
+
                 type = pointer_type->contained_type;
                 break;
             }
@@ -743,7 +761,7 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
 
             Type* contained_type = copy_type_internal(itl,pointer_type->contained_type);
             
-            return make_pointer(itl,contained_type,type->is_const);
+            return make_pointer(itl,contained_type,pointer_type->pointer_kind,type->is_const);
         }
 
         case type_class::struct_t:
@@ -1034,7 +1052,14 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             // pointer to current type
             case ast_type::ptr_indirection:
             {
-                type = make_pointer(itl,type,is_constant);
+                type = make_pointer(itl,type,pointer_type::reference,is_constant);
+                indirection = true;
+                break;
+            }
+
+            case ast_type::nullable_ptr_indirection:
+            {
+                type = make_pointer(itl,type,pointer_type::nullable,is_constant);
                 indirection = true;
                 break;
             }
@@ -1248,7 +1273,7 @@ void check_comparison_operation(Interloper& itl,const Type *ltype, const Type *r
 
     else if(is_pointer(ltype) && is_pointer(rtype))
     {
-        type_check_pointer(itl,ltype,rtype);
+        type_check_pointer(itl,ltype,rtype,assign_type::none);
     }
 
     else if(is_enum(ltype) && is_enum(rtype))
@@ -1275,14 +1300,6 @@ void check_comparison_operation(Interloper& itl,const Type *ltype, const Type *r
         panic(itl,itl_error::undefined_type_oper,"logical operation on user defined type: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
     }   
 }
-
-
-enum class assign_type
-{
-    assign,
-    arg,
-    initializer,
-};
 
 
 void check_const_internal(Interloper&itl, const Type* ltype, const Type* rtype, assign_type type, b32 was_reference)
@@ -1471,10 +1488,34 @@ bool is_byte_array(const Type* type)
     return is_array(type) && is_builtin_type(index_arr(type),builtin_type::byte_t);
 }
 
-void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
+bool type_check_pointer_nullable(Interloper& itl, const PointerType* ltype, const PointerType* rtype,  assign_type assign_kind)
 {
-    const auto base_ltype = ltype;
-    const auto base_rtype = rtype;
+    // Not for an assign we don't care!
+    if(assign_kind == assign_type::none)
+    {
+        return false;
+    }
+
+    if(ltype->pointer_kind == pointer_type::reference && rtype->pointer_kind == pointer_type::nullable)
+    {
+        panic(itl,itl_error::pointer_type_error,"Cannot assign a nullable pointer to a reference %s = %s\n",
+            type_name(itl,(Type*)ltype).buf,type_name(itl,(Type*)rtype).buf);
+
+        return true;
+    }
+
+    return false;
+}
+
+void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype, assign_type assign_kind)
+{
+    const auto base_ltype = (PointerType*)ltype;
+    const auto base_rtype = (PointerType*)rtype;
+
+    if(type_check_pointer_nullable(itl,base_ltype,base_rtype,assign_kind))
+    {
+        return;
+    }
 
     // null rtype auto converted 
     if(is_pointer(ltype) && is_pointer(rtype) && is_builtin_type(deref_pointer(rtype),builtin_type::null_t))
@@ -1507,6 +1548,11 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
             {
                 case type_class::pointer_t:
                 {
+                    if(type_check_pointer_nullable(itl,(PointerType*)ltype,(PointerType*)base_rtype,assign_kind))
+                    {
+                        return;
+                    }
+
                     ltype = deref_pointer(ltype);
                     rtype = deref_pointer(rtype);
 
@@ -1539,7 +1585,8 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
 
     if(!is_plain(ltype) || !is_plain(rtype))
     {
-        panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,base_ltype).buf,type_name(itl,base_rtype).buf);
+        panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",
+            type_name(itl,(Type*)base_ltype).buf,type_name(itl,(Type*)base_rtype).buf);
         return;
     }
 
@@ -1549,7 +1596,8 @@ void type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype)
         // if base types still aernt equal we have a problem!
         if(!plain_type_equal(ltype,rtype))
         {
-            panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",type_name(itl,base_ltype).buf,type_name(itl,base_rtype).buf);
+            panic(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s\n",
+                type_name(itl,(Type*)base_ltype).buf,type_name(itl,(Type*)base_rtype).buf);
             return;
         }
     }
@@ -1693,7 +1741,7 @@ void check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype,
     {
         if(is_pointer(ltype))
         {
-            type_check_pointer(itl,ltype,rtype);
+            type_check_pointer(itl,ltype,rtype,type);
 
             if(itl.error)
             {

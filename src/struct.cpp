@@ -202,8 +202,6 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b3
     }
 
 
-    // TODO: ensure array type cant use a deduced type size
-
 
     // we will deal with this later
     if(flags & ATTR_NO_REORDER)
@@ -406,7 +404,7 @@ Type* access_array_member(Interloper& itl, Type* type, const String& member_name
 
         struct_slot->offset += 0;
 
-        return make_pointer(itl,array_type->contained_type);
+        return make_reference(itl,array_type->contained_type);
     }
 
 
@@ -620,6 +618,14 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
 
                     struct_slot = make_addr(addr_slot,0);
 
+                    PointerType* ptr_type = (PointerType*)struct_type;
+
+                    if(ptr_type->pointer_kind == pointer_type::nullable)
+                    {
+                        panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,(Type*)ptr_type).buf);
+                        return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                    }
+
                     // now we are back to a straight pointer
                     struct_type = deref_pointer(struct_type);
                 }
@@ -697,7 +703,7 @@ std::pair<Type*,RegSlot> compute_member_ptr(Interloper& itl, Function& func, Ast
 
     collapse_struct_offset(itl,func,&addr_slot);
 
-    return std::pair{make_pointer(itl,type),addr_slot.slot};
+    return std::pair{make_reference(itl,type),addr_slot.slot};
 }
 
 void write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)
@@ -860,6 +866,12 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
         else
         {
+            if(is_reference(member.type))
+            {
+                panic(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s\n",member.name.buf,type_name(itl,member.type).buf);
+                return;
+            }
+
             const RegSlot tmp = imm_zero(itl,func);
             do_addr_store(itl,func,tmp,member_addr,member.type);
         }

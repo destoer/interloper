@@ -2,8 +2,8 @@
 
 func main() s32 
 {
-    int_ptr : u32@;
-    byte_ptr : byte@ = int_ptr;
+    int_ptr : u32?;
+    byte_ptr : byte? = int_ptr;
 
     return 0;
 }

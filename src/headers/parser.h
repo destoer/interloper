@@ -34,6 +34,7 @@ enum class ast_type
 
     type,
     ptr_indirection,
+    nullable_ptr_indirection,
     arr_dimensions,
     arr_var_size,
     arr_fixed,
@@ -142,6 +143,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "type",
     "ptr_indirection",
+    "nullable_ptr_indirection",
     "arr_dimensions",
     "arr_var_size",
     "arr_fixed",

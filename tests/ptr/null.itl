@@ -3,7 +3,7 @@
 func main() s32 
 {
     // rtype of NULL will auto cast to any pointer type
-    ptr : u32@ = NULL;
+    ptr : u32? = NULL;
 
     return cast(s32,ptr == NULL);
 }

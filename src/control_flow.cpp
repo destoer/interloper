@@ -243,7 +243,7 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
 
     else
     {
-        const auto& sym = add_symbol(itl,for_node->name_one,make_pointer(itl,index_arr(arr_type)));
+        const auto& sym = add_symbol(itl,for_node->name_one,make_reference(itl,index_arr(arr_type)));
         data = sym.reg.slot;
     }
     

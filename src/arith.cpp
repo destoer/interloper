@@ -556,7 +556,7 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
                 return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
             }
 
-            Type* pointer_type = make_pointer(itl,sym.type);
+            Type* pointer_type = make_reference(itl,sym.type);
 
             // actually  get the addr of the ptr
             addrof(itl,func,slot,sym.reg.slot);

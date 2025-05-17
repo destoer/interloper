@@ -20,7 +20,7 @@ func main() s32
 
     point : Point;
 
-    ptr : u32@;
+    ptr : u32?;
 
     v9 : u64;
     v10 : s64;

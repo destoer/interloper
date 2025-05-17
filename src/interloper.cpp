@@ -308,6 +308,12 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
                 return make_builtin(itl,builtin_type::void_t);
             }
 
+            if(((PointerType*)ptr_type)->pointer_kind == pointer_type::nullable)
+            {
+                panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr_type).buf);
+                return make_builtin(itl,builtin_type::void_t);
+            }
+
             // deref the pointer
             auto type = deref_pointer(ptr_type); 
             do_ptr_load(itl,func,dst_slot,slot,type);
@@ -557,7 +563,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
             Type* plain = make_builtin(itl,builtin_type::null_t);
 
-            return make_pointer(itl,plain);
+            return make_nullable_ptr(itl,plain);
         }
 
 
@@ -682,7 +688,13 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     // No initalizer
     if(!decl_node->expr)
     {
-        if(is_float(ltype))
+        if(is_reference(ltype))
+        {
+            panic(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s\n",type_name(itl,ltype).buf);
+            return;
+        }
+
+        else if(is_float(ltype))
         {
             movf_imm(itl,func,reg_slot,0.0);
         }
@@ -926,6 +938,12 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                             if(itl.error)
                             {
+                                return;
+                            }
+
+                            if(((PointerType*)ptr_type)->pointer_kind == pointer_type::nullable)
+                            {
+                                panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr_type).buf);
                                 return;
                             }
 

@@ -195,6 +195,14 @@ struct TypeDef
     AstNode* root;
 };
 
+enum class assign_type
+{
+    assign,
+    arg,
+    initializer,
+    none,
+};
+
 struct Type
 {
     type_class kind;
@@ -212,11 +220,18 @@ struct BuiltinType
     builtin_type builtin;
 };
 
+enum class pointer_type
+{
+    reference,
+    nullable
+};
+
 struct PointerType
 {
     Type type;
-
     Type* contained_type;
+
+    pointer_type pointer_kind;
 };
 
 struct StructType
