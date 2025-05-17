@@ -209,12 +209,12 @@ func os_open(filename : const c8@, mode : file_mode, opt : file_opt) byte@
     return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,os_flag));
 }
 
-func os_close(handle : const byte@)
+func os_close(handle : const byte?)
 {
     intrin_syscall(SYSCALL_CLOSE,handle);
 }
 
-func os_write(handle : const byte@, data : const byte@, len : usize) s64
+func os_write(handle : const byte?, data : const byte@, len : usize) s64
 {
     return intrin_syscall(SYSCALL_WRITE,handle,data,len);
 }
@@ -229,19 +229,19 @@ func os_write_str(str: const string) s64
     return os_write_str_raw(str.data,str.len);
 }
 
-func os_read(handle : const byte@, data : byte@, len : usize) s64
+func os_read(handle : const byte?, data : byte@, len : usize) s64
 {
     return intrin_syscall(SYSCALL_READ,handle,data,len);
 }
 
 constant SEEK_CUR : u32 = 1;
 
-func lseek(handle : const byte@, seek : u32, offset : s64) s64
+func lseek(handle : const byte?, seek : u32, offset : s64) s64
 {
     return intrin_syscall(SYSCALL_LSEEK,handle,offset,seek);
 }
 
-func os_seek(handle : const byte@, seek : file_seek_mode, offset : s64) s64
+func os_seek(handle : const byte?, seek : file_seek_mode, offset : s64) s64
 {
     // i.e this is allready in the native format
     // start -> 0
@@ -250,14 +250,14 @@ func os_seek(handle : const byte@, seek : file_seek_mode, offset : s64) s64
     return lseek(handle,cast(u32,seek),offset);
 }
 
-func os_tell(handle : const byte@) s64
+func os_tell(handle : const byte?) s64
 {
     return lseek(handle,SEEK_CUR,0);
 }
 
 constant INVALID_FILE_HANDLE : s64 = -1;
 
-func is_os_handle_valid(handle : byte@) bool
+func is_os_handle_valid(handle : byte?) bool
 {
     return cast(s64,handle) >= 0;
 }

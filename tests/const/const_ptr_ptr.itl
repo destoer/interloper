@@ -5,7 +5,7 @@ func main() s32
     x : u32;
 
     ptr1 : const u32@ = &x;
-    ptr2 : const u32@;
+    ptr2 : const u32@ = {?};
 
     // valid assign
     ptr2 = ptr1;

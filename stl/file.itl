@@ -32,7 +32,7 @@ struct File
     flags : u32;
 
     // os handle
-    handle : byte@;
+    handle : byte?;
     
     // for buffered io
     buf : byte[];

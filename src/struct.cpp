@@ -202,8 +202,6 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b3
     }
 
 
-    // TODO: ensure array type cant use a deduced type size
-
 
     // we will deal with this later
     if(flags & ATTR_NO_REORDER)
@@ -868,6 +866,12 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
         else
         {
+            if(is_reference(member.type))
+            {
+                panic(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s\n",member.name.buf,type_name(itl,member.type).buf);
+                return;
+            }
+
             const RegSlot tmp = imm_zero(itl,func);
             do_addr_store(itl,func,tmp,member_addr,member.type);
         }

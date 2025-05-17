@@ -688,7 +688,13 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     // No initalizer
     if(!decl_node->expr)
     {
-        if(is_float(ltype))
+        if(is_reference(ltype))
+        {
+            panic(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s\n",type_name(itl,ltype).buf);
+            return;
+        }
+
+        else if(is_float(ltype))
         {
             movf_imm(itl,func,reg_slot,0.0);
         }

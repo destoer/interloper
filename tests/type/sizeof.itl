@@ -24,7 +24,7 @@ func main() s32
 
     v9 : s64;
     v10 : u64;
-    v11 : byte@;
+    v11 : byte@ = &v7;
 
     res1 : bool = sizeof(v1) == 1 && sizeof(v2) == 2 && sizeof(v3) == 4;
     res2 : bool = sizeof(v4) == 1 && sizeof(v5) == 2 && sizeof(v6) == 4;

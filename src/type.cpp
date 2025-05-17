@@ -136,6 +136,11 @@ b32 is_pointer(const Type* type)
     return type->kind == type_class::pointer_t;
 }
 
+b32 is_reference(const Type* type)
+{
+    return type->kind == type_class::pointer_t && ((PointerType*)type)->pointer_kind == pointer_type::reference;
+}
+
 b32 is_bool(const Type* type)
 {
     return is_builtin_type(type,builtin_type::bool_t);
