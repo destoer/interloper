@@ -248,7 +248,6 @@ void pass_arg(Interloper& itl, Function& func, ArgPass& pass,RegSlot arg, Type* 
 
     else
     {
-
         pass.args[pass.pass_as_reg[arg_idx]] = arg;
     }
 }
@@ -367,7 +366,6 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
         // plain builtin in variable
         else
         {
-            // builtin type
             const auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
 
