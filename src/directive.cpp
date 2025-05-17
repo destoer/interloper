@@ -145,23 +145,29 @@ RegSlot load_struct_u64_res(Interloper& itl, Function& func, AddrSlot addr_slot)
 void lock_reg(Interloper& itl, Function& func, RegSlot reg)
 {
     assert(reg.kind == reg_kind::spec);
-    const u32 machine_reg = special_reg_to_reg(itl.arch,reg.spec);
-    func.locked_set |= (1 << machine_reg);
 
     emit_directive_internal(itl,func,op_type::lock_reg,make_reg_operand(reg));
 }
 
 void unlock_reg(Interloper& itl, Function& func, RegSlot reg)
 {
-   emit_directive_internal(itl,func,op_type::unlock_reg,make_reg_operand(reg));
+    assert(reg.kind == reg_kind::spec);
+
+    emit_directive_internal(itl,func,op_type::unlock_reg,make_reg_operand(reg));
 }
 
 void unlock_reg_set(Interloper& itl, Function& func, u32 set)
 {
-   emit_directive_internal(itl,func,op_type::unlock_reg_set,make_imm_operand(set));
+    if(set != 0)
+    {
+        emit_directive_internal(itl,func,op_type::unlock_reg_set,make_imm_operand(set));
+    }
 }
 
 void lock_reg_set(Interloper& itl, Function& func, u32 set)
 {
-   emit_directive_internal(itl,func,op_type::lock_reg_set,make_imm_operand(set));
+    if(set != 0)
+    {
+        emit_directive_internal(itl,func,op_type::lock_reg_set,make_imm_operand(set));
+    }
 }

@@ -620,10 +620,7 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Re
         compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]);
     }
 
-    if(sig.max_reg_pass != 0)
-    {
-        unlock_reg_set(itl,func,sig.locked_set);
-    }
+    unlock_reg_set(itl,func,sig.locked_set);
 
     // give back the function's return type
     if(count(sig.return_type) == 1)
@@ -992,10 +989,7 @@ void compile_function(Interloper& itl, Function& func)
 
         new_basic_block(itl,func);
         
-        if(func.sig.max_reg_pass != 0)
-        {
-            lock_reg_set(itl,func,func.sig.locked_set);
-        }
+        lock_reg_set(itl,func,func.sig.locked_set);
 
         // put each arg into scope and copy it regs into args
         for(u32 a = 0; a < count(func.sig.args); a++)

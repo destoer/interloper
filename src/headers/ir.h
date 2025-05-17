@@ -749,6 +749,10 @@ struct Reg
     // Where does this register reside in the current block?
     u32 local_reg = REG_FREE;
 
+    // Registers that it has fixed interactions with
+    // Attempt to allocate register into here to avoid shuffles.
+    u32 hint = 0;
+
     u32 cur_local_uses = 0;
     Array<u32> local_uses;
 

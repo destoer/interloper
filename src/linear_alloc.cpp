@@ -201,6 +201,20 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
             const auto opcode = node->value;
             const auto info = info_from_op(opcode); 
 
+            switch(opcode.op)
+            {
+                case op_type::mov_unlock:
+                {
+                    const auto src = opcode.v[1].reg;
+                    const auto dst = opcode.v[0].reg;
+                    const u32 location = special_reg_to_reg(itl.arch,src.spec);
+                    auto& ir_reg = reg_from_slot(itl,func,dst);
+                    ir_reg.hint |= (1 << location);
+                }
+
+                default: break;
+            }
+
             for(s32 a = info.args - 1; a >= 0; a--)
             {
                 const auto operand = opcode.v[a];
@@ -312,12 +326,20 @@ void release_register(RegisterFile& regs, u32 reg)
     free_reg(regs,reg);
 }
 
-u32 find_free_register(u32 set,u32 used)
+u32 find_pref_register(u32 set, u32 pref)
 {
-    u32 reg = FFS_EMPTY;
+    return destoer::ffs(set & pref);
+}
 
-    // prefer used regs
-    reg = destoer::ffs(set & used);
+u32 find_free_register(u32 set, u32 used, u32 pref)
+{
+    // ATTEMPT passed pref first
+    u32 reg = find_pref_register(set,pref);
+
+    if(reg == FFS_EMPTY)
+    {
+        reg = find_pref_register(set,used);
+    }
 
     // get any reg we can
     if(reg == FFS_EMPTY)
@@ -328,9 +350,9 @@ u32 find_free_register(u32 set,u32 used)
     return reg;
 }
 
-u32 alloc_reg(RegisterFile& regs)
+u32 alloc_reg(RegisterFile& regs, u32 pref)
 {
-    const u32 reg = find_free_register(regs.free_set & ~regs.locked_set,regs.used_set);
+    const u32 reg = find_free_register(regs.free_set & ~regs.locked_set,regs.used_set,pref);
 
     if(reg != FFS_EMPTY)
     {
@@ -363,7 +385,7 @@ bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
         return true;
     }
 
-    const u32 reg = alloc_reg(regs);
+    const u32 reg = alloc_reg(regs,ir_reg.hint);
 
     if(reg != FFS_EMPTY)
     {
@@ -556,7 +578,7 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
         // check which register file to use
         auto& reg_file = get_register_file(alloc,ir_reg);
 
-        const u32 reg = alloc_reg(reg_file);
+        const u32 reg = alloc_reg(reg_file,ir_reg.hint);
 
         // we have a register
         if(reg != FFS_EMPTY)

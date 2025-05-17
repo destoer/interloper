@@ -84,10 +84,6 @@ struct Function
     FuncNode* root = nullptr;
     b32 used = false;
 
-    // TODO: we need locked ranges
-    // this is just nice and simple for now
-    u32 locked_set = 0;
-
     b32 leaf_func = true;
 };
 

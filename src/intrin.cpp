@@ -66,6 +66,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
         pass_args(itl,func,pass);
 
         call(itl,func,func_call.label_slot);
+        unlock_reg_set(itl,func,func.sig.locked_set);
 
         clean_args(itl,func,pass.arg_clean);
     }
@@ -111,6 +112,7 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
         pass_args(itl,func,pass);
 
         call(itl,func,func_call.label_slot);
+        unlock_reg_set(itl,func,func.sig.locked_set);
 
         clean_args(itl,func,pass.arg_clean);        
     }
