@@ -496,13 +496,19 @@ struct AbiInfo
     u32 rv;
     u32 sp;
 
-    // u32 args[32];
-    // u32 arg_count;
+    u32 gpr_args[MACHINE_REG_SIZE];
+    u32 gpr_arg_count;
 };
 
 static constexpr AbiInfo ABI_INFO[] = 
 {
-    {x86_reg::rax,x86_reg::rsp}, // arch_target::x86_64_t
+    // arch_target::x86_64_t
+    {
+        x86_reg::rax,
+        x86_reg::rsp,
+        {x86_reg::rdi,x86_reg::rsi},
+        2,
+    }, 
 };
 
 // TODO: This should not just be down to arch

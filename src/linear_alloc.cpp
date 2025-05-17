@@ -410,8 +410,8 @@ void init_regs(LinearAlloc& alloc)
     add_reg(alloc.gpr,x86_reg::rdx);
     add_reg(alloc.gpr,x86_reg::rbx);
     add_reg(alloc.gpr,x86_reg::rdp);
-    // add_reg(alloc.gpr,x86_reg::rsi);
-    // add_reg(alloc.gpr,x86_reg::rdi);
+    add_reg(alloc.gpr,x86_reg::rsi);
+    add_reg(alloc.gpr,x86_reg::rdi);
 
     add_reg(alloc.gpr,x86_reg::r8);
     add_reg(alloc.gpr,x86_reg::r9);
@@ -703,6 +703,11 @@ void save_caller_saved_regs(LinearAlloc& alloc, Block& block, OpcodeNode* node)
 
     // then save the caller saved registers
     save_reg(alloc,block,node,alloc.gpr,abi_info.rv,insertion_type::before);
+
+    for(u32 a = 0; a < abi_info.gpr_arg_count; a++)
+    {
+        save_reg(alloc,block,node,alloc.gpr,abi_info.gpr_args[a],insertion_type::before);
+    }
 }
 
 void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<RegSlot>& live_in)

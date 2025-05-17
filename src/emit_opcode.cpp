@@ -233,8 +233,6 @@ void branch_reg(Interloper& itl, Function&func, RegSlot target)
 void ret(Interloper& itl, Function& func)
 {
     add_func_exit(func,cur_block(func));
-
-    spill_func_bounds(itl,func);
     emit_implicit<op_type::ret>(itl,func);
 }
 
