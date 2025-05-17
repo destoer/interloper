@@ -16,7 +16,7 @@ enum log_level : LogLevelData
 }
 
 
-global max_log_level: log_level = log_level::debug;
+global max_log_level: log_level = log_level::info;
 
 func log(level: log_level,prefix: const string,fmt: const string, args : const rtti::Any[])
 {

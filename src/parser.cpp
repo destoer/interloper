@@ -2439,13 +2439,8 @@ std::pair<u32,u32> get_line_info(const String& filename, u32 idx)
     u32 col = 1;
     u32 row = 1;
 
-    for(u32 i = 0; i < file.size; i++)
+    for(u32 i = 0; i < file.size && i != idx; i++)
     {
-        if(i == idx)
-        {
-            break;
-        }
-
         if(file[i] == '\n')
         {
             row += 1;

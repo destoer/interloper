@@ -331,6 +331,8 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
 
 
     structure.name = node->name;
+    structure.filename = node->filename;
+    structure.name_space = def.decl.name_space;
     structure.member_map = make_table<String,u32>();
 
     // we want to get how many sizes of each we have
@@ -816,6 +818,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     // NOTE: this should apply all the way down i.e if we contain a struct
     // it needs to have initialzer_zero aswell
     // if(structure.initializer_zero)
+    push_context(itl);
 
     // default construction
     for(u32 m = 0; m < count(structure.members); m++)
@@ -827,6 +830,8 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
         if(member.expr)
         {
+            trash_context(itl,structure.filename,structure.name_space,member.expr);
+
             switch(member.expr->type)
             {
                 case ast_type::initializer_list:
@@ -869,6 +874,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
             if(is_reference(member.type))
             {
                 panic(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s\n",member.name.buf,type_name(itl,member.type).buf);
+                pop_context(itl);
                 return;
             }
 
@@ -876,6 +882,8 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
             do_addr_store(itl,func,tmp,member_addr,member.type);
         }
     }
+
+    pop_context(itl);
 }
 
 void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, SymSlot slot)

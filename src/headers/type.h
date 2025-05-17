@@ -370,7 +370,9 @@ struct Member
 
 struct Struct
 {
+    String filename;
     String name;
+    NameSpace* name_space = nullptr;
 
     Array<Member> members;
 
