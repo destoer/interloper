@@ -54,6 +54,8 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/ptr/invalid_ptr_compare",itl_error::pointer_type_error},
     {"tests/ptr/null_invalid",itl_error::mismatched_args},
     {"tests/ptr/ptr_to_fixed_array",itl_error::array_type_error},
+    {"tests/ptr/reference_assign_null",itl_error::pointer_type_error},
+    {"tests/ptr/reference_no_initializer",itl_error::pointer_type_error},
 
     // arrays
     {"tests/array/array_pass_u32",itl_error::array_type_error},
