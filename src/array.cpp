@@ -121,7 +121,7 @@ std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,Inde
     // NOTE: this can give out a fixed array pointer.
     // this needs conversion by the host into a VLA, this is not obtainable by
     // taking a pointer to an array,
-    return std::pair{make_pointer(itl,accessed_type),dst_slot}; 
+    return std::pair{make_reference(itl,accessed_type),dst_slot}; 
 }
 
 // TODO: these multidimensional handwave vla's
@@ -299,7 +299,7 @@ void assign_vla_initializer(Interloper& itl, Function& func, RecordNode* list, A
     }
 
     const auto [ptr_type,ptr_slot] = compile_oper(itl,func,list->nodes[0]);
-    check_assign(itl,make_pointer(itl,type->contained_type),ptr_type);
+    check_assign(itl,make_reference(itl,type->contained_type),ptr_type);
 
     store_addr_slot(itl,func,ptr_slot,*addr_slot,GPR_SIZE,false);
     addr_slot->offset += GPR_SIZE;

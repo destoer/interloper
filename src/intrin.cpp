@@ -60,8 +60,8 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
         collapse_struct_offset(itl,func,&dst_addr);
 
         pass_arg(itl,func,pass,imm_slot,make_builtin(itl,GPR_SIZE_TYPE),2);
-        pass_arg(itl,func,pass,src_addr.slot,make_pointer(itl,make_builtin(itl,builtin_type::byte_t)),1);
-        pass_arg(itl,func,pass,dst_addr.slot,make_pointer(itl,make_builtin(itl,builtin_type::byte_t)),0);
+        pass_arg(itl,func,pass,src_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t)),1);
+        pass_arg(itl,func,pass,dst_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t)),0);
 
         pass_args(itl,func,pass);
 
@@ -107,7 +107,7 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
         const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
         pass_arg(itl,func,pass,imm_slot,make_builtin(itl,GPR_SIZE_TYPE),1);
-        pass_arg(itl,func,pass,dst_ptr,make_pointer(itl,make_builtin(itl,builtin_type::byte_t)),0);
+        pass_arg(itl,func,pass,dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t)),0);
 
         pass_args(itl,func,pass);
 

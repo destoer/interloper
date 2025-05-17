@@ -519,14 +519,26 @@ Type* make_builtin(Interloper& itl, builtin_type type, b32 is_const = false)
     return (Type*)builtin;
 }
 
-Type* make_pointer(Interloper& itl,Type* contained_type, b32 is_constant = false)
+Type* make_pointer(Interloper& itl,Type* contained_type, pointer_type pointer_kind, b32 is_constant = false)
 {
     PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,type_class::pointer_t,is_constant);
 
     pointer_type->contained_type = contained_type;
+    pointer_type->pointer_kind = pointer_kind;
 
     return (Type*)pointer_type;
 }
+
+Type* make_reference(Interloper& itl,Type* contained_type, b32 is_constant = false)
+{
+    return make_pointer(itl,contained_type,pointer_type::reference,is_constant);
+}
+
+Type* make_nullable_ptr(Interloper& itl,Type* contained_type, b32 is_constant = false)
+{
+    return make_pointer(itl,contained_type,pointer_type::nullable,is_constant);   
+}
+
 
 Type* make_struct(Interloper& itl, u32 struct_idx, b32 is_constant = false)
 {
@@ -743,7 +755,7 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
 
             Type* contained_type = copy_type_internal(itl,pointer_type->contained_type);
             
-            return make_pointer(itl,contained_type,type->is_const);
+            return make_pointer(itl,contained_type,pointer_type->pointer_kind,type->is_const);
         }
 
         case type_class::struct_t:
@@ -1034,7 +1046,14 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
             // pointer to current type
             case ast_type::ptr_indirection:
             {
-                type = make_pointer(itl,type,is_constant);
+                type = make_pointer(itl,type,pointer_type::reference,is_constant);
+                indirection = true;
+                break;
+            }
+
+            case ast_type::nullable_ptr_indirection:
+            {
+                type = make_pointer(itl,type,pointer_type::nullable,is_constant);
                 indirection = true;
                 break;
             }

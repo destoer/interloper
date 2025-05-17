@@ -226,6 +226,15 @@ TypeNode *parse_type(Parser &parser, b32 allow_fail)
                 break;
             }
 
+            // Nullable pointer decl
+            case token_type::qmark:
+            {
+                consume(parser,token_type::qmark);
+
+                push_var(type->compound_type,ast_plain(parser,ast_type::nullable_ptr_indirection,plain_tok));
+                break;
+            }
+
 
             // array decl
             case token_type::sl_brace:

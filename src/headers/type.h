@@ -212,11 +212,18 @@ struct BuiltinType
     builtin_type builtin;
 };
 
+enum class pointer_type
+{
+    reference,
+    nullable
+};
+
 struct PointerType
 {
     Type type;
-
     Type* contained_type;
+
+    pointer_type pointer_kind;
 };
 
 struct StructType

@@ -5,8 +5,8 @@ struct HeapNode
 {
     canary_start : u64;
 
-    next : HeapNode@;
-    prev : HeapNode@;
+    next : HeapNode?;
+    prev : HeapNode?;
 
     // NOTE: inclusive Node
     blocks : u64;
@@ -18,10 +18,10 @@ struct HeapNode
 
 struct Heap
 {
-    free_list : HeapNode@ = NULL;
+    free_list : HeapNode? = NULL;
 
-    min: HeapNode@;
-    max: HeapNode@;
+    min: HeapNode?;
+    max: HeapNode?;
 
     // NOTE: this is in block counts
     used : u64;
@@ -219,7 +219,7 @@ func find_first_fit(heap: Heap@, req_blocks: usize) HeapNode@
     return NULL;
 }
 
-func alloc_heap(heap : Heap@, count : usize, size : usize) byte@
+func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
 {
     verify_heap(heap);
 

@@ -557,7 +557,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
             Type* plain = make_builtin(itl,builtin_type::null_t);
 
-            return make_pointer(itl,plain);
+            return make_nullable_ptr(itl,plain);
         }
 
 

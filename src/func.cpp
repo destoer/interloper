@@ -223,7 +223,7 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
 // add hidden arg pointers for return
 void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* return_type, u32* arg_offset)
 {
-    Type* ptr_type = make_pointer(itl,return_type);
+    Type* ptr_type = make_reference(itl,return_type);
 
     add_sig_arg(itl,sig,name,ptr_type,arg_offset);
     sig.hidden_args++;
@@ -467,7 +467,7 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
                     spill_slot(itl,func,sym.reg);
 
                     const RegSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
-                    pass_arg(itl,func,pass,addr_slot,make_pointer(itl,sym.type),a);
+                    pass_arg(itl,func,pass,addr_slot,make_reference(itl,sym.type),a);
                     break;
                 }
 
@@ -519,7 +519,7 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
             case reg_kind::sym:
             {
                 const RegSlot addr = addrof_res(itl,func,dst_slot);
-                pass_arg(itl,func,pass,addr,make_pointer(itl,return_type),0);
+                pass_arg(itl,func,pass,addr,make_reference(itl,return_type),0);
                 break;
             }
 
@@ -528,7 +528,7 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
                 alloc_slot(itl,func,dst_slot,true);
                 
                 const RegSlot addr = addrof_res(itl,func,dst_slot);
-                pass_arg(itl,func,pass,addr,make_pointer(itl,return_type),0);
+                pass_arg(itl,func,pass,addr,make_reference(itl,return_type),0);
                 break;
             }
 
@@ -541,7 +541,7 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
                         // this is nested pass in the current hidden return
                         if(func.sig.hidden_args == 1)
                         {
-                            pass_arg(itl,func,pass,make_sym_reg_slot(func.sig.args[0]),make_pointer(itl,return_type),0);
+                            pass_arg(itl,func,pass,make_sym_reg_slot(func.sig.args[0]),make_reference(itl,return_type),0);
                         }
 
                         else

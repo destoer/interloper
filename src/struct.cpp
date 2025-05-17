@@ -406,7 +406,7 @@ Type* access_array_member(Interloper& itl, Type* type, const String& member_name
 
         struct_slot->offset += 0;
 
-        return make_pointer(itl,array_type->contained_type);
+        return make_reference(itl,array_type->contained_type);
     }
 
 
@@ -697,7 +697,7 @@ std::pair<Type*,RegSlot> compute_member_ptr(Interloper& itl, Function& func, Ast
 
     collapse_struct_offset(itl,func,&addr_slot);
 
-    return std::pair{make_pointer(itl,type),addr_slot.slot};
+    return std::pair{make_reference(itl,type),addr_slot.slot};
 }
 
 void write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)
