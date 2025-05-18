@@ -766,7 +766,7 @@ void compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
 
                 case builtin_type::bool_t:
                 {
-                    const auto res = compile_const_bool_expression(itl,node);
+                    const size_t res = compile_const_bool_expression(itl,node);
 
                     if(itl.error)
                     {
