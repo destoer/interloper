@@ -1,7 +1,6 @@
 #include <interloper.h>
 #include <op_table.inl>
 
-#include "list.cpp"
 #include "pool.cpp"
 #include "emitter.cpp"
 #include "rewrite_arch_ir.cpp"
