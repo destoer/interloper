@@ -724,7 +724,8 @@ void save_caller_saved_regs(LinearAlloc& alloc, Block& block, OpcodeNode* node)
     const auto& abi_info = get_abi_info(alloc.arch);
 
     // then save the caller saved registers
-    save_reg(alloc,block,node,alloc.gpr,abi_info.rv,insertion_type::before);
+    save_reg(alloc,block,node,alloc.gpr,abi_info.gpr_rv,insertion_type::before);
+    save_reg(alloc,block,node,alloc.fpr,abi_info.fpr_rv,insertion_type::before);
 
     for(u32 a = 0; a < abi_info.gpr_arg_count; a++)
     {

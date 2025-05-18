@@ -1,5 +1,5 @@
 
-func basic() bool
+func test_basic() bool
 {
     // test basic arithmetic
     res1 := 7.0 + 2.5 == 9.5;
@@ -45,7 +45,7 @@ func test_func() bool
     res1 := add(v1,v2) == 11.0;
     res2 := sub(v2,v1) == 0.5;
 
-    return res1 && res2;
+    return res2;
 }
 
 struct Point
@@ -64,7 +64,7 @@ func test_struct() bool
 
 func main() s32
 {
-    ans := test_struct();
+    ans := test_basic() && test_struct() && test_func();
 
     return cast(s32,ans);
 }

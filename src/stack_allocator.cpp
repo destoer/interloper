@@ -81,7 +81,7 @@ void stack_reserve_reg(StackAlloc& alloc, Reg& ir_reg)
 
     ir_reg.flags |= PENDING_STACK_ALLOCATION;
 
-    log(alloc.print,"initial stack offset for register %r at %x allocated\n",ir_reg.slot,ir_reg.offset);
+    log(alloc.print,"initial stack offset for register at %x allocated\n",ir_reg.slot,ir_reg.offset);
 
     // mark this so we can finalise these later
     push_var(alloc.pending_allocation,ir_reg.slot);

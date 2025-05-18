@@ -342,48 +342,6 @@ const OpInfo& info_from_op(const Opcode& opcode)
     return OPCODE_TABLE[u32(opcode.op)];
 }
 
-struct ArchInfo
-{
-    u32 sp;
-    u32 rv;
-    u32 frv;
-    u32 gpr;
-    u32 fpr;
-};
-
-static constexpr ArchInfo ARCH_TABLE[ARCH_SIZE] = 
-{
-    {u32(x86_reg::rsp),u32(x86_reg::rax),u32(x86_reg::xmm0),15,15}, // x86
-};
-
-ArchInfo info_from_arch(arch_target arch)
-{
-    return ARCH_TABLE[u32(arch)];
-}
-
-u32 arch_sp(arch_target arch)
-{
-    const auto info = info_from_arch(arch);
-
-    return info.sp;
-}
-
-u32 arch_rv(arch_target arch)
-{
-    const auto info = info_from_arch(arch);
-
-    return info.rv;
-}
-
-u32 arch_frv(arch_target arch)
-{
-    const auto info = info_from_arch(arch);
-
-    return info.frv;
-}
-
-
-
 
 b32 is_callee_saved(arch_target arch,u32 reg_idx)
 {
@@ -493,7 +451,8 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
 
 struct AbiInfo
 {
-    u32 rv;
+    u32 gpr_rv;
+    u32 fpr_rv;
     u32 sp;
 
     u32 gpr_args[MACHINE_REG_SIZE];
@@ -505,6 +464,7 @@ static constexpr AbiInfo ABI_INFO[] =
     // arch_target::x86_64_t
     {
         x86_reg::rax,
+        x86_reg::xmm0,
         x86_reg::rsp,
         {x86_reg::rdi,x86_reg::rsi},
         2,
@@ -516,6 +476,29 @@ const AbiInfo& get_abi_info(arch_target arch)
 {
     return ABI_INFO[u32(arch)];
 }
+
+
+u32 arch_sp(arch_target arch)
+{
+    const auto info = get_abi_info(arch);
+
+    return info.sp;
+}
+
+u32 arch_rv(arch_target arch)
+{
+    const auto info = get_abi_info(arch);
+
+    return info.gpr_rv;
+}
+
+u32 arch_frv(arch_target arch)
+{
+    const auto info = get_abi_info(arch);
+
+    return info.fpr_rv;
+}
+
 
 u32 special_reg_to_reg(arch_target arch,spec_reg spec)
 {

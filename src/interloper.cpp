@@ -1053,7 +1053,7 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             case spec_reg::rv_fpr:
                             {
                                 // Compile this into a tmp and then move it out so its easy to lock.
-                                const auto tmp = new_tmp(func,GPR_SIZE);
+                                const auto tmp = new_float(func);
                                 const auto rtype = compile_expression(itl,func,record_node->nodes[0],tmp);
 
                                 check_assign_init(itl,func.sig.return_type[0],rtype);  
