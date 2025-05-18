@@ -72,9 +72,27 @@ bool is_reg_free(RegisterFile& regs,u32 reg)
     return is_set(regs.free_set & ~regs.locked_set,reg);
 }
 
+RegisterFile& get_register_file(LinearAlloc& alloc, reg_file_kind kind)
+{
+    switch(kind)
+    {
+        case reg_file_kind::fpr:
+        {
+            return alloc.fpr;
+        }
+
+        case reg_file_kind::gpr:
+        {
+            return alloc.gpr;
+        }
+    }
+
+    assert(false);
+}
+
 RegisterFile& get_register_file(LinearAlloc& alloc, Reg& reg)
 {
-    return (reg.flags & REG_FLOAT)? alloc.fpr : alloc.gpr;
+    return get_register_file(alloc,find_reg_set(reg));
 }
 
 void print_reg_alloc(LinearAlloc& alloc)
@@ -907,8 +925,7 @@ void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
 void rewrite_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spec_reg spec, u32 reg)
 {
     const u32 location = special_reg_to_reg(alloc.arch,spec);
-    const b32 is_float = is_special_reg_fpr(spec);
-    auto& reg_file = is_float? alloc.fpr : alloc.gpr;
+    auto& reg_file = get_register_file(alloc,find_reg_set(spec));
 
     const auto opcode = node->value;
     const auto info = info_from_op(opcode);
@@ -1276,7 +1293,7 @@ void unlock_into_reg(LinearAlloc& alloc,RegisterFile& reg_file, RegSlot dst,u32 
 void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
 {
     const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
+    RegisterFile& reg_file = get_register_file(alloc,find_reg_set(reg));
 
     log_reg(alloc.print,*alloc.table,"Unlocking special register %s\n",spec_reg_name(reg));
 
@@ -1286,7 +1303,7 @@ void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
 void lock_special_reg(LinearAlloc& alloc,Block& block, OpcodeNode* node, spec_reg reg)
 {
     const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = is_special_reg_fpr(reg)? alloc.fpr : alloc.gpr;
+    RegisterFile& reg_file = get_register_file(alloc,find_reg_set(reg));
 
     lock_out_reg(alloc,block,node,reg_file,location);
 }

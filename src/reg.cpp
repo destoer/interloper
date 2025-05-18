@@ -136,9 +136,20 @@ b32 is_arg(const Reg& reg)
     return reg.flags & FUNC_ARG;
 }
 
-b32 is_special_reg_fpr(spec_reg reg)
+enum class reg_file_kind 
 {
-    return reg == spec_reg::rv_fpr;
+    gpr,
+    fpr,
+};
+
+reg_file_kind find_reg_set(spec_reg reg)
+{
+    return reg == spec_reg::rv_fpr? reg_file_kind::fpr : reg_file_kind::gpr;
+}
+
+reg_file_kind find_reg_set(const Reg& ir_reg)
+{
+    return (ir_reg.flags & REG_FLOAT)? reg_file_kind::fpr : reg_file_kind::gpr;
 }
 
 b32 is_special_reg(RegSlot slot)
