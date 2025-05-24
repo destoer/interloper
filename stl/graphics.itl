@@ -27,7 +27,7 @@ struct Colour
     b : f64;
 };
 
-constant WINDOW_PREFIX :  string = "[WINDOW]: ";
+constant WINDOW_PREFIX :  string = "WINDOW ";
 
 func test_pattern(screen: u32[], x: u32, y: u32)
 {

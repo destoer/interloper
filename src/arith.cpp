@@ -520,8 +520,6 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
                 // could be attempting to take a function pointer?
                 auto func_def = name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_default(itl,name);
 
-                printf("Func_def %p %p\n",func_def,name_space);
-
                 if(func_def)
                 {
                     // this may get called at some point so we need to mark it for compilation...

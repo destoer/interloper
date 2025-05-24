@@ -44,9 +44,6 @@ struct OSWindow
     // key code
     min_keycode: u8;
     max_keycode: u8;
-
-    get_key_map_seq: u32;
-
     key_code_to_sym: u8[255];
 
     big_req : bool;
@@ -54,7 +51,7 @@ struct OSWindow
     reply_callback : std::HashTable;
 }
 
-type_alias REPLY_CALLBACK_FUNC = func(win: OSWindow@, raw_data: byte?);
+type_alias REPLY_CALLBACK_FUNC = func(win: OSWindow@, len: u32, raw_data: byte?);
 
 struct ReplyCallback
 {
@@ -455,43 +452,20 @@ func process_reply(win : OSWindow@)
 {
     buf := &win.buf;
 
-    seq := std::read_buffer_u16(buf,2);
+    seq: u32 = std::read_buffer_u16(buf,2);
     len := std::read_buffer_u32(buf,4) * 4;
 
     callback_opt := std::hash_table_lookup(&win.reply_callback,&seq);
 
     if(!callback_opt)
     {
-        // key mapping
-        if(win.get_key_map_seq == seq)
-        {
-            log::debug(X11_PREFIX,"Key mapping setup");
-
-            n := std::read_buffer_u8(buf,1);
-
-            read_x11_reply(win,len);
-            
-            cur : u32 = 0;
-            offset := n * 4;
-
-            for(i in win.min_keycode < win.max_keycode)
-            {
-                win.key_code_to_sym[i] = std::read_buffer_u8(buf,cur);
-                cur += offset;
-            }
-        }
-
         // just burn the reply
-        else
-        {
-            net::recv_ignore(&win.sock,len);
-        }
+        net::recv_ignore(&win.sock,len);
         return;
     }
 
     reply_callback := cast(ReplyCallback@,callback_opt);
-
-    reply_callback.callback(win,reply_callback.data);
+    reply_callback.callback(win,len,reply_callback.data);
 }
 
 #attr(no_reorder)
@@ -933,6 +907,17 @@ func os_set_window_name(win: OSWindow@, str: const string)
     log::debug(X11_PREFIX,"change window name: {}",str);
 }
 
+func wait_for_reply(std_win: Window@, done: bool@)
+{
+    while(!@done)
+    {
+        if(process_events(std_win))
+        {
+            std::crash_and_burn("Died while waiting for reply");
+        }       
+    }
+}
+
 #attr(no_reorder)
 struct XQueryExtension
 {
@@ -950,23 +935,12 @@ struct ExtenstionQuery
     enabled: bool;
 }
 
-func ext_query_callback(win: OSWindow@, data: byte?)
+func ext_query_callback(win: OSWindow@, len: u32, data: byte?)
 {
     ext_query := cast(ExtenstionQuery@,data);
     ext_query.replied = true;
     ext_query.enabled = cast(bool,std::read_buffer_u8(&win.buf,8));
     ext_query.opcode = std::read_buffer_u8(&win.buf,9);
-}
-
-func wait_for_reply(std_win: Window@, done: bool@)
-{
-    while(!@done)
-    {
-        if(process_events(std_win))
-        {
-            std::crash_and_burn("Died while waiting for reply");
-        }       
-    }
 }
 
 func query_extenstion(std_win: Window@, str: const string) ExtenstionQuery
@@ -1011,7 +985,7 @@ struct XBigReqReply
     max_req: u32;
 }
 
-func enable_big_req_callback(win: OSWindow@, data: byte?)
+func enable_big_req_callback(win: OSWindow@, len: u32, data: byte?)
 {
     reply := cast(XBigReqReply@,data);
 
@@ -1088,13 +1062,42 @@ struct XGetKeyboardMapping
     pad2: u16;
 }
 
-func get_keyboard_mapping(win: OSWindow@)
+func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?)
 {
+    replied := cast(bool@,data);
+    @replied = true;
+
+    log::debug(X11_PREFIX,"Key mapping setup");
+    n := std::read_buffer_u8(&win.buf,1);
+
+    read_x11_reply(win,len);
+    
+    cur : u32 = 0;
+    offset := n * 4;
+
+    for(i in win.min_keycode < win.max_keycode)
+    {
+        win.key_code_to_sym[i] = std::read_buffer_u8(&win.buf,cur);
+        cur += offset;
+    }  
+}
+
+func get_keyboard_mapping(std_win: Window@)
+{
+    win := &std_win.os_win;
+
     map: XGetKeyboardMapping;
     map.first_keycode = win.min_keycode;
     map.count = win.max_keycode - map.first_keycode;
 
-    win.get_key_map_seq = send_req(win,&map,sizeof_data(XGetKeyboardMapping));
+    get_key_map_seq := send_req(win,&map,sizeof_data(XGetKeyboardMapping));
+
+    replied: bool;
+
+    callback: ReplyCallback = {&keyboard_mapping_callback,&replied};
+    add_reply_callback(win,get_key_map_seq,&callback);
+
+    wait_for_reply(std_win,&replied);
 }
 
 func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
@@ -1140,7 +1143,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32)
     // try to enable the big request exenstion
     enable_big_req(std_win);
 
-    get_keyboard_mapping(win);
+    get_keyboard_mapping(std_win);
 
     grab_keyboard(win);
 }
