@@ -49,16 +49,6 @@ struct OSWindow
 
     key_code_to_sym: u8[255];
 
-    // extenstions
-
-    ext_query_reply : bool;
-
-    // was the last ext queried enabled
-    ext_enabled : bool;
-    ext_opcode : u8;
-
-    big_req_reply: bool;
-    big_req_seq : u32;
     big_req : bool;
 
     reply_callback : std::HashTable;
@@ -472,15 +462,8 @@ func process_reply(win : OSWindow@)
 
     if(!callback_opt)
     {
-        // big request enable reply
-        if(win.big_req_seq == seq)
-        {
-            win.big_req_reply = true;
-            win.max_req = std::read_buffer_u32(buf,8) * 4;
-        }
-
         // key mapping
-        else if(win.get_key_map_seq == seq)
+        if(win.get_key_map_seq == seq)
         {
             log::debug(X11_PREFIX,"Key mapping setup");
 
@@ -1022,6 +1005,20 @@ struct XBigReqEnable
     len: u16 = 1;
 }
 
+struct XBigReqReply
+{
+    replied: bool;
+    max_req: u32;
+}
+
+func enable_big_req_callback(win: OSWindow@, data: byte?)
+{
+    reply := cast(XBigReqReply@,data);
+
+    reply.replied = true;
+    reply.max_req = std::read_buffer_u32(&win.buf,8) * 4;
+}
+
 func enable_big_req(std_win: Window@)
 {
     win := &std_win.os_win;
@@ -1040,15 +1037,14 @@ func enable_big_req(std_win: Window@)
     enable.opcode = ext_query.opcode;
 
     // send the opcode
-    win.big_req_seq = send_req(win,&enable,sizeof_data(XBigReqEnable));
+    big_req_seq := send_req(win,&enable,sizeof_data(XBigReqEnable));
 
-    while(!win.big_req_reply)
-    {
-        if(process_events(std_win))
-        {
-            std::crash_and_burn("could not enable big req\n");
-        } 
-    }
+    query_reply: XBigReqReply;
+    callback: ReplyCallback = {&enable_big_req_callback,&query_reply};
+    add_reply_callback(win,big_req_seq,&callback);
+
+    wait_for_reply(std_win,&query_reply.replied);
+    win.max_req = query_reply.max_req;
 
     update_max_lines(win);
 }
