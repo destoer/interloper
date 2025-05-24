@@ -51,7 +51,6 @@ struct OSWindow
 
     // extenstions
 
-    ext_query_seq: u32;
     ext_query_reply : bool;
 
     // was the last ext queried enabled
@@ -61,8 +60,17 @@ struct OSWindow
     big_req_reply: bool;
     big_req_seq : u32;
     big_req : bool;
+
+    reply_callback : std::HashTable;
 }
 
+type_alias REPLY_CALLBACK_FUNC = func(win: OSWindow@, raw_data: byte?);
+
+struct ReplyCallback
+{
+    callback: REPLY_CALLBACK_FUNC;
+    data: byte?;
+}
 
 constant WINDOW_CLASS_INPUT_OUTPUT : u16 = 1;
 
@@ -114,6 +122,11 @@ enum event_flag : u32
     property_change,
     colour_map_change,
     owner_grab_button,
+}
+
+func add_reply_callback(win: OSWindow@, seq: u32, callback: ReplyCallback@)
+{
+    std::hash_table_add(&win.reply_callback,&seq,callback);
 }
 
 func alloc_resource(win: OSWindow@) u32
@@ -455,47 +468,47 @@ func process_reply(win : OSWindow@)
     seq := std::read_buffer_u16(buf,2);
     len := std::read_buffer_u32(buf,4) * 4;
 
-    //std::print("reply: {} {}\n",seq,len);
+    callback_opt := std::hash_table_lookup(&win.reply_callback,&seq);
 
-    // query ext reply
-    if(win.ext_query_seq == seq)
+    if(!callback_opt)
     {
-        win.ext_query_reply = true;
-        win.ext_enabled = cast(bool,std::read_buffer_u8(buf,8));
-        win.ext_opcode = std::read_buffer_u8(buf,9);
-    }
-
-    // big request enable reply
-    else if(win.big_req_seq == seq)
-    {
-        win.big_req_reply = true;
-        win.max_req = std::read_buffer_u32(buf,8) * 4;
-    }
-
-    // key mapping
-    else if(win.get_key_map_seq == seq)
-    {
-        log::debug(X11_PREFIX,"Key mapping setup");
-
-        n := std::read_buffer_u8(buf,1);
-
-        read_x11_reply(win,len);
-        
-        cur : u32 = 0;
-        offset := n * 4;
-
-        for(i in win.min_keycode < win.max_keycode)
+        // big request enable reply
+        if(win.big_req_seq == seq)
         {
-            win.key_code_to_sym[i] = std::read_buffer_u8(buf,cur);
-            cur += offset;
+            win.big_req_reply = true;
+            win.max_req = std::read_buffer_u32(buf,8) * 4;
         }
+
+        // key mapping
+        else if(win.get_key_map_seq == seq)
+        {
+            log::debug(X11_PREFIX,"Key mapping setup");
+
+            n := std::read_buffer_u8(buf,1);
+
+            read_x11_reply(win,len);
+            
+            cur : u32 = 0;
+            offset := n * 4;
+
+            for(i in win.min_keycode < win.max_keycode)
+            {
+                win.key_code_to_sym[i] = std::read_buffer_u8(buf,cur);
+                cur += offset;
+            }
+        }
+
+        // just burn the reply
+        else
+        {
+            net::recv_ignore(&win.sock,len);
+        }
+        return;
     }
 
-    // just burn the reply
-    else
-    {
-        net::recv_ignore(&win.sock,len);
-    }
+    reply_callback := cast(ReplyCallback@,callback_opt);
+
+    reply_callback.callback(win,reply_callback.data);
 }
 
 #attr(no_reorder)
@@ -787,6 +800,8 @@ struct XCreateWindow
 
 func create_window(win : OSWindow@, x : u32, y : u32)
 {
+    win.reply_callback = std::make_hash_table(u32.size,ReplyCallback.size,&std::hash_u32);
+
     // allocate a an id and save it
     win.window_id = alloc_resource(win);
 
@@ -945,7 +960,33 @@ struct XQueryExtension
     pad2: u16;
 }
 
-func query_extenstion(std_win: Window@, str: const string) bool
+struct ExtenstionQuery
+{
+    replied: bool;
+    opcode: u8;
+    enabled: bool;
+}
+
+func ext_query_callback(win: OSWindow@, data: byte?)
+{
+    ext_query := cast(ExtenstionQuery@,data);
+    ext_query.replied = true;
+    ext_query.enabled = cast(bool,std::read_buffer_u8(&win.buf,8));
+    ext_query.opcode = std::read_buffer_u8(&win.buf,9);
+}
+
+func wait_for_reply(std_win: Window@, done: bool@)
+{
+    while(!@done)
+    {
+        if(process_events(std_win))
+        {
+            std::crash_and_burn("Died while waiting for reply");
+        }       
+    }
+}
+
+func query_extenstion(std_win: Window@, str: const string) ExtenstionQuery
 {
     win := &std_win.os_win;
 
@@ -957,24 +998,20 @@ func query_extenstion(std_win: Window@, str: const string) bool
     bytes := x11_req_len(pad + str.len);
     query.len += bytes;
 
-    win.ext_query_seq = send_req(win,&query,sizeof_data(XQueryExtension));
-
+    ext_query_seq := send_req(win,&query,sizeof_data(XQueryExtension));
     net::send_str(&win.sock,str);
 
     // just send struct as padding
     net::send_raw(&win.sock,&query,pad);
 
-    while(!win.ext_query_reply)
-    {
-        if(process_events(std_win))
-        {
-            std::crash_and_burn("could not query extenstion {}",str);
-        }       
-    }
 
-    win.ext_query_reply = false;
+    query_reply: ExtenstionQuery;
+    callback: ReplyCallback = {&ext_query_callback,&query_reply};
+    add_reply_callback(win,ext_query_seq,&callback);
 
-    return win.ext_enabled;
+    wait_for_reply(std_win,&query_reply.replied);
+
+    return query_reply;
 }
 
 #attr(no_reorder)
@@ -990,7 +1027,9 @@ func enable_big_req(std_win: Window@)
     win := &std_win.os_win;
 
     // send ext query
-    win.big_req = query_extenstion(std_win,"BIG-REQUESTS");
+    ext_query := query_extenstion(std_win,"BIG-REQUESTS");
+
+    win.big_req = ext_query.enabled;
 
     if(!win.big_req)
     {
@@ -998,8 +1037,7 @@ func enable_big_req(std_win: Window@)
     }
 
     enable: XBigReqEnable;
-
-    enable.opcode = win.ext_opcode;
+    enable.opcode = ext_query.opcode;
 
     // send the opcode
     win.big_req_seq = send_req(win,&enable,sizeof_data(XBigReqEnable));

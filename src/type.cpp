@@ -903,13 +903,13 @@ Type* make_base_type(Interloper& itl, u32 type_idx, type_kind kind, b32 is_const
 }
 
 // TODO: this is more restrictive than required atm
-b32 def_has_indirection(TypeNode *type_decl)
+b32 def_has_indirection(const TypeNode *type_decl)
 {
     return count(type_decl->compound_type);
 }
 
 
-Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
+Type* get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
     Type* type = nullptr;
 
@@ -1115,7 +1115,7 @@ Type* get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = IN
 }
 
 // get back a type that does not need further deduction i.e no size deduction
-Type* get_complete_type(Interloper& itl, TypeNode* type_decl)
+Type* get_complete_type(Interloper& itl, const TypeNode* type_decl)
 {
     return get_type(itl,type_decl,INVALID_TYPE,true);
 }

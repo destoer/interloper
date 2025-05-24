@@ -518,7 +518,9 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
             if(!sym_ptr)
             {
                 // could be attempting to take a function pointer?
-                auto func_def = name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_global(itl,name);
+                auto func_def = name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_default(itl,name);
+
+                printf("Func_def %p %p\n",func_def,name_space);
 
                 if(func_def)
                 {
@@ -541,7 +543,7 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
                 }
                 
                 // nothing found!
-                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration in addr\n",name.buf);
                 return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
             }
 
