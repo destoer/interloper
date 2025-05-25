@@ -167,13 +167,13 @@ BlockSlot add_fall(Interloper& itl,Function& func)
 
 void check_block_branch(Interloper& itl,Function& func, BlockSlot& block_slot)
 {
+    UNUSED(itl);
     auto& block = block_from_slot(func,block_slot);
     block.branch_count += 1;
 
     if(block.branch_count > 1)
     {
-        dump_ir_sym(itl,func,itl.symbol_table);
-        panic(itl,itl_error::out_of_bounds,"Basic block has too many branches: at L%d\n",block.label_slot.handle);
+        crash_and_burn("Basic block has too many branches: at L%d\n",block.label_slot.handle);
     }
 }
 
