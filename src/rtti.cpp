@@ -16,112 +16,163 @@ b32 is_any(Interloper& itl, const Type* type)
     return false;
 }
 
-u32 cache_struct(Interloper& itl, NameSpace* name_space, const String& name)
+std::optional<u32> cache_struct(Interloper& itl, NameSpace* name_space, const String& name)
 {
-    TypeDecl* type_decl = lookup_type_scoped(itl,name_space,name);
+    auto type_opt = lookup_type_scoped(itl,name_space,name);
+    if(!type_opt)
+    {
+        return std::nullopt;
+    }
+
+    TypeDecl* type_decl = *type_opt; 
 
     if(!type_decl)
     {
-        panic(itl,itl_error::struct_error,"could not find struct %s for rtti\n",name.buf);
-        return INVALID_TYPE_IDX;
+        compile_error(itl,itl_error::struct_error,"could not find struct %s for rtti\n",name.buf);
+        return std::nullopt;
     }
 
     if(type_decl->kind != type_kind::struct_t)
     {
-        panic(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti\n",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
-        return INVALID_TYPE_IDX;
+        compile_error(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti\n",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
+        return std::nullopt;
     }
 
     return type_decl->type_idx;
 }
 
-u32 cache_offset(Interloper& itl,Struct& structure, const String& member_name)
+std::optional<u32> cache_offset(Interloper& itl,Struct& structure, const String& member_name)
 {
     auto offset_opt = member_offset(structure,member_name);
 
     if(!offset_opt)
     {
-        panic(itl,itl_error::rtti_error,"could not find offset for %s.%s\n",structure.name.buf,member_name.buf);
-        return 0;
+        compile_error(itl,itl_error::rtti_error,"could not find offset for %s.%s\n",structure.name.buf,member_name.buf);
+        return std::nullopt;
     }
 
-    return offset_opt.value();
+    return *offset_opt;
 }
 
 
-void cache_rtti_structs(Interloper& itl)
+dtr_res cache_rtti_structs(Interloper& itl)
 {
     auto& rtti = itl.rtti_cache;
     
     NameSpace* rtti_name_space = find_name_space(itl,"rtti");
 
     // cache Any struct info
-    rtti.any_idx = cache_struct(itl,rtti_name_space,"Any");
-
+    auto any_idx_opt = cache_struct(itl,rtti_name_space,"Any");
     if(invalid_type_idx(rtti.any_idx))
     {
-        return;
+        return dtr_res::err;
     }
 
+    rtti.any_idx = *any_idx_opt;
+
+
+
+
     auto& any_struct = itl.struct_table[rtti.any_idx];
-    rtti.any_data_offset = cache_offset(itl,any_struct,"data");
-    rtti.any_type_offset = cache_offset(itl,any_struct,"type");
+    auto any_data_offset_opt = cache_offset(itl,any_struct,"data");
+    auto any_type_offset_opt = cache_offset(itl,any_struct,"type");
+
+    if(!any_data_offset_opt || !any_type_offset_opt)
+    {
+        return dtr_res::err;
+    }
+
+    rtti.any_data_offset = *any_data_offset_opt;
+    rtti.any_type_offset = *any_type_offset_opt;
     rtti.any_struct_size = any_struct.size;
 
 
     // cache Type struct info
-    const u32 type_struct_idx = cache_struct(itl,rtti_name_space,"Type");
+    auto type_struct_idx_opt = cache_struct(itl,rtti_name_space,"Type");
 
-    if(invalid_type_idx(type_struct_idx))
+    if(!type_struct_idx_opt)
     {
-        return;
+        return dtr_res::err;
     }
 
+    const u32 type_struct_idx = *type_struct_idx_opt;
     auto& type_struct = itl.struct_table[type_struct_idx];
-    rtti.is_const_offset = cache_offset(itl,type_struct,"is_const");
-    rtti.type_class_offset = cache_offset(itl,type_struct,"kind");
+
+    auto is_const_offset_opt = cache_offset(itl,type_struct,"is_const");
+    auto type_class_offset_opt = cache_offset(itl,type_struct,"kind");
+    if(!is_const_offset_opt || !type_class_offset_opt)
+    {
+        return dtr_res::err;
+    }
+
+    rtti.is_const_offset = *is_const_offset_opt;
+    rtti.type_class_offset = *type_class_offset_opt;
     rtti.type_struct_size = type_struct.size;
 
 
     // Builtin type cache
     // cache Type struct info
-    const u32 builtin_type_struct_idx = cache_struct(itl,rtti_name_space,"BuiltinType");
-
-    if(invalid_type_idx(builtin_type_struct_idx))
+    auto buitlin_type_struct_idx_opt =  cache_struct(itl,rtti_name_space,"BuiltinType");
+    if(!buitlin_type_struct_idx_opt)
     {
-        return;
+        return dtr_res::err;
     }
 
+    const u32 builtin_type_struct_idx = *buitlin_type_struct_idx_opt;
     auto& builtin_type_struct = itl.struct_table[builtin_type_struct_idx];
-    rtti.builtin_type_offset = cache_offset(itl,builtin_type_struct,"builtin");
+
+    auto builtin_type_offset_opt = cache_offset(itl,builtin_type_struct,"builtin");
+    if(!builtin_type_offset_opt)
+    {
+        return dtr_res::err;
+    }
+
+    rtti.builtin_type_offset = *builtin_type_offset_opt;
     rtti.builtin_type_struct_size = builtin_type_struct.size;
 
-
     // Pointer type cache
-    const u32 pointer_struct_idx = cache_struct(itl,rtti_name_space,"PointerType");
-
-    if(invalid_type_idx(pointer_struct_idx))
+    auto pointer_struct_idx_opt = cache_struct(itl,rtti_name_space,"PointerType");
+    
+    if(!pointer_struct_idx_opt)
     {
-        return;
+        return dtr_res::err;
     }
 
+    const u32 pointer_struct_idx = *pointer_struct_idx_opt;
     auto& pointer_struct = itl.struct_table[pointer_struct_idx];
-    rtti.pointer_contained_offset = cache_offset(itl,pointer_struct,"contained_type");
+
+    auto pointer_contained_offset_opt = cache_offset(itl,pointer_struct,"contained_type");
+    if(!pointer_contained_offset_opt)
+    {
+        return dtr_res::err;
+    }
+
+    rtti.pointer_contained_offset = *pointer_contained_offset_opt; 
     rtti.pointer_struct_size = pointer_struct.size;
 
 
     // Array type cache
-    const u32 array_struct_idx = cache_struct(itl,rtti_name_space,"ArrayType");
-
-    if(invalid_type_idx(array_struct_idx))
+    const auto array_struct_idx_opt = cache_struct(itl,rtti_name_space,"ArrayType");
+    if(!array_struct_idx_opt)
     {
-        return;
+        return dtr_res::err;
     }
 
+    const u32 array_struct_idx = *array_struct_idx_opt;
     auto& array_struct = itl.struct_table[array_struct_idx];
-    rtti.array_contained_offset = cache_offset(itl,array_struct,"contained_type");
-    rtti.array_size_offset = cache_offset(itl,array_struct,"size");
-    rtti.array_sub_size_offset = cache_offset(itl,array_struct,"sub_size");
+    
+    auto array_contained_offset_opt = cache_offset(itl,array_struct,"contained_type");
+    auto array_size_offset_opt = cache_offset(itl,array_struct,"size");
+    auto array_sub_size_offset_opt = cache_offset(itl,array_struct,"sub_size");
+
+    if(!array_contained_offset_opt || !array_size_offset_opt || !array_sub_size_offset_opt)
+    {
+        return dtr_res::err;
+    }
+
+    rtti.array_contained_offset = *array_contained_offset_opt; 
+    rtti.array_size_offset = *array_size_offset_opt;
+    rtti.array_sub_size_offset = *array_sub_size_offset_opt;
     rtti.array_struct_size = array_struct.size;
 
 /*
@@ -380,7 +431,7 @@ void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const
 }
 
 
-void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
+dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
 {
     const auto& rtti = itl.rtti_cache;
     const b32 handle_storage = is_special_reg(any_ptr,spec_reg::null);
@@ -436,7 +487,10 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Re
 
                 const auto src_addr = make_struct_addr(reg,0);
 
-                ir_memcpy(itl,func,dst_addr,src_addr,stack_size);
+                if(!ir_memcpy(itl,func,dst_addr,src_addr,stack_size))
+                {
+                    return dtr_res::err;
+                }
             }
 
             else
@@ -464,10 +518,12 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, Re
             }
         }  
     }
+
+    return dtr_res::ok;
 }
 
 // return total size including data
-u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
+std::optional<u32> compile_any(Interloper& itl, Function& func, AstNode* arg_node)
 {
     // for now this just allways takes size of the any struct
     const u32 size = align_val(itl.rtti_cache.any_struct_size,GPR_SIZE);
@@ -475,14 +531,17 @@ u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
     const auto NULL_SLOT = make_spec_reg_slot(spec_reg::null);
 
     // Handle stack alloc and store itself caller will handle deallocation of stack
-    compile_any_internal(itl,func,arg_node,NULL_SLOT,0);
+    if(!compile_any_internal(itl,func,arg_node,NULL_SLOT,0))
+    {
+        return std::nullopt;
+    }
 
     return size;
 }
 
 
-void compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
+dtr_res compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
 {
     // storage allocation handled by caller
-    compile_any_internal(itl,func,arg_node,any_ptr,offset);
+    return compile_any_internal(itl,func,arg_node,any_ptr,offset);
 }

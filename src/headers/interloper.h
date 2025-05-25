@@ -12,17 +12,6 @@ using namespace destoer;
 #include <interpretter.h>
 
 
-enum class [[nodiscard]] dtr_res : u32
-{
-    ok,
-    err
-};
-
-bool operator! (dtr_res res)
-{
-    return res == dtr_res::err;
-}
-
 enum class itl_error
 {
     none,

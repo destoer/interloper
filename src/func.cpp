@@ -105,18 +105,19 @@ b32 func_exists(Interloper& itl, const String& name, NameSpace* name_space)
     return lookup_func_def_scope(itl,name_space,name) != nullptr;
 }
 
-void check_startup_func(Interloper& itl, const String& name, NameSpace* name_space)
+dtr_res check_startup_func(Interloper& itl, const String& name, NameSpace* name_space)
 {
     auto def_opt = lookup_func_def_scope(itl,name_space,name);
 
     // ensure the entry functions are defined
     if(!def_opt)
     {
-        panic(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
-        return;
+        compile_error(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
+        return dtr_res::err;
     }
 
-    finalise_func(itl,*def_opt);    
+    finalise_func(itl,*def_opt);
+    return dtr_res::ok;    
 }
 
 Function* lookup_opt_scoped_function(Interloper& itl, NameSpace* name_space, const String& name)

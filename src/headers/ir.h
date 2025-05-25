@@ -905,7 +905,7 @@ struct AddrSlot
 };
 
 // intrin
-void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
+dtr_res ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
 
 enum class arch_target
 {

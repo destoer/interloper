@@ -636,7 +636,10 @@ std::optional<std::tuple<Type*,AddrSlot>> compute_member_addr(Interloper& itl, F
                 if(is_pointer(struct_type))
                 {
                     RegSlot addr_slot = new_tmp_ptr(func);
-                    do_addr_load(itl,func,addr_slot,struct_slot,struct_type);
+                    if(!do_addr_load(itl,func,addr_slot,struct_slot,struct_type))
+                    {
+                        return std::nullopt;
+                    }
 
                     struct_slot = make_addr(addr_slot,0);
 
@@ -713,7 +716,10 @@ std::optional<std::tuple<Type*,AddrSlot>> compute_member_addr(Interloper& itl, F
                 {
                     const RegSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    do_addr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
+                    if(!do_addr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE)))
+                    {
+                        return std::nullopt;
+                    }
                     struct_slot = make_addr(vla_ptr,0);
                 }
 
@@ -776,8 +782,7 @@ dtr_res write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rty
         return dtr_res::err;
     }
 
-    do_addr_store(itl,func,src_slot,addr_slot,accessed_type);
-    return dtr_res::ok;
+    return do_addr_store(itl,func,src_slot,addr_slot,accessed_type);
 }
 
 
@@ -815,7 +820,11 @@ std::optional<Type*> read_struct(Interloper& itl,Function& func, RegSlot dst_slo
         return accessed_type;
     }
 
-    do_addr_load(itl,func,dst_slot,addr_slot,accessed_type);
+    if(!do_addr_load(itl,func,dst_slot,addr_slot,accessed_type))
+    {
+        return std::nullopt;
+    }
+
     return accessed_type;
 }
 
@@ -875,7 +884,10 @@ dtr_res traverse_struct_initializer(Interloper& itl, Function& func, RecordNode*
                 return dtr_res::err;
             }
 
-            do_addr_store(itl,func,slot,addr_member,member.type);
+            if(!do_addr_store(itl,func,slot,addr_member,member.type))
+            {
+                return dtr_res::err;
+            }
         }
     } 
 
@@ -925,7 +937,10 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
                         return dtr_res::err;
                     } 
 
-                    do_addr_store(itl,func,slot,member_addr,member.type);
+                    if(!do_addr_store(itl,func,slot,member_addr,member.type))
+                    {
+                        return dtr_res::err;
+                    }
                     break;                    
                 }
             }
@@ -957,7 +972,11 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
             }
 
             const RegSlot tmp = imm_zero(itl,func);
-            do_addr_store(itl,func,tmp,member_addr,member.type);
+            if(!do_addr_store(itl,func,tmp,member_addr,member.type))
+            {
+                pop_context(itl);
+                return dtr_res::err;
+            }
         }
     }
 

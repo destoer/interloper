@@ -332,7 +332,7 @@ std::optional<Type*> compile_enum(Interloper& itl, Function& func,ScopeNode* sco
         case enum_decode_res::invalid_enum:
         case enum_decode_res::invalid_namespace:
         {
-            return make_builtin(itl,builtin_type::void_t);
+            return std::nullopt;
         }
         
         case enum_decode_res::invalid_member:
