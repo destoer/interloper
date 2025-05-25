@@ -13,17 +13,27 @@ struct Bucket
 
 type_alias HASH_FUNC = func(key: const byte@, size: usize) usize;
 
-
-func hash_u64(key_ptr: byte@, size: usize) usize
+func u64_hash_func(key: u64, size: usize) usize
 {
-    key := @cast(u64@,key_ptr);
-
     // TODO: impl a better integer hash func
     hash := key;
     slot := hash & (size - 1); 
 
     return slot;
 }
+
+func hash_u64(key_ptr: byte@, size: usize) usize
+{
+    key := @cast(u64@,key_ptr);
+    return u64_hash_func(key,size);
+}
+
+func hash_u32(key_ptr: byte@, size: usize) usize
+{
+    key := @cast(u32@,key_ptr);
+    return u64_hash_func(key,size);
+}
+
 
 struct HashTable
 {
@@ -150,6 +160,20 @@ func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byt
     table.table_size += 1;
 
     return new_node.value;
+}
+
+func hash_table_remove(table: HashTable@, key: const byte@) 
+{
+    slot := table.hash_func(key,count_array(&table.bucket));
+    bucket := cast(Bucket@,array_index(&table.bucket,slot));
+
+    node := hash_table_lookup_bucket(table,bucket,key);
+
+    if node
+    {
+        array_remove_in_place(&bucket.node,cast(HashNode@,node));
+        table.table_size -= 1;
+    }
 }
 
 func destroy_hash_table(table: HashTable@)

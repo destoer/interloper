@@ -15,12 +15,15 @@ func main() s32
     std::hash_table_add(&table,&key,&value);
     res3 := @cast(u32@,std::hash_table_lookup(&table,&key)) == 6;
 
+    std::hash_table_remove(&table,&key);
+    res4 := !std::hash_table_contains(&table,&key) && table.table_size == 0;
+
     key = 4;
-    res4 := std::hash_table_lookup(&table,&key) == NULL;
+    res5 := std::hash_table_lookup(&table,&key) == NULL;
 
 
     std::destroy_hash_table(&table);
 
-    ans := res1 && res2 && res3 && res4;
+    ans := res1 && res2 && res3 && res4 && res5;
     return cast(s32,ans);
 }

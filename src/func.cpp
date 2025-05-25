@@ -859,6 +859,11 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
     {
         pass.arg_clean += push_va_args(itl,func,call_node,call_info.name,actual_args);
 
+        if(itl.error)
+        {
+            return make_builtin(itl,builtin_type::void_t);
+        }
+
         // skip over our va_args
         start_arg = actual_args - 2;
     }

@@ -219,6 +219,22 @@ func read_buffer_u32(arr: const Array@, offset: u64) u32
     return v;
 }
 
+func array_pop(arr: Array@) 
+{
+    arr.size -= arr.element_size;
+}
+
+func array_rev_index(arr: Array@, data: byte@) usize
+{
+    return (node - &arr.buf[0]) / HashNode.size;
+}
+
+func array_remove_in_place(arr: Array@, data: byte@) 
+{
+    memcpy(data,array_index(arr,count_array(arr) - 1),arr.element_size);
+    array_pop(arr);   
+}
+
 func str_from_array(arr : Array@) string
 {
     return recast_arr(c8,array_buffer(arr));

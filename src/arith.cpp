@@ -21,7 +21,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst
     }
 
     // pointer arith adds the size of the underlying type
-    if(is_pointer(t1) && is_integer(t2))
+    if(is_pointer(t1) && is_integer(t2) && (type == op_type::add_reg || type == op_type::sub_reg))
     {
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
@@ -518,7 +518,7 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
             if(!sym_ptr)
             {
                 // could be attempting to take a function pointer?
-                auto func_def = name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_global(itl,name);
+                auto func_def = name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_default(itl,name);
 
                 if(func_def)
                 {
@@ -541,7 +541,7 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
                 }
                 
                 // nothing found!
-                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration in addr\n",name.buf);
                 return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
             }
 
