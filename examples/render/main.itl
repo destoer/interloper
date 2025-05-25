@@ -1,81 +1,81 @@
 
 import <graphics> 
+import <colour>
 
-struct Context
+// https://github.com/ssloy/tinyrenderer/wiki/Lesson-1:-Bresenham%E2%80%99s-Line-Drawing-Algorithm
+
+func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
 {
-    map : u32[];
-};
+    y1 := (win.size.y - v1.y);
+    y2 := (win.size.y - v2.y);
+    x1 := v1.x;
+    x2 := v2.x;
 
-constant TILE_SIZE: u32 = 8;
-constant SCREEN_X: u32 = 640;
-constant SCREEN_Y: u32 = 360;
+    steep := false;
 
-constant TILE_X: u32 = SCREEN_X / TILE_SIZE;
-constant TILE_Y: u32 = SCREEN_Y / TILE_SIZE;
-
-func draw_tile(win: gfx::Window@, ctx: Context@, tile_id: u32, x: u32, y: u32)
-{
-    colour: u32 = 0xff_00_00_00;
-
-    if(tile_id == 1)
+    // Draw more x than y
+    if std::abs(x1 - x2) < std::abs(y1 - y2)
     {
-        colour = 0xff_ff_ff_ff;
+        std::swap_s64(&x1,&y1);
+        std::swap_s64(&x2,&y2);
+        steep = true;
     }
 
-    // work out top left tile
-    offset : u32 = (y * SCREEN_X * TILE_SIZE) + (x * TILE_SIZE);
-
-    // scan each 8 lines
-    for(tile_y in 0 < TILE_SIZE)
+    // x1 should be smallest 
+    if x1 > x2 
     {
-        for(tile_x in 0 < TILE_SIZE)
+        std::swap_s64(&x1,&x2);
+        std::swap_s64(&y1,&y2);
+    }
+
+    stride := win.size.x;
+
+    y1f := cast(f64,y1);
+    y2f := cast(f64,y2);
+
+    for x in x1 < x2 + 1
+    {
+        t := cast(f64,x - x1) / cast(f64,x2 - x1);
+        y := cast(s64,y1f * (1.0 - t) + (y2f * t));
+
+        if steep
         {
-            win.screen[offset + tile_x] = colour;
+            win.screen[(x * stride) + y] = colour;
         }
 
-        offset += SCREEN_X;
+        else
+        {
+            win.screen[(y * stride) + x] = colour;
+        }
     }
 }
 
-func render(win: gfx::Window@, ctx: Context@)
+func draw_triangle(win: gfx::Window@, tri: std::Vec2I[3], colour: u32)
 {
-    offset : u32 = 0;
-
-    // scan every tile
-    for(y in 0 < TILE_Y)
-    {
-        for(x in 0 < TILE_X)
-        {
-            tile_id := ctx.map[offset + x];
-
-            draw_tile(win,ctx,tile_id,x,y);
-        }
-
-        offset += TILE_X;
-    }
+    draw_line(win,&tri[0],&tri[1],colour);
+    draw_line(win,&tri[1],&tri[2],colour);
+    draw_line(win,&tri[2],&tri[0],colour); 
 }
 
-func make_context() Context
+func render(win: gfx::Window@)
 {
-    ctx: Context;
+    gfx::blank_screen(win.screen);
 
-    ctx.map = std::arr_heap_u32(&global_heap,TILE_X * TILE_Y);
+    t0: std::Vec2I[3] = {{10, 70},   {50, 160},  {70, 80}}; 
+    t1: std::Vec2I[3] = {{180, 50},  {150, 1},   {70, 180}}; 
+    t2: std::Vec2I[3] = {{180, 150}, {120, 160}, {130, 180}}; 
 
-    return ctx;
+    draw_triangle(win,t0, RED); 
+    draw_triangle(win,t1, BLUE); 
+    draw_triangle(win,t2, GREEN);
 }
 
 func main() s32
 {
+    SCREEN_X := 640;
+    SCREEN_Y := 480;
+
     win := gfx::open_window("interloper",SCREEN_X,SCREEN_Y);
-
-    ctx := make_context();
-
-    ctx.map[0] = 1;
-    ctx.map[TILE_X - 1] = 1;
-    ctx.map[(TILE_X * TILE_Y) - 1] = 1;
-    ctx.map[TILE_X * (TILE_Y - 1)] = 1;
-
-    ctx.map[((TILE_Y / 2) * TILE_X) + TILE_X / 2] = 1;
 
     while(!win.quit)
     {
@@ -86,7 +86,7 @@ func main() s32
             win.quit = true;
         }
 
-        render(&win,&ctx);
+        render(&win);
 
         gfx::draw_window(&win,win.screen);
 
