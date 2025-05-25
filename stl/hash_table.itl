@@ -162,6 +162,20 @@ func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byt
     return new_node.value;
 }
 
+func hash_table_remove(table: HashTable@, key: const byte@) 
+{
+    slot := table.hash_func(key,count_array(&table.bucket));
+    bucket := cast(Bucket@,array_index(&table.bucket,slot));
+
+    node := hash_table_lookup_bucket(table,bucket,key);
+
+    if node
+    {
+        array_remove_in_place(&bucket.node,cast(HashNode@,node));
+        table.table_size -= 1;
+    }
+}
+
 func destroy_hash_table(table: HashTable@)
 {
     bucket_array := recast_arr(Bucket,array_buffer(&table.bucket));

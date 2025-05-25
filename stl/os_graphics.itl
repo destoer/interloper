@@ -466,6 +466,8 @@ func process_reply(win : OSWindow@)
 
     reply_callback := cast(ReplyCallback@,callback_opt);
     reply_callback.callback(win,len,reply_callback.data);
+
+    std::hash_table_remove(&win.reply_callback,&seq);
 }
 
 #attr(no_reorder)

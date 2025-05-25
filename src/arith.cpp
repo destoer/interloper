@@ -21,7 +21,7 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst
     }
 
     // pointer arith adds the size of the underlying type
-    if(is_pointer(t1) && is_integer(t2))
+    if(is_pointer(t1) && is_integer(t2) && (type == op_type::add_reg || type == op_type::sub_reg))
     {
         // get size of pointed to type
         Type *contained_type = deref_pointer(t1);
