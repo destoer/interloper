@@ -605,7 +605,7 @@ struct Parser
     String cur_path = "";
 
     // error handling
-    b32 error = false;
+    u32 error_count = 0;
     u32 idx = 0;
     u32 line = 0;
     u32 col = 0;
@@ -715,21 +715,31 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename, c
     return (AstNode*)struct_node;
 }    
 
-AstNode *ast_binary(Parser& parser,AstNode *l, AstNode *r, ast_type type, const Token& token)
+std::optional<AstNode*> ast_binary(Parser& parser,std::optional<AstNode*> l_opt, std::optional<AstNode*> r_opt, ast_type type, const Token& token)
 {
+    if(!r_opt || !l_opt)
+    {
+        return std::nullopt;
+    }
+
     BinNode* bin_node = alloc_node<BinNode>(parser,type,ast_fmt::binary,token);
 
-    bin_node->left = l;
-    bin_node->right = r;
+    bin_node->left = *l_opt;
+    bin_node->right = *r_opt;
 
     return (AstNode*)bin_node;  
 }
 
-AstNode *ast_unary(Parser& parser,AstNode *next, ast_type type, const Token& token)
+std::optional<AstNode*> ast_unary(Parser& parser,std::optional<AstNode*> next_opt, ast_type type, const Token& token)
 {
+    if(!next_opt)
+    {
+        return std::nullopt;
+    }
+
     UnaryNode* unary_node = alloc_node<UnaryNode>(parser,type,ast_fmt::unary,token);
 
-    unary_node->next = next;
+    unary_node->next = *next_opt;
 
     return (AstNode*)unary_node;  
 }
@@ -960,10 +970,12 @@ AstNode* ast_type_operator(TypeNode* type,ast_type kind)
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
-inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
+inline void parser_error(Parser &parser,const Token &token,const char *fmt, ...)
 {
+    parser.error_count += 1;
+
     // further reporting becomes pointless past a single parser error
-    if(parser.error)
+    if(parser.error_count)
     {
         return;
     }
@@ -975,7 +987,6 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     const auto [line,col] = get_line_info(parser.cur_file,token.idx);
     printf("at: %s line %d col %d\n\n",parser.cur_file.buf,line,col);
 
-    parser.error = true;
     parser.line = line;
     parser.col = col;
     parser.idx = token.idx;

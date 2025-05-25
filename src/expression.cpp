@@ -1,15 +1,14 @@
 #include <interloper.h>
 
-AstNode *expression(Parser &parser,ExprCtx& ctx,s32 rbp);
-
-AstNode* expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
-std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
+std::optional<AstNode*> expression(Parser &parser,ExprCtx& ctx,std::optional<s32> rbp_opt);
+std::optional<AstNode*> expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
+std::optional<std::pair<AstNode*,b32>> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
 void type_panic(Parser &parser);
 TypeNode *parse_type(Parser &parser, b32 allow_fail = false);
-Array<String> split_namespace(Parser& parser, const Token& start);
+std::optional<Array<String>> split_namespace(Parser& parser, const Token& start);
 
 void next_expr_token(Parser& parser,ExprCtx& ctx)
 {
@@ -31,17 +30,19 @@ void next_expr_token(Parser& parser,ExprCtx& ctx)
     ctx.expr_flags |= (should_term << EXPR_TERMINATED_FLAG_BIT);
 }
 
-void consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
+dtr_res consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
 {
     if(type != ctx.expr_tok.type)
     {
-        panic(parser,ctx.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(ctx.expr_tok.type));
+        parser_error(parser,ctx.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(ctx.expr_tok.type));
+        return dtr_res::err;
     }
 
     next_expr_token(parser,ctx);
+    return dtr_res::ok;
 }
 
-s32 lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
+std::optional<s32> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
 {
     const auto bp = TOKEN_INFO[static_cast<size_t>(t.type)].lbp;
 
@@ -53,33 +54,51 @@ s32 lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
         {
             case token_type::increment:
             {
-                panic(parser,t,"increment operator not supported\n");
-                break;
+                parser_error(parser,t,"increment operator not supported\n");
+                return std::nullopt;
             }
 
             case token_type::decrement:
             {
-                panic(parser,t,"decrement operator not supported\n");
-                break;
+                parser_error(parser,t,"decrement operator not supported\n");
+                return std::nullopt;
             }
 
             default:
             {
-                panic(parser,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
-                break;
+                parser_error(parser,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+                return std::nullopt;
             }
         }
-
-        
     }
 
     return bp;
 }
 
-// i.e +=
-AstNode *oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type oper)
+std::optional<s32> lbp_subexpr(Parser &parser,const ExprCtx& ctx,const Token &t)
 {
-    auto e = expression(parser,ctx,lbp(parser,ctx,t) - 1);
+    auto lbp_opt = lbp(parser,ctx,t);
+
+    if(!lbp_opt)
+    {
+        return std::nullopt;
+    }
+
+    const s32 lbp = *lbp_opt;
+    return lbp - 1;
+}
+
+// i.e +=
+std::optional<AstNode*> oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type oper)
+{
+    auto e_opt = expression(parser,ctx,lbp_subexpr(parser,ctx,t));
+
+    if(!e_opt)
+    {
+        return std::nullopt;
+    }
+
+    auto e = *e_opt;
 
     // sugar as <sym> = <sym> + <expr>
     auto e2 = ast_binary(parser,left,e,oper,t);
@@ -89,7 +108,7 @@ AstNode *oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type oper
     return n;    
 }
 
-AstNode *parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
+std::optional<AstNode*> parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 {
     switch(t.type)
     {
@@ -123,7 +142,7 @@ AstNode *parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
         {
             // right precedence rbp = lbp -1 so that things on the right 
             // are sen as sub expressions
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t) - 1),ast_type::equal,t);  
+            return ast_binary(parser,left,expression(parser,ctx,lbp_subexpr(parser,ctx,t)),ast_type::equal,t);  
         }
     
       
@@ -222,19 +241,19 @@ AstNode *parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
         default:
         {
-            panic(parser,t,"led: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
-            return nullptr;
+            parser_error(parser,t,"led: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+            return std::nullopt;
         }        
     }
 
     // should not be reached
     crash_and_burn("led fell through!?");
-    return nullptr;
+    return std::nullopt;
 }
 
 
 
-AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
+std::optional<AstNode*> parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
 {
     // look ahead extra tokens that would change the meaning of this
     switch(ctx.expr_tok.type)
@@ -257,17 +276,26 @@ AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             prev_token(parser);
             prev_token(parser);
 
-            Array<String> name_space = split_namespace(parser,ctx.expr_tok);
+            auto name_space_opt = split_namespace(parser,ctx.expr_tok);
 
-            if(parser.error)
+            if(!name_space_opt)
             {
-                return nullptr;
+                return std::nullopt;
             }
+
+            Array<String> name_space = *name_space_opt;
 
             const auto cur = next_token(parser);
             next_expr_token(parser,ctx);
 
-            return ast_scope(parser,parse_sym(parser,ctx,cur),name_space,t);
+            auto sym_opt = parse_sym(parser,ctx,cur);
+
+            if(!sym_opt)
+            {
+                return std::nullopt;
+            }
+
+            return ast_scope(parser,*sym_opt,name_space,t);
         }
 
 
@@ -284,7 +312,7 @@ AstNode* parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
     }   
 }
 
-AstNode* builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type type)
+std::optional<AstNode*> builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type type)
 {
     const Token t = ctx.expr_tok;
 
@@ -301,13 +329,16 @@ AstNode* builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type type)
         }
     }
 
-    panic(parser,ctx.expr_tok,"expected member access after builtin type, got %s\n",tok_name(ctx.expr_tok.type));
-    return nullptr;   
+    parser_error(parser,ctx.expr_tok,"expected member access after builtin type, got %s\n",tok_name(ctx.expr_tok.type));
+    return std::nullopt;   
 }
 
-AstNode* type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
+std::optional<AstNode*> type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
 {
-    consume_expr(parser,ctx,token_type::left_paren);
+    if(!consume_expr(parser,ctx,token_type::left_paren))
+    {
+        return std::nullopt;
+    }
 
     // get_type is inside the normal parser we need
     // to correct the tok idx
@@ -318,20 +349,26 @@ AstNode* type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
     if(!type)
     {
         type_panic(parser);
-        return nullptr;
+        return std::nullopt;
     }
 
     // correct our state machine
     ctx.expr_tok = next_token(parser);
 
-    consume_expr(parser,ctx,token_type::right_paren);
+    if(!consume_expr(parser,ctx,token_type::right_paren))
+    {
+        return std::nullopt;
+    }
 
     return ast_type_operator(type,kind);   
 }
 
-AstNode* parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_type)
+std::optional<AstNode*> parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_type)
 {
-    consume_expr(parser,ctx,token_type::left_paren);
+    if(!consume_expr(parser,ctx,token_type::left_paren))
+    {
+        return std::nullopt;
+    }
 
     // get_type is inside the normal parser we need
     // to correct the tok idx
@@ -342,14 +379,17 @@ AstNode* parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_t
     if(!type)
     {
         type_panic(parser);
-        return nullptr;
+        return std::nullopt;
     }
 
     // correct our state machine
     // NOTE: we bypass the normal function here because commas require special handling
     ctx.expr_tok = next_token(parser);
 
-    consume_expr(parser,ctx,token_type::comma);
+    if(!consume_expr(parser,ctx,token_type::comma))
+    {
+        return std::nullopt;
+    }
 
     const auto right = expr_terminate_in_expr(parser,ctx,"cast",token_type::right_paren);
 
@@ -357,7 +397,7 @@ AstNode* parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_t
 }
 
 // unary operators
-AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
+std::optional<AstNode*> parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 {
     switch(t.type)
     {
@@ -432,11 +472,14 @@ AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         // sizeof(<expr>)
         case token_type::sizeof_t:
         {
-            consume_expr(parser,ctx,token_type::left_paren);
+            if(!consume_expr(parser,ctx,token_type::left_paren))
+            {
+                return std::nullopt;
+            }
 
-            AstNode* e = expr_terminate_in_expr(parser,ctx,"sizeof",token_type::right_paren);
+            auto expr_opt = expr_terminate_in_expr(parser,ctx,"sizeof",token_type::right_paren);
 
-            return ast_unary(parser,e,ast_type::sizeof_t,t);    
+            return ast_unary(parser,expr_opt,ast_type::sizeof_t,t);    
         }
 
         // sizeof_type(<type>)
@@ -460,8 +503,15 @@ AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             // rather than inside the tokenizer
             if(ctx.expr_tok.type == token_type::qmark)
             {
-                consume_expr(parser,ctx,token_type::qmark);
-                consume_expr(parser,ctx,token_type::right_c_brace);
+                if(!consume_expr(parser,ctx,token_type::qmark))
+                {
+                    return std::nullopt;
+                }
+
+                if(!consume_expr(parser,ctx,token_type::right_c_brace))
+                {
+                    return std::nullopt;
+                }
 
                 return ast_plain(parser,ast_type::no_init,t);
             }
@@ -472,12 +522,14 @@ AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
             while(!done)
             {
-                if(parser.error)
+                auto e_opt = expr_list_in_expr(parser,ctx,"initializer list",token_type::right_c_brace);
+
+                if(!e_opt)
                 {
-                    return nullptr;
+                    return std::nullopt;
                 }
 
-                auto [e,term_seen] = expr_list_in_expr(parser,ctx,"initializer list",token_type::right_c_brace);
+                auto [e,term_seen] = *e_opt;
                 done = term_seen; 
 
                 push_var(init->nodes,e);
@@ -573,26 +625,33 @@ AstNode *parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         default:
         {
-            panic(parser,t,"nud: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
-            break;
+            parser_error(parser,t,"nud: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+            return std::nullopt;
         }
     }
 
-    return nullptr;
+    return std::nullopt;
 }
 
 // pratt parser
 // https://web.archive.org/web/20151223215421/http://hall.org.ua/halls/wizzard/pdf/Vaughan.Pratt.TDOP.pdf
 // ^ this algo is elegant as hell
 
-AstNode *expression(Parser &parser,ExprCtx& ctx,s32 rbp)
+std::optional<AstNode*> expression(Parser &parser,ExprCtx& ctx,std::optional<s32> rbp_opt)
 {
+    if(!rbp_opt)
+    {
+        return std::nullopt;
+    }
+
+    const u32 rbp = *rbp_opt;
+
     auto cur = ctx.expr_tok;
     next_expr_token(parser,ctx);
 
     auto left = parse_unary(parser,ctx,cur);
 
-    if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || parser.error)
+    if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
     {
         return left;
     }
@@ -601,9 +660,9 @@ AstNode *expression(Parser &parser,ExprCtx& ctx,s32 rbp)
     {
         cur = ctx.expr_tok;
         next_expr_token(parser,ctx);
-        left = parse_binary(parser,ctx,cur,left);
+        left = parse_binary(parser,ctx,cur,*left);
 
-        if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || parser.error)
+        if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
         {
             return left;
         }
@@ -613,16 +672,16 @@ AstNode *expression(Parser &parser,ExprCtx& ctx,s32 rbp)
 }
 
 
-AstNode *expr_terminate_internal(Parser &parser,ExprCtx& ctx)
+std::optional<AstNode*> expr_terminate_internal(Parser &parser,ExprCtx& ctx)
 {
     const auto e = expression(parser,ctx,0);
 
     // expression must terminate on this token
     if(!(ctx.expr_flags & EXPR_TERMINATED_FLAG) && (ctx.expr_flags & EXPR_MUST_TERMINATE_FLAG))
     {
-        panic(parser,ctx.expr_tok,"%s should terminate with '%s' terminated with '%s'\n",ctx.expression_name.buf,
+        parser_error(parser,ctx.expr_tok,"%s should terminate with '%s' terminated with '%s'\n",ctx.expression_name.buf,
             tok_name(ctx.term),tok_name(ctx.expr_tok.type));
-        return nullptr;
+        return std::nullopt;
     }
 
     return e;
@@ -630,7 +689,7 @@ AstNode *expr_terminate_internal(Parser &parser,ExprCtx& ctx)
 
 
 // Can optionally terminate, caller must check
-AstNode *expr_terminate(Parser &parser,const String& expression_name,token_type t, token_type &term)
+std::optional<AstNode*> expr_terminate(Parser &parser,const String& expression_name,token_type t, token_type &term)
 {
     ExprCtx ctx;
     ctx.term = t;
@@ -647,7 +706,7 @@ AstNode *expr_terminate(Parser &parser,const String& expression_name,token_type 
 
 
 // panic on failure to terminate with token
-AstNode *expr_terminate(Parser &parser,const String& expression_name,token_type t)
+std::optional<AstNode*> expr_terminate(Parser &parser,const String& expression_name,token_type t)
 {
     ExprCtx ctx;
     ctx.term = t;
@@ -659,12 +718,12 @@ AstNode *expr_terminate(Parser &parser,const String& expression_name,token_type 
 }
 
 
-AstNode *statement_terminate(Parser& parser,const String& expression_name)
+std::optional<AstNode*> statement_terminate(Parser& parser,const String& expression_name)
 {
     return expr_terminate(parser,expression_name,token_type::semi_colon);
 }
 
-std::pair<AstNode*,b32> expr_list(Parser& parser,const String& expression_name, token_type type)
+std::optional<std::pair<AstNode*,b32>> expr_list(Parser& parser,const String& expression_name, token_type type)
 {
     ExprCtx ctx;
     ctx.term = type;
@@ -672,15 +731,19 @@ std::pair<AstNode*,b32> expr_list(Parser& parser,const String& expression_name, 
     ctx.expr_tok = next_token(parser);
     ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG | EXPR_TERM_LIST_FLAG;
 
-    AstNode* e = expr_terminate_internal(parser,ctx);
+    auto e_opt = expr_terminate_internal(parser,ctx);
+
+    if(!e_opt)
+    {
+        return std::nullopt;
+    }
 
     const b32 seen_list_term = ctx.expr_tok.type == type;
-
-    return std::pair{e,seen_list_term};
+    return std::pair{*e_opt,seen_list_term};
 }
 
 // for use inside the parser so the state machine does not have to be messed with
-AstNode* expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type)
+std::optional<AstNode*> expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type)
 {
     ExprCtx ctx;
     ctx.term = type;
@@ -688,14 +751,14 @@ AstNode* expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& ex
     ctx.expr_tok = old_ctx.expr_tok;
     ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG;
 
-    AstNode* e = expr_terminate_internal(parser,ctx);
+    auto e_opt = expr_terminate_internal(parser,ctx);
 
     next_expr_token(parser,old_ctx);
 
-    return e;
+    return e_opt;
 }
 
-std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type)
+std::optional<std::pair<AstNode*,b32>> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type)
 {
     ExprCtx ctx;
     ctx.term = type;
@@ -703,11 +766,16 @@ std::pair<AstNode*,b32> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const 
     ctx.expr_tok = old_ctx.expr_tok;
     ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG | EXPR_TERM_LIST_FLAG;
 
-    AstNode* e = expr_terminate_internal(parser,ctx);
+    auto e_opt = expr_terminate_internal(parser,ctx);
+
+    if(!e_opt)
+    {
+        return std::nullopt;
+    }
 
     const b32 seen_list_term = ctx.expr_tok.type == type;
 
     next_expr_token(parser,old_ctx);
 
-    return std::pair{e,seen_list_term};    
+    return std::pair{*e_opt,seen_list_term};    
 }

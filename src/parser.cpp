@@ -76,7 +76,7 @@ void consume(Parser &parser,token_type type)
     if(t != type)
     {
         const auto tok = next_token(parser);
-        panic(parser,tok,"expected '%s' got %s\n", tok_name(type),tok_name(t));
+        parser_error(parser,tok,"expected '%s' got %s\n", tok_name(type),tok_name(t));
     }
     parser.tok_idx += 1;
 }
@@ -1207,20 +1207,21 @@ BlockNode *block(Parser &parser)
     return b;
 }
 
-bool check_redeclaration(Interloper& itl, NameSpace* root, const String& name, const String& checked_def_type)
+dtr_res check_redeclaration(Interloper& itl, NameSpace* root, const String& name, const String& checked_def_type)
 {
     const DefInfo* existing_def = lookup_definition(root,name);
 
     if(existing_def)
     {
-        panic(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!\n",name.buf,definition_type_name(existing_def),checked_def_type.buf);
-        return true;
+        compile_error(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!\n",
+            name.buf,definition_type_name(existing_def),checked_def_type.buf);
+        return dtr_res::err;
     }
 
-    return false;  
+    return dtr_res::ok;  
 }
 
-void type_alias(Interloper& itl, Parser &parser)
+dtr_res type_alias(Interloper& itl, Parser &parser)
 {
     // type_alias literal '=' type ';'
     const auto token = next_token(parser);
@@ -1233,9 +1234,9 @@ void type_alias(Interloper& itl, Parser &parser)
 
         const String& name = token.literal;
 
-        if(check_redeclaration(itl,parser.cur_namespace,name,"type alias"))
+        if(!check_redeclaration(itl,parser.cur_namespace,name,"type alias"))
         {
-            return;
+            return dtr_res::err;
         }
 
         AstNode* alias_node = ast_alias(parser,rtype,name,parser.cur_file,token);
@@ -1247,8 +1248,11 @@ void type_alias(Interloper& itl, Parser &parser)
 
     else 
     {
-        panic(parser,token,"expected symbol for type alias name got %s\n",tok_name(token.type));
+        parser_error(parser,token,"expected symbol for type alias name got %s\n",tok_name(token.type));
+        return dtr_res::err;
     }
+
+    return dt_res::ok;
 }
 
 // parse just the function signature
@@ -1695,7 +1699,7 @@ bool parse_directive(Interloper& itl,Parser& parser)
     return false;
 }
 
-Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
+std::optional<Array<String>> split_namespace_internal(Parser& parser, const Token& start, bool full_namespace)
 {
     Array<String> name_space;
 
@@ -1705,9 +1709,9 @@ Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
 
         if(name.type != token_type::symbol)
         {
-            panic(parser,name,"Expected name for namespace got: %s\n",tok_name(name.type));
+            parser_error(parser,name,"Expected name for namespace got: %s\n",tok_name(name.type));
             destroy_arr(name_space);
-            return name_space;
+            return std::nullopt;
         }   
 
         push_var(name_space,name.literal);
@@ -1719,41 +1723,34 @@ Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
             // Last token after :: is not to be treated as part of the namespace
             if(peek(parser,1).type != token_type::scope && !full_namespace)
             {
-                return name_space;
+                goto done;
             }
         }
 
         else
         {
-            return name_space;
+            goto done;
         }
     }
 
-    return name_space;
-}
-
-Array<String> split_namespace(Parser& parser, const Token& start)
-{
-    Array<String> name_space = split_namespace_internal(parser,false);
-
+done:
     if(count(name_space) == 0)
     {
-        panic(parser,start,"Namespace is empty",0);
+        parser_error(parser,start,"Namespace is empty");
+        return std::nullopt;
     }
 
     return name_space;
 }
 
-Array<String> split_full_namespace(Parser& parser, const Token& start)
+std::optional<Array<String>> split_namespace(Parser& parser, const Token& start)
 {
-    Array<String> name_space = split_namespace_internal(parser,true);
+    return split_namespace_internal(parser,start,false);
+}
 
-    if(count(name_space) == 0)
-    {
-        panic(parser,start,"Namespace is empty",0);
-    }
-
-    return name_space;
+std::optional<Array<String>> split_full_namespace(Parser& parser, const Token& start)
+{
+    return split_namespace_internal(parser,start,true);
 }
 
 
