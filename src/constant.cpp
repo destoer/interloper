@@ -382,15 +382,15 @@ ConstData compile_const_expression(Interloper& itl, AstNode* node)
     }    
 }
 
-std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node)
+std::optional<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl, AstNode* node)
 {
     const auto data = compile_const_expression(itl,node);
 
     // not valid if this is not an int
     if(!is_integer(data.type))
     {
-        panic(itl,itl_error::int_type_error,"expected integer for const int expr got %s\n",type_name(itl,data.type).buf);
-        return std::pair{0,make_builtin(itl,builtin_type::void_t)}; 
+        compile_error(itl,itl_error::int_type_error,"expected integer for const int expr got %s\n",type_name(itl,data.type).buf);
+        return std::nullopt; 
     }
 
     return std::pair{data.v,data.type};

@@ -1072,7 +1072,14 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
             {
                 UnaryNode* unary_node = (UnaryNode*)node;
 
-                const auto [size,int_type] = compile_const_int_expression(itl,unary_node->next);
+                auto expr_opt = compile_const_int_expression(itl,unary_node->next);
+
+                if(!expr_opt)
+                {
+                    return std::nullopt;
+                }
+
+                const auto [size,int_type] = *expr_opt;
 
                 type = make_array(itl,type,size,is_constant);
                 break;
