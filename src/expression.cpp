@@ -6,8 +6,7 @@ std::optional<std::pair<AstNode*,b32>> expr_list_in_expr(Parser& parser,ExprCtx&
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
-void type_panic(Parser &parser);
-TypeNode *parse_type(Parser &parser, b32 allow_fail = false);
+std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail = false);
 std::optional<Array<String>> split_namespace(Parser& parser, const Token& start);
 
 void next_expr_token(Parser& parser,ExprCtx& ctx)
@@ -264,10 +263,10 @@ std::optional<AstNode*> parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             // correct the state machine
             prev_token(parser);
 
-            AstNode* call = func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t); 
+            auto call_opt = func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t); 
             next_expr_token(parser,ctx);
 
-            return call;
+            return call_opt;
         }
 
         case token_type::scope:
@@ -302,11 +301,11 @@ std::optional<AstNode*> parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
         default:
         {
             prev_token(parser);
-            AstNode* node = var(parser,t,true);
+            auto var_opt = var(parser,t,true);
 
             next_expr_token(parser,ctx);
 
-            return node;
+            return var_opt;
         }
         break;
     }   
@@ -344,11 +343,10 @@ std::optional<AstNode*> type_operator(Parser& parser,ExprCtx& ctx, ast_type kind
     // to correct the tok idx
     prev_token(parser);
 
-    auto type = parse_type(parser);
+    auto type_opt = parse_type(parser);
 
-    if(!type)
+    if(!type_opt)
     {
-        type_panic(parser);
         return std::nullopt;
     }
 
@@ -360,7 +358,7 @@ std::optional<AstNode*> type_operator(Parser& parser,ExprCtx& ctx, ast_type kind
         return std::nullopt;
     }
 
-    return ast_type_operator(type,kind);   
+    return ast_type_operator(*type_opt,kind);   
 }
 
 std::optional<AstNode*> parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_type)
@@ -374,14 +372,15 @@ std::optional<AstNode*> parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, 
     // to correct the tok idx
     prev_token(parser);
 
-    AstNode* type = (AstNode*)parse_type(parser);
+    auto type_opt = parse_type(parser);
 
-    if(!type)
+    if(!type_opt)
     {
-        type_panic(parser);
         return std::nullopt;
     }
 
+    AstNode* type = (AstNode*)*type_opt;
+    
     // correct our state machine
     // NOTE: we bypass the normal function here because commas require special handling
     ctx.expr_tok = next_token(parser);
