@@ -976,7 +976,8 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                             else
                             {
                                 const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
-                                write_struct(itl,func,slot,rtype,assign_node->left);
+                                // This Errors we just don't care
+                                (void)write_struct(itl,func,slot,rtype,assign_node->left);
                             }
                             break;
                         }
@@ -1518,8 +1519,8 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
 {
     printf("compiling file: %s\n",initial_filename.buf);
 
-    itl.error = false;
-    itl.error_code = itl_error::none;
+    itl.first_error_code = itl_error::none;
+    itl.error_count = 0;
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
@@ -1554,9 +1555,20 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
 
     code_generation(itl);
 
+    if(itl.error_count)
+    {
+        if(itl.error_count > 15)
+        {
+            printf("Total errors: %d (only 15 reported)\n",itl.error_count);
+        }
+
+        destroy_itl(itl);
+        return;
+    }
+
     if(itl.error)
     {
-        destroy_itl(itl);
+        
         return;
     }
 

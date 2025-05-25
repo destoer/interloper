@@ -12,6 +12,17 @@ using namespace destoer;
 #include <interpretter.h>
 
 
+enum class [[nodiscard]] dtr_res : u32
+{
+    ok,
+    err
+};
+
+bool operator! (dtr_res res)
+{
+    return res == dtr_res::err;
+}
+
 enum class itl_error
 {
     none,
@@ -90,8 +101,8 @@ struct Interloper
 {
     Array<u8> program;
 
-    b32 error;
-    itl_error error_code;
+    u32 error_count = 0;
+    itl_error first_error_code;
 
     u32 arith_depth = 0;
 
@@ -177,10 +188,17 @@ struct Interloper
 
 void print(const AstNode *root, b32 override_seperator = false);
 
-inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
+inline void compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
 {
-    // dont bother reporting multiple error's
-    if(itl.error)
+    itl.error_count += 1;
+
+    if(itl.error_count == 1)
+    {    
+        itl.first_error_code = error;
+    }
+
+    // Only report the first 15 errors
+    else if(itl.error_count > 15)
     {
         return;
     }
@@ -211,9 +229,6 @@ inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
     }
 
     putchar('\n');
-    
-    itl.error = true;
-    itl.error_code = error;
 }
 
 void itl_warning(const char* fmt, ...)

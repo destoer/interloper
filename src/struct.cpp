@@ -114,13 +114,13 @@ b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* t
     if(!decl_ptr)
     {
         panic(itl,itl_error::undeclared,"%s : member type %s is not defined\n",struct_name.buf,type_decl->name.buf);
-        return false;
+        return true;
     }
 
     // Type is allways complete we don't need any further checking
     if(!(decl_ptr->flags & TYPE_DECL_DEF_FLAG))
     {
-        return true;
+        return false;
     }
 
 
@@ -140,25 +140,23 @@ b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* t
         {
             // panic to prevent having our struct collpase into a black hole
             panic(itl,itl_error::black_hole,"%s : is recursively defined via %s\n",struct_name.buf,type_decl->name.buf);
-            return false;
+            return true;
         }
     }
 
     else
     {
-        parse_def(itl,def);
-
-        if(itl.error)
+        if(parse_def(itl,def))
         {
-            return false;
+            return true;
         }
     }
 
-    return true;    
+    return false;    
 }
 
 // returns member loc
-u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
+std::optional<u32> add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
 {
     Member member;
     member.name = m->name;
@@ -176,29 +174,47 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b3
     // or deduction will fail
     if(type_decl->func_type)
     {
-        member.type = get_type(itl,type_decl,type_idx_override,true);
+        auto type_opt = get_type(itl,type_decl,type_idx_override,true);
 
-        if(itl.error)
+        if(!type_opt)
         {
             destroy_struct(structure);
-            return 0;            
+            return std::nullopt;
         }
+
+        member.type = *type_opt;
     }
 
     else if(!type_exists(itl,type_decl->name))
     {
-        if(!handle_recursive_type(itl,structure.name,type_decl,&type_idx_override))
+        if(handle_recursive_type(itl,structure.name,type_decl,&type_idx_override))
         {
             destroy_struct(structure);
-            return 0;
+            return std::nullopt;
         }
 
-        member.type = get_type(itl,type_decl,type_idx_override,true);
+        auto type_opt = get_type(itl,type_decl,type_idx_override,true);
+
+        if(!type_opt)
+        {
+            destroy_struct(structure);
+            return std::nullopt;
+        }
+
+        member.type = *type_opt;
     }
 
     else
     {
-        member.type = get_type(itl,type_decl,type_idx_override,true);
+        auto type_opt = get_type(itl,type_decl,type_idx_override,true);
+
+        if(!type_opt)
+        {
+            destroy_struct(structure);
+            return std::nullopt;
+        }
+
+        member.type = *type_opt;
     }
 
 
@@ -232,13 +248,13 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b3
     {
         panic(itl,itl_error::redeclaration,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
         destroy_struct(structure);
-        return 0;
+        return std::nullopt;
     }
 
     add(structure.member_map,member.name,loc);
     push_var(structure.members,member); 
 
-    return loc;   
+    return loc;
 }
 
 void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count, s32 forced_first, u32 flags)
@@ -316,7 +332,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-void parse_struct_def(Interloper& itl, TypeDef& def)
+dtr_res parse_struct_def(Interloper& itl, TypeDef& def)
 {
     StructNode* node = (StructNode*)def.root;
 
@@ -346,20 +362,24 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     // force this to be at the first location in mem
     if(node->forced_first)
     {
-        forced_first_loc = add_member(itl,structure,node->forced_first,size_count,true,flags);
+        auto forced_first_loc_opt = add_member(itl,structure,node->forced_first,size_count,true,flags);
+
+        if(!forced_first_loc_opt)
+        {
+            return dtr_res::err;
+        }
+
+        forced_first_loc = *forced_first_loc_opt;
     }
 
     // parse out members
     for(u32 i = 0; i < count(node->members); i++)
     {
-        if(itl.error)
+        if(!add_member(itl,structure,node->members[i],size_count,false,flags))
         {
-            return;
+            return dtr_res::err;
         }
-
-        add_member(itl,structure,node->members[i],size_count,false,flags);
     }
-
 
     finalise_member_offsets(itl,structure,size_count,forced_first_loc,flags);
     
@@ -369,8 +389,8 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
         print_struct(itl,structure);
     }
 
-
     add_struct(itl,structure,def.decl);
+    return dtr_res::ok;
 }
 
 
@@ -449,7 +469,7 @@ std::optional<u32> member_offset(Struct& structure, const String& name)
     return std::optional{member.offset};
 }
 
-Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type,
+std::optional<Type*> access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type,
     const String& member_name, AddrSlot* struct_slot)
 {
     const auto& enumeration = enum_from_type(itl.enum_table,struct_type);
@@ -514,7 +534,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
 
 
 // return type, slot, offset
-std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+std::optional<std::tuple<Type*,AddrSlot>> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
     BinNode* member_root =(BinNode*)node;
 
@@ -538,7 +558,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
             if(!sym_ptr)
             {
                 panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
-                return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                return std::nullopt;
             }            
 
             const auto &sym = *sym_ptr;
@@ -593,7 +613,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
         default: 
         {
             panic(itl,itl_error::struct_error,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
-            return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+            return std::nullopt;
         }
     }
 
@@ -625,7 +645,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                     if(ptr_type->pointer_kind == pointer_type::nullable)
                     {
                         panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,(Type*)ptr_type).buf);
-                        return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                        return std::nullopt;
                     }
 
                     // now we are back to a straight pointer
@@ -643,12 +663,14 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                     // do enum member access
                     case type_class::enum_t:
                     {
-                        struct_type = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
-
-                        if(itl.error)
+                        auto struct_type_opt = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
+                        
+                        if(!struct_type_opt)
                         {
-                            return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot}; 
+                            return std::nullopt;
                         }
+                        
+                        struct_type = *struct_type_opt;
                         break;
                     }
 
@@ -695,7 +717,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
             default: 
             {
                 panic(itl,itl_error::undeclared,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
-                return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                return std::nullopt;
             }
         }
     }
@@ -703,39 +725,52 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
     return std::tuple{struct_type,struct_slot};
 }
 
-std::pair<Type*,RegSlot> compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
+std::optional<std::pair<Type*,RegSlot>> compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 {
-    auto [type,addr_slot] = compute_member_addr(itl,func,node);
+    auto member_addr_opt = compute_member_addr(itl,func,node);
+
+    if(!member_addr_opt)
+    {
+        return std::nullopt;
+    }
+
+    auto [type,addr_slot] = *member_addr_opt;
 
     collapse_struct_offset(itl,func,&addr_slot);
 
     return std::pair{make_reference(itl,type),addr_slot.slot};
 }
 
-void write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)
+[[nodiscard]]
+bool write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)
 {
-    const auto [accessed_type, addr_slot] = compute_member_addr(itl,func,node);
+    auto member_addr_opt = compute_member_addr(itl,func,node);
 
-    if(itl.error)
+    if(!member_addr_opt)
     {
-        return;
+        return true;
     }
+
+    const auto [accessed_type, addr_slot] = *member_addr_opt;
 
     check_assign(itl,accessed_type,rtype);
     do_addr_store(itl,func,src_slot,addr_slot,accessed_type);
+    return false;
 }
 
 
-Type* read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
+std::optional<Type*> read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
 {
     const List list_old = get_cur_list(func.emitter);
 
-    auto [accessed_type, addr_slot] = compute_member_addr(itl,func,node);
+    auto member_addr_opt =  compute_member_addr(itl,func,node);
 
-    if(itl.error)
+    if(!member_addr_opt)
     {
-        return make_builtin(itl,builtin_type::void_t);
+        return std::nullopt;
     }
+
+    auto [accessed_type, addr_slot] = *member_addr_opt;
 
     // len access on fixed sized array
     if(is_special_reg(addr_slot.slot,spec_reg::access_fixed_len_reg))

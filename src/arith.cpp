@@ -319,11 +319,9 @@ Type* compile_comparison_op(Interloper& itl,Function &func,AstNode *node, RegSlo
         } 
     }
 
-    check_comparison_operation(itl,ltype,rtype,type);
-
-    if(itl.error)
+    if(!check_comparison_operation(itl,ltype,rtype,type))
     {
-        return make_builtin(itl,builtin_type::void_t);
+        return std::nullopt;
     }
 
     // float 

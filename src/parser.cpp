@@ -1595,7 +1595,7 @@ void destroy_parser(Parser& parser)
     destroy_arr(parser.tokens);
 }
 
-u32 parse_attr(Parser& parser, const Token& tok)
+std::optional<u32> parse_attr(Parser& parser, const Token& tok)
 {
     u32 flags = 0;
 
@@ -1606,7 +1606,7 @@ u32 parse_attr(Parser& parser, const Token& tok)
     if(attr.type != token_type::symbol)
     {
         panic(parser,tok,"Expected name for attr got %s\n",tok_name(attr.type));
-        return 0;
+        return std::nullopt;
     }
 
     const auto attr_name = attr.literal;
@@ -1625,7 +1625,7 @@ u32 parse_attr(Parser& parser, const Token& tok)
     else
     {
         panic(parser,tok,"Unknown attr %s\n",attr_name.buf);
-        return 0;
+        return std::nullopt;
     }
 
     consume(parser,token_type::right_paren);
@@ -1633,14 +1633,14 @@ u32 parse_attr(Parser& parser, const Token& tok)
     return flags;
 }
 
-void parse_directive(Interloper& itl,Parser& parser)
+bool parse_directive(Interloper& itl,Parser& parser)
 {
     const auto next = next_token(parser);
 
     if(next.type != token_type::symbol)
     {
         panic(parser,next,"Expected name for directive got %s\n",tok_name(next.type));
-        return;
+        return true;
     }
 
     // TODO: move this lookup to a hashtable if it starts getting large
@@ -1648,12 +1648,14 @@ void parse_directive(Interloper& itl,Parser& parser)
 
     if(name == "attr")
     {
-        const u32 flags = parse_attr(parser,next);
+        const auto flags_opt = parse_attr(parser,next);
 
-        if(parser.error)
+        if(!flags_opt)
         {
-            return;
+            return true;
         }
+
+        const u32 flags = *flags_opt;
 
         const auto stmt = peek(parser,0);
 
@@ -1679,7 +1681,7 @@ void parse_directive(Interloper& itl,Parser& parser)
             default:
             {
                 panic(parser,stmt,"Attribute is not legal on stmt: %s\n",tok_name(stmt.type));
-                return;    
+                return true;    
             }
         }
     }
@@ -1687,8 +1689,10 @@ void parse_directive(Interloper& itl,Parser& parser)
     else
     {
         panic(parser,next,"Unknown directive %s\n",name.buf);
-        return;
+        return true;
     }
+
+    return false;
 }
 
 Array<String> split_namespace_internal(Parser& parser, bool full_namespace)
@@ -1754,7 +1758,7 @@ Array<String> split_full_namespace(Parser& parser, const Token& start)
 
 
 
-void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
+bool parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 {
     const auto &t = next_token(parser);
 
@@ -1771,6 +1775,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
                 {
                     const auto err = next_token(parser);
                     panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(err.type),err.literal.buf);
+                    return true;
                 }
 
                 const auto name_tok = next_token(parser);
@@ -1779,7 +1784,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
 
                 if(parser.error)
                 {
-                    return;
+                    return true;
                 }
 
                 const auto full_path = cat_string(itl.string_allocator,itl.stl_path,get_program_name(itl.string_allocator,name_tok.literal)); 
@@ -1801,7 +1806,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
             else
             {
                 panic(parser,next_token(parser),"expected string for import got %s : %s\n",tok_name(t.type),t.literal.buf);
-                return;
+                return true;
             }
             break;
         }
@@ -1861,7 +1866,7 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
             if(parser.error)
             {
                 destroy_arr(name_space);
-                return;
+                return true;
             }
 
             // Namespace does not allready exist create it!
@@ -1885,16 +1890,20 @@ void parse_top_level_token(Interloper& itl, Parser& parser, FileQueue& queue)
             if(t.type == token_type::symbol)
             {
                 panic(parser,t,"unexpected top level symbol '%s'\n",t.literal.buf);
+                return true;
             }
 
             else
             {
                 panic(parser,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
+                return true;
             }
 
-            return;
+            break;
         }
     }
+
+    return false;
 }
 
 bool parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
@@ -1905,8 +1914,7 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,FileQ
     if(tokenize(file,filename,parser.string_allocator,parser.tokens))
     {
         destroy_arr(parser.tokens);
-        itl.error = true;
-        itl.error_code = itl_error::lexer_error;
+        itl.first_error_code = itl_error::lexer_error;
         return true;
     }
     
@@ -1918,6 +1926,8 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,FileQ
     
     const auto size = count(parser.tokens);
 
+    bool error = false;
+
     while(parser.tok_idx < size)
     {
         // check for a directive
@@ -1925,33 +1935,18 @@ bool parse_file(Interloper& itl,const String& file, const String& filename,FileQ
         {
             consume(parser,token_type::hash);
 
-            parse_directive(itl,parser);
+            error = parse_directive(itl,parser);
         }
 
         // plain decl
         else
         {
-            parse_top_level_token(itl,parser,queue);
-        }
-
- 
-        if(itl.error)
-        {
-            destroy_arr(parser.tokens);
-            return true;
-        }
-
-        if(parser.error)
-        {
-            // print line number
-            print_line(filename,parser.line);
-            destroy_arr(parser.tokens);
-            return true;
+            error = parse_top_level_token(itl,parser,queue);
         }
     }
 
     destroy_arr(parser.tokens);
-    return false;
+    return error;
 }
 #include <unistd.h>
 bool parse(Interloper& itl, const String& initial_filename)
