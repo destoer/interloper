@@ -1,13 +1,14 @@
 #include <interloper.h>
 
-std::pair<Type*,RegSlot> index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,RegSlot dst_slot,IndexNode* index_node,PointerType* type)
+std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
+    RegSlot dst_slot,IndexNode* index_node,PointerType* type)
 {
     const u32 indexes = count(index_node->indexes);
 
     if(indexes != 1)
     {
-        panic(itl,itl_error::array_type_error,"[COMPILE]: expected single index for pointer\n");
-        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
+        compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected single index for pointer\n");
+        return std::nullopt;  
     }
 
     Type* plain = type->contained_type;
@@ -17,8 +18,9 @@ std::pair<Type*,RegSlot> index_pointer(Interloper& itl,Function& func,RegSlot pt
     const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[0]);
     if(!is_integer(subscript_type))
     {
-        panic(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
+        compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
+            type_name(itl,subscript_type).buf);
+        return std::nullopt;  
     }
 
     const RegSlot offset = mul_imm_res(itl,func,subscript_slot,size);  

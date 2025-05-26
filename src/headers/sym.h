@@ -114,7 +114,7 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
 Function& lookup_internal_function(Interloper& itl, const String& name);
 
-void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
+dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
 
 struct Interloper;
 

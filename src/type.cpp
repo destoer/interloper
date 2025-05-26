@@ -1007,7 +1007,10 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
                 type->sig = {};
 
                 // parse the function sig
-                parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type);
+                if(!parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type))
+                {
+                    return std::nullopt;
+                }
 
                 return (Type*)type;
             }

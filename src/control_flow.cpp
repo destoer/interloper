@@ -99,8 +99,6 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
 
 void compile_while_block(Interloper &itl,Function &func,AstNode *node)
 {
-    
-
     BinNode* while_node = (BinNode*)node;
 
     // compile cond

@@ -43,7 +43,7 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNo
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 
-Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
+std::optional<Function*> finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
 {
     // havent finalised this func
     if(!func_def.func)
@@ -58,7 +58,10 @@ Function* finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = 
         {
             if(parse_sig)
             {
-                parse_func_sig(itl,func_def.name_space,func.sig,*func.root);
+                if(!parse_func_sig(itl,func_def.name_space,func.sig,*func.root))
+                {
+                    return std::nullopt;
+                }
             }
         }
 
@@ -263,7 +266,7 @@ void pass_args(Interloper& itl, Function& func, ArgPass& pass)
     }
 }
 
-void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
+dtr_res push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
 {
     const s32 hidden_args = sig.hidden_args;
 
@@ -277,7 +280,13 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
 
         if(is_any(itl,arg_type))
         {
-            const u32 size = compile_any(itl,func,call_node->args[arg_idx]);
+            auto size_opt = compile_any(itl,func,call_node->args[arg_idx]);
+            if(!size_opt)
+            {
+                return dtr_res::err;
+            }
+
+            const u32 size = *size_opt; 
             pass.arg_clean += size / GPR_SIZE;
         }
 
@@ -291,7 +300,10 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
                 const u32 size = lit_node->literal.size;
 
                 const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
-                check_assign_arg(itl,arg_type,rtype);
+                if(!check_assign_arg(itl,arg_type,rtype))
+                {
+                    return dtr_res::err;
+                }
                 
                 // push the len offset
                 const RegSlot len_slot = mov_imm_res(itl,func,size);
@@ -310,13 +322,10 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
             {
                 auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-                check_assign_arg(itl,arg_type,rtype); 
-
-                if(itl.error)
+                if(!check_assign_arg(itl,arg_type,rtype))
                 {
-                    return;
-                }
-
+                    return dtr_res::err;
+                } 
 
                 if(is_runtime_size(arg_type))
                 {
@@ -345,7 +354,10 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
            const auto structure = struct_from_type(itl.struct_table,arg_type);
 
             const auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
-            check_assign_arg(itl,arg_type,rtype);
+            if(!check_assign_arg(itl,arg_type,rtype))
+            {
+                return dtr_res::err;
+            }
 
             const u32 aligned_size = align_val(structure.size,GPR_SIZE);
 
@@ -358,7 +370,10 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
 
             const auto src_addr = make_struct_addr(reg,0);
 
-            ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
+            if(!ir_memcpy(itl,func,dst_addr,src_addr,structure.size))
+            {
+                return dtr_res::err;
+            }
 
             // clean up the stack push
             pass.arg_clean += aligned_size / GPR_SIZE;
@@ -369,29 +384,34 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
         {
             const auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
 
-
             // type check the arg
-            check_assign_arg(itl,arg_type,rtype);
+            if(!check_assign_arg(itl,arg_type,rtype))
+            {
+                return dtr_res::err;
+            }
+
             pass_arg(itl,func,pass,reg,rtype,i);
         }
     }
+
+    return dtr_res::ok;
 }
 
-u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const String& name, u32 actual_args)
+std::optional<u32> push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const String& name, u32 actual_args)
 {
     u32 arg_clean = 0;
 
     if(!itl.rtti_enable)
     {
-        panic(itl,itl_error::missing_args,"[COMPILE]: attempted to use va_args without rtti: %s\n",name.buf);
-        return arg_clean;
+        compile_error(itl,itl_error::missing_args,"[COMPILE]: attempted to use va_args without rtti: %s\n",name.buf);
+        return std::nullopt;
     }
 
     // va_arg is optional
     if(actual_args - 1 > count(call_node->args))
     {
-        panic(itl,itl_error::missing_args,"[COMPILE]: function call va_argsexpected at least %d args got %d\n",actual_args - 1,count(call_node->args));
-        return arg_clean;      
+        compile_error(itl,itl_error::missing_args,"[COMPILE]: function call va_argsexpected at least %d args got %d\n",actual_args - 1,count(call_node->args));
+        return std::nullopt;      
     }
 
     const u32 normal_args = (actual_args) - 1;
@@ -416,7 +436,10 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
         const u32 arg_idx = a + normal_args;
         const u32 arr_offset = a * rtti_cache.any_struct_size;
 
-        compile_any_arr(itl,func,call_node->args[arg_idx],any_arr_ptr,arr_offset);
+        if(!compile_any_arr(itl,func,call_node->args[arg_idx],any_arr_ptr,arr_offset))
+        {
+            return std::nullopt;
+        }
     }
 
 
@@ -440,7 +463,7 @@ u32 push_va_args(Interloper& itl, Function& func, FuncCallNode* call_node,const 
     return arg_clean;
 }
 
-void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, RegSlot dst_slot, Type* return_type)
+dtr_res push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, RegSlot dst_slot, Type* return_type)
 {
     // pass in tuple dst
     if(tuple_node)
@@ -460,8 +483,8 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
 
                     if(!sym_ptr)
                     {
-                        panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
-                        return;
+                        compile_error(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
+                        return dtr_res::err;
                     }
 
                     const auto &sym = *sym_ptr;
@@ -475,7 +498,14 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
                 case ast_type::access_struct:
                 {
                     // get the addr and push it
-                    auto [type,ptr_slot] = compute_member_ptr(itl,func,var_node);
+                    auto member_ptr_opt = compute_member_ptr(itl,func,var_node);
+                    if(!member_ptr_opt)
+                    {
+                        return dtr_res::err;
+                    }
+
+                    auto [type,ptr_slot] = *member_ptr_opt;
+
                     pass_arg(itl,func,pass,ptr_slot,type,a);
                     break;
                 }
@@ -493,19 +523,14 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
 
                     const auto [ptr_type,ptr_slot] = take_pointer(itl,func,deref_node->next);
 
-                    if(itl.error)
-                    {
-                        return;
-                    }
-
                     pass_arg(itl,func,pass,ptr_slot,(Type*)ptr_type,a);
                     break;                     
                 }
 
                 default:
                 {
-                    panic(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
-                    return;
+                    compile_error(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
+                    return dtr_res::err;
                 }
             }
         }
@@ -547,8 +572,8 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
 
                         else
                         {
-                            panic(itl,itl_error::missing_return,"Attempted to return invalid large var inside func");
-                            return;
+                            compile_error(itl,itl_error::missing_return,"Attempted to return invalid large var inside func");
+                            return dtr_res::err;
                         }
                         break;
                     }
@@ -561,7 +586,9 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssig
                 }
             }
         }
-    }  
+    }
+
+    return dtr_res::ok;  
 }
 
 struct FuncCall
@@ -637,10 +664,8 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Re
     }    
 }
 
-FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
+std::optional<FuncCall> get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,FuncCallNode* call_node,TupleAssignNode* tuple_node)
 {
-    UNUSED(name_space);
-
     FuncCall call_info;
 
     AstNode* expr = call_node->expr;
@@ -680,8 +705,8 @@ FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,Fu
 
                 else
                 {
-                    panic(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer",name.buf);
-                    return {};         
+                    compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer",name.buf);
+                    return std::nullopt;         
                 }
             }
 
@@ -689,15 +714,15 @@ FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,Fu
             {
                 if(global)
                 {
-                    panic(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
+                    compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
                 }
 
                 else
                 {
-                    panic(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared\n",name_space->full_name.buf,name.buf);
+                    compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared\n",name_space->full_name.buf,name.buf);
                 }
 
-                return {};
+                return std::nullopt;
             }
         }
 
@@ -707,10 +732,10 @@ FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,Fu
 
             if(!func_call_opt)
             {
-                return {};
+                return std::nullopt;
             }
 
-            auto& func_call = *func_call_opt;
+            auto& func_call = *func_call_opt.value();
 
             //print_func_decl(itl,func_call);
 
@@ -728,8 +753,8 @@ FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,Fu
 
         if(!is_func_pointer(type))
         {
-            panic(itl,itl_error::undeclared,"[COMPILE]: expression of type %s is not callable",type_name(itl,type).buf);
-            return {};
+            compile_error(itl,itl_error::undeclared,"[COMPILE]: expression of type %s is not callable",type_name(itl,type).buf);
+            return std::nullopt;
         }
 
         FuncPointerType* func_type = (FuncPointerType*)type;
@@ -746,30 +771,30 @@ FuncCall get_calling_sig(Interloper& itl,NameSpace* name_space,Function& func,Fu
     // check calls on functions with multiple returns are valid
     if(tuple_node && count(call_info.sig.return_type) == 1)
     {
-        panic(itl,itl_error::tuple_mismatch,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
-        return {};
+        compile_error(itl,itl_error::tuple_mismatch,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
+        return std::nullopt;
     }
 
     if(count(call_info.sig.return_type) > 1)
     {
         if(!tuple_node)
         {
-            panic(itl,itl_error::tuple_mismatch,"Attempted to call multiple return function nested in a expression\n");
-            return {};
+            compile_error(itl,itl_error::tuple_mismatch,"Attempted to call multiple return function nested in a expression\n");
+            return std::nullopt;
         }
 
         if(count(call_info.sig.return_type) != count(tuple_node->symbols))
         {
-            panic(itl,itl_error::tuple_mismatch,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",
+            compile_error(itl,itl_error::tuple_mismatch,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",
                 count(tuple_node->symbols),count(call_node->args));
-            return {};
+            return std::nullopt;
         }
     }
 
     return call_info;   
 }
 
-void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_node,const FuncSig& sig)
+dtr_res handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_node,const FuncSig& sig)
 {
     b32 new_decl = false;
 
@@ -798,12 +823,15 @@ void handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_no
     
     if(!new_decl)
     {
-        panic(itl,itl_error::tuple_mismatch,"No new variables declared in tuple assign");
+        compile_error(itl,itl_error::tuple_mismatch,"No new variables declared in tuple assign");
+        return dtr_res::err;
     }
+
+    return dtr_res::ok;
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, RegSlot dst_slot)
+std::optional<Type*> compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, RegSlot dst_slot)
 {
     TupleAssignNode* tuple_node = nullptr;
 
@@ -833,18 +861,21 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
 
     // get the signature of what we are actually calling
     // NOTE: this might be plain function, or it could be a function pointer
-    const auto call_info = get_calling_sig(itl,name_space,func,call_node,tuple_node);
-    auto& sig = call_info.sig;
-
-    if(itl.error)
+    const auto call_info_opt = get_calling_sig(itl,name_space,func,call_node,tuple_node);
+    if(!call_info_opt)
     {
-        return make_builtin(itl,builtin_type::void_t);
+        return std::nullopt;
     }
+    const auto call_info = *call_info_opt;
 
+    auto& sig = call_info.sig;
 
     if(tuple_node && tuple_node->auto_decl)
     {
-        handle_tuple_decl(itl,func,tuple_node,sig);
+        if(!handle_tuple_decl(itl,func,tuple_node,sig))
+        {
+            return std::nullopt;
+        }
     }
 
     ArgPass pass = make_arg_pass(sig);
@@ -858,12 +889,13 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
 
     if(sig.va_args)
     {
-        pass.arg_clean += push_va_args(itl,func,call_node,call_info.name,actual_args);
-
-        if(itl.error)
+        auto arg_clean_opt = push_va_args(itl,func,call_node,call_info.name,actual_args);
+        if(!arg_clean_opt)
         {
-            return make_builtin(itl,builtin_type::void_t);
+            return std::nullopt;
         }
+
+        pass.arg_clean += *arg_clean_opt;
 
         // skip over our va_args
         start_arg = actual_args - 2;
@@ -875,24 +907,24 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
         // check we have the right number of params
         if(actual_args != count(call_node->args))
         {
-            print_func_sig(itl,sig);
-            panic(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",actual_args,count(call_node->args));
-            return make_builtin(itl,builtin_type::void_t);
+            compile_error(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",actual_args,count(call_node->args));
+            return std::nullopt;
         }        
     }
 
-    push_args(itl,func,pass,call_node,sig,start_arg);
-
-    if(itl.error)
+    if(!push_args(itl,func,pass,call_node,sig,start_arg))
     {
-        return make_builtin(itl,builtin_type::void_t);
+        return std::nullopt;
     }
 
     // push hidden args 
 
     if(hidden_args)
     {
-        push_hidden_args(itl,func,pass,tuple_node,dst_slot,sig.return_type[0]);
+        if(!push_hidden_args(itl,func,pass,tuple_node,dst_slot,sig.return_type[0]))
+        {
+            return std::nullopt;
+        }
     }
 
     pass_args(itl,func,pass);
@@ -902,12 +934,12 @@ Type* compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Functio
 }
 
 // used for both tuples and ordinary function calls
-Type* compile_function_call(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+std::optional<Type*> compile_function_call(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     return compile_scoped_function_call(itl,nullptr,func,node,dst_slot);
 }
 
-void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node)
+dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node)
 {
     // about to move to a different context
     switch_context(itl,node.filename,name_space,(AstNode*)&node);
@@ -918,8 +950,14 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
     if(count(node.return_type) == 1)
     {
         itl.ctx.expr = (AstNode*)node.return_type[0];
+        auto type_opt = get_complete_type(itl,node.return_type[0]);
+        if(!type_opt)
+        {
+            pop_context(itl);
+            return dtr_res::err;
+        }
 
-        push_var(sig.return_type,get_complete_type(itl,node.return_type[0]));
+        push_var(sig.return_type,*type_opt);
 
         // we are returning a struct add a hidden pointer as first arg
         // TODO: if the struct is small enough we should not return it in this manner
@@ -935,8 +973,14 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         for(u32 a = 0; a < count(node.return_type); a++)
         {
             itl.ctx.expr = (AstNode*)node.return_type[a];
+            auto type_opt = get_complete_type(itl,node.return_type[a]);
+            if(!type_opt)
+            {
+                pop_context(itl);
+                return dtr_res::err;    
+            }
 
-            push_var(sig.return_type,get_complete_type(itl,node.return_type[a]));
+            push_var(sig.return_type,*type_opt);
 
             char name[40] = {0};
             sprintf(name,"_tuple_ret_0x%x",a);
@@ -954,9 +998,14 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
         itl.ctx.expr = (AstNode*)a;
 
         const auto name = a->name;
-        const auto type = get_complete_type(itl,a->type);
+        const auto type_opt = get_complete_type(itl,a->type);
+        if(!type_opt)
+        {
+            pop_context(itl);
+            return dtr_res::err;
+        }
 
-        add_sig_arg(itl,sig,name,type,&arg_offset);
+        add_sig_arg(itl,sig,name,*type_opt,&arg_offset);
     }
 
     // add va args
@@ -971,13 +1020,13 @@ void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const Fun
 
     sig.call_stack_size = arg_offset;
 
-
     pop_context(itl);
+    return dtr_res::ok;
 }
 
 
 
-void compile_function(Interloper& itl, Function& func)
+dtr_res compile_function(Interloper& itl, Function& func)
 {
     // NOTE: for compiler generated functions we dont want to 
     // compile this via a standard node
@@ -1017,11 +1066,6 @@ void compile_function(Interloper& itl, Function& func)
         compile_block(itl,func,node.block);
 
         destroy_scope(itl.symbol_table);
-
-        if(itl.error)
-        {
-            return;
-        }
     }
 
     // empty functions get a stub
@@ -1063,9 +1107,9 @@ void compile_function(Interloper& itl, Function& func)
     {
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
-        itl.ctx.expr = (AstNode*)func.root;   
-        dump_ir_sym(itl,func,itl.symbol_table);
-        panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);  
+        itl.ctx.expr = (AstNode*)func.root;
+        compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf); 
+        return dtr_res::err; 
     }
 
     for(u32 b = 0; b < count(start_block.links); b++)
@@ -1080,16 +1124,24 @@ void compile_function(Interloper& itl, Function& func)
 
             itl.ctx.expr = (AstNode*)func.root;   
             dump_ir_sym(itl,func,itl.symbol_table);
-            panic(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
+            compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
+            return dtr_res::err;
         }
     }
+
+    return dtr_res::ok;
 }
 
-void compile_functions(Interloper &itl)
+dtr_res compile_functions(Interloper &itl)
 {
     for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
         auto& func = *itl.func_table.used[f];
-        compile_function(itl,func);
+        if(!compile_function(itl,func))
+        {
+            return dtr_res::err;
+        }
     }
+
+    return dtr_res::ok;
 }
