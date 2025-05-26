@@ -307,7 +307,7 @@ enum_decode_res decode_enum(Interloper& itl,ScopeNode* scope_node, Enum** enumer
 }
 
 // Note: if this can't find an enum it will fail without a panic
-std::optional<Type*> compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, RegSlot dst_slot)
+Option<Type*> compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, RegSlot dst_slot)
 {
     Enum* enumeration = nullptr;
     EnumMember* enum_member = nullptr;
@@ -335,16 +335,16 @@ std::optional<Type*> compile_enum(Interloper& itl, Function& func,ScopeNode* sco
         case enum_decode_res::invalid_enum:
         case enum_decode_res::invalid_namespace:
         {
-            return std::nullopt;
+            return option::none;
         }
         
         case enum_decode_res::invalid_member:
         {
             compile_error(itl,itl_error::enum_type_error,"enum %s no such member\n",enumeration->name.buf);
-            return std::nullopt;  
+            return option::none;  
         }
     }
 
     assert(false);
-    return std::nullopt;
+    return option::none;
 }

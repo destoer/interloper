@@ -827,13 +827,13 @@ Type* copy_type(Interloper& itl, const Type* type)
 // to be used externally when attempting to find a type decl
 // dont look it up in the type table directly as the definition might not
 // have been parsed yet
-std::optional<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,const String& name)
+Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,const String& name)
 {
     TypeDecl* user_type = name_space == nullptr? lookup_incomplete_decl(itl,name) : lookup_incomplete_decl_scoped(name_space,name);
 
     if(!user_type)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     // currently type does not exist
@@ -846,7 +846,7 @@ std::optional<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_sp
         // compiler error state
         if(!(user_type->flags & TYPE_DECL_DEF_FLAG))
         {
-            return std::nullopt;
+            return option::none;
         }
 
         // okay attempt to parse the def
@@ -856,19 +856,19 @@ std::optional<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_sp
         // there are no options left
         if(!parse_def(itl,type_def))
         {
-            return std::nullopt;
+            return option::none;
         }
     }
 
     return user_type;
 }
 
-std::optional<TypeDecl*> lookup_type(Interloper& itl,const String& name)
+Option<TypeDecl*> lookup_type(Interloper& itl,const String& name)
 {
     return lookup_type_internal(itl,nullptr,name);
 }
 
-std::optional<TypeDecl*> lookup_type_scoped(Interloper& itl,NameSpace* name_space,const String& name)
+Option<TypeDecl*> lookup_type_scoped(Interloper& itl,NameSpace* name_space,const String& name)
 {
     return lookup_type_internal(itl,name_space,name);
 }
@@ -908,7 +908,7 @@ b32 def_has_indirection(const TypeNode *type_decl)
 }
 
 
-std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
+Option<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
     Type* type = nullptr;
 
@@ -942,7 +942,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
                 if(!user_type)
                 {
                     compile_error(itl,itl_error::undeclared,"type %s is not defined\n",type_decl->name.buf);
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 is_alias = user_type->kind == type_kind::alias_t;   
@@ -961,7 +961,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
 
                         if(!parse_def(itl,type_def))
                         {
-                            return std::nullopt;
+                            return option::none;
                         }
 
                         // okay now we have a complete type build it!
@@ -984,7 +984,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
                         {
                             // TODO: add huertsics to scan for where!
                             compile_error(itl,itl_error::black_hole,"type %s is recursively defined\n",name.buf);
-                            return std::nullopt;             
+                            return option::none;             
                         }
                     }
                 }
@@ -1009,7 +1009,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
                 // parse the function sig
                 if(!parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type))
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 return (Type*)type;
@@ -1079,7 +1079,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
 
                 if(!expr_opt)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 const auto [size,int_type] = *expr_opt;
@@ -1093,7 +1093,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
                 if(complete_type)
                 {
                     compile_error(itl,itl_error::mismatched_args,"type is constant and cannot be deduced by assign\n");
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 // i.e we cant have a pointer to an array with a size deduction
@@ -1101,7 +1101,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
                 if(indirection)
                 {
                     compile_error(itl,itl_error::mismatched_args,"cannot have deduction for array size where indirection allready exists\n");
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 type = make_array(itl,type,DEDUCE_SIZE,is_constant);
@@ -1112,7 +1112,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
             default:
             {
                 compile_error(itl,itl_error::invalid_expr,"invalid type specifier: %s\n",AST_NAMES[u32(node->type)]);
-                return std::nullopt;
+                return option::none;
             }
         }
     }
@@ -1122,7 +1122,7 @@ std::optional<Type*> get_type(Interloper& itl, const TypeNode* type_decl,u32 str
 }
 
 // get back a type that does not need further deduction i.e no size deduction
-std::optional<Type*> get_complete_type(Interloper& itl, const TypeNode* type_decl)
+Option<Type*> get_complete_type(Interloper& itl, const TypeNode* type_decl)
 {
     return get_type(itl,type_decl,INVALID_TYPE,true);
 }
@@ -1184,7 +1184,7 @@ Type* value_type(Interloper& itl,const Value& value)
 }
 
 
-std::optional<Type*> effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_kind)
+Option<Type*> effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_type op_kind)
 {
     // builtin type
     if(is_builtin(rtype) && is_builtin(ltype))
@@ -1209,7 +1209,7 @@ std::optional<Type*> effective_arith_type(Interloper& itl,Type *ltype, Type *rty
         else
         {
             compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            return std::nullopt;
+            return option::none;
         }
 
     }
@@ -1220,7 +1220,7 @@ std::optional<Type*> effective_arith_type(Interloper& itl,Type *ltype, Type *rty
         if(op_kind != op_type::sub_reg && op_kind != op_type::add_reg)
         {
             compile_error(itl,itl_error::undefined_type_oper,"Pointer arithmetic is only defined for addition and subtraction\n");
-            return std::nullopt;            
+            return option::none;            
         }
 
         return ltype;
@@ -1236,7 +1236,7 @@ std::optional<Type*> effective_arith_type(Interloper& itl,Type *ltype, Type *rty
     else
     {
         compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %s and %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-        return std::nullopt;    
+        return option::none;    
     }
 }
 
@@ -1957,7 +1957,12 @@ dtr_res check_assign_arg(Interloper& itl, const Type* ltype, const Type* rtype)
 
 dtr_res check_assign_init(Interloper& itl, const Type* ltype, const Type* rtype)
 {
-    return check_assign_internal(itl,ltype,rtype,assign_type::initializer);
+    if(!check_assign_internal(itl,ltype,rtype,assign_type::initializer))
+    {
+        assert(false);
+    }
+
+    return dtr_res::ok;
 }
 
 
@@ -2146,13 +2151,13 @@ dtr_res handle_cast(Interloper& itl,Function& func, RegSlot dst_slot,RegSlot src
     return dtr_res::ok;
 }
 
-std::optional<std::pair<Type*,u64>> access_builtin_type_info(Interloper& itl, builtin_type type, const String& member_name)
+Option<std::pair<Type*,u64>> access_builtin_type_info(Interloper& itl, builtin_type type, const String& member_name)
 {
     const BuiltinTypeInfo& info = builtin_type_info[u32(type)];
 
     if(member_name == "size")
     {
-        return std::pair{make_builtin(itl,builtin_type::u32_t),info.size};
+        return std::pair{make_builtin(itl,builtin_type::u32_t),u64(info.size)};
     }
 
     else if(member_name == "max")
@@ -2166,18 +2171,18 @@ std::optional<std::pair<Type*,u64>> access_builtin_type_info(Interloper& itl, bu
     }
 
     compile_error(itl,itl_error::undefined_type_oper,"unknown type info for builtin type %s.%s\n",TYPE_NAMES[u32(type)],member_name.buf);
-    return std::nullopt;
+    return option::none;
 }
 
 
 
-std::optional<Type*> access_builtin_type_info(Interloper& itl, Function& func, RegSlot dst_slot, builtin_type type, const String& member_name)
+Option<Type*> access_builtin_type_info(Interloper& itl, Function& func, RegSlot dst_slot, builtin_type type, const String& member_name)
 {
     auto type_info_opt = access_builtin_type_info(itl,type,member_name);
 
     if(!type_info_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     auto [rtype,ans] = *type_info_opt;
@@ -2187,7 +2192,7 @@ std::optional<Type*> access_builtin_type_info(Interloper& itl, Function& func, R
 }
 
 
-std::optional<std::pair<Type*,u32>> access_type_info(Interloper& itl,const TypeDecl& type_decl, const String& member_name)
+Option<std::pair<Type*,u64>> access_type_info(Interloper& itl,const TypeDecl& type_decl, const String& member_name)
 {
     switch(type_decl.kind)
     {
@@ -2203,7 +2208,7 @@ std::optional<std::pair<Type*,u32>> access_type_info(Interloper& itl,const TypeD
             if(member_name == "size")
             {
                 const auto& structure = itl.struct_table[type_decl.type_idx];
-                const u32 size = structure.size;
+                const u64 size = structure.size;
 
                 return std::pair{make_builtin(itl,builtin_type::u32_t),size};
             }
@@ -2211,7 +2216,7 @@ std::optional<std::pair<Type*,u32>> access_type_info(Interloper& itl,const TypeD
             else
             {
                 compile_error(itl,itl_error::enum_type_error,"unknown type info for struct %s\n",type_decl.name.buf);
-                return std::pair{make_builtin(itl,builtin_type::u32_t),0};
+                return std::pair{make_builtin(itl,builtin_type::u32_t),u64(0)};
             }
         }
 
@@ -2221,7 +2226,7 @@ std::optional<std::pair<Type*,u32>> access_type_info(Interloper& itl,const TypeD
             {
                 const auto enumeration = itl.enum_table[type_decl.type_idx];
 
-                const u32 enum_len = enumeration.member_map.size;
+                const u64 enum_len = enumeration.member_map.size;
 
                 return std::pair{make_builtin(itl,builtin_type::u32_t),enum_len};
             }
@@ -2229,27 +2234,27 @@ std::optional<std::pair<Type*,u32>> access_type_info(Interloper& itl,const TypeD
             else
             {
                 compile_error(itl,itl_error::enum_type_error,"unknown type info for enum %s\n",type_decl.name.buf);
-                return std::nullopt;
+                return option::none;
             }
         }
 
         case type_kind::alias_t:
         {
             compile_error(itl,itl_error::generic_type_error,"cannot access type properties on alias %s\n",type_decl.name.buf);
-            return std::nullopt;
+            return option::none;
         }
     }
 
     assert(false);
 }
 
-std::optional<Type*> access_type_info(Interloper& itl, Function& func, RegSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
+Option<Type*> access_type_info(Interloper& itl, Function& func, RegSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
 {
     auto type_info_opt = access_type_info(itl,type_decl,member_name);
 
     if(!type_info_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     auto [type,ans] = *type_info_opt;

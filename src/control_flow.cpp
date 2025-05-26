@@ -490,7 +490,10 @@ dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 
         default:
         {
-            compile_expression_tmp(itl,func,for_node->initializer);
+            if(!compile_expression_tmp(itl,func,for_node->initializer))
+            {
+                return dtr_res::err;
+            }
             break;
         }
     }

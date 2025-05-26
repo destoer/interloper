@@ -1,6 +1,6 @@
 #include <interloper.h>
 
-std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
+Option<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
     RegSlot dst_slot,IndexNode* index_node,PointerType* type)
 {
     const u32 indexes = count(index_node->indexes);
@@ -8,7 +8,7 @@ std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& 
     if(indexes != 1)
     {
         compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected single index for pointer\n");
-        return std::nullopt;  
+        return option::none;  
     }
 
     Type* plain = type->contained_type;
@@ -18,7 +18,7 @@ std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& 
     const auto res = compile_oper(itl,func,index_node->indexes[0]);
     if(!res)
     {
-        return std::nullopt;
+        return option::none;
     }
     
     auto [subscript_type,subscript_slot] = *res;
@@ -27,7 +27,7 @@ std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& 
     {
         compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
             type_name(itl,subscript_type).buf);
-        return std::nullopt;  
+        return option::none;  
     }
 
     const RegSlot offset = mul_imm_res(itl,func,subscript_slot,size);  
@@ -37,14 +37,14 @@ std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& 
 }
 
 // indexes off a given type + ptr
-std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+Option<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, RegSlot ptr_slot, RegSlot dst_slot)
 {
     // standard array index
     if(!is_array(type))
     {
         compile_error(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
-        return std::nullopt;  
+        return option::none;  
     }
 
     RegSlot last_slot = ptr_slot;
@@ -61,7 +61,7 @@ std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Func
         const auto res = compile_oper(itl,func,index_node->indexes[i]);
         if(!res)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         const auto [subscript_type,subscript_slot] = *res;
@@ -70,7 +70,7 @@ std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Func
         {
             compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
                 type_name(itl,subscript_type).buf);
-            return std::nullopt;  
+            return option::none;  
         }
         
         const bool last_index = i == indexes - 1;
@@ -128,7 +128,7 @@ std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Func
             else 
             {
                 compile_error(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
-                return std::nullopt;                          
+                return option::none;                          
             }
         } 
         
@@ -228,7 +228,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
     return load_arr_len(itl,func,sym.reg.slot,sym.type);
 }
 
-std::optional<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+Option<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     IndexNode* index_node = (IndexNode*)node;
 
@@ -239,7 +239,7 @@ std::optional<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &fun
     if(!arr_ptr)
     {
         compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
-        return std::nullopt;       
+        return option::none;       
     }
 
     const auto arr = *arr_ptr;
@@ -260,16 +260,16 @@ std::optional<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &fun
     else
     {
         compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for index got %s\n",type_name(itl,arr.type));
-        return std::nullopt;         
+        return option::none;         
     }
 }
 
-std::optional<Type*> read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+Option<Type*> read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     auto index_opt = index_arr(itl,func,node,new_tmp_ptr(func));
     if(!index_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     auto [type,addr_slot] = *index_opt;
@@ -285,7 +285,7 @@ std::optional<Type*> read_arr(Interloper &itl,Function &func,AstNode *node, RegS
 
     if(!do_ptr_load(itl,func,dst_slot,addr_slot,type))
     {
-        return std::nullopt;
+        return option::none;
     }
 
     return type;
@@ -872,7 +872,7 @@ dtr_res compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     return dtr_res::ok;
 }
 
-std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
+Option<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
 {
     const auto arr_name = slice_node->name;
     const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
@@ -880,7 +880,7 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
     if(!arr_ptr)
     {
         compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
-        return std::nullopt;      
+        return option::none;      
     }
 
     const auto arr = *arr_ptr;
@@ -888,7 +888,7 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
     if(!is_array(arr.type))
     {
         compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s\n",type_name(itl,arr.type).buf);
-        return std::nullopt;         
+        return option::none;         
     }
 
     const auto arr_slot = arr.reg.slot;
@@ -902,7 +902,7 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
         const auto res = compile_oper(itl,func,slice_node->lower);
         if(!res)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         const auto [index_type,index_slot] = *res;
@@ -912,7 +912,7 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
         if(!is_integer(index_type))
         {
             compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice lower bound got %s\n",type_name(itl,index_type).buf);
-            return std::nullopt;      
+            return option::none;      
         }
 
         const RegSlot offset_slot = mul_imm_res(itl,func,index_slot,type_size(itl,index_arr(arr.type)));
@@ -929,7 +929,7 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
         const auto res = compile_oper(itl,func,slice_node->upper);
         if(!res)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         const auto [t2,v2] = *res;
@@ -937,7 +937,7 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
         if(!is_integer(t2))
         {
             compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice upper bound got %s\n",type_name(itl,t2).buf);
-            return std::nullopt;      
+            return option::none;      
         }
 
         data_len = v2;

@@ -211,6 +211,8 @@ struct Type
     b32 is_const;
 };
 
+using TypeOpt = Option<Type*>;
+
 static constexpr u32 TYPE_ATTR = 2;
 
 struct BuiltinType
@@ -353,7 +355,7 @@ struct Enum
 using EnumTable = Array<Enum>;
 
 
-std::optional<Enum> get_enum(EnumTable& enum_table, const String& name);
+Option<Enum> get_enum(EnumTable& enum_table, const String& name);
 Enum enum_from_type(EnumTable& enum_table, const Type* type);
 
 struct AstNode;
@@ -402,4 +404,4 @@ Struct& struct_from_type(StructTable& struct_table, const Type* type);
 
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u64_t;
 
-std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name);
+Option<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name);

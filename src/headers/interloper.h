@@ -12,7 +12,7 @@ using namespace destoer;
 #include <interpretter.h>
 
 
-enum class itl_error
+enum class [[nodiscard]] itl_error
 {
     none,
     lexer_error,
@@ -271,7 +271,7 @@ inline f64 bit_cast_to_f64(u64 v)
     return bit_cast<f64,u64>(v);
 }
 
-std::optional<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl, AstNode* node);
+Option<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);

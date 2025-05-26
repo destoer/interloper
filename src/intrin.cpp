@@ -1,15 +1,15 @@
 
 
-using INTRIN_FUNC = std::optional<Type*> (*)(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+using INTRIN_FUNC = Option<Type*> (*)(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 
-std::optional<Function*> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
+Option<Function*> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
     Function* func_def = lookup_opt_scoped_function(itl,name_space,name);
 
     if(!func_def)
     {
         compile_error(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing\n",name.buf);
-        return std::nullopt;
+        return option::none;
     }
 
     return func_def;
@@ -122,7 +122,7 @@ dtr_res ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     return dtr_res::ok;
 }
 
-std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+Option<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     UNUSED(dst_slot);
     
@@ -133,7 +133,7 @@ std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *
     if(arg_size < 1)
     {
         compile_error(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
-        return std::nullopt;
+        return option::none;
     }
 
     // make sure this register doesn't get reused
@@ -141,7 +141,7 @@ std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *
     auto syscall_num_opt = compile_const_int_expression(itl,func_call->args[0]);
     if(!syscall_num_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     const auto [syscall_number,type] = *syscall_num_opt;
@@ -159,7 +159,7 @@ std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *
             const auto type_opt = compile_expression(itl,func,func_call->args[arg],reg);
             if(!type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const Type* type = *type_opt;
@@ -167,7 +167,7 @@ std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *
             if(!is_trivial_copy(type))
             {
                 compile_error(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr\n",arg,type_name(itl,type).buf);
-                return std::nullopt; 
+                return option::none; 
             }
         }
     }
@@ -183,7 +183,7 @@ std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *
     return make_builtin(itl,builtin_type::s64_t);   
 }
 
-std::optional<Type*> intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+Option<Type*> intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     switch(itl.arch)
     {

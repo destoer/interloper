@@ -2,10 +2,10 @@
 #include <unistd.h>
 #include "expression.cpp"
 
-std::optional<BlockNode*> block(Parser &parser);
-std::optional<AstNode*> block_ast(Parser &parser);
+Option<BlockNode*> block(Parser &parser);
+Option<AstNode*> block_ast(Parser &parser);
 
-std::optional<FuncNode*> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
+Option<FuncNode*> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
 static constexpr u32 ATTR_FLAG = (1 << 1);
@@ -100,7 +100,7 @@ builtin_type builtin_type_from_tok(const Token& tok)
     return builtin_type(s32(tok.type) - s32(token_type::u8));
 }
 
-std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
+Option<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
 {
     // parse out any specifiers
     auto specifier = peek(parser,0);
@@ -142,7 +142,7 @@ std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
 
         if(!strings_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         auto strings = *strings_opt;
@@ -175,7 +175,7 @@ std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
         if(!allow_fail && builtin == builtin_type::null_t)
         {
             parser_error(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
-            return std::nullopt;
+            return option::none;
         }
 
         type->name = TYPE_NAMES[u32(builtin)];
@@ -192,7 +192,7 @@ std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
         auto sig_opt = parse_func_sig(parser,"func_pointer",plain_tok);
         if(!sig_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         type->func_type = *sig_opt; 
@@ -209,7 +209,7 @@ std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
     else
     {
         parser_error(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
-        return std::nullopt;
+        return option::none;
     }    
 
     b32 quit = false;
@@ -271,7 +271,7 @@ std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
 
                             if(!e_opt)
                             {
-                                return std::nullopt;
+                                return option::none;
                             }
 
                             push_var(type->compound_type,*e_opt);
@@ -296,7 +296,7 @@ std::optional<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
 
 
 
-std::optional<AstNode*> declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
+Option<AstNode*> declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
 {
     // declartion
     // symbol ':' type ( ';' | '=' expression ';')
@@ -306,7 +306,7 @@ std::optional<AstNode*> declaration(Parser &parser, token_type terminator, b32 i
     if(s.type != token_type::symbol)
     {
         parser_error(parser,s,"declartion expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
-        return std::nullopt;
+        return option::none;
     }
 
     consume(parser,token_type::colon);
@@ -316,7 +316,7 @@ std::optional<AstNode*> declaration(Parser &parser, token_type terminator, b32 i
 
     if(!type_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     TypeNode* type = *type_opt;
@@ -338,7 +338,7 @@ std::optional<AstNode*> declaration(Parser &parser, token_type terminator, b32 i
 
             if(!stmt_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             decl->expr = *stmt_opt;
@@ -355,7 +355,7 @@ std::optional<AstNode*> declaration(Parser &parser, token_type terminator, b32 i
             else
             {
                 parser_error(parser,eq,"malformed declartion: got %s expected terminator %s\n",tok_name(eq.type),tok_name(terminator));
-                return std::nullopt;
+                return option::none;
             }
             break;
         }
@@ -364,7 +364,7 @@ std::optional<AstNode*> declaration(Parser &parser, token_type terminator, b32 i
     return (AstNode*)decl;
 }
 
-std::optional<AstNode*> auto_decl(Parser &parser)
+Option<AstNode*> auto_decl(Parser &parser)
 {
     // symbol := expr;
     const auto s = next_token(parser);
@@ -372,7 +372,7 @@ std::optional<AstNode*> auto_decl(Parser &parser)
     if(s.type != token_type::symbol)
     {
         parser_error(parser,s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),parser.tok_idx);
-        return std::nullopt;
+        return option::none;
     }
 
     consume(parser,token_type::decl);
@@ -381,7 +381,7 @@ std::optional<AstNode*> auto_decl(Parser &parser)
 
     if(!expr_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     AstNode* decl = (AstNode*)ast_auto_decl(parser,s.literal,*expr_opt,s);
@@ -390,7 +390,7 @@ std::optional<AstNode*> auto_decl(Parser &parser)
 }
 
 
-std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
+Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
 {
     b32 done = false;
 
@@ -413,7 +413,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
 
                 if(!var_opt)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 sym_node = *var_opt;
@@ -428,7 +428,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
                 
                 if(!unary_opt)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 sym_node = *unary_opt;
@@ -438,7 +438,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
             default:
             {
                 parser_error(parser,t,"tuple assignment attempted on non symbol: %s\n",tok_name(sym_tok.type));
-                return std::nullopt;
+                return option::none;
             }
         }
 
@@ -478,7 +478,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
                     
                     if(!namespace_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     const auto name_space = *namespace_opt;
@@ -489,7 +489,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
 
                     if(!func_call_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     tuple_node->func_call = (FuncCallNode*)*func_call_opt;
@@ -502,7 +502,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
                     auto func_call_opt = func_call(parser,ast_literal(parser,ast_type::symbol,next.literal,next),next);
                     if(!func_call_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     tuple_node->func_call = (FuncCallNode*)*func_call_opt;
@@ -517,7 +517,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
             default: 
             {
                 parser_error(parser,t,"malformed tuple statement ");
-                return std::nullopt;
+                return option::none;
             }
         }
     }
@@ -525,7 +525,7 @@ std::optional<AstNode*> tuple_assign(Parser& parser, const Token& t)
     return (AstNode*)tuple_node;    
 }
 
-std::optional<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t)
+Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 {
     RecordNode* member_root = (RecordNode*)ast_record(parser,ast_type::access_members,t);
 
@@ -533,7 +533,7 @@ std::optional<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const T
 
     if(!bin_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     BinNode* root = (BinNode*)*bin_opt;
@@ -552,7 +552,7 @@ std::optional<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const T
                 auto index_opt = array_index(parser,member_tok);
                 if(!index_opt)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 push_var(member_root->nodes,*index_opt);
@@ -570,7 +570,7 @@ std::optional<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const T
         else
         {
             parser_error(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.buf,tok_name(member_tok.type));
-            return std::nullopt;            
+            return option::none;            
         }
     }
 
@@ -578,7 +578,7 @@ std::optional<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const T
 }
 
 
-std::optional<AstNode*> array_index(Parser& parser,const Token& t)
+Option<AstNode*> array_index(Parser& parser,const Token& t)
 {
     IndexNode* arr_access = (IndexNode*)ast_index(parser,t.literal,t);
 
@@ -590,7 +590,7 @@ std::optional<AstNode*> array_index(Parser& parser,const Token& t)
 
         if(!expr_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         push_var(arr_access->indexes,*expr_opt);
@@ -599,7 +599,7 @@ std::optional<AstNode*> array_index(Parser& parser,const Token& t)
     return (AstNode*)arr_access;
 }
 
-std::optional<AstNode*> arr_slice(Parser& parser,const Token& t)
+Option<AstNode*> arr_slice(Parser& parser,const Token& t)
 {
     consume(parser,token_type::sl_brace);
 
@@ -616,7 +616,7 @@ std::optional<AstNode*> arr_slice(Parser& parser,const Token& t)
         auto lower_opt = expr_terminate(parser,"slice lower",token_type::colon);
         if(!lower_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         slice_node->lower = *lower_opt;
@@ -628,7 +628,7 @@ std::optional<AstNode*> arr_slice(Parser& parser,const Token& t)
         if(!slice_node->lower)
         {
             parser_error(parser,t,"Array slice with empty lower and upper bounds!");
-            return std::nullopt;
+            return option::none;
         }
 
         consume(parser,token_type::sr_brace);
@@ -639,7 +639,7 @@ std::optional<AstNode*> arr_slice(Parser& parser,const Token& t)
         auto upper_opt = expr_terminate(parser,"slice upper",token_type::sr_brace);
         if(!upper_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         slice_node->upper = *upper_opt;
@@ -648,7 +648,7 @@ std::optional<AstNode*> arr_slice(Parser& parser,const Token& t)
     return (AstNode*)slice_node;
 }
 
-std::optional<AstNode*> arr_access(Parser& parser, const Token& t)
+Option<AstNode*> arr_access(Parser& parser, const Token& t)
 {
     // Check for a ':' to detect slicing.
     // For now only support it on the first index.
@@ -667,7 +667,7 @@ std::optional<AstNode*> arr_access(Parser& parser, const Token& t)
 
     if(!index_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     AstNode* arr_access = *index_opt;
@@ -683,7 +683,7 @@ std::optional<AstNode*> arr_access(Parser& parser, const Token& t)
     }
 }
 
-std::optional<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call)
+Option<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call)
 {
     const Token next = peek(parser,0);
 
@@ -696,7 +696,7 @@ std::optional<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call
             auto access_opt = struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
             if(!access_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             node = *access_opt;
@@ -708,7 +708,7 @@ std::optional<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call
             auto access_opt = arr_access(parser,sym_tok);
             if(!access_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             node = *access_opt;
@@ -732,7 +732,7 @@ std::optional<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call
     return node;
 }
 
-std::optional<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t)
+Option<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t)
 {
     consume(parser,token_type::left_paren);
 
@@ -753,7 +753,7 @@ std::optional<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t)
         auto list_opt = expr_list(parser,"function call",token_type::right_paren);
         if(!list_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         auto [node,term_seen] = *list_opt;
@@ -767,7 +767,7 @@ std::optional<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t)
     return (AstNode*)func_call;
 }
 
-std::optional<AstNode*> const_assert(Parser& parser,const Token& t)
+Option<AstNode*> const_assert(Parser& parser,const Token& t)
 {
     consume(parser,token_type::left_paren);
 
@@ -777,7 +777,7 @@ std::optional<AstNode*> const_assert(Parser& parser,const Token& t)
     return ast_unary(parser,expr,ast_type::const_assert,t);       
 }
 
-std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
+Option<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
 {
     // e.g for(i := 0; i < size; i += 1)
 
@@ -790,7 +790,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
         auto decl_opt = declaration(parser,token_type::semi_colon);
         if(!decl_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->initializer = *decl_opt;
@@ -802,7 +802,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
         auto decl_opt = auto_decl(parser);
         if(!decl_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->initializer = *decl_opt;  
@@ -814,7 +814,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
         auto stmt_opt = statement_terminate(parser,"for initializer statement");
         if(!stmt_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->initializer = *stmt_opt;
@@ -823,7 +823,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
     auto cond_opt = statement_terminate(parser,"for condition"); 
     if(!cond_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     for_node->cond = *cond_opt;
@@ -834,7 +834,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
         auto post_opt = expr_terminate(parser,"for post statement",token_type::right_paren);
         if(!post_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->post = *post_opt;
@@ -843,7 +843,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
         if(next.type != token_type::left_c_brace)
         {
             parser_error(parser,next,"invalid iter for statement terminator: %s expected {\n",tok_name(next.type));
-            return std::nullopt;                        
+            return option::none;                        
         }
     }
 
@@ -854,7 +854,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
         auto post_opt = expr_terminate(parser,"for post statement",token_type::left_c_brace);
         if(!post_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->post = *post_opt;
@@ -864,7 +864,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
     auto block_opt = block(parser);
     if(!block_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     // for stmt parsed now compile the actual block
@@ -873,7 +873,7 @@ std::optional<AstNode*> parse_for_iter(Parser& parser, const Token& t, b32 term_
     return (AstNode*)for_node;
 }
 
-std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 take_index, b32 take_pointer)
+Option<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 take_index, b32 take_pointer)
 {
     // e.g
     // for(i in 0 <= size)
@@ -899,7 +899,7 @@ std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_
     if(name_one.type != token_type::symbol)
     { 
         parser_error(parser,name_one,"Expected name for range for statement");
-        return std::nullopt;
+        return option::none;
     }
 
 
@@ -915,7 +915,7 @@ std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_
         if(name_two.type != token_type::symbol)
         { 
             parser_error(parser,name_two,"Expected name for range for statement");
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->name_two = name_two.literal;
@@ -930,7 +930,7 @@ std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_
         auto cond_opt = expr_terminate(parser,"for range cond",token_type::right_paren);
         if(!cond_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->cond = *cond_opt;
@@ -938,7 +938,7 @@ std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_
         if(next.type != token_type::left_c_brace)
         {
             parser_error(parser,next,"invalid range for statement terminator: %s expected {\n",tok_name(next.type));
-            return std::nullopt;                        
+            return option::none;                        
         }
     }
 
@@ -947,7 +947,7 @@ std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_
         auto cond_opt = expr_terminate(parser,"for range cond statement",token_type::left_c_brace);
         if(!cond_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         for_node->cond = *cond_opt;
@@ -957,7 +957,7 @@ std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_
     auto block_opt = block(parser);
     if(!block_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     // for stmt parsed now compile the actual block
@@ -966,7 +966,7 @@ std::optional<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_
     return (AstNode*)for_node;
 }
 
-std::optional<AstNode*> statement(Parser &parser)
+Option<AstNode*> statement(Parser &parser)
 {
     const auto t = next_token(parser);
 
@@ -982,7 +982,7 @@ std::optional<AstNode*> statement(Parser &parser)
                     if(!match(parser,token_type::symbol))
                     {
                         parser_error(parser,t,"Expected struct name for struct return");
-                        return std::nullopt;
+                        return option::none;
                     }
                     
                     const auto name_tok = next_token(parser);
@@ -992,7 +992,7 @@ std::optional<AstNode*> statement(Parser &parser)
 
                     if(!list_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     auto list = *list_opt;
@@ -1000,7 +1000,7 @@ std::optional<AstNode*> statement(Parser &parser)
                     if(list->type != ast_type::initializer_list)
                     {
                         parser_error(parser,t,"Expected initializer list for struct return");
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     return ast_struct_return(parser,name_tok.literal,(RecordNode*)list,t);
@@ -1016,7 +1016,7 @@ std::optional<AstNode*> statement(Parser &parser)
                     auto list_opt = expr_list(parser,"return",token_type::semi_colon);
                     if(!list_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     auto [e,term_seen] = *list_opt;
@@ -1124,7 +1124,7 @@ std::optional<AstNode*> statement(Parser &parser)
                 default:
                 {
                     parser_error(parser,t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
-                    return std::nullopt;
+                    return option::none;
                 }
             }
             break;
@@ -1211,7 +1211,7 @@ std::optional<AstNode*> statement(Parser &parser)
             auto if_opt = ast_binary(parser,expr_opt,body_opt,ast_type::if_t,t);
             if(!if_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             BinNode *if_stmt = (BinNode*)*if_opt;
@@ -1237,7 +1237,7 @@ std::optional<AstNode*> statement(Parser &parser)
                         auto else_if_opt = ast_binary(parser,expr_opt,body_opt,ast_type::else_if_t,else_tok);
                         if(!else_if_opt)
                         {
-                            return std::nullopt;
+                            return option::none;
                         }
 
                         BinNode* else_if_stmt = (BinNode*)*else_if_opt;
@@ -1251,7 +1251,7 @@ std::optional<AstNode*> statement(Parser &parser)
                         auto else_opt = ast_unary(parser,block_opt,ast_type::else_t,else_tok);
                         if(!else_opt)
                         {
-                            return std::nullopt;
+                            return option::none;
                         }
 
                         AstNode *else_stmt = *else_opt;
@@ -1276,7 +1276,7 @@ std::optional<AstNode*> statement(Parser &parser)
             auto expr_opt = expr_terminate(parser,"switch statement",token_type::left_c_brace);
             if(!expr_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             SwitchNode* switch_node = (SwitchNode*)ast_switch(parser,*expr_opt,t);
@@ -1292,7 +1292,7 @@ std::optional<AstNode*> statement(Parser &parser)
                     if(switch_node->default_statement)
                     {
                         parser_error(parser,case_tok,"Cannot have two default statements in switch statement\n");
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     consume(parser,token_type::default_t);
@@ -1302,7 +1302,7 @@ std::optional<AstNode*> statement(Parser &parser)
                     auto unary_opt = ast_unary(parser,block_opt,ast_type::default_t,case_tok);    
                     if(!unary_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     switch_node->default_statement = (UnaryNode*)*unary_opt;  
@@ -1315,14 +1315,14 @@ std::optional<AstNode*> statement(Parser &parser)
                     auto case_opt = expr_terminate(parser,"switch case",token_type::colon);
                     if(!case_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     AstNode* case_node = *case_opt; 
                     auto block_opt = block(parser);
                     if(!block_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     CaseNode* case_statement = (CaseNode*)ast_case(parser,case_node,*block_opt,case_tok);
@@ -1343,14 +1343,14 @@ std::optional<AstNode*> statement(Parser &parser)
         default:
         {
             parser_error(parser,t,"statement: unexpected token '%s' : %d\n",tok_name(t.type),u32(t.type));
-            return std::nullopt;
+            return option::none;
         }
     }
 
-    return std::nullopt;
+    return option::none;
 }
 
-std::optional<BlockNode*> block(Parser &parser)
+Option<BlockNode*> block(Parser &parser)
 {
     // now parse out the block
 
@@ -1366,14 +1366,14 @@ std::optional<BlockNode*> block(Parser &parser)
         if(match(parser,token_type::eof))
         {
             parser_error(parser,tok,"unterminated block!\n");
-            return std::nullopt;
+            return option::none;
         }
 
         auto stmt_opt = statement(parser);
 
         if(!stmt_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         push_var(b->statements,*stmt_opt);
@@ -1383,13 +1383,13 @@ std::optional<BlockNode*> block(Parser &parser)
     return b;
 }
 
-std::optional<AstNode*> block_ast(Parser &parser)
+Option<AstNode*> block_ast(Parser &parser)
 {
     auto block_opt = block(parser);
 
     if(!block_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     return (AstNode*)block_opt.value();
@@ -1452,7 +1452,7 @@ dtr_res type_alias(Interloper& itl, Parser &parser)
 
 // parse just the function signature
 // NOTE: this is used to parse signatures for function pointers
-std::optional<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
+Option<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
     FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.cur_file,token);
 
@@ -1467,7 +1467,7 @@ std::optional<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, 
         if(match(parser,token_type::eof))
         {
             parser_error(parser,paren,"unterminated function declaration!\n");
-            return std::nullopt;
+            return option::none;
         }
 
         // for each arg pull type, name
@@ -1476,7 +1476,7 @@ std::optional<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, 
         if(lit_tok.type != token_type::symbol)
         {
             parser_error(parser,lit_tok,"expected name for function arg got %s\n",tok_name(lit_tok.type));
-            return std::nullopt;
+            return option::none;
         }
         
 
@@ -1494,7 +1494,7 @@ std::optional<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, 
             if(!match(parser,token_type::right_paren))
             {
                 parser_error(parser,lit_tok,"va_args can only be placed as the last arg : got %s\n",tok_name(peek(parser,0).type));
-                return std::nullopt;
+                return option::none;
             }
         }
 
@@ -1504,7 +1504,7 @@ std::optional<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, 
 
             if(!type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
 
@@ -1533,14 +1533,14 @@ std::optional<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, 
             if(match(parser,token_type::eof))
             {
                 parser_error(parser,paren,"unterminated function declaration!\n");
-                return std::nullopt;
+                return option::none;
             }
             
             auto return_type_opt = parse_type(parser);
 
             if(!return_type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             push_var(f->return_type,*return_type_opt);
@@ -1561,7 +1561,7 @@ std::optional<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, 
 
         if(!return_type_opt)
         {
-            return std::nullopt;
+            return option::none;
         }
 
         push_var(f->return_type,*return_type_opt);
@@ -1817,7 +1817,7 @@ void destroy_parser(Parser& parser)
     destroy_arr(parser.tokens);
 }
 
-std::optional<u32> parse_attr(Parser& parser, const Token& tok)
+Option<u32> parse_attr(Parser& parser, const Token& tok)
 {
     u32 flags = 0;
 
@@ -1828,7 +1828,7 @@ std::optional<u32> parse_attr(Parser& parser, const Token& tok)
     if(attr.type != token_type::symbol)
     {
         parser_error(parser,tok,"Expected name for attr got %s\n",tok_name(attr.type));
-        return std::nullopt;
+        return option::none;
     }
 
     const auto attr_name = attr.literal;
@@ -1847,7 +1847,7 @@ std::optional<u32> parse_attr(Parser& parser, const Token& tok)
     else
     {
         parser_error(parser,tok,"Unknown attr %s\n",attr_name.buf);
-        return std::nullopt;
+        return option::none;
     }
 
     consume(parser,token_type::right_paren);
@@ -1923,7 +1923,7 @@ dtr_res parse_directive(Interloper& itl,Parser& parser)
     return dtr_res::ok;
 }
 
-std::optional<Array<String>> split_namespace_internal(Parser& parser, const Token& start, bool full_namespace)
+Option<Array<String>> split_namespace_internal(Parser& parser, const Token& start, bool full_namespace)
 {
     Array<String> name_space;
 
@@ -1935,7 +1935,7 @@ std::optional<Array<String>> split_namespace_internal(Parser& parser, const Toke
         {
             parser_error(parser,name,"Expected name for namespace got: %s\n",tok_name(name.type));
             destroy_arr(name_space);
-            return std::nullopt;
+            return option::none;
         }   
 
         push_var(name_space,name.literal);
@@ -1961,18 +1961,18 @@ done:
     if(count(name_space) == 0)
     {
         parser_error(parser,start,"Namespace is empty");
-        return std::nullopt;
+        return option::none;
     }
 
     return name_space;
 }
 
-std::optional<Array<String>> split_namespace(Parser& parser, const Token& start)
+Option<Array<String>> split_namespace(Parser& parser, const Token& start)
 {
     return split_namespace_internal(parser,start,false);
 }
 
-std::optional<Array<String>> split_full_namespace(Parser& parser, const Token& start)
+Option<Array<String>> split_full_namespace(Parser& parser, const Token& start)
 {
     return split_namespace_internal(parser,start,true);
 }

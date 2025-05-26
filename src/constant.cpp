@@ -133,28 +133,28 @@ dtr_res handle_const_cast(Interloper& itl, Type* new_type, ConstData& data)
     }   
 }
 
-std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node);
+Option<ConstData> compile_const_expression(Interloper& itl, AstNode* node);
 
-std::optional<std::pair<ConstData,ConstData>> const_bin_op(Interloper& itl, BinNode* bin_node)
+Option<std::pair<ConstData,ConstData>> const_bin_op(Interloper& itl, BinNode* bin_node)
 {
     const auto left_opt = compile_const_expression(itl,bin_node->left);
     const auto right_opt = compile_const_expression(itl,bin_node->right);
     if(!left_opt || !right_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
     
     return std::pair{*left_opt,*right_opt};
 }
 
 template<typename FUNC>
-std::optional<ConstData> compile_const_bin_op(Interloper& itl, BinNode* bin_node, op_type type, FUNC func)
+Option<ConstData> compile_const_bin_op(Interloper& itl, BinNode* bin_node, op_type type, FUNC func)
 {
     const auto left_opt = compile_const_expression(itl,bin_node->left);
     const auto right_opt = compile_const_expression(itl,bin_node->right);
     if(!left_opt || !right_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
     
     const auto left = *left_opt;
@@ -164,13 +164,13 @@ std::optional<ConstData> compile_const_bin_op(Interloper& itl, BinNode* bin_node
     auto type_opt = effective_arith_type(itl,left.type,right.type,type);
     if(!type_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     return make_const_builtin(ans,*type_opt);  
 }
 
-std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node)
+Option<ConstData> compile_const_expression(Interloper& itl, AstNode* node)
 {
     switch(node->type)
     {
@@ -196,7 +196,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
             auto sym_res = symbol(itl,node);
             if(!sym_res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             auto [type,slot] = *sym_res;
@@ -207,7 +207,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
             if(!is_constant(sym))
             {
                 compile_error(itl,itl_error::const_type_error,"symbol %s is not constant\n",sym.name.buf);
-                return std::nullopt;
+                return option::none;
             }
 
             return read_const_sym(itl,sym);
@@ -232,7 +232,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
                 auto res = const_bin_op(itl,bin_node);
                 if(!res)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 const auto [left,right] = *res;
@@ -248,7 +248,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
                     auto type_opt = effective_arith_type(itl,left.type,right.type,op_type::add_reg);
                     if(!type_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     return make_const_builtin(ans,*type_opt);
@@ -303,7 +303,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
                 auto data_opt = compile_const_expression(itl,unary_node->next);
                 if(!data_opt)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
                 auto data = *data_opt;
 
@@ -318,7 +318,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
                 auto res = const_bin_op(itl,bin_node);
                 if(!res)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 const auto [left,right] = *res;
@@ -334,7 +334,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
                     auto type_opt =effective_arith_type(itl,left.type,right.type,op_type::sub_reg);
                     if(!type_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     return make_const_builtin(ans,*type_opt);
@@ -349,7 +349,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
             auto res = const_bin_op(itl,bin_node);
             if(!res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [left,right] = *res;
@@ -357,14 +357,14 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
             if(right.v == 0)
             {
                 compile_error(itl,itl_error::int_type_error,"attempted to divide by zero in const expr\n");
-                return std::nullopt; 
+                return option::none; 
             }
 
             const u64 ans = left.v / right.v;
             auto type_opt = effective_arith_type(itl,left.type,right.type,op_type::sub_reg);
             if(!type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             return make_const_builtin(ans,*type_opt);
@@ -387,14 +387,14 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
             auto res = const_bin_op(itl,bin_node);
             if(!res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [left,right] = *res;
 
             if(!check_const_cmp(itl,left.type,right.type))
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const b32 ans = left.v == right.v;
@@ -410,13 +410,13 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
             auto new_type_opt = get_type(itl,(TypeNode*)bin_node->left);
             if(!data_opt || !new_type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
             auto data = *data_opt;
 
             if(!handle_const_cast(itl,*new_type_opt,data))
             {
-                return std::nullopt;
+                return option::none;
             }
             return data;            
         }
@@ -440,7 +440,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
                     auto type_decl_opt = lookup_type(itl,name);
                     if(!type_decl_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     TypeDecl* type_decl = *type_decl_opt;
@@ -450,7 +450,7 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
                     auto type_info_opt = access_type_info(itl,*type_decl,member_node->literal);
                     if(!type_info_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     auto [type,ans] = *type_info_opt;
@@ -462,23 +462,23 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
             // ordinary struct access
 
             compile_error(itl,itl_error::const_type_error,"struct access not supported in constant expr");
-            return std::nullopt;
+            return option::none;
         }
 
         default:
         {
             compile_error(itl,itl_error::const_type_error,"unrecognised operation for const expr: %s\n",AST_NAMES[u32(node->type)]);
-            return std::nullopt;
+            return option::none;
         }
     }    
 }
 
-std::optional<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl, AstNode* node)
+Option<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl, AstNode* node)
 {
     const auto data_opt = compile_const_expression(itl,node);
     if(!data_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     auto data = *data_opt;
@@ -487,19 +487,19 @@ std::optional<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl
     if(!is_integer(data.type))
     {
         compile_error(itl,itl_error::int_type_error,"expected integer for const int expr got %s\n",type_name(itl,data.type).buf);
-        return std::nullopt; 
+        return option::none; 
     }
 
     return std::pair{data.v,data.type};
 }
 
 
-std::optional<bool> compile_const_bool_expression(Interloper& itl, AstNode* node)
+Option<bool> compile_const_bool_expression(Interloper& itl, AstNode* node)
 {
     const auto data_opt = compile_const_expression(itl,node);
     if(!data_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     auto data = *data_opt;
@@ -508,7 +508,7 @@ std::optional<bool> compile_const_bool_expression(Interloper& itl, AstNode* node
     if(!is_bool(data.type))
     {
         compile_error(itl,itl_error::int_type_error,"expected bool for const bool expr got %s\n",type_name(itl,data.type).buf);
-        return std::nullopt;
+        return option::none;
     }
 
     return bool(data.v);
@@ -517,12 +517,12 @@ std::optional<bool> compile_const_bool_expression(Interloper& itl, AstNode* node
 dtr_res compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
 
 
-std::optional<u32> const_write_in_string(Interloper& itl, LiteralNode* literal_node, Type* type, PoolSlot slot, u32 offset)
+Option<u32> const_write_in_string(Interloper& itl, LiteralNode* literal_node, Type* type, PoolSlot slot, u32 offset)
 {
     if(!is_string(type))
     {
         compile_error(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)type).buf);
-        return std::nullopt;
+        return option::none;
     }
 
     ArrayType* array_type = (ArrayType*)type;
@@ -546,7 +546,7 @@ std::optional<u32> const_write_in_string(Interloper& itl, LiteralNode* literal_n
     else
     {
         compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
-        return std::nullopt;          
+        return option::none;          
     }
 
     return offset;    

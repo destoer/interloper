@@ -260,7 +260,7 @@ PoolSlot pool_slot_from_sym(const Symbol& sym)
     return pool_slot_from_idx(sym.reg.offset);
 }
 
-std::optional<u64> read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u32 size)
+Option<u64> read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u32 size)
 {
     assert(size <= 8);
 
@@ -269,7 +269,7 @@ std::optional<u64> read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offse
     if((offset + size) > section.size)
     {
         compile_error(itl,itl_error::out_of_bounds,"out of bounds read in const pool\n");
-        return std::nullopt;
+        return option::none;
     } 
 
     // calc the read reqs
@@ -281,13 +281,13 @@ std::optional<u64> read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offse
     return v;
 }
 
-std::optional<u64> builtin_from_const(Interloper& itl, Type* type,PoolSlot slot, u32 offset)
+Option<u64> builtin_from_const(Interloper& itl, Type* type,PoolSlot slot, u32 offset)
 {
     const u32 size = type_size(itl,type);
     return read_const_pool_mem(itl,slot,offset,size);
 }
 
-std::optional<ConstData> read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset)
+Option<ConstData> read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset)
 {
     // read out based on type
 
@@ -300,7 +300,7 @@ std::optional<ConstData> read_const_data(Interloper& itl, Type* type, PoolSlot s
             auto data_opt = builtin_from_const(itl,type,slot,offset);
             if(!data_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             data.v = *data_opt;
@@ -315,7 +315,7 @@ std::optional<ConstData> read_const_data(Interloper& itl, Type* type, PoolSlot s
     assert(false);
 }
 
-std::optional<ConstData> read_const_sym(Interloper& itl, Symbol& sym)
+Option<ConstData> read_const_sym(Interloper& itl, Symbol& sym)
 {
     const auto pool_slot = pool_slot_from_idx(sym.reg.offset);
 

@@ -1,21 +1,21 @@
 #include <interloper.h>
 
-std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
-std::optional<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
+Option<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+Option<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
 dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 dtr_res compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
 dtr_res compile_block(Interloper &itl,Function &func,BlockNode *node);
-std::optional<BlockSlot> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
+Option<BlockSlot> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
-std::optional<std::pair<Type*,RegSlot>> compile_oper(Interloper& itl,Function &func,AstNode *node);
+Option<std::pair<Type*,RegSlot>> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
-std::optional<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+Option<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 dtr_res traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
-std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+Option<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, RegSlot ptr_slot, RegSlot dst_slot);
 
 dtr_res compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
-std::optional<std::pair<Type*,RegSlot>> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
+Option<std::pair<Type*,RegSlot>> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
@@ -23,7 +23,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
 RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* type);
 RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* type);
 
-std::optional<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node);
+Option<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node);
 
 dtr_res compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
 
@@ -89,7 +89,7 @@ void dump_reg_ir(Interloper &itl)
 }
 
 
-std::optional<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node)
+Option<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node)
 {
     LiteralNode* lit_node = (LiteralNode*)node;
 
@@ -99,7 +99,7 @@ std::optional<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node)
     if(!sym_ptr)
     {
         compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-        return std::nullopt;
+        return option::none;
     }
 
     const auto &sym = *sym_ptr;
@@ -121,7 +121,7 @@ Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
-std::optional<std::pair<Type*,RegSlot>> compile_oper(Interloper& itl,Function &func,AstNode *node)
+Option<std::pair<Type*,RegSlot>> compile_oper(Interloper& itl,Function &func,AstNode *node)
 {
     if(!node)
     {
@@ -154,13 +154,19 @@ dtr_res compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, Name
     {
         case ast_type::function_call:
         {
-            compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
+            if(!compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null)))
+            {
+                return dtr_res::err;
+            }
             break;
         }
 
         case ast_type::tuple_assign:
         {
-            compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
+            if(!compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null)))
+            {
+                return dtr_res::err;
+            }
             break;      
         }
 
@@ -174,7 +180,7 @@ dtr_res compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, Name
     return dtr_res::ok;
 }
 
-std::optional<Type*> compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot, NameSpace* name_space)
+Option<Type*> compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot, NameSpace* name_space)
 {
     switch(node->type)
     {
@@ -186,12 +192,12 @@ std::optional<Type*> compile_scoped_expression(Interloper& itl, Function& func, 
         default:
         {
             compile_error(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s\n",AST_NAMES[u32(node->type)]);
-            return std::nullopt;
+            return option::none;
         }
     }
 }
 
-std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
+Option<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)
     {
@@ -224,14 +230,14 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             
             if(!sym_res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [type, slot] = *sym_res;
 
             if(!compile_move(itl,func,dst_slot,slot,type,type))
             {
-                return std::nullopt;
+                return option::none;
             }
             return type;
         }
@@ -264,7 +270,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
                     auto type_decl_opt = lookup_type(itl,name);
                     if(!type_decl_opt)
                     {
-                        return std::nullopt;
+                        return option::none;
                     }
 
                     TypeDecl* type_decl = *type_decl_opt;
@@ -304,7 +310,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto res = take_addr(itl,func,addrof_node->next,dst_slot);
             if(!res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             auto [type,slot] = *res;
@@ -320,7 +326,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
 
             if(!res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [ptr_type,slot] = *res;
@@ -328,14 +334,14 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             if(((PointerType*)ptr_type)->pointer_kind == pointer_type::nullable)
             {
                 compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr_type).buf);
-                return std::nullopt;
+                return option::none;
             }
 
             // deref the pointer
             auto type = deref_pointer(ptr_type); 
             if(!do_ptr_load(itl,func,dst_slot,slot,type))
             {
-                return std::nullopt;
+                return option::none;
             }
 
             return type;          
@@ -349,7 +355,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto res = compile_oper(itl,func,unary_node->next);
             if(!res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [type,slot] = *res;
@@ -367,7 +373,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto type_opt = get_type(itl,type_node);
             if(!type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             // just move in the type size
@@ -383,7 +389,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto type_opt = get_type(itl,type_node);
             if(!type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             // move in data size
@@ -399,9 +405,9 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
 
             const auto expr_res = compile_oper(itl,func,bin_node->right);
             const auto new_type_opt = get_type(itl,(TypeNode*)bin_node->left);
-            if(!expr_res || new_type_opt)
+            if(!expr_res || !new_type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [old_type,slot] = *expr_res;
@@ -409,7 +415,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
 
             if(!handle_cast(itl,func,dst_slot,slot,old_type,new_type))
             {
-                return std::nullopt;
+                return option::none;
             }
             return new_type;
         }
@@ -422,7 +428,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto new_type_opt = get_type(itl,(TypeNode*)bin_node->left);
             if(!cast_res || !new_type_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [old_arr_type,slot] = *cast_res;
@@ -431,7 +437,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             if(!is_byte_array(old_arr_type))
             {
                 compile_error(itl,itl_error::array_type_error,"Expected recast from byte array got: %s\n",type_name(itl,old_arr_type).buf);
-                return std::nullopt;
+                return option::none;
             }
 
             const auto new_arr_type = make_array(itl,new_type,RUNTIME_SIZE);
@@ -471,7 +477,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto rtype_opt = compile_expression(itl,func,bin_node->right,dst_slot);
             if(!rtype_opt)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto rtype = *rtype_opt;
@@ -479,7 +485,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             if(bin_node->left->fmt != ast_fmt::literal)
             {
                 compile_error(itl,itl_error::invalid_statement,"[COMPILE]: expected symbol in multiple assign\n");
-                return std::nullopt;
+                return option::none;
             }
 
             LiteralNode* lit_node = (LiteralNode*)bin_node->left;
@@ -490,19 +496,19 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             if(!sym_ptr)
             {
                 compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-                return std::nullopt;
+                return option::none;
             }
 
             const auto &sym = *sym_ptr;
 
             if(!check_assign(itl,sym.type,rtype))
             {
-                return std::nullopt;
+                return option::none;
             }
 
             if(!compile_move(itl,func,sym.reg.slot,dst_slot,sym.type,rtype))
             {
-                return std::nullopt;
+                return option::none;
             }
 
             return sym.type;        
@@ -542,7 +548,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
                 const auto sub_res = compile_oper(itl,func,unary_node->next);
                 if(!sub_res)
                 {
-                    return std::nullopt;
+                    return option::none;
                 }
 
                 const auto [type,v1] = *sub_res;
@@ -564,7 +570,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
                 else
                 {
                     compile_error(itl,itl_error::undefined_type_oper,"unary minus not valid for type %s\n",type_name(itl,type).buf);
-                    return std::nullopt;
+                    return option::none;
                 }
                 
                 return type;
@@ -598,14 +604,14 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto res = compile_oper(itl,func,unary_node->next);
             if(!res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [type,reg] = *res;
             if(!is_integer(type))
             {
                 compile_error(itl,itl_error::int_type_error,"Bitwise not only defind on int got: %s\n",type_name(itl,type).buf);
-                return std::nullopt;
+                return option::none;
             }
 
             not_reg(itl,func,dst_slot,reg);
@@ -652,7 +658,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             const auto res = compile_oper(itl,func,unary_node->next);
             if(!res)
             {
-                return std::nullopt;
+                return option::none;
             }
 
             const auto [t,reg] = *res;
@@ -668,7 +674,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             else if(!is_bool(t))
             {
                 compile_error(itl,itl_error::bool_type_error,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
-                return std::nullopt;
+                return option::none;
             }
 
             // xor can invert our boolean which is either 1 or 0
@@ -742,7 +748,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
             if(!name_space)
             {
                 compile_error(itl,itl_error::undeclared,"Could not find namespace\n");
-                return std::nullopt;
+                return option::none;
             }
 
             return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,name_space);
@@ -759,7 +765,7 @@ std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *
         default:
         {
             compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
-            return std::nullopt;
+            return option::none;
         }
     }
 }
@@ -890,7 +896,7 @@ dtr_res compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     return dtr_res::ok;
 }
 
-std::optional<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
+Option<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
     // assume a size then refine it with expr result
     const RegSlot dst_slot = new_tmp(func,GPR_SIZE);
@@ -898,7 +904,7 @@ std::optional<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,
     auto type_opt = compile_expression(itl,func,node,dst_slot);
     if(!type_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     Type* type = *type_opt;
@@ -967,12 +973,12 @@ dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 }
 
 
-std::optional<BlockSlot> compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node)
+Option<BlockSlot> compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node)
 {
     const BlockSlot block_slot = new_basic_block(itl,func);
     if(!compile_block(itl,func,block_node))
     {
-        return std::nullopt;
+        return option::none;
     }
 
     return block_slot;

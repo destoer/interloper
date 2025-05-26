@@ -715,11 +715,11 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename, c
     return (AstNode*)struct_node;
 }    
 
-std::optional<AstNode*> ast_binary(Parser& parser,std::optional<AstNode*> l_opt, std::optional<AstNode*> r_opt, ast_type type, const Token& token)
+Option<AstNode*> ast_binary(Parser& parser,Option<AstNode*> l_opt, Option<AstNode*> r_opt, ast_type type, const Token& token)
 {
     if(!r_opt || !l_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     BinNode* bin_node = alloc_node<BinNode>(parser,type,ast_fmt::binary,token);
@@ -730,11 +730,11 @@ std::optional<AstNode*> ast_binary(Parser& parser,std::optional<AstNode*> l_opt,
     return (AstNode*)bin_node;  
 }
 
-std::optional<AstNode*> ast_unary(Parser& parser,std::optional<AstNode*> next_opt, ast_type type, const Token& token)
+Option<AstNode*> ast_unary(Parser& parser,Option<AstNode*> next_opt, ast_type type, const Token& token)
 {
     if(!next_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     UnaryNode* unary_node = alloc_node<UnaryNode>(parser,type,ast_fmt::unary,token);
@@ -997,8 +997,8 @@ bool match(Parser &parser,token_type type);
 void consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-std::optional<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t);
-std::optional<AstNode*> arr_access(Parser& parser, const Token& t);
-std::optional<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t);
-std::optional<AstNode*> array_index(Parser& parser,const Token& t);
-std::optional<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call = false);
+Option<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t);
+Option<AstNode*> arr_access(Parser& parser, const Token& t);
+Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t);
+Option<AstNode*> array_index(Parser& parser,const Token& t);
+Option<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call = false);

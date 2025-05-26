@@ -16,12 +16,12 @@ b32 is_any(Interloper& itl, const Type* type)
     return false;
 }
 
-std::optional<u32> cache_struct(Interloper& itl, NameSpace* name_space, const String& name)
+Option<u32> cache_struct(Interloper& itl, NameSpace* name_space, const String& name)
 {
     auto type_opt = lookup_type_scoped(itl,name_space,name);
     if(!type_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     TypeDecl* type_decl = *type_opt; 
@@ -29,26 +29,26 @@ std::optional<u32> cache_struct(Interloper& itl, NameSpace* name_space, const St
     if(!type_decl)
     {
         compile_error(itl,itl_error::struct_error,"could not find struct %s for rtti\n",name.buf);
-        return std::nullopt;
+        return option::none;
     }
 
     if(type_decl->kind != type_kind::struct_t)
     {
         compile_error(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti\n",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
-        return std::nullopt;
+        return option::none;
     }
 
     return type_decl->type_idx;
 }
 
-std::optional<u32> cache_offset(Interloper& itl,Struct& structure, const String& member_name)
+Option<u32> cache_offset(Interloper& itl,Struct& structure, const String& member_name)
 {
     auto offset_opt = member_offset(structure,member_name);
 
     if(!offset_opt)
     {
         compile_error(itl,itl_error::rtti_error,"could not find offset for %s.%s\n",structure.name.buf,member_name.buf);
-        return std::nullopt;
+        return option::none;
     }
 
     return *offset_opt;
@@ -530,7 +530,7 @@ dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node,
 }
 
 // return total size including data
-std::optional<u32> compile_any(Interloper& itl, Function& func, AstNode* arg_node)
+Option<u32> compile_any(Interloper& itl, Function& func, AstNode* arg_node)
 {
     // for now this just allways takes size of the any struct
     const u32 size = align_val(itl.rtti_cache.any_struct_size,GPR_SIZE);
@@ -540,7 +540,7 @@ std::optional<u32> compile_any(Interloper& itl, Function& func, AstNode* arg_nod
     // Handle stack alloc and store itself caller will handle deallocation of stack
     if(!compile_any_internal(itl,func,arg_node,NULL_SLOT,0))
     {
-        return std::nullopt;
+        return option::none;
     }
 
     return size;
