@@ -15,8 +15,8 @@ using namespace destoer;
 enum class [[nodiscard]] itl_error
 {
     none,
-    lexer_error,
     parse_error,
+    lexer_error,
     array_type_error,
     int_type_error,
     illegal_cast,

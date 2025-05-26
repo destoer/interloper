@@ -292,6 +292,17 @@ struct AstNode
     u32 idx;
 };
 
+enum class [[nodiscard]] parse_error
+{
+    invalid_consume,
+    invalid_lbp,
+    unexpected_token,
+    itl_error,
+};
+
+using ParserResult = Result<AstNode*,parse_error>;
+
+
 struct BinNode
 {
     AstNode node;
@@ -715,17 +726,22 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename, c
     return (AstNode*)struct_node;
 }    
 
-Option<AstNode*> ast_binary(Parser& parser,Option<AstNode*> l_opt, Option<AstNode*> r_opt, ast_type type, const Token& token)
+ParserResult ast_binary(Parser& parser,ParserResult l_res, ParserResult r_res, ast_type type, const Token& token)
 {
-    if(!r_opt || !l_opt)
+    if(!l_res)
     {
-        return option::none;
+        return l_res;
+    }
+
+    if(!r_res)
+    {
+        return r_res;
     }
 
     BinNode* bin_node = alloc_node<BinNode>(parser,type,ast_fmt::binary,token);
 
-    bin_node->left = *l_opt;
-    bin_node->right = *r_opt;
+    bin_node->left = *l_res;
+    bin_node->right = *r_res;
 
     return (AstNode*)bin_node;  
 }
@@ -970,14 +986,15 @@ AstNode* ast_type_operator(TypeNode* type,ast_type kind)
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
-inline void parser_error(Parser &parser,const Token &token,const char *fmt, ...)
+
+inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
 {
     parser.error_count += 1;
 
     // further reporting becomes pointless past a single parser error
-    if(parser.error_count)
+    if(parser.error_count > 1)
     {
-        return;
+        return error;
     }
 
     va_list args; 
@@ -990,6 +1007,7 @@ inline void parser_error(Parser &parser,const Token &token,const char *fmt, ...)
     parser.line = line;
     parser.col = col;
     parser.idx = token.idx;
+    return error;
 }
 
 void print_depth(int depth);

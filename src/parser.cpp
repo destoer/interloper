@@ -413,6 +413,7 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
 
                 if(!var_opt)
                 {
+                    assert(false);
                     return option::none;
                 }
 
@@ -428,6 +429,7 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
                 
                 if(!unary_opt)
                 {
+                    assert(false);
                     return option::none;
                 }
 
@@ -478,6 +480,7 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
                     
                     if(!namespace_opt)
                     {
+                        assert(false);
                         return option::none;
                     }
 
@@ -489,6 +492,7 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
 
                     if(!func_call_opt)
                     {
+                        assert(false);
                         return option::none;
                     }
 
@@ -502,6 +506,7 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
                     auto func_call_opt = func_call(parser,ast_literal(parser,ast_type::symbol,next.literal,next),next);
                     if(!func_call_opt)
                     {
+                        assert(false);
                         return option::none;
                     }
 
@@ -753,6 +758,7 @@ Option<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t)
         auto list_opt = expr_list(parser,"function call",token_type::right_paren);
         if(!list_opt)
         {
+            assert(false);
             return option::none;
         }
 
@@ -966,7 +972,7 @@ Option<AstNode*> parse_for_range(Parser& parser,const Token& t, b32 term_paren, 
     return (AstNode*)for_node;
 }
 
-Option<AstNode*> statement(Parser &parser)
+ParserResult statement(Parser &parser)
 {
     const auto t = next_token(parser);
 
@@ -1373,6 +1379,8 @@ Option<BlockNode*> block(Parser &parser)
 
         if(!stmt_opt)
         {
+            print_token(peek(parser,0));
+            assert(false);
             return option::none;
         }
 
@@ -1582,7 +1590,6 @@ Option<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, const T
 
 dtr_res func_decl(Interloper& itl, Parser &parser)
 {
-
     // func_dec = func ident(arg...) return_type 
     // arg = ident : type,
 
@@ -2167,26 +2174,30 @@ dtr_res parse_file(Interloper& itl,const String& file, const String& filename,Fi
     
     const auto size = count(parser.tokens);
 
-    dtr_res res = dtr_res::ok;
-
     while(parser.tok_idx < size)
     {
         // check for a directive
         if(match(parser,token_type::hash))
         {
             consume(parser,token_type::hash);
-            res = parse_directive(itl,parser);
+            if(!parse_directive(itl,parser))
+            {
+                return dtr_res::err;
+            }
         }
 
         // plain decl
         else
         {
-            res = parse_top_level_token(itl,parser,queue);
+            if(!parse_top_level_token(itl,parser,queue))
+            {
+                return dtr_res::err;
+            }
         }
     }
 
     destroy_arr(parser.tokens);
-    return res;
+    return dtr_res::ok;
 }
 
 dtr_res parse(Interloper& itl, const String& initial_filename)

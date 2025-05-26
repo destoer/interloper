@@ -1,6 +1,6 @@
 #include <interloper.h>
 
-Option<AstNode*> expression(Parser &parser,ExprCtx& ctx,Option<s32> rbp_opt);
+ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
 Option<AstNode*> expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
 Option<std::pair<AstNode*,b32>> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
 
@@ -29,19 +29,18 @@ void next_expr_token(Parser& parser,ExprCtx& ctx)
     ctx.expr_flags |= (should_term << EXPR_TERMINATED_FLAG_BIT);
 }
 
-dtr_res consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
+Option<parse_error> consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
 {
     if(type != ctx.expr_tok.type)
     {
-        parser_error(parser,ctx.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(ctx.expr_tok.type));
-        return dtr_res::err;
+        return parser_error(parser,parse_error::invalid_consume,ctx.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(ctx.expr_tok.type));
     }
 
     next_expr_token(parser,ctx);
-    return dtr_res::ok;
+    return option::none;
 }
 
-Option<s32> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
+Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
 {
     const auto bp = TOKEN_INFO[static_cast<size_t>(t.type)].lbp;
 
@@ -53,20 +52,17 @@ Option<s32> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
         {
             case token_type::increment:
             {
-                parser_error(parser,t,"increment operator not supported\n");
-                return option::none;
+                return parser_error(parser,parse_error::invalid_lbp,t,"increment operator not supported\n");
             }
 
             case token_type::decrement:
             {
-                parser_error(parser,t,"decrement operator not supported\n");
-                return option::none;
+                return parser_error(parser,parse_error::invalid_lbp,t,"decrement operator not supported\n");
             }
 
             default:
             {
-                parser_error(parser,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
-                return option::none;
+                return parser_error(parser,parse_error::invalid_lbp,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
             }
         }
     }
@@ -74,40 +70,39 @@ Option<s32> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
     return bp;
 }
 
-Option<s32> lbp_subexpr(Parser &parser,const ExprCtx& ctx,const Token &t)
+Result<s32,parse_error> lbp_subexpr(Parser &parser,const ExprCtx& ctx,const Token &t)
 {
-    auto lbp_opt = lbp(parser,ctx,t);
+    auto lbp_res = lbp(parser,ctx,t);
 
-    if(!lbp_opt)
+    if(!lbp_res)
     {
-        return option::none;
+        return lbp_res;
     }
 
-    const s32 lbp = *lbp_opt;
+    const s32 lbp = *lbp_res;
     return lbp - 1;
 }
 
 // i.e +=
-Option<AstNode*> oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type oper)
+ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type oper)
 {
-    auto e_opt = expression(parser,ctx,lbp_subexpr(parser,ctx,t));
+    auto res = expression(parser,ctx,lbp_subexpr(parser,ctx,t));
 
-    if(!e_opt)
+    if(!res)
     {
-        return option::none;
+        return res;
     }
 
-    auto e = *e_opt;
+    auto e = *res;
 
     // sugar as <sym> = <sym> + <expr>
     auto e2 = ast_binary(parser,left,e,oper,t);
+    auto ans = ast_binary(parser,left,e2,ast_type::equal,t);
 
-    auto n = ast_binary(parser,left,e2,ast_type::equal,t);
-
-    return n;    
+    return ans;    
 }
 
-Option<AstNode*> parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
+ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 {
     switch(t.type)
     {
@@ -240,14 +235,13 @@ Option<AstNode*> parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left
 
         default:
         {
-            parser_error(parser,t,"led: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
-            return option::none;
+            return parser_error(parser,parse_error::unexpected_token,t,"led: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
         }        
     }
 
     // should not be reached
     crash_and_burn("led fell through!?");
-    return option::none;
+    assert(false);
 }
 
 
@@ -266,6 +260,7 @@ Option<AstNode*> parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             auto call_opt = func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t); 
             next_expr_token(parser,ctx);
 
+            assert(!!call_opt);
             return call_opt;
         }
 
@@ -311,7 +306,7 @@ Option<AstNode*> parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
     }   
 }
 
-Option<AstNode*> builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type type)
+ParserResult builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type type)
 {
     const Token t = ctx.expr_tok;
 
@@ -328,8 +323,8 @@ Option<AstNode*> builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_ty
         }
     }
 
-    parser_error(parser,ctx.expr_tok,"expected member access after builtin type, got %s\n",tok_name(ctx.expr_tok.type));
-    return option::none;   
+    return parser_error(parser,parse_error::unexpected_token,ctx.expr_tok,"expected member access after builtin type, got %s\n",
+        tok_name(ctx.expr_tok.type)); 
 }
 
 Option<AstNode*> type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
@@ -636,14 +631,14 @@ Option<AstNode*> parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 // https://web.archive.org/web/20151223215421/http://hall.org.ua/halls/wizzard/pdf/Vaughan.Pratt.TDOP.pdf
 // ^ this algo is elegant as hell
 
-Option<AstNode*> expression(Parser &parser,ExprCtx& ctx,Option<s32> rbp_opt)
+ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_res)
 {
-    if(!rbp_opt)
+    if(!rbp_res)
     {
-        return option::none;
+        return propagate_error(rbp_res);
     }
 
-    const u32 rbp = *rbp_opt;
+    const u32 rbp = *rbp_res;
 
     auto cur = ctx.expr_tok;
     next_expr_token(parser,ctx);
