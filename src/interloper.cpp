@@ -2,8 +2,8 @@
 
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
-void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
-void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
+dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
+dtr_res compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
 void compile_block(Interloper &itl,Function &func,BlockNode *node);
 BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
@@ -731,7 +731,7 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     check_assign_init(itl,ltype,rtype);
 }
 
-void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
+dtr_res compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
 {
     // get entry into symbol table
     const DeclNode* decl_node = (DeclNode*)line;
@@ -804,7 +804,7 @@ std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,
 
 
 
-void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
+dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 {
     AutoDeclNode* auto_decl = (AutoDeclNode*)line;
 

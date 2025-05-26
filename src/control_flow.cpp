@@ -1,6 +1,6 @@
 
 
-void compile_if_block(Interloper &itl,Function &func,AstNode *node)
+dtr_res compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
     BlockNode* if_block = (BlockNode*)node;
 
@@ -22,8 +22,8 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         
         else if(!is_bool(type))
         {
-            panic(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,type).buf);
-            return;
+            compile_error(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,type).buf);
+            return dtr_res::err;
         }
 
         // block for comparison branch
@@ -74,11 +74,6 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         }
     }
 
-    if(itl.error)
-    {
-        return;
-    }
-
     // now we have to exit block add in every exit
     auto &blocks = func.emitter.program;
 
@@ -95,9 +90,11 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             }
         }
     }
+
+    return dtr_res::ok;
 }
 
-void compile_while_block(Interloper &itl,Function &func,AstNode *node)
+dtr_res compile_while_block(Interloper &itl,Function &func,AstNode *node)
 {
     BinNode* while_node = (BinNode*)node;
 
@@ -114,8 +111,8 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     // check cond is actually a bool
     else if(!is_bool(cond_type))
     {
-        panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,cond_type).buf);
-        return;
+        compile_error(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,cond_type).buf);
+        return dtr_res::err;
     }    
 
     // compile body
@@ -138,10 +135,11 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     emit_cond_branch(itl,func,end_block,while_block,exit_block,exit_cond,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond,false);   
+    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond,false); 
+    return dtr_res::ok;  
 }
 
-void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_node, b32 inc, op_type cmp_type)
+dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_node, b32 inc, op_type cmp_type)
 {
     // save initial block so we can dump a branch later
     const BlockSlot initial_block = cur_block(func);
@@ -162,9 +160,9 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
 
     if(!is_integer(entry_init_type) || !is_integer(entry_end_type))
     {
-        panic(itl,itl_error::bool_type_error,"expected integer's in range conditon got %s,%s\n",
+        compile_error(itl,itl_error::bool_type_error,"expected integer's in range conditon got %s,%s\n",
             type_name(itl,entry_init_type).buf,type_name(itl,entry_init_type).buf);
-        return;
+        return dtr_res::err;
     }    
 
     // compile in cmp for entry
@@ -201,17 +199,19 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);    
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
+
+    return dtr_res::ok;    
 }
 
-void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
+dtr_res compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
 {
     const auto [type, arr_slot] = compile_expression_tmp(itl,func,for_node->cond);
 
     if(!is_array(type))
     {
-        panic(itl,itl_error::array_type_error,"Expected array for range stmt got %s\n",type_name(itl,type).buf);
-        return;
+        compile_error(itl,itl_error::array_type_error,"Expected array for range stmt got %s\n",type_name(itl,type).buf);
+        return dtr_res::err;
     }
 
     ArrayType* arr_type = (ArrayType*)type;
@@ -222,7 +222,7 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     // we dont care
     if(is_fixed_array(arr_type) && arr_type->size == 0)
     {
-        return;
+        return dtr_res::ok;
     }
 
     // save initial block so we can dump a branch later
@@ -251,8 +251,8 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
         // check our loop index does not exist
         if(symbol_exists(itl.symbol_table,for_node->name_two))
         {
-            panic(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
-            return;
+            compile_error(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
+            return dtr_res::err;
         }        
 
         // make a fake constant symbol
@@ -292,7 +292,10 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     {
         // insert the array load inside the for block
         // before we compile the actual stmts
-        do_ptr_load(itl,func,data,arr_data,arr_type->contained_type);
+        if(!do_ptr_load(itl,func,data,arr_data,arr_type->contained_type))
+        {
+            return dtr_res::err;
+        }
     }
 
     // move the pointer in the data
@@ -334,10 +337,12 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     {
         add_block_exit(func,initial_block,for_block);
     }
+
+    return dtr_res::ok;
 }
 
 
-void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
+dtr_res compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
 {
     // scope for any var decls in the stmt
     enter_new_anon_scope(itl.symbol_table);
@@ -345,8 +350,8 @@ void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
     // check our loop index does not exist
     if(symbol_exists(itl.symbol_table,for_node->name_one))
     {
-        panic(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
-        return;
+        compile_error(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
+        return dtr_res::err;
     }
 
     // determine what kind of loop term we have
@@ -355,41 +360,36 @@ void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
         // <= or < is inc
         case ast_type::logical_lt:
         {
-            compile_for_range_idx(itl,func,for_node,true,op_type::cmpslt_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,true,op_type::cmpslt_reg);
         }
 
         case ast_type::logical_le:
         {
-            compile_for_range_idx(itl,func,for_node,true,op_type::cmpsle_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,true,op_type::cmpsle_reg);
         }
 
         // >= or > is dec
         case ast_type::logical_gt:
         {
-            compile_for_range_idx(itl,func,for_node,false,op_type::cmpsgt_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,false,op_type::cmpsgt_reg);
         }
 
         case ast_type::logical_ge:
         {
-            compile_for_range_idx(itl,func,for_node,false,op_type::cmpsge_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,false,op_type::cmpsge_reg);
         }
 
         // array index!
         default:
         {
-            compile_for_range_arr(itl,func,for_node);
-            break;
+            return compile_for_range_arr(itl,func,for_node);
         }
     }
 
     destroy_scope(itl.symbol_table);
 }
 
-void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
+dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 {
     // scope for any var decls in the stmt
     enter_new_anon_scope(itl.symbol_table);
@@ -404,13 +404,19 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     {
         case ast_type::auto_decl:
         {
-            compile_auto_decl(itl,func,for_node->initializer);
+            if(!compile_auto_decl(itl,func,for_node->initializer))
+            {
+                return dtr_res::err;
+            }
             break;
         }
 
         case ast_type::declaration:
         {
-            compile_decl(itl,func,for_node->initializer);
+            if(!compile_decl(itl,func,for_node->initializer))
+            {
+                return dtr_res::err;
+            }
             break;
         }
 
@@ -421,19 +427,14 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
         }
     }
 
-    if(itl.error)
-    {
-        return;
-    }
-    
     // compile cond for entry and check it is a bool
     const auto [cond_type,entry_cond] = compile_oper(itl,func,for_node->cond);
     const BlockSlot initial_block = cur_block(func);
   
     if(!is_bool(cond_type))
     {
-        panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,cond_type).buf);
-        return;
+        compile_error(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,cond_type).buf);
+        return dtr_res::err;
     }    
 
 
@@ -443,11 +444,6 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     // compile loop end stmt
     compile_expression_tmp(itl,func,for_node->post);
     
-    if(itl.error)
-    {
-        return;
-    }
-
     RegSlot exit_cond;
     std::tie(std::ignore,exit_cond) = compile_oper(itl,func,for_node->cond);
     const BlockSlot end_block = cur_block(func);
@@ -460,11 +456,13 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     // emit branch over the loop body in initial block if cond is not met
     emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
 
-    destroy_scope(itl.symbol_table);    
+    destroy_scope(itl.symbol_table);
+
+    return dtr_res::ok;    
 }
 
 
-void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
+dtr_res compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
     SwitchNode* switch_node = (SwitchNode*)node;
 
@@ -484,8 +482,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
     if(size == 0)
     {
-        panic(itl,itl_error::missing_args,"Switch statement has no cases");
-        return;
+        compile_error(itl,itl_error::missing_args,"Switch statement has no cases");
+        return dtr_res::err;
     }
 
     CaseNode* first_case = (CaseNode*)switch_node->statements[0];
@@ -506,8 +504,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             if(decode_res != enum_decode_res::ok)
             {
                 itl.ctx.expr = (AstNode*)first_stmt;
-                panic(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
-                return;
+                compile_error(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
+                return dtr_res::err;
             }
 
             for(u32 i = 0; i < size; i++)
@@ -518,8 +516,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                 if(case_node->statement->type != ast_type::scope)
                 {
                     itl.ctx.expr = (AstNode*)case_node;
-                    panic(itl,itl_error::enum_type_error,"switch: one or more cases are not an enum\n");
-                    return;
+                    compile_error(itl,itl_error::enum_type_error,"switch: one or more cases are not an enum\n");
+                    return dtr_res::err;
                 }
 
                 ScopeNode* scope_node = (ScopeNode*)case_node->statement;
@@ -529,15 +527,16 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
                 if(decode_res != enum_decode_res::ok)
                 {
-                    panic(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
-                    return;
+                    compile_error(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
+                    return dtr_res::err;
                 }
 
 
                 if(case_enum->type_idx != enumeration->type_idx)
                 {
-                    panic(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",enumeration->name.buf,case_enum->name.buf);
-                    return;
+                    compile_error(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",
+                        enumeration->name.buf,case_enum->name.buf);
+                    return dtr_res::err;
                 }
 
                 case_node->value = enum_member->value;          
@@ -554,7 +553,14 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             {
                 CaseNode* case_node = switch_node->statements[i];
 
-                const auto [case_value,case_type] = compile_const_int_expression(itl,case_node->statement); 
+                const auto res = compile_const_int_expression(itl,case_node->statement);
+                if(!res)
+                {
+                    return dtr_res::err;
+                }
+
+                const auto [case_value,case_type] = *res;
+
                 case_node->value = case_value;             
             }
 
@@ -575,8 +581,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != enumeration->member_map.size)
     {
         // TODO: print the missing cases
-        panic(itl,itl_error::undeclared,"switch on enum %s missing cases:\n",enumeration->name.buf);
-        return;     
+        compile_error(itl,itl_error::undeclared,"switch on enum %s missing cases:\n",enumeration->name.buf);
+        return dtr_res::err;     
     }
 
 
@@ -592,8 +598,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // these statements have no gap, this means they are duplicated
         if(cur_gap == 0)
         {
-            panic(itl,itl_error::redeclaration,"duplicate case %d\n",switch_node->statements[i]->value);
-            return;
+            compile_error(itl,itl_error::redeclaration,"duplicate case %d\n",switch_node->statements[i]->value);
+            return dtr_res::err;
         }
 
         gap += cur_gap;
@@ -630,8 +636,8 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             {
                 if(!is_integer(rtype))
                 {
-                    panic(itl,itl_error::int_type_error,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
-                    return;
+                    compile_error(itl,itl_error::int_type_error,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
+                    return dtr_res::err;
                 }
                 break;
             }
@@ -643,15 +649,15 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                     EnumType* enum_type = (EnumType*)rtype;
                     if(enum_type->enum_idx != enumeration->type_idx)
                     {
-                        panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
-                        return;                        
+                        compile_error(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
+                        return dtr_res::err;                        
                     }
                 }
 
                 else
                 {
-                    panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
-                    return;                    
+                    compile_error(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
+                    return dtr_res::err;                    
                 }
                 break;
             }
@@ -788,4 +794,6 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     {
         unimplemented("binary search");
     }
+
+    return dtr_res::ok;
 }
