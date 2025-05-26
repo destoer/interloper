@@ -599,8 +599,13 @@ std::optional<std::tuple<Type*,AddrSlot>> compute_member_addr(Interloper& itl, F
 
         case ast_type::index:
         {
-            RegSlot addr_slot;
-            std::tie(struct_type, addr_slot) = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+            auto index_opt = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+            if(!index_opt)
+            {
+                return std::nullopt;
+            }
+
+            auto [struct_type, addr_slot] = *index_opt;
 
             struct_slot = make_addr(addr_slot,0);
 
@@ -729,8 +734,13 @@ std::optional<std::tuple<Type*,AddrSlot>> compute_member_addr(Interloper& itl, F
                     collapse_struct_offset(itl,func,&struct_slot);
                 }
 
-                RegSlot addr_slot;
-                std::tie(struct_type,addr_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
+                auto index_opt = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
+                if(!index_opt)
+                {
+                    return std::nullopt;
+                }
+
+                auto [struct_type, addr_slot] = *index_opt;
 
                 struct_slot = make_addr(addr_slot,0);
 
@@ -854,7 +864,10 @@ dtr_res traverse_struct_initializer(Interloper& itl, Function& func, RecordNode*
         {
             if(is_array(member.type))
             {
-                traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],&addr_member,(ArrayType*)member.type);
+                if(!traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],&addr_member,(ArrayType*)member.type))
+                {
+                    return dtr_res::err;
+                }
             }
 
             else if(is_struct(member.type))
@@ -959,7 +972,11 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
 
         else if(is_array(member.type))
         {
-            default_construct_arr(itl,func,(ArrayType*)member.type,member_addr);
+            if(!default_construct_arr(itl,func,(ArrayType*)member.type,member_addr))
+            {
+                pop_context(itl);
+                return dtr_res::err;
+            }
         }
 
         else

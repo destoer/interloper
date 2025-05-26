@@ -535,6 +535,14 @@ struct RegSlot
     reg_kind kind = reg_kind::sym;
 };
 
+struct Type;
+// TODO: slowly replace std::pair<RegSlot,Type*> with this!
+struct TypedReg
+{
+    RegSlot slot;
+    Type* type = nullptr;
+};
+
 inline bool operator == (const RegSlot& v1, const RegSlot &v2)
 {
     if(v1.kind != v2.kind)

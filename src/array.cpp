@@ -30,14 +30,14 @@ std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& 
 }
 
 // indexes off a given type + ptr
-std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, RegSlot ptr_slot, RegSlot dst_slot)
 {
     // standard array index
     if(!is_array(type))
     {
-        panic(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
+        compile_error(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
+        return std::nullopt;  
     }
 
     RegSlot last_slot = ptr_slot;
@@ -54,8 +54,9 @@ std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,Inde
         const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[i]);
         if(!is_integer(subscript_type))
         {
-            panic(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",type_name(itl,subscript_type).buf);
-            return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};  
+            compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
+                type_name(itl,subscript_type).buf);
+            return std::nullopt;  
         }
         
         const bool last_index = i == indexes - 1;
@@ -112,8 +113,8 @@ std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,Inde
 
             else 
             {
-                panic(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
-                return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};                          
+                compile_error(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);
+                return std::nullopt;                          
             }
         } 
         
@@ -213,7 +214,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
     return load_arr_len(itl,func,sym.reg.slot,sym.type);
 }
 
-std::pair<Type*, RegSlot> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+std::optional<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     IndexNode* index_node = (IndexNode*)node;
 
@@ -223,8 +224,8 @@ std::pair<Type*, RegSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 
     if(!arr_ptr)
     {
-        panic(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};       
+        compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
+        return std::nullopt;       
     }
 
     const auto arr = *arr_ptr;
@@ -244,14 +245,20 @@ std::pair<Type*, RegSlot> index_arr(Interloper &itl,Function &func,AstNode *node
 
     else
     {
-        panic(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for index got %s\n",type_name(itl,arr.type));
-        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};          
+        compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for index got %s\n",type_name(itl,arr.type));
+        return std::nullopt;         
     }
 }
 
-Type* read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+std::optional<Type*> read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
-    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
+    auto index_opt = index_arr(itl,func,node,new_tmp_ptr(func));
+    if(!index_opt)
+    {
+        return std::nullopt;
+    }
+
+    auto [type,addr_slot] = *index_opt;
 
     type = deref_pointer(type);
 
@@ -262,16 +269,25 @@ Type* read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
         return type;
     }
 
-    do_ptr_load(itl,func,dst_slot,addr_slot,type);
+    if(!do_ptr_load(itl,func,dst_slot,addr_slot,type))
+    {
+        return std::nullopt;
+    }
+
     return type;
 }
 
 
 // TODO: our type checking for our array assigns has to be done out here to ensure locals are type checked correctly
-void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, RegSlot slot)
+dtr_res write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, RegSlot slot)
 {
-    auto [type,addr_slot] = index_arr(itl,func,node,new_tmp_ptr(func));
+    auto index_opt = index_arr(itl,func,node,new_tmp_ptr(func));
+    if(!index_opt)
+    {
+        return dtr_res::err;
+    }
 
+    auto [type,addr_slot] = *index_opt;
 
     // convert fixed size pointer..
     if(is_array(write_type))
@@ -284,42 +300,47 @@ void write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, Re
         // deref of pointer
         type = deref_pointer(type);
 
-        do_ptr_store(itl,func,slot,addr_slot,type);
+        if(!do_ptr_store(itl,func,slot,addr_slot,type))
+        {
+            return dtr_res::err;
+        }
 
-        check_assign(itl,type,write_type);
+        return check_assign(itl,type,write_type);
     }
 }
 
-void assign_vla_initializer(Interloper& itl, Function& func, RecordNode* list, AddrSlot* addr_slot, ArrayType* type)
+dtr_res assign_vla_initializer(Interloper& itl, Function& func, RecordNode* list, AddrSlot* addr_slot, ArrayType* type)
 {
     const u32 node_len = count(list->nodes);
 
     if(node_len != 2)
     {
-        panic(itl,itl_error::missing_initializer,"vla initializer expects 2 initializers {POINTER,SIZE}");
-        return;
+        compile_error(itl,itl_error::missing_initializer,"vla initializer expects 2 initializers {POINTER,SIZE}");
+        return dtr_res::err;
     }
 
     const auto [ptr_type,ptr_slot] = compile_oper(itl,func,list->nodes[0]);
-    check_assign(itl,make_reference(itl,type->contained_type),ptr_type);
+    if(!check_assign(itl,make_reference(itl,type->contained_type),ptr_type))
+    {
+        return dtr_res::err;
+    }
 
     store_addr_slot(itl,func,ptr_slot,*addr_slot,GPR_SIZE,false);
     addr_slot->offset += GPR_SIZE;
 
     const auto [size_type,size_slot] = compile_oper(itl,func,list->nodes[1]);
-    check_assign(itl,make_builtin(itl,GPR_SIZE_TYPE),size_type);
+    if(!check_assign(itl,make_builtin(itl,GPR_SIZE_TYPE),size_type))
+    {
+        return dtr_res::err;
+    }
 
     store_addr_slot(itl,func,size_slot,*addr_slot,GPR_SIZE,false);
     addr_slot->offset += GPR_SIZE;
+    return dtr_res::ok;
 }
 
-void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type)
+dtr_res traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type)
 {
-    if(itl.error)
-    {
-        return;
-    }
-
     const u32 node_len = count(list->nodes);
 
     // this just gets the first node size
@@ -330,8 +351,7 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
 
     else if(is_runtime_size(type))
     {
-        assign_vla_initializer(itl,func,list,addr_slot,type);
-        return;
+        return assign_vla_initializer(itl,func,list,addr_slot,type);
     }
 
     // next type is a sub array
@@ -345,8 +365,8 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
         // TODO: this should allow not specifing the full ammount but for now just keep it simple
         if(count != node_len)
         {
-            panic(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d\n",type_name(itl,(Type*)type).buf,count,node_len);
-            return;
+            compile_error(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d\n",type_name(itl,(Type*)type).buf,count,node_len);
+            return dtr_res::err;
         }        
 
         for(u32 n = 0; n < node_len; n++)
@@ -359,7 +379,10 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
             {
                 case ast_type::initializer_list:
                 {
-                    traverse_arr_initializer_internal(itl,func,(RecordNode*)node,addr_slot,next_arr);
+                    if(!traverse_arr_initializer_internal(itl,func,(RecordNode*)node,addr_slot,next_arr))
+                    {
+                        return dtr_res::err;
+                    }
                     break;
                 }
 
@@ -370,8 +393,8 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
 
                     if(!is_string(next_arr))
                     {
-                        panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)next_arr).buf);
-                        return;
+                        compile_error(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)next_arr).buf);
+                        return dtr_res::err;
                     }
 
 
@@ -395,15 +418,16 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
 
                         else
                         {
-                            panic(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+                            compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+                            return dtr_res::err;
                         }
                     }
 
                     // fixed sized array
                     else
                     {
-                        panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
-                        return;
+                        compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+                        return dtr_res::err;
                     }
 
                     break;
@@ -436,16 +460,25 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
                 if(list->nodes[i]->type == ast_type::initializer_list)
                 {
                     const auto structure = struct_from_type(itl.struct_table,base_type);
-                    traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],*addr_slot,structure);
+                    if(!traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],*addr_slot,structure))
+                    {
+                        return dtr_res::err;
+                    }
                 }
 
                 // allready finished struct
                 else
                 {
                     auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
-                    check_assign_init(itl,base_type,rtype);
+                    if(!check_assign_init(itl,base_type,rtype))
+                    {
+                        return dtr_res::err;
+                    }
 
-                    do_addr_store(itl,func,reg,*addr_slot,base_type);
+                    if(!do_addr_store(itl,func,reg,*addr_slot,base_type))
+                    {
+                        return dtr_res::err;
+                    }
                 }
 
                 addr_slot->offset += size;
@@ -458,13 +491,21 @@ void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode
             for(u32 i = 0; i < node_len; i++)
             {
                 auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
-                check_assign_init(itl,base_type,rtype);
+                if(!check_assign_init(itl,base_type,rtype))
+                {
+                    return dtr_res::err;
+                }
 
-                do_addr_store(itl,func,reg,*addr_slot,base_type);
+                if(!do_addr_store(itl,func,reg,*addr_slot,base_type))
+                {
+                    return dtr_res::err;
+                }
                 addr_slot->offset += size;
             }
         }           
-    }   
+    }
+
+    return dtr_res::ok;   
 }
 
 // for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
@@ -529,11 +570,11 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
     return std::pair{size,count};
 }
 
-void traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,AddrSlot addr_slot, Type* type)
+dtr_res traverse_arr_initializer(Interloper& itl,Function& func,AstNode *node,AddrSlot addr_slot, Type* type)
 {
     RecordNode* list = (RecordNode*)node;
 
-    traverse_arr_initializer_internal(itl,func,list,&addr_slot,(ArrayType*)type);
+    return traverse_arr_initializer_internal(itl,func,list,&addr_slot,(ArrayType*)type);
 }
 
 
@@ -549,7 +590,7 @@ void store_const_string(Interloper& itl, Function& func, const String& literal, 
     store_arr_len(itl,func,arr_slot,arr_size);
 }
 
-void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const RegSlot arr_slot, Type* type)
+dtr_res compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const RegSlot arr_slot, Type* type)
 {
     switch(node->type)
     {
@@ -559,14 +600,14 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Re
             if(is_runtime_size(type))
             {
                 auto addr_slot = make_struct_addr(arr_slot,0);
-                assign_vla_initializer(itl,func,(RecordNode*)node,&addr_slot,(ArrayType*)type);
+                return assign_vla_initializer(itl,func,(RecordNode*)node,&addr_slot,(ArrayType*)type);
             }
 
             else 
             {
                 const RegSlot ptr_slot = load_arr_data(itl,func,arr_slot,type);
                 const auto addr_slot = make_addr(ptr_slot,0);
-                traverse_arr_initializer(itl,func,node,addr_slot,type);
+                return traverse_arr_initializer(itl,func,node,addr_slot,type);
             }
             break;
         }
@@ -577,8 +618,8 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Re
 
             if(!is_string(type))
             {
-                panic(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,type).buf);
-                return;
+                compile_error(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,type).buf);
+                return dtr_res::err;
             }
 
             ArrayType* array_type = (ArrayType*)type;
@@ -595,18 +636,19 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Re
 
                 else
                 {
-                    panic(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+                    compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+                    return dtr_res::err;
                 }
             }
 
             // fixed sized array
             else
             {
-                panic(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
-                return;
+                compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+                return dtr_res::err;
             }
 
-            break;           
+            return dtr_res::ok;
         }
     
         // arbitary expression
@@ -615,29 +657,26 @@ void compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const Re
             // compile expr
             auto [rtype,slot] = compile_oper(itl,func,node);
               
-            check_assign_init(itl,type,rtype);
-            
-            if(itl.error)
+            if(!check_assign_init(itl,type,rtype))
             {
-                return;
+                return dtr_res::err;
             }
-
+            
             compile_move(itl,func,arr_slot,slot,type,rtype);
-
-            break;
+            return dtr_res::ok;
         }
     }
 }
 
-void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
+dtr_res default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
 {
     if(is_fixed_array(type))
     {
         // this has not been inited by traverse_arr_initializer
         if(type->size == DEDUCE_SIZE)
         {
-            panic(itl,itl_error::missing_initializer,"auto sized array does not have an initializer\n");
-            return;
+            compile_error(itl,itl_error::missing_initializer,"auto sized array does not have an initializer\n");
+            return dtr_res::err;
         }
 
         if(is_array(type->contained_type))
@@ -649,7 +688,10 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
                 auto sub_addr = addr_slot;
                 sub_addr.offset += (i * next_type->sub_size);
 
-                default_construct_arr(itl,func,next_type,sub_addr);
+                if(!default_construct_arr(itl,func,next_type,sub_addr))
+                {
+                    return dtr_res::err;
+                }
             }
         }
 
@@ -665,7 +707,10 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
             for(u32 i = 0; i < type->size; i++)
             {
                 // TODO: just default construct it for now!
-                compile_struct_decl_default(itl,func,structure,struct_addr);
+                if(!compile_struct_decl_default(itl,func,structure,struct_addr))
+                {
+                    return dtr_res::err;
+                }
                 struct_addr.offset += structure.size;
             }
         }
@@ -674,7 +719,7 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
         else
         {
             collapse_struct_offset(itl,func,&addr_slot);
-            ir_zero(itl,func,addr_slot.slot,type->size * type->sub_size);
+            return ir_zero(itl,func,addr_slot.slot,type->size * type->sub_size);
         }
     }
 
@@ -688,10 +733,12 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
 
         store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE,false);
         addr_slot.offset += GPR_SIZE;
-    }        
+    }
+
+    return dtr_res::ok;        
 }
 
-void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, SymSlot slot)
+dtr_res compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node, SymSlot slot)
 {
     // This allocation needs to happen before we initialize the array but we dont have all the information yet
     // so we need to finish it up later
@@ -704,7 +751,10 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
 
         if(decl_node->expr->type != ast_type::no_init)
         {
-            compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type);
+            if(!compile_arr_assign(itl,func,decl_node->expr,array.reg.slot,array.type))
+            {
+                return dtr_res::err;
+            }
         }
 
         // now we have deduced every size, we need to reinit the sub size...
@@ -724,21 +774,21 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         if(!is_fixed_array(array.type))
         {
             const auto addr_slot = make_struct_addr(array.reg.slot,0);
-            default_construct_arr(itl,func,array_type,addr_slot);
+            if(!default_construct_arr(itl,func,array_type,addr_slot))
+            {
+                return dtr_res::err;
+            }
         }
 
         else
         {
             const auto addr_slot = make_addr(array.reg.slot,0);
-            default_construct_arr(itl,func,array_type,addr_slot);
+            if(!default_construct_arr(itl,func,array_type,addr_slot))
+            {
+                return dtr_res::err;
+            }
         }
     }
-
-    if(itl.error)
-    {
-        return;
-    }
-
 
     auto& array = sym_from_slot(itl.symbol_table,slot);
 
@@ -772,25 +822,26 @@ void compile_arr_decl(Interloper& itl, Function& func, const DeclNode *decl_node
         }
     }
     
+    return dtr_res::ok;
 }
 
-Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
+std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
 {
     const auto arr_name = slice_node->name;
     const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
 
     if(!arr_ptr)
     {
-        panic(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
-        return make_builtin(itl,builtin_type::void_t);      
+        compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);
+        return std::nullopt;      
     }
 
     const auto arr = *arr_ptr;
 
     if(!is_array(arr.type))
     {
-        panic(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s\n",type_name(itl,arr.type).buf);
-        return make_builtin(itl,builtin_type::void_t);         
+        compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s\n",type_name(itl,arr.type).buf);
+        return std::nullopt;         
     }
 
     const auto arr_slot = arr.reg.slot;
@@ -806,8 +857,8 @@ Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot
 
         if(!is_integer(index_type))
         {
-            panic(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice lower bound got %s\n",type_name(itl,index_type).buf);
-            return make_builtin(itl,builtin_type::void_t);      
+            compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice lower bound got %s\n",type_name(itl,index_type).buf);
+            return std::nullopt;      
         }
 
         const RegSlot offset_slot = mul_imm_res(itl,func,index_slot,type_size(itl,index_arr(arr.type)));
@@ -825,8 +876,8 @@ Type* slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot
 
         if(!is_integer(t2))
         {
-            panic(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice upper bound got %s\n",type_name(itl,t2).buf);
-            return make_builtin(itl,builtin_type::void_t);      
+            compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice upper bound got %s\n",type_name(itl,t2).buf);
+            return std::nullopt;      
         }
 
         data_len = v2;

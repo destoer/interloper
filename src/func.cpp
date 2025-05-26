@@ -512,7 +512,14 @@ dtr_res push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAs
 
                 case ast_type::index:
                 {
-                    auto [type,ptr_slot] = index_arr(itl,func,var_node,new_tmp_ptr(func));
+                    auto index_opt = index_arr(itl,func,var_node,new_tmp_ptr(func));
+                    if(!index_opt)
+                    {
+                        return dtr_res::err;
+                    }
+
+                    auto [type,ptr_slot] = *index_opt;
+
                     pass_arg(itl,func,pass,ptr_slot,type,a);
                     break;
                 }

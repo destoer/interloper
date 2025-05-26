@@ -185,4 +185,4 @@ std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);
 Symbol* get_sym(SymbolTable &sym_table,const String &sym);
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot);
 
-void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);
+dtr_res default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);
