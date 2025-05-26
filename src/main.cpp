@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 
     compile(itl,source_filename,executable_path);
 
-    if(itl.error)
+    if(itl.error_count)
     {
         return 1;
     }

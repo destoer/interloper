@@ -1105,7 +1105,10 @@ dtr_res compile_function(Interloper& itl, Function& func)
             }
         }
 
-        compile_block(itl,func,node.block);
+        if(!compile_block(itl,func,node.block))
+        {
+            return dtr_res::err;
+        }
 
         destroy_scope(itl.symbol_table);
     }

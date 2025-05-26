@@ -37,7 +37,13 @@ dtr_res compile_if_block(Interloper &itl,Function &func,AstNode *node)
         const BlockSlot cmp_block = cur_block(func);
 
         // compile the body block
-        const BlockSlot body_slot = compile_basic_block(itl,func,(BlockNode*)if_stmt->right);
+        const auto body_slot_opt = compile_basic_block(itl,func,(BlockNode*)if_stmt->right);
+        if(!body_slot_opt)
+        {
+            return dtr_res::err;
+        }
+
+        const BlockSlot body_slot = *body_slot_opt;
 
         // not the last statment 
         if(n != count(if_block->statements) - 1)
@@ -50,10 +56,14 @@ dtr_res compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 // else stmt has no expr so its in the first node
                 // and by definition this is the last statement with no cond so we have to explictly splice a jump to it
                 UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n+1];
-                const BlockSlot else_slot = compile_basic_block(itl,func,(BlockNode*)else_stmt->next);
+                const auto else_slot_opt = compile_basic_block(itl,func,(BlockNode*)else_stmt->next);
+                if(!else_slot_opt)
+                {
+                    return dtr_res::err;
+                }
 
                 // add branch over body we compiled to else statement
-                emit_cond_branch(itl,func,cmp_block,else_slot,body_slot,reg,false);
+                emit_cond_branch(itl,func,cmp_block,*else_slot_opt,body_slot,reg,false);
 
                 exit_block = add_fall(itl,func);
                 break;
@@ -129,7 +139,13 @@ dtr_res compile_while_block(Interloper &itl,Function &func,AstNode *node)
     }    
 
     // compile body
-    const BlockSlot while_block = compile_basic_block(itl,func,(BlockNode*)while_node->right); 
+    const auto while_block_opt = compile_basic_block(itl,func,(BlockNode*)while_node->right); 
+    if(!while_block_opt)
+    {
+        return dtr_res::err;
+    }
+
+    const BlockSlot while_block = *while_block_opt;
 
     RegSlot exit_cond;
     auto exit_res = compile_oper(itl,func,while_node->left);
@@ -201,7 +217,13 @@ dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for
     emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index,entry_end);
 
     // compile the main loop body
-    const BlockSlot for_block = compile_basic_block(itl,func,for_node->block); 
+    const auto for_block_opt = compile_basic_block(itl,func,for_node->block); 
+    if(!for_block_opt)
+    {
+        return dtr_res::err;
+    }
+
+    const BlockSlot for_block = *for_block_opt;
 
     // compile post inc / dec
     if(inc)
@@ -347,7 +369,10 @@ dtr_res compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for
         mov_reg(itl,func,data,arr_data);
     }
 
-    compile_block(itl,func,for_node->block);
+    if(!compile_block(itl,func,for_node->block))
+    {
+        return dtr_res::err;
+    }
 
     // compile body check
     const BlockSlot end_block = cur_block(func);
@@ -489,7 +514,13 @@ dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 
 
     // compile the body
-    const BlockSlot for_block = compile_basic_block(itl,func,for_node->block);    
+    const auto for_block_opt = compile_basic_block(itl,func,for_node->block);    
+    if(!for_block_opt)
+    {
+        return dtr_res::err;
+    }
+
+    const BlockSlot for_block = *for_block_opt;
 
     // compile loop end stmt
     compile_expression_tmp(itl,func,for_node->post);
@@ -766,7 +797,13 @@ dtr_res compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         {
             CaseNode* case_node = switch_node->statements[i];
 
-            const BlockSlot case_slot = compile_basic_block(itl,func,case_node->block);
+            const auto case_slot_opt = compile_basic_block(itl,func,case_node->block);
+            if(!case_slot_opt)
+            {
+                return dtr_res::err;
+            }
+
+            const BlockSlot case_slot = *case_slot_opt;
 
             // add link from dispatch to case
             add_block_exit(func,dispatch_block,case_slot);
@@ -787,7 +824,14 @@ dtr_res compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // if there is no default then our exit label is the end
         if(switch_node->default_statement)
         {
-            default_block = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next);
+            const auto default_block_opt = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next);
+            if(!default_block_opt)
+            {
+                return dtr_res::err;
+            }
+
+            default_block = *default_block_opt;
+
             add_block_exit(func,dispatch_block,default_block);
         }
 

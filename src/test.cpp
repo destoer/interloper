@@ -241,9 +241,9 @@ b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const 
 
     printf("%s: ",optimized? "optimized" : "unoptimized");
     
-    if(itl.error)
+    if(itl.error_count)
     {
-        printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.error_code)]);
+        printf("fail %s compilation error: %s\n",test.name,ERROR_NAME[u32(itl.first_error_code)]);
         return true;
     }
 
@@ -317,9 +317,9 @@ void run_tests(const char* flags)
 
             compile(itl,test.name,"./out");
 
-            if(itl.error_code != test.error)
+            if(itl.first_error_code != test.error)
             {
-                printf("Fail %s expected error code '%s' got '%s'\n",test.name,ERROR_NAME[u32(test.error)],ERROR_NAME[u32(itl.error_code)]);
+                printf("Fail %s expected error code '%s' got '%s'\n",test.name,ERROR_NAME[u32(test.error)],ERROR_NAME[u32(itl.first_error_code)]);
                 fail = true;
                 break;
             }

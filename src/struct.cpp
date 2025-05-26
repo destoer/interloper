@@ -938,7 +938,10 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
             {
                 case ast_type::initializer_list:
                 {
-                    compile_init_list(itl,func,member.type,member_addr,member.expr);
+                    if(!compile_init_list(itl,func,member.type,member_addr,member.expr))
+                    {
+                        return dtr_res::err;
+                    }
                     break;
                 }
 
@@ -1044,7 +1047,7 @@ dtr_res compile_struct_decl(Interloper& itl, Function& func, const DeclNode *dec
 
             case ast_type::no_init:
             {
-                break;
+                return dtr_res::ok;
             }
 
             default:

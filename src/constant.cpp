@@ -193,7 +193,13 @@ std::optional<ConstData> compile_const_expression(Interloper& itl, AstNode* node
         {
             // TODO: atm this requires correct decl order
             // as we dont have a locking mechanism or a way to lookup exprs
-            auto [type,slot] = symbol(itl,node);
+            auto sym_res = symbol(itl,node);
+            if(!sym_res)
+            {
+                return std::nullopt;
+            }
+
+            auto [type,slot] = *sym_res;
 
             // pull sym
             auto& sym = sym_from_slot(itl.symbol_table,slot.sym_slot);
