@@ -32,7 +32,7 @@ void print_enum(Enum& enumeration)
     printf("}\n");       
 }
 
-void compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
+dtr_res compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
 
 dtr_res parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 {
@@ -122,7 +122,10 @@ dtr_res parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
                     itl.ctx.expr = (AstNode*)member_decl.initializer;
                     const u32 offset = m * structure.size;
 
-                    compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);
+                    if(!compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset))
+                    {
+                        return dtr_res::err;
+                    }
                     break;
                 }
 
