@@ -1383,6 +1383,18 @@ std::optional<BlockNode*> block(Parser &parser)
     return b;
 }
 
+std::optional<AstNode*> block_ast(Parser &parser)
+{
+    auto block_opt = block(parser);
+
+    if(!block_opt)
+    {
+        return std::nullopt;
+    }
+
+    return (AstNode*)block_opt.value();
+}
+
 dtr_res check_redeclaration(Interloper& itl, NameSpace* root, const String& name, const String& checked_def_type)
 {
     const DefInfo* existing_def = lookup_definition(root,name);

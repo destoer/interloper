@@ -858,7 +858,9 @@ dtr_res compile_const_struct_list_internal(Interloper& itl,RecordNode* list, con
                 }
             }
         }
-    }     
+    }
+
+    return dtr_res::ok;     
 }
 
 dtr_res compile_const_struct_initializer_list(Interloper& itl, Symbol& structure, AstNode* node)
@@ -1007,7 +1009,7 @@ dtr_res compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node
                 default:
                 {
                     unimplemented("arbitary assign const array");
-                    break;
+                    return dtr_res::err;
                 }
             }
             break;
@@ -1025,7 +1027,7 @@ dtr_res compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node
                 default:
                 {
                     unimplemented("arbitary assign const struct");
-                    break;
+                    return dtr_res::err;
                 }            
             }
 
@@ -1034,6 +1036,9 @@ dtr_res compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node
 
         default: assert(false);
     }
+
+    assert(false);
+    return dtr_res::err;
 }
 
 
@@ -1114,4 +1119,6 @@ dtr_res compile_constants(Interloper& itl)
             return dtr_res::err;
         }
     }
+
+    return dtr_res::ok;
 }

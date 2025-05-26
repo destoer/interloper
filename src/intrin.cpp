@@ -118,6 +118,8 @@ dtr_res ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 
         clean_args(itl,func,pass.arg_clean);        
     }
+
+    return dtr_res::ok;
 }
 
 std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)

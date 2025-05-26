@@ -182,7 +182,7 @@ dtr_res cache_rtti_structs(Interloper& itl)
 
     rtti.struct_idx = cache_struct(itl,"StructType");
 */
-
+    return dtr_res::ok;
 }
 
 
