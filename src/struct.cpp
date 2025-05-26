@@ -920,7 +920,6 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
     // NOTE: this should apply all the way down i.e if we contain a struct
     // it needs to have initialzer_zero aswell
     // if(structure.initializer_zero)
-    push_context(itl);
 
     // default construction
     for(u32 m = 0; m < count(structure.members); m++)
@@ -932,7 +931,7 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
 
         if(member.expr)
         {
-            trash_context(itl,structure.filename,structure.name_space,member.expr);
+            auto context_guard = switch_context(itl,structure.filename,structure.name_space,member.expr);
 
             switch(member.expr->type)
             {
@@ -963,7 +962,6 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
 
                     if(!check_assign_init(itl,member.type,rtype))
                     {
-                        pop_context(itl);
                         return dtr_res::err;
                     } 
 
@@ -982,7 +980,6 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
             const auto nested_structure = struct_from_type(itl.struct_table,member.type);
             if(!compile_struct_decl_default(itl,func,nested_structure,member_addr))
             {
-                pop_context(itl);
                 return dtr_res::err;
             }
         }
@@ -991,7 +988,6 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
         {
             if(!default_construct_arr(itl,func,(ArrayType*)member.type,member_addr))
             {
-                pop_context(itl);
                 return dtr_res::err;
             }
         }
@@ -1001,20 +997,17 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
             if(is_reference(member.type))
             {
                 compile_error(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s\n",member.name.buf,type_name(itl,member.type).buf);
-                pop_context(itl);
                 return dtr_res::err;
             }
 
             const RegSlot tmp = imm_zero(itl,func);
             if(!do_addr_store(itl,func,tmp,member_addr,member.type))
             {
-                pop_context(itl);
                 return dtr_res::err;
             }
         }
     }
 
-    pop_context(itl);
     return dtr_res::ok;
 }
 

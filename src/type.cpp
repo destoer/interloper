@@ -2379,6 +2379,8 @@ dtr_res parse_def(Interloper& itl, TypeDef& def)
     // save the current one
     push_context(itl);
 
+    dtr_res res = dtr_res::ok;
+
     if(def.decl.state == type_def_state::not_checked)
     {
         // mark as checking to lock this against recursion!
@@ -2388,13 +2390,13 @@ dtr_res parse_def(Interloper& itl, TypeDef& def)
         {
             case type_def_kind::struct_t:
             {
-                (void)parse_struct_def(itl,def);
+                res = parse_struct_def(itl,def);
                 break;
             }
 
             case type_def_kind::alias_t:
             {
-                (void)parse_alias_def(itl,def);
+                res = parse_alias_def(itl,def);
                 break;
             }
 
@@ -2402,7 +2404,7 @@ dtr_res parse_def(Interloper& itl, TypeDef& def)
             {
                 auto set = make_set<u64>();
 
-                (void)parse_enum_def(itl,def,set);
+                res = parse_enum_def(itl,def,set);
                 destroy_set(set);
                 break;
             }
@@ -2413,11 +2415,11 @@ dtr_res parse_def(Interloper& itl, TypeDef& def)
     {
         // TODO: add huertsics to scan for where!
         compile_error(itl,itl_error::black_hole,"type %s is recursively defined\n",def.decl.name.buf);
-        return dtr_res::err;
+        res = dtr_res::err;
     }
 
     pop_context(itl);
-    return dtr_res::ok;
+    return res;
 }
 
 

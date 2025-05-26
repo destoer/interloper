@@ -991,7 +991,7 @@ Option<Type*> compile_function_call(Interloper &itl,Function &func,AstNode *node
 dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node)
 {
     // about to move to a different context
-    switch_context(itl,node.filename,name_space,(AstNode*)&node);
+    auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
 
     u32 arg_offset = 0;
 
@@ -1002,7 +1002,6 @@ dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const 
         auto type_opt = get_complete_type(itl,node.return_type[0]);
         if(!type_opt)
         {
-            pop_context(itl);
             return dtr_res::err;
         }
 
@@ -1025,7 +1024,6 @@ dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const 
             auto type_opt = get_complete_type(itl,node.return_type[a]);
             if(!type_opt)
             {
-                pop_context(itl);
                 return dtr_res::err;    
             }
 
@@ -1050,7 +1048,6 @@ dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const 
         const auto type_opt = get_complete_type(itl,a->type);
         if(!type_opt)
         {
-            pop_context(itl);
             return dtr_res::err;
         }
 
@@ -1069,7 +1066,6 @@ dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const 
 
     sig.call_stack_size = arg_offset;
 
-    pop_context(itl);
     return dtr_res::ok;
 }
 

@@ -62,10 +62,12 @@ void trash_context(Interloper& itl, String filename,NameSpace* name_space, AstNo
 }
 
 // save and overwrite the ctx
-void switch_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
+FileContextGuard switch_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
 {
     push_context(itl);
     trash_context(itl,filename,name_space,expr);
+
+    return FileContextGuard(itl);
 }
 
 
@@ -1508,14 +1510,12 @@ dtr_res compile_globals(Interloper& itl)
     {
         GlobalDeclNode* decl_node = itl.global_decl[c];
 
-        switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
+        auto context_guard = switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
         
         if(!compile_decl(itl,func,(AstNode*)decl_node->decl,true))
         {
             return dtr_res::err;
         }
-
-        pop_context(itl);
     }
 
     finalise_global_offset(itl);

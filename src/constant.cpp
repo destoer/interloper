@@ -1076,12 +1076,8 @@ dtr_res compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
 
 dtr_res compile_constant(Interloper& itl, GlobalDeclNode* node)
 {
-    switch_context(itl,node->filename,node->name_space,(AstNode*)node);
-
-    const dtr_res res = compile_constant_decl(itl,node->decl,true);
-    pop_context(itl);
-
-    return res;
+    auto context_guard = switch_context(itl,node->filename,node->name_space,(AstNode*)node);
+    return compile_constant_decl(itl,node->decl,true);
 }
 
 void add_compiler_constant(Interloper& itl, const String& name, builtin_type builtin, u64 value)

@@ -175,6 +175,20 @@ struct Interloper
     double optimise_time = 0.0;
 };
 
+void pop_context(Interloper& itl);
+
+struct [[nodiscard]] FileContextGuard
+{
+    FileContextGuard(Interloper& itl) : itl(itl) {}
+    ~FileContextGuard()
+    {
+        pop_context(itl);
+    }
+
+    Interloper& itl;
+};
+
+
 void print(const AstNode *root, b32 override_seperator = false);
 
 inline void compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
@@ -277,4 +291,4 @@ u32 align_val(u32 v,u32 alignment);
 void push_context(Interloper& itl);
 void pop_context(Interloper& itl);
 void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
-void switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
+FileContextGuard switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
