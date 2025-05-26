@@ -233,7 +233,7 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
 
 
 // TODO: Detect when short ciruciting is unecessary due to a lack of side effects
-Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type, u32 depth)
+Option<Type*> compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type, u32 depth)
 {
     BinNode* bin_node = (BinNode*)node;
     
@@ -244,12 +244,18 @@ Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, Reg
 
     if(bin_node->left->type == syntax_nested)
     {
-        compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1);
+        if(!compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1))
+        {
+            return option::none;
+        }
     }
 
     else
     {
-        compile_expression(itl,func,bin_node->left,dst_slot);
+        if(!compile_expression(itl,func,bin_node->left,dst_slot))
+        {
+            return option::none;
+        }
 
         // switched from and to or
         // Which means our skip needs to be placed after all of these have compiled
@@ -267,7 +273,10 @@ Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, Reg
 
     // Give this a new block we can jump over
     const BlockSlot right_block = new_basic_block(itl,func);
-    compile_expression(itl,func,bin_node->right,dst_slot);
+    if(!compile_expression(itl,func,bin_node->right,dst_slot))
+    {
+        return option::none;
+    }
 
     // We are now at the top of the stack create and then rewrite in all the block exits
     if(depth == 0)
@@ -312,10 +321,14 @@ Option<Type*> compile_comparison_op(Interloper& itl,Function &func,AstNode *node
                 ValueNode* value_node = (ValueNode*)bin_node->left;
                 const u64 v = value_node->value.v;
 
-                const b32 coerce = check_static_cmp(itl,ltype,rtype,v);
+                const auto coerce_opt = check_static_cmp(itl,ltype,rtype,v);
+                if(!coerce_opt)
+                {
+                    return option::none;
+                }
 
                 // within range coerce value type to variable type
-                if(coerce)
+                if(*coerce_opt)
                 {
                     ltype = rtype;
                 }
@@ -328,10 +341,14 @@ Option<Type*> compile_comparison_op(Interloper& itl,Function &func,AstNode *node
                 const u64 v = value_node->value.v;
 
                 
-                const b32 coerce = check_static_cmp(itl,rtype,ltype,v);
+                const auto coerce_opt = check_static_cmp(itl,rtype,ltype,v);
+                if(!coerce_opt)
+                {
+                    return option::none;
+                }
 
                 // within range coerce value type to variable type
-                if(coerce)
+                if(*coerce_opt)
                 {
                     rtype = ltype;
                 }

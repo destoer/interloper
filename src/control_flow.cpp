@@ -526,7 +526,10 @@ dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     const BlockSlot for_block = *for_block_opt;
 
     // compile loop end stmt
-    compile_expression_tmp(itl,func,for_node->post);
+    if(!compile_expression_tmp(itl,func,for_node->post))
+    {
+        return dtr_res::err;
+    }
     
     RegSlot exit_cond;
     const auto exit_res = compile_oper(itl,func,for_node->cond);

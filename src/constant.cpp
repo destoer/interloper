@@ -438,24 +438,22 @@ Option<ConstData> compile_const_expression(Interloper& itl, AstNode* node)
                     const auto name = sym_node->literal;
 
                     auto type_decl_opt = lookup_type(itl,name);
-                    if(!type_decl_opt)
+                    if(!!type_decl_opt)
                     {
-                        return option::none;
+                        TypeDecl* type_decl = *type_decl_opt;
+
+                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
+
+                        auto type_info_opt = access_type_info(itl,*type_decl,member_node->literal);
+                        if(!type_info_opt)
+                        {
+                            return option::none;
+                        }
+
+                        auto [type,ans] = *type_info_opt;
+
+                        return make_const_builtin(ans,type);
                     }
-
-                    TypeDecl* type_decl = *type_decl_opt;
-
-                    LiteralNode* member_node = (LiteralNode*) members->nodes[0];
-
-                    auto type_info_opt = access_type_info(itl,*type_decl,member_node->literal);
-                    if(!type_info_opt)
-                    {
-                        return option::none;
-                    }
-
-                    auto [type,ans] = *type_info_opt;
-
-                    return make_const_builtin(ans,type);
                 }
             }
 

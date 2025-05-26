@@ -102,10 +102,9 @@ int main(int argc, char *argv[])
     }
 
 
-    compile(itl,source_filename,executable_path);
-
-    if(itl.error_count)
+    if(!compile(itl,source_filename,executable_path))
     {
+        puts("NOT OK");
         return 1;
     }
 

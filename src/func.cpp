@@ -126,7 +126,7 @@ dtr_res check_startup_func(Interloper& itl, const String& name, NameSpace* name_
     {
         return dtr_res::err;
     }
-    
+
     return dtr_res::ok;    
 }
 
@@ -1191,7 +1191,6 @@ dtr_res compile_functions(Interloper &itl)
         auto& func = *itl.func_table.used[f];
         if(!compile_function(itl,func))
         {
-            print((AstNode*)func.root);
             return dtr_res::err;
         }
     }

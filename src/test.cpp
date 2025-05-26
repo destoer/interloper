@@ -237,7 +237,7 @@ b32 run_correctness_test(const ProgramCorrectTest& test, Interloper& itl, const 
 
     parse_flags(itl,flags);
 
-    compile(itl,test.name,"./out");
+    (void)compile(itl,test.name,"./out");
 
     printf("%s: ",optimized? "optimized" : "unoptimized");
     
@@ -315,7 +315,7 @@ void run_tests(const char* flags)
             
             const auto &test = PROGRAM_ERROR_TEST[i];
 
-            compile(itl,test.name,"./out");
+            (void)compile(itl,test.name,"./out");
 
             if(itl.first_error_code != test.error)
             {

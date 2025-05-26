@@ -268,16 +268,13 @@ Option<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node,Re
                     const auto name = sym_node->literal;
 
                     auto type_decl_opt = lookup_type(itl,name);
-                    if(!type_decl_opt)
+                    if(!!type_decl_opt)
                     {
-                        return option::none;
+                        TypeDecl* type_decl = *type_decl_opt;
+                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
+
+                        return access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
                     }
-
-                    TypeDecl* type_decl = *type_decl_opt;
-
-                    LiteralNode* member_node = (LiteralNode*) members->nodes[0];
-
-                    return access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
                 }
             }
 
@@ -737,10 +734,17 @@ Option<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node,Re
 
             const auto type_opt = compile_enum(itl,func,scope_node,dst_slot);
 
-            // Enum was found or an error either way we are done here
-            if(!type_opt || !is_void(*type_opt))
+            if(!type_opt)
             {
-                return *type_opt;
+                return option::none;
+            }
+
+            Type* type = *type_opt;
+
+            // We have an actual enum return it
+            if(!is_void(type))
+            {
+                return type;
             }
 
             NameSpace* name_space = scan_namespace(itl.global_namespace,scope_node->scope);
@@ -1789,7 +1793,7 @@ dtr_res parsing(Interloper& itl, const String& initial_filename)
     return dtr_res::ok;
 }
 
-void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
+dtr_res compile(Interloper &itl,const String& initial_filename, const String& executable_path)
 {
     printf("compiling file: %s\n",initial_filename.buf);
 
@@ -1822,7 +1826,7 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     if(!parsing(itl,initial_filename))
     {
         destroy_itl(itl);
-        return;
+        return dtr_res::err;
     }
 
     if(!code_generation(itl))
@@ -1833,7 +1837,7 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
         }
 
         destroy_itl(itl);
-        return;
+        return dtr_res::err;
     }
 
     if(itl.optimise)
@@ -1842,4 +1846,5 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     }
     
     backend(itl,executable_path);
+    return dtr_res::ok;
 }

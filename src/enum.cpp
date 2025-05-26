@@ -335,7 +335,7 @@ Option<Type*> compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node
         case enum_decode_res::invalid_enum:
         case enum_decode_res::invalid_namespace:
         {
-            return option::none;
+            return make_builtin(itl,builtin_type::void_t);
         }
         
         case enum_decode_res::invalid_member:
