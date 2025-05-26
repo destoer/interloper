@@ -1271,7 +1271,7 @@ dtr_res compile_return(Interloper& itl, Function& func, AstNode* line)
 
 dtr_res compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 {
-    enter_new_anon_scope(itl.symbol_table);
+    auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     const u32 size = count(block_node->statements);
     for(u32 s = 0; s < size; s++)
@@ -1494,7 +1494,6 @@ dtr_res compile_block(Interloper &itl,Function &func,BlockNode *block_node)
         }
     }
 
-    destroy_scope(itl.symbol_table);
     return dtr_res::ok;
 }
 

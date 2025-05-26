@@ -1089,7 +1089,7 @@ dtr_res compile_function(Interloper& itl, Function& func)
         
         // put arguments on the symbol table they are marked as args
         // so we know to access them "above" to stack pointer
-        enter_new_anon_scope(itl.symbol_table);
+        auto scope_guard = enter_new_anon_scope(itl.symbol_table);
 
         new_basic_block(itl,func);
         
@@ -1116,8 +1116,6 @@ dtr_res compile_function(Interloper& itl, Function& func)
         {
             return dtr_res::err;
         }
-
-        destroy_scope(itl.symbol_table);
     }
 
     // empty functions get a stub

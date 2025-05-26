@@ -413,7 +413,7 @@ dtr_res compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for
 dtr_res compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
 {
     // scope for any var decls in the stmt
-    enter_new_anon_scope(itl.symbol_table);
+    auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     // check our loop index does not exist
     if(symbol_exists(itl.symbol_table,for_node->name_one))
@@ -453,14 +453,12 @@ dtr_res compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_nod
             return compile_for_range_arr(itl,func,for_node);
         }
     }
-
-    destroy_scope(itl.symbol_table);
 }
 
 dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 {
     // scope for any var decls in the stmt
-    enter_new_anon_scope(itl.symbol_table);
+    auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
 
    // compile the first stmt (ussualy an assign)
 
@@ -549,9 +547,6 @@ dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 
     // emit branch over the loop body in initial block if cond is not met
     emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
-
-    destroy_scope(itl.symbol_table);
-
     return dtr_res::ok;    
 }
 
@@ -824,7 +819,7 @@ dtr_res compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // NOTE: as default is allways the last block it does not need to have a jump to the exit
-        BlockSlot default_block;
+        BlockSlot default_block = {INVALID_BLOCK_HANDLE};
 
 
         // if there is no default then our exit label is the end

@@ -1,9 +1,10 @@
 #include <interloper.h>
 #include "type.cpp"
 
-void enter_new_anon_scope(SymbolTable& sym_table)
+SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table)
 {
     sym_table.ctx->name_space = new_anon_scope(*sym_table.namespace_allocator,sym_table.ctx->name_space);
+    return SymbolScopeGuard(sym_table);
 }
 
 void destroy_scope(SymbolTable &sym_table)

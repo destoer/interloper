@@ -605,12 +605,12 @@ Option<std::tuple<Type*,AddrSlot>> compute_member_addr(Interloper& itl, Function
                 return option::none;
             }
 
-            auto [struct_type, addr_slot] = *index_opt;
+            auto [struct_type_index, addr_slot] = *index_opt;
 
             struct_slot = make_addr(addr_slot,0);
 
             // we return types in here as the accessed type
-            struct_type = deref_pointer(struct_type);
+            struct_type = deref_pointer(struct_type_index);
             break;
         }
 
@@ -740,12 +740,12 @@ Option<std::tuple<Type*,AddrSlot>> compute_member_addr(Interloper& itl, Function
                     return option::none;
                 }
 
-                auto [struct_type, addr_slot] = *index_opt;
+                auto [struct_type_index, addr_slot] = *index_opt;
 
                 struct_slot = make_addr(addr_slot,0);
 
                 // deref of pointer
-                struct_type = deref_pointer(struct_type);
+                struct_type = deref_pointer(struct_type_index);
                 break;
             }
 
