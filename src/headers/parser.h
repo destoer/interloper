@@ -297,6 +297,7 @@ enum class [[nodiscard]] parse_error
     invalid_consume,
     invalid_lbp,
     unexpected_token,
+    invalid_terminator,
     itl_error,
 };
 
@@ -746,16 +747,16 @@ ParserResult ast_binary(Parser& parser,ParserResult l_res, ParserResult r_res, a
     return (AstNode*)bin_node;  
 }
 
-Option<AstNode*> ast_unary(Parser& parser,Option<AstNode*> next_opt, ast_type type, const Token& token)
+ParserResult ast_unary(Parser& parser,ParserResult next_res, ast_type type, const Token& token)
 {
-    if(!next_opt)
+    if(!next_res)
     {
-        return option::none;
+        return next_res;
     }
 
     UnaryNode* unary_node = alloc_node<UnaryNode>(parser,type,ast_fmt::unary,token);
 
-    unary_node->next = *next_opt;
+    unary_node->next = *next_res;
 
     return (AstNode*)unary_node;  
 }
@@ -1015,8 +1016,8 @@ bool match(Parser &parser,token_type type);
 void consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-Option<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t);
+ParserResult func_call(Parser& parser,AstNode *expr, const Token& t);
 Option<AstNode*> arr_access(Parser& parser, const Token& t);
 Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 Option<AstNode*> array_index(Parser& parser,const Token& t);
-Option<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call = false);
+ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call = false);

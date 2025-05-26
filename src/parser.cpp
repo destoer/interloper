@@ -100,7 +100,7 @@ builtin_type builtin_type_from_tok(const Token& tok)
     return builtin_type(s32(tok.type) - s32(token_type::u8));
 }
 
-Option<TypeNode*> parse_type(Parser &parser, b32 allow_fail)
+ParserResult parse_type(Parser &parser, b32 allow_fail)
 {
     // parse out any specifiers
     auto specifier = peek(parser,0);
@@ -688,7 +688,7 @@ Option<AstNode*> arr_access(Parser& parser, const Token& t)
     }
 }
 
-Option<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call)
+ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
 {
     const Token next = peek(parser,0);
 
@@ -737,7 +737,7 @@ Option<AstNode*> var(Parser& parser, const Token& sym_tok, b32 allow_call)
     return node;
 }
 
-Option<AstNode*> func_call(Parser& parser,AstNode *expr, const Token& t)
+ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 {
     consume(parser,token_type::left_paren);
 
@@ -1930,7 +1930,7 @@ dtr_res parse_directive(Interloper& itl,Parser& parser)
     return dtr_res::ok;
 }
 
-Option<Array<String>> split_namespace_internal(Parser& parser, const Token& start, bool full_namespace)
+Result<Array<String>,parse_error> split_namespace_internal(Parser& parser, const Token& start, bool full_namespace)
 {
     Array<String> name_space;
 
@@ -1940,9 +1940,9 @@ Option<Array<String>> split_namespace_internal(Parser& parser, const Token& star
 
         if(name.type != token_type::symbol)
         {
-            parser_error(parser,name,"Expected name for namespace got: %s\n",tok_name(name.type));
+            const auto res = parser_error(parser,name,"Expected name for namespace got: %s\n",tok_name(name.type));
             destroy_arr(name_space);
-            return option::none;
+            return res;
         }   
 
         push_var(name_space,name.literal);
@@ -1967,19 +1967,18 @@ Option<Array<String>> split_namespace_internal(Parser& parser, const Token& star
 done:
     if(count(name_space) == 0)
     {
-        parser_error(parser,start,"Namespace is empty");
-        return option::none;
+        return parser_error(parser,start,"Namespace is empty");
     }
 
     return name_space;
 }
 
-Option<Array<String>> split_namespace(Parser& parser, const Token& start)
+Result<Array<String>,parse_error> split_namespace(Parser& parser, const Token& start)
 {
     return split_namespace_internal(parser,start,false);
 }
 
-Option<Array<String>> split_full_namespace(Parser& parser, const Token& start)
+Result<Array<String>,parse_error>  split_full_namespace(Parser& parser, const Token& start)
 {
     return split_namespace_internal(parser,start,true);
 }
