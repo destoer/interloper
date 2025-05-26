@@ -154,7 +154,13 @@ std::optional<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *
         {
             const auto reg = make_spec_reg_slot(REG_ARGS[arg-1]);
             lock_reg(itl,func,reg);
-            const auto type = compile_expression(itl,func,func_call->args[arg],reg);
+            const auto type_opt = compile_expression(itl,func,func_call->args[arg],reg);
+            if(!type_opt)
+            {
+                return std::nullopt;
+            }
+
+            const Type* type = *type_opt;
 
             if(!is_trivial_copy(type))
             {

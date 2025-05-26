@@ -1,6 +1,6 @@
 // NOTE: pass umod or udiv and it will figure out the correct one
 template<const op_type type>
-Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
+std::optional<Type*> compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     static_assert(
         type == op_type::add_reg || type == op_type::sub_reg || type == op_type::mul_reg ||
@@ -12,8 +12,16 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst
 
     BinNode* bin_node = (BinNode*)node;
 
-    const auto [t1,v1] = compile_oper(itl,func,bin_node->left);
-    const auto [t2,v2] = compile_oper(itl,func,bin_node->right);
+    const auto left_res = compile_oper(itl,func,bin_node->left);
+    const auto right_res = compile_oper(itl,func,bin_node->right);
+
+    if(!left_res || !right_res)
+    {
+        return std::nullopt;
+    }
+
+    const auto [t1,v1] = *left_res;
+    const auto [t2,v2] = *right_res;
 
     // pointer arith adds the size of the underlying type
     if(is_pointer(t1) && is_integer(t2) && (type == op_type::add_reg || type == op_type::sub_reg))
@@ -62,8 +70,8 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst
 
             default:
             {
-                panic(itl,itl_error::invalid_expr,"operation is not defined for floats");
-                return make_builtin(itl,builtin_type::void_t);
+                compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
+                return std::nullopt;
             }
         }
     }
@@ -106,8 +114,9 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst
 
     else
     {
-        panic(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
-        return make_builtin(itl,builtin_type::void_t);
+        compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %s and %s\n",
+            type_name(itl,t1).buf,type_name(itl,t2).buf);
+        return std::nullopt;
     }
 
     // produce effective type
@@ -118,19 +127,25 @@ Type* compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst
 
 
 
-Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, RegSlot dst_slot)
+std::optional<Type*> compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, RegSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
-    const auto [t1,v1] = compile_oper(itl,func,bin_node->left);
-    const auto [t2,v2] = compile_oper(itl,func,bin_node->right);
+    const auto left_res = compile_oper(itl,func,bin_node->left);
+    const auto right_res = compile_oper(itl,func,bin_node->right);
+    if(!left_res || !right_res)
+    {
+        return std::nullopt;
+    }
+
+    const auto [t1,v1] = *left_res;
+    const auto [t2,v2] = *right_res;
 
     if(!(is_integer(t1) && is_integer(t2)))
     {
-        panic(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
-        return make_builtin(itl,builtin_type::void_t);
+        compile_error(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
+        return std::nullopt;
     }
-
 
 
     if(right)
@@ -158,7 +173,7 @@ Type* compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, Reg
 }
 
 
-b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v)
+std::optional<b32> check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v)
 {
     // unsigned value against signed value
     // if one side is signed and the other unsigned
@@ -175,7 +190,8 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v
 
         else
         {
-            panic(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            return std::nullopt;
         }
     }
 
@@ -184,7 +200,8 @@ b32 check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v
     {
         if(builtin_size(cast_builtin(value)) > builtin_size(cast_builtin(oper)))
         {
-            panic(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            return std::nullopt;
         }
     }
 
@@ -270,12 +287,20 @@ Type* compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, Reg
 
 // handles <, <=, >, >=, ==, !=
 template<const comparison_op type>
-Type* compile_comparison_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
+std::optional<Type*> compile_comparison_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
-    auto [ltype,v1] = compile_oper(itl,func,bin_node->left);
-    auto [rtype,v2] = compile_oper(itl,func,bin_node->right);
+    auto left_res = compile_oper(itl,func,bin_node->left);
+    auto right_res = compile_oper(itl,func,bin_node->right);
+
+    if(!left_res || !right_res)
+    {
+        return std::nullopt;
+    }
+
+    auto [ltype,v1] = *left_res;
+    auto [rtype,v2] = *right_res;
 
     // if one side is a value do type checking
     if(is_integer(ltype) && is_integer(rtype))
@@ -371,7 +396,7 @@ Type* compile_comparison_op(Interloper& itl,Function &func,AstNode *node, RegSlo
 
 //  we dont want the 2nd stage IR handling how things need to be copied
 // as it does not have the information required easily accessible
-void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type)
+dtr_res compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type)
 {
     // check the operation is even legal
 
@@ -447,7 +472,10 @@ void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src
                 const auto src_addr = make_struct_addr(src_slot,0);
                 const auto dst_addr = make_struct_addr(dst_slot,0);
 
-                ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
+                if(!ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type)))
+                {
+                    return dtr_res::err;
+                }
                 break;
             }
 
@@ -461,7 +489,10 @@ void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src
                         const auto src_addr = make_struct_addr(src_slot,0);
                         const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
 
-                        ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type));
+                        if(!ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst_type)))
+                        {
+                            return dtr_res::err;
+                        }
                         break;
                     }
 
@@ -476,11 +507,13 @@ void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src
     {
         assert(false);
     }
+
+    return dtr_res::ok;
 }
 
 
 // TODO: should we make this more flexible?
-std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
+std::optional<std::pair<Type*,RegSlot>> take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 {
     NameSpace* name_space = nullptr;
 
@@ -491,8 +524,8 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
 
         if(!name_space)
         {
-            panic(itl,itl_error::undeclared,"Could not find namespace\n");
-            return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
+            compile_error(itl,itl_error::undeclared,"Could not find namespace\n");
+            return std::nullopt;
         }
 
         node = scope_node->expr;
@@ -526,16 +559,16 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
                     auto& func_call = *func_call_opt;
 
                     FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,type_class::func_pointer_t,true);
-                    type->sig = func_call.sig;
+                    type->sig = func_call->sig;
 
-                    load_func_addr(itl,func,slot,func_call.label_slot);
+                    load_func_addr(itl,func,slot,func_call->label_slot);
                     
                     return std::pair{(Type*)type,slot};
                 }
                 
                 // nothing found!
-                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration in addr\n",name.buf);
-                return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
+                compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration in addr\n",name.buf);
+                return std::nullopt;
             }
 
             // get addr on symbol
@@ -545,8 +578,8 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
 
             if(is_fixed_array(sym.type))
             {
-                panic(itl,itl_error::array_type_error,"[COMPILE]: cannot take pointer to fixed sized array\n");
-                return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
+                compile_error(itl,itl_error::array_type_error,"[COMPILE]: cannot take pointer to fixed sized array\n");
+                return std::nullopt;
             }
 
             Type* pointer_type = make_reference(itl,sym.type);
@@ -563,7 +596,13 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
 
         case ast_type::access_struct:
         {
-            auto [type,ptr_slot] = compute_member_ptr(itl,func,node);
+            auto res = compute_member_ptr(itl,func,node);
+            if(!res)
+            {
+                return std::nullopt;
+            }
+
+            auto [type,ptr_slot] = *res;
 
             // make sure this ptr goes into the dst slot
             mov_reg(itl,func,slot,ptr_slot);
@@ -579,16 +618,22 @@ std::pair<Type*,RegSlot> take_addr(Interloper &itl,Function &func,AstNode *node,
     }
 }
 
-std::pair<Type*,RegSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node)
+std::optional<std::pair<Type*,RegSlot>> take_pointer(Interloper& itl,Function& func, AstNode* deref_node)
 {
-    const auto [ptr_type,slot] = compile_oper(itl,func,deref_node);
+    const auto res = compile_oper(itl,func,deref_node);
+    if(!res)
+    {
+        return std::nullopt;
+    }
+
+    const auto [ptr_type,slot] = *res;
 
     // make sure we actually have pointer
     if(!is_pointer(ptr_type))
     {
-        panic(itl,itl_error::pointer_type_error,"Expected pointer got: %s\n",type_name(itl,ptr_type));
-        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
+        compile_error(itl,itl_error::pointer_type_error,"Expected pointer got: %s\n",type_name(itl,ptr_type));
+        return std::nullopt;
     }
 
-    return {ptr_type,slot};
+    return std::pair{ptr_type,slot};
 }

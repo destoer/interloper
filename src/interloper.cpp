@@ -1,21 +1,21 @@
 #include <interloper.h>
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
-std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
+std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+std::optional<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
 dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 dtr_res compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
 void compile_block(Interloper &itl,Function &func,BlockNode *node);
 BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
-std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
+std::optional<std::pair<Type*,RegSlot>> compile_oper(Interloper& itl,Function &func,AstNode *node);
 
 std::optional<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 dtr_res traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
 std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, RegSlot ptr_slot, RegSlot dst_slot);
 
-void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
-std::pair<Type*,RegSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
+dtr_res compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
+std::optional<std::pair<Type*,RegSlot>> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
@@ -121,7 +121,7 @@ Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
-std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node)
+std::optional<std::pair<Type*,RegSlot>> compile_oper(Interloper& itl,Function &func,AstNode *node)
 {
     if(!node)
     {
@@ -189,7 +189,7 @@ Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, 
     }
 }
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
+std::optional<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)
     {
@@ -788,7 +788,7 @@ dtr_res compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     }
 }
 
-std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
+std::optional<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
     // assume a size then refine it with expr result
     const RegSlot dst_slot = new_tmp(func,GPR_SIZE);

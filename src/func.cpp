@@ -320,7 +320,14 @@ dtr_res push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* 
 
             else
             {
-                auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
+                auto res = compile_oper(itl,func,call_node->args[arg_idx]);
+
+                if(!res)
+                {
+                    return dtr_res::err;
+                }
+
+                auto [rtype,reg] = *res;
 
                 if(!check_assign_arg(itl,arg_type,rtype))
                 {
@@ -353,7 +360,14 @@ dtr_res push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* 
         {
            const auto structure = struct_from_type(itl.struct_table,arg_type);
 
-            const auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
+            const auto res = compile_oper(itl,func,call_node->args[arg_idx]);
+            if(!res)
+            {
+                return dtr_res::err;
+            }
+
+            auto [rtype,reg] = *res;
+
             if(!check_assign_arg(itl,arg_type,rtype))
             {
                 return dtr_res::err;
@@ -382,7 +396,13 @@ dtr_res push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* 
         // plain builtin in variable
         else
         {
-            const auto [rtype,reg] = compile_oper(itl,func,call_node->args[arg_idx]);
+            const auto res = compile_oper(itl,func,call_node->args[arg_idx]);
+            if(!res)
+            {
+                return dtr_res::err;
+            }
+
+            const auto [rtype,reg] = *res;
 
             // type check the arg
             if(!check_assign_arg(itl,arg_type,rtype))
@@ -528,7 +548,13 @@ dtr_res push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAs
                 {
                     UnaryNode* deref_node = (UnaryNode*)var_node;
 
-                    const auto [ptr_type,ptr_slot] = take_pointer(itl,func,deref_node->next);
+                    const auto res = take_pointer(itl,func,deref_node->next);
+                    if(!res)
+                    {
+                        return dtr_res::err;
+                    }
+
+                    const auto [ptr_type,ptr_slot] = *res;
 
                     pass_arg(itl,func,pass,ptr_slot,(Type*)ptr_type,a);
                     break;                     
@@ -613,7 +639,7 @@ struct FuncCall
     b32 func_pointer = false;
 };
 
-Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, RegSlot dst_slot, u32 arg_clean)
+std::optional<Type*> handle_call(Interloper& itl, Function& func, const FuncCall& call_info, RegSlot dst_slot, u32 arg_clean)
 {
     auto& sig = call_info.sig;
 
@@ -652,7 +678,10 @@ Type* handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Re
     if(returns_value && !is_special_reg(dst_slot,spec_reg::null) && !sig.hidden_args)
     {
         const RegSlot rv = make_spec_reg_slot(return_reg_from_type(sig.return_type[0]));
-        compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]);
+        if(!compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]))
+        {
+            return std::nullopt;
+        }
     }
 
     unlock_reg_set(itl,func,sig.locked_set);
@@ -756,7 +785,13 @@ std::optional<FuncCall> get_calling_sig(Interloper& itl,NameSpace* name_space,Fu
     // is an expression
     else 
     {
-        auto [type, slot] = compile_oper(itl,func,expr);
+        auto res = compile_oper(itl,func,expr);
+        if(!res)
+        {
+            return std::nullopt;
+        }
+
+        auto [type, slot] = *res;
 
         if(!is_func_pointer(type))
         {

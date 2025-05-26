@@ -891,7 +891,14 @@ dtr_res traverse_struct_initializer(Interloper& itl, Function& func, RecordNode*
         else
         {
             // get the operand and type check it
-            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i]);
+            const auto res = compile_oper(itl,func,node->nodes[i]);
+            if(!res)
+            {
+                return dtr_res::err;
+            }
+
+            const auto [rtype,slot] = *res;
+
             if(!check_assign(itl,member.type,rtype))
             {
                 return dtr_res::err;
@@ -943,7 +950,14 @@ dtr_res compile_struct_decl_default(Interloper& itl, Function& func, const Struc
 
                 default: 
                 {
-                    const auto [rtype,slot] = compile_oper(itl,func,member.expr);
+                    const auto res = compile_oper(itl,func,member.expr);
+                    if(!res)
+                    {
+                        return dtr_res::err;
+                    }
+
+                    const auto [rtype,slot] = *res;
+
                     if(!check_assign_init(itl,member.type,rtype))
                     {
                         pop_context(itl);
@@ -1035,8 +1049,13 @@ dtr_res compile_struct_decl(Interloper& itl, Function& func, const DeclNode *dec
 
             default:
             {
-                const auto rtype = compile_expression(itl,func,decl_node->expr,reg_slot);
-                return check_assign_init(itl,ltype,rtype); 
+                const auto rtype_opt = compile_expression(itl,func,decl_node->expr,reg_slot);
+                if(!rtype_opt)
+                {
+                    return dtr_res::err;
+                }
+
+                return check_assign_init(itl,ltype,*rtype_opt); 
             }
         }
     }

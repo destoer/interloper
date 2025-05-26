@@ -15,7 +15,14 @@ std::optional<std::pair<Type*,RegSlot>> index_pointer(Interloper& itl,Function& 
 
     const u32 size = type_size(itl,plain);
 
-    const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[0]);
+    const auto res = compile_oper(itl,func,index_node->indexes[0]);
+    if(!res)
+    {
+        return std::nullopt;
+    }
+    
+    auto [subscript_type,subscript_slot] = *res;
+
     if(!is_integer(subscript_type))
     {
         compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
@@ -51,7 +58,14 @@ std::optional<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Func
     for(u32 i = 0; i < indexes; i++)
     {
 
-        const auto [subscript_type,subscript_slot] = compile_oper(itl,func,index_node->indexes[i]);
+        const auto res = compile_oper(itl,func,index_node->indexes[i]);
+        if(!res)
+        {
+            return std::nullopt;
+        }
+
+        const auto [subscript_type,subscript_slot] = *res;
+
         if(!is_integer(subscript_type))
         {
             compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
@@ -319,7 +333,14 @@ dtr_res assign_vla_initializer(Interloper& itl, Function& func, RecordNode* list
         return dtr_res::err;
     }
 
-    const auto [ptr_type,ptr_slot] = compile_oper(itl,func,list->nodes[0]);
+    const auto data_res = compile_oper(itl,func,list->nodes[0]);
+    if(!data_res)
+    {
+        return dtr_res::err;
+    }
+
+    const auto [ptr_type,ptr_slot] = *data_res;
+
     if(!check_assign(itl,make_reference(itl,type->contained_type),ptr_type))
     {
         return dtr_res::err;
@@ -328,7 +349,14 @@ dtr_res assign_vla_initializer(Interloper& itl, Function& func, RecordNode* list
     store_addr_slot(itl,func,ptr_slot,*addr_slot,GPR_SIZE,false);
     addr_slot->offset += GPR_SIZE;
 
-    const auto [size_type,size_slot] = compile_oper(itl,func,list->nodes[1]);
+    const auto len_res = compile_oper(itl,func,list->nodes[1]);
+    if(!len_res)
+    {
+        return dtr_res::err;
+    }
+
+    const auto [size_type,size_slot] = *len_res;
+
     if(!check_assign(itl,make_builtin(itl,GPR_SIZE_TYPE),size_type))
     {
         return dtr_res::err;
@@ -469,7 +497,14 @@ dtr_res traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordN
                 // allready finished struct
                 else
                 {
-                    auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
+                    auto res = compile_oper(itl,func,list->nodes[i]);
+                    if(!res)
+                    {
+                        return dtr_res::err;
+                    }
+
+                    auto [rtype,reg] = *res;
+
                     if(!check_assign_init(itl,base_type,rtype))
                     {
                         return dtr_res::err;
@@ -490,7 +525,14 @@ dtr_res traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordN
         {
             for(u32 i = 0; i < node_len; i++)
             {
-                auto [rtype,reg] = compile_oper(itl,func,list->nodes[i]);
+                auto res = compile_oper(itl,func,list->nodes[i]);
+                if(!res)
+                {
+                    return dtr_res::err;
+                }
+
+                auto [rtype,reg] = *res;
+
                 if(!check_assign_init(itl,base_type,rtype))
                 {
                     return dtr_res::err;
@@ -655,15 +697,20 @@ dtr_res compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const
         default:
         {
             // compile expr
-            auto [rtype,slot] = compile_oper(itl,func,node);
-              
+            auto res = compile_oper(itl,func,node);
+            if(!res)
+            {
+                return dtr_res::err;
+            }
+
+            auto [rtype,slot] = *res;
+
             if(!check_assign_init(itl,type,rtype))
             {
                 return dtr_res::err;
             }
             
-            compile_move(itl,func,arr_slot,slot,type,rtype);
-            return dtr_res::ok;
+            return compile_move(itl,func,arr_slot,slot,type,rtype);
         }
     }
 }
@@ -852,7 +899,14 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
     // Lower is populated add to data
     if(slice_node->lower)
     {
-        const auto [index_type,index_slot] = compile_oper(itl,func,slice_node->lower);
+        const auto res = compile_oper(itl,func,slice_node->lower);
+        if(!res)
+        {
+            return std::nullopt;
+        }
+
+        const auto [index_type,index_slot] = *res;
+
         slice_lower = index_slot;
 
         if(!is_integer(index_type))
@@ -872,7 +926,13 @@ std::optional<Type*> slice_array(Interloper& itl, Function& func,SliceNode* slic
     // Upper is populated set the length
     if(slice_node->upper)
     {
-        const auto [t2,v2] = compile_oper(itl,func,slice_node->upper);
+        const auto res = compile_oper(itl,func,slice_node->upper);
+        if(!res)
+        {
+            return std::nullopt;
+        }
+
+        const auto [t2,v2] = *res;
 
         if(!is_integer(t2))
         {

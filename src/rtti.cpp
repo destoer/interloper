@@ -466,7 +466,14 @@ dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node,
     else
     {
         // compile our arg and figure out what we have
-        auto [arg_type,reg] = compile_oper(itl,func,arg_node);
+        auto res = compile_oper(itl,func,arg_node);
+
+        if(!res)
+        {
+            return dtr_res::err;
+        }
+
+        auto [arg_type,reg] = *res;
 
         // is allready an any just copy the struct
         if(is_any(itl,arg_type))

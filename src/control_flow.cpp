@@ -12,7 +12,13 @@ dtr_res compile_if_block(Interloper &itl,Function &func,AstNode *node)
         BinNode* if_stmt = (BinNode*)if_block->statements[n];
 
         // compile the compare expr if conditon
-        auto [type,reg] = compile_oper(itl,func,if_stmt->left);
+        auto res = compile_oper(itl,func,if_stmt->left);
+        if(!res)
+        {
+            return dtr_res::err;
+        }
+
+        auto [type,reg] = *res;
 
         // integer or pointer is fine check they aernt zero as a shorthand
         if(is_integer(type) || is_pointer(type))
@@ -99,7 +105,14 @@ dtr_res compile_while_block(Interloper &itl,Function &func,AstNode *node)
     BinNode* while_node = (BinNode*)node;
 
     // compile cond
-    auto [cond_type,entry_cond] = compile_oper(itl,func,while_node->left);
+    auto entry_res = compile_oper(itl,func,while_node->left);
+    if(!entry_res)
+    {
+        return dtr_res::err;
+    }
+
+    auto [cond_type,entry_cond] = *entry_res;
+
     const BlockSlot initial_block = cur_block(func);
 
     // integer or pointer, check not zero
@@ -119,7 +132,13 @@ dtr_res compile_while_block(Interloper &itl,Function &func,AstNode *node)
     const BlockSlot while_block = compile_basic_block(itl,func,(BlockNode*)while_node->right); 
 
     RegSlot exit_cond;
-    std::tie(std::ignore,exit_cond) = compile_oper(itl,func,while_node->left);
+    auto exit_res = compile_oper(itl,func,while_node->left);
+    if(!exit_res)
+    {
+        return dtr_res::err;
+    }
+
+    std::tie(std::ignore,exit_cond) = exit_res.value();
 
     // integer or pointer, check not zero
     if(is_integer(cond_type) || is_pointer(cond_type))
@@ -148,7 +167,13 @@ dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for
 
     // grab end
     // NOTE: we need to regrab this later incase it is not a const
-    const auto [entry_end_type,entry_end] = compile_oper(itl,func,cmp_node->right);
+    const auto entry_res = compile_oper(itl,func,cmp_node->right);
+    if(!entry_res)
+    {
+        return dtr_res::err;
+    }
+
+    const auto [entry_end_type,entry_end] = *entry_res;
 
     // make index the same sign as the end stmt
     const auto& sym = add_symbol(itl,for_node->name_one,make_builtin(itl,inc? builtin_type::u32_t : builtin_type::s32_t)); 
@@ -156,7 +181,13 @@ dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for
     const RegSlot index = sym.reg.slot;
 
     // grab initalizer
-    const auto entry_init_type = compile_expression(itl,func,cmp_node->left,index);
+    const auto entry_init_type_opt = compile_expression(itl,func,cmp_node->left,index);
+    if(!entry_init_type_opt)
+    {
+        return dtr_res::err;
+    }
+
+    const Type* entry_init_type = *entry_init_type_opt;
 
     if(!is_integer(entry_init_type) || !is_integer(entry_end_type))
     {
@@ -187,7 +218,13 @@ dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for
     const BlockSlot end_block = cur_block(func);
 
     // regrab end
-    const auto [exit_end_type,exit_end] = compile_oper(itl,func,cmp_node->right);
+    const auto exit_res = compile_oper(itl,func,cmp_node->right);
+    if(!exit_res)
+    {
+        return dtr_res::err;
+    }
+
+    const auto [exit_end_type,exit_end] = *exit_res;
 
     RegSlot exit_cond = new_tmp(func,GPR_SIZE);
     emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index,exit_end);
@@ -206,7 +243,13 @@ dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for
 
 dtr_res compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
 {
-    const auto [type, arr_slot] = compile_expression_tmp(itl,func,for_node->cond);
+    const auto entry_res = compile_expression_tmp(itl,func,for_node->cond);
+    if(!entry_res)
+    {
+        return dtr_res::err;
+    }
+
+    const auto [type, arr_slot] = *entry_res;
 
     if(!is_array(type))
     {
@@ -428,7 +471,14 @@ dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     }
 
     // compile cond for entry and check it is a bool
-    const auto [cond_type,entry_cond] = compile_oper(itl,func,for_node->cond);
+    const auto entry_res = compile_oper(itl,func,for_node->cond);
+    if(!entry_res)
+    {
+        return dtr_res::err;
+    }
+
+    const auto [cond_type,entry_cond] = *entry_res;
+
     const BlockSlot initial_block = cur_block(func);
   
     if(!is_bool(cond_type))
@@ -445,7 +495,14 @@ dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     compile_expression_tmp(itl,func,for_node->post);
     
     RegSlot exit_cond;
-    std::tie(std::ignore,exit_cond) = compile_oper(itl,func,for_node->cond);
+    const auto exit_res = compile_oper(itl,func,for_node->cond);
+    if(!exit_res)
+    {
+        return dtr_res::err;
+    }
+
+    std::tie(std::ignore,exit_cond) = exit_res.value();
+
     const BlockSlot end_block = cur_block(func);
 
 
@@ -627,7 +684,13 @@ dtr_res compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // compile the actual switch expr
-        const auto [rtype,expr_slot] = compile_oper(itl,func,switch_node->expr);
+        const auto switch_res = compile_oper(itl,func,switch_node->expr);
+        if(!switch_res)
+        {
+            return dtr_res::err;
+        }
+
+        const auto [rtype,expr_slot] = *switch_res;
 
         // type check the switch stmt
         switch(switch_type)
