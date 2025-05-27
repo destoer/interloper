@@ -6,7 +6,7 @@ Result<std::pair<AstNode*,b32>,parse_error> expr_list_in_expr(Parser& parser,Exp
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
-ParserResult parse_type(Parser &parser, b32 allow_fail = false);
+Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail = false);
 Result<Array<String>,parse_error> split_namespace(Parser& parser, const Token& start);
 
 void next_expr_token(Parser& parser,ExprCtx& ctx)
@@ -342,7 +342,7 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
 
     if(!type_res)
     {
-        return type_res;
+        return propagate_error<AstNode*>(type_res);
     }
 
     // correct our state machine
@@ -354,7 +354,7 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
         return *consume_right_paren_err;
     }
 
-    return ast_type_operator((TypeNode*)type_res.value(),kind);   
+    return ast_type_operator(type_res.value(),kind);   
 }
 
 ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_type)
@@ -373,10 +373,10 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type ca
 
     if(!type_res)
     {
-        return type_res;
+        return propagate_error<AstNode*>(type_res);
     }
 
-    AstNode* type = *type_res;
+    AstNode* type = (AstNode*)type_res.value();
     
     // correct our state machine
     // NOTE: we bypass the normal function here because commas require special handling

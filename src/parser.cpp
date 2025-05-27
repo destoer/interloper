@@ -5,7 +5,7 @@
 Option<BlockNode*> block(Parser &parser);
 Option<AstNode*> block_ast(Parser &parser);
 
-Option<FuncNode*> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
+Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
 static constexpr u32 ATTR_FLAG = (1 << 1);
@@ -70,14 +70,14 @@ Token peek(Parser &parser,u32 v)
 
 
 
-void consume(Parser &parser,token_type type)
+Option<parse_error> consume(Parser &parser,token_type type)
 {
     const auto t = parser.tok_idx >= count(parser.tokens)? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     if(t != type)
     {
         const auto tok = next_token(parser);
-        parser_error(parser,tok,"expected '%s' got %s\n", tok_name(type),tok_name(t));
+        return parser_error(parser,parse_error::unexpected_token,tok,"expected '%s' got %s\n", tok_name(type),tok_name(t));
     }
     parser.tok_idx += 1;
 }
@@ -100,7 +100,7 @@ builtin_type builtin_type_from_tok(const Token& tok)
     return builtin_type(s32(tok.type) - s32(token_type::u8));
 }
 
-ParserResult parse_type(Parser &parser, b32 allow_fail)
+Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
 {
     // parse out any specifiers
     auto specifier = peek(parser,0);
@@ -138,14 +138,14 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
     // We have a namespace to parse
     if(peek(parser,1).type == token_type::scope)
     {
-        auto strings_opt = split_namespace(parser,peek(parser,0));
+        auto strings_res = split_namespace(parser,peek(parser,0));
 
-        if(!strings_opt)
+        if(!strings_res)
         {
-            return option::none;
+            return propagate_error<TypeNode*>(strings_res);
         }
 
-        auto strings = *strings_opt;
+        auto strings = *strings_res;
 
         name_space = scan_namespace(parser.global_namespace,strings);
 
@@ -174,8 +174,7 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
 
         if(!allow_fail && builtin == builtin_type::null_t)
         {
-            parser_error(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
-            return option::none;
+            return parser_error(parser,parse_error::unexpected_token,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
         }
 
         type->name = TYPE_NAMES[u32(builtin)];
@@ -189,13 +188,13 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
         TypeNode* type = (TypeNode*)ast_type_decl(parser,nullptr,"func_pointer",plain_tok);
         type->kind = type_node_kind::func_pointer;
 
-        auto sig_opt = parse_func_sig(parser,"func_pointer",plain_tok);
-        if(!sig_opt)
+        auto sig_res = parse_func_sig(parser,"func_pointer",plain_tok);
+        if(!sig_res)
         {
-            return option::none;
+            return propagate_error<TypeNode*>(sig_res);
         }
 
-        type->func_type = *sig_opt; 
+        type->func_type = *sig_res; 
         return type;
     }
 
@@ -208,8 +207,7 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
 
     else
     {
-        parser_error(parser,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
-        return option::none;
+        return parser_error(parser,parse_error::unexpected_token,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
     }    
 
     b32 quit = false;
@@ -222,7 +220,11 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
             // pointer decl
             case token_type::deref:
             {
-                consume(parser,token_type::deref);
+                const auto err = consume(parser,token_type::deref);
+                if(!!err)
+                {
+                    return *err;
+                }
 
                 push_var(type->compound_type,ast_plain(parser,ast_type::ptr_indirection,plain_tok));
                 break;
@@ -231,7 +233,11 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
             // Nullable pointer decl
             case token_type::qmark:
             {
-                consume(parser,token_type::qmark);
+                const auto err = consume(parser,token_type::qmark);
+                if(!!err)
+                {
+                    return *err;
+                }
 
                 push_var(type->compound_type,ast_plain(parser,ast_type::nullable_ptr_indirection,plain_tok));
                 break;
@@ -243,13 +249,21 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
             {
                 while(peek(parser,0).type == token_type::sl_brace)
                 {
-                    consume(parser,token_type::sl_brace);
+                    const auto err = consume(parser,token_type::sl_brace);
+                    if(!!err)
+                    {
+                        return *err;
+                    }
 
                     // var size
                     if(peek(parser,0).type == token_type::sr_brace)
                     {
                         push_var(type->compound_type,ast_plain(parser,ast_type::arr_var_size,plain_tok));
-                        consume(parser,token_type::sr_brace);
+                        const auto err = consume(parser,token_type::sr_brace);
+                        if(!!err)
+                        {
+                            return *err;
+                        }
                     }
 
                     else 
@@ -257,24 +271,32 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
                         // figure out this size later
                         if(peek(parser,0).type == token_type::qmark)
                         {
-                            consume(parser,token_type::qmark);
+                            const auto qmark_err = consume(parser,token_type::qmark);
+                            if(!!qmark_err)
+                            {
+                                return *qmark_err;
+                            }
 
                             const auto e = ast_plain(parser,ast_type::arr_deduce_size,plain_tok);
                             push_var(type->compound_type,e);
                         
-                            consume(parser,token_type::sr_brace);
+                            const auto sr_err = consume(parser,token_type::sr_brace);
+                            if(!!sr_err)
+                            {
+                                return *sr_err;
+                            }
                         }
 
                         else
                         {
-                            auto e_opt = ast_unary(parser,expr_terminate(parser,"array declaration",token_type::sr_brace), ast_type::arr_fixed, plain_tok);
+                            auto e_res = ast_unary(parser,expr_terminate(parser,"array declaration",token_type::sr_brace), ast_type::arr_fixed, plain_tok);
 
-                            if(!e_opt)
+                            if(!e_res)
                             {
-                                return option::none;
+                                return propagate_error<TypeNode*>(e_res);
                             }
 
-                            push_var(type->compound_type,*e_opt);
+                            push_var(type->compound_type,*e_res);
                         }
                     }
                 }
@@ -296,7 +318,7 @@ ParserResult parse_type(Parser &parser, b32 allow_fail)
 
 
 
-Option<AstNode*> declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
+ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
 {
     // declartion
     // symbol ':' type ( ';' | '=' expression ';')
@@ -305,21 +327,23 @@ Option<AstNode*> declaration(Parser &parser, token_type terminator, b32 is_const
 
     if(s.type != token_type::symbol)
     {
-        parser_error(parser,s,"declartion expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
-        return option::none;
+        return parser_error(parser,parse_error::unexpected_token,s,"declartion expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
     }
 
-    consume(parser,token_type::colon);
-
-
-    auto type_opt = parse_type(parser);
-
-    if(!type_opt)
+    const auto colon_err = consume(parser,token_type::colon);
+    if(!!colon_err)
     {
-        return option::none;
+        return *colon_err;
     }
 
-    TypeNode* type = *type_opt;
+    auto type_res = parse_type(parser);
+
+    if(!type_res)
+    {
+        return propagate_error<AstNode*>(type_res);
+    }
+
+    TypeNode* type = *type_res;
 
     //    [declare:name]
     // [type]   optional([eqauls])
@@ -333,15 +357,20 @@ Option<AstNode*> declaration(Parser &parser, token_type terminator, b32 is_const
         // declartion with assingment
         case token_type::equal:
         {
-            consume(parser,token_type::equal);
-            auto stmt_opt = statement_terminate(parser,"declaration");
-
-            if(!stmt_opt)
+            const auto err = consume(parser,token_type::equal);
+            if(!!err)
             {
-                return option::none;
+                return *err;
             }
 
-            decl->expr = *stmt_opt;
+            auto stmt_res = statement_terminate(parser,"declaration");
+
+            if(!stmt_res)
+            {
+                return stmt_res;
+            }
+
+            decl->expr = *stmt_res;
             break;
         }
 
@@ -349,13 +378,13 @@ Option<AstNode*> declaration(Parser &parser, token_type terminator, b32 is_const
         {
             if(eq.type == terminator)
             {
-                consume(parser,terminator);
+                (void)consume(parser,terminator);
             }
 
             else
             {
-                parser_error(parser,eq,"malformed declartion: got %s expected terminator %s\n",tok_name(eq.type),tok_name(terminator));
-                return option::none;
+                return parser_error(parser,parse_error::invalid_terminator,eq,"malformed declartion: got %s expected terminator %s\n",
+                    tok_name(eq.type),tok_name(terminator));
             }
             break;
         }
@@ -364,33 +393,36 @@ Option<AstNode*> declaration(Parser &parser, token_type terminator, b32 is_const
     return (AstNode*)decl;
 }
 
-Option<AstNode*> auto_decl(Parser &parser)
+ParserResult auto_decl(Parser &parser)
 {
     // symbol := expr;
     const auto s = next_token(parser);
 
     if(s.type != token_type::symbol)
     {
-        parser_error(parser,s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),parser.tok_idx);
-        return option::none;
+        return parser_error(parser,parse_error::unexpected_token,s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),parser.tok_idx);
     }
 
-    consume(parser,token_type::decl);
-
-    auto expr_opt = statement_terminate(parser,"auto declaration");
-
-    if(!expr_opt)
+    const auto err = consume(parser,token_type::decl);
+    if(!!err)
     {
-        return option::none;
+        return *err;
     }
 
-    AstNode* decl = (AstNode*)ast_auto_decl(parser,s.literal,*expr_opt,s);
+    auto expr_res = statement_terminate(parser,"auto declaration");
+
+    if(!expr_res)
+    {
+        return expr_res;
+    }
+
+    AstNode* decl = (AstNode*)ast_auto_decl(parser,s.literal,*expr_res,s);
 
     return decl;    
 }
 
 
-Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
+ParserResult tuple_assign(Parser& parser, const Token& t)
 {
     b32 done = false;
 
@@ -409,15 +441,14 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
         {
             case token_type::symbol:
             {
-                auto var_opt = var(parser,sym_tok);
+                auto var_res = var(parser,sym_tok);
 
-                if(!var_opt)
+                if(!var_res)
                 {
-                    assert(false);
-                    return option::none;
+                    return var_res;
                 }
 
-                sym_node = *var_opt;
+                sym_node = *var_res;
                 break;
             }
 
@@ -425,22 +456,21 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
             {
                 const Token deref_tok = next_token(parser);
 
-                auto unary_opt = ast_unary(parser,var(parser,deref_tok),ast_type::deref,sym_tok);
+                auto unary_res = ast_unary(parser,var(parser,deref_tok),ast_type::deref,sym_tok);
                 
-                if(!unary_opt)
+                if(!unary_res)
                 {
-                    assert(false);
-                    return option::none;
+                    return unary_res;
                 }
 
-                sym_node = *unary_opt;
+                sym_node = *unary_res;
                 break;
             }
 
             default:
             {
-                parser_error(parser,t,"tuple assignment attempted on non symbol: %s\n",tok_name(sym_tok.type));
-                return option::none;
+                return parser_error(parser,parse_error::unexpected_token,t,"tuple assignment attempted on non symbol: %s\n",
+                    tok_name(sym_tok.type));
             }
         }
 
@@ -461,13 +491,21 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
             {
                 if(match(parser,token_type::decl))
                 {
-                    consume(parser,token_type::decl);
+                    const auto err = consume(parser,token_type::decl);
+                    if(!!err)
+                    {
+                        return *err;
+                    }
                     tuple_node->auto_decl = true;
                 }
 
                 else
                 {
-                    consume(parser,token_type::equal);
+                    const auto err = consume(parser,token_type::equal);
+                    if(!!err)
+                    {
+                        return *err;
+                    }
                 }
 
                 const auto next = next_token(parser);
@@ -476,42 +514,44 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
                 if(match(parser,token_type::scope))
                 {
                     prev_token(parser);
-                    const auto namespace_opt = split_namespace(parser,next);
+                    const auto namespace_res = split_namespace(parser,next);
                     
-                    if(!namespace_opt)
+                    if(!namespace_res)
                     {
-                        assert(false);
-                        return option::none;
+                        return propagate_error<AstNode*>(namespace_res);
                     }
 
-                    const auto name_space = *namespace_opt;
+                    const auto name_space = *namespace_res;
 
                     const auto sym_tok = next_token(parser);
 
-                    auto func_call_opt = func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
+                    auto func_call_res = func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
 
-                    if(!func_call_opt)
+                    if(!func_call_res)
                     {
-                        assert(false);
-                        return option::none;
+                        return func_call_res;
                     }
 
-                    tuple_node->func_call = (FuncCallNode*)*func_call_opt;
+                    tuple_node->func_call = (FuncCallNode*)*func_call_res;
 
                     return ast_scope(parser,(AstNode*)tuple_node,name_space,next);
                 }
 
                 else
                 {
-                    auto func_call_opt = func_call(parser,ast_literal(parser,ast_type::symbol,next.literal,next),next);
-                    if(!func_call_opt)
+                    auto func_call_res = func_call(parser,ast_literal(parser,ast_type::symbol,next.literal,next),next);
+                    if(!func_call_res)
                     {
-                        assert(false);
-                        return option::none;
+                        return func_call_res;
                     }
 
-                    tuple_node->func_call = (FuncCallNode*)*func_call_opt;
-                    consume(parser,token_type::semi_colon);
+                    tuple_node->func_call = (FuncCallNode*)*func_call_res;
+                    const auto err = consume(parser,token_type::semi_colon);
+                    if(!!err)
+                    {
+                        return *err;
+                    }
+
                     done = true;
                 }
 
@@ -521,8 +561,7 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
             // something has gone wrong
             default: 
             {
-                parser_error(parser,t,"malformed tuple statement ");
-                return option::none;
+                return parser_error(parser,parse_error::malformed_stmt,t,"malformed tuple statement "); 
             }
         }
     }
@@ -530,22 +569,22 @@ Option<AstNode*> tuple_assign(Parser& parser, const Token& t)
     return (AstNode*)tuple_node;    
 }
 
-Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t)
+ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 {
     RecordNode* member_root = (RecordNode*)ast_record(parser,ast_type::access_members,t);
 
-    auto bin_opt = ast_binary(parser,expr_node,(AstNode*)member_root,ast_type::access_struct,t);
+    auto bin_res = ast_binary(parser,expr_node,(AstNode*)member_root,ast_type::access_struct,t);
 
-    if(!bin_opt)
+    if(!bin_res)
     {
-        return option::none;
+        return bin_res;
     }
 
-    BinNode* root = (BinNode*)*bin_opt;
+    BinNode* root = (BinNode*)bin_res.value();
 
     while(match(parser,token_type::dot))
     {
-        consume(parser,token_type::dot);
+        (void)consume(parser,token_type::dot);
 
         const auto member_tok = next_token(parser);
 
@@ -554,13 +593,13 @@ Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t
             // perform peeking for modifers
             if(match(parser,token_type::sl_brace))
             {
-                auto index_opt = array_index(parser,member_tok);
-                if(!index_opt)
+                auto index_res = array_index(parser,member_tok);
+                if(!index_res)
                 {
-                    return option::none;
+                    return index_res;
                 }
 
-                push_var(member_root->nodes,*index_opt);
+                push_var(member_root->nodes,*index_res);
             }
 
             // plain old member
@@ -574,8 +613,8 @@ Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t
 
         else
         {
-            parser_error(parser,member_tok,"expected struct member got %s(%s)\n",member_tok.literal.buf,tok_name(member_tok.type));
-            return option::none;            
+            return parser_error(parser,parse_error::unexpected_token,member_tok,"expected struct member got %s(%s)\n",
+                member_tok.literal.buf,tok_name(member_tok.type));           
         }
     }
 
@@ -583,48 +622,52 @@ Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t
 }
 
 
-Option<AstNode*> array_index(Parser& parser,const Token& t)
+ParserResult array_index(Parser& parser,const Token& t)
 {
     IndexNode* arr_access = (IndexNode*)ast_index(parser,t.literal,t);
 
     while(match(parser,token_type::sl_brace))
     {
-        consume(parser,token_type::sl_brace);
+        (void)consume(parser,token_type::sl_brace);
 
-        auto expr_opt = expr_terminate(parser,"array indexing",token_type::sr_brace);
+        auto expr_res = expr_terminate(parser,"array indexing",token_type::sr_brace);
 
-        if(!expr_opt)
+        if(!expr_res)
         {
-            return option::none;
+            return expr_res;
         }
 
-        push_var(arr_access->indexes,*expr_opt);
+        push_var(arr_access->indexes,*expr_res);
     }
 
     return (AstNode*)arr_access;
 }
 
-Option<AstNode*> arr_slice(Parser& parser,const Token& t)
+ParserResult arr_slice(Parser& parser,const Token& t)
 {
-    consume(parser,token_type::sl_brace);
+    const auto sl_err =consume(parser,token_type::sl_brace);
+    if(!!sl_err)
+    {
+        return *sl_err;
+    }
 
     SliceNode* slice_node = (SliceNode*)ast_slice(parser,t.literal,t);
 
     // check if left side is empty.
     if(match(parser,token_type::colon))
     {
-        consume(parser,token_type::colon);
+        (void)consume(parser,token_type::colon);
     }
 
     else
     {
-        auto lower_opt = expr_terminate(parser,"slice lower",token_type::colon);
-        if(!lower_opt)
+        auto lower_res = expr_terminate(parser,"slice lower",token_type::colon);
+        if(!lower_res)
         {
-            return option::none;
+            return lower_res;
         }
 
-        slice_node->lower = *lower_opt;
+        slice_node->lower = *lower_res;
     }
 
     // check if right side is empty
@@ -632,28 +675,27 @@ Option<AstNode*> arr_slice(Parser& parser,const Token& t)
     {
         if(!slice_node->lower)
         {
-            parser_error(parser,t,"Array slice with empty lower and upper bounds!");
-            return option::none;
+            return parser_error(parser,parse_error::missing_expr,t,"Array slice with empty lower and upper bounds!");
         }
 
-        consume(parser,token_type::sr_brace);
+        (void)consume(parser,token_type::sr_brace);
     }
 
     else
     {
-        auto upper_opt = expr_terminate(parser,"slice upper",token_type::sr_brace);
-        if(!upper_opt)
+        auto upper_res = expr_terminate(parser,"slice upper",token_type::sr_brace);
+        if(!upper_res)
         {
-            return option::none;
+            return upper_res;
         }
 
-        slice_node->upper = *upper_opt;
+        slice_node->upper = *upper_res;
     }
 
     return (AstNode*)slice_node;
 }
 
-Option<AstNode*> arr_access(Parser& parser, const Token& t)
+ParserResult arr_access(Parser& parser, const Token& t)
 {
     // Check for a ':' to detect slicing.
     // For now only support it on the first index.
@@ -668,14 +710,14 @@ Option<AstNode*> arr_access(Parser& parser, const Token& t)
     }
 
     // Standard array access.
-    auto index_opt = array_index(parser,t);
+    auto index_res = array_index(parser,t);
 
-    if(!index_opt)
+    if(!index_res)
     {
-        return option::none;
+        return index_res;
     }
 
-    AstNode* arr_access = *index_opt;
+    AstNode* arr_access = *index_res;
 
     if(match(parser,token_type::dot))
     {
@@ -698,25 +740,25 @@ ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
     {
         case token_type::dot:
         {   
-            auto access_opt = struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
-            if(!access_opt)
+            auto access_res = struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
+            if(!access_res)
             {
-                return option::none;
+                return access_res;
             }
 
-            node = *access_opt;
+            node = *access_res;
             break;
         }
 
         case token_type::sl_brace:
         {
-            auto access_opt = arr_access(parser,sym_tok);
-            if(!access_opt)
+            auto access_res = arr_access(parser,sym_tok);
+            if(!access_res)
             {
-                return option::none;
+                return access_res;
             }
 
-            node = *access_opt;
+            node = *access_res;
             break;
         }
 
@@ -1460,7 +1502,7 @@ dtr_res type_alias(Interloper& itl, Parser &parser)
 
 // parse just the function signature
 // NOTE: this is used to parse signatures for function pointers
-Option<FuncNode*> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
+Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
     FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.cur_file,token);
 

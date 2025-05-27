@@ -298,6 +298,8 @@ enum class [[nodiscard]] parse_error
     invalid_lbp,
     unexpected_token,
     invalid_terminator,
+    malformed_stmt,
+    missing_expr,
     itl_error,
 };
 
@@ -1013,11 +1015,11 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
 
 void print_depth(int depth);
 bool match(Parser &parser,token_type type);
-void consume(Parser &parser,token_type type);
+Option<parse_error> consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
 ParserResult func_call(Parser& parser,AstNode *expr, const Token& t);
-Option<AstNode*> arr_access(Parser& parser, const Token& t);
-Option<AstNode*> struct_access(Parser& parser, AstNode* expr_node,const Token& t);
-Option<AstNode*> array_index(Parser& parser,const Token& t);
+ParserResult arr_access(Parser& parser, const Token& t);
+ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
+ParserResult array_index(Parser& parser,const Token& t);
 ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call = false);
