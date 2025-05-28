@@ -573,12 +573,12 @@ Option<std::pair<Type*,RegSlot>> take_addr(Interloper &itl,Function &func,AstNod
                         return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
                     }
 
-                    auto& func_call = *func_call_opt;
+                    Function& func_call = *func_call_opt.value();
 
                     FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,type_class::func_pointer_t,true);
-                    type->sig = func_call->sig;
+                    type->sig = func_call.sig;
 
-                    load_func_addr(itl,func,slot,func_call->label_slot);
+                    load_func_addr(itl,func,slot,func_call.label_slot);
                     
                     return std::pair{(Type*)type,slot};
                 }

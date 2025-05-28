@@ -273,7 +273,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
 
             if(!name_space_res)
             {
-                return propagate_error<AstNode*>(name_space_res);
+                return name_space_res.error();
             }
 
             Array<String> name_space = *name_space_res;
@@ -342,7 +342,7 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
 
     if(!type_res)
     {
-        return propagate_error<AstNode*>(type_res);
+        return type_res.error();
     }
 
     // correct our state machine
@@ -373,7 +373,7 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type ca
 
     if(!type_res)
     {
-        return propagate_error<AstNode*>(type_res);
+        return type_res.error();
     }
 
     AstNode* type = (AstNode*)type_res.value();
@@ -526,7 +526,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
                 if(!e_res)
                 {
-                    return propagate_error<AstNode*>(e_res);
+                    return e_res.error();
                 }
 
                 auto [e,term_seen] = *e_res;
@@ -642,7 +642,7 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
 {
     if(!rbp_res)
     {
-        return propagate_error<AstNode*>(rbp_res);
+        return rbp_res.error();
     }
 
     const u32 rbp = *rbp_res;
@@ -660,7 +660,7 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
     auto lbp_res = lbp(parser,ctx,ctx.expr_tok);
     if(!lbp_res)
     {
-        return propagate_error<AstNode*>(lbp_res);
+        return lbp_res.error();
     }
 
     u32 left_binding_power = *lbp_res;
@@ -679,7 +679,7 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
         lbp_res = lbp(parser,ctx,ctx.expr_tok);
         if(!lbp_res)
         {
-            return propagate_error<AstNode*>(lbp_res);
+            return lbp_res.error();
         }
 
         left_binding_power = *lbp_res;
@@ -751,7 +751,7 @@ Result<std::pair<AstNode*,b32>,parse_error> expr_list(Parser& parser,const Strin
 
     if(!e_res)
     {
-        return propagate_error<std::pair<AstNode*,b32>>(e_res);
+        return e_res.error();
     }
 
     const b32 seen_list_term = ctx.expr_tok.type == type;
@@ -786,7 +786,7 @@ Result<std::pair<AstNode*,b32>,parse_error> expr_list_in_expr(Parser& parser,Exp
 
     if(!e_res)
     {
-        return propagate_error<std::pair<AstNode*,b32>>(e_res);
+        return e_res.error();
     }
 
     const b32 seen_list_term = ctx.expr_tok.type == type;

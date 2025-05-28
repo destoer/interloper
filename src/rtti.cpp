@@ -63,14 +63,17 @@ dtr_res cache_rtti_structs(Interloper& itl)
 
     // cache Any struct info
     auto any_idx_opt = cache_struct(itl,rtti_name_space,"Any");
-    if(invalid_type_idx(rtti.any_idx))
+    if(!any_idx_opt)
     {
         return dtr_res::err;
     }
 
     rtti.any_idx = *any_idx_opt;
 
-
+    if(invalid_type_idx(rtti.any_idx))
+    {
+        return dtr_res::err;
+    }
 
 
     auto& any_struct = itl.struct_table[rtti.any_idx];

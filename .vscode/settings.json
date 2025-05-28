@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "optional": "cpp"
+        "*.itl": "rust",
+        "optional": "cpp",
+        "chrono": "cpp"
     }
 }

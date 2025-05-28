@@ -301,6 +301,7 @@ enum class [[nodiscard]] parse_error
     malformed_stmt,
     missing_expr,
     itl_error,
+    lexer_error,
 };
 
 using ParserResult = Result<AstNode*,parse_error>;

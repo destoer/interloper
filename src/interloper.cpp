@@ -1750,13 +1750,14 @@ dtr_res code_generation(Interloper& itl)
     return dtr_res::ok;
 }
 
-dtr_res parsing(Interloper& itl, const String& initial_filename)
+Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 {
     // parse intial input file
     auto start = std::chrono::high_resolution_clock::now();
 
     // build ast
-    if(!parse(itl,initial_filename))
+    const auto parse_err = parse(itl,initial_filename);
+    if(!!parse_err)
     {
         // flag as generic parser error
         if(itl.first_error_code == itl_error::none)
@@ -1766,7 +1767,7 @@ dtr_res parsing(Interloper& itl, const String& initial_filename)
         }
 
         destroy_itl(itl);
-        return dtr_res::err;
+        return parse_err;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -1789,7 +1790,7 @@ dtr_res parsing(Interloper& itl, const String& initial_filename)
         }
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 dtr_res compile(Interloper &itl,const String& initial_filename, const String& executable_path)
@@ -1822,7 +1823,8 @@ dtr_res compile(Interloper &itl,const String& initial_filename, const String& ex
     // see SYM_ERROR
     make_sym(itl,"ITL_ERROR",make_builtin(itl,builtin_type::void_t));
 
-    if(!parsing(itl,initial_filename))
+    const auto parse_err = parsing(itl,initial_filename);
+    if(!!parse_err)
     {
         destroy_itl(itl);
         return dtr_res::err;
@@ -1830,6 +1832,7 @@ dtr_res compile(Interloper &itl,const String& initial_filename, const String& ex
 
     if(!code_generation(itl))
     {
+        puts("IR generation error");
         if(itl.error_count > 15)
         {
             printf("Total errors: %d (only 15 reported)\n",itl.error_count);

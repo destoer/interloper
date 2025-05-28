@@ -11,8 +11,8 @@ using namespace destoer;
 #include <ir.h>
 #include <interpretter.h>
 
-
-enum class [[nodiscard]] itl_error
+// [[nodiscard]] 
+enum class itl_error
 {
     none,
     parse_error,
@@ -191,7 +191,7 @@ struct [[nodiscard]] FileContextGuard
 
 void print(const AstNode *root, b32 override_seperator = false);
 
-inline void compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
+inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
 {
     itl.error_count += 1;
 
@@ -203,7 +203,7 @@ inline void compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
     // Only report the first 15 errors
     else if(itl.error_count > 15)
     {
-        return;
+        return error;
     }
 
     if(itl.ctx.expr)
@@ -232,6 +232,7 @@ inline void compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
     }
 
     putchar('\n');
+    return error;
 }
 
 void itl_warning(const char* fmt, ...)

@@ -1811,7 +1811,6 @@ dtr_res check_assign_internal(Interloper& itl,const Type *ltype, const Type *rty
             if(!is_array(rtype))
             {
                 compile_error(itl,itl_error::array_type_error,"expected array of %s got %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-                assert(false);
                 return dtr_res::err;
             }
 
@@ -1960,7 +1959,7 @@ dtr_res check_assign_init(Interloper& itl, const Type* ltype, const Type* rtype)
 {
     if(!check_assign_internal(itl,ltype,rtype,assign_type::initializer))
     {
-        assert(false);
+        return dtr_res::err;
     }
 
     return dtr_res::ok;
