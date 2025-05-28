@@ -91,13 +91,13 @@ void dump_reg_ir(Interloper &itl)
 }
 
 
-Option<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node)
+Option<std::pair<Type*,RegSlot>> symbol_internal(Interloper &itl, AstNode *node, NameSpace* name_space)
 {
     LiteralNode* lit_node = (LiteralNode*)node;
 
     const auto name = lit_node->literal;
 
-    const auto sym_ptr = get_sym(itl.symbol_table,name);
+    const auto sym_ptr = get_sym_internal(itl.symbol_table,name,name_space);
     if(!sym_ptr)
     {
         compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
@@ -109,6 +109,15 @@ Option<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node)
     return std::pair{sym.type,sym.reg.slot};
 }
 
+Option<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node)
+{
+    return symbol_internal(itl,node,nullptr);
+}
+
+Option<std::pair<Type*,RegSlot>> scoped_symbol(Interloper &itl, AstNode *node, NameSpace* name_space)
+{
+    return symbol_internal(itl,node,name_space);
+}
 
 Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 {
@@ -189,6 +198,24 @@ Option<Type*> compile_scoped_expression(Interloper& itl, Function& func, AstNode
         case ast_type::function_call:
         {
             return compile_scoped_function_call(itl,name_space,func,node,dst_slot);
+        }
+
+        case ast_type::symbol:
+        {
+            const auto sym_res = scoped_symbol(itl,node,name_space);
+            
+            if(!sym_res)
+            {
+                return option::none;
+            }
+
+            const auto [type, slot] = *sym_res;
+
+            if(!compile_move(itl,func,dst_slot,slot,type,type))
+            {
+                return option::none;
+            }
+            return type;
         }
 
         default:
