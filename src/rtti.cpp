@@ -52,127 +52,141 @@ Result<u32,itl_error> cache_offset(Interloper& itl,Struct& structure, const Stri
 }
 
 
-dtr_res cache_rtti_structs(Interloper& itl)
+Option<itl_error> cache_rtti_structs(Interloper& itl)
 {
     auto& rtti = itl.rtti_cache;
     
     NameSpace* rtti_name_space = find_name_space(itl,"rtti");
 
     // cache Any struct info
-    auto any_idx_opt = cache_struct(itl,rtti_name_space,"Any");
-    if(!any_idx_opt)
+    auto any_idx_res = cache_struct(itl,rtti_name_space,"Any");
+    if(!any_idx_res)
     {
-        return dtr_res::err;
+        return any_idx_res.error();
     }
 
-    rtti.any_idx = *any_idx_opt;
-
-    if(invalid_type_idx(rtti.any_idx))
-    {
-        return dtr_res::err;
-    }
-
+    rtti.any_idx = *any_idx_res;
 
     auto& any_struct = itl.struct_table[rtti.any_idx];
-    auto any_data_offset_opt = cache_offset(itl,any_struct,"data");
-    auto any_type_offset_opt = cache_offset(itl,any_struct,"type");
+    auto any_data_offset_res = cache_offset(itl,any_struct,"data");
+    auto any_type_offset_res = cache_offset(itl,any_struct,"type");
 
-    if(!any_data_offset_opt || !any_type_offset_opt)
+    if(!any_data_offset_res)
     {
-        return dtr_res::err;
+        return any_data_offset_res.error();
     }
 
-    rtti.any_data_offset = *any_data_offset_opt;
-    rtti.any_type_offset = *any_type_offset_opt;
+    if(!any_type_offset_res)
+    {
+        return any_type_offset_res.error(); 
+    }
+
+    rtti.any_data_offset = *any_data_offset_res;
+    rtti.any_type_offset = *any_type_offset_res;
     rtti.any_struct_size = any_struct.size;
 
 
     // cache Type struct info
-    auto type_struct_idx_opt = cache_struct(itl,rtti_name_space,"Type");
+    auto type_struct_idx_res = cache_struct(itl,rtti_name_space,"Type");
 
-    if(!type_struct_idx_opt)
+    if(!type_struct_idx_res)
     {
-        return dtr_res::err;
+        return type_struct_idx_res.error();
     }
 
-    const u32 type_struct_idx = *type_struct_idx_opt;
+    const u32 type_struct_idx = *type_struct_idx_res;
     auto& type_struct = itl.struct_table[type_struct_idx];
 
-    auto is_const_offset_opt = cache_offset(itl,type_struct,"is_const");
-    auto type_class_offset_opt = cache_offset(itl,type_struct,"kind");
-    if(!is_const_offset_opt || !type_class_offset_opt)
+    auto is_const_offset_res = cache_offset(itl,type_struct,"is_const");
+    auto type_class_offset_res = cache_offset(itl,type_struct,"kind");
+    if(!is_const_offset_res)
     {
-        return dtr_res::err;
+        return is_const_offset_res.error();
     }
 
-    rtti.is_const_offset = *is_const_offset_opt;
-    rtti.type_class_offset = *type_class_offset_opt;
+    if(!type_class_offset_res)
+    {
+        return type_class_offset_res.error();
+    }
+
+    rtti.is_const_offset = *is_const_offset_res;
+    rtti.type_class_offset = *type_class_offset_res;
     rtti.type_struct_size = type_struct.size;
 
 
     // Builtin type cache
     // cache Type struct info
-    auto buitlin_type_struct_idx_opt =  cache_struct(itl,rtti_name_space,"BuiltinType");
-    if(!buitlin_type_struct_idx_opt)
+    auto buitlin_type_struct_idx_res =  cache_struct(itl,rtti_name_space,"BuiltinType");
+    if(!buitlin_type_struct_idx_res)
     {
-        return dtr_res::err;
+        return buitlin_type_struct_idx_res.error();
     }
 
-    const u32 builtin_type_struct_idx = *buitlin_type_struct_idx_opt;
+    const u32 builtin_type_struct_idx = *buitlin_type_struct_idx_res;
     auto& builtin_type_struct = itl.struct_table[builtin_type_struct_idx];
 
-    auto builtin_type_offset_opt = cache_offset(itl,builtin_type_struct,"builtin");
-    if(!builtin_type_offset_opt)
+    auto builtin_type_offset_res = cache_offset(itl,builtin_type_struct,"builtin");
+    if(!builtin_type_offset_res)
     {
-        return dtr_res::err;
+        return builtin_type_offset_res.error();
     }
 
-    rtti.builtin_type_offset = *builtin_type_offset_opt;
+    rtti.builtin_type_offset = *builtin_type_offset_res;
     rtti.builtin_type_struct_size = builtin_type_struct.size;
 
     // Pointer type cache
-    auto pointer_struct_idx_opt = cache_struct(itl,rtti_name_space,"PointerType");
+    auto pointer_struct_idx_res = cache_struct(itl,rtti_name_space,"PointerType");
     
-    if(!pointer_struct_idx_opt)
+    if(!pointer_struct_idx_res)
     {
-        return dtr_res::err;
+        return pointer_struct_idx_res.error();
     }
 
-    const u32 pointer_struct_idx = *pointer_struct_idx_opt;
+    const u32 pointer_struct_idx = *pointer_struct_idx_res;
     auto& pointer_struct = itl.struct_table[pointer_struct_idx];
 
-    auto pointer_contained_offset_opt = cache_offset(itl,pointer_struct,"contained_type");
-    if(!pointer_contained_offset_opt)
+    auto pointer_contained_offset_res = cache_offset(itl,pointer_struct,"contained_type");
+    if(!pointer_contained_offset_res)
     {
-        return dtr_res::err;
+        return pointer_contained_offset_res.error();
     }
 
-    rtti.pointer_contained_offset = *pointer_contained_offset_opt; 
+    rtti.pointer_contained_offset = *pointer_contained_offset_res; 
     rtti.pointer_struct_size = pointer_struct.size;
 
 
     // Array type cache
-    const auto array_struct_idx_opt = cache_struct(itl,rtti_name_space,"ArrayType");
-    if(!array_struct_idx_opt)
+    const auto array_struct_idx_res = cache_struct(itl,rtti_name_space,"ArrayType");
+    if(!array_struct_idx_res)
     {
-        return dtr_res::err;
+        return array_struct_idx_res.error();
     }
 
-    const u32 array_struct_idx = *array_struct_idx_opt;
+    const u32 array_struct_idx = *array_struct_idx_res;
     auto& array_struct = itl.struct_table[array_struct_idx];
     
-    auto array_contained_offset_opt = cache_offset(itl,array_struct,"contained_type");
-    auto array_size_offset_opt = cache_offset(itl,array_struct,"size");
-    auto array_sub_size_offset_opt = cache_offset(itl,array_struct,"sub_size");
+    auto array_contained_offset_res = cache_offset(itl,array_struct,"contained_type");
+    auto array_size_offset_res = cache_offset(itl,array_struct,"size");
+    auto array_sub_size_offset_res = cache_offset(itl,array_struct,"sub_size");
 
-    if(!array_contained_offset_opt || !array_size_offset_opt || !array_sub_size_offset_opt)
+    if(!array_contained_offset_res)
     {
-        return dtr_res::err;
+        return array_contained_offset_res.error();
     }
 
-    rtti.array_contained_offset = *array_contained_offset_opt; 
-    rtti.array_size_offset = *array_size_offset_opt;
-    rtti.array_sub_size_offset = *array_sub_size_offset_opt;
+    if(!array_size_offset_res)
+    {
+        return array_size_offset_res.error();
+    }
+
+    if(!array_sub_size_offset_res)
+    {
+        return array_sub_size_offset_res.error();
+    }
+
+    rtti.array_contained_offset = *array_contained_offset_res; 
+    rtti.array_size_offset = *array_size_offset_res;
+    rtti.array_sub_size_offset = *array_sub_size_offset_res;
     rtti.array_struct_size = array_struct.size;
 
 /*
@@ -182,7 +196,7 @@ dtr_res cache_rtti_structs(Interloper& itl)
 
     rtti.struct_idx = cache_struct(itl,"StructType");
 */
-    return dtr_res::ok;
+    return option::none;
 }
 
 

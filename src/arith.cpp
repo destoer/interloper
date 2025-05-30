@@ -525,7 +525,7 @@ dtr_res compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot 
         assert(false);
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 

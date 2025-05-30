@@ -188,7 +188,7 @@ dtr_res compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, Name
         }
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 Option<Type*> compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot, NameSpace* name_space)
@@ -827,12 +827,12 @@ dtr_res compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl
             mov_imm(itl,func,reg_slot,0);
         }
 
-        return dtr_res::ok;
+        return option::none;
     }
 
     if(decl_node->expr->type == ast_type::no_init)
     {
-        return dtr_res::ok;
+        return option::none;
     }
 
     // normal assign
@@ -926,7 +926,7 @@ dtr_res compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         reserve_global_alloc(itl,sym);
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 Option<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
@@ -1002,7 +1002,7 @@ dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     auto& sym = sym_from_slot(itl.symbol_table,sym_slot);
     sym.reg = make_reg(itl,reg_slot,type);
     sym.type = type;
-    return dtr_res::ok;
+    return option::none;
 }
 
 
@@ -1167,7 +1167,7 @@ dtr_res compile_assign(Interloper& itl, Function& func, AstNode* line)
                 clip_arith_type(itl,func,slot,slot,size);
             }
 
-            return dtr_res::ok;
+            return option::none;
         }
     }
 
@@ -1295,7 +1295,7 @@ dtr_res compile_return(Interloper& itl, Function& func, AstNode* line)
     }
 
     ret(itl,func);
-    return dtr_res::ok;
+    return option::none;
 }
 
 dtr_res compile_block(Interloper &itl,Function &func,BlockNode *block_node)
@@ -1523,7 +1523,7 @@ dtr_res compile_block(Interloper &itl,Function &func,BlockNode *block_node)
         }
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 
@@ -1546,7 +1546,7 @@ dtr_res compile_globals(Interloper& itl)
     }
 
     finalise_global_offset(itl);
-    return dtr_res::ok;
+    return option::none;
 }
 
 // TODO: basic type checking for returning pointers to local's
@@ -1668,7 +1668,7 @@ dtr_res check_startup_defs(Interloper& itl)
         return dtr_res::err;
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 void backend(Interloper& itl, const String& executable_path)
@@ -1774,7 +1774,7 @@ dtr_res code_generation(Interloper& itl)
     auto end = std::chrono::high_resolution_clock::now();
 
     itl.code_gen_time = std::chrono::duration<double, std::milli>(end-start).count();
-    return dtr_res::ok;
+    return option::none;
 }
 
 Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
@@ -1875,5 +1875,5 @@ dtr_res compile(Interloper &itl,const String& initial_filename, const String& ex
     }
     
     backend(itl,executable_path);
-    return dtr_res::ok;
+    return option::none;
 }

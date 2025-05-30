@@ -107,7 +107,7 @@ dtr_res compile_if_block(Interloper &itl,Function &func,AstNode *node)
         }
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 dtr_res compile_while_block(Interloper &itl,Function &func,AstNode *node)
@@ -171,7 +171,7 @@ dtr_res compile_while_block(Interloper &itl,Function &func,AstNode *node)
 
     // emit branch over the loop body in initial block if cond is not met
     emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond,false); 
-    return dtr_res::ok;  
+    return option::none;  
 }
 
 dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_node, b32 inc, op_type cmp_type)
@@ -260,7 +260,7 @@ dtr_res compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for
     // emit branch over the loop body in initial block if cond is not met
     emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
 
-    return dtr_res::ok;    
+    return option::none;    
 }
 
 dtr_res compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
@@ -287,7 +287,7 @@ dtr_res compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for
     // we dont care
     if(is_fixed_array(arr_type) && arr_type->size == 0)
     {
-        return dtr_res::ok;
+        return option::none;
     }
 
     // save initial block so we can dump a branch later
@@ -406,7 +406,7 @@ dtr_res compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for
         add_block_exit(func,initial_block,for_block);
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 
@@ -547,7 +547,7 @@ dtr_res compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 
     // emit branch over the loop body in initial block if cond is not met
     emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
-    return dtr_res::ok;    
+    return option::none;    
 }
 
 
@@ -903,5 +903,5 @@ dtr_res compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         unimplemented("binary search");
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
