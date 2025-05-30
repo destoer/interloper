@@ -159,7 +159,7 @@ TypeResult compile_shift(Interloper& itl,Function &func,AstNode *node,bool is_ri
     if(is_right)
     {
         // if signed do a arithmetic shift 
-        if(is_signed(right.type))
+        if(is_signed(left.type))
         {
             asr(itl,func,dst_slot,left.slot,right.slot);
         }
