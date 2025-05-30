@@ -471,7 +471,7 @@ Option<ConstData> compile_const_expression(Interloper& itl, AstNode* node)
     }    
 }
 
-Option<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl, AstNode* node)
+Result<std::pair<u64,Type*>,itl_error> compile_const_int_expression(Interloper& itl, AstNode* node)
 {
     const auto data_opt = compile_const_expression(itl,node);
     if(!data_opt)

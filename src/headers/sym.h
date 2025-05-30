@@ -1,4 +1,6 @@
 #pragma once
+#include <error.h>
+
 // NOTE: this may move during expression compilation
 // prefer holding a slot to a reference
 struct Symbol
@@ -114,7 +116,7 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
 Function& lookup_internal_function(Interloper& itl, const String& name);
 
-dtr_res parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
+Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
 
 struct Interloper;
 

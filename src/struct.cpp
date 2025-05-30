@@ -156,7 +156,7 @@ dtr_res handle_recursive_type(Interloper& itl,const String& struct_name, TypeNod
 }
 
 // returns member loc
-Option<u32> add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
+Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
 {
     Member member;
     member.name = m->name;
@@ -174,15 +174,15 @@ Option<u32> add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_
     // or deduction will fail
     if(type_decl->func_type)
     {
-        auto type_opt = get_type(itl,type_decl,type_idx_override,true);
+        auto type_res = get_type(itl,type_decl,type_idx_override,true);
 
-        if(!type_opt)
+        if(!type_res)
         {
             destroy_struct(structure);
-            return option::none;
+            return type_res.error();
         }
 
-        member.type = *type_opt;
+        member.type = *type_res;
     }
 
     else if(!type_exists(itl,type_decl->name))
@@ -332,7 +332,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-dtr_res parse_struct_def(Interloper& itl, TypeDef& def)
+Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
 {
     StructNode* node = (StructNode*)def.root;
 

@@ -2,6 +2,7 @@
 #include <destoer/destoer.h>
 using namespace destoer;
 
+#include <error.h>
 #include <token.h>
 #include <lexer.h>
 #include <parser.h>
@@ -10,73 +11,6 @@ using namespace destoer;
 #include <sym.h>
 #include <ir.h>
 #include <interpretter.h>
-
-// [[nodiscard]] 
-enum class itl_error
-{
-    none,
-    parse_error,
-    lexer_error,
-    array_type_error,
-    int_type_error,
-    illegal_cast,
-    bool_type_error,
-    string_type_error,
-    enum_type_error,
-    pointer_type_error,
-    generic_type_error,
-    out_of_bounds,
-    undeclared,
-    missing_initializer,
-    missing_name,
-    redeclaration,
-    missing_args,
-    tuple_mismatch,
-    missing_return,
-    invalid_expr,
-    invalid_statement,
-    mismatched_args,
-    black_hole,
-    struct_error,
-    undefined_type_oper,
-    const_type_error,
-    const_assert,
-    rtti_error,
-    unimplemented,
-};
-
-static const char* ERROR_NAME[] = 
-{
-    "none",
-    "parse error",
-    "lexer error",
-    "array type error",
-    "int type error",
-    "illegal cast",
-    "bool type error",
-    "string type error",
-    "enum type error",
-    "pointer type error",
-    "generic type error",
-    "out of bounds",
-    "not declared",
-    "missing initializer",
-    "missing name",
-    "redeclaration",
-    "missing args",
-    "tuple mismatch",
-    "missing return",
-    "invalid expr",
-    "invalid statement",
-    "mismatched args",
-    "black hole",
-    "struct error",
-    "undefined type operation",
-    "const type error",
-    "const assert",
-    "rtti error",
-    "unimplemented",
-};
 
 struct FileContext
 {
@@ -286,7 +220,7 @@ inline f64 bit_cast_to_f64(u64 v)
     return bit_cast<f64,u64>(v);
 }
 
-Option<std::pair<u64,Type*>> compile_const_int_expression(Interloper& itl, AstNode* node);
+Result<std::pair<u64,Type*>,itl_error> compile_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);

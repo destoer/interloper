@@ -1,6 +1,7 @@
 #pragma once
 #include <destoer/destoer.h>
 #include "list.inl"
+#include "error.h"
 
 enum class op_type
 {
@@ -535,13 +536,13 @@ struct RegSlot
     reg_kind kind = reg_kind::sym;
 };
 
-struct Type;
-// TODO: slowly replace std::pair<RegSlot,Type*> with this!
 struct TypedReg
 {
     RegSlot slot;
     Type* type = nullptr;
 };
+
+using RegResult = destoer::Result<TypedReg,itl_error>;
 
 inline bool operator == (const RegSlot& v1, const RegSlot &v2)
 {
