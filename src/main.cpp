@@ -20,6 +20,7 @@ void parse_flags(Interloper& itl,const char* flags)
             case 'q': itl.compile_only = true; break;
             case 'z': itl.optimise = true; break;
             case 'y': itl.stack_alloc = true; break;
+            case 'd': itl.itl_log = true; break;
             case 't': break;
 
             default: crash_and_burn("unknown flag: %c\n",flags[i]); 
@@ -43,6 +44,7 @@ void print_usage(const char* name)
     puts("-z optimize");
     puts("-y disable register allocation (stack only)");
     puts("-t run tests");
+    puts("-d interloper logging");
 }
 
 int main(int argc, char *argv[])
@@ -102,7 +104,8 @@ int main(int argc, char *argv[])
     }
 
 
-    if(!compile(itl,source_filename,executable_path))
+    const auto compile_err = compile(itl,source_filename,executable_path);
+    if(!!compile_err)
     {
         puts("NOT OK");
         return 1;

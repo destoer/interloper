@@ -250,10 +250,10 @@ TypeResult compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node
 
     if(bin_node->left->type == syntax_nested)
     {
-        const auto logic_err = compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1);
-        if(!!logic_err)
+        const auto logic_res = compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1);
+        if(!logic_res)
         {
-            return *logic_err;
+            return *logic_res;
         }
     }
 

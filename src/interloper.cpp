@@ -236,6 +236,8 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
         return make_builtin(itl,builtin_type::void_t);
     }
 
+    log(itl.itl_log,"(%s:%d) Compiling experssion %s\n",itl.ctx.filename.buf,node->idx,AST_NAMES[u32(node->type)]);
+
     itl.ctx.expr = node;
    
     switch(node->type)
@@ -1470,10 +1472,10 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
 
             case ast_type::tuple_assign:
             {
-                const auto func_err = compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
-                if(!!func_err)
+                const auto func_res = compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
+                if(!func_res)
                 {
-                    return func_err.error();
+                    return func_res.error();
                 }
                 break;
             }
@@ -1887,6 +1889,7 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     const auto parse_err = parsing(itl,initial_filename);
     if(!!parse_err)
     {
+        puts("Parsing error");
         destroy_itl(itl);
         return itl_error::parse_error;
     }

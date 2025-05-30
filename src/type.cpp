@@ -854,7 +854,8 @@ Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,con
 
         // def parsing failed in some fashion just bail out
         // there are no options left
-        if(!parse_def(itl,type_def))
+        const auto def_err = parse_def(itl,type_def);
+        if(!!def_err)
         {
             return option::none;
         }

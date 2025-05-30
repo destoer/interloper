@@ -2403,27 +2403,27 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 
     add_file(queue,cat_string(itl.string_allocator,itl.stl_path,"internal.itl"));
 
-    Option<parse_error> res = option::none;
+    Option<parse_error> err = option::none;
 
     while(count(queue.stack))
     {
         // get the next filename to parse
         const String filename = pop(queue.stack);
 
-        auto [file,err] = read_str_buf(filename);
+        auto [file,file_err] = read_str_buf(filename);
 
-        if(err)
+        if(file_err)
         {
             printf("file %s does not exist\n",filename.buf);
-            res = parse_error::itl_error;
+            err = parse_error::itl_error;
             break;
         }
 
-        res = parse_file(itl,make_string(file),filename,queue);
+        err = parse_file(itl,make_string(file),filename,queue);
 
         destroy_arr(file);
 
-        if(!!res)
+        if(!!err)
         {
             break;
         }
@@ -2432,7 +2432,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     destroy_arr(queue.stack);
     destroy_set(queue.set);
 
-    return res;
+    return err;
 }
 
 
