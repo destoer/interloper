@@ -1,15 +1,14 @@
 
 
-using INTRIN_FUNC = Option<Type*> (*)(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+using INTRIN_FUNC = TypeResult (*)(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 
-Option<Function*> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
+Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
     Function* func_def = lookup_opt_scoped_function(itl,name_space,name);
 
     if(!func_def)
     {
-        compile_error(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing\n",name.buf);
-        return option::none;
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing\n",name.buf);
     }
 
     return func_def;
@@ -43,14 +42,14 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
     {
         // emit a call to memcpy with args
         // check function is declared
-        auto func_def_opt = find_complete_func(itl,itl.std_name_space,"memcpy");
+        auto func_def_res = find_complete_func(itl,itl.std_name_space,"memcpy");
 
-        if(!func_def_opt)
+        if(!func_def_res)
         {
-            return dtr_res::err;
+            return func_def_res.error();
         }
 
-        Function &func_call = *func_def_opt.value();
+        Function &func_call = *func_def_res.value();
 
         ArgPass pass = make_arg_pass(func_call.sig);
 
@@ -71,7 +70,7 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
         clean_args(itl,func,pass.arg_clean);
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 dtr_res ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
@@ -122,7 +121,7 @@ dtr_res ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     return dtr_res::ok;
 }
 
-Option<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     UNUSED(dst_slot);
     
@@ -132,21 +131,20 @@ Option<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, R
 
     if(arg_size < 1)
     {
-        compile_error(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
-        return option::none;
+        return compile_error(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
     // make sure this register doesn't get reused
     lock_reg(itl,func,make_spec_reg_slot(spec_reg::rax));
-    auto syscall_num_opt = compile_const_int_expression(itl,func_call->args[0]);
-    if(!syscall_num_opt)
+    auto syscall_num_res = compile_const_int_expression(itl,func_call->args[0]);
+    if(!syscall_num_res)
     {
-        return option::none;
+        return syscall_num_res.error();
     }
 
-    const auto [syscall_number,type] = *syscall_num_opt;
+    const auto syscall_value = *syscall_num_res;
 
-    mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_number);
+    mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value.value);
     
     const spec_reg REG_ARGS[6] = {spec_reg::rdi,spec_reg::rsi,spec_reg::rdx,spec_reg::r10,spec_reg::r8,spec_reg::r9};
 
@@ -156,18 +154,17 @@ Option<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, R
         {
             const auto reg = make_spec_reg_slot(REG_ARGS[arg-1]);
             lock_reg(itl,func,reg);
-            const auto type_opt = compile_expression(itl,func,func_call->args[arg],reg);
-            if(!type_opt)
+            const auto type_res = compile_expression(itl,func,func_call->args[arg],reg);
+            if(!type_res)
             {
-                return option::none;
+                return type_res;
             }
 
-            const Type* type = *type_opt;
+            const Type* type = *type_res;
 
             if(!is_trivial_copy(type))
             {
-                compile_error(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr\n",arg,type_name(itl,type).buf);
-                return option::none; 
+                return compile_error(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr\n",arg,type_name(itl,type).buf);
             }
         }
     }
@@ -183,7 +180,7 @@ Option<Type*> intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, R
     return make_builtin(itl,builtin_type::s64_t);   
 }
 
-Option<Type*> intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+TypeResult intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     switch(itl.arch)
     {

@@ -749,20 +749,20 @@ Result<std::pair<Type*,AddrSlot>,itl_error> compute_member_addr(Interloper& itl,
     return std::pair{struct_type,struct_slot};
 }
 
-Option<std::pair<Type*,RegSlot>> compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
+RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 {
-    auto member_addr_opt = compute_member_addr(itl,func,node);
+    auto member_addr_res = compute_member_addr(itl,func,node);
 
-    if(!member_addr_opt)
+    if(!member_addr_res)
     {
-        return option::none;
+        return member_addr_res.error();
     }
 
-    auto [type,addr_slot] = *member_addr_opt;
+    auto [type,addr_slot] = *member_addr_res;
 
     collapse_struct_offset(itl,func,&addr_slot);
 
-    return std::pair{make_reference(itl,type),addr_slot.slot};
+    return TypedReg{addr_slot.slot,make_reference(itl,type)};
 }
 
 Option<itl_error> write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)

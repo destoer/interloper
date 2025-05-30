@@ -533,7 +533,7 @@ Option<itl_error> compile_any_internal(Interloper& itl, Function& func, AstNode*
 }
 
 // return total size including data
-Option<u32> compile_any(Interloper& itl, Function& func, AstNode* arg_node)
+Result<u32,itl_error> compile_any(Interloper& itl, Function& func, AstNode* arg_node)
 {
     // for now this just allways takes size of the any struct
     const u32 size = align_val(itl.rtti_cache.any_struct_size,GPR_SIZE);
@@ -541,9 +541,10 @@ Option<u32> compile_any(Interloper& itl, Function& func, AstNode* arg_node)
     const auto NULL_SLOT = make_spec_reg_slot(spec_reg::null);
 
     // Handle stack alloc and store itself caller will handle deallocation of stack
-    if(!compile_any_internal(itl,func,arg_node,NULL_SLOT,0))
+    const auto any_err = compile_any_internal(itl,func,arg_node,NULL_SLOT,0);
+    if(!!any_err)
     {
-        return option::none;
+        return *any_err;
     }
 
     return size;
