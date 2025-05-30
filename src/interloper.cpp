@@ -20,8 +20,8 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNo
 
 RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
 RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
-RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* type);
-RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* type);
+RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg);
+RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 
 RegResult symbol(Interloper &itl, AstNode *node);
 

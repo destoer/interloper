@@ -16,39 +16,36 @@ b32 is_any(Interloper& itl, const Type* type)
     return false;
 }
 
-Option<u32> cache_struct(Interloper& itl, NameSpace* name_space, const String& name)
+Result<u32,itl_error> cache_struct(Interloper& itl, NameSpace* name_space, const String& name)
 {
     auto type_opt = lookup_type_scoped(itl,name_space,name);
     if(!type_opt)
     {
-        return option::none;
+        return compile_error(itl,itl_error::struct_error,"No such type %s",name.buf);
     }
 
     TypeDecl* type_decl = *type_opt; 
 
     if(!type_decl)
     {
-        compile_error(itl,itl_error::struct_error,"could not find struct %s for rtti\n",name.buf);
-        return option::none;
+        return compile_error(itl,itl_error::struct_error,"could not find struct %s for rtti\n",name.buf);
     }
 
     if(type_decl->kind != type_kind::struct_t)
     {
-        compile_error(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti\n",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
-        return option::none;
+        return compile_error(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti\n",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
     }
 
     return type_decl->type_idx;
 }
 
-Option<u32> cache_offset(Interloper& itl,Struct& structure, const String& member_name)
+Result<u32,itl_error> cache_offset(Interloper& itl,Struct& structure, const String& member_name)
 {
     auto offset_opt = member_offset(structure,member_name);
 
     if(!offset_opt)
     {
-        compile_error(itl,itl_error::rtti_error,"could not find offset for %s.%s\n",structure.name.buf,member_name.buf);
-        return option::none;
+        return compile_error(itl,itl_error::rtti_error,"could not find offset for %s.%s\n",structure.name.buf,member_name.buf);
     }
 
     return *offset_opt;
@@ -377,35 +374,35 @@ u32 promote_size(u32 size)
 }
 
 // TODO: we need to pass in a slot + offset for storing data copies...
-void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const RegSlot src, const Type* type)
+void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const TypedReg& reg)
 {
     auto& rtti = itl.rtti_cache;
 
     // aquire a copy of the typing information from the const pool
-    const RegSlot rtti_ptr = aquire_rtti(itl,func,type); 
+    const RegSlot rtti_ptr = aquire_rtti(itl,func,reg.type); 
 
     // goes directly in the pointer
-    if(is_trivial_copy(type))
+    if(is_trivial_copy(reg.type))
     {
         // store type struct
         store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false);  
 
-        const b32 fp = is_float(type);
+        const b32 fp = is_float(reg.type);
 
         // store data
-        store_ptr(itl,func,src,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,fp);              
+        store_ptr(itl,func,reg.slot,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,fp);              
     } 
 
     // allready in memory just store a the pointer to it
-    else if(is_array(type))
+    else if(is_array(reg.type))
     {
         // store type struct
         store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false); 
 
         // directly store array pointer into the data pointer
-        if(is_fixed_array(type))
+        if(is_fixed_array(reg.type))
         {
-            const auto arr_data_slot = load_arr_data(itl,func,src,type);
+            const auto arr_data_slot = load_arr_data(itl,func,reg);
 
             // store data
             store_ptr(itl,func,arr_data_slot,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
@@ -414,14 +411,14 @@ void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const
         // runtime size
         else
         {
-            const auto arr_ptr = addrof_res(itl,func,src);
+            const auto arr_ptr = addrof_res(itl,func,reg.slot);
 
             // store data
             store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
         }   
     }
 
-    else if(is_struct(type))
+    else if(is_struct(reg.type))
     {
         assert(false);
     }
@@ -434,7 +431,7 @@ void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const
 }
 
 
-dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
+Option<itl_error> compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
 {
     const auto& rtti = itl.rtti_cache;
     const b32 handle_storage = is_special_reg(any_ptr,spec_reg::null);
@@ -451,18 +448,20 @@ dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node,
         const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
         const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
 
+        const TypedReg reg = {addr_slot,rtype};
+
         if(handle_storage)
         {
             // alloc the struct size for our copy
             alloc_stack(itl,func,rtti.any_struct_size);
 
             const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-            make_any(itl,func,SP_SLOT,0,addr_slot,rtype);
+            make_any(itl,func,SP_SLOT,0,reg);
         }
 
         else
         {
-            make_any(itl,func,any_ptr,offset,addr_slot,rtype);
+            make_any(itl,func,any_ptr,offset,reg);
         }
     }
 
@@ -473,13 +472,13 @@ dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node,
 
         if(!res)
         {
-            return dtr_res::err;
+            return res.error();
         }
 
-        auto [arg_type,reg] = *res;
+        auto arg_reg = *res;
 
         // is allready an any just copy the struct
-        if(is_any(itl,arg_type))
+        if(is_any(itl,arg_reg.type))
         {
             const u32 stack_size = rtti.any_struct_size;
 
@@ -495,11 +494,12 @@ dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node,
                 const RegSlot dst_ptr = copy_reg(itl,func,SP_SLOT);
                 const auto dst_addr = make_addr(dst_ptr,0);
 
-                const auto src_addr = make_struct_addr(reg,0);
+                const auto src_addr = make_struct_addr(arg_reg.slot,0);
 
-                if(!ir_memcpy(itl,func,dst_addr,src_addr,stack_size))
+                const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,stack_size);
+                if(!!memcpy_err)
                 {
-                    return dtr_res::err;
+                    return memcpy_err;
                 }
             }
 
@@ -519,17 +519,17 @@ dtr_res compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node,
                 alloc_stack(itl,func,stack_size);
 
                 const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-                make_any(itl,func,SP_SLOT,0,reg,arg_type);
+                make_any(itl,func,SP_SLOT,0,arg_reg);
             }
 
             else
             {
-                make_any(itl,func,any_ptr,offset,reg,arg_type);
+                make_any(itl,func,any_ptr,offset,arg_reg);
             }
         }  
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 // return total size including data
@@ -550,7 +550,7 @@ Option<u32> compile_any(Interloper& itl, Function& func, AstNode* arg_node)
 }
 
 
-dtr_res compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
+Option<itl_error> compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, RegSlot any_ptr, u32 offset)
 {
     // storage allocation handled by caller
     return compile_any_internal(itl,func,arg_node,any_ptr,offset);

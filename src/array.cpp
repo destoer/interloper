@@ -143,18 +143,18 @@ Option<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &f
 
 // TODO: these multidimensional handwave vla's
 
-RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* type)
+RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg)
 {
-    if(is_runtime_size(type))
+    if(is_runtime_size(reg.type))
     {
-        const auto addr_slot = make_struct_addr(slot,0);
+        const auto addr_slot = make_struct_addr(reg.slot,0);
         return load_struct_u64_res(itl,func,addr_slot);
     }
 
     // fixed size, array ptr is stored in its own slot!
     else
     {
-        return slot;
+        return reg.slot;
     }
 }
 
