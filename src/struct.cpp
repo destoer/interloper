@@ -998,7 +998,11 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
             }
 
             const RegSlot tmp = imm_zero(itl,func);
-            return do_addr_store(itl,func,tmp,member_addr,member.type);
+            const auto store_err = do_addr_store(itl,func,tmp,member_addr,member.type);
+            if(!!store_err)
+            {
+                return store_err;
+            }
         }
     }
 
