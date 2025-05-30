@@ -1,21 +1,21 @@
 #include <interloper.h>
 
-Option<Type*> compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
-Option<std::pair<Type*, RegSlot>> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
-dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
-dtr_res compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
-dtr_res compile_block(Interloper &itl,Function &func,BlockNode *node);
+TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
+Option<itl_error> compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
+Option<itl_error> compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
+Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *node);
 Option<BlockSlot> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
-Option<std::pair<Type*,RegSlot>> compile_oper(Interloper& itl,Function &func,AstNode *node);
+RegResult compile_oper(Interloper& itl,Function &func,AstNode *node);
 
-Option<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
-dtr_res traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
-Option<std::pair<Type*,RegSlot>> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
+RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, RegSlot ptr_slot, RegSlot dst_slot);
 
-dtr_res compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
-Option<std::pair<Type*,RegSlot>> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
+Option<itl_error> compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
+RegResult take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
@@ -23,9 +23,9 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
 RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* type);
 RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* type);
 
-Option<std::pair<Type*,RegSlot>> symbol(Interloper &itl, AstNode *node);
+RegResult symbol(Interloper &itl, AstNode *node);
 
-dtr_res compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
+Option<itl_error> compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
 
 #include "lexer.cpp"
 #include "namespace.cpp"

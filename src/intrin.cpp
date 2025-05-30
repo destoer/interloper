@@ -15,7 +15,7 @@ Option<Function*> find_complete_func(Interloper& itl, NameSpace* name_space, con
     return func_def;
 }
 
-dtr_res ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
+Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
 {
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
     // because this alot of boilerplate

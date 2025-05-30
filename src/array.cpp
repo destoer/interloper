@@ -228,7 +228,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
     return load_arr_len(itl,func,sym.reg.slot,sym.type);
 }
 
-Option<std::pair<Type*, RegSlot>> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     IndexNode* index_node = (IndexNode*)node;
 
@@ -715,7 +715,7 @@ dtr_res compile_arr_assign(Interloper& itl, Function& func, AstNode* node, const
     }
 }
 
-dtr_res default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
+Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
 {
     if(is_fixed_array(type))
     {
