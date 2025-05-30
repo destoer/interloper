@@ -127,24 +127,29 @@ Option<Type*> compile_arith_op(Interloper& itl,Function &func,AstNode *node, Reg
 
 
 
-Option<Type*> compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, RegSlot dst_slot)
+TypeResult compile_shift(Interloper& itl,Function &func,AstNode *node,bool right, RegSlot dst_slot)
 {
     BinNode* bin_node = (BinNode*)node;
 
     const auto left_res = compile_oper(itl,func,bin_node->left);
-    const auto right_res = compile_oper(itl,func,bin_node->right);
-    if(!left_res || !right_res)
+    if(!left_res)
     {
-        return option::none;
+        return left_res.error();
     }
 
-    const auto [t1,v1] = *left_res;
-    const auto [t2,v2] = *right_res;
-
-    if(!(is_integer(t1) && is_integer(t2)))
+    const auto right_res = compile_oper(itl,func,bin_node->right);
+    if(!right_res)
     {
-        compile_error(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",type_name(itl,t1).buf,type_name(itl,t2).buf);
-        return option::none;
+        return right_res.error();
+    }
+
+    const auto left = *left_res;
+    const auto right = *right_res;
+
+    if(!(is_integer(left.type) && is_integer(right.type)))
+    {
+        return compile_error(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",
+            type_name(itl,left.type).buf,type_name(itl,right.type).buf);
     }
 
 

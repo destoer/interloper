@@ -5,7 +5,7 @@ RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
 Option<itl_error> compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
 Option<itl_error> compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
 Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *node);
-Option<BlockSlot> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
+Result<BlockSlot,itl_error> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
 RegResult compile_oper(Interloper& itl,Function &func,AstNode *node);
 
@@ -1006,7 +1006,7 @@ dtr_res compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 }
 
 
-Option<BlockSlot> compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node)
+Result<BlockSlot,itl_error> compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node)
 {
     const BlockSlot block_slot = new_basic_block(itl,func);
     if(!compile_block(itl,func,block_node))
