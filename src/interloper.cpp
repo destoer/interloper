@@ -1826,7 +1826,7 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
         if(itl.error_count == 0)
         {
             itl.error_count = std::max(u32(1),itl.error_count);
-            itl.first_error_code = itl_error::parse_error;
+            itl.first_error_code = *parse_err == parse_error::lexer_error? itl_error::lexer_error : itl_error::parse_error;
         }
 
         destroy_itl(itl);
