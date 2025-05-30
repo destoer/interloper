@@ -765,7 +765,7 @@ RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
     return TypedReg{addr_slot.slot,make_reference(itl,type)};
 }
 
-Option<itl_error> write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)
+Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& src, AstNode *node)
 {
     auto member_addr_res = compute_member_addr(itl,func,node);
 
@@ -776,28 +776,28 @@ Option<itl_error> write_struct(Interloper& itl,Function& func, RegSlot src_slot,
 
     const auto [accessed_type, addr_slot] = *member_addr_res;
 
-    const auto assign_err = check_assign(itl,accessed_type,rtype);
+    const auto assign_err = check_assign(itl,accessed_type,src.type);
     if(!!assign_err)
     {
         return *assign_err;
     }
 
-    return do_addr_store(itl,func,src_slot,addr_slot,accessed_type);
+    return do_addr_store(itl,func,src.slot,addr_slot,accessed_type);
 }
 
 
-Option<Type*> read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
+TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
 {
     const List<Opcode> list_old = get_cur_list(func.emitter);
 
-    auto member_addr_opt =  compute_member_addr(itl,func,node);
+    auto member_addr_res =  compute_member_addr(itl,func,node);
 
-    if(!member_addr_opt)
+    if(!member_addr_res)
     {
-        return option::none;
+        return member_addr_res.error();
     }
 
-    auto [accessed_type, addr_slot] = *member_addr_opt;
+    auto [accessed_type, addr_slot] = *member_addr_res;
 
     // len access on fixed sized array
     if(is_special_reg(addr_slot.slot,spec_reg::access_fixed_len_reg))
@@ -820,9 +820,10 @@ Option<Type*> read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstN
         return accessed_type;
     }
 
-    if(!do_addr_load(itl,func,dst_slot,addr_slot,accessed_type))
+    const auto load_err = do_addr_load(itl,func,dst_slot,addr_slot,accessed_type);
+    if(!!load_err)
     {
-        return option::none;
+        return *load_err;
     }
 
     return accessed_type;

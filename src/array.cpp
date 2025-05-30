@@ -287,7 +287,7 @@ TypeResult read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
 
 
 // TODO: our type checking for our array assigns has to be done out here to ensure locals are type checked correctly
-Option<itl_error> write_arr(Interloper &itl,Function &func,AstNode *node,Type* write_type, RegSlot slot)
+Option<itl_error> write_arr(Interloper &itl,Function &func,AstNode *node,const TypedReg& src)
 {
     auto index_res = index_arr(itl,func,node,new_tmp_ptr(func));
     if(!index_res)
@@ -298,7 +298,7 @@ Option<itl_error> write_arr(Interloper &itl,Function &func,AstNode *node,Type* w
     auto index = *index_res;
 
     // convert fixed size pointer..
-    if(is_array(write_type))
+    if(is_array(src.type))
     {
         unimplemented("array write");
     }
@@ -308,13 +308,13 @@ Option<itl_error> write_arr(Interloper &itl,Function &func,AstNode *node,Type* w
         // deref of pointer
         index.type = deref_pointer(index.type);
 
-        const auto store_err = do_ptr_store(itl,func,slot,index);
+        const auto store_err = do_ptr_store(itl,func,src.slot,index);
         if(!!store_err)
         {
             return *store_err;
         }
 
-        return check_assign(itl,index.type,write_type);
+        return check_assign(itl,index.type,src.type);
     }
 }
 
@@ -389,6 +389,7 @@ Option<itl_error> traverse_string_initializer_internal(Interloper& itl,Function&
             store_addr_slot(itl,func,arr_size,*addr_slot,GPR_SIZE,false);
 
             addr_slot->offset += GPR_SIZE;
+            return option::none;
         }
 
         else

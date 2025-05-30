@@ -2123,19 +2123,19 @@ ConstValueResult access_builtin_type_info(Interloper& itl, builtin_type type, co
 
 
 
-Option<Type*> access_builtin_type_info(Interloper& itl, Function& func, RegSlot dst_slot, builtin_type type, const String& member_name)
+TypeResult access_builtin_type_info(Interloper& itl, Function& func, RegSlot dst_slot, builtin_type type, const String& member_name)
 {
-    auto type_info_opt = access_builtin_type_info(itl,type,member_name);
+    auto type_info_res = access_builtin_type_info(itl,type,member_name);
 
-    if(!type_info_opt)
+    if(!type_info_res)
     {
-        return option::none;
+        return type_info_res.error();
     }
 
-    auto [rtype,ans] = *type_info_opt;
-    mov_imm(itl,func,dst_slot,ans);
+    auto data = *type_info_res;
+    mov_imm(itl,func,dst_slot,data.value);
 
-    return rtype;
+    return data.type;
 }
 
 

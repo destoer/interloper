@@ -239,7 +239,7 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
 
 
 // TODO: Detect when short ciruciting is unecessary due to a lack of side effects
-Option<Type*> compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type, u32 depth)
+TypeResult compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type, u32 depth)
 {
     BinNode* bin_node = (BinNode*)node;
     
@@ -250,17 +250,19 @@ Option<Type*> compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *n
 
     if(bin_node->left->type == syntax_nested)
     {
-        if(!compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1))
+        const auto logic_err = compile_boolean_logic_op(itl,func,bin_node->left,dst_slot,type, depth + 1);
+        if(!!logic_err)
         {
-            return option::none;
+            return *logic_err;
         }
     }
 
     else
     {
-        if(!compile_expression(itl,func,bin_node->left,dst_slot))
+        const auto left_res = compile_expression(itl,func,bin_node->left,dst_slot);
+        if(!left_res)
         {
-            return option::none;
+            return left_res;
         }
 
         // switched from and to or
@@ -279,9 +281,10 @@ Option<Type*> compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *n
 
     // Give this a new block we can jump over
     const BlockSlot right_block = new_basic_block(itl,func);
-    if(!compile_expression(itl,func,bin_node->right,dst_slot))
+    const auto right_res = compile_expression(itl,func,bin_node->right,dst_slot);
+    if(!right_res)
     {
-        return option::none;
+        return right_res;
     }
 
     // We are now at the top of the stack create and then rewrite in all the block exits
