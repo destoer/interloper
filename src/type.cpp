@@ -1082,9 +1082,9 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
                     return expr_res.error();
                 }
 
-                const auto [size,int_type] = *expr_res;
+                const auto const_int = *expr_res;
 
-                type = make_array(itl,type,size,is_constant);
+                type = make_array(itl,type,const_int.value,is_constant);
                 break;
             }
 
