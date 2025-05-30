@@ -167,7 +167,7 @@ Option<itl_error> compile_while_block(Interloper &itl,Function &func,AstNode *no
     emit_cond_branch(itl,func,end_block,while_block,exit_block,exit_cond.slot,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,while_block,exit_cond.slot,false); 
+    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond.slot,false); 
     return option::none;  
 }
 
