@@ -635,7 +635,7 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
             auto ptr = *res;
 
             // make sure this ptr goes into the dst slot
-            mov_reg(itl,func,slot,slot);
+            mov_reg(itl,func,slot,ptr.slot);
 
             return ptr;
         }
