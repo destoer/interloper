@@ -686,7 +686,9 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
     if(returns_value && !is_special_reg(dst_slot,spec_reg::null) && !sig.hidden_args)
     {
         const RegSlot rv = make_spec_reg_slot(return_reg_from_type(sig.return_type[0]));
-        const auto move_err = compile_move(itl,func,dst_slot,rv,sig.return_type[0],sig.return_type[0]);
+        const TypedReg dst = {dst_slot,sig.return_type[0]};
+        const TypedReg src = {rv,sig.return_type[0]};
+        const auto move_err = compile_move(itl,func,dst,src);
         if(!!move_err)
         {
             return *move_err;

@@ -709,7 +709,7 @@ Option<itl_error> compile_arr_assign(Interloper& itl, Function& func, AstNode* n
                 return *assign_err;
             }
             
-            return compile_move(itl,func,arr.slot,reg.slot,arr.type,reg.type);
+            return compile_move(itl,func,arr,reg);
         }
     }
 }

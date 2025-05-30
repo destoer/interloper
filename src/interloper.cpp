@@ -14,7 +14,7 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
 RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, RegSlot ptr_slot, RegSlot dst_slot);
 
-Option<itl_error> compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
+Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& dst, const TypedReg& src);
 RegResult take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
