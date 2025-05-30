@@ -262,3 +262,8 @@ String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space,
 
     return make_string(buffer);
 }
+
+TypedReg typed_reg(const Symbol& sym)
+{
+    return TypedReg{sym.reg.slot,sym.type};
+}

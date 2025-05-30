@@ -73,7 +73,7 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
     return option::none;
 }
 
-dtr_res ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
+Option<itl_error> ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 {
 
     static constexpr u32 INLINE_LIMIT = 256;
@@ -94,14 +94,14 @@ dtr_res ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     // call into zero_mem
     else
     {
-        auto func_def_opt = find_complete_func(itl,itl.std_name_space,"zero_mem");
+        auto func_def_res = find_complete_func(itl,itl.std_name_space,"zero_mem");
 
-        if(!func_def_opt)
+        if(!func_def_res)
         {
-            return dtr_res::err;
+            return func_def_res.error();
         }
 
-        Function &func_call = *func_def_opt.value();
+        Function &func_call = *func_def_res.value();
 
         ArgPass pass = make_arg_pass(func_call.sig);
 
@@ -118,13 +118,11 @@ dtr_res ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
         clean_args(itl,func,pass.arg_clean);        
     }
 
-    return dtr_res::ok;
+    return option::none;
 }
 
 TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
-    UNUSED(dst_slot);
-    
     FuncCallNode* func_call = (FuncCallNode*)node;
 
     const u32 arg_size = count(func_call->args);

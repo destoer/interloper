@@ -211,8 +211,6 @@ struct Type
     b32 is_const;
 };
 
-using TypeOpt = Option<Type*>;
-
 static constexpr u32 TYPE_ATTR = 2;
 
 struct BuiltinType

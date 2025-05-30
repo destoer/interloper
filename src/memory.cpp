@@ -244,10 +244,10 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,A
     return option::none;
 }
 
-Option<itl_error> do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,RegSlot ptr_slot, const Type* type, u32 offset = 0)
+Option<itl_error> do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const auto src_addr = make_addr(ptr_slot,offset);
-    return do_addr_load(itl,func,dst_slot,src_addr,type);
+    const auto src_addr = make_addr(reg.slot,offset);
+    return do_addr_load(itl,func,dst_slot,src_addr,reg.type);
 }
 
 
@@ -344,8 +344,8 @@ Option<itl_error> do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,
     } 
 }
 
-Option<itl_error> do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,RegSlot ptr_slot, const Type* type, u32 offset = 0)
+Option<itl_error> do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const auto dst_addr = make_addr(ptr_slot,offset);
-    return do_addr_store(itl,func,src_slot,dst_addr,type);
+    const auto dst_addr = make_addr(reg.slot,offset);
+    return do_addr_store(itl,func,src_slot,dst_addr,reg.type);
 }
