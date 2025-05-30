@@ -1119,9 +1119,9 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
 
         if(ir_reg.local_reg != ir_reg.global_reg)
         {
-            assert(!is_locked(get_register_file(alloc,ir_reg),ir_reg.global_reg));
             push_var(misplaced,slot);
             log_reg(alloc.print,*alloc.table,"misplaced %r %s %s\n",slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
+            assert(!is_locked(get_register_file(alloc,ir_reg),ir_reg.global_reg));
         }
     }
 

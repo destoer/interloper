@@ -161,7 +161,7 @@ void load_addr_slot(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot add
     }
 }
 
-void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_addr, const Type* type)
+Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_addr, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
@@ -173,7 +173,11 @@ void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
         if(is_runtime_size(type))
         {
             const auto dst_addr = make_struct_addr(dst_slot,0);
-            ir_memcpy(itl,func,dst_addr,src_addr,VLA_SIZE);
+            const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,VLA_SIZE);
+            if(!!memcpy_err)
+            {
+                return memcpy_err;
+            }
         }
 
         // fixed size array, the pointer is the array
@@ -192,7 +196,11 @@ void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
             case reg_kind::tmp:
             {
                 const auto dst_addr = make_struct_addr(dst_slot,0);
-                ir_memcpy(itl,func,dst_addr,src_addr,size);
+                const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
+                if(!!memcpy_err)
+                {
+                    return memcpy_err;
+                }
                 break;
             }
 
@@ -206,7 +214,11 @@ void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
                     case spec_reg::rv_struct:
                     {
                         const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
-                        ir_memcpy(itl,func,dst_addr,src_addr,size);
+                        const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
+                        if(!!memcpy_err)
+                        {
+                            return memcpy_err;
+                        }
                         break;
                     }
 
@@ -228,12 +240,14 @@ void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
     {
         assert(false);
     }
+
+    return option::none;
 }
 
-void do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,RegSlot ptr_slot, const Type* type, u32 offset = 0)
+Option<itl_error> do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const auto src_addr = make_addr(ptr_slot,offset);
-    do_addr_load(itl,func,dst_slot,src_addr,type);
+    const auto src_addr = make_addr(reg.slot,offset);
+    return do_addr_load(itl,func,dst_slot,src_addr,reg.type);
 }
 
 
@@ -311,7 +325,7 @@ void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot ds
 }
 
 
-void do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot dst_addr, const Type* type)
+Option<itl_error> do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot dst_addr, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
@@ -319,18 +333,19 @@ void do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot dst_
     {
         const b32 fp = is_float(type);
         store_addr_slot(itl,func,src_slot,dst_addr,size,fp);
+        return option::none;
     }
 
     // large copy
     else
     {      
         const auto src_addr = make_struct_addr(src_slot,0);
-        ir_memcpy(itl,func,dst_addr,src_addr,size);        
+        return ir_memcpy(itl,func,dst_addr,src_addr,size);        
     } 
 }
 
-void do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,RegSlot ptr_slot, const Type* type, u32 offset = 0)
+Option<itl_error> do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const auto dst_addr = make_addr(ptr_slot,offset);
-    do_addr_store(itl,func,src_slot,dst_addr,type);
+    const auto dst_addr = make_addr(reg.slot,offset);
+    return do_addr_store(itl,func,src_slot,dst_addr,reg.type);
 }

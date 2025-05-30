@@ -32,9 +32,9 @@ void print_enum(Enum& enumeration)
     printf("}\n");       
 }
 
-void compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
+Option<itl_error> compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
 
-void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
+Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 {
     EnumNode* node = (EnumNode*)def.root;    
 
@@ -44,7 +44,14 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
     if(node->type)
     {
-        enumeration.underlying_type = get_type(itl,node->type);
+        auto type_res = get_type(itl,node->type);
+
+        if(!type_res)
+        {
+            return type_res.error();
+        }
+
+        enumeration.underlying_type = *type_res;
 
         if(is_struct(enumeration.underlying_type))
         {
@@ -58,8 +65,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
     if((node->attr_flags & ATTR_FLAG) && (!enumeration.underlying_type || !is_integer(enumeration.underlying_type)))
     {
-        panic(itl,itl_error::enum_type_error,"Flag enum must specify underlying integer type\n");
-        return;
+        return compile_error(itl,itl_error::enum_type_error,"Flag enum must specify underlying integer type\n");
     }
 
 
@@ -85,9 +91,9 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         // check for duplicate members
         if(contains(enumeration.member_map,member.name))
         {
-            panic(itl,itl_error::redeclaration,"Enum %s member %s redefined!\n",enumeration.name.buf,member.name.buf);
+            const auto res = compile_error(itl,itl_error::redeclaration,"Enum %s member %s redefined!\n",enumeration.name.buf,member.name.buf);
             destroy_enum(enumeration);
-            return;
+            return res;
         }
 
         if(!enumeration.underlying_type)
@@ -96,8 +102,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
             if(member_decl.initializer)
             {
-                panic(itl,itl_error::enum_type_error,"Plain enum's cannot have initializers");
-                return;
+                return compile_error(itl,itl_error::enum_type_error,"Plain enum's cannot have initializers");
             }
         }
 
@@ -115,7 +120,12 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
                     itl.ctx.expr = (AstNode*)member_decl.initializer;
                     const u32 offset = m * structure.size;
 
-                    compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,enumeration.struct_slot, offset);
+                    const auto struct_err = compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,
+                        enumeration.struct_slot, offset);
+                    if(!!struct_err)
+                    {
+                        return *struct_err;
+                    }
                     break;
                 }
 
@@ -133,25 +143,26 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
             {
                 value_used = true;
 
-                const auto [value,type] = compile_const_int_expression(itl,member_decl.initializer);
+                auto expr_res = compile_const_int_expression(itl,member_decl.initializer);
 
-                if(!is_integer(type))
+                if(!expr_res)
                 {
-                    return;
+                    return expr_res.error();
                 }
 
-                member.value = value;
+                const auto const_int = *expr_res;
+
+                member.value = const_int.value;
 
                 // TODO: check for overlapping values
-                if(contains(set,value))
+                if(contains(set,const_int.value))
                 {
-                    panic(itl,itl_error::enum_type_error,"Duplicate enum value: %s",member.name.buf);
-                    return;
+                    return compile_error(itl,itl_error::enum_type_error,"Duplicate enum value: %s",member.name.buf);
                 }
 
                 else
                 {
-                    add(set,value);
+                    add(set,const_int.value);
                 }
             }
 
@@ -160,8 +171,7 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
                 // TODO: maybe we should relax this to pick a valid int
                 if(value_used)
                 {
-                    panic(itl,itl_error::enum_type_error,"Integer enums must assign all values manually when used");
-                    return;
+                    return compile_error(itl,itl_error::enum_type_error,"Integer enums must assign all values manually when used");
                 }
 
                 // we have flags automatically assign the next value
@@ -194,6 +204,8 @@ void parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
     {
         print_enum(enumeration);
     }
+
+    return option::none;
 }
 
 
@@ -212,7 +224,7 @@ Type* make_enum_type(Interloper& itl,Enum& enumeration)
 }
 
 
-enum class enum_decode_res
+enum class [[nodiscard]] enum_decode_res
 {
     ok,
     invalid_namespace,
@@ -239,7 +251,13 @@ enum_decode_res decode_enum(Interloper& itl,ScopeNode* scope_node, Enum** enumer
 
     if(count(scope_node->scope) == 1)
     {
-        type_decl = lookup_type(itl,scope_node->scope[0]);
+        auto type_opt = lookup_type(itl,scope_node->scope[0]);
+        if(!type_opt)
+        {
+            return enum_decode_res::invalid_enum;
+        }
+
+        type_decl = *type_opt;
     }
 
     else
@@ -252,7 +270,15 @@ enum_decode_res decode_enum(Interloper& itl,ScopeNode* scope_node, Enum** enumer
             return enum_decode_res::invalid_namespace;
         }
 
-        type_decl = lookup_type_scoped(itl,name_space,scope_node->scope[count_minus_one]);
+
+        auto type_opt = lookup_type_scoped(itl,name_space,scope_node->scope[count_minus_one]);
+
+        if(!type_opt)
+        {
+            return enum_decode_res::invalid_enum;
+        }
+
+        type_decl = *type_opt;
     }
 
     if(!type_decl || type_decl->kind != type_kind::enum_t)
@@ -279,7 +305,7 @@ enum_decode_res decode_enum(Interloper& itl,ScopeNode* scope_node, Enum** enumer
 }
 
 // Note: if this can't find an enum it will fail without a panic
-Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, RegSlot dst_slot)
+TypeResult compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, RegSlot dst_slot)
 {
     Enum* enumeration = nullptr;
     EnumMember* enum_member = nullptr;
@@ -312,11 +338,9 @@ Type* compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, RegSlo
         
         case enum_decode_res::invalid_member:
         {
-            panic(itl,itl_error::enum_type_error,"enum %s no such member\n",enumeration->name.buf);
-            return make_builtin(itl,builtin_type::void_t);     
+            return compile_error(itl,itl_error::enum_type_error,"enum %s no such member\n",enumeration->name.buf); 
         }
     }
 
     assert(false);
-    return make_builtin(itl,builtin_type::void_t);
 }

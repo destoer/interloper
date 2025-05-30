@@ -1,6 +1,7 @@
 #pragma once
 #include <destoer/destoer.h>
 #include "list.inl"
+#include "error.h"
 
 enum class op_type
 {
@@ -535,6 +536,14 @@ struct RegSlot
     reg_kind kind = reg_kind::sym;
 };
 
+struct TypedReg
+{
+    RegSlot slot;
+    Type* type = nullptr;
+};
+
+using RegResult = destoer::Result<TypedReg,itl_error>;
+
 inline bool operator == (const RegSlot& v1, const RegSlot &v2)
 {
     if(v1.kind != v2.kind)
@@ -905,7 +914,7 @@ struct AddrSlot
 };
 
 // intrin
-void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
+Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
 
 enum class arch_target
 {

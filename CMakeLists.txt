@@ -28,3 +28,5 @@ add_subdirectory("util")
 
 add_executable(interloper ${src_files})
 target_link_libraries(interloper destoer)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -1,5 +1,6 @@
 namespace gfx;
 
+import <colour>
 import <os_graphics>
 import <input>
 
@@ -41,7 +42,7 @@ func test_pattern(screen: u32[], x: u32, y: u32)
 {
     for @v in screen
     {
-        @v = GREEN;
+        @v = colour::GREEN;
     }
 
     screen[((y / 2) * x) + (x / 2)] = 0x0000_00ff;

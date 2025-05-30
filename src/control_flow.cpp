@@ -1,6 +1,6 @@
 
 
-void compile_if_block(Interloper &itl,Function &func,AstNode *node)
+Option<itl_error> compile_if_block(Interloper &itl,Function &func,AstNode *node)
 {
     BlockNode* if_block = (BlockNode*)node;
 
@@ -12,18 +12,23 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         BinNode* if_stmt = (BinNode*)if_block->statements[n];
 
         // compile the compare expr if conditon
-        auto [type,reg] = compile_oper(itl,func,if_stmt->left);
+        auto res = compile_oper(itl,func,if_stmt->left);
+        if(!res)
+        {
+            return res.error();
+        }
+
+        auto cond = *res;
 
         // integer or pointer is fine check they aernt zero as a shorthand
-        if(is_integer(type) || is_pointer(type))
+        if(is_integer(cond.type) || is_pointer(cond.type))
         {
-            reg = cmp_ne_imm_res(itl,func,reg,0);
+            cond.slot = cmp_ne_imm_res(itl,func,cond.slot,0);
         }
         
-        else if(!is_bool(type))
+        else if(!is_bool(cond.type))
         {
-            panic(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,type).buf);
-            return;
+            return compile_error(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,cond.type).buf);
         }
 
         // block for comparison branch
@@ -31,7 +36,13 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
         const BlockSlot cmp_block = cur_block(func);
 
         // compile the body block
-        const BlockSlot body_slot = compile_basic_block(itl,func,(BlockNode*)if_stmt->right);
+        const auto body_slot_res = compile_basic_block(itl,func,(BlockNode*)if_stmt->right);
+        if(!body_slot_res)
+        {
+            return body_slot_res.error();
+        }
+
+        const BlockSlot body_slot = *body_slot_res;
 
         // not the last statment 
         if(n != count(if_block->statements) - 1)
@@ -44,10 +55,14 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 // else stmt has no expr so its in the first node
                 // and by definition this is the last statement with no cond so we have to explictly splice a jump to it
                 UnaryNode* else_stmt = (UnaryNode*)if_block->statements[n+1];
-                const BlockSlot else_slot = compile_basic_block(itl,func,(BlockNode*)else_stmt->next);
+                const auto else_slot_res = compile_basic_block(itl,func,(BlockNode*)else_stmt->next);
+                if(!else_slot_res)
+                {
+                    return else_slot_res.error();
+                }
 
                 // add branch over body we compiled to else statement
-                emit_cond_branch(itl,func,cmp_block,else_slot,body_slot,reg,false);
+                emit_cond_branch(itl,func,cmp_block,*else_slot_res,body_slot,cond.slot,false);
 
                 exit_block = add_fall(itl,func);
                 break;
@@ -60,7 +75,7 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
                 const BlockSlot chain_slot = new_basic_block(itl,func);
 
                 // add branch over the body we compiled earlier
-                emit_cond_branch(itl,func,cmp_block,chain_slot,body_slot,reg,false);
+                emit_cond_branch(itl,func,cmp_block,chain_slot,body_slot,cond.slot,false);
             }
         }
 
@@ -70,13 +85,8 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             exit_block = add_fall(itl,func);
 
             // if cond not met just branch into exit block
-            emit_cond_branch(itl,func,cmp_block,exit_block,body_slot,reg,false);          
+            emit_cond_branch(itl,func,cmp_block,exit_block,body_slot,cond.slot,false);          
         }
-    }
-
-    if(itl.error)
-    {
-        return;
     }
 
     // now we have to exit block add in every exit
@@ -95,41 +105,58 @@ void compile_if_block(Interloper &itl,Function &func,AstNode *node)
             }
         }
     }
+
+    return option::none;
 }
 
-void compile_while_block(Interloper &itl,Function &func,AstNode *node)
+Option<itl_error> compile_while_block(Interloper &itl,Function &func,AstNode *node)
 {
-    
-
     BinNode* while_node = (BinNode*)node;
 
     // compile cond
-    auto [cond_type,entry_cond] = compile_oper(itl,func,while_node->left);
+    auto entry_res = compile_oper(itl,func,while_node->left);
+    if(!entry_res)
+    {
+        return entry_res.error();
+    }
+
+    auto entry_cond = *entry_res;
+
     const BlockSlot initial_block = cur_block(func);
 
     // integer or pointer, check not zero
-    if(is_integer(cond_type) || is_pointer(cond_type))
+    if(is_integer(entry_cond.type) || is_pointer(entry_cond.type))
     {
-        entry_cond = cmp_ne_imm_res(itl,func,entry_cond,0);
+        entry_cond.slot = cmp_ne_imm_res(itl,func,entry_cond.slot,0);
     }
 
     // check cond is actually a bool
-    else if(!is_bool(cond_type))
+    else if(!is_bool(entry_cond.type))
     {
-        panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,cond_type).buf);
-        return;
+        return compile_error(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,entry_cond.type).buf);
     }    
 
     // compile body
-    const BlockSlot while_block = compile_basic_block(itl,func,(BlockNode*)while_node->right); 
+    const auto while_block_res = compile_basic_block(itl,func,(BlockNode*)while_node->right); 
+    if(!while_block_res)
+    {
+        return while_block_res.error();
+    }
 
-    RegSlot exit_cond;
-    std::tie(std::ignore,exit_cond) = compile_oper(itl,func,while_node->left);
+    const BlockSlot while_block = *while_block_res;
+
+    auto exit_res = compile_oper(itl,func,while_node->left);
+    if(!exit_res)
+    {
+        return exit_res.error();
+    }
+
+    auto exit_cond = exit_res.value();
 
     // integer or pointer, check not zero
-    if(is_integer(cond_type) || is_pointer(cond_type))
+    if(is_integer(exit_cond.type) || is_pointer(exit_cond.type))
     {
-        exit_cond = cmp_ne_imm_res(itl,func,exit_cond,0);
+        exit_cond.slot = cmp_ne_imm_res(itl,func,exit_cond.slot,0);
     }
 
     const BlockSlot end_block = cur_block(func);
@@ -137,13 +164,14 @@ void compile_while_block(Interloper &itl,Function &func,AstNode *node)
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // keep looping to while block if cond is true
-    emit_cond_branch(itl,func,end_block,while_block,exit_block,exit_cond,true);
+    emit_cond_branch(itl,func,end_block,while_block,exit_block,exit_cond.slot,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond,false);   
+    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond.slot,false); 
+    return option::none;  
 }
 
-void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_node, b32 inc, op_type cmp_type)
+Option<itl_error> compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_node, b32 inc, op_type cmp_type)
 {
     // save initial block so we can dump a branch later
     const BlockSlot initial_block = cur_block(func);
@@ -152,7 +180,13 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
 
     // grab end
     // NOTE: we need to regrab this later incase it is not a const
-    const auto [entry_end_type,entry_end] = compile_oper(itl,func,cmp_node->right);
+    const auto entry_res = compile_oper(itl,func,cmp_node->right);
+    if(!entry_res)
+    {
+        return entry_res.error();
+    }
+
+    const auto entry_end = *entry_res;
 
     // make index the same sign as the end stmt
     const auto& sym = add_symbol(itl,for_node->name_one,make_builtin(itl,inc? builtin_type::u32_t : builtin_type::s32_t)); 
@@ -160,21 +194,32 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     const RegSlot index = sym.reg.slot;
 
     // grab initalizer
-    const auto entry_init_type = compile_expression(itl,func,cmp_node->left,index);
-
-    if(!is_integer(entry_init_type) || !is_integer(entry_end_type))
+    const auto entry_init_type_res = compile_expression(itl,func,cmp_node->left,index);
+    if(!entry_init_type_res)
     {
-        panic(itl,itl_error::bool_type_error,"expected integer's in range conditon got %s,%s\n",
+        return entry_init_type_res.error();
+    }
+
+    const Type* entry_init_type = *entry_init_type_res;
+
+    if(!is_integer(entry_init_type) || !is_integer(entry_end.type))
+    {
+        return compile_error(itl,itl_error::bool_type_error,"expected integer's in range conditon got %s,%s\n",
             type_name(itl,entry_init_type).buf,type_name(itl,entry_init_type).buf);
-        return;
     }    
 
     // compile in cmp for entry
     RegSlot entry_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index,entry_end);
+    emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index,entry_end.slot);
 
     // compile the main loop body
-    const BlockSlot for_block = compile_basic_block(itl,func,for_node->block); 
+    const auto for_block_res = compile_basic_block(itl,func,for_node->block); 
+    if(!for_block_res)
+    {
+        return for_block_res.error();
+    }
+
+    const BlockSlot for_block = *for_block_res;
 
     // compile post inc / dec
     if(inc)
@@ -191,10 +236,16 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     const BlockSlot end_block = cur_block(func);
 
     // regrab end
-    const auto [exit_end_type,exit_end] = compile_oper(itl,func,cmp_node->right);
+    const auto exit_res = compile_oper(itl,func,cmp_node->right);
+    if(!exit_res)
+    {
+        return exit_res.error();
+    }
+
+    const auto exit = *exit_res;
 
     RegSlot exit_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index,exit_end);
+    emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index,exit.slot);
 
     // compile in branches
     const BlockSlot exit_block = new_basic_block(itl,func);
@@ -203,20 +254,27 @@ void compile_for_range_idx(Interloper& itl, Function& func, ForRangeNode* for_no
     emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);    
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
+
+    return option::none;    
 }
 
-void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
+Option<itl_error> compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_node)
 {
-    const auto [type, arr_slot] = compile_expression_tmp(itl,func,for_node->cond);
-
-    if(!is_array(type))
+    const auto entry_res = compile_expression_tmp(itl,func,for_node->cond);
+    if(!entry_res)
     {
-        panic(itl,itl_error::array_type_error,"Expected array for range stmt got %s\n",type_name(itl,type).buf);
-        return;
+        return entry_res.error();
     }
 
-    ArrayType* arr_type = (ArrayType*)type;
+    const auto entry_arr = *entry_res;
+
+    if(!is_array(entry_arr.type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Expected array for range stmt got %s\n",type_name(itl,entry_arr.type).buf);
+    }
+
+    ArrayType* arr_type = (ArrayType*)entry_arr.type;
 
     const u32 index_size = arr_type->sub_size;
 
@@ -224,7 +282,7 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     // we dont care
     if(is_fixed_array(arr_type) && arr_type->size == 0)
     {
-        return;
+        return option::none;
     }
 
     // save initial block so we can dump a branch later
@@ -253,8 +311,7 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
         // check our loop index does not exist
         if(symbol_exists(itl.symbol_table,for_node->name_two))
         {
-            panic(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
-            return;
+            return compile_error(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
         }        
 
         // make a fake constant symbol
@@ -267,10 +324,10 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     }
 
     // setup the loop grab data and len
-    const auto arr_len = load_arr_len(itl,func,arr_slot,type);
+    const auto arr_len = load_arr_len(itl,func,entry_arr);
     const auto arr_bytes = mul_imm_res(itl,func,arr_len,index_size);
 
-    const auto arr_data = load_arr_data(itl,func,arr_slot,type);
+    const auto arr_data = load_arr_data(itl,func,entry_arr);
 
     // compute array end
     const auto arr_end = add_res(itl,func,arr_data,arr_bytes);
@@ -294,7 +351,12 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     {
         // insert the array load inside the for block
         // before we compile the actual stmts
-        do_ptr_load(itl,func,data,arr_data,arr_type->contained_type);
+        const TypedReg load_reg = {arr_data,arr_type->contained_type};
+        const auto load_err = do_ptr_load(itl,func,data,load_reg);
+        if(!!load_err)
+        {
+            return *load_err;
+        }
     }
 
     // move the pointer in the data
@@ -303,7 +365,11 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
         mov_reg(itl,func,data,arr_data);
     }
 
-    compile_block(itl,func,for_node->block);
+    const auto block_err = compile_block(itl,func,for_node->block);
+    if(!!block_err)
+    {
+        return *block_err;
+    }
 
     // compile body check
     const BlockSlot end_block = cur_block(func);
@@ -336,19 +402,20 @@ void compile_for_range_arr(Interloper& itl, Function& func, ForRangeNode* for_no
     {
         add_block_exit(func,initial_block,for_block);
     }
+
+    return option::none;
 }
 
 
-void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
+Option<itl_error> compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
 {
     // scope for any var decls in the stmt
-    enter_new_anon_scope(itl.symbol_table);
+    auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     // check our loop index does not exist
     if(symbol_exists(itl.symbol_table,for_node->name_one))
     {
-        panic(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
-        return;
+        return compile_error(itl,itl_error::redeclaration,"redeclared index in for range loop: %s\n",for_node->name_one.buf);
     }
 
     // determine what kind of loop term we have
@@ -357,44 +424,37 @@ void compile_for_range(Interloper& itl, Function& func, ForRangeNode* for_node)
         // <= or < is inc
         case ast_type::logical_lt:
         {
-            compile_for_range_idx(itl,func,for_node,true,op_type::cmpslt_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,true,op_type::cmpslt_reg);
         }
 
         case ast_type::logical_le:
         {
-            compile_for_range_idx(itl,func,for_node,true,op_type::cmpsle_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,true,op_type::cmpsle_reg);
         }
 
         // >= or > is dec
         case ast_type::logical_gt:
         {
-            compile_for_range_idx(itl,func,for_node,false,op_type::cmpsgt_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,false,op_type::cmpsgt_reg);
         }
 
         case ast_type::logical_ge:
         {
-            compile_for_range_idx(itl,func,for_node,false,op_type::cmpsge_reg);
-            break;
+            return compile_for_range_idx(itl,func,for_node,false,op_type::cmpsge_reg);
         }
 
         // array index!
         default:
         {
-            compile_for_range_arr(itl,func,for_node);
-            break;
+            return compile_for_range_arr(itl,func,for_node);
         }
     }
-
-    destroy_scope(itl.symbol_table);
 }
 
-void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
+Option<itl_error> compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
 {
     // scope for any var decls in the stmt
-    enter_new_anon_scope(itl.symbol_table);
+    auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
 
    // compile the first stmt (ussualy an assign)
 
@@ -406,73 +466,93 @@ void compile_for_iter(Interloper& itl, Function& func, ForIterNode* for_node)
     {
         case ast_type::auto_decl:
         {
-            compile_auto_decl(itl,func,for_node->initializer);
+            const auto auto_err = compile_auto_decl(itl,func,for_node->initializer);
+            if(!!auto_err)
+            {
+                return *auto_err;
+            }
             break;
         }
 
         case ast_type::declaration:
         {
-            compile_decl(itl,func,for_node->initializer);
+            const auto decl_err = compile_decl(itl,func,for_node->initializer);
+            if(!!decl_err)
+            {
+                return *decl_err;
+            }
             break;
         }
 
         default:
         {
-            compile_expression_tmp(itl,func,for_node->initializer);
+            const auto tmp_res = compile_expression_tmp(itl,func,for_node->initializer);
+            if(!tmp_res)
+            {
+                return tmp_res.error();
+            }
             break;
         }
     }
 
-    if(itl.error)
-    {
-        return;
-    }
-    
     // compile cond for entry and check it is a bool
-    const auto [cond_type,entry_cond] = compile_oper(itl,func,for_node->cond);
+    const auto entry_res = compile_oper(itl,func,for_node->cond);
+    if(!entry_res)
+    {
+        return entry_res.error();
+    }
+
+    const auto entry = *entry_res;
+
     const BlockSlot initial_block = cur_block(func);
   
-    if(!is_bool(cond_type))
+    if(!is_bool(entry.type))
     {
-        panic(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,cond_type).buf);
-        return;
+        return compile_error(itl,itl_error::bool_type_error,"expected bool got %s in for condition\n",type_name(itl,entry.type).buf);
     }    
 
 
     // compile the body
-    const BlockSlot for_block = compile_basic_block(itl,func,for_node->block);    
-
-    // compile loop end stmt
-    compile_expression_tmp(itl,func,for_node->post);
-    
-    if(itl.error)
+    const auto for_block_res = compile_basic_block(itl,func,for_node->block);    
+    if(!for_block_res)
     {
-        return;
+        return for_block_res.error();
     }
 
-    RegSlot exit_cond;
-    std::tie(std::ignore,exit_cond) = compile_oper(itl,func,for_node->cond);
+    const BlockSlot for_block = *for_block_res;
+
+    // compile loop end stmt
+    const auto for_post_res = compile_expression_tmp(itl,func,for_node->post);
+    if(!for_post_res)
+    {
+        return for_post_res.error();
+    }
+    
+    const auto exit_res = compile_oper(itl,func,for_node->cond);
+    if(!exit_res)
+    {
+        return exit_res.error();
+    }
+
+    auto exit = exit_res.value();
+
     const BlockSlot end_block = cur_block(func);
 
 
     const BlockSlot exit_block = new_basic_block(itl,func);
 
-    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit.slot,true);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
-
-    destroy_scope(itl.symbol_table);    
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry.slot,false);
+    return option::none;    
 }
 
 
-void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
+Option<itl_error> compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 {
     SwitchNode* switch_node = (SwitchNode*)node;
-
-
     const u32 size = count(switch_node->statements);
-
 
     enum class switch_kind
     {
@@ -486,8 +566,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
     if(size == 0)
     {
-        panic(itl,itl_error::missing_args,"Switch statement has no cases");
-        return;
+        return compile_error(itl,itl_error::missing_args,"Switch statement has no cases");
     }
 
     CaseNode* first_case = (CaseNode*)switch_node->statements[0];
@@ -508,8 +587,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             if(decode_res != enum_decode_res::ok)
             {
                 itl.ctx.expr = (AstNode*)first_stmt;
-                panic(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
-                return;
+                return compile_error(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
             }
 
             for(u32 i = 0; i < size; i++)
@@ -520,8 +598,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
                 if(case_node->statement->type != ast_type::scope)
                 {
                     itl.ctx.expr = (AstNode*)case_node;
-                    panic(itl,itl_error::enum_type_error,"switch: one or more cases are not an enum\n");
-                    return;
+                    return compile_error(itl,itl_error::enum_type_error,"switch: one or more cases are not an enum\n");
                 }
 
                 ScopeNode* scope_node = (ScopeNode*)case_node->statement;
@@ -531,15 +608,14 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
                 if(decode_res != enum_decode_res::ok)
                 {
-                    panic(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
-                    return;
+                    return compile_error(itl,itl_error::enum_type_error,"invalid enum expression: %s\n",enum_decode_msg(decode_res));
                 }
 
 
                 if(case_enum->type_idx != enumeration->type_idx)
                 {
-                    panic(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",enumeration->name.buf,case_enum->name.buf);
-                    return;
+                    return compile_error(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement\n",
+                        enumeration->name.buf,case_enum->name.buf);
                 }
 
                 case_node->value = enum_member->value;          
@@ -556,8 +632,15 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
             {
                 CaseNode* case_node = switch_node->statements[i];
 
-                const auto [case_value,case_type] = compile_const_int_expression(itl,case_node->statement); 
-                case_node->value = case_value;             
+                const auto res = compile_const_int_expression(itl,case_node->statement);
+                if(!res)
+                {
+                    return res.error();
+                }
+
+                const auto case_value = *res;
+
+                case_node->value = case_value.value;             
             }
 
             switch_type = switch_kind::integer;
@@ -577,8 +660,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != enumeration->member_map.size)
     {
         // TODO: print the missing cases
-        panic(itl,itl_error::undeclared,"switch on enum %s missing cases:\n",enumeration->name.buf);
-        return;     
+        return compile_error(itl,itl_error::undeclared,"switch on enum %s missing cases:\n",enumeration->name.buf);    
     }
 
 
@@ -594,8 +676,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         // these statements have no gap, this means they are duplicated
         if(cur_gap == 0)
         {
-            panic(itl,itl_error::redeclaration,"duplicate case %d\n",switch_node->statements[i]->value);
-            return;
+            return compile_error(itl,itl_error::redeclaration,"duplicate case %d\n",switch_node->statements[i]->value);
         }
 
         gap += cur_gap;
@@ -623,37 +704,42 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // compile the actual switch expr
-        const auto [rtype,expr_slot] = compile_oper(itl,func,switch_node->expr);
+        const auto switch_res = compile_oper(itl,func,switch_node->expr);
+        if(!switch_res)
+        {
+            return switch_res.error();
+        }
+
+        const auto switch_reg = *switch_res;
 
         // type check the switch stmt
         switch(switch_type)
         {
             case switch_kind::integer:
             {
-                if(!is_integer(rtype))
+                if(!is_integer(switch_reg.type))
                 {
-                    panic(itl,itl_error::int_type_error,"expected integer for switch statement got %s\n",type_name(itl,rtype).buf);
-                    return;
+                    return compile_error(itl,itl_error::int_type_error,"expected integer for switch statement got %s\n",type_name(itl,switch_reg.type).buf);
                 }
                 break;
             }
 
             case switch_kind::enum_t:
             {
-                if(is_enum(rtype))
+                if(is_enum(switch_reg.type))
                 {
-                    EnumType* enum_type = (EnumType*)rtype;
+                    EnumType* enum_type = (EnumType*)switch_reg.type;
                     if(enum_type->enum_idx != enumeration->type_idx)
                     {
-                        panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
-                        return;                        
+                        return compile_error(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",
+                            enumeration->name.buf,type_name(itl,switch_reg.type));                      
                     }
                 }
 
                 else
                 {
-                    panic(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",enumeration->name.buf,type_name(itl,rtype));
-                    return;                    
+                    return compile_error(itl,itl_error::enum_type_error,"expected enum of type %s got %s\n",
+                        enumeration->name.buf,type_name(itl,switch_reg.type));                   
                 }
                 break;
             }
@@ -664,7 +750,7 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
         // finally emit the dispatch on the table now we know where to exit if the table bounds get execeeded
         const RegSlot switch_slot = new_tmp(func,GPR_SIZE);
-        sub_imm(itl,func,switch_slot,expr_slot,min);
+        sub_imm(itl,func,switch_slot,switch_reg.slot,min);
 
         const RegSlot default_cmp = new_tmp(func,GPR_SIZE);
         cmp_unsigned_gt_imm(itl,func,default_cmp,switch_slot,max - min);
@@ -699,7 +785,13 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
         {
             CaseNode* case_node = switch_node->statements[i];
 
-            const BlockSlot case_slot = compile_basic_block(itl,func,case_node->block);
+            const auto case_slot_res = compile_basic_block(itl,func,case_node->block);
+            if(!case_slot_res)
+            {
+                return case_slot_res.error();
+            }
+
+            const BlockSlot case_slot = *case_slot_res;
 
             // add link from dispatch to case
             add_block_exit(func,dispatch_block,case_slot);
@@ -714,13 +806,20 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
 
 
         // NOTE: as default is allways the last block it does not need to have a jump to the exit
-        BlockSlot default_block;
+        BlockSlot default_block = {INVALID_BLOCK_HANDLE};
 
 
         // if there is no default then our exit label is the end
         if(switch_node->default_statement)
         {
-            default_block = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next);
+            const auto default_block_res = compile_basic_block(itl,func,(BlockNode*)switch_node->default_statement->next);
+            if(!default_block_res)
+            {
+                return default_block_res.error();
+            }
+
+            default_block = *default_block_res;
+
             add_block_exit(func,dispatch_block,default_block);
         }
 
@@ -790,4 +889,6 @@ void compile_switch_block(Interloper& itl,Function& func, AstNode* node)
     {
         unimplemented("binary search");
     }
+
+    return option::none;
 }

@@ -1,4 +1,6 @@
 #pragma once
+#include <error.h>
+
 // NOTE: this may move during expression compilation
 // prefer holding a slot to a reference
 struct Symbol
@@ -54,7 +56,7 @@ struct ArgPass
 
 ArgPass make_arg_pass(const FuncSig& sig);
 void pass_args(Interloper& itl, Function& func, ArgPass& pass);
-void pass_arg(Interloper& itl, Function& func, ArgPass& pass,RegSlot arg, Type* type, u32 arg_idx);
+void pass_arg(Interloper& itl, Function& func, ArgPass& pass,const TypedReg& reg, u32 arg_idx);
 
 // NOTE: a func pointer is not a pointer to this struct
 // just this struct  
@@ -114,7 +116,7 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
 Function& lookup_internal_function(Interloper& itl, const String& name);
 
-void parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
+Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
 
 struct Interloper;
 
@@ -181,8 +183,21 @@ struct SymbolTable
     FileContext* ctx;
 };
 
+void destroy_scope(SymbolTable &sym_table);
+
+struct [[nodiscard]] SymbolScopeGuard
+{
+    SymbolScopeGuard(SymbolTable& table) : table(table) {}
+    ~SymbolScopeGuard()
+    {
+        destroy_scope(this->table);
+    }
+
+    SymbolTable& table;
+};
+
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);
 Symbol* get_sym(SymbolTable &sym_table,const String &sym);
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot);
 
-void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);
+Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);

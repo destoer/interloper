@@ -196,6 +196,8 @@ struct ConstData
     Type* type = nullptr;
 };
 
+using ConstDataResult = Result<ConstData,itl_error>;
+
 ConstData make_const_builtin(u64 v, Type* type)
 {
     ConstData data;
@@ -206,7 +208,7 @@ ConstData make_const_builtin(u64 v, Type* type)
     return data;
 }
 
-void write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u64 v, u32 size)
+Option<itl_error> write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u64 v, u32 size)
 {
     assert(size <= 8);
 
@@ -214,25 +216,25 @@ void write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u64 v, u32
 
     if((offset + size) > section.size)
     {
-        panic(itl,itl_error::out_of_bounds,"out of bounds write in const pool\n");
-        return;
+        return compile_error(itl,itl_error::out_of_bounds,"out of bounds write in const pool\n");
     } 
 
     // calc the read reqs
     const u32 addr = section.offset + offset;
 
     memcpy(&itl.const_pool.buf.data[addr],&v,size);
+    return option::none;
 }
 
-void write_const_builtin(Interloper& itl,PoolSlot slot, u32 offset,const ConstData& data)
+Option<itl_error> write_const_builtin(Interloper& itl,PoolSlot slot, u32 offset,const ConstData& data)
 {
     const u32 size = type_size(itl,data.type);
-    write_const_pool_mem(itl,slot,offset,data.v,size);
+    return write_const_pool_mem(itl,slot,offset,data.v,size);
 }
 
 // used for writing into compound data, i.e structs, arrays
 // NOTE: make sure data type written is an exact match.
-void write_const_data(Interloper& itl, PoolSlot slot, u32 offset, const ConstData& data)
+Option<itl_error> write_const_data(Interloper& itl, PoolSlot slot, u32 offset, const ConstData& data)
 {
     // write out based on type
     Type* type = data.type;
@@ -241,8 +243,7 @@ void write_const_data(Interloper& itl, PoolSlot slot, u32 offset, const ConstDat
     {
         case type_class::builtin_t:
         {
-            write_const_builtin(itl,slot,offset,data);
-            break;
+            return write_const_builtin(itl,slot,offset,data);
         }
 
         default: 
@@ -251,6 +252,8 @@ void write_const_data(Interloper& itl, PoolSlot slot, u32 offset, const ConstDat
             break;
         }
     }
+
+    return option::none;
 }
 
 PoolSlot pool_slot_from_sym(const Symbol& sym)
@@ -258,16 +261,16 @@ PoolSlot pool_slot_from_sym(const Symbol& sym)
     return pool_slot_from_idx(sym.reg.offset);
 }
 
-u64 read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u32 size)
+ConstValueResult read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, Type* type)
 {
+    const u32 size = type_size(itl,type);
     assert(size <= 8);
 
     auto& section = pool_section_from_slot(itl.const_pool,slot);
 
     if((offset + size) > section.size)
     {
-        panic(itl,itl_error::out_of_bounds,"out of bounds read in const pool\n");
-        return 0;
+        return compile_error(itl,itl_error::out_of_bounds,"out of bounds read in const pool\n");
     } 
 
     // calc the read reqs
@@ -276,16 +279,24 @@ u64 read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u32 size)
     u64 v = 0;
     memcpy(&v,&itl.const_pool.buf.data[addr],size);
 
-    return v;
+    return ConstValue{type,v};
 }
 
-u64 builtin_from_const(Interloper& itl, Type* type,PoolSlot slot, u32 offset)
+ConstValueResult builtin_from_const(Interloper& itl, Type* type,PoolSlot slot, u32 offset)
 {
-    const u32 size = type_size(itl,type);
-    return read_const_pool_mem(itl,slot,offset,size);
+    return read_const_pool_mem(itl,slot,offset,type);
 }
 
-ConstData read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset)
+ConstData const_value_to_data(const ConstValue& value)
+{
+    ConstData data;
+    data.v = value.value;
+    data.type = value.type;
+
+    return data;
+}
+
+ConstDataResult read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset)
 {
     // read out based on type
 
@@ -295,10 +306,13 @@ ConstData read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset
         {
             ConstData data;
 
-            data.v = builtin_from_const(itl,type,slot,offset);
-            data.type = type;
+            auto data_res = builtin_from_const(itl,type,slot,offset);
+            if(!data_res)
+            {
+                return data_res.error();
+            }
 
-            return data;
+            return const_value_to_data(*data_res);
         }
 
         default: assert(false);
@@ -307,7 +321,7 @@ ConstData read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 offset
     assert(false);
 }
 
-ConstData read_const_sym(Interloper& itl, Symbol& sym)
+ConstDataResult read_const_sym(Interloper& itl, Symbol& sym)
 {
     const auto pool_slot = pool_slot_from_idx(sym.reg.offset);
 

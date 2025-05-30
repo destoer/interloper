@@ -2,6 +2,7 @@
 #include <destoer/destoer.h>
 using namespace destoer;
 
+#include <error.h>
 #include <token.h>
 #include <lexer.h>
 #include <parser.h>
@@ -10,73 +11,6 @@ using namespace destoer;
 #include <sym.h>
 #include <ir.h>
 #include <interpretter.h>
-
-
-enum class itl_error
-{
-    none,
-    lexer_error,
-    parse_error,
-    array_type_error,
-    int_type_error,
-    illegal_cast,
-    bool_type_error,
-    string_type_error,
-    enum_type_error,
-    pointer_type_error,
-    generic_type_error,
-    out_of_bounds,
-    undeclared,
-    missing_initializer,
-    missing_name,
-    redeclaration,
-    missing_args,
-    tuple_mismatch,
-    missing_return,
-    invalid_expr,
-    invalid_statement,
-    mismatched_args,
-    black_hole,
-    struct_error,
-    undefined_type_oper,
-    const_type_error,
-    const_assert,
-    rtti_error,
-    unimplemented,
-};
-
-static const char* ERROR_NAME[] = 
-{
-    "none",
-    "parse error",
-    "lexer error",
-    "array type error",
-    "int type error",
-    "illegal cast",
-    "bool type error",
-    "string type error",
-    "enum type error",
-    "pointer type error",
-    "generic type error",
-    "out of bounds",
-    "not declared",
-    "missing initializer",
-    "missing name",
-    "redeclaration",
-    "missing args",
-    "tuple mismatch",
-    "missing return",
-    "invalid expr",
-    "invalid statement",
-    "mismatched args",
-    "black hole",
-    "struct error",
-    "undefined type operation",
-    "const type error",
-    "const assert",
-    "rtti error",
-    "unimplemented",
-};
 
 struct FileContext
 {
@@ -90,8 +24,8 @@ struct Interloper
 {
     Array<u8> program;
 
-    b32 error;
-    itl_error error_code;
+    u32 error_count = 0;
+    itl_error first_error_code;
 
     u32 arith_depth = 0;
 
@@ -169,20 +103,43 @@ struct Interloper
 
     b32 compile_only = false;
 
+    b32 itl_log = false;
+
     double backend_time = 0.0;
     double code_gen_time = 0.0;
     double parsing_time = 0.0;
     double optimise_time = 0.0;
 };
 
+void pop_context(Interloper& itl);
+
+struct [[nodiscard]] FileContextGuard
+{
+    FileContextGuard(Interloper& itl) : itl(itl) {}
+    ~FileContextGuard()
+    {
+        pop_context(itl);
+    }
+
+    Interloper& itl;
+};
+
+
 void print(const AstNode *root, b32 override_seperator = false);
 
-inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
+inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
 {
-    // dont bother reporting multiple error's
-    if(itl.error)
+    itl.error_count += 1;
+
+    if(itl.error_count == 1)
+    {    
+        itl.first_error_code = error;
+    }
+
+    // Only report the first 15 errors
+    else if(itl.error_count > 15)
     {
-        return;
+        return error;
     }
 
     if(itl.ctx.expr)
@@ -211,9 +168,7 @@ inline void panic(Interloper &itl,itl_error error,const char *fmt, ...)
     }
 
     putchar('\n');
-    
-    itl.error = true;
-    itl.error_code = error;
+    return error;
 }
 
 void itl_warning(const char* fmt, ...)
@@ -267,10 +222,10 @@ inline f64 bit_cast_to_f64(u64 v)
     return bit_cast<f64,u64>(v);
 }
 
-std::pair<u64,Type*> compile_const_int_expression(Interloper& itl, AstNode* node);
+ConstValueResult compile_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);
 void pop_context(Interloper& itl);
 void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
-void switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
+FileContextGuard switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);

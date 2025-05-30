@@ -1,31 +1,31 @@
 #include <interloper.h>
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
-std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
-void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
-void compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
-void compile_block(Interloper &itl,Function &func,BlockNode *node);
-BlockSlot compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
+TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node);
+Option<itl_error> compile_auto_decl(Interloper &itl,Function &func, const AstNode *line);
+Option<itl_error> compile_decl(Interloper &itl,Function &func,AstNode *line, b32 global = false);
+Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *node);
+Result<BlockSlot,itl_error> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
-std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node);
+RegResult compile_oper(Interloper& itl,Function &func,AstNode *node);
 
-std::pair<Type*, RegSlot> index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
-void traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
-std::pair<Type*,RegSlot> index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
+RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
      Type* type, RegSlot ptr_slot, RegSlot dst_slot);
 
-void compile_move(Interloper &itl, Function &func, RegSlot dst_slot, RegSlot src_slot, const Type* dst_type, const Type* src_type);
-std::pair<Type*,RegSlot> take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
+Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& dst, const TypedReg& src);
+RegResult take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
 void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
 RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
-RegSlot load_arr_data(Interloper& itl,Function& func,RegSlot slot, const Type* type);
-RegSlot load_arr_len(Interloper& itl,Function& func,RegSlot slot, const Type* type);
+RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg);
+RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 
-std::pair<Type*,RegSlot> symbol(Interloper &itl, AstNode *node);
+RegResult symbol(Interloper &itl, AstNode *node);
 
-void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
+Option<itl_error> compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node);
 
 #include "lexer.cpp"
 #include "namespace.cpp"
@@ -62,10 +62,12 @@ void trash_context(Interloper& itl, String filename,NameSpace* name_space, AstNo
 }
 
 // save and overwrite the ctx
-void switch_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
+FileContextGuard switch_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
 {
     push_context(itl);
     trash_context(itl,filename,name_space,expr);
+
+    return FileContextGuard(itl);
 }
 
 
@@ -89,24 +91,32 @@ void dump_reg_ir(Interloper &itl)
 }
 
 
-std::pair<Type*,RegSlot> symbol(Interloper &itl, AstNode *node)
+RegResult symbol_internal(Interloper &itl, AstNode *node, NameSpace* name_space)
 {
     LiteralNode* lit_node = (LiteralNode*)node;
 
     const auto name = lit_node->literal;
 
-    const auto sym_ptr = get_sym(itl.symbol_table,name);
+    const auto sym_ptr = get_sym_internal(itl.symbol_table,name,name_space);
     if(!sym_ptr)
     {
-        panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-        return std::pair{make_builtin(itl,builtin_type::void_t),INVALID_SYM_REG_SLOT};
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
     }
 
     const auto &sym = *sym_ptr;
 
-    return std::pair{sym.type,sym.reg.slot};
+    return typed_reg(sym);
 }
 
+RegResult symbol(Interloper &itl, AstNode *node)
+{
+    return symbol_internal(itl,node,nullptr);
+}
+
+RegResult scoped_symbol(Interloper &itl, AstNode *node, NameSpace* name_space)
+{
+    return symbol_internal(itl,node,name_space);
+}
 
 Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 {
@@ -121,7 +131,7 @@ Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
-std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *node)
+RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
 {
     if(!node)
     {
@@ -148,31 +158,40 @@ std::pair<Type*,RegSlot> compile_oper(Interloper& itl,Function &func,AstNode *no
     }
 }
 
-void compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpace* name_space)
+Option<itl_error> compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpace* name_space)
 {
     switch(node->type)
     {
         case ast_type::function_call:
         {
-            compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
+            const auto call_res = compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
+            if(!call_res)
+            {
+                return call_res.error();
+            }
             break;
         }
 
         case ast_type::tuple_assign:
         {
-            compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
+            const auto call_res = compile_scoped_function_call(itl,name_space,func,node,make_spec_reg_slot(spec_reg::null));
+            if(!call_res)
+            {
+                return call_res.error();
+            }
             break;      
         }
 
         default:
         {
-            panic(itl,itl_error::invalid_expr,"Scope is not valid for stmt: %s\n",AST_NAMES[u32(node->type)]);
-            return;
+            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for stmt: %s\n",AST_NAMES[u32(node->type)]);
         }
     }
+
+    return option::none;
 }
 
-Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot, NameSpace* name_space)
+TypeResult compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot, NameSpace* name_space)
 {
     switch(node->type)
     {
@@ -181,21 +200,43 @@ Type* compile_scoped_expression(Interloper& itl, Function& func, AstNode* node, 
             return compile_scoped_function_call(itl,name_space,func,node,dst_slot);
         }
 
+        case ast_type::symbol:
+        {
+            const auto sym_res = scoped_symbol(itl,node,name_space);
+            
+            if(!sym_res)
+            {
+                return sym_res.error();
+            }
+
+            const auto src = *sym_res;
+            const TypedReg dst = {dst_slot,src.type};
+
+
+            const auto move_err = compile_move(itl,func,dst,src);
+            if(!!move_err)
+            {
+                return *move_err;
+            }
+            return src.type;
+        }
+
         default:
         {
-            panic(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s\n",AST_NAMES[u32(node->type)]);
-            return make_builtin(itl,builtin_type::void_t);
+            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s\n",AST_NAMES[u32(node->type)]);
         }
     }
 }
 
-Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
+TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)
     {
         crash_and_burn("nullptr in compile_expression");
         return make_builtin(itl,builtin_type::void_t);
     }
+
+    log(itl.itl_log,"(%s:%d) Compiling experssion %s\n",itl.ctx.filename.buf,node->idx,AST_NAMES[u32(node->type)]);
 
     itl.ctx.expr = node;
    
@@ -218,15 +259,23 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
         case ast_type::symbol:
         {
-            const auto [type, slot] = symbol(itl,node);
+            const auto sym_res = symbol(itl,node);
             
-            if(itl.error)
+            if(!sym_res)
             {
-                return make_builtin(itl,builtin_type::void_t);
+                return sym_res.error();
             }
 
-            compile_move(itl,func,dst_slot,slot,type,type);
-            return type;
+            const auto src = *sym_res;
+            const TypedReg dst = {dst_slot,src.type};
+
+
+            const auto move_err = compile_move(itl,func,dst,src);
+            if(!!move_err)
+            {
+                return *move_err;
+            }
+            return src.type;
         }
 
 
@@ -254,15 +303,13 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
                     LiteralNode* sym_node = (LiteralNode*)expr_node;
                     const auto name = sym_node->literal;
 
-                    TypeDecl* type_decl = lookup_type(itl,name);
-
-                    if(type_decl)
+                    auto type_decl_opt = lookup_type(itl,name);
+                    if(!!type_decl_opt)
                     {
+                        TypeDecl* type_decl = *type_decl_opt;
                         LiteralNode* member_node = (LiteralNode*) members->nodes[0];
 
-                        auto type = access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
-
-                        return type;
+                        return access_type_info(itl,func,dst_slot,*type_decl,member_node->literal);
                     }
                 }
             }
@@ -293,32 +340,44 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         {
             UnaryNode* addrof_node = (UnaryNode*)node;
 
-            const auto [type,slot] = take_addr(itl,func,addrof_node->next,dst_slot);
-            return type;
+            const auto res = take_addr(itl,func,addrof_node->next,dst_slot);
+            if(!res)
+            {
+                return res.error();
+            }
+
+            auto addr = *res;
+
+            return addr.type;
         }
 
         case ast_type::deref:
         {
             UnaryNode* deref_node = (UnaryNode*)node;
 
-            const auto [ptr_type,slot] = take_pointer(itl,func,deref_node->next);
+            const auto res = take_pointer(itl,func,deref_node->next);
 
-            if(itl.error)
+            if(!res)
             {
-                return make_builtin(itl,builtin_type::void_t);
+                return res.error();
             }
 
-            if(((PointerType*)ptr_type)->pointer_kind == pointer_type::nullable)
+            auto ptr = *res;
+
+            if(((PointerType*)ptr.type)->pointer_kind == pointer_type::nullable)
             {
-                panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr_type).buf);
-                return make_builtin(itl,builtin_type::void_t);
+                return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr.type).buf);
             }
 
             // deref the pointer
-            auto type = deref_pointer(ptr_type); 
-            do_ptr_load(itl,func,dst_slot,slot,type);
+            ptr.type = deref_pointer(ptr.type); 
+            const auto load_err = do_ptr_load(itl,func,dst_slot,ptr);
+            if(!!load_err)
+            {
+                return *load_err;
+            }
 
-            return type;          
+            return ptr.type;          
         }
 
         case ast_type::sizeof_t:
@@ -326,10 +385,16 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
             UnaryNode* unary_node = (UnaryNode*)node;
 
             // TODO: should this work with type names?
-            const auto [type,slot] = compile_oper(itl,func,unary_node->next);
+            const auto res = compile_oper(itl,func,unary_node->next);
+            if(!res)
+            {
+                return res.error();
+            }
+
+            const auto reg = *res;
 
 
-            const u32 size = type_size(itl,type);
+            const u32 size = type_size(itl,reg.type);
             mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);
@@ -338,9 +403,14 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         case ast_type::sizeof_type_t:
         {
             TypeNode* type_node = (TypeNode*)node;
+            const auto type_res = get_type(itl,type_node);
+            if(!type_res)
+            {
+                return type_res;
+            }
 
             // just move in the type size
-            const u32 size = type_size(itl,get_type(itl,type_node));
+            const u32 size = type_size(itl,*type_res);
             mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);
@@ -349,9 +419,14 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         case ast_type::sizeof_data_t:
         {
             TypeNode* type_node = (TypeNode*)node;
+            const auto type_res = get_type(itl,type_node);
+            if(!type_res)
+            {
+                return type_res;
+            }
 
             // move in data size
-            const u32 size = data_size(itl,get_type(itl,type_node));
+            const u32 size = data_size(itl,*type_res);
             mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);      
@@ -361,10 +436,26 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [old_type,slot] = compile_oper(itl,func,bin_node->right);
-            const auto new_type = get_type(itl,(TypeNode*)bin_node->left);
+            const auto expr_res = compile_oper(itl,func,bin_node->right);
+            if(!expr_res)
+            {
+                return expr_res.error();
+            }
 
-            handle_cast(itl,func,dst_slot,slot,old_type,new_type);
+            const auto new_type_res = get_type(itl,(TypeNode*)bin_node->left);
+            if(!new_type_res)
+            {
+                return new_type_res;
+            }
+
+            const auto reg = *expr_res;
+            Type* new_type = *new_type_res;
+
+            const auto cast_err = handle_cast(itl,func,dst_slot,reg.slot,reg.type,new_type);
+            if(!!cast_err)
+            {
+                return *cast_err;
+            }
             return new_type;
         }
 
@@ -372,21 +463,32 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto [old_arr_type,slot] = compile_oper(itl,func,bin_node->right);
-            const auto new_type = get_type(itl,(TypeNode*)bin_node->left);
-
-            if(!is_byte_array(old_arr_type))
+            const auto cast_res = compile_oper(itl,func,bin_node->right);
+            if(!cast_res)
             {
-                panic(itl,itl_error::array_type_error,"Expected recast from byte array got: %s\n",type_name(itl,old_arr_type).buf);
-                return make_builtin(itl,builtin_type::void_t);
+                return cast_res.error();
+            }
+            
+            const auto new_type_res = get_type(itl,(TypeNode*)bin_node->left);
+            if(!new_type_res)
+            {
+                return new_type_res;
+            }
+
+            const auto old = *cast_res;
+            Type* new_type = *new_type_res;
+
+            if(!is_byte_array(old.type))
+            {
+                return compile_error(itl,itl_error::array_type_error,"Expected recast from byte array got: %s\n",type_name(itl,old.type).buf);
             }
 
             const auto new_arr_type = make_array(itl,new_type,RUNTIME_SIZE);
 
-            const auto data_slot = load_arr_data(itl,func,slot,old_arr_type);
+            const auto data_slot = load_arr_data(itl,func,old);
             store_arr_data(itl,func,dst_slot,data_slot);
 
-            const auto len_slot = load_arr_len(itl,func,slot,old_arr_type);
+            const auto len_slot = load_arr_len(itl,func,old);
             const auto converted_len = udiv_imm_res(itl,func,len_slot,type_size(itl,new_type));
             store_arr_len(itl,func,dst_slot,converted_len);
 
@@ -415,11 +517,17 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         {
             BinNode* bin_node = (BinNode*)node;
 
-            const auto rtype = compile_expression(itl,func,bin_node->right,dst_slot);
+            const auto rtype_res = compile_expression(itl,func,bin_node->right,dst_slot);
+            if(!rtype_res)
+            {
+                return rtype_res.error();
+            }
+
+            const auto rtype = *rtype_res;
 
             if(bin_node->left->fmt != ast_fmt::literal)
             {
-                panic(itl,itl_error::invalid_statement,"[COMPILE]: expected symbol in multiple assign\n");
+                return compile_error(itl,itl_error::invalid_statement,"[COMPILE]: expected symbol in multiple assign\n");
             }
 
             LiteralNode* lit_node = (LiteralNode*)bin_node->left;
@@ -429,15 +537,23 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
             const auto sym_ptr = get_sym(itl.symbol_table,name);
             if(!sym_ptr)
             {
-                panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
-                return make_builtin(itl,builtin_type::void_t);
+                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
             }
 
             const auto &sym = *sym_ptr;
 
-            check_assign(itl,sym.type,rtype);
+            const auto assign_err = check_assign(itl,sym.type,rtype);
+            if(!!assign_err)
+            {
+                return *assign_err;
+            }
 
-            compile_move(itl,func,sym.reg.slot,dst_slot,sym.type,rtype);
+            const TypedReg src = {dst_slot,rtype};
+            const auto move_error = compile_move(itl,func,typed_reg(sym),src);
+            if(!!move_error)
+            {
+                return *move_error;
+            }
 
             return sym.type;        
         }
@@ -473,29 +589,34 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
                 UnaryNode* unary_node = (UnaryNode*)node;
 
                 // negate by doing 0 - v
-                const auto [t,v1] = compile_oper(itl,func,unary_node->next);
+                const auto sub_res = compile_oper(itl,func,unary_node->next);
+                if(!sub_res)
+                {
+                    return sub_res.error();
+                }
 
-                if(is_integer(t))
+                const auto reg = *sub_res;
+
+                if(is_integer(reg.type))
                 {
                     // TODO: make sure our optimiser sees through this
                     const RegSlot slot = mov_imm_res(itl,func,0);
-                    sub(itl,func,dst_slot,slot,v1);
+                    sub(itl,func,dst_slot,slot,reg.slot);
                 }
 
-                else if(is_float(t))
+                else if(is_float(reg.type))
                 {
                     // TODO: make sure our optimiser sees through this
                     const RegSlot slot = movf_imm_res(itl,func,0.0);
-                    subf(itl,func,dst_slot,slot,v1);
+                    subf(itl,func,dst_slot,slot,reg.slot);
                 }
 
                 else
                 {
-                    panic(itl,itl_error::undefined_type_oper,"unary minus not valid for type %s\n",type_name(itl,t).buf);
-                    return make_builtin(itl,builtin_type::void_t);
+                    return compile_error(itl,itl_error::undefined_type_oper,"unary minus not valid for type %s\n",type_name(itl,reg.type).buf);
                 }
                 
-                return t;
+                return reg.type;
             }
 
             else
@@ -519,20 +640,25 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
             return compile_arith_op<op_type::xor_reg>(itl,func,node,dst_slot);
         }
 
-
         case ast_type::bitwise_not:
         {
             UnaryNode* unary_node = (UnaryNode*)node;
 
-            const auto [t,reg] = compile_oper(itl,func,unary_node->next);
+            const auto res = compile_oper(itl,func,unary_node->next);
+            if(!res)
+            {
+                return res.error();
+            }
 
-            // TODO: do we need to check this is integer?
+            const auto reg = *res;
+            if(!is_integer(reg.type))
+            {
+                return compile_error(itl,itl_error::int_type_error,"Bitwise not only defind on int got: %s\n",type_name(itl,reg.type).buf);
+            }
 
-
-            not_reg(itl,func,dst_slot,reg);
-            return t;
+            not_reg(itl,func,dst_slot,reg.slot);
+            return reg.type;
         }            
-
 
         case ast_type::shift_l:
         {
@@ -571,25 +697,30 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         {
             UnaryNode* unary_node = (UnaryNode*)node;
 
-            const auto [t,reg] = compile_oper(itl,func,unary_node->next);
+            const auto res = compile_oper(itl,func,unary_node->next);
+            if(!res)
+            {
+                return res.error();
+            }
+
+            const auto reg = *res;
 
             // integer or pointer, eq to zero
-            if(is_integer(t) || is_pointer(t))
+            if(is_integer(reg.type) || is_pointer(reg.type))
             {
-                cmp_eq_imm(itl,func,dst_slot,reg,0);
+                cmp_eq_imm(itl,func,dst_slot,reg.slot,0);
                 return make_builtin(itl,builtin_type::bool_t);
             }
 
             // logical not on bool
-            else if(!is_bool(t))
+            else if(!is_bool(reg.type))
             {
-                panic(itl,itl_error::bool_type_error,"compile: logical_not expected bool got: %s\n",type_name(itl,t).buf);
-                return make_builtin(itl,builtin_type::void_t);
+                return compile_error(itl,itl_error::bool_type_error,"compile: logical_not expected bool got: %s\n",type_name(itl,reg.type).buf);
             }
 
             // xor can invert our boolean which is either 1 or 0
-            xor_imm(itl,func,dst_slot,reg,1);
-            return t;
+            xor_imm(itl,func,dst_slot,reg.slot,1);
+            return reg.type;
         }
 
         // we want to pass in the base operation but we need to do the actual type checking
@@ -645,10 +776,17 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         {
             ScopeNode* scope_node = (ScopeNode*)node;
 
-            const auto type = compile_enum(itl,func,scope_node,dst_slot);
+            const auto type_res = compile_enum(itl,func,scope_node,dst_slot);
 
-            // Enum was found or an error either way we are done here
-            if(itl.error || !is_void(type))
+            if(!type_res)
+            {
+                return type_res.error();
+            }
+
+            Type* type = *type_res;
+
+            // We have an actual enum return it
+            if(!is_void(type))
             {
                 return type;
             }
@@ -657,8 +795,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
             if(!name_space)
             {
-                panic(itl,itl_error::undeclared,"Could not find namespace\n");
-                return make_builtin(itl,builtin_type::void_t);
+                return compile_error(itl,itl_error::undeclared,"Could not find namespace\n");
             }
 
             return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,name_space);
@@ -674,13 +811,12 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         
         default:
         {
-            panic(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
-            return make_builtin(itl,builtin_type::void_t);
+            return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
         }
     }
 }
 
-void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Type* ltype, SymSlot slot)
+Option<itl_error> compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Type* ltype, SymSlot slot)
 {
     const auto reg_slot = make_sym_reg_slot(slot);
     alloc_slot(itl,func,reg_slot,false);
@@ -690,8 +826,7 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     {
         if(is_reference(ltype))
         {
-            panic(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s\n",type_name(itl,ltype).buf);
-            return;
+            return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s\n",type_name(itl,ltype).buf);
         }
 
         else if(is_float(ltype))
@@ -704,16 +839,22 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
             mov_imm(itl,func,reg_slot,0);
         }
 
-        return;
+        return option::none;
     }
 
     if(decl_node->expr->type == ast_type::no_init)
     {
-        return;
+        return option::none;
     }
 
     // normal assign
-    const auto rtype = compile_expression(itl,func,decl_node->expr,reg_slot);
+    const auto rtype_res = compile_expression(itl,func,decl_node->expr,reg_slot);
+    if(!rtype_res)
+    {
+        return rtype_res.error();
+    }
+
+    const Type* rtype = *rtype_res;
 
     // our symbol reference might have moved because of compile_expression
     auto &sym = sym_from_slot(itl.symbol_table,slot);
@@ -723,28 +864,28 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         clip_arith_type(itl,func,sym.reg.slot,sym.reg.slot,sym.reg.size);
     }
 
-    if(itl.error)
-    {
-        return;
-    }
-
-    check_assign_init(itl,ltype,rtype);
+    return check_assign_init(itl,ltype,rtype);
 }
 
-void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
+Option<itl_error> compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
 {
     // get entry into symbol table
     const DeclNode* decl_node = (DeclNode*)line;
 
     const auto name = decl_node->name;
-    const auto ltype = get_type(itl,decl_node->type);
+    const auto ltype_res = get_type(itl,decl_node->type);
+    if(!ltype_res)
+    {
+        return ltype_res.error();
+    }
+
+    Type* ltype = *ltype_res;
 
     const auto sym_ptr = get_sym(itl.symbol_table,name);
 
     if(sym_ptr)
     {
-        panic(itl,itl_error::redeclaration,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_ptr->type).buf);
-        return;
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_ptr->type).buf);
     }
 
     SymSlot slot = {INVALID_HANDLE};
@@ -762,19 +903,31 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
     {
         case type_class::array_t:
         {   
-            compile_arr_decl(itl,func,decl_node,slot);
+            const auto decl_err = compile_arr_decl(itl,func,decl_node,slot);
+            if(!!decl_err)
+            {
+                return decl_err;
+            }
             break;
         }
 
         case type_class::struct_t:
         {
-            compile_struct_decl(itl,func,decl_node,slot);
+            const auto struct_err = compile_struct_decl(itl,func,decl_node,slot);
+            if(!!struct_err)
+            {
+                return struct_err;
+            }
             break;
         }
 
         default:
         {
-            compile_basic_decl(itl,func,decl_node,ltype,slot);
+            const auto decl_err = compile_basic_decl(itl,func,decl_node,ltype,slot);
+            if(!!decl_err)
+            {
+                return decl_err;
+            }
             break;
         }
     }
@@ -786,25 +939,33 @@ void compile_decl(Interloper &itl,Function &func, AstNode *line, b32 global)
         auto &sym = sym_from_slot(itl.symbol_table,slot);
         reserve_global_alloc(itl,sym);
     }
+
+    return option::none;
 }
 
-std::pair<Type*, RegSlot> compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
+RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
     // assume a size then refine it with expr result
     const RegSlot dst_slot = new_tmp(func,GPR_SIZE);
 
-    Type* type = compile_expression(itl,func,node,dst_slot);
+    auto type_res = compile_expression(itl,func,node,dst_slot);
+    if(!type_res)
+    {
+        return type_res.error();
+    }
+
+    Type* type = *type_res;
 
     func.registers[dst_slot.tmp_slot.handle] = make_reg(itl,dst_slot,type);
 
-    return std::pair{type,dst_slot};
+    return TypedReg{dst_slot,type};
 }
 
 
 
 
 
-void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
+Option<itl_error> compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 {
     AutoDeclNode* auto_decl = (AutoDeclNode*)line;
 
@@ -812,8 +973,7 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
 
     if(get_sym(itl.symbol_table,name))
     {
-        panic(itl,itl_error::redeclaration,"redeclared symbol: %s\n",name.buf);
-        return;
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %s\n",name.buf);
     }
 
     // add the symbol
@@ -831,19 +991,19 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     OpcodeNode* alloc = alloc_slot(itl,func,reg_slot,false);
 
     // compile the expression so we can get the type!
-    Type* type = compile_expression(itl,func,auto_decl->expr,reg_slot);
-
-
-    if(itl.error)
+    auto type_res = compile_expression(itl,func,auto_decl->expr,reg_slot);
+    if(!type_res)
     {
-        return;
+        return type_res.error();
     }
+
+    Type* type = *type_res;
+
 
     // attempting to deduce a type from void is nonsense
     if(is_void(type))
     {
-        panic(itl,itl_error::undefined_type_oper,"Result of auto decl is void\n");
-        return;
+        return compile_error(itl,itl_error::undefined_type_oper,"Result of auto decl is void\n");
     }
 
 
@@ -854,45 +1014,312 @@ void compile_auto_decl(Interloper &itl,Function &func, const AstNode *line)
     auto& sym = sym_from_slot(itl.symbol_table,sym_slot);
     sym.reg = make_reg(itl,reg_slot,type);
     sym.type = type;
+    return option::none;
 }
 
 
-BlockSlot compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node)
+Result<BlockSlot,itl_error> compile_basic_block(Interloper& itl, Function& func, BlockNode* block_node)
 {
     const BlockSlot block_slot = new_basic_block(itl,func);
-    compile_block(itl,func,block_node);
+    const auto block_err = compile_block(itl,func,block_node);
+    if(!!block_err)
+    {
+        return *block_err;
+    }
 
     return block_slot;
 }
 
-void compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node)
+Option<itl_error> compile_init_list(Interloper& itl, Function& func, Type* ltype, AddrSlot addr_slot, AstNode* node)
 {
     if(is_struct(ltype))
     {
         const auto structure = struct_from_type(itl.struct_table,ltype);
 
-        traverse_struct_initializer(itl,func,(RecordNode*)node,addr_slot,structure);                        
+        return traverse_struct_initializer(itl,func,(RecordNode*)node,addr_slot,structure);                        
     }
 
     else
     {
-        panic(itl,itl_error::undefined_type_oper,"initializer list assign not allowed on type: %s\n",type_name(itl,ltype).buf);
+        return compile_error(itl,itl_error::undefined_type_oper,"initializer list assign not allowed on type: %s\n",type_name(itl,ltype).buf);
     }
 }
 
-void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
+Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
 {
-    enter_new_anon_scope(itl.symbol_table);
+    BinNode* assign_node = (BinNode*)line;
+    
+    if(assign_node->left->type != ast_type::symbol)
+    {
+        switch(assign_node->left->type)
+        {
+            case ast_type::deref:
+            {
+                UnaryNode* deref_node = (UnaryNode*)assign_node->left;
+                const auto expr_res = compile_oper(itl,func,assign_node->right);
+                if(!expr_res)
+                {
+                    return expr_res.error();
+                }
+                const auto ptr_res = take_pointer(itl,func,deref_node->next);
+
+                if(!ptr_res)
+                {
+                    return ptr_res.error();
+                }
+
+                const auto src = *expr_res;
+                auto ptr = *ptr_res;
+
+
+                if(((PointerType*)ptr.type)->pointer_kind == pointer_type::nullable)
+                {
+                    return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr.type).buf);
+                }
+
+                // store into the pointer
+                ptr.type = deref_pointer(ptr.type); 
+                const auto store_err = do_ptr_store(itl,func,src.slot,ptr);
+                if(!!store_err)
+                {
+                    return store_err;
+                }
+
+                return check_assign(itl,ptr.type,src.type);                      
+            }
+        
+            case ast_type::index:
+            {
+                const auto src_res = compile_oper(itl,func,assign_node->right);
+                if(!src_res)
+                {
+                    return src_res.error();
+                }
+
+                return write_arr(itl,func,assign_node->left,*src_res);
+            }
+        
+            // write on struct member!
+            case ast_type::access_struct:
+            {
+                if(assign_node->right->type == ast_type::initializer_list)
+                {
+                    auto addr_res = compute_member_addr(itl,func,assign_node->left);
+                    if(!addr_res)
+                    {
+                        return addr_res.error();
+                    }
+
+                    auto [ltype, addr_slot] = *addr_res;
+
+                    return compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
+                }
+
+                else
+                {
+                    const auto src_res = compile_oper(itl,func,assign_node->right);
+                    if(!src_res)
+                    {
+                        return src_res.error();
+                    }
+
+                    // This Errors we just don't care
+                    return write_struct(itl,func,*src_res,assign_node->left);
+                }
+            }
+        
+            default:
+            {
+                return compile_error(itl,itl_error::invalid_expr,"could not assign to expr: %s\n",AST_NAMES[u32(assign_node->left->type)]);
+            }
+        }
+    }
+    
+    else
+    {
+        LiteralNode* sym_node = (LiteralNode*)assign_node->left;
+
+        const auto name = sym_node->literal;
+
+        const auto sym_ptr = get_sym(itl.symbol_table,name);
+        if(!sym_ptr)
+        {
+            return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
+        }
+
+        // copy these locally incase the symbol moves
+        const auto slot = sym_ptr->reg.slot;
+        const auto size = sym_ptr->reg.size;
+        const auto ltype = sym_ptr->type;
+
+        // handle initializer list
+        if(assign_node->right->type == ast_type::initializer_list)
+        {
+            const auto addr_slot = make_struct_addr(slot,0);
+            return compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
+        }
+
+        else
+        {
+            const auto rtype_res = compile_expression(itl,func,assign_node->right,slot);
+            if(!rtype_res)
+            {
+                return rtype_res.error();
+            }
+
+            const auto assign_err = check_assign(itl,ltype,*rtype_res);
+            if(!!assign_err)
+            {
+                return *assign_err;
+            }
+
+            if(is_unsigned_integer(ltype))
+            {
+                clip_arith_type(itl,func,slot,slot,size);
+            }
+
+            return option::none;
+        }
+    }
+
+    assert(false);
+    return option::none;
+}
+
+Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
+{
+    // returns a value
+    if(line->fmt == ast_fmt::record)
+    {
+        RecordNode* record_node = (RecordNode*)line;
+
+        // single return
+        if(count(record_node->nodes) == 1)
+        {
+            const RegSlot rv = make_spec_reg_slot(return_reg_from_type(func.sig.return_type[0]));
+
+            switch(rv.spec)
+            {
+                case spec_reg::rv_struct:
+                {
+                    const auto rtype_res = compile_expression(itl,func,record_node->nodes[0],rv);
+                    if(!rtype_res)
+                    {
+                        return rtype_res.error();
+                    }
+
+                    const auto assign_err = check_assign_init(itl,func.sig.return_type[0],*rtype_res);
+                    if(!!assign_err)
+                    {
+                        return *assign_err;
+                    }
+
+                    break;
+                }
+
+                case spec_reg::rv_fpr:
+                {
+                    // Compile this into a tmp and then move it out so its easy to lock.
+                    const auto tmp = new_float(func);
+                    const auto rtype_res = compile_expression(itl,func,record_node->nodes[0],tmp);
+                    if(!rtype_res)
+                    {
+                        return rtype_res.error();
+                    }
+
+                    const auto assign_err = check_assign_init(itl,func.sig.return_type[0],*rtype_res);
+                    if(!!assign_err)
+                    {
+                        return assign_err;
+                    }  
+                    mov_float(itl,func,rv,tmp);
+                    break;
+                }
+
+                case spec_reg::rv_gpr:
+                {
+                    // Compile this into a tmp and then move it out so its easy to lock.
+                    const auto tmp = new_tmp(func,GPR_SIZE);
+                    const auto rtype_res = compile_expression(itl,func,record_node->nodes[0],tmp);
+                    if(!rtype_res)
+                    {
+                        return rtype_res.error();
+                    }
+
+                    const auto assign_err = check_assign_init(itl,func.sig.return_type[0],*rtype_res);
+                    if(!!assign_err)
+                    {
+                        return *assign_err;
+                    }  
+                    mov_reg(itl,func,rv,tmp);
+                    break;
+                }
+
+                default: assert(false);
+            }
+        }
+
+        // multiple return
+        else
+        {
+            if(count(record_node->nodes) != count(func.sig.return_type))
+            {
+                return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
+                    func.name.buf,count(record_node->nodes),count(func.sig.return_type));
+            }
+            
+
+            for(u32 r = 0; r < count(func.sig.return_type); r++)
+            {
+                // void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
+                // NOTE: Pointers are in the first set of args i.e the hidden ones
+                const auto tuple_res = compile_oper(itl,func,record_node->nodes[r]);
+                if(!tuple_res)
+                {
+                    return tuple_res.error();
+                }
+
+                const auto src = *tuple_res;
+
+                // check each param
+                const auto assign_err = check_assign(itl,func.sig.return_type[r],src.type);
+                if(!!assign_err)
+                {
+                    return *assign_err;
+                }
+
+                const TypedReg ptr = {make_sym_reg_slot(func.sig.args[r]),func.sig.return_type[r]};
+                const auto store_err = do_ptr_store(itl,func,src.slot,ptr);
+                if(!!store_err)
+                {
+                    return *store_err;
+                }
+            }
+        }
+    
+    }
+
+    // no return
+    else
+    {
+        if(!is_void(func.sig.return_type[0]))
+        {
+            return compile_error(itl,itl_error::missing_args,"Expected return type of %s got nothing\n",type_name(itl,func.sig.return_type[0]).buf);
+        }
+    }
+
+    ret(itl,func);
+    return option::none;
+}
+
+Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_node)
+{
+    auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     const u32 size = count(block_node->statements);
     for(u32 s = 0; s < size; s++)
     {
         AstNode* line = block_node->statements[s];
-
-        if(itl.error)
-        {
-            return;
-        }
 
         itl.ctx.expr = line;
     
@@ -901,20 +1328,32 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             // variable declaration
             case ast_type::declaration:
             {
-                compile_decl(itl,func,line);
+                const auto decl_err = compile_decl(itl,func,line);
+                if(!!decl_err)
+                {
+                    return decl_err;
+                }
                 break;
             }
 
             case ast_type::const_decl:
             {
-                compile_constant_decl(itl,(DeclNode*)line,false);
+                const auto decl_err = compile_constant_decl(itl,(DeclNode*)line,false);
+                if(!!decl_err)
+                {
+                    return decl_err;
+                }
                 break;
             }           
 
 
             case ast_type::auto_decl:
             {
-                compile_auto_decl(itl,func,line);
+                const auto decl_err = compile_auto_decl(itl,func,line);
+                if(!!decl_err)
+                {
+                    return decl_err;
+                }
                 break;
             }
 
@@ -922,108 +1361,10 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             // assignment
             case ast_type::equal:
             {
-                BinNode* assign_node = (BinNode*)line;
-                
-                if(assign_node->left->type != ast_type::symbol)
+                const auto assign_err = compile_assign(itl,func,line);
+                if(!!assign_err)
                 {
-                    switch(assign_node->left->type)
-                    {
-                        case ast_type::deref:
-                        {
-                            const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
-
-                            UnaryNode* deref_node = (UnaryNode*)assign_node->left;
-
-                            const auto [ptr_type,addr_slot] = take_pointer(itl,func,deref_node->next);
-
-                            if(itl.error)
-                            {
-                                return;
-                            }
-
-                            if(((PointerType*)ptr_type)->pointer_kind == pointer_type::nullable)
-                            {
-                                panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr_type).buf);
-                                return;
-                            }
-
-                            // store into the pointer
-                            auto ltype = deref_pointer(ptr_type); 
-                            do_ptr_store(itl,func,slot,addr_slot,ltype);
-
-                            check_assign(itl,ltype,rtype);
-                            break;                        
-                        }
-                    
-                        case ast_type::index:
-                        {
-                            const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
-
-                            write_arr(itl,func,assign_node->left,rtype,slot);
-                            break;
-                        }
-                    
-                        // write on struct member!
-                        case ast_type::access_struct:
-                        {
-                            if(assign_node->right->type == ast_type::initializer_list)
-                            {
-                                auto [ltype, addr_slot] = compute_member_addr(itl,func,assign_node->left);
-
-                                compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
-                            }
-
-                            else
-                            {
-                                const auto [rtype,slot] = compile_oper(itl,func,assign_node->right);
-                                write_struct(itl,func,slot,rtype,assign_node->left);
-                            }
-                            break;
-                        }
-                    
-                        default:
-                        {
-                            panic(itl,itl_error::invalid_expr,"could not assign to expr: %s\n",AST_NAMES[u32(assign_node->left->type)]);
-                            break;
-                        }
-                    }
-                }
-                
-                else
-                {
-                    LiteralNode* sym_node = (LiteralNode*)assign_node->left;
-
-                    const auto name = sym_node->literal;
-
-                    const auto sym_ptr = get_sym(itl.symbol_table,name);
-                    if(!sym_ptr)
-                    {
-                        panic(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
-                        break;
-                    }
-
-                    // copy these locally incase the symbol moves
-                    const auto slot = sym_ptr->reg.slot;
-                    const auto size = sym_ptr->reg.size;
-                    const auto ltype = sym_ptr->type;
-
-                    // handle initializer list
-                    if(assign_node->right->type == ast_type::initializer_list)
-                    {
-                        const auto addr_slot = make_struct_addr(slot,0);
-                        compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
-                    }
-
-                    else
-                    {
-                        const auto rtype = compile_expression(itl,func,assign_node->right,slot);
-                        check_assign(itl,ltype,rtype);
-
-                        if(is_unsigned_integer(ltype))
-                        {
-                            clip_arith_type(itl,func,slot,slot,size);
-                        }
-                    }
+                    return assign_err;
                 }
                 break;
             }
@@ -1031,94 +1372,11 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             case ast_type::ret:
             {
-                // returns a value
-                if(line->fmt == ast_fmt::record)
+                const auto ret_err = compile_return(itl,func,line);
+                if(!!ret_err)
                 {
-                    RecordNode* record_node = (RecordNode*)line;
-
-                    // single return
-                    if(count(record_node->nodes) == 1)
-                    {
-                        const RegSlot rv = make_spec_reg_slot(return_reg_from_type(func.sig.return_type[0]));
-
-                        switch(rv.spec)
-                        {
-                            case spec_reg::rv_struct:
-                            {
-                                const auto rtype = compile_expression(itl,func,record_node->nodes[0],rv);
-                                check_assign_init(itl,func.sig.return_type[0],rtype);
-                                break;
-                            }
-
-                            case spec_reg::rv_fpr:
-                            {
-                                // Compile this into a tmp and then move it out so its easy to lock.
-                                const auto tmp = new_float(func);
-                                const auto rtype = compile_expression(itl,func,record_node->nodes[0],tmp);
-
-                                check_assign_init(itl,func.sig.return_type[0],rtype);  
-                                mov_float(itl,func,rv,tmp);
-                                break;
-                            }
-
-                            case spec_reg::rv_gpr:
-                            {
-                                // Compile this into a tmp and then move it out so its easy to lock.
-                                const auto tmp = new_tmp(func,GPR_SIZE);
-                                const auto rtype = compile_expression(itl,func,record_node->nodes[0],tmp);
-
-                                check_assign_init(itl,func.sig.return_type[0],rtype);  
-                                mov_reg(itl,func,rv,tmp);
-                                break;
-                            }
-
-                            default: assert(false);
-                        }
-
-                        if(itl.error)
-                        {
-                            break;
-                        }
-                    }
-
-                    // multiple return
-                    else
-                    {
-                        if(count(record_node->nodes) != count(func.sig.return_type))
-                        {
-                            panic(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
-                                func.name.buf,count(record_node->nodes),count(func.sig.return_type));
-                            
-                            return;
-                        }
-                        
-
-                        for(u32 r = 0; r < count(func.sig.return_type); r++)
-                        {
-                            // void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
-                            // NOTE: Pointers are in the first set of args i.e the hidden ones
-                            const auto [rtype, ret_slot] = compile_oper(itl,func,record_node->nodes[r]);
-
-                            // check each param
-                            check_assign(itl,func.sig.return_type[r],rtype);
-
-                            do_ptr_store(itl,func,ret_slot,make_sym_reg_slot(func.sig.args[r]),func.sig.return_type[r]);
-                        }
-                    }
-                
+                    return ret_err;
                 }
-
-                // no return
-                else
-                {
-                    if(!is_void(func.sig.return_type[0]))
-                    {
-                        panic(itl,itl_error::missing_args,"Expected return type of %s got nothing\n",type_name(itl,func.sig.return_type[0]).buf);
-                        return;
-                    }
-                }
-
-                ret(itl,func);
                 break;
             }
 
@@ -1129,61 +1387,96 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
                 if(!name_space)
                 {
-                    panic(itl,itl_error::undeclared,"Could not find namespace\n");
-                    return;
+                    return compile_error(itl,itl_error::undeclared,"Could not find namespace\n");
                 }
 
-                compile_scoped_stmt(itl,func,scope_node->expr,name_space);
+                const auto stmt_err = compile_scoped_stmt(itl,func,scope_node->expr,name_space);
+                if(!!stmt_err)
+                {
+                    return stmt_err;
+                }
                 break;
             }
 
             case ast_type::function_call:
             {
-                compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
+                const auto func_res = compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
+                if(!func_res)
+                {
+                    return func_res.error();
+                }
                 break;
             }            
 
 
             case ast_type::block:
             {
-                compile_block(itl,func,(BlockNode*)line);
+                const auto block_err = compile_block(itl,func,(BlockNode*)line);
+                if(!!block_err)
+                {
+                    return block_err;
+                }
                 break;
             }
 
 
             case ast_type::if_block:
             {
-                compile_if_block(itl,func,line);
+                const auto if_err = compile_if_block(itl,func,line);
+                if(!!if_err)
+                {
+                    return if_err;
+                }
                 break;
             }
 
             case ast_type::for_iter:
             {
-                compile_for_iter(itl,func,(ForIterNode*)line);
+                const auto for_err = compile_for_iter(itl,func,(ForIterNode*)line);
+                if(!!for_err)
+                {
+                    return for_err;
+                }
                 break;
             }
 
             case ast_type::for_range:
             {
-                compile_for_range(itl,func,(ForRangeNode*)line);
+                const auto for_err = compile_for_range(itl,func,(ForRangeNode*)line);
+                if(!!for_err)
+                {
+                    return for_err;
+                }
                 break;
             }
 
             case ast_type::while_block:
             {
-                compile_while_block(itl,func,line);
+                const auto while_err = compile_while_block(itl,func,line);
+                if(!!while_err)
+                {
+                    return while_err;
+                }
                 break;
             }
 
             case ast_type::switch_t:
             {
-                compile_switch_block(itl,func,line);
+                const auto switch_err = compile_switch_block(itl,func,line);
+                if(!!switch_err)
+                {
+                    return switch_err;
+                }
                 break;
             }
 
             case ast_type::tuple_assign:
             {
-                compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
+                const auto func_res = compile_function_call(itl,func,line,make_spec_reg_slot(spec_reg::null));
+                if(!func_res)
+                {
+                    return func_res.error();
+                }
                 break;
             }
 
@@ -1191,11 +1484,15 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
             {
                 UnaryNode* unary_node = (UnaryNode*)line;
 
-                const b32 pass = compile_const_bool_expression(itl,unary_node->next);
-
-                if(!pass)
+                const auto pass_res = compile_const_bool_expression(itl,unary_node->next);
+                if(!pass_res)
                 {
-                    panic(itl,itl_error::const_assert,"Compile time assertion failed\n");
+                    return pass_res.error();
+                }
+
+                if(!*pass_res)
+                {
+                    return compile_error(itl,itl_error::const_assert,"Compile time assertion failed\n");
                 }
                 break;
             }
@@ -1205,28 +1502,42 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
                 StructReturnNode* struct_return = (StructReturnNode*)line;
 
                 // Check we have a valid struct
-                const auto struct_decl = lookup_type(itl,struct_return->struct_name);
-
-                if(!struct_decl || struct_decl->kind != type_kind::struct_t)
+                const auto struct_decl_res = lookup_type(itl,struct_return->struct_name);
+                if(!struct_decl_res)
                 {
-                    panic(itl,itl_error::struct_error,"No such struct: %s\n",struct_return->struct_name);
-                    break;
+                    return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",struct_return->struct_name);
+                }
+
+                const auto struct_decl = *struct_decl_res;
+
+                if(struct_decl->kind != type_kind::struct_t)
+                {
+                    return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",struct_return->struct_name);
                 }
 
                 if(count(func.sig.return_type) != 1)
                 {
-                    panic(itl,itl_error::struct_error,"Expected single return for struct return func expects: %d\n",count(func.sig.return_type));
-                    break;
+                    return compile_error(itl,itl_error::struct_error,"Expected single return for struct return func expects: %d\n",
+                        count(func.sig.return_type));
                 }
 
 
                 // Check the return type matches
                 const auto struct_type = make_struct(itl,struct_decl->type_idx);
-                check_assign(itl,func.sig.return_type[0],struct_type);
+                const auto assign_err = check_assign(itl,func.sig.return_type[0],struct_type);
+                if(!!assign_err)
+                {
+                    return assign_err;
+                }
 
                 // Compile a initializer list into the return type
                 const auto &structure = itl.struct_table[struct_decl->type_idx];
-                traverse_struct_initializer(itl,func,struct_return->record,make_addr(make_sym_reg_slot(func.sig.args[0]),0),structure);
+                const auto struct_err = traverse_struct_initializer(itl,func,struct_return->record,
+                    make_addr(make_sym_reg_slot(func.sig.args[0]),0),structure);
+                if(!!struct_err)
+                {
+                    return struct_err;
+                }
 
                 ret(itl,func);
                 break;            
@@ -1234,17 +1545,16 @@ void compile_block(Interloper &itl,Function &func,BlockNode *block_node)
 
             default:
             {
-                panic(itl,itl_error::invalid_statement,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);
-                break;
+                return compile_error(itl,itl_error::invalid_statement,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);
             }
         }
     }
 
-    destroy_scope(itl.symbol_table);
+    return option::none;
 }
 
 
-void compile_globals(Interloper& itl)
+Option<itl_error> compile_globals(Interloper& itl)
 {
     // create a dummy void func called init_global
     // that we can compile all our global inits into!
@@ -1254,19 +1564,17 @@ void compile_globals(Interloper& itl)
     {
         GlobalDeclNode* decl_node = itl.global_decl[c];
 
-        switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
+        auto context_guard = switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
         
-        compile_decl(itl,func,(AstNode*)decl_node->decl,true);
-
-        pop_context(itl);
-
-        if(itl.error)
+        const auto decl_err = compile_decl(itl,func,(AstNode*)decl_node->decl,true);
+        if(!!decl_err)
         {
-            return;
+            return decl_err;
         }
     }
 
     finalise_global_offset(itl);
+    return option::none;
 }
 
 // TODO: basic type checking for returning pointers to local's
@@ -1350,26 +1658,49 @@ void setup_type_table(Interloper& itl)
     }
 }
 
-void check_startup_defs(Interloper& itl)
+Option<itl_error> check_startup_defs(Interloper& itl)
 {   
     if(itl.rtti_enable)
     {
-        cache_rtti_structs(itl);
+        const auto cache_err = cache_rtti_structs(itl);
+        if(!!cache_err)
+        {
+            return cache_err;
+        }
     }
 
-    check_startup_func(itl,"main",itl.global_namespace);
-    check_startup_func(itl,"start",itl.global_namespace);
+    const auto main_err = check_startup_func(itl,"main",itl.global_namespace);
+    if(!!main_err)
+    {
+        return main_err;
+    }
+
+    const auto start_err = check_startup_func(itl,"start",itl.global_namespace);
+    if(!!start_err)
+    {
+        return start_err;
+    }
 
     itl.std_name_space = find_name_space(itl,"std");
 
     if(!itl.std_name_space)
     {
-        panic(itl,itl_error::undeclared,"std namespace is not declared");
-        return;
+        return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
     }
 
-    check_startup_func(itl,"memcpy",itl.std_name_space);
-    check_startup_func(itl,"zero_mem",itl.std_name_space);
+    const auto memcpy_err = check_startup_func(itl,"memcpy",itl.std_name_space);
+    if(!!memcpy_err)
+    {
+        return memcpy_err;
+    }
+    
+    const auto zero_err = check_startup_func(itl,"zero_mem",itl.std_name_space);
+    if(!!zero_err)
+    {
+        return zero_err;
+    }
+
+    return option::none;
 }
 
 void backend(Interloper& itl, const String& executable_path)
@@ -1431,36 +1762,46 @@ void backend(Interloper& itl, const String& executable_path)
     printf("OK\n\n");
 }
 
-void code_generation(Interloper& itl)
+Option<itl_error> code_generation(Interloper& itl)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    check_startup_defs(itl);
-
-    if(itl.error)
+    const auto start_err = check_startup_defs(itl);
+    if(!!start_err)
     {
         destroy_itl(itl);
-        return;
+        return start_err;
     }
 
     putchar('\n');
 
     // compile all our constant values 
-    compile_constants(itl);
-    compile_globals(itl);
+    const auto const_err = compile_constants(itl);
+    if(!!const_err)
+    {
+        destroy_itl(itl);
+        return const_err;
+    }
+
+    const auto global_err = compile_globals(itl);
+    if(!!global_err)
+    {
+        destroy_itl(itl);
+        return global_err;      
+    }
 
     declare_compiler_constants(itl);
 
-    if(itl.error)
-    {
-        destroy_itl(itl);
-        return;
-    }
 
     // go through each function and compile
     // how do we want to handle getting to the entry point / address allocation?
     // do we want a "label" for each function? 
-    compile_functions(itl);
+    const auto func_err = compile_functions(itl);
+    if(!!func_err)
+    {
+        destroy_itl(itl);
+        return func_err;
+    }
 
     // okay we dont need the parse tree anymore
     // free it
@@ -1469,27 +1810,27 @@ void code_generation(Interloper& itl)
     auto end = std::chrono::high_resolution_clock::now();
 
     itl.code_gen_time = std::chrono::duration<double, std::milli>(end-start).count();
+    return option::none;
 }
 
-void parsing(Interloper& itl, const String& initial_filename)
+Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 {
     // parse intial input file
     auto start = std::chrono::high_resolution_clock::now();
 
     // build ast
-    const b32 parser_error = parse(itl,initial_filename);
-
-    if(parser_error)
+    const auto parse_err = parse(itl,initial_filename);
+    if(!!parse_err)
     {
         // flag as generic parser error
-        if(itl.error_code == itl_error::none)
+        if(itl.error_count == 0)
         {
-            itl.error = true;
-            itl.error_code = itl_error::parse_error;
+            itl.error_count = std::max(u32(1),itl.error_count);
+            itl.first_error_code = itl_error::parse_error;
         }
 
         destroy_itl(itl);
-        return;
+        return parse_err;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -1512,14 +1853,15 @@ void parsing(Interloper& itl, const String& initial_filename)
         }
     }
 
+    return option::none;
 }
 
-void compile(Interloper &itl,const String& initial_filename, const String& executable_path)
+Option<itl_error> compile(Interloper &itl,const String& initial_filename, const String& executable_path)
 {
     printf("compiling file: %s\n",initial_filename.buf);
 
-    itl.error = false;
-    itl.error_code = itl_error::none;
+    itl.first_error_code = itl_error::unimplemented;
+    itl.error_count = 0;
 
     itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
     itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
@@ -1544,20 +1886,25 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     // see SYM_ERROR
     make_sym(itl,"ITL_ERROR",make_builtin(itl,builtin_type::void_t));
 
-    parsing(itl,initial_filename);
-
-    if(itl.error)
+    const auto parse_err = parsing(itl,initial_filename);
+    if(!!parse_err)
     {
+        puts("Parsing error");
         destroy_itl(itl);
-        return;
+        return itl_error::parse_error;
     }
 
-    code_generation(itl);
-
-    if(itl.error)
+    const auto code_err = code_generation(itl);
+    if(!!code_err)
     {
+        puts("IR generation error");
+        if(itl.error_count > 15)
+        {
+            printf("Total errors: %d (only 15 reported)\n",itl.error_count);
+        }
+
         destroy_itl(itl);
-        return;
+        return code_err;
     }
 
     if(itl.optimise)
@@ -1566,4 +1913,5 @@ void compile(Interloper &itl,const String& initial_filename, const String& execu
     }
     
     backend(itl,executable_path);
+    return option::none;
 }

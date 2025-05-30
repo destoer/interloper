@@ -1,9 +1,10 @@
 #include <interloper.h>
 #include "type.cpp"
 
-void enter_new_anon_scope(SymbolTable& sym_table)
+SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table)
 {
     sym_table.ctx->name_space = new_anon_scope(*sym_table.namespace_allocator,sym_table.ctx->name_space);
+    return SymbolScopeGuard(sym_table);
 }
 
 void destroy_scope(SymbolTable &sym_table)
@@ -67,9 +68,9 @@ Reg& reg_from_slot(Interloper& itl,Function& func, const RegSlot& slot)
     return reg_from_slot(itl.symbol_table,func,slot);
 }
 
-Symbol* get_sym(SymbolTable &sym_table,const String &sym)
+Symbol* get_sym_internal(SymbolTable &sym_table,const String &sym, NameSpace* name_space)
 {
-    const DefInfo* def_info = lookup_typed_definition(sym_table.ctx->name_space,sym,definition_type::variable);
+    const DefInfo* def_info = lookup_typed_definition(name_space? name_space : sym_table.ctx->name_space,sym,definition_type::variable);
 
     if(def_info)
     {
@@ -79,6 +80,17 @@ Symbol* get_sym(SymbolTable &sym_table,const String &sym)
 
     return nullptr;
 }
+
+Symbol* get_sym(SymbolTable &sym_table,const String &sym)
+{
+    return get_sym_internal(sym_table,sym,nullptr);
+}
+
+Symbol* get_sym_scoped(SymbolTable &sym_table,const String &sym, NameSpace* name_space)
+{
+    return get_sym_internal(sym_table,sym,name_space);
+}
+
 
 b32 symbol_exists(SymbolTable &sym_table,const String &sym)
 {
@@ -249,4 +261,9 @@ String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space,
     push_char(allocator,buffer,'\0');
 
     return make_string(buffer);
+}
+
+TypedReg typed_reg(const Symbol& sym)
+{
+    return TypedReg{sym.reg.slot,sym.type};
 }

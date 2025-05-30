@@ -292,6 +292,21 @@ struct AstNode
     u32 idx;
 };
 
+enum class [[nodiscard]] parse_error
+{
+    invalid_consume,
+    invalid_lbp,
+    unexpected_token,
+    invalid_terminator,
+    malformed_stmt,
+    missing_expr,
+    itl_error,
+    lexer_error,
+};
+
+using ParserResult = Result<AstNode*,parse_error>;
+
+
 struct BinNode
 {
     AstNode node;
@@ -605,7 +620,7 @@ struct Parser
     String cur_path = "";
 
     // error handling
-    b32 error = false;
+    u32 error_count = 0;
     u32 idx = 0;
     u32 line = 0;
     u32 col = 0;
@@ -715,21 +730,36 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename, c
     return (AstNode*)struct_node;
 }    
 
-AstNode *ast_binary(Parser& parser,AstNode *l, AstNode *r, ast_type type, const Token& token)
+ParserResult ast_binary(Parser& parser,ParserResult l_res, ParserResult r_res, ast_type type, const Token& token)
 {
+    if(!l_res)
+    {
+        return l_res;
+    }
+
+    if(!r_res)
+    {
+        return r_res;
+    }
+
     BinNode* bin_node = alloc_node<BinNode>(parser,type,ast_fmt::binary,token);
 
-    bin_node->left = l;
-    bin_node->right = r;
+    bin_node->left = *l_res;
+    bin_node->right = *r_res;
 
     return (AstNode*)bin_node;  
 }
 
-AstNode *ast_unary(Parser& parser,AstNode *next, ast_type type, const Token& token)
+ParserResult ast_unary(Parser& parser,ParserResult next_res, ast_type type, const Token& token)
 {
+    if(!next_res)
+    {
+        return next_res;
+    }
+
     UnaryNode* unary_node = alloc_node<UnaryNode>(parser,type,ast_fmt::unary,token);
 
-    unary_node->next = next;
+    unary_node->next = *next_res;
 
     return (AstNode*)unary_node;  
 }
@@ -960,12 +990,15 @@ AstNode* ast_type_operator(TypeNode* type,ast_type kind)
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
-inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
+
+inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
 {
+    parser.error_count += 1;
+
     // further reporting becomes pointless past a single parser error
-    if(parser.error)
+    if(parser.error_count > 1)
     {
-        return;
+        return error;
     }
 
     va_list args; 
@@ -975,19 +1008,19 @@ inline void panic(Parser &parser,const Token &token,const char *fmt, ...)
     const auto [line,col] = get_line_info(parser.cur_file,token.idx);
     printf("at: %s line %d col %d\n\n",parser.cur_file.buf,line,col);
 
-    parser.error = true;
     parser.line = line;
     parser.col = col;
     parser.idx = token.idx;
+    return error;
 }
 
 void print_depth(int depth);
 bool match(Parser &parser,token_type type);
-void consume(Parser &parser,token_type type);
+Option<parse_error> consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-AstNode* func_call(Parser& parser,AstNode *expr, const Token& t);
-AstNode* arr_access(Parser& parser, const Token& t);
-AstNode *struct_access(Parser& parser, AstNode* expr_node,const Token& t);
-AstNode* array_index(Parser& parser,const Token& t);
-AstNode* var(Parser& parser, const Token& sym_tok, b32 allow_call = false);
+ParserResult func_call(Parser& parser,AstNode *expr, const Token& t);
+ParserResult arr_access(Parser& parser, const Token& t);
+ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
+ParserResult array_index(Parser& parser,const Token& t);
+ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call = false);

@@ -1,21 +1,20 @@
 
 
-using INTRIN_FUNC = Type* (*)(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+using INTRIN_FUNC = TypeResult (*)(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 
-Function* find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
+Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
     Function* func_def = lookup_opt_scoped_function(itl,name_space,name);
 
     if(!func_def)
     {
-        panic(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing\n",name.buf);
-        return nullptr;
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing\n",name.buf);
     }
 
-    return  func_def;
+    return func_def;
 }
 
-void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
+Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
 {
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
     // because this alot of boilerplate
@@ -43,14 +42,14 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     {
         // emit a call to memcpy with args
         // check function is declared
-        Function* func_def = find_complete_func(itl,itl.std_name_space,"memcpy");
+        auto func_def_res = find_complete_func(itl,itl.std_name_space,"memcpy");
 
-        if(!func_def)
+        if(!func_def_res)
         {
-            return;
+            return func_def_res.error();
         }
 
-        Function &func_call = *func_def;
+        Function &func_call = *func_def_res.value();
 
         ArgPass pass = make_arg_pass(func_call.sig);
 
@@ -59,9 +58,12 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
         collapse_struct_offset(itl,func,&src_addr);
         collapse_struct_offset(itl,func,&dst_addr);
 
-        pass_arg(itl,func,pass,imm_slot,make_builtin(itl,GPR_SIZE_TYPE),2);
-        pass_arg(itl,func,pass,src_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t)),1);
-        pass_arg(itl,func,pass,dst_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t)),0);
+        const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
+        const TypedReg src = {src_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+        const TypedReg dst = {dst_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+        pass_arg(itl,func,pass,imm,2);
+        pass_arg(itl,func,pass,src,1);
+        pass_arg(itl,func,pass,dst,0);
 
         pass_args(itl,func,pass);
 
@@ -70,9 +72,11 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
         clean_args(itl,func,pass.arg_clean);
     }
+
+    return option::none;
 }
 
-void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
+Option<itl_error> ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 {
 
     static constexpr u32 INLINE_LIMIT = 256;
@@ -93,21 +97,23 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     // call into zero_mem
     else
     {
-        Function* func_def = find_complete_func(itl,itl.std_name_space,"zero_mem");
+        auto func_def_res = find_complete_func(itl,itl.std_name_space,"zero_mem");
 
-        if(!func_def)
+        if(!func_def_res)
         {
-            return;
+            return func_def_res.error();
         }
 
-        Function &func_call = *func_def;
+        Function &func_call = *func_def_res.value();
 
         ArgPass pass = make_arg_pass(func_call.sig);
 
         const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
-        pass_arg(itl,func,pass,imm_slot,make_builtin(itl,GPR_SIZE_TYPE),1);
-        pass_arg(itl,func,pass,dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t)),0);
+        const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
+        const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+        pass_arg(itl,func,pass,imm,1);
+        pass_arg(itl,func,pass,dst,0);
 
         pass_args(itl,func,pass);
 
@@ -116,26 +122,32 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 
         clean_args(itl,func,pass.arg_clean);        
     }
+
+    return option::none;
 }
 
-Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
-    UNUSED(dst_slot);
-    
     FuncCallNode* func_call = (FuncCallNode*)node;
 
     const u32 arg_size = count(func_call->args);
 
     if(arg_size < 1)
     {
-        panic(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
-        return make_builtin(itl,builtin_type::void_t);
+        return compile_error(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
     }
 
     // make sure this register doesn't get reused
     lock_reg(itl,func,make_spec_reg_slot(spec_reg::rax));
-    const auto [syscall_number,type] = compile_const_int_expression(itl,func_call->args[0]);
-    mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_number);
+    auto syscall_num_res = compile_const_int_expression(itl,func_call->args[0]);
+    if(!syscall_num_res)
+    {
+        return syscall_num_res.error();
+    }
+
+    const auto syscall_value = *syscall_num_res;
+
+    mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value.value);
     
     const spec_reg REG_ARGS[6] = {spec_reg::rdi,spec_reg::rsi,spec_reg::rdx,spec_reg::r10,spec_reg::r8,spec_reg::r9};
 
@@ -145,12 +157,17 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot d
         {
             const auto reg = make_spec_reg_slot(REG_ARGS[arg-1]);
             lock_reg(itl,func,reg);
-            const auto type = compile_expression(itl,func,func_call->args[arg],reg);
+            const auto type_res = compile_expression(itl,func,func_call->args[arg],reg);
+            if(!type_res)
+            {
+                return type_res;
+            }
+
+            const Type* type = *type_res;
 
             if(!is_trivial_copy(type))
             {
-                panic(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr\n",arg,type_name(itl,type).buf);
-                return make_builtin(itl,builtin_type::void_t);  
+                return compile_error(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr\n",arg,type_name(itl,type).buf);
             }
         }
     }
@@ -166,7 +183,7 @@ Type* intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot d
     return make_builtin(itl,builtin_type::s64_t);   
 }
 
-Type* intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+TypeResult intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     switch(itl.arch)
     {

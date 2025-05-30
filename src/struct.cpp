@@ -50,24 +50,24 @@ Struct& struct_from_type(StructTable& struct_table, const Type* type)
 }   
 
 
-std::optional<Member> get_member(Struct& structure,const String& member_name)
+Option<Member> get_member(Struct& structure,const String& member_name)
 {
     const u32* idx = lookup(structure.member_map,member_name);
 
     if(!idx)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     const auto member = structure.members[*idx];
-    return std::optional<Member>(member);    
+    return Option<Member>(member);    
 }
 
-std::optional<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name)
+Option<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name)
 {
     if(!is_struct(type))
     {
-        return std::nullopt;
+        return option::none;
     }
 
     auto& structure = struct_from_type(struct_table,type);
@@ -105,7 +105,7 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
     } 
 }
 
-b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
+Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
     const auto name = type_decl->name;
     TypeDecl* decl_ptr = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
@@ -113,14 +113,13 @@ b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* t
     // no such decl exists
     if(!decl_ptr)
     {
-        panic(itl,itl_error::undeclared,"%s : member type %s is not defined\n",struct_name.buf,type_decl->name.buf);
-        return false;
+        return compile_error(itl,itl_error::undeclared,"%s : member type %s is not defined\n",struct_name.buf,type_decl->name.buf);
     }
 
     // Type is allways complete we don't need any further checking
     if(!(decl_ptr->flags & TYPE_DECL_DEF_FLAG))
     {
-        return true;
+        return option::none;
     }
 
 
@@ -139,26 +138,20 @@ b32 handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* t
         else
         {
             // panic to prevent having our struct collpase into a black hole
-            panic(itl,itl_error::black_hole,"%s : is recursively defined via %s\n",struct_name.buf,type_decl->name.buf);
-            return false;
+            return compile_error(itl,itl_error::black_hole,"%s : is recursively defined via %s\n",struct_name.buf,type_decl->name.buf);
         }
     }
 
     else
     {
-        parse_def(itl,def);
-
-        if(itl.error)
-        {
-            return false;
-        }
+        return parse_def(itl,def);
     }
 
-    return true;    
+    return option::none;    
 }
 
 // returns member loc
-u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
+Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
 {
     Member member;
     member.name = m->name;
@@ -176,29 +169,48 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b3
     // or deduction will fail
     if(type_decl->func_type)
     {
-        member.type = get_type(itl,type_decl,type_idx_override,true);
+        auto type_res = get_type(itl,type_decl,type_idx_override,true);
 
-        if(itl.error)
+        if(!type_res)
         {
             destroy_struct(structure);
-            return 0;            
+            return type_res.error();
         }
+
+        member.type = *type_res;
     }
 
     else if(!type_exists(itl,type_decl->name))
     {
-        if(!handle_recursive_type(itl,structure.name,type_decl,&type_idx_override))
+        const auto recur_err = handle_recursive_type(itl,structure.name,type_decl,&type_idx_override);
+        if(!!recur_err)
         {
             destroy_struct(structure);
-            return 0;
+            return *recur_err;
         }
 
-        member.type = get_type(itl,type_decl,type_idx_override,true);
+        auto type_res = get_type(itl,type_decl,type_idx_override,true);
+
+        if(!type_res)
+        {
+            destroy_struct(structure);
+            return type_res.error();
+        }
+
+        member.type = *type_res;
     }
 
     else
     {
-        member.type = get_type(itl,type_decl,type_idx_override,true);
+        auto type_res = get_type(itl,type_decl,type_idx_override,true);
+
+        if(!type_res)
+        {
+            destroy_struct(structure);
+            return type_res.error();
+        }
+
+        member.type = *type_res;
     }
 
 
@@ -230,15 +242,15 @@ u32 add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b3
 
     if(contains(structure.member_map,member.name))
     {
-        panic(itl,itl_error::redeclaration,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
+        const auto res = compile_error(itl,itl_error::redeclaration,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
         destroy_struct(structure);
-        return 0;
+        return res;
     }
 
     add(structure.member_map,member.name,loc);
     push_var(structure.members,member); 
 
-    return loc;   
+    return loc;
 }
 
 void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count, s32 forced_first, u32 flags)
@@ -316,7 +328,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-void parse_struct_def(Interloper& itl, TypeDef& def)
+Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
 {
     StructNode* node = (StructNode*)def.root;
 
@@ -346,20 +358,25 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
     // force this to be at the first location in mem
     if(node->forced_first)
     {
-        forced_first_loc = add_member(itl,structure,node->forced_first,size_count,true,flags);
+        auto forced_first_loc_res = add_member(itl,structure,node->forced_first,size_count,true,flags);
+
+        if(!forced_first_loc_res)
+        {
+            return forced_first_loc_res.error();
+        }
+
+        forced_first_loc = *forced_first_loc_res;
     }
 
     // parse out members
     for(u32 i = 0; i < count(node->members); i++)
     {
-        if(itl.error)
+        const auto member_res = add_member(itl,structure,node->members[i],size_count,false,flags);
+        if(!member_res)
         {
-            return;
+            return member_res.error();
         }
-
-        add_member(itl,structure,node->members[i],size_count,false,flags);
     }
-
 
     finalise_member_offsets(itl,structure,size_count,forced_first_loc,flags);
     
@@ -369,12 +386,12 @@ void parse_struct_def(Interloper& itl, TypeDef& def)
         print_struct(itl,structure);
     }
 
-
     add_struct(itl,structure,def.decl);
+    return option::none;
 }
 
 
-Type* access_array_member(Interloper& itl, Type* type, const String& member_name,AddrSlot* struct_slot)
+TypeResult access_array_member(Interloper& itl, Type* type, const String& member_name,AddrSlot* struct_slot)
 {
     ArrayType* array_type = (ArrayType*)type;
 
@@ -400,8 +417,7 @@ Type* access_array_member(Interloper& itl, Type* type, const String& member_name
         // fixed sized array is not a struct dont allow access
         if(is_fixed_array(type))
         {
-            panic(itl,itl_error::array_type_error,"no .data member on fixed size array");
-            make_builtin(itl,builtin_type::void_t);
+            return compile_error(itl,itl_error::array_type_error,"no .data member on fixed size array");
         }
 
         struct_slot->offset += 0;
@@ -412,20 +428,18 @@ Type* access_array_member(Interloper& itl, Type* type, const String& member_name
 
     else
     {
-        panic(itl,itl_error::undeclared,"unknown array member %s\n",member_name.buf);
-        return make_builtin(itl,builtin_type::void_t);
+        return compile_error(itl,itl_error::undeclared,"unknown array member %s\n",member_name.buf);
     }
 }
 
-Type* access_struct_member(Interloper& itl, Type* type, const String& member_name, AddrSlot* struct_slot)
+TypeResult access_struct_member(Interloper& itl, Type* type, const String& member_name, AddrSlot* struct_slot)
 {
     // get offset for struct member
     const auto member_opt = get_member(itl.struct_table,type,member_name);
 
     if(!member_opt)
     {
-        panic(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
-        return make_builtin(itl,builtin_type::void_t);
+        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
     }
 
     const auto member = member_opt.value();
@@ -436,28 +450,26 @@ Type* access_struct_member(Interloper& itl, Type* type, const String& member_nam
 }
 
 
-std::optional<u32> member_offset(Struct& structure, const String& name)
+Option<u32> member_offset(Struct& structure, const String& name)
 {
     auto member_opt = get_member(structure,name);
     if(!member_opt)
     {
-        return std::nullopt;
+        return option::none;
     }
 
     auto member = member_opt.value();
 
-    return std::optional{member.offset};
+    return member.offset;
 }
-
-Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type,
+TypeResult access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type,
     const String& member_name, AddrSlot* struct_slot)
 {
     const auto& enumeration = enum_from_type(itl.enum_table,struct_type);
 
     if(!enumeration.underlying_type || !is_struct(enumeration.underlying_type))
     {
-        panic(itl,itl_error::struct_error,"member access on plain enum %s\n",enumeration.name.buf);
-        return make_builtin(itl,builtin_type::void_t);                    
+        return compile_error(itl,itl_error::struct_error,"member access on plain enum %s\n",enumeration.name.buf);                   
     }
 
     // pull info on enum struct member
@@ -467,8 +479,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
 
     if(!enum_struct_member_opt)
     {
-        panic(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,struct_type).buf);
-        return make_builtin(itl,builtin_type::void_t);                
+        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,struct_type).buf);              
     }
 
     const auto& enum_struct_member = enum_struct_member_opt.value();
@@ -514,7 +525,7 @@ Type* access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type
 
 
 // return type, slot, offset
-std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+Result<std::pair<Type*,AddrSlot>,itl_error> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
     BinNode* member_root =(BinNode*)node;
 
@@ -537,8 +548,7 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
 
             if(!sym_ptr)
             {
-                panic(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
-                return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
             }            
 
             const auto &sym = *sym_ptr;
@@ -579,21 +589,25 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
 
         case ast_type::index:
         {
-            RegSlot addr_slot;
-            std::tie(struct_type, addr_slot) = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+            auto index_res = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+            if(!index_res)
+            {
+                return index_res.error();
+            }
 
-            struct_slot = make_addr(addr_slot,0);
+            auto index_reg = *index_res;
+
+            struct_slot = make_addr(index_reg.slot,0);
 
             // we return types in here as the accessed type
-            struct_type = deref_pointer(struct_type);
+            struct_type = deref_pointer(index_reg.type);
             break;
         }
 
 
         default: 
         {
-            panic(itl,itl_error::struct_error,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
-            return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+            return compile_error(itl,itl_error::struct_error,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
         }
     }
 
@@ -616,7 +630,11 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                 if(is_pointer(struct_type))
                 {
                     RegSlot addr_slot = new_tmp_ptr(func);
-                    do_addr_load(itl,func,addr_slot,struct_slot,struct_type);
+                    const auto load_err = do_addr_load(itl,func,addr_slot,struct_slot,struct_type);
+                    if(!!load_err)
+                    {
+                        return *load_err;
+                    }
 
                     struct_slot = make_addr(addr_slot,0);
 
@@ -624,8 +642,8 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
 
                     if(ptr_type->pointer_kind == pointer_type::nullable)
                     {
-                        panic(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,(Type*)ptr_type).buf);
-                        return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                        return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",
+                            type_name(itl,(Type*)ptr_type).buf);
                     }
 
                     // now we are back to a straight pointer
@@ -636,26 +654,40 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                 {
                     case type_class::array_t:
                     {
-                        struct_type = access_array_member(itl,struct_type,member_name,&struct_slot);
+                        auto type_res = access_array_member(itl,struct_type,member_name,&struct_slot);
+                        if(!type_res)
+                        {
+                            return type_res.error();
+                        }
+
+                        struct_type = *type_res; 
                         break;
                     }
 
                     // do enum member access
                     case type_class::enum_t:
                     {
-                        struct_type = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
-
-                        if(itl.error)
+                        auto struct_type_res = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
+                        
+                        if(!struct_type_res)
                         {
-                            return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot}; 
+                            return struct_type_res.error();
                         }
+                        
+                        struct_type = *struct_type_res;
                         break;
                     }
 
                     // actual struct member
                     default:
                     {
-                        struct_type = access_struct_member(itl,struct_type,member_name,&struct_slot);
+                        auto struct_type_res = access_struct_member(itl,struct_type,member_name,&struct_slot);
+                        if(!struct_type_res)
+                        {
+                            return struct_type_res.error();
+                        }
+
+                        struct_type = *struct_type_res;
                         break;
                     }
                 }   
@@ -666,13 +698,23 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
             {
                 IndexNode* index_node = (IndexNode*)n;
 
-                struct_type = access_struct_member(itl,struct_type,index_node->name,&struct_slot);
+                auto struct_type_res = access_struct_member(itl,struct_type,index_node->name,&struct_slot);
+                if(!struct_type_res)
+                {
+                    return struct_type_res.error();
+                }
+
+                struct_type = *struct_type_res; 
                 
                 if(is_runtime_size(struct_type))
                 {
                     const RegSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    do_addr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
+                    const auto load_err = do_addr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
+                    if(!!load_err)
+                    {
+                        return *load_err;
+                    }
                     struct_slot = make_addr(vla_ptr,0);
                 }
 
@@ -682,60 +724,80 @@ std::tuple<Type*,AddrSlot> compute_member_addr(Interloper& itl, Function& func, 
                     collapse_struct_offset(itl,func,&struct_slot);
                 }
 
-                RegSlot addr_slot;
-                std::tie(struct_type,addr_slot) = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
+                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
+                if(!index_res)
+                {
+                    return index_res.error();
+                }
 
-                struct_slot = make_addr(addr_slot,0);
+                auto index_reg = *index_res;
+
+                struct_slot = make_addr(index_reg.slot,0);
 
                 // deref of pointer
-                struct_type = deref_pointer(struct_type);
+                struct_type = deref_pointer(index_reg.type);
                 break;
             }
 
             default: 
             {
-                panic(itl,itl_error::undeclared,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
-                return std::tuple{make_builtin(itl,builtin_type::void_t),struct_slot};
+                return compile_error(itl,itl_error::undeclared,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
             }
         }
     }
 
-    return std::tuple{struct_type,struct_slot};
+    return std::pair{struct_type,struct_slot};
 }
 
-std::pair<Type*,RegSlot> compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
+RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 {
-    auto [type,addr_slot] = compute_member_addr(itl,func,node);
+    auto member_addr_res = compute_member_addr(itl,func,node);
+
+    if(!member_addr_res)
+    {
+        return member_addr_res.error();
+    }
+
+    auto [type,addr_slot] = *member_addr_res;
 
     collapse_struct_offset(itl,func,&addr_slot);
 
-    return std::pair{make_reference(itl,type),addr_slot.slot};
+    return TypedReg{addr_slot.slot,make_reference(itl,type)};
 }
 
-void write_struct(Interloper& itl,Function& func, RegSlot src_slot, Type* rtype, AstNode *node)
+Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& src, AstNode *node)
 {
-    const auto [accessed_type, addr_slot] = compute_member_addr(itl,func,node);
+    auto member_addr_res = compute_member_addr(itl,func,node);
 
-    if(itl.error)
+    if(!member_addr_res)
     {
-        return;
+        return member_addr_res.error();
     }
 
-    check_assign(itl,accessed_type,rtype);
-    do_addr_store(itl,func,src_slot,addr_slot,accessed_type);
+    const auto [accessed_type, addr_slot] = *member_addr_res;
+
+    const auto assign_err = check_assign(itl,accessed_type,src.type);
+    if(!!assign_err)
+    {
+        return *assign_err;
+    }
+
+    return do_addr_store(itl,func,src.slot,addr_slot,accessed_type);
 }
 
 
-Type* read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
+TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
 {
-    const List list_old = get_cur_list(func.emitter);
+    const List<Opcode> list_old = get_cur_list(func.emitter);
 
-    auto [accessed_type, addr_slot] = compute_member_addr(itl,func,node);
+    auto member_addr_res =  compute_member_addr(itl,func,node);
 
-    if(itl.error)
+    if(!member_addr_res)
     {
-        return make_builtin(itl,builtin_type::void_t);
+        return member_addr_res.error();
     }
+
+    auto [accessed_type, addr_slot] = *member_addr_res;
 
     // len access on fixed sized array
     if(is_special_reg(addr_slot.slot,spec_reg::access_fixed_len_reg))
@@ -758,20 +820,24 @@ Type* read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *nod
         return accessed_type;
     }
 
-    do_addr_load(itl,func,dst_slot,addr_slot,accessed_type);
+    const auto load_err = do_addr_load(itl,func,dst_slot,addr_slot,accessed_type);
+    if(!!load_err)
+    {
+        return *load_err;
+    }
+
     return accessed_type;
 }
 
 
-void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, AddrSlot addr_slot, const Struct& structure)
+Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, AddrSlot addr_slot, const Struct& structure)
 {
     const u32 node_len = count(node->nodes);
     const u32 member_size = count(structure.members);
 
     if(node_len != member_size)
     {
-        panic(itl,itl_error::undeclared,"struct initlizier missing initlizer expected %d got %d\n",member_size,node_len);
-        return;
+        return compile_error(itl,itl_error::undeclared,"struct initlizier missing initlizer expected %d got %d\n",member_size,node_len);
     }
     
     for(u32 i = 0; i < count(structure.members); i++)
@@ -788,19 +854,27 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
         {
             if(is_array(member.type))
             {
-                traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],&addr_member,(ArrayType*)member.type);
+                const auto arr_err = traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],&addr_member,(ArrayType*)member.type);
+                if(!!arr_err)
+                {
+                    return arr_err;
+                }
             }
 
             else if(is_struct(member.type))
             {
                 const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-                traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_member,sub_struct);
+                const auto struct_err = traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_member,sub_struct);
+                if(!!struct_err)
+                {
+                    return struct_err;
+                }
             }
 
             else
             {
-                panic(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",member.name.buf,type_name(itl,member.type).buf);
-                return;
+                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
+                    member.name.buf,type_name(itl,member.type).buf);
             }
         }
 
@@ -808,21 +882,37 @@ void traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* no
         else
         {
             // get the operand and type check it
-            const auto [rtype,slot] = compile_oper(itl,func,node->nodes[i]);
-            check_assign(itl,member.type,rtype);
+            const auto res = compile_oper(itl,func,node->nodes[i]);
+            if(!res)
+            {
+                return res.error();
+            }
 
-            do_addr_store(itl,func,slot,addr_member,member.type);
+            const auto reg = *res;
+
+            const auto assign_err = check_assign(itl,member.type,reg.type);
+            if(!!assign_err)
+            {
+                return assign_err;
+            }
+
+            const auto store_err = do_addr_store(itl,func,reg.slot,addr_member,member.type);
+            if(!!store_err)
+            {
+                return store_err;
+            }
         }
     } 
+
+    return option::none;
 }
 
-void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot)
+Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot)
 {
     // TODO: add a opt to just memset the entire thing in one go
     // NOTE: this should apply all the way down i.e if we contain a struct
     // it needs to have initialzer_zero aswell
     // if(structure.initializer_zero)
-    push_context(itl);
 
     // default construction
     for(u32 m = 0; m < count(structure.members); m++)
@@ -834,13 +924,17 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
         if(member.expr)
         {
-            trash_context(itl,structure.filename,structure.name_space,member.expr);
+            auto context_guard = switch_context(itl,structure.filename,structure.name_space,member.expr);
 
             switch(member.expr->type)
             {
                 case ast_type::initializer_list:
                 {
-                    compile_init_list(itl,func,member.type,member_addr,member.expr);
+                    const auto init_err = compile_init_list(itl,func,member.type,member_addr,member.expr);
+                    if(!!init_err)
+                    {
+                        return init_err;
+                    }
                     break;
                 }
 
@@ -852,10 +946,25 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
                 default: 
                 {
-                    const auto [rtype,slot] = compile_oper(itl,func,member.expr);
-                    check_assign_init(itl,member.type,rtype); 
+                    const auto res = compile_oper(itl,func,member.expr);
+                    if(!res)
+                    {
+                        return res.error();
+                    }
 
-                    do_addr_store(itl,func,slot,member_addr,member.type);
+                    const auto reg = *res;
+
+                    const auto assign_err = check_assign_init(itl,member.type,reg.type);
+                    if(!!assign_err)
+                    {
+                        return assign_err;
+                    } 
+
+                    const auto store_err = do_addr_store(itl,func,reg.slot,member_addr,member.type);
+                    if(!!store_err)
+                    {
+                        return store_err;
+                    }
                     break;                    
                 }
             }
@@ -865,32 +974,42 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
         else if(is_struct(member.type))
         {
             const auto nested_structure = struct_from_type(itl.struct_table,member.type);
-            compile_struct_decl_default(itl,func,nested_structure,member_addr);
+            const auto decl_err = compile_struct_decl_default(itl,func,nested_structure,member_addr);
+            if(!!decl_err)
+            {
+                return decl_err;
+            }
         }
 
         else if(is_array(member.type))
         {
-            default_construct_arr(itl,func,(ArrayType*)member.type,member_addr);
+            const auto init_err = default_construct_arr(itl,func,(ArrayType*)member.type,member_addr);
+            if(!!init_err)
+            {
+                return init_err;
+            }
         }
 
         else
         {
             if(is_reference(member.type))
             {
-                panic(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s\n",member.name.buf,type_name(itl,member.type).buf);
-                pop_context(itl);
-                return;
+               return compile_error(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s\n",member.name.buf,type_name(itl,member.type).buf);
             }
 
             const RegSlot tmp = imm_zero(itl,func);
-            do_addr_store(itl,func,tmp,member_addr,member.type);
+            const auto store_err = do_addr_store(itl,func,tmp,member_addr,member.type);
+            if(!!store_err)
+            {
+                return store_err;
+            }
         }
     }
 
-    pop_context(itl);
+    return option::none;
 }
 
-void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, SymSlot slot)
+Option<itl_error> compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_node, SymSlot slot)
 {
     Type* ltype = nullptr;
 
@@ -904,7 +1023,10 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
         ltype = sym.type;
     }
 
-    const auto structure = struct_from_type(itl.struct_table,ltype);
+    const TypedReg reg = {reg_slot,ltype};
+
+
+    const auto structure = struct_from_type(itl.struct_table,reg.type);
 
     
     if(decl_node->expr)
@@ -913,21 +1035,24 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
         {
             case ast_type::initializer_list:
             {
-                const auto addr_slot = make_struct_addr(reg_slot,0);
-                traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
-                break;                
+                const auto addr_slot = make_struct_addr(reg.slot,0);
+                return traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
             }
 
             case ast_type::no_init:
             {
-                break;
+                return option::none;
             }
 
             default:
             {
-                const auto rtype = compile_expression(itl,func,decl_node->expr,reg_slot);
-                check_assign_init(itl,ltype,rtype);
-                break;    
+                const auto rtype_res = compile_expression(itl,func,decl_node->expr,reg.slot);
+                if(!rtype_res)
+                {
+                    return rtype_res.error();
+                }
+
+                return check_assign_init(itl,reg.type,*rtype_res); 
             }
         }
     }
@@ -935,7 +1060,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode *decl_n
     // default init
     else
     {
-        const AddrSlot addr_slot = make_struct_addr(reg_slot,0);
-        compile_struct_decl_default(itl,func,structure,addr_slot);
+        const AddrSlot addr_slot = make_struct_addr(reg.slot,0);
+        return compile_struct_decl_default(itl,func,structure,addr_slot);
     }
 }
