@@ -18,3 +18,10 @@ import <util>
 import <sort>
 
 import <math>
+
+#attr(use_result)
+enum result 
+{
+    ok,
+    err,
+}

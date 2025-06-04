@@ -205,7 +205,7 @@ Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
     }
 
     // store if this reg is const for opt purposes
-    if(type->is_const)
+    if(is_const(type))
     {
         reg.flags |= CONST;
     }

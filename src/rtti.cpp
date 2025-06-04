@@ -97,19 +97,13 @@ Option<itl_error> cache_rtti_structs(Interloper& itl)
     const u32 type_struct_idx = *type_struct_idx_res;
     auto& type_struct = itl.struct_table[type_struct_idx];
 
-    auto is_const_offset_res = cache_offset(itl,type_struct,"is_const");
     auto type_class_offset_res = cache_offset(itl,type_struct,"kind");
-    if(!is_const_offset_res)
-    {
-        return is_const_offset_res.error();
-    }
 
     if(!type_class_offset_res)
     {
         return type_class_offset_res.error();
     }
 
-    rtti.is_const_offset = *is_const_offset_res;
     rtti.type_class_offset = *type_class_offset_res;
     rtti.type_struct_size = type_struct.size;
 
@@ -213,14 +207,10 @@ void destroy_trie(TypeTrieNode& root)
 
 void destroy_rtti_cache(RttiCache& cache)
 {
-    for(u32 i = 0; i < TYPE_ATTR; i++)
+    for(u32 i = 0; i < BUILTIN_TYPE_SIZE; i++)
     {
-        for(u32 j = 0; j < BUILTIN_TYPE_SIZE; j++)
-        {
-            destroy_trie(cache.builtin_type_cache[i][j]);
-
-            cache.builtin_type_cache[i][j] = {};
-        }
+        destroy_trie(cache.builtin_type_cache[i]);
+        cache.builtin_type_cache[i] = {};
     }
 }
 
@@ -245,7 +235,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
                 {
                     ArrayType* node_type = (ArrayType*)node.type;
                     
-                    if(node_type->size == array_type->size && node_type->type.is_const == array_type->type.is_const)
+                    if(node_type->size == array_type->size)
                     {
                         return node;
                     }
@@ -259,7 +249,6 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
             auto& section = pool_section_from_slot(itl.const_pool,slot);
 
             // push in base type
-            write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
             write_const_pool(itl.const_pool,section,rtti.type_class_offset,u32(rtti_type_class::array_t));   
 
             // write in array type
@@ -293,12 +282,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 
                 if(is_pointer(node.type))
                 {
-                    PointerType* node_type = (PointerType*)node.type;
-
-                    if(node_type->type.is_const == pointer_type->type.is_const)
-                    {
-                        return node;
-                    }
+                    return node;
                 }
             }
 
@@ -309,7 +293,6 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
             auto& section = pool_section_from_slot(itl.const_pool,slot);
 
             // push in base type
-            write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
             write_const_pool(itl.const_pool,section,rtti.type_class_offset,u32(rtti_type_class::pointer_t));            
 
             // push in pointer type
@@ -329,7 +312,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
         case type_class::builtin_t:
         {
             const builtin_type builtin = cast_builtin(type);
-            auto& root = rtti.builtin_type_cache[type->is_const][u32(builtin)];
+            auto& root = rtti.builtin_type_cache[u32(builtin)];
 
             // base type is not yet in the pool
             if(root.slot.handle == INVALID_HANDLE)
@@ -339,7 +322,6 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
                 auto& section = pool_section_from_slot(itl.const_pool,slot);
 
                 // write in base type struct
-                write_const_pool(itl.const_pool,section,rtti.is_const_offset,type->is_const);
                 write_const_pool(itl.const_pool,section,rtti.type_class_offset,u32(rtti_type_class::builtin_t));
                 write_const_pool(itl.const_pool,section,rtti.builtin_type_offset,u32(builtin));
 
@@ -360,7 +342,7 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
     }
 
     assert(false);
-    return rtti.builtin_type_cache[0][0];
+    return rtti.builtin_type_cache[0];
 }
 
 

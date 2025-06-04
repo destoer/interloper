@@ -5,6 +5,7 @@ enum class [[nodiscard]] itl_error
 {
     parse_error,
     lexer_error,
+    unused_result,
     array_type_error,
     int_type_error,
     illegal_cast,
@@ -37,6 +38,7 @@ static const char* ERROR_NAME[] =
 {
     "parse error",
     "lexer error",
+    "unused_result",
     "array type error",
     "int type error",
     "illegal cast",

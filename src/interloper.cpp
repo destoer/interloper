@@ -1141,16 +1141,34 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
 
         const auto name = sym_node->literal;
 
-        const auto sym_ptr = get_sym(itl.symbol_table,name);
-        if(!sym_ptr)
+        RegSlot slot = INVALID_SYM_REG_SLOT;
+        u32 size = 0;
+        Type *ltype = nullptr;
+
+        const b32 ignore = name == "_";
+
+        // An actual symbol
+        if(!ignore)
         {
-            return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
+            const auto sym_ptr = get_sym(itl.symbol_table,name);
+            if(!sym_ptr)
+            {
+                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
+            }
+
+            slot = sym_ptr->reg.slot;
+            size = sym_ptr->reg.size;
+            ltype = sym_ptr->type;
         }
 
-        // copy these locally incase the symbol moves
-        const auto slot = sym_ptr->reg.slot;
-        const auto size = sym_ptr->reg.size;
-        const auto ltype = sym_ptr->type;
+        // Ignore the result
+        else
+        {
+            ltype = make_builtin(itl,builtin_type::void_t);
+            size = GPR_SIZE;
+            slot = new_tmp(func,GPR_SIZE);
+        }
+
 
         // handle initializer list
         if(assign_node->right->type == ast_type::initializer_list)
@@ -1167,15 +1185,18 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
                 return rtype_res.error();
             }
 
-            const auto assign_err = check_assign(itl,ltype,*rtype_res);
-            if(!!assign_err)
+            if(!ignore)
             {
-                return *assign_err;
-            }
+                const auto assign_err = check_assign(itl,ltype,*rtype_res);
+                if(!!assign_err)
+                {
+                    return *assign_err;
+                }
 
-            if(is_unsigned_integer(ltype))
-            {
-                clip_arith_type(itl,func,slot,slot,size);
+                if(is_unsigned_integer(ltype))
+                {
+                    clip_arith_type(itl,func,slot,slot,size);
+                }
             }
 
             return option::none;

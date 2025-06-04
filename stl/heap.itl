@@ -221,6 +221,7 @@ func find_first_fit(heap: Heap@, req_blocks: usize) HeapNode?
     return NULL;
 }
 
+#attr(use_result)
 func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
 {
     verify_heap(heap);
@@ -303,6 +304,7 @@ func realloc_heap(heap : Heap@, ptr: byte@?, count: usize,size: usize) bool
     // first alloc just behave like alloc
     if(!old)
     {
+        _ = alloc_heap(heap,count,size);
         new := alloc_heap(heap,count,size);
 
         if(new != NULL)

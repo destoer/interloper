@@ -32,6 +32,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
 
     // type
     {"tests/type/byte_invalid",itl_error::pointer_type_error},
+    {"tests/type/use_enum_result_fail",itl_error::unused_result},
 
     // const
     {"tests/const/const_invalid_assign",itl_error::const_type_error},

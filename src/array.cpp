@@ -679,7 +679,7 @@ Option<itl_error> compile_arr_assign(Interloper& itl, Function& func, AstNode* n
 
                 else
                 {
-                    return compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+                    return compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla %s\n",type_name(itl,arr.type).buf);
                 }
             }
 

@@ -55,9 +55,6 @@ enum builtin_type : BuiltinTypeData
 struct Type
 {
     kind : const type_class;
-
-    // specifiers
-    is_const : const bool;
 }
 
 struct BuiltinType (type : const Type)

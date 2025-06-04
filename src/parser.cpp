@@ -9,6 +9,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_
 
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
 static constexpr u32 ATTR_FLAG = (1 << 1);
+static constexpr u32 ATTR_USE_RESULT = (1 << 2);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
@@ -1711,7 +1712,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     return f;
 }
 
-Option<parse_error> func_decl(Interloper& itl, Parser &parser)
+Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
 {
     // func_dec = func ident(arg...) return_type 
     // arg = ident : type,
@@ -1737,6 +1738,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser)
     }
 
     FuncNode* func = *func_res;
+    func->attr_flags = flags;
 
     auto block_res = block(parser);
     if(!block_res)
@@ -1987,6 +1989,11 @@ Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
         flags |= ATTR_FLAG;
     }
 
+    else if(attr_name == "use_result")
+    {
+        flags |= ATTR_USE_RESULT;
+    }
+
     else
     {
         return parser_error(parser,parse_error::malformed_stmt,tok,"Unknown attr %s\n",attr_name.buf);
@@ -2031,11 +2038,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
         {
             case token_type::struct_t:
             {
-                const auto struct_tok_err = consume(parser,token_type::struct_t);
-                if(!!struct_tok_err)
-                {
-                    return struct_tok_err;
-                }
+                (void)consume(parser,token_type::struct_t);
                 
                 const auto struct_decl_err = struct_decl(itl,parser,flags);
                 if(!!struct_decl_err)
@@ -2047,12 +2050,8 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
 
             case token_type::enum_t:
             {
-                const auto enum_tok_err = consume(parser,token_type::enum_t);
-                if(!!enum_tok_err)
-                {
-                    return enum_tok_err;
-                }
-                
+                (void)consume(parser,token_type::enum_t);
+
                 const auto enum_decl_err = enum_decl(itl,parser,flags);
                 if(!!enum_decl_err)
                 {
@@ -2060,6 +2059,19 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 } 
                 break; 
             }
+
+            case token_type::func:
+            {
+                (void)consume(parser,token_type::func);
+
+                const auto func_err = func_decl(itl,parser,flags);
+                if(!!func_err)
+                {
+                    return func_err;
+                }
+                break;        
+            }
+
 
             default:
             {
@@ -2196,7 +2208,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         // function declartion
         case token_type::func:
         {
-            const auto func_err = func_decl(itl,parser);
+            const auto func_err = func_decl(itl,parser,0);
             if(!!func_err)
             {
                 return func_err;
