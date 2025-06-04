@@ -462,6 +462,7 @@ struct FuncNode
 
     b32 va_args = false;
     String args_name;
+    u32 attr_flags = 0;
 };
 
 

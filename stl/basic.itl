@@ -18,3 +18,9 @@ import <util>
 import <sort>
 
 import <math>
+
+enum result 
+{
+    ok,
+    error,
+}

@@ -203,12 +203,15 @@ enum class assign_type
     none,
 };
 
+static constexpr u32 TYPE_FLAG_CONST = (1 << 0);
+static constexpr u32 TYPE_USE_RESULT = (1 << 1);
+
 struct Type
 {
     type_class kind;
 
     // specifiers
-    b32 is_const;
+    u32 flags = 0;
 };
 
 static constexpr u32 TYPE_ATTR = 2;
@@ -291,7 +294,7 @@ struct TypeTrieNode
 
 struct RttiCache
 {
-    TypeTrieNode builtin_type_cache[TYPE_ATTR][BUILTIN_TYPE_SIZE];
+    TypeTrieNode builtin_type_cache[BUILTIN_TYPE_SIZE];
 
     // how many bytes does this take in the binary?
     u32 type_data_size = 0;
@@ -306,7 +309,6 @@ struct RttiCache
 
     // type struct cache
     u32 type_struct_size = 0;
-    u32 is_const_offset = 0;
     u32 type_class_offset = 0;
 
     // builtin

@@ -448,6 +448,7 @@ const String SPECIAL_REG_NAMES[19] =
     "fixed_len",
     "rv_struct",
     "null_slot",
+
     "const",
     "global",
 
@@ -489,12 +490,12 @@ enum class spec_reg
     // dont perform any moves
     null = SPECIAL_REG_START + 14,
 
-    const_seg = SPECIAL_REG_START + 15,
-    global_seg = SPECIAL_REG_START + 16,
+    const_seg = SPECIAL_REG_START + 16,
+    global_seg = SPECIAL_REG_START + 17,
 
     // args
-    a1 = SPECIAL_REG_START + 17,
-    a2 = SPECIAL_REG_START + 18,
+    a1 = SPECIAL_REG_START + 18,
+    a2 = SPECIAL_REG_START + 19,
 };
 
 static constexpr u32 SPECIAL_REG_ARG_START = u32(spec_reg::a1);
