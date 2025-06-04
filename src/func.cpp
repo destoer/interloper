@@ -682,10 +682,23 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
         clean_args(itl,func,arg_clean);
     }
   
-
-    if(is_special_reg(dst_slot,spec_reg::null) && (call_info.sig.attr_flags & ATTR_USE_RESULT))
+    if(is_special_reg(dst_slot,spec_reg::null))
     {
-        return compile_error(itl,itl_error::unused_result,"Result of function %s declared with attr use_result must be used\n",call_info.name.buf);
+        if(call_info.sig.attr_flags & ATTR_USE_RESULT)
+        {
+            return compile_error(itl,itl_error::unused_result,"Result of function %s declared with attr use_result must be used\n",call_info.name.buf);
+        }
+
+        else if(is_enum(sig.return_type[0]))
+        {
+            const auto& enumeration = enum_from_type(itl.enum_table,sig.return_type[0]);
+
+            if(enumeration.use_result)
+            {
+                return compile_error(itl,itl_error::unused_result,"Enum %s declared with attr use_result must be used from func %s\n",
+                    enumeration.name.buf,call_info.name.buf);
+            }
+        }
     }
 
     // restore callee saved values

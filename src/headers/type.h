@@ -349,6 +349,7 @@ struct Enum
     Type* underlying_type = nullptr;
 
     PoolSlot struct_slot;
+    bool use_result = false;
 };
 
 

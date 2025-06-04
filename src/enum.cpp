@@ -68,6 +68,11 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         return compile_error(itl,itl_error::enum_type_error,"Flag enum must specify underlying integer type\n");
     }
 
+    if(node->attr_flags & ATTR_USE_RESULT)
+    {
+        enumeration.use_result = true;
+    }
+
 
     // setup enum info
     enumeration.name = node->name;
@@ -220,7 +225,8 @@ Enum enum_from_type(EnumTable& enum_table, const Type* type)
 
 Type* make_enum_type(Interloper& itl,Enum& enumeration)
 {
-    return make_enum(itl,enumeration.type_idx);
+    const u32 flags = enumeration.use_result? TYPE_USE_RESULT : 0;
+    return make_enum(itl,enumeration.type_idx,flags);
 }
 
 

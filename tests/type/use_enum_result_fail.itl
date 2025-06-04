@@ -1,0 +1,11 @@
+
+func fail_unused() result
+{
+    return result::err;
+}
+
+func main() 
+{
+    fail_unused();
+    return 0;
+}
