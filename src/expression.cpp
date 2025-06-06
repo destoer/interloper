@@ -623,9 +623,14 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             return ast_unary(parser,expression(parser,ctx,30),ast_type::addrof,t);
         }
 
+        case token_type::ignore:
+        {
+            return ast_plain(parser,ast_type::ignore,t);
+        }
+
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"nud: unexpected token '%s' in %s\n",
+            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %s\n",
                 tok_name(t.type),ctx.expression_name.buf);
         }
     }

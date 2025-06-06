@@ -105,6 +105,8 @@ enum class ast_type
     index,
     slice,
 
+    ignore,
+
     builtin_type_info,
 
     END
@@ -212,6 +214,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "member",
     "index",
     "slice",
+
+    "ignore",
 
     "builtin_type_info",
 

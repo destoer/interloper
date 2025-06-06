@@ -1053,6 +1053,17 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
     {
         switch(assign_node->left->type)
         {
+            case ast_type::ignore:
+            {
+                const auto rtype_res = compile_expression(itl,func,assign_node->right,new_tmp(func,GPR_SIZE));
+                if(!rtype_res)
+                {
+                    return rtype_res.error();
+                }
+
+                return option::none;
+            }
+
             case ast_type::deref:
             {
                 UnaryNode* deref_node = (UnaryNode*)assign_node->left;
@@ -1141,34 +1152,16 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
 
         const auto name = sym_node->literal;
 
-        RegSlot slot = INVALID_SYM_REG_SLOT;
-        u32 size = 0;
-        Type *ltype = nullptr;
-
-        const b32 ignore = name == "_";
-
-        // An actual symbol
-        if(!ignore)
+        const auto sym_ptr = get_sym(itl.symbol_table,name);
+        if(!sym_ptr)
         {
-            const auto sym_ptr = get_sym(itl.symbol_table,name);
-            if(!sym_ptr)
-            {
-                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
-            }
-
-            slot = sym_ptr->reg.slot;
-            size = sym_ptr->reg.size;
-            ltype = sym_ptr->type;
+            return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
         }
 
-        // Ignore the result
-        else
-        {
-            ltype = make_builtin(itl,builtin_type::void_t);
-            size = GPR_SIZE;
-            slot = new_tmp(func,GPR_SIZE);
-        }
 
+        RegSlot slot = sym_ptr->reg.slot;
+        u32 size = sym_ptr->reg.size;
+        Type *ltype = sym_ptr->type;
 
         // handle initializer list
         if(assign_node->right->type == ast_type::initializer_list)
@@ -1185,20 +1178,17 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
                 return rtype_res.error();
             }
 
-            if(!ignore)
+            const auto assign_err = check_assign(itl,ltype,*rtype_res);
+            if(!!assign_err)
             {
-                const auto assign_err = check_assign(itl,ltype,*rtype_res);
-                if(!!assign_err)
-                {
-                    return *assign_err;
-                }
-
-                if(is_unsigned_integer(ltype))
-                {
-                    clip_arith_type(itl,func,slot,slot,size);
-                }
+                return *assign_err;
             }
 
+            if(is_unsigned_integer(ltype))
+            {
+                clip_arith_type(itl,func,slot,slot,size);
+            }
+            
             return option::none;
         }
     }

@@ -125,6 +125,8 @@ enum class token_type
     case_t,
     default_t,
 
+    ignore,
+
     error,
 
     eof,
@@ -271,9 +273,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::case_t,"case",-1},
     {token_type::default_t,"default",-1},
 
-    
-
-
+    {token_type::ignore,"_",-1},
 
     {token_type::error,"error",-1},
 

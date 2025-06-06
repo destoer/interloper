@@ -1438,6 +1438,12 @@ ParserResult statement(Parser &parser)
             return parser_error(parser,parse_error::unexpected_token,t,"Lone semi colon");
         }
 
+        case token_type::ignore:
+        {
+            prev_token(parser);
+            return statement_terminate(parser,"Ignored assign");
+        }
+
         default:
         {
             return parser_error(parser,parse_error::unexpected_token,t,"statement: unexpected token '%s' : %d\n",tok_name(t.type),u32(t.type));
