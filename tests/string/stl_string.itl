@@ -1,0 +1,19 @@
+func main() s32 
+{
+    str: std::String;
+
+    buffer := "Hello There! ";
+
+    for c in buffer 
+    {
+        std::push_char(&str,c);
+    }
+
+    std::push_char_buffer(&str,buffer);
+    std::push_char(&str,'\n');
+
+    std::write_string(str.buf);
+
+
+    return cast(s32,str.buf.len);
+}

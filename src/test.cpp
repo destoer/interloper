@@ -181,6 +181,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/string/write_string",0},
     {"tests/string/write_string_static",0},
     {"tests/string/str_conv",1},
+    {"tests/string/stl_string",27},
 
 
 

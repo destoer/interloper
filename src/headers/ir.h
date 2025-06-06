@@ -428,38 +428,7 @@ enum class operand_type
 };
 
 
-const String SPECIAL_REG_NAMES[19] = 
-{
-    "sp",
-    "pc",
-    "rv_gpr",
-    "rv_fpr",
-
-    "rax",
-    "rcx",
-    "rdx",
-    "rdi",
-    "rsi",
-
-    "r8",
-    "r9",
-    "r10",
-
-    "fixed_len",
-    "rv_struct",
-    "null_slot",
-
-    "const",
-    "global",
-
-    "a1",
-    "a2",
-};
-
-static constexpr u32 SPECIAL_REG_SIZE = sizeof(SPECIAL_REG_NAMES) / sizeof(SPECIAL_REG_NAMES[0]);
-
 static constexpr u32 SPECIAL_REG_START = 0x7000'0000;
-static constexpr u32 SPECIAL_REG_END = (SPECIAL_REG_START + SPECIAL_REG_SIZE) - 1;
 
 // These constants are large so they cant be confused with any legitmate register
 enum class spec_reg
@@ -498,7 +467,42 @@ enum class spec_reg
     a2 = SPECIAL_REG_START + 19,
 };
 
+static constexpr u32 SPECIAL_REG_SIZE = u32(spec_reg::a2) - SPECIAL_REG_START;
+static constexpr u32 SPECIAL_REG_END = (SPECIAL_REG_START + SPECIAL_REG_SIZE) - 1;
+
+
 static constexpr u32 SPECIAL_REG_ARG_START = u32(spec_reg::a1);
+
+
+static const String SPECIAL_REG_NAMES[] = 
+{
+    "sp",
+    "pc",
+    "rv_gpr",
+    "rv_fpr",
+
+    "rax",
+    "rcx",
+    "rdx",
+    "rdi",
+    "rsi",
+
+    "r8",
+    "r9",
+    "r10",
+
+    "fixed_len",
+    "rv_struct",
+    "null_slot",
+
+    "const",
+    "global",
+
+    "a1",
+    "a2",
+};
+
+static_assert((sizeof(SPECIAL_REG_NAMES) / sizeof(String)) == SPECIAL_REG_SIZE);
 
 b32 is_raw_special_reg(u32 reg)
 {

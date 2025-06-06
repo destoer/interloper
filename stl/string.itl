@@ -209,3 +209,60 @@ func split_str(str: const string, delimitter: const string) Array
     std::push_array(&arr,&str);
     return arr;
 }
+
+
+struct String
+{
+    buf: string;
+    size: usize;
+}
+
+func reserve_string_mem(str : String@, size : usize)
+{
+    realloc_heap_panic(&global_heap,cast(byte@@,&str.buf.data),size,sizeof_type(c8));
+    str.size = size;
+}
+
+func reserve_string(str : String@, size: usize)
+{
+    free_size := str.size - str.buf.len;
+
+    // we have room to just dump this in
+    if(free_size >= size)
+    {
+        return;
+    }
+
+    else
+    {   
+        // reserve double
+        new_capacity := (str.size + size) * 2;
+        reserve_string_mem(str,new_capacity);
+    }
+}
+
+func push_char(str: String@, char: c8)
+{
+    reserve_string(str,1);
+    str.buf[str.buf.len] = char;
+    str.buf.len += 1;
+}
+
+func push_char_buffer(str: String@, buffer: const string)
+{
+    reserve_string(str,buffer.len);
+    memcpy(&str.buf[str.buf.len],buffer.data,buffer.len);
+    str.buf.len += buffer.len;
+}
+
+
+func clear_string(str: String@)
+{
+    str.buf.len = 0;
+}
+
+func destroy_string(str: String@)
+{
+    free_heap(&global_heap,cast(byte@@,&str.buf.data));
+    str.size = 0;
+}

@@ -1,6 +1,8 @@
+import <string>
+
 namespace std;
 
-func print_int(v : u64, base : u32)
+func format_int(str: String@,v : u64, base : u32)
 {
     if(base > 16 || base == 0)
     {
@@ -9,7 +11,7 @@ func print_int(v : u64, base : u32)
 
     if(v == 0)
     {
-        write_string("0");
+        push_char_buffer(str,"0");
         return;
     }
 
@@ -33,33 +35,33 @@ func print_int(v : u64, base : u32)
 
     reverse_str(buf,digits);
 
-    write_string(buf[:digits]);
+    push_char_buffer(str,buf[:digits]);
 }
 
-func print_dec(v : u64, sign : bool)
+func format_dec(str: String@,v : u64, sign : bool)
 {
     if(sign && cast(s64,v) < 0)
     {
         v = ~v + 1;
-        write_string("-");
+        push_char(str,'-');
     }
 
-    print_int(v,10);
+    format_int(str,v,10);
 }
 
-func print_bin(v : u64)
+func format_bin(str: String@,v : u64)
 {
-    write_string("0b");
-    print_int(v,2);  
+    push_char_buffer(str,"0b");
+    format_int(str,v,2);  
 }
 
-func print_hex(v : u64)
+func format_hex(str: String@,v : u64)
 {
-    write_string("0x");
-    print_int(v,16);
+    push_char_buffer(str,"0x");
+    format_int(str,v,16);
 }
 
-func format_int(any : rtti::Any, specifier: c8)
+func format_int_arg(str: String@, any : rtti::Any, specifier: c8)
 {
     v := rtti::int_from_any(any);
 
@@ -68,23 +70,23 @@ func format_int(any : rtti::Any, specifier: c8)
         case 'd':
         {
             sign := rtti::is_signed(any.type);
-            print_dec(v,sign);
+            format_dec(str,v,sign);
         }
 
         case 'b':
         {
-            print_bin(v);
+            format_bin(str,v);
         }
 
         case 'x':
         {
-            print_hex(v);
+            format_hex(str,v);
         }
 
         default:
         {
             sign := rtti::is_signed(any.type);
-            print_dec(v,sign);
+            format_dec(str,v,sign);
         }
     }
 }
@@ -99,7 +101,7 @@ func linefeed()
     putchar('\n');
 }
 
-func print_float(v : f64, spec_dp: u32)
+func format_float(str: String@, v : f64, spec_dp: u32)
 {
     // bit cast so we can pull apart the components 
     // as we need to check for magic constants
@@ -116,18 +118,18 @@ func print_float(v : f64, spec_dp: u32)
         {
             if(sign)
             {
-                print("-inf");
+                push_char_buffer(str,"-inf");
             }
 
             else
             {
-                print("+inf");
+                push_char_buffer(str,"+inf");
             }
         }
 
         else
         {
-            print("NaN");
+            push_char_buffer(str,"NaN");
         }
 
         return;
@@ -218,11 +220,11 @@ func print_float(v : f64, spec_dp: u32)
         digits += 1;
     }
 
-    // write out the result
-    write_str_raw(&buffer[0],idx);
+    char_buffer: const string = {&buffer[0],idx};
+    push_char_buffer(str,char_buffer);
 }
 
-func print_builtin_arg(arg: rtti::Any, specifier : c8)
+func format_builtin_arg(str: String@, arg: rtti::Any, specifier : c8)
 {
     builtin := cast(rtti::BuiltinType@,arg.type);
 
@@ -230,61 +232,61 @@ func print_builtin_arg(arg: rtti::Any, specifier : c8)
     {
         case rtti::builtin_type::u8_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::u16_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::u32_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::u64_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::s8_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::s16_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::s32_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::s64_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::c8_t:
         {
             char := rtti::char_from_any(arg);
 
-            putchar(char);
+            push_char(str,char);
         }
 
         case rtti::builtin_type::byte_t:
         {
-            format_int(arg,specifier);
+            format_int_arg(str,arg,specifier);
         }
 
         case rtti::builtin_type::f64_t:
         {
             float := rtti::float_from_any(arg);
 
-            print_float(float,6);
+            format_float(str,float,6);
         }
 
         case rtti::builtin_type::bool_t:
@@ -293,23 +295,23 @@ func print_builtin_arg(arg: rtti::Any, specifier : c8)
 
             if(res)
             {
-                write_string("true");
+                push_char_buffer(str,"true");
             }
 
             else
             {
-                write_string("false");
+                push_char_buffer(str,"false");
             }
         }
 
         case rtti::builtin_type::null_t:
         {
-            write_string("NULL");
+            push_char_buffer(str,"NULL");
         }
     }
 }
 
-func print_arg(arg : rtti::Any, specifier : c8)
+func format_arg(str: String@, arg : rtti::Any, specifier : c8)
 {
     type := arg.type;
 
@@ -317,7 +319,7 @@ func print_arg(arg : rtti::Any, specifier : c8)
     {
         case rtti::type_class::builtin_t:
         {
-            print_builtin_arg(arg, specifier);
+            format_builtin_arg(str,arg, specifier);
         }
 
         case rtti::type_class::pointer_t:
@@ -326,13 +328,13 @@ func print_arg(arg : rtti::Any, specifier : c8)
 
             if(!v)
             {
-                write_string("NULL");
+                push_char_buffer(str,"NULL");
             }
 
             else
             {
-                write_string("0x");
-                print_int(v,16);
+                push_char_buffer(str,"0x");
+                format_int(str,v,16);
             }
         }
 
@@ -348,7 +350,8 @@ func print_arg(arg : rtti::Any, specifier : c8)
                 if(contained_type.kind == rtti::type_class::builtin_t && rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t)
                 {
                     vla := cast(rtti::Vla@,arg.data);
-                    write_str_raw(cast(c8@,vla.data),vla.len);
+                    buffer: const string = {cast(c8@,vla.data),vla.len};
+                    push_char_buffer(str,buffer);
                 }
 
                 else
@@ -365,7 +368,9 @@ func print_arg(arg : rtti::Any, specifier : c8)
                     v := rtti::int_from_any(arg);
 
                     char_ptr : const c8@ = cast(const c8@,v);
-                    write_str_raw(char_ptr,array_type.size);
+
+                    buffer: const string = {char_ptr,array_type.size};
+                    push_char_buffer(str,buffer);
                 }
 
                 else
@@ -388,12 +393,14 @@ func print_arg(arg : rtti::Any, specifier : c8)
 }
 
 
-func print_args(fmt : const string, args : const rtti::Any[])
+func format_args(fmt : const string, args : const rtti::Any[]) String
 {
+    str: String;
+
     // preven print if stdout aint setup
     if(!global_setup)
     {
-        return;
+        return str;
     }
 
     arg_count : u32 = 0;
@@ -407,7 +414,7 @@ func print_args(fmt : const string, args : const rtti::Any[])
             if(fmt.len <= i + 1 || arg_count == args.len)
             {
                 crash_and_burn("ran out of args in print()");
-                return;
+                return str;
             }
         
             specifier := fmt[i+1];
@@ -415,7 +422,7 @@ func print_args(fmt : const string, args : const rtti::Any[])
             // default fmt
             if(specifier == '}')
             {
-                print_arg(args[arg_count],'\0');
+                format_arg(&str,args[arg_count],'\0');
                 arg_count += 1;
                 i += 1;
             }
@@ -423,7 +430,7 @@ func print_args(fmt : const string, args : const rtti::Any[])
             // arg with specifier
             else
             {
-                print_arg(args[arg_count],specifier);
+                format_arg(&str,args[arg_count],specifier);
                 i += 2;
                 arg_count += 1;   
             }
@@ -431,9 +438,23 @@ func print_args(fmt : const string, args : const rtti::Any[])
 
         else
         {
-            putchar(char);
+            push_char(&str,char);
         }
     }
+
+    return str;
+}
+
+func format(fmt: const string, args : ...) String
+{
+    return format_args(fmt,args);
+}
+
+func print_args(fmt : const string, args : const rtti::Any[])
+{
+    str := format_args(fmt,args);
+    write_string(str.buf);
+    destroy_string(&str);
 }
 
 func print(fmt: const string, args : ...)
