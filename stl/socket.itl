@@ -138,14 +138,14 @@ func recv_array_all(sock: Socket@, arr: std::Array@, size: usize) s64
     // make sure we can read all this in
     std::reserve_array(arr,size);
 
-    read := recv_raw_all(sock,&arr.buf[arr.size],size);
+    read := recv_raw_all(sock,&arr.buf[arr.buf.len],size);
 
     if(read == -1)
     {
         return -1;
     }
 
-    arr.size += cast(u64,read);
+    arr.buf.len += cast(u64,read);
 
     // calc the ammount read
     return read;
@@ -182,7 +182,7 @@ func send(sock: Socket@, buf: const byte[]) s64
 
 func send_array(sock: Socket@, arr : const std::Array@) s64
 {
-    return send_raw(sock,arr.buf.data,arr.size);
+    return send(sock,arr.buf);
 }
 
 func send_str(sock: Socket@, str: const string) s64

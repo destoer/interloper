@@ -9,7 +9,7 @@ constant X11_PREFIX : string = "X WINDOW";
 struct OSWindow
 {
     // protocol buffer
-    buf : std::Array;
+    packet : std::Array;
 
     sock : net::Socket;
 
@@ -177,7 +177,7 @@ func build_auth_packet(buf: std::Array@)
 func read_x11_reply(win: OSWindow@, size : u32)
 {
     // get our specified bytes
-    net::recv_clear_array(&win.sock,&win.buf,size);
+    net::recv_clear_array(&win.sock,&win.packet,size);
 }
 
 
@@ -274,7 +274,7 @@ struct XVisualType
 
 func read_setup_info(win: OSWindow@)
 {
-    buf := &win.buf;
+    buf := &win.packet;
 
     net::recv_ignore(&win.sock,1);
 
@@ -363,7 +363,7 @@ func read_setup_info(win: OSWindow@)
 
 func authenticate(win: OSWindow@) bool
 {
-    buf := &win.buf;
+    buf := &win.packet;
 
     build_auth_packet(buf);
 
@@ -450,7 +450,7 @@ enum x_reply_type : u8
 
 func process_reply(win : OSWindow@)
 {
-    buf := &win.buf;
+    buf := &win.packet;
 
     seq: u32 = std::read_buffer_u16(buf,2);
     len := std::read_buffer_u32(buf,4) * 4;
@@ -485,7 +485,7 @@ struct XError
 func process_error(win : OSWindow@)
 {
     error: XError = {?};
-    std::read_buffer(&win.buf,0,&error,sizeof_data(XError));
+    std::read_buffer(&win.packet,0,&error,sizeof_data(XError));
 
     log::error(X11_PREFIX,"Error: {}",error.code);
     log::error(X11_PREFIX,"Seq: {}",error.seq_number);
@@ -675,7 +675,7 @@ func os_process_events(std_win: Window@) bool
     // while socket has data or we are waiting for specific notificaiton
     while(net::socket_has_data(&win.sock))
     {
-        buf := &win.buf;
+        buf := &win.packet;
 
         // TODO: we probably want to peek this...
         net::recv_clear_array(&win.sock,buf,32);
@@ -767,16 +767,16 @@ func create_window(win : OSWindow@, x : u32, y : u32)
     log::debug(X11_PREFIX,"window id: {} {}",win.window_id,win.root_win);
 
     // build end list
-    buf := &win.buf;
-    std::clear_array(buf);
+    packet := &win.packet;
+    std::clear_array(packet);
 
     // first the events we want to listen for
     events : u32 = event_flag::structure_notify;
-    std::push_u32(buf,events);
+    std::push_u32(packet,events);
 
     // attempt to get a rgba window
     win_req : XCreateWindow;
-    win_req.req_len += x11_req_len(buf.size);
+    win_req.req_len += x11_req_len(packet.buf.len);
 
     // rgb888
     win_req.depth = 24;
@@ -806,7 +806,7 @@ func create_window(win : OSWindow@, x : u32, y : u32)
     send_req(win,&win_req,sizeof_data(XCreateWindow));
 
     // send end list
-    net::send_array(&win.sock,buf);
+    net::send_array(&win.sock,packet);
 
     // now map in the window
     map_window(win,win.window_id);
@@ -941,8 +941,8 @@ func ext_query_callback(win: OSWindow@, len: u32, data: byte?)
 {
     ext_query := cast(ExtenstionQuery@,data);
     ext_query.replied = true;
-    ext_query.enabled = cast(bool,std::read_buffer_u8(&win.buf,8));
-    ext_query.opcode = std::read_buffer_u8(&win.buf,9);
+    ext_query.enabled = cast(bool,std::read_buffer_u8(&win.packet,8));
+    ext_query.opcode = std::read_buffer_u8(&win.packet,9);
 }
 
 func query_extenstion(std_win: Window@, str: const string) ExtenstionQuery
@@ -992,7 +992,7 @@ func enable_big_req_callback(win: OSWindow@, len: u32, data: byte?)
     reply := cast(XBigReqReply@,data);
 
     reply.replied = true;
-    reply.max_req = std::read_buffer_u32(&win.buf,8) * 4;
+    reply.max_req = std::read_buffer_u32(&win.packet,8) * 4;
 }
 
 func enable_big_req(std_win: Window@)
@@ -1070,7 +1070,7 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?)
     @replied = true;
 
     log::debug(X11_PREFIX,"Key mapping setup");
-    n := std::read_buffer_u8(&win.buf,1);
+    n := std::read_buffer_u8(&win.packet,1);
 
     read_x11_reply(win,len);
     
@@ -1079,7 +1079,7 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?)
 
     for(i in win.min_keycode < win.max_keycode)
     {
-        win.key_code_to_sym[i] = std::read_buffer_u8(&win.buf,cur);
+        win.key_code_to_sym[i] = std::read_buffer_u8(&win.packet,cur);
         cur += offset;
     }  
 }
@@ -1156,6 +1156,6 @@ func os_destroy_window(win : OSWindow@)
     x11_destroy_window(win,win.window_id);
 
     // close down our socket and free our working buffer
-    std::destroy_array(&win.buf);
+    std::destroy_array(&win.packet);
     net::close_sock(&win.sock);
 }

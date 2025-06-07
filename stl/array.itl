@@ -224,11 +224,6 @@ func array_pop(arr: Array@)
     arr.buf.len -= arr.element_size;
 }
 
-func array_rev_index(arr: Array@, data: byte@) usize
-{
-    return (node - &arr.buf[0]) / HashNode.size;
-}
-
 func array_remove_in_place(arr: Array@, data: byte@) 
 {
     memcpy(data,array_index(arr,count_array(arr) - 1),arr.element_size);
