@@ -459,15 +459,15 @@ enum class spec_reg
     // dont perform any moves
     null = SPECIAL_REG_START + 14,
 
-    const_seg = SPECIAL_REG_START + 16,
-    global_seg = SPECIAL_REG_START + 17,
+    const_seg = SPECIAL_REG_START + 15,
+    global_seg = SPECIAL_REG_START + 16,
 
     // args
-    a1 = SPECIAL_REG_START + 18,
-    a2 = SPECIAL_REG_START + 19,
+    a1 = SPECIAL_REG_START + 17,
+    a2 = SPECIAL_REG_START + 18,
 };
 
-static constexpr u32 SPECIAL_REG_SIZE = u32(spec_reg::a2) - SPECIAL_REG_START;
+static constexpr u32 SPECIAL_REG_SIZE = (u32(spec_reg::a2) - SPECIAL_REG_START) + 1;
 static constexpr u32 SPECIAL_REG_END = (SPECIAL_REG_START + SPECIAL_REG_SIZE) - 1;
 
 
