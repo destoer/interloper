@@ -151,12 +151,6 @@ b32 is_void(const Type* type)
     return is_builtin_type(type,builtin_type::void_t);
 }
 
-b32 is_trivial_copy(const Type *type)
-{
-    return is_builtin(type) || is_pointer(type) || is_enum(type) || is_func_pointer(type);
-}
-
-
 // for arrays
 b32 is_runtime_size(const ArrayType* type)
 {
@@ -168,34 +162,26 @@ b32 is_runtime_size(const Type* type)
     return is_runtime_size((ArrayType*)type);
 }
 
+b32 is_fixed_array(const ArrayType* type)
+{
+    return !is_runtime_size(type);
+}
+
+b32 is_fixed_array(const Type* type)
+{
+    return is_array(type) && !is_runtime_size(type);
+}
+
 b32 is_vla(const Type* type)
 {
-    if(is_array(type))
-    {
-        return is_runtime_size(type);
-    }
-
-    return false;    
+    return is_array(type) && is_runtime_size(type);
 }
 
-
-b32 is_fixed_array_pointer(const Type* type)
+b32 is_trivial_copy(const Type *type)
 {
-    if(is_pointer(type))
-    {
-        const PointerType* pointer = (PointerType*)type;
-
-        const Type* contained_type = pointer->contained_type;
-
-        if(is_array(contained_type))
-        {
-            const ArrayType* array = (ArrayType*)contained_type;
-            return array->size != RUNTIME_SIZE;
-        }
-    }
-
-    return false;
+    return is_builtin(type) || is_pointer(type) || is_enum(type) || is_func_pointer(type) || is_fixed_array(type);
 }
+
 
 b32 is_string(const ArrayType* type)
 {
@@ -248,22 +234,6 @@ b32 is_value_type(const Type* type)
 {
     return is_plain(type);
 }
-
-b32 is_fixed_array(const ArrayType* type)
-{
-    return !is_runtime_size(type);
-}
-
-b32 is_fixed_array(const Type* type)
-{
-    if(is_array(type))
-    {
-        return !is_runtime_size(type);
-    }
-
-    return false;
-}
-
 
 u32 builtin_size(builtin_type t)
 {

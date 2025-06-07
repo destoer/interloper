@@ -371,6 +371,33 @@ b32 is_callee_saved(arch_target arch,u32 reg_idx)
 
 
 
+void print_reg_name(SymbolTable& table, RegSlot slot)
+{
+    printf("raw %x:%x\n",u32(slot.kind),slot.sym_slot.handle);
+
+    switch(slot.kind)
+    {
+        case reg_kind::spec:
+        {
+            printf("%s",spec_reg_name(slot.spec));
+            break;
+        }
+
+        case reg_kind::sym:
+        {
+            const auto &sym = sym_from_slot(table,slot.sym_slot);
+            printf("%s",sym.name.buf);
+            break;
+        }
+
+        case reg_kind::tmp:
+        {
+            printf("t%d",slot.tmp_slot.handle);
+            break;
+        }
+    }
+}
+
 void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
 {  
     if(!print)
@@ -417,28 +444,7 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
                 case 'r':
                 {
                     const auto slot = va_arg(args,RegSlot);
-
-                    switch(slot.kind)
-                    {
-                        case reg_kind::spec:
-                        {
-                            printf("%s",spec_reg_name(slot.spec));
-                            break;
-                        }
-
-                        case reg_kind::sym:
-                        {
-                            const auto &sym = sym_from_slot(table,slot.sym_slot);
-                            printf("%s",sym.name.buf);
-                            break;
-                        }
-
-                        case reg_kind::tmp:
-                        {
-                            printf("t%d",slot.tmp_slot.handle);
-                            break;
-                        }
-                    }
+                    print_reg_name(table,slot);
                     break;
                 }
 

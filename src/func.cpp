@@ -365,9 +365,7 @@ Option<itl_error> push_args(Interloper& itl, Function& func, ArgPass& pass, Func
                 // fixed sized array
                 else
                 {
-                    push_arg(itl,func,arg_reg.slot);
-
-                    pass.arg_clean += 1;
+                    pass_arg(itl,func,pass,arg_reg,i);
                 }
             }
         }

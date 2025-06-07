@@ -390,28 +390,14 @@ void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const
     } 
 
     // allready in memory just store a the pointer to it
-    else if(is_array(reg.type))
+    else if(is_vla(reg.type))
     {
         // store type struct
         store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false); 
+        const auto arr_ptr = addrof_res(itl,func,reg.slot);
 
-        // directly store array pointer into the data pointer
-        if(is_fixed_array(reg.type))
-        {
-            const auto arr_data_slot = load_arr_data(itl,func,reg);
-
-            // store data
-            store_ptr(itl,func,arr_data_slot,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
-        }
-
-        // runtime size
-        else
-        {
-            const auto arr_ptr = addrof_res(itl,func,reg.slot);
-
-            // store data
-            store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
-        }   
+        // store data
+        store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
     }
 
     else if(is_struct(reg.type))

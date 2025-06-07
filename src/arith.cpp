@@ -446,50 +446,41 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
         }
     }
 
-    else if(is_array(dst.type) && is_array(src.type))
+    else if(is_vla(dst.type) && is_array(src.type))
     {
-        if(is_fixed_array(dst.type))
+        RegSlot addr_slot;
+        
+        switch(dst.slot.kind)
         {
-            mov_reg(itl,func,dst.slot,src.slot);
-        }
-
-        // runtime
-        else
-        {
-            RegSlot addr_slot;
-            
-            switch(dst.slot.kind)
+            case reg_kind::tmp:
+            case reg_kind::sym:
             {
-                case reg_kind::tmp:
-                case reg_kind::sym:
-                {
-                    addr_slot = addrof_res(itl,func,dst.slot);
-                    break;
-                }
-
-                case reg_kind::spec:
-                {
-                    switch(dst.slot.spec)
-                    {
-                        case spec_reg::rv_struct:
-                        {
-                            addr_slot = make_sym_reg_slot(func.sig.args[0]);
-                            break;
-                        }
-
-                        default: assert(false);
-                    }
-
-                    break;
-                }
+                addr_slot = addrof_res(itl,func,dst.slot);
+                break;
             }
 
-            const RegSlot data_slot = load_arr_data(itl,func,src);
-            store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE,false);
+            case reg_kind::spec:
+            {
+                switch(dst.slot.spec)
+                {
+                    case spec_reg::rv_struct:
+                    {
+                        addr_slot = make_sym_reg_slot(func.sig.args[0]);
+                        break;
+                    }
 
-            const RegSlot len_slot = load_arr_len(itl,func,src);
-            store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false);
-        } 
+                    default: assert(false);
+                }
+
+                break;
+            }
+        }
+
+        const RegSlot data_slot = load_arr_data(itl,func,src);
+        store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE,false);
+
+        const RegSlot len_slot = load_arr_len(itl,func,src);
+        store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false);
     }
 
     // requires special handling to move
