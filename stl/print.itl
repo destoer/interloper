@@ -489,6 +489,14 @@ func crash_and_burn_args(fmt: const string, args: const rtti::Any[])
     exit(2);
 }
 
+func crash_and_burn_oom(str: const string)
+{
+    write_string("\ncrash and burn: ");
+    write_string(str);
+    write_string("\n");
+    exit(2);
+}
+
 func crash_and_burn(fmt: const string, args: ...)
 {
     crash_and_burn_args(fmt,args);

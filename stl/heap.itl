@@ -89,20 +89,17 @@ func verify_node(heap: const Heap@,node: const HeapNode?)
 
     if(node.blocks > heap.capacity)
     {
-        crash_and_burn("Blocks exceeded on node {} {}",cast(byte@,node),heap.capacity);
+        crash_and_burn_oom("Blocks exceeded on heap node");
     }
 
     if(node > heap.max || node < heap.min)
     {
-        // TODO: need to work on rtti so we dont need casts for this
-        crash_and_burn("[HEAP]: node {} is out of range: {} : {}",
-            cast(byte@,node),cast(byte@,heap.min),cast(byte@,heap.max));
+        crash_and_burn_oom("Node on heap is out of range");
     }
 
     if(node.canary_start != HEAP_CANARY_START || node.canary_end != HEAP_CANARY_END) 
     {
-        crash_and_burn("[HEAP]: node {} : {x} canary trashed {x} : {x} -> {x} : {x}",
-            cast(byte@,node),node.blocks,HEAP_CANARY_START,HEAP_CANARY_END,node.canary_start,node.canary_end);
+        crash_and_burn_oom("Heap canary trashed");
     }
 }
 
