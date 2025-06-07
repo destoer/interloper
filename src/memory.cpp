@@ -161,22 +161,61 @@ void load_addr_slot(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot add
     }
 }
 
+Option<itl_error> do_addr_copy(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_addr, u32 size)
+{
+    switch(dst_slot.kind)
+    {
+        case reg_kind::sym:
+        case reg_kind::tmp:
+        {
+            const auto dst_addr = make_struct_addr(dst_slot,0);
+            const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
+            if(!!memcpy_err)
+            {
+                return memcpy_err;
+            }
+
+            break;
+        }
+
+        case reg_kind::spec:
+        {
+            const auto spec = dst_slot.spec;
+
+            switch(spec)
+            { 
+                // copy into hidden pointer
+                case spec_reg::rv_struct:
+                {
+                    const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                    const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
+                    if(!!memcpy_err)
+                    {
+                        return memcpy_err;
+                    }
+                    break;
+                }
+
+                default: assert(false);
+            }
+        }
+    }
+
+    return option::none;
+}
+
 Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_addr, const Type* type)
 {
     const u32 size = type_size(itl,type);
 
     if(is_array(type))
     {
-        // TODO: we want to reduce the number of copies this requires
-        // for passing to a function
-        // we should probably pass in a special slot that tells us to just directly push things
         if(is_runtime_size(type))
         {
-            const auto dst_addr = make_struct_addr(dst_slot,0);
-            const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,VLA_SIZE);
-            if(!!memcpy_err)
+            const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr,size);
+            if(!!copy_err)
             {
-                return memcpy_err;
+                return copy_err;
             }
         }
 
@@ -190,41 +229,10 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,A
 
     else if(is_struct(type))
     {
-        switch(dst_slot.kind)
+        const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr,size);
+        if(!!copy_err)
         {
-            case reg_kind::sym:
-            case reg_kind::tmp:
-            {
-                const auto dst_addr = make_struct_addr(dst_slot,0);
-                const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
-                if(!!memcpy_err)
-                {
-                    return memcpy_err;
-                }
-                break;
-            }
-
-            case reg_kind::spec:
-            {
-                const auto spec = dst_slot.spec;
-
-                switch(spec)
-                { 
-                    // copy into hidden pointer
-                    case spec_reg::rv_struct:
-                    {
-                        const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
-                        const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
-                        if(!!memcpy_err)
-                        {
-                            return memcpy_err;
-                        }
-                        break;
-                    }
-
-                    default: assert(false);
-                }
-            }
+            return copy_err;
         }
     }
 
