@@ -342,28 +342,17 @@ func format_arg(str: String@, arg : rtti::Any, specifier : c8)
         {
             array_type := cast(const rtti::ArrayType@,type);
 
-            contained_type := array_type.contained_type;
-
-            if(rtti::is_runtime_size(array_type.size))
+            if(rtti::is_string(type))
             {
-                // vla string
-                if(contained_type.kind == rtti::type_class::builtin_t && rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t)
+                if(rtti::is_runtime_size(array_type.size))
                 {
+                    // vla string
                     vla := cast(rtti::Vla@,arg.data);
                     buffer: const string = {cast(c8@,vla.data),vla.len};
                     push_char_buffer(str,buffer);
                 }
 
                 else
-                {   
-                    unimplemented("vla array print");
-                }
-            }
-            
-            // fixed size
-            else
-            {
-                if(contained_type.kind == rtti::type_class::builtin_t && rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t)
                 {
                     v := rtti::int_from_any(arg);
 
@@ -372,11 +361,11 @@ func format_arg(str: String@, arg : rtti::Any, specifier : c8)
                     buffer: const string = {char_ptr,array_type.size};
                     push_char_buffer(str,buffer);
                 }
+            }
 
-                else
-                {
-                    unimplemented("array print");
-                }
+            else
+            {
+                unimplemented("array print");
             }
         }
 

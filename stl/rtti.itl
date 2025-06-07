@@ -137,6 +137,13 @@ func is_runtime_size(size : u32) bool
     return size == RUNTIME_SIZE;
 }
 
+func is_string(type: const Type@) bool 
+{
+    array_type := cast(const rtti::ArrayType@,type);
+    contained_type := array_type.contained_type;
+    return contained_type.kind == rtti::type_class::builtin_t && rtti::cast_builtin(contained_type) == rtti::builtin_type::c8_t;
+}
+
 func is_pointer(type : const Type@) bool
 {
     return type.kind == type_class::pointer_t;
