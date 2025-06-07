@@ -1494,9 +1494,9 @@ bool is_byte_ptr(const Type* type)
     return is_pointer(type) && is_builtin_type(deref_pointer(type),builtin_type::byte_t);
 }
 
-bool is_byte_array(const Type* type)
+bool is_flat_array(const Type* type)
 {
-    return is_array(type) && is_builtin_type(index_arr(type),builtin_type::byte_t);
+    return is_array(type) && !is_array(index_arr(type));
 }
 
 Option<itl_error> type_check_pointer_nullable(Interloper& itl, const PointerType* ltype, const PointerType* rtype,  assign_type assign_kind)

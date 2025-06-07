@@ -478,10 +478,14 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             const auto old = *cast_res;
             Type* new_type = *new_type_res;
 
-            if(!is_byte_array(old.type))
+
+            if(!is_flat_array(old.type))
             {
-                return compile_error(itl,itl_error::array_type_error,"Expected recast from byte array got: %s\n",type_name(itl,old.type).buf);
+                return compile_error(itl,itl_error::array_type_error,"Expected recast from flat array got: %s\n",type_name(itl,old.type).buf);
             }
+
+            const u32 new_size = type_size(itl,new_type);
+            const u32 old_size = type_size(itl,index_arr(old.type));
 
             const auto new_arr_type = make_array(itl,new_type,RUNTIME_SIZE);
 
@@ -489,9 +493,10 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             store_arr_data(itl,func,dst_slot,data_slot);
 
             const auto len_slot = load_arr_len(itl,func,old);
-            const auto converted_len = udiv_imm_res(itl,func,len_slot,type_size(itl,new_type));
+            const auto byte_slot = mul_imm_res(itl,func,len_slot,old_size);
+            const auto converted_len = udiv_imm_res(itl,func,byte_slot,new_size);
             store_arr_len(itl,func,dst_slot,converted_len);
-
+            
             return new_arr_type;            
         }
 

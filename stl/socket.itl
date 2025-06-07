@@ -187,8 +187,7 @@ func send_array(sock: Socket@, arr : const std::Array@) s64
 
 func send_str(sock: Socket@, str: const string) s64
 {
-    buf: const byte[] = {str.data,str.len};
-    return send(sock,buf);
+    return send(sock,recast_arr(byte,str));
 }
 
 
