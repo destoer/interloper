@@ -30,11 +30,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
             {
                 case reg_kind::spec:
                 {
-                    char name[40];
-                    const u32 len = sprintf(name,"spec%d",u32(reg.spec) - SPECIAL_REG_START);
-
-                    push_mem(buffer,name,len);
-                    // push_string(buffer,spec_reg_name(reg.spec));
+                    push_string(buffer,spec_reg_name(reg.spec));
                     break;
                 }
 
