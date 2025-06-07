@@ -791,21 +791,17 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
             copy->sig = {};
 
             const auto& sig = func_pointer_type->sig;
+            copy->sig = sig;
 
             copy->sig.args = copy_array(sig.args);
 
+            copy->sig.return_type = {};
             for(u32 r = 0; r < count(sig.return_type); r++)
             {
                 push_var(copy->sig.return_type,copy_type(itl,sig.return_type[r]));
             }
 
             copy->sig.pass_as_reg = copy_array(sig.pass_as_reg);
-            copy->sig.max_reg_pass = sig.max_reg_pass;
-
-            copy->sig.va_args = sig.va_args;
-            copy->sig.hidden_args = sig.hidden_args;
-            copy->sig.call_stack_size = sig.call_stack_size;
-
             push_var(itl.func_pointer,&copy->sig);
 
             return (Type*)copy;

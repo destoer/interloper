@@ -164,7 +164,7 @@ func str_equal(v1 : const string, v2 : const string) bool
 
 func find_str(str: const string, search: const string) const string
 {
-    blank: string = {NULL,0};
+    blank: const string = {str.data,0};
     if search.len == 0
     {
         return blank;
