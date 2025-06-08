@@ -120,6 +120,11 @@ b32 is_struct(const Type* type)
     return type->kind == type_class::struct_t;
 }
 
+b32 is_struct_index(const Type* type, u32 idx)
+{
+    return is_struct(type) && ((StructType*)type)->struct_idx == idx;
+}
+
 b32 is_func_pointer(const Type* type)
 {
     return type->kind == type_class::func_pointer_t;

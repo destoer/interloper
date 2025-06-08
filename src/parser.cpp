@@ -10,6 +10,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
 static constexpr u32 ATTR_FLAG = (1 << 1);
 static constexpr u32 ATTR_USE_RESULT = (1 << 2);
+static constexpr u32 ATTR_REGISTER_FUNC = (1 << 3);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 
@@ -1998,6 +1999,11 @@ Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
     else if(attr_name == "use_result")
     {
         flags |= ATTR_USE_RESULT;
+    }
+
+    else if(attr_name == "register_func")
+    {
+        flags |= ATTR_REGISTER_FUNC;
     }
 
     else

@@ -20,6 +20,13 @@ struct FileContext
 };
 
 
+struct RegisterStructCache
+{
+    u32 struct_idx = 0;
+    u32 struct_size = 0;
+    u32 rsp_offset = 0;
+};
+
 struct Interloper
 {
     Array<u8> program;
@@ -76,6 +83,8 @@ struct Interloper
     StructTable struct_table;
     EnumTable enum_table;
     RttiCache rtti_cache;
+
+    RegisterStructCache register_struct;
 
     // targetting info
     arch_target arch = arch_target::x86_64_t;

@@ -1685,6 +1685,22 @@ Option<itl_error> check_startup_defs(Interloper& itl)
         }
     }
 
+    itl.std_name_space = find_name_space(itl,"std");
+
+    if(!itl.std_name_space)
+    {
+        return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
+    }
+
+    StructCacheReq register_cache_req = make_struct_cache_req(itl.std_name_space,"X86Register",&itl.register_struct.struct_idx,&itl.register_struct.struct_size);
+    add_member_cache_req(register_cache_req,"rsp",&itl.register_struct.rsp_offset);
+
+    auto register_err = cache_structure(itl,register_cache_req);
+    if(!!register_err)
+    {
+        return register_err;
+    }
+
     const auto main_err = check_startup_func(itl,"main",itl.global_namespace);
     if(!!main_err)
     {
@@ -1695,13 +1711,6 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     if(!!start_err)
     {
         return start_err;
-    }
-
-    itl.std_name_space = find_name_space(itl,"std");
-
-    if(!itl.std_name_space)
-    {
-        return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
     }
 
     const auto memcpy_err = check_startup_func(itl,"memcpy",itl.std_name_space);
