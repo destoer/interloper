@@ -61,13 +61,13 @@ func render(win: gfx::Window@)
 {
     gfx::blank_screen(win.screen);
 
-    t0: std::Vec2I[3] = {{10, 70},   {50, 160},  {70, 80}}; 
-    t1: std::Vec2I[3] = {{180, 50},  {150, 1},   {70, 180}}; 
-    t2: std::Vec2I[3] = {{180, 150}, {120, 160}, {130, 180}}; 
+    tri1: std::Vec2I[3] = {{10, 70},   {50, 160},  {70, 80}}; 
+    tri2: std::Vec2I[3] = {{180, 50},  {150, 1},   {70, 180}}; 
+    tri3: std::Vec2I[3] = {{180, 150}, {120, 160}, {130, 180}}; 
 
-    draw_triangle(win,t0, RED); 
-    draw_triangle(win,t1, BLUE); 
-    draw_triangle(win,t2, GREEN);
+    draw_triangle(win,tri1, RED); 
+    draw_triangle(win,tri2, BLUE); 
+    draw_triangle(win,tri3, GREEN);
 }
 
 func main() s32

@@ -272,18 +272,13 @@ struct XVisualType
     pad1 : u32;
 }
 
-func read_setup_info(win: OSWindow@)
+func read_setup_info(win: OSWindow@,reply: const AuthReply@)
 {
     buf := &win.packet;
 
-    net::recv_ignore(&win.sock,1);
+    log::debug(X11_PREFIX,"version {}.{}",reply.major,reply.minor);
 
-    // read in our first batch of data
-    read_x11_reply(win,6);
-
-    log::debug(X11_PREFIX,"version {}.{}",std::read_buffer_u16(buf,0),std::read_buffer_u16(buf,2));
-
-    len : u32 = std::read_buffer_u16(buf,4) * 4;
+    len : u32 = reply.data_len * 4;
 
     log::debug(X11_PREFIX,"len {}",len);
 
@@ -361,6 +356,23 @@ func read_setup_info(win: OSWindow@)
 
 }
 
+enum auth_result
+{
+    failure,
+    success,
+    authenticate,
+}
+
+#attr(no_reorder)
+struct AuthReply
+{
+    rc: u8;
+    reason_len: u8;
+    major: u16;
+    minor: u16;
+    data_len: u16;
+}
+
 func authenticate(win: OSWindow@) bool
 {
     buf := &win.packet;
@@ -371,29 +383,46 @@ func authenticate(win: OSWindow@) bool
     net::send_array(&win.sock,buf);
 
     // recv back our data
-    rc: u8;
-    if(net::recv_raw(&win.sock,&rc,sizeof(rc)) < 0) 
+    reply: AuthReply = {?};
+    if(net::recv_raw(&win.sock,&reply,sizeof_data(AuthReply)) < 0) 
     {
+        log::error(X11_PREFIX,"Failed to read back auth packet");
         return false;
     }
 
-    constant AUTH_SUCCESS : u32 = 1;
+    res := cast(auth_result,reply.rc);
 
-    switch(rc)
+    switch(res)
     {
-        case AUTH_SUCCESS:
+        case auth_result::success:
         {
             log::info(X11_PREFIX,"connected to x server:");
-            read_setup_info(win);
+            read_setup_info(win,&reply);
+            return false;
         }
 
-        default:
+        case auth_result::failure:
         {
+            log::error(X11_PREFIX,"Authentication failed");
+
+            read_x11_reply(win,reply.reason_len);
+
+            str := std::str_from_array(&win.packet);
+            log::error(X11_PREFIX,"Failure reason: {}",str);
+
+            return true;
+        }
+
+
+        case auth_result::authenticate:
+        {
+            log::error(X11_PREFIX,"Further authentication required");
             return true;
         }
     }
 
-    return false;
+    log::error(X11_PREFIX,"Authentication failed with unknown code {}",reply.rc);
+    return true;
 }
 
 
