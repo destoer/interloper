@@ -159,6 +159,14 @@ func exit(exit_code: s32)
     intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
 }
 
+
+func getenv(name: const string) [const string,bool]
+{
+    str := "";
+
+    return str, true;
+}
+
 // FILE IO
 
 constant OS_INVALID_READ : s64 = -1;

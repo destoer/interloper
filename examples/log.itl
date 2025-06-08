@@ -1,0 +1,17 @@
+
+
+func main() s32 
+{
+    if(log::set_log_level_from_env("LOG_LEVEL"))
+    {
+        return -1;
+    }
+
+    PREFIX := "Log test";
+
+    log::debug(PREFIX,"Debug logs enabled");
+    log::trace(PREFIX,"Trace logs enabled");
+    log::info(PREFIX,"Info logs enabled");
+
+    return 0;
+}
