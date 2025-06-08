@@ -1209,6 +1209,13 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
     {
         RecordNode* record_node = (RecordNode*)line;
 
+        if(count(record_node->nodes) != count(func.sig.return_type))
+        {
+            return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
+                func.name.buf,count(record_node->nodes),count(func.sig.return_type));
+        }
+            
+
         // single return
         if(count(record_node->nodes) == 1)
         {
@@ -1278,13 +1285,6 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
         // multiple return
         else
         {
-            if(count(record_node->nodes) != count(func.sig.return_type))
-            {
-                return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
-                    func.name.buf,count(record_node->nodes),count(func.sig.return_type));
-            }
-            
-
             for(u32 r = 0; r < count(func.sig.return_type); r++)
             {
                 // void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
@@ -1690,15 +1690,6 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     if(!itl.std_name_space)
     {
         return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
-    }
-
-    StructCacheReq register_cache_req = make_struct_cache_req(itl.std_name_space,"X86Register",&itl.register_struct.struct_idx,&itl.register_struct.struct_size);
-    add_member_cache_req(register_cache_req,"rsp",&itl.register_struct.rsp_offset);
-
-    auto register_err = cache_structure(itl,register_cache_req);
-    if(!!register_err)
-    {
-        return register_err;
     }
 
     const auto main_err = check_startup_func(itl,"main",itl.global_namespace);

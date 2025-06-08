@@ -937,12 +937,6 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
 
     auto& sig = call_info.sig;
 
-    if(sig.attr_flags & ATTR_REGISTER_FUNC)
-    {
-        // TODO: We may want to relax this at some stage, it just makes our current impl easier and we don't need it ATM.
-        return compile_error(itl,itl_error::invalid_statement,"Cannot directly call register function.");
-    }
-
     if(tuple_node && tuple_node->auto_decl)
     {
         const auto tuple_err = handle_tuple_decl(itl,func,tuple_node,sig);
@@ -1091,21 +1085,6 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     }
 
     sig.call_stack_size = arg_offset;
-
-    if(sig.attr_flags & ATTR_REGISTER_FUNC)
-    {
-        if((count(sig.args) != 1))
-        {
-            return compile_error(itl,itl_error::invalid_statement,"Func declared with register attr has wrong signature");
-        }
-
-        const auto& sym = sym_from_slot(itl.symbol_table,sig.args[0]);
-
-        if(!is_struct_index(sym.type,itl.register_struct.struct_idx))
-        {
-            return compile_error(itl,itl_error::invalid_statement,"Func declared with register attr has wrong signature");
-        }
-    }
 
     return option::none;
 }

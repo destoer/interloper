@@ -3,15 +3,14 @@ import <mem>
 
 global global_setup : bool = false;
 
-#attr(register_func)
-func start(registers: std::X86Register)
+func start()
 {
     // NOTE: the compiler will internally set this up for us
     init_global();
 
     global_setup = true;
 
-    std::println("RSP at entry: {x}",registers.rsp);
+    std::read_env();
 
     rc: s32 = main();
     std::exit(rc);

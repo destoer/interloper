@@ -483,3 +483,44 @@ func os_default_key_map(map: input::button_t[256])
 
     map[KEYCODE_ESC] = input::button_t::start;
 }
+
+func read_proc_file(name: const string) [std::Array, bool]
+{
+    [file, err] := open_file(name,std::file_mode::read,std::file_opt::open);
+
+    buffer := std::make_array(sizeof_type(byte));
+
+    if(err)
+    {
+        return buffer, true;
+    }
+
+
+    // Keep buffering the file until we hit an error
+    while(true) 
+    {
+        reserve_array_mem(&buffer,FILE_DEFAULT_BUFFER_SIZE);
+        len := os_read(file.handle,array_end(&buffer),FILE_DEFAULT_BUFFER_SIZE);
+
+        if(len <= 0)
+        {
+            return buffer, false;
+        }
+
+        buffer.buf.len += cast(u32,len);
+    }
+
+    return buffer,true;
+}
+
+func read_env()
+{
+    [bin, err] := read_proc_file("/proc/self/environ");
+
+    if(err)
+    {
+        crash_and_burn("Could not read environment variables");
+    }
+
+    
+}
