@@ -73,6 +73,25 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
             break;
         }
 
+        case op_type::call_reg:
+        {
+            const auto slot = opcode.v[0].reg;
+            auto& ir_reg = reg_from_slot(itl,func,slot);
+
+            allocate_and_rewrite(alloc,block,node,0);
+
+            // spill_func_bounds is issued before the call (and will save this register if need be)
+            // Incase the rv is used as the caller we have to free this up after the func call
+            // to keep the state consistent. otherwhise  this will have a clobbered value
+            if(ir_reg.local_reg == special_reg_to_reg(alloc.arch,spec_reg::rv_gpr))
+            {
+                free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+            }
+
+            node = node->next;
+            break;
+        }
+
         case op_type::udiv_x86:
         {
             node = rewrite_x86_fixed_arith(alloc,block,node,op_type::udiv_x86);
