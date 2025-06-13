@@ -513,6 +513,27 @@ func read_proc_file(name: const string) [std::Array, bool]
     return buffer,true;
 }
 
+func parse_keys(table: HashTable@, env: const string)
+{
+    for [@v, i] in env
+    {
+        if(@v == '=')
+        {
+            key := str_duplicate(env[:i]);
+            value := str_duplicate(env[i+1:]);
+
+            hash_table_add(table,&key,&value);
+            return;
+        }
+    }
+
+    blank: string;
+    key := str_duplicate(env);
+
+    // No key found just put the variable itself
+    hash_table_add(table,&key,&blank);
+}
+
 func read_env()
 {
     [bin, err] := read_proc_file("/proc/self/environ");
@@ -522,5 +543,26 @@ func read_env()
         crash_and_burn("Could not read environment variables");
     }
 
-    
+    // Now have a list of null terminated strings.
+    // Lets split them.
+    table := make_hash_table(sizeof_type(string),sizeof_type(string),&hash_string);
+
+    var_start: u32 = 0;
+
+    for [@v, i] in bin.buf 
+    {
+        char := @v;
+
+        if(char == 0)
+        {
+            cur := var_start;
+            len := i - cur;
+
+            str: string = {cast(c8@,&bin.buf[cur]),len};
+            parse_keys(&table,str);
+
+            var_start = i + 1; 
+        }
+    }
+
 }

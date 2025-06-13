@@ -151,6 +151,14 @@ func parse_s64(str: const string) s64
     return cast(s64,value.v);
 }
 
+func str_duplicate(str: const string) string
+{
+    data := heap_duplicate(&global_heap,str.data,str.len);
+    out: string = {cast(c8@,data),str.len};
+
+    return out;
+}
+
 func str_equal(v1 : const string, v2 : const string) bool
 {
     // different len, not equal

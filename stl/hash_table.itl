@@ -13,6 +13,27 @@ struct Bucket
 
 type_alias HASH_FUNC = func(key: const byte@, size: usize) usize;
 
+func hash_string_func(key: const string, size: usize) usize
+{
+    // TODO: is splatting chars across the hash with a random number good enough?
+    HASH_MAGIC := 0x02579275;
+
+    hash: usize = 0;
+
+    for @v in key 
+    {
+        hash = (hash * HASH_MAGIC) ^ @v;
+    }
+
+    return hash;
+}
+
+func hash_string(key_ptr: byte@, size: usize) usize
+{
+    key := @cast(string@,key_ptr);
+    return hash_string_func(key,size) & (size - 1);
+}
+
 func u64_hash_func(key: u64, size: usize) usize
 {
     // TODO: impl a better integer hash func
