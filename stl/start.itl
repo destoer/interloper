@@ -3,13 +3,14 @@ import <mem>
 
 global global_setup : bool = false;
 
-// TODO: need to define for each arch
 func start()
 {
     // NOTE: the compiler will internally set this up for us
     init_global();
 
     global_setup = true;
+
+    std::init_itl_context();
 
     rc: s32 = main();
     std::exit(rc);

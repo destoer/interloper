@@ -151,6 +151,14 @@ func parse_s64(str: const string) s64
     return cast(s64,value.v);
 }
 
+func str_duplicate(str: const string) string
+{
+    data := heap_duplicate(&itl_context.heap,str.data,str.len);
+    out: string = {cast(c8@,data),str.len};
+
+    return out;
+}
+
 func str_equal(v1 : const string, v2 : const string) bool
 {
     // different len, not equal
@@ -219,7 +227,7 @@ struct String
 
 func reserve_string_mem(str : String@, size : usize)
 {
-    realloc_heap_panic(&global_heap,cast(byte@@,&str.buf.data),size,sizeof_type(c8));
+    realloc_heap_panic(&itl_context.heap,cast(byte@@,&str.buf.data),size,sizeof_type(c8));
     str.size = size;
 }
 
@@ -263,6 +271,6 @@ func clear_string(str: String@)
 
 func destroy_string(str: String@)
 {
-    free_heap(&global_heap,cast(byte@@,&str.buf.data));
+    free_heap(&itl_context.heap,cast(byte@@,&str.buf.data));
     str.size = 0;
 }

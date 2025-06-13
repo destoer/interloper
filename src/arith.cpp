@@ -633,8 +633,7 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
         default:
         {
-            print(node);
-            unimplemented("load_addr expr");
+            return compile_error(itl,itl_error::unimplemented,"Load addr not implemented on ast type: %s\n",AST_NAMES[u32(node->type)]);
         }
     }
 }

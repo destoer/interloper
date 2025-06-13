@@ -1,0 +1,12 @@
+
+
+func main() s32 
+{
+    PREFIX := "Log test";
+
+    log::debug(PREFIX,"Debug logs enabled");
+    log::trace(PREFIX,"Trace logs enabled");
+    log::info(PREFIX,"Info logs enabled");
+
+    return 0;
+}

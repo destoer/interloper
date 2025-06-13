@@ -12,6 +12,42 @@ struct Bucket
 }
 
 type_alias HASH_FUNC = func(key: const byte@, size: usize) usize;
+type_alias HASH_CMP_FUNC = func(v1: const byte@, v2: const byte@, key_size: u64) bool;
+
+func hash_cmp_mem(v1: const byte@, v2: const byte@, key_size: u64) bool
+{
+    return mem_equal(v1,v2,key_size);
+}
+
+func hash_cmp_str(v1: const byte@, v2: const byte@, key_size: u64) bool
+{
+    str1 := @cast(string@,v1);
+    str2 := @cast(string@,v2);
+
+    return str_equal(str1,str2);
+}
+
+
+func hash_string_func(key: const string, size: usize) usize
+{
+    // TODO: is splatting chars across the hash with a random number good enough?
+    HASH_MAGIC := 0x02579275;
+
+    hash: usize = 0;
+
+    for @v in key 
+    {
+        hash = (hash * HASH_MAGIC) ^ @v;
+    }
+
+    return hash & (size - 1);
+}
+
+func hash_string(key_ptr: byte@, size: usize) usize
+{
+    key := @cast(string@,key_ptr);
+    return hash_string_func(key,size);
+}
 
 func u64_hash_func(key: u64, size: usize) usize
 {
@@ -41,6 +77,7 @@ struct HashTable
     key_size: usize;
     value_size: usize;
     hash_func: HASH_FUNC;
+    cmp_func: HASH_CMP_FUNC;
     table_size: usize;
 }
 
@@ -57,7 +94,7 @@ func hash_table_new_buckets(size: usize) Array
     return buckets;
 }
 
-func make_hash_table(key_size: usize, value_size: usize, hash_func: HASH_FUNC) HashTable
+func make_hash_table(key_size: usize, value_size: usize, hash_func: HASH_FUNC, cmp_func: HASH_CMP_FUNC) HashTable
 {
     constant INITIAL_BUCKET_SIZE: usize = 256;
 
@@ -66,6 +103,7 @@ func make_hash_table(key_size: usize, value_size: usize, hash_func: HASH_FUNC) H
         key_size,
         value_size,
         hash_func,
+        cmp_func,
         0
     };
 }
@@ -76,7 +114,7 @@ func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key
 
     for @node in node_array
     {
-        if mem_equal(node.key,key,table.key_size)
+        if table.cmp_func(node.key,key,table.key_size)
         {
             return node;
         }
@@ -152,8 +190,8 @@ func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byt
 
     // did not exist in bucket add it
     new_node: HashNode = {
-        heap_duplicate(&global_heap,key,table.key_size),
-        heap_duplicate(&global_heap,value,table.value_size)
+        heap_duplicate(&itl_context.heap,key,table.key_size),
+        heap_duplicate(&itl_context.heap,value,table.value_size)
     };
 
     push_array(&bucket.node,&new_node);
@@ -186,8 +224,8 @@ func destroy_hash_table(table: HashTable@)
 
         for @node in node_array
         {
-            free_heap(&global_heap,&node.key);
-            free_heap(&global_heap,&node.value);
+            free_heap(&itl_context.heap,&node.key);
+            free_heap(&itl_context.heap,&node.value);
         }
 
         destroy_array(&bucket.node);

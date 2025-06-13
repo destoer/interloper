@@ -13,6 +13,34 @@ func memcpy(dst: byte@, src: const byte@, size: usize)
     }
 }
 
+func find_mem(haystack: const byte[], needle: const byte[]) [usize, result]
+{
+    // Nothing to search for no match!
+    if !needle
+    {
+        return 0, result::err;
+    }
+
+    for [@v, i] in haystack 
+    {
+        remain := haystack.len - i;
+
+        // Not enough room to scan for this
+        if remain < needle.len
+        {
+            return 0, result::err;
+        }
+
+        // Memory is equal we have a match
+        if mem_equal(v, needle.data, needle.len)
+        {
+            return i, result::ok;
+        }
+    }
+
+    return 0, result::err;
+}
+
 
 func mem_equal(v1: const byte@, v2: const byte@, size: usize) bool
 {

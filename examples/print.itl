@@ -1,7 +1,7 @@
 
 func main() s32
 {
-    std::println("Hello world i am interloper.");
+    std::println("Hello world I am Interloper.");
 
     for(i in 0 < 10)
     {
@@ -10,7 +10,7 @@ func main() s32
 
     std::putchar('\n');
 
-    std::print("{} is {} years old\n","john",20);
+    std::print("{} is {} years old\n","John",20);
 
     v := 87;
     ptr := &v;

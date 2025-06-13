@@ -18,6 +18,27 @@ enum log_level : LogLevelData
 
 global max_log_level: log_level = log_level::info;
 
+func set_log_level_from_env(env_name: const string)
+{
+    str := std::getenv(env_name);
+
+    if(!str)
+    {
+        max_log_level = log_level::none;
+        return;
+    }
+
+    for raw_level in 0 < log_level.len 
+    {
+        level := cast(log_level,raw_level);
+
+        if(std::str_equal(str,level.name))
+        {
+            max_log_level = level;
+        }
+    }
+}
+
 func log(level: log_level,prefix: const string,fmt: const string, args : const rtti::Any[])
 {
     if(cast(u32,level) <= cast(u32,max_log_level))

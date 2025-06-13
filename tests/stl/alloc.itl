@@ -20,13 +20,13 @@ func test_arena() bool
 func test_heap() bool
 {
     std::print("before alloc:\n");
-    std::heap_usage(&global_heap);
+    std::heap_usage(&itl_context.heap);
 
 
-    vla := std::byte_arr_heap(&global_heap,25);
+    vla := std::byte_arr_heap(&itl_context.heap,25);
 
     std::print("after alloc:\n");
-    std::heap_usage(&global_heap);
+    std::heap_usage(&itl_context.heap);
 
     for [@v , i] in vla
     {
@@ -35,10 +35,10 @@ func test_heap() bool
 
     res := vla.len * vla[3];
 
-    std::destroy_arr_heap_byte(&global_heap,&vla);
+    std::destroy_arr_heap_byte(&itl_context.heap,&vla);
     
     std::print("after free:\n");
-    std::heap_usage(&global_heap);
+    std::heap_usage(&itl_context.heap);
 
     // check data is also free
     return res == 150 && vla.data == NULL && vla.len == 0;
@@ -47,11 +47,11 @@ func test_heap() bool
 func test_realloc() bool
 {
     vla : byte[];
-    std::arr_realloc_byte(&global_heap,&vla,100);
+    std::arr_realloc_byte(&itl_context.heap,&vla,100);
 
     for(i in 0 < 5)
     {
-        std::arr_realloc_byte(&global_heap,&vla,vla.len * 2);
+        std::arr_realloc_byte(&itl_context.heap,&vla,vla.len * 2);
 
         for([@v , j] in vla)
         {
@@ -59,12 +59,12 @@ func test_realloc() bool
         }
 
         std::print("alloc round {}\n",i);
-        std::heap_usage(&global_heap);
+        std::heap_usage(&itl_context.heap);
     }
 
     res := vla.len;
 
-    std::destroy_arr_heap_byte(&global_heap,&vla);
+    std::destroy_arr_heap_byte(&itl_context.heap,&vla);
 
     return res == 3200;
 }
@@ -75,7 +75,7 @@ func stress_heap() bool
 
     for(@ptr in arr)
     {
-        @ptr = std::alloc_heap(&global_heap,1,55);
+        @ptr = std::alloc_heap(&itl_context.heap,1,55);
     }
 
     pattern : u32[?] = 
@@ -87,21 +87,21 @@ func stress_heap() bool
     {
         if(arr[i])
         {
-            std::free_heap(&global_heap,&arr[i]);
+            std::free_heap(&itl_context.heap,&arr[i]);
         }
 
         else
         {
-            arr[i] = std::alloc_heap(&global_heap,1,i * 128);
+            arr[i] = std::alloc_heap(&itl_context.heap,1,i * 128);
         }
     }
 
     for(@ptr in arr)
     {
-        std::free_heap(&global_heap,ptr);
+        std::free_heap(&itl_context.heap,ptr);
     }
 
-    std::heap_usage(&global_heap);
+    std::heap_usage(&itl_context.heap);
     return global_heap.used == 0;
 }
 

@@ -147,7 +147,7 @@ func read_line(str : string) string
 // PROCESS
 func at_exit()
 {
-    // heap_usage(&global_heap);
+    // heap_usage(&itl_context.heap);
 
     // close_file(&stdin);
     // close_file(&stdout);
@@ -158,6 +158,7 @@ func exit(exit_code: s32)
     at_exit();
     intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
 }
+
 
 // FILE IO
 

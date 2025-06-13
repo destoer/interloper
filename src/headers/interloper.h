@@ -19,7 +19,6 @@ struct FileContext
     NameSpace *name_space = nullptr;
 };
 
-
 struct Interloper
 {
     Array<u8> program;

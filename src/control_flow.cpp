@@ -25,7 +25,14 @@ Option<itl_error> compile_if_block(Interloper &itl,Function &func,AstNode *node)
         {
             cond.slot = cmp_ne_imm_res(itl,func,cond.slot,0);
         }
-        
+
+        // Non empty array
+        else if(is_array(cond.type))
+        {
+            const auto len = load_arr_len(itl,func,cond);
+            cond.slot = cmp_ne_imm_res(itl,func,len,0);
+        }
+
         else if(!is_bool(cond.type))
         {
             return compile_error(itl,itl_error::bool_type_error,"expected bool got %s in if condition\n",type_name(itl,cond.type).buf);

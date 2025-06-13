@@ -717,6 +717,14 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
                 return make_builtin(itl,builtin_type::bool_t);
             }
 
+            // Zero length array
+            else if(is_array(reg.type))
+            {
+                const auto len = load_arr_len(itl,func,reg);
+                cmp_eq_imm(itl,func,dst_slot,len,0);
+                return make_builtin(itl,builtin_type::bool_t);
+            }
+
             // logical not on bool
             else if(!is_bool(reg.type))
             {
@@ -1209,6 +1217,13 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
     {
         RecordNode* record_node = (RecordNode*)line;
 
+        if(count(record_node->nodes) != count(func.sig.return_type))
+        {
+            return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
+                func.name.buf,count(record_node->nodes),count(func.sig.return_type));
+        }
+            
+
         // single return
         if(count(record_node->nodes) == 1)
         {
@@ -1278,13 +1293,6 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
         // multiple return
         else
         {
-            if(count(record_node->nodes) != count(func.sig.return_type))
-            {
-                return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
-                    func.name.buf,count(record_node->nodes),count(func.sig.return_type));
-            }
-            
-
             for(u32 r = 0; r < count(func.sig.return_type); r++)
             {
                 // void do_ptr_store(Interloper &itl,Function &func,u32 dst_slot,u32 addr_slot, const Type& type, u32 offset = 0)
@@ -1685,6 +1693,13 @@ Option<itl_error> check_startup_defs(Interloper& itl)
         }
     }
 
+    itl.std_name_space = find_name_space(itl,"std");
+
+    if(!itl.std_name_space)
+    {
+        return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
+    }
+
     const auto main_err = check_startup_func(itl,"main",itl.global_namespace);
     if(!!main_err)
     {
@@ -1695,13 +1710,6 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     if(!!start_err)
     {
         return start_err;
-    }
-
-    itl.std_name_space = find_name_space(itl,"std");
-
-    if(!itl.std_name_space)
-    {
-        return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
     }
 
     const auto memcpy_err = check_startup_func(itl,"memcpy",itl.std_name_space);

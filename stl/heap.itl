@@ -363,6 +363,20 @@ func alloc_heap_panic(heap : Heap@, count : usize, size : usize) byte@
     return cast(byte@,ptr);
 }
 
+func alloc_global_heap_panic(count : usize, size : usize) byte@
+{
+    return alloc_heap_panic(&itl_context.heap,count,size);
+}
+
+func realloc_global_heap_panic(ptr: byte@@, count: usize,size: usize)
+{
+    return realloc_heap_panic(&itl_context.heap,count,size);
+}
+
+func free_global_heap(ptr : byte@?)
+{
+    free_heap(&itl_context.heap,ptr);
+}
 
 func add_heap_block(heap : Heap@, node: HeapNode@)
 {
