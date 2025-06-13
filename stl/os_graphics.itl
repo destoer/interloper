@@ -141,7 +141,7 @@ func send_req(win : OSWindow@, v : const byte@, size: usize) u32
     return seq;
 }
 
-func build_auth_packet(buf: std::Array@)
+func send_auth_packet(win: OSWindow@, buf: std::Array@) result
 {
     // reset our working buffer
     std::clear_array(buf);
@@ -159,7 +159,8 @@ func build_auth_packet(buf: std::Array@)
         std::push_u8(buf,'B');
     }
 
-
+    authority := std::getenv("XAUTHORITY");
+    log::debug(X11_PREFIX,"XAuthority: {}",authority);
     // unused
     std::push_u8(buf,0x0);
 
@@ -167,11 +168,69 @@ func build_auth_packet(buf: std::Array@)
     std::push_u16(buf,11);
     std::push_u16(buf,0);
 
-    // no authentication no strings
-    std::push_u32(buf,0);
+    if(authority)
+    {
+        [bin, err] := std::read_bin(authority);
 
-    // pad
-    std::push_u16(buf,0);
+        if(err)
+        {
+            log::error(X11_PREFIX,"Could not read authority cookie {}",authority);
+            return result::err;
+        }
+
+    
+        auth_proto := "MIT-MAGIC-COOKIE-1";
+        cookie_size := 128 / std::BITS_IN_BYTE;
+
+        [cookie_str_offset, find_err] := std::find_mem(bin,recast_arr(byte,auth_proto));
+
+        if(find_err == result::err)
+        {
+            log::error(X11_PREFIX,"Could not parse authority cookie {}",authority);
+            return result::err; 
+        }
+
+        // 2 bytes for data len (in this case its fixed)
+        cookie_offset := (cookie_str_offset + auth_proto.len + 2);
+
+        if(bin.len - cookie_offset < cookie_size)
+        {
+            log::error(X11_PREFIX,"Authority cookie is too small {}",authority);
+            return result::err;     
+        }
+
+        cookie := bin[cookie_offset:cookie_offset + cookie_size];
+
+        std::push_u16(buf,cast(u16,auth_proto.len));
+        std::push_u16(buf,cast(u16,cookie.len));
+
+        std::push_u16(buf,0);
+
+        // actually send the packet
+        net::send_array(&win.sock,buf);
+
+        net::send_str(&win.sock,auth_proto);
+        net::send_raw(&win.sock,auth_proto.data,pad_x11(cast(u32,auth_proto.len)));
+
+        net::send(&win.sock,cookie);
+        net::send_raw(&win.sock,cookie.data,pad_x11(cast(u32,cookie.len)));
+
+        std::destroy_arr_heap_byte(&itl_context.heap,&bin);
+    }
+
+    else
+    {
+        // no authentication no strings
+        std::push_u32(buf,0);
+
+        // pad
+        std::push_u16(buf,0);
+
+        // actually send the packet
+        net::send_array(&win.sock,buf);
+    }
+
+    return result::ok;
 }
 
 func read_x11_reply(win: OSWindow@, size : u32)
@@ -377,17 +436,17 @@ func authenticate(win: OSWindow@) bool
 {
     buf := &win.packet;
 
-    build_auth_packet(buf);
-
-    // actually send the packet
-    net::send_array(&win.sock,buf);
+    if(send_auth_packet(win,buf) == result::err)
+    {
+        return true;
+    }
 
     // recv back our data
     reply: AuthReply = {?};
     if(net::recv_raw(&win.sock,&reply,sizeof_data(AuthReply)) < 0) 
     {
         log::error(X11_PREFIX,"Failed to read back auth packet");
-        return false;
+        return true;
     }
 
     res := cast(auth_result,reply.rc);
@@ -788,7 +847,7 @@ struct XCreateWindow
 
 func create_window(win : OSWindow@, x : u32, y : u32)
 {
-    win.reply_callback = std::make_hash_table(u32.size,ReplyCallback.size,&std::hash_u32);
+    win.reply_callback = std::make_hash_table(u32.size,ReplyCallback.size,&std::hash_u32,&std::hash_cmp_mem);
 
     // allocate a an id and save it
     win.window_id = alloc_resource(win);

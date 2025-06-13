@@ -164,7 +164,7 @@ func array_end(array: const Array@) byte@
     return &array.buf[array.buf.len];
 }
 
-func push_buffer(arr : Array@, v: const byte@,size: usize)
+func push_mem(arr : Array@, v: const byte@,size: usize)
 {
     reserve_array(arr,size);
 
@@ -173,29 +173,39 @@ func push_buffer(arr : Array@, v: const byte@,size: usize)
     arr.buf.len += size;
 }
 
+func push_buffer(arr : Array@, buffer: const byte[])
+{
+    push_mem(arr, buffer.data, buffer.len);
+}
+
+func push_string(arr : Array@, buffer: const string)
+{
+    push_mem(arr, buffer.data, buffer.len);
+}
+
 func push_array(arr: Array@, data: const byte@) 
 {
-    push_buffer(arr,data,arr.element_size);
+    push_mem(arr,data,arr.element_size);
 }
 
 func push_u8(arr : Array@, v : u8)
 {
-    push_buffer(arr,&v,sizeof(v));
+    push_mem(arr,&v,sizeof(v));
 }
 
 func push_u16(arr : Array@, v : u16)
 {
-    push_buffer(arr,&v,sizeof(v));
+    push_mem(arr,&v,sizeof(v));
 }
 
 func push_u32(arr : Array@, v : u32)
 {
-    push_buffer(arr,&v,sizeof(v));
+    push_mem(arr,&v,sizeof(v));
 }
 
 func push_u64(arr : Array@, v : u64)
 {
-    push_buffer(arr,&v,sizeof(v));
+    push_mem(arr,&v,sizeof(v));
 }
 
 func read_buffer_u8(arr: const Array@, offset: u64) u8
