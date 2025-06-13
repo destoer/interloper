@@ -15,7 +15,7 @@ func main() s32
     ans := buf.len >= 57;
 
     // free buffer
-    std::destroy_arr_heap_byte(&global_heap,&buf);
+    std::destroy_arr_heap_byte(&itl_context.heap,&buf);
 
     return cast(s32,ans);
 }

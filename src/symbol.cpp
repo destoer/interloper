@@ -9,7 +9,10 @@ SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table)
 
 void destroy_scope(SymbolTable &sym_table)
 {
-    sym_table.ctx->name_space = sym_table.ctx->name_space->parent;
+    if(sym_table.ctx->name_space)
+    {
+        sym_table.ctx->name_space = sym_table.ctx->name_space->parent;
+    }
 }
 
 SymSlot slot_from_sym(const Symbol& sym)

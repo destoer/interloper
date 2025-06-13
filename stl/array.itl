@@ -101,14 +101,14 @@ func clear_array(arr: Array@)
 
 func destroy_array(arr: Array@)
 {
-    free_heap(&global_heap,&arr.buf.data);
+    free_heap(&itl_context.heap,&arr.buf.data);
     arr.size = 0;
     arr.buf.len = 0;
 }
 
 func reserve_array_mem(arr: Array@, size : usize)
 {
-    realloc_heap_panic(&global_heap,&arr.buf.data,size,sizeof_type(byte));
+    realloc_heap_panic(&itl_context.heap,&arr.buf.data,size,sizeof_type(byte));
     arr.size = size;
 }
 

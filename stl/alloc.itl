@@ -2,5 +2,3 @@ namespace std;
 
 import <arena>
 import <heap>
-
-global global_heap : Heap;

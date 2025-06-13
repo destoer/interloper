@@ -10,7 +10,7 @@ func start()
 
     global_setup = true;
 
-    std::read_env();
+    std::init_itl_context();
 
     rc: s32 = main();
     std::exit(rc);

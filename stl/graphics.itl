@@ -57,7 +57,7 @@ func window_resized(win: Window@,x : u32, y : u32)
     win.size.y = y;
 
     // realloc our buffer
-    std::arr_realloc_u32(&global_heap,&win.screen,x * y);
+    std::arr_realloc_u32(&itl_context.heap,&win.screen,x * y);
 
     // blank the screen
     test_pattern(win.screen,x,y);
@@ -80,7 +80,7 @@ func open_window(str : const string, x : u32, y : u32) Window
 
 func close_window(win : Window@)
 {
-    std::destroy_arr_heap_u32(&global_heap,&win.screen);
+    std::destroy_arr_heap_u32(&itl_context.heap,&win.screen);
     os_destroy_window(&win.os_win);
 }
 

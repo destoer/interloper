@@ -45,3 +45,16 @@ func swap_s64(v1: s64@, v2: s64@)
     @v1 = @v2;
     @v2 = tmp;
 }
+
+func getenv(name: const string) const string
+{
+    ptr := hash_table_lookup(&std::itl_context.env_vars,&name);
+
+    if(!ptr)
+    {
+        blank: string;
+        return blank;
+    }
+
+    return @cast(string@,ptr);
+}

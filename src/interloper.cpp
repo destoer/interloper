@@ -717,6 +717,14 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
                 return make_builtin(itl,builtin_type::bool_t);
             }
 
+            // Zero length array
+            else if(is_array(reg.type))
+            {
+                const auto len = load_arr_len(itl,func,reg);
+                cmp_eq_imm(itl,func,dst_slot,len,0);
+                return make_builtin(itl,builtin_type::bool_t);
+            }
+
             // logical not on bool
             else if(!is_bool(reg.type))
             {

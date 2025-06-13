@@ -75,7 +75,7 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
         return file,true;
     }
 
-    file.buf = byte_arr_heap(&global_heap,FILE_DEFAULT_BUFFER_SIZE);
+    file.buf = byte_arr_heap(&itl_context.heap,FILE_DEFAULT_BUFFER_SIZE);
 
     return file,false;
 }
@@ -110,7 +110,7 @@ func close_file(file : File@)
     file.handle = cast(byte@,INVALID_FILE_HANDLE);
 
     // free our buffer
-    free_heap(&global_heap,&file.buf.data);
+    free_heap(&itl_context.heap,&file.buf.data);
 }
 
 
@@ -447,7 +447,7 @@ func read_bin(name : const string) [byte[],bool]
         return buf,true;
     }
 
-    buf = byte_arr_heap(&global_heap,cast(u64,size));
+    buf = byte_arr_heap(&itl_context.heap,cast(u64,size));
 
     [read,file_res] := read_file_mem(&file,buf);
 
