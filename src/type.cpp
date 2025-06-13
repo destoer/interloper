@@ -960,7 +960,7 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
                         else
                         {
                             // TODO: add huertsics to scan for where!
-                            return compile_error(itl,itl_error::black_hole,"type %s is recursively defined\n",name.buf);           
+                            return compile_error(itl,itl_error::black_hole,"Lookup type: type %s is recursively defined\n",name.buf);           
                         }
                     }
                 }
@@ -2295,47 +2295,61 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set);
 
 Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
 {
+    log(itl.itl_log,"Parse type: %s\n",def.decl.name.buf);
     // this node make be from a different context
     // save the current one
     push_context(itl);
 
     Option<itl_error> res = option::none;
 
-    if(def.decl.state == type_def_state::not_checked)
+    switch(def.decl.state)
     {
-        // mark as checking to lock this against recursion!
-        def.decl.state = type_def_state::checking;
-
-        switch(def.kind)
+        case type_def_state::not_checked:
         {
-            case type_def_kind::struct_t:
+            // mark as checking to lock this against recursion!
+            def.decl.state = type_def_state::checking;
+
+            switch(def.kind)
             {
-                res = parse_struct_def(itl,def);
-                break;
+                case type_def_kind::struct_t:
+                {
+                    res = parse_struct_def(itl,def);
+                    break;
+                }
+
+                case type_def_kind::alias_t:
+                {
+                    res = parse_alias_def(itl,def);
+                    break;
+                }
+
+                case type_def_kind::enum_t: 
+                {
+                    auto set = make_set<u64>();
+
+                    res = parse_enum_def(itl,def,set);
+                    destroy_set(set);
+                    break;
+                }
             }
 
-            case type_def_kind::alias_t:
-            {
-                res = parse_alias_def(itl,def);
-                break;
-            }
+            break;
+        }
 
-            case type_def_kind::enum_t: 
-            {
-                auto set = make_set<u64>();
+        case type_def_state::checking:
+        {
+            // TODO: add huertsics to scan for where!
+            return compile_error(itl,itl_error::black_hole,"Parse def: type %s is recursively defined\n",def.decl.name.buf);
+        }
 
-                res = parse_enum_def(itl,def,set);
-                destroy_set(set);
-                break;
-            }
+        // already checked we don't care
+        case type_def_state::checked:
+        {
+            break;
         }
     }
 
-    else
-    {
-        // TODO: add huertsics to scan for where!
-        return compile_error(itl,itl_error::black_hole,"type %s is recursively defined\n",def.decl.name.buf);
-    }
+    log(itl.itl_log,"Finish parsing type: %s\n",def.decl.name.buf);
 
     pop_context(itl);
     return res;
