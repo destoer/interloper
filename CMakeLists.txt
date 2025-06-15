@@ -11,7 +11,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 file(GLOB src_files
 	"src/*.h"
 	"src/main.cpp"
-	"destoer-lib/src/destoer-lib.cpp"
 )
 
 if(WIN32)

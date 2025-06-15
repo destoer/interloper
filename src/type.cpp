@@ -1940,13 +1940,6 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, RegSlot dst_slot,R
         // integer
         if(is_integer(old_type) && is_integer(new_type))
         {
-            // TODO: make sure this is optimised out
-
-            // unsigned -> larger type
-            // zero extend 
-            // (this is done by default)
-            
-            
             // signed -> larger type
             // sign extend
             if(is_signed(old_type) && is_signed(new_type) && 
@@ -1985,7 +1978,7 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, RegSlot dst_slot,R
                 clip_arith_type(itl,func,dst_slot,src_slot,type_size(itl,new_type));
             }
 
-            // cast doesnt do anything but move into a tmp so the IR doesnt break
+            // cast doesnt do anything (as zero extension is default) but move into a tmp so the IR doesnt break
             else
             {
                 mov_reg(itl,func,dst_slot,src_slot);
@@ -2067,7 +2060,7 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, RegSlot dst_slot,R
         mov_reg(itl,func,dst_slot,src_slot);
     }
 
-    // dont know
+    // fuck knows
     else
     {
         return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);      
