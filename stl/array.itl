@@ -242,7 +242,7 @@ func array_remove_in_place(arr: Array@, data: byte@)
 
 func str_from_array(arr : Array@) string
 {
-    return recast_arr(c8,array_buffer(arr));
+    return cast(c8[],array_buffer(arr));
 }
 
 func dump_array_bytes(arr: const Array@)

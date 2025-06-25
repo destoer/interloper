@@ -182,7 +182,7 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) result
         auth_proto := "MIT-MAGIC-COOKIE-1";
         cookie_size := 128 / std::BITS_IN_BYTE;
 
-        [cookie_str_offset, find_err] := std::find_mem(bin,recast_arr(byte,auth_proto));
+        [cookie_str_offset, find_err] := std::find_mem(bin,cast(byte[],auth_proto));
 
         if(find_err == result::err)
         {

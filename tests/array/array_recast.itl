@@ -3,12 +3,12 @@ func main() s32
 {
     bytes: byte[8] = {0,1,2,4,5,6,7,8};
 
-    ints := recast_arr(u32,bytes);
+    ints := cast(u32[],bytes);
 
     len := ints.len;
     sum : u64 =  ints[1] << 32 | ints[0];
 
-    reverse := recast_arr(byte,ints);
+    reverse := cast(byte[],ints);
 
     return cast(s32,len == 2 && sum == 0x807060504020100 && bytes.len == reverse.len);
 }

@@ -467,7 +467,7 @@ func read_bin(name : const string) [byte[],bool]
 func read_string(name: const string) [string,bool]
 {
     [bytes, err] := read_bin(name);
-    str := recast_arr(c8,bytes);
+    str := cast(c8[],bytes);
 
     return str,err;
 }
