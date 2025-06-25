@@ -448,10 +448,11 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
                 return new_type_res;
             }
 
-            const auto reg = *expr_res;
+            const auto old_reg = *expr_res;
             Type* new_type = *new_type_res;
+            const TypedReg new_reg = {dst_slot,new_type};
 
-            const auto cast_err = handle_cast(itl,func,dst_slot,reg.slot,reg.type,new_type);
+            const auto cast_err = handle_cast(itl,func,old_reg,new_reg);
             if(!!cast_err)
             {
                 return *cast_err;
