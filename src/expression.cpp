@@ -460,12 +460,6 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             return parse_cast(parser,ctx,t,ast_type::cast);
         }
     
-        // recast_arr(<type>,<expr>)
-        case token_type::recast_arr:
-        {
-            return parse_cast(parser,ctx,t,ast_type::recast_arr);
-        }
-
         // sizeof(<expr>)
         case token_type::sizeof_t:
         {

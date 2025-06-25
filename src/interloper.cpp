@@ -459,47 +459,6 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             return new_type;
         }
 
-        case ast_type::recast_arr:
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            const auto cast_res = compile_oper(itl,func,bin_node->right);
-            if(!cast_res)
-            {
-                return cast_res.error();
-            }
-            
-            const auto new_type_res = get_type(itl,(TypeNode*)bin_node->left);
-            if(!new_type_res)
-            {
-                return new_type_res;
-            }
-
-            const auto old = *cast_res;
-            Type* new_type = *new_type_res;
-
-
-            if(!is_flat_array(old.type))
-            {
-                return compile_error(itl,itl_error::array_type_error,"Expected recast from flat array got: %s\n",type_name(itl,old.type).buf);
-            }
-
-            const u32 new_size = type_size(itl,new_type);
-            const u32 old_size = type_size(itl,index_arr(old.type));
-
-            const auto new_arr_type = make_array(itl,new_type,RUNTIME_SIZE);
-
-            const auto data_slot = load_arr_data(itl,func,old);
-            store_arr_data(itl,func,dst_slot,data_slot);
-
-            const auto len_slot = load_arr_len(itl,func,old);
-            const auto byte_slot = mul_imm_res(itl,func,len_slot,old_size);
-            const auto converted_len = udiv_imm_res(itl,func,byte_slot,new_size);
-            store_arr_len(itl,func,dst_slot,converted_len);
-            
-            return new_arr_type;            
-        }
-
         case ast_type::plus:
         {
             // unary plus
