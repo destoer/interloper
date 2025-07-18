@@ -1,0 +1,12 @@
+struct Point 
+{
+    x: u32;
+    y: u32;
+}
+
+func main() s32 
+{
+    point := Point {2,3};
+
+    return point.x * point.y;
+}

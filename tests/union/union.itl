@@ -1,0 +1,51 @@
+
+struct StringToken 
+{
+    str: const string;
+}
+
+struct Value 
+{
+    value: u32;
+}
+
+union Token 
+{
+    string: StringToken,
+    integer: Value,    
+}
+
+func main() s32 {
+
+    token: Token = Value { 5 };
+
+    res1 := token.type == Token::value;
+    res2 := token.integer.value == 5;
+
+    token = StringToken { "Hello World" }
+    res3 := token.type == Token::integer;
+    res4 := strequal(token.string.str,"Hello World");
+    ans := res1 && res2 && res3 && res4;
+
+    // res5 := false;
+
+    // switch(token) 
+    // {
+    //     case Token::integer:
+    //     {
+    //         return 2;
+    //     }
+
+    //     case Token::string:
+    //     {
+    //         res5 = true;
+    //     }
+
+    //     default: 
+    //     {
+    //         return 3; 
+    //     }
+    // }
+
+    return cast(s32,ans);
+}
