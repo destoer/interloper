@@ -6,7 +6,10 @@ struct Point
 
 func main() s32 
 {
-    point := Point {2,3};
+    p1 := Point {2,3};
+    p2: Point = {?};
+    p2 = Point {4,7};
+    p3: Point = Point {4,1};
 
-    return point.x * point.y;
+    return (p1.x * p1.y) + (p2.y - p2.x) + (p3.x + p3.y);
 }

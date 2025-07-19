@@ -291,7 +291,6 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             return ast_scope(parser,*sym_res,name_space,t);
         }
 
-
         default:
         {
             prev_token(parser);
