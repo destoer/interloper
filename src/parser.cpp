@@ -330,12 +330,12 @@ ParserResult parse_struct_initializer(Parser &parser)
 
     auto list = *list_res;
 
-    if(list->type != ast_type::initializer_list)
+    if(list->type != ast_type::initializer_list && list->type != ast_type::designated_initializer_list)
     {
-        return parser_error(parser,parse_error::malformed_stmt,struct_name,"Expected initializer list for struct initializer");
+        return parser_error(parser,parse_error::malformed_stmt,struct_name,"Expected initializer list for struct initializer\n");
     }
 
-    return ast_struct_initializer(parser,struct_name.literal,(RecordNode*)list,struct_name); 
+    return ast_struct_initializer(parser,struct_name.literal,list,struct_name); 
 }
 
 ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
@@ -852,18 +852,13 @@ ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 
     while(!done)
     {
-        auto list_res = expr_list(parser,"function call",token_type::right_paren);
+        auto list_res = expr_list(parser,"function call",token_type::right_paren,&done);
         if(!list_res)
         {
             return list_res.error();
         }
 
-        auto [node,term_seen] = *list_res;
-
-        push_var(func_call->args,node);
-
-        // no more args terminate the call
-        done = term_seen;
+        push_var(func_call->args,*list_res);
     }
 
     return (AstNode*)func_call;
@@ -1125,16 +1120,13 @@ ParserResult statement(Parser &parser)
                 // can be more than one expr (comma seperated)
                 while(!done)
                 {
-                    auto list_res = expr_list(parser,"return",token_type::semi_colon);
+                    auto list_res = expr_list(parser,"return",token_type::semi_colon,&done);
                     if(!list_res)
                     {
                         return list_res.error();
                     }
 
-                    auto [e,term_seen] = *list_res;
-
-                    done = term_seen;
-                    push_var(record->nodes,e);
+                    push_var(record->nodes,*list_res);
                 }
 
                 return (AstNode*)record;
@@ -2621,6 +2613,21 @@ void print(const AstNode *root, b32 override_seperator)
             break;
         }
 
+        case ast_fmt::designated_initializer_list:
+        {
+            DesignatedListNode* list = (DesignatedListNode*) root;
+
+            printf("designated initializer list\n");
+
+            for(auto& initializer : list->initializer)
+            {
+                printf("%s",initializer.name.buf);
+                print(initializer.expr);
+            }
+
+            break;
+        }
+
         case ast_fmt::struct_t:
         {
             StructNode* struct_node = (StructNode*) root;
@@ -2782,12 +2789,7 @@ void print(const AstNode *root, b32 override_seperator)
             StructInitializerNode* struct_initializer_node = (StructInitializerNode*)root;
 
             printf("%s %s\n",AST_NAMES[u32(struct_initializer_node->node.type)],struct_initializer_node->struct_name.buf);
-
-            for(u32 n = 0; n < count(struct_initializer_node->record->nodes); n++)
-            {
-                print(struct_initializer_node->record->nodes[n]);
-            }                 
-
+            print(struct_initializer_node->initializer);
             break;
         }
 

@@ -249,10 +249,26 @@ TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot ds
 
     // Compile a initializer list into the return type
     const auto &structure = itl.struct_table[struct_decl->type_idx];
-    const auto struct_err = traverse_struct_initializer(itl,func,struct_initializer->record,dst,structure);
-    if(!!struct_err)
+
+    switch(struct_initializer->initializer->type)
     {
-        return *struct_err;
+        case ast_type::initializer_list:
+        {
+            RecordNode* record = (RecordNode*)struct_initializer->initializer;
+            const auto struct_err = traverse_struct_initializer(itl,func,record,dst,structure);
+            if(!!struct_err)
+            {
+                return *struct_err;
+            }
+            break;
+        }
+
+        case ast_type::designated_initializer_list:
+        {
+            assert(false);
+        }
+
+        default: assert(false);
     }
 
     return struct_type;
