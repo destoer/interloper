@@ -9,7 +9,24 @@ struct Value
     value: u32;
 }
 
-union Token 
+
+// Conceptually this is destructured into
+
+/*
+enum token_type
+{
+    string,
+    integer,
+}
+
+struct Token
+{
+    value: Value | StringToken
+    type: token_type
+}
+*/
+
+union Token : token_type  
 {
     string: StringToken,
     integer: Value,    
@@ -17,26 +34,25 @@ union Token
 
 func main() s32 {
 
-    token: Token = Value { 5 };
+    token := Token { value: Value { 5 } };
 
-    res1 := token.type == Token::value;
+    res1 := token.type == token_type::integer;
     res2 := token.integer.value == 5;
 
-    token = StringToken { "Hello World" }
-    res3 := token.type == Token::integer;
+    token = Token { string: StringToken{ "Hello World" } }
+    res3 := token.type == token_type::string;
     res4 := strequal(token.string.str,"Hello World");
-    ans := res1 && res2 && res3 && res4;
 
     // res5 := false;
 
     // switch(token) 
     // {
-    //     case Token::integer:
+    //     case token_type::integer:
     //     {
     //         return 2;
     //     }
 
-    //     case Token::string:
+    //     case token_type::string:
     //     {
     //         res5 = true;
     //     }
@@ -46,6 +62,8 @@ func main() s32 {
     //         return 3; 
     //     }
     // }
+
+    ans := res1 && res2 && res3 && res4;
 
     return cast(s32,ans);
 }
