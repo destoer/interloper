@@ -105,6 +105,57 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
     } 
 }
 
+
+TypeResult lookup_struct(Interloper& itl, const String& name)
+{
+    const auto struct_decl_res = lookup_type(itl,name);
+    if(!struct_decl_res)
+    {
+        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",name.buf);
+    }
+
+    const auto struct_decl = *struct_decl_res;
+
+    if(struct_decl->kind != type_kind::struct_t)
+    {
+        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",name.buf);
+    }
+
+    return make_struct(itl,struct_decl->type_idx);   
+}
+
+Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function& func, DesignatedListNode* node, AddrSlot dst, const Struct& structure)
+{
+    UNUSED(itl); UNUSED(func); UNUSED(dst); UNUSED(node); UNUSED(structure);
+    assert(false);
+}
+
+TypeResult assign_designated_initializer_list(Interloper& itl, Function& func, AddrSlot dst, DesignatedListNode* node)
+{
+    UNUSED(itl); UNUSED(func); UNUSED(dst); UNUSED(node);
+    if(!node->struct_name)
+    {
+        return compile_error(itl,itl_error::struct_error,"Error designated intializer list with no type context\n");
+    }
+
+    auto struct_type_res = lookup_struct(itl,node->struct_name);
+    if(!struct_type_res) 
+    {
+        return struct_type_res;
+    }
+
+    Type* struct_type = *struct_type_res;
+    const auto& structure = struct_from_type(itl.struct_table,struct_type);
+
+    const auto traverse_err = traverse_designated_initializer_list(itl,func,node,dst,structure);
+    if(!!traverse_err)
+    {
+        return *traverse_err;
+    }
+
+    return struct_type;
+}
+
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
     const auto name = type_decl->name;
@@ -1037,6 +1088,12 @@ Option<itl_error> compile_struct_decl(Interloper& itl, Function& func, const Dec
             {
                 const auto addr_slot = make_struct_addr(reg.slot,0);
                 return traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
+            }
+
+            case ast_type::designated_initializer_list:
+            {
+                const auto addr_slot = make_struct_addr(reg.slot,0);
+                return traverse_designated_initializer_list(itl,func,(DesignatedListNode*)decl_node->expr,addr_slot,structure);                
             }
 
             case ast_type::no_init:

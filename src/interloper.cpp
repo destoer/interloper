@@ -231,24 +231,16 @@ TypeResult compile_scoped_expression(Interloper& itl, Function& func, AstNode* n
 // NOTE: Caller must check assignment result.
 TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot dst, StructInitializerNode* struct_initializer)
 {
-    // Check we have a valid struct
-    const auto struct_decl_res = lookup_type(itl,struct_initializer->struct_name);
-    if(!struct_decl_res)
+    const auto struct_type_res = lookup_struct(itl,struct_initializer->struct_name);
+    if(!struct_type_res)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",struct_initializer->struct_name);
+        return struct_type_res;
     }
-
-    const auto struct_decl = *struct_decl_res;
-
-    if(struct_decl->kind != type_kind::struct_t)
-    {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",struct_initializer->struct_name);
-    }
-
-    const auto struct_type = make_struct(itl,struct_decl->type_idx);
+    
+    const auto struct_type = *struct_type_res;
 
     // Compile a initializer list into the return type
-    const auto &structure = itl.struct_table[struct_decl->type_idx];
+    const auto &structure = struct_from_type(itl.struct_table,struct_type);
 
     switch(struct_initializer->initializer->type)
     {
@@ -874,6 +866,12 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             return assign_struct_initializer(itl,func,make_struct_addr(dst_slot,0),struct_initalizer);
         }
         
+        case ast_type::designated_initializer_list:
+        {
+            auto list = (DesignatedListNode*)node;
+            return assign_designated_initializer_list(itl,func,make_struct_addr(dst_slot,0),list);
+        }
+
         default:
         {
             return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
