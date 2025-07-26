@@ -240,7 +240,7 @@ TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot ds
     const auto struct_type = *struct_type_res;
 
     // Compile a initializer list into the return type
-    const auto &structure = struct_from_type(itl.struct_table,struct_type);
+    auto &structure = struct_from_type(itl.struct_table,struct_type);
 
     switch(struct_initializer->initializer->type)
     {
@@ -257,7 +257,13 @@ TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot ds
 
         case ast_type::designated_initializer_list:
         {
-            assert(false);
+            DesignatedListNode* list = (DesignatedListNode*)struct_initializer->initializer;
+            const auto struct_err = traverse_designated_initializer_list(itl,func,list,dst,structure);
+            if(!!struct_err)
+            {
+                return *struct_err;
+            }
+            break;
         }
 
         default: assert(false);

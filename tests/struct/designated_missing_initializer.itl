@@ -1,0 +1,14 @@
+
+
+struct Point
+{
+    x: s32;
+    y: s32;
+}
+
+func main() s32 
+{
+    p1: Point = {x: 5};
+
+    return 0;
+}

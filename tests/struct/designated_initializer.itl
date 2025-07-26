@@ -15,7 +15,7 @@ struct Line
 func main() s32 
 {
     p1: Point = {x: 5, y: 6};
-    res1 := (p1.x + p2.y) == 11;
+    res1 := (p1.x + p1.y) == 11;
 
     // Out of order works too
     p2 := Point {y: 4, x: 8};
@@ -25,7 +25,7 @@ func main() s32
     line := Line {p1: Point {x: 5, y: 5}, p2: Point {x: 0, y: 0}};
     res3 := ((line.p2.x - line.p1.x) + (line.p2.y - line.p1.y)) == -10;
 
-    ans := res1 && res2;
+    ans := res1 && res2 && res3;
 
     return cast(s32,ans);
 }

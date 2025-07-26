@@ -72,6 +72,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/struct/redeclare_struct",itl_error::redeclaration},
     {"tests/struct/redeclare_member",itl_error::redeclaration},
     {"tests/struct/recursive_struct_invalid",itl_error::black_hole},
+    {"tests/struct/designated_missing_initializer",itl_error::struct_error},
 
     // stl
 
@@ -201,6 +202,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_ptr",10},
     {"tests/struct/struct_return",1},
     {"tests/struct/initializer_assign",14},
+    {"tests/struct/designated_initializer",1},
 
 
 
