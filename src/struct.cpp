@@ -174,30 +174,6 @@ Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function
     return option::none;
 }
 
-TypeResult assign_designated_initializer_list(Interloper& itl, Function& func, AddrSlot dst, DesignatedListNode* node)
-{
-    if(!node->struct_name)
-    {
-        return compile_error(itl,itl_error::struct_error,"Error designated intializer list with no type context\n");
-    }
-
-    auto struct_type_res = lookup_struct(itl,node->struct_name);
-    if(!struct_type_res) 
-    {
-        return struct_type_res;
-    }
-
-    Type* struct_type = *struct_type_res;
-    auto& structure = struct_from_type(itl.struct_table,struct_type);
-
-    const auto traverse_err = traverse_designated_initializer_list(itl,func,node,dst,structure);
-    if(!!traverse_err)
-    {
-        return *traverse_err;
-    }
-
-    return struct_type;
-}
 
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
@@ -959,22 +935,6 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
             return option::none;
         }
 
-        // These two can be handled by compile_oper but it will cause uneeded copying.
-        case ast_type::designated_initializer_list:
-        {            
-            if(!is_struct(member.type))
-            {
-                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
-                    member.name.buf,type_name(itl,member.type).buf);
-            }
-
-            assert(false);
-            Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-
-            DesignatedListNode* list = (DesignatedListNode*)node;
-            return traverse_designated_initializer_list(itl,func,list,addr_member,sub_struct);
-        }
-
         case ast_type::struct_initializer:
         {
             StructInitializerNode* struct_initalizer = (StructInitializerNode*)node;
@@ -987,6 +947,20 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
 
             return option::none;
         }
+
+        case ast_type::designated_initializer_list:
+        {
+            if(!is_struct(member.type))
+            {
+                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
+                    member.name.buf,type_name(itl,member.type).buf);
+            }
+
+            Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
+            DesignatedListNode* list = (DesignatedListNode*)node;
+
+            return traverse_designated_initializer_list(itl,func,list,addr_member,sub_struct);
+        }    
 
 
         // plain values

@@ -788,12 +788,6 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             return assign_struct_initializer(itl,func,make_struct_addr(dst_slot,0),struct_initalizer);
         }
         
-        case ast_type::designated_initializer_list:
-        {
-            auto list = (DesignatedListNode*)node;
-            return assign_designated_initializer_list(itl,func,make_struct_addr(dst_slot,0),list);
-        }
-
         default:
         {
             return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);

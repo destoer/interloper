@@ -324,8 +324,6 @@ struct DesignatedInitializer
 struct DesignatedListNode
 {   
     AstNode node;
-    // Optional
-    String struct_name = "";
     Array<DesignatedInitializer> initializer;
 };
 
