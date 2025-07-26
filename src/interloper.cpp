@@ -228,50 +228,6 @@ TypeResult compile_scoped_expression(Interloper& itl, Function& func, AstNode* n
     }
 }
 
-// NOTE: Caller must check assignment result.
-TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot dst, StructInitializerNode* struct_initializer)
-{
-    const auto struct_type_res = lookup_struct(itl,struct_initializer->struct_name);
-    if(!struct_type_res)
-    {
-        return struct_type_res;
-    }
-    
-    const auto struct_type = *struct_type_res;
-
-    // Compile a initializer list into the return type
-    auto &structure = struct_from_type(itl.struct_table,struct_type);
-
-    switch(struct_initializer->initializer->type)
-    {
-        case ast_type::initializer_list:
-        {
-            RecordNode* record = (RecordNode*)struct_initializer->initializer;
-            const auto struct_err = traverse_struct_initializer(itl,func,record,dst,structure);
-            if(!!struct_err)
-            {
-                return *struct_err;
-            }
-            break;
-        }
-
-        case ast_type::designated_initializer_list:
-        {
-            DesignatedListNode* list = (DesignatedListNode*)struct_initializer->initializer;
-            const auto struct_err = traverse_designated_initializer_list(itl,func,list,dst,structure);
-            if(!!struct_err)
-            {
-                return *struct_err;
-            }
-            break;
-        }
-
-        default: assert(false);
-    }
-
-    return struct_type;
-}
-
 TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)

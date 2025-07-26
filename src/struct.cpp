@@ -1,5 +1,6 @@
 Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, AddrSlot addr_slot, const Struct& structure);
 Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot addr_member, const Member& member, AstNode* node);
+TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot dst, StructInitializerNode* struct_initializer);
 
 void print_member(Interloper& itl,const Member& member)
 {
@@ -958,6 +959,36 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
             return option::none;
         }
 
+        // These two can be handled by compile_oper but it will cause uneeded copying.
+        case ast_type::designated_initializer_list:
+        {            
+            if(!is_struct(member.type))
+            {
+                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
+                    member.name.buf,type_name(itl,member.type).buf);
+            }
+
+            assert(false);
+            Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
+
+            DesignatedListNode* list = (DesignatedListNode*)node;
+            return traverse_designated_initializer_list(itl,func,list,addr_member,sub_struct);
+        }
+
+        case ast_type::struct_initializer:
+        {
+            StructInitializerNode* struct_initalizer = (StructInitializerNode*)node;
+            const auto res = assign_struct_initializer(itl,func,addr_member,struct_initalizer);
+            
+            if(!res)
+            {
+                return res.error();
+            }
+
+            return option::none;
+        }
+
+
         // plain values
         default:
         {
@@ -1011,6 +1042,50 @@ Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, R
     } 
 
     return option::none;
+}
+
+// NOTE: Caller must check assignment result.
+TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot dst, StructInitializerNode* struct_initializer)
+{
+    const auto struct_type_res = lookup_struct(itl,struct_initializer->struct_name);
+    if(!struct_type_res)
+    {
+        return struct_type_res;
+    }
+    
+    const auto struct_type = *struct_type_res;
+
+    // Compile a initializer list into the return type
+    auto &structure = struct_from_type(itl.struct_table,struct_type);
+
+    switch(struct_initializer->initializer->type)
+    {
+        case ast_type::initializer_list:
+        {
+            RecordNode* record = (RecordNode*)struct_initializer->initializer;
+            const auto struct_err = traverse_struct_initializer(itl,func,record,dst,structure);
+            if(!!struct_err)
+            {
+                return *struct_err;
+            }
+            break;
+        }
+
+        case ast_type::designated_initializer_list:
+        {
+            DesignatedListNode* list = (DesignatedListNode*)struct_initializer->initializer;
+            const auto struct_err = traverse_designated_initializer_list(itl,func,list,dst,structure);
+            if(!!struct_err)
+            {
+                return *struct_err;
+            }
+            break;
+        }
+
+        default: assert(false);
+    }
+
+    return struct_type;
 }
 
 Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot)
