@@ -1,3 +1,6 @@
+Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, AddrSlot addr_slot, const Struct& structure);
+Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot addr_member, const Member& member, AstNode* node);
+
 void print_member(Interloper& itl,const Member& member)
 {
     printf("\t%s -> %d : %s\n",member.name.buf,member.offset,type_name(itl,member.type).buf);
@@ -103,6 +106,96 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
         const u32 size = type_size(itl,type);
         return calc_alloc_size(size);
     } 
+}
+
+
+TypeResult lookup_struct(Interloper& itl, const String& name)
+{
+    const auto struct_decl_res = lookup_type(itl,name);
+    if(!struct_decl_res)
+    {
+        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",name.buf);
+    }
+
+    const auto struct_decl = *struct_decl_res;
+
+    if(struct_decl->kind != type_kind::struct_t)
+    {
+        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",name.buf);
+    }
+
+    return make_struct(itl,struct_decl->type_idx);   
+}
+
+Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function& func, DesignatedListNode* node, AddrSlot addr_slot, Struct& structure)
+{
+    const u32 member_size = count(structure.members);
+    BitSet set = make_bit_set(member_size);
+
+    for(u32 i = 0; i < count(node->initializer); i++)
+    {
+        // TODO: We should attempt the acceses in offset order.
+        const DesignatedInitializer init = node->initializer[i];
+
+        const u32* member_idx = lookup(structure.member_map,init.name);
+        if(!member_idx)
+        {
+            destroy_bit_set(set);
+            return compile_error(itl,itl_error::struct_error,"No such member %s in structure %s\n",init.name,structure.name);
+        }
+
+        const u32 idx = *member_idx;
+
+        // Note that we have seen this member
+        set_bit_set(set,idx);
+        const auto member = structure.members[idx];
+    
+        // generate a new offset
+        // NOTE: make sure this is a copy
+        auto addr_member = addr_slot;
+        addr_member.offset += member.offset;
+
+        const auto err = struct_list_write(itl,func,addr_member,member,init.expr);
+        if(!!err)
+        {
+            destroy_bit_set(set);
+            return err;
+        }
+    } 
+
+    if(set.count != member_size)
+    {
+        destroy_bit_set(set);
+        return compile_error(itl,itl_error::struct_error,"struct designated initlizier missing initlizer expected %d got %d\n",member_size,set.count);
+    }
+
+    destroy_bit_set(set);
+    return option::none;
+}
+
+TypeResult assign_designated_initializer_list(Interloper& itl, Function& func, AddrSlot dst, DesignatedListNode* node)
+{
+    if(!node->struct_name)
+    {
+        return compile_error(itl,itl_error::struct_error,"Error designated intializer list with no type context\n");
+    }
+
+    auto struct_type_res = lookup_struct(itl,node->struct_name);
+    if(!struct_type_res) 
+    {
+        return struct_type_res;
+    }
+
+    Type* struct_type = *struct_type_res;
+    auto& structure = struct_from_type(itl.struct_table,struct_type);
+
+    const auto traverse_err = traverse_designated_initializer_list(itl,func,node,dst,structure);
+    if(!!traverse_err)
+    {
+        return *traverse_err;
+    }
+
+    return struct_type;
 }
 
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
@@ -830,6 +923,67 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
 }
 
 
+Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot addr_member, const Member& member, AstNode* node)
+{
+    switch(node->type)
+    {
+        // either sub struct OR array member initializer
+        case ast_type::initializer_list:
+        {
+            if(is_array(member.type))
+            {
+                const auto arr_err = traverse_arr_initializer_internal(itl,func,(RecordNode*)node,&addr_member,(ArrayType*)member.type);
+                if(!!arr_err)
+                {
+                    return arr_err;
+                }
+            }
+
+            else if(is_struct(member.type))
+            {
+                const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
+                const auto struct_err = traverse_struct_initializer(itl,func,(RecordNode*)node,addr_member,sub_struct);
+                if(!!struct_err)
+                {
+                    return struct_err;
+                }
+            }
+
+            else
+            {
+                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
+                    member.name.buf,type_name(itl,member.type).buf);
+            }
+            
+            return option::none;
+        }
+
+        // plain values
+        default:
+        {
+            // get the operand and type check it
+            const auto res = compile_oper(itl,func,node);
+            if(!res)
+            {
+                return res.error();
+            }
+
+            const auto reg = *res;
+
+            const auto assign_err = check_assign(itl,member.type,reg.type);
+            if(!!assign_err)
+            {
+                return assign_err;
+            }
+
+            return do_addr_store(itl,func,reg.slot,addr_member,member.type);
+        }
+    }
+
+    assert(false);
+    return option::none;
+}
+
 Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, AddrSlot addr_slot, const Struct& structure)
 {
     const u32 node_len = count(node->nodes);
@@ -849,58 +1003,10 @@ Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, R
         auto addr_member = addr_slot;
         addr_member.offset += member.offset;
 
-        // either sub struct OR array member initializer
-        if(node->nodes[i]->type == ast_type::initializer_list)
+        const auto err = struct_list_write(itl,func,addr_member,member,node->nodes[i]);
+        if(!!err)
         {
-            if(is_array(member.type))
-            {
-                const auto arr_err = traverse_arr_initializer_internal(itl,func,(RecordNode*)node->nodes[i],&addr_member,(ArrayType*)member.type);
-                if(!!arr_err)
-                {
-                    return arr_err;
-                }
-            }
-
-            else if(is_struct(member.type))
-            {
-                const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-                const auto struct_err = traverse_struct_initializer(itl,func,(RecordNode*)node->nodes[i],addr_member,sub_struct);
-                if(!!struct_err)
-                {
-                    return struct_err;
-                }
-            }
-
-            else
-            {
-                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
-                    member.name.buf,type_name(itl,member.type).buf);
-            }
-        }
-
-        // we have a list of plain values we can actually initialize
-        else
-        {
-            // get the operand and type check it
-            const auto res = compile_oper(itl,func,node->nodes[i]);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            const auto reg = *res;
-
-            const auto assign_err = check_assign(itl,member.type,reg.type);
-            if(!!assign_err)
-            {
-                return assign_err;
-            }
-
-            const auto store_err = do_addr_store(itl,func,reg.slot,addr_member,member.type);
-            if(!!store_err)
-            {
-                return store_err;
-            }
+            return err;
         }
     } 
 
@@ -1026,7 +1132,7 @@ Option<itl_error> compile_struct_decl(Interloper& itl, Function& func, const Dec
     const TypedReg reg = {reg_slot,ltype};
 
 
-    const auto structure = struct_from_type(itl.struct_table,reg.type);
+    auto structure = struct_from_type(itl.struct_table,reg.type);
 
     
     if(decl_node->expr)
@@ -1037,6 +1143,12 @@ Option<itl_error> compile_struct_decl(Interloper& itl, Function& func, const Dec
             {
                 const auto addr_slot = make_struct_addr(reg.slot,0);
                 return traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
+            }
+
+            case ast_type::designated_initializer_list:
+            {
+                const auto addr_slot = make_struct_addr(reg.slot,0);
+                return traverse_designated_initializer_list(itl,func,(DesignatedListNode*)decl_node->expr,addr_slot,structure);                
             }
 
             case ast_type::no_init:

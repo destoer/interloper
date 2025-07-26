@@ -228,6 +228,50 @@ TypeResult compile_scoped_expression(Interloper& itl, Function& func, AstNode* n
     }
 }
 
+// NOTE: Caller must check assignment result.
+TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot dst, StructInitializerNode* struct_initializer)
+{
+    const auto struct_type_res = lookup_struct(itl,struct_initializer->struct_name);
+    if(!struct_type_res)
+    {
+        return struct_type_res;
+    }
+    
+    const auto struct_type = *struct_type_res;
+
+    // Compile a initializer list into the return type
+    auto &structure = struct_from_type(itl.struct_table,struct_type);
+
+    switch(struct_initializer->initializer->type)
+    {
+        case ast_type::initializer_list:
+        {
+            RecordNode* record = (RecordNode*)struct_initializer->initializer;
+            const auto struct_err = traverse_struct_initializer(itl,func,record,dst,structure);
+            if(!!struct_err)
+            {
+                return *struct_err;
+            }
+            break;
+        }
+
+        case ast_type::designated_initializer_list:
+        {
+            DesignatedListNode* list = (DesignatedListNode*)struct_initializer->initializer;
+            const auto struct_err = traverse_designated_initializer_list(itl,func,list,dst,structure);
+            if(!!struct_err)
+            {
+                return *struct_err;
+            }
+            break;
+        }
+
+        default: assert(false);
+    }
+
+    return struct_type;
+}
+
 TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)
@@ -781,7 +825,19 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
             return make_array(itl,make_builtin(itl,builtin_type::c8_t,true),RUNTIME_SIZE);
         }
+
+        case ast_type::struct_initializer:
+        {
+            StructInitializerNode* struct_initalizer = (StructInitializerNode*)node;
+            return assign_struct_initializer(itl,func,make_struct_addr(dst_slot,0),struct_initalizer);
+        }
         
+        case ast_type::designated_initializer_list:
+        {
+            auto list = (DesignatedListNode*)node;
+            return assign_designated_initializer_list(itl,func,make_struct_addr(dst_slot,0),list);
+        }
+
         default:
         {
             return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
@@ -1022,57 +1078,131 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
 {
     BinNode* assign_node = (BinNode*)line;
     
-    if(assign_node->left->type != ast_type::symbol)
+    switch(assign_node->left->type)
     {
-        switch(assign_node->left->type)
+        case ast_type::symbol:
         {
-            case ast_type::ignore:
+            LiteralNode* sym_node = (LiteralNode*)assign_node->left;
+
+            const auto name = sym_node->literal;
+
+            const auto sym_ptr = get_sym(itl.symbol_table,name);
+            if(!sym_ptr)
             {
-                const auto rtype_res = compile_expression(itl,func,assign_node->right,new_tmp(func,GPR_SIZE));
+                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
+            }
+
+
+            RegSlot slot = sym_ptr->reg.slot;
+            u32 size = sym_ptr->reg.size;
+            Type *ltype = sym_ptr->type;
+
+            // handle initializer list
+            if(assign_node->right->type == ast_type::initializer_list)
+            {
+                const auto addr_slot = make_struct_addr(slot,0);
+                return compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
+            }
+
+            else
+            {
+                const auto rtype_res = compile_expression(itl,func,assign_node->right,slot);
                 if(!rtype_res)
                 {
                     return rtype_res.error();
                 }
 
+                const auto assign_err = check_assign(itl,ltype,*rtype_res);
+                if(!!assign_err)
+                {
+                    return *assign_err;
+                }
+
+                if(is_unsigned_integer(ltype))
+                {
+                    clip_arith_type(itl,func,slot,slot,size);
+                }
+                
                 return option::none;
             }
 
-            case ast_type::deref:
+            break;
+        }
+
+        case ast_type::ignore:
+        {
+            const auto rtype_res = compile_expression(itl,func,assign_node->right,new_tmp(func,GPR_SIZE));
+            if(!rtype_res)
             {
-                UnaryNode* deref_node = (UnaryNode*)assign_node->left;
-                const auto expr_res = compile_oper(itl,func,assign_node->right);
-                if(!expr_res)
-                {
-                    return expr_res.error();
-                }
-                const auto ptr_res = take_pointer(itl,func,deref_node->next);
-
-                if(!ptr_res)
-                {
-                    return ptr_res.error();
-                }
-
-                const auto src = *expr_res;
-                auto ptr = *ptr_res;
-
-
-                if(((PointerType*)ptr.type)->pointer_kind == pointer_type::nullable)
-                {
-                    return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr.type).buf);
-                }
-
-                // store into the pointer
-                ptr.type = deref_pointer(ptr.type); 
-                const auto store_err = do_ptr_store(itl,func,src.slot,ptr);
-                if(!!store_err)
-                {
-                    return store_err;
-                }
-
-                return check_assign(itl,ptr.type,src.type);                      
+                return rtype_res.error();
             }
-        
-            case ast_type::index:
+
+            return option::none;
+        }
+
+        case ast_type::deref:
+        {
+            UnaryNode* deref_node = (UnaryNode*)assign_node->left;
+            const auto expr_res = compile_oper(itl,func,assign_node->right);
+            if(!expr_res)
+            {
+                return expr_res.error();
+            }
+            const auto ptr_res = take_pointer(itl,func,deref_node->next);
+
+            if(!ptr_res)
+            {
+                return ptr_res.error();
+            }
+
+            const auto src = *expr_res;
+            auto ptr = *ptr_res;
+
+
+            if(((PointerType*)ptr.type)->pointer_kind == pointer_type::nullable)
+            {
+                return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr.type).buf);
+            }
+
+            // store into the pointer
+            ptr.type = deref_pointer(ptr.type); 
+            const auto store_err = do_ptr_store(itl,func,src.slot,ptr);
+            if(!!store_err)
+            {
+                return store_err;
+            }
+
+            return check_assign(itl,ptr.type,src.type);                      
+        }
+    
+        case ast_type::index:
+        {
+            const auto src_res = compile_oper(itl,func,assign_node->right);
+            if(!src_res)
+            {
+                return src_res.error();
+            }
+
+            return write_arr(itl,func,assign_node->left,*src_res);
+        }
+    
+        // write on struct member!
+        case ast_type::access_struct:
+        {
+            if(assign_node->right->type == ast_type::initializer_list)
+            {
+                auto addr_res = compute_member_addr(itl,func,assign_node->left);
+                if(!addr_res)
+                {
+                    return addr_res.error();
+                }
+
+                auto [ltype, addr_slot] = *addr_res;
+
+                return compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
+            }
+
+            else
             {
                 const auto src_res = compile_oper(itl,func,assign_node->right);
                 if(!src_res)
@@ -1080,89 +1210,14 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
                     return src_res.error();
                 }
 
-                return write_arr(itl,func,assign_node->left,*src_res);
-            }
-        
-            // write on struct member!
-            case ast_type::access_struct:
-            {
-                if(assign_node->right->type == ast_type::initializer_list)
-                {
-                    auto addr_res = compute_member_addr(itl,func,assign_node->left);
-                    if(!addr_res)
-                    {
-                        return addr_res.error();
-                    }
-
-                    auto [ltype, addr_slot] = *addr_res;
-
-                    return compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
-                }
-
-                else
-                {
-                    const auto src_res = compile_oper(itl,func,assign_node->right);
-                    if(!src_res)
-                    {
-                        return src_res.error();
-                    }
-
-                    // This Errors we just don't care
-                    return write_struct(itl,func,*src_res,assign_node->left);
-                }
-            }
-        
-            default:
-            {
-                return compile_error(itl,itl_error::invalid_expr,"could not assign to expr: %s\n",AST_NAMES[u32(assign_node->left->type)]);
+                // This Errors we just don't care
+                return write_struct(itl,func,*src_res,assign_node->left);
             }
         }
-    }
     
-    else
-    {
-        LiteralNode* sym_node = (LiteralNode*)assign_node->left;
-
-        const auto name = sym_node->literal;
-
-        const auto sym_ptr = get_sym(itl.symbol_table,name);
-        if(!sym_ptr)
+        default:
         {
-            return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
-        }
-
-
-        RegSlot slot = sym_ptr->reg.slot;
-        u32 size = sym_ptr->reg.size;
-        Type *ltype = sym_ptr->type;
-
-        // handle initializer list
-        if(assign_node->right->type == ast_type::initializer_list)
-        {
-            const auto addr_slot = make_struct_addr(slot,0);
-            return compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
-        }
-
-        else
-        {
-            const auto rtype_res = compile_expression(itl,func,assign_node->right,slot);
-            if(!rtype_res)
-            {
-                return rtype_res.error();
-            }
-
-            const auto assign_err = check_assign(itl,ltype,*rtype_res);
-            if(!!assign_err)
-            {
-                return *assign_err;
-            }
-
-            if(is_unsigned_integer(ltype))
-            {
-                clip_arith_type(itl,func,slot,slot,size);
-            }
-            
-            return option::none;
+            return compile_error(itl,itl_error::invalid_expr,"could not assign to expr: %s\n",AST_NAMES[u32(assign_node->left->type)]);
         }
     }
 
@@ -1483,44 +1538,27 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
 
             case ast_type::struct_return:
             {
-                StructReturnNode* struct_return = (StructReturnNode*)line;
-
-                // Check we have a valid struct
-                const auto struct_decl_res = lookup_type(itl,struct_return->struct_name);
-                if(!struct_decl_res)
-                {
-                    return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",struct_return->struct_name);
-                }
-
-                const auto struct_decl = *struct_decl_res;
-
-                if(struct_decl->kind != type_kind::struct_t)
-                {
-                    return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",struct_return->struct_name);
-                }
-
                 if(count(func.sig.return_type) != 1)
                 {
                     return compile_error(itl,itl_error::struct_error,"Expected single return for struct return func expects: %d\n",
                         count(func.sig.return_type));
                 }
 
+                StructInitializerNode* struct_initalizer = (StructInitializerNode*)line;
+                const AddrSlot dst = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                const auto struct_type_res = assign_struct_initializer(itl,func,dst,struct_initalizer);
 
-                // Check the return type matches
-                const auto struct_type = make_struct(itl,struct_decl->type_idx);
+                if(!struct_type_res)
+                {
+                    return struct_type_res.error();
+                }
+
+                Type* struct_type = *struct_type_res;
+
                 const auto assign_err = check_assign(itl,func.sig.return_type[0],struct_type);
                 if(!!assign_err)
                 {
                     return assign_err;
-                }
-
-                // Compile a initializer list into the return type
-                const auto &structure = itl.struct_table[struct_decl->type_idx];
-                const auto struct_err = traverse_struct_initializer(itl,func,struct_return->record,
-                    make_addr(make_sym_reg_slot(func.sig.args[0]),0),structure);
-                if(!!struct_err)
-                {
-                    return struct_err;
                 }
 
                 ret(itl,func);

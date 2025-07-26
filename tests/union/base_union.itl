@@ -1,0 +1,27 @@
+
+struct BaseEntity 
+{
+    pos: Vec2f;
+}
+
+struct Player (base: BaseEntity) 
+{
+    hp: u32;
+}
+
+struct Projectile (base: BaseEntity) 
+{
+    target: Vec2f;
+}
+
+// All types must be based on this or compilation fails
+union Entity (base: BaseEntity) 
+{
+    player: Player,
+    projectile: Projectile,
+}
+
+func main() s32 
+{
+
+}

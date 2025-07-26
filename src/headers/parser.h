@@ -28,6 +28,7 @@ enum class ast_type
     scope,
     type_alias,
 
+    struct_initializer,
     struct_return,
     ret,
 
@@ -38,6 +39,7 @@ enum class ast_type
     arr_var_size,
     arr_fixed,
     initializer_list,
+    designated_initializer_list,
     arr_deduce_size,
     no_init,
     const_t,
@@ -138,6 +140,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "scope",
     "type_alias",
 
+    "struct_initalizer",
     "struct_return",
     "return",
 
@@ -148,6 +151,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "arr_var_size",
     "arr_fixed",
     "intializer_list",
+    "designated_initializer_list",
     "deduced_arr_size",
     "no_init",
     "const",
@@ -251,7 +255,8 @@ enum class ast_fmt
     tuple_assign,
     type_alias,
     builtin_type_info,
-    struct_return,
+    struct_initializer,
+    designated_initializer_list,
 };
 
 inline const char *FMT_NAMES[] =
@@ -283,7 +288,8 @@ inline const char *FMT_NAMES[] =
     "tuple_assign",
     "type_alias",
     "builtin_type_info",
-    "struct_return",
+    "struct_initializer",
+    "designed_initializer_list"
 };
 
 
@@ -308,6 +314,20 @@ enum class [[nodiscard]] parse_error
 
 using ParserResult = Result<AstNode*,parse_error>;
 
+
+struct DesignatedInitializer
+{
+    AstNode* expr = nullptr;
+    String name;
+};
+
+struct DesignatedListNode
+{   
+    AstNode node;
+    // Optional
+    String struct_name = "";
+    Array<DesignatedInitializer> initializer;
+};
 
 struct BinNode
 {
@@ -590,12 +610,13 @@ struct TupleAssignNode
     b32 auto_decl;
 };
 
-struct StructReturnNode
+struct StructInitializerNode
 {
     AstNode node;
 
     String struct_name;
-    RecordNode* record;
+    // Initializer list or designated initializer
+    AstNode* initializer;
 };
 
 using AstPointers = Array<void**>;
@@ -631,9 +652,12 @@ struct Parser
 
 
 const u32 EXPR_TERMINATED_FLAG_BIT = 0;
+const u32 EXPR_HIT_TERMINATOR_FLAG_BIT = 1;
 const u32 EXPR_TERMINATED_FLAG = (1 << EXPR_TERMINATED_FLAG_BIT);
-const u32 EXPR_MUST_TERMINATE_FLAG = (1 << 1);
-const u32 EXPR_TERM_LIST_FLAG = (1 << 2);
+// expression may terminate without hitting the termiantor due to other flags
+const u32 EXPR_HIT_TERMINATOR = (1 << EXPR_HIT_TERMINATOR_FLAG_BIT); 
+const u32 EXPR_MUST_TERMINATE_FLAG = (1 << 2);
+const u32 EXPR_TERM_LIST_FLAG = (1 << 3);
 
 
 // Current state of the expression parser
@@ -671,14 +695,14 @@ T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
     return ret_node;
 }
 
-AstNode *ast_struct_return(Parser& parser,const String& literal, RecordNode* record, const Token& token)
+AstNode *ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, const Token& token)
 {
-    StructReturnNode* struct_return_node = alloc_node<StructReturnNode>(parser,ast_type::struct_return,ast_fmt::struct_return,token);
+    StructInitializerNode* struct_initializer_node = alloc_node<StructInitializerNode>(parser,ast_type::struct_initializer,ast_fmt::struct_initializer,token);
 
-    struct_return_node->struct_name = literal;
-    struct_return_node->record = record;
+    struct_initializer_node->struct_name = literal;
+    struct_initializer_node->initializer = initializer;
 
-    return (AstNode*)struct_return_node;
+    return (AstNode*)struct_initializer_node;
 }
 
 AstNode *ast_plain(Parser& parser,ast_type type, const Token& token)
@@ -988,6 +1012,14 @@ AstNode* ast_type_operator(TypeNode* type,ast_type kind)
     type->node.type = kind;
 
     return (AstNode*)type;    
+}
+
+AstNode* ast_designated_initializer_list(Parser& parser, const Token& token)
+{
+    DesignatedListNode* list = alloc_node<DesignatedListNode>(parser,ast_type::designated_initializer_list,ast_fmt::designated_initializer_list,token);
+    add_ast_pointer(parser,&list->initializer.data);
+
+    return (AstNode*)list;
 }
 
 // scan file for row and column info

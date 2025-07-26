@@ -2,7 +2,7 @@
 
 ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
 ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
-Result<std::pair<AstNode*,b32>,parse_error> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
+ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
@@ -15,10 +15,12 @@ void next_expr_token(Parser& parser,ExprCtx& ctx)
 
     b32 should_term = false;
 
+    const b32 hit_terminator = (ctx.expr_tok.type == ctx.term);
+
     // what will cause early termination?
     if(ctx.expr_flags & EXPR_TERM_LIST_FLAG)
     {
-        should_term = (ctx.expr_tok.type == token_type::comma) || (ctx.expr_tok.type == ctx.term);
+        should_term = (ctx.expr_tok.type == token_type::comma) || hit_terminator;
     }
 
     else
@@ -26,6 +28,7 @@ void next_expr_token(Parser& parser,ExprCtx& ctx)
         should_term = (ctx.expr_tok.type == ctx.term);
     }
 
+    ctx.expr_flags |= (hit_terminator << EXPR_HIT_TERMINATOR_FLAG_BIT);
     ctx.expr_flags |= (should_term << EXPR_TERMINATED_FLAG_BIT);
 }
 
@@ -291,7 +294,6 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             return ast_scope(parser,*sym_res,name_space,t);
         }
 
-
         default:
         {
             prev_token(parser);
@@ -391,6 +393,116 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type ca
     const auto right = expr_terminate_in_expr(parser,ctx,"cast",token_type::right_paren);
 
     return ast_binary(parser,type,right,cast_type,t); 
+}
+
+ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
+ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t);
+
+ParserResult parse_initliazer_list(Parser& parser, ExprCtx& ctx, const Token& t)
+{
+    const bool designated = ctx.expr_tok.type == token_type::symbol && match(parser,token_type::colon);
+
+    const auto list_res = designated? parse_designated_initializers(parser,ctx,t) :  parse_value_initializer_list(parser,ctx,t);
+
+    // allow trailing comma if the list is about to end and its not the terminator i.e
+    // {{0,0},{0,0},}
+    if(ctx.expr_tok.type == token_type::comma && match(parser,ctx.term))
+    {
+        next_expr_token(parser,ctx);
+    }
+
+    return list_res;
+}
+
+ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t)
+{
+    RecordNode* init = (RecordNode*)ast_record(parser,ast_type::initializer_list,t);
+
+    b32 hit_term = false;
+    while(!hit_term)
+    {
+        auto e_res = expr_list_in_expr(parser,ctx,"value initializer list",token_type::right_c_brace,&hit_term);
+
+        if(!e_res)
+        {
+            return e_res.error();
+        }
+
+        push_var(init->nodes,*e_res);
+    }
+
+    return (AstNode*)init;
+}
+
+
+
+ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t)
+{
+    DesignatedListNode* list = (DesignatedListNode*)ast_designated_initializer_list(parser,t);
+
+    b32 hit_term = false;
+    while(!hit_term)
+    {
+        // Want to know if we started as designated because the entire list should match!
+        const bool designated = ctx.expr_tok.type == token_type::symbol && match(parser,token_type::colon);
+
+        if(!designated)
+        {
+            return parser_error(parser,parse_error::malformed_stmt,ctx.expr_tok,"Designator: Hit unexpected token %s\n",tok_name(ctx.expr_tok.type));
+        }
+
+        const auto name = ctx.expr_tok.literal;
+
+        next_expr_token(parser,ctx);
+        next_expr_token(parser,ctx);
+
+        // Nested struct initializer?
+        if(ctx.expr_tok.type == token_type::symbol && match(parser,token_type::left_c_brace))
+        {
+            const auto struct_name = ctx.expr_tok;
+            (void)consume_expr(parser,ctx,token_type::symbol);
+            (void)consume_expr(parser,ctx,token_type::left_c_brace);
+
+            auto list_res = parse_initliazer_list(parser,ctx,t);
+
+            if(!list_res)
+            {
+                return list_res;
+            }
+
+            auto struct_initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,struct_name);
+
+            const DesignatedInitializer init = {struct_initializer,name};
+            push_var(list->initializer,init);
+
+            if(ctx.expr_tok.type == token_type::comma)
+            {
+                (void)consume_expr(parser,ctx,token_type::comma);
+            }
+
+            else if(ctx.expr_tok.type == token_type::right_c_brace)
+            {
+                hit_term = true;
+                (void)consume_expr(parser,ctx,token_type::right_c_brace);
+            }
+        }
+
+        else
+        {
+            // Read out the designator
+            auto e_res = expr_list_in_expr(parser,ctx,"designated initializer list",token_type::right_c_brace,&hit_term);
+
+            if(!e_res)
+            {
+                return e_res.error();
+            }
+
+            const DesignatedInitializer init = {*e_res,name};
+            push_var(list->initializer,init);
+        }       
+    }
+
+    return (AstNode*)list;
 }
 
 // unary operators
@@ -510,33 +622,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
                 return ast_plain(parser,ast_type::no_init,t);
             }
 
-
-            RecordNode* init = (RecordNode*)ast_record(parser,ast_type::initializer_list,t);
-            b32 done = false;
-
-            while(!done)
-            {
-                auto e_res = expr_list_in_expr(parser,ctx,"initializer list",token_type::right_c_brace);
-
-                if(!e_res)
-                {
-                    return e_res.error();
-                }
-
-                auto [e,term_seen] = *e_res;
-                done = term_seen; 
-
-                push_var(init->nodes,e);
-            }
-
-            // allow trailing comma if
-            // NOTE: if its the terminator we just ignore it so the term cond goes in properly
-            if(ctx.term != token_type::comma && ctx.expr_tok.type == token_type::comma && match(parser,token_type::right_c_brace))
-            {
-                next_expr_token(parser,ctx);
-            }
-
-            return (AstNode*)init;
+            return parse_initliazer_list(parser,ctx,t);
         }
     
         case token_type::value:
@@ -738,7 +824,7 @@ ParserResult statement_terminate(Parser& parser,const String& expression_name)
     return expr_terminate(parser,expression_name,token_type::semi_colon);
 }
 
-Result<std::pair<AstNode*,b32>,parse_error> expr_list(Parser& parser,const String& expression_name, token_type type)
+ParserResult expr_list(Parser& parser,const String& expression_name, token_type type,b32* hit_terminator)
 {
     ExprCtx ctx;
     ctx.term = type;
@@ -748,13 +834,8 @@ Result<std::pair<AstNode*,b32>,parse_error> expr_list(Parser& parser,const Strin
 
     auto e_res = expr_terminate_internal(parser,ctx);
 
-    if(!e_res)
-    {
-        return e_res.error();
-    }
-
-    const b32 seen_list_term = ctx.expr_tok.type == type;
-    return std::pair{*e_res,seen_list_term};
+    *hit_terminator = ctx.expr_flags & EXPR_HIT_TERMINATOR;
+    return e_res;
 }
 
 // for use inside the parser so the state machine does not have to be messed with
@@ -773,7 +854,7 @@ ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String
     return e_opt;
 }
 
-Result<std::pair<AstNode*,b32>,parse_error> expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type)
+ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type,b32* hit_terminator)
 {
     ExprCtx ctx;
     ctx.term = type;
@@ -782,15 +863,8 @@ Result<std::pair<AstNode*,b32>,parse_error> expr_list_in_expr(Parser& parser,Exp
     ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG | EXPR_TERM_LIST_FLAG;
 
     auto e_res = expr_terminate_internal(parser,ctx);
-
-    if(!e_res)
-    {
-        return e_res.error();
-    }
-
-    const b32 seen_list_term = ctx.expr_tok.type == type;
-
+    *hit_terminator = ctx.expr_flags & EXPR_HIT_TERMINATOR;
     next_expr_token(parser,old_ctx);
 
-    return std::pair{*e_res,seen_list_term};    
+    return e_res;
 }

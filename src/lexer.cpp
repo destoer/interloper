@@ -238,6 +238,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
 
                         if(lexer.error)
                         {
+                            destroy_lexer(lexer);
                             return true;
                         }
                     }
@@ -434,6 +435,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
 
                     if(lexer.error)
                     {
+                        destroy_lexer(lexer);
                         return true;
                     }
                     
@@ -480,7 +482,4 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
             }
         }
     }
-
-
-
 }

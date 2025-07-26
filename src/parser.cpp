@@ -317,8 +317,26 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
     return type;
 }
 
+ParserResult parse_struct_initializer(Parser &parser)
+{
+    const auto struct_name = next_token(parser);
 
+    const auto list_res = statement_terminate(parser,"struct assign initializer list");
 
+    if(!list_res)
+    {
+        return list_res;
+    }
+
+    auto list = *list_res;
+
+    if(list->type != ast_type::initializer_list && list->type != ast_type::designated_initializer_list)
+    {
+        return parser_error(parser,parse_error::malformed_stmt,struct_name,"Expected initializer list for struct initializer\n");
+    }
+
+    return ast_struct_initializer(parser,struct_name.literal,list,struct_name); 
+}
 
 ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
 {
@@ -365,14 +383,30 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
                 return *err;
             }
 
-            auto stmt_res = statement_terminate(parser,"declaration");
-
-            if(!stmt_res)
+            // Struct assign
+            if(match(parser,token_type::symbol) && peek(parser,1).type == token_type::left_c_brace)
             {
-                return stmt_res;
-            }
+                auto initializer_res = parse_struct_initializer(parser);
 
-            decl->expr = *stmt_res;
+                if(!initializer_res)
+                {
+                    return initializer_res;
+                }
+
+                decl->expr = *initializer_res;
+            }
+            
+            else
+            {
+                auto stmt_res = statement_terminate(parser,"declaration expression");
+
+                if(!stmt_res)
+                {
+                    return stmt_res;
+                }
+
+                decl->expr = *stmt_res;
+            }
             break;
         }
 
@@ -398,11 +432,11 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 ParserResult auto_decl(Parser &parser)
 {
     // symbol := expr;
-    const auto s = next_token(parser);
+    const auto sym = next_token(parser);
 
-    if(s.type != token_type::symbol)
+    if(sym.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,s,"declartion expected symbol got: %s:%zd\n",tok_name(s.type),parser.tok_idx);
+        return parser_error(parser,parse_error::unexpected_token,sym,"declartion expected symbol got: %s:%zd\n",tok_name(sym.type),parser.tok_idx);
     }
 
     const auto err = consume(parser,token_type::decl);
@@ -411,6 +445,20 @@ ParserResult auto_decl(Parser &parser)
         return *err;
     }
 
+    // Struct assign
+    if(match(parser,token_type::symbol) && peek(parser,1).type == token_type::left_c_brace)
+    {
+        auto initializer_res = parse_struct_initializer(parser);
+
+        if(!initializer_res)
+        {
+            return initializer_res;
+        }
+
+        return ast_auto_decl(parser,sym.literal,*initializer_res,sym);
+    }
+
+
     auto expr_res = statement_terminate(parser,"auto declaration");
 
     if(!expr_res)
@@ -418,9 +466,7 @@ ParserResult auto_decl(Parser &parser)
         return expr_res;
     }
 
-    AstNode* decl = (AstNode*)ast_auto_decl(parser,s.literal,*expr_res,s);
-
-    return decl;    
+    return ast_auto_decl(parser,sym.literal,*expr_res,sym);
 }
 
 
@@ -806,18 +852,13 @@ ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 
     while(!done)
     {
-        auto list_res = expr_list(parser,"function call",token_type::right_paren);
+        auto list_res = expr_list(parser,"function call",token_type::right_paren,&done);
         if(!list_res)
         {
             return list_res.error();
         }
 
-        auto [node,term_seen] = *list_res;
-
-        push_var(func_call->args,node);
-
-        // no more args terminate the call
-        done = term_seen;
+        push_var(func_call->args,*list_res);
     }
 
     return (AstNode*)func_call;
@@ -1060,48 +1101,32 @@ ParserResult statement(Parser &parser)
             {
                 if(peek(parser,1).type == token_type::left_c_brace)
                 {
-                    if(!match(parser,token_type::symbol))
+                    auto initializer_res = parse_struct_initializer(parser);
+
+                    if(!initializer_res)
                     {
-                        return parser_error(parser,parse_error::missing_expr,t,"Expected struct name for struct return");
-                    }
-                    
-                    const auto name_tok = next_token(parser);
-
-
-                    const auto list_res = expr_terminate(parser,"struct return intializer",token_type::semi_colon);
-
-                    if(!list_res)
-                    {
-                        return list_res;
+                        return initializer_res;
                     }
 
-                    auto list = *list_res;
+                    AstNode* initializer = *initializer_res;
+                    initializer->type = ast_type::struct_return;
 
-                    if(list->type != ast_type::initializer_list)
-                    {
-                        return parser_error(parser,parse_error::malformed_stmt,t,"Expected initializer list for struct return");
-                    }
-
-                    return ast_struct_return(parser,name_tok.literal,(RecordNode*)list,t);
+                    return initializer;
                 }
 
                 RecordNode* record = (RecordNode*)ast_record(parser,ast_type::ret,t);
-
                 b32 done = false;
 
                 // can be more than one expr (comma seperated)
                 while(!done)
                 {
-                    auto list_res = expr_list(parser,"return",token_type::semi_colon);
+                    auto list_res = expr_list(parser,"return",token_type::semi_colon,&done);
                     if(!list_res)
                     {
                         return list_res.error();
                     }
 
-                    auto [e,term_seen] = *list_res;
-
-                    done = term_seen;
-                    push_var(record->nodes,e);
+                    push_var(record->nodes,*list_res);
                 }
 
                 return (AstNode*)record;
@@ -1167,11 +1192,28 @@ ParserResult statement(Parser &parser)
                 case token_type::divide_eq:
                 case token_type::times_eq:
                 case token_type::bitwise_or_eq:
-                case token_type::equal:
                 {
                     prev_token(parser);
                     return statement_terminate(parser,"assignment");
                 }
+
+                case token_type::equal:
+                {
+                    const auto sym_tok = t;
+
+                    // Struct assign
+                    if(peek(parser,1).type == token_type::symbol && peek(parser,2).type == token_type::left_c_brace)
+                    {
+                        (void)consume(parser,token_type::equal);
+                        AstNode* left = ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok);
+
+                        return ast_binary(parser,left,parse_struct_initializer(parser),ast_type::equal,sym_tok);  
+                    }
+
+                    prev_token(parser);
+                    return statement_terminate(parser,"assignment");
+                }
+
 
                 // check for brackets
                 // array indexes etc here 
@@ -2340,7 +2382,7 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
 
     if(tokenize(file,filename,parser.string_allocator,parser.tokens))
     {
-        destroy_arr(parser.tokens);
+        destroy_parser(parser);
         itl.first_error_code = itl_error::lexer_error;
         return parse_error::lexer_error;
     }
@@ -2361,12 +2403,14 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
             const auto hash_err = consume(parser,token_type::hash);
             if(!!hash_err)
             {
+                destroy_parser(parser);
                 return hash_err;
             }
 
             const auto directive_err = parse_directive(itl,parser);
             if(!!directive_err)
             {
+                destroy_parser(parser);
                 return directive_err;
             }
         }
@@ -2377,12 +2421,13 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
             const auto parse_err = parse_top_level_token(itl,parser,queue);
             if(!!parse_err)
             {
+                destroy_parser(parser);
                 return parse_err;
             }
         }
     }
 
-    destroy_arr(parser.tokens);
+    destroy_parser(parser);
     return option::none;
 }
 
@@ -2571,6 +2616,21 @@ void print(const AstNode *root, b32 override_seperator)
             break;
         }
 
+        case ast_fmt::designated_initializer_list:
+        {
+            DesignatedListNode* list = (DesignatedListNode*) root;
+
+            printf("designated initializer list\n");
+
+            for(auto& initializer : list->initializer)
+            {
+                printf("%s",initializer.name.buf);
+                print(initializer.expr);
+            }
+
+            break;
+        }
+
         case ast_fmt::struct_t:
         {
             StructNode* struct_node = (StructNode*) root;
@@ -2727,17 +2787,12 @@ void print(const AstNode *root, b32 override_seperator)
             break;
         }
 
-        case ast_fmt::struct_return:
+        case ast_fmt::struct_initializer:
         {
-            StructReturnNode* struct_return_node = (StructReturnNode*)root;
+            StructInitializerNode* struct_initializer_node = (StructInitializerNode*)root;
 
-            printf("struct return %s\n",struct_return_node->struct_name.buf);
-
-            for(u32 n = 0; n < count(struct_return_node->record->nodes); n++)
-            {
-                print(struct_return_node->record->nodes[n]);
-            }                 
-
+            printf("%s %s\n",AST_NAMES[u32(struct_initializer_node->node.type)],struct_initializer_node->struct_name.buf);
+            print(struct_initializer_node->initializer);
             break;
         }
 
