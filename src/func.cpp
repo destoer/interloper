@@ -256,6 +256,11 @@ ArgPass make_arg_pass(const FuncSig& sig)
     return pass;
 }
 
+void destroy_arg_pass(ArgPass& pass)
+{
+    destroy_arr(pass.args);
+}
+
 void pass_arg(Interloper& itl, Function& func, ArgPass& pass,const TypedReg& reg, u32 arg_idx)
 {
     if(pass.pass_as_reg[arg_idx] == NON_ARG)
@@ -270,7 +275,8 @@ void pass_arg(Interloper& itl, Function& func, ArgPass& pass,const TypedReg& reg
     }
 }
 
-void pass_args(Interloper& itl, Function& func, ArgPass& pass)
+// WILL DESTROY THE ARG PASS
+u32 pass_args(Interloper& itl, Function& func, ArgPass& pass)
 {
     // Move the passed args into place
     for(u32 a = 0; a < count(pass.args); a++)
@@ -278,6 +284,11 @@ void pass_args(Interloper& itl, Function& func, ArgPass& pass)
         const RegSlot arg_slot = make_spec_reg_slot(spec_reg(SPECIAL_REG_ARG_START + a));
         mov_reg(itl,func,arg_slot,pass.args[a]);
     }
+
+    const u32 arg_clean = pass.arg_clean;
+    destroy_arg_pass(pass);
+
+    return arg_clean;
 }
 
 Option<itl_error> push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
@@ -960,6 +971,7 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
         auto arg_clean_res = push_va_args(itl,func,call_node,call_info.name,actual_args);
         if(!arg_clean_res)
         {
+            destroy_arg_pass(pass);
             return arg_clean_res.error();
         }
 
@@ -975,6 +987,7 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
         // check we have the right number of params
         if(actual_args != count(call_node->args))
         {
+            destroy_arg_pass(pass);
             return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",actual_args,count(call_node->args));
         }        
     }
@@ -982,6 +995,7 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
     const auto arg_err = push_args(itl,func,pass,call_node,sig,start_arg);
     if(!!arg_err)
     {
+        destroy_arg_pass(pass);
         return *arg_err;
     }
 
@@ -992,14 +1006,16 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
         const auto hidden_err = push_hidden_args(itl,func,pass,tuple_node,dst_slot,sig.return_type[0]);
         if(!!hidden_err)
         {
+            destroy_arg_pass(pass);
             return *hidden_err;
         }
     }
 
-    pass_args(itl,func,pass);
+    const u32 arg_clean = pass_args(itl,func,pass);
+
 
     // handle calling and returns
-    return handle_call(itl,func,call_info,dst_slot,pass.arg_clean);
+    return handle_call(itl,func,call_info,dst_slot,arg_clean);
 }
 
 // used for both tuples and ordinary function calls

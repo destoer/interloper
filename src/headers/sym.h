@@ -56,7 +56,7 @@ struct ArgPass
 };
 
 ArgPass make_arg_pass(const FuncSig& sig);
-void pass_args(Interloper& itl, Function& func, ArgPass& pass);
+u32 pass_args(Interloper& itl, Function& func, ArgPass& pass);
 void pass_arg(Interloper& itl, Function& func, ArgPass& pass,const TypedReg& reg, u32 arg_idx);
 
 // NOTE: a func pointer is not a pointer to this struct

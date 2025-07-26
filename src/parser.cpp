@@ -2382,7 +2382,7 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
 
     if(tokenize(file,filename,parser.string_allocator,parser.tokens))
     {
-        destroy_arr(parser.tokens);
+        destroy_parser(parser);
         itl.first_error_code = itl_error::lexer_error;
         return parse_error::lexer_error;
     }
@@ -2403,12 +2403,14 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
             const auto hash_err = consume(parser,token_type::hash);
             if(!!hash_err)
             {
+                destroy_parser(parser);
                 return hash_err;
             }
 
             const auto directive_err = parse_directive(itl,parser);
             if(!!directive_err)
             {
+                destroy_parser(parser);
                 return directive_err;
             }
         }
@@ -2419,12 +2421,13 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
             const auto parse_err = parse_top_level_token(itl,parser,queue);
             if(!!parse_err)
             {
+                destroy_parser(parser);
                 return parse_err;
             }
         }
     }
 
-    destroy_arr(parser.tokens);
+    destroy_parser(parser);
     return option::none;
 }
 

@@ -2351,9 +2351,9 @@ Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
 
 void destroy_sig(FuncSig& sig)
 {
-    destroy_arr(sig.args);
     destroy_arr(sig.return_type);
     destroy_arr(sig.args);
+    destroy_arr(sig.pass_as_reg);
 }
 
 void destroy_func(Function& func)

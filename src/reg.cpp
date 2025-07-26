@@ -2,7 +2,7 @@
 
 void destroy_reg(Reg& ir_reg)
 {
-    UNUSED(ir_reg);
+    destroy_arr(ir_reg.local_uses);
 }
 
 b32 is_arg_reg(arg_type type)

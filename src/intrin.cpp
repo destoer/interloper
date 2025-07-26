@@ -65,12 +65,12 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
         pass_arg(itl,func,pass,src,1);
         pass_arg(itl,func,pass,dst,0);
 
-        pass_args(itl,func,pass);
+        const u32 arg_clean = pass_args(itl,func,pass);
 
         call(itl,func,func_call.label_slot);
         unlock_reg_set(itl,func,func_call.sig.locked_set);
 
-        clean_args(itl,func,pass.arg_clean);
+        clean_args(itl,func,arg_clean);
     }
 
     return option::none;
@@ -115,12 +115,12 @@ Option<itl_error> ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 s
         pass_arg(itl,func,pass,imm,1);
         pass_arg(itl,func,pass,dst,0);
 
-        pass_args(itl,func,pass);
+        const u32 arg_clean = pass_args(itl,func,pass);
 
         call(itl,func,func_call.label_slot);
         unlock_reg_set(itl,func,func_call.sig.locked_set);
 
-        clean_args(itl,func,pass.arg_clean);        
+        clean_args(itl,func,arg_clean);        
     }
 
     return option::none;
