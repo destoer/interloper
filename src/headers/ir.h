@@ -918,6 +918,15 @@ struct AddrSlot
     b32 struct_addr = false;
 };
 
+AddrSlot make_struct_addr(RegSlot slot, u32 offset);
+AddrSlot make_addr(RegSlot slot, u32 offset);
+
+struct TypedAddr
+{
+    AddrSlot addr;
+    Type* type = nullptr;
+};
+
 // intrin
 Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
 

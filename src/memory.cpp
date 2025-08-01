@@ -16,20 +16,21 @@ AddrSlot take_addr(Interloper& itl, Function& func, RegSlot src, u32 offset)
     return make_addr(src_ptr,0);
 }
 
-// get back a complete pointer
-RegSlot collapse_offset(Interloper& itl,Function&func, RegSlot addr_slot, u32 *offset)
+RegSlot collapse_struct_res(Interloper& itl, Function& func, const AddrSlot& struct_slot)
 {
-    if(*offset)
+    if(struct_slot.struct_addr)
     {
-        const RegSlot final_addr = add_imm_res(itl,func,addr_slot,*offset);
-        *offset = 0;
-
-        return final_addr;
+        return addrof_res(itl,func,struct_slot.slot,struct_slot.offset);
     }
-    
+
     else
     {
-        return addr_slot;
+        if(struct_slot.offset)
+        {
+            return add_imm_res(itl,func,struct_slot.slot,struct_slot.offset);
+        }
+
+        return struct_slot.slot;
     }
 }
 
@@ -41,9 +42,10 @@ void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_sl
         *struct_slot = take_addr(itl,func,struct_slot->slot,struct_slot->offset);
     }
 
-    else
+    else if(struct_slot->offset != 0)
     {
-        struct_slot->slot = collapse_offset(itl,func,struct_slot->slot,&struct_slot->offset);
+        struct_slot->slot = add_imm_res(itl,func,struct_slot->slot,struct_slot->offset);
+        struct_slot->offset = 0;     
     }
 }
 
@@ -204,15 +206,15 @@ Option<itl_error> do_addr_copy(Interloper &itl,Function &func,RegSlot dst_slot,A
     return option::none;
 }
 
-Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_addr, const Type* type)
+Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,const TypedAddr& src_addr)
 {
-    const u32 size = type_size(itl,type);
+    const u32 size = type_size(itl,src_addr.type);
 
-    if(is_array(type))
+    if(is_array(src_addr.type))
     {
-        if(is_runtime_size(type))
+        if(is_runtime_size(src_addr.type))
         {
-            const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr,size);
+            const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr.addr,size);
             if(!!copy_err)
             {
                 return copy_err;
@@ -222,14 +224,14 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,A
         // fixed size array, the pointer is the array
         else
         {
-            collapse_struct_offset(itl,func,&src_addr);
-            mov_reg(itl,func,dst_slot,src_addr.slot);
+            const RegSlot ptr = collapse_struct_res(itl,func,src_addr.addr);
+            mov_reg(itl,func,dst_slot,ptr);
         }
     }
 
-    else if(is_struct(type))
+    else if(is_struct(src_addr.type))
     {
-        const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr,size);
+        const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr.addr,size);
         if(!!copy_err)
         {
             return copy_err;
@@ -238,10 +240,10 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,A
 
     else if(size <= GPR_SIZE)
     {
-        const b32 sign = is_signed(type);
-        const b32 fp = is_float(type);
+        const b32 sign = is_signed(src_addr.type);
+        const b32 fp = is_float(src_addr.type);
 
-        load_addr_slot(itl,func,dst_slot,src_addr,size,sign,fp);
+        load_addr_slot(itl,func,dst_slot,src_addr.addr,size,sign,fp);
     }            
 
     else
@@ -254,8 +256,8 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,A
 
 Option<itl_error> do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const auto src_addr = make_addr(reg.slot,offset);
-    return do_addr_load(itl,func,dst_slot,src_addr,reg.type);
+    const TypedAddr src_addr = typed_addr_from_reg(reg,offset); 
+    return do_addr_load(itl,func,dst_slot,src_addr);
 }
 
 
@@ -333,14 +335,14 @@ void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot ds
 }
 
 
-Option<itl_error> do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot dst_addr, const Type* type)
+Option<itl_error> do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedAddr& dst)
 {
-    const u32 size = type_size(itl,type);
+    const u32 size = type_size(itl,dst.type);
 
     if(size <= GPR_SIZE)
     {
-        const b32 fp = is_float(type);
-        store_addr_slot(itl,func,src_slot,dst_addr,size,fp);
+        const b32 fp = is_float(dst.type);
+        store_addr_slot(itl,func,src_slot,dst.addr,size,fp);
         return option::none;
     }
 
@@ -348,12 +350,12 @@ Option<itl_error> do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,
     else
     {      
         const auto src_addr = make_struct_addr(src_slot,0);
-        return ir_memcpy(itl,func,dst_addr,src_addr,size);        
+        return ir_memcpy(itl,func,dst.addr,src_addr,size);        
     } 
 }
 
 Option<itl_error> do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const auto dst_addr = make_addr(reg.slot,offset);
-    return do_addr_store(itl,func,src_slot,dst_addr,reg.type);
+    const TypedAddr dst_addr = {make_addr(reg.slot,offset),reg.type};
+    return do_addr_store(itl,func,src_slot,dst_addr);
 }

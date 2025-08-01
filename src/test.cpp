@@ -219,7 +219,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // enum
     {"tests/enum/enum",1},
     {"tests/enum/switch_enum",10},
-    // {"tests/enum/enum_struct",11},
+    {"tests/enum/enum_struct",11},
     {"tests/enum/enum_flag",1},
 
 
