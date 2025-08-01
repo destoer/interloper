@@ -461,62 +461,61 @@ Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
 }
 
 
-TypeResult access_array_member(Interloper& itl, Type* type, const String& member_name,AddrSlot* struct_slot)
+Option<itl_error> access_array_member(Interloper& itl, const String& member_name,TypedAddr* struct_addr)
 {
-    ArrayType* array_type = (ArrayType*)type;
+    ArrayType* array_type = (ArrayType*)struct_addr->type;
 
     if(member_name == "len")
     {
-        if(!is_runtime_size(type))
+        if(!is_runtime_size(struct_addr->type))
         {
-            struct_slot->slot = make_spec_reg_slot(spec_reg::access_fixed_len_reg);
-            struct_slot->struct_addr = false;
-            return type;
+            struct_addr->addr.slot = make_spec_reg_slot(spec_reg::access_fixed_len_reg);
+            struct_addr->addr.struct_addr = false;
         }
 
         // vla
         else
         {
-            struct_slot->offset += GPR_SIZE;
-            return make_builtin(itl,GPR_SIZE_TYPE);
+            struct_addr->addr.offset += GPR_SIZE;
+            struct_addr->type = make_builtin(itl,GPR_SIZE_TYPE);
         }
+
+        return option::none;
     }
 
     else if(member_name == "data")
     {
         // fixed sized array is not a struct dont allow access
-        if(is_fixed_array(type))
+        if(is_fixed_array(struct_addr->type))
         {
             return compile_error(itl,itl_error::array_type_error,"no .data member on fixed size array");
         }
 
-        struct_slot->offset += 0;
-
-        return make_reference(itl,array_type->contained_type);
+        struct_addr->type = make_reference(itl,array_type->contained_type);
+        return option::none;
     }
 
 
-    else
-    {
-        return compile_error(itl,itl_error::undeclared,"unknown array member %s\n",member_name.buf);
-    }
+    return compile_error(itl,itl_error::undeclared,"unknown array member %s\n",member_name.buf);
 }
 
-TypeResult access_struct_member(Interloper& itl, Type* type, const String& member_name, AddrSlot* struct_slot)
+Option<itl_error> access_struct_member(Interloper& itl,const String& member_name, TypedAddr* struct_addr)
 {
     // get offset for struct member
-    const auto member_opt = get_member(itl.struct_table,type,member_name);
+    const auto member_opt = get_member(itl.struct_table,struct_addr->type,member_name);
 
     if(!member_opt)
     {
-        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,type).buf);
+        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",
+            member_name.buf,type_name(itl,struct_addr->type).buf);
     }
 
     const auto member = member_opt.value();
 
-    struct_slot->offset += member.offset;  
+    struct_addr->addr.offset += member.offset;  
+    struct_addr->type = member.type;
 
-    return member.type;
+    return option::none;
 }
 
 
@@ -532,10 +531,10 @@ Option<u32> member_offset(Struct& structure, const String& name)
 
     return member.offset;
 }
-TypeResult access_enum_struct_member(Interloper& itl,Function& func,Type* struct_type,
-    const String& member_name, AddrSlot* struct_slot)
+
+Option<itl_error> access_enum_struct_member(Interloper& itl,Function& func, const String& member_name, TypedAddr* struct_addr)
 {
-    const auto& enumeration = enum_from_type(itl.enum_table,struct_type);
+    const auto& enumeration = enum_from_type(itl.enum_table,struct_addr->type);
 
     if(!enumeration.underlying_type || !is_struct(enumeration.underlying_type))
     {
@@ -549,7 +548,8 @@ TypeResult access_enum_struct_member(Interloper& itl,Function& func,Type* struct
 
     if(!enum_struct_member_opt)
     {
-        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",member_name.buf,type_name(itl,struct_type).buf);              
+        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",
+            member_name.buf,type_name(itl,struct_addr->type).buf);              
     }
 
     const auto& enum_struct_member = enum_struct_member_opt.value();
@@ -561,23 +561,18 @@ TypeResult access_enum_struct_member(Interloper& itl,Function& func,Type* struct
     RegSlot enum_slot = INVALID_SYM_REG_SLOT;
     
     // we allready directly have the enum
-    if(struct_slot->struct_addr)
+    if(struct_addr->addr.struct_addr)
     {
-        assert(struct_slot->offset == 0);
-
-        enum_slot = struct_slot->slot;
+        assert(struct_addr->addr.offset == 0);
+        enum_slot = struct_addr->addr.slot;
     }
 
     // ordinary access on a pointer, we must deref it
     else
     {
         enum_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,enum_slot,struct_slot->slot,struct_slot->offset,ENUM_SIZE,false,false);
+        load_ptr(itl,func,enum_slot,struct_addr->addr.slot,struct_addr->addr.offset,ENUM_SIZE,false,false);
     }
-
-    // update for new offset
-    struct_slot->offset = enum_struct_member.offset;
-    struct_slot->struct_addr = false;
 
     // finally index the table
     
@@ -585,12 +580,11 @@ TypeResult access_enum_struct_member(Interloper& itl,Function& func,Type* struct
     const RegSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
 
     // compute final addr
-    const auto addr_slot = add_res(itl,func,enum_table_slot,table_offset);
+    const auto ptr = add_res(itl,func,enum_table_slot,table_offset);
+    const auto addr = make_addr(ptr,enum_struct_member.offset);
 
-    // update the struct addr
-    struct_slot->slot = addr_slot;
-
-    return enum_struct_member.type;
+    *struct_addr = {addr,enum_struct_member.type};
+    return option::none;
 }
 
 
@@ -601,10 +595,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
     AstNode* expr_node = member_root->left;
 
-    // Type is allways the accessed type of the current pointer
-    Type* struct_type = nullptr;
-
-    AddrSlot struct_slot;
+    TypedAddr struct_addr;
 
     // parse out initail expr
     switch(expr_node->type)
@@ -627,31 +618,13 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
             // along with the derefed type
             if(is_pointer(sym.type))
             {
-                struct_type = deref_pointer(sym.type);
-                struct_slot = make_addr(sym.reg.slot,0);
+                struct_addr = {make_addr(sym.reg.slot,0),deref_pointer(sym.type)};
             }
 
             else
             {
-                // if base type is a fixed array
-                // then we just directly return operations
-                if(is_fixed_array(sym.type))
-                {
-                    struct_slot = make_addr(sym.reg.slot,0);
-                }
-
-                // if this is an enum we will do a direct index with it
-                else if(is_enum(sym.type))
-                {
-                    struct_slot = make_struct_addr(sym.reg.slot,0);
-                }
-
-                else
-                {
-                    struct_slot = make_struct_addr(sym.reg.slot,0);
-                }
-
-                struct_type = sym.type;
+                // NOTE: For an enum we will us this as a direct index.
+                struct_addr = typed_addr(sym);
             }
 
             break;        
@@ -667,10 +640,8 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
             auto index_reg = *index_res;
 
-            struct_slot = make_addr(index_reg.slot,0);
-
-            // we return types in here as the accessed type
-            struct_type = deref_pointer(index_reg.type);
+            // straight pointer
+            struct_addr = {make_addr(index_reg.slot,0),deref_pointer(index_reg.type)};
             break;
         }
 
@@ -697,20 +668,17 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                 const auto member_name = member_node->literal;
 
                 // auto deferef pointers first
-                if(is_pointer(struct_type))
+                if(is_pointer(struct_addr.type))
                 {
                     RegSlot addr_slot = new_tmp_ptr(func);
-                    const TypedAddr src_addr = {struct_slot,struct_type};
 
-                    const auto load_err = do_addr_load(itl,func,addr_slot,src_addr);
+                    const auto load_err = do_addr_load(itl,func,addr_slot,struct_addr);
                     if(!!load_err)
                     {
                         return *load_err;
                     }
 
-                    struct_slot = make_addr(addr_slot,0);
-
-                    PointerType* ptr_type = (PointerType*)struct_type;
+                    PointerType* ptr_type = (PointerType*)struct_addr.type;
 
                     if(ptr_type->pointer_kind == pointer_type::nullable)
                     {
@@ -719,47 +687,42 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                     }
 
                     // now we are back to a straight pointer
-                    struct_type = deref_pointer(struct_type);
+                    struct_addr = {make_addr(addr_slot,0),deref_pointer(struct_addr.type)};
                 }
 
-                switch(struct_type->kind)
+                switch(struct_addr.type->kind)
                 {
                     case type_class::array_t:
                     {
-                        auto type_res = access_array_member(itl,struct_type,member_name,&struct_slot);
-                        if(!type_res)
+                        const auto err = access_array_member(itl,member_name,&struct_addr);
+                        if(!!err)
                         {
-                            return type_res.error();
+                            return *err;
                         }
-
-                        struct_type = *type_res; 
                         break;
                     }
 
                     // do enum member access
                     case type_class::enum_t:
                     {
-                        auto struct_type_res = access_enum_struct_member(itl,func,struct_type,member_name,&struct_slot);
-                        
-                        if(!struct_type_res)
+                        const auto err = access_enum_struct_member(itl,func,member_name,&struct_addr);
+                        if(!!err)
                         {
-                            return struct_type_res.error();
+                            return *err;
                         }
                         
-                        struct_type = *struct_type_res;
                         break;
                     }
 
                     // actual struct member
                     default:
                     {
-                        auto struct_type_res = access_struct_member(itl,struct_type,member_name,&struct_slot);
-                        if(!struct_type_res)
+                        const auto err = access_struct_member(itl,member_name,&struct_addr);
+                        if(!!err)
                         {
-                            return struct_type_res.error();
+                            return *err;
                         }
 
-                        struct_type = *struct_type_res;
                         break;
                     }
                 }   
@@ -770,34 +733,35 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
             {
                 IndexNode* index_node = (IndexNode*)n;
 
-                auto struct_type_res = access_struct_member(itl,struct_type,index_node->name,&struct_slot);
-                if(!struct_type_res)
+                const auto err = access_struct_member(itl,index_node->name,&struct_addr);
+                if(!!err)
                 {
-                    return struct_type_res.error();
+                    return *err;
                 }
 
-                struct_type = *struct_type_res; 
-                
-                if(is_runtime_size(struct_type))
+                if(is_runtime_size(struct_addr.type))
                 {
                     const RegSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    const TypedAddr src_addr = {struct_slot,make_builtin(itl,GPR_SIZE_TYPE)};
+                    const TypedAddr src_addr = {struct_addr.addr,make_reference(itl,index_arr(struct_addr.type))};
+                    // const TypedAddr src_addr = {struct_addr.addr,make_builtin(itl,GPR_SIZE_TYPE)};
+                    
                     const auto load_err = do_addr_load(itl,func,vla_ptr,src_addr);
                     if(!!load_err)
                     {
                         return *load_err;
                     }
-                    struct_slot = make_addr(vla_ptr,0);
+
+                    struct_addr.addr = make_addr(vla_ptr,0);
                 }
 
                 // fixed size collpase the offset
                 else
                 {
-                    collapse_struct_offset(itl,func,&struct_slot);
+                    collapse_struct_offset(itl,func,&struct_addr.addr);
                 }
 
-                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_type,struct_slot.slot,new_tmp_ptr(func));
+                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr.slot,new_tmp_ptr(func));
                 if(!index_res)
                 {
                     return index_res.error();
@@ -805,10 +769,8 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
                 auto index_reg = *index_res;
 
-                struct_slot = make_addr(index_reg.slot,0);
-
-                // deref of pointer
-                struct_type = deref_pointer(index_reg.type);
+                // Is a plain pointer
+                struct_addr = {make_addr(index_reg.slot,0),deref_pointer(index_reg.type)};
                 break;
             }
 
@@ -819,7 +781,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
         }
     }
 
-    return TypedAddr{struct_slot,struct_type};
+    return struct_addr;
 }
 
 RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
