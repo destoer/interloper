@@ -276,8 +276,13 @@ TypedAddr typed_addr(const Symbol& sym)
     // A fixed array is not a real struct so we have to lie.
     if(is_fixed_array(sym.type))
     {
-        return TypedAddr(make_addr(sym.reg.slot,0),sym.type);
+        return TypedAddr{make_addr(sym.reg.slot,0),sym.type};
     }
 
     return TypedAddr{make_struct_addr(sym.reg.slot,0),sym.type};
+}
+
+TypedAddr typed_addr_from_reg(const TypedReg& reg, u32 offset)
+{
+    return TypedAddr{make_addr(reg.slot,offset),reg.type};
 }

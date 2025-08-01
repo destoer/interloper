@@ -537,7 +537,8 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
                         return assign_err;
                     }
 
-                    const auto store_err = do_addr_store(itl,func,reg.slot,*addr_slot,base_type);
+                    const TypedAddr dst_addr = {*addr_slot,base_type};
+                    const auto store_err = do_addr_store(itl,func,reg.slot,dst_addr);
                     if(!!store_err)
                     {
                         return store_err;
@@ -567,7 +568,8 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
                     return assign_err;
                 }
 
-                const auto store_err = do_addr_store(itl,func,reg.slot,*addr_slot,base_type);
+                const TypedAddr dst_addr = {*addr_slot,base_type};
+                const auto store_err = do_addr_store(itl,func,reg.slot,dst_addr);
                 if(!!store_err)
                 {
                     return store_err;

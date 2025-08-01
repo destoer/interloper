@@ -595,7 +595,7 @@ TypeResult access_enum_struct_member(Interloper& itl,Function& func,Type* struct
 
 
 // return type, slot, offset
-Result<std::pair<Type*,AddrSlot>,itl_error> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
+Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
     BinNode* member_root =(BinNode*)node;
 
@@ -700,7 +700,9 @@ Result<std::pair<Type*,AddrSlot>,itl_error> compute_member_addr(Interloper& itl,
                 if(is_pointer(struct_type))
                 {
                     RegSlot addr_slot = new_tmp_ptr(func);
-                    const auto load_err = do_addr_load(itl,func,addr_slot,struct_slot,struct_type);
+                    const TypedAddr src_addr = {struct_slot,struct_type};
+
+                    const auto load_err = do_addr_load(itl,func,addr_slot,src_addr);
                     if(!!load_err)
                     {
                         return *load_err;
@@ -780,7 +782,8 @@ Result<std::pair<Type*,AddrSlot>,itl_error> compute_member_addr(Interloper& itl,
                 {
                     const RegSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    const auto load_err = do_addr_load(itl,func,vla_ptr,struct_slot,make_builtin(itl,GPR_SIZE_TYPE));
+                    const TypedAddr src_addr = {struct_slot,make_builtin(itl,GPR_SIZE_TYPE)};
+                    const auto load_err = do_addr_load(itl,func,vla_ptr,src_addr);
                     if(!!load_err)
                     {
                         return *load_err;
@@ -816,7 +819,7 @@ Result<std::pair<Type*,AddrSlot>,itl_error> compute_member_addr(Interloper& itl,
         }
     }
 
-    return std::pair{struct_type,struct_slot};
+    return TypedAddr{struct_slot,struct_type};
 }
 
 RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
@@ -828,10 +831,10 @@ RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
         return member_addr_res.error();
     }
 
-    auto [type,addr_slot] = *member_addr_res;
+    auto dst_addr = *member_addr_res;
 
-    const RegSlot ptr = collapse_struct_res(itl,func,addr_slot);
-    return TypedReg{ptr,make_reference(itl,type)};
+    const RegSlot ptr = collapse_struct_res(itl,func,dst_addr.addr);
+    return TypedReg{ptr,make_reference(itl,dst_addr.type)};
 }
 
 Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& src, AstNode *node)
@@ -843,15 +846,15 @@ Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& s
         return member_addr_res.error();
     }
 
-    const auto [accessed_type, addr_slot] = *member_addr_res;
+    const auto dst_addr = *member_addr_res;
 
-    const auto assign_err = check_assign(itl,accessed_type,src.type);
+    const auto assign_err = check_assign(itl,dst_addr.type,src.type);
     if(!!assign_err)
     {
         return *assign_err;
     }
 
-    return do_addr_store(itl,func,src.slot,addr_slot,accessed_type);
+    return do_addr_store(itl,func,src.slot,dst_addr);
 }
 
 
@@ -866,36 +869,36 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
         return member_addr_res.error();
     }
 
-    auto [accessed_type, addr_slot] = *member_addr_res;
+    auto src_addr = *member_addr_res;
 
     // len access on fixed sized array
-    if(is_special_reg(addr_slot.slot,spec_reg::access_fixed_len_reg))
+    if(is_special_reg(src_addr.addr.slot,spec_reg::access_fixed_len_reg))
     {
         // dont need any of the new instrs for this
         // get rid of them
         get_cur_list(func.emitter) = list_old;
 
-        const ArrayType* array_type = (ArrayType*)accessed_type;
+        const ArrayType* array_type = (ArrayType*)src_addr.type;
 
         mov_imm(itl,func,dst_slot,array_type->size);
         return make_builtin(itl,builtin_type::u32_t);
     }
 
     // let caller handle reads via array accessors
-    if(is_fixed_array(accessed_type))
+    if(is_fixed_array(src_addr.type))
     {
-        const RegSlot ptr = collapse_struct_res(itl,func,addr_slot);
+        const RegSlot ptr = collapse_struct_res(itl,func,src_addr.addr);
         mov_reg(itl,func,dst_slot,ptr);
-        return accessed_type;
+        return src_addr.type;
     }
 
-    const auto load_err = do_addr_load(itl,func,dst_slot,addr_slot,accessed_type);
+    const auto load_err = do_addr_load(itl,func,dst_slot,src_addr);
     if(!!load_err)
     {
         return *load_err;
     }
 
-    return accessed_type;
+    return src_addr.type;
 }
 
 
@@ -980,7 +983,8 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
                 return assign_err;
             }
 
-            return do_addr_store(itl,func,reg.slot,addr_member,member.type);
+            const TypedAddr dst_addr = {addr_member,member.type};
+            return do_addr_store(itl,func,reg.slot,dst_addr);
         }
     }
 
@@ -1114,7 +1118,8 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
                         return assign_err;
                     } 
 
-                    const auto store_err = do_addr_store(itl,func,reg.slot,member_addr,member.type);
+                    const TypedAddr dst_addr = {member_addr,member.type};
+                    const auto store_err = do_addr_store(itl,func,reg.slot,dst_addr);
                     if(!!store_err)
                     {
                         return store_err;
@@ -1152,7 +1157,8 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
             }
 
             const RegSlot tmp = imm_zero(itl,func);
-            const auto store_err = do_addr_store(itl,func,tmp,member_addr,member.type);
+            const TypedAddr dst_addr = {member_addr,member.type};
+            const auto store_err = do_addr_store(itl,func,tmp,dst_addr);
             if(!!store_err)
             {
                 return store_err;

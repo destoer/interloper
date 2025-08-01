@@ -1147,9 +1147,9 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
                     return addr_res.error();
                 }
 
-                auto [ltype, addr_slot] = *addr_res;
+                auto dst_addr = *addr_res;
 
-                return compile_init_list(itl,func,ltype,addr_slot,assign_node->right);
+                return compile_init_list(itl,func,dst_addr.type,dst_addr.addr,assign_node->right);
             }
 
             else
