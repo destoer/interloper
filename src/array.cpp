@@ -906,7 +906,7 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
     return option::none;
 }
 
-TypeResult slice_array_addr(Interloper& itl, Function& func, SliceNode* slice_node, RegSlot dst_slot, TypedAddr arr)
+TypeResult slice_array_addr(Interloper& itl, Function& func, SliceNode* slice_node, RegSlot dst_slot, const TypedAddr& arr)
 {
     if(!is_array(arr.type))
     {

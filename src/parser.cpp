@@ -644,7 +644,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
             // perform peeking for modifers
             if(match(parser,token_type::sl_brace))
             {
-                const auto slice_opt = try_parse_slice(parser,t);
+                const auto slice_opt = try_parse_slice(parser,member_tok);
 
                 if(!!slice_opt)
                 {

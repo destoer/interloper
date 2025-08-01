@@ -1,6 +1,7 @@
 Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, RecordNode* node, AddrSlot addr_slot, const Struct& structure);
 Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot addr_member, const Member& member, AstNode* node);
 TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot dst, StructInitializerNode* struct_initializer);
+TypeResult slice_array_addr(Interloper& itl, Function& func, SliceNode* slice_node, RegSlot dst_slot, const TypedAddr& arr);
 
 void print_member(Interloper& itl,const Member& member)
 {
@@ -726,6 +727,28 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                         break;
                     }
                 }   
+                break;
+            }
+
+            case ast_type::slice:
+            {
+                SliceNode* slice_node = (SliceNode*)n;
+
+                const auto err = access_struct_member(itl,slice_node->name,&struct_addr);
+                if(!!err)
+                {
+                    return *err;
+                }
+
+                const RegSlot dst_slot = new_struct(func,GPR_SIZE * 2);
+                const auto slice_res = slice_array_addr(itl,func,slice_node,dst_slot,struct_addr);
+
+                if(!slice_res)
+                {
+                    return slice_res.error();
+                }
+
+                struct_addr = {make_struct_addr(dst_slot,0),*slice_res};
                 break;
             }
 

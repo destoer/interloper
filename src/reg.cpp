@@ -218,22 +218,13 @@ Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
     return reg;
 }
 
-Reg make_reg(const RegSlot& slot, u32 size, b32 is_signed, b32 is_float)
+Reg make_reg(const RegSlot& slot, u32 size, u32 flags)
 {
     Reg reg;
     reg.slot = slot;
 
     assign_reg_size(reg,size);
-
-    if(is_signed)
-    {
-        reg.flags |= SIGNED_FLAG;
-    }
-
-    if(is_float)
-    {
-        reg.flags |= REG_FLOAT;
-    }
+    reg.flags = flags;
 
     return reg;
 }
@@ -299,7 +290,19 @@ RegSlot new_tmp(Function& func, u32 size)
 
     const auto reg_slot = make_tmp_reg_slot(tmp_slot);
 
-    const auto reg = make_reg(reg_slot,size,false,false);
+    const auto reg = make_reg(reg_slot,size,0);
+    push_var(func.registers,reg);
+
+    return reg_slot;
+}
+
+RegSlot new_struct(Function& func, u32 size)
+{
+    const TmpSlot tmp_slot = {count(func.registers)};
+
+    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
+
+    const auto reg = make_reg(reg_slot,size,STORED_IN_MEM);
     push_var(func.registers,reg);
 
     return reg_slot;
@@ -310,7 +313,7 @@ RegSlot new_float(Function& func)
     const TmpSlot tmp_slot = {count(func.registers)};
     const auto reg_slot = make_tmp_reg_slot(tmp_slot);
 
-    auto reg = make_reg(reg_slot,sizeof(f64),false,true);
+    auto reg = make_reg(reg_slot,sizeof(f64),REG_FLOAT);
     push_var(func.registers,reg);
 
     return reg_slot;  
