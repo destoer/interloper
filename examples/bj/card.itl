@@ -108,9 +108,9 @@ func print_hand(hand : const Hand@, name : const string)
 {
     std::print("{}: ",name);
 
-    for(c in 0 < hand.count)
+    for(@card in hand.card[:hand.count])
     {
-        print_card(&hand.card[c]);
+        print_card(card);
     }
     
     std::print("value: {}\n",hand.value);

@@ -830,9 +830,8 @@ RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 
     auto [type,addr_slot] = *member_addr_res;
 
-    collapse_struct_offset(itl,func,&addr_slot);
-
-    return TypedReg{addr_slot.slot,make_reference(itl,type)};
+    const RegSlot ptr = collapse_struct_res(itl,func,addr_slot);
+    return TypedReg{ptr,make_reference(itl,type)};
 }
 
 Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& src, AstNode *node)
@@ -885,8 +884,8 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
     // let caller handle reads via array accessors
     if(is_fixed_array(accessed_type))
     {
-        collapse_struct_offset(itl,func,&addr_slot);
-        mov_reg(itl,func,dst_slot,addr_slot.slot);
+        const RegSlot ptr = collapse_struct_res(itl,func,addr_slot);
+        mov_reg(itl,func,dst_slot,ptr);
         return accessed_type;
     }
 

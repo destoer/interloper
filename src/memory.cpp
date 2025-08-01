@@ -16,20 +16,21 @@ AddrSlot take_addr(Interloper& itl, Function& func, RegSlot src, u32 offset)
     return make_addr(src_ptr,0);
 }
 
-// get back a complete pointer
-RegSlot collapse_offset(Interloper& itl,Function&func, RegSlot addr_slot, u32 *offset)
+RegSlot collapse_struct_res(Interloper& itl, Function& func, const AddrSlot& struct_slot)
 {
-    if(*offset)
+    if(struct_slot.struct_addr)
     {
-        const RegSlot final_addr = add_imm_res(itl,func,addr_slot,*offset);
-        *offset = 0;
-
-        return final_addr;
+        return addrof_res(itl,func,struct_slot.slot,struct_slot.offset);
     }
-    
+
     else
     {
-        return addr_slot;
+        if(struct_slot.offset)
+        {
+            return add_imm_res(itl,func,struct_slot.slot,struct_slot.offset);
+        }
+
+        return struct_slot.slot;
     }
 }
 
@@ -41,9 +42,10 @@ void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_sl
         *struct_slot = take_addr(itl,func,struct_slot->slot,struct_slot->offset);
     }
 
-    else
+    else if(struct_slot->offset != 0)
     {
-        struct_slot->slot = collapse_offset(itl,func,struct_slot->slot,&struct_slot->offset);
+        struct_slot->slot = add_imm_res(itl,func,struct_slot->slot,struct_slot->offset);
+        struct_slot->offset = 0;     
     }
 }
 
@@ -222,8 +224,8 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,A
         // fixed size array, the pointer is the array
         else
         {
-            collapse_struct_offset(itl,func,&src_addr);
-            mov_reg(itl,func,dst_slot,src_addr.slot);
+            const RegSlot ptr = collapse_struct_res(itl,func,src_addr);
+            mov_reg(itl,func,dst_slot,ptr);
         }
     }
 

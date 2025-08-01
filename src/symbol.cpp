@@ -270,3 +270,14 @@ TypedReg typed_reg(const Symbol& sym)
 {
     return TypedReg{sym.reg.slot,sym.type};
 }
+
+TypedAddr typed_addr(const Symbol& sym)
+{
+    // A fixed array is not a real struct so we have to lie.
+    if(is_fixed_array(sym.type))
+    {
+        return TypedAddr(make_addr(sym.reg.slot,0),sym.type);
+    }
+
+    return TypedAddr{make_struct_addr(sym.reg.slot,0),sym.type};
+}

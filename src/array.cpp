@@ -138,6 +138,20 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
 
 // TODO: these multidimensional handwave vla's
 
+RegSlot load_arr_data(Interloper& itl,Function& func,const TypedAddr& addr_slot)
+{
+    if(is_runtime_size(addr_slot.type))
+    {
+        return load_struct_u64_res(itl,func,addr_slot.addr);
+    }
+
+    // fixed size, array ptr is stored in its own slot!
+    else
+    {
+        return collapse_struct_res(itl,func,addr_slot.addr);
+    }
+}
+
 RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg)
 {
     if(is_runtime_size(reg.type))
@@ -210,6 +224,20 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg)
 
     ArrayType* array_type = (ArrayType*)reg.type;
 
+    return mov_imm_res(itl,func,array_type->size);   
+}
+
+
+RegSlot load_arr_len(Interloper& itl,Function& func,const TypedAddr& addr_slot)
+{
+    if(is_runtime_size(addr_slot.type))
+    {
+        AddrSlot addr_copy = addr_slot.addr;
+        addr_copy.offset += GPR_SIZE;
+        return load_struct_u64_res(itl,func,addr_copy);
+    }
+
+    ArrayType* array_type = (ArrayType*)addr_slot.type;
     return mov_imm_res(itl,func,array_type->size);   
 }
 
@@ -766,8 +794,8 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
         // final plain values
         else
         {
-            collapse_struct_offset(itl,func,&addr_slot);
-            return ir_zero(itl,func,addr_slot.slot,type->size * type->sub_size);
+            const RegSlot ptr = collapse_struct_res(itl,func,addr_slot);
+            return ir_zero(itl,func,ptr,type->size * type->sub_size);
         }
     }
 
@@ -876,24 +904,12 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
     return option::none;
 }
 
-TypeResult slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
+TypeResult slice_array_addr(Interloper& itl, Function& func, SliceNode* slice_node, RegSlot dst_slot, TypedAddr arr)
 {
-    const auto arr_name = slice_node->name;
-    const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
-
-    if(!arr_ptr)
+    if(!is_array(arr.type))
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);      
+        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s\n",type_name(itl,arr.type).buf);       
     }
-
-    const auto arr_sym = *arr_ptr;
-
-    if(!is_array(arr_sym.type))
-    {
-        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s\n",type_name(itl,arr_sym.type).buf);       
-    }
-
-    const auto arr = typed_reg(arr_sym);
 
     RegSlot data_slot = load_arr_data(itl,func,arr);
     RegSlot slice_lower = make_spec_reg_slot(spec_reg::null);
@@ -967,4 +983,20 @@ TypeResult slice_array(Interloper& itl, Function& func,SliceNode* slice_node, Re
     }
 
     return arr.type;
+}
+
+TypeResult slice_array(Interloper& itl, Function& func,SliceNode* slice_node, RegSlot dst_slot)
+{
+    const auto arr_name = slice_node->name;
+    const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
+
+    if(!arr_ptr)
+    {
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);      
+    }
+
+    const auto arr_sym = *arr_ptr;
+    const auto arr = typed_addr(arr_sym);
+
+    return slice_array_addr(itl,func,slice_node,dst_slot,arr);
 }

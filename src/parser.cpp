@@ -4,7 +4,7 @@
 
 Result<BlockNode*,parse_error> block(Parser &parser);
 ParserResult block_ast(Parser &parser);
-
+Option<ParserResult> try_parse_slice(Parser& parser, const Token& t);
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
@@ -644,13 +644,30 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
             // perform peeking for modifers
             if(match(parser,token_type::sl_brace))
             {
-                auto index_res = array_index(parser,member_tok);
-                if(!index_res)
+                const auto slice_opt = try_parse_slice(parser,t);
+
+                if(!!slice_opt)
                 {
-                    return index_res;
+                    const auto slice = *slice_opt;
+
+                    if(!slice)
+                    {
+                        return slice;
+                    }
+
+                    push_var(member_root->nodes,*slice);
                 }
 
-                push_var(member_root->nodes,*index_res);
+                else
+                {
+                    auto index_res = array_index(parser,member_tok);
+                    if(!index_res)
+                    {
+                        return index_res;
+                    }
+
+                    push_var(member_root->nodes,*index_res);
+                }
             }
 
             // plain old member
@@ -746,7 +763,7 @@ ParserResult arr_slice(Parser& parser,const Token& t)
     return (AstNode*)slice_node;
 }
 
-ParserResult arr_access(Parser& parser, const Token& t)
+Option<ParserResult> try_parse_slice(Parser& parser, const Token& t)
 {
     // Check for a ':' to detect slicing.
     // For now only support it on the first index.
@@ -758,6 +775,18 @@ ParserResult arr_access(Parser& parser, const Token& t)
             return arr_slice(parser,t);
         }
         peek_offset += 1;
+    }
+
+    return option::none;
+}
+
+ParserResult arr_access(Parser& parser, const Token& t)
+{
+    const auto slice_opt = try_parse_slice(parser,t);
+
+    if(!!slice_opt)
+    {
+        return *slice_opt;
     }
 
     // Standard array access.
