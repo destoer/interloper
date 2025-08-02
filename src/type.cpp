@@ -1430,6 +1430,14 @@ b32 plain_type_equal(const Type* ltype, const Type* rtype)
             return cast_builtin(ltype) == cast_builtin(rtype);
         }
 
+        case type_class::enum_t:
+        {
+            EnumType* enum_ltype = (EnumType*)ltype;
+            EnumType* enum_rtype = (EnumType*)rtype; 
+            
+            return enum_ltype->enum_idx == enum_rtype->enum_idx;
+        }
+
         default:
         {
             assert(false);

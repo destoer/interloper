@@ -85,6 +85,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     // type alias
 
     // tuple
+    {"tests/tuple/tuple_invalid_assign",itl_error::undefined_type_oper},
 };
 
 static constexpr u32 PROGRAM_ERROR_TEST_SIZE = sizeof(PROGRAM_ERROR_TEST) / sizeof(ProgramErrorTest);

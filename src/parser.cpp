@@ -497,6 +497,12 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                 break;
             }
 
+            case token_type::ignore:
+            {
+                sym_node = ast_plain(parser,ast_type::ignore,sym_tok);
+                break;
+            }
+
             case token_type::deref:
             {
                 const Token deref_tok = next_token(parser);

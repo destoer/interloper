@@ -457,7 +457,7 @@ Result<u32,itl_error> push_va_args(Interloper& itl, Function& func, FuncCallNode
     // va_arg is optional
     if(actual_args - 1 > count(call_node->args))
     {
-        return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call va_argsexpected at least %d args got %d\n",
+        return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call va_args expected at least %d args got %d\n",
             actual_args - 1,count(call_node->args));   
     }
 
@@ -511,7 +511,8 @@ Result<u32,itl_error> push_va_args(Interloper& itl, Function& func, FuncCallNode
     return arg_clean;
 }
 
-Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, RegSlot dst_slot, Type* return_type)
+Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, 
+    RegSlot dst_slot, const Array<Type*>& return_type)
 {
     // pass in tuple dst
     if(tuple_node)
@@ -520,9 +521,22 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
         for(s32 a = count(tuple_node->symbols) - 1; a >= 0; a--)
         {
             AstNode* var_node = tuple_node->symbols[a];
+            Type* rtype = return_type[a];
 
             switch(var_node->type)
             {
+                // TODO: There is a more optimal way to reuse memory on this.
+                // We should keep around a single value and keep bumping its memory usage up to the largest extent.
+                case ast_type::ignore:
+                {
+                    const auto tmp = new_struct(func,type_size(itl,rtype));
+
+                    const auto addr_slot = addrof_res(itl,func,tmp);
+                    const TypedReg reg = {addr_slot,make_reference(itl,rtype)};
+                    pass_arg(itl,func,pass,reg,a);
+                    break;
+                }
+
                 case ast_type::symbol:
                 {
                     const LiteralNode *sym_node = (LiteralNode*)var_node;
@@ -535,6 +549,13 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
                     }
 
                     const auto &sym = *sym_ptr;
+
+                    const auto err = check_assign(itl,sym.type,rtype);
+                    if(!!err)
+                    {
+                        return *err;
+                    }
+
                     spill_slot(itl,func,sym.reg);
 
                     const RegSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
@@ -552,7 +573,15 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
                         return member_ptr_res.error();
                     }
 
-                    pass_arg(itl,func,pass,*member_ptr_res,a);
+                    const TypedReg member_ptr = *member_ptr_res;
+                    const auto err = check_assign(itl,deref_pointer(member_ptr.type),rtype);
+
+                    if(!!err)
+                    {
+                        return err;
+                    }
+
+                    pass_arg(itl,func,pass,member_ptr,a);
                     break;
                 }
 
@@ -564,7 +593,15 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
                         return index_res.error();
                     }
 
-                    pass_arg(itl,func,pass,*index_res,a);
+                    const TypedReg index = *index_res;
+                    const auto err = check_assign(itl,deref_pointer(index.type),rtype);
+
+                    if(!!err)
+                    {
+                        return err;
+                    }
+
+                    pass_arg(itl,func,pass,index,a);
                     break;
                 }
 
@@ -578,7 +615,15 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
                         return res.error();
                     }
 
-                    pass_arg(itl,func,pass,*res,a);
+                    const auto ptr = *res;
+                    const auto err = check_assign(itl,deref_pointer(ptr.type),rtype);
+
+                    if(!!err)
+                    {
+                        return err;
+                    }
+
+                    pass_arg(itl,func,pass,ptr,a);
                     break;                     
                 }
 
@@ -594,12 +639,14 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
     // use the dst slot
     else
     {
+        Type* type = return_type[0];
+
         switch(dst_slot.kind)
         {
             case reg_kind::sym:
             {
                 const RegSlot addr = addrof_res(itl,func,dst_slot);
-                const TypedReg reg = {addr,make_reference(itl,return_type)};
+                const TypedReg reg = {addr,make_reference(itl,type)};
                 pass_arg(itl,func,pass,reg,0);
                 break;
             }
@@ -609,7 +656,7 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
                 alloc_slot(itl,func,dst_slot,true);
                 
                 const RegSlot addr = addrof_res(itl,func,dst_slot);
-                const TypedReg reg = {addr,make_reference(itl,return_type)};
+                const TypedReg reg = {addr,make_reference(itl,type)};
                 pass_arg(itl,func,pass,reg,0);
                 break;
             }
@@ -623,7 +670,7 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
                         // this is nested pass in the current hidden return
                         if(func.sig.hidden_args == 1)
                         {
-                            const TypedReg reg = {make_sym_reg_slot(func.sig.args[0]),make_reference(itl,return_type)};
+                            const TypedReg reg = {make_sym_reg_slot(func.sig.args[0]),make_reference(itl,type)};
                             pass_arg(itl,func,pass,reg,0);
                         }
 
@@ -860,7 +907,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
     {
         if(!tuple_node)
         {
-            return compile_error(itl,itl_error::tuple_mismatch,"Attempted to call multiple return function nested in a expression\n");
+            return compile_error(itl,itl_error::tuple_mismatch,"Tuple result unused\n");
         }
 
         if(count(call_info.sig.return_type) != count(tuple_node->symbols))
@@ -1003,7 +1050,7 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
 
     if(hidden_args)
     {
-        const auto hidden_err = push_hidden_args(itl,func,pass,tuple_node,dst_slot,sig.return_type[0]);
+        const auto hidden_err = push_hidden_args(itl,func,pass,tuple_node,dst_slot,sig.return_type);
         if(!!hidden_err)
         {
             destroy_arg_pass(pass);

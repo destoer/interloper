@@ -1187,7 +1187,6 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
             return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
                 func.name.buf,count(record_node->nodes),count(func.sig.return_type));
         }
-            
 
         // single return
         if(count(record_node->nodes) == 1)
