@@ -51,7 +51,7 @@ struct OSWindow
     reply_callback : std::HashTable;
 }
 
-type_alias REPLY_CALLBACK_FUNC = func(win: OSWindow@, len: u32, raw_data: byte?) result;
+type_alias REPLY_CALLBACK_FUNC = func(win: OSWindow@, len: u32, raw_data: byte?) win_result;
 
 struct ReplyCallback
 {
@@ -129,7 +129,7 @@ func pad_x11(E : u32) u32
     return (4 - (E & 3)) & 3;
 }
 
-func send_req(win : OSWindow@, v : const byte@, size: usize) [u32, result]
+func send_req(win : OSWindow@, v : const byte@, size: usize) [u32, net_result]
 {
     log::debug(X11_PREFIX,"Send req seq: {} op: {}",win.seq_count,@v);
     res := net::send_raw_all(&win.sock,v,size);
@@ -141,7 +141,7 @@ func send_req(win : OSWindow@, v : const byte@, size: usize) [u32, result]
     return seq, res;
 }
 
-func send_auth_packet(win: OSWindow@, buf: std::Array@) result
+func send_auth_packet(win: OSWindow@, buf: std::Array@) net_result
 {
     // reset our working buffer
     std::clear_array(buf);
@@ -175,7 +175,7 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) result
         if(err)
         {
             log::error(X11_PREFIX,"Could not read authority cookie {}",authority);
-            return result::err;
+            return net_result::err;
         }
 
     
@@ -187,7 +187,7 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) result
         if(find_err == result::err)
         {
             log::error(X11_PREFIX,"Could not parse authority cookie {}",authority);
-            return result::err; 
+            return net_result::err; 
         }
 
         // 2 bytes for data len (in this case its fixed)
@@ -196,7 +196,7 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) result
         if(bin.len - cookie_offset < cookie_size)
         {
             log::error(X11_PREFIX,"Authority cookie is too small {}",authority);
-            return result::err;     
+            return net_result::err;     
         }
 
         cookie := bin[cookie_offset:cookie_offset + cookie_size];
@@ -207,31 +207,35 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) result
         std::push_u16(buf,0);
 
         // actually send the packet
-        if(net::send_array_all(&win.sock,buf) == result::err)
+        res := net::send_array_all(&win.sock,buf);
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
 
-        if(net::send_str_all(&win.sock,auth_proto) == result::err)
+        res = net::send_str_all(&win.sock,auth_proto);
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
 
-        res := net::send_raw_all(&win.sock,auth_proto.data,pad_x11(cast(u32,auth_proto.len)));
-        if(res == result::err)
+        res = net::send_raw_all(&win.sock,auth_proto.data,pad_x11(cast(u32,auth_proto.len)));
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
 
-        if(net::send_all(&win.sock,cookie) == result::err)
+        res = net::send_all(&win.sock,cookie);
+
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
 
         res = net::send_raw_all(&win.sock,cookie.data,pad_x11(cast(u32,cookie.len)));
-        if(res == result::err)
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
 
         std::destroy_arr_heap_byte(&itl_context.heap,&bin);
@@ -246,16 +250,17 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) result
         std::push_u16(buf,0);
 
         // actually send the packet
-        if(net::send_array_all(&win.sock,buf) == result::err)
+        res := net::send_array_all(&win.sock,buf);
+        if(res != net_result::ok)
         {
-            return result::err;
+            return net_result::err;
         }
     }
 
-    return result::ok;
+    return net_result::ok;
 }
 
-func read_x11_reply(win: OSWindow@, size : u32) result
+func read_x11_reply(win: OSWindow@, size : u32) net_result
 {
     // get our specified bytes
     return net::recv_clear_array(&win.sock,&win.packet,size);
@@ -353,7 +358,7 @@ struct XVisualType
     pad1 : u32;
 }
 
-func read_setup_info(win: OSWindow@,reply: const AuthReply@) result
+func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
 {
     buf := &win.packet;
 
@@ -366,27 +371,27 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) result
     info: XSetupInfo = {?};
     res := net::recv_raw_all(&win.sock,&info,sizeof_data(XSetupInfo));
 
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"Unable to read setup info");
-        return result::err;
+        return res;
     }
 
     log::debug(X11_PREFIX,"big endian bitmap order: {}",cast(bool,info.bitmap_order));
 
     res = read_x11_reply(win,info.vendor_size);
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"Unable to read vendor size");
-        return result::err;
+        return res;
     }
 
     log::debug(X11_PREFIX,"vendor {}",std::str_from_array(buf),info.vendor_size);
 
     res = net::recv_ignore(&win.sock,pad_x11(info.vendor_size));
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return result::err;
+        return res;
     }
 
     log::debug(X11_PREFIX,"resource {b} : {b}\n",info.resource_id_base,info.resource_id_mask);
@@ -408,9 +413,9 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) result
         fmt: XFormat = {?};
         res = net::recv_raw_all(&win.sock,&fmt,sizeof_data(XFormat));
 
-        if(res == result::err)
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
     
         log::trace(X11_PREFIX,"format {}",i);
@@ -424,9 +429,9 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) result
         screen : XScreen = {?};
         res = net::recv_raw_all(&win.sock,&screen,sizeof_data(XScreen));
 
-        if(res == result::err)
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
 
         log::debug(X11_PREFIX,"screen {}",i);
@@ -448,9 +453,9 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) result
             depth: XDepth = {?};
             res = net::recv_raw_all(&win.sock,&depth,sizeof_data(XDepth));
 
-            if(res == result::err)
+            if(res != net_result::ok)
             {
-                return result::err;
+                return res;
             }
 
             log::trace(X11_PREFIX,"depth {}",depth.depth);
@@ -460,9 +465,9 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) result
                 visual_type: XVisualType = {?};
                 res = net::recv_raw_all(&win.sock,&visual_type,sizeof_data(XVisualType));
 
-                if(res == result::err)
+                if(res != net_result::ok)
                 {
-                    return result::err;
+                    return res;
                 }
                 
                 log::trace(X11_PREFIX,"id {}",visual_type.id);
@@ -472,7 +477,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) result
         }
     }
 
-    return result::ok;
+    return net_result::ok;
 }
 
 enum auth_result
@@ -492,13 +497,14 @@ struct AuthReply
     data_len: u16;
 }
 
-func authenticate(win: OSWindow@) result
+func authenticate(win: OSWindow@) net_result
 {
     buf := &win.packet;
 
-    if(send_auth_packet(win,buf) == result::err)
+    res := send_auth_packet(win,buf);
+    if(res != net_result::ok)
     {
-        return result::err;
+        return res;
     }
 
     // recv back our data
@@ -506,10 +512,10 @@ func authenticate(win: OSWindow@) result
 
     recv_res := net::recv_raw_all(&win.sock,&reply,sizeof_data(AuthReply));
 
-    if(recv_res == result::err)
+    if(recv_res != net_result::ok)
     {
         log::error(X11_PREFIX,"Failed to read back auth packet");
-        return result::err;
+        return recv_res;
     }
 
     auth_res := cast(auth_result,reply.rc);
@@ -526,29 +532,29 @@ func authenticate(win: OSWindow@) result
         {
             log::error(X11_PREFIX,"Authentication failed");
 
-            res := read_x11_reply(win,reply.reason_len);
-            if(res == result::err)
+            res = read_x11_reply(win,reply.reason_len);
+            if(res != net_result::ok)
             {
                 log::error(X11_PREFIX, "Failed to read authentication failure reason");
-                return result::err;
+                return res;
             }
 
             str := std::str_from_array(&win.packet);
             log::error(X11_PREFIX,"Failure reason: {}",str);
 
-            return result::err;
+            return net_result::err;
         }
 
 
         case auth_result::authenticate:
         {
             log::error(X11_PREFIX,"Further authentication required");
-            return result::err;
+            return net_result::err;
         }
     }
 
     log::error(X11_PREFIX,"Authentication failed with unknown code {}",reply.rc);
-    return result::err;
+    return net_result::err;
 }
 
 
@@ -567,7 +573,7 @@ struct XMapWindow
 }
 
 
-func map_window(win : OSWindow@, id : u32) result
+func map_window(win : OSWindow@, id : u32) net_result
 {
     map : XMapWindow;
     map.window = id;
@@ -587,7 +593,7 @@ struct XDestroyWindow
 }
 
 // TODO: we need namspacing 
-func x11_destroy_window(win : OSWindow@, id : u32) result
+func x11_destroy_window(win : OSWindow@, id : u32) net_result
 {
     destroy : XDestroyWindow;
     destroy.window = id;
@@ -607,7 +613,7 @@ enum x_reply_type : u8
     configure_notify = 22,
 }
 
-func process_reply(win : OSWindow@) result
+func process_reply(win : OSWindow@) win_result
 {
     buf := &win.packet;
 
@@ -619,7 +625,8 @@ func process_reply(win : OSWindow@) result
     if(!callback_opt)
     {
         // just burn the reply
-        return net::recv_ignore(&win.sock,len);
+        res := net::recv_ignore(&win.sock,len);
+        return net_res_to_win(res);
     }
 
     reply_callback := cast(ReplyCallback@,callback_opt);
@@ -690,7 +697,7 @@ struct XPutImageBig
 }
 
 
-func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride: u32) result
+func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride: u32) net_result
 {
     // calc data size
     pixel_size := cast(u32,lines * stride * sizeof_type(u32));
@@ -721,9 +728,9 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
 
         [_,res] := send_req(win,&put_image,sizeof_data(XPutImageBig));
 
-        if(res == result::err)
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
     }
 
@@ -745,16 +752,17 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
         put_image.len += cast(u16,bytes);
         
         [_, res] := send_req(win,&put_image,sizeof_data(XPutImage));
-        if(res == result::err)
+        if(res != net_result::ok)
         {
-            return result::err;
+            return res;
         }
     }
 
     // send pending data
-    if(net::send_raw_all(&win.sock,ptr,pixel_size) == result::err)
+    res := net::send_raw_all(&win.sock,ptr,pixel_size);
+    if(res != net_result::ok)
     {
-        return result::err;
+        return res;
     }
 
     //std::print("sent {}\n",pixel_size + pad);
@@ -764,7 +772,7 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
     return net::send_raw_all(&win.sock,ptr,pad);
 }
 
-func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u32) result
+func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u32) win_result
 {
     lines := win.max_lines;
     ptr := screen.data;
@@ -775,15 +783,17 @@ func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u
     {
         to_draw := std::min_u32(lines,height - y);
 
-        if(draw_lines(win,ptr,y,to_draw,width) == result::err)
+        res := draw_lines(win,ptr,y,to_draw,width);
+
+        if(res != net_result::ok)
         {
-            return result::err;
+            return net_res_to_win(res);
         }
 
         ptr += offset;
     }
 
-    return result::ok;
+    return win_result::ok;
 }
 
 
@@ -837,14 +847,14 @@ func x_key_event(std_win: Window@, keycode: u8, down: bool)
 }
 
 
-func os_process_events(std_win: Window@) result
+func os_process_events(std_win: Window@) win_result
 {
     win := &std_win.os_win;
 
     if(!net::socket_valid(&win.sock))
     {
         std_win.quit = true;
-        return result::err;
+        return win_result::closed;
     }
 
     // while socket has data or we are waiting for specific notificaiton
@@ -855,9 +865,9 @@ func os_process_events(std_win: Window@) result
         // TODO: we probably want to peek this...
         res := net::recv_clear_array(&win.sock,buf,32);
 
-        if(res == result::err)
+        if(res != net_result::ok)
         {
-            return result::err;
+            return net_res_to_win(res);
         }
 
         type: x_reply_type;
@@ -868,7 +878,7 @@ func os_process_events(std_win: Window@) result
             case x_reply_type::error:
             {
                 process_error(win);
-                return result::err;
+                return win_result::err;
             }
 
             case x_reply_type::reply:
@@ -912,7 +922,7 @@ func os_process_events(std_win: Window@) result
         }
     }
 
-    return result::ok;
+    return win_result::ok;
 }
 
 
@@ -934,7 +944,7 @@ struct XCreateWindow
     value_mask : u32;
 }
 
-func create_window(win : OSWindow@, x : u32, y : u32) result
+func create_window(win : OSWindow@, x : u32, y : u32) net_result
 {
     win.reply_callback = std::make_hash_table(u32.size,ReplyCallback.size,&std::hash_u32,&std::hash_cmp_mem);
 
@@ -982,13 +992,14 @@ func create_window(win : OSWindow@, x : u32, y : u32) result
     // send the main request
     [_, res] := send_req(win,&win_req,sizeof_data(XCreateWindow));
 
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return result::err;
+        return res;
     }
 
     // send end list
-    if(net::send_array_all(&win.sock,packet) == result::err)
+    res = net::send_array_all(&win.sock,packet); 
+    if(res != net_result::ok)
     {
         return res;
     }
@@ -1008,7 +1019,7 @@ struct XCreateGC
     value_mask: u32;
 }
 
-func create_gfx_ctx(win: OSWindow@) result
+func create_gfx_ctx(win: OSWindow@) net_result
 {
     // reserve id for gfx ctx
     win.gfx_ctx = alloc_resource(win);
@@ -1065,7 +1076,7 @@ constant XA_WM_ICON_NAME: u32 = 37;
 constant XA_WM_NAME: u32 = 39;
 constant STRING_TYPE : u32 = 31;
 
-func x11_set_str_property(win: OSWindow@, property: u32,str: const string) result
+func x11_set_str_property(win: OSWindow@, property: u32,str: const string) net_result
 {
     prop : XChangeProperty;
     prop.window = win.window_id;
@@ -1080,25 +1091,25 @@ func x11_set_str_property(win: OSWindow@, property: u32,str: const string) resul
     prop.len += bytes;
 
     [_, res] := send_req(win,&prop,sizeof_data(XChangeProperty));
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return result::err;
+        return res;
     }
 
     res = net::send_str_all(&win.sock,str);
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return result::err;
+        return res;
     }
 
     // just send struct as padding
     return net::send_raw_all(&win.sock,&prop,pad);
 }
 
-func os_set_window_name(win: OSWindow@, str: const string) result
+func os_set_window_name(win: OSWindow@, str: const string) net_result
 {
     res := x11_set_str_property(win,XA_WM_NAME,str);
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         return res;
     }
@@ -1110,18 +1121,19 @@ func os_set_window_name(win: OSWindow@, str: const string) result
     return res;
 }
 
-func wait_for_reply(std_win: Window@, done: bool@) result
+func wait_for_reply(std_win: Window@, done: bool@) win_result
 {
     while(!@done)
     {
-        if(process_events(std_win) == result::err)
+        res := process_events(std_win);
+        if(res != win_result::ok)
         {
             log::error(X11_PREFIX,"Error processing events while waiting for reply");
-            return result::err;
+            return res;
         }       
     }
 
-    return result::ok;
+    return win_result::ok;
 }
 
 #attr(no_reorder)
@@ -1141,17 +1153,17 @@ struct ExtenstionQuery
     enabled: bool;
 }
 
-func ext_query_callback(win: OSWindow@, len: u32, data: byte?) result
+func ext_query_callback(win: OSWindow@, len: u32, data: byte?) win_result
 {
     ext_query := cast(ExtenstionQuery@,data);
     ext_query.replied = true;
     ext_query.enabled = cast(bool,std::read_buffer_u8(&win.packet,8));
     ext_query.opcode = std::read_buffer_u8(&win.packet,9);
 
-    return result::ok;
+    return win_result::ok;
 }
 
-func query_extenstion(std_win: Window@, str: const string) [ExtenstionQuery, result]
+func query_extenstion(std_win: Window@, str: const string) [ExtenstionQuery, net_result]
 {
     win := &std_win.os_win;
 
@@ -1166,28 +1178,34 @@ func query_extenstion(std_win: Window@, str: const string) [ExtenstionQuery, res
     query_reply: ExtenstionQuery;
 
     [ext_query_seq, res] := send_req(win,&query,sizeof_data(XQueryExtension));
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return query_reply, result::err;
+        return query_reply, res;
     }
 
-    if(net::send_str_all(&win.sock,str) == result::err)
+    res = net::send_str_all(&win.sock,str);
+    if(res != net_result::ok)
     {
-        return  query_reply, result::err;
+        return  query_reply, res;
     }
 
     // just send struct as padding
     res = net::send_raw_all(&win.sock,&query,pad);
 
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return query_reply, result::err;
+        return query_reply, res;
     }
 
     callback: ReplyCallback = {&ext_query_callback,&query_reply};
     add_reply_callback(win,ext_query_seq,&callback);
 
-    res = wait_for_reply(std_win,&query_reply.replied);
+    reply_res := wait_for_reply(std_win,&query_reply.replied);
+
+    if(reply_res != win_result::ok)
+    {
+        res = net_result::err;
+    }
 
     return query_reply, res;
 }
@@ -1206,33 +1224,33 @@ struct XBigReqReply
     max_req: u32;
 }
 
-func enable_big_req_callback(win: OSWindow@, len: u32, data: byte?) result
+func enable_big_req_callback(win: OSWindow@, len: u32, data: byte?) win_result
 {
     reply := cast(XBigReqReply@,data);
 
     reply.replied = true;
     reply.max_req = std::read_buffer_u32(&win.packet,8) * 4;
 
-    return result::ok;
+    return win_result::ok;
 }
 
-func enable_big_req(std_win: Window@) [bool, result]
+func enable_big_req(std_win: Window@) [bool, net_result]
 {
     win := &std_win.os_win;
 
     // send ext query
     [ext_query, res] := query_extenstion(std_win,"BIG-REQUESTS");
 
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return false, result::err;
+        return false, res;
     }
 
     win.big_req = ext_query.enabled;
 
     if(!win.big_req)
     {
-        return false, result::ok;
+        return false, net_result::ok;
     }
 
     enable: XBigReqEnable;
@@ -1240,26 +1258,26 @@ func enable_big_req(std_win: Window@) [bool, result]
 
     // send the opcode
     [big_req_seq, res] := send_req(win,&enable,sizeof_data(XBigReqEnable));
-    if(res == result::err)
+    if(res == net_result::err)
     {
-        return false, result::err;
+        return false, res;
     }
 
     query_reply: XBigReqReply;
     callback: ReplyCallback = {&enable_big_req_callback,&query_reply};
     add_reply_callback(win,big_req_seq,&callback);
 
-    res = wait_for_reply(std_win,&query_reply.replied);
-    if(res == result::err)
+    reply_res := wait_for_reply(std_win,&query_reply.replied);
+    if(reply_res != win_result::ok)
     {
-        return false, result::err;
+        return false, net_result::err;
     }
 
     win.max_req = query_reply.max_req;
 
     update_max_lines(win);
 
-    return true, result::ok;
+    return true, net_result::ok;
 }
 
 #attr(no_reorder)
@@ -1276,7 +1294,7 @@ struct XGrabKey
     pad1: u8[3];
 }
 
-func grab_keyboard(win: OSWindow@) result
+func grab_keyboard(win: OSWindow@) net_result
 {
     grab: XGrabKey;
 
@@ -1302,7 +1320,7 @@ struct XGetKeyboardMapping
     pad2: u16;
 }
 
-func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) result
+func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) win_result
 {
     replied := cast(bool@,data);
     @replied = true;
@@ -1311,9 +1329,9 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) result
     n := std::read_buffer_u8(&win.packet,1);
 
     res := read_x11_reply(win,len);
-    if(res == result::err)
+    if(res != net_result::err)
     {
-        return result::err;
+        return net_res_to_win(res);
     }
     
     cur : u32 = 0;
@@ -1325,10 +1343,10 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) result
         cur += offset;
     }
     
-    return result::ok;
+    return win_result::ok;
 }
 
-func get_keyboard_mapping(std_win: Window@) result
+func get_keyboard_mapping(std_win: Window@) win_result
 {
     win := &std_win.os_win;
 
@@ -1338,9 +1356,9 @@ func get_keyboard_mapping(std_win: Window@) result
 
     [get_key_map_seq, res] := send_req(win,&map,sizeof_data(XGetKeyboardMapping));
 
-    if(res == result::err)
+    if(res != net_result::ok)
     {
-        return result::err;
+        return net_res_to_win(res);
     }
 
     replied: bool;
@@ -1351,7 +1369,14 @@ func get_keyboard_mapping(std_win: Window@) result
     return wait_for_reply(std_win,&replied);
 }
 
-func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) result
+// For now these have the same members so we can just cheat.
+func net_res_to_win(res: net_result) win_result 
+{
+    raw := cast(u32,res);
+    return cast(win_result,raw);
+}
+
+func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_result
 {
     win := &std_win.os_win;
 
@@ -1364,32 +1389,32 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) resul
     // open connection to x server
     [win.sock, res] := std::connect_unix_domain(socket_name);
 
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"window socket {} not valid",socket_name);
-        return res;
+        return net_res_to_win(res);
     }
 
-
-    if(authenticate(win) == result::err)
+    res = authenticate(win);
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"could not authenticate to server");
-        return result::err;
+        return net_res_to_win(res);
     }
 
     res = create_window(win,x,y);
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"Failed to create window");
-        return result::err;
+        return net_res_to_win(res);
     }
 
 
     res = create_gfx_ctx(win);
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"Failed to create gfx context");
-        return result::err;
+        return net_res_to_win(res);
     }
 
     log::info(X11_PREFIX,"waiting for window mapping");
@@ -1397,49 +1422,61 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) resul
     // wait for window to become mapped
     while(!win.window_mapped)
     {
-        if(process_events(std_win) == result::err)
+        win_res := process_events(std_win);
+        if(win_res != win_result::ok)
         {
-            return result::err;
+            return win_res;
         }
     }
 
     res = os_set_window_name(win,str);
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"Could not set window name");
-        return result::err;
+        return net_res_to_win(res);
     }
 
     // try to enable the big request exenstion
     [_, res] = enable_big_req(std_win);
 
-    if(res == result::err)
+    if(res != net_result::ok)
     {
         log::error(X11_PREFIX,"Error enabling big requests");
-        return result::err;
+        return net_res_to_win(res);
     }
 
-    res = get_keyboard_mapping(std_win);
+    key_res := get_keyboard_mapping(std_win);
 
-    if(res == result::err)
+    if(key_res != win_result::ok)
     {
-        return res;
+        return key_res;
     }
 
-    return grab_keyboard(win);
+    res = grab_keyboard(win);
+
+    return net_res_to_win(res);
 }
 
-func os_destroy_window(win : OSWindow@) result
+func os_destroy_window(win : OSWindow@) win_result
 {
-    // destroy all resources
-    res := x11_destroy_window(win,win.window_id);
-    if(res == result::err)
+    // Socket has allready been cut. 
+    // Assume this is shut correctly.
+    if(!net::socket_valid(&win.sock))
     {
-        return result::err;
+        std::destroy_array(&win.packet);
+        return win_result::ok;
     }
 
+    // destroy all resources
+    res := x11_destroy_window(win,win.window_id);
+    if(res != net_result::ok)
+    {
+        return net_res_to_win(res);
+    }
 
     // close down our socket and free our working buffer
     std::destroy_array(&win.packet);
-    return net::close_sock(&win.sock);
+    res = net::close_sock(&win.sock);
+
+    return net_res_to_win(res);
 }

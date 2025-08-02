@@ -362,7 +362,7 @@ func linux_connect(handle : s64,addr : byte@,size : u32) s64
     return intrin_syscall(SYSCALL_CONNECT,handle,addr,size);
 }
 
-func connect_unix_domain(name : const string) [net::Socket, result]
+func connect_unix_domain(name : const string) [net::Socket, net_result]
 {
     sock : net::Socket;
 
@@ -385,10 +385,10 @@ func connect_unix_domain(name : const string) [net::Socket, result]
     {
         _ = os_close(sock.handle);
         sock.handle = cast(byte@,INVALID_SOCKET_HANDLE);
-        return sock, result::err;
+        return sock, net_result::err;
     }
 
-    return sock, result::ok;
+    return sock, net_result::ok;
 }
 
 constant FIONREAD : u32 = 0x0000_541B;
@@ -465,30 +465,62 @@ func os_connect(ip: const string, port: u16, type: net_type) [byte@, result]
 }
 
 constant MSG_NOSIGNAL : u32 = 0x4000;
+constant EPIPE: u32 = 32;
 
-func os_send(socket: net::Socket@,ptr : const byte@, len : usize) [usize, result]
+func os_send(socket: net::Socket@,ptr : const byte@, len : usize) [usize, net_result]
 {
     rc := intrin_syscall(SYSCALL_SENDTO,socket.handle,ptr,len,MSG_NOSIGNAL,NULL,NULL);
 
     if(rc < 0)
     {
+        if(abs(rc) == EPIPE)
+        {
+            log::debug("Network","Send socket {} closed",socket.handle);
+            return 0, net_result::closed;    
+        }
+
         log_errno("Send error: {}",rc);
-        return 0, result::err;
+        return 0, net_result::err;
     }
 
-    return cast(u64,rc), result::ok;
+    if(rc == 0)
+    {
+        log::debug("Network","Send socket {} closed",socket.handle);
+        return 0, net_result::closed;
+    }
+
+
+    return cast(u64,rc), net_result::ok;
 }
 
-func os_recv(socket: net::Socket@,ptr : byte@, len : usize) [usize, result]
+func os_recv(socket: net::Socket@,ptr : byte@, len : usize) [usize, net_result]
 {
     [bytes, res] := os_read(socket.handle,ptr,len);
 
-    return bytes, res;
+    if(res == result::err)
+    {
+        return bytes, net_result::err; 
+    }
+
+    if(bytes == 0)
+    {
+        log::debug("Network","Recv socket {} closed",socket.handle);
+        return bytes, net_result::closed;
+    }
+
+    return bytes, net_result::ok;
 }
 
-func os_socket_close(socket: net::Socket@) result
+func os_socket_close(socket: net::Socket@) net_result
 {
-    return os_close(socket.handle);
+    res := os_close(socket.handle);
+
+    if(res != result::ok)
+    {
+        return net_result::err;
+    }
+
+    return net_result::ok;
 }
 
 

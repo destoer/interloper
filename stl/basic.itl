@@ -26,3 +26,11 @@ enum result
     ok,
     err,
 }
+
+#attr(use_result)
+enum net_result 
+{
+    ok,
+    closed,
+    err,
+}

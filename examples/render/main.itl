@@ -77,14 +77,14 @@ func main() s32
 
     [win, res] := gfx::open_window("interloper",SCREEN_X,SCREEN_Y);
 
-    if(res == result::err)
+    if(res != gfx::win_result::ok)
     {
         return -1;
     }
 
     while(!win.quit)
     {
-        if(gfx::start_frame(&win) == result::err)
+        if(gfx::start_frame(&win) == gfx::win_result::err)
         {
             log::error("Render","Failed to start frame");
             return -1;
@@ -99,7 +99,7 @@ func main() s32
 
         render(&win);
 
-        if(gfx::draw_window(&win,win.screen) == result::err)
+        if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)
         {
             log::error("Render","Failed to draw window");
             return -1;
@@ -108,7 +108,7 @@ func main() s32
         gfx::end_frame(&win);
     }
 
-    if(gfx::close_window(&win) == result::err)
+    if(gfx::close_window(&win) == gfx::win_result::err)
     {
         log::error("Render","Failed to close window");
         return -1;
