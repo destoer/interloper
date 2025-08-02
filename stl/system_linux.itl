@@ -22,6 +22,14 @@ constant SYSCALL_IOCTL: u32 = 16;
 constant SYSCALL_FCNTL: u32 = 72;
 constant SYSCALL_SENDTO: u32 = 44;
 
+
+func log_errno(fmt: const string, errno: s64)
+{
+    number := -errno;
+
+    log::error("Linux Syscall",fmt,number);
+} 
+
 // memory
 
 // NOTE: we need to declare this first so that any file handles can alloc memory
@@ -210,9 +218,14 @@ func os_open(filename : const c8@, mode : file_mode, opt : file_opt) byte@
     return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,os_flag));
 }
 
-func os_close(handle : const byte?)
+func os_close(handle : const byte?) result
 {
-    intrin_syscall(SYSCALL_CLOSE,handle);
+    if(intrin_syscall(SYSCALL_CLOSE,handle) < 0)
+    {
+        return result::err;
+    }
+
+    return result::ok;
 }
 
 func os_write(handle : const byte?, data : const byte@, len : usize) s64
@@ -230,9 +243,17 @@ func os_write_str(str: const string) s64
     return os_write_str_raw(str.data,str.len);
 }
 
-func os_read(handle : const byte?, data : byte@, len : usize) s64
+func os_read(handle : const byte?, data : byte@, len : usize) [u64, result]
 {
-    return intrin_syscall(SYSCALL_READ,handle,data,len);
+    rc := intrin_syscall(SYSCALL_READ,handle,data,len);
+
+    if(rc < 0)
+    {
+        log_errno("Read error: {}",rc);
+        return 0, result::err;
+    }
+
+    return cast(u64,rc), result::ok;
 }
 
 constant SEEK_CUR : u32 = 1;
@@ -341,7 +362,7 @@ func linux_connect(handle : s64,addr : byte@,size : u32) s64
     return intrin_syscall(SYSCALL_CONNECT,handle,addr,size);
 }
 
-func connect_unix_domain(name : const string) net::Socket
+func connect_unix_domain(name : const string) [net::Socket, net_result]
 {
     sock : net::Socket;
 
@@ -362,11 +383,12 @@ func connect_unix_domain(name : const string) net::Socket
     // check connection is fine
     if(linux_connect(handle,&addr,sizeof_type(SockAddrUn)) != 0)
     {
-        os_close(sock.handle);
+        _ = os_close(sock.handle);
         sock.handle = cast(byte@,INVALID_SOCKET_HANDLE);
+        return sock, net_result::err;
     }
 
-    return sock;
+    return sock, net_result::ok;
 }
 
 constant FIONREAD : u32 = 0x0000_541B;
@@ -389,7 +411,7 @@ func os_socket_has_data(socket: net::Socket@) bool
     return len > 0;
 }
 
-func os_connect(ip: const string, port: u16, type: net_type) byte@
+func os_connect(ip: const string, port: u16, type: net_type) [byte@, result]
 {
     handle : s64 = INVALID_SOCKET_HANDLE;
 
@@ -443,20 +465,62 @@ func os_connect(ip: const string, port: u16, type: net_type) byte@
 }
 
 constant MSG_NOSIGNAL : u32 = 0x4000;
+constant EPIPE: u32 = 32;
 
-func os_send(socket: net::Socket@,ptr : const byte@, len : usize) s64
+func os_send(socket: net::Socket@,ptr : const byte@, len : usize) [usize, net_result]
 {
-    return intrin_syscall(SYSCALL_SENDTO,socket.handle,ptr,len,MSG_NOSIGNAL,NULL,NULL);
+    rc := intrin_syscall(SYSCALL_SENDTO,socket.handle,ptr,len,MSG_NOSIGNAL,NULL,NULL);
+
+    if(rc < 0)
+    {
+        if(abs(rc) == EPIPE)
+        {
+            log::debug("Network","Send socket {} closed",socket.handle);
+            return 0, net_result::closed;    
+        }
+
+        log_errno("Send error: {}",rc);
+        return 0, net_result::err;
+    }
+
+    if(rc == 0)
+    {
+        log::debug("Network","Send socket {} closed",socket.handle);
+        return 0, net_result::closed;
+    }
+
+
+    return cast(u64,rc), net_result::ok;
 }
 
-func os_recv(socket: net::Socket@,ptr : byte@, len : usize) s64
+func os_recv(socket: net::Socket@,ptr : byte@, len : usize) [usize, net_result]
 {
-    return os_read(socket.handle,ptr,len);
+    [bytes, res] := os_read(socket.handle,ptr,len);
+
+    if(res == result::err)
+    {
+        return bytes, net_result::err; 
+    }
+
+    if(bytes == 0)
+    {
+        log::debug("Network","Recv socket {} closed",socket.handle);
+        return bytes, net_result::closed;
+    }
+
+    return bytes, net_result::ok;
 }
 
-func os_socket_close(socket: net::Socket@)
+func os_socket_close(socket: net::Socket@) net_result
 {
-    os_close(socket.handle);
+    res := os_close(socket.handle);
+
+    if(res != result::ok)
+    {
+        return net_result::err;
+    }
+
+    return net_result::ok;
 }
 
 

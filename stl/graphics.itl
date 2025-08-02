@@ -28,6 +28,14 @@ struct Colour
     b : f64;
 };
 
+#attr(use_result)
+enum win_result
+{
+    ok,
+    closed,
+    err,
+}
+
 constant WINDOW_PREFIX :  string = "WINDOW ";
 
 func blank_screen(screen: u32[])
@@ -63,40 +71,50 @@ func window_resized(win: Window@,x : u32, y : u32)
     test_pattern(win.screen,x,y);
 }
 
-func open_window(str : const string, x : u32, y : u32) Window
+func open_window(str : const string, x : u32, y : u32) [Window, win_result]
 {
     win : Window;
     win.input = input::make_input();
 
-    os_open_window(&win,str,x,y);
+    res := os_open_window(&win,str,x,y);
+
+    if(res != win_result::ok)
+    {
+        return win, res;
+    }
 
     window_resized(&win,x,y);
 
     win.limit = 1000.0 / 60.0;
     win.target = win.limit;
 
-    return win;
+    return win, win_result::ok;
 }
 
-func close_window(win : Window@)
+func close_window(win : Window@) win_result
 {
     std::destroy_arr_heap_u32(&itl_context.heap,&win.screen);
-    os_destroy_window(&win.os_win);
+    return os_destroy_window(&win.os_win);
 }
 
-func draw_window(win : Window@, screen: const u32[])
+func draw_window(win : Window@, screen: const u32[]) win_result
 {
-    os_draw_window(&win.os_win,screen,cast(u32,win.size.x),cast(u32,win.size.y));
+    if(win.quit)
+    {
+        return win_result::ok;
+    }
+
+    return os_draw_window(&win.os_win,screen,cast(u32,win.size.x),cast(u32,win.size.y));
 }
 
 // NOTE: these are just general helpers we should still be able to
 // mess with this manually if we want, this just makes it simpler
 // to get a standard 60 fps limited window
-func start_frame(win : Window@)
+func start_frame(win : Window@) win_result
 {
     win.start_timestamp = std::timestamp_ms();
 
-    gfx::process_events(win);
+    return gfx::process_events(win);
 }
 
 func end_frame(win : Window@)
@@ -122,7 +140,7 @@ func end_frame(win : Window@)
 }
 
 
-func process_events(win: Window@) bool
+func process_events(win: Window@) win_result
 {
     return os_process_events(win);
 }

@@ -1430,6 +1430,14 @@ b32 plain_type_equal(const Type* ltype, const Type* rtype)
             return cast_builtin(ltype) == cast_builtin(rtype);
         }
 
+        case type_class::enum_t:
+        {
+            EnumType* enum_ltype = (EnumType*)ltype;
+            EnumType* enum_rtype = (EnumType*)rtype; 
+            
+            return enum_ltype->enum_idx == enum_rtype->enum_idx;
+        }
+
         default:
         {
             assert(false);
@@ -1662,7 +1670,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
         if(enum_ltype->enum_idx != enum_rtype->enum_idx)
         {
-            return compile_error(itl,itl_error::struct_error,"struct assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::struct_error,"enum assign of different types %s = %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
         }        
     }
 

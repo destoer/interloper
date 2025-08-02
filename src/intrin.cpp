@@ -148,6 +148,8 @@ TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegS
     const auto syscall_value = *syscall_num_res;
 
     mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value.value);
+    u32 unlock_set = set_bit(0,special_reg_to_reg(itl.arch,spec_reg::rax));
+
     
     const spec_reg REG_ARGS[6] = {spec_reg::rdi,spec_reg::rsi,spec_reg::rdx,spec_reg::r10,spec_reg::r8,spec_reg::r9};
 
@@ -155,8 +157,11 @@ TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegS
     {
         if(arg_size >= arg + 1)
         {
-            const auto reg = make_spec_reg_slot(REG_ARGS[arg-1]);
+            const spec_reg locked_reg = REG_ARGS[arg-1];
+            const auto reg = make_spec_reg_slot(locked_reg);
             lock_reg(itl,func,reg);
+            unlock_set = set_bit(unlock_set,special_reg_to_reg(itl.arch,locked_reg));
+
             const auto type_res = compile_expression(itl,func,func_call->args[arg],reg);
             if(!type_res)
             {
@@ -177,9 +182,11 @@ TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegS
     if(!is_special_reg(dst_slot,spec_reg::null))
     {
         // move result
-        mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rv_gpr));
+        mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rax));
     }
     
+    unlock_reg_set(itl,func,unlock_set);
+
     return make_builtin(itl,builtin_type::s64_t);   
 }
 

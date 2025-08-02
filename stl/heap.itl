@@ -293,6 +293,7 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
     return cur + 1;
 }
 
+#attr(use_result)
 func realloc_heap(heap : Heap@, ptr: byte@?, count: usize,size: usize) bool
 {
     // get the actual data pointer

@@ -589,7 +589,6 @@ Option<itl_error> access_enum_struct_member(Interloper& itl,Function& func, cons
 }
 
 
-// return type, slot, offset
 Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func, AstNode* node)
 {
     BinNode* member_root =(BinNode*)node;

@@ -6,7 +6,7 @@ struct ItlContext
     heap: std::Heap;
 }
 
-func read_proc_file(name: const string) [std::Array, bool]
+func read_proc_file(name: const string) [std::Array, result]
 {
     [file, err] := open_file(name,std::file_mode::read,std::file_opt::open);
 
@@ -14,25 +14,25 @@ func read_proc_file(name: const string) [std::Array, bool]
 
     if(err)
     {
-        return buffer, true;
+        return buffer, result::err;
     }
 
 
-    // Keep buffering the file until we hit an error
+    // Keep buffering the file until we hit an error or run out of stuff to read
     while(true) 
     {
         reserve_array_mem(&buffer,FILE_DEFAULT_BUFFER_SIZE);
-        len := os_read(file.handle,array_end(&buffer),FILE_DEFAULT_BUFFER_SIZE);
+        [len, res] := os_read(file.handle,array_end(&buffer),FILE_DEFAULT_BUFFER_SIZE);
 
-        if(len <= 0)
+        if(res == result::err || len == 0)
         {
-            return buffer, false;
+            return buffer, result::ok;
         }
 
-        buffer.buf.len += cast(u32,len);
+        buffer.buf.len += len;
     }
 
-    return buffer,true;
+    return buffer,result::err;
 }
 
 func parse_keys(table: HashTable@, env: const string)
@@ -60,7 +60,7 @@ func read_env()
 {
     [bin, err] := read_proc_file("/proc/self/environ");
 
-    if(err)
+    if(err == result::err)
     {
         crash_and_burn("Could not read environment variables");
     }
