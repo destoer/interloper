@@ -118,7 +118,7 @@ func verify_heap(heap: const Heap@)
     {
         if(cur.prev != prev)
         {
-            crash_and_burn("Prev does not match on heap: {}",cast(byte@,cur));
+            crash_and_burn_oom("Prev does not match on heap");
         }
 
         verify_node(heap,cur);
@@ -141,7 +141,7 @@ func free_heap(heap : Heap@, ptr : byte@?)
 
     if(node.blocks > heap.max_allocation)
     {
-        crash_and_burn("Node exceeds max allocation {} {} {}",cast(byte@,node),node.blocks,heap.max_allocation);
+        crash_and_burn_oom("Node exceeds max allocation");
     }
 
     // set our ptr to null
@@ -346,7 +346,7 @@ func realloc_heap_panic(heap : Heap@, ptr: byte@@, count: usize,size: usize)
 {
     if(realloc_heap(heap,ptr,count,size))
     {
-        crash_and_burn("out of memory for heap realloc: {} : {}\n",count,size);
+        crash_and_burn_oom("out of memory for heap realloc");
     }
 }
 
@@ -357,7 +357,7 @@ func alloc_heap_panic(heap : Heap@, count : usize, size : usize) byte@
 
     if(!ptr)
     {
-        crash_and_burn("out of memory for heap alloc: {} : {}\n",count,size);
+        crash_and_burn_oom("out of memory for heap alloc");
     }
 
     // Pointer has been checked this is now safe to treat as a reference
