@@ -7,6 +7,7 @@ import <input>
 struct Window
 {
     size: std::Vec2I;
+    bounds: std::Vec2I;
     screen: u32[];
 
     os_win : OSWindow;
@@ -56,13 +57,31 @@ func test_pattern(screen: u32[], x: u32, y: u32)
     screen[((y / 2) * x) + (x / 2)] = 0x0000_00ff;
 }
 
+func clip_bound(bound: u32) u32
+{
+    if(bound == 0)
+    {
+        return 0;
+    }
+
+    return bound - 1;
+}
+
 // called when os window is resized
 func window_resized(win: Window@,x : u32, y : u32)
 {
-    log::info(WINDOW_PREFIX,"resized {} {}\n",x,y);
+    if(x == 0 || y == 0)
+    {
+        std::crash_and_burn("Window is 0");
+    }
+
+    log::info(WINDOW_PREFIX,"resized {} {}",x,y);
 
     win.size.x = x;
     win.size.y = y;
+    
+    win.bounds.x = clip_bound(x);
+    win.bounds.y = clip_bound(y);
 
     // realloc our buffer
     std::arr_realloc_u32(&itl_context.heap,&win.screen,x * y);

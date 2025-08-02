@@ -6,10 +6,13 @@ import <colour>
 
 func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
 {
-    y1 := (win.size.y - v1.y);
-    y2 := (win.size.y - v2.y);
-    x1 := v1.x;
-    x2 := v2.x;
+    v1_clamp := std::vec2i_clamp_zero(v1,&win.bounds);
+    v2_clamp := std::vec2i_clamp_zero(v2,&win.bounds);
+
+    y1 := (win.size.y - v1_clamp.y);
+    y2 := (win.size.y - v2_clamp.y);
+    x1 := v1_clamp.x;
+    x2 := v2_clamp.x;
 
     steep := false;
 

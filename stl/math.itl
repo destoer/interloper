@@ -75,6 +75,22 @@ func in_range_s64(v : s64,lo : s64, hi : s64) bool
     return v >= lo && v <= hi;
 }
 
+func clamp_s64(v1: s64, min: s64, max: s64) s64
+{
+    if(v1 < min) 
+    {
+        return min;
+    }
+
+    else if(v1 > max)
+    {
+        return max;
+    }
+
+    return v1;
+}
+
+
 /*
 func log10(v: f64) u64
 
@@ -90,6 +106,14 @@ struct Vec2I
 func vec2i_add(v1: const Vec2I, v2: const Vec2I) Vec2I
 {
     return Vec2I {v1.x + v2.x,v1.y + v2.y};
+}
+
+func vec2i_clamp_zero(v1: const Vec2I@,limit: const Vec2I@) Vec2I
+{
+    return Vec2I {
+        clamp_s64(v1.x,0,limit.x),
+        clamp_s64(v1.y,0,limit.y)
+    };
 }
 
 
