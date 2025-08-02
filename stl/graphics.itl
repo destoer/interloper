@@ -70,9 +70,9 @@ func clip_bound(bound: u32) u32
 // called when os window is resized
 func window_resized(win: Window@,x : u32, y : u32)
 {
-    if(x == 0 || y == 0)
+    if(x <= 1 || y <= 1)
     {
-        std::crash_and_burn("Window is 0");
+        std::crash_and_burn("Window is < 1 pixel");
     }
 
     log::info(WINDOW_PREFIX,"resized {} {}",x,y);
@@ -85,9 +85,6 @@ func window_resized(win: Window@,x : u32, y : u32)
 
     // realloc our buffer
     std::arr_realloc_u32(&itl_context.heap,&win.screen,x * y);
-
-    // blank the screen
-    test_pattern(win.screen,x,y);
 }
 
 func open_window(str : const string, x : u32, y : u32) [Window, win_result]
