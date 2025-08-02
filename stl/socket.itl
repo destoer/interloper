@@ -2,6 +2,15 @@ namespace net;
 
 import <array>
 
+#attr(use_result)
+enum net_result 
+{
+    ok,
+    closed,
+    err,
+}
+
+
 struct Socket
 {
     handle: byte? = NULL;
@@ -14,8 +23,6 @@ enum net_type
     tcp,
     udp,
 }
-
-
 
 func ip_to_net_addr(str: const string) [u32,bool]
 {
@@ -80,22 +87,22 @@ func listen(port: u32, type: net_type) Socket
     unimplemented("hey! listen!");
 }
 
-func recv_raw(sock: Socket@, ptr: byte@, size : usize) s64
+func recv_raw(sock: Socket@, ptr: byte@, size : usize) [u64, result]
 {
     if(!socket_valid(sock))
     {
-        return -1;
+        return 0, result::err;
     }
 
+    [read, res] := std::os_recv(sock,ptr,size);
 
-    rc := std::os_recv(sock,ptr,size);
-
-    if(rc < 0)
+    if(res == result::err)
     {
-        close_sock(sock);
+        // What are we going to do if this fails anyways?
+        _ = close_sock(sock);
     }
 
-    return rc;
+    return read, res;
 }
 
 func recv(sock: Socket@, buf : byte[]) s64
@@ -103,102 +110,151 @@ func recv(sock: Socket@, buf : byte[]) s64
     return recv_raw(sock,buf.data,buf.len);
 }
 
-func recv_ignore(sock: Socket@, size : u32)
+func recv_ignore(sock: Socket@, size : u32) result
 {
     for(i in 0 < size)
     {
         v : byte;
-        recv_raw(sock,&v,1);
+        [_, res] := recv_raw(sock,&v,1);
+
+        if(res == result::err)
+        {
+            return result::err;
+        }
     }
+
+    return result::ok;
 }
 
-func recv_raw_all(sock: Socket@, ptr : byte@, size : usize) s64
+func recv_raw_all(sock: Socket@, ptr : byte@, size : usize) result
 {
     to_read := size;
 
     // keep reading till we have the ammount requested
     while(to_read > 0)
     {
-        read := recv_raw(sock,ptr,to_read);
+        [read, res] := recv_raw(sock,ptr,to_read);
 
-        if(read < 0)
+        if(res == result::err)
         {
-            return -1;
+            return result::err;
         }
 
-        to_read -= cast(u64,read);
-        ptr += cast(u64,read);
+        to_read -= read;
+        ptr += read;
     }
 
-    return size;
+    return result::ok;
 }
 
-func recv_array_all(sock: Socket@, arr: std::Array@, size: usize) s64
+func recv_array_all(sock: Socket@, arr: std::Array@, size: usize) result
 {
     // make sure we can read all this in
     std::reserve_array(arr,size);
 
-    read := recv_raw_all(sock,&arr.buf[arr.buf.len],size);
+    res := recv_raw_all(sock,&arr.buf[arr.buf.len],size);
 
-    if(read == -1)
+    if(res == result::err)
     {
-        return -1;
+        return result::err;
     }
 
-    arr.buf.len += cast(u64,read);
+    arr.buf.len += size;
 
     // calc the ammount read
-    return read;
+    return result::ok;
 }
 
-func recv_clear_array(sock: Socket@, arr: std::Array@, size: usize) s64
+func recv_clear_array(sock: Socket@, arr: std::Array@, size: usize) result
 {
     std::clear_array(arr);
 
     return recv_array_all(sock,arr,size);
 }
 
-func send_raw(sock : Socket@, ptr: const byte@, size : usize) s64
+func send_raw(sock : Socket@, ptr: const byte@, size : usize) [u64, result]
 {
     if(!socket_valid(sock))
     {
-        return -1;
+        return 0, result::err;
     }
 
-    rc := std::os_send(sock,ptr,size);
+    [bytes, res] := std::os_send(sock,ptr,size);
 
-    if(rc < 0)
+    if(res == result::err)
     {
-        close_sock(sock);
+        _ = close_sock(sock);
+        return 0, result::err;
     }
 
-    return rc;
+    return bytes, result::ok;
 }
 
-func send(sock: Socket@, buf: const byte[]) s64
+func send_raw_all(sock: Socket@, ptr : const byte@, size : usize) result
 {
-    return send_raw(sock,buf.data,buf.len);
+    to_write := size;
+
+    // keep reading till we have the ammount requested
+    while(to_write > 0)
+    {
+        [written, res] := send_raw(sock,ptr,to_write);
+
+        if(res == result::err)
+        {
+            return result::err;
+        }
+
+        to_write -= written;
+        ptr += written;
+    }
+
+    return result::ok;
 }
 
-func send_array(sock: Socket@, arr : const std::Array@) s64
+func send_all(sock: Socket@, buf: const byte[]) result
 {
-    return send(sock,arr.buf);
+    return send_raw_all(sock,buf.data,buf.len);
 }
 
-func send_str(sock: Socket@, str: const string) s64
+func send(sock: Socket@, buf: const byte[]) [u64, result]
 {
-    return send(sock,cast(byte[],str));
+    [bytes, res] := send_raw(sock,buf.data,buf.len);
+    return bytes, res;
+}
+
+func send_array(sock: Socket@, arr : const std::Array@) [u64, result]
+{
+    [bytes, res] := send(sock,arr.buf);
+    return bytes, res;
 }
 
 
-func close_sock(sock: Socket@)
+func send_array_all(sock: Socket@, arr : const std::Array@) result
+{
+    return send_all(sock,arr.buf);
+}
+
+func send_str_all(sock: Socket@, str: const string) result
+{
+    return send_all(sock,cast(byte[],str));
+}
+
+func send_str(sock: Socket@, str: const string) [u64, result]
+{
+    [bytes, res] := send(sock,cast(byte[],str));
+    return bytes, res;
+}
+
+
+func close_sock(sock: Socket@) result
 {
     if(!socket_valid(sock))
     {
-        return;
+        return result::ok;
     }
 
-    std::os_socket_close(sock);
+    res := std::os_socket_close(sock);
 
     sock.handle = cast(byte@,INVALID_SOCKET_HANDLE);
+    return res;
 }

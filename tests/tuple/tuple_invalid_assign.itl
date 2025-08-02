@@ -1,0 +1,15 @@
+func numbers() [u32,u32]
+{
+    return 5, 10;
+}
+
+func main() s32 
+{
+    x := false;
+    y := false;
+
+    // Expected compile error
+    [x,y] = numbers();
+
+    return 0;
+}

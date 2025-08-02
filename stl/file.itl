@@ -106,7 +106,7 @@ func close_file(file : File@)
         flush_write(file);
     }
 
-    os_close(file.handle);
+    _ = os_close(file.handle);
     file.handle = cast(byte@,INVALID_FILE_HANDLE);
 
     // free our buffer
@@ -219,7 +219,7 @@ func write_file_mem(file : File@,buf : const byte@, len : usize) s64
 
 func buffer_file_read(file : File@) file_read_res
 {
-    len := os_read(file.handle,file.buf.data,FILE_DEFAULT_BUFFER_SIZE);
+    [len, res] := os_read(file.handle,file.buf.data,FILE_DEFAULT_BUFFER_SIZE);
 
     // TODO: this should be a switch
     if(len == 0)
@@ -228,7 +228,7 @@ func buffer_file_read(file : File@) file_read_res
         return file_read_res::eof;
     }
 
-    else if(len == OS_INVALID_READ)
+    else if(res == result::err)
     {
         return file_read_res::error;
     }

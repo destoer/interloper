@@ -75,25 +75,44 @@ func main() s32
     SCREEN_X := 640;
     SCREEN_Y := 480;
 
-    win := gfx::open_window("interloper",SCREEN_X,SCREEN_Y);
+    [win, res] := gfx::open_window("interloper",SCREEN_X,SCREEN_Y);
+
+    if(res == result::err)
+    {
+        return -1;
+    }
 
     while(!win.quit)
     {
-        gfx::start_frame(&win);
+        if(gfx::start_frame(&win) == result::err)
+        {
+            log::error("Render","Failed to start frame");
+            return -1;
+        }
     
         if(input::is_pressed(&win.input,input::button_t::start))
         {
             win.quit = true;
+            log::info("Render","Quitting");
         }
+
 
         render(&win);
 
-        gfx::draw_window(&win,win.screen);
+        if(gfx::draw_window(&win,win.screen) == result::err)
+        {
+            log::error("Render","Failed to draw window");
+            return -1;
+        }
 
         gfx::end_frame(&win);
     }
 
-    gfx::close_window(&win);
+    if(gfx::close_window(&win) == result::err)
+    {
+        log::error("Render","Failed to close window");
+        return -1;
+    }
 
     return 0;
 }
