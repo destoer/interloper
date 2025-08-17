@@ -468,6 +468,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
         case op_type::ret:
         {
+            // Normal sub emit before pops
             if(alloc.stack_alloc.stack_size)
             {
                 insert_at(block.list,node,stack_clean);
@@ -478,6 +479,12 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             // NOTE: as floats were last thing saved, they are tthe first to restore
             OpcodeNode* float_node = emit_popm_float(itl,block,node,saved_fpr);
             emit_popm(itl,block,float_node,saved_gpr);
+
+
+            if(itl.debug)
+            {
+                insert_at(block.list,node,make_raw_op(op_type::leave,0,0,0));
+            }
 
             node = node->next;
             break;
@@ -685,7 +692,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,func.registers,&itl.symbol_table,itl.arch);
+    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,itl.debug,func.registers,&itl.symbol_table,itl.arch);
 
     linear_allocate(alloc,itl,func);
 
@@ -728,6 +735,10 @@ void allocate_registers(Interloper& itl,Function &func)
         print_reg_alloc(alloc);
     }
 
+    auto& entry = func.emitter.program[0];
+    const u32 SP = arch_sp(itl.arch);
+    const u32 FP = arch_fp(itl.arch);
+
     // iterate over the function by here and add callee cleanup at every ret
     // and insert the stack offsets and load and spill directives
 
@@ -747,12 +758,22 @@ void allocate_registers(Interloper& itl,Function &func)
     // we dont want to save these on start
     if(func.name != "start")
     {
+        // Return address
+        u32 frame_offset = 1;
+
         // make sure callee saved regs are not saved inside the func
-        saved_gpr = alloc.gpr.used_set & ~(CALLEE_GPR_SAVED_MASK | (1 << arch_sp(alloc.arch)));
+        saved_gpr = alloc.gpr.used_set & ~(CALLEE_GPR_SAVED_MASK | (1 << SP));
+        if(itl.debug)
+        {
+            saved_gpr = deset_bit(saved_gpr,FP);
+            // Push fp
+            frame_offset += 1;
+        }
+
         saved_fpr = alloc.fpr.used_set & ~(CALLEE_FPR_SAVED_MASK);
 
         // return addr + saved regs + call stack
-        const u32 call_align = 1 + popcount(saved_gpr) + popcount(saved_fpr) + (func.sig.call_stack_size / GPR_SIZE);
+        const u32 call_align = frame_offset + popcount(saved_gpr) + popcount(saved_fpr) + (func.sig.call_stack_size / GPR_SIZE);
 
         // add pad to align the stack on the correct boundary
         if(call_align & 1 && !func.leaf_func)
@@ -767,13 +788,6 @@ void allocate_registers(Interloper& itl,Function &func)
 
     log(alloc.print,"saved registers: %d (0x%x)\n",save_count,saved_gpr);
 
-    const u32 SP = arch_sp(itl.arch);
-
-    // only allocate a stack if we need it
-    if(alloc.stack_alloc.stack_size)
-    {
-        insert_front(func.emitter.program[0].list,make_raw_op(op_type::sub_imm2,SP,alloc.stack_alloc.stack_size));
-    }
 
     alloc_args(func,alloc.stack_alloc,itl.symbol_table,GPR_SIZE * save_count);
 
@@ -781,8 +795,23 @@ void allocate_registers(Interloper& itl,Function &func)
     auto& start_block = func.emitter.program[0];
 
     auto float_node = emit_pushm(itl,start_block,start_block.list.start,saved_gpr);
-    emit_pushm_float(itl,start_block,float_node,saved_fpr);
-    
+    auto alloc_node = emit_pushm_float(itl,start_block,float_node,saved_fpr);
+
+    // only allocate a stack if we need it
+    if(alloc.stack_alloc.stack_size)
+    {
+        insert_at(entry.list,alloc_node,make_raw_op(op_type::sub_imm2,SP,alloc.stack_alloc.stack_size));
+    }
+
+
+    // Insert the frame pointer options at the front
+    if(itl.debug)
+    {
+        auto frame_node = insert_front(entry.list,make_raw_op(op_type::push,FP,0,0));
+        insert_after(entry.list,frame_node,make_raw_op(op_type::mov_reg,FP,SP,0));
+    }
+
+
     const auto stack_clean = make_raw_op(op_type::add_imm2,SP,alloc.stack_alloc.stack_size);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)

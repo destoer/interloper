@@ -102,6 +102,8 @@ struct Interloper
 
     b32 compile_only = false;
 
+    b32 debug = true;
+
     b32 itl_log = false;
 
     double backend_time = 0.0;

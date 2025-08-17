@@ -265,8 +265,7 @@ void pass_arg(Interloper& itl, Function& func, ArgPass& pass,const TypedReg& reg
 {
     if(pass.pass_as_reg[arg_idx] == NON_ARG)
     {
-        is_float(reg.type)? push_float_arg(itl,func,reg.slot) : push_arg(itl,func,reg.slot);
-        pass.arg_clean++;
+        is_float(reg.type)? push_float_arg(itl,func,pass,reg.slot) : push_arg(itl,func,pass,reg.slot);
     }
 
     else
@@ -333,15 +332,13 @@ Option<itl_error> push_args(Interloper& itl, Function& func, ArgPass& pass, Func
                 
                 // push the len offset
                 const RegSlot len_slot = mov_imm_res(itl,func,size);
-                push_arg(itl,func,len_slot);
+                push_arg(itl,func,pass,len_slot);
 
                 // push the data offset
                 const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
 
                 const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
-                push_arg(itl,func,addr_slot);
-
-                pass.arg_clean += 2;
+                push_arg(itl,func,pass,addr_slot);
             }
 
             else
@@ -365,12 +362,10 @@ Option<itl_error> push_args(Interloper& itl, Function& func, ArgPass& pass, Func
                 {
                     // push in reverse order let our internal functions handle vla conversion
                     const RegSlot len_slot = load_arr_len(itl,func,arg_reg);
-                    push_arg(itl,func,len_slot);
+                    push_arg(itl,func,pass,len_slot);
 
                     const RegSlot data_slot = load_arr_data(itl,func,arg_reg);
-                    push_arg(itl,func,data_slot);
-
-                    pass.arg_clean += 2;  
+                    push_arg(itl,func,pass,data_slot);
                 }
 
                 // fixed sized array

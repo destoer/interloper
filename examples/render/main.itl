@@ -99,7 +99,6 @@ func main() s32
             log::info("Render","Quitting");
         }
 
-
         render(&win);
 
         if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)

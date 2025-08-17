@@ -62,6 +62,7 @@ struct LinearAlloc
     StackAlloc stack_alloc;
 
     b32 stack_only = false;
+    b32 debug = false;
 };
 
 
@@ -123,17 +124,18 @@ void mark_used(RegisterFile& regs, u32 reg)
     regs.used_set = set_bit(regs.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only,Array<Reg> registers, SymbolTable* table,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only, b32 debug, Array<Reg> registers, SymbolTable* table,arch_target arch)
 {
     LinearAlloc alloc;
 
     alloc.print = print_reg;
-    alloc.stack_alloc = make_stack_alloc(print_stack);
+    alloc.stack_alloc = make_stack_alloc(print_stack,debug);
 
     alloc.arch = arch;
     alloc.tmp_regs = registers;
     alloc.table = table;
     alloc.stack_only = stack_only;
+    alloc.debug = debug;
 
     return alloc;
 }
@@ -449,7 +451,13 @@ void init_regs(LinearAlloc& alloc)
     add_reg(alloc.gpr,x86_reg::rcx);
     add_reg(alloc.gpr,x86_reg::rdx);
     add_reg(alloc.gpr,x86_reg::rbx);
-    add_reg(alloc.gpr,x86_reg::rdp);
+
+    // Frame pointer is reserved in debug
+    if(!alloc.debug)
+    {
+        add_reg(alloc.gpr,x86_reg::rbp);
+    }
+
     add_reg(alloc.gpr,x86_reg::rsi);
     add_reg(alloc.gpr,x86_reg::rdi);
 
@@ -721,7 +729,7 @@ void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, inser
     // reserve a space for this for a later spill
     else if(is_stack_unallocated(ir_reg))
     {
-        reserve_offset(alloc,ir_reg,LOCATION_MEM);
+        reserve_offset(alloc,ir_reg,REG_FREE);
     }   
 }
 

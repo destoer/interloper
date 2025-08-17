@@ -28,6 +28,8 @@ void parse_flags(Interloper& itl,const char* flags)
 
         i++;
     }
+
+    itl.debug = !itl.optimise;
 }
 
 void print_usage(const char* name)

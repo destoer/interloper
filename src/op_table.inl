@@ -135,6 +135,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::implicit_t,"call %a",1,{arg_type::label,arg_type::none,arg_type::none}},
     {op_group::reg_t,"call %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
+    {op_group::implicit_t,"leave",0,{arg_type::none,arg_type::none,arg_type::none}},
     {op_group::implicit_t,"ret",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"syscall",0,{arg_type::none,arg_type::none,arg_type::none}},

@@ -19,7 +19,7 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
     // because this alot of boilerplate
 
-    static constexpr u32 COPY_LIMIT = 64;
+    static constexpr u32 COPY_LIMIT = 32;
 
     // multiple of 8 and under the copy limit (don't do this when stack only, as it generates awful code)
     if(size < COPY_LIMIT && (size & 7) == 0 && !itl.stack_alloc) 

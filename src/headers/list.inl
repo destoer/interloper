@@ -196,9 +196,9 @@ inline void append(List<T> &list, const T& value)
 }
 
 template<typename T>
-inline void insert_front(List<T> &list, const T& value)
+inline ListNode<T> *insert_front(List<T> &list, const T& value)
 {
-    insert_at(list,list.start,value);
+    return insert_at(list,list.start,value);
 }
 
 // return node after deleted

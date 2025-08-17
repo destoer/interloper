@@ -180,7 +180,7 @@ void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, s32 imm)
     {
         // rbp is reserved for RIP encoding, and r13 is reserved also
         // when no base is used we have to use disp 8 anyways
-        if(base == x86_reg::rdp || base == x86_reg::r13)
+        if(base == x86_reg::rbp || base == x86_reg::r13)
         {
             push_u16(emitter,reg_base_disp_8(reg,base));
             push_u8(emitter,0);     
@@ -664,6 +664,11 @@ void mov(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // mov r64, r64
     emit_reg2_mr_64(emitter,0x89,dst,v1);
+}
+
+void leave(AsmEmitter& emitter)
+{
+    push_u8(emitter,0xC9);
 }
 
 void ret(AsmEmitter& emitter)
@@ -1266,6 +1271,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::mov_reg:
         {
             mov(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::leave:
+        {
+            leave(emitter);
             break;
         }
 

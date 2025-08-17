@@ -21,13 +21,15 @@ struct StackAlloc
     Array<RegSlot> pending_allocation;
 
     b32 print = false;
+    b32 debug = false;
 };
 
-StackAlloc make_stack_alloc(b32 print)
+StackAlloc make_stack_alloc(b32 print, b32 debug)
 {
     StackAlloc alloc = {};
 
     alloc.print = print;
+    alloc.debug = debug;
 
     return alloc;
 }
@@ -187,6 +189,8 @@ void calc_allocation(StackAlloc& alloc)
 // and when we push off determining stack size to a later pass
 void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
 {
+    const u32 FRAME_OFFSET = alloc.debug? GPR_SIZE * 2 : GPR_SIZE;
+
     for(u32 a = 0; a < count(func.sig.args); a++)
     {
         if(func.sig.pass_as_reg[a] != NON_ARG)
@@ -199,7 +203,7 @@ void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved
         auto &sym = sym_from_slot(table,slot);
 
         // alloc above the stack frame
-        sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + GPR_SIZE;
+        sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
 
         log_reg(alloc.print,table,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,sym.reg.offset);
     }           

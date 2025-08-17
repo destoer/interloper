@@ -136,6 +136,7 @@ enum class op_type
 
     call,
     call_reg,
+    leave,
     ret,
 
     syscall,
@@ -412,7 +413,6 @@ static constexpr u32 NON_ARG = 0xffffffff;
 
 static constexpr u32 UNALLOCATED_OFFSET = 0xffff'ffff;
 
-static constexpr u32 LOCATION_MEM = 0xffffffff;
 static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
 enum class operand_type
@@ -985,7 +985,7 @@ enum x86_reg : u64
     rdx,
     rbx,
     rsp,
-    rdp,
+    rbp,
     rsi,
     rdi,
 
