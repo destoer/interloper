@@ -405,13 +405,15 @@ RegSlot copy_reg(Interloper& itl, Function& func, RegSlot src)
     return tmp;
 }
 
-void push_arg(Interloper& itl, Function& func, RegSlot src)
+void push_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
 {
+    pass.arg_clean++;
     emit_reg1<op_type::push_arg>(itl,func,src);
 }
 
-void push_float_arg(Interloper& itl, Function& func, RegSlot src)
+void push_float_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
 {
+    pass.arg_clean++;
     emit_reg1<op_type::push_float_arg>(itl,func,src);
 }
 

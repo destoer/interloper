@@ -178,11 +178,11 @@ OpcodeNode* emit_popm_float(Interloper& itl, Block& block, OpcodeNode* node, u32
     return node;
 }
 
-void emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32 bitset)
+OpcodeNode* emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32 bitset)
 {
     if(!bitset)
     {
-        return;
+        return node;
     }
 
     const u32 size = popcount(bitset) * FLOAT_SIZE;
@@ -202,6 +202,8 @@ void emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32 bitset
             offset -= FLOAT_SIZE;
         }
     }
+
+    return node;
 }
 
 OpcodeNode* rewrite_cmp_flag_reg(Block& block, OpcodeNode* node, op_type set)

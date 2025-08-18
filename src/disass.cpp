@@ -46,7 +46,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
 
                 case reg_kind::tmp:
                 {
-                    char name[40];
+                    char name[40] = {0};
                     const u32 len = sprintf(name,"t%d",reg.tmp_slot.handle);
 
                     push_mem(buffer,name,len);
@@ -62,7 +62,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
         // hex constant
         case 'x':
         {
-            char name[40];
+            char name[40] = {0};
             const u32 len = sprintf(name,"0x%lx",operand.imm);
 
             push_mem(buffer,name,len);
@@ -71,7 +71,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
 
         case 'f':
         {
-            char name[40];
+            char name[40] = {0};
             const u32 len = sprintf(name,"%lf",operand.decimal);
 
             push_mem(buffer,name,len);

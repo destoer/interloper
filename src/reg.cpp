@@ -376,8 +376,6 @@ b32 is_callee_saved(arch_target arch,u32 reg_idx)
 
 void print_reg_name(SymbolTable& table, RegSlot slot)
 {
-    printf("raw %x:%x\n",u32(slot.kind),slot.sym_slot.handle);
-
     switch(slot.kind)
     {
         case reg_kind::spec:
@@ -474,6 +472,7 @@ struct AbiInfo
     u32 gpr_rv;
     u32 fpr_rv;
     u32 sp;
+    u32 fp;
 
     u32 gpr_args[MACHINE_REG_SIZE];
     u32 gpr_arg_count;
@@ -486,6 +485,7 @@ static constexpr AbiInfo ABI_INFO[] =
         x86_reg::rax,
         x86_reg::xmm0,
         x86_reg::rsp,
+        x86_reg::rbp,
         {x86_reg::rdi,x86_reg::rsi},
         2,
     }, 
@@ -503,6 +503,13 @@ u32 arch_sp(arch_target arch)
     const auto info = get_abi_info(arch);
 
     return info.sp;
+}
+
+u32 arch_fp(arch_target arch)
+{
+    const auto& info = get_abi_info(arch);
+
+    return info.fp;
 }
 
 u32 arch_rv(arch_target arch)
