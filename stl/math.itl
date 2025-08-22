@@ -210,3 +210,11 @@ func barycentric_tri(tri: const Vec2F[3], point: const Vec2F@) [f64,f64,f64]
 
     return u, v ,w;
 }
+
+
+struct Vec3F
+{
+    x: f64;
+    y: f64;
+    z: f64;
+}

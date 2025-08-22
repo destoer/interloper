@@ -107,17 +107,57 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
     }
 }
 
+func draw_line_3f(v1: const std::Vec3F@, v2: const std::Vec3F@)
+{
+
+}
+
 func render(win: gfx::Window@)
 {
     gfx::blank_screen(win.screen);
 
-    tri1: std::Vec2F[3] = {{10.0, 70.0},   {50.0, 160.0},  {70.0, 80.0}}; 
-    tri2: std::Vec2F[3] = {{180.0, 50.0},  {150.0, 1.0},   {70.0, 180.0}}; 
-    tri3: std::Vec2F[3] = {{180.0, 150.0}, {120.0, 160.0}, {130.0, 180.0}}; 
+    // tri1: std::Vec2F[3] = {{10.0, 70.0},   {50.0, 160.0},  {70.0, 80.0}}; 
+    // tri2: std::Vec2F[3] = {{180.0, 50.0},  {150.0, 1.0},   {70.0, 180.0}}; 
+    // tri3: std::Vec2F[3] = {{180.0, 150.0}, {120.0, 160.0}, {130.0, 180.0}}; 
 
-    draw_triangle(win,tri1, RED); 
-    draw_triangle(win,tri2, BLUE); 
-    draw_triangle(win,tri3, GREEN);
+    // draw_triangle(win,tri1, RED); 
+    // draw_triangle(win,tri2, BLUE); 
+    // draw_triangle(win,tri3, GREEN);
+
+    BASE := 200.0;
+    WIDTH := 40.0;
+    DIST := 30.0;
+
+    cube: std::Vec3F[8] = 
+    {
+        {BASE,BASE,DIST},  // A
+        {BASE + WIDTH,BASE,DIST}, // B
+        {BASE,BASE+WIDTH,DIST}, // C
+        {BASE + WIDTH,BASE+WIDTH,DIST}, // D
+
+        {BASE,BASE,DIST + WIDTH}, // E
+        {BASE + WIDTH,BASE,DIST + WIDTH}, // F
+        {BASE,BASE+WIDTH,DIST + WIDTH}, // G
+        {BASE + WIDTH,BASE+WIDTH,DIST+WIDTH}, // H
+    };
+
+    // Points should probably be translated before we issue draws.
+    // But lets worry about speed later
+    draw_line_3f(&cube[0],&cube[1]); // AB
+    draw_line_3f(&cube[0],&cube[2]); // AC
+    draw_line_3f(&cube[1],&cube[3]); // BD
+    draw_line_3f(&cube[2],&cube[3]); // CD
+
+    draw_line_3f(&cube[1],&cube[5]); // BF
+    draw_line_3f(&cube[3],&cube[7]); // DH
+    draw_line_3f(&cube[5],&cube[7]); // FH
+    draw_line_3f(&cube[0],&cube[4]); // AE
+
+    draw_line_3f(&cube[2],&cube[6]); // CG
+    draw_line_3f(&cube[6],&cube[7]); // GH
+    draw_line_3f(&cube[3],&cube[5]); // EF
+    draw_line_3f(&cube[3],&cube[6]); // EG
+
 }
 
 func main() s32
