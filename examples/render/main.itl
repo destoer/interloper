@@ -9,8 +9,8 @@ func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
     v1_clamp := std::vec2i_clamp_zero(v1,&win.bounds);
     v2_clamp := std::vec2i_clamp_zero(v2,&win.bounds);
 
-    y1 := (win.size.y - v1_clamp.y);
-    y2 := (win.size.y - v2_clamp.y);
+    y1 := (win.height - v1_clamp.y);
+    y2 := (win.height - v2_clamp.y);
     x1 := v1_clamp.x;
     x2 := v2_clamp.x;
 
@@ -31,7 +31,7 @@ func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
         std::swap_s64(&y1,&y2);
     }
 
-    stride := win.size.x;
+    stride := win.width;
 
     y1f := cast(f64,y1);
     y2f := cast(f64,y2);
@@ -53,8 +53,19 @@ func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
     }
 }
 
-func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
+func screen_tri_to_device(size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
 {
+    for [@v, i] in out {
+        v.x = (tri[i].x + 0.5) * size.x;
+        v.y = (tri[i].y + 0.5) * size.y;
+    }
+}
+
+func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
+{
+    tri: std::Vec2F[3] = {?};
+    screen_tri_to_device(&win.size,tri_screen,tri);
+
     // Compute the bounding box
     max := std::Vec2I {0,0};
     min := std::Vec2I {win.bounds.x,win.bounds.y};
@@ -70,7 +81,8 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
         max.y = std::min_s64(win.bounds.y,std::max_s64(max.y,y));     
     }
 
-    stride := win.size.x;
+    stride := win.width;
+    height := win.height;
 
     // Compute barycentric cordinate info outside of the loop
     v0 := std::vec2f_sub(&tri[1],&tri[0]);
@@ -100,64 +112,94 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
                 colourf := gfx::Colour{u,w,v};
                 colour_rgba := gfx::colour_to_rgba(&colourf);
 
-                y_flip := win.size.y - y;
+                y_flip := height - y;
                 win.screen[(y_flip * stride) + x] = colour_rgba;
             }
         }
     }
 }
 
-func draw_line_3f(v1: const std::Vec3F@, v2: const std::Vec3F@)
+func draw_line_3f(win: gfx::Window@,v1: const std::Vec4F@, v2: const std::Vec4F@,colour: u32)
 {
+    NEAR_CLIP := 0.2;
 
+    if(v1.z < NEAR_CLIP || v2.z < NEAR_CLIP)
+    {
+        return;
+    }
+
+    x1 := cast(s64,((v1.x / v1.z) + 0.5) * win.size.x);
+    y1 := cast(s64,((v1.y / v1.z) + 0.5) * win.size.y);
+    x2 := cast(s64,((v2.x / v2.z) + 0.5) * win.size.x);
+    y2 := cast(s64,((v2.y / v2.z) + 0.5) * win.size.y);
+
+    p1 := std::Vec2I {x1,y1};
+    p2 := std::Vec2I {x2,y2};
+
+    draw_line(win,&p1,&p2,colour);
+}
+
+func render_triangle(win: gfx::Window@)
+{
+    tri1: std::Vec2F[3] = {{-0.48, -0.35},   {-0.42, -0.17},  {-0.39, -0.33}}; 
+    tri2: std::Vec2F[3] = {{-0.22, -0.40},  {-0.27, -0.5},   {-0.39, -0.13}}; 
+    tri3: std::Vec2F[3] = {{-0.22, -0.19}, {-0.31, -0.17}, {-0.30, -0.13}}; 
+
+    draw_triangle(win,tri1, RED); 
+    draw_triangle(win,tri2, BLUE); 
+    draw_triangle(win,tri3, GREEN);
+}
+
+func render_cube(win: gfx::Window@)
+{
+    BASE := -0.25;
+    WIDTH := 0.5;
+    DIST := 1.0;
+    VEC_3D_W := 1.0;
+
+    camera: std::Vec4F = {
+        0.0,0.0,0.0,1.0
+    };
+
+    cube: std::Vec4F[8] = 
+    {
+        {BASE,BASE,DIST,VEC_3D_W},  // A
+        {BASE + WIDTH,BASE,DIST,VEC_3D_W}, // B
+        {BASE,BASE+WIDTH,DIST,VEC_3D_W}, // C
+        {BASE + WIDTH,BASE+WIDTH,DIST,VEC_3D_W}, // D
+
+        {BASE,BASE,DIST + WIDTH,VEC_3D_W}, // E
+        {BASE + WIDTH,BASE,DIST + WIDTH,VEC_3D_W}, // F
+        {BASE,BASE+WIDTH,DIST + WIDTH,VEC_3D_W}, // G
+        {BASE + WIDTH,BASE+WIDTH,DIST+WIDTH,VEC_3D_W}, // H
+    };
+
+    colour := RED;
+
+    // Points should probably be translated before we issue draws.
+    // But lets worry about speed later
+    draw_line_3f(win,&cube[0],&cube[1],colour); // AB
+    draw_line_3f(win,&cube[0],&cube[2],colour); // AC
+    draw_line_3f(win,&cube[1],&cube[3],colour); // BD
+    draw_line_3f(win,&cube[2],&cube[3],colour); // CD
+
+    draw_line_3f(win,&cube[1],&cube[5],colour); // BF
+    draw_line_3f(win,&cube[3],&cube[7],colour); // DH
+    draw_line_3f(win,&cube[5],&cube[7],colour); // FH
+    draw_line_3f(win,&cube[0],&cube[4],colour); // AE
+
+    draw_line_3f(win,&cube[2],&cube[6],colour); // CG
+    draw_line_3f(win,&cube[6],&cube[7],colour); // GH
+    draw_line_3f(win,&cube[4],&cube[5],colour); // EF
+    draw_line_3f(win,&cube[4],&cube[6],colour); // EG
 }
 
 func render(win: gfx::Window@)
 {
     gfx::blank_screen(win.screen);
 
-    // tri1: std::Vec2F[3] = {{10.0, 70.0},   {50.0, 160.0},  {70.0, 80.0}}; 
-    // tri2: std::Vec2F[3] = {{180.0, 50.0},  {150.0, 1.0},   {70.0, 180.0}}; 
-    // tri3: std::Vec2F[3] = {{180.0, 150.0}, {120.0, 160.0}, {130.0, 180.0}}; 
-
-    // draw_triangle(win,tri1, RED); 
-    // draw_triangle(win,tri2, BLUE); 
-    // draw_triangle(win,tri3, GREEN);
-
-    BASE := 200.0;
-    WIDTH := 40.0;
-    DIST := 30.0;
-
-    cube: std::Vec3F[8] = 
-    {
-        {BASE,BASE,DIST},  // A
-        {BASE + WIDTH,BASE,DIST}, // B
-        {BASE,BASE+WIDTH,DIST}, // C
-        {BASE + WIDTH,BASE+WIDTH,DIST}, // D
-
-        {BASE,BASE,DIST + WIDTH}, // E
-        {BASE + WIDTH,BASE,DIST + WIDTH}, // F
-        {BASE,BASE+WIDTH,DIST + WIDTH}, // G
-        {BASE + WIDTH,BASE+WIDTH,DIST+WIDTH}, // H
-    };
-
-    // Points should probably be translated before we issue draws.
-    // But lets worry about speed later
-    draw_line_3f(&cube[0],&cube[1]); // AB
-    draw_line_3f(&cube[0],&cube[2]); // AC
-    draw_line_3f(&cube[1],&cube[3]); // BD
-    draw_line_3f(&cube[2],&cube[3]); // CD
-
-    draw_line_3f(&cube[1],&cube[5]); // BF
-    draw_line_3f(&cube[3],&cube[7]); // DH
-    draw_line_3f(&cube[5],&cube[7]); // FH
-    draw_line_3f(&cube[0],&cube[4]); // AE
-
-    draw_line_3f(&cube[2],&cube[6]); // CG
-    draw_line_3f(&cube[6],&cube[7]); // GH
-    draw_line_3f(&cube[3],&cube[5]); // EF
-    draw_line_3f(&cube[3],&cube[6]); // EG
-
+    // render_triangle(win);
+    render_cube(win);
 }
 
 func main() s32

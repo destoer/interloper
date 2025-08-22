@@ -65,6 +65,26 @@ func max_u64(v1 : u64, v2 : u64) u64
     return v2;
 }
 
+func max_f64(v1: f64, v2: f64) f64
+{
+    if(v1 > v2)
+    {
+        return v1;
+    }
+
+    return v2;
+}
+
+func min_f64(v1: f64, v2: f64) f64
+{
+    if(v1 < v2)
+    {
+        return v1;
+    }
+
+    return v2;
+}
+
 func in_range_u64(v : u64,lo : u64, hi : u64) bool
 {
     return v >= lo && v <= hi;
@@ -212,9 +232,34 @@ func barycentric_tri(tri: const Vec2F[3], point: const Vec2F@) [f64,f64,f64]
 }
 
 
-struct Vec3F
+#attr(no_reorder)
+struct Vec4F
 {
     x: f64;
     y: f64;
     z: f64;
+    w: f64;
+}
+
+
+struct Mat4D
+{
+    mat: f64[4][4];
+}
+
+
+func mul_mat4_vec4(m1: const Mat4D@, m2: const Vec4F@) Vec4F
+{
+    ans: Vec4F = {?};
+    ans_vec: f64[] = {cast(f64@,&ans),4};
+
+    for [@v, r] in ans_vec
+    {
+        @v += m1.mat[r][0] * m2.x;
+        @v += m1.mat[r][1] * m2.y;
+        @v += m1.mat[r][2] * m2.z;
+        @v += m1.mat[r][3] * m2.w;
+    }
+
+    return ans;
 }
