@@ -1784,6 +1784,22 @@ Option<itl_error> code_generation(Interloper& itl)
     return option::none;
 }
 
+void print_ast(Interloper& itl)
+{
+    // print type defs
+    for(u32 t = 0; t < count(itl.type_decl); t++)
+    {
+        print(itl.type_decl[t]);
+    }
+
+    // print function defs
+    for(u32 f = 0; f < count(itl.func_table.table); f++)
+    {
+        auto& func = itl.func_table.table[f];
+        print((AstNode*)func.root);    
+    }    
+}
+
 Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 {
     // parse intial input file
@@ -1793,6 +1809,11 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
     const auto parse_err = parse(itl,initial_filename);
     if(!!parse_err)
     {
+        if(itl.print_ast)
+        {
+            print_ast(itl);
+        }
+
         // flag as generic parser error
         if(itl.error_count == 0)
         {
@@ -1810,18 +1831,7 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 
     if(itl.print_ast)
     {
-        // print type defs
-        for(u32 t = 0; t < count(itl.type_decl); t++)
-        {
-            print(itl.type_decl[t]);
-        }
-
-        // print function defs
-        for(u32 f = 0; f < count(itl.func_table.table); f++)
-        {
-            auto& func = itl.func_table.table[f];
-            print((AstNode*)func.root);    
-        }
+        print_ast(itl);
     }
 
     return option::none;

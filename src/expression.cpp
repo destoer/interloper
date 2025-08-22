@@ -3,6 +3,7 @@
 ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
 ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
 ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
+ParserResult parse_initliazer_list(Parser& parser, ExprCtx& ctx, const Token& t);
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
@@ -279,10 +280,29 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
                 return name_space_res.error();
             }
 
-            Array<String> name_space = *name_space_res;
+            Array<String> name_space_strings = *name_space_res;
 
             const auto cur = next_token(parser);
             next_expr_token(parser,ctx);
+
+            // Read out struct initializer
+            if(cur.type == token_type::symbol && ctx.expr_tok.type == token_type::left_c_brace)
+            {
+                const auto struct_name = cur;
+                const auto start = ctx.expr_tok;
+                (void)consume_expr(parser,ctx,token_type::left_c_brace);
+
+                auto list_res = parse_initliazer_list(parser,ctx,start);
+                if(!list_res)
+                {
+                    return list_res;
+                }
+
+                NameSpace* name_space = scan_namespace(parser.global_namespace,name_space_strings); 
+                auto initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
+                
+                return initializer;
+            }
 
             auto sym_res = parse_sym(parser,ctx,cur);
 
@@ -291,7 +311,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
                 return sym_res;
             }
 
-            return ast_scope(parser,*sym_res,name_space,t);
+            return ast_scope(parser,*sym_res,name_space_strings,t);
         }
 
         default:
@@ -470,7 +490,7 @@ ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const T
                 return list_res;
             }
 
-            auto struct_initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,struct_name);
+            auto struct_initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,nullptr,struct_name);
 
             const DesignatedInitializer init = {struct_initializer,name};
             push_var(list->initializer,init);

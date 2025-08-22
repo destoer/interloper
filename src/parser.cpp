@@ -102,6 +102,37 @@ builtin_type builtin_type_from_tok(const Token& tok)
     return builtin_type(s32(tok.type) - s32(token_type::u8));
 }
 
+Result<NameSpace*,parse_error> parse_name_space(Parser& parser)
+{
+    // See if this type is name spaced
+    NameSpace* name_space = nullptr;
+
+    // We have a namespace to parse
+    if(peek(parser,1).type == token_type::scope)
+    {
+        auto strings_res = split_namespace(parser,peek(parser,0));
+
+        if(!strings_res)
+        {
+            return strings_res.error();
+        }
+
+        auto strings = *strings_res;
+
+        name_space = scan_namespace(parser.global_namespace,strings);
+
+        // Namespace does not allready exist create it!
+        if(!name_space)
+        {
+            name_space = new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,strings);
+        }
+
+        destroy_arr(strings);
+    }
+
+    return name_space;
+}
+
 Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
 {
     // parse out any specifiers
@@ -134,31 +165,14 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
         default: break;
     }
 
-    // See if this type is name spaced
-    NameSpace* name_space = nullptr;
+    auto name_space_res = parse_name_space(parser);
 
-    // We have a namespace to parse
-    if(peek(parser,1).type == token_type::scope)
+    if(!name_space_res)
     {
-        auto strings_res = split_namespace(parser,peek(parser,0));
-
-        if(!strings_res)
-        {
-            return strings_res.error();
-        }
-
-        auto strings = *strings_res;
-
-        name_space = scan_namespace(parser.global_namespace,strings);
-
-        // Namespace does not allready exist create it!
-        if(!name_space)
-        {
-            name_space = new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,strings);
-        }
-
-        destroy_arr(strings);
+        return name_space_res.error();
     }
+
+    NameSpace* name_space = *name_space_res;
 
     // read out the plain type
 
@@ -335,7 +349,7 @@ ParserResult parse_struct_initializer(Parser &parser)
         return parser_error(parser,parse_error::malformed_stmt,struct_name,"Expected initializer list for struct initializer\n");
     }
 
-    return ast_struct_initializer(parser,struct_name.literal,list,struct_name); 
+    return ast_struct_initializer(parser,struct_name.literal,list,nullptr,struct_name); 
 }
 
 ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)

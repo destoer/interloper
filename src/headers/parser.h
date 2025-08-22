@@ -612,7 +612,9 @@ struct StructInitializerNode
 {
     AstNode node;
 
+    NameSpace* name_space = nullptr;
     String struct_name;
+
     // Initializer list or designated initializer
     AstNode* initializer;
 };
@@ -693,12 +695,13 @@ T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
     return ret_node;
 }
 
-AstNode *ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, const Token& token)
+AstNode *ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, NameSpace* name_space, const Token& token)
 {
     StructInitializerNode* struct_initializer_node = alloc_node<StructInitializerNode>(parser,ast_type::struct_initializer,ast_fmt::struct_initializer,token);
 
     struct_initializer_node->struct_name = literal;
     struct_initializer_node->initializer = initializer;
+    struct_initializer_node->name_space = name_space;
 
     return (AstNode*)struct_initializer_node;
 }

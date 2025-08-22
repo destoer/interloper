@@ -111,9 +111,9 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 }
 
 
-TypeResult lookup_struct(Interloper& itl, const String& name)
+TypeResult lookup_struct(Interloper& itl, NameSpace* name_space,const String& name)
 {
-    const auto struct_decl_res = lookup_type(itl,name);
+    const auto struct_decl_res = lookup_type_internal(itl,name_space,name);
     if(!struct_decl_res)
     {
         return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",name.buf);
@@ -1008,7 +1008,7 @@ Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, R
 // NOTE: Caller must check assignment result.
 TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot dst, StructInitializerNode* struct_initializer)
 {
-    const auto struct_type_res = lookup_struct(itl,struct_initializer->struct_name);
+    const auto struct_type_res = lookup_struct(itl,struct_initializer->name_space,struct_initializer->struct_name);
     if(!struct_type_res)
     {
         return struct_type_res;

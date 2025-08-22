@@ -827,7 +827,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
 
                 else
                 {
-                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer",name.buf);       
+                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer or function\n",name.buf);       
                 }
             }
 
