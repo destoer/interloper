@@ -190,7 +190,7 @@ func format_float(str: String@, v : f64, spec_dp: u32)
     // okay at this point we can just shift each digit out the rhs
     // until the number hits zero like any other printing algorithm
     // TODO: their are precision problems using floats to calculate this 
-    while(v > 0.0 && idx < buffer.len && digits < allowed_prec)
+    while(idx < buffer.len && digits < allowed_prec)
     {
         // set dp
         if(idx == dp)
@@ -209,21 +209,6 @@ func format_float(str: String@, v : f64, spec_dp: u32)
         // move in next digit
         v -= cast(f64,digit);
         v *= 10.0;
-    }
-
-    // set dp incase of single digit
-    if(idx == dp)
-    {
-        buffer[idx] = '.';
-        idx += 1;
-    }
-
-    // pad with 0 till desired formatting
-    while(digits < allowed_prec && idx < buffer.len)
-    {
-        buffer[idx] = '0';
-        idx += 1;
-        digits += 1;
     }
 
     push_char_buffer(str,buffer[:idx]);
@@ -448,6 +433,14 @@ func print_args(fmt : const string, args : const rtti::Any[])
 {
     str := format_args(fmt,args);
     write_string(str.buf);
+    destroy_string(&str);
+}
+
+func println_args(fmt : const string, args : const rtti::Any[])
+{
+    str := format_args(fmt,args);
+    write_string(str.buf);
+    linefeed();
     destroy_string(&str);
 }
 

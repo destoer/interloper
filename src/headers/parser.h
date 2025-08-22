@@ -140,7 +140,7 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "scope",
     "type_alias",
 
-    "struct_initalizer",
+    "struct_initializer",
     "struct_return",
     "return",
 

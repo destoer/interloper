@@ -416,16 +416,124 @@ bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
     return false;
 }
 
+Reg& reg_from_slot(RegSlot slot, LinearAlloc& alloc)
+{
+    return reg_from_slot(*alloc.table,alloc.tmp_regs,slot);
+}
+
+void reserve_offset(LinearAlloc& alloc, Reg& ir_reg,u32 reg)
+{
+    log_reg(alloc.print,*alloc.table,"reserve offset for %r in %s\n",ir_reg.slot,reg_name(alloc.arch,reg));
+    stack_reserve_reg(alloc.stack_alloc,ir_reg);
+}
+
+
+void free_ir_reg(Reg& ir_reg,RegisterFile& regs)
+{
+    free_reg(regs, ir_reg.local_reg);
+    ir_reg.local_reg = REG_FREE;
+}
+
+// Spill a register to memory
+void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg, insertion_type type)
+{
+    auto& ir_reg = reg_from_slot(slot,alloc);
+    const u32 size = ir_reg.size * ir_reg.count;
+
+    if(ir_reg.segment == reg_segment::constant)
+    {
+        log_reg(alloc.print,*alloc.table,"Constant %r deallocated from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
+        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+        return;
+    }
+
+    // TODO: handle if structs aernt always in memory
+    assert(size <= GPR_SIZE);
+
+    // we have not spilled this value on the stack yet we need to actually allocate its posistion
+
+    if(is_stack_unallocated(ir_reg))
+    {
+        reserve_offset(alloc,ir_reg,reg);
+    }
+
+    log_reg(alloc.print,*alloc.table,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
+
+
+    const auto opcode = make_op(op_type::spill,make_raw_operand(reg),make_directive_reg(slot),make_raw_operand(alloc.stack_alloc.stack_offset));
+
+    insert_node(block.list,node,opcode,type);
+
+    // Mark the register as freed
+    if(!alloc.stack_only)
+    {
+        assert(is_reg_locally_allocated(ir_reg));
+        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+    }
+}
+
+
+// Spill a slot to memory
+void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, insertion_type type)
+{
+    auto& ir_reg = reg_from_slot(slot,alloc);
+
+    // is actually in a reg and not immediatly spilled
+    if(is_reg_locally_allocated(ir_reg))
+    {
+        spill_reg(alloc,block,node,slot,ir_reg.local_reg,type);
+    }
+
+    // reserve a space for this for a later spill
+    else if(is_stack_unallocated(ir_reg))
+    {
+        reserve_offset(alloc,ir_reg,REG_FREE);
+    }   
+}
+
+
 // TODO: This should look for a register furthest in the future.
 // We may have to have a look back over our local allocator
-void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block& block)
+void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block& block, OpcodeNode* node)
 {
-    UNUSED(block); UNUSED(alloc);
-
     // Spill a register for room
     if(!alloc_ir_reg(regs,ir_reg))
     {
-        assert(false);
+        u32 furthest_use = 0;
+        RegSlot reg = INVALID_SYM_REG_SLOT;
+
+        for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+        {
+            if(is_locked(regs,r))
+            {
+                continue;
+            }
+
+            const auto slot = regs.allocated[r];
+            auto& candidate = reg_from_slot(slot,alloc);
+
+            if(candidate.cur_local_uses >= count(candidate.local_uses))
+            {
+                furthest_use = 0xffff'ffff;
+                reg = slot;
+            }
+
+            else
+            {
+                const u32 next_use = candidate.local_uses[candidate.cur_local_uses];
+                if(next_use > furthest_use)
+                {
+                    furthest_use = next_use;
+                    reg = slot;
+                }
+            }
+        }
+
+        // We should have been able to find a register
+        assert(furthest_use != 0);
+
+        spill(alloc,block,node,reg,insertion_type::before);
+        assert(alloc_ir_reg(regs,ir_reg));
     }
 }
 
@@ -633,10 +741,7 @@ void destroy_linear_alloc(LinearAlloc& alloc)
     destroy_stack_alloc(alloc.stack_alloc);
 }
 
-Reg& reg_from_slot(RegSlot slot, LinearAlloc& alloc)
-{
-    return reg_from_slot(*alloc.table,alloc.tmp_regs,slot);
-}
+
 
 void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
 {
@@ -665,73 +770,7 @@ void reload_slot(LinearAlloc& alloc,Block& block, OpcodeNode* node, RegSlot slot
 }
 
 
-void reserve_offset(LinearAlloc& alloc, Reg& ir_reg,u32 reg)
-{
-    log_reg(alloc.print,*alloc.table,"reserve offset for %r in %s\n",ir_reg.slot,reg_name(alloc.arch,reg));
-    stack_reserve_reg(alloc.stack_alloc,ir_reg);
-}
 
-void free_ir_reg(Reg& ir_reg,RegisterFile& regs)
-{
-    free_reg(regs, ir_reg.local_reg);
-    ir_reg.local_reg = REG_FREE;
-}
-
-// Spill a register to memory
-void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg, insertion_type type)
-{
-    auto& ir_reg = reg_from_slot(slot,alloc);
-    const u32 size = ir_reg.size * ir_reg.count;
-
-    if(ir_reg.segment == reg_segment::constant)
-    {
-        log_reg(alloc.print,*alloc.table,"Constant %r deallocated from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
-        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
-        return;
-    }
-
-    // TODO: handle if structs aernt always in memory
-    assert(size <= GPR_SIZE);
-
-    // we have not spilled this value on the stack yet we need to actually allocate its posistion
-
-    if(is_stack_unallocated(ir_reg))
-    {
-        reserve_offset(alloc,ir_reg,reg);
-    }
-
-    log_reg(alloc.print,*alloc.table,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
-
-
-    const auto opcode = make_op(op_type::spill,make_raw_operand(reg),make_directive_reg(slot),make_raw_operand(alloc.stack_alloc.stack_offset));
-
-    insert_node(block.list,node,opcode,type);
-
-    // Mark the register as freed
-    if(!alloc.stack_only)
-    {
-        assert(is_reg_locally_allocated(ir_reg));
-        free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
-    }
-}
-
-// Spill a slot to memory
-void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, insertion_type type)
-{
-    auto& ir_reg = reg_from_slot(slot,alloc);
-
-    // is actually in a reg and not immediatly spilled
-    if(is_reg_locally_allocated(ir_reg))
-    {
-        spill_reg(alloc,block,node,slot,ir_reg.local_reg,type);
-    }
-
-    // reserve a space for this for a later spill
-    else if(is_stack_unallocated(ir_reg))
-    {
-        reserve_offset(alloc,ir_reg,REG_FREE);
-    }   
-}
 
 // Save a register, this can either be a copy to a free reg
 // Or by spilling it to memory
@@ -891,7 +930,7 @@ void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
     // Aquire a new register and reload it
     else
     {
-        acquire_local_reg(alloc,ir_reg,reg_file,block);
+        acquire_local_reg(alloc,ir_reg,reg_file,block,node);
         log_reg(alloc.print,*alloc.table,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
 
         node->value.v[reg] = make_raw_operand(ir_reg.local_reg);

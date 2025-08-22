@@ -923,8 +923,8 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
 
         case ast_type::struct_initializer:
         {
-            StructInitializerNode* struct_initalizer = (StructInitializerNode*)node;
-            const auto res = assign_struct_initializer(itl,func,addr_member,struct_initalizer);
+            StructInitializerNode* struct_initializer = (StructInitializerNode*)node;
+            const auto res = assign_struct_initializer(itl,func,addr_member,struct_initializer);
             
             if(!res)
             {

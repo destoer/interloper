@@ -160,3 +160,14 @@ func process_events(win: Window@) win_result
 {
     return os_process_events(win);
 }
+
+
+func colour_to_rgba(colour: const Colour@) u32
+{
+    COLOUR_TO_RGB_SCALE := 255.0;
+    red := cast(u32,colour.r * COLOUR_TO_RGB_SCALE) & 0xff;
+    blue := cast(u32,colour.g * COLOUR_TO_RGB_SCALE) & 0xff;
+    green := cast(u32,colour.b * COLOUR_TO_RGB_SCALE) & 0xff;
+
+    return 0xff00_0000 | (red << 16) | (green << 8) | blue;
+}

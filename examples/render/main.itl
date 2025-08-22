@@ -56,8 +56,8 @@ func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
 func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
 {
     // Compute the bounding box
-    max: std::Vec2I = {0,0};
-    min: std::Vec2I = {win.bounds.x,win.bounds.y};
+    max := std::Vec2I {0,0};
+    min := std::Vec2I {win.bounds.x,win.bounds.y};
 
     for @point in tri
     {
@@ -70,14 +70,9 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
         max.y = std::min_s64(win.bounds.y,std::max_s64(max.y,y));     
     }
 
-    // Flip Y and then swap them to handle the changed order
-    tmp := max.y;
-    max.y = win.size.y - min.y;
-    min.y = win.size.y - tmp;
-
     stride := win.size.x;
 
-    // Compute baycentric cordinates
+    // Compute barycentric cordinate info outside of the loop
     v0 := std::vec2f_sub(&tri[1],&tri[0]);
     v1 := std::vec2f_sub(&tri[2],&tri[0]);
 
@@ -90,7 +85,7 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
     {
         for x in min.x < max.x 
         {
-            point: std::Vec2F = {cast(f64,x),cast(f64,y)};
+            point := std::Vec2F {cast(f64,x),cast(f64,y)};
             v2 := std::vec2f_sub(&point,&tri[0]);
 
             d20 := std::vec2f_dot(&v2,&v0);
@@ -98,15 +93,18 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
 
             v := ((d11 * d20) - (d01 * d21)) / denom;
             w := ((d00 * d21) - (d01 * d20)) / denom;
+            u := 1.0 - v - w;
 
             if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
             {
-                win.screen[(y * stride) + x] = colour;
+                colourf := gfx::Colour{u,w,v};
+                colour_rgba := gfx::colour_to_rgba(&colourf);
+
+                y_flip := win.size.y - y;
+                win.screen[(y_flip * stride) + x] = colour_rgba;
             }
         }
     }
-
-    // std::exit(1);
 }
 
 func render(win: gfx::Window@)

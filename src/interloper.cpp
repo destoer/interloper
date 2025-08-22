@@ -784,8 +784,8 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
         case ast_type::struct_initializer:
         {
-            StructInitializerNode* struct_initalizer = (StructInitializerNode*)node;
-            return assign_struct_initializer(itl,func,make_struct_addr(dst_slot,0),struct_initalizer);
+            StructInitializerNode* struct_initializer = (StructInitializerNode*)node;
+            return assign_struct_initializer(itl,func,make_struct_addr(dst_slot,0),struct_initializer);
         }
         
         default:
@@ -1493,9 +1493,9 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
                         count(func.sig.return_type));
                 }
 
-                StructInitializerNode* struct_initalizer = (StructInitializerNode*)line;
+                StructInitializerNode* struct_initializer = (StructInitializerNode*)line;
                 const AddrSlot dst = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
-                const auto struct_type_res = assign_struct_initializer(itl,func,dst,struct_initalizer);
+                const auto struct_type_res = assign_struct_initializer(itl,func,dst,struct_initializer);
 
                 if(!struct_type_res)
                 {

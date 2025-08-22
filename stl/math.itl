@@ -117,6 +117,11 @@ func vec2i_clamp_zero(v1: const Vec2I@,limit: const Vec2I@) Vec2I
 }
 
 
+func print_vec2i(tag: const string,v1: Vec2I)
+{
+    println("{}: {} : {}",tag,v1.x,v1.y);
+}
+
 struct Vec2F
 {
     x : f64;
@@ -178,5 +183,30 @@ func float_eq(f1: f64, f2: f64) bool
 
 func print_vec2f(tag: const string,v1: Vec2F)
 {
-    print("{}: {} : {}\n",tag,v1.x,v1.y);
+    println("{}: {} : {}",tag,v1.x,v1.y);
+}
+
+
+func barycentric_tri(tri: const Vec2F[3], point: const Vec2F@) [f64,f64,f64]
+{
+    // Constant per TRI
+    v0 := vec2f_sub(&tri[1],&tri[0]);
+    v1 := vec2f_sub(&tri[2],&tri[0]);
+
+    d00 := std::vec2f_dot(&v0,&v0);
+    d01 := std::vec2f_dot(&v0,&v1);
+    d11 := std::vec2f_dot(&v1,&v1);
+    denom := (d00 * d11) - (d01 * d01);
+
+
+    // Per point
+    v2 := vec2f_sub(point,&tri[0]);
+    d20 := vec2f_dot(&v2,&v0);
+    d21 := vec2f_dot(&v2,&v1);
+
+    v := ((d11 * d20) - (d01 * d21)) / denom;
+    w := ((d00 * d21) - (d01 * d20)) / denom;
+    u := 1.0 - v - w;
+
+    return u, v ,w;
 }
