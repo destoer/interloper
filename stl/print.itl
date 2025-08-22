@@ -156,7 +156,7 @@ func format_float(str: String@, v : f64, spec_dp: u32)
     digits: u32 = 0;
 
     // rescale so we have it 10^1 units
-    if(v > 1.0)
+    if(v >= 1.0)
     {
         power : u32 = 0;
 
@@ -183,7 +183,6 @@ func format_float(str: String@, v : f64, spec_dp: u32)
         dp += 1;
         v *= 10.0;
     }
-
 
     // can print whole digits plus number of dp
     allowed_prec := whole_digits + spec_dp;
@@ -212,6 +211,13 @@ func format_float(str: String@, v : f64, spec_dp: u32)
         v *= 10.0;
     }
 
+    // set dp incase of single digit
+    if(idx == dp)
+    {
+        buffer[idx] = '.';
+        idx += 1;
+    }
+
     // pad with 0 till desired formatting
     while(digits < allowed_prec && idx < buffer.len)
     {
@@ -220,8 +226,7 @@ func format_float(str: String@, v : f64, spec_dp: u32)
         digits += 1;
     }
 
-    char_buffer: const string = {&buffer[0],idx};
-    push_char_buffer(str,char_buffer);
+    push_char_buffer(str,buffer[:idx]);
 }
 
 func format_builtin_arg(str: String@, arg: rtti::Any, specifier : c8)

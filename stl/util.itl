@@ -1,5 +1,23 @@
 namespace std;
 
+func test_f64(v1: f64, ans: f64, name: const string)
+{
+    if(!float_eq(v1,ans))
+    {
+        println("Test {} failed: {} != {}",name,v1,ans);
+        exit(1);
+    }
+}
+
+func test_vec2f(v1: Vec2F, ans: Vec2F, name: const string)
+{
+    if(!float_eq(v1.x,ans.x) || !float_eq(v1.y,ans.y))
+    {
+        println("Test {} failed: ( {}, {} ) != ( {}, {} )",name,v1.x,v1.y,ans.x,ans.y);
+        exit(1);
+    }
+}
+
 func assert(cond : bool)
 {
     if(!cond)
