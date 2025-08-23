@@ -28,9 +28,17 @@ RegResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
             type_name(itl,subscript.type).buf); 
     }
 
-    const RegSlot offset = mul_imm_res(itl,func,subscript.slot,size);  
+    if(subscript.value_known)
+    {
+        add_imm(itl,func,dst_slot,ptr_slot,size * subscript.known_value);
+    }
 
-    add(itl,func,dst_slot,ptr_slot,offset);
+    else
+    {
+        const RegSlot offset = mul_imm_res(itl,func,subscript.slot,size);  
+        add(itl,func,dst_slot,ptr_slot,offset);
+    }
+
     return TypedReg{dst_slot,(Type*)type};
 }
 
@@ -51,6 +59,9 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
     Type* accessed_type = nullptr;
 
     const u32 indexes = count(index_node->indexes);
+
+    b32 index_known = false;
+    u32 known_offset = 0;
 
     for(u32 i = 0; i < indexes; i++)
     {
@@ -73,15 +84,50 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
         
 
         // perform the indexing operation
-
         const u32 size = array_type->sub_size;
 
-        const RegSlot mul_slot = mul_imm_res(itl,func,subscript.slot,size);   
+        if(!subscript.value_known)
+        {
+            if(index_known)
+            {
+                last_slot = add_imm_res(itl,func,last_slot,known_offset);
 
-        const RegSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
-        add(itl,func,add_slot,last_slot,mul_slot);
+                index_known = false;
+                known_offset = 0;
+            }
 
-        last_slot = add_slot;
+            const RegSlot mul_slot = mul_imm_res(itl,func,subscript.slot,size);   
+
+            const RegSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
+            add(itl,func,add_slot,last_slot,mul_slot);
+
+            last_slot = add_slot;
+        }
+
+        else
+        {
+            const auto subscript_value = subscript.known_value; 
+
+            // We know both the bounds and subscript check the access is in range.
+            if(is_fixed_array(array_type))
+            {
+                if(subscript_value >= array_type->size)
+                {
+                    return compile_error(itl,itl_error::out_of_bounds,"Array subscript(%d) [%d] is out of bounds for array of size %d\n",
+                        i,subscript_value,size);
+                }
+            }
+
+            index_known = true;
+            known_offset += subscript_value * size;
+
+            // Add any remaining indexing
+            if(last_index)
+            {
+                add_imm(itl,func,dst_slot,last_slot,known_offset);   
+            }
+        }
+
 
         // vla and indexing insnt finished need to load data ptr
         if(is_runtime_size(type))
@@ -91,7 +137,11 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
             {
                 const auto tmp = new_tmp_ptr(func);
 
-                load_ptr(itl,func,tmp,last_slot,0,GPR_SIZE,false,false);
+                load_ptr(itl,func,tmp,last_slot,known_offset,GPR_SIZE,false,false);
+
+                // No longer know the offset
+                index_known = false;
+                known_offset = 0;
 
                 last_slot = tmp;
             }
@@ -126,7 +176,6 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
                 return compile_error(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);                         
             }
         } 
-        
     }
 
     // return pointer to accessed type
