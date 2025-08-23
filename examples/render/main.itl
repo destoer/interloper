@@ -235,6 +235,8 @@ func render(win: gfx::Window@)
 
 func main() s32
 {
+    TAG := "Render";
+
     SCREEN_X := 640;
     SCREEN_Y := 480;
 
@@ -242,6 +244,7 @@ func main() s32
 
     if(res != gfx::win_result::ok)
     {
+        log::error(TAG,"Could not open window");
         return -1;
     }
 
@@ -249,21 +252,21 @@ func main() s32
     {
         if(gfx::start_frame(&win) == gfx::win_result::err)
         {
-            log::error("Render","Failed to start frame");
+            log::error(TAG,"Failed to start frame");
             return -1;
         }
     
         if(input::is_pressed(&win.input,input::button_t::start))
         {
             win.quit = true;
-            log::info("Render","Quitting");
+            log::info(TAG,"Quitting");
         }
 
         render(&win);
 
         if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)
         {
-            log::error("Render","Failed to draw window");
+            log::error(TAG,"Failed to draw window");
             return -1;
         }
 
@@ -272,7 +275,7 @@ func main() s32
 
     if(gfx::close_window(&win) == gfx::win_result::err)
     {
-        log::error("Render","Failed to close window");
+        log::error(TAG,"Failed to close window");
         return -1;
     }
 

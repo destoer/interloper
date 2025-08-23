@@ -24,7 +24,7 @@ func set_log_level_from_env(env_name: const string)
 
     if(!str)
     {
-        max_log_level = log_level::none;
+        max_log_level = log_level::error;
         return;
     }
 

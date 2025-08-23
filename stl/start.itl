@@ -13,6 +13,8 @@ func start()
     std::init_itl_context();
 
     rc: s32 = main();
+    std::println("Exiting with: {}",rc);
+
     std::exit(rc);
 }
 

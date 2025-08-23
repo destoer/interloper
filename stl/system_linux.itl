@@ -381,8 +381,10 @@ func connect_unix_domain(name : const string) [net::Socket, net_result]
     str_copy_term(addr.path,name);
 
     // check connection is fine
-    if(linux_connect(handle,&addr,sizeof_type(SockAddrUn)) != 0)
+    rc := linux_connect(handle,&addr,sizeof_type(SockAddrUn));
+    if(rc != 0)
     {
+        log::debug("Network","Could not open unix socket {}: {}",name,abs(rc));
         _ = os_close(sock.handle);
         sock.handle = cast(byte@,INVALID_SOCKET_HANDLE);
         return sock, net_result::err;
