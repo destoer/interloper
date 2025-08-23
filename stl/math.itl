@@ -233,12 +233,11 @@ func barycentric_tri(tri: const Vec2F[3], point: const Vec2F@) [f64,f64,f64]
 
 
 #attr(no_reorder)
-struct Vec4F
+struct Vec3F
 {
     x: f64;
     y: f64;
     z: f64;
-    w: f64;
 }
 
 
@@ -248,17 +247,22 @@ struct Mat4D
 }
 
 
-func mul_mat4_vec4(m1: const Mat4D@, m2: const Vec4F@) Vec4F
+func mul_mat4_vec3(m1: const Mat4D@, m2: const Vec3F@) Vec3F
 {
-    ans: Vec4F = {?};
-    ans_vec: f64[] = {cast(f64@,&ans),4};
+    ans: Vec3F = {?};
 
-    for [@v, r] in ans_vec
+    // Implicit w of one on input vec
+    ans.x = (m2.x * m1.mat[0][0]) + (m2.y * m1.mat[1][0]) + (m2.z * m1.mat[2][0]) + m1.mat[3][0]; 
+    ans.y = (m2.x * m1.mat[0][1]) + (m2.y * m1.mat[1][1]) + (m2.z * m1.mat[2][1]) + m1.mat[3][1]; 
+    ans.z = (m2.x * m1.mat[0][2]) + (m2.y * m1.mat[1][2]) + (m2.z * m1.mat[2][2]) + m1.mat[3][2]; 
+    w := (m2.x * m1.mat[0][3]) + (m2.y * m1.mat[1][3]) + (m2.z * m1.mat[2][3]) + m1.mat[3][3]; 
+
+    // If w is not 1.0 we have to normalize the cordinates
+    if(w != 1.0)
     {
-        @v += m1.mat[r][0] * m2.x;
-        @v += m1.mat[r][1] * m2.y;
-        @v += m1.mat[r][2] * m2.z;
-        @v += m1.mat[r][3] * m2.w;
+        ans.x /= w;
+        ans.y /= w;
+        ans.z /= w;
     }
 
     return ans;

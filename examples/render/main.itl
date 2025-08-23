@@ -119,7 +119,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
     }
 }
 
-func draw_line_3f(win: gfx::Window@,v1: const std::Vec4F@, v2: const std::Vec4F@,colour: u32)
+func draw_line_3f(win: gfx::Window@,v1: const std::Vec3F@, v2: const std::Vec3F@,colour: u32)
 {
     NEAR_CLIP := 0.2;
 
@@ -155,23 +155,18 @@ func render_cube(win: gfx::Window@)
     BASE := -0.25;
     WIDTH := 0.5;
     DIST := 1.0;
-    VEC_3D_W := 1.0;
 
-    camera: std::Vec4F = {
-        0.0,0.0,0.0,1.0
-    };
-
-    cube: std::Vec4F[8] = 
+    cube: std::Vec3F[8] = 
     {
-        {BASE,BASE,DIST,VEC_3D_W},  // A
-        {BASE + WIDTH,BASE,DIST,VEC_3D_W}, // B
-        {BASE,BASE+WIDTH,DIST,VEC_3D_W}, // C
-        {BASE + WIDTH,BASE+WIDTH,DIST,VEC_3D_W}, // D
+        {BASE,BASE,DIST},  // A
+        {BASE + WIDTH,BASE,DIST}, // B
+        {BASE,BASE+WIDTH,DIST}, // C
+        {BASE + WIDTH,BASE+WIDTH,DIST}, // D
 
-        {BASE,BASE,DIST + WIDTH,VEC_3D_W}, // E
-        {BASE + WIDTH,BASE,DIST + WIDTH,VEC_3D_W}, // F
-        {BASE,BASE+WIDTH,DIST + WIDTH,VEC_3D_W}, // G
-        {BASE + WIDTH,BASE+WIDTH,DIST+WIDTH,VEC_3D_W}, // H
+        {BASE,BASE,DIST + WIDTH}, // E
+        {BASE + WIDTH,BASE,DIST + WIDTH}, // F
+        {BASE,BASE+WIDTH,DIST + WIDTH}, // G
+        {BASE + WIDTH,BASE+WIDTH,DIST+WIDTH}, // H
     };
 
     colour := RED;
