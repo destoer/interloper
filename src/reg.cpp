@@ -296,6 +296,17 @@ RegSlot new_tmp(Function& func, u32 size)
     return reg_slot;
 }
 
+RegSlot new_typed_tmp(Interloper& itl,Function& func, const Type* type)
+{
+    const TmpSlot tmp_slot = {count(func.registers)};
+    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
+
+    const auto reg = make_reg(itl,reg_slot,type);
+    push_var(func.registers,reg);
+
+    return reg_slot;    
+}
+
 RegSlot new_struct(Function& func, u32 size)
 {
     const TmpSlot tmp_slot = {count(func.registers)};

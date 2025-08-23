@@ -543,7 +543,16 @@ struct TypedReg
 {
     RegSlot slot;
     Type* type = nullptr;
+
+    // NOTE: this has no invalidation so use carefully.
+    u64 known_value = 0;
+    b32 value_known = false;
 };
+
+inline TypedReg make_known_reg(RegSlot dst_slot, Type* type, u64 value)
+{
+    return TypedReg {dst_slot,type,value,true};
+}
 
 using RegResult = destoer::Result<TypedReg,itl_error>;
 

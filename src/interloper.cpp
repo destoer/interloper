@@ -127,6 +127,18 @@ Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
     return value_type(itl,value);    
 }
 
+TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node)
+{
+    ValueNode* value_node = (ValueNode*)node;
+    Value value = value_node->value;
+
+    Type* type = value_type(itl,value);
+    RegSlot dst_slot = new_typed_tmp(itl,func,type);
+
+    mov_imm(itl,func,dst_slot,value.v);
+    return make_known_reg(dst_slot,type,value.v);  
+}
+
 
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
@@ -148,6 +160,11 @@ RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
         case ast_type::symbol:
         {
             return symbol(itl,node);
+        }
+
+        case ast_type::value:
+        {
+            return value_tmp(itl,func,node);
         }
 
         // compile an expr
@@ -922,6 +939,11 @@ Option<itl_error> compile_decl(Interloper &itl,Function &func, AstNode *line, b3
     return option::none;
 }
 
+void update_tmp_typing(Interloper& itl, Function& func, RegSlot dst_slot, const Type* type)
+{
+    func.registers[dst_slot.tmp_slot.handle] = make_reg(itl,dst_slot,type);
+}
+
 RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
     // assume a size then refine it with expr result
@@ -934,8 +956,7 @@ RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
     }
 
     Type* type = *type_res;
-
-    func.registers[dst_slot.tmp_slot.handle] = make_reg(itl,dst_slot,type);
+    update_tmp_typing(itl,func,dst_slot,type);
 
     return TypedReg{dst_slot,type};
 }

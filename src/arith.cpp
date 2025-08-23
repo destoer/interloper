@@ -327,44 +327,32 @@ TypeResult compile_comparison_op(Interloper& itl,Function &func,AstNode *node, R
     // if one side is a value do type checking
     if(is_integer(left.type) && is_integer(right.type))
     {
-        if(bin_node->left->type == ast_type::value || bin_node->right->type == ast_type::value)
+        // Coerce the known value to the other operands type if we have checked this is fine.
+        if(left.value_known)
         {
-            if(bin_node->left->type == ast_type::value)
+            const auto coerce_res = check_static_cmp(itl,left.type,right.type,left.known_value);
+            if(!coerce_res)
             {
-                ValueNode* value_node = (ValueNode*)bin_node->left;
-                const u64 v = value_node->value.v;
-
-                const auto coerce_res = check_static_cmp(itl,left.type,right.type,v);
-                if(!coerce_res)
-                {
-                    return coerce_res.error();
-                }
-
-                // within range coerce value type to variable type
-                if(*coerce_res)
-                {
-                    left.type = right.type;
-                }
+                return coerce_res.error();
             }
 
-            // right is a constant
-            else
+            if(*coerce_res)
             {
-                ValueNode* value_node = (ValueNode*)bin_node->right;
-                const u64 v = value_node->value.v;
+                left.type = right.type;
+            }
+        }
 
-                
-                const auto coerce_res = check_static_cmp(itl,right.type,left.type,v);
-                if(!coerce_res)
-                {
-                    return coerce_res.error();
-                }
+        else if(right.value_known)
+        {
+            const auto coerce_res = check_static_cmp(itl,right.type,left.type,right.known_value);
+            if(!coerce_res)
+            {
+                return coerce_res.error();
+            }
 
-                // within range coerce value type to variable type
-                if(*coerce_res)
-                {
-                    right.type = left.type;
-                }
+            if(*coerce_res)
+            {
+                right.type = left.type;
             }
         } 
     }
