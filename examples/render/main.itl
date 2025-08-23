@@ -134,8 +134,8 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
 
 func draw_line_3f(win: gfx::Window@,v1: const std::Vec3F@, v2: const std::Vec3F@,projection: const std::Mat4D@,colour: u32)
 {
-    s1 := std::mul_mat4_vec3(v1,projection);
-    s2 := std::mul_mat4_vec3(v2,projection);
+    s1 := std::mul_vec3_mat4(v1,projection);
+    s2 := std::mul_vec3_mat4(v2,projection);
 
     std::println("{} {} -> {} {}",s1.x,s1.y,s2.x,s2.y);
 
@@ -183,7 +183,7 @@ func render_cube(win: gfx::Window@)
 {
     BASE := -0.25;
     WIDTH := 0.5;
-    DIST := -0.0;
+    DIST := -1.0;
 
     projection := std::Mat4D {{
         {1.0,0.0,0.0,0.0},

@@ -18,6 +18,16 @@ func test_vec2f(v1: Vec2F, ans: Vec2F, name: const string)
     }
 }
 
+func test_vec3f(v1: Vec3F, ans: Vec3F, name: const string)
+{
+    if(!float_eq(v1.x,ans.x) || !float_eq(v1.y,ans.y) || !float_eq(v1.z,ans.z))
+    {
+        println("Test {} failed: ( {}, {}, {} ) != ( {}, {}, {} )",name,v1.x,v1.y,v1.z,ans.x,ans.y,ans.z);
+        exit(1);
+    }    
+}
+
+
 func assert_log(cond: bool, fmt: const string, args: ...)
 {
     if(!cond)
