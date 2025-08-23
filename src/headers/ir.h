@@ -539,19 +539,42 @@ struct RegSlot
     reg_kind kind = reg_kind::sym;
 };
 
+static constexpr u32 TYPED_REG_FLAG_KNOWN_VALUE = (1 << 0);
+static constexpr u32 TYPED_REG_FLAG_ELIDED_VALUE = (1 << 1); 
+
 struct TypedReg
 {
     RegSlot slot;
     Type* type = nullptr;
 
     // NOTE: this has no invalidation so use carefully.
+    // TODO: We can keep this around long term when we have SSA
+    // AND use values stored long term in symbols
     u64 known_value = 0;
-    b32 value_known = false;
+    u32 flags = 0;
 };
 
-inline TypedReg make_known_reg(RegSlot dst_slot, Type* type, u64 value)
+enum class known_value_type
 {
-    return TypedReg {dst_slot,type,value,true};
+    elided,
+    stored
+};
+
+inline bool is_value_known(const TypedReg& reg)
+{
+    return reg.flags & TYPED_REG_FLAG_KNOWN_VALUE;
+}
+
+inline TypedReg make_known_reg(RegSlot dst_slot, Type* type, u64 value,known_value_type known_type)
+{
+    u32 flags = TYPED_REG_FLAG_KNOWN_VALUE;
+
+    if(known_type == known_value_type::elided)
+    {
+        flags |= TYPED_REG_FLAG_ELIDED_VALUE;
+    }
+
+    return TypedReg {dst_slot,type,value,flags};
 }
 
 using RegResult = destoer::Result<TypedReg,itl_error>;
@@ -923,6 +946,8 @@ struct AddrSlot
 
 AddrSlot make_struct_addr(RegSlot slot, u32 offset);
 AddrSlot make_addr(RegSlot slot, u32 offset);
+
+using AddrResult = Result<AddrSlot,itl_error>;
 
 struct TypedAddr
 {

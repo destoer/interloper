@@ -14,7 +14,7 @@ RegResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
 
     const u32 size = type_size(itl,plain);
 
-    const auto res = compile_oper(itl,func,index_node->indexes[0]);
+    const auto res = compile_oper_const_elide(itl,func,index_node->indexes[0]);
     if(!res)
     {
         return res;
@@ -28,7 +28,7 @@ RegResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
             type_name(itl,subscript.type).buf); 
     }
 
-    if(subscript.value_known)
+    if(is_value_known(subscript))
     {
         add_imm(itl,func,dst_slot,ptr_slot,size * subscript.known_value);
     }
@@ -66,7 +66,7 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
     for(u32 i = 0; i < indexes; i++)
     {
 
-        const auto res = compile_oper(itl,func,index_node->indexes[i]);
+        const auto res = compile_oper_const_elide(itl,func,index_node->indexes[i]);
         if(!res)
         {
             return res;
@@ -86,7 +86,7 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
         // perform the indexing operation
         const u32 size = array_type->sub_size;
 
-        if(!subscript.value_known)
+        if(!is_value_known(subscript))
         {
             if(index_known)
             {
@@ -158,7 +158,6 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
             {
                 accessed_type = (Type*)array_type;
             }
-
         }
 
         // this last index will give us our actual values

@@ -354,6 +354,33 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             }
         }
 
+        case ast_type::mod:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            auto res = const_bin_op(itl,bin_node);
+            if(!res)
+            {
+                return res.error();
+            }
+
+            const auto [left,right] = *res;
+
+            if(right.v == 0)
+            {
+                return compile_error(itl,itl_error::int_type_error,"attempted to mod by zero in const expr\n");
+            }
+
+            const u64 ans = is_signed(left.type)? s64(left.v) % s64(right.v) : left.v % right.v;
+            auto type_res = effective_arith_type(itl,left.type,right.type,op_type::smod_reg);
+            if(!type_res)
+            {
+                return type_res.error();
+            }
+
+            return make_const_builtin(ans,*type_res);          
+        }
+
         case ast_type::divide:
         {
             BinNode* bin_node = (BinNode*)node;
@@ -372,7 +399,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             }
 
             const u64 ans = left.v / right.v;
-            auto type_res = effective_arith_type(itl,left.type,right.type,op_type::sub_reg);
+            auto type_res = effective_arith_type(itl,left.type,right.type,op_type::sdiv_reg);
             if(!type_res)
             {
                 return type_res.error();

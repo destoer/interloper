@@ -33,7 +33,6 @@ func main() s32
         }
     }
     
-
     ans := sum * arr.len * arr[0].len * arr[0][0].len;
 
     //std::print("{} {} {} {} {}\n",ans,sum, arr.len, arr[0].len, arr[0][0].len);

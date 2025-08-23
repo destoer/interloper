@@ -8,6 +8,9 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *node);
 Result<BlockSlot,itl_error> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
 RegResult compile_oper(Interloper& itl,Function &func,AstNode *node);
+RegResult compile_oper_const_elide(Interloper& itl,Function& func, AstNode* node);
+void unelide_value(Interloper& itl, Function& func, TypedReg& reg);
+void unelide_values(Interloper& itl, Function& func, TypedReg& left, TypedReg& right);
 
 RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
 Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
@@ -127,7 +130,8 @@ Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
     return value_type(itl,value);    
 }
 
-TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node)
+
+TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node,known_value_type known_type)
 {
     ValueNode* value_node = (ValueNode*)node;
     Value value = value_node->value;
@@ -135,15 +139,35 @@ TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node)
     Type* type = value_type(itl,value);
     RegSlot dst_slot = new_typed_tmp(itl,func,type);
 
-    mov_imm(itl,func,dst_slot,value.v);
-    return make_known_reg(dst_slot,type,value.v);  
+    // Caller is not getting rid of this move
+    if(known_type != known_value_type::elided)
+    {
+        mov_imm(itl,func,dst_slot,value.v);
+    }
+
+    return make_known_reg(dst_slot,type,value.v,known_type);  
+}
+
+void unelide_value(Interloper& itl, Function& func, TypedReg &reg)
+{
+    if(reg.flags & TYPED_REG_FLAG_ELIDED_VALUE)
+    {
+        mov_imm(itl,func,reg.slot,reg.known_value);
+        reg.flags &= ~TYPED_REG_FLAG_KNOWN_VALUE;
+    }
+}
+
+void unelide_values(Interloper& itl, Function& func, TypedReg &left, TypedReg &right)
+{
+    unelide_value(itl,func,left);
+    unelide_value(itl,func,right);
 }
 
 
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
-RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
+RegResult compile_oper_internal(Interloper& itl,Function &func,AstNode *node, known_value_type known_type)
 {
     if(!node)
     {
@@ -164,7 +188,7 @@ RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
 
         case ast_type::value:
         {
-            return value_tmp(itl,func,node);
+            return value_tmp(itl,func,node,known_type);
         }
 
         // compile an expr
@@ -173,6 +197,16 @@ RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
             return compile_expression_tmp(itl,func,node);
         }
     }
+}
+
+RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
+{
+    return compile_oper_internal(itl,func,node,known_value_type::stored);
+}
+
+RegResult compile_oper_const_elide(Interloper& itl,Function& func, AstNode* node)
+{
+    return compile_oper_internal(itl,func,node,known_value_type::elided);
 }
 
 Option<itl_error> compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpace* name_space)

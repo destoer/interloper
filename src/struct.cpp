@@ -823,8 +823,6 @@ Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& s
 
 TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
 {
-    const List<Opcode> list_old = get_cur_list(func.emitter);
-
     auto member_addr_res =  compute_member_addr(itl,func,node);
 
     if(!member_addr_res)
@@ -837,10 +835,6 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
     // len access on fixed sized array
     if(is_special_reg(src_addr.addr.slot,spec_reg::access_fixed_len_reg))
     {
-        // dont need any of the new instrs for this
-        // get rid of them
-        get_cur_list(func.emitter) = list_old;
-
         const ArrayType* array_type = (ArrayType*)src_addr.type;
 
         mov_imm(itl,func,dst_slot,array_type->size);
