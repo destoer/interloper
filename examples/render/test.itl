@@ -10,6 +10,11 @@ func test_vec()
     std::test_f64(std::vec2f_dot(&v1,&v2),1.52,"vec2f v1 dot v2");
 }
 
+func test_mat()
+{
+    
+}
+
 func test_tri()
 {
     tri1: std::Vec2F[3] = {{10.0, 70.0},   {50.0, 160.0},  {70.0, 80.0}}; 

@@ -582,11 +582,10 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
     return option::none;   
 }
 
-// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
+// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl, We do this to get the base type size
+// So we don't have to end up padding this out at higher alignments.
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
 {
-    UNUSED(itl);
-
     b32 done = false;
     
     Type* type = sym.type;
@@ -873,11 +872,11 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
 
     auto& array = sym_from_slot(itl.symbol_table,slot);
 
-    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
-
     // allocate fixed array if needed, and initalize it to its data pointer
     if(is_fixed_array(array.type))
     {
+        const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
+
         // we have the allocation information now complete it
         switch(array.reg.segment)
         {

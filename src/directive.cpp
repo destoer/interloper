@@ -76,16 +76,6 @@ RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 o
     return tmp;
 }
 
-void free_slot(Interloper& itl,Function& func, RegSlot slot)
-{
-    emit_directive_internal(itl,func,op_type::free_slot,make_reg_operand(slot));
-}
-
-void free_fixed_array(Interloper& itl,Function& func,RegSlot src,u32 size,u32 count)
-{
-    emit_directive_internal(itl,func,op_type::free_fixed_array,make_reg_operand(src),make_raw_operand(size),make_raw_operand(count));
-}
-
 OpcodeNode* alloc_slot(Interloper& itl,Function& func, const RegSlot slot, b32 force_alloc)
 {
     return emit_directive_internal(itl,func,op_type::alloc_slot,make_reg_operand(slot),make_raw_operand(force_alloc));

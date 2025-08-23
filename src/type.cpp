@@ -333,6 +333,35 @@ u32 type_size(Interloper& itl,const Type *type)
 }
 
 
+u32 array_memory_size(Interloper& itl, const ArrayType* array)
+{
+    UNUSED(itl);
+
+    if(is_runtime_size(array))
+    {
+        return GPR_SIZE * 2;
+    }
+    
+    // Fixed array, give back the actual size occupied by the buffer
+    return array->sub_size * array->size;
+}
+
+u32 type_memory_size(Interloper& itl, const Type* type)
+{
+    switch(type->kind)
+    {
+        case type_class::array_t:
+        {
+            return array_memory_size(itl,(ArrayType*)type);
+        }
+
+        default:
+        {
+            return type_size(itl,type);
+        }
+    }
+}
+
 u32 data_size(Interloper& itl,const Type *type)
 {
     switch(type->kind)
@@ -342,6 +371,11 @@ u32 data_size(Interloper& itl,const Type *type)
             const auto& structure = struct_from_type(itl.struct_table,type);
             return structure.data_size;
         }   
+
+        case type_class::array_t:
+        {
+            return array_memory_size(itl,(ArrayType*)type);
+        }
 
         default:
         {

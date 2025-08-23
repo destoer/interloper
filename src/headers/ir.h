@@ -199,11 +199,9 @@ enum class op_type
     // so we can reclaim allocation on the stack
     DIRECTIVE,
     alloc_slot,
-    free_slot,
 
     alloc_local_array,
     alloc_global_array,
-    free_fixed_array,
     alloc_vla,
 
     // allocate and store offset inside a var
@@ -897,10 +895,6 @@ void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm);
 void spill_func_bounds(Interloper& itl, Function& func);
 
 void spill_slot(Interloper& itl, Function& func, const Reg& reg);
-
-void free_fixed_array(Interloper& itl,Function& func,RegSlot src,u32 size,u32 count);
-void free_slot(Interloper& itl,Function& func, RegSlot slot);
-
 
 BlockSlot block_from_idx(u32 v);
 BlockSlot cur_block(Function& func);

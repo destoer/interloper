@@ -188,6 +188,13 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             return make_const_builtin(value.v,value_type(itl,value));               
         }
 
+        case ast_type::float_t:
+        {
+            FloatNode* float_node = (FloatNode*)node;
+
+            return make_const_float(itl,float_node->value);
+        }
+
         case ast_type::char_t:
         {
             CharNode* char_node = (CharNode*)node;
@@ -724,8 +731,7 @@ PoolSlot add_const_fixed_array(Interloper& itl, Symbol& array)
     init_arr_sub_sizes(itl,(Type*)array.type);
     
     // preallocate the arr data
-    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
-    const u32 data_size = arr_size * arr_count;
+    const u32 data_size = type_memory_size(itl,array.type);
 
     const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
 

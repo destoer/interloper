@@ -394,7 +394,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             const auto reg = *res;
 
 
-            const u32 size = type_size(itl,reg.type);
+            const u32 size = type_memory_size(itl,reg.type);
             mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);
@@ -410,7 +410,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             }
 
             // just move in the type size
-            const u32 size = type_size(itl,*type_res);
+            const u32 size = type_memory_size(itl,*type_res);
             mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);

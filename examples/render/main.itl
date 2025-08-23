@@ -2,26 +2,28 @@
 import <graphics> 
 import <colour>
 
-// https://github.com/ssloy/tinyrenderer/wiki/Lesson-1:-Bresenham%E2%80%99s-Line-Drawing-Algorithm
+// https://haqr.eu/tinyrenderer/
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-introduction.html
+
+func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
+{
+    return cast(u32,x) < win.width && cast(u32,y) < win.height;
+}
 
 func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
 {
-    v1_clamp := std::vec2i_clamp_zero(v1,&win.bounds);
-    v2_clamp := std::vec2i_clamp_zero(v2,&win.bounds);
+    y1 := (win.height - v1.y);
+    y2 := (win.height - v2.y);
+    x1 := v1.x;
+    x2 := v2.x;
 
-    y1 := (win.height - v1_clamp.y);
-    y2 := (win.height - v2_clamp.y);
-    x1 := v1_clamp.x;
-    x2 := v2_clamp.x;
-
-    steep := false;
+    steep := std::abs(x1 - x2) < std::abs(y1 - y2);
 
     // Draw more x than y
-    if std::abs(x1 - x2) < std::abs(y1 - y2)
+    if(steep)
     {
         std::swap_s64(&x1,&y1);
         std::swap_s64(&x2,&y2);
-        steep = true;
     }
 
     // x1 should be smallest 
@@ -33,23 +35,30 @@ func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
 
     stride := win.width;
 
-    y1f := cast(f64,y1);
-    y2f := cast(f64,y2);
+    y := cast(f64,y1);
+    step := cast(f64,(y2 - y1)) / cast(f64,(x2 - x1));
 
     for x in x1 < x2 + 1
     {
-        t := cast(f64,x - x1) / cast(f64,x2 - x1);
-        y := cast(s64,y1f * (1.0 - t) + (y2f * t));
+        y_index := cast(s64,y);
 
         if steep
         {
-            win.screen[(x * stride) + y] = colour;
+            if(in_screen_bounds(win,y_index,x))
+            {
+                win.screen[(x * stride) + y_index] = colour;
+            }
         }
 
         else
         {
-            win.screen[(y * stride) + x] = colour;
+            if(in_screen_bounds(win,x,y_index))
+            {
+                win.screen[(y_index * stride) + x] = colour;
+            }
         }
+
+        y += step;
     }
 }
 
@@ -97,46 +106,66 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
     {
         for x in min.x < max.x 
         {
-            point := std::Vec2F {cast(f64,x),cast(f64,y)};
-            v2 := std::vec2f_sub(&point,&tri[0]);
+            y_flip := height - y;
 
-            d20 := std::vec2f_dot(&v2,&v0);
-            d21 := std::vec2f_dot(&v2,&v1);
-
-            v := ((d11 * d20) - (d01 * d21)) / denom;
-            w := ((d00 * d21) - (d01 * d20)) / denom;
-            u := 1.0 - v - w;
-
-            if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
+            if(!in_screen_bounds(win,y_flip,x))
             {
-                colourf := gfx::Colour{u,w,v};
-                colour_rgba := gfx::colour_to_rgba(&colourf);
+                point := std::Vec2F {cast(f64,x),cast(f64,y)};
+                v2 := std::vec2f_sub(&point,&tri[0]);
 
-                y_flip := height - y;
-                win.screen[(y_flip * stride) + x] = colour_rgba;
+                d20 := std::vec2f_dot(&v2,&v0);
+                d21 := std::vec2f_dot(&v2,&v1);
+
+                v := ((d11 * d20) - (d01 * d21)) / denom;
+                w := ((d00 * d21) - (d01 * d20)) / denom;
+                u := 1.0 - v - w;
+
+                if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
+                {
+                    colourf := gfx::Colour{u,w,v};
+                    colour_rgba := gfx::colour_to_rgba(&colourf);
+
+                    win.screen[(y_flip * stride) + x] = colour_rgba;
+                }
             }
         }
     }
 }
 
-func draw_line_3f(win: gfx::Window@,v1: const std::Vec3F@, v2: const std::Vec3F@,colour: u32)
+func draw_line_3f(win: gfx::Window@,v1: const std::Vec3F@, v2: const std::Vec3F@,projection: const std::Mat4D@,colour: u32)
 {
-    NEAR_CLIP := 0.2;
+    s1 := std::mul_mat4_vec3(v1,projection);
+    s2 := std::mul_mat4_vec3(v2,projection);
 
-    if(v1.z < NEAR_CLIP || v2.z < NEAR_CLIP)
-    {
-        return;
-    }
+    std::println("{} {} -> {} {}",s1.x,s1.y,s2.x,s2.y);
 
-    x1 := cast(s64,((v1.x / v1.z) + 0.5) * win.size.x);
-    y1 := cast(s64,((v1.y / v1.z) + 0.5) * win.size.y);
-    x2 := cast(s64,((v2.x / v2.z) + 0.5) * win.size.x);
-    y2 := cast(s64,((v2.y / v2.z) + 0.5) * win.size.y);
+    // s1 := @v1;
+    // s2 := @v2;
 
-    p1 := std::Vec2I {x1,y1};
-    p2 := std::Vec2I {x2,y2};
+    // std::println("{} {}",-s1.z,-s2.z);
 
-    draw_line(win,&p1,&p2,colour);
+    // s1.x /= -s1.z;
+    // s1.y /= -s1.z;
+    
+    // s2.x /= -s2.z;
+    // s2.y /= -s2.z;
+
+    // NEAR_CLIP := -0.2;
+
+    // if(s1.z < NEAR_CLIP || s2.z < NEAR_CLIP)
+    // {
+    //     return;
+    // }
+
+    x1 := cast(s64,(s1.x + 0.5) * win.size.x);
+    y1 := cast(s64,(s1.y + 0.5) * win.size.y);
+    x2 := cast(s64,(s2.x + 0.5) * win.size.x);
+    y2 := cast(s64,(s2.y + 0.5) * win.size.y);
+
+    d1 := std::Vec2I {x1,y1};
+    d2 := std::Vec2I {x2,y2};
+
+    draw_line(win,&d1,&d2,colour);
 }
 
 func render_triangle(win: gfx::Window@)
@@ -154,7 +183,14 @@ func render_cube(win: gfx::Window@)
 {
     BASE := -0.25;
     WIDTH := 0.5;
-    DIST := 1.0;
+    DIST := -0.0;
+
+    projection := std::Mat4D {{
+        {1.0,0.0,0.0,0.0},
+        {0.0,1.0,0.0,0.0},
+        {0.0,0.0,-1.0,-1.0},
+        {0.0,0.0,0.0,0.0},
+    }};
 
     cube: std::Vec3F[8] = 
     {
@@ -163,30 +199,30 @@ func render_cube(win: gfx::Window@)
         {BASE,BASE+WIDTH,DIST}, // C
         {BASE + WIDTH,BASE+WIDTH,DIST}, // D
 
-        {BASE,BASE,DIST + WIDTH}, // E
-        {BASE + WIDTH,BASE,DIST + WIDTH}, // F
-        {BASE,BASE+WIDTH,DIST + WIDTH}, // G
-        {BASE + WIDTH,BASE+WIDTH,DIST+WIDTH}, // H
+        {BASE,BASE,DIST - WIDTH}, // E
+        {BASE + WIDTH,BASE,DIST - WIDTH}, // F
+        {BASE,BASE+WIDTH,DIST - WIDTH}, // G
+        {BASE + WIDTH,BASE+WIDTH,DIST - WIDTH}, // H
     };
 
     colour := RED;
 
     // Points should probably be translated before we issue draws.
     // But lets worry about speed later
-    draw_line_3f(win,&cube[0],&cube[1],colour); // AB
-    draw_line_3f(win,&cube[0],&cube[2],colour); // AC
-    draw_line_3f(win,&cube[1],&cube[3],colour); // BD
-    draw_line_3f(win,&cube[2],&cube[3],colour); // CD
+    draw_line_3f(win,&cube[0],&cube[1],&projection,colour); // AB
+    draw_line_3f(win,&cube[0],&cube[2],&projection,colour); // AC
+    draw_line_3f(win,&cube[1],&cube[3],&projection,colour); // BD
+    draw_line_3f(win,&cube[2],&cube[3],&projection,colour); // CD
 
-    draw_line_3f(win,&cube[1],&cube[5],colour); // BF
-    draw_line_3f(win,&cube[3],&cube[7],colour); // DH
-    draw_line_3f(win,&cube[5],&cube[7],colour); // FH
-    draw_line_3f(win,&cube[0],&cube[4],colour); // AE
+    draw_line_3f(win,&cube[1],&cube[5],&projection,colour); // BF
+    draw_line_3f(win,&cube[3],&cube[7],&projection,colour); // DH
+    draw_line_3f(win,&cube[5],&cube[7],&projection,colour); // FH
+    draw_line_3f(win,&cube[0],&cube[4],&projection,colour); // AE
 
-    draw_line_3f(win,&cube[2],&cube[6],colour); // CG
-    draw_line_3f(win,&cube[6],&cube[7],colour); // GH
-    draw_line_3f(win,&cube[4],&cube[5],colour); // EF
-    draw_line_3f(win,&cube[4],&cube[6],colour); // EG
+    draw_line_3f(win,&cube[2],&cube[6],&projection,colour); // CG
+    draw_line_3f(win,&cube[6],&cube[7],&projection,colour); // GH
+    draw_line_3f(win,&cube[4],&cube[5],&projection,colour); // EF
+    draw_line_3f(win,&cube[4],&cube[6],&projection,colour); // EG
 }
 
 func render(win: gfx::Window@)

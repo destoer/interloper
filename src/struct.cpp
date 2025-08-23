@@ -85,29 +85,8 @@ static constexpr u32 OFFSET_FORCED_FIRST = 0xffff'ffff;
 
 std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 {
-    if(is_fixed_array(type))
-    {
-        ArrayType* array_type = (ArrayType*)type;
-
-        u32 count = array_type->size;
-        u32 size = array_type->sub_size;
-
-        // size > GPR_SIZE align on gpr_size
-        // otherwhise on its own boundary
-        if(array_type->sub_size > GPR_SIZE)
-        {
-            count += array_type->sub_size / GPR_SIZE;
-            size = GPR_SIZE;
-        }
-
-        return std::pair{size,count};
-    }
-
-    else
-    {
-        const u32 size = type_size(itl,type);
-        return calc_alloc_size(size);
-    } 
+    const u32 size = type_memory_size(itl,type);
+    return calc_alloc_size(size);
 }
 
 

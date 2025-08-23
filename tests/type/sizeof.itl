@@ -25,11 +25,14 @@ func main() s32
     v9 : s64;
     v10 : u64;
     v11 : byte@ = &v7;
+    v12: f64 = 1.0;
+    buffer: f64[4][4] = {?};
 
     res1 : bool = sizeof(v1) == 1 && sizeof(v2) == 2 && sizeof(v3) == 4;
     res2 : bool = sizeof(v4) == 1 && sizeof(v5) == 2 && sizeof(v6) == 4;
     res3 : bool = sizeof(v7) == 1 && sizeof(v8) == 1 && sizeof(point) == 16;
     res4 : bool = sizeof(v9) == 8 && sizeof(v10) == 8 && sizeof(v11) == 8;
+    res5 : bool = sizeof(v12) == 8 && sizeof(buffer) == 128; 
 
-    return cast(s32,res1 && res2 && res3 && res4);
+    return cast(s32,res1 && res2 && res3 && res4 && res5);
 }

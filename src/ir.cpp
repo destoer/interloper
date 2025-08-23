@@ -383,23 +383,6 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
             return remove(block.list,node);
         }
     
-
-
-        // scope has elapsed any resources can be reclaimed
-        // TODO: should this support registers?
-        case op_type::free_slot:
-        {
-            // TODO: can we reclaim stack space from this?
-            return remove(block.list,node);
-        }
-
-
-        case op_type::free_fixed_array:
-        {
-            // TODO: can we reclaim stack space from this?            
-            return remove(block.list,node);          
-        }
-
         // pools (NOTE: we resolve this during linking)
         case op_type::pool_addr:
         {

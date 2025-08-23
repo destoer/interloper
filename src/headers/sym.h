@@ -8,8 +8,6 @@ struct Symbol
     String name;
     Type* type;
 
-    BlockSlot scope_end;
-
     Reg reg;
 
     u32 arg_offset = NON_ARG;
