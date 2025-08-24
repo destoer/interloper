@@ -117,7 +117,10 @@ func main() s32
         return -1;
     }
 
-    load_model("/home/destoer/diablo3_pose.obj");
+    if(load_model("/home/destoer/diablo3_pose.obj") == result::err)
+    {
+        return -1;
+    }
 
     while(!win.quit)
     {

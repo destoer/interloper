@@ -9,51 +9,79 @@ struct Model
 }
 
 
-struct ObjFace
+func scan_verticies(line: const string[]) [result,std::Vec3F]
 {
-    index: u32[3];
-}
+    ans: std::Vec3F = {?};
 
-func scan_verticies(line: const string[])
-{
-    for param in line
+    [res, ans.x] := std::string_to_double(line[1]);
+    if(res == result::err)
     {
-        std::print("{} ",param);
+        return res, ans;
     }
 
-    std::linefeed();
+    [res, ans.y] = std::string_to_double(line[2]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    [res, ans.z] = std::string_to_double(line[3]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    return result::ok, ans;
 }
 
-func load_model(path: const string)
+func load_model(path: const string) result
 {
     buf : c8[256];
 
-    [fp,err] := std::open_file(path,std::file_mode::read,std::file_opt::open);
+    [fp,file_err] := std::open_file(path,std::file_mode::read,std::file_opt::open);
 
-    if(err)
+    if(file_err)
     {
-        std::crash_and_burn("Could not open model file");
+        log::error("Could not open model file {}",path);
+        return result::err;
     }
 
     rc := std::file_read_res::success;
 
     paramters := std::make_array(sizeof_type(string));
+    verticies := std::make_array(sizeof_type(std::Vec3F));
 
     while(rc == std::file_read_res::success)
     {
         [str,rc] := std::read_file_line(&fp,buf);
         
-        if(str)
+        if str
         {
             std::split_str_in(str," ",&paramters);
             split := cast(string[],std::array_buffer(&paramters));
 
-            if(std::str_equal(split[0],"v"))
+            if std::str_equal(split[0],"v")
             {
-                scan_verticies(split);
+                // TODO: check arg len
+                [err, vec] := scan_verticies(split);
+                std::push_array(&verticies,&vec);
+
+                if(err == result::err)
+                {
+                    std::crash_and_burn("Format error in model {}",str);
+                    return result::err;
+                }
+            }
+
+            else if std::str_equal(split[0],"f")
+            {
+                std::println("{}",str);
             }
         }
     }
 
     std::destroy_array(&paramters);
+    std::destroy_array(&verticies);
+
+    return result::ok;
 }

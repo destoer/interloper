@@ -736,7 +736,8 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
         clean_args(itl,func,arg_clean);
     }
   
-    if(is_special_reg(dst_slot,spec_reg::null))
+    // Tuples must be bound, don't bother checking this if we are using them.
+    if(is_special_reg(dst_slot,spec_reg::null) && count(call_info.sig.return_type) <= 1)
     {
         if(call_info.sig.attr_flags & ATTR_USE_RESULT)
         {

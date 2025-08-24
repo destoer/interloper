@@ -70,6 +70,11 @@ func is_alpha(c : c8) bool
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+func is_digit(c: c8) bool
+{
+    return c >= '0' && c <= '9';
+}
+
 // where it left off along with value
 func parse_value(str : const string) [Value, const string]
 {
@@ -104,7 +109,7 @@ func parse_value(str : const string) [Value, const string]
 
             v : u32 = 0;
 
-            if(c >= '0' && c <= '9')
+            if(is_digit(c))
             {
                 v = c - '0';
             }
@@ -137,6 +142,98 @@ func parse_value(str : const string) [Value, const string]
     new: const string = {data,str.len - used};
 
     return value, new;
+}
+
+// NOTE: This will have many rounding errors
+func string_to_double(str: const string) [result,f64]
+{
+    if !str
+    {
+        return result::err, 0.0;
+    }
+
+    start_idx := 0;
+
+    negative := str[0] == '-';
+    fractional := false;
+
+
+    if(negative)
+    {
+        start_idx += 1;
+    }
+
+    ans := 0.0;
+    fract_scale := 10.0;
+
+    for char in str[start_idx:]
+    {
+        if char == '.'
+        {
+            // This should not occur twice
+            if(fractional)
+            {
+                return result::err, 0.0;
+            }
+
+            fractional = true;
+        }
+
+        else
+        {
+            // Should only be digits here
+            if(!std::is_digit(char))
+            {
+                return result::err, 0.0;
+            }
+
+            digit := cast(f64,char - '0');
+
+
+            if(fractional)
+            {
+                ans += digit / fract_scale;
+                fract_scale *= 10.0;
+            }
+
+            else
+            {
+                ans = (ans * 10.0) + digit;
+            }
+        }
+    }
+
+    if negative
+    {
+        ans = -ans;
+    }
+
+    return result::ok, ans;
+}
+
+func scan_verticies(line: const string[]) [result,std::Vec3F]
+{
+    ans: std::Vec3F = {?};
+
+    [res, ans.x] := string_to_double(line[1]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    [res, ans.y] = string_to_double(line[2]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    [res, ans.z] = string_to_double(line[3]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    return result::ok, ans;
 }
 
 func parse_u64(str: const string) u64
