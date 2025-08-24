@@ -616,11 +616,10 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
 
 // for stack allocated arrays i.e ones with fixed sizes at the top level of the decl, We do this to get the base type size
 // So we don't have to end up padding this out at higher alignments.
-std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
+std::pair<u32,u32> calc_arr_allocation(Interloper& itl, const Type* type)
 {
     b32 done = false;
     
-    Type* type = sym.type;
     u32 count = 0;
     u32 size = 0;
 
@@ -907,7 +906,7 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
     // allocate fixed array if needed, and initalize it to its data pointer
     if(is_fixed_array(array.type))
     {
-        const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
+        const auto [arr_size,arr_count] = calc_arr_allocation(itl,array.type);
 
         // we have the allocation information now complete it
         switch(array.reg.segment)

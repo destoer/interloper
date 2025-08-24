@@ -195,7 +195,7 @@ struct [[nodiscard]] SymbolScopeGuard
     SymbolTable& table;
 };
 
-std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym);
+std::pair<u32,u32> calc_arr_allocation(Interloper& itl, const Type* type);
 Symbol* get_sym(SymbolTable &sym_table,const String &sym);
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot);
 

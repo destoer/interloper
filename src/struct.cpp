@@ -85,6 +85,11 @@ static constexpr u32 OFFSET_FORCED_FIRST = 0xffff'ffff;
 
 std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 {
+    if(is_fixed_array(type))
+    {
+        return calc_arr_allocation(itl,type);
+    }
+
     const u32 size = type_memory_size(itl,type);
     return calc_alloc_size(size);
 }
