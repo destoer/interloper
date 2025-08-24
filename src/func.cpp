@@ -680,7 +680,8 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
 
                     default:
                     {
-                        dump_ir_sym(itl,func,itl.symbol_table);   
+                        dump_ir_sym(itl,func,itl.symbol_table);
+                        printf("spec reg unhandled: %s\n",spec_reg_name(dst_slot.spec));   
                         assert(false);
                     } 
                 }

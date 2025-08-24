@@ -191,7 +191,15 @@ func find_str(str: const string, search: const string) const string
 
 func split_str(str: const string, delimitter: const string) Array
 {
-    arr := std::make_array(sizeof_type(string));
+    array := std::make_array(sizeof_type(string));
+
+    split_str_in(str,delimitter,&array);
+    return array;
+}
+
+func split_str_in(str: const string, delimitter: const string, array: Array@)
+{
+    std::clear_array(array);
 
     done := false;
 
@@ -203,7 +211,7 @@ func split_str(str: const string, delimitter: const string) Array
         {
             scanned := found.data - str.data;
             split := str[:scanned];
-            std::push_array(&arr,&split);
+            std::push_array(array,&split);
 
             str = found[delimitter.len:];
         }
@@ -214,10 +222,8 @@ func split_str(str: const string, delimitter: const string) Array
         }
     }
 
-    std::push_array(&arr,&str);
-    return arr;
+    std::push_array(array,&str);
 }
-
 
 struct String
 {

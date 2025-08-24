@@ -1,0 +1,59 @@
+struct Triangle
+{
+    verticies: Vec3F[3];
+}
+
+struct Model
+{
+    faces: Triangle[];
+}
+
+
+struct ObjFace
+{
+    index: u32[3];
+}
+
+func scan_verticies(line: const string[])
+{
+    for param in line
+    {
+        std::print("{} ",param);
+    }
+
+    std::linefeed();
+}
+
+func load_model(path: const string)
+{
+    buf : c8[256];
+
+    [fp,err] := std::open_file(path,std::file_mode::read,std::file_opt::open);
+
+    if(err)
+    {
+        std::crash_and_burn("Could not open model file");
+    }
+
+    rc := std::file_read_res::success;
+
+    paramters := std::make_array(sizeof_type(string));
+
+    while(rc == std::file_read_res::success)
+    {
+        [str,rc] := std::read_file_line(&fp,buf);
+        
+        if(str)
+        {
+            std::split_str_in(str," ",&paramters);
+            split := cast(string[],std::array_buffer(&paramters));
+
+            if(std::str_equal(split[0],"v"))
+            {
+                scan_verticies(split);
+            }
+        }
+    }
+
+    std::destroy_array(&paramters);
+}

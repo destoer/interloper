@@ -1,6 +1,7 @@
 
 import <graphics> 
 import <colour>
+import "model"
 
 // https://haqr.eu/tinyrenderer/
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-introduction.html
@@ -115,6 +116,8 @@ func main() s32
         log::error(TAG,"Could not open window");
         return -1;
     }
+
+    load_model("/home/destoer/diablo3_pose.obj");
 
     while(!win.quit)
     {
