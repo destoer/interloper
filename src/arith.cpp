@@ -1,3 +1,41 @@
+template<const op_type type>
+void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
+{
+    unelide_values(itl,func,left,right);
+
+    // figure out correct division type
+    if constexpr (type == op_type::udiv_reg)
+    {
+        if(is_signed(left.type))
+        {
+            emit_reg3<op_type::sdiv_reg>(itl,func,dst_slot,left.slot,right.slot);
+        }
+
+        else
+        {
+            emit_reg3<op_type::udiv_reg>(itl,func,dst_slot,left.slot,right.slot);
+        }
+    }
+
+    else if constexpr (type == op_type::umod_reg)
+    {
+        if(is_signed(left.type))
+        {
+            emit_reg3<op_type::smod_reg>(itl,func,dst_slot,left.slot,right.slot);
+        }
+
+        else
+        {
+            emit_reg3<op_type::umod_reg>(itl,func,dst_slot,left.slot,right.slot);
+        }
+    }
+
+    else
+    {
+        emit_reg3<type>(itl,func,dst_slot,left.slot,right.slot);
+    }
+}
+
 // NOTE: pass umod or udiv and it will figure out the correct one
 template<const op_type type>
 TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
@@ -12,8 +50,8 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
 
     BinNode* bin_node = (BinNode*)node;
 
-    const auto left_res = compile_oper(itl,func,bin_node->left);
-    const auto right_res = compile_oper(itl,func,bin_node->right);
+    const auto left_res = compile_oper_const_elide(itl,func,bin_node->left);
+    const auto right_res = compile_oper_const_elide(itl,func,bin_node->right);
 
     if(!left_res)
     {
@@ -25,28 +63,57 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
         return right_res.error();
     }
 
-    const auto left = *left_res;
-    const auto right = *right_res;
+    auto left = *left_res;
+    auto right = *right_res;
 
     // pointer arith adds the size of the underlying type
     if(is_pointer(left.type) && is_integer(right.type) && (type == op_type::add_reg || type == op_type::sub_reg))
     {
+        unelide_value(itl,func,left);
+
         // get size of pointed to type
         Type *contained_type = deref_pointer(left.type);
+        const u32 size = type_size(itl,contained_type);
 
-        const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,type_size(itl,contained_type));
-        emit_reg3<type>(itl,func,dst_slot,left.slot,offset_slot);
+        if(is_value_known(right))
+        {
+            switch(type)
+            {
+                case op_type::add_reg:
+                {
+                    add_imm(itl,func,dst_slot,left.slot,size * right.known_value);
+                    break;
+                }
+
+                case op_type::sub_reg:
+                {
+                    sub_imm(itl,func,dst_slot,left.slot,size * right.known_value);
+                    break;
+                }
+
+                default: assert(false);
+            }
+        }
+
+        else 
+        {
+            const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
+            emit_reg3<type>(itl,func,dst_slot,left.slot,offset_slot);
+        }
     }
 
     // allow pointer subtraction
     else if(is_pointer(left.type) && is_pointer(right.type) && type == op_type::sub_reg)
     {
+        unelide_values(itl,func,left,right);
         emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,right.slot);
     }
 
     // floating point arith
     else if(is_float(left.type) && is_float(right.type))
     {
+        unelide_values(itl,func,left,right);
+
         switch(type)
         {
             case op_type::add_reg:
@@ -83,36 +150,24 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
     // integer arith
     else if(is_integer(left.type) && is_integer(right.type))
     {
-        // figure out correct division type
-        if constexpr (type == op_type::udiv_reg)
+        // Both values are known we can just execute a const compilation expression
+        if(is_value_known(left) && is_value_known(right))
         {
-            if(is_signed(left.type))
+            const auto res = compile_const_int_expression(itl,node);
+
+            if(!res)
             {
-                emit_reg3<op_type::sdiv_reg>(itl,func,dst_slot,left.slot,right.slot);
+                return res.error();
             }
 
-            else
-            {
-                emit_reg3<op_type::udiv_reg>(itl,func,dst_slot,left.slot,right.slot);
-            }
-        }
+            const auto data = *res;
 
-        else if constexpr (type == op_type::umod_reg)
-        {
-            if(is_signed(left.type))
-            {
-                emit_reg3<op_type::smod_reg>(itl,func,dst_slot,left.slot,right.slot);
-            }
-
-            else
-            {
-                emit_reg3<op_type::umod_reg>(itl,func,dst_slot,left.slot,right.slot);
-            }
+            mov_imm(itl,func,dst_slot,data.value);
         }
 
         else
         {
-            emit_reg3<type>(itl,func,dst_slot,left.slot,right.slot);
+            emit_integer_arith<type>(itl,func,left,right,dst_slot);
         }
     }
 
@@ -327,44 +382,32 @@ TypeResult compile_comparison_op(Interloper& itl,Function &func,AstNode *node, R
     // if one side is a value do type checking
     if(is_integer(left.type) && is_integer(right.type))
     {
-        if(bin_node->left->type == ast_type::value || bin_node->right->type == ast_type::value)
+        // Coerce the known value to the other operands type if we have checked this is fine.
+        if(is_value_known(left))
         {
-            if(bin_node->left->type == ast_type::value)
+            const auto coerce_res = check_static_cmp(itl,left.type,right.type,left.known_value);
+            if(!coerce_res)
             {
-                ValueNode* value_node = (ValueNode*)bin_node->left;
-                const u64 v = value_node->value.v;
-
-                const auto coerce_res = check_static_cmp(itl,left.type,right.type,v);
-                if(!coerce_res)
-                {
-                    return coerce_res.error();
-                }
-
-                // within range coerce value type to variable type
-                if(*coerce_res)
-                {
-                    left.type = right.type;
-                }
+                return coerce_res.error();
             }
 
-            // right is a constant
-            else
+            if(*coerce_res)
             {
-                ValueNode* value_node = (ValueNode*)bin_node->right;
-                const u64 v = value_node->value.v;
+                left.type = right.type;
+            }
+        }
 
-                
-                const auto coerce_res = check_static_cmp(itl,right.type,left.type,v);
-                if(!coerce_res)
-                {
-                    return coerce_res.error();
-                }
+        else if(is_value_known(right))
+        {
+            const auto coerce_res = check_static_cmp(itl,right.type,left.type,right.known_value);
+            if(!coerce_res)
+            {
+                return coerce_res.error();
+            }
 
-                // within range coerce value type to variable type
-                if(*coerce_res)
-                {
-                    right.type = left.type;
-                }
+            if(*coerce_res)
+            {
+                right.type = left.type;
             }
         } 
     }
@@ -612,7 +655,16 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
         case ast_type::index:
         {
-            return index_arr(itl,func,node,slot);
+            const auto index_res = index_arr(itl,func,node);
+            if(!index_res)
+            {
+                return index_res.error();
+            }
+
+            const auto index = *index_res;
+
+            collapse_struct_addr(itl,func,index.addr,slot);
+            return TypedReg{slot,make_reference(itl,index.type)};
         }
 
         case ast_type::access_struct:

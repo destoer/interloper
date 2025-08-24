@@ -23,8 +23,16 @@ func test_basic() bool
 
     res10 := 5.0 >= 5.0;
 
+    // misc
+    res11 := -1.0 / -1.0 == 1.0;
+
+    x := 6.0;
+    y := -6.0;
+    res12 := -x == -6.0 && -y == 6.0; 
+
+
     return res1 && res2 && res3 && res4  && res5 && res6
-        && res7 && res8 && res9 && res10;
+        && res7 && res8 && res9 && res10 && res11 && res12;
 }
 
 func add(v1: f64, v2: f64) f64

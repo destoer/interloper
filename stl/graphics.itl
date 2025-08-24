@@ -6,8 +6,11 @@ import <input>
 
 struct Window
 {
-    size: std::Vec2I;
+    size: std::Vec2F;
     bounds: std::Vec2I;
+    width: u32;
+    height: u32;
+
     screen: u32[];
 
     os_win : OSWindow;
@@ -77,8 +80,11 @@ func window_resized(win: Window@,x : u32, y : u32)
 
     log::info(WINDOW_PREFIX,"resized {} {}",x,y);
 
-    win.size.x = x;
-    win.size.y = y;
+    win.width = x;
+    win.height = y;
+
+    win.size.x = cast(f64,x);
+    win.size.y = cast(f64,y);
     
     win.bounds.x = clip_bound(x);
     win.bounds.y = clip_bound(y);

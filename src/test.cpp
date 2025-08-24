@@ -64,6 +64,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/array/deref_array_of_ptr_invalid",itl_error::pointer_type_error},
     {"tests/array/array_assign_vla_fixed",itl_error::array_type_error},
     {"tests/array/array_assign_vla_multi",itl_error::array_type_error},
+    {"tests/array/array_out_bounds.itl",itl_error::out_of_bounds},
 
 
     // strings
@@ -214,6 +215,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/stl/file_str",6},
     {"tests/stl/file_bin",1},
     {"tests/stl/hash_table",1},
+    {"tests/stl/math",0},
 
 
 

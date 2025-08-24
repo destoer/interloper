@@ -199,11 +199,9 @@ enum class op_type
     // so we can reclaim allocation on the stack
     DIRECTIVE,
     alloc_slot,
-    free_slot,
 
     alloc_local_array,
     alloc_global_array,
-    free_fixed_array,
     alloc_vla,
 
     // allocate and store offset inside a var
@@ -541,11 +539,43 @@ struct RegSlot
     reg_kind kind = reg_kind::sym;
 };
 
+static constexpr u32 TYPED_REG_FLAG_KNOWN_VALUE = (1 << 0);
+static constexpr u32 TYPED_REG_FLAG_ELIDED_VALUE = (1 << 1); 
+
 struct TypedReg
 {
     RegSlot slot;
     Type* type = nullptr;
+
+    // NOTE: this has no invalidation so use carefully.
+    // TODO: We can keep this around long term when we have SSA
+    // AND use values stored long term in symbols
+    u64 known_value = 0;
+    u32 flags = 0;
 };
+
+enum class known_value_type
+{
+    elided,
+    stored
+};
+
+inline bool is_value_known(const TypedReg& reg)
+{
+    return reg.flags & TYPED_REG_FLAG_KNOWN_VALUE;
+}
+
+inline TypedReg make_known_reg(RegSlot dst_slot, Type* type, u64 value,known_value_type known_type)
+{
+    u32 flags = TYPED_REG_FLAG_KNOWN_VALUE;
+
+    if(known_type == known_value_type::elided)
+    {
+        flags |= TYPED_REG_FLAG_ELIDED_VALUE;
+    }
+
+    return TypedReg {dst_slot,type,value,flags};
+}
 
 using RegResult = destoer::Result<TypedReg,itl_error>;
 
@@ -898,10 +928,6 @@ void spill_func_bounds(Interloper& itl, Function& func);
 
 void spill_slot(Interloper& itl, Function& func, const Reg& reg);
 
-void free_fixed_array(Interloper& itl,Function& func,RegSlot src,u32 size,u32 count);
-void free_slot(Interloper& itl,Function& func, RegSlot slot);
-
-
 BlockSlot block_from_idx(u32 v);
 BlockSlot cur_block(Function& func);
 Block& block_from_slot(Function& func, BlockSlot slot);
@@ -921,11 +947,15 @@ struct AddrSlot
 AddrSlot make_struct_addr(RegSlot slot, u32 offset);
 AddrSlot make_addr(RegSlot slot, u32 offset);
 
+
 struct TypedAddr
 {
     AddrSlot addr;
     Type* type = nullptr;
 };
+
+using AddrResult = Result<AddrSlot,itl_error>;
+using TypedAddrResult = Result<TypedAddr,itl_error>;
 
 // intrin
 Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);

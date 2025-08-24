@@ -1,0 +1,124 @@
+namespace std;
+
+struct Vec2I
+{
+    x: s64;
+    y: s64;
+}
+
+func vec2i_add(v1: const Vec2I, v2: const Vec2I) Vec2I
+{
+    return Vec2I {v1.x + v2.x,v1.y + v2.y};
+}
+
+func vec2i_clamp_zero(v1: const Vec2I@,limit: const Vec2I@) Vec2I
+{
+    return Vec2I {
+        clamp_s64(v1.x,0,limit.x),
+        clamp_s64(v1.y,0,limit.y)
+    };
+}
+
+
+func print_vec2i(tag: const string,v1: Vec2I)
+{
+    println("{}: {} : {}",tag,v1.x,v1.y);
+}
+
+struct Vec2F
+{
+    x : f64;
+    y : f64;
+}
+
+
+func vec2f_aabb_intersect(p1: Vec2F,s1: Vec2F, p2: Vec2F, s2: Vec2F) bool
+{
+    return (p1.x < p2.x + s2.x) && (p1.x + s1.x > p2.x)
+        && (p1.y < p2.y + s2.y) && (p1.y + s1.y > p2.y);
+}
+
+func vec2f_add(v1: const Vec2F@, v2: const Vec2F@) Vec2F
+{
+    return Vec2F {v1.x + v2.x, v1.y + v2.y};
+}
+
+
+func vec2f_sub(v1: const Vec2F@, v2: const Vec2F@) Vec2F
+{
+    return Vec2F {v1.x - v2.x, v1.y - v2.y};
+}
+
+func vec2f_scale(v1: const Vec2F@, scale: u32) Vec2F
+{
+    return Vec2F {v1.x * scale, v1.y * scale};
+}
+
+
+func rand_vec2f(x0: s64, x1: s64, y0: s64, y1: s64) Vec2F
+{
+    return Vec2F {
+        std::rand_range_s64(x0,x1),
+        std::rand_range_s64(y0,y1)
+    };
+}
+
+func vec2f_dot(v1: const Vec2F@, v2: const Vec2F@) f64
+{
+    return (v1.x * v2.x) + (v1.y * v2.y);
+}
+
+func fabs(f1: f64) f64
+{
+    if(f1 < 0.0)
+    {
+        return -f1;
+    }
+
+    return f1;
+}
+
+func float_eq(f1: f64, f2: f64) bool
+{
+    epsilon := 0.001;
+    return fabs(f1 - f2) <= epsilon; 
+}
+
+func print_vec2f(tag: const string,v1: Vec2F)
+{
+    println("{}: {} : {}",tag,v1.x,v1.y);
+}
+
+
+func barycentric_tri(tri: const Vec2F[3], point: const Vec2F@) [f64,f64,f64]
+{
+    // Constant per TRI
+    v0 := vec2f_sub(&tri[1],&tri[0]);
+    v1 := vec2f_sub(&tri[2],&tri[0]);
+
+    d00 := std::vec2f_dot(&v0,&v0);
+    d01 := std::vec2f_dot(&v0,&v1);
+    d11 := std::vec2f_dot(&v1,&v1);
+    denom := (d00 * d11) - (d01 * d01);
+
+
+    // Per point
+    v2 := vec2f_sub(point,&tri[0]);
+    d20 := vec2f_dot(&v2,&v0);
+    d21 := vec2f_dot(&v2,&v1);
+
+    v := ((d11 * d20) - (d01 * d21)) / denom;
+    w := ((d00 * d21) - (d01 * d20)) / denom;
+    u := 1.0 - v - w;
+
+    return u, v ,w;
+}
+
+
+#attr(no_reorder)
+struct Vec3F
+{
+    x: f64;
+    y: f64;
+    z: f64;
+}

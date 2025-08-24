@@ -188,6 +188,13 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             return make_const_builtin(value.v,value_type(itl,value));               
         }
 
+        case ast_type::float_t:
+        {
+            FloatNode* float_node = (FloatNode*)node;
+
+            return make_const_float(itl,float_node->value);
+        }
+
         case ast_type::char_t:
         {
             CharNode* char_node = (CharNode*)node;
@@ -347,6 +354,33 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             }
         }
 
+        case ast_type::mod:
+        {
+            BinNode* bin_node = (BinNode*)node;
+
+            auto res = const_bin_op(itl,bin_node);
+            if(!res)
+            {
+                return res.error();
+            }
+
+            const auto [left,right] = *res;
+
+            if(right.v == 0)
+            {
+                return compile_error(itl,itl_error::int_type_error,"attempted to mod by zero in const expr\n");
+            }
+
+            const u64 ans = is_signed(left.type)? s64(left.v) % s64(right.v) : left.v % right.v;
+            auto type_res = effective_arith_type(itl,left.type,right.type,op_type::smod_reg);
+            if(!type_res)
+            {
+                return type_res.error();
+            }
+
+            return make_const_builtin(ans,*type_res);          
+        }
+
         case ast_type::divide:
         {
             BinNode* bin_node = (BinNode*)node;
@@ -365,7 +399,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             }
 
             const u64 ans = left.v / right.v;
-            auto type_res = effective_arith_type(itl,left.type,right.type,op_type::sub_reg);
+            auto type_res = effective_arith_type(itl,left.type,right.type,op_type::sdiv_reg);
             if(!type_res)
             {
                 return type_res.error();
@@ -724,8 +758,7 @@ PoolSlot add_const_fixed_array(Interloper& itl, Symbol& array)
     init_arr_sub_sizes(itl,(Type*)array.type);
     
     // preallocate the arr data
-    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
-    const u32 data_size = arr_size * arr_count;
+    const u32 data_size = type_memory_size(itl,array.type);
 
     const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
 

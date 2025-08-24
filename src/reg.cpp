@@ -92,7 +92,7 @@ std::pair<u32,u32> calc_alloc_size(u32 size)
 
 void assign_reg_size(Reg& reg, u32 size)
 {
-    const auto [reg_size,count]  = calc_alloc_size(size);
+    const auto [reg_size,count] = calc_alloc_size(size);
 
     reg.size = reg_size;
     reg.count = count;   
@@ -296,6 +296,17 @@ RegSlot new_tmp(Function& func, u32 size)
     return reg_slot;
 }
 
+RegSlot new_typed_tmp(Interloper& itl,Function& func, const Type* type)
+{
+    const TmpSlot tmp_slot = {count(func.registers)};
+    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
+
+    const auto reg = make_reg(itl,reg_slot,type);
+    push_var(func.registers,reg);
+
+    return reg_slot;    
+}
+
 RegSlot new_struct(Function& func, u32 size)
 {
     const TmpSlot tmp_slot = {count(func.registers)};
@@ -323,28 +334,6 @@ RegSlot new_tmp_ptr(Function &func)
 {
     return new_tmp(func,GPR_SIZE);
 }
-
-void free_slot(Interloper& itl,Function& func, const Reg& reg)
-{
-    free_slot(itl,func,reg.slot);
-}
-
-void free_sym(Interloper& itl,Function& func, Symbol& sym)
-{
-    if(is_fixed_array(sym.type) && (sym.reg.slot.kind == reg_kind::sym || sym.reg.slot.kind == reg_kind::tmp))
-    {
-        auto [size,count] = calc_arr_allocation(itl,sym);
-        free_fixed_array(itl,func,sym.reg.slot,size,count);
-    }
-
-    else
-    {
-        free_slot(itl,func,sym.reg);
-    }
-
-    sym.scope_end = cur_block(func);
-}
-
 
 bool is_local_reg(const Reg &reg)
 {

@@ -187,6 +187,8 @@ struct ConstData
         // enum, builtin types
         u64 v;
 
+        f64 f;
+
         // Pointer to other const pool var
         // Used to return arrays, pointers structs
         ConstDataPointer data_pointer = {};
@@ -208,6 +210,16 @@ ConstData make_const_builtin(u64 v, Type* type)
     return data;
 }
 
+ConstData make_const_float(Interloper& itl,f64 v)
+{
+    ConstData data;
+
+    data.f = v;
+    data.type = make_builtin(itl,builtin_type::f64_t);
+
+    return data;
+}
+
 Option<itl_error> write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u64 v, u32 size)
 {
     assert(size <= 8);
@@ -216,7 +228,8 @@ Option<itl_error> write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offse
 
     if((offset + size) > section.size)
     {
-        return compile_error(itl,itl_error::out_of_bounds,"out of bounds write in const pool\n");
+        return compile_error(itl,itl_error::out_of_bounds,"out of bounds write in const pool ([%d] = %d of section size %d)\n",
+            offset,size,section.size);
     } 
 
     // calc the read reqs

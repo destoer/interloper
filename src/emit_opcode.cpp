@@ -284,6 +284,12 @@ void xor_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 
 void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
+    if(imm == 0)
+    {
+        mov_reg(itl,func,dst,src);
+        return;
+    }
+
     emit_imm2<op_type::add_imm>(itl,func,dst,src,imm);
 }
 
@@ -298,6 +304,12 @@ RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
 
 void sub_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
+    if(imm == 0)
+    {
+        mov_reg(itl,func,dst,src);
+        return;
+    }
+
     emit_imm2<op_type::sub_imm>(itl,func,dst,src,imm);
 }
 

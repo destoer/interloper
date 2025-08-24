@@ -1,7 +1,9 @@
 #include <interloper.h>
 
-RegResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
-    RegSlot dst_slot,IndexNode* index_node,PointerType* type)
+// NOTE: This won't have a copy of the ptr slot in the resulting addr should it not be indexed.
+// Collapse of it is required for this.
+TypedAddrResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
+    IndexNode* index_node,PointerType* type)
 {
     const u32 indexes = count(index_node->indexes);
 
@@ -14,10 +16,10 @@ RegResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
 
     const u32 size = type_size(itl,plain);
 
-    const auto res = compile_oper(itl,func,index_node->indexes[0]);
+    const auto res = compile_oper_const_elide(itl,func,index_node->indexes[0]);
     if(!res)
     {
-        return res;
+        return res.error();
     }
     
     auto subscript = *res;
@@ -28,15 +30,21 @@ RegResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
             type_name(itl,subscript.type).buf); 
     }
 
-    const RegSlot offset = mul_imm_res(itl,func,subscript.slot,size);  
+    if(is_value_known(subscript))
+    {
+        const u32 offset = size * subscript.known_value;
+        return TypedAddr {make_addr(ptr_slot,offset),plain};
+    }
 
-    add(itl,func,dst_slot,ptr_slot,offset);
-    return TypedReg{dst_slot,(Type*)type};
+    const RegSlot offset = mul_imm_res(itl,func,subscript.slot,size);  
+    const RegSlot index = add_res(itl,func,ptr_slot,offset);
+
+    return TypedAddr {make_addr(index,0),plain};
 }
 
 // indexes off a given type + ptr
-RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
-     Type* type, RegSlot ptr_slot, RegSlot dst_slot)
+TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+    Type* type, RegSlot ptr_slot)
 {
     // standard array index
     if(!is_array(type))
@@ -52,13 +60,15 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
 
     const u32 indexes = count(index_node->indexes);
 
+    b32 index_known = false;
+    u32 known_offset = 0;
+
     for(u32 i = 0; i < indexes; i++)
     {
-
-        const auto res = compile_oper(itl,func,index_node->indexes[i]);
+        const auto res = compile_oper_const_elide(itl,func,index_node->indexes[i]);
         if(!res)
         {
-            return res;
+            return res.error();
         }
 
         const auto subscript = *res;
@@ -71,17 +81,42 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
         
         const bool last_index = i == indexes - 1;
         
-
         // perform the indexing operation
-
         const u32 size = array_type->sub_size;
 
-        const RegSlot mul_slot = mul_imm_res(itl,func,subscript.slot,size);   
+        if(!is_value_known(subscript))
+        {
+            if(index_known)
+            {
+                last_slot = add_imm_res(itl,func,last_slot,known_offset);
 
-        const RegSlot add_slot = last_index? dst_slot : new_tmp(func,GPR_SIZE);
-        add(itl,func,add_slot,last_slot,mul_slot);
+                index_known = false;
+                known_offset = 0;
+            }
 
-        last_slot = add_slot;
+            const RegSlot mul_slot = mul_imm_res(itl,func,subscript.slot,size);   
+
+            last_slot = add_res(itl,func,last_slot,mul_slot);
+        }
+
+        else
+        {
+            const auto subscript_value = subscript.known_value; 
+
+            // We know both the bounds and subscript check the access is in range.
+            if(is_fixed_array(array_type))
+            {
+                if(subscript_value >= array_type->size)
+                {
+                    return compile_error(itl,itl_error::out_of_bounds,"Array subscript(%d) [%d] is out of bounds for array of size %d\n",
+                        i,subscript_value,size);
+                }
+            }
+
+            index_known = true;
+            known_offset += subscript_value * size;
+        }
+
 
         // vla and indexing insnt finished need to load data ptr
         if(is_runtime_size(type))
@@ -91,7 +126,11 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
             {
                 const auto tmp = new_tmp_ptr(func);
 
-                load_ptr(itl,func,tmp,last_slot,0,GPR_SIZE,false,false);
+                load_ptr(itl,func,tmp,last_slot,known_offset,GPR_SIZE,false,false);
+
+                // No longer know the offset
+                index_known = false;
+                known_offset = 0;
 
                 last_slot = tmp;
             }
@@ -108,7 +147,6 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
             {
                 accessed_type = (Type*)array_type;
             }
-
         }
 
         // this last index will give us our actual values
@@ -126,14 +164,13 @@ RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_no
                 return compile_error(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);                         
             }
         } 
-        
     }
 
     // return pointer to accessed type
     // NOTE: this can give out a fixed array pointer.
     // this needs conversion by the host into a VLA, this is not obtainable by
     // taking a pointer to an array,
-    return TypedReg{dst_slot,make_reference(itl,accessed_type)}; 
+    return TypedAddr{make_addr(last_slot,known_offset),accessed_type}; 
 }
 
 // TODO: these multidimensional handwave vla's
@@ -251,7 +288,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
     return load_arr_len(itl,func,typed_reg(sym));
 }
 
-RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
+TypedAddrResult index_arr(Interloper &itl,Function &func,AstNode *node)
 {
     IndexNode* index_node = (IndexNode*)node;
 
@@ -271,12 +308,12 @@ RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
         // get the initial data ptr
         const RegSlot data_slot = load_arr_data(itl,func,arr);
 
-        return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot,dst_slot);
+        return index_arr_internal(itl,func,index_node,arr_name,arr.type,data_slot);
     }
 
     else if(is_pointer(arr.type))
     {
-        return index_pointer(itl,func,arr.reg.slot,dst_slot,index_node,(PointerType*)arr.type);
+        return index_pointer(itl,func,arr.reg.slot,index_node,(PointerType*)arr.type);
     }
 
     else
@@ -287,7 +324,7 @@ RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
 
 TypeResult read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
-    auto index_res = index_arr(itl,func,node,new_tmp_ptr(func));
+    auto index_res = index_arr(itl,func,node);
     if(!index_res)
     {
         return index_res.error();
@@ -295,16 +332,14 @@ TypeResult read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
 
     auto index = *index_res;
 
-    index.type = deref_pointer(index.type);
-
     // fixed array needs conversion by host
     if(is_fixed_array(index.type))
     {
-        mov_reg(itl,func,dst_slot,index.slot);
+        mov_reg(itl,func,dst_slot,collapse_struct_res(itl,func,index.addr));
         return index.type;
     }
 
-    const auto err = do_ptr_load(itl,func,dst_slot,index);
+    const auto err = do_addr_load(itl,func,dst_slot,index);
     if(!!err)
     {
         return *err;
@@ -317,7 +352,7 @@ TypeResult read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
 // TODO: our type checking for our array assigns has to be done out here to ensure locals are type checked correctly
 Option<itl_error> write_arr(Interloper &itl,Function &func,AstNode *node,const TypedReg& src)
 {
-    auto index_res = index_arr(itl,func,node,new_tmp_ptr(func));
+    auto index_res = index_arr(itl,func,node);
     if(!index_res)
     {
         return index_res.error();
@@ -333,10 +368,7 @@ Option<itl_error> write_arr(Interloper &itl,Function &func,AstNode *node,const T
 
     else
     {
-        // deref of pointer
-        index.type = deref_pointer(index.type);
-
-        const auto store_err = do_ptr_store(itl,func,src.slot,index);
+        const auto store_err = do_addr_store(itl,func,src.slot,index);
         if(!!store_err)
         {
             return *store_err;
@@ -582,14 +614,12 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
     return option::none;   
 }
 
-// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl
-std::pair<u32,u32> calc_arr_allocation(Interloper& itl, Symbol& sym)
+// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl, We do this to get the base type size
+// So we don't have to end up padding this out at higher alignments.
+std::pair<u32,u32> calc_arr_allocation(Interloper& itl, const Type* type)
 {
-    UNUSED(itl);
-
     b32 done = false;
     
-    Type* type = sym.type;
     u32 count = 0;
     u32 size = 0;
 
@@ -873,11 +903,11 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
 
     auto& array = sym_from_slot(itl.symbol_table,slot);
 
-    const auto [arr_size,arr_count] = calc_arr_allocation(itl,array);
-
     // allocate fixed array if needed, and initalize it to its data pointer
     if(is_fixed_array(array.type))
     {
+        const auto [arr_size,arr_count] = calc_arr_allocation(itl,array.type);
+
         // we have the allocation information now complete it
         switch(array.reg.segment)
         {

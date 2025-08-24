@@ -582,21 +582,23 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
 
                 case ast_type::index:
                 {
-                    auto index_res = index_arr(itl,func,var_node,new_tmp_ptr(func));
+                    auto index_res = index_arr(itl,func,var_node);
                     if(!index_res)
                     {
                         return index_res.error();
                     }
 
-                    const TypedReg index = *index_res;
-                    const auto err = check_assign(itl,deref_pointer(index.type),rtype);
+                    const TypedAddr index = *index_res;
+                    const auto err = check_assign(itl,index.type,rtype);
 
                     if(!!err)
                     {
                         return err;
                     }
 
-                    pass_arg(itl,func,pass,index,a);
+                    auto ptr = collapse_typed_struct_res(itl,func,index);
+                    ptr.type = make_reference(itl,ptr.type);
+                    pass_arg(itl,func,pass,ptr,a);
                     break;
                 }
 

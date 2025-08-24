@@ -8,11 +8,14 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *node);
 Result<BlockSlot,itl_error> compile_basic_block(Interloper &itl,Function &func,BlockNode *node);
 
 RegResult compile_oper(Interloper& itl,Function &func,AstNode *node);
+RegResult compile_oper_const_elide(Interloper& itl,Function& func, AstNode* node);
+void unelide_value(Interloper& itl, Function& func, TypedReg& reg);
+void unelide_values(Interloper& itl, Function& func, TypedReg& left, TypedReg& right);
 
-RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+TypedAddrResult index_arr(Interloper &itl,Function &func,AstNode *node);
 Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
-RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
-     Type* type, RegSlot ptr_slot, RegSlot dst_slot);
+TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+     Type* type, RegSlot ptr_slot);
 
 Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& dst, const TypedReg& src);
 RegResult take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
@@ -128,10 +131,43 @@ Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 }
 
 
+TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node,known_value_type known_type)
+{
+    ValueNode* value_node = (ValueNode*)node;
+    Value value = value_node->value;
+
+    Type* type = value_type(itl,value);
+    RegSlot dst_slot = new_typed_tmp(itl,func,type);
+
+    // Caller is not getting rid of this move
+    if(known_type != known_value_type::elided)
+    {
+        mov_imm(itl,func,dst_slot,value.v);
+    }
+
+    return make_known_reg(dst_slot,type,value.v,known_type);  
+}
+
+void unelide_value(Interloper& itl, Function& func, TypedReg &reg)
+{
+    if(reg.flags & TYPED_REG_FLAG_ELIDED_VALUE)
+    {
+        mov_imm(itl,func,reg.slot,reg.known_value);
+        reg.flags &= ~TYPED_REG_FLAG_KNOWN_VALUE;
+    }
+}
+
+void unelide_values(Interloper& itl, Function& func, TypedReg &left, TypedReg &right)
+{
+    unelide_value(itl,func,left);
+    unelide_value(itl,func,right);
+}
+
+
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
-RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
+RegResult compile_oper_internal(Interloper& itl,Function &func,AstNode *node, known_value_type known_type)
 {
     if(!node)
     {
@@ -150,12 +186,27 @@ RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
             return symbol(itl,node);
         }
 
+        case ast_type::value:
+        {
+            return value_tmp(itl,func,node,known_type);
+        }
+
         // compile an expr
         default:
         {
             return compile_expression_tmp(itl,func,node);
         }
     }
+}
+
+RegResult compile_oper(Interloper& itl,Function &func,AstNode *node)
+{
+    return compile_oper_internal(itl,func,node,known_value_type::stored);
+}
+
+RegResult compile_oper_const_elide(Interloper& itl,Function& func, AstNode* node)
+{
+    return compile_oper_internal(itl,func,node,known_value_type::elided);
 }
 
 Option<itl_error> compile_scoped_stmt(Interloper& itl, Function& func, AstNode* node, NameSpace* name_space)
@@ -394,7 +445,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             const auto reg = *res;
 
 
-            const u32 size = type_size(itl,reg.type);
+            const u32 size = type_memory_size(itl,reg.type);
             mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);
@@ -410,7 +461,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             }
 
             // just move in the type size
-            const u32 size = type_size(itl,*type_res);
+            const u32 size = type_memory_size(itl,*type_res);
             mov_imm(itl,func,dst_slot,size);
 
             return make_builtin(itl,builtin_type::u32_t);
@@ -922,6 +973,11 @@ Option<itl_error> compile_decl(Interloper &itl,Function &func, AstNode *line, b3
     return option::none;
 }
 
+void update_tmp_typing(Interloper& itl, Function& func, RegSlot dst_slot, const Type* type)
+{
+    func.registers[dst_slot.tmp_slot.handle] = make_reg(itl,dst_slot,type);
+}
+
 RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
     // assume a size then refine it with expr result
@@ -934,8 +990,7 @@ RegResult compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
     }
 
     Type* type = *type_res;
-
-    func.registers[dst_slot.tmp_slot.handle] = make_reg(itl,dst_slot,type);
+    update_tmp_typing(itl,func,dst_slot,type);
 
     return TypedReg{dst_slot,type};
 }
@@ -1551,8 +1606,7 @@ Option<itl_error> compile_globals(Interloper& itl)
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-// namespace -> compile time execution ->
-// -> unions? -> debug memory guards -> ...
+// compile time execution -> unions? -> debug memory guards -> ...
 
 void destroy_ast(Interloper& itl)
 {

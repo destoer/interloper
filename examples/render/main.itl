@@ -2,59 +2,27 @@
 import <graphics> 
 import <colour>
 
-// https://github.com/ssloy/tinyrenderer/wiki/Lesson-1:-Bresenham%E2%80%99s-Line-Drawing-Algorithm
+// https://haqr.eu/tinyrenderer/
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-introduction.html
 
-func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
+func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
 {
-    v1_clamp := std::vec2i_clamp_zero(v1,&win.bounds);
-    v2_clamp := std::vec2i_clamp_zero(v2,&win.bounds);
+    return cast(u32,x) < win.width && cast(u32,y) < win.height;
+}
 
-    y1 := (win.size.y - v1_clamp.y);
-    y2 := (win.size.y - v2_clamp.y);
-    x1 := v1_clamp.x;
-    x2 := v2_clamp.x;
-
-    steep := false;
-
-    // Draw more x than y
-    if std::abs(x1 - x2) < std::abs(y1 - y2)
-    {
-        std::swap_s64(&x1,&y1);
-        std::swap_s64(&x2,&y2);
-        steep = true;
-    }
-
-    // x1 should be smallest 
-    if x1 > x2 
-    {
-        std::swap_s64(&x1,&x2);
-        std::swap_s64(&y1,&y2);
-    }
-
-    stride := win.size.x;
-
-    y1f := cast(f64,y1);
-    y2f := cast(f64,y2);
-
-    for x in x1 < x2 + 1
-    {
-        t := cast(f64,x - x1) / cast(f64,x2 - x1);
-        y := cast(s64,y1f * (1.0 - t) + (y2f * t));
-
-        if steep
-        {
-            win.screen[(x * stride) + y] = colour;
-        }
-
-        else
-        {
-            win.screen[(y * stride) + x] = colour;
-        }
+func screen_tri_to_device(size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
+{
+    for [@v, i] in out {
+        v.x = (tri[i].x + 0.5) * size.x;
+        v.y = (tri[i].y + 0.5) * size.y;
     }
 }
 
-func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
+func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
 {
+    tri: std::Vec2F[3] = {?};
+    screen_tri_to_device(&win.size,tri_screen,tri);
+
     // Compute the bounding box
     max := std::Vec2I {0,0};
     min := std::Vec2I {win.bounds.x,win.bounds.y};
@@ -70,7 +38,8 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
         max.y = std::min_s64(win.bounds.y,std::max_s64(max.y,y));     
     }
 
-    stride := win.size.x;
+    stride := win.width;
+    height := win.height;
 
     // Compute barycentric cordinate info outside of the loop
     v0 := std::vec2f_sub(&tri[1],&tri[0]);
@@ -85,43 +54,55 @@ func draw_triangle(win: gfx::Window@, tri: std::Vec2F[3], colour: u32)
     {
         for x in min.x < max.x 
         {
-            point := std::Vec2F {cast(f64,x),cast(f64,y)};
-            v2 := std::vec2f_sub(&point,&tri[0]);
+            y_flip := height - y;
 
-            d20 := std::vec2f_dot(&v2,&v0);
-            d21 := std::vec2f_dot(&v2,&v1);
-
-            v := ((d11 * d20) - (d01 * d21)) / denom;
-            w := ((d00 * d21) - (d01 * d20)) / denom;
-            u := 1.0 - v - w;
-
-            if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
+            if(in_screen_bounds(win,y_flip,x))
             {
-                colourf := gfx::Colour{u,w,v};
-                colour_rgba := gfx::colour_to_rgba(&colourf);
+                point := std::Vec2F {cast(f64,x),cast(f64,y)};
+                v2 := std::vec2f_sub(&point,&tri[0]);
 
-                y_flip := win.size.y - y;
-                win.screen[(y_flip * stride) + x] = colour_rgba;
+                d20 := std::vec2f_dot(&v2,&v0);
+                d21 := std::vec2f_dot(&v2,&v1);
+
+                v := ((d11 * d20) - (d01 * d21)) / denom;
+                w := ((d00 * d21) - (d01 * d20)) / denom;
+                u := 1.0 - v - w;
+
+                if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
+                {
+                    colourf := gfx::Colour{u,w,v};
+                    colour_rgba := gfx::colour_to_rgba(&colourf);
+
+                    win.screen[(y_flip * stride) + x] = colour_rgba;
+                }
             }
         }
     }
 }
 
-func render(win: gfx::Window@)
-{
-    gfx::blank_screen(win.screen);
 
-    tri1: std::Vec2F[3] = {{10.0, 70.0},   {50.0, 160.0},  {70.0, 80.0}}; 
-    tri2: std::Vec2F[3] = {{180.0, 50.0},  {150.0, 1.0},   {70.0, 180.0}}; 
-    tri3: std::Vec2F[3] = {{180.0, 150.0}, {120.0, 160.0}, {130.0, 180.0}}; 
+func render_triangle(win: gfx::Window@)
+{
+    tri1: std::Vec2F[3] = {{-0.48, -0.35},   {-0.42, -0.17},  {-0.39, -0.33}}; 
+    tri2: std::Vec2F[3] = {{-0.22, -0.40},  {-0.27, -0.5},   {-0.39, -0.13}}; 
+    tri3: std::Vec2F[3] = {{-0.22, -0.19}, {-0.31, -0.17}, {-0.30, -0.13}}; 
 
     draw_triangle(win,tri1, RED); 
     draw_triangle(win,tri2, BLUE); 
     draw_triangle(win,tri3, GREEN);
 }
 
+func render(win: gfx::Window@)
+{
+    gfx::blank_screen(win.screen);
+
+    render_triangle(win);
+}
+
 func main() s32
 {
+    TAG := "Render";
+
     SCREEN_X := 640;
     SCREEN_Y := 480;
 
@@ -129,6 +110,7 @@ func main() s32
 
     if(res != gfx::win_result::ok)
     {
+        log::error(TAG,"Could not open window");
         return -1;
     }
 
@@ -136,21 +118,21 @@ func main() s32
     {
         if(gfx::start_frame(&win) == gfx::win_result::err)
         {
-            log::error("Render","Failed to start frame");
+            log::error(TAG,"Failed to start frame");
             return -1;
         }
     
         if(input::is_pressed(&win.input,input::button_t::start))
         {
             win.quit = true;
-            log::info("Render","Quitting");
+            log::info(TAG,"Quitting");
         }
 
         render(&win);
 
         if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)
         {
-            log::error("Render","Failed to draw window");
+            log::error(TAG,"Failed to draw window");
             return -1;
         }
 
@@ -159,7 +141,7 @@ func main() s32
 
     if(gfx::close_window(&win) == gfx::win_result::err)
     {
-        log::error("Render","Failed to close window");
+        log::error(TAG,"Failed to close window");
         return -1;
     }
 

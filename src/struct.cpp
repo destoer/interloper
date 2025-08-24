@@ -87,27 +87,11 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 {
     if(is_fixed_array(type))
     {
-        ArrayType* array_type = (ArrayType*)type;
-
-        u32 count = array_type->size;
-        u32 size = array_type->sub_size;
-
-        // size > GPR_SIZE align on gpr_size
-        // otherwhise on its own boundary
-        if(array_type->sub_size > GPR_SIZE)
-        {
-            count += array_type->sub_size / GPR_SIZE;
-            size = GPR_SIZE;
-        }
-
-        return std::pair{size,count};
+        return calc_arr_allocation(itl,type);
     }
 
-    else
-    {
-        const u32 size = type_size(itl,type);
-        return calc_alloc_size(size);
-    } 
+    const u32 size = type_memory_size(itl,type);
+    return calc_alloc_size(size);
 }
 
 
@@ -632,16 +616,14 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
         case ast_type::index:
         {
-            auto index_res = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+            auto index_res = index_arr(itl,func,expr_node);
             if(!index_res)
             {
                 return index_res.error();
             }
 
-            auto index_reg = *index_res;
-
             // straight pointer
-            struct_addr = {make_addr(index_reg.slot,0),deref_pointer(index_reg.type)};
+            struct_addr = *index_res;
             break;
         }
 
@@ -783,16 +765,14 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                     collapse_struct_offset(itl,func,&struct_addr.addr);
                 }
 
-                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr.slot,new_tmp_ptr(func));
+                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr.slot);
                 if(!index_res)
                 {
                     return index_res.error();
                 }
 
-                auto index_reg = *index_res;
-
                 // Is a plain pointer
-                struct_addr = {make_addr(index_reg.slot,0),deref_pointer(index_reg.type)};
+                struct_addr = *index_res;
                 break;
             }
 
@@ -844,8 +824,6 @@ Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& s
 
 TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode *node)
 {
-    const List<Opcode> list_old = get_cur_list(func.emitter);
-
     auto member_addr_res =  compute_member_addr(itl,func,node);
 
     if(!member_addr_res)
@@ -858,10 +836,6 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
     // len access on fixed sized array
     if(is_special_reg(src_addr.addr.slot,spec_reg::access_fixed_len_reg))
     {
-        // dont need any of the new instrs for this
-        // get rid of them
-        get_cur_list(func.emitter) = list_old;
-
         const ArrayType* array_type = (ArrayType*)src_addr.type;
 
         mov_imm(itl,func,dst_slot,array_type->size);

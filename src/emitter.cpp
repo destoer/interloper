@@ -112,11 +112,11 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot, b32 i
 OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
 {
     const Opcode opcode = {type,v1,v2,v3};
-
     auto& block = block_from_slot(func,block_slot);
+
     auto &list = block.list;
     append(list,opcode);
-
+    
     return list.finish;    
 }
 
