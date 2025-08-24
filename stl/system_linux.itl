@@ -380,8 +380,6 @@ func connect_unix_domain(name : const string) [net::Socket, net_result]
     // copy the string and null terminate it
     str_copy_term(addr.path,name);
 
-    std::println("Connect: {}",addr.path);
-
     // check connection is fine
     rc := linux_connect(handle,&addr,sizeof_type(SockAddrUn));
     if(rc != 0)

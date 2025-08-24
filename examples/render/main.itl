@@ -108,7 +108,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
         {
             y_flip := height - y;
 
-            if(!in_screen_bounds(win,y_flip,x))
+            if(in_screen_bounds(win,y_flip,x))
             {
                 point := std::Vec2F {cast(f64,x),cast(f64,y)};
                 v2 := std::vec2f_sub(&point,&tri[0]);
@@ -137,7 +137,7 @@ func draw_line_3f(win: gfx::Window@,v1: const std::Vec3F@, v2: const std::Vec3F@
     s1 := std::mul_vec3_mat4(v1,projection);
     s2 := std::mul_vec3_mat4(v2,projection);
 
-    std::println("{} {} -> {} {}",s1.x,s1.y,s2.x,s2.y);
+    // std::println("{} {} -> {} {}",s1.x,s1.y,s2.x,s2.y);
 
     // s1 := @v1;
     // s2 := @v2;
@@ -229,8 +229,8 @@ func render(win: gfx::Window@)
 {
     gfx::blank_screen(win.screen);
 
-    // render_triangle(win);
-    render_cube(win);
+    render_triangle(win);
+    // render_cube(win);
 }
 
 func main() s32

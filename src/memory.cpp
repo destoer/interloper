@@ -16,17 +16,23 @@ AddrSlot take_addr(Interloper& itl, Function& func, RegSlot src, u32 offset)
     return make_addr(src_ptr,0);
 }
 
-RegSlot collapse_struct_res(Interloper& itl, Function& func, const AddrSlot& struct_slot)
+void collapse_struct_addr(Interloper& itl, Function& func, const AddrSlot struct_slot, RegSlot dst_slot)
 {
     if(struct_slot.struct_addr)
     {
-        return addrof_res(itl,func,struct_slot.slot,struct_slot.offset);
+        addrof(itl,func,dst_slot,struct_slot.slot,struct_slot.offset);
+        return;
     }
 
-    else
-    {
-        return add_imm_res(itl,func,struct_slot.slot,struct_slot.offset);
-    }
+    add_imm(itl,func,dst_slot,struct_slot.slot,struct_slot.offset);
+}
+
+RegSlot collapse_struct_res(Interloper& itl, Function& func, const AddrSlot& struct_slot)
+{
+    const RegSlot dst_slot = new_tmp(func,GPR_SIZE);
+    collapse_struct_addr(itl,func,struct_slot,dst_slot);
+
+    return dst_slot;
 }
 
 TypedReg collapse_typed_struct_res(Interloper& itl, Function& func, const TypedAddr& struct_slot)

@@ -663,9 +663,7 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
             const auto index = *index_res;
 
-            const TypedReg ptr = collapse_typed_struct_res(itl,func,index);
-            mov_reg(itl,func,slot,ptr.slot);
-
+            collapse_struct_addr(itl,func,index.addr,slot);
             return TypedReg{slot,make_reference(itl,index.type)};
         }
 
