@@ -14,7 +14,61 @@ func screen_tri_to_device(size: const std::Vec2F@, tri: const std::Vec2F[3], out
 {
     for [@v, i] in out {
         v.x = (tri[i].x + 0.5) * size.x;
-        v.y = (tri[i].y + 0.5) * size.y;
+        v.y = (0.5 - tri[i].y) * size.y;
+    }
+}
+
+func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, colour: u32)
+{
+    x1 := p1.x;
+    y1 := p1.y;
+
+    x2 := p2.x;
+    y2 := p2.y;
+
+    // Make sure we render more x than y
+    steep := std::fabs(y2 - y1) > std::fabs(x2 - x1);
+
+    if steep
+    {
+        std::swap_f64(&x1,&y1);
+        std::swap_f64(&x2,&y2);
+    }
+
+    // x1 should actually be smaller than x2 as we will
+    // iterate over it later.
+    if x2 < x1 
+    {
+        std::swap_f64(&x1,&x2);
+        std::swap_f64(&y1,&y2);        
+    }
+
+    y := y1;
+    m := (y2 - y1) / (x2 - x1);
+
+    stride := win.width;
+ 
+    for x in cast(s64,x1) < cast(s64,x2) + 1
+    {
+        y_index := cast(s64,y);
+
+        if steep 
+        {
+            if(in_screen_bounds(win,x,y_index))
+            {
+                win.screen[(x * stride) + y_index] = colour;
+            }
+        }
+
+        else
+        {
+            if(in_screen_bounds(win,y_index,x))
+            {
+                win.screen[(y_index * stride) + x] = colour;
+            }
+        }
+
+        y += m;
     }
 }
 
@@ -23,61 +77,9 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
     tri: std::Vec2F[3] = {?};
     screen_tri_to_device(&win.size,tri_screen,tri);
 
-    // Compute the bounding box
-    max := std::Vec2I {0,0};
-    min := std::Vec2I {win.bounds.x,win.bounds.y};
-
-    for @point in tri
-    {
-        x := cast(s64,point.x);
-        min.x = std::max_s64(0,std::min_s64(min.x,x));
-        max.x = std::min_s64(win.bounds.x,std::max_s64(max.x,x));
-
-        y := cast(s64,point.y);
-        min.y = std::max_s64(0,std::min_s64(min.y,y));
-        max.y = std::min_s64(win.bounds.y,std::max_s64(max.y,y));     
-    }
-
-    stride := win.width;
-    height := win.height;
-
-    // Compute barycentric cordinate info outside of the loop
-    v0 := std::vec2f_sub(&tri[1],&tri[0]);
-    v1 := std::vec2f_sub(&tri[2],&tri[0]);
-
-    d00 := std::vec2f_dot(&v0,&v0);
-    d01 := std::vec2f_dot(&v0,&v1);
-    d11 := std::vec2f_dot(&v1,&v1);
-    denom := (d00 * d11) - (d01 * d01);
-
-    for y in min.y < max.y 
-    {
-        for x in min.x < max.x 
-        {
-            y_flip := height - y;
-
-            if(in_screen_bounds(win,y_flip,x))
-            {
-                point := std::Vec2F {cast(f64,x),cast(f64,y)};
-                v2 := std::vec2f_sub(&point,&tri[0]);
-
-                d20 := std::vec2f_dot(&v2,&v0);
-                d21 := std::vec2f_dot(&v2,&v1);
-
-                v := ((d11 * d20) - (d01 * d21)) / denom;
-                w := ((d00 * d21) - (d01 * d20)) / denom;
-                u := 1.0 - v - w;
-
-                if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
-                {
-                    colourf := gfx::Colour{u,w,v};
-                    colour_rgba := gfx::colour_to_rgba(&colourf);
-
-                    win.screen[(y_flip * stride) + x] = colour_rgba;
-                }
-            }
-        }
-    }
+    draw_line(win,&tri[0],&tri[1],colour);
+    draw_line(win,&tri[0],&tri[2],colour);
+    draw_line(win,&tri[1],&tri[2],colour);
 }
 
 
