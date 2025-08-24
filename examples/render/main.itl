@@ -10,58 +10,6 @@ func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
     return cast(u32,x) < win.width && cast(u32,y) < win.height;
 }
 
-func draw_line(win: gfx::Window@, v1: std::Vec2I@, v2: std::Vec2I@, colour: u32)
-{
-    y1 := (win.height - v1.y);
-    y2 := (win.height - v2.y);
-    x1 := v1.x;
-    x2 := v2.x;
-
-    steep := std::abs(x1 - x2) < std::abs(y1 - y2);
-
-    // Draw more x than y
-    if(steep)
-    {
-        std::swap_s64(&x1,&y1);
-        std::swap_s64(&x2,&y2);
-    }
-
-    // x1 should be smallest 
-    if x1 > x2 
-    {
-        std::swap_s64(&x1,&x2);
-        std::swap_s64(&y1,&y2);
-    }
-
-    stride := win.width;
-
-    y := cast(f64,y1);
-    step := cast(f64,(y2 - y1)) / cast(f64,(x2 - x1));
-
-    for x in x1 < x2 + 1
-    {
-        y_index := cast(s64,y);
-
-        if steep
-        {
-            if(in_screen_bounds(win,y_index,x))
-            {
-                win.screen[(x * stride) + y_index] = colour;
-            }
-        }
-
-        else
-        {
-            if(in_screen_bounds(win,x,y_index))
-            {
-                win.screen[(y_index * stride) + x] = colour;
-            }
-        }
-
-        y += step;
-    }
-}
-
 func screen_tri_to_device(size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
 {
     for [@v, i] in out {
@@ -132,41 +80,6 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
     }
 }
 
-func draw_line_3f(win: gfx::Window@,v1: const std::Vec3F@, v2: const std::Vec3F@,projection: const std::Mat4D@,colour: u32)
-{
-    s1 := std::mul_vec3_mat4(v1,projection);
-    s2 := std::mul_vec3_mat4(v2,projection);
-
-    // std::println("{} {} -> {} {}",s1.x,s1.y,s2.x,s2.y);
-
-    // s1 := @v1;
-    // s2 := @v2;
-
-    // std::println("{} {}",-s1.z,-s2.z);
-
-    // s1.x /= -s1.z;
-    // s1.y /= -s1.z;
-    
-    // s2.x /= -s2.z;
-    // s2.y /= -s2.z;
-
-    // NEAR_CLIP := -0.2;
-
-    // if(s1.z < NEAR_CLIP || s2.z < NEAR_CLIP)
-    // {
-    //     return;
-    // }
-
-    x1 := cast(s64,(s1.x + 0.5) * win.size.x);
-    y1 := cast(s64,(s1.y + 0.5) * win.size.y);
-    x2 := cast(s64,(s2.x + 0.5) * win.size.x);
-    y2 := cast(s64,(s2.y + 0.5) * win.size.y);
-
-    d1 := std::Vec2I {x1,y1};
-    d2 := std::Vec2I {x2,y2};
-
-    draw_line(win,&d1,&d2,colour);
-}
 
 func render_triangle(win: gfx::Window@)
 {
@@ -179,58 +92,11 @@ func render_triangle(win: gfx::Window@)
     draw_triangle(win,tri3, GREEN);
 }
 
-func render_cube(win: gfx::Window@)
-{
-    BASE := -0.25;
-    WIDTH := 0.5;
-    DIST := -1.0;
-
-    projection := std::Mat4D {{
-        {1.0,0.0,0.0,0.0},
-        {0.0,1.0,0.0,0.0},
-        {0.0,0.0,-1.0,-1.0},
-        {0.0,0.0,0.0,0.0},
-    }};
-
-    cube: std::Vec3F[8] = 
-    {
-        {BASE,BASE,DIST},  // A
-        {BASE + WIDTH,BASE,DIST}, // B
-        {BASE,BASE+WIDTH,DIST}, // C
-        {BASE + WIDTH,BASE+WIDTH,DIST}, // D
-
-        {BASE,BASE,DIST - WIDTH}, // E
-        {BASE + WIDTH,BASE,DIST - WIDTH}, // F
-        {BASE,BASE+WIDTH,DIST - WIDTH}, // G
-        {BASE + WIDTH,BASE+WIDTH,DIST - WIDTH}, // H
-    };
-
-    colour := RED;
-
-    // Points should probably be translated before we issue draws.
-    // But lets worry about speed later
-    draw_line_3f(win,&cube[0],&cube[1],&projection,colour); // AB
-    draw_line_3f(win,&cube[0],&cube[2],&projection,colour); // AC
-    draw_line_3f(win,&cube[1],&cube[3],&projection,colour); // BD
-    draw_line_3f(win,&cube[2],&cube[3],&projection,colour); // CD
-
-    draw_line_3f(win,&cube[1],&cube[5],&projection,colour); // BF
-    draw_line_3f(win,&cube[3],&cube[7],&projection,colour); // DH
-    draw_line_3f(win,&cube[5],&cube[7],&projection,colour); // FH
-    draw_line_3f(win,&cube[0],&cube[4],&projection,colour); // AE
-
-    draw_line_3f(win,&cube[2],&cube[6],&projection,colour); // CG
-    draw_line_3f(win,&cube[6],&cube[7],&projection,colour); // GH
-    draw_line_3f(win,&cube[4],&cube[5],&projection,colour); // EF
-    draw_line_3f(win,&cube[4],&cube[6],&projection,colour); // EG
-}
-
 func render(win: gfx::Window@)
 {
     gfx::blank_screen(win.screen);
 
     render_triangle(win);
-    // render_cube(win);
 }
 
 func main() s32
