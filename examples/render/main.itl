@@ -53,30 +53,26 @@ func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, 
     {
         y_index := cast(s64,y);
 
-        if steep 
+        if steep && in_screen_bounds(win,x,y_index) 
         {
-            if(in_screen_bounds(win,x,y_index))
-            {
-                win.screen[(x * stride) + y_index] = colour;
-            }
+            win.screen[(x * stride) + y_index] = colour;
         }
 
-        else
+        else if in_screen_bounds(win,y_index,x)
         {
-            if(in_screen_bounds(win,y_index,x))
-            {
-                win.screen[(y_index * stride) + x] = colour;
-            }
+            win.screen[(y_index * stride) + x] = colour;
         }
 
         y += m;
     }
 }
 
-func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
+func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], colour: u32)
 {
-    tri: std::Vec2F[3] = {?};
-    screen_tri_to_device(&win.size,tri_screen,tri);
+    // TODO: For now just drop all the verts 
+    tri: std::Vec2F[3] = {{tri_screen[0].x,tri_screen[0].y}, {tri_screen[1].x, tri_screen[1].y}, {tri_screen[2].x, tri_screen[2].y}};
+
+    screen_tri_to_device(&win.size,tri,tri);
 
     draw_line(win,&tri[0],&tri[1],colour);
     draw_line(win,&tri[0],&tri[2],colour);
@@ -84,26 +80,25 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
 }
 
 
-func render_triangle(win: gfx::Window@)
-{
-    tri1: std::Vec2F[3] = {{-0.48, -0.35},   {-0.42, -0.17},  {-0.39, -0.33}}; 
-    tri2: std::Vec2F[3] = {{-0.22, -0.40},  {-0.27, -0.5},   {-0.39, -0.13}}; 
-    tri3: std::Vec2F[3] = {{-0.22, -0.19}, {-0.31, -0.17}, {-0.30, -0.13}}; 
-
-    draw_triangle(win,tri1, RED); 
-    draw_triangle(win,tri2, BLUE); 
-    draw_triangle(win,tri3, GREEN);
-}
-
-func render(win: gfx::Window@)
+func render(win: gfx::Window@, model: const Model@)
 {
     gfx::blank_screen(win.screen);
 
-    render_triangle(win);
+    for tri in model.faces
+    {
+        draw_triangle(win,tri.points,RED);
+    }
 }
 
 func main() s32
 {
+    [model_res,model] := load_model("/home/destoer/diablo3_pose.obj");
+
+    if(model_res == result::err)
+    {
+        return -1;
+    }
+
     TAG := "Render";
 
     SCREEN_X := 640;
@@ -114,11 +109,6 @@ func main() s32
     if(res != gfx::win_result::ok)
     {
         log::error(TAG,"Could not open window");
-        return -1;
-    }
-
-    if(load_model("/home/destoer/diablo3_pose.obj") == result::err)
-    {
         return -1;
     }
 
@@ -136,7 +126,7 @@ func main() s32
             log::info(TAG,"Quitting");
         }
 
-        render(&win);
+        render(&win,&model);
 
         if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)
         {

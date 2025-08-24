@@ -1,13 +1,12 @@
 struct Triangle
 {
-    verticies: Vec3F[3];
+    points: std::Vec3F[3];
 }
 
 struct Model
 {
     faces: Triangle[];
 }
-
 
 func scan_verticies(line: const string[]) [result,std::Vec3F]
 {
@@ -34,22 +33,43 @@ func scan_verticies(line: const string[]) [result,std::Vec3F]
     return result::ok, ans;
 }
 
-func load_model(path: const string) result
+func scan_face(faces: std::Array@,verticies: const std::Array@,line: const string[])
 {
+    [v1, _] := std::parse_value(line[1]);
+    [v2, _] := std::parse_value(line[2]);
+    [v3, _] := std::parse_value(line[3]);
+
+    tri: Triangle = {?};
+    std::read_array_circular(verticies,v1.v,&tri.points[0]);
+    std::read_array_circular(verticies,v2.v,&tri.points[1]);
+    std::read_array_circular(verticies,v3.v,&tri.points[2]);
+
+    std::push_array(faces,&tri);
+}
+
+func load_model(path: const string) [result, Model]
+{
+    log::debug("Loading model: {}",path);
+
+    TAG := "Model Loader";
+
+    model: Model;
+
     buf : c8[256];
 
     [fp,file_err] := std::open_file(path,std::file_mode::read,std::file_opt::open);
 
     if(file_err)
     {
-        log::error("Could not open model file {}",path);
-        return result::err;
+        log::error(TAG,"Could not open model file {}",path);
+        return result::err, model;
     }
 
     rc := std::file_read_res::success;
 
     paramters := std::make_array(sizeof_type(string));
     verticies := std::make_array(sizeof_type(std::Vec3F));
+    model_faces := std::make_array(sizeof_type(Triangle));
 
     while(rc == std::file_read_res::success)
     {
@@ -62,20 +82,32 @@ func load_model(path: const string) result
 
             if std::str_equal(split[0],"v")
             {
+                if split.len != 4
+                {
+                    log::error(TAG,"Invalid number of args for vertices {}",split.len);
+                    return result::err, model;
+                }
+
                 // TODO: check arg len
                 [err, vec] := scan_verticies(split);
                 std::push_array(&verticies,&vec);
 
                 if(err == result::err)
                 {
-                    std::crash_and_burn("Format error in model {}",str);
-                    return result::err;
+                    log::error(TAG,"Format error in model {}",str);
+                    return result::err, model;
                 }
             }
 
             else if std::str_equal(split[0],"f")
             {
-                std::println("{}",str);
+                if split.len != 4
+                {
+                    log::error(TAG,"Invalid number of args for vertices {}",split.len);
+                    return result::err, model;
+                }
+
+                scan_face(&model_faces,&verticies,split);
             }
         }
     }
@@ -83,5 +115,9 @@ func load_model(path: const string) result
     std::destroy_array(&paramters);
     std::destroy_array(&verticies);
 
-    return result::ok;
+    model.faces = cast(Triangle[],std::array_buffer(&model_faces));
+
+    log::debug("Loaded model: {}",path);
+
+    return result::ok, model;
 }

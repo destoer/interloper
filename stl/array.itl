@@ -70,7 +70,7 @@ func array_data(arr: Array@) byte@
     return arr.buf.data;
 }
 
-func count_array(arr: Array@) usize 
+func count_array(arr: const Array@) usize 
 {
     return arr.buf.len / arr.element_size;
 }
@@ -157,6 +157,17 @@ func array_index(array: const Array@, idx: usize) byte@
 {
     offset := idx * array.element_size;
     return &array.buf[offset];
+}
+
+func read_array_circular(array: const Array@, idx: s64,out: byte@)
+{
+    if idx < 0
+    {
+        idx = count_array(array) + idx;
+    } 
+
+    src := array_index(array,cast(u64,idx));
+    memcpy(out,src,array.element_size);
 }
 
 func array_end(array: const Array@) byte@
