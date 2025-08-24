@@ -611,16 +611,14 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
         case ast_type::index:
         {
-            auto index_res = index_arr(itl,func,expr_node,new_tmp_ptr(func));
+            auto index_res = index_arr(itl,func,expr_node);
             if(!index_res)
             {
                 return index_res.error();
             }
 
-            auto index_reg = *index_res;
-
             // straight pointer
-            struct_addr = {make_addr(index_reg.slot,0),deref_pointer(index_reg.type)};
+            struct_addr = *index_res;
             break;
         }
 
@@ -762,16 +760,14 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                     collapse_struct_offset(itl,func,&struct_addr.addr);
                 }
 
-                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr.slot,new_tmp_ptr(func));
+                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr.slot);
                 if(!index_res)
                 {
                     return index_res.error();
                 }
 
-                auto index_reg = *index_res;
-
                 // Is a plain pointer
-                struct_addr = {make_addr(index_reg.slot,0),deref_pointer(index_reg.type)};
+                struct_addr = *index_res;
                 break;
             }
 

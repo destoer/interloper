@@ -12,10 +12,10 @@ RegResult compile_oper_const_elide(Interloper& itl,Function& func, AstNode* node
 void unelide_value(Interloper& itl, Function& func, TypedReg& reg);
 void unelide_values(Interloper& itl, Function& func, TypedReg& left, TypedReg& right);
 
-RegResult index_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot);
+TypedAddrResult index_arr(Interloper &itl,Function &func,AstNode *node);
 Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& func,RecordNode *list,AddrSlot* addr_slot, ArrayType* type);
-RegResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
-     Type* type, RegSlot ptr_slot, RegSlot dst_slot);
+TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
+     Type* type, RegSlot ptr_slot);
 
 Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& dst, const TypedReg& src);
 RegResult take_pointer(Interloper& itl,Function& func, AstNode* deref_node);
@@ -1606,8 +1606,7 @@ Option<itl_error> compile_globals(Interloper& itl)
 // TODO: basic type checking for returning pointers to local's
 
 // feature plan:
-// namespace -> compile time execution ->
-// -> unions? -> debug memory guards -> ...
+// compile time execution -> unions? -> debug memory guards -> ...
 
 void destroy_ast(Interloper& itl)
 {

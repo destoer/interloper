@@ -655,7 +655,18 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
         case ast_type::index:
         {
-            return index_arr(itl,func,node,slot);
+            const auto index_res = index_arr(itl,func,node);
+            if(!index_res)
+            {
+                return index_res.error();
+            }
+
+            const auto index = *index_res;
+
+            const TypedReg ptr = collapse_typed_struct_res(itl,func,index);
+            mov_reg(itl,func,slot,ptr.slot);
+
+            return TypedReg{slot,make_reference(itl,index.type)};
         }
 
         case ast_type::access_struct:

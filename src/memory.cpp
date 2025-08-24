@@ -25,13 +25,14 @@ RegSlot collapse_struct_res(Interloper& itl, Function& func, const AddrSlot& str
 
     else
     {
-        if(struct_slot.offset)
-        {
-            return add_imm_res(itl,func,struct_slot.slot,struct_slot.offset);
-        }
-
-        return struct_slot.slot;
+        return add_imm_res(itl,func,struct_slot.slot,struct_slot.offset);
     }
+}
+
+TypedReg collapse_typed_struct_res(Interloper& itl, Function& func, const TypedAddr& struct_slot)
+{
+    const auto ptr = collapse_struct_res(itl,func,struct_slot.addr);
+    return TypedReg {ptr,struct_slot.type};
 }
 
 
