@@ -121,7 +121,7 @@ func open_window(str : const string, x : u32, y : u32) [Window, win_result]
 
     window_resized(&win,x,y);
 
-    win.limit = 1000.0 / 60.0;
+    win.limit = 1000.0 / 30.0;
     win.target = win.limit;
 
     return win, win_result::ok;
