@@ -78,7 +78,10 @@ Symbol* get_sym_internal(SymbolTable &sym_table,const String &sym, NameSpace* na
     if(def_info)
     {
         const auto slot = sym_from_idx(def_info->handle);
-        return &sym_from_slot(sym_table,slot);
+        Symbol& sym = sym_from_slot(sym_table,slot);
+        sym.references += 1;
+
+        return &sym;
     }
 
     return nullptr;
@@ -115,6 +118,7 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
     const auto reg_slot = make_sym_reg_slot(sym_slot);
 
     symbol.reg = make_reg(itl,reg_slot,type);
+    symbol.ctx = itl.ctx;
 
     // mark an offset so it is not unallocated
     if(symbol.arg_offset != NON_ARG)

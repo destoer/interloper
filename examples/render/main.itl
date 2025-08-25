@@ -73,7 +73,7 @@ func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, 
     }
 }
 
-func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], colour: u32)
+func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: u32)
 {
     // TODO: For now just drop all the z cord 
     tri: std::Vec2F[3] = {

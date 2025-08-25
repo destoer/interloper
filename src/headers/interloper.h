@@ -12,12 +12,6 @@ using namespace destoer;
 #include <ir.h>
 #include <interpretter.h>
 
-struct FileContext
-{
-    AstNode *expr = nullptr;
-    String filename = "";
-    NameSpace *name_space = nullptr;
-};
 
 struct Interloper
 {

@@ -117,7 +117,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/type/builtin_type",1}, // 271
     {"tests/type/sizeof",1},
     {"tests/type/default_initializer",1},
-    {"tests/type/byte",0},
+    {"tests/type/byte",1},
     {"tests/type/struct_punning",11},
     {"tests/type/type_query",1},
     {"tests/type/rtti",1},

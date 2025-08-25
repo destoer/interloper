@@ -194,7 +194,6 @@ func write_file_mem(file : File@,buf : const byte@, len : usize) s64
     }
 
     remain := len;
-    offset : usize = 0;
 
     // buffer the file writes in
     while(remain != 0)
@@ -450,7 +449,7 @@ func read_bin(name : const string) [byte[],bool]
 
     buf = byte_arr_heap(&itl_context.heap,cast(u64,size));
 
-    [read,file_res] := read_file_mem(&file,buf);
+    [_read,file_res] := read_file_mem(&file,buf);
 
     // done with file remember to close it
     close_file(&file);

@@ -44,7 +44,7 @@ func parse_keys(table: HashTable@, env: const string)
             key := str_duplicate(env[:i]);
             value := str_duplicate(env[i+1:]);
 
-            ptr := hash_table_add(table,&key,&value);
+            hash_table_add(table,&key,&value);
             return;
         }
     }

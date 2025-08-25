@@ -1023,7 +1023,7 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
                 type->sig = {};
 
                 // parse the function sig
-                const auto func_err = parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type);
+                const auto func_err = parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type,func_sig_kind::function_pointer);
                 if(!!func_err)
                 {
                     return *func_err;

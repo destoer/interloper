@@ -57,6 +57,11 @@ void pop_context(Interloper& itl)
     itl.ctx = pop(itl.saved_ctx);
 }
 
+void trash_context(Interloper& itl, FileContext& ctx)
+{
+    itl.ctx = ctx;
+}
+
 void trash_context(Interloper& itl, String filename,NameSpace* name_space, AstNode* expr)
 {
     itl.ctx.name_space = name_space;
@@ -1826,6 +1831,16 @@ Option<itl_error> code_generation(Interloper& itl)
     {
         destroy_itl(itl);
         return func_err;
+    }
+
+    // Check all declared symbols are used.
+    for(auto& sym : itl.symbol_table.slot_lookup)
+    {
+        if(sym.references == 0 && sym.reg.segment == reg_segment::local && sym.name[0] != '_')
+        {
+            trash_context(itl,sym.ctx);
+            return compile_error(itl,itl_error::unused_symbol,"Symbol %s is never used\n",sym.name.buf);
+        }
     }
 
     // okay we dont need the parse tree anymore

@@ -1,6 +1,13 @@
 #pragma once
 #include <error.h>
 
+struct FileContext
+{
+    AstNode *expr = nullptr;
+    String filename = "";
+    NameSpace *name_space = nullptr;
+};
+
 // NOTE: this may move during expression compilation
 // prefer holding a slot to a reference
 struct Symbol
@@ -11,6 +18,9 @@ struct Symbol
     Reg reg;
 
     u32 arg_offset = NON_ARG;
+    u32 references = 0;
+
+    FileContext ctx;
 };
 
 struct Label 
@@ -115,7 +125,13 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
 Function& lookup_internal_function(Interloper& itl, const String& name);
 
-Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node);
+enum class func_sig_kind
+{
+    function,
+    function_pointer,
+};
+
+Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind);
 
 struct Interloper;
 

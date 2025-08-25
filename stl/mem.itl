@@ -44,7 +44,7 @@ func find_mem(haystack: const byte[], needle: const byte[]) [usize, result]
 
 func mem_equal(v1: const byte@, v2: const byte@, size: usize) bool
 {
-    for i in 0 < size
+    for _i in 0 < size
     {
         if(@v1 != @v2)
         {

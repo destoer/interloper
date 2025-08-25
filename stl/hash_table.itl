@@ -19,7 +19,7 @@ func hash_cmp_mem(v1: const byte@, v2: const byte@, key_size: u64) bool
     return mem_equal(v1,v2,key_size);
 }
 
-func hash_cmp_str(v1: const byte@, v2: const byte@, key_size: u64) bool
+func hash_cmp_str(v1: const byte@, v2: const byte@, _key_size: u64) bool
 {
     str1 := @cast(string@,v1);
     str2 := @cast(string@,v2);
