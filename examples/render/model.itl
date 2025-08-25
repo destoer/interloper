@@ -149,7 +149,7 @@ func load_model(path: const string) [result, Model]
 
     model.faces = cast(Triangle[],std::array_buffer(&model_faces));
 
-    log::debug("Loaded model: {}",path);
+    log::debug(TAG,"Loaded model: {} of {} faces",path,model.faces.len);
 
     return result::ok, model;
 }
