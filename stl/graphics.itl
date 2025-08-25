@@ -13,6 +13,7 @@ struct Window
     height: u32;
 
     screen: u32[];
+    z_buffer: f64[];
 
     os_win : OSWindow;
 
@@ -71,6 +72,15 @@ func clip_bound(bound: u32) u32
     return bound - 1;
 }
 
+
+func clear_z_buffer(win: Window@)
+{
+    for @v in win.z_buffer
+    {
+        @v = 0.0;
+    }
+}
+
 // called when os window is resized
 func window_resized(win: Window@,x : u32, y : u32)
 {
@@ -92,6 +102,9 @@ func window_resized(win: Window@,x : u32, y : u32)
 
     // realloc our buffer
     std::arr_realloc_u32(&itl_context.heap,&win.screen,x * y);
+    std::arr_realloc_f64(&itl_context.heap,&win.z_buffer,x * y);
+
+    clear_z_buffer(win);
 }
 
 func open_window(str : const string, x : u32, y : u32) [Window, win_result]
@@ -117,6 +130,7 @@ func open_window(str : const string, x : u32, y : u32) [Window, win_result]
 func close_window(win : Window@) win_result
 {
     std::destroy_arr_heap_u32(&itl_context.heap,&win.screen);
+    std::destroy_arr_heap_f64(&itl_context.heap,&win.z_buffer);
     return os_destroy_window(&win.os_win);
 }
 

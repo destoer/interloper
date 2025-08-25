@@ -122,16 +122,22 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], colour: u
             w := ((d00 * d21) - (d01 * d20)) / denom;
             u := 1.0 - v - w;
 
-            if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
+            // TODO: How do we actually calc the "Z" cordinate of a pixel?
+            z := 1.0;
+            
+            offset := (y * stride) + x;
+
+            if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0 && win.z_buffer[offset] <= z)
             {
                 colourf := gfx::Colour{u,w,v};
                 colour_rgba := gfx::colour_to_rgba(&colourf);
 
                 if(in_screen_bounds(win,x,y))
                 {
-                    win.screen[(y * stride) + x] = colour_rgba;
+                    win.screen[offset] = colour_rgba;
+                    win.z_buffer[offset] = z;
                 }
-            }
+            }        
         }
     }
 }
