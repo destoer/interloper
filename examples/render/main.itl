@@ -1,27 +1,88 @@
 
 import <graphics> 
 import <colour>
+import "model"
 
 // https://haqr.eu/tinyrenderer/
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-introduction.html
 
 func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
 {
-    return cast(u32,x) < win.width && cast(u32,y) < win.height;
+    return cast(u32,x) < cast(u32,win.width) && cast(u32,y) < cast(u32,win.height);
 }
 
-func screen_tri_to_device(size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
+func screen_tri_to_device(half_size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
 {
     for [@v, i] in out {
-        v.x = (tri[i].x + 0.5) * size.x;
-        v.y = (tri[i].y + 0.5) * size.y;
+        v.x = (tri[i].x + 1.0) * half_size.x;
+        v.y = (1.0 - tri[i].y) * half_size.y;
     }
 }
 
-func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
+func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, colour: u32)
 {
-    tri: std::Vec2F[3] = {?};
-    screen_tri_to_device(&win.size,tri_screen,tri);
+    x1 := p1.x;
+    y1 := p1.y;
+
+    x2 := p2.x;
+    y2 := p2.y;
+
+    // Make sure we render more x than y
+    steep := std::fabs(y2 - y1) > std::fabs(x2 - x1);
+
+    if steep
+    {
+        std::swap_f64(&x1,&y1);
+        std::swap_f64(&x2,&y2);
+    }
+
+    // x1 should actually be smaller than x2 as we will
+    // iterate over it later.
+    if x2 < x1 
+    {
+        std::swap_f64(&x1,&x2);
+        std::swap_f64(&y1,&y2);        
+    }
+
+    y := y1;
+    m := (y2 - y1) / (x2 - x1);
+
+    stride := win.width;
+ 
+    for x in cast(s64,x1) < cast(s64,x2) + 1
+    {
+        y_index := cast(s64,y);
+
+        if steep 
+        {
+            if in_screen_bounds(win,y_index,x)
+            {
+                win.screen[(x * stride) + y_index] = colour;
+            }
+        }
+
+        else
+        {
+            if in_screen_bounds(win,x,y_index)
+            {
+                win.screen[(y_index * stride) + x] = colour;
+            }
+        }
+
+        y += m;
+    }
+}
+
+func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: u32)
+{
+    // TODO: For now just drop all the z cord 
+    tri: std::Vec2F[3] = {
+        {tri_screen[0].x,tri_screen[0].y}, 
+        {tri_screen[1].x, tri_screen[1].y}, 
+        {tri_screen[2].x, tri_screen[2].y}
+    };
+
+    screen_tri_to_device(&win.half_size,tri,tri);
 
     // Compute the bounding box
     max := std::Vec2I {0,0};
@@ -39,7 +100,6 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
     }
 
     stride := win.width;
-    height := win.height;
 
     // Compute barycentric cordinate info outside of the loop
     v0 := std::vec2f_sub(&tri[1],&tri[0]);
@@ -48,59 +108,64 @@ func draw_triangle(win: gfx::Window@, tri_screen: std::Vec2F[3], colour: u32)
     d00 := std::vec2f_dot(&v0,&v0);
     d01 := std::vec2f_dot(&v0,&v1);
     d11 := std::vec2f_dot(&v1,&v1);
-    denom := (d00 * d11) - (d01 * d01);
+
+    inv_denom := 1.0 / ((d00 * d11) - (d01 * d01));
 
     for y in min.y < max.y 
     {
         for x in min.x < max.x 
         {
-            y_flip := height - y;
+            point := std::Vec2F {cast(f64,x),cast(f64,y)};
+            v2 := std::vec2f_sub(&point,&tri[0]);
 
-            if(in_screen_bounds(win,y_flip,x))
+            d20 := std::vec2f_dot(&v2,&v0);
+            d21 := std::vec2f_dot(&v2,&v1);
+
+            v := ((d11 * d20) - (d01 * d21)) * inv_denom;
+            w := ((d00 * d21) - (d01 * d20)) * inv_denom;
+            u := 1.0 - v - w;
+
+            z := (u * tri_screen[0].z) + (v * tri_screen[1].z) + (w * tri_screen[2].z);
+
+            offset := (y * stride) + x;
+
+            if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0 && win.z_buffer[offset] <= z)
             {
-                point := std::Vec2F {cast(f64,x),cast(f64,y)};
-                v2 := std::vec2f_sub(&point,&tri[0]);
+                scaled := (z / 2.0) + 0.5;
 
-                d20 := std::vec2f_dot(&v2,&v0);
-                d21 := std::vec2f_dot(&v2,&v1);
+                colourz := gfx::Colour{scaled,scaled,scaled};
+                colourz_rgba := gfx::colour_to_rgba(&colourz);
 
-                v := ((d11 * d20) - (d01 * d21)) / denom;
-                w := ((d00 * d21) - (d01 * d20)) / denom;
-                u := 1.0 - v - w;
-
-                if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0)
+                if(in_screen_bounds(win,x,y))
                 {
-                    colourf := gfx::Colour{u,w,v};
-                    colour_rgba := gfx::colour_to_rgba(&colourf);
-
-                    win.screen[(y_flip * stride) + x] = colour_rgba;
+                    win.screen[offset] = colourz_rgba;
+                    win.z_buffer[offset] = z;
                 }
-            }
+            }        
         }
     }
 }
 
 
-func render_triangle(win: gfx::Window@)
-{
-    tri1: std::Vec2F[3] = {{-0.48, -0.35},   {-0.42, -0.17},  {-0.39, -0.33}}; 
-    tri2: std::Vec2F[3] = {{-0.22, -0.40},  {-0.27, -0.5},   {-0.39, -0.13}}; 
-    tri3: std::Vec2F[3] = {{-0.22, -0.19}, {-0.31, -0.17}, {-0.30, -0.13}}; 
-
-    draw_triangle(win,tri1, RED); 
-    draw_triangle(win,tri2, BLUE); 
-    draw_triangle(win,tri3, GREEN);
-}
-
-func render(win: gfx::Window@)
+func render(win: gfx::Window@, model: const Model@)
 {
     gfx::blank_screen(win.screen);
 
-    render_triangle(win);
+    for tri in model.faces
+    {
+        draw_triangle(win,tri.points,RED);
+    }
 }
 
 func main() s32
 {
+    [model_res,model] := load_model("/home/destoer/diablo3_pose.obj");
+
+    if(model_res == result::err)
+    {
+        return -1;
+    }
+
     TAG := "Render";
 
     SCREEN_X := 640;
@@ -128,7 +193,7 @@ func main() s32
             log::info(TAG,"Quitting");
         }
 
-        render(&win);
+        render(&win,&model);
 
         if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)
         {

@@ -1,0 +1,155 @@
+struct Triangle
+{
+    points: std::Vec3F[3];
+}
+
+struct Model
+{
+    faces: Triangle[];
+}
+
+func scan_verticies(line: const string[]) [result,std::Vec3F]
+{
+    ans: std::Vec3F = {?};
+
+    [res, ans.x] := std::string_to_double(line[1]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    [res, ans.y] = std::string_to_double(line[2]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    [res, ans.z] = std::string_to_double(line[3]);
+    if(res == result::err)
+    {
+        return res, ans;
+    }
+
+    return result::ok, ans;
+}
+
+func read_face_vertex(point: std::Vec3F@,vertices: const std::Array@, index: s64) result
+{
+    // Vertices are 1 indexed
+    if(index > 0)
+    {
+        index -= 1;
+    }
+
+    std::read_array_circular(vertices,index,point);
+    return result::ok;
+}
+
+func scan_face(faces: std::Array@,verticies: const std::Array@,line: const string[]) result
+{
+    [v1, _] := std::parse_value(line[1]);
+    [v2, _] := std::parse_value(line[2]);
+    [v3, _] := std::parse_value(line[3]);
+
+    tri: Triangle = {?};
+    res := read_face_vertex(&tri.points[0],verticies,v1.v);
+    if(res == result::err)
+    {
+        return res;
+    }
+
+    res = read_face_vertex(&tri.points[1],verticies,v2.v);
+    if(res == result::err)
+    {
+        return res;
+    }
+
+    res = read_face_vertex(&tri.points[2],verticies,v3.v);
+    if(res == result::err)
+    {
+        return res;
+    }
+
+    std::push_array(faces,&tri);
+
+    return result::ok;
+}
+
+func load_model(path: const string) [result, Model]
+{
+    log::debug("Loading model: {}",path);
+
+    TAG := "Model Loader";
+
+    model: Model;
+
+    buf : c8[256];
+
+    [fp,file_err] := std::open_file(path,std::file_mode::read,std::file_opt::open);
+
+    if(file_err)
+    {
+        log::error(TAG,"Could not open model file {}",path);
+        return result::err, model;
+    }
+
+    rc := std::file_read_res::success;
+
+    paramters := std::make_array(sizeof_type(string));
+    verticies := std::make_array(sizeof_type(std::Vec3F));
+    model_faces := std::make_array(sizeof_type(Triangle));
+
+    while(rc == std::file_read_res::success)
+    {
+        [str,rc] := std::read_file_line(&fp,buf);
+        
+        if str
+        {
+            std::split_str_in(str," ",&paramters);
+            split := cast(string[],std::array_buffer(&paramters));
+
+            if std::str_equal(split[0],"v")
+            {
+                if split.len != 4
+                {
+                    log::error(TAG,"Invalid number of args for vertices {}: {}",split.len, str);
+                    return result::err, model;
+                }
+
+                // TODO: check arg len
+                [err, vec] := scan_verticies(split);
+                std::push_array(&verticies,&vec);
+
+                if(err == result::err)
+                {
+                    log::error(TAG,"Format error in model {}",str);
+                    return result::err, model;
+                }
+            }
+
+            else if std::str_equal(split[0],"f")
+            {
+                if split.len != 4
+                {
+                    log::error(TAG,"Invalid number of args for faces {}: {}",split.len,str);
+                    return result::err, model;
+                }
+
+                if(scan_face(&model_faces,&verticies,split) == result::err)
+                {
+                    log::error(TAG,"Vertex index out of range: {}",str,std::count_array(&verticies));
+                    return result::err, model;
+                }
+            }
+        }
+    }
+
+    std::destroy_array(&paramters);
+    std::destroy_array(&verticies);
+
+    model.faces = cast(Triangle[],std::array_buffer(&model_faces));
+
+    log::debug(TAG,"Loaded model: {} of {} faces",path,model.faces.len);
+
+    return result::ok, model;
+}

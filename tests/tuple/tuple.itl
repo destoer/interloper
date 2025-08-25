@@ -87,7 +87,7 @@ func main() s32
     test4 : bool = pointer();
 
     // every test passed?
-    pass : bool = test1 && test2 && test3;
+    pass : bool = test1 && test2 && test3 && test4;
 
     return cast(s32,pass);
 }

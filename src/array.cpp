@@ -109,7 +109,7 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
                 if(subscript_value >= array_type->size)
                 {
                     return compile_error(itl,itl_error::out_of_bounds,"Array subscript(%d) [%d] is out of bounds for array of size %d\n",
-                        i,subscript_value,size);
+                        i,subscript_value,array_type->size);
                 }
             }
 

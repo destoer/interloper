@@ -43,6 +43,19 @@ func destroy_arr_heap_u32(heap : Heap@, vla: u32@[])
     vla.len = 0;
 }
 
+func destroy_arr_heap_f64(heap : Heap@, vla: f64@[])
+{
+    free_heap(heap,cast(byte@@,&vla.data));
+    vla.len = 0;
+}
+
+
+func arr_realloc_f64(heap: Heap@, vla: f64@[], size: usize) 
+{
+    realloc_heap_panic(heap,cast(byte@@,&vla.data),size,sizeof_type(f64));
+    vla.len = size;
+}
+
 
 func byte_arr_arena(arena : Arena@, size : usize) byte[]
 {
@@ -70,7 +83,7 @@ func array_data(arr: Array@) byte@
     return arr.buf.data;
 }
 
-func count_array(arr: Array@) usize 
+func count_array(arr: const Array@) usize 
 {
     return arr.buf.len / arr.element_size;
 }
@@ -156,7 +169,24 @@ func read_buffer(arr : const Array@, offset : usize, data: byte@, size: usize)
 func array_index(array: const Array@, idx: usize) byte@
 {
     offset := idx * array.element_size;
+
+    if(offset >= array.buf.len)
+    {
+        std::crash_and_burn("Out of bounds array index: {} {}",idx,count_array(array));
+    }
+
     return &array.buf[offset];
+}
+
+func read_array_circular(array: const Array@, idx: s64,out: byte@)
+{
+    if idx < 0
+    {
+        idx = count_array(array) + idx;
+    } 
+
+    src := array_index(array,cast(u64,idx));
+    memcpy(out,src,array.element_size);
 }
 
 func array_end(array: const Array@) byte@

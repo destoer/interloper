@@ -448,7 +448,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
         }
 
         // read out each depth
-        for(d in 0 < screen.depth_count)
+        for(_d in 0 < screen.depth_count)
         {
             depth: XDepth = {?};
             res = net::recv_raw_all(&win.sock,&depth,sizeof_data(XDepth));
@@ -460,7 +460,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
 
             log::trace(X11_PREFIX,"depth {}",depth.depth);
 
-            for(v in 0 < depth.vis_size)
+            for(_v in 0 < depth.vis_size)
             {
                 visual_type: XVisualType = {?};
                 res = net::recv_raw_all(&win.sock,&visual_type,sizeof_data(XVisualType));
@@ -1153,7 +1153,7 @@ struct ExtenstionQuery
     enabled: bool;
 }
 
-func ext_query_callback(win: OSWindow@, len: u32, data: byte?) win_result
+func ext_query_callback(win: OSWindow@, _len: u32, data: byte?) win_result
 {
     ext_query := cast(ExtenstionQuery@,data);
     ext_query.replied = true;
@@ -1224,7 +1224,7 @@ struct XBigReqReply
     max_req: u32;
 }
 
-func enable_big_req_callback(win: OSWindow@, len: u32, data: byte?) win_result
+func enable_big_req_callback(win: OSWindow@, _len: u32, data: byte?) win_result
 {
     reply := cast(XBigReqReply@,data);
 

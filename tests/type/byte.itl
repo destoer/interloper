@@ -2,8 +2,10 @@
 
 func main() s32 
 {
-    int_ptr : u32?;
+    x: u32 = 0;
+
+    int_ptr : u32? = &x;
     byte_ptr : byte? = int_ptr;
 
-    return 0;
+    return cast(s32,byte_ptr == int_ptr);
 }

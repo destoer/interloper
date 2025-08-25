@@ -103,7 +103,7 @@ func recv(sock: Socket@, buf : byte[]) [u64, net_result]
 
 func recv_ignore(sock: Socket@, size : u32) net_result
 {
-    for(i in 0 < size)
+    for(_i in 0 < size)
     {
         v : byte;
         [_, res] := recv_raw(sock,&v,1);

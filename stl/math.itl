@@ -18,6 +18,16 @@ func abs(v1: s64) u64
     return cast(u64,v1);
 }
 
+func fabs(f1: f64) f64
+{
+    if(f1 < 0.0)
+    {
+        return -f1;
+    }
+
+    return f1;
+}
+
 func min_s64(v1 : s64, v2 : s64) s64
 {
     if(v1 < v2)
@@ -112,6 +122,22 @@ func clamp_s64(v1: s64, min: s64, max: s64) s64
 
     return v1;
 }
+
+func clamp_u64(v1: u64, min: u64, max: u64) u64
+{
+    if(v1 < min) 
+    {
+        return min;
+    }
+
+    else if(v1 > max)
+    {
+        return max;
+    }
+
+    return v1;
+}
+
 
 
 /*

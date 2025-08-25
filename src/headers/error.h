@@ -32,6 +32,7 @@ enum class [[nodiscard]] itl_error
     const_assert,
     rtti_error,
     unimplemented,
+    unused_symbol,
 };
 
 static const char* ERROR_NAME[] = 
@@ -65,6 +66,7 @@ static const char* ERROR_NAME[] =
     "const assert",
     "rtti error",
     "unimplemented",
+    "unused_symbol"
 };
 
 struct Type;

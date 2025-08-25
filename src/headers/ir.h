@@ -1064,7 +1064,7 @@ static const char* X86_NAMES[X86_REG_SIZE] =
     "rdx",
     "rbx",
     "rsp",
-    "rdp",
+    "rbp",
     "rsi",
     "rdi",
 

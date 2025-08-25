@@ -58,7 +58,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         {
             if(parse_sig)
             {
-                const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root);
+                const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
                 if(!!sig_err)
                 {
                     return *sig_err;
@@ -506,130 +506,156 @@ Result<u32,itl_error> push_va_args(Interloper& itl, Function& func, FuncCallNode
     return arg_clean;
 }
 
+Option<itl_error> push_tuple_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, const Array<Type*>& return_type)
+{
+    const auto tuple_decl = tuple_node->auto_decl;
+    bool new_decl = false;
+
+    // TODO: this doesn't do any type checking...
+    for(s32 a = count(tuple_node->symbols) - 1; a >= 0; a--)
+    {
+        AstNode* var_node = tuple_node->symbols[a];
+        Type* rtype = return_type[a];
+
+        switch(var_node->type)
+        {
+            // TODO: There is a more optimal way to reuse memory on this.
+            // We should keep around a single value and keep bumping its memory usage up to the largest extent.
+            case ast_type::ignore:
+            {
+                const auto tmp = new_struct(func,type_size(itl,rtype));
+
+                const auto addr_slot = addrof_res(itl,func,tmp);
+                const TypedReg reg = {addr_slot,make_reference(itl,rtype)};
+                pass_arg(itl,func,pass,reg,a);
+                break;
+            }
+
+            case ast_type::symbol:
+            {
+                const LiteralNode *sym_node = (LiteralNode*)var_node;
+
+
+
+                Symbol* sym_ptr = get_sym(itl.symbol_table,sym_node->literal);
+
+                if(!sym_ptr)
+                {
+                    if(!tuple_decl)
+                    {
+                        return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
+                    }
+
+                    // add new symbol table entry with return type
+                    sym_ptr = &add_symbol(itl,sym_node->literal,return_type[a]);
+                    alloc_slot(itl,func,sym_ptr->reg.slot,!is_plain_type(sym_ptr->type));
+
+                    new_decl = true;                        
+                }
+
+                const auto &sym = *sym_ptr;
+
+                const auto err = check_assign(itl,sym.type,rtype);
+                if(!!err)
+                {
+                    return *err;
+                }
+
+                spill_slot(itl,func,sym.reg);
+
+                const RegSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
+                const TypedReg reg = {addr_slot,make_reference(itl,sym.type)};
+                pass_arg(itl,func,pass,reg,a);
+                break;
+            }
+
+            case ast_type::access_struct:
+            {
+                // get the addr and push it
+                auto member_ptr_res = compute_member_ptr(itl,func,var_node);
+                if(!member_ptr_res)
+                {
+                    return member_ptr_res.error();
+                }
+
+                const TypedReg member_ptr = *member_ptr_res;
+                const auto err = check_assign(itl,deref_pointer(member_ptr.type),rtype);
+
+                if(!!err)
+                {
+                    return err;
+                }
+
+                pass_arg(itl,func,pass,member_ptr,a);
+                break;
+            }
+
+            case ast_type::index:
+            {
+                auto index_res = index_arr(itl,func,var_node);
+                if(!index_res)
+                {
+                    return index_res.error();
+                }
+
+                const TypedAddr index = *index_res;
+                const auto err = check_assign(itl,index.type,rtype);
+
+                if(!!err)
+                {
+                    return err;
+                }
+
+                auto ptr = collapse_typed_struct_res(itl,func,index);
+                ptr.type = make_reference(itl,ptr.type);
+                pass_arg(itl,func,pass,ptr,a);
+                break;
+            }
+
+            case ast_type::deref:
+            {
+                UnaryNode* deref_node = (UnaryNode*)var_node;
+
+                const auto res = take_pointer(itl,func,deref_node->next);
+                if(!res)
+                {
+                    return res.error();
+                }
+
+                const auto ptr = *res;
+                const auto err = check_assign(itl,deref_pointer(ptr.type),rtype);
+
+                if(!!err)
+                {
+                    return err;
+                }
+
+                pass_arg(itl,func,pass,ptr,a);
+                break;                     
+            }
+
+            default:
+            {
+                return compile_error(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
+            }
+        }
+    }
+
+    if(!new_decl && tuple_decl)
+    {
+        return compile_error(itl,itl_error::tuple_mismatch,"No new variables declared in tuple assign");
+    }
+
+    return option::none;
+}
+
 Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pass, TupleAssignNode* tuple_node, 
     RegSlot dst_slot, const Array<Type*>& return_type)
 {
     // pass in tuple dst
     if(tuple_node)
     {
-        // TODO: this doesn't do any type checking...
-        for(s32 a = count(tuple_node->symbols) - 1; a >= 0; a--)
-        {
-            AstNode* var_node = tuple_node->symbols[a];
-            Type* rtype = return_type[a];
-
-            switch(var_node->type)
-            {
-                // TODO: There is a more optimal way to reuse memory on this.
-                // We should keep around a single value and keep bumping its memory usage up to the largest extent.
-                case ast_type::ignore:
-                {
-                    const auto tmp = new_struct(func,type_size(itl,rtype));
-
-                    const auto addr_slot = addrof_res(itl,func,tmp);
-                    const TypedReg reg = {addr_slot,make_reference(itl,rtype)};
-                    pass_arg(itl,func,pass,reg,a);
-                    break;
-                }
-
-                case ast_type::symbol:
-                {
-                    const LiteralNode *sym_node = (LiteralNode*)var_node;
-
-                    const auto sym_ptr = get_sym(itl.symbol_table,sym_node->literal);
-
-                    if(!sym_ptr)
-                    {
-                        return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
-                    }
-
-                    const auto &sym = *sym_ptr;
-
-                    const auto err = check_assign(itl,sym.type,rtype);
-                    if(!!err)
-                    {
-                        return *err;
-                    }
-
-                    spill_slot(itl,func,sym.reg);
-
-                    const RegSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
-                    const TypedReg reg = {addr_slot,make_reference(itl,sym.type)};
-                    pass_arg(itl,func,pass,reg,a);
-                    break;
-                }
-
-                case ast_type::access_struct:
-                {
-                    // get the addr and push it
-                    auto member_ptr_res = compute_member_ptr(itl,func,var_node);
-                    if(!member_ptr_res)
-                    {
-                        return member_ptr_res.error();
-                    }
-
-                    const TypedReg member_ptr = *member_ptr_res;
-                    const auto err = check_assign(itl,deref_pointer(member_ptr.type),rtype);
-
-                    if(!!err)
-                    {
-                        return err;
-                    }
-
-                    pass_arg(itl,func,pass,member_ptr,a);
-                    break;
-                }
-
-                case ast_type::index:
-                {
-                    auto index_res = index_arr(itl,func,var_node);
-                    if(!index_res)
-                    {
-                        return index_res.error();
-                    }
-
-                    const TypedAddr index = *index_res;
-                    const auto err = check_assign(itl,index.type,rtype);
-
-                    if(!!err)
-                    {
-                        return err;
-                    }
-
-                    auto ptr = collapse_typed_struct_res(itl,func,index);
-                    ptr.type = make_reference(itl,ptr.type);
-                    pass_arg(itl,func,pass,ptr,a);
-                    break;
-                }
-
-                case ast_type::deref:
-                {
-                    UnaryNode* deref_node = (UnaryNode*)var_node;
-
-                    const auto res = take_pointer(itl,func,deref_node->next);
-                    if(!res)
-                    {
-                        return res.error();
-                    }
-
-                    const auto ptr = *res;
-                    const auto err = check_assign(itl,deref_pointer(ptr.type),rtype);
-
-                    if(!!err)
-                    {
-                        return err;
-                    }
-
-                    pass_arg(itl,func,pass,ptr,a);
-                    break;                     
-                }
-
-                default:
-                {
-                    return compile_error(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
-                }
-            }
-        }
+        return push_tuple_args(itl,func,pass,tuple_node,return_type);
     }
 
     // single arg (for struct returns) 
@@ -680,7 +706,8 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
 
                     default:
                     {
-                        dump_ir_sym(itl,func,itl.symbol_table);   
+                        dump_ir_sym(itl,func,itl.symbol_table);
+                        printf("spec reg unhandled: %s\n",spec_reg_name(dst_slot.spec));   
                         assert(false);
                     } 
                 }
@@ -735,7 +762,8 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
         clean_args(itl,func,arg_clean);
     }
   
-    if(is_special_reg(dst_slot,spec_reg::null))
+    // Tuples must be bound, don't bother checking this if we are using them.
+    if(is_special_reg(dst_slot,spec_reg::null) && count(call_info.sig.return_type) <= 1)
     {
         if(call_info.sig.attr_flags & ATTR_USE_RESULT)
         {
@@ -917,40 +945,6 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
     return call_info;   
 }
 
-Option<itl_error> handle_tuple_decl(Interloper& itl,Function& func, TupleAssignNode* tuple_node,const FuncSig& sig)
-{
-    b32 new_decl = false;
-
-    // go thru each var check the type matches exactly
-    for(u32 s = 0; s < count(tuple_node->symbols); s++)
-    {
-        AstNode* node = tuple_node->symbols[s];
-
-        // get ltype and handle any decl
-        if(node->type == ast_type::symbol)
-        {
-            LiteralNode* literal_node = (LiteralNode*)node;
-            const auto& name = literal_node->literal;
-
-            // no such symbol, infer the type
-            if(!symbol_exists(itl.symbol_table,name))
-            {
-                // add new symbol table entry with return type
-                auto& sym = add_symbol(itl,name,sig.return_type[s]);
-                alloc_slot(itl,func,sym.reg.slot,!is_plain_type(sym.type));
-
-                new_decl = true;
-            }
-        }
-    }
-    
-    if(!new_decl)
-    {
-        return compile_error(itl,itl_error::tuple_mismatch,"No new variables declared in tuple assign");
-    }
-
-    return option::none;
-}
 
 // used for both tuples and ordinary function calls
 TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Function &func,AstNode *node, RegSlot dst_slot)
@@ -991,15 +985,6 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
     const auto call_info = *call_info_res;
 
     auto& sig = call_info.sig;
-
-    if(tuple_node && tuple_node->auto_decl)
-    {
-        const auto tuple_err = handle_tuple_decl(itl,func,tuple_node,sig);
-        if(!!tuple_err)
-        {
-            return *tuple_err;
-        }
-    }
 
     ArgPass pass = make_arg_pass(sig);
     
@@ -1068,7 +1053,7 @@ TypeResult compile_function_call(Interloper &itl,Function &func,AstNode *node, R
     return compile_scoped_function_call(itl,nullptr,func,node,dst_slot);
 }
 
-Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node)
+Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind)
 {
     // about to move to a different context
     auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
@@ -1142,6 +1127,17 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
 
         add_sig_arg(itl,sig,node.args_name,array_type,&arg_offset);
         sig.va_args = true;
+    }
+
+    // If this is just a function pointer definition we need
+    // To make sure these are referenced.
+    if(kind == func_sig_kind::function_pointer)
+    {
+        for(auto& slot : sig.args)
+        {
+            auto& sym = sym_from_slot(itl.symbol_table,slot);
+            sym.references += 1;
+        }
     }
 
     sig.call_stack_size = arg_offset;

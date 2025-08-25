@@ -6,12 +6,14 @@ import <input>
 
 struct Window
 {
-    size: std::Vec2F;
+    half_size: std::Vec2F;
+
     bounds: std::Vec2I;
     width: u32;
     height: u32;
 
     screen: u32[];
+    z_buffer: f64[];
 
     os_win : OSWindow;
 
@@ -70,6 +72,16 @@ func clip_bound(bound: u32) u32
     return bound - 1;
 }
 
+
+func clear_z_buffer(win: Window@)
+{
+    for @v in win.z_buffer
+    {
+        // Set a to a value lower precedence than we can get otherwhise
+        @v = -2.0;
+    }
+}
+
 // called when os window is resized
 func window_resized(win: Window@,x : u32, y : u32)
 {
@@ -83,14 +95,17 @@ func window_resized(win: Window@,x : u32, y : u32)
     win.width = x;
     win.height = y;
 
-    win.size.x = cast(f64,x);
-    win.size.y = cast(f64,y);
+    win.half_size.x = cast(f64,x) / 2.0;
+    win.half_size.y = cast(f64,y) / 2.0;
     
     win.bounds.x = clip_bound(x);
     win.bounds.y = clip_bound(y);
 
     // realloc our buffer
     std::arr_realloc_u32(&itl_context.heap,&win.screen,x * y);
+    std::arr_realloc_f64(&itl_context.heap,&win.z_buffer,x * y);
+
+    clear_z_buffer(win);
 }
 
 func open_window(str : const string, x : u32, y : u32) [Window, win_result]
@@ -107,7 +122,7 @@ func open_window(str : const string, x : u32, y : u32) [Window, win_result]
 
     window_resized(&win,x,y);
 
-    win.limit = 1000.0 / 60.0;
+    win.limit = 1000.0 / 30.0;
     win.target = win.limit;
 
     return win, win_result::ok;
@@ -116,6 +131,7 @@ func open_window(str : const string, x : u32, y : u32) [Window, win_result]
 func close_window(win : Window@) win_result
 {
     std::destroy_arr_heap_u32(&itl_context.heap,&win.screen);
+    std::destroy_arr_heap_f64(&itl_context.heap,&win.z_buffer);
     return os_destroy_window(&win.os_win);
 }
 
@@ -126,7 +142,7 @@ func draw_window(win : Window@, screen: const u32[]) win_result
         return win_result::ok;
     }
 
-    return os_draw_window(&win.os_win,screen,cast(u32,win.size.x),cast(u32,win.size.y));
+    return os_draw_window(&win.os_win,screen,win.width,win.height);
 }
 
 // NOTE: these are just general helpers we should still be able to
@@ -171,9 +187,10 @@ func process_events(win: Window@) win_result
 func colour_to_rgba(colour: const Colour@) u32
 {
     COLOUR_TO_RGB_SCALE := 255.0;
-    red := cast(u32,colour.r * COLOUR_TO_RGB_SCALE) & 0xff;
-    blue := cast(u32,colour.g * COLOUR_TO_RGB_SCALE) & 0xff;
-    green := cast(u32,colour.b * COLOUR_TO_RGB_SCALE) & 0xff;
+    
+    red := std::clamp_u64(cast(u32,colour.r * COLOUR_TO_RGB_SCALE),0,255);
+    blue := std::clamp_u64(cast(u32,colour.g * COLOUR_TO_RGB_SCALE),0,255);
+    green := std::clamp_u64(cast(u32,colour.b * COLOUR_TO_RGB_SCALE),0,255);
 
-    return 0xff00_0000 | (red << 16) | (green << 8) | blue;
+    return cast(u32,0xff00_0000 | (red << 16) | (green << 8) | blue);
 }

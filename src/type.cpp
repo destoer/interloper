@@ -1023,7 +1023,7 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
                 type->sig = {};
 
                 // parse the function sig
-                const auto func_err = parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type);
+                const auto func_err = parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type,func_sig_kind::function_pointer);
                 if(!!func_err)
                 {
                     return *func_err;
@@ -2117,12 +2117,11 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, const TypedReg& ol
                 type_name(itl,old_reg.type).buf,type_name(itl,new_reg.type).buf);
         }
 
-
-        if(!is_flat_array(old_reg.type) || !is_flat_array(new_reg.type))
-        {
-            return compile_error(itl,itl_error::illegal_cast,"Expected recast from flat array to flat array got: %s -> %s\n",
-                type_name(itl,old_reg.type).buf,type_name(itl,new_reg.type).buf);
-        }
+        // if(!is_flat_array(old_reg.type) || !is_flat_array(new_reg.type))
+        // {
+        //     return compile_error(itl,itl_error::illegal_cast,"Expected recast from flat array to flat array got: %s -> %s\n",
+        //         type_name(itl,old_reg.type).buf,type_name(itl,new_reg.type).buf);
+        // }
 
         const u32 new_size = type_size(itl,index_arr(new_reg.type));
         const u32 old_size = type_size(itl,index_arr(old_reg.type));

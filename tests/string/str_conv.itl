@@ -6,7 +6,7 @@ func check_val(v : u64, sign : bool, value : std::Value) bool
 
 func main() s32
 {
-    [value, str] := std::parse_value("55");
+    [value, _str] := std::parse_value("55");
 
     res1 := check_val(55,false,value);
 
