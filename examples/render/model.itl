@@ -58,7 +58,7 @@ func scan_face(faces: std::Array@,verticies: const std::Array@,line: const strin
         return res;
     }
 
-    res = read_face_vertex(&tri.points[1],verticies,v1.v);
+    res = read_face_vertex(&tri.points[1],verticies,v2.v);
     if(res == result::err)
     {
         return res;

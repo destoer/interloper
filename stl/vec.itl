@@ -112,3 +112,8 @@ struct Vec3F
     y: f64;
     z: f64;
 }
+
+func print_vec3f(tag: const string,v1: Vec3F)
+{
+    println("{}: {} : {} : {}",tag,v1.x,v1.y,v1.z);
+}
