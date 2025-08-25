@@ -77,7 +77,8 @@ func clear_z_buffer(win: Window@)
 {
     for @v in win.z_buffer
     {
-        @v = 0.0;
+        // Set a to a value lower precedence than we can get otherwhise
+        @v = -2.0;
     }
 }
 

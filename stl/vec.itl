@@ -70,7 +70,7 @@ func vec2f_dot(v1: const Vec2F@, v2: const Vec2F@) f64
 
 func float_eq(f1: f64, f2: f64) bool
 {
-    epsilon := 0.001;
+    epsilon := 0.01;
     return fabs(f1 - f2) <= epsilon; 
 }
 
