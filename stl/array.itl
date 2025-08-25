@@ -156,6 +156,12 @@ func read_buffer(arr : const Array@, offset : usize, data: byte@, size: usize)
 func array_index(array: const Array@, idx: usize) byte@
 {
     offset := idx * array.element_size;
+    
+    if(offset >= array.buf.len)
+    {
+        std::crash_and_burn("Out of bounds array index: {} {}",idx,count_array(array));
+    }
+
     return &array.buf[offset];
 }
 

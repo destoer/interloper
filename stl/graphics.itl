@@ -6,7 +6,8 @@ import <input>
 
 struct Window
 {
-    size: std::Vec2F;
+    half_size: std::Vec2F;
+
     bounds: std::Vec2I;
     width: u32;
     height: u32;
@@ -83,8 +84,8 @@ func window_resized(win: Window@,x : u32, y : u32)
     win.width = x;
     win.height = y;
 
-    win.size.x = cast(f64,x);
-    win.size.y = cast(f64,y);
+    win.half_size.x = cast(f64,x) / 2.0;
+    win.half_size.y = cast(f64,y) / 2.0;
     
     win.bounds.x = clip_bound(x);
     win.bounds.y = clip_bound(y);
@@ -126,7 +127,7 @@ func draw_window(win : Window@, screen: const u32[]) win_result
         return win_result::ok;
     }
 
-    return os_draw_window(&win.os_win,screen,cast(u32,win.size.x),cast(u32,win.size.y));
+    return os_draw_window(&win.os_win,screen,win.width,win.height);
 }
 
 // NOTE: these are just general helpers we should still be able to

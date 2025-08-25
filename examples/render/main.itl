@@ -8,14 +8,14 @@ import "model"
 
 func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
 {
-    return cast(u32,x) < win.width && cast(u32,y) < win.height;
+    return cast(u32,x) < cast(u32,win.width) && cast(u32,y) < cast(u32,win.height);
 }
 
-func screen_tri_to_device(size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
+func screen_tri_to_device(half_size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
 {
     for [@v, i] in out {
-        v.x = (tri[i].x + 0.5) * size.x;
-        v.y = (0.5 - tri[i].y) * size.y;
+        v.x = (tri[i].x + 1.0) * half_size.x;
+        v.y = (1.0 - tri[i].y) * half_size.y;
     }
 }
 
@@ -53,14 +53,20 @@ func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, 
     {
         y_index := cast(s64,y);
 
-        if steep && in_screen_bounds(win,x,y_index) 
+        if steep 
         {
-            win.screen[(x * stride) + y_index] = colour;
+            if in_screen_bounds(win,y_index,x)
+            {
+                win.screen[(x * stride) + y_index] = colour;
+            }
         }
 
-        else if in_screen_bounds(win,y_index,x)
+        else
         {
-            win.screen[(y_index * stride) + x] = colour;
+            if in_screen_bounds(win,x,y_index)
+            {
+                win.screen[(y_index * stride) + x] = colour;
+            }
         }
 
         y += m;
@@ -72,7 +78,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], colour: u
     // TODO: For now just drop all the verts 
     tri: std::Vec2F[3] = {{tri_screen[0].x,tri_screen[0].y}, {tri_screen[1].x, tri_screen[1].y}, {tri_screen[2].x, tri_screen[2].y}};
 
-    screen_tri_to_device(&win.size,tri,tri);
+    screen_tri_to_device(&win.half_size,tri,tri);
 
     draw_line(win,&tri[0],&tri[1],colour);
     draw_line(win,&tri[0],&tri[2],colour);
