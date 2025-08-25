@@ -112,7 +112,7 @@ func load_model(path: const string) [result, Model]
             {
                 if split.len != 4
                 {
-                    log::error(TAG,"Invalid number of args for vertices {}",split.len);
+                    log::error(TAG,"Invalid number of args for vertices {}: {}",split.len, str);
                     return result::err, model;
                 }
 
@@ -131,7 +131,7 @@ func load_model(path: const string) [result, Model]
             {
                 if split.len != 4
                 {
-                    log::error(TAG,"Invalid number of args for vertices {}",split.len);
+                    log::error(TAG,"Invalid number of args for faces {}: {}",split.len,str);
                     return result::err, model;
                 }
 
