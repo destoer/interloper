@@ -111,9 +111,9 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
 
     inv_denom := 1.0 / ((d00 * d11) - (d01 * d01));
 
-    for y in min.y < max.y 
+    for y in min.y <= max.y 
     {
-        for x in min.x < max.x 
+        for x in min.x <= max.x 
         {
             point := std::Vec2F {cast(f64,x),cast(f64,y)};
             v2 := std::vec2f_sub(&point,&tri[0]);
