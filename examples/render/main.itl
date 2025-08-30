@@ -73,6 +73,65 @@ func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, 
     }
 }
 
+struct ChangeCord
+{
+    start: f64;
+    col: f64;
+    row: f64;
+}
+
+struct TriChangeCord
+{
+    v: ChangeCord;
+    w: ChangeCord;
+    z: ChangeCord;
+}
+
+func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: const std::Vec2F@) TriChangeCord
+{
+    v0 := std::vec2f_sub(&tri[1],&tri[0]);
+    v1 := std::vec2f_sub(&tri[2],&tri[0]);
+
+    d00 := std::vec2f_dot(&v0,&v0);
+    d01 := std::vec2f_dot(&v0,&v1);
+    d11 := std::vec2f_dot(&v1,&v1);
+
+    
+    v2_min := std::vec2f_sub(min,&tri[0]);
+    d20_row := std::vec2f_dot(&v2_min,&v0);
+    d21_row := std::vec2f_dot(&v2_min,&v1);
+
+    d20_cc := (tri[1].x - tri[0].x);
+    d20_rc := (tri[1].y - tri[0].y);
+
+    d21_cc := (tri[2].x - tri[0].x);
+    d21_rc := (tri[2].y - tri[0].y);
+
+    inv_denom := 1.0 / ((d00 * d11) - (d01 * d01));
+
+    v_start := ((d11 * d20_row) - (d01 * d21_row)) * inv_denom;
+    v_cc := ((d11 * d20_cc) - (d01 * d21_cc)) * inv_denom;
+    v_rc := ((d11 * d20_rc) - (d01 * d21_rc)) * inv_denom;
+
+    w_start := ((d00 * d21_row) - (d01 * d20_row)) * inv_denom;
+    w_cc := ((d00 * d21_cc) - (d01 * d20_cc)) * inv_denom;
+    w_rc := ((d00 * d21_rc) - (d01 * d20_rc)) * inv_denom;
+
+    u_start := 1.0 - v_start - w_start;
+    u_cc := -(v_cc + w_cc);
+    u_rc := -(v_rc + w_rc);
+
+    z_start := (u_start * tri_screen[0].z) + (v_start * tri_screen[1].z) + (w_start * tri_screen[2].z);
+    z_cc := (u_cc * tri_screen[0].z) + (v_cc * tri_screen[1].z) + (w_cc * tri_screen[2].z);
+    z_rc := (u_rc * tri_screen[0].z) + (v_rc * tri_screen[1].z) + (w_rc * tri_screen[2].z);
+
+    return TriChangeCord {
+        {v_start,v_cc,v_rc},
+        {w_start,w_cc,w_rc},
+        {z_start,z_cc,z_rc},
+    };
+}
+
 func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: u32)
 {
     // TODO: For now just drop all the z cord 
@@ -101,50 +160,44 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
 
     stride := win.width;
 
-    // Compute barycentric cordinate info outside of the loop
-    v0 := std::vec2f_sub(&tri[1],&tri[0]);
-    v1 := std::vec2f_sub(&tri[2],&tri[0]);
-
-    d00 := std::vec2f_dot(&v0,&v0);
-    d01 := std::vec2f_dot(&v0,&v1);
-    d11 := std::vec2f_dot(&v1,&v1);
-
-    inv_denom := 1.0 / ((d00 * d11) - (d01 * d01));
+    fmin := std::Vec2F {cast(f64,min.x),cast(f64,min.y)};
+    change := tri_dda(tri,tri_screen,&fmin);
 
     for y in min.y <= max.y 
     {
+        v := change.v.start;
+        w := change.w.start;
+        z := change.z.start;
+
         for x in min.x <= max.x 
         {
-            point := std::Vec2F {cast(f64,x),cast(f64,y)};
-            v2 := std::vec2f_sub(&point,&tri[0]);
-
-            d20 := std::vec2f_dot(&v2,&v0);
-            d21 := std::vec2f_dot(&v2,&v1);
-
-            v := ((d11 * d20) - (d01 * d21)) * inv_denom;
-            w := ((d00 * d21) - (d01 * d20)) * inv_denom;
-            u := 1.0 - v - w;
-
-            z := (u * tri_screen[0].z) + (v * tri_screen[1].z) + (w * tri_screen[2].z);
-
             offset := (y * stride) + x;
 
             if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0 && win.z_buffer[offset] <= z)
             {
-                scaled := (z / 2.0) + 0.5;
-
-                colourz := gfx::Colour{scaled,scaled,scaled};
-                colourz_rgba := gfx::colour_to_rgba(&colourz);
-
                 if(in_screen_bounds(win,x,y))
                 {
+                    scaled := (z / 2.0) + 0.5;
+
+                    colourz := gfx::Colour{scaled,scaled,scaled};
+                    colourz_rgba := gfx::colour_to_rgba(&colourz);
+
                     win.screen[offset] = colourz_rgba;
                     win.z_buffer[offset] = z;
                 }
-            }        
+            }
+            
+            v += change.v.col;
+            w += change.w.col;
+            z += change.z.col;
         }
+
+        change.v.start += change.v.row;
+        change.w.start += change.w.row;
+        change.z.start += change.z.row;
     }
 }
+
 
 
 func render(win: gfx::Window@, model: const Model@)
