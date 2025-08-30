@@ -11,7 +11,7 @@ Option<itl_error> check_const_cmp(Interloper& itl, Type* ltype, Type* rtype)
     
     if(!valid)
     {
-        return compile_error(itl,itl_error::const_type_error,"Could not compare types: %s : %s\n",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return compile_error(itl,itl_error::const_type_error,"Could not compare types: %s : %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
     }
 
     return option::none;
@@ -85,7 +85,7 @@ Option<itl_error> handle_const_cast(Interloper& itl, Type* new_type, ConstData& 
 
         else
         {
-            return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
+            return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
         }
     }
 
@@ -111,21 +111,21 @@ Option<itl_error> handle_const_cast(Interloper& itl, Type* new_type, ConstData& 
     // pointer to int is illegal in const expr
     else if(is_pointer(old_type) && is_integer(new_type))
     {
-        return compile_error(itl,itl_error::illegal_cast,"pointer to int cast is illegal in constant expr %s -> %s\n",
+        return compile_error(itl,itl_error::illegal_cast,"pointer to int cast is illegal in constant expr %s -> %s",
             type_name(itl,old_type).buf,type_name(itl,new_type).buf);
     }
 
     // as is integer to pointer
     else if(is_integer(old_type) && is_pointer(new_type))
     {
-        return compile_error(itl,itl_error::illegal_cast,"int to pointer cast is illegal in constant expr %s -> %s\n",
+        return compile_error(itl,itl_error::illegal_cast,"int to pointer cast is illegal in constant expr %s -> %s",
             type_name(itl,old_type).buf,type_name(itl,new_type).buf);
     }
 
     // fuck knows
     else
     {
-        return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s\n",type_name(itl,old_type).buf,type_name(itl,new_type).buf);     
+        return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s",type_name(itl,old_type).buf,type_name(itl,new_type).buf);     
     }   
 }
 
@@ -219,7 +219,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
 
             if(!is_constant(sym))
             {
-                return compile_error(itl,itl_error::const_type_error,"symbol %s is not constant\n",sym.name.buf);
+                return compile_error(itl,itl_error::const_type_error,"symbol %s is not constant",sym.name.buf);
             }
 
             return read_const_sym(itl,sym);
@@ -368,7 +368,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
 
             if(right.v == 0)
             {
-                return compile_error(itl,itl_error::int_type_error,"attempted to mod by zero in const expr\n");
+                return compile_error(itl,itl_error::int_type_error,"attempted to mod by zero in const expr");
             }
 
             const u64 ans = is_signed(left.type)? s64(left.v) % s64(right.v) : left.v % right.v;
@@ -395,7 +395,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
 
             if(right.v == 0)
             {
-                return compile_error(itl,itl_error::int_type_error,"attempted to divide by zero in const expr\n");
+                return compile_error(itl,itl_error::int_type_error,"attempted to divide by zero in const expr");
             }
 
             const u64 ans = left.v / right.v;
@@ -510,7 +510,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
 
         default:
         {
-            return compile_error(itl,itl_error::const_type_error,"unrecognised operation for const expr: %s\n",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::const_type_error,"unrecognised operation for const expr: %s",AST_NAMES[u32(node->type)]);
         }
     }    
 }
@@ -528,7 +528,7 @@ ConstValueResult compile_const_int_expression(Interloper& itl, AstNode* node)
     // not valid if this is not an int
     if(!is_integer(data.type))
     {
-        return compile_error(itl,itl_error::int_type_error,"expected integer for const int expr got %s\n",type_name(itl,data.type).buf); 
+        return compile_error(itl,itl_error::int_type_error,"expected integer for const int expr got %s",type_name(itl,data.type).buf); 
     }
 
     return ConstValue{data.type,data.v};
@@ -548,7 +548,7 @@ Result<bool,itl_error> compile_const_bool_expression(Interloper& itl, AstNode* n
     // not valid if this is not an int
     if(!is_bool(data.type))
     {
-        return compile_error(itl,itl_error::int_type_error,"expected bool for const bool expr got %s\n",type_name(itl,data.type).buf);
+        return compile_error(itl,itl_error::int_type_error,"expected bool for const bool expr got %s",type_name(itl,data.type).buf);
     }
 
     return bool(data.v);
@@ -561,7 +561,7 @@ Result<u32,itl_error> const_write_in_string(Interloper& itl, LiteralNode* litera
 {
     if(!is_string(type))
     {
-        return compile_error(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)type).buf);
+        return compile_error(itl,itl_error::string_type_error,"expected string got %s",type_name(itl,(Type*)type).buf);
     }
 
     ArrayType* array_type = (ArrayType*)type;
@@ -584,7 +584,7 @@ Result<u32,itl_error> const_write_in_string(Interloper& itl, LiteralNode* litera
     // fixed size
     else
     {
-        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");         
+        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array");         
     }
 
     return offset;    
@@ -596,7 +596,7 @@ Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* li
 
     if(is_runtime_size(type))
     {
-        return compile_error(itl,itl_error::array_type_error,"cannot assign initalizer to vla\n");
+        return compile_error(itl,itl_error::array_type_error,"cannot assign initializer to vla");
     }
 
     // next type is a sub array
@@ -606,11 +606,11 @@ Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* li
 
         const u32 count = type->size;
 
-        // type check the actual ammount is right
-        // TODO: this should allow not specifing the full ammount but for now just keep it simple
+        // type check the actual amount is right
+        // TODO: this should allow not specifying the full amount but for now just keep it simple
         if(count != node_len)
         {
-            return compile_error(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d\n",
+            return compile_error(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d",
                 type_name(itl,(Type*)type).buf,count,node_len);
         }        
 
@@ -619,7 +619,7 @@ Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* li
             AstNode* node = list->nodes[n];
 
             // descend each sub initializer until we hit one containing values
-            // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
+            // for now we are just gonna print them out, and then we will figure out how to emit the initialization code
             switch(node->type)
             {
                 case ast_type::initializer_list:
@@ -774,7 +774,7 @@ Option<itl_error> compile_const_arr_initializer_list(Interloper& itl, Symbol& ar
 {
     if(is_runtime_size(array.type))
     {
-        return compile_error(itl,itl_error::array_type_error,"Cannot use initializer list with vla\n");
+        return compile_error(itl,itl_error::array_type_error,"Cannot use initializer list with vla");
     }
 
     // scan each part of initializer quickly
@@ -824,7 +824,7 @@ Option<itl_error> compile_const_struct_list_internal(Interloper& itl,RecordNode*
 
     if(node_len != member_size)
     {
-        return compile_error(itl,itl_error::undeclared,"struct initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        return compile_error(itl,itl_error::undeclared,"struct initializer missing initializer expected %d got %d",member_size,node_len);
     }
     
     for(u32 i = 0; i < count(structure.members); i++)
@@ -860,7 +860,7 @@ Option<itl_error> compile_const_struct_list_internal(Interloper& itl,RecordNode*
 
                 else
                 {
-                    return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
+                    return compile_error(itl,itl_error::struct_error,"nested struct initializer for basic type %s : %s",
                         member.name.buf,type_name(itl,member.type).buf);
                 }
                 break;
@@ -995,12 +995,12 @@ Option<itl_error> compile_constant_initializer(Interloper& itl, Symbol& sym, Ast
                 // these should not be possible...
                 case builtin_type::null_t:
                 {
-                    return compile_error(itl,itl_error::undefined_type_oper,"null as dst type in constant expression!?\n");
+                    return compile_error(itl,itl_error::undefined_type_oper,"null as dst type in constant expression!?");
                 }
 
                 case builtin_type::void_t:
                 {
-                    return compile_error(itl,itl_error::undefined_type_oper,"void as dst type in constant expression!?\n");
+                    return compile_error(itl,itl_error::undefined_type_oper,"void as dst type in constant expression!?");
                 } 
             }
 
@@ -1021,7 +1021,7 @@ Option<itl_error> compile_constant_initializer(Interloper& itl, Symbol& sym, Ast
                 {
                     if(!is_string(sym.type))
                     {
-                        return compile_error(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,sym.type).buf);
+                        return compile_error(itl,itl_error::string_type_error,"expected string got %s",type_name(itl,sym.type).buf);
                     }
 
                     LiteralNode* literal_node = (LiteralNode*)node;
@@ -1040,7 +1040,7 @@ Option<itl_error> compile_constant_initializer(Interloper& itl, Symbol& sym, Ast
                     // fixed size
                     else
                     {
-                        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");       
+                        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array");       
                     }
 
                     return option::none;
@@ -1048,7 +1048,7 @@ Option<itl_error> compile_constant_initializer(Interloper& itl, Symbol& sym, Ast
 
                 default:
                 {
-                    unimplemented("arbitary assign const array");
+                    unimplemented("arbitrary assign const array");
                     return option::none;
                 }
             }
@@ -1089,7 +1089,7 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
 
     if(symbol_exists(itl.symbol_table,name))
     {
-        return compile_error(itl,itl_error::redeclaration,"constant symbol %s redefined\n",name.buf);
+        return compile_error(itl,itl_error::redeclaration,"constant symbol %s redefined",name.buf);
     }
 
     // force constant

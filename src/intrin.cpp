@@ -8,7 +8,7 @@ Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_
 
     if(!func_def)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing\n",name.buf);
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing",name.buf);
     }
 
     return func_def;
@@ -134,7 +134,7 @@ TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegS
 
     if(arg_size < 1)
     {
-        return compile_error(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d\n",arg_size);
+        return compile_error(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d",arg_size);
     }
 
     // make sure this register doesn't get reused
@@ -172,7 +172,7 @@ TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegS
 
             if(!is_trivial_copy(type))
             {
-                return compile_error(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr\n",arg,type_name(itl,type).buf);
+                return compile_error(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr",arg,type_name(itl,type).buf);
             }
         }
     }

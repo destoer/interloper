@@ -1603,7 +1603,7 @@ Option<itl_error> check_redeclaration(Interloper& itl, NameSpace* root, const St
 
     if(existing_def)
     {
-        return compile_error(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!\n",
+        return compile_error(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!",
             name.buf,definition_type_name(existing_def),checked_def_type.buf);
     }
 
@@ -1919,7 +1919,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
 
     if(name_tok.type != token_type::symbol)
     {
-        (void)compile_error(itl,itl_error::missing_name,"Expected symbol for enum name got %s\n",tok_name(name_tok.type));
+        (void)compile_error(itl,itl_error::missing_name,"Expected symbol for enum name got %s",tok_name(name_tok.type));
         return parse_error::itl_error;
     }
 

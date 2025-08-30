@@ -9,7 +9,7 @@ TypedAddrResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
 
     if(indexes != 1)
     {
-        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected single index for pointer\n");
+        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected single index for pointer");
     }
 
     Type* plain = type->contained_type;
@@ -26,7 +26,7 @@ TypedAddrResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
 
     if(!is_integer(subscript.type))
     {
-        return compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
+        return compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s",
             type_name(itl,subscript.type).buf); 
     }
 
@@ -49,7 +49,7 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
     // standard array index
     if(!is_array(type))
     {
-        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s\n",arr_name.buf,type_name(itl,type).buf);
+        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s",arr_name.buf,type_name(itl,type).buf);
     }
 
     RegSlot last_slot = ptr_slot;
@@ -75,7 +75,7 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
 
         if(!is_integer(subscript.type))
         {
-            return compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s\n",
+            return compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s",
                 type_name(itl,subscript.type).buf);
         }
         
@@ -108,7 +108,7 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
             {
                 if(subscript_value >= array_type->size)
                 {
-                    return compile_error(itl,itl_error::out_of_bounds,"Array subscript(%d) [%d] is out of bounds for array of size %d\n",
+                    return compile_error(itl,itl_error::out_of_bounds,"Array subscript(%d) [%d] is out of bounds for array of size %d",
                         i,subscript_value,array_type->size);
                 }
             }
@@ -161,7 +161,7 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
 
             else 
             {
-                return compile_error(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)\n",arr_name.buf,i,indexes);                         
+                return compile_error(itl,itl_error::out_of_bounds,"Out of bounds indexing for array %s (%d:%d)",arr_name.buf,i,indexes);                         
             }
         } 
     }
@@ -298,7 +298,7 @@ TypedAddrResult index_arr(Interloper &itl,Function &func,AstNode *node)
 
     if(!arr_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);     
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration",arr_name.buf);     
     }
 
     const auto arr = *arr_ptr;
@@ -318,7 +318,7 @@ TypedAddrResult index_arr(Interloper &itl,Function &func,AstNode *node)
 
     else
     {
-        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for index got %s\n",type_name(itl,arr.type));        
+        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for index got %s",type_name(itl,arr.type));        
     }
 }
 
@@ -430,7 +430,7 @@ Option<itl_error> traverse_string_initializer_internal(Interloper& itl,Function&
 
     if(!is_string(next_arr))
     {
-        return compile_error(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,(Type*)next_arr).buf);
+        return compile_error(itl,itl_error::string_type_error,"expected string got %s",type_name(itl,(Type*)next_arr).buf);
     }
 
     if(is_runtime_size(next_arr))
@@ -454,14 +454,14 @@ Option<itl_error> traverse_string_initializer_internal(Interloper& itl,Function&
 
         else
         {
-            return compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla\n");
+            return compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla");
         }
     }
 
     // fixed sized array
     else
     {
-        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array");
     }
 }
 
@@ -491,7 +491,7 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
         // TODO: this should allow not specifing the full ammount but for now just keep it simple
         if(count != node_len)
         {
-            return compile_error(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d\n",
+            return compile_error(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d",
                 type_name(itl,(Type*)type).buf,count,node_len);
         }        
 
@@ -722,7 +722,7 @@ Option<itl_error> compile_arr_assign(Interloper& itl, Function& func, AstNode* n
 
             if(!is_string(arr.type))
             {
-                return compile_error(itl,itl_error::string_type_error,"expected string got %s\n",type_name(itl,arr.type).buf);
+                return compile_error(itl,itl_error::string_type_error,"expected string got %s",type_name(itl,arr.type).buf);
             }
 
             ArrayType* array_type = (ArrayType*)arr.type;
@@ -739,14 +739,14 @@ Option<itl_error> compile_arr_assign(Interloper& itl, Function& func, AstNode* n
 
                 else
                 {
-                    return compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla %s\n",type_name(itl,arr.type).buf);
+                    return compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla %s",type_name(itl,arr.type).buf);
                 }
             }
 
             // fixed sized array
             else
             {
-                return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array\n");
+                return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array");
             }
 
             return option::none;
@@ -782,7 +782,7 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
         // this has not been inited by traverse_arr_initializer
         if(type->size == DEDUCE_SIZE)
         {
-            return compile_error(itl,itl_error::missing_initializer,"auto sized array does not have an initializer\n");
+            return compile_error(itl,itl_error::missing_initializer,"auto sized array does not have an initializer");
         }
 
         if(is_array(type->contained_type))
@@ -940,7 +940,7 @@ TypeResult slice_array_addr(Interloper& itl, Function& func, SliceNode* slice_no
 {
     if(!is_array(arr.type))
     {
-        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s\n",type_name(itl,arr.type).buf);       
+        return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected array or pointer for slice got %s",type_name(itl,arr.type).buf);       
     }
 
     RegSlot data_slot = load_arr_data(itl,func,arr);
@@ -961,7 +961,7 @@ TypeResult slice_array_addr(Interloper& itl, Function& func, SliceNode* slice_no
 
         if(!is_integer(index.type))
         {
-            return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice lower bound got %s\n",type_name(itl,index.type).buf);   
+            return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice lower bound got %s",type_name(itl,index.type).buf);   
         }
 
         const RegSlot offset_slot = mul_imm_res(itl,func,index.slot,type_size(itl,index_arr(arr.type)));
@@ -985,7 +985,7 @@ TypeResult slice_array_addr(Interloper& itl, Function& func, SliceNode* slice_no
 
         if(!is_integer(upper.type))
         {
-            return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice upper bound got %s\n",
+            return compile_error(itl,itl_error::array_type_error,"[COMPILE]: expected integer for slice upper bound got %s",
                 type_name(itl,upper.type).buf);      
         }
 
@@ -1024,7 +1024,7 @@ TypeResult slice_array(Interloper& itl, Function& func,SliceNode* slice_node, Re
 
     if(!arr_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration\n",arr_name.buf);      
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%s' used before declaration",arr_name.buf);      
     }
 
     const auto arr_sym = *arr_ptr;

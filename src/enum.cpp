@@ -65,7 +65,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
     if((node->attr_flags & ATTR_FLAG) && (!enumeration.underlying_type || !is_integer(enumeration.underlying_type)))
     {
-        return compile_error(itl,itl_error::enum_type_error,"Flag enum must specify underlying integer type\n");
+        return compile_error(itl,itl_error::enum_type_error,"Flag enum must specify underlying integer type");
     }
 
     if(node->attr_flags & ATTR_USE_RESULT)
@@ -96,7 +96,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         // check for duplicate members
         if(contains(enumeration.member_map,member.name))
         {
-            const auto res = compile_error(itl,itl_error::redeclaration,"Enum %s member %s redefined!\n",enumeration.name.buf,member.name.buf);
+            const auto res = compile_error(itl,itl_error::redeclaration,"Enum %s member %s redefined!",enumeration.name.buf,member.name.buf);
             destroy_enum(enumeration);
             return res;
         }
@@ -344,7 +344,7 @@ TypeResult compile_enum(Interloper& itl, Function& func,ScopeNode* scope_node, R
         
         case enum_decode_res::invalid_member:
         {
-            return compile_error(itl,itl_error::enum_type_error,"enum %s no such member\n",enumeration->name.buf); 
+            return compile_error(itl,itl_error::enum_type_error,"enum %s no such member",enumeration->name.buf); 
         }
     }
 

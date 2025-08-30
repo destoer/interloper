@@ -148,6 +148,7 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
         va_start(args, fmt);
         vprintf(fmt,args);
         va_end(args);
+        putchar('\n');
 
         print_line(itl.ctx.filename,line);
     }
@@ -160,9 +161,9 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
         va_start(args, fmt);
         vprintf(fmt,args);
         va_end(args);
+        putchar('\n');
     }
 
-    putchar('\n');
     return error;
 }
 

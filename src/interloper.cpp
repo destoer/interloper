@@ -108,7 +108,7 @@ RegResult symbol_internal(Interloper &itl, AstNode *node, NameSpace* name_space)
     const auto sym_ptr = get_sym_internal(itl.symbol_table,name,name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration",name.buf);
     }
 
     const auto &sym = *sym_ptr;
@@ -240,7 +240,7 @@ Option<itl_error> compile_scoped_stmt(Interloper& itl, Function& func, AstNode* 
 
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for stmt: %s\n",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for stmt: %s",AST_NAMES[u32(node->type)]);
         }
     }
 
@@ -279,7 +279,7 @@ TypeResult compile_scoped_expression(Interloper& itl, Function& func, AstNode* n
 
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s\n",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s",AST_NAMES[u32(node->type)]);
         }
     }
 }
@@ -422,7 +422,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
             if(((PointerType*)ptr.type)->pointer_kind == pointer_type::nullable)
             {
-                return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr.type).buf);
+                return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s",type_name(itl,ptr.type).buf);
             }
 
             // deref the pointer
@@ -548,7 +548,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
             if(bin_node->left->fmt != ast_fmt::literal)
             {
-                return compile_error(itl,itl_error::invalid_statement,"[COMPILE]: expected symbol in multiple assign\n");
+                return compile_error(itl,itl_error::invalid_statement,"[COMPILE]: expected symbol in multiple assign");
             }
 
             LiteralNode* lit_node = (LiteralNode*)bin_node->left;
@@ -558,7 +558,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             const auto sym_ptr = get_sym(itl.symbol_table,name);
             if(!sym_ptr)
             {
-                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration\n",name.buf);
+                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration",name.buf);
             }
 
             const auto &sym = *sym_ptr;
@@ -634,7 +634,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
                 else
                 {
-                    return compile_error(itl,itl_error::undefined_type_oper,"unary minus not valid for type %s\n",type_name(itl,reg.type).buf);
+                    return compile_error(itl,itl_error::undefined_type_oper,"unary minus not valid for type %s",type_name(itl,reg.type).buf);
                 }
                 
                 return reg.type;
@@ -674,7 +674,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             const auto reg = *res;
             if(!is_integer(reg.type))
             {
-                return compile_error(itl,itl_error::int_type_error,"Bitwise not only defind on int got: %s\n",type_name(itl,reg.type).buf);
+                return compile_error(itl,itl_error::int_type_error,"Bitwise not only defined on int got: %s",type_name(itl,reg.type).buf);
             }
 
             not_reg(itl,func,dst_slot,reg.slot);
@@ -744,7 +744,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
             // logical not on bool
             else if(!is_bool(reg.type))
             {
-                return compile_error(itl,itl_error::bool_type_error,"compile: logical_not expected bool got: %s\n",type_name(itl,reg.type).buf);
+                return compile_error(itl,itl_error::bool_type_error,"compile: logical_not expected bool got: %s",type_name(itl,reg.type).buf);
             }
 
             // xor can invert our boolean which is either 1 or 0
@@ -824,7 +824,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
             if(!name_space)
             {
-                return compile_error(itl,itl_error::undeclared,"Could not find namespace\n");
+                return compile_error(itl,itl_error::undeclared,"Could not find namespace");
             }
 
             return compile_scoped_expression(itl,func,scope_node->expr,dst_slot,name_space);
@@ -846,7 +846,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
         
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'\n",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'",AST_NAMES[u32(node->type)]);
         }
     }
 }
@@ -861,7 +861,7 @@ Option<itl_error> compile_basic_decl(Interloper& itl, Function& func, const Decl
     {
         if(is_reference(ltype))
         {
-            return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s\n",type_name(itl,ltype).buf);
+            return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s",type_name(itl,ltype).buf);
         }
 
         else if(is_float(ltype))
@@ -920,7 +920,7 @@ Option<itl_error> compile_decl(Interloper &itl,Function &func, AstNode *line, b3
 
     if(sym_ptr)
     {
-        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %s:%s\n",name.buf,type_name(itl,sym_ptr->type).buf);
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %s:%s",name.buf,type_name(itl,sym_ptr->type).buf);
     }
 
     SymSlot slot = {INVALID_HANDLE};
@@ -1012,7 +1012,7 @@ Option<itl_error> compile_auto_decl(Interloper &itl,Function &func, const AstNod
 
     if(get_sym(itl.symbol_table,name))
     {
-        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %s\n",name.buf);
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %s",name.buf);
     }
 
     // add the symbol
@@ -1042,7 +1042,7 @@ Option<itl_error> compile_auto_decl(Interloper &itl,Function &func, const AstNod
     // attempting to deduce a type from void is nonsense
     if(is_void(type))
     {
-        return compile_error(itl,itl_error::undefined_type_oper,"Result of auto decl is void\n");
+        return compile_error(itl,itl_error::undefined_type_oper,"Result of auto decl is void");
     }
 
 
@@ -1080,7 +1080,7 @@ Option<itl_error> compile_init_list(Interloper& itl, Function& func, Type* ltype
 
     else
     {
-        return compile_error(itl,itl_error::undefined_type_oper,"initializer list assign not allowed on type: %s\n",type_name(itl,ltype).buf);
+        return compile_error(itl,itl_error::undefined_type_oper,"initializer list assign not allowed on type: %s",type_name(itl,ltype).buf);
     }
 }
 
@@ -1099,7 +1099,7 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
             const auto sym_ptr = get_sym(itl.symbol_table,name);
             if(!sym_ptr)
             {
-                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration\n",name.buf);
+                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' assigned before declaration",name.buf);
             }
 
 
@@ -1171,7 +1171,7 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
 
             if(((PointerType*)ptr.type)->pointer_kind == pointer_type::nullable)
             {
-                return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",type_name(itl,ptr.type).buf);
+                return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s",type_name(itl,ptr.type).buf);
             }
 
             // store into the pointer
@@ -1227,7 +1227,7 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
     
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"could not assign to expr: %s\n",AST_NAMES[u32(assign_node->left->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_NAMES[u32(assign_node->left->type)]);
         }
     }
 
@@ -1244,7 +1244,7 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
 
         if(count(record_node->nodes) != count(func.sig.return_type))
         {
-            return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d\n",
+            return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %s : %d != %d",
                 func.name.buf,count(record_node->nodes),count(func.sig.return_type));
         }
 
@@ -1352,7 +1352,7 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
     {
         if(!is_void(func.sig.return_type[0]))
         {
-            return compile_error(itl,itl_error::missing_args,"Expected return type of %s got nothing\n",type_name(itl,func.sig.return_type[0]).buf);
+            return compile_error(itl,itl_error::missing_args,"Expected return type of %s got nothing",type_name(itl,func.sig.return_type[0]).buf);
         }
     }
 
@@ -1435,7 +1435,7 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
 
                 if(!name_space)
                 {
-                    return compile_error(itl,itl_error::undeclared,"Could not find namespace\n");
+                    return compile_error(itl,itl_error::undeclared,"Could not find namespace");
                 }
 
                 const auto stmt_err = compile_scoped_stmt(itl,func,scope_node->expr,name_space);
@@ -1540,7 +1540,7 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
 
                 if(!*pass_res)
                 {
-                    return compile_error(itl,itl_error::const_assert,"Compile time assertion failed\n");
+                    return compile_error(itl,itl_error::const_assert,"Compile time assertion failed");
                 }
                 break;
             }
@@ -1549,7 +1549,7 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
             {
                 if(count(func.sig.return_type) != 1)
                 {
-                    return compile_error(itl,itl_error::struct_error,"Expected single return for struct return func expects: %d\n",
+                    return compile_error(itl,itl_error::struct_error,"Expected single return for struct return func expects: %d",
                         count(func.sig.return_type));
                 }
 
@@ -1576,7 +1576,7 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
 
             default:
             {
-                return compile_error(itl,itl_error::invalid_statement,"[COMPILE] unexpected statement: %s\n",AST_NAMES[u32(line->type)]);
+                return compile_error(itl,itl_error::invalid_statement,"[COMPILE] unexpected statement: %s",AST_NAMES[u32(line->type)]);
             }
         }
     }
@@ -1839,7 +1839,7 @@ Option<itl_error> code_generation(Interloper& itl)
         if(sym.references == 0 && sym.reg.segment == reg_segment::local && sym.name[0] != '_')
         {
             trash_context(itl,sym.ctx);
-            return compile_error(itl,itl_error::unused_symbol,"Symbol %s is never used\n",sym.name.buf);
+            return compile_error(itl,itl_error::unused_symbol,"Symbol %s is never used",sym.name.buf);
         }
     }
 

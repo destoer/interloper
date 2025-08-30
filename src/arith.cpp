@@ -173,7 +173,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
 
     else
     {
-        return compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %s and %s\n",
+        return compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %s and %s",
             type_name(itl,left.type).buf,type_name(itl,right.type).buf);
     }
 
@@ -206,7 +206,7 @@ TypeResult compile_shift(Interloper& itl,Function &func,AstNode *node,bool is_ri
 
     if(!(is_integer(left.type) && is_integer(right.type)))
     {
-        return compile_error(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s\n",
+        return compile_error(itl,itl_error::int_type_error,"shifts only defined for integers, got %s and %s",
             type_name(itl,left.type).buf,type_name(itl,right.type).buf);
     }
 
@@ -253,7 +253,7 @@ Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const
 
         else
         {
-            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %s",v,builtin_type_name(cast_builtin(oper)));
         }
     }
 
@@ -262,7 +262,7 @@ Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const
     {
         if(builtin_size(cast_builtin(value)) > builtin_size(cast_builtin(oper)))
         {
-            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %s\n",v,builtin_type_name(cast_builtin(oper)));
+            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %s",v,builtin_type_name(cast_builtin(oper)));
         }
     }
 
@@ -591,7 +591,7 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
         if(!name_space)
         {
-            return compile_error(itl,itl_error::undeclared,"Could not find namespace\n");
+            return compile_error(itl,itl_error::undeclared,"Could not find namespace");
         }
 
         node = scope_node->expr;
@@ -633,7 +633,7 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
                 }
                 
                 // nothing found!
-                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration in addr\n",name.buf);
+                return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%s' used before declaration in addr",name.buf);
             }
 
             // get addr on symbol
@@ -643,7 +643,7 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
             if(is_fixed_array(sym.type))
             {
-                return compile_error(itl,itl_error::array_type_error,"[COMPILE]: cannot take pointer to fixed sized array\n");
+                return compile_error(itl,itl_error::array_type_error,"[COMPILE]: cannot take pointer to fixed sized array");
             }
 
             Type* pointer_type = make_reference(itl,sym.type);
@@ -685,7 +685,7 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
         default:
         {
-            return compile_error(itl,itl_error::unimplemented,"Load addr not implemented on ast type: %s\n",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::unimplemented,"Load addr not implemented on ast type: %s",AST_NAMES[u32(node->type)]);
         }
     }
 }
@@ -703,7 +703,7 @@ RegResult take_pointer(Interloper& itl,Function& func, AstNode* deref_node)
     // make sure we actually have pointer
     if(!is_pointer(ptr.type))
     {
-        return compile_error(itl,itl_error::pointer_type_error,"Expected pointer got: %s\n",type_name(itl,ptr.type));
+        return compile_error(itl,itl_error::pointer_type_error,"Expected pointer got: %s",type_name(itl,ptr.type));
     }
 
     return ptr;

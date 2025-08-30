@@ -125,7 +125,7 @@ Option<itl_error> check_startup_func(Interloper& itl, const String& name, NameSp
     // ensure the entry functions are defined
     if(!def_opt)
     {
-        return compile_error(itl,itl_error::undeclared,"%s is not defined!\n",name.buf);
+        return compile_error(itl,itl_error::undeclared,"%s is not defined!",name.buf);
     }
 
     const auto func_res = finalise_func(itl,*def_opt);
@@ -446,13 +446,13 @@ Result<u32,itl_error> push_va_args(Interloper& itl, Function& func, FuncCallNode
 
     if(!itl.rtti_enable)
     {
-        return compile_error(itl,itl_error::missing_args,"[COMPILE]: attempted to use va_args without rtti: %s\n",name.buf);
+        return compile_error(itl,itl_error::missing_args,"[COMPILE]: attempted to use va_args without rtti: %s",name.buf);
     }
 
     // va_arg is optional
     if(actual_args - 1 > count(call_node->args))
     {
-        return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call va_args expected at least %d args got %d\n",
+        return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call va_args expected at least %d args got %d",
             actual_args - 1,count(call_node->args));   
     }
 
@@ -543,7 +543,7 @@ Option<itl_error> push_tuple_args(Interloper& itl, Function& func, ArgPass& pass
                 {
                     if(!tuple_decl)
                     {
-                        return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration\n",sym_node->literal.buf);
+                        return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration",sym_node->literal.buf);
                     }
 
                     // add new symbol table entry with return type
@@ -636,7 +636,7 @@ Option<itl_error> push_tuple_args(Interloper& itl, Function& func, ArgPass& pass
 
             default:
             {
-                return compile_error(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s\n",AST_NAMES[u32(var_node->type)]);
+                return compile_error(itl,itl_error::tuple_mismatch,"cannot bind on expr of type %s",AST_NAMES[u32(var_node->type)]);
             }
         }
     }
@@ -767,7 +767,7 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
     {
         if(call_info.sig.attr_flags & ATTR_USE_RESULT)
         {
-            return compile_error(itl,itl_error::unused_result,"Result of function %s declared with attr use_result must be used\n",call_info.name.buf);
+            return compile_error(itl,itl_error::unused_result,"Result of function %s declared with attr use_result must be used",call_info.name.buf);
         }
 
         else if(is_enum(sig.return_type[0]))
@@ -776,7 +776,7 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
 
             if(enumeration.use_result)
             {
-                return compile_error(itl,itl_error::unused_result,"Enum %s declared with attr use_result must be used from func %s\n",
+                return compile_error(itl,itl_error::unused_result,"Enum %s declared with attr use_result must be used from func %s",
                     enumeration.name.buf,call_info.name.buf);
             }
         }
@@ -857,7 +857,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
 
                 else
                 {
-                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer or function\n",name.buf);       
+                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer or function",name.buf);       
                 }
             }
 
@@ -865,12 +865,12 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
             {
                 if(global)
                 {
-                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared\n",name.buf);
+                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared",name.buf);
                 }
 
                 else
                 {
-                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared\n",name_space->full_name.buf,name.buf);
+                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared",name_space->full_name.buf,name.buf);
                 }
             }
         }
@@ -925,7 +925,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
     // check calls on functions with multiple returns are valid
     if(tuple_node && count(call_info.sig.return_type) == 1)
     {
-        return compile_error(itl,itl_error::tuple_mismatch,"attempted to bind %d return values on function with single return\n",count(tuple_node->symbols));
+        return compile_error(itl,itl_error::tuple_mismatch,"attempted to bind %d return values on function with single return",count(tuple_node->symbols));
     }
 
     if(count(call_info.sig.return_type) > 1)
@@ -937,7 +937,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
 
         if(count(call_info.sig.return_type) != count(tuple_node->symbols))
         {
-            return compile_error(itl,itl_error::tuple_mismatch,"Numbers of smybols binded for multiple return does not match function: %d != %d\n",
+            return compile_error(itl,itl_error::tuple_mismatch,"Numbers of symbols bound for multiple return does not match function: %d != %d",
                 count(tuple_node->symbols),count(call_node->args));
         }
     }
@@ -1017,7 +1017,7 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
         if(actual_args != count(call_node->args))
         {
             destroy_arg_pass(pass);
-            return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d\n",actual_args,count(call_node->args));
+            return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d",actual_args,count(call_node->args));
         }        
     }
 
@@ -1231,7 +1231,7 @@ Option<itl_error> compile_function(Interloper& itl, Function& func)
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
         itl.ctx.expr = (AstNode*)func.root;
-        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf); 
+        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf); 
     }
 
     for(u32 b = 0; b < count(start_block.links); b++)
@@ -1246,7 +1246,7 @@ Option<itl_error> compile_function(Interloper& itl, Function& func)
 
             itl.ctx.expr = (AstNode*)func.root;   
             dump_ir_sym(itl,func,itl.symbol_table);
-            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s\n",label.name.buf);
+            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf);
         }
     }
 

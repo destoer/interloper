@@ -100,14 +100,14 @@ TypeResult lookup_struct(Interloper& itl, NameSpace* name_space,const String& na
     const auto struct_decl_res = lookup_type_internal(itl,name_space,name);
     if(!struct_decl_res)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",name.buf);
+        return compile_error(itl,itl_error::struct_error,"No such struct: %s",name.buf);
     }
 
     const auto struct_decl = *struct_decl_res;
 
     if(struct_decl->kind != type_kind::struct_t)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %s\n",name.buf);
+        return compile_error(itl,itl_error::struct_error,"No such struct: %s",name.buf);
     }
 
     return make_struct(itl,struct_decl->type_idx);   
@@ -127,7 +127,7 @@ Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function
         if(!member_idx)
         {
             destroy_bit_set(set);
-            return compile_error(itl,itl_error::struct_error,"No such member %s in structure %s\n",init.name,structure.name);
+            return compile_error(itl,itl_error::struct_error,"No such member %s in structure %s",init.name,structure.name);
         }
 
         const u32 idx = *member_idx;
@@ -152,7 +152,7 @@ Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function
     if(set.count != member_size)
     {
         destroy_bit_set(set);
-        return compile_error(itl,itl_error::struct_error,"struct designated initlizier missing initlizer expected %d got %d\n",member_size,set.count);
+        return compile_error(itl,itl_error::struct_error,"struct designated initializer missing initializer expected %d got %d",member_size,set.count);
     }
 
     destroy_bit_set(set);
@@ -168,7 +168,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
     // no such decl exists
     if(!decl_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"%s : member type %s is not defined\n",struct_name.buf,type_decl->name.buf);
+        return compile_error(itl,itl_error::undeclared,"%s : member type %s is not defined",struct_name.buf,type_decl->name.buf);
     }
 
     // Type is allways complete we don't need any further checking
@@ -180,10 +180,10 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 
     TypeDef& def = *((TypeDef*)decl_ptr);
 
-    // if we attempt to check a partial defintion twice that the definition is recursive
+    // if we attempt to check a partial definition twice that the definition is recursive
     if(def.decl.state == type_def_state::checking)
     {
-        // if its a pointer we dont need the complete inormation yet as they are all alike
+        // if its a pointer we dont need the complete information yet as they are all alike
         // so just override the type idx from the one reserved inside the def
         if(def_has_indirection(type_decl))
         {
@@ -192,8 +192,8 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 
         else
         {
-            // panic to prevent having our struct collpase into a black hole
-            return compile_error(itl,itl_error::black_hole,"%s : is recursively defined via %s\n",struct_name.buf,type_decl->name.buf);
+            // panic to prevent having our struct collapse into a black hole
+            return compile_error(itl,itl_error::black_hole,"%s : is recursively defined via %s",struct_name.buf,type_decl->name.buf);
         }
     }
 
@@ -297,7 +297,7 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
 
     if(contains(structure.member_map,member.name))
     {
-        const auto res = compile_error(itl,itl_error::redeclaration,"%s : member %s redeclared\n",structure.name.buf,member.name.buf);
+        const auto res = compile_error(itl,itl_error::redeclaration,"%s : member %s redeclared",structure.name.buf,member.name.buf);
         destroy_struct(structure);
         return res;
     }
@@ -481,7 +481,7 @@ Option<itl_error> access_array_member(Interloper& itl, const String& member_name
     }
 
 
-    return compile_error(itl,itl_error::undeclared,"unknown array member %s\n",member_name.buf);
+    return compile_error(itl,itl_error::undeclared,"unknown array member %s",member_name.buf);
 }
 
 Option<itl_error> access_struct_member(Interloper& itl,const String& member_name, TypedAddr* struct_addr)
@@ -491,7 +491,7 @@ Option<itl_error> access_struct_member(Interloper& itl,const String& member_name
 
     if(!member_opt)
     {
-        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",
+        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s",
             member_name.buf,type_name(itl,struct_addr->type).buf);
     }
 
@@ -523,7 +523,7 @@ Option<itl_error> access_enum_struct_member(Interloper& itl,Function& func, cons
 
     if(!enumeration.underlying_type || !is_struct(enumeration.underlying_type))
     {
-        return compile_error(itl,itl_error::struct_error,"member access on plain enum %s\n",enumeration.name.buf);                   
+        return compile_error(itl,itl_error::struct_error,"member access on plain enum %s",enumeration.name.buf);                   
     }
 
     // pull info on enum struct member
@@ -533,7 +533,7 @@ Option<itl_error> access_enum_struct_member(Interloper& itl,Function& func, cons
 
     if(!enum_struct_member_opt)
     {
-        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s\n",
+        return compile_error(itl,itl_error::undeclared,"No such member %s for type %s",
             member_name.buf,type_name(itl,struct_addr->type).buf);              
     }
 
@@ -593,7 +593,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
             if(!sym_ptr)
             {
-                return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration\n",name.buf);
+                return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration",name.buf);
             }            
 
             const auto &sym = *sym_ptr;
@@ -630,7 +630,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
         default: 
         {
-            return compile_error(itl,itl_error::struct_error,"Unknown struct access %s\n",AST_NAMES[u32(expr_node->type)]);
+            return compile_error(itl,itl_error::struct_error,"Unknown struct access %s",AST_NAMES[u32(expr_node->type)]);
         }
     }
 
@@ -664,7 +664,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
                     if(ptr_type->pointer_kind == pointer_type::nullable)
                     {
-                        return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s\n",
+                        return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s",
                             type_name(itl,(Type*)ptr_type).buf);
                     }
 
@@ -778,7 +778,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
             default: 
             {
-                return compile_error(itl,itl_error::undeclared,"Unknown member access %s\n",AST_NAMES[u32(n->type)]);
+                return compile_error(itl,itl_error::undeclared,"Unknown member access %s",AST_NAMES[u32(n->type)]);
             }
         }
     }
@@ -888,7 +888,7 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
 
             else
             {
-                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
+                return compile_error(itl,itl_error::struct_error,"nested struct initializer for basic type %s : %s",
                     member.name.buf,type_name(itl,member.type).buf);
             }
             
@@ -912,7 +912,7 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
         {
             if(!is_struct(member.type))
             {
-                return compile_error(itl,itl_error::struct_error,"nested struct initalizer for basic type %s : %s\n",
+                return compile_error(itl,itl_error::struct_error,"nested struct initializer for basic type %s : %s",
                     member.name.buf,type_name(itl,member.type).buf);
             }
 
@@ -957,7 +957,7 @@ Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, R
 
     if(node_len != member_size)
     {
-        return compile_error(itl,itl_error::undeclared,"struct initlizier missing initlizer expected %d got %d\n",member_size,node_len);
+        return compile_error(itl,itl_error::undeclared,"struct initializer missing initializer expected %d got %d",member_size,node_len);
     }
     
     for(u32 i = 0; i < count(structure.members); i++)
@@ -1111,7 +1111,8 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
         {
             if(is_reference(member.type))
             {
-               return compile_error(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s\n",member.name.buf,type_name(itl,member.type).buf);
+               return compile_error(itl,itl_error::pointer_type_error,"Reference member %s must have an explicit initializer: %s",
+                    member.name.buf,type_name(itl,member.type).buf);
             }
 
             const RegSlot tmp = imm_zero(itl,func);

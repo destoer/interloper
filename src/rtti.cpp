@@ -28,12 +28,12 @@ Result<u32,itl_error> cache_struct_index(Interloper& itl, NameSpace* name_space,
 
     if(!type_decl)
     {
-        return compile_error(itl,itl_error::struct_error,"could not find struct %s for rtti\n",name.buf);
+        return compile_error(itl,itl_error::struct_error,"could not find struct %s for rtti",name.buf);
     }
 
     if(type_decl->kind != type_kind::struct_t)
     {
-        return compile_error(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti\n",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
+        return compile_error(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
     }
 
     return type_decl->type_idx;
@@ -45,7 +45,7 @@ Result<u32,itl_error> cache_offset(Interloper& itl,Struct& structure, const Stri
 
     if(!offset_opt)
     {
-        return compile_error(itl,itl_error::rtti_error,"could not find offset for %s.%s\n",structure.name.buf,member_name.buf);
+        return compile_error(itl,itl_error::rtti_error,"could not find offset for %s.%s",structure.name.buf,member_name.buf);
     }
 
     return *offset_opt;

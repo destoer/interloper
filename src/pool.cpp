@@ -228,7 +228,7 @@ Option<itl_error> write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offse
 
     if((offset + size) > section.size)
     {
-        return compile_error(itl,itl_error::out_of_bounds,"out of bounds write in const pool ([%d] = %d of section size %d)\n",
+        return compile_error(itl,itl_error::out_of_bounds,"out of bounds write in const pool ([%d] = %d of section size %d)",
             offset,size,section.size);
     } 
 
@@ -283,7 +283,7 @@ ConstValueResult read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset,
 
     if((offset + size) > section.size)
     {
-        return compile_error(itl,itl_error::out_of_bounds,"out of bounds read in const pool\n");
+        return compile_error(itl,itl_error::out_of_bounds,"out of bounds read in const pool");
     } 
 
     // calc the read reqs
