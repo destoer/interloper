@@ -82,7 +82,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
             // spill_func_bounds is issued before the call (and will save this register if need be)
             // Incase the rv is used as the caller we have to free this up after the func call
-            // to keep the state consistent. otherwhise  this will have a clobbered value
+            // to keep the state consistent. otherwise  this will have a clobbered value
             if(ir_reg.local_reg == special_reg_to_reg(alloc.arch,spec_reg::rv_gpr))
             {
                 free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
@@ -496,7 +496,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
                     // word is register size (we dont need to extend it)
                     static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
 
-                    // this here does not otherwhise need rewriting so we will emit SP directly
+                    // this here does not otherwise need rewriting so we will emit SP directly
                     node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
                 }
 

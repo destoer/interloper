@@ -29,6 +29,9 @@ struct RegisterFile
     // which regs are currently unusable
     u32 locked_set = 0;
 
+    // Has this register been modified?
+    u32 dirty = 0;
+
     // What slot is being used by a register?
     RegSlot allocated[MACHINE_REG_SIZE];
 
@@ -44,7 +47,7 @@ struct LinearAlloc
     // what instruction are we on?
     u32 pc = 0;
 
-    // allcation info of tmp's for current function
+    // allocation info of tmp's for current function
     // NOTE: this is owned by the func and we dont have to free it
     Array<Reg> tmp_regs;
     SymbolTable* table;
@@ -66,7 +69,7 @@ struct LinearAlloc
 };
 
 
-bool marked_for_exipiry(LinearAlloc& alloc, RegSlot slot);
+bool marked_for_expiry(LinearAlloc& alloc, RegSlot slot);
 
 bool is_reg_free(RegisterFile& regs,u32 reg)
 {
@@ -383,17 +386,38 @@ u32 alloc_reg(RegisterFile& regs, u32 pref)
     return reg;
 }
 
+void mark_clean(RegisterFile& regs, u32 reg)
+{
+    regs.dirty = deset_bit(regs.dirty,reg);
+}
+
+void mark_dirty(RegisterFile& regs, u32 reg)
+{
+    regs.dirty = set_bit(regs.dirty,reg);
+}
+
+bool is_dirty(RegisterFile& regs, u32 reg)
+{
+    return is_set(regs.dirty,reg);
+}
+
 void assign_local_reg(RegisterFile& regs,Reg& ir_reg, u32 reg)
 {
     ir_reg.local_reg = reg;
     regs.allocated[ir_reg.local_reg] = ir_reg.slot;
+
+    // Newly assigned register mark it is clean
+    mark_clean(regs,reg);
 }
 
 void take_local_reg(RegisterFile& reg_file,Reg& ir_reg, u32 reg)
 {
     assign_local_reg(reg_file,ir_reg,reg);
     remove_reg(reg_file, ir_reg.local_reg);
-    mark_used(reg_file,ir_reg.local_reg);   
+    mark_used(reg_file,ir_reg.local_reg);
+
+    // If we have forced a register presume it is dirty
+    mark_dirty(reg_file,reg);   
 }
 
 bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
@@ -402,6 +426,7 @@ bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
     if(is_reg_free(regs,ir_reg.global_reg))
     {
         take_local_reg(regs,ir_reg,ir_reg.global_reg);
+        mark_clean(regs,ir_reg.global_reg);
         return true;
     }
 
@@ -459,10 +484,13 @@ void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
 
     log_reg(alloc.print,*alloc.table,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
 
+    auto& regs = get_register_file(alloc,ir_reg);
 
-    const auto opcode = make_op(op_type::spill,make_raw_operand(reg),make_directive_reg(slot),make_raw_operand(alloc.stack_alloc.stack_offset));
-
-    insert_node(block.list,node,opcode,type);
+    if(is_dirty(regs,reg) || alloc.stack_only)
+    {
+        const auto opcode = make_op(op_type::spill,make_raw_operand(reg),make_directive_reg(slot),make_raw_operand(alloc.stack_alloc.stack_offset));
+        insert_node(block.list,node,opcode,type);
+    }
 
     // Mark the register as freed
     if(!alloc.stack_only)
@@ -545,6 +573,9 @@ void init_regs(LinearAlloc& alloc)
         alloc.gpr.allocated[i] = make_spec_reg_slot(spec_reg::null);
         alloc.fpr.allocated[i] = make_spec_reg_slot(spec_reg::null);
     }
+
+    alloc.fpr.dirty = 0;
+    alloc.gpr.dirty = 0;
 
     // All regs free (though this does not imply they are usable)
     alloc.gpr.free_set = 0xffff'ffff;
@@ -749,6 +780,10 @@ void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, 
     const auto opcode = make_op(op_type::load,make_raw_operand(reg),make_directive_reg(slot),make_raw_operand(alloc.stack_alloc.stack_offset));
     log_reg(alloc.print,*alloc.table,"reload %r to %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
 
+    // Just loaded this register is clean
+    auto& reg_file = get_register_file(alloc,ir_reg);
+    mark_clean(reg_file,reg);
+
     insert_node(block.list,node,opcode,type);
 
     assert(!is_stack_unallocated(ir_reg));
@@ -876,7 +911,7 @@ void allocate_and_rewrite_var_stack(LinearAlloc& alloc,Block& block,OpcodeNode* 
     auto& reg_file = get_register_file(alloc,ir_reg);
 
     const u32 scratch_reg = reg_file.stack_scratch_registers[reg];
-
+    
     // rewrite in the register
     node->value.v[reg] = make_raw_operand(scratch_reg);
 
@@ -902,6 +937,15 @@ void allocate_and_rewrite_var_stack(LinearAlloc& alloc,Block& block,OpcodeNode* 
 
 void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg)
 {
+    auto& ir_reg = reg_from_slot(slot,alloc);
+    auto& reg_file = get_register_file(alloc,ir_reg);
+
+    const auto opcode = node->value;
+    const auto info = info_from_op(opcode);
+
+    const b32 is_dst = is_arg_dst(info.type[reg]);
+    const b32 is_src = is_arg_src(info.type[reg]);
+
     // just rewrite the register simply
     if(alloc.stack_only)
     {
@@ -909,17 +953,8 @@ void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
         return;
     }
 
-
-    auto& ir_reg = reg_from_slot(slot,alloc);
-    auto& reg_file = get_register_file(alloc,ir_reg);
-
     ir_reg.cur_local_uses++;
 
-    const auto opcode = node->value;
-    const auto info = info_from_op(opcode);
-
-    const b32 is_dst = is_arg_dst(info.type[reg]);
-    const b32 is_src = is_arg_src(info.type[reg]);
 
     // var is allocated
     if(is_reg_locally_allocated(ir_reg))
@@ -962,10 +997,17 @@ void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
         }            
     }
 
-    // if dst and not a local register it needs to be spilled
-    if(is_dst && !is_local_reg(ir_reg))
+
+    if(is_dst)
     {
-        spill(alloc,block,node,slot,insertion_type::after);
+        // If we have just loaded from memory then this is not dirty?
+        mark_dirty(reg_file,ir_reg.local_reg);
+        
+        if(!is_local_reg(ir_reg))
+        {
+            // if dst and not a local register it needs to be spilled
+            spill(alloc,block,node,slot,insertion_type::after);
+        }
     }
 }
 
@@ -984,7 +1026,7 @@ void rewrite_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spe
         const RegSlot saved_slot = reg_file.allocated[location];
 
         // Check reg is locked to prevent regs we never allocate from attempting to be saved
-        if(!is_reg_free(reg_file,location) && !is_locked(reg_file,location) && !marked_for_exipiry(alloc,saved_slot))
+        if(!is_reg_free(reg_file,location) && !is_locked(reg_file,location) && !marked_for_expiry(alloc,saved_slot))
         {
             auto& ir_reg = reg_from_slot(saved_slot,alloc);
 
@@ -997,6 +1039,7 @@ void rewrite_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spe
         }
 
         lock_reg(reg_file,location);
+        mark_dirty(reg_file,location);
     }
 
     // make sure the spec regs are marked as used
@@ -1023,7 +1066,7 @@ void allocate_and_rewrite_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
     }
 }
 
-bool marked_for_exipiry(LinearAlloc& alloc, RegSlot slot)
+bool marked_for_expiry(LinearAlloc& alloc, RegSlot slot)
 {
     for(u32 i = 0; i < alloc.dead_count; i++)
     {

@@ -11,7 +11,7 @@ func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
     return cast(u32,x) < cast(u32,win.width) && cast(u32,y) < cast(u32,win.height);
 }
 
-func screen_tri_to_device(half_size: const std::Vec2F@, tri: const std::Vec2F[3], out: std::Vec2F[3])
+func screen_tri_to_device(half_size: const std::Vec2F@, tri: const std::Vec3F[3], out: std::Vec2F[3])
 {
     for [@v, i] in out {
         v.x = (tri[i].x + 1.0) * half_size.x;
@@ -135,13 +135,9 @@ func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: con
 func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: u32)
 {
     // TODO: For now just drop all the z cord 
-    tri: std::Vec2F[3] = {
-        {tri_screen[0].x,tri_screen[0].y}, 
-        {tri_screen[1].x, tri_screen[1].y}, 
-        {tri_screen[2].x, tri_screen[2].y}
-    };
+    tri: std::Vec2F[3] = {?};
 
-    screen_tri_to_device(&win.half_size,tri,tri);
+    screen_tri_to_device(&win.half_size,tri_screen,tri);
 
     // Compute the bounding box
     max := std::Vec2I {0,0};
