@@ -202,12 +202,6 @@ enum class op_type
 
     alloc_local_array,
     alloc_global_array,
-    alloc_vla,
-
-    // allocate and store offset inside a var
-    // used for runtime array alloc
-    buf_alloc,
-    state_dump,
 
     // give a function call arg
     // how it will be passed will be decided in reg alloc
@@ -221,9 +215,6 @@ enum class op_type
 
     // branch to end of if statement chain
     exit_block,
-
-    // used when the end of the block is read past in the optimiser
-    placeholder,
 
     lock_reg,
     lock_reg_set,

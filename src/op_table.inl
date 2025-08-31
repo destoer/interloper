@@ -197,12 +197,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     
     {op_group::slot_t,"alloc_local_array %r, %x, %x",3,{arg_type::dst_reg,arg_type::imm,arg_type::imm}},
     {op_group::reg_t,"alloc_global_array %r, %x",2,{arg_type::dst_reg,arg_type::imm,arg_type::none}},
-    {op_group::slot_t,"alloc_vla",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
-
-    {op_group::imm_t,"buf_alloc %r, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
-
-    // stores required information when room is exhausted on opcodes
-    {op_group::slot_t,"state_dump %x, %x, %x",3,{arg_type::directive,arg_type::directive,arg_type::directive}},
 
     {op_group::reg_t,"push_arg %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"push_float_arg %r",1,{arg_type::src_float,arg_type::none,arg_type::none}},
@@ -214,8 +208,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t, "clean_args %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     {op_group::implicit_t,"exit_block",0,{arg_type::none,arg_type::none,arg_type::none}},
-
-    {op_group::implicit_t,"placeholder",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     {op_group::reg_t,"lock %r",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::regm_t,"lock_reg_set %m",1,{arg_type::imm,arg_type::none,arg_type::none}},

@@ -444,11 +444,6 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             break;
         }
 
-        case op_type::state_dump:
-        {
-            crash_and_burn("unused state opcode");
-        }
-
         case op_type::ret:
         {
             // Normal sub emit before pops
