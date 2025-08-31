@@ -98,7 +98,13 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::add_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::add_reg2,reg_type::gpr_t);
+            // Can rewrite to two addresses without an extra instr
+            if(node->value.v[0] == node->value.v[1] || node->value.v[0] == node->value.v[2])
+            {
+                return rewrite_reg3_two_commutative(block,node,op_type::add_reg2,reg_type::gpr_t);
+            }
+
+            return node->next;
         }
 
         case op_type::add_imm:

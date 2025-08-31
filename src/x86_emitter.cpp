@@ -72,6 +72,38 @@ u16 reg_base(x86_reg reg,x86_reg base)
     return ((sib << 8) | (mod << 0));
 }
 
+u16 reg_base_index(x86_reg dst, x86_reg base, x86_reg index)
+{
+    const u8 mod = (0b00 << 6) | (mask_reg(dst) << 3) | (0b100 << 0);
+    const u8 sib = (0b00 << 6) | (mask_reg(index) << 3) | (mask_reg(base) << 0);
+
+    return ((sib << 8) | (mod << 0));
+}
+
+u16 reg_base_index_disp8(x86_reg dst, x86_reg base, x86_reg index)
+{
+    const u8 mod = (0b01 << 6) | (mask_reg(dst) << 3) | (0b100 << 0);
+    const u8 sib = (0b00 << 6) | (mask_reg(index) << 3) | (mask_reg(base) << 0);
+
+    return ((sib << 8) | (mod << 0));
+}
+
+void push_reg_base_index(AsmEmitter& emitter, x86_reg dst, x86_reg base, x86_reg index)
+{
+    assert(index != x86_reg::rsp);
+
+    if(base == x86_reg::rbp)
+    {
+        const u16 rm = reg_base_index_disp8(dst,base,index);
+        push_u16(emitter,rm);
+        push_u16(emitter,0);
+        return;
+    }
+
+    const u16 rm = reg_base_index(dst,base,index);
+    push_u16(emitter,rm);
+}
+
 void prefix_u16_reg(AsmEmitter& emitter)
 {
     // 16 bit override
@@ -99,6 +131,29 @@ u8 rex_rm(x86_reg r, x86_reg m)
 
     return rex;
 }
+
+u8 rex_rbi(x86_reg r, x86_reg b, x86_reg i)
+{
+    u8 rex = 0;
+
+    if(is_extended_reg(r))
+    {
+        rex |= REX_R;
+    }
+
+    if(is_extended_reg(i))
+    {
+        rex |= REX_X;
+    }
+
+    if(is_extended_reg(b))
+    {
+        rex |= REX_B;
+    }
+
+    return rex;
+}
+
 
 u8 rex_mr(x86_reg m, x86_reg r)
 {
@@ -129,6 +184,13 @@ u8 rex_rm64(x86_reg r, x86_reg m)
 {
     return REX_W | rex_rm(r,m);
 }
+
+u8 rex_rbi64(x86_reg r, x86_reg b, x86_reg i)
+{
+    return REX_W | rex_rbi(r,b,i);
+}
+
+
 
 u8 rex_mr64(x86_reg r, x86_reg m)
 {
@@ -221,8 +283,8 @@ void push_rex_opt(AsmEmitter& emitter, u8 rex)
     }
 }
 
-// NOTE: this is just for the overide
-// not a size ext that has to happen seperately
+// NOTE: this is just for the override
+// not a size ext that has to happen separately
 void emit_rex_rm_opt(AsmEmitter& emitter,x86_reg r, x86_reg m)
 {
     const u8 rex = rex_rm(r,m);
@@ -478,11 +540,18 @@ u32 emit_branch_rel(AsmEmitter& emitter, u8 opcode)
     return offset;  
 }
 
-
 void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 {
     // add r64, r64
     emit_reg2_rm_64(emitter,0x3,dst,v1);
+}
+
+void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, x86_reg v2)
+{
+    // lea r64, [r64 + disp]
+    const u8 opcode = 0x8d;
+    push_u16(emitter,(opcode << 8) |  rex_rbi64(dst,v1,v2));
+    push_reg_base_index(emitter,dst,v1,v2);
 }
 
 void bitwise_and(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
@@ -1114,6 +1183,7 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
     const auto dst = x86_reg(opcode.v[0].raw);
     const auto v1 = x86_reg(opcode.v[1].raw);
+    const auto v2 = x86_reg(opcode.v[2].raw);
 
     switch(opcode.op)
     {
@@ -1126,6 +1196,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::add_reg2: 
         {
             add(emitter,dst,v1);
+            break;
+        }
+
+        case op_type::add_reg:
+        {
+            add(emitter,dst,v1,v2);
             break;
         }
 
