@@ -20,6 +20,9 @@ struct Symbol
     u32 arg_offset = NON_ARG;
     u32 references = 0;
 
+    bool known_value = false;
+    u64 constant_value = 0;
+
     FileContext ctx;
 };
 

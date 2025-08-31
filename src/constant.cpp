@@ -967,6 +967,9 @@ Option<itl_error> compile_constant_initializer(Interloper& itl, Symbol& sym, Ast
                     const auto slot = push_const_pool(itl.const_pool,pool_type::var,&value.v,builtin_size(type));
                     sym.reg.offset = slot.handle;
                     
+                    sym.known_value = true;
+                    sym.constant_value = value.v;
+
                     return check_assign_init(itl,sym.type,const_value.type);
                 }
 
@@ -982,6 +985,9 @@ Option<itl_error> compile_constant_initializer(Interloper& itl, Symbol& sym, Ast
 
                     const auto slot = push_const_pool(itl.const_pool,pool_type::var,&res.value(),GPR_SIZE);
                     sym.reg.offset = slot.handle;
+
+                    sym.known_value = true;
+                    sym.constant_value = *res;
 
                     return option::none;                
                 }

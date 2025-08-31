@@ -188,7 +188,23 @@ RegResult compile_oper_internal(Interloper& itl,Function &func,AstNode *node, kn
         // just want symbol name out without copying it
         case ast_type::symbol:
         {
-            return symbol(itl,node);
+            auto reg_res = symbol(itl,node);
+
+            if(!reg_res)
+            {
+                return reg_res;
+            }
+
+            auto reg = *reg_res;
+            auto& sym = sym_from_slot(itl.symbol_table,reg.slot.sym_slot);
+
+            if(sym.known_value)
+            {
+                // It is not optimal to mark this as elided as no extra instructions are generated
+                return make_known_reg(reg.slot,sym.type,sym.constant_value,known_value_type::stored);
+            }
+
+            return reg;
         }
 
         case ast_type::value:
