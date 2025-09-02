@@ -3,7 +3,31 @@ namespace std
 struct ItlContext
 {
     env_vars: std::HashTable;
+    args: string[];
     heap: std::Heap;
+}
+
+global itl_context: ItlContext = {?};
+
+func read_args()
+{
+    [bin, err] := read_proc_file("/proc/self/cmdline");
+
+    if(err == result::err)
+    {
+        crash_and_burn("Could not read command line args");
+    }
+
+    str_buffer := cast(string,array_buffer(&bin));
+    strings := split_null_str(str_buffer);
+    itl_context.args = cast(string[],array_buffer(&strings));
+
+    if(!itl_context.args.len)
+    {
+        crash_and_burn("Command name not passed as arg!?");
+    }
+
+    destroy_array(&bin);  
 }
 
 func read_proc_file(name: const string) [std::Array, result]
@@ -33,7 +57,7 @@ func read_proc_file(name: const string) [std::Array, result]
 
             case file_read_res::error:
             {
-                crash_and_burn("Could not read environ setup");
+                return buffer, result::err;
             }
         }
     }
@@ -72,7 +96,8 @@ func read_env()
     }
 
     // Now have a list of null terminated strings.
-    // Lets split them.
+    // Lets split them. We could use the util function but we are going
+    // to do further splitting and don't want to alloc extra memory.
 
     var_start: u32 = 0;
 
@@ -98,7 +123,6 @@ func init_itl_context()
 {
     itl_context.env_vars = std::make_hash_table(sizeof_type(string),sizeof_type(string),&std::hash_string,&std::hash_cmp_str);
     read_env();
+    read_args();
     log::set_log_level_from_env("ITL_LOG");
 }
-
-global itl_context: ItlContext = {?};

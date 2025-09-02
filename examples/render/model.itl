@@ -149,6 +149,12 @@ func load_model(path: const string) [result, Model]
 
     model.faces = cast(Triangle[],std::array_buffer(&model_faces));
 
+    if(!model.faces)
+    {
+        log::error(TAG,"Model has no faces!");
+        return result::err, model;   
+    }
+
     log::debug(TAG,"Loaded model: {} of {} faces",path,model.faces.len);
 
     return result::ok, model;

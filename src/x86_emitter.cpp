@@ -96,7 +96,7 @@ void push_reg_base_index(AsmEmitter& emitter, x86_reg dst, x86_reg base, x86_reg
     {
         const u16 rm = reg_base_index_disp8(dst,base,index);
         push_u16(emitter,rm);
-        push_u16(emitter,0);
+        push_u8(emitter,0);
         return;
     }
 

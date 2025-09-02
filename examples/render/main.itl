@@ -118,8 +118,8 @@ func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: con
     w_rc := ((d00 * d21_rc) - (d01 * d20_rc)) * inv_denom;
 
     u_start := 1.0 - v_start - w_start;
-    u_cc := -(v_cc + w_cc);
-    u_rc := -(v_rc + w_rc);
+    u_cc := -v_cc - w_cc;
+    u_rc := -v_rc - w_rc;
 
     z_start := (u_start * tri_screen[0].z) + (v_start * tri_screen[1].z) + (w_start * tri_screen[2].z);
     z_cc := (u_cc * tri_screen[0].z) + (v_cc * tri_screen[1].z) + (w_cc * tri_screen[2].z);
@@ -208,7 +208,17 @@ func render(win: gfx::Window@, model: const Model@)
 
 func main() s32
 {
-    [model_res,model] := load_model("/home/destoer/diablo3_pose.obj");
+    args := std::cmdline_args();
+
+    if(args.len != 2)
+    {
+        std::println("Usage: {} <model_name>",args[0]);
+        return -1;
+    }
+
+    model_name := args[1];
+
+    [model_res,model] := load_model(model_name);
 
     if(model_res == result::err)
     {

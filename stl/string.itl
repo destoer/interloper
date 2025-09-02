@@ -286,6 +286,16 @@ func find_str(str: const string, search: const string) const string
     return blank;
 }
 
+func cmdline_args() string[]
+{
+    return itl_context.args;
+}
+
+func split_null_str(str: const string) Array
+{
+    return split_str(str,"\0");
+}
+
 func split_str(str: const string, delimitter: const string) Array
 {
     array := std::make_array(sizeof_type(string));
