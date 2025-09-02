@@ -376,12 +376,6 @@ func format_args(fmt : const string, args : const rtti::Any[]) String
 {
     str: String;
 
-    // preven print if stdout aint setup
-    if(!global_setup)
-    {
-        return str;
-    }
-
     arg_count : u32 = 0;
 
     for(i in 0 < fmt.len)
