@@ -17,19 +17,25 @@ func read_proc_file(name: const string) [std::Array, result]
         return buffer, result::err;
     }
 
-
     // Keep buffering the file until we hit an error or run out of stuff to read
     while(true) 
     {
-        reserve_array_mem(&buffer,FILE_DEFAULT_BUFFER_SIZE);
-        [len, res] := os_read(file.handle,array_end(&buffer),FILE_DEFAULT_BUFFER_SIZE);
-
-        if(res == result::err || len == 0)
+        [_, res] := buffer_file_array(&buffer,&file,FILE_DEFAULT_BUFFER_SIZE);
+        
+        switch(res)
         {
-            return buffer, result::ok;
-        }
+            case file_read_res::eof:
+            {
+                return buffer, result::ok;
+            }
 
-        buffer.buf.len += len;
+            case file_read_res::success: {}
+
+            case file_read_res::error:
+            {
+                crash_and_burn("Could not read environ setup");
+            }
+        }
     }
 
     return buffer,result::err;
@@ -76,10 +82,9 @@ func read_env()
 
         if(char == 0)
         {
-            cur := var_start;
-            len := i - cur;
+            len := i - var_start;
 
-            str: string = {cast(c8@,&bin.buf[cur]),len};
+            str: string = {cast(c8@,&bin.buf[var_start]),len};
             parse_keys(&itl_context.env_vars,str);
 
             var_start = i + 1; 

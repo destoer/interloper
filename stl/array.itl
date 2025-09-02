@@ -125,6 +125,12 @@ func reserve_array_mem(arr: Array@, size : usize)
     arr.size = size;
 }
 
+func reserve_extra_array_mem(arr: Array@, size : usize)
+{
+    realloc_heap_panic(&itl_context.heap,&arr.buf.data,arr.size + size,sizeof_type(byte));
+    arr.size += size;
+}
+
 func resize_array(arr : Array@, size : usize)
 {
     bytes := size * arr.element_size;
@@ -273,6 +279,15 @@ func array_remove_in_place(arr: Array@, data: byte@)
 func str_from_array(arr : Array@) string
 {
     return cast(c8[],array_buffer(arr));
+}
+
+func buffer_file_array(buffer: Array@, file: File@, buffer_size: usize) [usize, file_read_res]
+{
+    reserve_extra_array_mem(buffer,buffer_size);
+    [len, res] := read_file_raw(file,array_end(buffer),buffer_size);
+    buffer.buf.len += len;
+
+    return len, res;
 }
 
 func dump_array_bytes(arr: const Array@)
