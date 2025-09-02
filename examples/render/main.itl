@@ -200,7 +200,7 @@ func render(win: gfx::Window@, model: const Model@)
 {
     gfx::blank_screen(win.screen);
 
-    for tri in model.faces
+    for @tri in model.faces
     {
         draw_triangle(win,tri.points,RED);
     }
