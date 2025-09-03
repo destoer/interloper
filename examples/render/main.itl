@@ -170,7 +170,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
             offset := (y * stride) + x;
             in_triangle := v >= 0.0 & w >= 0.0 & (v + w) <= 1.0;
 
-            if(in_triangle & win.z_buffer[offset] <= z)
+            if in_triangle & win.z_buffer[offset] <= z
             {
                 scaled := (z / 2.0) + 0.5;
 
