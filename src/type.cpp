@@ -1219,6 +1219,11 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, op_typ
             return make_builtin(itl,builtin_type::f64_t);
         }
 
+        if(is_bool(rtype) && is_bool(ltype))
+        {
+            return make_builtin(itl,builtin_type::bool_t);
+        }
+
         // something else
         else
         {

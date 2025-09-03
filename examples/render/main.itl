@@ -168,19 +168,17 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
         for x in min.x <= max.x 
         {
             offset := (y * stride) + x;
+            in_triangle := v >= 0.0 & w >= 0.0 & (v + w) <= 1.0;
 
-            if(v >= 0.0 && w >= 0.0 && (v + w) <= 1.0 && win.z_buffer[offset] <= z)
+            if(in_triangle & win.z_buffer[offset] <= z)
             {
-                if(in_screen_bounds(win,x,y))
-                {
-                    scaled := (z / 2.0) + 0.5;
+                scaled := (z / 2.0) + 0.5;
 
-                    colourz := gfx::Colour{scaled,scaled,scaled};
-                    colourz_rgba := gfx::colour_to_rgba(&colourz);
+                colourz := gfx::Colour{scaled,scaled,scaled};
+                colourz_rgba := gfx::colour_to_rgba(&colourz);
 
-                    win.screen[offset] = colourz_rgba;
-                    win.z_buffer[offset] = z;
-                }
+                win.screen[offset] = colourz_rgba;
+                win.z_buffer[offset] = z;
             }
             
             v += change.v.col;

@@ -147,6 +147,25 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
         }
     }
 
+    else if(is_bool(left.type) && is_bool(right.type))
+    {
+        switch(type)
+        {
+            // Treat these like integer operations
+            case op_type::or_reg:
+            case op_type::and_reg:
+            {
+                emit_integer_arith<type>(itl,func,left,right,dst_slot);
+                break;
+            }
+
+            default:
+            {
+                return compile_error(itl,itl_error::invalid_expr,"operation is not defined for bool");
+            }
+        }
+    }
+
     // integer arith
     else if(is_integer(left.type) && is_integer(right.type))
     {
