@@ -172,7 +172,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
 
             if in_triangle & win.z_buffer[offset] <= z
             {
-                scaled := (z / 2.0) + 0.5;
+                scaled := (z * 0.5) + 0.5;
 
                 colourz := gfx::Colour{scaled,scaled,scaled};
                 colourz_rgba := gfx::colour_to_rgba(&colourz);

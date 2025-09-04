@@ -418,9 +418,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
                 return res.error();
             }
 
-            auto addr = *res;
-
-            return addr.type;
+            return *res;
         }
 
         case ast_type::deref:
@@ -1947,10 +1945,6 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);
-
-    // add an dummy error value as the first handle
-    // see SYM_ERROR
-    make_sym(itl,"ITL_ERROR",make_builtin(itl,builtin_type::void_t));
 
     const auto parse_err = parsing(itl,initial_filename);
     if(!!parse_err)

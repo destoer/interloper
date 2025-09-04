@@ -597,9 +597,7 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
     return option::none;
 }
 
-
-// TODO: should we make this more flexible?
-RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
+TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     NameSpace* name_space = nullptr;
 
@@ -634,21 +632,21 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
                 if(func_def)
                 {
                     // this may get called at some point so we need to mark it for compilation...
-                    auto func_call_opt = finalise_func(itl,*func_def,(AstNode*)node);
+                    auto func_call_res = finalise_func(itl,*func_def,(AstNode*)node);
 
-                    if(!func_call_opt)
+                    if(!func_call_res)
                     {
-                        return TypedReg{INVALID_SYM_REG_SLOT,make_builtin(itl,builtin_type::void_t)};
+                        return func_call_res.error();
                     }
 
-                    Function& func_call = *func_call_opt.value();
+                    Function& func_call = *func_call_res.value();
 
                     FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,type_class::func_pointer_t,true);
                     type->sig = func_call.sig;
 
-                    load_func_addr(itl,func,slot,func_call.label_slot);
+                    load_func_addr(itl,func,dst_slot,func_call.label_slot);
                     
-                    return TypedReg{slot,(Type*)type};
+                    return (Type*)type;
                 }
                 
                 // nothing found!
@@ -668,8 +666,8 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
             Type* pointer_type = make_reference(itl,sym.type);
 
             // actually  get the addr of the ptr
-            addrof(itl,func,slot,sym.reg.slot);
-            return TypedReg{slot,pointer_type};
+            addrof(itl,func,dst_slot,sym.reg.slot);
+            return pointer_type;
         }
 
         case ast_type::index:
@@ -682,8 +680,8 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
 
             const auto index = *index_res;
 
-            collapse_struct_addr(itl,func,index.addr,slot);
-            return TypedReg{slot,make_reference(itl,index.type)};
+            collapse_struct_addr(itl,func,index.addr,dst_slot);
+            return make_reference(itl,index.type);
         }
 
         case ast_type::access_struct:
@@ -697,9 +695,9 @@ RegResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot slot)
             auto ptr = *res;
 
             // make sure this ptr goes into the dst slot
-            mov_reg(itl,func,slot,ptr.slot);
+            mov_reg(itl,func,dst_slot,ptr.slot);
 
-            return ptr;
+            return ptr.type;
         }
 
         default:
