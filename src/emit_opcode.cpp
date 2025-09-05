@@ -163,7 +163,7 @@ void mul_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
     }
 }
 
-RegSlot mul_imm_res(Interloper& itl, Function& func, RegSlot src,u32 imm)
+RegSlot mul_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
     mul_imm(itl,func,tmp,src,imm);
@@ -171,7 +171,7 @@ RegSlot mul_imm_res(Interloper& itl, Function& func, RegSlot src,u32 imm)
     return tmp;   
 }
 
-void udiv_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u32 imm)
+void udiv_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
 {
     if(is_pow2(imm))
     {
@@ -196,13 +196,31 @@ void udiv_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u32 imm)
     }
 }
 
-RegSlot udiv_imm_res(Interloper& itl, Function& func, RegSlot src,u32 imm)
+RegSlot udiv_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
     udiv_imm(itl,func,tmp,src,imm);
 
     return tmp;   
 }
+
+
+void umod_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
+{
+    if(is_pow2(imm))
+    {
+        const u32 mask = imm - 1;
+        and_imm(itl,func,dst,src,mask);
+    }
+
+    else
+    {
+        // just emulate this instr as no arch is likely to have it
+        const auto v2 = mov_imm_res(itl,func,imm);
+        emit_reg3<op_type::udiv_reg>(itl,func,dst,src,v2);
+    }
+}
+
 
 void not_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 {

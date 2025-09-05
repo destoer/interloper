@@ -6,8 +6,8 @@ void print_namespace_tree(NameSpace* root, u32 depth);
 void store_arr_data(Interloper& itl, Function& func, RegSlot slot, RegSlot data);
 void store_arr_len(Interloper& itl, Function& func, RegSlot slot,RegSlot len);
 
-RegSlot mul_imm_res(Interloper& itl, Function& func, RegSlot src,u32 imm);
-RegSlot udiv_imm_res(Interloper& itl, Function& func, RegSlot src,u32 imm);
+RegSlot mul_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm);
+RegSlot udiv_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm);
 
 const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 {
@@ -27,7 +27,7 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 
     {builtin_type::bool_t, false, false ,1,  0, 1},
 
-    // note: the range limits on this aernt really integeral
+    // note: the range limits on this aren't really integral
     {builtin_type::f64_t, false, false ,8,  0, u64(0xffffffff'ffffffff)},
 
     {builtin_type::null_t, false,false, GPR_SIZE,0,0},

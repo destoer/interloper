@@ -1,20 +1,12 @@
 template<const arith_op arith>
-void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
+void emit_integer_arith_unknown(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
 {
-    static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
-    static constexpr op_type type = arith_info.reg_form;
-
-    // if(is_value_known(left) || is_value_known(right))
-    // {
-    //     assert(false);
-    // }
-
     unelide_values(itl,func,left,right);
-
+    const bool sign = is_signed(left.type);
 
     if constexpr(arith == arith_op::div_t)
     {
-        if(is_signed(left.type))
+        if(sign)
         {
             emit_reg3<op_type::sdiv_reg>(itl,func,dst_slot,left.slot,right.slot);
         }
@@ -27,7 +19,7 @@ void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedRe
 
     else if constexpr(arith == arith_op::mod_t)
     {
-        if(is_signed(left.type))
+        if(sign)
         {
             emit_reg3<op_type::smod_reg>(itl,func,dst_slot,left.slot,right.slot);
         }
@@ -40,8 +32,89 @@ void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedRe
 
     else
     {
+        static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
+        static constexpr op_type type = arith_info.reg_form;
         emit_reg3<type>(itl,func,dst_slot,left.slot,right.slot);
     }
+}
+
+template<const arith_op arith>
+bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
+{
+    static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
+    const bool lsign = is_signed(left.type);
+    const bool rsign = is_signed(right.type);
+
+    unelide_value(itl,func,left);
+
+    switch(arith)
+    {
+        case arith_op::div_t:
+        {
+            if(!lsign && !rsign)
+            {
+                udiv_imm(itl,func,dst_slot,left.slot,right.known_value);
+                return true;
+            }
+
+            return false;
+        }
+
+        case arith_op::mod_t:
+        {
+            if(!lsign && !rsign)
+            {
+                umod_imm(itl,func,dst_slot,left.slot,right.known_value);
+                return true;               
+            }
+
+            return false;
+        }
+
+        case arith_op::mul_t:
+        {
+            mul_imm(itl,func,dst_slot,left.slot,right.known_value);
+            return true;
+        }
+
+        default:
+        {
+            const op_type type = arith_info.imm_form;
+            if constexpr(type != op_type::none)
+            {
+                emit_imm2<type>(itl,func,dst_slot,left.slot,right.known_value);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+
+template<const arith_op arith>
+void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
+{
+    static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
+
+    if(is_value_known(right))
+    {
+        if(emit_known_rvalue<arith>(itl,func,left,right,dst_slot))
+        {
+            return;
+        } 
+    }
+
+    // If this is commutative we can just switch the operands
+    else if(is_value_known(left) && arith_info.commutative)
+    {
+        if(emit_known_rvalue<arith>(itl,func,right,left,dst_slot))
+        {
+            return;
+        } 
+    }
+
+    emit_integer_arith_unknown<arith>(itl,func,left,right,dst_slot);
 }
 
 // NOTE: pass umod or udiv and it will figure out the correct one
