@@ -290,6 +290,128 @@ u32 pass_args(Interloper& itl, Function& func, ArgPass& pass)
     return arg_clean;
 }
 
+TypeResult push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, AstNode* node, u32 arg_idx)
+{
+    if(is_any(itl,arg_type))
+    {
+        auto size_res = compile_any(itl,func,node);
+        if(!size_res)
+        {
+            return size_res.error();
+        }
+
+        const u32 size = *size_res; 
+        pass.arg_clean += size / GPR_SIZE;
+
+        return arg_type;
+    }
+
+    else if(is_array(arg_type))
+    {
+        // pass a static string, by inserting as const data in the program
+        if(node->type == ast_type::string)
+        {
+            LiteralNode* lit_node = (LiteralNode*)node;
+
+            const u32 size = lit_node->literal.size;
+
+            const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
+
+            // push the len offset
+            const RegSlot len_slot = mov_imm_res(itl,func,size);
+            push_arg(itl,func,pass,len_slot);
+
+            // push the data offset
+            const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
+
+            const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
+            push_arg(itl,func,pass,addr_slot);
+
+            return rtype;
+        }
+
+        else
+        {
+            auto res = compile_oper(itl,func,node);
+
+            if(!res)
+            {
+                return res.error();
+            }
+
+            auto arg_reg = *res;
+
+            if(is_runtime_size(arg_type))
+            {
+                // push in reverse order let our internal functions handle vla conversion
+                const RegSlot len_slot = load_arr_len(itl,func,arg_reg);
+                push_arg(itl,func,pass,len_slot);
+
+                const RegSlot data_slot = load_arr_data(itl,func,arg_reg);
+                push_arg(itl,func,pass,data_slot);
+            }
+
+            // fixed sized array
+            else
+            {
+                pass_arg(itl,func,pass,arg_reg,arg_idx);
+            }
+
+            return arg_reg.type;
+        }
+    }
+
+    else if(is_struct(arg_type))
+    {
+        const auto structure = struct_from_type(itl.struct_table,arg_type);
+
+        const auto res = compile_oper(itl,func,node);
+        if(!res)
+        {
+            return res.error();
+        }
+
+        auto arg_reg = *res;
+        const u32 aligned_size = align_val(structure.size,GPR_SIZE);
+
+        // alloc the struct size for our copy
+        alloc_stack(itl,func,aligned_size);
+
+        // need to save SP as it will get pushed last
+        const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
+        const auto dst_addr = make_addr(dst_ptr,0);
+
+        const auto src_addr = make_struct_addr(arg_reg.slot,0);
+
+        const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
+        if(!!memcpy_err)
+        {
+            return *memcpy_err;
+        }
+
+        // clean up the stack push
+        pass.arg_clean += aligned_size / GPR_SIZE;
+
+        return arg_reg.type;
+    }
+
+    // plain builtin in variable
+    else
+    {
+        const auto res = compile_oper(itl,func,node);
+        if(!res)
+        {
+            return res.error();
+        }
+
+        const auto reg = *res;
+
+        pass_arg(itl,func,pass,reg,arg_idx);
+
+        return reg.type;
+    }
+}
+
 Option<itl_error> push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
 {
     const s32 hidden_args = sig.hidden_args;
@@ -302,138 +424,20 @@ Option<itl_error> push_args(Interloper& itl, Function& func, ArgPass& pass, Func
   
         const u32 arg_idx = i - hidden_args;
 
-        if(is_any(itl,arg_type))
-        {
-            auto size_res = compile_any(itl,func,call_node->args[arg_idx]);
-            if(!size_res)
-            {
-                return size_res.error();
-            }
+        auto push_res = push_arg(itl,func,pass,arg_type,call_node->args[arg_idx],i);
 
-            const u32 size = *size_res; 
-            pass.arg_clean += size / GPR_SIZE;
+        if(!push_res)
+        {
+            return push_res.error();
         }
 
-        else if(is_array(arg_type))
+        Type* passed_type = *push_res;
+
+        // type check the arg
+        const auto assign_err = check_assign_arg(itl,arg_type,passed_type);
+        if(!!assign_err)
         {
-            // pass a static string, by inserting as const data in the program
-            if(call_node->args[arg_idx]->type == ast_type::string)
-            {
-                LiteralNode* lit_node = (LiteralNode*)call_node->args[arg_idx];
-
-                const u32 size = lit_node->literal.size;
-
-                const auto rtype = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),size);
-                const auto assign_err = check_assign_arg(itl,arg_type,rtype);
-                if(!!assign_err)
-                {
-                    return assign_err;
-                }
-                
-                // push the len offset
-                const RegSlot len_slot = mov_imm_res(itl,func,size);
-                push_arg(itl,func,pass,len_slot);
-
-                // push the data offset
-                const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,lit_node->literal);
-
-                const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
-                push_arg(itl,func,pass,addr_slot);
-            }
-
-            else
-            {
-                auto res = compile_oper(itl,func,call_node->args[arg_idx]);
-
-                if(!res)
-                {
-                    return res.error();
-                }
-
-                auto arg_reg = *res;
-
-                const auto assign_err = check_assign_arg(itl,arg_type,arg_reg.type);
-                if(!!assign_err)
-                {
-                    return assign_err;
-                } 
-
-                if(is_runtime_size(arg_type))
-                {
-                    // push in reverse order let our internal functions handle vla conversion
-                    const RegSlot len_slot = load_arr_len(itl,func,arg_reg);
-                    push_arg(itl,func,pass,len_slot);
-
-                    const RegSlot data_slot = load_arr_data(itl,func,arg_reg);
-                    push_arg(itl,func,pass,data_slot);
-                }
-
-                // fixed sized array
-                else
-                {
-                    pass_arg(itl,func,pass,arg_reg,i);
-                }
-            }
-        }
-
-        else if(is_struct(arg_type))
-        {
-           const auto structure = struct_from_type(itl.struct_table,arg_type);
-
-            const auto res = compile_oper(itl,func,call_node->args[arg_idx]);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            auto arg_reg = *res;
-
-            const auto assign_err = check_assign_arg(itl,arg_type,arg_reg.type);
-            if(!!assign_err)
-            {
-                return assign_err;
-            }
-
-            const u32 aligned_size = align_val(structure.size,GPR_SIZE);
-
-            // alloc the struct size for our copy
-            alloc_stack(itl,func,aligned_size);
-
-            // need to save SP as it will get pushed last
-            const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
-            const auto dst_addr = make_addr(dst_ptr,0);
-
-            const auto src_addr = make_struct_addr(arg_reg.slot,0);
-
-            const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
-            if(!!memcpy_err)
-            {
-                return memcpy_err;
-            }
-
-            // clean up the stack push
-            pass.arg_clean += aligned_size / GPR_SIZE;
-        }
-
-        // plain builtin in variable
-        else
-        {
-            const auto res = compile_oper(itl,func,call_node->args[arg_idx]);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            const auto reg = *res;
-
-            // type check the arg
-            const auto assign_err = check_assign_arg(itl,arg_type,reg.type);
-            if(!!assign_err)
-            {
-                return assign_err;
-            }
-
-            pass_arg(itl,func,pass,reg,i);
+            return assign_err;
         }
     }
 
