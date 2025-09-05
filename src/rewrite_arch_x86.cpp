@@ -109,6 +109,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::add_imm:
         {
+            if(node->value.v[0] == node->value.v[1])
+            {
+                return rewrite_imm3_two(block,node,op_type::add_imm2);
+            }
+
             return node->next;
         }
 
