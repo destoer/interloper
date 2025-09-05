@@ -217,7 +217,7 @@ void umod_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
     {
         // just emulate this instr as no arch is likely to have it
         const auto v2 = mov_imm_res(itl,func,imm);
-        emit_reg3<op_type::udiv_reg>(itl,func,dst,src,v2);
+        emit_reg3<op_type::umod_reg>(itl,func,dst,src,v2);
     }
 }
 
