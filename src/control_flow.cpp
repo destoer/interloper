@@ -330,14 +330,25 @@ Option<itl_error> compile_for_range_arr(Interloper& itl, Function& func, ForRang
         mov_imm(itl,func,index,0);
     }
 
-    // setup the loop grab data and len
-    const auto arr_len = load_arr_len(itl,func,entry_arr);
-    const auto arr_bytes = mul_imm_res(itl,func,arr_len,index_size);
+    RegSlot arr_end = {INVALID_HANDLE};
 
     const auto arr_data = load_arr_data(itl,func,entry_arr);
 
-    // compute array end
-    const auto arr_end = add_res(itl,func,arr_data,arr_bytes);
+
+    if(is_fixed_array(arr_type))
+    {
+        arr_end = add_imm_res(itl,func,arr_data,arr_type->sub_size * arr_type->size);
+    }
+
+    else
+    {
+        // setup the loop grab data and len
+        const auto arr_len = load_arr_len(itl,func,entry_arr);
+        const auto arr_bytes = mul_imm_res(itl,func,arr_len,index_size);
+
+        arr_end = add_res(itl,func,arr_data,arr_bytes);
+    }
+
 
     RegSlot entry_cond = make_spec_reg_slot(spec_reg::null);
 
