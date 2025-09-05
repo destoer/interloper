@@ -255,6 +255,8 @@ enum class op_type
 
     live_var,
 
+    none,
+
     // just c++ things not used
     END,
 };
@@ -265,7 +267,7 @@ b32 is_directive(op_type type)
 }
 
 // general operation defined for unsigned or unsigned ints
-// will be convered to a specific conterpart in op_type
+// will be converted to a specific counterpart in op_type
 enum class comparison_op
 {
     cmplt_reg,
@@ -277,13 +279,51 @@ enum class comparison_op
     cmpne_reg,
 };
 
+static constexpr u32 LOGIC_OP_SIZE = 6;
+
 enum class boolean_logic_op
 {
     and_t,
     or_t,
 };
 
-static constexpr u32 LOGIC_OP_SIZE = 6;
+
+
+enum class arith_op
+{
+    add_t,
+    sub_t,
+    mul_t,
+    mod_t,
+    div_t,
+    xor_t,
+    and_t,
+    or_t,
+};
+
+static constexpr u32 ARITH_OP_SIZE = 8;
+
+struct ArithmeticInfo
+{
+    enum arith_op arith;
+    bool commutative = false;
+    op_type reg_form = op_type::END;
+    op_type imm_form = op_type::END;
+    op_type float_form = op_type::END;
+};
+
+static constexpr ArithmeticInfo ARITH_INFO[ARITH_OP_SIZE] = 
+{
+    {arith_op::add_t,true,op_type::add_reg,op_type::add_imm,op_type::addf_reg},
+    {arith_op::sub_t,false,op_type::sub_reg,op_type::sub_imm,op_type::subf_reg},
+    {arith_op::mul_t,true,op_type::mul_reg,op_type::mul_imm,op_type::mulf_reg},
+    {arith_op::mod_t,false,op_type::none,op_type::none,op_type::none},
+    {arith_op::div_t,false,op_type::none,op_type::none,op_type::divf_reg},
+    {arith_op::xor_t,true,op_type::xor_reg,op_type::xor_imm,op_type::none},
+    {arith_op::and_t,true,op_type::and_reg,op_type::and_imm,op_type::none},
+    {arith_op::or_t,true,op_type::or_reg,op_type::none,op_type::none},
+};
+
 
 static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
 

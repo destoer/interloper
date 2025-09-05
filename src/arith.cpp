@@ -1,10 +1,18 @@
-template<const op_type type>
+template<const arith_op arith>
 void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
 {
+    static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
+    static constexpr op_type type = arith_info.reg_form;
+
+    // if(is_value_known(left) || is_value_known(right))
+    // {
+    //     assert(false);
+    // }
+
     unelide_values(itl,func,left,right);
 
-    // figure out correct division type
-    if constexpr (type == op_type::udiv_reg)
+
+    if constexpr(arith == arith_op::div_t)
     {
         if(is_signed(left.type))
         {
@@ -17,7 +25,7 @@ void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedRe
         }
     }
 
-    else if constexpr (type == op_type::umod_reg)
+    else if constexpr(arith == arith_op::mod_t)
     {
         if(is_signed(left.type))
         {
@@ -37,16 +45,11 @@ void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedRe
 }
 
 // NOTE: pass umod or udiv and it will figure out the correct one
-template<const op_type type>
+template<const arith_op arith>
 TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
-    static_assert(
-        type == op_type::add_reg || type == op_type::sub_reg || type == op_type::mul_reg ||
-        type == op_type::umod_reg || type == op_type::udiv_reg ||
-        type == op_type::xor_reg || type == op_type::and_reg || type == op_type::or_reg
-    );
-    
     itl.arith_depth += 1;
+    static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
 
     BinNode* bin_node = (BinNode*)node;
 
@@ -67,7 +70,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
     auto right = *right_res;
 
     // pointer arith adds the size of the underlying type
-    if(is_pointer(left.type) && is_integer(right.type) && (type == op_type::add_reg || type == op_type::sub_reg))
+    if(is_pointer(left.type) && is_integer(right.type))
     {
         unelide_value(itl,func,left);
 
@@ -75,38 +78,34 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
         Type *contained_type = deref_pointer(left.type);
         const u32 size = type_size(itl,contained_type);
 
-        if(is_value_known(right))
+        if constexpr(arith == arith_op::add_t || arith == arith_op::sub_t)
         {
-            switch(type)
+            if(is_value_known(right))
             {
-                case op_type::add_reg:
-                {
-                    add_imm(itl,func,dst_slot,left.slot,size * right.known_value);
-                    break;
-                }
+                static constexpr op_type imm_type = arith_info.imm_form;
+                emit_imm2<imm_type>(itl,func,dst_slot,left.slot,size * right.known_value);
+            }
 
-                case op_type::sub_reg:
-                {
-                    sub_imm(itl,func,dst_slot,left.slot,size * right.known_value);
-                    break;
-                }
+            else
+            {
+                constexpr op_type type = arith_info.reg_form;
+                const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
 
-                default: assert(false);
+                emit_reg3<type>(itl,func,dst_slot,left.slot,offset_slot);
             }
         }
 
-        else 
+        else
         {
-            const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
-            emit_reg3<type>(itl,func,dst_slot,left.slot,offset_slot);
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
         }
     }
 
     // allow pointer subtraction
-    else if(is_pointer(left.type) && is_pointer(right.type) && type == op_type::sub_reg)
+    else if(is_pointer(left.type) && is_pointer(right.type) && arith == arith_op::sub_t)
     {
         unelide_values(itl,func,left,right);
-        emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,right.slot);
+        sub(itl,func,dst_slot,left.slot,right.slot);
     }
 
     // floating point arith
@@ -114,48 +113,28 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
     {
         unelide_values(itl,func,left,right);
 
-        switch(type)
+        constexpr op_type type = arith_info.float_form;
+
+        if constexpr(type == op_type::none)
         {
-            case op_type::add_reg:
-            {
-                addf(itl,func,dst_slot,left.slot,right.slot);
-                break;
-            }
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
+        }
 
-            case op_type::sub_reg:
-            {
-                subf(itl,func,dst_slot,left.slot,right.slot);
-                break;
-            }
-
-            case op_type::mul_reg:
-            {
-                mulf(itl,func,dst_slot,left.slot,right.slot);
-                break;
-            }
-
-            case op_type::udiv_reg:
-            {
-                divf(itl,func,dst_slot,left.slot,right.slot);
-                break;
-            }
-
-            default:
-            {
-                return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
-            }
+        else
+        {
+            emit_reg3<type>(itl,func,dst_slot,left.slot,right.slot);
         }
     }
 
     else if(is_bool(left.type) && is_bool(right.type))
     {
-        switch(type)
+        switch(arith)
         {
             // Treat these like integer operations
-            case op_type::or_reg:
-            case op_type::and_reg:
+            case arith_op::or_t:
+            case arith_op::and_t:
             {
-                emit_integer_arith<type>(itl,func,left,right,dst_slot);
+                emit_integer_arith<arith>(itl,func,left,right,dst_slot);
                 break;
             }
 
@@ -186,7 +165,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
 
         else
         {
-            emit_integer_arith<type>(itl,func,left,right,dst_slot);
+            emit_integer_arith<arith>(itl,func,left,right,dst_slot);
         }
     }
 
@@ -197,7 +176,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
     }
 
     // produce effective type
-    const auto final_type = effective_arith_type(itl,left.type,right.type,type);
+    const auto final_type = effective_arith_type(itl,left.type,right.type,arith);
 
     return final_type;        
 }
@@ -312,7 +291,7 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
 
 
 
-// TODO: Detect when short ciruciting is unecessary due to a lack of side effects
+// TODO: Detect when short circuiting is unecessary due to a lack of side effects
 TypeResult compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot, boolean_logic_op type, u32 depth)
 {
     BinNode* bin_node = (BinNode*)node;
@@ -494,7 +473,7 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
     // check the operation is even legal
 
     // can be moved by a simple data copy 
-    // NOTE: we use this here so we dont have to care about the underyling type if its a pointer
+    // NOTE: we use this here so we dont have to care about the underlying type if its a pointer
     if(is_trivial_copy(dst.type) && is_trivial_copy(src.type))
     {
         if(is_float(dst.type))
@@ -568,7 +547,7 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
             {
                 switch(dst.slot.spec)
                 {
-                    // copy out the strucutre using the hidden pointer in the first arg
+                    // copy out the structure using the hidden pointer in the first arg
                     case spec_reg::rv_struct:
                     {
                         const auto src_addr = make_struct_addr(src.slot,0);

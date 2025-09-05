@@ -3,7 +3,7 @@
 ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
 ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
 ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
-ParserResult parse_initliazer_list(Parser& parser, ExprCtx& ctx, const Token& t);
+ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
@@ -292,7 +292,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
                 const auto start = ctx.expr_tok;
                 (void)consume_expr(parser,ctx,token_type::left_c_brace);
 
-                auto list_res = parse_initliazer_list(parser,ctx,start);
+                auto list_res = parse_initializer_list(parser,ctx,start);
                 if(!list_res)
                 {
                     return list_res;
@@ -418,7 +418,7 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type ca
 ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
 ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t);
 
-ParserResult parse_initliazer_list(Parser& parser, ExprCtx& ctx, const Token& t)
+ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t)
 {
     const bool designated = ctx.expr_tok.type == token_type::symbol && match(parser,token_type::colon);
 
@@ -483,7 +483,7 @@ ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const T
             (void)consume_expr(parser,ctx,token_type::symbol);
             (void)consume_expr(parser,ctx,token_type::left_c_brace);
 
-            auto list_res = parse_initliazer_list(parser,ctx,t);
+            auto list_res = parse_initializer_list(parser,ctx,t);
 
             if(!list_res)
             {
@@ -642,7 +642,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
                 return ast_plain(parser,ast_type::no_init,t);
             }
 
-            return parse_initliazer_list(parser,ctx,t);
+            return parse_initializer_list(parser,ctx,t);
         }
     
         case token_type::value:
