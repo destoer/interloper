@@ -548,7 +548,7 @@ void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
 
 void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, x86_reg v2)
 {
-    // lea r64, [r64 + disp]
+    // lea r64, [r64 + r64]
     const u8 opcode = 0x8d;
     push_u16(emitter,(opcode << 8) |  rex_rbi64(dst,v1,v2));
     push_reg_base_index(emitter,dst,v1,v2);
@@ -987,7 +987,7 @@ void asr_x86(AsmEmitter& emitter, x86_reg src)
     emit_shift(emitter,src,7);
 }
 
-void add(AsmEmitter& emitter, x86_reg dst, x86_reg v1, s64 imm)
+void add_imm(AsmEmitter& emitter, x86_reg dst, x86_reg v1, u64 imm)
 {
     // lea r64, [r64 + disp]
     const u8 opcode = 0x8d;
@@ -1003,9 +1003,9 @@ void mul(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm_extended_64(emitter,opcode,dst,v1);
 }
 
-void lea(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s64 imm)
+void lea(AsmEmitter& emitter, x86_reg dst, x86_reg addr, u64 imm)
 {
-    add(emitter,dst,addr,imm);
+    add_imm(emitter,dst,addr,imm);
 }
 
 void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
@@ -1202,6 +1202,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_type::add_reg:
         {
             add(emitter,dst,v1,v2);
+            break;
+        }
+
+        case op_type::add_imm:
+        {
+            add_imm(emitter,dst,v1,opcode.v[2].raw);
             break;
         }
 
