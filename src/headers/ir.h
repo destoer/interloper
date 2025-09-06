@@ -333,8 +333,7 @@ enum class op_group
     reg_t,
     regm_t,
     imm_t,
-    load_t,
-    store_t,
+    addr_t,
     implicit_t,
     branch_t,
     branch_reg_t,
@@ -704,10 +703,26 @@ inline bool operator == (const Operand& v1, const Operand &v2)
     assert(false);
 }
 
+struct AddrSlot
+{
+    RegSlot base;
+    RegSlot index = make_spec_reg_slot(spec_reg::null);
+    u32 scale = 1;
+    u32 offset = 0;
+
+    // slot is not a pointer and refers to an actual variable
+    b32 struct_addr = false;
+};
+
+AddrSlot make_struct_addr(RegSlot slot, u32 offset);
+AddrSlot make_addr(RegSlot slot, u32 offset);
+
 struct Opcode
 {
     op_type op; 
     Operand v[3];
+    u32 scale;
+    u32 offset;
 };
 
 inline Operand make_reg_operand(RegSlot slot)
@@ -769,16 +784,80 @@ inline Operand make_directive_reg(RegSlot slot)
     return oper;   
 }
 
-static const Operand BLANK_OPERAND = make_raw_operand(0);
-
-inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
-{
-    return Opcode {type,v1,v2,v3};
-}
+static const Operand BLANK_OPERAND = BLANK_OPERAND;
 
 inline Opcode make_raw_op(op_type type, u64 v1 = 0, u64 v2 = 0, u64 v3 = 0)
 {
-    return Opcode {type,make_raw_operand(v1),make_raw_operand(v2),make_raw_operand(v3)};
+    return Opcode {type,make_raw_operand(v1),make_raw_operand(v2),make_raw_operand(v3),0,0};
+}
+
+inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
+{
+    return Opcode {type,v1,v2,v3,0,0};
+}
+
+
+inline Opcode make_directive_instr(op_type type, Operand v1, Operand v2, Operand v3)
+{
+    return Opcode {type,v1,v2,v3,0,0};
+}
+
+
+inline Opcode make_addr_instr(op_type type, RegSlot v1, AddrSlot addr)
+{
+    return Opcode{type, make_reg_operand(v1),make_reg_operand(addr.base),make_reg_operand(addr.index),addr.scale,addr.offset};
+}
+
+inline Opcode make_reg1_instr(op_type type, RegSlot v1)
+{
+    return Opcode{type, make_reg_operand(v1),BLANK_OPERAND,BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_reg2_instr(op_type type, RegSlot v1, RegSlot v2)
+{
+    return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_reg3_instr(op_type type, RegSlot v1, RegSlot v2, RegSlot v3)
+{
+    return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),make_reg_operand(v3),0,0};
+}
+
+inline Opcode make_imm0_instr(op_type type, u64 imm)
+{
+    return Opcode{type, make_imm_operand(imm),BLANK_OPERAND,BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_imm1_instr(op_type type, RegSlot v1, u64 imm)
+{
+    return Opcode{type, make_reg_operand(v1),make_imm_operand(imm),BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_imm2_instr(op_type type, RegSlot v1, RegSlot v2, u64 imm)
+{
+    return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),make_imm_operand(imm),0,0};
+}
+
+inline Opcode make_float_imm1_instr(op_type type, RegSlot v1, u64 decimal)
+{
+    return Opcode{type, make_reg_operand(v1),make_decimal_operand(decimal),BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_branch_instr(op_type type, LabelSlot label)
+{
+    return Opcode{type, make_label_operand(label),BLANK_OPERAND,BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_cond_branch_instr(op_type type, LabelSlot label, RegSlot cond)
+{
+    return Opcode{type, make_label_operand(label),make_reg_operand(cond),BLANK_OPERAND,0,0};
+}
+
+
+
+inline Opcode make_implicit_instr(op_type type)
+{
+    return Opcode{type, BLANK_OPERAND,BLANK_OPERAND,BLANK_OPERAND,0,0};
 }
 
 static constexpr u32 SIGNED_FLAG = 1 << 0;
@@ -965,19 +1044,6 @@ Block& block_from_slot(Function& func, BlockSlot slot);
 
 
 void destroy_emitter(IrEmitter& emitter);
-
-struct AddrSlot
-{
-    RegSlot slot;
-    u32 offset = 0;
-
-    // slot is not a pointer and refers to an actual variable
-    b32 struct_addr = false;
-};
-
-AddrSlot make_struct_addr(RegSlot slot, u32 offset);
-AddrSlot make_addr(RegSlot slot, u32 offset);
-
 
 struct TypedAddr
 {
