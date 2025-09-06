@@ -1010,7 +1010,7 @@ void lea(AsmEmitter& emitter, x86_reg dst, x86_reg addr, u64 imm)
 
 void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
 {
-    // NOTE: relies on emitter disp allwayys being u32
+    // NOTE: relies on emitter disp always being u32
     // for RIP relative
     const u32 offset = emitter.buffer.size - 4;
 
@@ -1022,7 +1022,7 @@ void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
 {
     const auto dst = x86_reg(opcode.v[0].raw);
     auto addr = x86_reg(opcode.v[1].raw);
-    s64 offset = s64(opcode.v[2].raw);
+    s64 offset = s64(opcode.offset);
 
     const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 

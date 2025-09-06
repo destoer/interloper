@@ -26,19 +26,25 @@ OpcodeNode* emit_directive_internal(Interloper& itl,Function& func, op_type type
     return emit_block_func(func,opcode);
 }
 
-void addrof(Interloper& itl,Function& func, RegSlot dst, RegSlot src)
+void addrof(Interloper& itl,Function& func, RegSlot dst, StructAddr struct_addr)
 {
+    UNUSED(itl);
+
     // mark reg as aliased
-    auto& reg = reg_from_slot(itl,func,src);
+    auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
     reg.flags |= ALIASED;
 
-    emit_directive_internal(itl,func,op_type::addrof,make_reg_operand(dst),make_reg_operand(src));
+    const Operand base = make_directive_reg(struct_addr.addr.base);
+    const Operand index = make_reg_operand(struct_addr.addr.index);
+
+    const Opcode opcode = make_addr_op(op_type::addrof,make_reg_operand(dst),base,index,struct_addr.addr.scale,struct_addr.addr.offset);
+    emit_block_func(func,opcode);
 }
 
-RegSlot addrof_res(Interloper& itl, Function& func, RegSlot src)
+RegSlot addrof_res(Interloper& itl, Function& func, StructAddr struct_addr)
 {
     const auto tmp = new_tmp_ptr(func);
-    addrof(itl,func,tmp,src);
+    addrof(itl,func,tmp,struct_addr);
 
     return tmp;
 }

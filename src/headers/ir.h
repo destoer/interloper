@@ -814,6 +814,12 @@ inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLA
     return Opcode {type,v1,v2,v3,0,0};
 }
 
+inline Opcode make_addr_op(op_type type, Operand v1, Operand v2, Operand v3, u32 scale, u32 offset)
+{
+    return Opcode {type,v1,v2,v3,scale,offset};
+}
+
+
 inline Opcode make_directive_instr(op_type type, Operand v1, Operand v2, Operand v3)
 {
     return Opcode {type,v1,v2,v3,0,0};

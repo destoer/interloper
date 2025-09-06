@@ -390,7 +390,9 @@ void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const
     {
         // store type struct
         store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false); 
-        const auto arr_ptr = addrof_res(itl,func,reg.slot);
+
+        const StructAddr struct_addr = {make_addr(reg.slot,0)};
+        const auto arr_ptr = addrof_res(itl,func,struct_addr);
 
         // store data
         store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);

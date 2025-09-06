@@ -17,10 +17,8 @@ RegSlot collapse_struct_addr(Interloper& itl, Function& func, const AddrSlot str
 {
     if(struct_slot.struct_addr)
     {
-        PointerAddr pointer = {struct_slot.addr};
-        pointer.addr.base = addrof_res(itl,func,struct_slot.addr.base);
-
-        return lea_res(itl,func,pointer);
+        StructAddr struct_addr = {struct_slot.addr};
+        return addrof_res(itl,func,struct_addr);
     }
 
     PointerAddr pointer = {struct_slot.addr};

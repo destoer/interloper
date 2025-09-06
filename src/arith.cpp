@@ -571,7 +571,9 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
             case reg_kind::tmp:
             case reg_kind::sym:
             {
-                addr_slot = addrof_res(itl,func,dst.slot);
+                const StructAddr struct_addr = {make_addr(dst.slot,0)};
+
+                addr_slot = addrof_res(itl,func,struct_addr);
                 break;
             }
 
@@ -719,8 +721,10 @@ TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_sl
 
             Type* pointer_type = make_reference(itl,sym.type);
 
+            const StructAddr struct_addr = {make_addr(sym.reg.slot,0)};
+
             // actually  get the addr of the ptr
-            addrof(itl,func,dst_slot,sym.reg.slot);
+            addrof(itl,func,dst_slot,struct_addr);
             return pointer_type;
         }
 

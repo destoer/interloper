@@ -196,11 +196,11 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
         {
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
-            const auto slot = opcode.v[1].reg;
+            const auto base = opcode.v[1].reg;
             const auto dst = opcode.v[0].reg;
-            auto& reg = reg_from_slot(slot,alloc);
+            auto& reg = reg_from_slot(base,alloc);
 
-            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,slot);
+            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
 
             if(is_stack_unallocated(reg))
             {
@@ -209,7 +209,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }
 
-            u32 offset = node->value.v[2].imm;
+            u32 offset = node->value.offset;
 
             // local add the stack offset
             if(is_local(reg))
@@ -219,10 +219,11 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
-            node->value = make_op(op_type::addrof,opcode.v[0],opcode.v[1],make_imm_operand(offset));
+            node->value = make_addr_op(op_type::addrof,opcode.v[0],opcode.v[1],opcode.v[2],opcode.scale,offset);
 
-            // just rewrite the 1st reg we dont want the address of the 2nd
+            // just rewrite the dst slot and index we dont want to write what we are taking an address on
             allocate_and_rewrite(alloc,block,node,0);
+            allocate_and_rewrite(alloc,block,node,2);
 
             node = node->next;
             break;
@@ -407,7 +408,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
 OpcodeNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, OpcodeNode* node, op_type type)
 {
-    const u32 base_offset = node->value.v[2].imm;
+    const u32 base_offset = node->value.offset;
     const RegSlot slot = node->value.v[1].reg;
 
     auto &reg = reg_from_slot(slot,alloc);
@@ -416,8 +417,8 @@ OpcodeNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, Opco
 
     const auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
-    node->value = make_op(type,node->value.v[0],make_imm_operand(offset_reg),make_imm_operand(offset + base_offset));
-
+    node->value = make_addr_op(type,node->value.v[0],make_raw_operand(offset_reg),node->value.v[2],node->value.scale,offset + base_offset);
+    
     return node->next;
 }
 
@@ -516,7 +517,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
         case op_type::addrof:
         {
-            const s32 base_offset = opcode.v[2].imm;
+            const s32 base_offset = opcode.offset;
             const RegSlot slot = opcode.v[1].reg;
 
             auto &reg = reg_from_slot(slot,alloc);
@@ -526,7 +527,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
             auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
-            node->value = make_raw_op(op_type::lea,opcode.v[0].raw,offset_reg,base_offset + offset);
+            node->value = make_addr_op(op_type::lea,opcode.v[0],make_raw_operand(offset_reg),opcode.v[2],opcode.scale,base_offset + offset);
 
             node = node->next;
             break;
