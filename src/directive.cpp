@@ -26,19 +26,19 @@ OpcodeNode* emit_directive_internal(Interloper& itl,Function& func, op_type type
     return emit_block_func(func,opcode);
 }
 
-void addrof(Interloper& itl,Function& func, RegSlot dst, RegSlot src, u32 offset = 0)
+void addrof(Interloper& itl,Function& func, RegSlot dst, RegSlot src)
 {
     // mark reg as aliased
     auto& reg = reg_from_slot(itl,func,src);
     reg.flags |= ALIASED;
 
-    emit_directive_internal(itl,func,op_type::addrof,make_reg_operand(dst),make_reg_operand(src),make_imm_operand(offset));
+    emit_directive_internal(itl,func,op_type::addrof,make_reg_operand(dst),make_reg_operand(src));
 }
 
-RegSlot addrof_res(Interloper& itl, Function& func, RegSlot src, u32 offset = 0)
+RegSlot addrof_res(Interloper& itl, Function& func, RegSlot src)
 {
     const auto tmp = new_tmp_ptr(func);
-    addrof(itl,func,tmp,src,offset);
+    addrof(itl,func,tmp,src);
 
     return tmp;
 }
@@ -109,30 +109,30 @@ void load_func_addr(Interloper& itl, Function& func, RegSlot dst, LabelSlot labe
     emit_directive_internal(itl,func,op_type::load_func_addr,make_reg_operand(dst),make_label_operand(label));
 }
 
-void load_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot dst, AddrSlot addr_slot)
+void load_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot dst, StructAddr struct_addr)
 {
     UNUSED(itl);
-    const Opcode opcode = make_addr_instr(type,dst,addr_slot);
+    const Opcode opcode = make_addr_instr(type,dst,struct_addr.addr);
     emit_block_func(func,opcode);
 }
 
-void store_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot src, AddrSlot addr_slot)
+void store_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot src, StructAddr struct_addr)
 {
     UNUSED(itl);
-    const Opcode opcode = make_addr_instr(type,src,addr_slot);
+    const Opcode opcode = make_addr_instr(type,src,struct_addr.addr);
     emit_block_func(func,opcode);
 }
 
 
-void load_struct_u64(Interloper& itl, Function& func, RegSlot dst, AddrSlot addr_slot)
+void load_struct_u64(Interloper& itl, Function& func, RegSlot dst, StructAddr struct_addr)
 {
-    load_struct_internal(itl,func,op_type::load_struct_u64,dst,addr_slot);
+    load_struct_internal(itl,func,op_type::load_struct_u64,dst,struct_addr);
 }
 
-RegSlot load_struct_u64_res(Interloper& itl, Function& func, AddrSlot addr_slot)
+RegSlot load_struct_u64_res(Interloper& itl, Function& func, StructAddr struct_addr)
 {
     const auto dst = new_tmp(func,GPR_SIZE);
-    load_struct_u64(itl,func,dst,addr_slot);
+    load_struct_u64(itl,func,dst,struct_addr);
 
     return dst;
 }

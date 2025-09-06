@@ -1,67 +1,46 @@
 
-AddrSlot make_addr(RegSlot slot, u32 offset)
+AddrSlot make_base_addr(RegSlot base,u32 offset)
 {
-    return {slot,offset,false};
+    return {{base,make_spec_reg_slot(spec_reg::null),1,offset},false};
 }
 
-AddrSlot make_struct_addr(RegSlot slot, u32 offset)
+AddrSlot make_struct_addr(RegSlot base, u32 offset)
 {
-    return {slot,offset,true};
+    return {{base,make_spec_reg_slot(spec_reg::null),1,offset},true};
 }
 
-
-AddrSlot take_addr(Interloper& itl, Function& func, RegSlot src, u32 offset)
-{
-    const auto src_ptr = addrof_res(itl,func,src,offset);
-    return make_addr(src_ptr,0);
-}
-
-void collapse_struct_addr(Interloper& itl, Function& func, const AddrSlot struct_slot, RegSlot dst_slot)
+RegSlot collapse_struct_addr(Interloper& itl, Function& func, const AddrSlot struct_slot)
 {
     if(struct_slot.struct_addr)
     {
-        addrof(itl,func,dst_slot,struct_slot.slot,struct_slot.offset);
-        return;
+        PointerAddr pointer = {struct_slot.addr};
+        pointer.addr.base = addrof_res(itl,func,struct_slot.addr.base);
+
+        return lea_res(itl,func,pointer);
     }
 
-    add_imm(itl,func,dst_slot,struct_slot.slot,struct_slot.offset);
-}
-
-RegSlot collapse_struct_res(Interloper& itl, Function& func, const AddrSlot& struct_slot)
-{
-    const RegSlot dst_slot = new_tmp(func,GPR_SIZE);
-    collapse_struct_addr(itl,func,struct_slot,dst_slot);
-
-    return dst_slot;
+    PointerAddr pointer = {struct_slot.addr};
+    return lea_res(itl,func,pointer);
 }
 
 TypedReg collapse_typed_struct_res(Interloper& itl, Function& func, const TypedAddr& struct_slot)
 {
-    const auto ptr = collapse_struct_res(itl,func,struct_slot.addr);
+    const auto ptr = collapse_struct_addr(itl,func,struct_slot.addr);
     return TypedReg {ptr,struct_slot.type};
 }
 
 
 void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_slot)
 {
-    if(struct_slot->struct_addr)
-    {
-        *struct_slot = take_addr(itl,func,struct_slot->slot,struct_slot->offset);
-    }
-
-    else if(struct_slot->offset != 0)
-    {
-        struct_slot->slot = add_imm_res(itl,func,struct_slot->slot,struct_slot->offset);
-        struct_slot->offset = 0;     
-    }
+    *struct_slot = make_base_addr(collapse_struct_addr(itl,func,*struct_slot),0);
 }
 
 
-void load_ptr(Interloper &itl,Function& func,RegSlot dst_slot,RegSlot addr_slot,u32 offset,u32 size, b32 is_signed, b32 is_float)
+static void load_ptr(Interloper &itl,Function& func,RegSlot dst_slot,PointerAddr addr,u32 size, b32 is_signed, b32 is_float)
 {
     if(is_float)
     {
-        load_float(itl,func,dst_slot,addr_slot,offset);
+        load_float(itl,func,dst_slot,addr);
     }
 
     else if(is_signed)
@@ -70,25 +49,25 @@ void load_ptr(Interloper &itl,Function& func,RegSlot dst_slot,RegSlot addr_slot,
         {
             case 1:
             {
-                load_signed_byte(itl,func,dst_slot,addr_slot,offset);
+                load_signed_byte(itl,func,dst_slot,addr);
                 break;
             }
 
             case 2: 
             {
-                load_signed_half(itl,func,dst_slot,addr_slot,offset);
+                load_signed_half(itl,func,dst_slot,addr);
                 break;
             }
 
             case 4:
             {
-                load_signed_word(itl,func,dst_slot,addr_slot,offset);
+                load_signed_word(itl,func,dst_slot,addr);
                 break;
             }
 
             case 8:
             {
-                load_double(itl,func,dst_slot,addr_slot,offset);
+                load_double(itl,func,dst_slot,addr);
                 break;
             }
 
@@ -102,25 +81,25 @@ void load_ptr(Interloper &itl,Function& func,RegSlot dst_slot,RegSlot addr_slot,
         {
             case 1:
             {
-                load_byte(itl,func,dst_slot,addr_slot,offset);
+                load_byte(itl,func,dst_slot,addr);
                 break;
             }
 
             case 2: 
             {
-                load_half(itl,func,dst_slot,addr_slot,offset);
+                load_half(itl,func,dst_slot,addr);
                 break;
             }
 
             case 4:
             {
-                load_word(itl,func,dst_slot,addr_slot,offset);
+                load_word(itl,func,dst_slot,addr);
                 break;
             }
 
             case 8:
             {
-                load_double(itl,func,dst_slot,addr_slot,offset);
+                load_double(itl,func,dst_slot,addr);
                 break;
             }
 
@@ -129,11 +108,11 @@ void load_ptr(Interloper &itl,Function& func,RegSlot dst_slot,RegSlot addr_slot,
     }
 }
 
-void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,AddrSlot addr_slot,u32 size, b32 is_signed, b32 is_float)
+void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,StructAddr addr,u32 size, b32 is_signed, b32 is_float)
 {
     if(is_float)
     {
-        load_struct_internal(itl,func,op_type::load_struct_f64,dst_slot,addr_slot);  
+        load_struct_internal(itl,func,op_type::load_struct_f64,dst_slot,addr);  
     }
 
     else if(is_signed)
@@ -143,7 +122,7 @@ void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,AddrSlot addr_s
 
         assert(idx <= 3);
 
-        load_struct_internal(itl,func,SIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr_slot);     
+        load_struct_internal(itl,func,SIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr);     
     }
 
     else
@@ -153,7 +132,7 @@ void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,AddrSlot addr_s
 
         assert(idx <= 3);
 
-        load_struct_internal(itl,func,UNSIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr_slot);     
+        load_struct_internal(itl,func,UNSIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr);     
     }
 }
 
@@ -161,12 +140,14 @@ void load_addr_slot(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot add
 {
     if(addr_slot.struct_addr)
     {
-        load_struct(itl,func,dst_slot,addr_slot,size,sign,is_float);
+        const StructAddr struct_addr = {addr_slot.addr};
+        load_struct(itl,func,dst_slot,struct_addr,size,sign,is_float);
     }
 
     else
     {
-        load_ptr(itl,func,dst_slot,addr_slot.slot,addr_slot.offset,size,sign,is_float);
+        const PointerAddr pointer_addr = {addr_slot.addr};
+        load_ptr(itl,func,dst_slot,pointer_addr,size,sign,is_float);
     }
 }
 
@@ -177,8 +158,8 @@ Option<itl_error> do_addr_copy(Interloper &itl,Function &func,RegSlot dst_slot,A
         case reg_kind::sym:
         case reg_kind::tmp:
         {
-            const auto dst_addr = make_struct_addr(dst_slot,0);
-            const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
+            const auto addr = make_struct_addr(dst_slot,0);
+            const auto memcpy_err = ir_memcpy(itl,func,addr,src_addr,size);
             if(!!memcpy_err)
             {
                 return memcpy_err;
@@ -196,7 +177,7 @@ Option<itl_error> do_addr_copy(Interloper &itl,Function &func,RegSlot dst_slot,A
                 // copy into hidden pointer
                 case spec_reg::rv_struct:
                 {
-                    const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                    const auto dst_addr = make_base_addr(make_sym_reg_slot(func.sig.args[0]),0);
                     const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
                     if(!!memcpy_err)
                     {
@@ -231,7 +212,7 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,c
         // fixed size array, the pointer is the array
         else
         {
-            const RegSlot ptr = collapse_struct_res(itl,func,src_addr.addr);
+            const RegSlot ptr = collapse_struct_addr(itl,func,src_addr.addr);
             mov_reg(itl,func,dst_slot,ptr);
         }
     }
@@ -269,11 +250,11 @@ Option<itl_error> do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,co
 
 
 
-void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot dst_addr,u32 offset,u32 size, b32 is_float)
+static void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,PointerAddr addr,u32 size, b32 is_float)
 {
     if(is_float)
     {
-        store_float(itl,func,src_slot,dst_addr,offset);
+        store_float(itl,func,src_slot,addr);
     }
 
     else
@@ -282,25 +263,25 @@ void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot dst_addr,
         {
             case 1:
             {
-                store_byte(itl,func,src_slot,dst_addr,offset);
+                store_byte(itl,func,src_slot,addr);
                 break;
             }
 
             case 2: 
             {
-                store_half(itl,func,src_slot,dst_addr,offset);
+                store_half(itl,func,src_slot,addr);
                 break;
             }
 
             case 4:
             {
-                store_word(itl,func,src_slot,dst_addr,offset);
+                store_word(itl,func,src_slot,addr);
                 break;
             }
 
             case 8:
             {
-                store_double(itl,func,src_slot,dst_addr,offset);
+                store_double(itl,func,src_slot,addr);
                 break;
             }
 
@@ -310,11 +291,11 @@ void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot dst_addr,
 }
 
 
-void store_struct(Interloper &itl,Function& func,RegSlot src_slot,AddrSlot dst_addr,u32 size, b32 is_float)
+void store_struct(Interloper &itl,Function& func,RegSlot src_slot,StructAddr addr,u32 size, b32 is_float)
 {
     if(is_float)
     {
-        load_struct_internal(itl,func,op_type::store_struct_f64,src_slot,dst_addr);
+        load_struct_internal(itl,func,op_type::store_struct_f64,src_slot,addr);
     }
 
     else
@@ -324,20 +305,22 @@ void store_struct(Interloper &itl,Function& func,RegSlot src_slot,AddrSlot dst_a
 
         assert(idx <= 3);
 
-        load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,dst_addr);
+        load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,addr);
     }      
 }
 
-void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot dst_addr, u32 size,b32 is_float)
+void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot addr_slot, u32 size,b32 is_float)
 {
-    if(dst_addr.struct_addr)
+    if(addr_slot.struct_addr)
     {
-        store_struct(itl,func,src_slot,dst_addr,size,is_float);
+        const StructAddr struct_addr = {addr_slot.addr};
+        store_struct(itl,func,src_slot,struct_addr,size,is_float);
     }
 
     else
     {
-        store_ptr(itl,func,src_slot,dst_addr.slot,dst_addr.offset,size,is_float);
+        const PointerAddr pointer_addr = {addr_slot.addr}; 
+        store_ptr(itl,func,src_slot,pointer_addr,size,is_float);
     }
 }
 
@@ -363,6 +346,6 @@ Option<itl_error> do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,
 
 Option<itl_error> do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const TypedAddr dst_addr = {make_addr(reg.slot,offset),reg.type};
-    return do_addr_store(itl,func,src_slot,dst_addr);
+    const TypedAddr addr = {make_base_addr(reg.slot,offset),reg.type};
+    return do_addr_store(itl,func,src_slot,addr);
 }

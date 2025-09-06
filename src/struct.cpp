@@ -139,7 +139,7 @@ Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function
         // generate a new offset
         // NOTE: make sure this is a copy
         auto addr_member = addr_slot;
-        addr_member.offset += member.offset;
+        addr_member.addr.offset += member.offset;
 
         const auto err = struct_list_write(itl,func,addr_member,member,init.expr);
         if(!!err)

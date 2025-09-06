@@ -703,19 +703,36 @@ inline bool operator == (const Operand& v1, const Operand &v2)
     assert(false);
 }
 
-struct AddrSlot
+struct Addr
 {
     RegSlot base;
     RegSlot index = make_spec_reg_slot(spec_reg::null);
     u32 scale = 1;
     u32 offset = 0;
+};
+
+// Subtyped for passing to emitters to ensure context is correct.
+struct PointerAddr
+{
+    Addr addr;
+};
+
+struct StructAddr
+{
+    Addr addr;
+};
+
+struct AddrSlot
+{
+    Addr addr;
 
     // slot is not a pointer and refers to an actual variable
     b32 struct_addr = false;
 };
 
+
 AddrSlot make_struct_addr(RegSlot slot, u32 offset);
-AddrSlot make_addr(RegSlot slot, u32 offset);
+AddrSlot make_base_addr(RegSlot slot, u32 offset);
 
 struct Opcode
 {
@@ -796,14 +813,13 @@ inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLA
     return Opcode {type,v1,v2,v3,0,0};
 }
 
-
 inline Opcode make_directive_instr(op_type type, Operand v1, Operand v2, Operand v3)
 {
     return Opcode {type,v1,v2,v3,0,0};
 }
 
 
-inline Opcode make_addr_instr(op_type type, RegSlot v1, AddrSlot addr)
+inline Opcode make_addr_instr(op_type type, RegSlot v1, Addr addr)
 {
     return Opcode{type, make_reg_operand(v1),make_reg_operand(addr.base),make_reg_operand(addr.index),addr.scale,addr.offset};
 }
@@ -852,7 +868,6 @@ inline Opcode make_cond_branch_instr(op_type type, LabelSlot label, RegSlot cond
 {
     return Opcode{type, make_label_operand(label),make_reg_operand(cond),BLANK_OPERAND,0,0};
 }
-
 
 
 inline Opcode make_implicit_instr(op_type type)

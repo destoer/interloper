@@ -219,7 +219,7 @@ void emit_reg1(Interloper& itl, Function& func, RegSlot src)
 
 
 template<const op_type type>
-void emit_store(Interloper& itl, Function& func, RegSlot src, AddrSlot addr)
+void emit_store(Interloper& itl, Function& func, RegSlot src, PointerAddr pointer)
 {
     // sanity checking fmt
     constexpr auto OP_INFO = opcode_three_info(type);
@@ -232,15 +232,15 @@ void emit_store(Interloper& itl, Function& func, RegSlot src, AddrSlot addr)
     static_assert(OP_INFO.args == 3);
 
     handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[0]));
-    handle_src_storage(itl,func,addr.base,is_arg_float_const(OP_INFO.type[1]));
-    handle_src_storage(itl,func,addr.index,is_arg_float_const(OP_INFO.type[2]));
+    handle_src_storage(itl,func,pointer.addr.base,is_arg_float_const(OP_INFO.type[1]));
+    handle_src_storage(itl,func,pointer.addr.index,is_arg_float_const(OP_INFO.type[2]));
 
-    const Opcode opcode = make_addr_instr(type,src,addr);
+    const Opcode opcode = make_addr_instr(type,src,pointer.addr);
     emit_block_func(func,opcode);    
 }
 
 template<const op_type type>
-void emit_load(Interloper& itl, Function& func, RegSlot dst, AddrSlot addr)
+void emit_load(Interloper& itl, Function& func, RegSlot dst, PointerAddr pointer)
 {
     // sanity checking fmt
     constexpr auto OP_INFO = opcode_three_info(type);
@@ -252,10 +252,10 @@ void emit_load(Interloper& itl, Function& func, RegSlot dst, AddrSlot addr)
     static_assert(is_arg_src_const(OP_INFO.type[2]));
     static_assert(OP_INFO.args == 3);
 
-    handle_src_storage(itl,func,addr.base,is_arg_float_const(OP_INFO.type[1]));
-    handle_src_storage(itl,func,addr.index,is_arg_float_const(OP_INFO.type[2]));
+    handle_src_storage(itl,func,pointer.addr.base,is_arg_float_const(OP_INFO.type[1]));
+    handle_src_storage(itl,func,pointer.addr.index,is_arg_float_const(OP_INFO.type[2]));
     
-    const Opcode opcode = make_addr_instr(type,dst,addr);
+    const Opcode opcode = make_addr_instr(type,dst,pointer.addr);
     emit_block_func(func,opcode);        
 
     handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));

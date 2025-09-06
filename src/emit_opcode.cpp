@@ -341,80 +341,80 @@ void cmp_unsigned_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot s
     emit_imm2<op_type::cmpugt_imm>(itl,func,dst,src,imm);
 }
 
-void store_byte(Interloper& itl,Function& func, RegSlot src, AddrSlot addr)
+void store_byte(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
     emit_store<op_type::sb>(itl,func,src,addr);
 }
 
-void store_half(Interloper& itl,Function& func, RegSlot src, AddrSlot addr)
+void store_half(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
     emit_store<op_type::sh>(itl,func,src,addr);
 }
 
 
-void store_word(Interloper& itl,Function& func, RegSlot src, AddrSlot addr)
+void store_word(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
     emit_store<op_type::sw>(itl,func,src,addr);
 }
 
-void store_double(Interloper& itl,Function& func, RegSlot src, AddrSlot addr)
+void store_double(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
     emit_store<op_type::sd>(itl,func,src,addr);
 }
 
-void store_float(Interloper& itl,Function& func, RegSlot src, AddrSlot addr)
+void store_float(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
     emit_store<op_type::sf>(itl,func,src,addr);
 }
 
-void load_byte(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_byte(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lb>(itl,func,dst,addr);
 }
 
-void load_half(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_half(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lh>(itl,func,dst,addr);
 }
 
-void load_word(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_word(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lw>(itl,func,dst,addr);
 }
 
-void load_double(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_double(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::ld>(itl,func,dst,addr);
 }
 
-void load_float(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_float(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lf>(itl,func,dst,addr);
 }
 
 
 
-void load_signed_byte(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_signed_byte(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lsb>(itl,func,dst,addr);
 }
 
-void load_signed_half(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_signed_half(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lsh>(itl,func,dst,addr);
 }
 
-void load_signed_word(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void load_signed_word(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lsw>(itl,func,dst,addr);
 }
 
-void lea(Interloper& itl,Function& func, RegSlot dst, AddrSlot addr)
+void lea(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
     emit_load<op_type::lea>(itl,func,dst,addr);
 }
 
-RegSlot lea_res(Interloper& itl,Function& func, AddrSlot addr)
+RegSlot lea_res(Interloper& itl,Function& func, PointerAddr addr)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
     lea(itl,func,tmp,addr);
