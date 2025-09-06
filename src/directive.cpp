@@ -123,20 +123,6 @@ void store_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot
     emit_block_func(func,opcode);
 }
 
-
-void load_struct_u64(Interloper& itl, Function& func, RegSlot dst, StructAddr struct_addr)
-{
-    load_struct_internal(itl,func,op_type::load_struct_u64,dst,struct_addr);
-}
-
-RegSlot load_struct_u64_res(Interloper& itl, Function& func, StructAddr struct_addr)
-{
-    const auto dst = new_tmp(func,GPR_SIZE);
-    load_struct_u64(itl,func,dst,struct_addr);
-
-    return dst;
-}
-
 void lock_reg(Interloper& itl, Function& func, RegSlot reg)
 {
     assert(reg.kind == reg_kind::spec);

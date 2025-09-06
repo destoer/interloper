@@ -200,7 +200,7 @@ Option<itl_error> compile_for_range_idx(Interloper& itl, Function& func, ForRang
 
     const RegSlot index = sym.reg.slot;
 
-    // grab initalizer
+    // grab initializer
     const auto entry_init_type_res = compile_expression(itl,func,cmp_node->left,index);
     if(!entry_init_type_res)
     {
@@ -217,7 +217,8 @@ Option<itl_error> compile_for_range_idx(Interloper& itl, Function& func, ForRang
 
     // compile in cmp for entry
     RegSlot entry_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index,entry_end.slot);
+    const Opcode entry_opcode = make_reg3_instr(cmp_type,entry_cond,index,entry_end.slot);
+    emit_block_internal(func,initial_block,entry_opcode);
 
     // compile the main loop body
     const auto for_block_res = compile_basic_block(itl,func,for_node->block); 
@@ -252,7 +253,8 @@ Option<itl_error> compile_for_range_idx(Interloper& itl, Function& func, ForRang
     const auto exit = *exit_res;
 
     RegSlot exit_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index,exit.slot);
+    const Opcode exit_opcode = make_reg3_instr(cmp_type,exit_cond,index,exit.slot);
+    emit_block_internal(func,end_block,exit_opcode);
 
     // compile in branches
     const BlockSlot exit_block = new_basic_block(itl,func);

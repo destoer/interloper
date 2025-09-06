@@ -1013,6 +1013,11 @@ void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
 
 void rewrite_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spec_reg spec, u32 reg)
 {
+    if(spec == spec_reg::null)
+    {
+        return;
+    }
+
     const u32 location = special_reg_to_reg(alloc.arch,spec);
     auto& reg_file = get_register_file(alloc,find_reg_set(spec));
 

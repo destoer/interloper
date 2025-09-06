@@ -77,8 +77,8 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // float
     {op_group::imm_t,"movf %r, %f",2,{arg_type::dst_float,arg_type::imm,arg_type::none}},
     {op_group::reg_t,"movf %r, %r",2,{arg_type::dst_float,arg_type::src_float,arg_type::none}},
-    {op_group::addr_t,"lf %r, [%i]",2,{arg_type::dst_float,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"sf %r, [%i]",2,{arg_type::src_float,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lf %r, [%i]",3,{arg_type::dst_float,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sf %r, [%i]",3,{arg_type::src_float,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"addf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
     {op_group::reg_t,"subf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
     {op_group::reg_t,"mulf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},

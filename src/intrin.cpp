@@ -33,8 +33,8 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
             load_addr_slot(itl,func,tmp,src_addr,8,false,false);
             store_addr_slot(itl,func,tmp,dst_addr,8,false);
 
-            src_addr.offset += 8;
-            dst_addr.offset += 8;
+            src_addr.addr.offset += 8;
+            dst_addr.addr.offset += 8;
         }    
     }
 
@@ -55,12 +55,12 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
 
         const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
-        collapse_struct_offset(itl,func,&src_addr);
-        collapse_struct_offset(itl,func,&dst_addr);
+        const RegSlot src_ptr = collapse_struct_addr(itl,func,src_addr);
+        const RegSlot dst_ptr = collapse_struct_addr(itl,func,dst_addr);
 
         const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
-        const TypedReg src = {src_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-        const TypedReg dst = {dst_addr.slot,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+        const TypedReg src = {src_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+        const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
         pass_arg(itl,func,pass,imm,2);
         pass_arg(itl,func,pass,src,1);
         pass_arg(itl,func,pass,dst,0);
@@ -82,15 +82,15 @@ Option<itl_error> ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 s
     static constexpr u32 INLINE_LIMIT = 256;
 
     // multiple of 8 and under the copy limit
-    if(size < INLINE_LIMIT && (size & 7) == 0 && !itl.stack_alloc) 
+    if(size < INLINE_LIMIT && (size & (GPR_SIZE - 1)) == 0 && !itl.stack_alloc) 
     {
         const auto zero = imm_zero(itl,func);
 
-        const u32 count = size / 8;
+        const u32 count = size / GPR_SIZE;
 
         for(u32 i = 0; i < count; i++)
         {
-            store_double(itl,func,zero,dst_ptr,i * 8);
+            store_ptr(itl,func,zero,dst_ptr,i * GPR_SIZE,GPR_SIZE,false);
         }    
     }
 

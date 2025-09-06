@@ -732,7 +732,8 @@ struct AddrSlot
 
 
 AddrSlot make_struct_addr(RegSlot slot, u32 offset);
-AddrSlot make_base_addr(RegSlot slot, u32 offset);
+AddrSlot make_pointer_addr(RegSlot slot, u32 offset);
+Addr make_addr(RegSlot slot, u32 offset);
 
 struct Opcode
 {
@@ -1062,7 +1063,7 @@ void destroy_emitter(IrEmitter& emitter);
 
 struct TypedAddr
 {
-    AddrSlot addr;
+    AddrSlot addr_slot;
     Type* type = nullptr;
 };
 

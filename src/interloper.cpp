@@ -1223,7 +1223,7 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
 
                 auto dst_addr = *addr_res;
 
-                return compile_init_list(itl,func,dst_addr.type,dst_addr.addr,assign_node->right);
+                return compile_init_list(itl,func,dst_addr.type,dst_addr.addr_slot,assign_node->right);
             }
 
             else
@@ -1568,7 +1568,7 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
                 }
 
                 StructInitializerNode* struct_initializer = (StructInitializerNode*)line;
-                const AddrSlot dst = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                const AddrSlot dst = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
                 const auto struct_type_res = assign_struct_initializer(itl,func,dst,struct_initializer);
 
                 if(!struct_type_res)

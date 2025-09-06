@@ -379,7 +379,7 @@ TypeResult push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_ty
 
         // need to save SP as it will get pushed last
         const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
-        const auto dst_addr = make_addr(dst_ptr,0);
+        const auto dst_addr = make_pointer_addr(dst_ptr,0);
 
         const auto src_addr = make_struct_addr(arg_reg.slot,0);
 

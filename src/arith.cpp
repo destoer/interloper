@@ -402,7 +402,8 @@ TypeResult compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node
     // First block needs to jump to exit
     if(depth == 0)
     {
-        emit_block_internal(func,left_block,op_type::exit_block);
+        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
+        emit_block_internal(func,left_block,exit_block);
     }
 
     // Give this a new block we can jump over
@@ -423,7 +424,8 @@ TypeResult compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node
     // Any further blocks need an exit jump after compilation
     else
     {
-        emit_block_internal(func,right_block,op_type::exit_block);
+        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
+        emit_block_internal(func,right_block,exit_block);
     }
 
     return make_builtin(itl,builtin_type::bool_t);
@@ -624,7 +626,7 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
                     case spec_reg::rv_struct:
                     {
                         const auto src_addr = make_struct_addr(src.slot,0);
-                        const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                        const auto dst_addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
 
                         const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst.type));
                         if(!!memcpy_err)
@@ -732,7 +734,8 @@ TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_sl
 
             const auto index = *index_res;
 
-            collapse_struct_addr(itl,func,index.addr,dst_slot);
+            const auto tmp = collapse_struct_addr(itl,func,index.addr_slot);
+            mov_reg(itl,func,dst_slot,tmp);
             return make_reference(itl,index.type);
         }
 

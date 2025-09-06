@@ -121,7 +121,7 @@ OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, const Opcod
 
 OpcodeNode* emit_block_func(Function& func,const Opcode& opcode)
 {
-    return emit_block_func(func,opcode);
+    return emit_block_internal(func,cur_block(func),opcode);
 }
 
 template<const op_type type>

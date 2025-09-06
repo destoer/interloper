@@ -26,20 +26,20 @@ TypedAddrResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
 
     if(!is_integer(subscript.type))
     {
-        return compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integeral expr for array subscript got %s",
+        return compile_error(itl,itl_error::int_type_error,"[COMPILE]: expected integral expr for array subscript got %s",
             type_name(itl,subscript.type).buf); 
     }
 
     if(is_value_known(subscript))
     {
         const u32 offset = size * subscript.known_value;
-        return TypedAddr {make_addr(ptr_slot,offset),plain};
+        return TypedAddr {make_pointer_addr(ptr_slot,offset),plain};
     }
 
     const RegSlot offset = mul_imm_res(itl,func,subscript.slot,size);  
     const RegSlot index = add_res(itl,func,ptr_slot,offset);
 
-    return TypedAddr {make_addr(index,0),plain};
+    return TypedAddr {make_pointer_addr(index,0),plain};
 }
 
 // indexes off a given type + ptr
@@ -170,22 +170,22 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
     // NOTE: this can give out a fixed array pointer.
     // this needs conversion by the host into a VLA, this is not obtainable by
     // taking a pointer to an array,
-    return TypedAddr{make_addr(last_slot,known_offset),accessed_type}; 
+    return TypedAddr{make_pointer_addr(last_slot,known_offset),accessed_type}; 
 }
 
-// TODO: these multidimensional handwave vla's
+// TODO: these multidimensional hand wave vla's
 
-RegSlot load_arr_data(Interloper& itl,Function& func,const TypedAddr& addr_slot)
+RegSlot load_arr_data(Interloper& itl,Function& func,const TypedAddr& src)
 {
-    if(is_runtime_size(addr_slot.type))
+    if(is_runtime_size(src.type))
     {
-        return load_struct_u64_res(itl,func,addr_slot.addr);
+        return load_addr_gpr_res(itl,func,src.addr_slot);
     }
 
     // fixed size, array ptr is stored in its own slot!
     else
     {
-        return collapse_struct_res(itl,func,addr_slot.addr);
+        return collapse_struct_addr(itl,func,src.addr_slot);
     }
 }
 
@@ -194,7 +194,7 @@ RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg)
     if(is_runtime_size(reg.type))
     {
         const auto addr_slot = make_struct_addr(reg.slot,0);
-        return load_struct_u64_res(itl,func,addr_slot);
+        return load_addr_gpr_res(itl,func,addr_slot);
     }
 
     // fixed size, array ptr is stored in its own slot!
@@ -223,7 +223,7 @@ void store_arr_data(Interloper& itl, Function& func, RegSlot slot, RegSlot data)
 
     else
     {
-        const auto dst_addr = make_struct_addr(slot,0);
+        const auto dst_addr = StructAddr { make_addr(slot,0) };
         store_struct(itl,func,data,dst_addr,GPR_SIZE,false);
     }
 }
@@ -246,7 +246,7 @@ void store_arr_len(Interloper& itl, Function& func, RegSlot slot,RegSlot len)
 
     else
     {
-        const auto dst_addr = make_struct_addr(slot,GPR_SIZE);
+        const auto dst_addr = StructAddr { make_addr(slot,GPR_SIZE) };
         store_struct(itl,func,len,dst_addr,GPR_SIZE,false);
     }
 }
@@ -256,7 +256,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg)
     if(is_runtime_size(reg.type))
     {
         const auto addr_slot = make_struct_addr(reg.slot,GPR_SIZE);
-        return load_struct_u64_res(itl,func,addr_slot);
+        return load_addr_gpr_res(itl,func,addr_slot);
     }
 
     ArrayType* array_type = (ArrayType*)reg.type;
@@ -265,16 +265,16 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg)
 }
 
 
-RegSlot load_arr_len(Interloper& itl,Function& func,const TypedAddr& addr_slot)
+RegSlot load_arr_len(Interloper& itl,Function& func,const TypedAddr& src)
 {
-    if(is_runtime_size(addr_slot.type))
+    if(is_runtime_size(src.type))
     {
-        AddrSlot addr_copy = addr_slot.addr;
-        addr_copy.offset += GPR_SIZE;
-        return load_struct_u64_res(itl,func,addr_copy);
+        AddrSlot addr_copy = src.addr_slot;
+        addr_copy.addr.offset += GPR_SIZE;
+        return load_addr_gpr_res(itl,func,addr_copy);
     }
 
-    ArrayType* array_type = (ArrayType*)addr_slot.type;
+    ArrayType* array_type = (ArrayType*)src.type;
     return mov_imm_res(itl,func,array_type->size);   
 }
 
@@ -335,7 +335,7 @@ TypeResult read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
     // fixed array needs conversion by host
     if(is_fixed_array(index.type))
     {
-        mov_reg(itl,func,dst_slot,collapse_struct_res(itl,func,index.addr));
+        mov_reg(itl,func,dst_slot,collapse_struct_addr(itl,func,index.addr_slot));
         return index.type;
     }
 
@@ -402,7 +402,7 @@ Option<itl_error> assign_vla_initializer(Interloper& itl, Function& func, Record
     }
 
     store_addr_slot(itl,func,ptr.slot,*addr_slot,GPR_SIZE,false);
-    addr_slot->offset += GPR_SIZE;
+    addr_slot->addr.offset += GPR_SIZE;
 
     const auto len_res = compile_oper(itl,func,list->nodes[1]);
     if(!len_res)
@@ -419,7 +419,7 @@ Option<itl_error> assign_vla_initializer(Interloper& itl, Function& func, Record
     }
 
     store_addr_slot(itl,func,len.slot,*addr_slot,GPR_SIZE,false);
-    addr_slot->offset += GPR_SIZE;
+    addr_slot->addr.offset += GPR_SIZE;
     return option::none;
 }
 
@@ -443,12 +443,12 @@ Option<itl_error> traverse_string_initializer_internal(Interloper& itl,Function&
             const RegSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
             store_addr_slot(itl,func,arr_data,*addr_slot,GPR_SIZE,false);
 
-            addr_slot->offset += GPR_SIZE;
+            addr_slot->addr.offset += GPR_SIZE;
 
             const RegSlot arr_size = mov_imm_res(itl,func,literal.size);
             store_addr_slot(itl,func,arr_size,*addr_slot,GPR_SIZE,false);
 
-            addr_slot->offset += GPR_SIZE;
+            addr_slot->addr.offset += GPR_SIZE;
             return option::none;
         }
 
@@ -577,7 +577,7 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
                     }
                 }
 
-                addr_slot->offset += size;
+                addr_slot->addr.offset += size;
             }
         }
 
@@ -606,7 +606,7 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
                 {
                     return store_err;
                 }
-                addr_slot->offset += size;
+                addr_slot->addr.offset += size;
             }
         }           
     }
@@ -710,7 +710,7 @@ Option<itl_error> compile_arr_assign(Interloper& itl, Function& func, AstNode* n
             else 
             {
                 const RegSlot ptr_slot = load_arr_data(itl,func,arr);
-                const auto addr_slot = make_addr(ptr_slot,0);
+                const auto addr_slot = make_pointer_addr(ptr_slot,0);
                 return traverse_arr_initializer(itl,func,node,addr_slot,arr.type);
             }
             break;
@@ -779,7 +779,7 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
 {
     if(is_fixed_array(type))
     {
-        // this has not been inited by traverse_arr_initializer
+        // this has not been initialized by traverse_arr_initializer
         if(type->size == DEDUCE_SIZE)
         {
             return compile_error(itl,itl_error::missing_initializer,"auto sized array does not have an initializer");
@@ -792,7 +792,7 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
             for(u32 i = 0; i < type->size; i++)
             {
                 auto sub_addr = addr_slot;
-                sub_addr.offset += (i * next_type->sub_size);
+                sub_addr.addr.offset += (i * next_type->sub_size);
 
                 const auto recur_err = default_construct_arr(itl,func,next_type,sub_addr);
                 if(!!recur_err)
@@ -819,14 +819,14 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
                 {
                     return struct_err;
                 }
-                struct_addr.offset += structure.size;
+                struct_addr.addr.offset += structure.size;
             }
         }
 
         // final plain values
         else
         {
-            const RegSlot ptr = collapse_struct_res(itl,func,addr_slot);
+            const RegSlot ptr = collapse_struct_addr(itl,func,addr_slot);
             return ir_zero(itl,func,ptr,type->size * type->sub_size);
         }
     }
@@ -837,10 +837,10 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
         const auto zero = mov_imm_res(itl,func,0);
 
         store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE,false);
-        addr_slot.offset += GPR_SIZE;
+        addr_slot.addr.offset += GPR_SIZE;
 
         store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE,false);
-        addr_slot.offset += GPR_SIZE;
+        addr_slot.addr.offset += GPR_SIZE;
     }
 
     return option::none;       
@@ -852,7 +852,7 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
     // so we need to finish it up later
     OpcodeNode* alloc = alloc_slot(itl,func,make_sym_reg_slot(slot),true);
 
-    // has an initalizer
+    // has an initializer
     if(decl_node->expr)
     {
         auto& array = sym_from_slot(itl.symbol_table,slot);
@@ -892,7 +892,7 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
 
         else
         {
-            const auto addr_slot = make_addr(array.reg.slot,0);
+            const auto addr_slot = make_pointer_addr(array.reg.slot,0);
             const auto construct_err = default_construct_arr(itl,func,array_type,addr_slot);
             if(!!construct_err)
             {
