@@ -285,7 +285,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             const auto src = node->value.v[0];
 
             node->value = make_raw_op(op_type::alloc_stack,8);
-            node = insert_after(block.list,node,make_op(op_type::sf,src,make_spec_operand(spec_reg::sp),make_imm_operand(0)));
+            node = insert_after(block.list,node,make_addr_op(op_type::sf,src,make_spec_operand(spec_reg::sp),make_spec_operand(spec_reg::null),1,0));
             break;
         }
 

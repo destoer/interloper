@@ -166,7 +166,7 @@ OpcodeNode* emit_popm_float(Interloper& itl, Block& block, OpcodeNode* node, u32
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_raw_op(op_type::lf,i,sp,offset));
+            node = insert_at(block.list,node,make_raw_base_addr_op(op_type::lf,i,sp,offset));
             node = node->next;
             offset -= FLOAT_SIZE;
         }
@@ -197,7 +197,7 @@ OpcodeNode* emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_raw_op(op_type::sf,i,sp,offset));
+            node = insert_at(block.list,node,make_raw_base_addr_op(op_type::sf,i,sp,offset));
             node = node->next;
             offset -= FLOAT_SIZE;
         }
