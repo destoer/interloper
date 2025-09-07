@@ -866,7 +866,7 @@ inline Opcode make_imm2_instr(op_type type, RegSlot v1, RegSlot v2, u64 imm)
     return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),make_imm_operand(imm),0,0};
 }
 
-inline Opcode make_float_imm1_instr(op_type type, RegSlot v1, u64 decimal)
+inline Opcode make_float_imm1_instr(op_type type, RegSlot v1, f64 decimal)
 {
     return Opcode{type, make_reg_operand(v1),make_decimal_operand(decimal),BLANK_OPERAND,0,0};
 }
