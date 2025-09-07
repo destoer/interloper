@@ -125,7 +125,7 @@ OpcodeNode* emit_popm(Interloper& itl, Block& block, OpcodeNode* node, u32 bitse
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_raw_op(op_type::pop,i,0,0));
+            node = insert_at(block.list,node,make_lowered_reg1_instr(op_type::pop,i));
             node = node->next;
         }
     }
@@ -141,7 +141,7 @@ OpcodeNode* emit_pushm(Interloper& itl, Block& block, OpcodeNode* node,u32 bitse
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_raw_op(op_type::push,i,0,0));
+            node = insert_at(block.list,node,make_lowered_reg1_instr(op_type::push,i));
             node = node->next;
         }
     }
@@ -166,13 +166,13 @@ OpcodeNode* emit_popm_float(Interloper& itl, Block& block, OpcodeNode* node, u32
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_raw_base_addr_op(op_type::lf,i,sp,offset));
+            node = insert_at(block.list,node,make_lowered_base_addr_instr(op_type::lf,i,sp,offset));
             node = node->next;
             offset -= FLOAT_SIZE;
         }
     }
 
-    node = insert_at(block.list,node,make_raw_op(op_type::add_imm2,sp,size,0));
+    node = insert_at(block.list,node,make_lowered_imm2_instr(op_type::add_imm2,sp,size));
     node = node->next;
 
     return node;
@@ -190,14 +190,14 @@ OpcodeNode* emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32
 
     const u32 sp = arch_sp(itl.arch);
 
-    node = insert_at(block.list,node,make_raw_op(op_type::sub_imm2,sp,size,0));
+    node = insert_at(block.list,node,make_lowered_imm2_instr(op_type::sub_imm2,sp,size));
     node = node->next;
 
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_raw_base_addr_op(op_type::sf,i,sp,offset));
+            node = insert_at(block.list,node,make_lowered_base_addr_instr(op_type::sf,i,sp,offset));
             node = node->next;
             offset -= FLOAT_SIZE;
         }

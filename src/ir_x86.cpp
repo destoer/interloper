@@ -24,7 +24,7 @@ void reload_fixed_reg_stack(LinearAlloc alloc, Block& block, OpcodeNode* node, R
     else
     {
         reload_reg(alloc,block,node,dst,reg,insertion_type::before);
-        node->value.v[arg] = make_raw_operand(reg);
+        node->value.v[arg] = make_lowered_operand(reg);
     }
 }
 
@@ -49,8 +49,8 @@ OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode*
     allocate_and_rewrite(alloc,block,node,1);
 
     // NOTE: these are both fully rewritten so we can just dump them in into the instruction stream
-    static const Opcode UNSIGNED_SETUP = make_raw_op(op_type::mov_imm,u32(x86_reg::rdx),0);
-    static const Opcode SIGNED_SETUP = make_raw_op(op_type::cqo);
+    static const Opcode UNSIGNED_SETUP = make_lowered_imm1_instr(op_type::mov_imm,u32(x86_reg::rdx));
+    static const Opcode SIGNED_SETUP = make_lowered_implicit_instr(op_type::cqo);
 
     const bool is_unsigned = type == op_type::udiv_x86 || type == op_type::umod_x86;
     insert_at(block.list,node,is_unsigned? UNSIGNED_SETUP : SIGNED_SETUP);
@@ -67,7 +67,7 @@ OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode*
 
         }
 
-        node->value.v[0] = make_raw_operand(out_reg);
+        node->value.v[0] = make_lowered_operand(out_reg);
     }
 
     else

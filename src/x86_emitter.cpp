@@ -1136,11 +1136,11 @@ void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
 template<typename FUNC_PTR>
 void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
 {
-    const auto dst = x86_reg(opcode.v[0].raw);
-    auto addr = x86_reg(opcode.v[1].raw);
+    const auto dst = x86_reg(opcode.v[0].lowered);
+    auto addr = x86_reg(opcode.v[1].lowered);
 
     Option<x86_reg> index = option::none; 
-    auto raw_index = u32(opcode.v[2].raw);
+    auto raw_index = u32(opcode.v[2].lowered);
     
     if(raw_index != u32(spec_reg::null))
     {
@@ -1337,9 +1337,9 @@ void setfne(AsmEmitter& emitter, x86_reg dst)
 
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {
-    const auto dst = x86_reg(opcode.v[0].raw);
-    const auto v1 = x86_reg(opcode.v[1].raw);
-    const auto v2 = x86_reg(opcode.v[2].raw);
+    const auto dst = x86_reg(opcode.v[0].lowered);
+    const auto v1 = x86_reg(opcode.v[1].lowered);
+    const auto v2 = x86_reg(opcode.v[2].lowered);
 
     switch(opcode.op)
     {
@@ -1363,7 +1363,7 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::add_imm:
         {
-            add_imm(emitter,dst,v1,opcode.v[2].raw);
+            add_imm(emitter,dst,v1,opcode.v[2].lowered);
             break;
         }
 

@@ -488,7 +488,7 @@ void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
 
     if(is_dirty(regs,reg) || alloc.stack_only)
     {
-        const auto opcode = make_op(op_type::spill,make_raw_operand(reg),make_directive_reg(slot),make_raw_operand(alloc.stack_alloc.stack_offset));
+        const auto opcode = make_op(op_type::spill,make_lowered_operand(reg),make_directive_reg(slot),make_lowered_operand(alloc.stack_alloc.stack_offset));
         insert_node(block.list,node,opcode,type);
     }
 
@@ -777,7 +777,7 @@ void destroy_linear_alloc(LinearAlloc& alloc)
 void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
-    const auto opcode = make_op(op_type::load,make_raw_operand(reg),make_directive_reg(slot),make_raw_operand(alloc.stack_alloc.stack_offset));
+    const auto opcode = make_op(op_type::load,make_lowered_operand(reg),make_directive_reg(slot),make_lowered_operand(alloc.stack_alloc.stack_offset));
     log_reg(alloc.print,*alloc.table,"reload %r to %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
 
     // Just loaded this register is clean
@@ -913,7 +913,7 @@ void allocate_and_rewrite_var_stack(LinearAlloc& alloc,Block& block,OpcodeNode* 
     const u32 scratch_reg = reg_file.stack_scratch_registers[reg];
     
     // rewrite in the register
-    node->value.v[reg] = make_raw_operand(scratch_reg);
+    node->value.v[reg] = make_lowered_operand(scratch_reg);
 
     // src do a reload
     if(is_src) 
@@ -959,7 +959,7 @@ void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
     // var is allocated
     if(is_reg_locally_allocated(ir_reg))
     {
-        node->value.v[reg] = make_raw_operand(ir_reg.local_reg);
+        node->value.v[reg] = make_lowered_operand(ir_reg.local_reg);
     }
 
     // Aquire a new register and reload it
@@ -968,7 +968,7 @@ void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, 
         acquire_local_reg(alloc,ir_reg,reg_file,block,node);
         log_reg(alloc.print,*alloc.table,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
 
-        node->value.v[reg] = make_raw_operand(ir_reg.local_reg);
+        node->value.v[reg] = make_lowered_operand(ir_reg.local_reg);
 
         // src do a reload
         if(is_src) 
@@ -1049,7 +1049,7 @@ void rewrite_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spe
 
     // make sure the spec regs are marked as used
     mark_used(reg_file,location);
-    node->value.v[reg] = make_raw_operand(location);
+    node->value.v[reg] = make_lowered_operand(location);
 }
 
 void allocate_and_rewrite_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg)
@@ -1110,15 +1110,15 @@ void allocate_and_rewrite(LinearAlloc& alloc, Block& block, OpcodeNode* node, u3
     {
         case operand_type::decimal:
         {
-            operand.raw = bit_cast_from_f64(operand.decimal);
-            operand.type = operand_type::raw;
+            operand.lowered = bit_cast_from_f64(operand.decimal);
+            operand.type = operand_type::lowered;
             break;
         }
 
         case operand_type::imm: 
         {
-            operand.raw = operand.imm;
-            operand.type = operand_type::raw;
+            operand.lowered = operand.imm;
+            operand.type = operand_type::lowered;
             break;
         }
 
@@ -1129,7 +1129,7 @@ void allocate_and_rewrite(LinearAlloc& alloc, Block& block, OpcodeNode* node, u3
         }
 
         // allready written
-        case operand_type::raw: break;
+        case operand_type::lowered: break;
         
         // rewrote on subsequent pass
         case operand_type::label: break;
@@ -1267,7 +1267,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                     else
                     {
                         const bool is_float = ir_reg.flags & REG_FLOAT;
-                        const auto opcode = make_raw_op(is_float? op_type::movf_reg : op_type::mov_reg,ir_reg.global_reg,ir_reg.local_reg);
+                        const auto opcode = make_lowered_reg2_instr(is_float? op_type::movf_reg : op_type::mov_reg,ir_reg.global_reg,ir_reg.local_reg);
                         insert_node(block.list,block.list.finish,opcode,insert_type);
 
                         log_reg(alloc.print,*alloc.table,"Copying %r from %s to %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
@@ -1327,7 +1327,7 @@ void force_into_reg(LinearAlloc& alloc,Block& block, OpcodeNode* node,RegisterFi
     // Copy the register and then free the other one
     else
     {
-        const auto copy = make_raw_op(ir_reg.flags & REG_FLOAT? op_type::movf_reg : op_type::mov_reg,reg, ir_reg.local_reg);
+        const auto copy = make_lowered_reg2_instr(ir_reg.flags & REG_FLOAT? op_type::movf_reg : op_type::mov_reg,reg, ir_reg.local_reg);
         free_ir_reg(ir_reg,reg_file);
         take_local_reg(reg_file,ir_reg,reg);
         insert_at(block.list,node,copy);

@@ -187,13 +187,13 @@ void format_address(StringBuffer& buffer, const Opcode& opcode, const SymbolTabl
     if(format_reg)
     {
         // Format base
-        fmt_raw_register(buffer,opcode.v[1].raw,arch);
+        fmt_raw_register(buffer,opcode.v[1].lowered,arch);
 
 
-        if(u32(opcode.v[2].raw) != u32(spec_reg::null))
+        if(u32(opcode.v[2].lowered) != u32(spec_reg::null))
         {
             push_string(buffer,opcode.scale == 1? " + " : " + (");
-            fmt_raw_register(buffer,opcode.v[2].raw,arch);
+            fmt_raw_register(buffer,opcode.v[2].lowered,arch);
 
             char scale[40];
             const u32 scale_len = sprintf(scale,opcode.scale == 1? "" : " * 0x%x)",opcode.scale);
@@ -261,7 +261,7 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table,b32 f
 
             if(format_reg)
             {
-                fmt_raw_specifier(buffer,table,specifier,opcode.v[args++].raw,arch);
+                fmt_raw_specifier(buffer,table,specifier,opcode.v[args++].lowered,arch);
             }
 
             else

@@ -451,8 +451,8 @@ enum class operand_type
     label,
     // Register thatt should not be re written
     directive_reg,
-    // Post rewrite raw operaend
-    raw,
+    // Post rewrite
+    lowered,
 };
 
 
@@ -675,7 +675,7 @@ struct Operand
     {
         f64 decimal;
         u64 imm;
-        u64 raw;
+        u64 lowered;
         RegSlot reg = {INVALID_SYM_REG_SLOT};
         LabelSlot label;
     };
@@ -696,7 +696,7 @@ inline bool operator == (const Operand& v1, const Operand &v2)
         case operand_type::imm: return v1.imm == v2.imm;
         case operand_type::reg: return v1.reg == v2.reg;
         case operand_type::label: return v1.label == v2.label;
-        case operand_type::raw: return v1.raw == v2.raw;
+        case operand_type::lowered: return v1.lowered == v2.lowered;
         case operand_type::directive_reg: return v1.reg == v2.reg; 
     }
 
@@ -779,11 +779,11 @@ inline Operand make_label_operand(LabelSlot slot)
     return oper;
 }
 
-inline Operand make_raw_operand(u64 value)
+inline Operand make_lowered_operand(u64 value)
 {
     Operand oper;
-    oper.raw = value;
-    oper.type = operand_type::raw;
+    oper.lowered = value;
+    oper.type = operand_type::lowered;
 
     return oper;
 }
@@ -804,14 +804,36 @@ inline Operand make_directive_reg(RegSlot slot)
 
 static const Operand BLANK_OPERAND = BLANK_OPERAND;
 
-inline Opcode make_raw_op(op_type type, u64 v1 = 0, u64 v2 = 0, u64 v3 = 0)
+inline Opcode make_lowered_implicit_instr(op_type type)
 {
-    return Opcode {type,make_raw_operand(v1),make_raw_operand(v2),make_raw_operand(v3),0,0};
+    return Opcode {type, BLANK_OPERAND,BLANK_OPERAND,BLANK_OPERAND,0,0};
 }
 
-inline Opcode make_raw_base_addr_op(op_type type, u64 dst, u64 base, u32 offset)
+inline Opcode make_lowered_reg1_instr(op_type type, u64 r1)
 {
-    return Opcode {type,make_raw_operand(dst),make_raw_operand(base),make_raw_operand(u32(spec_reg::null)),1,offset};
+    return Opcode {type,make_lowered_operand(r1),BLANK_OPERAND,BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_lowered_reg2_instr(op_type type, u64 r1, u64 r2)
+{
+    return Opcode {type,make_lowered_operand(r1),make_lowered_operand(r2),BLANK_OPERAND,0,0};
+}
+
+
+inline Opcode make_lowered_imm1_instr(op_type type, u64 imm)
+{
+    return Opcode {type,make_lowered_operand(imm),BLANK_OPERAND,BLANK_OPERAND,0,0};
+}
+
+inline Opcode make_lowered_imm2_instr(op_type type, u64 r1, u64 imm)
+{
+    return Opcode {type,make_lowered_operand(r1),make_lowered_operand(imm),BLANK_OPERAND,0,0};
+}
+
+
+inline Opcode make_lowered_base_addr_instr(op_type type, u64 dst, u64 base, u32 offset)
+{
+    return Opcode {type,make_lowered_operand(dst),make_lowered_operand(base),make_lowered_operand(u32(spec_reg::null)),1,offset};
 }
 
 inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
@@ -851,22 +873,22 @@ inline Opcode make_reg3_instr(op_type type, RegSlot v1, RegSlot v2, RegSlot v3)
     return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),make_reg_operand(v3),0,0};
 }
 
-inline Opcode make_imm0_instr(op_type type, u64 imm)
+inline Opcode make_imm1_instr(op_type type, u64 imm)
 {
     return Opcode{type, make_imm_operand(imm),BLANK_OPERAND,BLANK_OPERAND,0,0};
 }
 
-inline Opcode make_imm1_instr(op_type type, RegSlot v1, u64 imm)
+inline Opcode make_imm2_instr(op_type type, RegSlot v1, u64 imm)
 {
     return Opcode{type, make_reg_operand(v1),make_imm_operand(imm),BLANK_OPERAND,0,0};
 }
 
-inline Opcode make_imm2_instr(op_type type, RegSlot v1, RegSlot v2, u64 imm)
+inline Opcode make_imm3_instr(op_type type, RegSlot v1, RegSlot v2, u64 imm)
 {
     return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),make_imm_operand(imm),0,0};
 }
 
-inline Opcode make_float_imm1_instr(op_type type, RegSlot v1, f64 decimal)
+inline Opcode make_float_imm2_instr(op_type type, RegSlot v1, f64 decimal)
 {
     return Opcode{type, make_reg_operand(v1),make_decimal_operand(decimal),BLANK_OPERAND,0,0};
 }

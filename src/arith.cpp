@@ -82,7 +82,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg
             const op_type type = arith_info.imm_form;
             if constexpr(type != op_type::none)
             {
-                emit_imm2<type>(itl,func,dst_slot,left.slot,right.known_value);
+                emit_imm3<type>(itl,func,dst_slot,left.slot,right.known_value);
                 return true;
             }
         }
@@ -156,7 +156,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
             if(is_value_known(right))
             {
                 static constexpr op_type imm_type = arith_info.imm_form;
-                emit_imm2<imm_type>(itl,func,dst_slot,left.slot,size * right.known_value);
+                emit_imm3<imm_type>(itl,func,dst_slot,left.slot,size * right.known_value);
             }
 
             else

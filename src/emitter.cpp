@@ -262,7 +262,7 @@ void emit_load(Interloper& itl, Function& func, RegSlot dst, PointerAddr pointer
 }
 
 template<const op_type type>
-void emit_imm1(Interloper& itl, Function& func, RegSlot dst, u64 imm)
+void emit_imm2(Interloper& itl, Function& func, RegSlot dst, u64 imm)
 {
     // sanity checking fmt
     constexpr auto OP_INFO = opcode_three_info(type);
@@ -273,14 +273,14 @@ void emit_imm1(Interloper& itl, Function& func, RegSlot dst, u64 imm)
     static_assert(OP_INFO.type[1] == arg_type::imm);
     static_assert(OP_INFO.args == 2);
 
-    const Opcode opcode = make_imm1_instr(type,dst,imm);
+    const Opcode opcode = make_imm2_instr(type,dst,imm);
     emit_block_func(func,opcode);    
 
     handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
 }
 
 template<const op_type type>
-void emit_imm0(Interloper& itl, Function& func, u64 imm)
+void emit_imm1(Interloper& itl, Function& func, u64 imm)
 {
     UNUSED(itl);
 
@@ -292,12 +292,12 @@ void emit_imm0(Interloper& itl, Function& func, u64 imm)
     static_assert(OP_INFO.type[0] == arg_type::imm);
     static_assert(OP_INFO.args == 1);
 
-    const Opcode opcode = make_imm0_instr(type,imm);
+    const Opcode opcode = make_imm1_instr(type,imm);
     emit_block_func(func,opcode);    
 }
 
 template<const op_type type>
-void emit_imm2(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
+void emit_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
     // sanity checking fmt
     constexpr auto OP_INFO = opcode_three_info(type);
@@ -311,14 +311,14 @@ void emit_imm2(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 im
 
     handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[1]));
 
-    const Opcode opcode = make_imm2_instr(type,dst,src,imm);
+    const Opcode opcode = make_imm3_instr(type,dst,src,imm);
     emit_block_func(func,opcode);    
 
     handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
 }
 
 template<const op_type type>
-void emit_fp_imm1(Interloper& itl, Function& func, RegSlot dst, f64 decimal)
+void emit_fp_imm2(Interloper& itl, Function& func, RegSlot dst, f64 decimal)
 {
     // sanity checking fmt
     constexpr auto OP_INFO = opcode_three_info(type);
@@ -329,7 +329,7 @@ void emit_fp_imm1(Interloper& itl, Function& func, RegSlot dst, f64 decimal)
     static_assert(OP_INFO.type[1] == arg_type::imm);
     static_assert(OP_INFO.args == 2);
 
-    const Opcode opcode = make_float_imm1_instr(type,dst,decimal);
+    const Opcode opcode = make_float_imm2_instr(type,dst,decimal);
     emit_block_func(func,opcode);    
 
     handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));

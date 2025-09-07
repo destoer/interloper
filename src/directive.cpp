@@ -51,7 +51,7 @@ RegSlot addrof_res(Interloper& itl, Function& func, StructAddr struct_addr)
 
 void clean_args(Interloper& itl, Function& func, u32 v)
 {
-    emit_imm0<op_type::clean_args>(itl,func,v);
+    emit_imm1<op_type::clean_args>(itl,func,v);
 }
 
 void spill_all(Interloper& itl, Function& func)
@@ -72,7 +72,7 @@ void emit_exit_block(Interloper& itl, Function& func)
 
 void pool_addr(Interloper& itl, Function& func, RegSlot dst_slot, PoolSlot pool_slot, u32 offset)
 {
-    emit_directive_internal(itl,func,op_type::pool_addr,make_reg_operand(dst_slot),make_raw_operand(pool_slot.handle),make_imm_operand(offset));
+    emit_directive_internal(itl,func,op_type::pool_addr,make_reg_operand(dst_slot),make_lowered_operand(pool_slot.handle),make_imm_operand(offset));
 }
 
 RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 offset)
@@ -85,7 +85,7 @@ RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 o
 
 OpcodeNode* alloc_slot(Interloper& itl,Function& func, const RegSlot slot, b32 force_alloc)
 {
-    return emit_directive_internal(itl,func,op_type::alloc_slot,make_reg_operand(slot),make_raw_operand(force_alloc));
+    return emit_directive_internal(itl,func,op_type::alloc_slot,make_reg_operand(slot),make_lowered_operand(force_alloc));
 }
 
 OpcodeNode* alloc_stack(Interloper& itl, Function& func, u32 size)
