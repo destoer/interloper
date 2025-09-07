@@ -25,7 +25,7 @@ AddrSlot make_struct_addr(RegSlot base, u32 offset)
 
 AddrSlot generate_indexed_pointer(Interloper& itl, Function& func, RegSlot base, RegSlot index, u32 scale, u32 offset)
 {
-    if(scale > GPR_SIZE)
+    if(scale > GPR_SIZE || !is_pow2(scale))
     {
         index = mul_imm_res(itl,func,index,scale);
         scale = 1;

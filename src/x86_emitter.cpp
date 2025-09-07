@@ -72,37 +72,33 @@ u16 reg_base(x86_reg reg,x86_reg base)
     return ((sib << 8) | (mod << 0));
 }
 
-u16 reg_base_index(x86_reg dst, x86_reg base, x86_reg index)
+u16 reg_base_index(x86_reg dst, x86_reg base, x86_reg index, u32 scale)
 {
+    const u32 log_scale = log2(scale);
     const u8 mod = (0b00 << 6) | (mask_reg(dst) << 3) | (0b100 << 0);
-    const u8 sib = (0b00 << 6) | (mask_reg(index) << 3) | (mask_reg(base) << 0);
+    const u8 sib = (log_scale << 6) | (mask_reg(index) << 3) | (mask_reg(base) << 0);
 
     return ((sib << 8) | (mod << 0));
 }
 
-u16 reg_base_index_disp8(x86_reg dst, x86_reg base, x86_reg index)
+u16 reg_base_index_disp_8(x86_reg dst, x86_reg base, x86_reg index, u32 scale)
 {
+    const u32 log_scale = log2(scale);
     const u8 mod = (0b01 << 6) | (mask_reg(dst) << 3) | (0b100 << 0);
-    const u8 sib = (0b00 << 6) | (mask_reg(index) << 3) | (mask_reg(base) << 0);
+    const u8 sib = (log_scale << 6) | (mask_reg(index) << 3) | (mask_reg(base) << 0);
 
     return ((sib << 8) | (mod << 0));
 }
 
-void push_reg_base_index(AsmEmitter& emitter, x86_reg dst, x86_reg base, x86_reg index)
+u16 reg_base_index_disp_32(x86_reg dst, x86_reg base, x86_reg index, u32 scale)
 {
-    assert(index != x86_reg::rsp);
+    const u32 log_scale = log2(scale);
+    const u8 mod = (0b10 << 6) | (mask_reg(dst) << 3) | (0b100 << 0);
+    const u8 sib = (log_scale << 6) | (mask_reg(index) << 3) | (mask_reg(base) << 0);
 
-    if(base == x86_reg::rbp)
-    {
-        const u16 rm = reg_base_index_disp8(dst,base,index);
-        push_u16(emitter,rm);
-        push_u8(emitter,0);
-        return;
-    }
-
-    const u16 rm = reg_base_index(dst,base,index);
-    push_u16(emitter,rm);
+    return ((sib << 8) | (mod << 0));
 }
+
 
 void prefix_u16_reg(AsmEmitter& emitter)
 {
@@ -226,8 +222,23 @@ void prefix_u8_data_rm(AsmEmitter& emitter, x86_reg r, x86_reg m)
     }
 }
 
+void prefix_u8_data_rbi(AsmEmitter& emitter, x86_reg r, x86_reg b, x86_reg i)
+{
+    if(is_extended_reg(r) || is_extended_reg(b) || is_extended_reg(i))
+    {
+        push_u8(emitter,rex_rbi(r,b,i));
+    }
 
-void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, s32 imm)
+    // index or data reg, used must prefix with rex
+    else if(r > x86_reg::rdx)
+    {
+        push_u8(emitter,REX);
+    }
+}
+
+
+
+void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, u64 imm)
 {
     // handle special regs
     if(base == x86_reg::rip)
@@ -275,6 +286,53 @@ void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, s32 imm)
 }
 
 
+void push_reg_base_index_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, x86_reg index, u64 scale, u64 imm)
+{
+    // Cannot do indexed RIP relative addressing.
+    // If we have emitted these instructions we have messed up.
+    assert(base != x86_reg::rip);
+
+    if(imm == 0)
+    {
+        // rbp is reserved for RIP encoding, and r13 is reserved also
+        // when no base is used we have to use disp 8 anyways
+        if(base == x86_reg::rbp || base == x86_reg::r13)
+        {
+            push_u16(emitter,reg_base_index_disp_8(reg,base,index,scale));
+            push_u8(emitter,0);     
+        }
+
+        else
+        {
+            push_u16(emitter,reg_base_index(reg,base,index,scale));
+        }
+    }
+
+    else if(fit_into_s8(imm))
+    {
+        push_u16(emitter,reg_base_index_disp_8(reg,base,index,scale));
+        push_u8(emitter,s8(imm));
+    }
+
+    // use 32 bit
+    else if(fit_into_s32(imm))
+    {
+        push_u16(emitter,reg_base_index_disp_32(reg,base,index,scale));
+        push_u32(emitter,imm);
+    }
+
+    // cannot fit
+    else
+    {
+        assert(false);
+    }
+}
+
+void push_reg_base_index(AsmEmitter& emitter, x86_reg reg, x86_reg base, x86_reg index)
+{
+    push_reg_base_index_disp(emitter,reg,base,index,1,0);
+}
+
 void push_rex_opt(AsmEmitter& emitter, u8 rex)
 {
     if(rex != 0)
@@ -296,6 +354,15 @@ void emit_rex_m_opt(AsmEmitter& emitter,x86_reg m)
     const u8 rex = rex_m(m);
     push_rex_opt(emitter,rex);
 }
+
+// NOTE: this is just for the override
+// not a size ext that has to happen separately
+void emit_rex_rbi_opt(AsmEmitter& emitter,x86_reg r, x86_reg b, x86_reg i)
+{
+    const u8 rex = rex_rbi(r,b,i);
+    push_rex_opt(emitter,rex);
+}
+
 
 enum class prefix_t
 {
@@ -330,50 +397,88 @@ void emit_rm_prefix(AsmEmitter& emitter, x86_reg r, x86_reg m)
     }
 }
 
+template<prefix_t prefix>
+void emit_rbi_prefix(AsmEmitter& emitter, x86_reg r, x86_reg b, x86_reg i)
+{
+    if constexpr(prefix == prefix_t::rm8)
+    {
+        prefix_u8_data_rbi(emitter,r,b,i);
+    }
+
+    else if constexpr(prefix == prefix_t::rm16)
+    {
+        prefix_u16_reg(emitter);
+        emit_rex_rbi_opt(emitter,r,b,i);
+    }
+
+    if constexpr(prefix == prefix_t::rm32)
+    {
+        emit_rex_rbi_opt(emitter,r,b,i);
+    }
+
+    else if constexpr(prefix == prefix_t::rm64)
+    {
+        push_u8(emitter,rex_rbi64(r,b,i));
+    }
+}
+
+
+
 template<typename T,prefix_t prefix>
-void emit_mem_op(AsmEmitter& emitter,T opcode,x86_reg reg, x86_reg base, s32 imm)
+void emit_mem_op(AsmEmitter& emitter,T opcode,x86_reg reg, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
 {
-    // handle storage size
-    emit_rm_prefix<prefix>(emitter,reg,base);
-    push(emitter,opcode);
+    // [base + offset]
+    if(!index)
+    {
+        // handle storage size
+        emit_rm_prefix<prefix>(emitter,reg,base);
+        push(emitter,opcode);
+        push_reg_base_disp(emitter,reg,base,imm);
+    }
 
-    push_reg_base_disp(emitter,reg,base,imm);
+    else
+    {
+        // handle storage size
+        emit_rbi_prefix<prefix>(emitter,reg,base,*index);
+        push(emitter,opcode);
+        push_reg_base_index_disp(emitter,reg,base,*index,scale,imm);
+    }
 }
 
-// don't bother specifing types on most loads
-// because we just want to sign exend
-void emit_load32_op8(AsmEmitter& emitter,u8 opcode,x86_reg dst, x86_reg base, s32 imm)
+// don't bother specifying types on most loads
+// because we just want to sign extend
+void emit_load32_op8(AsmEmitter& emitter,u8 opcode,x86_reg dst, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
 {
-    emit_mem_op<u8,prefix_t::rm32>(emitter,opcode,dst,base,imm);
+    emit_mem_op<u8,prefix_t::rm32>(emitter,opcode,dst,base,index,scale,imm);
 }
 
-void emit_load_op8(AsmEmitter& emitter,u8 opcode,x86_reg dst, x86_reg base, s32 imm)
+void emit_load_op8(AsmEmitter& emitter,u8 opcode,x86_reg dst, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
 {
-    emit_mem_op<u8,prefix_t::rm64>(emitter,opcode,dst,base,imm);
+    emit_mem_op<u8,prefix_t::rm64>(emitter,opcode,dst,base,index,scale,imm);
 }
-void emit_load_op16(AsmEmitter& emitter,u16 opcode,x86_reg dst, x86_reg base, s32 imm)
+void emit_load_op16(AsmEmitter& emitter,u16 opcode,x86_reg dst, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
 {
-    emit_mem_op<u16,prefix_t::rm64>(emitter,opcode,dst,base,imm);
-}
-
-void emit_store8_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base, s32 imm)
-{
-    emit_mem_op<u8,prefix_t::rm8>(emitter,opcode,src,base,imm);
+    emit_mem_op<u16,prefix_t::rm64>(emitter,opcode,dst,base,index,scale,imm);
 }
 
-void emit_store16_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base, s32 imm)
+void emit_store8_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
 {
-    emit_mem_op<u8,prefix_t::rm16>(emitter,opcode,src,base,imm);
+    emit_mem_op<u8,prefix_t::rm8>(emitter,opcode,src,base,index,scale,imm);
 }
 
-void emit_store32_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base, s32 imm)
+void emit_store16_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
 {
-    emit_mem_op<u8,prefix_t::rm32>(emitter,opcode,src,base,imm);
+    emit_mem_op<u8,prefix_t::rm16>(emitter,opcode,src,base,index,scale,imm);
 }
 
-void emit_store64_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base, s32 imm)
+void emit_store32_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
 {
-    emit_mem_op<u8,prefix_t::rm64>(emitter,opcode,src,base,imm);
+    emit_mem_op<u8,prefix_t::rm32>(emitter,opcode,src,base,index,scale,imm);
+}
+
+void emit_store64_op8(AsmEmitter& emitter,u8 opcode,x86_reg src, x86_reg base,  Option<x86_reg> index, u64 scale, u64 imm)
+{
+    emit_mem_op<u8,prefix_t::rm64>(emitter,opcode,src,base,index,scale,imm);
 }
 
 template<prefix_t prefix>
@@ -745,73 +850,73 @@ void ret(AsmEmitter& emitter)
     push_u8(emitter,0xC3);
 }
 
-void sb(AsmEmitter& emitter, x86_reg src, x86_reg addr,s32 imm)
+void sb(AsmEmitter& emitter, x86_reg src, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // mov r/m8, r8
-    emit_store8_op8(emitter,0x88,src,addr,imm);
+    emit_store8_op8(emitter,0x88,src,base,index,scale,imm);
 }
 
-void lb(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s32 imm)
+void lb(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // movzx r64, r/m8,
-    emit_load_op16(emitter,0xb6'0f,dst,addr,imm);
+    emit_load_op16(emitter,0xb6'0f,dst,base,index,scale,imm);
 }
 
-void lh(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s32 imm)
+void lh(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // movzx r64, r/m16,
-    emit_load_op16(emitter,0xb7'0f,dst,addr,imm);
+    emit_load_op16(emitter,0xb7'0f,dst,base,index,scale,imm);
 }
 
-void sh(AsmEmitter& emitter, x86_reg src, x86_reg addr, s32 imm)
+void sh(AsmEmitter& emitter, x86_reg src, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // mov r/m16, r16
-    emit_store16_op8(emitter,0x89,src,addr,imm);
+    emit_store16_op8(emitter,0x89,src,base,index,scale,imm);
 }
 
 
-void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s32 imm)
+void lsw(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // movsxd r64, r/m16
-    emit_load_op8(emitter,0x63,dst,addr,imm);
+    emit_load_op8(emitter,0x63,dst,base,index,scale,imm);
 }
 
-void lsb(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s32 imm)
+void lsb(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // movsx r64, r/m8
-    emit_load_op16(emitter,0xbe'0f,dst,addr,imm);
+    emit_load_op16(emitter,0xbe'0f,dst,base,index,scale,imm);
 }
 
-void lsh(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s32 imm)
+void lsh(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // movsx r64, r/m8
-    emit_load_op16(emitter,0xbf'0f,dst,addr,imm);
+    emit_load_op16(emitter,0xbf'0f,dst,base,index,scale,imm);
 }
 
-void lw(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s32 imm)
+void lw(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // mov r32, m/r32
-    emit_load32_op8(emitter,0x8b,dst,addr,imm);
+    emit_load32_op8(emitter,0x8b,dst,base,index,scale,imm);
 }
 
-void sw(AsmEmitter& emitter, x86_reg src, x86_reg addr, s32 imm)
+void sw(AsmEmitter& emitter, x86_reg src, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // mov r/m32, r32
-    emit_store8_op8(emitter,0x89,src,addr,imm);
+    emit_store8_op8(emitter,0x89,src,base,index,scale,imm);
 }
 
 
-void ld(AsmEmitter& emitter, x86_reg dst, x86_reg addr, s32 imm)
+void ld(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // mov r64, m/r64
-    emit_load_op8(emitter,0x8b,dst,addr,imm);
+    emit_load_op8(emitter,0x8b,dst,base,index,scale,imm);
 }
 
 
-void sd(AsmEmitter& emitter, x86_reg src, x86_reg addr, s32 imm)
+void sd(AsmEmitter& emitter, x86_reg src, x86_reg base, Option<x86_reg> index, u32 scale,u64 imm)
 {
     // mov m/r64, r64
-    emit_store64_op8(emitter,0x89,src,addr,imm);
+    emit_store64_op8(emitter,0x89,src,base,index,scale,imm);
 }
 
 void sxb(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
@@ -1003,9 +1108,20 @@ void mul(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm_extended_64(emitter,opcode,dst,v1);
 }
 
-void lea(AsmEmitter& emitter, x86_reg dst, x86_reg addr, u64 imm)
+void lea(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u64 scale, u64 imm)
 {
-    add_imm(emitter,dst,addr,imm);
+    if(!index)
+    {
+        add_imm(emitter,dst,base,imm);
+    }
+
+    else
+    {
+        const u8 opcode = 0x8d;
+        push_u16(emitter,(opcode << 8) |  rex_rbi64(dst,base,*index));
+
+        push_reg_base_index_disp(emitter,dst,base,*index,scale,imm);
+    }
 }
 
 void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
@@ -1022,7 +1138,17 @@ void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
 {
     const auto dst = x86_reg(opcode.v[0].raw);
     auto addr = x86_reg(opcode.v[1].raw);
+
+    Option<x86_reg> index = option::none; 
+    auto raw_index = u32(opcode.v[2].raw);
+    
+    if(raw_index != u32(spec_reg::null))
+    {
+        index = x86_reg(raw_index);
+    }
+    
     s64 offset = s64(opcode.offset);
+    s64 scale = s64(opcode.scale);
 
     const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 
@@ -1032,7 +1158,7 @@ void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
         offset = 0;
     }
 
-    func(emitter,dst,addr,offset);
+    func(emitter,dst,addr,index,scale,offset);
 
     if(is_data_sect)
     {
@@ -1047,6 +1173,14 @@ void push_xmm_f2(AsmEmitter& emitter, x86_reg dst, x86_reg src)
     push_u16(emitter,(rex << 8) | 0xf2);
 }
 
+void push_xmm_rbi(AsmEmitter& emitter, x86_reg dst, x86_reg base, x86_reg index)
+{
+    // push rex
+    const u8 rex = rex_rbi64(dst,base,index);
+    push_u16(emitter,(rex << 8) | 0xf2);
+}
+
+
 void push_xmm_66(AsmEmitter& emitter, x86_reg dst, x86_reg src)
 {
     // push rex
@@ -1054,22 +1188,44 @@ void push_xmm_66(AsmEmitter& emitter, x86_reg dst, x86_reg src)
     push_u16(emitter,(rex << 8) | 0x66);
 }
 
-void lf(AsmEmitter& emitter, x86_reg dst, x86_reg src, u64 imm)
+void lf(AsmEmitter& emitter, x86_reg dst, x86_reg base, Option<x86_reg> index, u64 scale, u64 imm)
 {
-    // movsd r, [m]
-    push_xmm_f2(emitter,dst,src);
-    push_u16(emitter,0x10'0f);
+    if(!index)
+    {
+        // movsd r, [m]
+        push_xmm_f2(emitter,dst,base);
+        push_u16(emitter,0x10'0f);
 
-    push_reg_base_disp(emitter,dst,src,imm);
+        push_reg_base_disp(emitter,dst,base,imm);
+    }
+
+    else 
+    {
+        push_xmm_rbi(emitter,dst,base,*index);
+
+        push_u16(emitter,0x10'0f);
+        push_reg_base_index_disp(emitter,dst,base,*index,scale,imm);
+    }
 }
 
-void sf(AsmEmitter& emitter, x86_reg dst, x86_reg src, u64 imm)
+void sf(AsmEmitter& emitter, x86_reg src, x86_reg base, Option<x86_reg> index, u64 scale, u64 imm)
 {
-    // movsd [m], r
-    push_xmm_f2(emitter,dst,src);
-    push_u16(emitter,0x11'0f);
+    if(!index)
+    {
+        // movsd [m], r
+        push_xmm_f2(emitter,src,base);
+        push_u16(emitter,0x11'0f);
 
-    push_reg_base_disp(emitter,dst,src,imm);
+        push_reg_base_disp(emitter,src,base,imm);
+    }
+
+    else
+    {
+        push_xmm_rbi(emitter,src,base,*index);
+
+        push_u16(emitter,0x11'0f);
+        push_reg_base_index_disp(emitter,src,base,*index,scale,imm);     
+    }
 }
 
 void movf(AsmEmitter& emitter, x86_reg dst, x86_reg src)
@@ -1378,7 +1534,7 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::pool_addr:
         {
-            lea(emitter,dst,x86_reg::rip,0);
+            lea(emitter,dst,x86_reg::rip,option::none,1,0);
             add_rip_rel_link(emitter,opcode);
             break;
         }
@@ -1574,7 +1730,7 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_type::load_func_addr:
         {
-            lea(emitter,dst,x86_reg::rip,0);
+            lea(emitter,dst,x86_reg::rip,option::none,1,0);
             add_rip_rel_link(emitter,opcode);
             break;
         }

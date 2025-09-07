@@ -41,6 +41,28 @@ TypedAddrResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
     return TypedAddr {addr,plain};
 }
 
+Addr rescale_addr(Interloper& itl, Function& func, Addr addr)
+{
+    if(addr.scale > GPR_SIZE || !is_pow2(addr.scale))
+    {
+        addr.index = mul_imm_res(itl,func,addr.index,addr.scale);
+        addr.scale = 1;
+    }
+
+    return addr;
+}
+
+
+Addr collapse_array_addr(Interloper& itl, Function& func, Addr addr)
+{
+    rescale_addr(itl,func,addr);
+
+    PointerAddr pointer = {addr};
+    const RegSlot base = lea_res(itl,func,pointer);
+
+    return make_addr(base,0);
+}
+
 // indexes off a given type + ptr
 TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* index_node, const String& arr_name,
     Type* type, RegSlot ptr_slot)
@@ -51,16 +73,13 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
         return compile_error(itl,itl_error::array_type_error,"[COMPILE]: '%s' is not an array got type %s",arr_name.buf,type_name(itl,type).buf);
     }
 
-    RegSlot last_slot = ptr_slot;
-
     ArrayType* array_type = (ArrayType*)type;
 
     Type* accessed_type = nullptr;
 
     const u32 indexes = count(index_node->indexes);
 
-    b32 index_known = false;
-    u32 known_offset = 0;
+    Addr addr = make_addr(ptr_slot,0);
 
     for(u32 i = 0; i < indexes; i++)
     {
@@ -85,17 +104,13 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
 
         if(!is_value_known(subscript))
         {
-            if(index_known)
+            if(!is_null_reg(addr.index))
             {
-                last_slot = add_imm_res(itl,func,last_slot,known_offset);
-
-                index_known = false;
-                known_offset = 0;
+                addr = collapse_array_addr(itl,func,addr);
             }
 
-            const RegSlot mul_slot = mul_imm_res(itl,func,subscript.slot,size);   
-
-            last_slot = add_res(itl,func,last_slot,mul_slot);
+            addr.index = subscript.slot;
+            addr.scale = size;
         }
 
         else
@@ -112,8 +127,7 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
                 }
             }
 
-            index_known = true;
-            known_offset += subscript_value * size;
+            addr.offset += subscript_value * size;
         }
 
 
@@ -125,13 +139,10 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
             {
                 const auto tmp = new_tmp_ptr(func);
 
-                load_ptr(itl,func,tmp,last_slot,known_offset,GPR_SIZE,false,false);
+                PointerAddr pointer = {rescale_addr(itl,func,addr)};
+                load_ptr_addr(itl,func,tmp,pointer,GPR_SIZE,false,false);
 
-                // No longer know the offset
-                index_known = false;
-                known_offset = 0;
-
-                last_slot = tmp;
+                addr = make_addr(tmp,0);
             }
         }
 
@@ -165,11 +176,14 @@ TypedAddrResult index_arr_internal(Interloper& itl, Function &func,IndexNode* in
         } 
     }
 
+    // Final crush of the scale
+    AddrSlot pointer = {rescale_addr(itl,func,addr)};
+
     // return pointer to accessed type
     // NOTE: this can give out a fixed array pointer.
     // this needs conversion by the host into a VLA, this is not obtainable by
     // taking a pointer to an array,
-    return TypedAddr{make_pointer_addr(last_slot,known_offset),accessed_type}; 
+    return TypedAddr{pointer,accessed_type}; 
 }
 
 // TODO: these multidimensional hand wave vla's
