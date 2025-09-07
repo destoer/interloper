@@ -184,24 +184,48 @@ void fmt_raw_specifier(StringBuffer &buffer,const SymbolTable* table, char speci
 
 void format_address(StringBuffer& buffer, const Opcode& opcode, const SymbolTable* table,b32 format_reg,arch_target arch)
 {
-    // Format base
     if(format_reg)
     {
+        // Format base
         fmt_raw_register(buffer,opcode.v[1].raw,arch);
+
+
+        if(u32(opcode.v[2].raw) != u32(spec_reg::null))
+        {
+            push_string(buffer,opcode.scale == 1? " + " : " + (");
+            fmt_raw_register(buffer,opcode.v[2].raw,arch);
+
+            char scale[40];
+            const u32 scale_len = sprintf(scale,opcode.scale == 1? "" : " * 0x%x)",opcode.scale);
+            push_mem(buffer,scale,scale_len); 
+        }
     }
 
     else
     {
+        // Format base
         fmt_sym_register(buffer,*table,opcode.v[1].reg);
+
+        // Format index
+        if(!is_null_reg(opcode.v[2].reg))
+        {
+            push_string(buffer,opcode.scale == 1? " + " : " + (");
+            fmt_sym_register(buffer,*table,opcode.v[2].reg);
+
+            char scale[40];
+            const u32 scale_len = sprintf(scale,opcode.scale == 1? "" : " * 0x%x)",opcode.scale);
+            push_mem(buffer,scale,scale_len);
+        }
     }
 
-    // Format index
-
     // Format offset
-    char offset[40];
-    const u32 imm_len = sprintf(offset,", 0x%x",opcode.offset);
+    if(opcode.offset)
+    {
+        char offset[40];
+        const u32 imm_len = sprintf(offset," + 0x%x",opcode.offset);
 
-    push_mem(buffer,offset,imm_len);
+        push_mem(buffer,offset,imm_len);
+    }
 }
 
 void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table,b32 format_reg,arch_target arch)

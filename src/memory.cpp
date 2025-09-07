@@ -3,14 +3,35 @@ Addr make_addr(RegSlot base, u32 offset)
     return {base,make_spec_reg_slot(spec_reg::null),1,offset};
 }
 
+Addr make_indexed_addr(RegSlot base, RegSlot index, u32 scale, u32 offset)
+{
+    return {base,index,scale,offset};
+}
+
 AddrSlot make_pointer_addr(RegSlot base,u32 offset)
 {
     return {make_addr(base,offset),false};
 }
 
+AddrSlot make_indexed_pointer_addr(RegSlot base,RegSlot index, u32 scale,u32 offset)
+{
+    return {make_indexed_addr(base,index,scale,offset),false};
+}
+
 AddrSlot make_struct_addr(RegSlot base, u32 offset)
 {
     return {make_addr(base,offset),true};
+}
+
+AddrSlot generate_indexed_pointer(Interloper& itl, Function& func, RegSlot base, RegSlot index, u32 scale, u32 offset)
+{
+    if(scale > GPR_SIZE)
+    {
+        index = mul_imm_res(itl,func,index,scale);
+        scale = 1;
+    }
+
+    return make_indexed_pointer_addr(base,index,scale,offset);
 }
 
 void collapse_struct_addr(Interloper& itl, Function& func, RegSlot dst_slot, const AddrSlot struct_slot)

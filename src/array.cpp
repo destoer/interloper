@@ -36,10 +36,9 @@ TypedAddrResult index_pointer(Interloper& itl,Function& func,RegSlot ptr_slot,
         return TypedAddr {make_pointer_addr(ptr_slot,offset),plain};
     }
 
-    const RegSlot offset = mul_imm_res(itl,func,subscript.slot,size);  
-    const RegSlot index = add_res(itl,func,ptr_slot,offset);
+    const AddrSlot addr = generate_indexed_pointer(itl,func,ptr_slot,subscript.slot,size,0);
 
-    return TypedAddr {make_pointer_addr(index,0),plain};
+    return TypedAddr {addr,plain};
 }
 
 // indexes off a given type + ptr

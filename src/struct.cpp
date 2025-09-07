@@ -560,13 +560,7 @@ Option<itl_error> access_enum_struct_member(Interloper& itl,Function& func, cons
     }
 
     // finally index the table
-    
-    // scale index
-    const RegSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
-
-    // compute final addr
-    const auto ptr = add_res(itl,func,enum_table_slot,table_offset);
-    const auto addr = make_pointer_addr(ptr,enum_struct_member.offset);
+    const auto addr = generate_indexed_pointer(itl,func,enum_table_slot,enum_slot,enum_struct.size,enum_struct_member.offset);
 
     *struct_addr = {addr,enum_struct_member.type};
     return option::none;
