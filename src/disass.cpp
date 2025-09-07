@@ -19,6 +19,37 @@ void format_regm(StringBuffer& buffer, u64 slot)
     push_var(buffer,'}');
 }
 
+void fmt_sym_register(StringBuffer& buffer, const SymbolTable& table, RegSlot reg)
+{
+    switch(reg.kind)
+    {
+        case reg_kind::spec:
+        {
+            push_string(buffer,spec_reg_name(reg.spec));
+            break;
+        }
+
+        // print a sym
+        case reg_kind::sym:
+        {
+            const auto& sym = sym_from_slot(table,reg.sym_slot);
+            const String& name = sym.name;
+
+            push_string(buffer,name);
+            break;
+        }
+
+        case reg_kind::tmp:
+        {
+            char name[40] = {0};
+            const u32 len = sprintf(name,"t%d",reg.tmp_slot.handle);
+
+            push_mem(buffer,name,len);
+            break;
+        }
+    }
+}
+
 void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char specifier, Operand operand)
 {
     switch(specifier)
@@ -26,35 +57,7 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
         case 'r':
         {
             const auto reg = operand.reg;
-            switch(reg.kind)
-            {
-                case reg_kind::spec:
-                {
-                    push_string(buffer,spec_reg_name(reg.spec));
-                    break;
-                }
-
-                // print a sym
-                case reg_kind::sym:
-                {
-                    const auto& sym = sym_from_slot(table,reg.sym_slot);
-                    const String& name = sym.name;
-
-                    push_string(buffer,name);
-                    break;
-                }
-
-                case reg_kind::tmp:
-                {
-                    char name[40] = {0};
-                    const u32 len = sprintf(name,"t%d",reg.tmp_slot.handle);
-
-                    push_mem(buffer,name,len);
-                    break;
-                }
-            }
-
-
+            fmt_sym_register(buffer,table,reg);
             break;
         }
 
@@ -100,31 +103,35 @@ void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char spec
     }    
 }
 
-void fmt_raw_specifier(Array<char> &buffer,const SymbolTable* table, char specifier, u64 slot, arch_target arch)
+void fmt_raw_register(StringBuffer& buffer, u64 slot, arch_target arch)
+{
+    if(is_raw_special_reg(slot))
+    {
+        const u32 idx = slot - SPECIAL_REG_START;
+        push_mem(buffer,SPECIAL_REG_NAMES[idx]);
+    }
+
+    else 
+    {
+        switch(arch)
+        {
+            case arch_target::x86_64_t:
+            {
+                push_mem(buffer,X86_NAMES[slot],strlen(X86_NAMES[slot]));
+                break;
+            }
+        }
+    }
+}
+
+void fmt_raw_specifier(StringBuffer &buffer,const SymbolTable* table, char specifier, u64 slot, arch_target arch)
 {
     switch(specifier)
     {
         // raw register
         case 'r':
         {
-            if(is_raw_special_reg(slot))
-            {
-                const u32 idx = slot - SPECIAL_REG_START;
-                push_mem(buffer,SPECIAL_REG_NAMES[idx]);
-            }
-
-            else 
-            {
-                switch(arch)
-                {
-                    case arch_target::x86_64_t:
-                    {
-                        push_mem(buffer,X86_NAMES[slot],strlen(X86_NAMES[slot]));
-                        break;
-                    }
-                }
-            }
-
+            fmt_raw_register(buffer,slot,arch);
             break;
         }
 
@@ -175,6 +182,28 @@ void fmt_raw_specifier(Array<char> &buffer,const SymbolTable* table, char specif
     }    
 }
 
+void format_address(StringBuffer& buffer, const Opcode& opcode, const SymbolTable* table,b32 format_reg,arch_target arch)
+{
+    // Format base
+    if(format_reg)
+    {
+        fmt_raw_register(buffer,opcode.v[1].raw,arch);
+    }
+
+    else
+    {
+        fmt_sym_register(buffer,*table,opcode.v[1].reg);
+    }
+
+    // Format index
+
+    // Format offset
+    char offset[40];
+    const u32 imm_len = sprintf(offset,", 0x%x",opcode.offset);
+
+    push_mem(buffer,offset,imm_len);
+}
+
 void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table,b32 format_reg,arch_target arch)
 {
     const auto& info = info_from_op(opcode);
@@ -190,10 +219,21 @@ void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table,b32 f
         {
             if(args == 3)
             {
-                crash_and_burn("execeed opcode arg printing");
+                crash_and_burn("exceed opcode arg printing");
             }
 
             const char specifier = fmt_string[i + 1];
+
+            if(specifier == 'i')
+            {
+                args += 2;
+                if(args > 3)
+                {
+                    crash_and_burn("exceed opcode arg printing");
+                }
+
+                format_address(buffer,opcode,table,format_reg,arch);
+            }
 
             if(format_reg)
             {
