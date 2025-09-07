@@ -82,7 +82,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg
             const op_type type = arith_info.imm_form;
             if constexpr(type != op_type::none)
             {
-                emit_imm2<type>(itl,func,dst_slot,left.slot,right.known_value);
+                emit_imm3<type>(itl,func,dst_slot,left.slot,right.known_value);
                 return true;
             }
         }
@@ -156,15 +156,22 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
             if(is_value_known(right))
             {
                 static constexpr op_type imm_type = arith_info.imm_form;
-                emit_imm2<imm_type>(itl,func,dst_slot,left.slot,size * right.known_value);
+                emit_imm3<imm_type>(itl,func,dst_slot,left.slot,size * right.known_value);
             }
 
             else
             {
-                constexpr op_type type = arith_info.reg_form;
-                const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
+                if(arith == arith_op::sub_t)
+                {
+                    const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
+                    emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,offset_slot);
+                }
 
-                emit_reg3<type>(itl,func,dst_slot,left.slot,offset_slot);
+                else
+                {
+                    const AddrSlot addr = generate_indexed_pointer(itl,func,left.slot,right.slot,size,0);
+                    collapse_struct_addr(itl,func,dst_slot,addr);
+                }
             }
         }
 
@@ -402,7 +409,8 @@ TypeResult compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node
     // First block needs to jump to exit
     if(depth == 0)
     {
-        emit_block_internal(func,left_block,op_type::exit_block);
+        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
+        emit_block_internal(func,left_block,exit_block);
     }
 
     // Give this a new block we can jump over
@@ -423,7 +431,8 @@ TypeResult compile_boolean_logic_op(Interloper& itl,Function &func,AstNode *node
     // Any further blocks need an exit jump after compilation
     else
     {
-        emit_block_internal(func,right_block,op_type::exit_block);
+        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
+        emit_block_internal(func,right_block,exit_block);
     }
 
     return make_builtin(itl,builtin_type::bool_t);
@@ -569,7 +578,9 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
             case reg_kind::tmp:
             case reg_kind::sym:
             {
-                addr_slot = addrof_res(itl,func,dst.slot);
+                const StructAddr struct_addr = {make_addr(dst.slot,0)};
+
+                addr_slot = addrof_res(itl,func,struct_addr);
                 break;
             }
 
@@ -624,7 +635,7 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
                     case spec_reg::rv_struct:
                     {
                         const auto src_addr = make_struct_addr(src.slot,0);
-                        const auto dst_addr = make_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                        const auto dst_addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
 
                         const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst.type));
                         if(!!memcpy_err)
@@ -717,8 +728,10 @@ TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_sl
 
             Type* pointer_type = make_reference(itl,sym.type);
 
+            const StructAddr struct_addr = {make_addr(sym.reg.slot,0)};
+
             // actually  get the addr of the ptr
-            addrof(itl,func,dst_slot,sym.reg.slot);
+            addrof(itl,func,dst_slot,struct_addr);
             return pointer_type;
         }
 
@@ -732,22 +745,19 @@ TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_sl
 
             const auto index = *index_res;
 
-            collapse_struct_addr(itl,func,index.addr,dst_slot);
+            collapse_struct_addr(itl,func,dst_slot,index.addr_slot);
             return make_reference(itl,index.type);
         }
 
         case ast_type::access_struct:
         {
-            auto res = compute_member_ptr(itl,func,node);
+            auto res = compute_member_ptr(itl,func,dst_slot,node);
             if(!res)
             {
                 return res.error();
             }
 
             auto ptr = *res;
-
-            // make sure this ptr goes into the dst slot
-            mov_reg(itl,func,dst_slot,ptr.slot);
 
             return ptr.type;
         }

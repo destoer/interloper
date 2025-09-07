@@ -22,29 +22,36 @@ OpcodeNode* emit_directive_internal(Interloper& itl,Function& func, op_type type
         v3.type = operand_type::directive_reg;
     }
 
-    return emit_block_internal(func,cur_block(func),type,v1,v2,v3);
+    const Opcode opcode = make_directive_instr(type,v1,v2,v3);
+    return emit_block_func(func,opcode);
 }
 
-void addrof(Interloper& itl,Function& func, RegSlot dst, RegSlot src, u32 offset = 0)
+void addrof(Interloper& itl,Function& func, RegSlot dst, StructAddr struct_addr)
 {
+    UNUSED(itl);
+
     // mark reg as aliased
-    auto& reg = reg_from_slot(itl,func,src);
+    auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
     reg.flags |= ALIASED;
 
-    emit_directive_internal(itl,func,op_type::addrof,make_reg_operand(dst),make_reg_operand(src),make_imm_operand(offset));
+    const Operand base = make_directive_reg(struct_addr.addr.base);
+    const Operand index = make_reg_operand(struct_addr.addr.index);
+
+    const Opcode opcode = make_addr_op(op_type::addrof,make_reg_operand(dst),base,index,struct_addr.addr.scale,struct_addr.addr.offset);
+    emit_block_func(func,opcode);
 }
 
-RegSlot addrof_res(Interloper& itl, Function& func, RegSlot src, u32 offset = 0)
+RegSlot addrof_res(Interloper& itl, Function& func, StructAddr struct_addr)
 {
     const auto tmp = new_tmp_ptr(func);
-    addrof(itl,func,tmp,src,offset);
+    addrof(itl,func,tmp,struct_addr);
 
     return tmp;
 }
 
 void clean_args(Interloper& itl, Function& func, u32 v)
 {
-    emit_imm0<op_type::clean_args>(itl,func,v);
+    emit_imm1<op_type::clean_args>(itl,func,v);
 }
 
 void spill_all(Interloper& itl, Function& func)
@@ -65,7 +72,7 @@ void emit_exit_block(Interloper& itl, Function& func)
 
 void pool_addr(Interloper& itl, Function& func, RegSlot dst_slot, PoolSlot pool_slot, u32 offset)
 {
-    emit_directive_internal(itl,func,op_type::pool_addr,make_reg_operand(dst_slot),make_raw_operand(pool_slot.handle),make_imm_operand(offset));
+    emit_directive_internal(itl,func,op_type::pool_addr,make_reg_operand(dst_slot),make_lowered_operand(pool_slot.handle),make_imm_operand(offset));
 }
 
 RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 offset)
@@ -78,7 +85,7 @@ RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 o
 
 OpcodeNode* alloc_slot(Interloper& itl,Function& func, const RegSlot slot, b32 force_alloc)
 {
-    return emit_directive_internal(itl,func,op_type::alloc_slot,make_reg_operand(slot),make_raw_operand(force_alloc));
+    return emit_directive_internal(itl,func,op_type::alloc_slot,make_reg_operand(slot),make_lowered_operand(force_alloc));
 }
 
 OpcodeNode* alloc_stack(Interloper& itl, Function& func, u32 size)
@@ -108,28 +115,18 @@ void load_func_addr(Interloper& itl, Function& func, RegSlot dst, LabelSlot labe
     emit_directive_internal(itl,func,op_type::load_func_addr,make_reg_operand(dst),make_label_operand(label));
 }
 
-void load_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot dst, AddrSlot addr_slot)
+void load_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot dst, StructAddr struct_addr)
 {
-    emit_directive_internal(itl,func,type,make_reg_operand(dst),make_reg_operand(addr_slot.slot),make_imm_operand(addr_slot.offset));
+    UNUSED(itl);
+    const Opcode opcode = make_addr_instr(type,dst,struct_addr.addr);
+    emit_block_func(func,opcode);
 }
 
-void store_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot src, AddrSlot addr_slot)
+void store_struct_internal(Interloper& itl, Function& func, op_type type,RegSlot src, StructAddr struct_addr)
 {
-    emit_directive_internal(itl,func,type,make_reg_operand(src),make_reg_operand(addr_slot.slot),make_imm_operand(addr_slot.offset));
-}
-
-
-void load_struct_u64(Interloper& itl, Function& func, RegSlot dst, AddrSlot addr_slot)
-{
-    load_struct_internal(itl,func,op_type::load_struct_u64,dst,addr_slot);
-}
-
-RegSlot load_struct_u64_res(Interloper& itl, Function& func, AddrSlot addr_slot)
-{
-    const auto dst = new_tmp(func,GPR_SIZE);
-    load_struct_u64(itl,func,dst,addr_slot);
-
-    return dst;
+    UNUSED(itl);
+    const Opcode opcode = make_addr_instr(type,src,struct_addr.addr);
+    emit_block_func(func,opcode);
 }
 
 void lock_reg(Interloper& itl, Function& func, RegSlot reg)

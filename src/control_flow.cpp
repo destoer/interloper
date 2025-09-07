@@ -200,7 +200,7 @@ Option<itl_error> compile_for_range_idx(Interloper& itl, Function& func, ForRang
 
     const RegSlot index = sym.reg.slot;
 
-    // grab initalizer
+    // grab initializer
     const auto entry_init_type_res = compile_expression(itl,func,cmp_node->left,index);
     if(!entry_init_type_res)
     {
@@ -217,7 +217,8 @@ Option<itl_error> compile_for_range_idx(Interloper& itl, Function& func, ForRang
 
     // compile in cmp for entry
     RegSlot entry_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,initial_block,cmp_type,entry_cond,index,entry_end.slot);
+    const Opcode entry_opcode = make_reg3_instr(cmp_type,entry_cond,index,entry_end.slot);
+    emit_block_internal(func,initial_block,entry_opcode);
 
     // compile the main loop body
     const auto for_block_res = compile_basic_block(itl,func,for_node->block); 
@@ -252,7 +253,8 @@ Option<itl_error> compile_for_range_idx(Interloper& itl, Function& func, ForRang
     const auto exit = *exit_res;
 
     RegSlot exit_cond = new_tmp(func,GPR_SIZE);
-    emit_block_internal_slot(func,end_block,cmp_type,exit_cond,index,exit.slot);
+    const Opcode exit_opcode = make_reg3_instr(cmp_type,exit_cond,index,exit.slot);
+    emit_block_internal(func,end_block,exit_opcode);
 
     // compile in branches
     const BlockSlot exit_block = new_basic_block(itl,func);
@@ -344,9 +346,9 @@ Option<itl_error> compile_for_range_arr(Interloper& itl, Function& func, ForRang
     {
         // setup the loop grab data and len
         const auto arr_len = load_arr_len(itl,func,entry_arr);
-        const auto arr_bytes = mul_imm_res(itl,func,arr_len,index_size);
 
-        arr_end = add_res(itl,func,arr_data,arr_bytes);
+        const AddrSlot addr = generate_indexed_pointer(itl,func,arr_data,arr_len,index_size,0);
+        arr_end = collapse_struct_addr_res(itl,func,addr);
     }
 
 
@@ -778,20 +780,15 @@ Option<itl_error> compile_switch_block(Interloper& itl,Function& func, AstNode* 
         // emit the switch table dispatch
         const BlockSlot dispatch_block = new_basic_block(itl,func);
 
-        // mulitply to get a jump table index
-        const RegSlot table_index = mul_imm_res(itl,func,switch_slot,GPR_SIZE);
 
-        
         // reserve space for the table inside the constant pool
         const PoolSlot pool_slot = reserve_const_pool_section(itl.const_pool,pool_type::jump_table,GPR_SIZE * range);
         const RegSlot table_addr = pool_addr_res(itl,func,pool_slot,0);
 
-        // get address in the tabel we want
-        const RegSlot final_offset = add_res(itl,func,table_addr,table_index);
+        const auto addr = generate_indexed_pointer(itl,func,table_addr,switch_slot,GPR_SIZE,0);
 
         // load the address out of the jump table
-        const RegSlot target = new_tmp_ptr(func);
-        load_ptr(itl,func,target, final_offset,0, GPR_SIZE,false,false);
+        const RegSlot target = load_addr_gpr_res(itl,func,addr);
 
         // branch on it
         branch_reg(itl,func,target);

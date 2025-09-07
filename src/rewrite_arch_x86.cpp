@@ -246,7 +246,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         {
             // dump float in the const pool table so we can do a relative load
             const auto pool_slot = push_const_pool(itl.const_pool,pool_type::var,&opcode.v[1].decimal,sizeof(f64));
-            node->value = make_op(op_type::load_const_float,opcode.v[0],make_raw_operand(pool_slot.handle),opcode.v[1]);
+            node->value = make_op(op_type::load_const_float,opcode.v[0],make_lowered_operand(pool_slot.handle),opcode.v[1]);
             return node->next;
         }
 
@@ -284,8 +284,8 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         {
             const auto src = node->value.v[0];
 
-            node->value = make_raw_op(op_type::alloc_stack,8);
-            node = insert_after(block.list,node,make_op(op_type::sf,src,make_spec_operand(spec_reg::sp),make_imm_operand(0)));
+            node->value = make_lowered_imm1_instr(op_type::alloc_stack,8);
+            node = insert_after(block.list,node,make_addr_op(op_type::sf,src,make_spec_operand(spec_reg::sp),make_spec_operand(spec_reg::null),1,0));
             break;
         }
 

@@ -139,7 +139,7 @@ Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function
         // generate a new offset
         // NOTE: make sure this is a copy
         auto addr_member = addr_slot;
-        addr_member.offset += member.offset;
+        addr_member.addr.offset += member.offset;
 
         const auto err = struct_list_write(itl,func,addr_member,member,init.expr);
         if(!!err)
@@ -454,14 +454,14 @@ Option<itl_error> access_array_member(Interloper& itl, const String& member_name
     {
         if(!is_runtime_size(struct_addr->type))
         {
-            struct_addr->addr.slot = make_spec_reg_slot(spec_reg::access_fixed_len_reg);
-            struct_addr->addr.struct_addr = false;
+            struct_addr->addr_slot.addr.base = make_spec_reg_slot(spec_reg::access_fixed_len_reg);
+            struct_addr->addr_slot.struct_addr = false;
         }
 
         // vla
         else
         {
-            struct_addr->addr.offset += GPR_SIZE;
+            struct_addr->addr_slot.addr.offset += GPR_SIZE;
             struct_addr->type = make_builtin(itl,GPR_SIZE_TYPE);
         }
 
@@ -497,7 +497,7 @@ Option<itl_error> access_struct_member(Interloper& itl,const String& member_name
 
     const auto member = member_opt.value();
 
-    struct_addr->addr.offset += member.offset;  
+    struct_addr->addr_slot.addr.offset += member.offset;  
     struct_addr->type = member.type;
 
     return option::none;
@@ -546,27 +546,21 @@ Option<itl_error> access_enum_struct_member(Interloper& itl,Function& func, cons
     RegSlot enum_slot = INVALID_SYM_REG_SLOT;
     
     // we allready directly have the enum
-    if(struct_addr->addr.struct_addr)
+    if(struct_addr->addr_slot.struct_addr)
     {
-        assert(struct_addr->addr.offset == 0);
-        enum_slot = struct_addr->addr.slot;
+        assert(struct_addr->addr_slot.addr.offset == 0);
+        enum_slot = struct_addr->addr_slot.addr.base;
     }
 
     // ordinary access on a pointer, we must deref it
     else
     {
         enum_slot = new_tmp(func,GPR_SIZE);
-        load_ptr(itl,func,enum_slot,struct_addr->addr.slot,struct_addr->addr.offset,ENUM_SIZE,false,false);
+        load_addr_slot(itl,func,enum_slot,struct_addr->addr_slot,ENUM_SIZE,false,false);
     }
 
     // finally index the table
-    
-    // scale index
-    const RegSlot table_offset = mul_imm_res(itl,func,enum_slot,enum_struct.size);
-
-    // compute final addr
-    const auto ptr = add_res(itl,func,enum_table_slot,table_offset);
-    const auto addr = make_addr(ptr,enum_struct_member.offset);
+    const auto addr = generate_indexed_pointer(itl,func,enum_table_slot,enum_slot,enum_struct.size,enum_struct_member.offset);
 
     *struct_addr = {addr,enum_struct_member.type};
     return option::none;
@@ -602,7 +596,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
             // along with the derefed type
             if(is_pointer(sym.type))
             {
-                struct_addr = {make_addr(sym.reg.slot,0),deref_pointer(sym.type)};
+                struct_addr = {make_pointer_addr(sym.reg.slot,0),deref_pointer(sym.type)};
             }
 
             else
@@ -649,7 +643,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                 LiteralNode* member_node = (LiteralNode*)n;
                 const auto member_name = member_node->literal;
 
-                // auto deferef pointers first
+                // auto deref pointers first
                 if(is_pointer(struct_addr.type))
                 {
                     RegSlot addr_slot = new_tmp_ptr(func);
@@ -669,7 +663,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                     }
 
                     // now we are back to a straight pointer
-                    struct_addr = {make_addr(addr_slot,0),deref_pointer(struct_addr.type)};
+                    struct_addr = {make_pointer_addr(addr_slot,0),deref_pointer(struct_addr.type)};
                 }
 
                 switch(struct_addr.type->kind)
@@ -747,7 +741,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                 {
                     const RegSlot vla_ptr = new_tmp_ptr(func);
                     // TODO: This can be better typed to a pointer
-                    const TypedAddr src_addr = {struct_addr.addr,make_reference(itl,index_arr(struct_addr.type))};
+                    const TypedAddr src_addr = {struct_addr.addr_slot,make_reference(itl,index_arr(struct_addr.type))};
                     // const TypedAddr src_addr = {struct_addr.addr,make_builtin(itl,GPR_SIZE_TYPE)};
                     
                     const auto load_err = do_addr_load(itl,func,vla_ptr,src_addr);
@@ -756,16 +750,16 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
                         return *load_err;
                     }
 
-                    struct_addr.addr = make_addr(vla_ptr,0);
+                    struct_addr.addr_slot = make_pointer_addr(vla_ptr,0);
                 }
 
                 // fixed size collpase the offset
                 else
                 {
-                    collapse_struct_offset(itl,func,&struct_addr.addr);
+                    collapse_struct_offset(itl,func,&struct_addr.addr_slot);
                 }
 
-                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr.slot);
+                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr_slot.addr.base);
                 if(!index_res)
                 {
                     return index_res.error();
@@ -786,7 +780,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
     return struct_addr;
 }
 
-RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
+RegResult compute_member_ptr(Interloper& itl, Function& func, RegSlot dst_slot, AstNode* node)
 {
     auto member_addr_res = compute_member_addr(itl,func,node);
 
@@ -797,8 +791,14 @@ RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 
     auto dst_addr = *member_addr_res;
 
-    const RegSlot ptr = collapse_struct_res(itl,func,dst_addr.addr);
-    return TypedReg{ptr,make_reference(itl,dst_addr.type)};
+    collapse_struct_addr(itl,func,dst_slot,dst_addr.addr_slot);
+    return TypedReg{dst_slot,make_reference(itl,dst_addr.type)};
+}
+
+RegResult compute_member_ptr_res(Interloper& itl, Function& func, AstNode* node)
+{
+    const RegSlot tmp = new_tmp(func,GPR_SIZE);
+    return compute_member_ptr(itl,func,tmp,node);
 }
 
 Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& src, AstNode *node)
@@ -834,7 +834,7 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
     auto src_addr = *member_addr_res;
 
     // len access on fixed sized array
-    if(is_special_reg(src_addr.addr.slot,spec_reg::access_fixed_len_reg))
+    if(is_special_reg(src_addr.addr_slot.addr.base,spec_reg::access_fixed_len_reg))
     {
         const ArrayType* array_type = (ArrayType*)src_addr.type;
 
@@ -845,8 +845,7 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
     // let caller handle reads via array accessors
     if(is_fixed_array(src_addr.type))
     {
-        const RegSlot ptr = collapse_struct_res(itl,func,src_addr.addr);
-        mov_reg(itl,func,dst_slot,ptr);
+        collapse_struct_addr(itl,func,dst_slot,src_addr.addr_slot);
         return src_addr.type;
     }
 
@@ -967,7 +966,7 @@ Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, R
         // generate a new offset
         // NOTE: make sure this is a copy
         auto addr_member = addr_slot;
-        addr_member.offset += member.offset;
+        addr_member.addr.offset += member.offset;
 
         const auto err = struct_list_write(itl,func,addr_member,member,node->nodes[i]);
         if(!!err)
@@ -1036,7 +1035,7 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
         const auto& member = structure.members[m];
 
         AddrSlot member_addr = addr_slot;
-        member_addr.offset += member.offset;
+        member_addr.addr.offset += member.offset;
 
         if(member.expr)
         {

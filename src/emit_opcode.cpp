@@ -7,7 +7,7 @@ void add(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
 
 void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
 {
-    emit_imm1<op_type::mov_imm>(itl,func,dst,imm);
+    emit_imm2<op_type::mov_imm>(itl,func,dst,imm);
 }
 
 RegSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
@@ -20,14 +20,13 @@ RegSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
 
 void movf_imm(Interloper& itl, Function& func, RegSlot dst, f64 v1)
 {
-    emit_fp_imm1<op_type::movf_imm>(itl,func,dst,v1);
+    emit_fp_imm2<op_type::movf_imm>(itl,func,dst,v1);
 }
 
 RegSlot movf_imm_res(Interloper& itl, Function& func, f64 v1)
 {
     const auto dst = new_float(func);
-
-    emit_fp_imm1<op_type::movf_imm>(itl,func,dst,v1);
+    movf_imm(itl,func,dst,v1);
 
     return dst;
 }
@@ -109,7 +108,7 @@ void lsr(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
 
 void lsr_imm(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, s32 v2)
 {
-    emit_imm2<op_type::lsr_imm>(itl,func,dst,v1,v2);
+    emit_imm3<op_type::lsr_imm>(itl,func,dst,v1,v2);
 }
 
 RegSlot lsr_imm_res(Interloper& itl,Function& func, RegSlot v1, s32 v2)
@@ -128,7 +127,7 @@ void lsl(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
 
 void lsl_imm(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, s32 v2)
 {
-    emit_imm2<op_type::lsl_imm>(itl,func,dst,v1,v2);
+    emit_imm3<op_type::lsl_imm>(itl,func,dst,v1,v2);
 }
 
 RegSlot lsl_imm_res(Interloper& itl,Function& func, RegSlot v1, s32 v2)
@@ -159,7 +158,7 @@ void mul_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 
     else
     {
-        emit_imm2<op_type::mul_imm>(itl,func,dst,src,imm);
+        emit_imm3<op_type::mul_imm>(itl,func,dst,src,imm);
     }
 }
 
@@ -292,12 +291,12 @@ void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 
 void and_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_imm2<op_type::and_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::and_imm>(itl,func,dst,src,imm);
 }
 
 void xor_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_imm2<op_type::xor_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::xor_imm>(itl,func,dst,src,imm);
 }
 
 void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
@@ -308,7 +307,7 @@ void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
         return;
     }
 
-    emit_imm2<op_type::add_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::add_imm>(itl,func,dst,src,imm);
 }
 
 RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
@@ -328,97 +327,103 @@ void sub_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
         return;
     }
 
-    emit_imm2<op_type::sub_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::sub_imm>(itl,func,dst,src,imm);
 }
 
 void cmp_signed_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_imm2<op_type::cmpsgt_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::cmpsgt_imm>(itl,func,dst,src,imm);
 }
 
 void cmp_unsigned_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_imm2<op_type::cmpugt_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::cmpugt_imm>(itl,func,dst,src,imm);
 }
 
-void store_byte(Interloper& itl,Function& func, RegSlot src, RegSlot addr, u64 imm)
+void store_byte(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
-    emit_store<op_type::sb>(itl,func,src,addr,imm);
+    emit_store<op_type::sb>(itl,func,src,addr);
 }
 
-void store_half(Interloper& itl,Function& func, RegSlot src, RegSlot addr, u64 imm)
+void store_half(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
-    emit_store<op_type::sh>(itl,func,src,addr,imm);
+    emit_store<op_type::sh>(itl,func,src,addr);
 }
 
 
-void store_word(Interloper& itl,Function& func, RegSlot src, RegSlot addr, u64 imm)
+void store_word(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
-    emit_store<op_type::sw>(itl,func,src,addr,imm);
+    emit_store<op_type::sw>(itl,func,src,addr);
 }
 
-void store_double(Interloper& itl,Function& func, RegSlot src, RegSlot addr, u64 imm)
+void store_double(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
-    emit_store<op_type::sd>(itl,func,src,addr,imm);
+    emit_store<op_type::sd>(itl,func,src,addr);
 }
 
-void store_float(Interloper& itl,Function& func, RegSlot src, RegSlot addr, u64 imm)
+void store_float(Interloper& itl,Function& func, RegSlot src, PointerAddr addr)
 {
-    emit_store<op_type::sf>(itl,func,src,addr,imm);
+    emit_store<op_type::sf>(itl,func,src,addr);
 }
 
-void load_byte(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_byte(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::lb>(itl,func,dst,addr,imm);
+    emit_load<op_type::lb>(itl,func,dst,addr);
 }
 
-void load_half(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_half(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::lh>(itl,func,dst,addr,imm);
+    emit_load<op_type::lh>(itl,func,dst,addr);
 }
 
-void load_word(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_word(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::lw>(itl,func,dst,addr,imm);
+    emit_load<op_type::lw>(itl,func,dst,addr);
 }
 
-void load_double(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_double(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::ld>(itl,func,dst,addr,imm);
+    emit_load<op_type::ld>(itl,func,dst,addr);
 }
 
-void load_float(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_float(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::lf>(itl,func,dst,addr,imm);
+    emit_load<op_type::lf>(itl,func,dst,addr);
 }
 
 
 
-void load_signed_byte(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_signed_byte(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::lsb>(itl,func,dst,addr,imm);
+    emit_load<op_type::lsb>(itl,func,dst,addr);
 }
 
-void load_signed_half(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_signed_half(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::lsh>(itl,func,dst,addr,imm);
+    emit_load<op_type::lsh>(itl,func,dst,addr);
 }
 
-void load_signed_word(Interloper& itl,Function& func, RegSlot dst, RegSlot addr, u64 imm)
+void load_signed_word(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
 {
-    emit_load<op_type::lsw>(itl,func,dst,addr,imm);
+    emit_load<op_type::lsw>(itl,func,dst,addr);
 }
 
-void lea(Interloper& itl,Function& func, RegSlot dst, RegSlot ptr, u32 offset)
+void lea(Interloper& itl,Function& func, RegSlot dst, PointerAddr pointer)
 {
-    emit_load<op_type::lea>(itl,func,dst,ptr,offset);
+    // This has no indexing don't bother
+    if(is_null_reg(pointer.addr.index))
+    {
+        add_imm(itl,func,dst,pointer.addr.base,pointer.addr.offset);
+        return;
+    }
+
+    emit_load<op_type::lea>(itl,func,dst,pointer);
 }
 
-RegSlot lea_res(Interloper& itl,Function& func, RegSlot ptr, u32 offset)
+RegSlot lea_res(Interloper& itl,Function& func, PointerAddr addr)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
-
-    lea(itl,func,tmp,ptr,offset);
+    lea(itl,func,tmp,addr);
 
     return tmp;
 }
@@ -450,7 +455,7 @@ void push_float_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
 
 void cmp_eq_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_imm2<op_type::cmpeq_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::cmpeq_imm>(itl,func,dst,src,imm);
 }
 
 void cmp_eq(Interloper& itl, Function& func,RegSlot dst, RegSlot v1, RegSlot v2)
@@ -468,7 +473,7 @@ RegSlot cmp_eq_res(Interloper& itl, Function& func, RegSlot v1, RegSlot v2)
 
 void cmp_ne_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_imm2<op_type::cmpne_imm>(itl,func,dst,src,imm);
+    emit_imm3<op_type::cmpne_imm>(itl,func,dst,src,imm);
 }
 
 void cmp_ne(Interloper& itl, Function& func,RegSlot dst, RegSlot v1, RegSlot v2)

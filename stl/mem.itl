@@ -2,14 +2,13 @@ namespace std;
 
 func memcpy(dst: byte@, src: const byte@, size: usize)
 {
-    end : const byte@ = dst + size;
+    index: usize = 0;
 
     // just do a simple copy for now
-    while(dst != end)
+    while(index != size)
     {
-        @dst = @src;
-        dst += 1;
-        src += 1;
+        dst[index] = src[index];
+        index += 1;
     }
 }
 

@@ -379,7 +379,7 @@ TypeResult push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_ty
 
         // need to save SP as it will get pushed last
         const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
-        const auto dst_addr = make_addr(dst_ptr,0);
+        const auto dst_addr = make_pointer_addr(dst_ptr,0);
 
         const auto src_addr = make_struct_addr(arg_reg.slot,0);
 
@@ -528,8 +528,10 @@ Option<itl_error> push_tuple_args(Interloper& itl, Function& func, ArgPass& pass
             case ast_type::ignore:
             {
                 const auto tmp = new_struct(func,type_size(itl,rtype));
+                const StructAddr struct_addr = {make_addr(tmp,0)};
 
-                const auto addr_slot = addrof_res(itl,func,tmp);
+
+                const auto addr_slot = addrof_res(itl,func,struct_addr);
                 const TypedReg reg = {addr_slot,make_reference(itl,rtype)};
                 pass_arg(itl,func,pass,reg,a);
                 break;
@@ -567,7 +569,9 @@ Option<itl_error> push_tuple_args(Interloper& itl, Function& func, ArgPass& pass
 
                 spill_slot(itl,func,sym.reg);
 
-                const RegSlot addr_slot = addrof_res(itl,func,sym.reg.slot);
+                const StructAddr struct_addr = {make_addr(sym.reg.slot,0)};
+
+                const RegSlot addr_slot = addrof_res(itl,func,struct_addr);
                 const TypedReg reg = {addr_slot,make_reference(itl,sym.type)};
                 pass_arg(itl,func,pass,reg,a);
                 break;
@@ -576,7 +580,7 @@ Option<itl_error> push_tuple_args(Interloper& itl, Function& func, ArgPass& pass
             case ast_type::access_struct:
             {
                 // get the addr and push it
-                auto member_ptr_res = compute_member_ptr(itl,func,var_node);
+                auto member_ptr_res = compute_member_ptr_res(itl,func,var_node);
                 if(!member_ptr_res)
                 {
                     return member_ptr_res.error();
@@ -672,7 +676,9 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
         {
             case reg_kind::sym:
             {
-                const RegSlot addr = addrof_res(itl,func,dst_slot);
+                const StructAddr struct_addr = {make_addr(dst_slot,0)};
+
+                const RegSlot addr = addrof_res(itl,func,struct_addr);
                 const TypedReg reg = {addr,make_reference(itl,type)};
                 pass_arg(itl,func,pass,reg,0);
                 break;
@@ -681,8 +687,9 @@ Option<itl_error> push_hidden_args(Interloper& itl, Function& func, ArgPass& pas
             case reg_kind::tmp:
             {
                 alloc_slot(itl,func,dst_slot,true);
-                
-                const RegSlot addr = addrof_res(itl,func,dst_slot);
+                const StructAddr struct_addr = {make_addr(dst_slot,0)};
+
+                const RegSlot addr = addrof_res(itl,func,struct_addr);
                 const TypedReg reg = {addr,make_reference(itl,type)};
                 pass_arg(itl,func,pass,reg,0);
                 break;

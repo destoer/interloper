@@ -671,8 +671,8 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
 
     const auto opcode = link.opcode;
 
-    const s64 section_offset = opcode.v[2].raw;
-    const auto spec = spec_reg(opcode.v[1].raw);
+    const s64 section_offset = opcode.offset;
+    const auto spec = spec_reg(opcode.v[1].lowered);
 
     const u32 text_offset = itl.asm_emitter.base_offset;
 
@@ -757,7 +757,7 @@ void link_opcodes(Interloper& itl, Elf& elf)
 
             case op_type::pool_addr:
             {
-                const PoolSlot slot = pool_slot_from_idx(opcode.v[1].raw);
+                const PoolSlot slot = pool_slot_from_idx(opcode.v[1].lowered);
                 rewrite_rel_const_pool(itl,elf,link,slot);
                 break;
             }
@@ -822,7 +822,11 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 break;
             }
 
-            case op_type::lf:
+            case op_type::lf: 
+            {
+                rewrite_rel_load_store(itl,elf,link);
+                break;
+            }
 
 
             case op_type::lea:

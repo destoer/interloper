@@ -28,7 +28,7 @@ OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* n
     if(is_local(reg))
     {
         // add the stack offset, so this correctly offset for when we fully rewrite this
-        node->value.v[2].imm += alloc.stack_alloc.stack_offset;
+        node->value.offset += alloc.stack_alloc.stack_offset;
     }
 
     allocate_and_rewrite(alloc,block,node,0);
@@ -46,13 +46,13 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
         case op_type::load_const_float:
         {
             // grab the offset we want
-            const auto pool_slot = pool_slot_from_idx(opcode.v[1].raw);
+            const auto pool_slot = pool_slot_from_idx(opcode.v[1].lowered);
             auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(alloc,block,node,0);
 
-            node->value = make_raw_op(op_type::lf,node->value.v[0].raw,u32(spec_reg::const_seg),section.offset);
+            node->value = make_lowered_base_addr_instr(op_type::lf,node->value.v[0].lowered,u32(spec_reg::const_seg),section.offset);
 
             node = node->next;
             break;
@@ -196,11 +196,11 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
         {
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
-            const auto slot = opcode.v[1].reg;
+            const auto base = opcode.v[1].reg;
             const auto dst = opcode.v[0].reg;
-            auto& reg = reg_from_slot(slot,alloc);
+            auto& reg = reg_from_slot(base,alloc);
 
-            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,slot);
+            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
 
             if(is_stack_unallocated(reg))
             {
@@ -209,7 +209,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }
 
-            u32 offset = node->value.v[2].imm;
+            u32 offset = node->value.offset;
 
             // local add the stack offset
             if(is_local(reg))
@@ -219,10 +219,11 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
             // okay apply the stack offset, and let the register allocator deal with it
             // we will get the actual address using it later
-            node->value = make_op(op_type::addrof,opcode.v[0],opcode.v[1],make_imm_operand(offset));
+            node->value = make_addr_op(op_type::addrof,opcode.v[0],opcode.v[1],opcode.v[2],opcode.scale,offset);
 
-            // just rewrite the 1st reg we dont want the address of the 2nd
+            // just rewrite the dst slot and index we dont want to write what we are taking an address on
             allocate_and_rewrite(alloc,block,node,0);
+            allocate_and_rewrite(alloc,block,node,2);
 
             node = node->next;
             break;
@@ -338,10 +339,10 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
             const auto slot = opcode.v[0].reg;
             auto& reg = reg_from_slot(slot,alloc);
 
-            log_reg(alloc.print,*alloc.table,"alloc slot: %r : %s\n",slot,opcode.v[1].raw? "forced" : "unforced");
+            log_reg(alloc.print,*alloc.table,"alloc slot: %r : %s\n",slot,opcode.v[1].lowered? "forced" : "unforced");
 
             // explictly force a stack alloc now
-            if(opcode.v[1].raw && reg.segment != reg_segment::global)
+            if(opcode.v[1].lowered && reg.segment != reg_segment::global)
             {
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }
@@ -407,7 +408,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
 OpcodeNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, OpcodeNode* node, op_type type)
 {
-    const u32 base_offset = node->value.v[2].imm;
+    const u32 base_offset = node->value.offset;
     const RegSlot slot = node->value.v[1].reg;
 
     auto &reg = reg_from_slot(slot,alloc);
@@ -416,8 +417,8 @@ OpcodeNode* rewrite_access_struct_addr(Interloper& itl, LinearAlloc& alloc, Opco
 
     const auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
-    node->value = make_op(type,node->value.v[0],make_imm_operand(offset_reg),make_imm_operand(offset + base_offset));
-
+    node->value = make_addr_op(type,node->value.v[0],make_lowered_operand(offset_reg),node->value.v[2],node->value.scale,offset + base_offset);
+    
     return node->next;
 }
 
@@ -454,14 +455,14 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
             // make sure callee restore comes after stack clean
 
-            // NOTE: as floats were last thing saved, they are tthe first to restore
+            // NOTE: as floats were last thing saved, they are the first to restore
             OpcodeNode* float_node = emit_popm_float(itl,block,node,saved_fpr);
             emit_popm(itl,block,float_node,saved_gpr);
 
 
             if(itl.debug)
             {
-                insert_at(block.list,node,make_raw_op(op_type::leave,0,0,0));
+                insert_at(block.list,node,make_lowered_implicit_instr(op_type::leave));
             }
 
             node = node->next;
@@ -479,8 +480,6 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             //assert(reg.offset != UNALLOCATED_OFFSET);
 
             const s32 stack_offset = opcode.v[2].imm;
-
-
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
 
             if(!(reg.flags & REG_FLOAT))
@@ -492,7 +491,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
                     static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
 
                     // this here does not otherwise need rewriting so we will emit SP directly
-                    node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                    node->value = make_lowered_base_addr_instr(instr[log2(reg.size)],opcode.v[0].lowered,offset_reg,offset);
                 }
 
                 // "plain data"
@@ -501,13 +500,13 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
                 {
                     static const op_type instr[4] = {op_type::lb, op_type::lh, op_type::lw,op_type::ld};
 
-                    node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                    node->value = make_lowered_base_addr_instr(instr[log2(reg.size)],opcode.v[0].lowered,offset_reg,offset);
                 }
             }
 
             else
             {
-                node->value = make_raw_op(op_type::lf,opcode.v[0].raw,offset_reg,offset);
+                node->value = make_lowered_base_addr_instr(op_type::lf,opcode.v[0].lowered,offset_reg,offset);
             }
 
             node = node->next;
@@ -516,7 +515,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
         case op_type::addrof:
         {
-            const s32 base_offset = opcode.v[2].imm;
+            const s32 base_offset = opcode.offset;
             const RegSlot slot = opcode.v[1].reg;
 
             auto &reg = reg_from_slot(slot,alloc);
@@ -526,7 +525,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
             auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
-            node->value = make_raw_op(op_type::lea,opcode.v[0].raw,offset_reg,base_offset + offset);
+            node->value = make_addr_op(op_type::lea,opcode.v[0],make_lowered_operand(offset_reg),opcode.v[2],opcode.scale,base_offset + offset);
 
             node = node->next;
             break;
@@ -626,7 +625,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             }
 
             // NOTE: this is allways on the stack, globals handle their own allocation...
-            node->value = make_raw_op(op_type::lea,opcode.v[0].raw,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
+            node->value = make_lowered_base_addr_instr(op_type::lea,opcode.v[0].lowered,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
 
             node = node->next;
             break;
@@ -645,12 +644,12 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             if(!(reg.flags & REG_FLOAT))
             {
                 static const op_type instr[4] = {op_type::sb, op_type::sh, op_type::sw,op_type::sd};
-                node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                node->value = make_lowered_base_addr_instr(instr[log2(reg.size)],opcode.v[0].lowered,offset_reg,offset);
             }
 
             else
             {
-                node->value = make_raw_op(op_type::sf,opcode.v[0].raw,offset_reg,offset);
+                node->value = make_lowered_base_addr_instr(op_type::sf,opcode.v[0].lowered,offset_reg,offset);
             }
 
             node = node->next;
@@ -778,19 +777,19 @@ void allocate_registers(Interloper& itl,Function &func)
     // only allocate a stack if we need it
     if(alloc.stack_alloc.stack_size)
     {
-        insert_at(entry.list,alloc_node,make_raw_op(op_type::sub_imm2,SP,alloc.stack_alloc.stack_size));
+        insert_at(entry.list,alloc_node,make_lowered_imm2_instr(op_type::sub_imm2,SP,alloc.stack_alloc.stack_size));
     }
 
 
     // Insert the frame pointer options at the front
     if(itl.debug)
     {
-        auto frame_node = insert_front(entry.list,make_raw_op(op_type::push,FP,0,0));
-        insert_after(entry.list,frame_node,make_raw_op(op_type::mov_reg,FP,SP,0));
+        auto frame_node = insert_front(entry.list,make_lowered_reg1_instr(op_type::push,FP));
+        insert_after(entry.list,frame_node,make_lowered_reg2_instr(op_type::mov_reg,FP,SP));
     }
 
 
-    const auto stack_clean = make_raw_op(op_type::add_imm2,SP,alloc.stack_alloc.stack_size);
+    const auto stack_clean = make_lowered_imm2_instr(op_type::add_imm2,SP,alloc.stack_alloc.stack_size);
 
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {

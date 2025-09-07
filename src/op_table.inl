@@ -77,8 +77,8 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // float
     {op_group::imm_t,"movf %r, %f",2,{arg_type::dst_float,arg_type::imm,arg_type::none}},
     {op_group::reg_t,"movf %r, %r",2,{arg_type::dst_float,arg_type::src_float,arg_type::none}},
-    {op_group::load_t,"lf %r, [%r, %x]",3,{arg_type::dst_float,arg_type::src_reg,arg_type::imm}},
-    {op_group::store_t,"sf %r, [%r, %x]",3,{arg_type::src_float,arg_type::src_reg,arg_type::imm}},
+    {op_group::addr_t,"lf %r, [%i]",3,{arg_type::dst_float,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sf %r, [%i]",3,{arg_type::src_float,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"addf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
     {op_group::reg_t,"subf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
     {op_group::reg_t,"mulf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
@@ -110,22 +110,22 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cvtif %r, %r",2,{arg_type::dst_float,arg_type::src_reg,arg_type::none}},
 
     // load
-    {op_group::load_t,"lb %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"lh %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"lw %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"ld %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::addr_t,"lb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"ld %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    {op_group::load_t,"lsb %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"lsh %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::load_t,"lsw %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::addr_t,"lsb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lsh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lsw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
     // store
-    {op_group::store_t,"sb %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::store_t,"sh %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::store_t,"sw %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::store_t,"sd %r, [%r, %x]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::addr_t,"sb %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sh %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sw %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sd %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    {op_group::load_t,"lea %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::addr_t,"lea %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
     {op_group::reg_t,"push %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"pop %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
@@ -224,24 +224,24 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"load %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     
 
-    {op_group::imm_t,"addrof %r, %r, %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"addrof %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::src_reg}},
     {op_group::reg_t,"load_func_addr %r, %a",2,{arg_type::dst_reg,arg_type::label,arg_type::none}},
 
-    {op_group::load_t,"load_struct_s8 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::load_t,"load_struct_s16 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::load_t,"load_struct_s32 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_s8 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_s16 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_s32 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
 
-    {op_group::load_t,"load_struct_u8 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::load_t,"load_struct_u16 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::load_t,"load_struct_u32 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::load_t,"load_struct_u64 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::store_t,"load_struct_f64 %r, [%r, %x]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_u8 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_u16 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_u32 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_u64 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_f64 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
 
-    {op_group::store_t,"store_struct_u8 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::store_t,"store_struct_u16 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::store_t,"store_struct_u32 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::store_t,"store_struct_u64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::store_t,"store_struct_f64 %r, [%r, %x]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_u8 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_u16 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_u32 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_u64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_f64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
 
     {op_group::slot_t,"pool_addr %r, %x %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::imm}},
 

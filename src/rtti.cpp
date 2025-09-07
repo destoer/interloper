@@ -348,7 +348,7 @@ PoolSlot make_rtti(Interloper& itl, const Type* type)
     return node.slot;
 }
 
-RegSlot aquire_rtti(Interloper& itl, Function& func, const Type* type)
+RegSlot acquire_rtti(Interloper& itl, Function& func, const Type* type)
 {
     const PoolSlot pool_slot = make_rtti(itl,type);
 
@@ -371,7 +371,7 @@ void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const
     auto& rtti = itl.rtti_cache;
 
     // aquire a copy of the typing information from the const pool
-    const RegSlot rtti_ptr = aquire_rtti(itl,func,reg.type); 
+    const RegSlot rtti_ptr = acquire_rtti(itl,func,reg.type); 
 
     // goes directly in the pointer
     if(is_trivial_copy(reg.type))
@@ -390,7 +390,9 @@ void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const
     {
         // store type struct
         store_ptr(itl,func,rtti_ptr,any_ptr,offset + rtti.any_type_offset,GPR_SIZE,false); 
-        const auto arr_ptr = addrof_res(itl,func,reg.slot);
+
+        const StructAddr struct_addr = {make_addr(reg.slot,0)};
+        const auto arr_ptr = addrof_res(itl,func,struct_addr);
 
         // store data
         store_ptr(itl,func,arr_ptr,any_ptr,offset + rtti.any_data_offset,GPR_SIZE,false);
@@ -470,7 +472,7 @@ Option<itl_error> compile_any_internal(Interloper& itl, Function& func, AstNode*
 
                 // need to save SP as it will get pushed last
                 const RegSlot dst_ptr = copy_reg(itl,func,SP_SLOT);
-                const auto dst_addr = make_addr(dst_ptr,0);
+                const auto dst_addr = make_pointer_addr(dst_ptr,0);
 
                 const auto src_addr = make_struct_addr(arg_reg.slot,0);
 
