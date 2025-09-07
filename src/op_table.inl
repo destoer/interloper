@@ -224,7 +224,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"load %r, %x",2,{arg_type::directive,arg_type::directive,arg_type::none}},
     
 
-    {op_group::addr_t,"addrof %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"addrof %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::src_reg}},
     {op_group::reg_t,"load_func_addr %r, %a",2,{arg_type::dst_reg,arg_type::label,arg_type::none}},
 
     {op_group::addr_t,"load_struct_s8 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},

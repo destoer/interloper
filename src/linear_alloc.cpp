@@ -1263,7 +1263,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                         reload_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.global_reg,insert_type);
                     }
 
-                    // Otherwhise just move it
+                    // Otherwise just move it
                     else
                     {
                         const bool is_float = ir_reg.flags & REG_FLOAT;

@@ -809,6 +809,11 @@ inline Opcode make_raw_op(op_type type, u64 v1 = 0, u64 v2 = 0, u64 v3 = 0)
     return Opcode {type,make_raw_operand(v1),make_raw_operand(v2),make_raw_operand(v3),0,0};
 }
 
+inline Opcode make_raw_base_addr_op(op_type type, u64 dst, u64 base, u32 offset)
+{
+    return Opcode {type,make_raw_operand(dst),make_raw_operand(base),make_raw_operand(u32(spec_reg::null)),1,offset};
+}
+
 inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
 {
     return Opcode {type,v1,v2,v3,0,0};

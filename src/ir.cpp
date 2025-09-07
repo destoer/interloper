@@ -28,7 +28,7 @@ OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* n
     if(is_local(reg))
     {
         // add the stack offset, so this correctly offset for when we fully rewrite this
-        node->value.v[2].imm += alloc.stack_alloc.stack_offset;
+        node->value.offset += alloc.stack_alloc.stack_offset;
     }
 
     allocate_and_rewrite(alloc,block,node,0);
@@ -52,7 +52,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
             // just rewrite the 1st reg we dont want the address of the 2nd
             allocate_and_rewrite(alloc,block,node,0);
 
-            node->value = make_raw_op(op_type::lf,node->value.v[0].raw,u32(spec_reg::const_seg),section.offset);
+            node->value = make_raw_base_addr_op(op_type::lf,node->value.v[0].raw,u32(spec_reg::const_seg),section.offset);
 
             node = node->next;
             break;
@@ -480,8 +480,6 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             //assert(reg.offset != UNALLOCATED_OFFSET);
 
             const s32 stack_offset = opcode.v[2].imm;
-
-
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
 
             if(!(reg.flags & REG_FLOAT))
@@ -493,7 +491,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
                     static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
 
                     // this here does not otherwise need rewriting so we will emit SP directly
-                    node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                    node->value = make_raw_base_addr_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
                 }
 
                 // "plain data"
@@ -502,13 +500,13 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
                 {
                     static const op_type instr[4] = {op_type::lb, op_type::lh, op_type::lw,op_type::ld};
 
-                    node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                    node->value = make_raw_base_addr_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
                 }
             }
 
             else
             {
-                node->value = make_raw_op(op_type::lf,opcode.v[0].raw,offset_reg,offset);
+                node->value = make_raw_base_addr_op(op_type::lf,opcode.v[0].raw,offset_reg,offset);
             }
 
             node = node->next;
@@ -627,7 +625,7 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             }
 
             // NOTE: this is allways on the stack, globals handle their own allocation...
-            node->value = make_raw_op(op_type::lea,opcode.v[0].raw,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
+            node->value = make_raw_base_addr_op(op_type::lea,opcode.v[0].raw,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
 
             node = node->next;
             break;
@@ -646,12 +644,12 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
             if(!(reg.flags & REG_FLOAT))
             {
                 static const op_type instr[4] = {op_type::sb, op_type::sh, op_type::sw,op_type::sd};
-                node->value = make_raw_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
+                node->value = make_raw_base_addr_op(instr[log2(reg.size)],opcode.v[0].raw,offset_reg,offset);
             }
 
             else
             {
-                node->value = make_raw_op(op_type::sf,opcode.v[0].raw,offset_reg,offset);
+                node->value = make_raw_base_addr_op(op_type::sf,opcode.v[0].raw,offset_reg,offset);
             }
 
             node = node->next;
