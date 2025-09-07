@@ -55,8 +55,8 @@ Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, A
 
         const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
-        const RegSlot src_ptr = collapse_struct_addr(itl,func,src_addr);
-        const RegSlot dst_ptr = collapse_struct_addr(itl,func,dst_addr);
+        const RegSlot src_ptr = collapse_struct_addr_oper(itl,func,src_addr);
+        const RegSlot dst_ptr = collapse_struct_addr_oper(itl,func,dst_addr);
 
         const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
         const TypedReg src = {src_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};

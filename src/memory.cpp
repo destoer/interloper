@@ -13,28 +13,48 @@ AddrSlot make_struct_addr(RegSlot base, u32 offset)
     return {make_addr(base,offset),true};
 }
 
-RegSlot collapse_struct_addr(Interloper& itl, Function& func, const AddrSlot struct_slot)
+void collapse_struct_addr(Interloper& itl, Function& func, RegSlot dst_slot, const AddrSlot struct_slot)
 {
     if(struct_slot.struct_addr)
     {
         StructAddr struct_addr = {struct_slot.addr};
-        return addrof_res(itl,func,struct_addr);
+        addrof(itl,func,dst_slot,struct_addr);
+        return;
     }
 
     PointerAddr pointer = {struct_slot.addr};
-    return lea_res(itl,func,pointer);
+    lea(itl,func,dst_slot,pointer);
+}
+
+RegSlot collapse_struct_addr_res(Interloper& itl, Function& func, const AddrSlot struct_slot)
+{
+    const RegSlot tmp = new_tmp(func,GPR_SIZE);
+    collapse_struct_addr(itl,func,tmp,struct_slot);
+
+    return tmp;
+}
+
+// This doesn't require a copy, if this is just a straight pointer just return the base
+RegSlot collapse_struct_addr_oper(Interloper& itl, Function& func, const AddrSlot struct_slot)
+{
+    if(!struct_slot.struct_addr && struct_slot.addr.offset == 0 && is_null_reg(struct_slot.addr.index))
+    {
+        return struct_slot.addr.base;
+    }
+
+    return collapse_struct_addr_res(itl,func,struct_slot);
 }
 
 TypedReg collapse_typed_struct_res(Interloper& itl, Function& func, const TypedAddr& struct_slot)
 {
-    const auto ptr = collapse_struct_addr(itl,func,struct_slot.addr_slot);
+    const auto ptr = collapse_struct_addr_res(itl,func,struct_slot.addr_slot);
     return TypedReg {ptr,struct_slot.type};
 }
 
 
 void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_slot)
 {
-    *struct_slot = make_pointer_addr(collapse_struct_addr(itl,func,*struct_slot),0);
+    *struct_slot = make_pointer_addr(collapse_struct_addr_res(itl,func,*struct_slot),0);
 }
 
 
@@ -228,8 +248,7 @@ Option<itl_error> do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,c
         // fixed size array, the pointer is the array
         else
         {
-            const RegSlot ptr = collapse_struct_addr(itl,func,src_addr.addr_slot);
-            mov_reg(itl,func,dst_slot,ptr);
+            collapse_struct_addr(itl,func,dst_slot,src_addr.addr_slot);
         }
     }
 

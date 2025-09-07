@@ -738,8 +738,7 @@ TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_sl
 
             const auto index = *index_res;
 
-            const auto tmp = collapse_struct_addr(itl,func,index.addr_slot);
-            mov_reg(itl,func,dst_slot,tmp);
+            collapse_struct_addr(itl,func,dst_slot,index.addr_slot);
             return make_reference(itl,index.type);
         }
 

@@ -185,7 +185,7 @@ RegSlot load_arr_data(Interloper& itl,Function& func,const TypedAddr& src)
     // fixed size, array ptr is stored in its own slot!
     else
     {
-        return collapse_struct_addr(itl,func,src.addr_slot);
+        return collapse_struct_addr_res(itl,func,src.addr_slot);
     }
 }
 
@@ -335,7 +335,7 @@ TypeResult read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
     // fixed array needs conversion by host
     if(is_fixed_array(index.type))
     {
-        mov_reg(itl,func,dst_slot,collapse_struct_addr(itl,func,index.addr_slot));
+        collapse_struct_addr(itl,func,dst_slot,index.addr_slot);
         return index.type;
     }
 
@@ -826,7 +826,7 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
         // final plain values
         else
         {
-            const RegSlot ptr = collapse_struct_addr(itl,func,addr_slot);
+            const RegSlot ptr = collapse_struct_addr_res(itl,func,addr_slot);
             return ir_zero(itl,func,ptr,type->size * type->sub_size);
         }
     }

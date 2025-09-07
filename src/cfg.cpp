@@ -186,7 +186,7 @@ void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot 
     // TODO: handle src storage
 
     const Opcode opcode = make_cond_branch_instr(branch_type,target_block.label_slot,reg_slot);
-    emit_block_func(func,opcode);
+    emit_block_internal(func,block,opcode);
 
     // build links into the cfg 
     add_cond_exit(func,block,target,fall);
@@ -199,7 +199,7 @@ void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot targ
     const auto& target_block = block_from_slot(func,target);
 
     const Opcode opcode = make_branch_instr(op_type::b,target_block.label_slot);
-    emit_block_func(func,opcode);
+    emit_block_internal(func,block,opcode);
     add_block_exit(func,block,target);
 
     check_block_branch(itl,func,block);

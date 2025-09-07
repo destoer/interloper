@@ -409,9 +409,16 @@ void load_signed_word(Interloper& itl,Function& func, RegSlot dst, PointerAddr a
     emit_load<op_type::lsw>(itl,func,dst,addr);
 }
 
-void lea(Interloper& itl,Function& func, RegSlot dst, PointerAddr addr)
+void lea(Interloper& itl,Function& func, RegSlot dst, PointerAddr pointer)
 {
-    emit_load<op_type::lea>(itl,func,dst,addr);
+    // This has no indexing don't bother
+    if(is_null_reg(pointer.addr.index) && pointer.addr.offset == 0)
+    {
+        mov_reg(itl,func,dst,pointer.addr.base);
+        return;
+    }
+
+    emit_load<op_type::lea>(itl,func,dst,pointer);
 }
 
 RegSlot lea_res(Interloper& itl,Function& func, PointerAddr addr)
