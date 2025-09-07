@@ -3,6 +3,7 @@ Addr make_addr(RegSlot base, u32 offset)
     return {base,make_spec_reg_slot(spec_reg::null),1,offset};
 }
 
+// Do not use directly, unless rescaling manually afterwards
 Addr make_indexed_addr(RegSlot base, RegSlot index, u32 scale, u32 offset)
 {
     return {base,index,scale,offset};
@@ -149,12 +150,6 @@ static void load_ptr_addr(Interloper &itl,Function& func,RegSlot dst_slot,Pointe
             default: assert(false);
         }
     }
-}
-
-static void load_ptr(Interloper &itl,Function& func,RegSlot dst_slot,RegSlot ptr, u32 offset ,u32 size, b32 is_signed, b32 is_float)
-{
-    const PointerAddr pointer = {make_addr(ptr,offset)};
-    load_ptr_addr(itl,func,dst_slot,pointer,size,is_signed,is_float);
 }
 
 void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,StructAddr addr,u32 size, b32 is_signed, b32 is_float)

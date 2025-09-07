@@ -161,10 +161,17 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
 
             else
             {
-                constexpr op_type type = arith_info.reg_form;
-                const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
+                if(arith == arith_op::sub_t)
+                {
+                    const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
+                    emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,offset_slot);
+                }
 
-                emit_reg3<type>(itl,func,dst_slot,left.slot,offset_slot);
+                else
+                {
+                    const AddrSlot addr = generate_indexed_pointer(itl,func,left.slot,right.slot,size,0);
+                    collapse_struct_addr(itl,func,dst_slot,addr);
+                }
             }
         }
 
