@@ -744,16 +744,13 @@ TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_sl
 
         case ast_type::access_struct:
         {
-            auto res = compute_member_ptr(itl,func,node);
+            auto res = compute_member_ptr(itl,func,dst_slot,node);
             if(!res)
             {
                 return res.error();
             }
 
             auto ptr = *res;
-
-            // make sure this ptr goes into the dst slot
-            mov_reg(itl,func,dst_slot,ptr.slot);
 
             return ptr.type;
         }

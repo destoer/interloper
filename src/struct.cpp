@@ -786,7 +786,7 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
     return struct_addr;
 }
 
-RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
+RegResult compute_member_ptr(Interloper& itl, Function& func, RegSlot dst_slot, AstNode* node)
 {
     auto member_addr_res = compute_member_addr(itl,func,node);
 
@@ -797,8 +797,14 @@ RegResult compute_member_ptr(Interloper& itl, Function& func, AstNode* node)
 
     auto dst_addr = *member_addr_res;
 
-    const RegSlot ptr = collapse_struct_addr_res(itl,func,dst_addr.addr_slot);
-    return TypedReg{ptr,make_reference(itl,dst_addr.type)};
+    collapse_struct_addr(itl,func,dst_slot,dst_addr.addr_slot);
+    return TypedReg{dst_slot,make_reference(itl,dst_addr.type)};
+}
+
+RegResult compute_member_ptr_res(Interloper& itl, Function& func, AstNode* node)
+{
+    const RegSlot tmp = new_tmp(func,GPR_SIZE);
+    return compute_member_ptr(itl,func,tmp,node);
 }
 
 Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& src, AstNode *node)

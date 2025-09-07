@@ -412,9 +412,9 @@ void load_signed_word(Interloper& itl,Function& func, RegSlot dst, PointerAddr a
 void lea(Interloper& itl,Function& func, RegSlot dst, PointerAddr pointer)
 {
     // This has no indexing don't bother
-    if(is_null_reg(pointer.addr.index) && pointer.addr.offset == 0)
+    if(is_null_reg(pointer.addr.index))
     {
-        mov_reg(itl,func,dst,pointer.addr.base);
+        add_imm(itl,func,dst,pointer.addr.base,pointer.addr.offset);
         return;
     }
 

@@ -580,7 +580,7 @@ Option<itl_error> push_tuple_args(Interloper& itl, Function& func, ArgPass& pass
             case ast_type::access_struct:
             {
                 // get the addr and push it
-                auto member_ptr_res = compute_member_ptr(itl,func,var_node);
+                auto member_ptr_res = compute_member_ptr_res(itl,func,var_node);
                 if(!member_ptr_res)
                 {
                     return member_ptr_res.error();
