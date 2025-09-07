@@ -671,7 +671,7 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
 
     const auto opcode = link.opcode;
 
-    const s64 section_offset = opcode.v[2].raw;
+    const s64 section_offset = opcode.offset;
     const auto spec = spec_reg(opcode.v[1].raw);
 
     const u32 text_offset = itl.asm_emitter.base_offset;
