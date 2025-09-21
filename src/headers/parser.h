@@ -21,7 +21,7 @@ inline const char *AST_KIND_NAMES[] =
 
 struct AstNode
 {
-    ast_kind kind;
+    ast_kind type;
     u32 idx;
 };
 
@@ -117,7 +117,7 @@ struct ExprCtx
 void add_ast_pointer(Parser& parser, void* pointer);
 
 template<typename T>
-T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
+T* alloc_node(Parser& parser, ast_kind type, const Token& token)
 {
     AstNode* node = (AstNode*)allocate(*parser.ast_allocator,sizeof(T));
 
@@ -126,7 +126,6 @@ T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
     *ret_node = {};
 
     node->type = type;
-    node->fmt = fmt;
     node->idx = token.idx;
 
     return ret_node;
@@ -144,7 +143,7 @@ ParserResult ast_bin_arith(Parser& parser, arith_bin_op oper, ParserResult left_
         return right_res;
     }
 
-    ArithBinNode* arith_node  = alloc_node<ArithBinNode>(parser,ast_type::arith_bin_op,ast_fmt::arith_bin_op,token);
+    ArithBinNode* arith_node  = alloc_node<ArithBinNode>(parser,ast_kind::arith_bin_op,token);
 
     arith_node->oper = oper;
     arith_node->left = *left_res;
@@ -161,7 +160,7 @@ ParserResult ast_unary_arith(Parser& parser, arith_unary_op oper, ParserResult e
         return expr_res;
     }
 
-    ArithUnaryNode* arith_node  = alloc_node<ArithUnaryNode>(parser,ast_type::arith_unary_op,ast_fmt::arith_unary_op,token);
+    ArithUnaryNode* arith_node  = alloc_node<ArithUnaryNode>(parser,ast_kind::arith_unary_op,token);
 
     arith_node->oper = oper;
     arith_node->expr = *expr_res;
@@ -169,335 +168,6 @@ ParserResult ast_unary_arith(Parser& parser, arith_unary_op oper, ParserResult e
     return (AstNode*)arith_node;
 }
 
-
-
-AstNode *ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, NameSpace* name_space, const Token& token)
-{
-    StructInitializerNode* struct_initializer_node = alloc_node<StructInitializerNode>(parser,ast_type::struct_initializer,ast_fmt::struct_initializer,token);
-
-    struct_initializer_node->struct_name = literal;
-    struct_initializer_node->initializer = initializer;
-    struct_initializer_node->name_space = name_space;
-
-    return (AstNode*)struct_initializer_node;
-}
-
-AstNode *ast_plain(Parser& parser,ast_type type, const Token& token)
-{
-    AstNode* node = alloc_node<AstNode>(parser,type,ast_fmt::plain,token);
-
-    return node;    
-}
-
-AstNode *ast_literal(Parser& parser,ast_type type,const String &literal, const Token& token)
-{
-    LiteralNode* literal_node = alloc_node<LiteralNode>(parser,type,ast_fmt::literal,token);
-
-    literal_node->literal = literal;
-
-    return (AstNode*)literal_node;    
-}
-
-AstNode *ast_char(Parser& parser,const char character, const Token& token)
-{
-    CharNode* char_node = alloc_node<CharNode>(parser,ast_type::char_t,ast_fmt::char_t,token);
-
-    char_node->character = character;
-
-    return (AstNode*)char_node;    
-}
-
-
-AstNode *ast_func(Parser& parser,const String &name, const String& filename, const Token& token)
-{
-    FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,ast_fmt::function,token);
-
-    add_ast_pointer(parser,&func_node->args.data);
-    add_ast_pointer(parser,&func_node->return_type.data);
-
-    func_node->name = name;
-    func_node->filename = filename;
-
-    return (AstNode*)func_node;
-}
-
-AstNode *ast_struct(Parser& parser,const String &name, const String& filename, const Token& token)
-{
-    StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,ast_fmt::struct_t,token);
-
-    add_ast_pointer(parser,&struct_node->members.data);
-
-    struct_node->name = name;
-    struct_node->filename = filename;
-
-
-    return (AstNode*)struct_node;
-}    
-
-ParserResult ast_binary(Parser& parser,ParserResult l_res, ParserResult r_res, ast_type type, const Token& token)
-{
-    if(!l_res)
-    {
-        return l_res;
-    }
-
-    if(!r_res)
-    {
-        return r_res;
-    }
-
-    BinNode* bin_node = alloc_node<BinNode>(parser,type,ast_fmt::binary,token);
-
-    bin_node->left = *l_res;
-    bin_node->right = *r_res;
-
-    return (AstNode*)bin_node;  
-}
-
-ParserResult ast_unary(Parser& parser,ParserResult next_res, ast_type type, const Token& token)
-{
-    if(!next_res)
-    {
-        return next_res;
-    }
-
-    UnaryNode* unary_node = alloc_node<UnaryNode>(parser,type,ast_fmt::unary,token);
-
-    unary_node->next = *next_res;
-
-    return (AstNode*)unary_node;  
-}
-
-
-AstNode *ast_value(Parser& parser,Value value, const Token& token)
-{
-    ValueNode* value_node = alloc_node<ValueNode>(parser,ast_type::value,ast_fmt::value,token);
-
-    value_node->value = value;
-
-    return (AstNode*)value_node;  
-}
-
-AstNode *ast_float(Parser& parser, f64 value, const Token& token)
-{
-    FloatNode* float_node = alloc_node<FloatNode>(parser,ast_type::float_t,ast_fmt::float_t,token);
-
-    float_node->value = value;
-
-    return (AstNode*)float_node;  
-}
-
-AstNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& name, const Token& token)
-{
-    TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,ast_fmt::type,token);
-
-    type_node->name = name;
-    type_node->name_space = name_space;
-
-    add_ast_pointer(parser,&type_node->compound_type.data);
-
-    return (AstNode*)type_node;        
-}
-
-
-AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, b32 is_const_decl, const Token& token)
-{
-    const auto decl_type = is_const_decl? ast_type::const_decl : ast_type::declaration;
-
-    DeclNode* decl_node = alloc_node<DeclNode>(parser,decl_type,ast_fmt::declaration,token);
-
-    decl_node->name = name;
-    decl_node->type = type;
-
-    return (AstNode*)decl_node;        
-}
-
-AstNode* ast_auto_decl(Parser& parser, const String& name, AstNode* expr, const Token& token)
-{
-    AutoDeclNode* decl_node = alloc_node<AutoDeclNode>(parser,ast_type::auto_decl,ast_fmt::auto_decl,token);
-
-    decl_node->name = name;
-    decl_node->expr = expr;
-
-    return (AstNode*)decl_node;        
-}
-
-AstNode* ast_block(Parser& parser, const Token& token)
-{
-    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::block,ast_fmt::block,token);
-
-    add_ast_pointer(parser,&block_node->statements.data);
-
-    return (AstNode*)block_node;
-}
-
-AstNode* ast_if_block(Parser& parser, const Token& token)
-{
-    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::if_block,ast_fmt::block,token);
-
-    add_ast_pointer(parser,&block_node->statements.data);
-
-    return (AstNode*)block_node;
-}
-
-AstNode* ast_call(Parser& parser, AstNode* expr, const Token& token)
-{
-    FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,ast_fmt::function_call,token);
-
-    add_ast_pointer(parser,&func_call->args.data);
-
-    // NOTE: this can encompass just a plain name for a function
-    // or it could be for a symbol as part of a function pointer!
-    func_call->expr = expr;
-
-    return (AstNode*)func_call;
-}
-
-AstNode* ast_for_iter(Parser& parser, const Token& token)
-{
-    AstNode* node = (AstNode*)alloc_node<ForIterNode>(parser,ast_type::for_iter,ast_fmt::for_iter,token);
-
-    return node;
-}
-
-AstNode* ast_for_range(Parser& parser, const Token& token)
-{
-    AstNode* node = (AstNode*)alloc_node<ForRangeNode>(parser,ast_type::for_range,ast_fmt::for_range,token);
-
-    return node;
-}
-
-AstNode* ast_record(Parser& parser,ast_type type, const Token& token)
-{
-    RecordNode* record_node = alloc_node<RecordNode>(parser,type,ast_fmt::record,token);
-
-    add_ast_pointer(parser,&record_node->nodes.data);
-
-    return (AstNode*)record_node;
-}
-
-
-AstNode* ast_index(Parser& parser,const String &name, const Token& token)
-{
-    IndexNode* index_node = alloc_node<IndexNode>(parser,ast_type::index,ast_fmt::index,token);
-
-    add_ast_pointer(parser,&index_node->indexes.data);
-
-    index_node->name = name;
-
-    return (AstNode*)index_node;
-}
-
-AstNode* ast_slice(Parser& parser,const String &name, const Token& token)
-{
-    SliceNode* slice_node = alloc_node<SliceNode>(parser,ast_type::slice,ast_fmt::slice,token);
-    slice_node->name = name;
-
-    return (AstNode*)slice_node;
-}
-
-AstNode* ast_switch(Parser& parser, AstNode* expr, const Token& token)
-{
-    SwitchNode* switch_node = alloc_node<SwitchNode>(parser,ast_type::switch_t,ast_fmt::switch_t,token);
-    
-    switch_node->expr = expr;
-
-    add_ast_pointer(parser,&switch_node->statements.data);
-
-    return (AstNode*)switch_node;
-}
-
-AstNode* ast_case(Parser& parser, AstNode* expr, BlockNode* block, const Token& token)
-{
-    CaseNode* case_node = alloc_node<CaseNode>(parser,ast_type::case_t,ast_fmt::case_t,token);
-    
-    case_node->statement = expr;
-    case_node->block = block;
-
-    return (AstNode*)case_node;
-}
-
-AstNode* ast_scope(Parser& parser, AstNode* expr, Array<String> scope, const Token& token)
-{
-    ScopeNode* scope_node = alloc_node<ScopeNode>(parser,ast_type::scope,ast_fmt::scope,token);
-    
-    scope_node->expr = expr;
-    scope_node->scope = scope;
-    add_ast_pointer(parser,&scope_node->scope.data);
-
-    return (AstNode*)scope_node;
-}
-
-
-AstNode* ast_tuple_assign(Parser& parser, const Token& token)
-{
-    TupleAssignNode* tuple_node = alloc_node<TupleAssignNode>(parser,ast_type::tuple_assign,ast_fmt::tuple_assign,token);
-
-    tuple_node->auto_decl = false;
-    add_ast_pointer(parser,&tuple_node->symbols.data);
-
-    return (AstNode*)tuple_node;
-}
-
-AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const String& filename, const Token& token)
-{
-    AliasNode* alias_node = alloc_node<AliasNode>(parser,ast_type::type_alias,ast_fmt::type_alias,token);
-
-    alias_node->filename = filename;
-    alias_node->name = literal;
-    alias_node->type = type;
-
-    return (AstNode*)alias_node;
-}
-
-AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename,NameSpace* name_space, const Token& token)
-{
-    GlobalDeclNode* global_node = alloc_node<GlobalDeclNode>(parser,ast_type::global_declaration,ast_fmt::global_declaration,token);
-
-    global_node->filename = filename;
-    global_node->name_space = name_space;
-    global_node->decl = decl_node;
-
-    return (AstNode*)global_node;
-}
-
-AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& field,const Token& token)
-{
-    BuiltinAccessNode* builtin_access = alloc_node<BuiltinAccessNode>(parser,ast_type::builtin_type_info,ast_fmt::builtin_type_info,token);
-
-    builtin_access->type = type;
-    builtin_access->field = field;
-
-    return (AstNode*)builtin_access;
-}
-
-AstNode* ast_enum(Parser& parser, const String& name,const String& filename,const Token& token)
-{
-    EnumNode* enum_node = alloc_node<EnumNode>(parser,ast_type::enum_t,ast_fmt::enum_t,token);
-
-    enum_node->name = name;
-    enum_node->filename = filename;
-    
-    add_ast_pointer(parser,&enum_node->member.data);
-
-    return (AstNode*)enum_node;    
-}
-
-
-AstNode* ast_type_operator(TypeNode* type,ast_type kind)
-{
-    type->node.type = kind;
-
-    return (AstNode*)type;    
-}
-
-AstNode* ast_designated_initializer_list(Parser& parser, const Token& token)
-{
-    DesignatedListNode* list = alloc_node<DesignatedListNode>(parser,ast_type::designated_initializer_list,ast_fmt::designated_initializer_list,token);
-    add_ast_pointer(parser,&list->initializer.data);
-
-    return (AstNode*)list;
-}
 
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
