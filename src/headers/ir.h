@@ -287,9 +287,23 @@ enum class boolean_logic_op
     or_t,
 };
 
+enum class arith_unary_op
+{
+    add_t,
+    sub_t,
+    bitwise_not_t,
+    logical_not_t,
+};
 
+static const char* ARITH_UNARY_NAMES[] =
+{
+    "+",
+    "-",
+    "~",
+    "!",
+};
 
-enum class arith_op
+enum class arith_bin_op
 {
     add_t,
     sub_t,
@@ -301,27 +315,39 @@ enum class arith_op
     or_t,
 };
 
-static constexpr u32 ARITH_OP_SIZE = 8;
+static constexpr u32 ARITH_BIN_OP_SIZE = 8;
+
+static const char* ARITH_BIN_NAMES[] = 
+{
+    "+",
+    "-",
+    "*",
+    "%",
+    "/",
+    "^",
+    "&",
+    "|"
+};
 
 struct ArithmeticInfo
 {
-    enum arith_op arith;
+    enum arith_bin_op arith;
     bool commutative = false;
     op_type reg_form = op_type::END;
     op_type imm_form = op_type::END;
     op_type float_form = op_type::END;
 };
 
-static constexpr ArithmeticInfo ARITH_INFO[ARITH_OP_SIZE] = 
+static constexpr ArithmeticInfo ARITH_INFO[ARITH_BIN_OP_SIZE] = 
 {
-    {arith_op::add_t,true,op_type::add_reg,op_type::add_imm,op_type::addf_reg},
-    {arith_op::sub_t,false,op_type::sub_reg,op_type::sub_imm,op_type::subf_reg},
-    {arith_op::mul_t,true,op_type::mul_reg,op_type::mul_imm,op_type::mulf_reg},
-    {arith_op::mod_t,false,op_type::none,op_type::none,op_type::none},
-    {arith_op::div_t,false,op_type::none,op_type::none,op_type::divf_reg},
-    {arith_op::xor_t,true,op_type::xor_reg,op_type::xor_imm,op_type::none},
-    {arith_op::and_t,true,op_type::and_reg,op_type::and_imm,op_type::none},
-    {arith_op::or_t,true,op_type::or_reg,op_type::none,op_type::none},
+    {arith_bin_op::add_t,true,op_type::add_reg,op_type::add_imm,op_type::addf_reg},
+    {arith_bin_op::sub_t,false,op_type::sub_reg,op_type::sub_imm,op_type::subf_reg},
+    {arith_bin_op::mul_t,true,op_type::mul_reg,op_type::mul_imm,op_type::mulf_reg},
+    {arith_bin_op::mod_t,false,op_type::none,op_type::none,op_type::none},
+    {arith_bin_op::div_t,false,op_type::none,op_type::none,op_type::divf_reg},
+    {arith_bin_op::xor_t,true,op_type::xor_reg,op_type::xor_imm,op_type::none},
+    {arith_bin_op::and_t,true,op_type::and_reg,op_type::and_imm,op_type::none},
+    {arith_bin_op::or_t,true,op_type::or_reg,op_type::none,op_type::none},
 };
 
 

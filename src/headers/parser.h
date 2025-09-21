@@ -52,11 +52,8 @@ enum class ast_type
 
 
     equal,
-    times,
-    plus,
-    minus,
-    divide,
-    mod,
+    arith_bin_op,
+    arith_unary_op,
 
     tuple_assign,
     
@@ -65,11 +62,6 @@ enum class ast_type
 
     deref,
     addrof,
-
-    bitwise_or,
-    bitwise_not,
-    bitwise_and,
-    bitwise_xor,
 
     logical_or,
     logical_not,
@@ -163,11 +155,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
     "global declaration",
 
     "=",
-    "*",
-    "+",
-    "-",
-    "/",
-    "%",
+    "binary arithmetic operation",
+    "unary arithmetic operation"
 
     "tuple_assign",
 
@@ -176,11 +165,6 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 
     "@",
     "addrof",
-
-    "|",
-    "~",
-    "&",
-    "^",
 
     "||",
     "!",
@@ -229,6 +213,8 @@ inline const char *AST_NAMES[AST_TYPE_SIZE] =
 enum class ast_fmt
 {
     plain,
+    arith_bin_op,
+    arith_unary_op,
     binary,
     unary,
     literal,
@@ -299,6 +285,22 @@ struct AstNode
     ast_fmt fmt;
     u32 idx;
 };
+
+struct ArithBinNode
+{
+    AstNode node;
+    arith_bin_op oper;
+    AstNode* left = nullptr;
+    AstNode* right = nullptr;
+};
+
+struct ArithUnaryNode
+{
+    AstNode node;
+    arith_unary_op oper;
+    AstNode* expr = nullptr;
+};
+
 
 enum class [[nodiscard]] parse_error
 {
@@ -694,6 +696,45 @@ T* alloc_node(Parser& parser, ast_type type, ast_fmt fmt, const Token& token)
 
     return ret_node;
 }
+
+ParserResult ast_bin_arith(Parser& parser, arith_bin_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
+{
+    if(!left_res)
+    {
+        return left_res;
+    }
+
+    if(!right_res)
+    {
+        return right_res;
+    }
+
+    ArithBinNode* arith_node  = alloc_node<ArithBinNode>(parser,ast_type::arith_bin_op,ast_fmt::arith_bin_op,token);
+
+    arith_node->oper = oper;
+    arith_node->left = *left_res;
+    arith_node->right = *right_res;
+
+    return (AstNode*)arith_node;
+}
+
+
+ParserResult ast_unary_arith(Parser& parser, arith_unary_op oper, ParserResult expr_res, const Token& token)
+{
+    if(!expr_res)
+    {
+        return expr_res;
+    }
+
+    ArithUnaryNode* arith_node  = alloc_node<ArithUnaryNode>(parser,ast_type::arith_unary_op,ast_fmt::arith_unary_op,token);
+
+    arith_node->oper = oper;
+    arith_node->expr = *expr_res;
+
+    return (AstNode*)arith_node;
+}
+
+
 
 AstNode *ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, NameSpace* name_space, const Token& token)
 {

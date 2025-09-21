@@ -88,7 +88,7 @@ Result<s32,parse_error> lbp_subexpr(Parser &parser,const ExprCtx& ctx,const Toke
 }
 
 // i.e +=
-ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type oper)
+ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,arith_bin_op oper)
 {
     auto res = expression(parser,ctx,lbp_subexpr(parser,ctx,t));
 
@@ -100,7 +100,7 @@ ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,ast_type 
     auto e = *res;
 
     // sugar as <sym> = <sym> + <expr>
-    auto e2 = ast_binary(parser,left,e,oper,t);
+    auto e2 = ast_bin_arith(parser,oper,left,e,t);
     auto ans = ast_binary(parser,left,e2,ast_type::equal,t);
 
     return ans;    
@@ -112,28 +112,28 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
     {
         case token_type::plus_eq:
         {
-            return oper_eq(parser,ctx,left,t,ast_type::plus);
+            return oper_eq(parser,ctx,left,t,arith_bin_op::add_t);
         }
 
         case token_type::minus_eq:
         {
-            return oper_eq(parser,ctx,left,t,ast_type::minus);
+            return oper_eq(parser,ctx,left,t,arith_bin_op::sub_t);
         }
 
         case token_type::times_eq:
         {
-            return oper_eq(parser,ctx,left,t,ast_type::times);
+            return oper_eq(parser,ctx,left,t,arith_bin_op::mul_t);
         }
 
 
         case token_type::divide_eq:
         {
-            return oper_eq(parser,ctx,left,t,ast_type::divide);
+            return oper_eq(parser,ctx,left,t,arith_bin_op::div_t);
         }
 
         case token_type::bitwise_or_eq:
         {
-            return oper_eq(parser,ctx,left,t,ast_type::bitwise_or);
+            return oper_eq(parser,ctx,left,t,arith_bin_op::or_t);
         }
 
         case token_type::equal:
@@ -146,22 +146,22 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
       
         case token_type::plus:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::plus,t);
+            return ast_bin_arith(parser,arith_bin_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::minus:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::minus,t);
+            return ast_bin_arith(parser,arith_bin_op::sub_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::divide:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::divide,t);
+            return ast_bin_arith(parser,arith_bin_op::div_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::mod:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::mod,t);
+            return ast_bin_arith(parser,arith_bin_op::mod_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::shift_l:
@@ -176,23 +176,23 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
         case token_type::times:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::times,t);
+            return ast_bin_arith(parser,arith_bin_op::mul_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         // and operator in binary context is a bitwise and
         case token_type::operator_and:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::bitwise_and,t);
+            return ast_bin_arith(parser,arith_bin_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::bitwise_or:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::bitwise_or,t);
+            return ast_bin_arith(parser,arith_bin_op::or_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::bitwise_xor:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::bitwise_xor,t);
+            return ast_bin_arith(parser,arith_bin_op::xor_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::logical_or:
@@ -687,22 +687,22 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::minus:
         {
-            return ast_unary(parser,expression(parser,ctx,100),ast_type::minus,t);
+            return ast_unary_arith(parser,arith_unary_op::sub_t,expression(parser,ctx,100),t);
         }
 
         case token_type::plus:
         {
-            return ast_unary(parser,expression(parser,ctx,100),ast_type::plus,t);
+            return ast_unary_arith(parser,arith_unary_op::add_t,expression(parser,ctx,100),t);
         }
 
         case token_type::bitwise_not:
         {
-            return ast_unary(parser,expression(parser,ctx,100),ast_type::bitwise_not,t);
+            return ast_unary_arith(parser,arith_unary_op::bitwise_not_t,expression(parser,ctx,100),t);
         }
 
         case token_type::logical_not:
         {
-            return ast_unary(parser,expression(parser,ctx,100),ast_type::logical_not,t);
+            return ast_unary_arith(parser,arith_unary_op::logical_not_t,expression(parser,ctx,100),t);
         }
 
 

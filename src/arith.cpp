@@ -1,10 +1,10 @@
-template<const arith_op arith>
+template<const arith_bin_op arith>
 void emit_integer_arith_unknown(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
 {
     unelide_values(itl,func,left,right);
     const bool sign = is_signed(left.type);
 
-    if constexpr(arith == arith_op::div_t)
+    if constexpr(arith == arith_bin_op::div_t)
     {
         if(sign)
         {
@@ -17,7 +17,7 @@ void emit_integer_arith_unknown(Interloper& itl, Function& func, TypedReg& left,
         }
     }
 
-    else if constexpr(arith == arith_op::mod_t)
+    else if constexpr(arith == arith_bin_op::mod_t)
     {
         if(sign)
         {
@@ -38,7 +38,7 @@ void emit_integer_arith_unknown(Interloper& itl, Function& func, TypedReg& left,
     }
 }
 
-template<const arith_op arith>
+template<const arith_bin_op arith>
 bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
 {
     static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
@@ -49,7 +49,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg
 
     switch(arith)
     {
-        case arith_op::div_t:
+        case arith_bin_op::div_t:
         {
             if(!lsign && !rsign)
             {
@@ -60,7 +60,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg
             return false;
         }
 
-        case arith_op::mod_t:
+        case arith_bin_op::mod_t:
         {
             if(!lsign && !rsign)
             {
@@ -71,7 +71,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg
             return false;
         }
 
-        case arith_op::mul_t:
+        case arith_bin_op::mul_t:
         {
             mul_imm(itl,func,dst_slot,left.slot,right.known_value);
             return true;
@@ -92,7 +92,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, TypedReg& left, TypedReg
 }
 
 
-template<const arith_op arith>
+template<const arith_bin_op arith>
 void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedReg& right, RegSlot dst_slot)
 {
     static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
@@ -118,8 +118,8 @@ void emit_integer_arith(Interloper& itl, Function& func, TypedReg& left, TypedRe
 }
 
 // NOTE: pass umod or udiv and it will figure out the correct one
-template<const arith_op arith>
-TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
+template<const arith_bin_op arith>
+TypeResult compile_arith_bin_op(Interloper& itl,Function &func,AstNode *node, RegSlot dst_slot)
 {
     itl.arith_depth += 1;
     static constexpr const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
@@ -151,7 +151,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
         Type *contained_type = deref_pointer(left.type);
         const u32 size = type_size(itl,contained_type);
 
-        if constexpr(arith == arith_op::add_t || arith == arith_op::sub_t)
+        if constexpr(arith == arith_bin_op::add_t || arith == arith_bin_op::sub_t)
         {
             if(is_value_known(right))
             {
@@ -161,7 +161,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
 
             else
             {
-                if(arith == arith_op::sub_t)
+                if(arith == arith_bin_op::sub_t)
                 {
                     const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
                     emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,offset_slot);
@@ -182,7 +182,7 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
     }
 
     // allow pointer subtraction
-    else if(is_pointer(left.type) && is_pointer(right.type) && arith == arith_op::sub_t)
+    else if(is_pointer(left.type) && is_pointer(right.type) && arith == arith_bin_op::sub_t)
     {
         unelide_values(itl,func,left,right);
         sub(itl,func,dst_slot,left.slot,right.slot);
@@ -211,8 +211,8 @@ TypeResult compile_arith_op(Interloper& itl,Function &func,AstNode *node, RegSlo
         switch(arith)
         {
             // Treat these like integer operations
-            case arith_op::or_t:
-            case arith_op::and_t:
+            case arith_bin_op::or_t:
+            case arith_bin_op::and_t:
             {
                 emit_integer_arith<arith>(itl,func,left,right,dst_slot);
                 break;

@@ -1198,7 +1198,7 @@ Type* value_type(Interloper& itl,const Value& value)
 }
 
 
-TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_op arith)
+TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_bin_op arith)
 {
     // builtin type
     if(is_builtin(rtype) && is_builtin(ltype))
@@ -1235,7 +1235,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
     // pointer arithmetic is fine
     else if(is_pointer(ltype) && is_integer(rtype))
     {
-        if(arith != arith_op::sub_t && arith != arith_op::add_t)
+        if(arith != arith_bin_op::sub_t && arith != arith_bin_op::add_t)
         {
             return compile_error(itl,itl_error::undefined_type_oper,"Pointer arithmetic is only defined for addition and subtraction");     
         }
@@ -1243,7 +1243,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
         return ltype;
     }
 
-    else if(is_pointer(ltype) && is_pointer(rtype) && arith == arith_op::sub_t)
+    else if(is_pointer(ltype) && is_pointer(rtype) && arith == arith_bin_op::sub_t)
     {
         return make_builtin(itl,GPR_SIZE_TYPE);
     }

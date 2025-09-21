@@ -541,7 +541,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
             else
             {
-                return compile_arith_op<arith_op::add_t>(itl,func,node,dst_slot);
+                return compile_arith_bin_op<arith_bin_op::add_t>(itl,func,node,dst_slot);
             }
         }
 
@@ -603,17 +603,17 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
         case ast_type::divide:
         {
-            return compile_arith_op<arith_op::div_t>(itl,func,node,dst_slot);
+            return compile_arith_bin_op<arith_bin_op::div_t>(itl,func,node,dst_slot);
         }
 
         case ast_type::mod:
         {
-            return compile_arith_op<arith_op::mod_t>(itl,func,node,dst_slot);       
+            return compile_arith_bin_op<arith_bin_op::mod_t>(itl,func,node,dst_slot);       
         }
 
         case ast_type::times:
         {
-            return compile_arith_op<arith_op::mul_t>(itl,func,node,dst_slot);
+            return compile_arith_bin_op<arith_bin_op::mul_t>(itl,func,node,dst_slot);
         }
 
         case ast_type::minus:
@@ -656,23 +656,23 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
 
             else
             {
-                return compile_arith_op<arith_op::sub_t>(itl,func,node,dst_slot);
+                return compile_arith_bin_op<arith_bin_op::sub_t>(itl,func,node,dst_slot);
             }
         }
 
         case ast_type::bitwise_and:
         {
-            return compile_arith_op<arith_op::and_t>(itl,func,node,dst_slot);
+            return compile_arith_bin_op<arith_bin_op::and_t>(itl,func,node,dst_slot);
         }
 
         case ast_type::bitwise_or:
         {
-            return compile_arith_op<arith_op::or_t>(itl,func,node,dst_slot);
+            return compile_arith_bin_op<arith_bin_op::or_t>(itl,func,node,dst_slot);
         }
 
         case ast_type::bitwise_xor:
         {
-            return compile_arith_op<arith_op::xor_t>(itl,func,node,dst_slot);
+            return compile_arith_bin_op<arith_bin_op::xor_t>(itl,func,node,dst_slot);
         }
 
         case ast_type::bitwise_not:

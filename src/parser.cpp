@@ -2587,6 +2587,26 @@ void print(const AstNode *root, b32 override_seperator)
             break;
         }
 
+        case ast_fmt::arith_unary_op:
+        {
+            ArithUnaryNode* unary_node = (ArithUnaryNode*)root;
+            printf(" %s\n",ARITH_UNARY_NAMES[u32(unary_node->oper)]);
+
+            print(unary_node->expr);
+            break;
+        }
+
+        case ast_fmt::arith_bin_op:
+        {
+            ArithBinNode* bin_node = (ArithBinNode*)root;
+            printf(" %s\n",ARITH_BIN_NAMES[u32(bin_node->oper)]);
+
+            print(bin_node->left);
+            print(bin_node->right);
+            break;
+        }
+
+
         case ast_fmt::binary:
         {
             printf(" %s\n",AST_NAMES[static_cast<size_t>(root->type)]);

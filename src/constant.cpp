@@ -149,7 +149,7 @@ Result<std::pair<ConstData,ConstData>,itl_error> const_bin_op(Interloper& itl, B
 }
 
 template<typename FUNC>
-ConstDataResult compile_const_bin_op(Interloper& itl, BinNode* bin_node, arith_op arith, FUNC func)
+ConstDataResult compile_const_bin_op(Interloper& itl, BinNode* bin_node, arith_bin_op arith, FUNC func)
 {
     const auto left_res = compile_const_expression(itl,bin_node->left);
     const auto right_res = compile_const_expression(itl,bin_node->right);
@@ -248,6 +248,11 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             return read_const_sym(itl,sym);
         }
 
+        case ast_type::arith_unary_op:
+        {
+            return compile_const_unary(itl,(ArithUnaryNode*)node);
+        }
+
         case ast_type::plus:
         {
 
@@ -280,7 +285,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
                 else
                 {
                     const u64 ans = left.v + right.v;
-                    auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::add_t);
+                    auto type_res = effective_arith_type(itl,left.type,right.type,arith_bin_op::add_t);
                     if(!type_res)
                     {
                         return type_res.error();
@@ -294,7 +299,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
         case ast_type::bitwise_and:
         {
             BinNode* bin_node = (BinNode*)node;
-            return compile_const_bin_op(itl,bin_node,arith_op::and_t,[](const ConstData& left, const ConstData& right)
+            return compile_const_bin_op(itl,bin_node,arith_bin_op::and_t,[](const ConstData& left, const ConstData& right)
             {
                 return left.v & right.v;
             });  
@@ -323,7 +328,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
         case ast_type::times:
         {
             BinNode* bin_node = (BinNode*)node;
-            return compile_const_bin_op(itl,bin_node,arith_op::mul_t,[](const ConstData& left, const ConstData& right)
+            return compile_const_bin_op(itl,bin_node,arith_bin_op::mul_t,[](const ConstData& left, const ConstData& right)
             {
                 return left.v * right.v;
             });     
@@ -367,7 +372,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
                 else
                 {
                     const u64 ans = left.v - right.v;
-                    auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::sub_t);
+                    auto type_res = effective_arith_type(itl,left.type,right.type,arith_bin_op::sub_t);
                     if(!type_res)
                     {
                         return type_res.error();
@@ -396,7 +401,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             }
 
             const u64 ans = is_signed(left.type)? s64(left.v) % s64(right.v) : left.v % right.v;
-            auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::mod_t);
+            auto type_res = effective_arith_type(itl,left.type,right.type,arith_bin_op::mod_t);
             if(!type_res)
             {
                 return type_res.error();
@@ -423,7 +428,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
             }
 
             const u64 ans = left.v / right.v;
-            auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::div_t);
+            auto type_res = effective_arith_type(itl,left.type,right.type,arith_bin_op::div_t);
             if(!type_res)
             {
                 return type_res.error();
