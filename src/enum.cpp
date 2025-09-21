@@ -120,20 +120,6 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
             switch(member_decl.initializer->type)
             {
-                case ast_type::initializer_list:
-                {
-                    itl.ctx.expr = (AstNode*)member_decl.initializer;
-                    const u32 offset = m * structure.size;
-
-                    const auto struct_err = compile_const_struct_list_internal(itl,(RecordNode*)member_decl.initializer,structure,
-                        enumeration.struct_slot, offset);
-                    if(!!struct_err)
-                    {
-                        return *struct_err;
-                    }
-                    break;
-                }
-
                 default:
                 {
                     unimplemented("enum struct expr init");

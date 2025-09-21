@@ -1066,64 +1066,6 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
 
         switch(node->type)
         {
-            // pointer to current type
-            case ast_type::ptr_indirection:
-            {
-                type = make_pointer(itl,type,pointer_type::reference,flags);
-                indirection = true;
-                break;
-            }
-
-            case ast_type::nullable_ptr_indirection:
-            {
-                type = make_pointer(itl,type,pointer_type::nullable,flags);
-                indirection = true;
-                break;
-            }
-
-            case ast_type::arr_var_size:
-            {
-                type = make_array(itl,type,RUNTIME_SIZE,flags);
-                indirection = true;
-                break;
-            }
-
-            case ast_type::arr_fixed:
-            {
-                UnaryNode* unary_node = (UnaryNode*)node;
-
-                auto expr_res = compile_const_int_expression(itl,unary_node->next);
-
-                if(!expr_res)
-                {
-                    return expr_res.error();
-                }
-
-                const auto const_int = *expr_res;
-
-                type = make_array(itl,type,const_int.value,flags);
-                break;
-            }
-
-            case ast_type::arr_deduce_size:
-            {
-                if(complete_type)
-                {
-                    return compile_error(itl,itl_error::mismatched_args,"type is constant and cannot be deduced by assign");
-                }
-
-                // i.e we cant have a pointer to an array with a size deduction
-                // it has to hold the indirection...
-                if(indirection)
-                {
-                    return compile_error(itl,itl_error::mismatched_args,"cannot have deduction for array size where indirection allready exists");
-                }
-
-                type = make_array(itl,type,DEDUCE_SIZE,flags);
-
-                break;
-            }
-
             default:
             {
                 return compile_error(itl,itl_error::invalid_expr,"invalid type specifier: %s",AST_NAMES[u32(node->type)]);

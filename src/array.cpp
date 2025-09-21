@@ -513,25 +513,10 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
             AstNode* node = list->nodes[n];
 
             // descend each sub initializer until we hit one containing values
-            // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
+            // for now we are just gonna print them out, and then we will figure out how to emit the initialization code
             switch(node->type)
             {
-                case ast_type::initializer_list:
-                {
-                    const auto traverse_err = traverse_arr_initializer_internal(itl,func,(RecordNode*)node,addr_slot,next_arr);
-                    if(!!traverse_err)
-                    {
-                        return *traverse_err;
-                    }
-                    break;
-                }
-
-                case ast_type::string:
-                {
-                    return traverse_string_initializer_internal(itl,func,node,addr_slot,next_arr);
-                }
-
-                // handle an array (this should fufill the current "depth req in its entirety")
+                // handle an array (this should fulfill the current "depth req in its entirety")
                 default:
                 {
                     unimplemented("arr initializer with array");
@@ -548,7 +533,7 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
 
         const u32 size = type_size(itl,base_type);
 
-        // seperate loop incase we need to handle initializers
+        // separate loop incase we need to handle initializers
         if(is_struct(base_type))
         {
             for(u32 i = 0; i < node_len; i++)
@@ -711,79 +696,10 @@ Option<itl_error> compile_arr_assign(Interloper& itl, Function& func, AstNode* n
 {
     switch(node->type)
     {
-        case ast_type::initializer_list:
-        {
-            // initialize the actual struct
-            if(is_runtime_size(arr.type))
-            {
-                auto addr_slot = make_struct_addr(arr.slot,0);
-                return assign_vla_initializer(itl,func,(RecordNode*)node,&addr_slot,(ArrayType*)arr.type);
-            }
-
-            else 
-            {
-                const RegSlot ptr_slot = load_arr_data(itl,func,arr);
-                const auto addr_slot = make_pointer_addr(ptr_slot,0);
-                return traverse_arr_initializer(itl,func,node,addr_slot,arr.type);
-            }
-            break;
-        }
-
-        case ast_type::string:
-        {
-            // TODO: we need to add different hanlding for const strings
-
-            if(!is_string(arr.type))
-            {
-                return compile_error(itl,itl_error::string_type_error,"expected string got %s",type_name(itl,arr.type).buf);
-            }
-
-            ArrayType* array_type = (ArrayType*)arr.type;
-
-            LiteralNode* literal_node = (LiteralNode*)node;
-            const String literal = literal_node->literal;
-
-            if(is_runtime_size(array_type))
-            {
-                if(is_const_string(arr.type))
-                {
-                    store_const_string(itl,func,literal,arr.slot);
-                }
-
-                else
-                {
-                    return compile_error(itl,itl_error::const_type_error,"cannot assign string literal to mutable vla %s",type_name(itl,arr.type).buf);
-                }
-            }
-
-            // fixed sized array
-            else
-            {
-                return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array");
-            }
-
-            return option::none;
-        }
-    
-        // arbitary expression
+        // arbitrary expression
         default:
         {
-            // compile expr
-            auto res = compile_oper(itl,func,node);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            auto reg = *res;
-
-            const auto assign_err = check_assign_init(itl,arr.type,reg.type);
-            if(!!assign_err)
-            {
-                return *assign_err;
-            }
-            
-            return compile_move(itl,func,arr,reg);
+            assert(false);
         }
     }
 }

@@ -441,32 +441,10 @@ Option<itl_error> compile_for_range(Interloper& itl, Function& func, ForRangeNod
     // determine what kind of loop term we have
     switch(for_node->cond->type)
     {
-        // <= or < is inc
-        case ast_type::logical_lt:
-        {
-            return compile_for_range_idx(itl,func,for_node,true,op_type::cmpslt_reg);
-        }
-
-        case ast_type::logical_le:
-        {
-            return compile_for_range_idx(itl,func,for_node,true,op_type::cmpsle_reg);
-        }
-
-        // >= or > is dec
-        case ast_type::logical_gt:
-        {
-            return compile_for_range_idx(itl,func,for_node,false,op_type::cmpsgt_reg);
-        }
-
-        case ast_type::logical_ge:
-        {
-            return compile_for_range_idx(itl,func,for_node,false,op_type::cmpsge_reg);
-        }
-
         // array index!
         default:
         {
-            return compile_for_range_arr(itl,func,for_node);
+            assert(false);
         }
     }
 }
@@ -484,34 +462,9 @@ Option<itl_error> compile_for_iter(Interloper& itl, Function& func, ForIterNode*
     // handle this being a declaration
     switch(type)
     {
-        case ast_type::auto_decl:
-        {
-            const auto auto_err = compile_auto_decl(itl,func,for_node->initializer);
-            if(!!auto_err)
-            {
-                return *auto_err;
-            }
-            break;
-        }
-
-        case ast_type::declaration:
-        {
-            const auto decl_err = compile_decl(itl,func,for_node->initializer);
-            if(!!decl_err)
-            {
-                return *decl_err;
-            }
-            break;
-        }
-
         default:
         {
-            const auto tmp_res = compile_expression_tmp(itl,func,for_node->initializer);
-            if(!tmp_res)
-            {
-                return tmp_res.error();
-            }
-            break;
+            assert(false);
         }
     }
 
@@ -595,76 +548,10 @@ Option<itl_error> compile_switch_block(Interloper& itl,Function& func, AstNode* 
     // NOTE: we cant do this as the ast is built, as we want to allow usage of values that are defined "out of order"
     switch(first_case->statement->type)
     {
-        // enum
-        case ast_type::scope:
-        {
-            ScopeNode* first_stmt = (ScopeNode*)first_case->statement;
-
-            EnumMember* enum_member = nullptr;
-            // TODO: Technically we should check for namespaced values
-            auto decode_res = decode_enum(itl,first_stmt,&enumeration,&enum_member);
-
-            if(decode_res != enum_decode_res::ok)
-            {
-                itl.ctx.expr = (AstNode*)first_stmt;
-                return compile_error(itl,itl_error::enum_type_error,"invalid enum expression: %s",enum_decode_msg(decode_res));
-            }
-
-            for(u32 i = 0; i < size; i++)
-            {
-                CaseNode* case_node = switch_node->statements[i];
-
-                // check we have a matching enum
-                if(case_node->statement->type != ast_type::scope)
-                {
-                    itl.ctx.expr = (AstNode*)case_node;
-                    return compile_error(itl,itl_error::enum_type_error,"switch: one or more cases are not an enum");
-                }
-
-                ScopeNode* scope_node = (ScopeNode*)case_node->statement;
-
-                Enum* case_enum = nullptr;
-                decode_res = decode_enum(itl,scope_node,&case_enum,&enum_member);
-
-                if(decode_res != enum_decode_res::ok)
-                {
-                    return compile_error(itl,itl_error::enum_type_error,"invalid enum expression: %s",enum_decode_msg(decode_res));
-                }
-
-
-                if(case_enum->type_idx != enumeration->type_idx)
-                {
-                    return compile_error(itl,itl_error::enum_type_error,"differing enums %s : %s in switch statement",
-                        enumeration->name.buf,case_enum->name.buf);
-                }
-
-                case_node->value = enum_member->value;          
-            }            
-
-            switch_type = switch_kind::enum_t;
-            break;
-        }
-
         // integer expression
         default:
         {
-            for(u32 i = 0; i < size; i++)
-            {
-                CaseNode* case_node = switch_node->statements[i];
-
-                const auto res = compile_const_int_expression(itl,case_node->statement);
-                if(!res)
-                {
-                    return res.error();
-                }
-
-                const auto case_value = *res;
-
-                case_node->value = case_value.value;             
-            }
-
-            switch_type = switch_kind::integer;
-            break;            
+            assert(false);
         }
     }
 

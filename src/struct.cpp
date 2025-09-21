@@ -575,53 +575,9 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
     TypedAddr struct_addr;
 
-    // parse out initail expr
+    // parse out initial expr
     switch(expr_node->type)
     {
-        case ast_type::symbol:
-        {
-            LiteralNode* sym_node = (LiteralNode*)expr_node;
-
-            const auto name = sym_node->literal;
-            const auto sym_ptr = get_sym(itl.symbol_table,name);
-
-            if(!sym_ptr)
-            {
-                return compile_error(itl,itl_error::undeclared,"symbol %s used before declaration",name.buf);
-            }            
-
-            const auto &sym = *sym_ptr;
-
-            // allready a pointer so just return the slot
-            // along with the derefed type
-            if(is_pointer(sym.type))
-            {
-                struct_addr = {make_pointer_addr(sym.reg.slot,0),deref_pointer(sym.type)};
-            }
-
-            else
-            {
-                // NOTE: For an enum we will us this as a direct index.
-                struct_addr = typed_addr(sym);
-            }
-
-            break;        
-        }
-
-        case ast_type::index:
-        {
-            auto index_res = index_arr(itl,func,expr_node);
-            if(!index_res)
-            {
-                return index_res.error();
-            }
-
-            // straight pointer
-            struct_addr = *index_res;
-            break;
-        }
-
-
         default: 
         {
             return compile_error(itl,itl_error::struct_error,"Unknown struct access %s",AST_NAMES[u32(expr_node->type)]);
@@ -638,138 +594,6 @@ Result<TypedAddr,itl_error> compute_member_addr(Interloper& itl, Function& func,
 
         switch(n->type)
         {
-            case ast_type::access_member:
-            {
-                LiteralNode* member_node = (LiteralNode*)n;
-                const auto member_name = member_node->literal;
-
-                // auto deref pointers first
-                if(is_pointer(struct_addr.type))
-                {
-                    RegSlot addr_slot = new_tmp_ptr(func);
-
-                    const auto load_err = do_addr_load(itl,func,addr_slot,struct_addr);
-                    if(!!load_err)
-                    {
-                        return *load_err;
-                    }
-
-                    PointerType* ptr_type = (PointerType*)struct_addr.type;
-
-                    if(ptr_type->pointer_kind == pointer_type::nullable)
-                    {
-                        return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %s",
-                            type_name(itl,(Type*)ptr_type).buf);
-                    }
-
-                    // now we are back to a straight pointer
-                    struct_addr = {make_pointer_addr(addr_slot,0),deref_pointer(struct_addr.type)};
-                }
-
-                switch(struct_addr.type->kind)
-                {
-                    case type_class::array_t:
-                    {
-                        const auto err = access_array_member(itl,member_name,&struct_addr);
-                        if(!!err)
-                        {
-                            return *err;
-                        }
-                        break;
-                    }
-
-                    // do enum member access
-                    case type_class::enum_t:
-                    {
-                        const auto err = access_enum_struct_member(itl,func,member_name,&struct_addr);
-                        if(!!err)
-                        {
-                            return *err;
-                        }
-                        
-                        break;
-                    }
-
-                    // actual struct member
-                    default:
-                    {
-                        const auto err = access_struct_member(itl,member_name,&struct_addr);
-                        if(!!err)
-                        {
-                            return *err;
-                        }
-
-                        break;
-                    }
-                }   
-                break;
-            }
-
-            case ast_type::slice:
-            {
-                SliceNode* slice_node = (SliceNode*)n;
-
-                const auto err = access_struct_member(itl,slice_node->name,&struct_addr);
-                if(!!err)
-                {
-                    return *err;
-                }
-
-                const RegSlot dst_slot = new_struct(func,GPR_SIZE * 2);
-                const auto slice_res = slice_array_addr(itl,func,slice_node,dst_slot,struct_addr);
-
-                if(!slice_res)
-                {
-                    return slice_res.error();
-                }
-
-                struct_addr = {make_struct_addr(dst_slot,0),*slice_res};
-                break;
-            }
-
-            case ast_type::index:
-            {
-                IndexNode* index_node = (IndexNode*)n;
-
-                const auto err = access_struct_member(itl,index_node->name,&struct_addr);
-                if(!!err)
-                {
-                    return *err;
-                }
-
-                if(is_runtime_size(struct_addr.type))
-                {
-                    const RegSlot vla_ptr = new_tmp_ptr(func);
-                    // TODO: This can be better typed to a pointer
-                    const TypedAddr src_addr = {struct_addr.addr_slot,make_reference(itl,index_arr(struct_addr.type))};
-                    // const TypedAddr src_addr = {struct_addr.addr,make_builtin(itl,GPR_SIZE_TYPE)};
-                    
-                    const auto load_err = do_addr_load(itl,func,vla_ptr,src_addr);
-                    if(!!load_err)
-                    {
-                        return *load_err;
-                    }
-
-                    struct_addr.addr_slot = make_pointer_addr(vla_ptr,0);
-                }
-
-                // fixed size collpase the offset
-                else
-                {
-                    collapse_struct_offset(itl,func,&struct_addr.addr_slot);
-                }
-
-                auto index_res = index_arr_internal(itl,func,index_node,index_node->name,struct_addr.type,struct_addr.addr_slot.addr.base);
-                if(!index_res)
-                {
-                    return index_res.error();
-                }
-
-                // Is a plain pointer
-                struct_addr = *index_res;
-                break;
-            }
-
             default: 
             {
                 return compile_error(itl,itl_error::undeclared,"Unknown member access %s",AST_NAMES[u32(n->type)]);
@@ -863,85 +687,10 @@ Option<itl_error> struct_list_write(Interloper& itl, Function& func, AddrSlot ad
 {
     switch(node->type)
     {
-        // either sub struct OR array member initializer
-        case ast_type::initializer_list:
-        {
-            if(is_array(member.type))
-            {
-                const auto arr_err = traverse_arr_initializer_internal(itl,func,(RecordNode*)node,&addr_member,(ArrayType*)member.type);
-                if(!!arr_err)
-                {
-                    return arr_err;
-                }
-            }
-
-            else if(is_struct(member.type))
-            {
-                const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-                const auto struct_err = traverse_struct_initializer(itl,func,(RecordNode*)node,addr_member,sub_struct);
-                if(!!struct_err)
-                {
-                    return struct_err;
-                }
-            }
-
-            else
-            {
-                return compile_error(itl,itl_error::struct_error,"nested struct initializer for basic type %s : %s",
-                    member.name.buf,type_name(itl,member.type).buf);
-            }
-            
-            return option::none;
-        }
-
-        case ast_type::struct_initializer:
-        {
-            StructInitializerNode* struct_initializer = (StructInitializerNode*)node;
-            const auto res = assign_struct_initializer(itl,func,addr_member,struct_initializer);
-            
-            if(!res)
-            {
-                return res.error();
-            }
-
-            return option::none;
-        }
-
-        case ast_type::designated_initializer_list:
-        {
-            if(!is_struct(member.type))
-            {
-                return compile_error(itl,itl_error::struct_error,"nested struct initializer for basic type %s : %s",
-                    member.name.buf,type_name(itl,member.type).buf);
-            }
-
-            Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-            DesignatedListNode* list = (DesignatedListNode*)node;
-
-            return traverse_designated_initializer_list(itl,func,list,addr_member,sub_struct);
-        }    
-
-
         // plain values
         default:
         {
-            // get the operand and type check it
-            const auto res = compile_oper(itl,func,node);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            const auto reg = *res;
-
-            const auto assign_err = check_assign(itl,member.type,reg.type);
-            if(!!assign_err)
-            {
-                return assign_err;
-            }
-
-            const TypedAddr dst_addr = {addr_member,member.type};
-            return do_addr_store(itl,func,reg.slot,dst_addr);
+            assert(false);
         }
     }
 
@@ -994,28 +743,6 @@ TypeResult assign_struct_initializer(Interloper &itl,Function &func, AddrSlot ds
 
     switch(struct_initializer->initializer->type)
     {
-        case ast_type::initializer_list:
-        {
-            RecordNode* record = (RecordNode*)struct_initializer->initializer;
-            const auto struct_err = traverse_struct_initializer(itl,func,record,dst,structure);
-            if(!!struct_err)
-            {
-                return *struct_err;
-            }
-            break;
-        }
-
-        case ast_type::designated_initializer_list:
-        {
-            DesignatedListNode* list = (DesignatedListNode*)struct_initializer->initializer;
-            const auto struct_err = traverse_designated_initializer_list(itl,func,list,dst,structure);
-            if(!!struct_err)
-            {
-                return *struct_err;
-            }
-            break;
-        }
-
         default: assert(false);
     }
 
@@ -1043,45 +770,9 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
 
             switch(member.expr->type)
             {
-                case ast_type::initializer_list:
-                {
-                    const auto init_err = compile_init_list(itl,func,member.type,member_addr,member.expr);
-                    if(!!init_err)
-                    {
-                        return init_err;
-                    }
-                    break;
-                }
-
-                // dont default init
-                case ast_type::no_init:
-                {
-                    break;
-                }
-
                 default: 
                 {
-                    const auto res = compile_oper(itl,func,member.expr);
-                    if(!res)
-                    {
-                        return res.error();
-                    }
-
-                    const auto reg = *res;
-
-                    const auto assign_err = check_assign_init(itl,member.type,reg.type);
-                    if(!!assign_err)
-                    {
-                        return assign_err;
-                    } 
-
-                    const TypedAddr dst_addr = {member_addr,member.type};
-                    const auto store_err = do_addr_store(itl,func,reg.slot,dst_addr);
-                    if(!!store_err)
-                    {
-                        return store_err;
-                    }
-                    break;                    
+                    assert(false);
                 }
             }
         }
@@ -1151,32 +842,9 @@ Option<itl_error> compile_struct_decl(Interloper& itl, Function& func, const Dec
     {
         switch(decl_node->expr->type)
         {
-            case ast_type::initializer_list:
-            {
-                const auto addr_slot = make_struct_addr(reg.slot,0);
-                return traverse_struct_initializer(itl,func,(RecordNode*)decl_node->expr,addr_slot,structure);
-            }
-
-            case ast_type::designated_initializer_list:
-            {
-                const auto addr_slot = make_struct_addr(reg.slot,0);
-                return traverse_designated_initializer_list(itl,func,(DesignatedListNode*)decl_node->expr,addr_slot,structure);                
-            }
-
-            case ast_type::no_init:
-            {
-                return option::none;
-            }
-
             default:
             {
-                const auto rtype_res = compile_expression(itl,func,decl_node->expr,reg.slot);
-                if(!rtype_res)
-                {
-                    return rtype_res.error();
-                }
-
-                return check_assign_init(itl,reg.type,*rtype_res); 
+                assert(false);
             }
         }
     }
