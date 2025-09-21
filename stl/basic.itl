@@ -1,36 +1,36 @@
 // required for operation
 import <internal> 
 
-import <file>
-import <string>
-import <print>
-import <log>
-import <time>
-import <system>
+// import <file>
+// import <string>
+// import <print>
+// import <log>
+// import <time>
+// import <system>
 
-import <mem>
-import <alloc>
-import <array>
-import <hash_table>
+// import <mem>
+// import <alloc>
+// import <array>
+// import <hash_table>
 
-import <bit>
-import <util>
-import <sort>
+// import <bit>
+// import <util>
+// import <sort>
 
-import <math>
-import <itl_context>
+// import <math>
+// import <itl_context>
 
-#attr(use_result)
-enum result 
-{
-    ok,
-    err,
-}
+// #attr(use_result)
+// enum result 
+// {
+//     ok,
+//     err,
+// }
 
-#attr(use_result)
-enum net_result 
-{
-    ok,
-    closed,
-    err,
-}
+// #attr(use_result)
+// enum net_result 
+// {
+//     ok,
+//     closed,
+//     err,
+// }
