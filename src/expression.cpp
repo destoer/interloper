@@ -1,9 +1,9 @@
 #include <interloper.h>
 
-ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
-ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
-ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
-ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
+ExprResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
+ExprResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
+ExprResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
+ExprResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
@@ -88,7 +88,7 @@ Result<s32,parse_error> lbp_subexpr(Parser &parser,const ExprCtx& ctx,const Toke
 }
 
 // i.e +=
-ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,arith_bin_op oper)
+ExprResult oper_eq(Parser &parser,ExprCtx& ctx,ExprNode *left,Token t,arith_bin_op oper)
 {
     auto res = expression(parser,ctx,lbp_subexpr(parser,ctx,t));
 
@@ -101,12 +101,12 @@ ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,arith_bin
 
     // sugar as <sym> = <sym> + <expr>
     auto e2 = ast_bin_arith(parser,oper,left,e,t);
-    auto ans = ast_binary(parser,left,e2,ast_type::equal,t);
+    auto ans = ast_equal(parser,left,e2,t);
 
     return ans;    
 }
 
-ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
+ExprResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,ExprNode *left)
 {
     switch(t.type)
     {
@@ -140,7 +140,7 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
         {
             // right precedence rbp = lbp -1 so that things on the right 
             // are sen as sub expressions
-            return ast_binary(parser,left,expression(parser,ctx,lbp_subexpr(parser,ctx,t)),ast_type::equal,t);  
+            return ast_equal(parser,left,expression(parser,ctx,lbp_subexpr(parser,ctx,t)),t);  
         }
     
       
@@ -166,12 +166,12 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
         case token_type::shift_l:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::shift_l,t);
+            return ast_shift(parser,shift_op::left_shift,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::shift_r:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::shift_r,t);
+            return ast_shift(parser,shift_op::right_shift,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::times:
@@ -197,43 +197,43 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
         case token_type::logical_or:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_or,t);
+            return ast_logic(parser,boolean_logic_op::or_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
     
         case token_type::logical_and:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_and,t);
+            return ast_logic(parser,boolean_logic_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
 
         case token_type::logical_lt:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_lt,t);
+            return ast_comparison(parser,comparison_op::lt,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::logical_gt:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_gt,t);
+            return ast_comparison(parser,comparison_op::gt,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }   
 
         case token_type::logical_le:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_le,t);
+            return ast_comparison(parser,comparison_op::le,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }   
 
         case token_type::logical_ge:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_ge,t);
+            return ast_comparison(parser,comparison_op::ge,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }   
 
         case token_type::logical_eq:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_eq,t);
+            return ast_comparison(parser,comparison_op::eq,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }    
 
         case token_type::logical_ne:
         {
-            return ast_binary(parser,left,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::logical_ne,t);
+            return ast_comparison(parser,comparison_op::ne,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }         
 
 

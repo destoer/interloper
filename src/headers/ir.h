@@ -270,16 +270,16 @@ b32 is_directive(op_type type)
 // will be converted to a specific counterpart in op_type
 enum class comparison_op
 {
-    cmplt_reg,
-    cmple_reg,
-    cmpgt_reg,
-    cmpge_reg,
+    lt,
+    le,
+    gt,
+    ge,
 
-    cmpeq_reg,
-    cmpne_reg,
+    eq,
+    ne,
 };
 
-static constexpr u32 LOGIC_OP_SIZE = 6;
+static constexpr u32 COMPARISON_OP_SIZE = 6;
 
 enum class boolean_logic_op
 {
@@ -327,6 +327,18 @@ static const char* ARITH_BIN_NAMES[] =
     "^",
     "&",
     "|"
+};
+
+enum class shift_op
+{
+    left_shift,
+    right_shift,
+};
+
+static const char* SHIFT_NAMES[] = 
+{
+    "<<",
+    ">>"
 };
 
 struct ArithmeticInfo

@@ -137,9 +137,9 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
         return error;
     }
 
-    if(itl.ctx.expr)
+    if(itl.ctx.filename != "")
     {
-        const auto [line,col] = get_line_info(itl.ctx.filename,itl.ctx.expr->idx);
+        const auto [line,col] = get_line_info(itl.ctx.filename,itl.ctx.file_index);
 
         printf("error: %s %d:%d: ",itl.ctx.filename.buf,line,col);
 
@@ -218,7 +218,7 @@ inline f64 bit_cast_to_f64(u64 v)
     return bit_cast<f64,u64>(v);
 }
 
-ConstValueResult compile_const_int_expression(Interloper& itl, AstNode* node);
+ConstValueResult compile_const_int_expression(Interloper& itl, ExprNode* node);
 u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);

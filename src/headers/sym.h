@@ -3,7 +3,7 @@
 
 struct FileContext
 {
-    AstNode *expr = nullptr;
+    u32 file_index = 0;
     String filename = "";
     NameSpace *name_space = nullptr;
 };

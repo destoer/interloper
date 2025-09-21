@@ -1,3 +1,19 @@
+
+RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym);
+RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
+RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg);
+RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
+
+#include "lexer.cpp"
+#include "namespace.cpp"
+#include "symbol.cpp"
+#include "ir.cpp"
+#include "elf.cpp"
+#include "memory.cpp"
+#include "array.cpp"
+#include "parser.cpp"
+
+
 void print_ast(Interloper& itl)
 {
     // print type defs
