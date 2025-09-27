@@ -28,6 +28,8 @@ enum class ast_type
     deref,
     addrof,
     string,
+    block,
+    type,
 };
 
 inline const char *AST_NAMES[] =
@@ -53,7 +55,9 @@ inline const char *AST_NAMES[] =
     "null",
     "deref",
     "addrof",
-    "string"
+    "string",
+    "block",
+    "type"
 };
 
 struct AstNode
@@ -130,6 +134,17 @@ struct CompoundType
     AstNode* array_size = nullptr;
 };
 
+CompoundType make_compound_type(compound_type type)
+{
+    return CompoundType {type,nullptr};
+}
+
+CompoundType make_compound_type_fixed(AstNode* expr)
+{
+    return CompoundType {compound_type::arr_deduce_size,expr};
+}
+
+
 enum class type_node_kind
 {
     builtin,
@@ -149,7 +164,7 @@ struct TypeNode
     FuncNode* func_type = nullptr;
     NameSpace* name_space = nullptr;
 
-    Array<CompoundType> compound_type;
+    Array<CompoundType> compound;
 };
 
 struct CastNode
@@ -239,6 +254,11 @@ struct StringNode
     String string;
 };
 
+struct BlockNode
+{
+    AstNode node;
+    Array<AstNode*> stmt;
+};
 
 enum class [[nodiscard]] parse_error
 {
@@ -537,6 +557,26 @@ AstNode *ast_string(Parser& parser,const String &string, const Token& token)
     string_node->string = string;
 
     return (AstNode*)string_node;    
+}
+
+BlockNode* ast_block(Parser& parser, const Token& token)
+{
+    BlockNode* block = alloc_node<BlockNode>(parser,ast_type::block,token);
+    add_ast_pointer(parser,&block->stmt.data);
+
+    return block;
+}
+
+TypeNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& name, const Token& token)
+{
+    TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,token);
+
+    type_node->name = name;
+    type_node->name_space = name_space;
+
+    add_ast_pointer(parser,&type_node->compound.data);
+
+    return type_node;   
 }
 
 // scan file for row and column info

@@ -242,7 +242,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                     return *err;
                 }
 
-                push_var(type->compound_type,ast_plain(parser,ast_type::ptr_indirection,plain_tok));
+                push_var(type->compound,make_compound_type(compound_type::ptr));
                 break;
             }
 
@@ -255,7 +255,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                     return *err;
                 }
 
-                push_var(type->compound_type,ast_plain(parser,ast_type::nullable_ptr_indirection,plain_tok));
+                push_var(type->compound,make_compound_type(compound_type::nullable_ptr));
                 break;
             }
 
@@ -274,7 +274,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                     // var size
                     if(peek(parser,0).type == token_type::sr_brace)
                     {
-                        push_var(type->compound_type,ast_plain(parser,ast_type::arr_var_size,plain_tok));
+                        push_var(type->compound,make_compound_type(compound_type::arr_var_size));
                         const auto err = consume(parser,token_type::sr_brace);
                         if(!!err)
                         {
@@ -293,8 +293,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                                 return *qmark_err;
                             }
 
-                            const auto e = ast_plain(parser,ast_type::arr_deduce_size,plain_tok);
-                            push_var(type->compound_type,e);
+                            push_var(type->compound,make_compound_type(compound_type::arr_deduce_size));
                         
                             const auto sr_err = consume(parser,token_type::sr_brace);
                             if(!!sr_err)
@@ -305,14 +304,14 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
 
                         else
                         {
-                            auto e_res = ast_unary(parser,expr_terminate(parser,"array declaration",token_type::sr_brace), ast_type::arr_fixed, plain_tok);
+                            auto e_res = expr_terminate(parser,"array declaration",token_type::sr_brace);
 
                             if(!e_res)
                             {
                                 return e_res.error();
                             }
 
-                            push_var(type->compound_type,*e_res);
+                            push_var(type->compound,make_compound_type_fixed(*e_res));
                         }
                     }
                 }
