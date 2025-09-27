@@ -4,7 +4,7 @@
 #include <type.h>
 #include <sym.h>
 
-enum class expr_type
+enum class ast_type
 {
     assign,
     arith_bin,
@@ -12,9 +12,25 @@ enum class expr_type
     shift,
     comparison,
     boolean_logic,
+    symbol,
+    builtin_access,
+    type_operator,
+    cast,
+    initializer_list,
+    designated_initializer_list,
+    struct_initializer,
+    sizeof_t,
+    no_init,
+    ignore,
+    value,
+    float_t,
+    null_t,
+    deref,
+    addrof,
+    string,
 };
 
-inline const char *AST_KIND_NAMES[] =
+inline const char *AST_NAMES[] =
 {
     "assign"
     "arith_bin",
@@ -22,11 +38,27 @@ inline const char *AST_KIND_NAMES[] =
     "shift",
     "comparison",
     "boolean_logic",
+    "symbol",
+    "builtin_access",
+    "type_operator",
+    "cast",
+    "initializer_list",
+    "designated_initializer_list",
+    "struct_initializer",
+    "sizeof_t",
+    "no_init",
+    "ignore",
+    "value",
+    "float",
+    "null",
+    "deref",
+    "addrof",
+    "string"
 };
 
-struct ExprNode
+struct AstNode
 {
-    expr_type type;
+    ast_type type;
     u32 idx;
 };
 
@@ -34,10 +66,10 @@ struct ExprNode
 template<typename T>
 struct ExprBinOperNode
 {
-    ExprNode node;
+    AstNode node;
     T oper;
-    ExprNode* left = nullptr;
-    ExprNode* right = nullptr;
+    AstNode* left = nullptr;
+    AstNode* right = nullptr;
 };
 
 using ArithBinNode = ExprBinOperNode<arith_bin_op>;
@@ -46,21 +78,41 @@ using CmpBinNode = ExprBinOperNode<comparison_op>;
 
 struct ArithUnaryNode
 {
-    ExprNode node;
+    AstNode node;
     arith_unary_op oper;
-    ExprNode* expr = nullptr;
+    AstNode* expr = nullptr;
 };
 
 // Subtype bin node
-template<expr_type type>
+template<ast_type type>
 struct ExprBinNode
 {
-    ExprNode node;
-    ExprNode* left = nullptr;
-    ExprNode* right = nullptr;
+    AstNode node;
+    AstNode* left = nullptr;
+    AstNode* right = nullptr;
 };
 
-using ExprEqualNode = ExprBinNode<expr_type::assign>;
+using ExprEqualNode = ExprBinNode<ast_type::assign>;
+
+
+struct BuiltinAccessNode
+{
+    AstNode node;
+
+    builtin_type type;
+    String field;
+};
+
+template<ast_type type>
+struct UnaryNode
+{
+    AstNode node;
+
+    AstNode* expr = nullptr;
+};
+
+using SizeOfNode = UnaryNode<ast_type::sizeof_t>;
+
 
 enum class compound_type
 {
@@ -75,7 +127,7 @@ struct CompoundType
 { 
     compound_type type;
     // ^ on arr_fixed_sized
-    ExprNode* array_size = nullptr;
+    AstNode* array_size = nullptr;
 };
 
 enum class type_node_kind
@@ -100,6 +152,93 @@ struct TypeNode
     Array<CompoundType> compound_type;
 };
 
+struct CastNode
+{
+    AstNode node;
+    TypeNode* type = nullptr;
+    AstNode* expr = nullptr;
+};
+
+struct SymbolNode
+{
+    AstNode node;
+
+    union
+    {
+        // Before Type checking
+        String name;
+        // After Type checking;
+        SymSlot slot;
+    };
+};
+
+enum class type_operator
+{
+    sizeof_type_t,
+    sizeof_data_t,
+};
+
+struct TypeOperatorNode
+{
+    AstNode node;
+    type_operator oper;
+    TypeNode* type = nullptr;
+};
+
+struct InitializerListNode
+{
+    AstNode node;
+    Array<AstNode*> list;
+};
+
+struct DesignatedInitializer
+{
+    AstNode* expr = nullptr;
+    String name;
+};
+
+struct DesignatedListNode
+{   
+    AstNode node;
+    Array<DesignatedInitializer> initializer;
+};
+
+struct StructInitializerNode
+{
+    AstNode node;
+
+    NameSpace* name_space = nullptr;
+    String struct_name;
+
+    // Initializer list or designated initializer
+    AstNode* initializer = nullptr;
+};
+
+
+struct AstPlain 
+{
+    AstNode node;
+};
+
+struct ValueNode
+{
+    AstNode node;
+    u64 value = 0;
+    builtin_type type = builtin_type::void_t;
+};
+
+struct FloatNode
+{
+    AstNode node;
+    f64 value = 0.0;
+};
+
+struct StringNode
+{
+    AstNode node;
+    String string;
+};
+
 
 enum class [[nodiscard]] parse_error
 {
@@ -113,7 +252,7 @@ enum class [[nodiscard]] parse_error
     lexer_error,
 };
 
-using ExprResult = Result<ExprNode*,parse_error>;
+using ParserResult = Result<AstNode*,parse_error>;
 
 
 using AstPointers = Array<void**>;
@@ -176,10 +315,10 @@ struct ExprCtx
 
 void add_ast_pointer(Parser& parser, void* pointer);
 
-template<typename B,typename T,typename K>
-T* alloc_node(Parser& parser,K type, const Token& token)
+template<typename T>
+T* alloc_node(Parser& parser,ast_type type, const Token& token)
 {
-    B* node = (B*)allocate(*parser.ast_allocator,sizeof(T));
+    AstNode* node = (AstNode*)allocate(*parser.ast_allocator,sizeof(T));
 
     // default init the actual type
     T* ret_node = (T*)node;
@@ -191,8 +330,8 @@ T* alloc_node(Parser& parser,K type, const Token& token)
     return ret_node;
 }
 
-template<expr_type type, typename T>
-ExprResult ast_expr_oper_bin(Parser& parser, T oper, ExprResult left_res, ExprResult right_res, const Token& token)
+template<ast_type type, typename T>
+ParserResult ast_expr_oper_bin(Parser& parser, T oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
     if(!left_res)
     {
@@ -204,54 +343,54 @@ ExprResult ast_expr_oper_bin(Parser& parser, T oper, ExprResult left_res, ExprRe
         return right_res;
     }
 
-    ArithBinNode* arith_node  = alloc_node<ExprNode,ExprBinOperNode<T>>(parser,type,token);
+    ArithBinNode* arith_node  = alloc_node<ExprBinOperNode<T>>(parser,type,token);
 
     arith_node->oper = oper;
     arith_node->left = *left_res;
     arith_node->right = *right_res;
 
-    return (ExprNode*)arith_node;
+    return (AstNode*)arith_node;
 }
 
 
-ExprResult ast_bin_arith(Parser& parser, arith_bin_op oper, ExprResult left_res, ExprResult right_res, const Token& token)
+ParserResult ast_bin_arith(Parser& parser, arith_bin_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
-    return ast_expr_oper_bin<expr_type::arith_bin>(parser,oper,left_res,right_res,token);
+    return ast_expr_oper_bin<ast_type::arith_bin>(parser,oper,left_res,right_res,token);
 }
 
-ExprResult ast_shift(Parser& parser, shift_op oper, ExprResult left_res, ExprResult right_res, const Token& token)
+ParserResult ast_shift(Parser& parser, shift_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
-    return ast_expr_oper_bin<expr_type::shift>(parser,oper,left_res,right_res,token);
+    return ast_expr_oper_bin<ast_type::shift>(parser,oper,left_res,right_res,token);
 }
 
-ExprResult ast_comparison(Parser& parser, comparison_op oper, ExprResult left_res, ExprResult right_res, const Token& token)
+ParserResult ast_comparison(Parser& parser, comparison_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
-    return ast_expr_oper_bin<expr_type::comparison>(parser,oper,left_res,right_res,token);
+    return ast_expr_oper_bin<ast_type::comparison>(parser,oper,left_res,right_res,token);
 }
 
-ExprResult ast_logic(Parser& parser, boolean_logic_op oper, ExprResult left_res, ExprResult right_res, const Token& token)
+ParserResult ast_logic(Parser& parser, boolean_logic_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
-    return ast_expr_oper_bin<expr_type::boolean_logic>(parser,oper,left_res,right_res,token);
+    return ast_expr_oper_bin<ast_type::boolean_logic>(parser,oper,left_res,right_res,token);
 }
 
 
-ExprResult ast_unary_arith(Parser& parser, arith_unary_op oper, ExprResult expr_res, const Token& token)
+ParserResult ast_unary_arith(Parser& parser, arith_unary_op oper, ParserResult expr_res, const Token& token)
 {
     if(!expr_res)
     {
         return expr_res;
     }
 
-    ArithUnaryNode* arith_node  = alloc_node<ExprNode,ArithUnaryNode>(parser,expr_type::arith_unary,token);
+    ArithUnaryNode* arith_node  = alloc_node<ArithUnaryNode>(parser,ast_type::arith_unary,token);
 
     arith_node->oper = oper;
     arith_node->expr = *expr_res;
 
-    return (ExprNode*)arith_node;
+    return (AstNode*)arith_node;
 }
 
-template<expr_type type>
-ExprResult ast_expr_bin(Parser& parser, ExprResult left_res, ExprResult right_res, const Token& token)
+template<ast_type type>
+ParserResult ast_expr_bin(Parser& parser, ParserResult left_res, ParserResult right_res, const Token& token)
 {
     if(!left_res)
     {
@@ -263,17 +402,141 @@ ExprResult ast_expr_bin(Parser& parser, ExprResult left_res, ExprResult right_re
         return right_res;
     }
 
-    ExprBinNode<type>* bin_node  = alloc_node<ExprNode,ExprBinNode<type>>(parser,type,token);
+    ExprBinNode<type>* bin_node  = alloc_node<ExprBinNode<type>>(parser,type,token);
     bin_node->left = *left_res;
     bin_node->right = *right_res;
 
-    return (ExprNode*)bin_node;    
+    return (AstNode*)bin_node;    
 }
 
 
-ExprResult ast_equal(Parser& parser, ExprResult left_res, ExprResult right_res, const Token& token)
+ParserResult ast_equal(Parser& parser, ParserResult left_res, ParserResult right_res, const Token& token)
 {
-    return ast_expr_bin<expr_type::assign>(parser,left_res,right_res,token);
+    return ast_expr_bin<ast_type::assign>(parser,left_res,right_res,token);
+}
+
+AstNode* ast_symbol(Parser& parser, const String& name, const Token &token)
+{
+    SymbolNode* sym_node  = alloc_node<SymbolNode>(parser,ast_type::symbol,token);
+    sym_node->name = name;
+
+    return (AstNode*)sym_node;        
+}
+
+
+AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& field,const Token& token)
+{
+    BuiltinAccessNode* builtin_access = alloc_node<BuiltinAccessNode>(parser,ast_type::builtin_access,token);
+
+    builtin_access->type = type;
+    builtin_access->field = field;
+
+    return (AstNode*)builtin_access;
+}
+
+AstNode* ast_type_operator(Parser& parser, TypeNode* type,type_operator kind, const Token& token)
+{
+    TypeOperatorNode* type_operator = alloc_node<TypeOperatorNode>(parser,ast_type::type_operator,token);
+    type_operator->type = type;
+    type_operator->oper = kind;
+
+    return (AstNode*)type_operator;    
+}
+
+AstNode* ast_cast(Parser& parser, TypeNode* type, AstNode* expr, const Token& token)
+{
+    CastNode* cast = alloc_node<CastNode>(parser,ast_type::cast,token);
+    cast->type = type;
+    cast->expr = expr;
+
+    return (AstNode*)cast;
+}
+
+InitializerListNode* ast_initializer_list(Parser& parser, const Token& token)
+{
+    InitializerListNode* list = alloc_node<InitializerListNode>(parser,ast_type::initializer_list,token);
+    add_ast_pointer(parser,&list->list.data);
+
+    return list;
+}
+
+DesignatedListNode* ast_designated_initializer_list(Parser& parser, const Token& token)
+{
+    DesignatedListNode* list = alloc_node<DesignatedListNode>(parser,ast_type::designated_initializer_list,token);
+    add_ast_pointer(parser,&list->initializer.data);
+
+    return list;
+}
+
+AstNode* ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, NameSpace* name_space, const Token& token)
+{
+    StructInitializerNode* struct_initializer_node = alloc_node<StructInitializerNode>(parser,ast_type::struct_initializer,token);
+
+    struct_initializer_node->struct_name = literal;
+    struct_initializer_node->initializer = initializer;
+    struct_initializer_node->name_space = name_space;
+
+    return (AstNode*)struct_initializer_node;
+}
+
+template<ast_type type>
+ParserResult ast_unary(Parser& parser,ParserResult expr_res, const Token& token)
+{
+    if(!expr_res)
+    {
+        return expr_res;
+    }
+
+    UnaryNode<type>* unary = alloc_node<UnaryNode<type>>(parser,type,token);
+    unary->expr = expr_res.value();
+
+    return (AstNode*)unary;
+}
+
+ParserResult ast_sizeof(Parser& parser,ParserResult expr, const Token& token)
+{
+    return ast_unary<ast_type::sizeof_t>(parser,expr,token);
+}
+
+ParserResult ast_deref(Parser& parser, ParserResult expr, const Token& token)
+{
+    return ast_unary<ast_type::deref>(parser,expr,token);
+}
+
+ParserResult ast_addrof(Parser& parser, ParserResult expr, const Token& token)
+{
+    return ast_unary<ast_type::addrof>(parser,expr,token);
+}
+
+
+AstNode* ast_plain(Parser& parser, ast_type type, const Token& token)
+{
+    return alloc_node<AstNode>(parser,type,token);
+}
+
+AstNode* ast_value(Parser& parser, builtin_type type,  u64 value, const Token& token)
+{
+    ValueNode* value_node = alloc_node<ValueNode>(parser,ast_type::value,token);
+    value_node->type = type;
+    value_node->value = value;
+
+    return (AstNode*)value_node;
+}
+
+AstNode *ast_float(Parser& parser, f64 value, const Token& token)
+{
+    FloatNode* float_node = alloc_node<FloatNode>(parser,ast_type::float_t,token);
+    float_node->value = value;
+
+    return (AstNode*)float_node;  
+}
+
+AstNode *ast_string(Parser& parser,const String &string, const Token& token)
+{
+    StringNode* string_node = alloc_node<StringNode>(parser,ast_type::string,token);
+    string_node->string = string;
+
+    return (AstNode*)string_node;    
 }
 
 // scan file for row and column info
@@ -308,8 +571,8 @@ bool match(Parser &parser,token_type type);
 Option<parse_error> consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-// ParserResult func_call(Parser& parser,AstNode *expr, const Token& t);
+ParserResult func_call(Parser& parser,AstNode *expr, const Token& t);
 // ParserResult arr_access(Parser& parser, const Token& t);
 // ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 // ParserResult array_index(Parser& parser,const Token& t);
-// ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call = false);
+ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call = false);

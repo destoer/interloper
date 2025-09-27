@@ -380,7 +380,7 @@ TypeResult get_complete_type(Interloper& itl, const TypeNode* type_decl)
 }
 
 
-Type* value_type(Interloper& itl,const Value& value)
+builtin_type value_type(const Value& value)
 {
     if(value.sign)
     {
@@ -389,22 +389,22 @@ Type* value_type(Interloper& itl,const Value& value)
         // what is the smallest storage type that this will fit inside?
         if(in_range(v,s64(builtin_min(builtin_type::s8_t)),s64(builtin_max(builtin_type::s8_t))))
         {
-            return make_builtin(itl,builtin_type::s8_t);
+            return builtin_type::s8_t;
         }
 
         else if(in_range(v,s64(builtin_min(builtin_type::s16_t)),s64(builtin_max(builtin_type::s16_t))))
         {
-            return make_builtin(itl,builtin_type::s16_t);
+            return builtin_type::s16_t;
         }
 
         else if(in_range(v,s64(builtin_min(builtin_type::s32_t)),s64(builtin_max(builtin_type::s32_t))))
         {
-            return make_builtin(itl,builtin_type::s32_t);
+            return builtin_type::s32_t;
         }
 
         else
         {
-            return make_builtin(itl,builtin_type::s64_t);
+            return builtin_type::s64_t;
         }
     }
 
@@ -415,22 +415,22 @@ Type* value_type(Interloper& itl,const Value& value)
         // what is the smallest storage type that this will fit inside?
         if(in_range(v,builtin_min(builtin_type::u8_t),builtin_max(builtin_type::u8_t)))
         {
-            return make_builtin(itl,builtin_type::u8_t);
+            return builtin_type::u8_t;
         }
 
         else if(in_range(v,builtin_min(builtin_type::u16_t),builtin_max(builtin_type::u16_t)))
         {
-            return make_builtin(itl,builtin_type::u16_t);
+            return builtin_type::u16_t;
         }
 
         else if(in_range(v,builtin_min(builtin_type::u32_t),builtin_max(builtin_type::u32_t)))
         {
-            return make_builtin(itl,builtin_type::u32_t);
+            return builtin_type::u32_t;
         }
 
         else
         {
-            return make_builtin(itl,builtin_type::u64_t);
+            return builtin_type::u64_t;
         }        
     }    
 }

@@ -1,9 +1,9 @@
 #include <interloper.h>
 
-ExprResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
-ExprResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
-ExprResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
-ExprResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
+ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
+ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
+ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
+ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
@@ -88,7 +88,7 @@ Result<s32,parse_error> lbp_subexpr(Parser &parser,const ExprCtx& ctx,const Toke
 }
 
 // i.e +=
-ExprResult oper_eq(Parser &parser,ExprCtx& ctx,ExprNode *left,Token t,arith_bin_op oper)
+ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,arith_bin_op oper)
 {
     auto res = expression(parser,ctx,lbp_subexpr(parser,ctx,t));
 
@@ -106,7 +106,7 @@ ExprResult oper_eq(Parser &parser,ExprCtx& ctx,ExprNode *left,Token t,arith_bin_
     return ans;    
 }
 
-ExprResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,ExprNode *left)
+ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 {
     switch(t.type)
     {
@@ -261,7 +261,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             // correct the state machine
             prev_token(parser);
 
-            auto call_res = func_call(parser,ast_literal(parser,ast_type::symbol,t.literal,t),t); 
+            auto call_res = func_call(parser,ast_symbol(parser,t.literal,t),t); 
             next_expr_token(parser,ctx);
 
             return call_res;
@@ -269,49 +269,50 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
 
         case token_type::scope:
         {
-            // correct state machine
-            prev_token(parser);
-            prev_token(parser);
+            assert(false);
+            // // correct state machine
+            // prev_token(parser);
+            // prev_token(parser);
 
-            auto name_space_res = split_namespace(parser,ctx.expr_tok);
+            // auto name_space_res = split_namespace(parser,ctx.expr_tok);
 
-            if(!name_space_res)
-            {
-                return name_space_res.error();
-            }
+            // if(!name_space_res)
+            // {
+            //     return name_space_res.error();
+            // }
 
-            Array<String> name_space_strings = *name_space_res;
+            // Array<String> name_space_strings = *name_space_res;
 
-            const auto cur = next_token(parser);
-            next_expr_token(parser,ctx);
+            // const auto cur = next_token(parser);
+            // next_expr_token(parser,ctx);
 
-            // Read out struct initializer
-            if(cur.type == token_type::symbol && ctx.expr_tok.type == token_type::left_c_brace)
-            {
-                const auto struct_name = cur;
-                const auto start = ctx.expr_tok;
-                (void)consume_expr(parser,ctx,token_type::left_c_brace);
+            // // Read out struct initializer
+            // if(cur.type == token_type::symbol && ctx.expr_tok.type == token_type::left_c_brace)
+            // {
+            //     const auto struct_name = cur;
+            //     const auto start = ctx.expr_tok;
+            //     (void)consume_expr(parser,ctx,token_type::left_c_brace);
 
-                auto list_res = parse_initializer_list(parser,ctx,start);
-                if(!list_res)
-                {
-                    return list_res;
-                }
+            //     auto list_res = parse_initializer_list(parser,ctx,start);
+            //     if(!list_res)
+            //     {
+            //         return list_res;
+            //     }
 
-                NameSpace* name_space = scan_namespace(parser.global_namespace,name_space_strings); 
-                auto initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
+            //     NameSpace* name_space = scan_namespace(parser.global_namespace,name_space_strings); 
+            //     auto initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
                 
-                return initializer;
-            }
+            //     return initializer;
+            // }
 
-            auto sym_res = parse_sym(parser,ctx,cur);
+            // auto sym_res = parse_sym(parser,ctx,cur);
 
-            if(!sym_res)
-            {
-                return sym_res;
-            }
+            // if(!sym_res)
+            // {
+            //     return sym_res;
+            // }
 
-            return ast_scope(parser,*sym_res,name_space_strings,t);
+            // return ast_scope(parser,*sym_res,name_space_strings,t);
         }
 
         default:
@@ -348,7 +349,7 @@ ParserResult builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type t
         tok_name(ctx.expr_tok.type)); 
 }
 
-ParserResult type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
+ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, const Token& token)
 {
     const auto consume_left_paren_err = consume_expr(parser,ctx,token_type::left_paren);
     if(!!consume_left_paren_err)
@@ -376,10 +377,10 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, ast_type kind)
         return *consume_right_paren_err;
     }
 
-    return ast_type_operator(type_res.value(),kind);   
+    return ast_type_operator(parser,type_res.value(),oper,token);   
 }
 
-ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type cast_type)
+ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
 {
     auto expr_consume_err = consume_expr(parser,ctx,token_type::left_paren);
     if(!!expr_consume_err)
@@ -398,7 +399,7 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type ca
         return type_res.error();
     }
 
-    AstNode* type = (AstNode*)type_res.value();
+    TypeNode* type = type_res.value();
     
     // correct our state machine
     // NOTE: we bypass the normal function here because commas require special handling
@@ -410,9 +411,13 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t, ast_type ca
         return *comma_consume_err;
     }
 
-    const auto right = expr_terminate_in_expr(parser,ctx,"cast",token_type::right_paren);
+    const auto right_res = expr_terminate_in_expr(parser,ctx,"cast",token_type::right_paren);
+    if(!right_res)
+    {
+        return right_res;
+    }
 
-    return ast_binary(parser,type,right,cast_type,t); 
+    return ast_cast(parser,type,right_res.value(),t); 
 }
 
 ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
@@ -436,7 +441,7 @@ ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t
 
 ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t)
 {
-    RecordNode* init = (RecordNode*)ast_record(parser,ast_type::initializer_list,t);
+    InitializerListNode* init = ast_initializer_list(parser,t);
 
     b32 hit_term = false;
     while(!hit_term)
@@ -448,7 +453,7 @@ ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const To
             return e_res.error();
         }
 
-        push_var(init->nodes,*e_res);
+        push_var(init->list,*e_res);
     }
 
     return (AstNode*)init;
@@ -458,7 +463,7 @@ ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const To
 
 ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t)
 {
-    DesignatedListNode* list = (DesignatedListNode*)ast_designated_initializer_list(parser,t);
+    DesignatedListNode* list = ast_designated_initializer_list(parser,t);
 
     b32 hit_term = false;
     while(!hit_term)
@@ -589,7 +594,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         // cast(<type>,<expr>)
         case token_type::cast:
         {
-            return parse_cast(parser,ctx,t,ast_type::cast);
+            return parse_cast(parser,ctx,t);
         }
     
         // sizeof(<expr>)
@@ -603,19 +608,19 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
             auto expr_res = expr_terminate_in_expr(parser,ctx,"sizeof",token_type::right_paren);
 
-            return ast_unary(parser,expr_res,ast_type::sizeof_t,t);    
+            return ast_sizeof(parser,expr_res,t);    
         }
 
         // sizeof_type(<type>)
         case token_type::sizeof_type_t:
         {
-            return type_operator(parser,ctx,ast_type::sizeof_type_t);   
+            return type_operator(parser,ctx,type_operator::sizeof_type_t,t);   
         }
 
         // sizeof_data(<type>)
         case token_type::sizeof_data_t:
         {
-            return type_operator(parser,ctx,ast_type::sizeof_data_t);   
+            return type_operator(parser,ctx,type_operator::sizeof_data_t,t);   
         }
 
 
@@ -647,7 +652,8 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
     
         case token_type::value:
         {
-            return ast_value(parser,t.value,t);
+            const builtin_type type = value_type(t.value);
+            return ast_value(parser,type,t.value.v,t);
         }
 
         case token_type::float_t:
@@ -657,22 +663,22 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::char_t:
         {
-            return ast_char(parser,t.character,t);
+            return ast_value(parser,builtin_type::c8_t,t.character,t);
         }
 
         case token_type::string:
         {
-            return ast_literal(parser,ast_type::string,t.literal,t);
+            return ast_string(parser,t.literal,t);
         }
 
         case token_type::false_t:
         {
-            return ast_plain(parser,ast_type::false_t,t);
+            return ast_value(parser,builtin_type::bool_t,false,t);
         }      
 
         case token_type::true_t:
         {
-            return ast_plain(parser,ast_type::true_t,t);
+            return ast_value(parser,builtin_type::bool_t,true,t);
         }      
 
         case token_type::null_t:
@@ -714,13 +720,13 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::deref:
         {
-            return ast_unary(parser,expression(parser,ctx,lbp(parser,ctx,t)),ast_type::deref,t);
+            return ast_deref(parser,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         // in unary context and operator takes addr
         case token_type::operator_and:
         {
-            return ast_unary(parser,expression(parser,ctx,30),ast_type::addrof,t);
+            return ast_addrof(parser,expression(parser,ctx,30),t);
         }
 
         case token_type::ignore:

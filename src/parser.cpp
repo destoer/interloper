@@ -1382,7 +1382,7 @@ ParserResult statement(Parser &parser)
             BlockNode* if_block = (BlockNode*)ast_if_block(parser,t);
 
 
-            auto expr_opt = expr_terminate(parser,"if condtion statement",token_type::left_c_brace); prev_token(parser); 
+            auto expr_opt = expr_terminate(parser,"if condition statement",token_type::left_c_brace); prev_token(parser); 
             auto body_opt = block_ast(parser);
 
             auto if_res = ast_binary(parser,expr_opt,body_opt,ast_type::if_t,t);
