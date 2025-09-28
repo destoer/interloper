@@ -38,6 +38,8 @@ enum class ast_type
     auto_decl,
     tuple_assign,
     function_call,
+    struct_access,
+    access_member,
 };
 
 inline const char *AST_NAMES[] =
@@ -73,7 +75,9 @@ inline const char *AST_NAMES[] =
     "global_decl",
     "auto_decl",
     "tuple_assign",
-    "function_call"
+    "function_call",
+    "struct_access",
+    "access_member",
 };
 
 struct AstNode
@@ -307,7 +311,6 @@ struct DeclNode
     b32 is_const = false;
 };
 
-
 struct GlobalDeclNode
 {
     AstNode node;
@@ -328,6 +331,19 @@ struct StructNode
     DeclNode* forced_first = nullptr;
 
     u32 attr_flags = 0;
+};
+
+struct AccessMemberNode
+{
+    AstNode node;
+    String name;
+};
+
+struct StructAccessNode
+{
+    AstNode node;
+    AstNode* expr;
+    Array<AstNode*> members;
 };
 
 struct EnumMemberDecl
@@ -782,6 +798,25 @@ AstNode* ast_call(Parser& parser, AstNode* expr, const Token& token)
     return (AstNode*)func_call;
 }
 
+StructAccessNode* ast_struct_access(Parser& parser, AstNode* expr, const Token& token)
+{
+    StructAccessNode* struct_access = alloc_node<StructAccessNode>(parser,ast_type::struct_access,token);
+
+    add_ast_pointer(parser,&struct_access->members.data);
+    // Base access on the struct
+    struct_access->expr = expr;
+
+    return struct_access;
+}
+
+AstNode* ast_access_member(Parser& parser, const String& name, const Token& token)
+{
+    AccessMemberNode* member_access = alloc_node<AccessMemberNode>(parser,ast_type::access_member,token);
+    member_access->name = name;
+
+    return (AstNode*)member_access;
+}
+
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
@@ -816,6 +851,6 @@ Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
 ParserResult func_call(Parser& parser,AstNode *expr, NameSpace* name_space, const Token& t);
 // ParserResult arr_access(Parser& parser, const Token& t);
-// ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
+ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 // ParserResult array_index(Parser& parser,const Token& t);
 ParserResult var(Parser& parser, NameSpace* name_space, const Token& sym_tok, b32 allow_call = false);

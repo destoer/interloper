@@ -249,7 +249,7 @@ ParserResult parse_struct_initializer(Parser &parser)
 
 ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_decl = false)
 {
-    // declartion
+    // declaration
     // symbol ':' type ( ';' | '=' expression ';')
 
     const auto s = next_token(parser);
@@ -283,7 +283,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 
     switch(eq.type)
     {
-        // declartion with assingment
+        // declaration with assignment
         case token_type::equal:
         {
             const auto err = consume(parser,token_type::equal);
@@ -518,16 +518,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
 
 ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 {
-    RecordNode* member_root = (RecordNode*)ast_record(parser,ast_type::access_members,t);
-
-    auto bin_res = ast_binary(parser,expr_node,(AstNode*)member_root,ast_type::access_struct,t);
-
-    if(!bin_res)
-    {
-        return bin_res;
-    }
-
-    BinNode* root = (BinNode*)bin_res.value();
+    StructAccessNode* struct_access = ast_struct_access(parser,expr_node,t);
 
     while(match(parser,token_type::dot))
     {
@@ -551,7 +542,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
                         return slice;
                     }
 
-                    push_var(member_root->nodes,*slice);
+                    push_var(struct_access->members,*slice);
                 }
 
                 else
@@ -562,16 +553,16 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
                         return index_res;
                     }
 
-                    push_var(member_root->nodes,*index_res);
+                    push_var(struct_access->members,*index_res);
                 }
             }
 
             // plain old member
             else
             {
-                AstNode* member_node = ast_literal(parser,ast_type::access_member, member_tok.literal,member_tok);
+                AstNode* member_node = ast_access_member(parser, member_tok.literal,member_tok);
 
-                push_var(member_root->nodes,member_node);
+                push_var(struct_access->members,member_node);
             }
         }
 
