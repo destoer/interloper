@@ -30,6 +30,7 @@ enum class ast_type
     string,
     block,
     type,
+    type_alias,
 };
 
 inline const char *AST_NAMES[] =
@@ -57,7 +58,8 @@ inline const char *AST_NAMES[] =
     "addrof",
     "string",
     "block",
-    "type"
+    "type",
+    "type_alias",
 };
 
 struct AstNode
@@ -258,6 +260,17 @@ struct BlockNode
 {
     AstNode node;
     Array<AstNode*> stmt;
+};
+
+
+struct AliasNode 
+{
+    AstNode node;
+
+    String name;
+    String filename;
+
+    TypeNode* type;
 };
 
 enum class [[nodiscard]] parse_error
@@ -577,6 +590,18 @@ TypeNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& nam
     add_ast_pointer(parser,&type_node->compound.data);
 
     return type_node;   
+}
+
+
+AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const String& filename, const Token& token)
+{
+    AliasNode* alias_node = alloc_node<AliasNode>(parser,ast_type::type_alias,token);
+
+    alias_node->filename = filename;
+    alias_node->name = literal;
+    alias_node->type = type;
+
+    return (AstNode*)alias_node;
 }
 
 // scan file for row and column info

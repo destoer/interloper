@@ -1,7 +1,8 @@
+#include <interloper.h>
 
 DefInfo* lookup_definition(NameSpace* root, const String& name);
 void print_namespace_tree(NameSpace* root, u32 depth);
-
+void init_arr_sub_sizes(Interloper&itl,Type* type);
 void store_arr_data(Interloper& itl, Function& func, RegSlot slot, RegSlot data);
 void store_arr_len(Interloper& itl, Function& func, RegSlot slot,RegSlot len);
 
@@ -36,722 +37,314 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::void_t, false, false, 0, 0, 0},
 };
 
-b32 fit_into_s8(s64 v1)
+
+#include "type/helper.cpp"
+#include "type/format.cpp"
+#include "type/size.cpp"
+#include "type/lookup.cpp"
+#include "type/checker.cpp"
+
+
+void add_type_to_scope(NameSpace* name_space, TypeDecl* decl)
 {
-    return in_range<s64>(v1,-128,127);
+    DefInfo info;
+    info.type = definition_type::type;
+    info.type_decl = decl;
+
+    add(name_space->table,decl->name,info);
 }
 
-b32 fit_into_s32(s64 v1)
+template<typename T>
+T* alloc_type_decl(Interloper& itl)
 {
-    return in_range<s64>(v1,s32(-(0xffffffff / 2)),s32(0xffffffff / 2));
+    T* out = (T*)allocate(itl.type_allocator,sizeof(T));
+    *out = {};
+
+    return out;
 }
 
-
-b32 fit_into_u32(s64 v1)
+void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
 {
-    return in_range<u64>(v1,0,0xffffffff);
-}
-
-Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype, assign_type assign_kind);
-Option<itl_error> parse_def(Interloper& itl, TypeDef& def);
-
-b32 is_builtin(const Type* type)
-{
-    return type->kind == type_class::builtin_t;
-}
-
-b32 is_integer(builtin_type type)
-{    
-    return builtin_type_info[u32(type)].is_integer;
-}
-
-b32 is_integer(const Type* type)
-{
-    if(!is_builtin(type))
-    {
-        return false;
-    }
-
-    const BuiltinType* underlying = (BuiltinType*)type;
-    return is_integer(underlying->builtin);
-}
-
-bool is_builtin_type(const Type* type,builtin_type builtin)
-{
-    if(!is_builtin(type))
-    {
-        return false;
-    }
-
-    const BuiltinType* underlying = (BuiltinType*)type;
-    return underlying->builtin == builtin;
-}
-
-
-b32 is_float(const Type* type)
-{
-    return is_builtin_type(type,builtin_type::f64_t);
-}
-
-b32 is_signed(const Type *type)
-{
-    if(!is_builtin(type))
-    {
-        return false;
-    }
-
-    const BuiltinType* underlying = (BuiltinType*)type;
-    return builtin_type_info[u32(underlying->builtin)].is_signed;
-}
-
-b32 is_signed_integer(const Type *type)
-{
-    return is_signed(type) && is_integer(type);
-}
-
-b32 is_unsigned_integer(const Type *type)
-{
-    return !is_signed(type) && is_integer(type);
-}
-
-
-b32 is_array(const Type* type)
-{
-    return type->kind == type_class::array_t;
-}
-
-b32 is_struct(const Type* type)
-{
-    return type->kind == type_class::struct_t;
-}
-
-b32 is_struct_index(const Type* type, u32 idx)
-{
-    return is_struct(type) && ((StructType*)type)->struct_idx == idx;
-}
-
-b32 is_func_pointer(const Type* type)
-{
-    return type->kind == type_class::func_pointer_t;
-}
-
-
-b32 is_enum(const Type* type)
-{
-    return type->kind == type_class::enum_t;
-}
-
-b32 is_pointer(const Type* type)
-{
-    return type->kind == type_class::pointer_t;
-}
-
-b32 is_reference(const Type* type)
-{
-    return type->kind == type_class::pointer_t && ((PointerType*)type)->pointer_kind == pointer_type::reference;
-}
-
-b32 is_bool(const Type* type)
-{
-    return is_builtin_type(type,builtin_type::bool_t);
-}
-
-b32 is_void(const Type* type)
-{
-    return is_builtin_type(type,builtin_type::void_t);
-}
-
-// for arrays
-b32 is_runtime_size(const ArrayType* type)
-{
-    return type->size == RUNTIME_SIZE;
-}
-
-b32 is_runtime_size(const Type* type)
-{
-    return is_runtime_size((ArrayType*)type);
-}
-
-b32 is_fixed_array(const ArrayType* type)
-{
-    return !is_runtime_size(type);
-}
-
-b32 is_fixed_array(const Type* type)
-{
-    return is_array(type) && !is_runtime_size(type);
-}
-
-b32 is_vla(const Type* type)
-{
-    return is_array(type) && is_runtime_size(type);
-}
-
-b32 is_trivial_copy(const Type *type)
-{
-    return is_builtin(type) || is_pointer(type) || is_enum(type) || is_func_pointer(type) || is_fixed_array(type);
-}
-
-
-b32 is_string(const ArrayType* type)
-{
-    return is_builtin_type(type->contained_type,builtin_type::c8_t);
-}
-
-b32 is_string(const Type* type)
-{
-    if(is_array(type))
-    {
-        return is_string((ArrayType*)type);
-    }
-
-    return false;
-}
-
-
-b32 is_const(const Type* type)
-{
-    return type->flags & TYPE_FLAG_CONST;
-}
-
-b32 is_const_string(const ArrayType* type)
-{
-    return is_builtin_type(type->contained_type,builtin_type::c8_t) && is_const((Type*)type->contained_type);
-}
-
-b32 is_const_string(const Type* type)
-{
-    if(is_array(type))
-    {
-        return is_const_string((ArrayType*)type);
-    }
-
-    return false;
-}
-
-
-b32 is_plain(const Type *type)
-{
-    return !is_pointer(type) && !is_array(type);
-}
-
-b32 is_plain_builtin(const Type* type)
-{
-    return is_plain(type) && is_builtin(type);
-}
-
-b32 is_value_type(const Type* type)
-{
-    return is_plain(type);
-}
-
-u32 builtin_size(builtin_type t)
-{
-    return builtin_type_info[u32(t)].size;
-}
-
-u64 builtin_max(builtin_type t)
-{
-    return builtin_type_info[u32(t)].max;
-}
-
-u64 builtin_min(builtin_type t)
-{
-    return builtin_type_info[u32(t)].min;
-}
-
-const char *builtin_type_name(builtin_type t)
-{
-    return TYPE_NAMES[static_cast<size_t>(t)];
-}
-
-builtin_type cast_builtin(const Type *type)
-{
-    const BuiltinType* underlying = (BuiltinType*)type;
-    return underlying->builtin;
-}
-
-
-String fmt_index(Interloper& itl,u32 index)
-{
-    if(index == RUNTIME_SIZE)
-    {
-        return make_string(itl.string_allocator,"[]",2);
-    }
-
-    char buf[32];
-    const u32 len = sprintf(buf,"[%d]",index);
-
-    return make_string(itl.string_allocator,buf,len);
-}
-
-void push_const_name(Interloper& itl, StringBuffer& buffer, const Type* type, const String& string)
-{
-    if(is_const(type))
-    {
-        push_string(itl.string_allocator,buffer,string);
-    }
-}
-
-String type_name(Interloper& itl,const Type *type)
-{
-    StringBuffer prefix;
-
-    StringBuffer compound;
-
-    String plain;
-
-    b32 done = false;
-
-    while(!done)
-    {
-        switch(type->kind)
-        {
-            case type_class::pointer_t:
-            {
-                PointerType* pointer_type = (PointerType*)type;
-                const bool nullable = pointer_type->pointer_kind == pointer_type::nullable;
-                push_const_name(itl,compound,type," const");
-                push_char(itl.string_allocator,compound,nullable? '?' : '@');
-
-                type = pointer_type->contained_type;
-                break;
-            }
-
-            case type_class::struct_t: 
-            {
-                push_const_name(itl,prefix,type,"const ");
-
-                const auto structure =  struct_from_type(itl.struct_table,type);
-                plain = structure.name;
-                done = true;
-                break;                
-            }
-
-            case type_class::enum_t: 
-            {
-                push_const_name(itl,prefix,type,"const ");
-
-                const auto enumeration = enum_from_type(itl.enum_table,type);
-                plain = enumeration.name;  
-                done = true;
-                break;              
-            }
-
-            case type_class::array_t:
-            {
-                push_const_name(itl,compound,type," const");
-
-                ArrayType* array_type = (ArrayType*)type;
-
-                push_string(itl.string_allocator,compound,fmt_index(itl,array_type->size));
-                type = array_type->contained_type;
-                break;
-            }
-
-            case type_class::func_pointer_t:
-            {
-                FuncPointerType* func_type = (FuncPointerType*)type;
-                const FuncSig& sig = func_type->sig;
-                StringBuffer func_name;
-
-                push_const_name(itl,prefix,type,"const ");
-
-                push_string(itl.string_allocator,func_name,"func(");
-
-                // print args
-                // TODO: this should probably hide hidden args...
-                for(u32 a = 0; a < count(sig.args); a++)
-                {
-                    if(a != 0)
-                    {
-                        push_char(itl.string_allocator,func_name,',');
-                    }
-
-                    const auto& sym = sym_from_slot(itl.symbol_table,sig.args[a]);
-
-                    push_string(itl.string_allocator,func_name,sym.name);
-
-                    push_string(itl.string_allocator,func_name," : ");
-
-                    push_string(itl.string_allocator,func_name,type_name(itl,sym.type));
-                }
-
-                push_string(itl.string_allocator,func_name,") ");
-
-
-                // single return
-                if(count(sig.return_type) == 1)
-                {
-                    push_string(itl.string_allocator,func_name,type_name(itl,sig.return_type[0]));
-                }
-
-                // tuple return
-                else
-                {
-                    assert(false);
-                }
-
-                // null term the string
-                push_char(itl.string_allocator,func_name,'\0');
-
-                plain = make_string(func_name);
-                done = true;
-                break;
-            }
-
-            // builtin
-            case type_class::builtin_t:
-            {
-                push_const_name(itl,prefix,type,"const ");
-
-                plain = builtin_type_name(cast_builtin(type));
-                done = true;
-                break;
-            }
-
-            case type_class::tuple_t:
-            {
-                assert(false);
-                break;
-            }
-        }
-
-    }
-
-    push_string(itl.string_allocator,prefix,plain);
-
-    // null term both strings
-    push_char(itl.string_allocator,prefix,'\0');
-    push_char(itl.string_allocator,compound,'\0');
-
-
-    // produce the final string!
-    String name = cat_string(itl.string_allocator,make_string(prefix),make_string(compound));
-
-    return name;
-}
-
-static constexpr u32 ENUM_SIZE = 4;
-
-u32 type_size(Interloper& itl,const Type *type)
-{
-    switch(type->kind)
-    {
-        case type_class::func_pointer_t:
-        {
-            return GPR_SIZE;
-        }
-
-        case type_class::struct_t:
-        {
-            const auto& structure = struct_from_type(itl.struct_table,type);
-            return structure.size;
-        }
-
-        case type_class::enum_t:
-        {
-            const auto& enumeration = enum_from_type(itl.enum_table,type);
-
-            // return size of underyling integeral type
-            if(enumeration.underlying_type && is_integer(enumeration.underlying_type))
-            {
-                return type_size(itl,enumeration.underlying_type);
-            }
-
-            return ENUM_SIZE;
-        }
-
-        case type_class::array_t:
-        {
-            if(is_runtime_size(type))
-            {
-                return GPR_SIZE * 2;
-            }
-
-            return GPR_SIZE;            
-        }
-
-        case type_class::pointer_t:
-        {
-            return GPR_SIZE;
-        }
-
-        case type_class::tuple_t:
-        {
-            assert(false);
-        }
-
-        case type_class::builtin_t:
-        {
-            const BuiltinType* underlying = (BuiltinType*)type;
-            return builtin_size(underlying->builtin);
-        }
-    }
-
-    assert(false);
-}
-
-
-u32 array_memory_size(Interloper& itl, const ArrayType* array)
-{
-    UNUSED(itl);
-
-    if(is_runtime_size(array))
-    {
-        return GPR_SIZE * 2;
-    }
+    TypeDecl* type_decl = alloc_type_decl<TypeDecl>(itl);
+
+    type_decl->type_idx = type_idx;
+    type_decl->name = name;
+    type_decl->kind = kind;
+    type_decl->name_space = itl.global_namespace;
+    type_decl->state = type_def_state::checked;
     
-    // Fixed array, give back the actual size occupied by the buffer
-    return array->sub_size * array->size;
+    add_type_to_scope(itl.global_namespace,type_decl);    
 }
 
-u32 type_memory_size(Interloper& itl, const Type* type)
+
+void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, const String& name, const String& filename, NameSpace* name_space)
 {
-    switch(type->kind)
+    TypeDef* definition = alloc_type_decl<TypeDef>(itl);
+
+    definition->decl.name = name;
+    definition->decl.flags = TYPE_DECL_DEF_FLAG;
+    definition->decl.name_space = name_space;
+    definition->decl.kind = type_kind(kind);
+
+    definition->filename = filename;
+    definition->root = root;
+    definition->kind = kind;
+
+
+    add_type_to_scope(name_space,(TypeDecl*)definition);
+    push_var(itl.type_decl,root);
+}
+
+
+b32 type_exists(Interloper& itl, const String& name)
+{
+    return lookup_complete_decl(itl,name) != nullptr;
+}
+
+
+ConstValueResult access_builtin_type_info(Interloper& itl, builtin_type type, const String& member_name)
+{
+    const BuiltinTypeInfo& info = builtin_type_info[u32(type)];
+
+    if(member_name == "size")
     {
-        case type_class::array_t:
-        {
-            return array_memory_size(itl,(ArrayType*)type);
-        }
-
-        default:
-        {
-            return type_size(itl,type);
-        }
-    }
-}
-
-u32 data_size(Interloper& itl,const Type *type)
-{
-    switch(type->kind)
-    {
-        case type_class::struct_t:
-        {
-            const auto& structure = struct_from_type(itl.struct_table,type);
-            return structure.data_size;
-        }   
-
-        case type_class::array_t:
-        {
-            return array_memory_size(itl,(ArrayType*)type);
-        }
-
-        default:
-        {
-            return type_size(itl,type);
-        }
-    }
-}
-
-
-const Type* deref_pointer(const Type* type)
-{
-    const PointerType* pointer_type = (PointerType*)type;
-    return pointer_type->contained_type;
-}
-
-Type* deref_pointer(Type* type)
-{
-    PointerType* pointer_type = (PointerType*)type;
-    return pointer_type->contained_type;
-}
-
-Type* index_arr(ArrayType* array_type)
-{
-    return array_type->contained_type;
-}
-
-const Type* index_arr(const Type* type)
-{
-    ArrayType* array_type = (ArrayType*)type;
-    return array_type->contained_type;
-}
-
-Type* index_arr(Type* type)
-{
-    ArrayType* array_type = (ArrayType*)type;
-    return array_type->contained_type;
-}
-
-// gives back first type that isn't an array
-Type* contained_arr_type(ArrayType* array_type)
-{
-    while(is_array(array_type->contained_type))
-    {
-        array_type = (ArrayType*)array_type->contained_type;
+        return ConstValue{make_builtin(itl,builtin_type::u32_t),u64(info.size)};
     }
 
-    return array_type->contained_type;
-}
-
-
-// gives back the absolute bottom type
-Type* get_plain_type(Type* type)
-{
-    for(;;)
+    else if(member_name == "max")
     {
-        switch(type->kind)
-        {
-            case type_class::array_t:
-            {
-                type = index_arr(type);
-                break;
-            }
-
-            case type_class::pointer_t:
-            {
-                type = deref_pointer(type);
-                break;
-            }
-
-            default:
-            {
-                return type; 
-            }
-        }
+        return ConstValue{make_builtin(itl,builtin_type::u32_t),info.max};
     }
 
-    assert(false);
-}
-
-
-u32 accumulate_count(u32 count, u32 size)
-{
-    // if count is zero we are just getting started
-    return count == 0? size : count * size;
-}
-
-void init_arr_sub_sizes(Interloper&itl,Type* type);
-
-u32 init_arr_sub_sizes_internal(Interloper& itl, Type* type)
-{
-    /* 
-        descend until the bottom is reached mark the size
-        return up the sub size and mark it across each level of the type
-
-
-        do this for any sub indirecitons i.e pointers VLA's
-    */
-
-    switch(type->kind)
+    else if(member_name == "min")
     {
-        case type_class::array_t:
+        return ConstValue{make_builtin(itl,builtin_type::u32_t),info.min};
+    }
+
+    return compile_error(itl,itl_error::undefined_type_oper,"unknown type info for builtin type %s.%s",TYPE_NAMES[u32(type)],member_name.buf);
+}
+
+
+
+TypeResult access_builtin_type_info(Interloper& itl, Function& func, RegSlot dst_slot, builtin_type type, const String& member_name)
+{
+    auto type_info_res = access_builtin_type_info(itl,type,member_name);
+
+    if(!type_info_res)
+    {
+        return type_info_res.error();
+    }
+
+    auto data = *type_info_res;
+    mov_imm(itl,func,dst_slot,data.value);
+
+    return data.type;
+}
+
+
+ConstValueResult access_type_info(Interloper& itl,const TypeDecl& type_decl, const String& member_name)
+{
+    switch(type_decl.kind)
+    {
+        case type_kind::builtin:
         {
-            ArrayType* array_type = (ArrayType*)type;
-                
-            // VLA
-            if(is_runtime_size(type))
+            builtin_type type = builtin_type(type_decl.type_idx);
+
+            return access_builtin_type_info(itl,type,member_name);
+        }
+
+        case type_kind::struct_t:
+        {
+            if(member_name == "size")
             {
-                array_type->sub_size = init_arr_sub_sizes_internal(itl,index_arr(type));
-                return GPR_SIZE * 2;
+                const auto& structure = itl.struct_table[type_decl.type_idx];
+                const u64 size = structure.size;
+
+                return ConstValue{make_builtin(itl,builtin_type::u32_t),size};
             }
 
-            // fixed size
             else
             {
-                array_type->sub_size = init_arr_sub_sizes_internal(itl,index_arr(type));
-                return array_type->sub_size * array_type->size;
+                return compile_error(itl,itl_error::enum_type_error,"unknown type info for struct %s",type_decl.name.buf);
             }
         }
 
-        
-        case type_class::pointer_t:
+        case type_kind::enum_t:
         {
-            PointerType* pointer_type = (PointerType*)type; 
-
-            // do for sub type
-            if(is_array(pointer_type->contained_type))
+            if(member_name == "len")
             {
-                init_arr_sub_sizes(itl,pointer_type->contained_type);
+                const auto enumeration = itl.enum_table[type_decl.type_idx];
+
+                const u64 enum_len = enumeration.member_map.size;
+
+                return ConstValue{make_builtin(itl,builtin_type::u32_t),enum_len};
             }
 
-            return GPR_SIZE;
+            else
+            {
+                return compile_error(itl,itl_error::enum_type_error,"unknown type info for enum %s",type_decl.name.buf);
+            }
         }
 
-        // plain var mark size and return it!
-        default:
+        case type_kind::alias_t:
         {
-            const u32 size = type_size(itl,type);
-            return size;
+            return compile_error(itl,itl_error::generic_type_error,"cannot access type properties on alias %s",type_decl.name.buf);
         }
     }
+
+    assert(false);
 }
 
-
-void init_arr_sub_sizes(Interloper&itl,Type* type)
+TypeResult access_type_info(Interloper& itl, Function& func, RegSlot dst_slot, const TypeDecl& type_decl, const String& member_name)
 {
-    init_arr_sub_sizes_internal(itl,type);
-}
+    auto type_info_res = access_type_info(itl,type_decl,member_name);
 
-// type creation helpers
-template<typename T>
-Type* alloc_type(Interloper& itl, type_class kind, u32 flags)
-{
-    Type* type = (Type*)allocate(itl.type_allocator,sizeof(T));
-    type->kind = kind;
-    type->flags = flags;
+    if(!type_info_res)
+    {
+        return type_info_res.error();
+    }
+
+    auto [type,ans] = *type_info_res;
+
+    mov_imm(itl,func,dst_slot,ans);
 
     return type;
 }
 
 
-Type* make_builtin(Interloper& itl, builtin_type type, u32 flags = 0)
-{
-    BuiltinType* builtin = (BuiltinType*)alloc_type<BuiltinType>(itl,type_class::builtin_t,flags);
-    builtin->builtin = type;
 
-    return (Type*)builtin;
+void add_internal_alias(Interloper& itl, Type* type,const String& name)
+{
+    const u32 type_idx = count(itl.alias_table);
+    add_internal_type_decl(itl,type_idx,name,type_kind::alias_t); 
+    push_var(itl.alias_table,type);   
 }
 
-Type* make_pointer(Interloper& itl,Type* contained_type, pointer_type pointer_kind, u32 flags = 0)
+void finalise_type(TypeDecl& decl, u32 type_idx)
 {
-    PointerType* pointer_type = (PointerType*)alloc_type<PointerType>(itl,type_class::pointer_t,flags);
-
-    pointer_type->contained_type = contained_type;
-    pointer_type->pointer_kind = pointer_kind;
-
-    return (Type*)pointer_type;
+    decl.type_idx = type_idx;
+    decl.state = type_def_state::checked;
 }
 
-Type* make_reference(Interloper& itl,Type* contained_type, u32 flags = 0)
+Option<itl_error> parse_alias_def(Interloper& itl, TypeDef& def)
 {
-    return make_pointer(itl,contained_type,pointer_type::reference,flags);
+    AliasNode* node = (AliasNode*)def.root;
+
+    auto type_res = get_complete_type(itl,node->type);
+
+    if(!type_res)
+    {
+        return type_res.error();
+    }
+
+    Type* type = *type_res;
+
+    if(itl.print_types)
+    {
+        printf("type alias %s = %s\n",node->name.buf,type_name(itl,type).buf);
+    }
+
+    const u32 type_idx = count(itl.alias_table);
+    finalise_type(def.decl,type_idx);
+    push_var(itl.alias_table,type); 
+
+    return option::none;
 }
 
-Type* make_nullable_ptr(Interloper& itl,Type* contained_type, u32 flags = 0)
+void declare_compiler_type_aliases(Interloper& itl) 
 {
-    return make_pointer(itl,contained_type,pointer_type::nullable,flags);   
+    /// usize
+    add_internal_alias(itl,make_builtin(itl,builtin_type::u64_t),"usize");
+
+    // ssize
+    add_internal_alias(itl,make_builtin(itl,builtin_type::s64_t),"ssize");
+
+    add_internal_alias(itl,make_array(itl,make_builtin(itl,builtin_type::c8_t,false),RUNTIME_SIZE),"string");
+}
+
+Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def);
+Option<itl_error> parse_alias_def(Interloper& itl, TypeDef& def);
+Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set);
+
+Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
+{
+    log(itl.itl_log,"Parse type: %s\n",def.decl.name.buf);
+    // this node make be from a different context
+    // save the current one
+    push_context(itl);
+
+    Option<itl_error> res = option::none;
+
+    switch(def.decl.state)
+    {
+        case type_def_state::not_checked:
+        {
+            // mark as checking to lock this against recursion!
+            def.decl.state = type_def_state::checking;
+
+            switch(def.kind)
+            {
+                case type_def_kind::struct_t:
+                {
+                    res = parse_struct_def(itl,def);
+                    break;
+                }
+
+                case type_def_kind::alias_t:
+                {
+                    res = parse_alias_def(itl,def);
+                    break;
+                }
+
+                case type_def_kind::enum_t: 
+                {
+                    auto set = make_set<u64>();
+
+                    res = parse_enum_def(itl,def,set);
+                    destroy_set(set);
+                    break;
+                }
+            }
+
+            break;
+        }
+
+        case type_def_state::checking:
+        {
+            // TODO: add heuristics to scan for where!
+            return compile_error(itl,itl_error::black_hole,"Parse def: type %s is recursively defined",def.decl.name.buf);
+        }
+
+        // already checked we don't care
+        case type_def_state::checked:
+        {
+            break;
+        }
+    }
+
+    log(itl.itl_log,"Finish parsing type: %s\n",def.decl.name.buf);
+
+    pop_context(itl);
+    return res;
 }
 
 
-Type* make_struct(Interloper& itl, u32 struct_idx, u32 flags = 0)
+void destroy_sig(FuncSig& sig)
 {
-    StructType* struct_type = (StructType*)alloc_type<StructType>(itl,type_class::struct_t,flags);
-
-    struct_type->struct_idx = struct_idx;
-
-    return (Type*)struct_type;
+    destroy_arr(sig.return_type);
+    destroy_arr(sig.args);
+    destroy_arr(sig.pass_as_reg);
 }
 
-Type* make_enum(Interloper& itl, u32 enum_idx, u32 flags = 0)
+void destroy_func(Function& func)
 {
-    EnumType* enum_type = (EnumType*)alloc_type<EnumType>(itl,type_class::enum_t,flags);
+    destroy_sig(func.sig);
 
-    enum_type->enum_idx = enum_idx;
+    for(auto& reg : func.registers)
+    {
+        destroy_reg(reg);
+    }
 
-    return (Type*)enum_type;
+    destroy_arr(func.registers);
+    destroy_emitter(func.emitter);
 }
-
-
-Type* make_array(Interloper& itl, Type* contained_type, u32 size, u32 flags = 0)
-{
-    ArrayType* array_type = (ArrayType*)alloc_type<ArrayType>(itl,type_class::array_t,flags);
-
-    array_type->size = size;
-    array_type->contained_type = contained_type;
-    init_arr_sub_sizes(itl,(Type*)array_type);
-
-    return (Type*)array_type;
-}
-
