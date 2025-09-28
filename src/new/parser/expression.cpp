@@ -250,7 +250,7 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
 
 
-ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
+ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& t)
 {
     // look ahead extra tokens that would change the meaning of this
     switch(ctx.expr_tok.type)
@@ -261,7 +261,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
             // correct the state machine
             prev_token(parser);
 
-            auto call_res = func_call(parser,ast_symbol(parser,t.literal,t),t); 
+            auto call_res = func_call(parser,ast_symbol(parser,t.literal,t),name_space,t); 
             next_expr_token(parser,ctx);
 
             return call_res;
@@ -269,56 +269,49 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, const Token& t)
 
         case token_type::scope:
         {
-            assert(false);
-            // // correct state machine
-            // prev_token(parser);
-            // prev_token(parser);
+            // correct state machine
+            prev_token(parser);
+            prev_token(parser);
 
-            // auto name_space_res = split_namespace(parser,ctx.expr_tok);
+            auto name_space_res = split_namespace(parser,ctx.expr_tok);
 
-            // if(!name_space_res)
-            // {
-            //     return name_space_res.error();
-            // }
+            if(!name_space_res)
+            {
+                return name_space_res.error();
+            }
 
-            // Array<String> name_space_strings = *name_space_res;
+            Array<String> name_space_strings = *name_space_res;
 
-            // const auto cur = next_token(parser);
-            // next_expr_token(parser,ctx);
+            const auto cur = next_token(parser);
+            next_expr_token(parser,ctx);
 
-            // // Read out struct initializer
-            // if(cur.type == token_type::symbol && ctx.expr_tok.type == token_type::left_c_brace)
-            // {
-            //     const auto struct_name = cur;
-            //     const auto start = ctx.expr_tok;
-            //     (void)consume_expr(parser,ctx,token_type::left_c_brace);
+            NameSpace* name_space = scan_namespace(parser.global_namespace,name_space_strings); 
+            
+            // Read out struct initializer
+            if(cur.type == token_type::symbol && ctx.expr_tok.type == token_type::left_c_brace)
+            {
+                const auto struct_name = cur;
+                const auto start = ctx.expr_tok;
+                (void)consume_expr(parser,ctx,token_type::left_c_brace);
 
-            //     auto list_res = parse_initializer_list(parser,ctx,start);
-            //     if(!list_res)
-            //     {
-            //         return list_res;
-            //     }
+                auto list_res = parse_initializer_list(parser,ctx,start);
+                if(!list_res)
+                {
+                    return list_res;
+                }
 
-            //     NameSpace* name_space = scan_namespace(parser.global_namespace,name_space_strings); 
-            //     auto initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
+                auto initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
                 
-            //     return initializer;
-            // }
+                return initializer;
+            }
 
-            // auto sym_res = parse_sym(parser,ctx,cur);
-
-            // if(!sym_res)
-            // {
-            //     return sym_res;
-            // }
-
-            // return ast_scope(parser,*sym_res,name_space_strings,t);
+            return parse_sym(parser,ctx,name_space,cur);
         }
 
         default:
         {
             prev_token(parser);
-            auto var_res = var(parser,t,true);
+            auto var_res = var(parser,name_space,t,true);
 
             next_expr_token(parser,ctx);
 
@@ -688,7 +681,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::symbol:
         {
-            return parse_sym(parser,ctx,t);
+            return parse_sym(parser,ctx,nullptr,t);
         }
 
         case token_type::minus:

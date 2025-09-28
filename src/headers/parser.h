@@ -31,6 +31,13 @@ enum class ast_type
     block,
     type,
     type_alias,
+    struct_t,
+    enum_t,
+    decl,
+    global_decl,
+    auto_decl,
+    tuple_assign,
+    function_call,
 };
 
 inline const char *AST_NAMES[] =
@@ -60,6 +67,13 @@ inline const char *AST_NAMES[] =
     "block",
     "type",
     "type_alias",
+    "struct",
+    "enum",
+    "decl",
+    "global_decl",
+    "auto_decl",
+    "tuple_assign",
+    "function_call"
 };
 
 struct AstNode
@@ -272,6 +286,88 @@ struct AliasNode
 
     TypeNode* type;
 };
+
+
+struct AutoDeclNode
+{
+    AstNode node;
+
+    String name;
+    AstNode* expr = nullptr;
+};
+
+struct DeclNode
+{
+    AstNode node;
+
+    String name;
+    TypeNode* type = nullptr;
+    AstNode* expr = nullptr;
+
+    b32 is_const = false;
+};
+
+
+struct GlobalDeclNode
+{
+    AstNode node;
+
+    DeclNode *decl = nullptr;
+    String filename;
+    NameSpace* name_space;
+};
+
+struct StructNode
+{
+    AstNode node;
+
+    String name;
+    String filename;
+    Array<DeclNode*> members;
+    // is there a member forced to be first in the memory layout?
+    DeclNode* forced_first = nullptr;
+
+    u32 attr_flags = 0;
+};
+
+struct EnumMemberDecl
+{
+    String name;
+    AstNode* initializer = nullptr;
+};
+
+struct EnumNode
+{
+    AstNode node;
+
+    String name;
+    String filename;
+    Array<EnumMemberDecl> member;
+
+    TypeNode* type = nullptr; 
+    u32 attr_flags = 0;
+};
+
+struct FuncCallNode
+{
+    AstNode node;
+
+    NameSpace* name_space = nullptr;
+    AstNode* expr =  nullptr;
+    Array<AstNode*> args;
+};
+
+
+struct TupleAssignNode
+{
+    AstNode node;
+
+    Array<AstNode*> symbols;
+    FuncCallNode* func_call;
+    b32 auto_decl;
+};
+
+
 
 enum class [[nodiscard]] parse_error
 {
@@ -604,6 +700,88 @@ AstNode *ast_alias(Parser& parser,TypeNode* type,const String &literal, const St
     return (AstNode*)alias_node;
 }
 
+AstNode *ast_struct(Parser& parser,const String &name, const String& filename, const Token& token)
+{
+    StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,token);
+
+    add_ast_pointer(parser,&struct_node->members.data);
+
+    struct_node->name = name;
+    struct_node->filename = filename;
+
+
+    return (AstNode*)struct_node;
+}  
+
+AstNode *ast_global_decl(Parser& parser,DeclNode* decl_node, const String& filename,NameSpace* name_space, const Token& token)
+{
+    GlobalDeclNode* global_node = alloc_node<GlobalDeclNode>(parser,ast_type::global_decl,token);
+
+    global_node->filename = filename;
+    global_node->name_space = name_space;
+    global_node->decl = decl_node;
+
+    return (AstNode*)global_node;
+}
+
+AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, b32 is_const, const Token& token)
+{
+    DeclNode* decl_node = alloc_node<DeclNode>(parser,ast_type::decl,token);
+
+    decl_node->name = name;
+    decl_node->type = type;
+    decl_node->is_const = is_const;
+
+    return (AstNode*)decl_node;        
+}
+
+
+AstNode* ast_auto_decl(Parser& parser, const String& name, AstNode* expr, const Token& token)
+{
+    AutoDeclNode* decl_node = alloc_node<AutoDeclNode>(parser,ast_type::auto_decl,token);
+
+    decl_node->name = name;
+    decl_node->expr = expr;
+
+    return (AstNode*)decl_node;        
+}
+
+AstNode* ast_enum(Parser& parser, const String& name,const String& filename,const Token& token)
+{
+    EnumNode* enum_node = alloc_node<EnumNode>(parser,ast_type::enum_t,token);
+
+    enum_node->name = name;
+    enum_node->filename = filename;
+    
+    add_ast_pointer(parser,&enum_node->member.data);
+
+    return (AstNode*)enum_node;    
+}
+
+
+AstNode* ast_tuple_assign(Parser& parser, const Token& token)
+{
+    TupleAssignNode* tuple_node = alloc_node<TupleAssignNode>(parser,ast_type::tuple_assign,token);
+
+    tuple_node->auto_decl = false;
+    add_ast_pointer(parser,&tuple_node->symbols.data);
+
+    return (AstNode*)tuple_node;
+}
+
+AstNode* ast_call(Parser& parser, AstNode* expr, const Token& token)
+{
+    FuncCallNode* func_call = alloc_node<FuncCallNode>(parser,ast_type::function_call,token);
+
+    add_ast_pointer(parser,&func_call->args.data);
+
+    // NOTE: this can encompass just a plain name for a function
+    // or it could be for a symbol as part of a function pointer!
+    func_call->expr = expr;
+
+    return (AstNode*)func_call;
+}
+
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
@@ -636,8 +814,8 @@ bool match(Parser &parser,token_type type);
 Option<parse_error> consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-ParserResult func_call(Parser& parser,AstNode *expr, const Token& t);
+ParserResult func_call(Parser& parser,AstNode *expr, NameSpace* name_space, const Token& t);
 // ParserResult arr_access(Parser& parser, const Token& t);
 // ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 // ParserResult array_index(Parser& parser,const Token& t);
-ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call = false);
+ParserResult var(Parser& parser, NameSpace* name_space, const Token& sym_tok, b32 allow_call = false);

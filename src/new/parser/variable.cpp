@@ -256,7 +256,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 
     if(s.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,s,"declartion expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
+        return parser_error(parser,parse_error::unexpected_token,s,"declaration expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
     }
 
     const auto colon_err = consume(parser,token_type::colon);
@@ -275,7 +275,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
     TypeNode* type = *type_res;
 
     //    [declare:name]
-    // [type]   optional([eqauls])
+    // [type]   optional([equals])
 
     DeclNode* decl = (DeclNode*)ast_decl(parser,s.literal,type,is_const_decl,s);
 
@@ -328,7 +328,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 
             else
             {
-                return parser_error(parser,parse_error::invalid_terminator,eq,"malformed declartion: got %s expected terminator %s\n",
+                return parser_error(parser,parse_error::invalid_terminator,eq,"malformed declaration: got %s expected terminator %s\n",
                     tok_name(eq.type),tok_name(terminator));
             }
             break;
@@ -345,7 +345,7 @@ ParserResult auto_decl(Parser &parser)
 
     if(sym.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,sym,"declartion expected symbol got: %s:%zd\n",tok_name(sym.type),parser.tok_idx);
+        return parser_error(parser,parse_error::unexpected_token,sym,"declaration expected symbol got: %s:%zd\n",tok_name(sym.type),parser.tok_idx);
     }
 
     const auto err = consume(parser,token_type::decl);
@@ -395,7 +395,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
         {
             case token_type::symbol:
             {
-                auto var_res = var(parser,sym_tok);
+                auto var_res = var(parser,nullptr,sym_tok);
 
                 if(!var_res)
                 {
@@ -416,7 +416,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
             {
                 const Token deref_tok = next_token(parser);
 
-                auto unary_res = ast_unary(parser,var(parser,deref_tok),ast_type::deref,sym_tok);
+                auto unary_res = ast_deref(parser,var(parser,nullptr,deref_tok),sym_tok);
                 
                 if(!unary_res)
                 {
@@ -468,7 +468,9 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                     }
                 }
 
-                const auto next = next_token(parser);
+                auto next = next_token(parser);
+
+                NameSpace* name_space = nullptr;
 
                 // handle scope
                 if(match(parser,token_type::scope))
@@ -481,53 +483,32 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                         return namespace_res.error();
                     }
 
-                    const auto name_space = *namespace_res;
+                    name_space = scan_namespace(parser.global_namespace,*namespace_res);
 
-                    const auto sym_tok = next_token(parser);
-
-                    auto func_call_res = func_call(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
-
-                    if(!func_call_res)
-                    {
-                        return func_call_res;
-                    }
-
-                    tuple_node->func_call = (FuncCallNode*)func_call_res.value();
-
-                    const auto err = consume(parser,token_type::semi_colon);
-                    if(!!err)
-                    {
-                        return *err;
-                    }
-
-                    return ast_scope(parser,(AstNode*)tuple_node,name_space,next);
+                    next = next_token(parser);
                 }
 
-                else
+
+                auto func_call_res = func_call(parser,ast_symbol(parser,next.literal,next),name_space,next);
+                if(!func_call_res)
                 {
-                    auto func_call_res = func_call(parser,ast_literal(parser,ast_type::symbol,next.literal,next),next);
-                    if(!func_call_res)
-                    {
-                        return func_call_res;
-                    }
-
-                    tuple_node->func_call = (FuncCallNode*)*func_call_res;
-                    const auto err = consume(parser,token_type::semi_colon);
-                    if(!!err)
-                    {
-                        return *err;
-                    }
-
-                    return (AstNode*)tuple_node;
+                    return func_call_res;
                 }
 
-                break;
+                tuple_node->func_call = (FuncCallNode*)*func_call_res;
+                const auto err = consume(parser,token_type::semi_colon);
+                if(!!err)
+                {
+                    return *err;
+                }
+
+                return (AstNode*)tuple_node;
             }
 
             // something has gone wrong
             default: 
             {
-                return parser_error(parser,parse_error::malformed_stmt,t,"malformed tuple statement "); 
+                return parser_error(parser,parse_error::malformed_stmt,t,"malformed tuple statement"); 
             }
         }
     }
@@ -556,7 +537,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 
         if(member_tok.type == token_type::symbol)
         {
-            // perform peeking for modifers
+            // perform peeking for modifiers
             if(match(parser,token_type::sl_brace))
             {
                 const auto slice_opt = try_parse_slice(parser,member_tok);
@@ -735,7 +716,7 @@ ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
     {
         case token_type::dot:
         {   
-            auto access_res = struct_access(parser,ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok),sym_tok);
+            auto access_res = struct_access(parser,ast_symbol(parser,sym_tok.literal,sym_tok),sym_tok);
             if(!access_res)
             {
                 return access_res;
@@ -760,7 +741,7 @@ ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
 
         default:
         {
-           node = ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok);
+           node = ast_symbol(parser,sym_tok.literal,sym_tok);
            break;
         }
     }

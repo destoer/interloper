@@ -101,8 +101,8 @@ builtin_type builtin_type_from_tok(const Token& tok)
 }
 
 #include "parser/expression.cpp"
-#include "parser/type.cpp"
 #include "parser/variable.cpp"
+#include "parser/type.cpp"
 #include "parser/control_flow.cpp"
 #include "parser/function.cpp"
 
