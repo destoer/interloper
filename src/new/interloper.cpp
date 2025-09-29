@@ -12,6 +12,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 #include "memory.cpp"
 #include "array.cpp"
 #include "parser.cpp"
+#include "func.cpp"
 
 
 void print_ast(Interloper& itl)

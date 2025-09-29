@@ -60,8 +60,8 @@ struct Interloper
     // Array copy for debug printing of ast
     Array<AstNode*> type_decl;
 
-    // Array<GlobalDeclNode*> constant_decl;
-    // Array<GlobalDeclNode*> global_decl;
+    Array<GlobalDeclNode*> constant_decl;
+    Array<GlobalDeclNode*> global_decl;
 
     // memory collection for func pointer types
     Array<FuncSig*> func_pointer;

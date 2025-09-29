@@ -238,6 +238,9 @@ TypeResult compile_scoped_expression(Interloper& itl, Function& func, AstNode* n
     }
 }
 
+
+
+
 TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)

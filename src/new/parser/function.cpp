@@ -1,3 +1,4 @@
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
 
 ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 {
@@ -63,7 +64,7 @@ Result<BlockNode*,parse_error> block(Parser &parser)
             return stmt_res.error();
         }
 
-        push_var(b->statements,*stmt_res);
+        push_var(b->statement,*stmt_res);
     }
     
     const auto rc_brace_err = consume(parser,token_type::right_c_brace);

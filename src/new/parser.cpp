@@ -5,6 +5,7 @@ Result<BlockNode*,parse_error> block(Parser &parser);
 Result<BlockNode*,parse_error> block_ast(Parser &parser);
 Option<ParserResult> try_parse_slice(Parser& parser, const Token& t);
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
+ParserResult statement(Parser &parser);
 
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
 static constexpr u32 ATTR_FLAG = (1 << 1);
@@ -122,9 +123,58 @@ ParserResult const_assert(Parser& parser,const Token& t)
         return *right_paren_err;
     }
 
-    return ast_unary(parser,expr,ast_type::const_assert,t);       
+    return ast_const_assert(parser,expr,t);       
 }
 
+
+ParserResult parse_ret(Parser& parser, const Token& t)
+{
+    // return value is optional
+    if(!match(parser,token_type::semi_colon))
+    {
+        if(peek(parser,1).type == token_type::left_c_brace)
+        {
+            auto initializer_res = parse_struct_initializer(parser);
+
+            if(!initializer_res)
+            {
+                return initializer_res;
+            }
+
+            auto initializer = (StructInitializerNode*)initializer_res.value();
+            initializer->is_return = true;
+
+            return (AstNode*)initializer;
+        }
+
+        RetNode* ret_node = ast_ret(parser,t);
+        b32 done = false;
+
+        // can be more than one expr (comma separated)
+        while(!done)
+        {
+            auto list_res = expr_list(parser,"return",token_type::semi_colon,&done);
+            if(!list_res)
+            {
+                return list_res.error();
+            }
+
+            push_var(ret_node->expr,*list_res);
+        }
+
+        return (AstNode*)ret_node;
+    }
+
+    else
+    {
+        const auto term_err = consume(parser,token_type::semi_colon);
+        if(!!term_err)
+        {
+            return *term_err;
+        }
+        return (AstNode*)ast_ret(parser,t);
+    }
+}
 
 ParserResult statement(Parser &parser)
 {
@@ -134,51 +184,7 @@ ParserResult statement(Parser &parser)
     {
         case token_type::ret:
         {
-            // return value is optional
-            if(!match(parser,token_type::semi_colon))
-            {
-                if(peek(parser,1).type == token_type::left_c_brace)
-                {
-                    auto initializer_res = parse_struct_initializer(parser);
-
-                    if(!initializer_res)
-                    {
-                        return initializer_res;
-                    }
-
-                    AstNode* initializer = *initializer_res;
-                    initializer->type = ast_type::struct_return;
-
-                    return initializer;
-                }
-
-                RecordNode* record = (RecordNode*)ast_record(parser,ast_type::ret,t);
-                b32 done = false;
-
-                // can be more than one expr (comma seperated)
-                while(!done)
-                {
-                    auto list_res = expr_list(parser,"return",token_type::semi_colon,&done);
-                    if(!list_res)
-                    {
-                        return list_res.error();
-                    }
-
-                    push_var(record->nodes,*list_res);
-                }
-
-                return (AstNode*)record;
-            }
-
-            else
-            {
-                const auto term_err = consume(parser,token_type::semi_colon);
-                if(!!term_err)
-                {
-                    return *term_err;
-                }
-                return ast_plain(parser,ast_type::ret,t);
-            }
+            return parse_ret(parser,t);
         }
 
         case token_type::const_assert:
@@ -243,9 +249,9 @@ ParserResult statement(Parser &parser)
                     if(peek(parser,1).type == token_type::symbol && peek(parser,2).type == token_type::left_c_brace)
                     {
                         (void)consume(parser,token_type::equal);
-                        AstNode* left = ast_literal(parser,ast_type::symbol,sym_tok.literal,sym_tok);
+                        AstNode* left = ast_symbol(parser,nullptr,sym_tok.literal,sym_tok);
 
-                        return ast_binary(parser,left,parse_struct_initializer(parser),ast_type::equal,sym_tok);  
+                        return ast_equal(parser,left,parse_struct_initializer(parser),sym_tok);  
                     }
 
                     prev_token(parser);
@@ -304,7 +310,7 @@ ParserResult statement(Parser &parser)
                 return block_res.error();
             }
 
-            return *block_res;
+            return (AstNode*)block_res.value();
         }
 
         // assume one cond for now

@@ -47,7 +47,9 @@ enum class ast_type
     switch_t,
     if_t,
     while_t,
-    const_assert
+    const_assert,
+    function,
+    ret,
 };
 
 inline const char *AST_NAMES[] =
@@ -92,7 +94,9 @@ inline const char *AST_NAMES[] =
     "for_range",
     "switch",
     "if",
-    "const_assert"
+    "const_assert",
+    "function",
+    "ret"
 };
 
 struct AstNode
@@ -264,6 +268,7 @@ struct StructInitializerNode
 
     // Initializer list or designated initializer
     AstNode* initializer = nullptr;
+    b32 is_return = false;
 };
 
 
@@ -294,7 +299,7 @@ struct StringNode
 struct BlockNode
 {
     AstNode node;
-    Array<AstNode*> stmt;
+    Array<AstNode*> statement;
 };
 
 struct AliasNode 
@@ -473,9 +478,9 @@ struct SwitchNode
 {
     AstNode node;
 
-    AstNode* expr;
+    AstNode* expr = nullptr;
     Array<Case> statements;
-    Option<Case> default_statement;
+    Option<Case> default_statement = option::none;
 };
 
 struct IfStmt
@@ -503,6 +508,29 @@ struct WhileNode
     AstNode node;
     AstNode* expr = nullptr;
     BlockNode* block = nullptr;
+};
+
+
+struct FuncNode
+{
+    AstNode node;
+
+    String name;
+    String filename;
+
+    Array<TypeNode*> return_type;
+    BlockNode* block = nullptr;
+    Array<DeclNode*> args;
+
+    b32 va_args = false;
+    String args_name;
+    u32 attr_flags = 0;
+};
+
+struct RetNode
+{
+    AstNode node;
+    Array<AstNode*> expr;
 };
 
 enum class [[nodiscard]] parse_error
@@ -813,7 +841,7 @@ AstNode *ast_string(Parser& parser,const String &string, const Token& token)
 BlockNode* ast_block(Parser& parser, const Token& token)
 {
     BlockNode* block = alloc_node<BlockNode>(parser,ast_type::block,token);
-    add_ast_pointer(parser,&block->stmt.data);
+    add_ast_pointer(parser,&block->statement.data);
 
     return block;
 }
@@ -997,6 +1025,27 @@ AstNode* ast_while(Parser& parser,AstNode* expr, BlockNode* block,const Token& t
     while_node->block = block;
 
     return (AstNode*)while_node;   
+}
+
+AstNode *ast_func(Parser& parser,const String &name, const String& filename, const Token& token)
+{
+    FuncNode* func_node = alloc_node<FuncNode>(parser,ast_type::function,token);
+
+    add_ast_pointer(parser,&func_node->args.data);
+    add_ast_pointer(parser,&func_node->return_type.data);
+
+    func_node->name = name;
+    func_node->filename = filename;
+
+    return (AstNode*)func_node;
+}
+
+RetNode* ast_ret(Parser& parser, const Token& token)
+{
+    RetNode* ret = alloc_node<RetNode>(parser,ast_type::ret,token);
+    add_ast_pointer(parser,&ret->expr.data);
+
+    return ret;
 }
 
 // scan file for row and column info
