@@ -74,7 +74,7 @@ Result<BlockNode*,parse_error> block(Parser &parser)
     return b;
 }
 
-ParserResult block_ast(Parser &parser)
+Result<BlockNode*,parse_error> block_ast(Parser &parser)
 {
     auto block_res = block(parser);
 
@@ -83,7 +83,7 @@ ParserResult block_ast(Parser &parser)
         return block_res.error();
     }
 
-    return (AstNode*)block_res.value();
+    return *block_res;
 }
 
 

@@ -40,6 +40,14 @@ enum class ast_type
     function_call,
     struct_access,
     access_member,
+    index,
+    slice,
+    for_iter,
+    for_range,
+    switch_t,
+    if_t,
+    while_t,
+    const_assert
 };
 
 inline const char *AST_NAMES[] =
@@ -57,7 +65,7 @@ inline const char *AST_NAMES[] =
     "initializer_list",
     "designated_initializer_list",
     "struct_initializer",
-    "sizeof_t",
+    "sizeof",
     "no_init",
     "ignore",
     "value",
@@ -78,6 +86,13 @@ inline const char *AST_NAMES[] =
     "function_call",
     "struct_access",
     "access_member",
+    "index",
+    "slice",
+    "for_iter",
+    "for_range",
+    "switch",
+    "if",
+    "const_assert"
 };
 
 struct AstNode
@@ -136,6 +151,7 @@ struct UnaryNode
 };
 
 using SizeOfNode = UnaryNode<ast_type::sizeof_t>;
+using ConstAssert = UnaryNode<ast_type::const_assert>;
 
 
 enum class compound_type
@@ -197,6 +213,7 @@ struct CastNode
 struct SymbolNode
 {
     AstNode node;
+    NameSpace* name_space;
 
     union
     {
@@ -279,7 +296,6 @@ struct BlockNode
     AstNode node;
     Array<AstNode*> stmt;
 };
-
 
 struct AliasNode 
 {
@@ -368,7 +384,6 @@ struct FuncCallNode
 {
     AstNode node;
 
-    NameSpace* name_space = nullptr;
     AstNode* expr =  nullptr;
     Array<AstNode*> args;
 };
@@ -383,7 +398,112 @@ struct TupleAssignNode
     b32 auto_decl;
 };
 
+struct IndexNode 
+{
+    AstNode node;
 
+    String name;
+    Array<AstNode*> indexes;
+};
+
+struct SliceNode
+{
+    AstNode node;
+
+    String name;
+    AstNode* lower = nullptr;
+    AstNode* upper = nullptr;
+};
+
+
+struct ForIterNode
+{
+    AstNode node;
+
+    AstNode* initializer = nullptr;
+    AstNode* cond = nullptr;
+    AstNode* post = nullptr;
+
+    BlockNode* block;
+};
+
+struct ForRangeNode
+{
+    AstNode node;
+
+    AstNode* cond;
+    BlockNode* block;
+
+    // encode
+    // [@v, i]
+    String name_one;
+    String name_two;
+
+    b8 take_pointer = false;
+};
+
+
+struct Case
+{
+    // final value
+    u64 value = 0;
+
+    // what label does this statement have
+    LabelSlot label = {INVALID_HANDLE};
+
+    // end block of the case
+    BlockSlot end_block = {INVALID_HANDLE};
+
+    // Allowed to be blank for a default
+    AstNode* statement = nullptr;
+    BlockNode* block = nullptr;
+};
+
+Case make_case(AstNode* statement, BlockNode* block)
+{
+    Case out;
+    out.statement = statement;
+    out.block = block;
+
+    return out;
+}
+
+
+struct SwitchNode
+{
+    AstNode node;
+
+    AstNode* expr;
+    Array<Case> statements;
+    Option<Case> default_statement;
+};
+
+struct IfStmt
+{
+    AstNode* expr = nullptr;
+    BlockNode* block = nullptr;
+};
+
+IfStmt make_if_stmt(AstNode* expr, BlockNode* block)
+{
+    return IfStmt {expr,block};
+}
+
+struct IfNode
+{
+    AstNode node;
+
+    IfStmt if_stmt;
+    Array<IfStmt> else_if_stmt;
+    BlockNode* else_stmt;
+};
+
+struct WhileNode
+{
+    AstNode node;
+    AstNode* expr = nullptr;
+    BlockNode* block = nullptr;
+};
 
 enum class [[nodiscard]] parse_error
 {
@@ -560,10 +680,11 @@ ParserResult ast_equal(Parser& parser, ParserResult left_res, ParserResult right
     return ast_expr_bin<ast_type::assign>(parser,left_res,right_res,token);
 }
 
-AstNode* ast_symbol(Parser& parser, const String& name, const Token &token)
+AstNode* ast_symbol(Parser& parser, NameSpace* name_space, const String& name, const Token &token)
 {
     SymbolNode* sym_node  = alloc_node<SymbolNode>(parser,ast_type::symbol,token);
     sym_node->name = name;
+    sym_node->name_space = name_space;
 
     return (AstNode*)sym_node;        
 }
@@ -653,6 +774,11 @@ ParserResult ast_addrof(Parser& parser, ParserResult expr, const Token& token)
     return ast_unary<ast_type::addrof>(parser,expr,token);
 }
 
+
+ParserResult ast_const_assert(Parser& parser,ParserResult expr, const Token& token)
+{
+    return ast_unary<ast_type::const_assert>(parser,expr,token);
+}
 
 AstNode* ast_plain(Parser& parser, ast_type type, const Token& token)
 {
@@ -817,6 +943,62 @@ AstNode* ast_access_member(Parser& parser, const String& name, const Token& toke
     return (AstNode*)member_access;
 }
 
+AstNode* ast_index(Parser& parser,const String &name, const Token& token)
+{
+    IndexNode* index_node = alloc_node<IndexNode>(parser,ast_type::index,token);
+    index_node->name = name;
+
+    add_ast_pointer(parser,&index_node->indexes.data);
+
+    return (AstNode*)index_node;
+}
+
+
+AstNode* ast_slice(Parser& parser,const String &name, const Token& token)
+{
+    SliceNode* slice_node = alloc_node<SliceNode>(parser,ast_type::slice,token);
+    slice_node->name = name;
+
+    return (AstNode*)slice_node;
+}
+
+ForIterNode* ast_for_iter(Parser& parser, const Token& token)
+{
+    return alloc_node<ForIterNode>(parser,ast_type::for_iter,token);
+}
+
+ForRangeNode* ast_for_range(Parser& parser, const Token& token)
+{
+    return alloc_node<ForRangeNode>(parser,ast_type::for_range,token);
+}
+
+SwitchNode* ast_switch(Parser& parser, AstNode* expr, const Token& token)
+{
+    SwitchNode* switch_node = alloc_node<SwitchNode>(parser,ast_type::switch_t,token);
+    switch_node->expr = expr;
+
+    add_ast_pointer(parser,&switch_node->statements.data);
+
+    return switch_node;
+}
+
+IfNode* ast_if(Parser& parser, const Token& token)
+{
+    IfNode* if_node = alloc_node<IfNode>(parser,ast_type::if_t,token);
+
+    add_ast_pointer(parser,&if_node->else_if_stmt.data);
+    return if_node;
+}
+
+AstNode* ast_while(Parser& parser,AstNode* expr, BlockNode* block,const Token& token)
+{
+    WhileNode* while_node = alloc_node<WhileNode>(parser,ast_type::while_t,token);
+    while_node->expr = expr;
+    while_node->block = block;
+
+    return (AstNode*)while_node;   
+}
+
 // scan file for row and column info
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
@@ -849,8 +1031,8 @@ bool match(Parser &parser,token_type type);
 Option<parse_error> consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);
-ParserResult func_call(Parser& parser,AstNode *expr, NameSpace* name_space, const Token& t);
-// ParserResult arr_access(Parser& parser, const Token& t);
+ParserResult func_call(Parser& parser,AstNode *expr, const Token& t);
+ParserResult arr_access(Parser& parser, const Token& t);
 ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
-// ParserResult array_index(Parser& parser,const Token& t);
+ParserResult array_index(Parser& parser,const Token& t);
 ParserResult var(Parser& parser, NameSpace* name_space, const Token& sym_tok, b32 allow_call = false);

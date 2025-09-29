@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 Result<BlockNode*,parse_error> block(Parser &parser);
-ParserResult block_ast(Parser &parser);
+Result<BlockNode*,parse_error> block_ast(Parser &parser);
 Option<ParserResult> try_parse_slice(Parser& parser, const Token& t);
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 
@@ -297,29 +297,36 @@ ParserResult statement(Parser &parser)
             // block expects to see the left c brace
             prev_token(parser);
 
-            return block_ast(parser);
+            auto block_res = block_ast(parser);
+
+            if(!block_res)
+            {
+                return block_res.error();
+            }
+
+            return *block_res;
         }
 
         // assume one cond for now
         case token_type::for_t:
         {
-            return parse_for(parser);
+            return parse_for(parser,t);
         }
 
         case token_type::while_t:
         {
-            return parse_while(parser);
+            return parse_while(parser,t);
         }
 
         // else_if and else parsed out here
         case token_type::if_t:
         {
-            return parse_if(parser);
+            return parse_if(parser,t);
         }
 
         case token_type::switch_t:
         {
-            return parse_switch(parser);
+            return parse_switch(parser,t);
         }
 
         // dont care

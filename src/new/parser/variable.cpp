@@ -489,7 +489,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                 }
 
 
-                auto func_call_res = func_call(parser,ast_symbol(parser,next.literal,next),name_space,next);
+                auto func_call_res = func_call(parser,ast_symbol(parser,name_space,next.literal,next),next);
                 if(!func_call_res)
                 {
                     return func_call_res;
@@ -573,7 +573,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
         }
     }
 
-    return (AstNode*)root;
+    return (AstNode*)struct_access;
 }
 
 
@@ -697,7 +697,7 @@ ParserResult arr_access(Parser& parser, const Token& t)
     }
 }
 
-ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
+ParserResult var(Parser& parser, NameSpace* name_space, const Token& sym_tok, b32 allow_call)
 {
     const Token next = peek(parser,0);
 
@@ -707,7 +707,7 @@ ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
     {
         case token_type::dot:
         {   
-            auto access_res = struct_access(parser,ast_symbol(parser,sym_tok.literal,sym_tok),sym_tok);
+            auto access_res = struct_access(parser,ast_symbol(parser,name_space,sym_tok.literal,sym_tok),sym_tok);
             if(!access_res)
             {
                 return access_res;
@@ -719,6 +719,8 @@ ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
 
         case token_type::sl_brace:
         {
+            assert(!name_space);
+            
             auto access_res = arr_access(parser,sym_tok);
             if(!access_res)
             {
@@ -732,7 +734,7 @@ ParserResult var(Parser& parser, const Token& sym_tok, b32 allow_call)
 
         default:
         {
-           node = ast_symbol(parser,sym_tok.literal,sym_tok);
+           node = ast_symbol(parser,name_space,sym_tok.literal,sym_tok);
            break;
         }
     }

@@ -261,7 +261,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
             // correct the state machine
             prev_token(parser);
 
-            auto call_res = func_call(parser,ast_symbol(parser,t.literal,t),name_space,t); 
+            auto call_res = func_call(parser,ast_symbol(parser,name_space,t.literal,t),t); 
             next_expr_token(parser,ctx);
 
             return call_res;

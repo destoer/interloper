@@ -2,7 +2,7 @@ ParserResult parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
 {
     // e.g for(i := 0; i < size; i += 1)
 
-    ForIterNode* for_node = (ForIterNode*)ast_for_iter(parser,t);
+    ForIterNode* for_node = ast_for_iter(parser,t);
 
     // handle first stmt
     // decl 
@@ -101,7 +101,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
     // for([v, i] in arr)
     // for(v in arr)
     // for(@v in arr)
-    ForRangeNode* for_node = (ForRangeNode*)ast_for_range(parser,t);
+    ForRangeNode* for_node = ast_for_range(parser,t);
 
     if(take_index)
     {
@@ -204,7 +204,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
     return (AstNode*)for_node;
 }
 
-ParserResult parse_for(Parser& parser)
+ParserResult parse_for(Parser& parser, const Token& t)
 {
     // allow statement to wrapped a in a set of parens
     const bool term_paren = peek(parser,0).type == token_type::left_paren;
@@ -260,7 +260,7 @@ ParserResult parse_for(Parser& parser)
 }
 
 
-ParserResult parser_switch(Parser& parser)
+ParserResult parse_switch(Parser& parser, const Token& t)
 {
     auto expr_res = expr_terminate(parser,"switch statement",token_type::left_c_brace);
     if(!expr_res)
@@ -268,9 +268,9 @@ ParserResult parser_switch(Parser& parser)
         return expr_res;
     }
 
-    SwitchNode* switch_node = (SwitchNode*)ast_switch(parser,*expr_res,t);
+    SwitchNode* switch_node = ast_switch(parser,*expr_res,t);
 
-    // while we havent exhaused every case
+    // while we haven't exhausted every case
     while(!match(parser,token_type::right_c_brace))
     {
         const auto case_tok = peek(parser,0);
@@ -278,7 +278,7 @@ ParserResult parser_switch(Parser& parser)
 
         if(case_tok.type == token_type::default_t)
         {
-            if(switch_node->default_statement)
+            if(!!switch_node->default_statement)
             {
                 return parser_error(parser,parse_error::malformed_stmt,case_tok,"Cannot have two default statements in switch statement\n");
             }
@@ -291,13 +291,12 @@ ParserResult parser_switch(Parser& parser)
             }
 
             auto block_res = block_ast(parser);
-            auto unary_res = ast_unary(parser,block_res,ast_type::default_t,case_tok);    
-            if(!unary_res)
+            if(!block_res)
             {
-                return unary_res;
+                return block_res.error();
             }
 
-            switch_node->default_statement = (UnaryNode*)*unary_res;  
+            switch_node->default_statement = make_case(nullptr,*block_res);  
         }
 
         else
@@ -322,8 +321,7 @@ ParserResult parser_switch(Parser& parser)
                 return block_res.error();
             }
 
-            CaseNode* case_statement = (CaseNode*)ast_case(parser,case_node,*block_res,case_tok);
-            push_var(switch_node->statements,case_statement);
+            push_var(switch_node->statements,make_case(case_node,*block_res));
         }
     }
 
@@ -335,63 +333,62 @@ ParserResult parser_switch(Parser& parser)
     return (AstNode*)switch_node;
 }
 
-ParserResult parse_if(Parser& parser)
+ParserResult parse_if(Parser& parser, const Token& t)
 {
-    BlockNode* if_block = (BlockNode*)ast_if_block(parser,t);
+    IfNode* if_node = ast_if(parser,t);
 
-    auto expr_opt = expr_terminate(parser,"if condition statement",token_type::left_c_brace); prev_token(parser); 
-    auto body_opt = block_ast(parser);
-
-    auto if_res = ast_binary(parser,expr_opt,body_opt,ast_type::if_t,t);
-    if(!if_res)
+    auto expr_res = expr_terminate(parser,"if condition statement",token_type::left_c_brace); prev_token(parser); 
+    if(!expr_res)
     {
-        return if_res;
+        return expr_res;
     }
 
-    BinNode *if_stmt = (BinNode*)if_res.value();
+    auto body_res = block_ast(parser);
+    if(!body_res)
+    {
+        return body_res.error();
+    }
 
-    push_var(if_block->statements,(AstNode*)if_stmt);
-    
+    if_node->if_stmt = make_if_stmt(*expr_res,*body_res);
+
     bool done = false;
     
     while(!done)
     {
         if(peek(parser,0).type == token_type::else_t)
         {
-            auto else_tok = next_token(parser);
+            (void)consume(parser,token_type::else_t);
 
             // we have an else if
             if(peek(parser,0).type == token_type::if_t)
             {
                 (void)consume(parser,token_type::if_t);
 
-                auto expr_opt = expr_terminate(parser,"else if condition statement",token_type::left_c_brace); prev_token(parser);
-                auto body_opt = block_ast(parser);
-
-                auto else_if_res = ast_binary(parser,expr_opt,body_opt,ast_type::else_if_t,else_tok);
-                if(!else_if_res)
+                auto expr_res = expr_terminate(parser,"else if condition statement",token_type::left_c_brace); prev_token(parser);
+                if(!expr_res)
                 {
-                    return else_if_res;
+                    return expr_res;
                 }
 
-                BinNode* else_if_stmt = (BinNode*)else_if_res.value();
-                push_var(if_block->statements,(AstNode*)else_if_stmt);
+                auto body_res = block_ast(parser);
+                if(!body_res)
+                {
+                    return body_res.error();
+                }
+
+                push_var(if_node->else_if_stmt,make_if_stmt(*expr_res,*body_res));
             }
 
             // just a plain else
             else
             {
-                auto block_opt = block_ast(parser);
-                auto else_res = ast_unary(parser,block_opt,ast_type::else_t,else_tok);
-                if(!else_res)
+                auto block_res = block_ast(parser);
+                if(!block_res)
                 {
-                    return else_res;
+                    return block_res.error();
                 }
 
-                AstNode *else_stmt = *else_res;
-
-                push_var(if_block->statements,else_stmt);
-
+                if_node->else_stmt = *block_res;
                 done = true;
             }
         }
@@ -402,14 +399,23 @@ ParserResult parse_if(Parser& parser)
             done = true;
         }
     }
-    return (AstNode*)if_block;
+    return (AstNode*)if_node;
 }
 
-ParserResult parse_while(Parser& parser)
+ParserResult parse_while(Parser& parser,const Token& t)
 {
-    auto expr_opt = expr_terminate(parser,"while condition statement",token_type::left_c_brace); prev_token(parser); 
-    auto body_opt = block_ast(parser);
+    auto expr_res = expr_terminate(parser,"while condition statement",token_type::left_c_brace); prev_token(parser); 
+    if(!expr_res)
+    {
+        return expr_res;
+    }
 
-    return ast_binary(parser,expr_opt,body_opt,ast_type::while_block,t);
+    auto body_res = block_ast(parser);
+    if(!body_res)
+    {
+        return body_res.error();
+    }
+
+    return ast_while(parser,*expr_res,*body_res,t);
 }
 
