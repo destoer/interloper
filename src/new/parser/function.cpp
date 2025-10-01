@@ -35,7 +35,7 @@ ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 }
 
 
-Result<BlockNode*,parse_error> block(Parser &parser)
+Result<AstBlock,parse_error> block_ast(Parser &parser)
 {
     // now parse out the block
 
@@ -47,7 +47,7 @@ Result<BlockNode*,parse_error> block(Parser &parser)
         return *lc_brace_err;
     }
 
-    BlockNode* b = (BlockNode*)ast_block(parser,tok);
+    AstBlock block = make_block_ast(parser);
 
     // parse out all our statements
     while(!match(parser,token_type::right_c_brace))
@@ -64,7 +64,7 @@ Result<BlockNode*,parse_error> block(Parser &parser)
             return stmt_res.error();
         }
 
-        push_var(b->statement,*stmt_res);
+        push_var(block.statement,*stmt_res);
     }
     
     const auto rc_brace_err = consume(parser,token_type::right_c_brace);
@@ -72,19 +72,7 @@ Result<BlockNode*,parse_error> block(Parser &parser)
     {
         return *rc_brace_err;
     }
-    return b;
-}
-
-Result<BlockNode*,parse_error> block_ast(Parser &parser)
-{
-    auto block_res = block(parser);
-
-    if(!block_res)
-    {
-        return block_res.error();
-    }
-
-    return *block_res;
+    return block;
 }
 
 
@@ -266,7 +254,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
     FuncNode* func = *func_res;
     func->attr_flags = flags;
 
-    auto block_res = block(parser);
+    auto block_res = block_ast(parser);
     if(!block_res)
     {
         return block_res.error();

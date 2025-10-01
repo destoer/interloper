@@ -135,7 +135,7 @@ struct ExprBinNode
     AstNode* right = nullptr;
 };
 
-using ExprEqualNode = ExprBinNode<ast_type::assign>;
+using EqualNode = ExprBinNode<ast_type::assign>;
 
 
 struct BuiltinAccessNode
@@ -296,10 +296,15 @@ struct StringNode
     String string;
 };
 
+struct AstBlock
+{
+    Array<AstNode*> statement;
+};
+
 struct BlockNode
 {
     AstNode node;
-    Array<AstNode*> statement;
+    AstBlock block;
 };
 
 struct AliasNode 
@@ -429,7 +434,7 @@ struct ForIterNode
     AstNode* cond = nullptr;
     AstNode* post = nullptr;
 
-    BlockNode* block;
+    AstBlock block;
 };
 
 struct ForRangeNode
@@ -437,7 +442,7 @@ struct ForRangeNode
     AstNode node;
 
     AstNode* cond;
-    BlockNode* block;
+    AstBlock block;
 
     // encode
     // [@v, i]
@@ -461,10 +466,10 @@ struct Case
 
     // Allowed to be blank for a default
     AstNode* statement = nullptr;
-    BlockNode* block = nullptr;
+    AstBlock block;
 };
 
-Case make_case(AstNode* statement, BlockNode* block)
+Case make_case(AstNode* statement, AstBlock block)
 {
     Case out;
     out.statement = statement;
@@ -486,10 +491,10 @@ struct SwitchNode
 struct IfStmt
 {
     AstNode* expr = nullptr;
-    BlockNode* block = nullptr;
+    AstBlock block;
 };
 
-IfStmt make_if_stmt(AstNode* expr, BlockNode* block)
+IfStmt make_if_stmt(AstNode* expr, AstBlock block)
 {
     return IfStmt {expr,block};
 }
@@ -500,14 +505,14 @@ struct IfNode
 
     IfStmt if_stmt;
     Array<IfStmt> else_if_stmt;
-    BlockNode* else_stmt;
+    AstBlock else_stmt;
 };
 
 struct WhileNode
 {
     AstNode node;
     AstNode* expr = nullptr;
-    BlockNode* block = nullptr;
+    AstBlock block;
 };
 
 
@@ -519,7 +524,7 @@ struct FuncNode
     String filename;
 
     Array<TypeNode*> return_type;
-    BlockNode* block = nullptr;
+    AstBlock block;
     Array<DeclNode*> args;
 
     b32 va_args = false;
@@ -622,6 +627,16 @@ T* alloc_node(Parser& parser,ast_type type, const Token& token)
 
     return ret_node;
 }
+
+
+AstBlock make_block_ast(Parser& parser)
+{
+    AstBlock out;
+    add_ast_pointer(parser,&out.statement.data);
+
+    return out;
+}
+
 
 template<ast_type type, typename T>
 ParserResult ast_expr_oper_bin(Parser& parser, T oper, ParserResult left_res, ParserResult right_res, const Token& token)
@@ -838,14 +853,6 @@ AstNode *ast_string(Parser& parser,const String &string, const Token& token)
     return (AstNode*)string_node;    
 }
 
-BlockNode* ast_block(Parser& parser, const Token& token)
-{
-    BlockNode* block = alloc_node<BlockNode>(parser,ast_type::block,token);
-    add_ast_pointer(parser,&block->statement.data);
-
-    return block;
-}
-
 TypeNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& name, const Token& token)
 {
     TypeNode* type_node = alloc_node<TypeNode>(parser,ast_type::type,token);
@@ -992,12 +999,16 @@ AstNode* ast_slice(Parser& parser,const String &name, const Token& token)
 
 ForIterNode* ast_for_iter(Parser& parser, const Token& token)
 {
-    return alloc_node<ForIterNode>(parser,ast_type::for_iter,token);
+    ForIterNode* for_iter = alloc_node<ForIterNode>(parser,ast_type::for_iter,token);
+
+    return for_iter;
 }
 
 ForRangeNode* ast_for_range(Parser& parser, const Token& token)
 {
-    return alloc_node<ForRangeNode>(parser,ast_type::for_range,token);
+    ForRangeNode* for_range = alloc_node<ForRangeNode>(parser,ast_type::for_range,token);
+
+    return for_range;
 }
 
 SwitchNode* ast_switch(Parser& parser, AstNode* expr, const Token& token)
@@ -1018,7 +1029,7 @@ IfNode* ast_if(Parser& parser, const Token& token)
     return if_node;
 }
 
-AstNode* ast_while(Parser& parser,AstNode* expr, BlockNode* block,const Token& token)
+AstNode* ast_while(Parser& parser,AstNode* expr, AstBlock block,const Token& token)
 {
     WhileNode* while_node = alloc_node<WhileNode>(parser,ast_type::while_t,token);
     while_node->expr = expr;
@@ -1036,7 +1047,6 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
 
     func_node->name = name;
     func_node->filename = filename;
-
     return (AstNode*)func_node;
 }
 
@@ -1046,6 +1056,14 @@ RetNode* ast_ret(Parser& parser, const Token& token)
     add_ast_pointer(parser,&ret->expr.data);
 
     return ret;
+}
+
+AstNode* ast_block(Parser& parser, AstBlock block,const Token& token)
+{
+    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::block,token);
+    block_node->block = block;
+
+    return (AstNode*)block_node;
 }
 
 // scan file for row and column info

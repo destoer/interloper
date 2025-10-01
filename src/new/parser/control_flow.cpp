@@ -82,7 +82,7 @@ ParserResult parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
         prev_token(parser);
     }  
     
-    auto block_res = block(parser);
+    auto block_res = block_ast(parser);
     if(!block_res)
     {
         return block_res.error();
@@ -192,7 +192,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
         prev_token(parser);
     }
 
-    auto block_res = block(parser);
+    auto block_res = block_ast(parser);
     if(!block_res)
     {
         return block_res.error();
@@ -315,7 +315,7 @@ ParserResult parse_switch(Parser& parser, const Token& t)
             }
 
             AstNode* case_node = *case_res; 
-            auto block_res = block(parser);
+            auto block_res = block_ast(parser);
             if(!block_res)
             {
                 return block_res.error();
