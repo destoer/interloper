@@ -139,7 +139,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
                 return type_res.error();
             }
 
-            // add each declartion
+            // add each declaration
             DeclNode* decl = (DeclNode*)ast_decl(parser,lit_tok.literal,*type_res,false,lit_tok);
             
             push_var(f->args,decl);

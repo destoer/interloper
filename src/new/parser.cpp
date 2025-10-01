@@ -903,10 +903,17 @@ void print_depth(int depth)
     printf(" %d ",depth);    
 }
 
-void print(const AstNode *root, b32 override_seperator)
+template<typename T>
+void print_bin_oper(const ExprBinOperNode<T>* bin,const char* NAMES[], int depth)
 {
-    static int depth = 0;
+    printf("%s\n",NAMES[u32(bin->oper)]);
 
+    print_internal(bin->left,depth + 1);
+    print_internal(bin->right,depth + 1);
+}
+
+void print_internal(const AstNode *root, int depth)
+{
     if(!root)
     {
         print_depth(depth + 1);
@@ -915,13 +922,10 @@ void print(const AstNode *root, b32 override_seperator)
     }
 
 
-    if(!override_seperator && (root->type == ast_type::function || root->type == ast_type::struct_t || root->type == ast_type::enum_t))
+    if(root->type == ast_type::function || root->type == ast_type::struct_t || root->type == ast_type::enum_t)
     {
         printf("\n\n\n");
     }
-
-
-    depth += 1;
 
     print_depth(depth);
 
@@ -932,13 +936,71 @@ void print(const AstNode *root, b32 override_seperator)
             printf("%s\n",AST_NAMES[u32(root->type)]);
 
             auto equal = (EqualNode*)root;
-            print(equal->left);
-            print(equal->right);
+            print_internal(equal->left,depth + 1);
+            print_internal(equal->right,depth + 1);
+            break;
+        }
+
+        case ast_type::arith_bin:
+        {
+            print_bin_oper((ArithBinNode*)root,ARITH_BIN_NAMES,depth);
+            break;
+        }
+
+        case ast_type::shift:
+        {
+            print_bin_oper((ShiftNode*)root,SHIFT_NAMES,depth);
+            break;    
+        }
+
+
+        case ast_type::comparison:
+        {
+            print_bin_oper((CmpNode*)root,COMPARISON_NAMES,depth);
+            break;
+        }
+
+        case ast_type::boolean_logic:
+        {
+            print_bin_oper((BooleanLogicNode*)root,BOOLEAN_LOGIC_NAMES,depth);
+            break;
+        }
+
+        case ast_type::symbol:
+        {
+            SymbolNode* sym = (SymbolNode*)root;
+
+            printf("Symbol: %s %s\n",sym->name.buf,sym->name_space->full_name.buf);
+            
+            break;
+        }
+
+        case ast_type::arith_unary:
+        {
+            ArithUnaryNode* unary = (ArithUnaryNode*)root;
+
+            printf("%s",ARITH_UNARY_NAMES[u32(unary->oper)]);
+            print_internal(unary->expr,depth + 1);
+            break;
+        }
+
+        case ast_type::type_operator:
+        {
+            TypeOperatorNode* type = (TypeOperatorNode*)root;
+
+            printf("Type operator %s\n",TYPE_OPER_NAMES[u32(type->oper)]);
+            print_internal((AstNode*)type->type,depth + 1);
+            break;
         }
     }
-
-    depth -= 1;
 }
+
+void print(const AstNode *root)
+{
+    print_internal(root,false,0);
+}
+
+
 
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx)
 {

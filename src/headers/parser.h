@@ -116,8 +116,9 @@ struct ExprBinOperNode
 };
 
 using ArithBinNode = ExprBinOperNode<arith_bin_op>;
-using ShiftBinNode = ExprBinOperNode<shift_op>;
-using CmpBinNode = ExprBinOperNode<comparison_op>;
+using ShiftNode = ExprBinOperNode<shift_op>;
+using CmpNode = ExprBinOperNode<comparison_op>;
+using BooleanLogicNode = ExprBinOperNode<boolean_logic_op>;
 
 struct ArithUnaryNode
 {
@@ -232,6 +233,12 @@ enum class type_operator
 {
     sizeof_type_t,
     sizeof_data_t,
+};
+
+static const char* TYPE_OPER_NAMES[] =
+{
+    "sizeof_type",
+    "sizeof_data"
 };
 
 struct TypeOperatorNode
