@@ -157,7 +157,8 @@ struct UnaryNode
 
 using SizeOfNode = UnaryNode<ast_type::sizeof_t>;
 using ConstAssert = UnaryNode<ast_type::const_assert>;
-
+using DerefNode = UnaryNode<ast_type::deref>;
+using AddrOfNode = UnaryNode<ast_type::addrof>;
 
 enum class compound_type
 {
@@ -166,6 +167,15 @@ enum class compound_type
     arr_deduce_size,
     arr_var_size,
     arr_fixed_size,
+};
+
+static const char* COMPOUND_TYPE_NAMES[] =
+{
+    "nullable ptr",
+    "ptr",
+    "array deduce size",
+    "array variable size",
+    "array fixed size",
 };
 
 struct CompoundType

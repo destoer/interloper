@@ -903,6 +903,8 @@ void print_depth(int depth)
     printf(" %d ",depth);    
 }
 
+void print_internal(const AstNode *root, int depth);
+
 template<typename T>
 void print_bin_oper(const ExprBinOperNode<T>* bin,const char* NAMES[], int depth)
 {
@@ -910,6 +912,21 @@ void print_bin_oper(const ExprBinOperNode<T>* bin,const char* NAMES[], int depth
 
     print_internal(bin->left,depth + 1);
     print_internal(bin->right,depth + 1);
+}
+
+template<ast_type type>
+void print_unary(UnaryNode<type>* unary, const char* name, int depth)
+{
+    printf("%s",name);
+    print_internal(unary->expr,depth + 1);
+}
+
+void print_block(const AstBlock& block, int depth)
+{
+    for(AstNode* node : block.statement)
+    {
+        print_internal(node, depth + 1);
+    }
 }
 
 void print_internal(const AstNode *root, int depth)
@@ -990,6 +1007,159 @@ void print_internal(const AstNode *root, int depth)
 
             printf("Type operator %s\n",TYPE_OPER_NAMES[u32(type->oper)]);
             print_internal((AstNode*)type->type,depth + 1);
+            break;
+        }
+
+        case ast_type::cast:
+        {
+            CastNode* cast = (CastNode*)root;
+            printf("Cast\n");
+            print_internal((AstNode*)cast->type, depth + 1);
+            print_internal(cast->expr, depth + 1);
+
+            break;
+        }
+
+        case ast_type::builtin_access:
+        {
+            BuiltinAccessNode* access = (BuiltinAccessNode*)root;
+            printf("Builtin access %s.%s\n",builtin_type_name(access->type),access->field.buf);
+            break;
+        }
+
+
+        case ast_type::designated_initializer_list:
+        {
+            DesignatedListNode* list = (DesignatedListNode*)root;
+
+            for(const auto& initializer: list->initializer)
+            {
+                print_depth(depth + 1);
+                print_internal(initializer.expr, depth + 2);
+            }
+
+            break;
+        }
+
+        case ast_type::struct_initializer:
+        {
+            StructInitializerNode* initializer = (StructInitializerNode*)root;
+
+            printf("Struct initializer %s: ",initializer->is_return? "return" : "");
+
+            if(initializer->name_space)
+            {
+                printf("%s::",initializer->name_space->full_name.buf);
+            }
+
+            printf("%s\n",initializer->struct_name.buf);
+
+            print_internal(initializer->initializer, depth + 1);
+            break;
+        }
+
+        case ast_type::sizeof_t:
+        {
+            print_unary((SizeOfNode*)root,"sizeof",depth);
+            break;
+        }
+
+        case ast_type::no_init:
+        {
+            printf("no_init\n");
+            break;
+        }
+
+        case ast_type::ignore:
+        {
+            printf("ignore\n");
+            break;
+        }
+
+        case ast_type::value:
+        {
+            ValueNode* value = (ValueNode*)root;
+            printf("Value %lx (%s)\n",value->value, builtin_type_name(value->type));
+            break;
+        }
+
+        case ast_type::float_t:
+        {
+            FloatNode* float_node = (FloatNode*)root;
+            printf("Float %f\n",float_node->value);
+            break;
+        }
+
+        case ast_type::null_t:
+        {
+            printf("Null");
+            break;
+        }
+
+        case ast_type::deref:
+        {
+            print_unary((DerefNode*)root,"deref",depth);
+            break;
+        }
+
+        case ast_type::addrof:
+        {
+            print_unary((AddrOfNode*)root,"addrof",depth);
+            break;
+        }
+
+        case ast_type::string:
+        {
+            StringNode* string = (StringNode*)root;
+            printf("String literal %s\n",string->string.buf);
+            break;
+        }
+
+        case ast_type::initializer_list:
+        {
+            InitializerListNode* list = (InitializerListNode*)root;
+
+            printf("Initializer list\n");
+            for(AstNode* init : list->list)
+            {
+                print_internal(init, depth + 1);
+            }
+        
+            break;
+        }
+
+        case ast_type::block:
+        {
+            BlockNode* block = (BlockNode*)root;
+            printf("Block\n");
+            print_block(block->block, depth);
+            break;
+        }
+
+        case ast_type::type:
+        {
+            TypeNode* type = (TypeNode*)root;
+            if(type->name_space)
+            {
+                printf("%s::",type->name_space->full_name.buf);
+            }
+
+            printf("%stype %s\n",type->is_const? "const " : "",type->name.buf);
+
+            for(const auto& compound : type->compound)
+            {
+                print_depth(depth + 1);
+                printf("Compound: %s",COMPOUND_TYPE_NAMES[u32(compound.type)]);
+                if(compound.type == compound_type::arr_fixed_size)
+                {
+                    print_internal(compound.array_size, depth + 2);
+                }
+            }
+
+            if(type->func_type)
+            {
+                print_internal((AstNode*)type->func_type,depth + 1);
+            }
             break;
         }
     }
