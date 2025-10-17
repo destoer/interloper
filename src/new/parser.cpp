@@ -1162,6 +1162,55 @@ void print_internal(const AstNode *root, int depth)
             }
             break;
         }
+
+        case ast_type::type_alias:
+        {
+            AliasNode* alias = (AliasNode*)root;
+            printf("Type alias %s\n",alias->name.buf);
+            print_internal((AstNode*)alias->type, depth + 1);
+            break;
+        }
+
+        case ast_type::struct_t:
+        {
+            StructNode* struct_node = (StructNode*)root;
+            printf("Struct %s %x\n",struct_node->name.buf,struct_node->attr_flags);
+
+            for(DeclNode* member : struct_node->members)
+            {
+                print_internal((AstNode*)member, depth + 1);
+            }
+
+            if(struct_node->forced_first)
+            {
+                print_internal((AstNode*)struct_node->forced_first, depth + 1);
+            }
+
+            break;
+        }
+
+        case ast_type::enum_t:
+        {
+            EnumNode* enum_node = (EnumNode*)root;
+            printf("Enum %s %x\n",enum_node->name.buf,enum_node->attr_flags);
+
+            for(const auto& member : enum_node->member)
+            {
+                print_depth(depth + 1);
+                printf("Member %s\n",member.name.buf);
+                if(member.initializer)
+                {
+                    print_internal(member.initializer, depth + 2);
+                }
+            }
+
+            if(enum_node->type)
+            {
+                print_internal((AstNode*)enum_node->type, depth + 1);
+            }
+
+            break;
+        }
     }
 }
 
