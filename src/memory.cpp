@@ -340,7 +340,7 @@ static void store_ptr_addr(Interloper &itl,Function& func,RegSlot src_slot,Point
 }
 
 
-static void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot ptr,u32 offset,u32 size, b32 is_float)
+void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot ptr,u32 offset,u32 size, b32 is_float)
 {
     const PointerAddr pointer = {make_addr(ptr,offset)};
     store_ptr_addr(itl,func,src_slot,pointer,size,is_float);

@@ -355,15 +355,6 @@ RegSlot acquire_rtti(Interloper& itl, Function& func, const Type* type)
     return pool_addr_res(itl,func,pool_slot,0);
 }
 
-u32 promote_size(u32 size)
-{
-    if(size < GPR_SIZE)
-    {
-        return GPR_SIZE;
-    }
-
-    return size;
-}
 
 // TODO: we need to pass in a slot + offset for storing data copies...
 void make_any(Interloper& itl,Function& func, RegSlot any_ptr, u32 offset, const TypedReg& reg)

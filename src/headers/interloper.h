@@ -28,7 +28,7 @@ struct Interloper
     FileContext ctx;
 
     FunctionTable func_table;
-    // Array<DeclNode*> global_def;
+    Array<DeclNode*> global_def;
 
     // Cur scope saved in FileContext
     NameSpace* global_namespace = nullptr;
@@ -120,7 +120,7 @@ struct [[nodiscard]] FileContextGuard
 };
 
 
-void print(const AstNode *root, b32 override_seperator = false);
+void print(const AstNode *root);
 
 inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
 {

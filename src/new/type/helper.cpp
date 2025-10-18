@@ -374,3 +374,13 @@ Type* make_array(Interloper& itl, Type* contained_type, u32 size, u32 flags = 0)
 
     return (Type*)array_type;
 }
+
+u32 promote_size(u32 size)
+{
+    if(size < GPR_SIZE)
+    {
+        return GPR_SIZE;
+    }
+
+    return size;
+}

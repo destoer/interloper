@@ -6,6 +6,7 @@ struct FileContext
     u32 file_index = 0;
     String filename = "";
     NameSpace *name_space = nullptr;
+    AstNode* expr = nullptr;
 };
 
 // NOTE: this may move during expression compilation
