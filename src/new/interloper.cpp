@@ -13,6 +13,8 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 #include "array.cpp"
 #include "parser.cpp"
 #include "func.cpp"
+#include "struct.cpp"
+#include "enum.cpp"
 
 
 void destroy_ast(Interloper& itl)

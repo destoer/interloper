@@ -668,7 +668,7 @@ ParserResult ast_expr_oper_bin(Parser& parser, T oper, ParserResult left_res, Pa
         return right_res;
     }
 
-    ArithBinNode* arith_node  = alloc_node<ExprBinOperNode<T>>(parser,type,token);
+    ExprBinOperNode<T>* arith_node  = alloc_node<ExprBinOperNode<T>>(parser,type,token);
 
     arith_node->oper = oper;
     arith_node->left = *left_res;
