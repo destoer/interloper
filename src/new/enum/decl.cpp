@@ -132,29 +132,31 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         {
             if(member_decl.initializer)
             {
-                value_used = true;
+                assert(false);
+                UNUSED(set);
+                // value_used = true;
 
-                auto expr_res = compile_const_int_expression(itl,member_decl.initializer);
+                // auto expr_res = compile_const_int_expression(itl,member_decl.initializer);
 
-                if(!expr_res)
-                {
-                    return expr_res.error();
-                }
+                // if(!expr_res)
+                // {
+                //     return expr_res.error();
+                // }
 
-                const auto const_int = *expr_res;
+                // const auto const_int = *expr_res;
 
-                member.value = const_int.value;
+                // member.value = const_int.value;
 
-                // TODO: check for overlapping values
-                if(contains(set,const_int.value))
-                {
-                    return compile_error(itl,itl_error::enum_type_error,"Duplicate enum value: %s",member.name.buf);
-                }
+                // // TODO: check for overlapping values
+                // if(contains(set,const_int.value))
+                // {
+                //     return compile_error(itl,itl_error::enum_type_error,"Duplicate enum value: %s",member.name.buf);
+                // }
 
-                else
-                {
-                    add(set,const_int.value);
-                }
+                // else
+                // {
+                //     add(set,const_int.value);
+                // }
             }
 
             else

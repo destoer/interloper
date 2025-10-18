@@ -4,6 +4,8 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
 RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg);
 RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 
+#include "itl/context.cpp"
+
 #include "parser/lexer.cpp"
 #include "namespace.cpp"
 #include "symbol.cpp"

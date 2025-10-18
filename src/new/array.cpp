@@ -1,70 +1,62 @@
 #include <interloper.h>
+// #include "array/storage.cpp"
 
-RegSlot load_arr_data(Interloper& itl,Function& func,const TypedAddr& src)
+// for stack allocated arrays i.e ones with fixed sizes at the top level of the decl, We do this to get the base type size
+// So we don't have to end up padding this out at higher alignments.
+std::pair<u32,u32> calc_arr_allocation(Interloper& itl, const Type* type)
 {
-    if(is_runtime_size(src.type))
+    b32 done = false;
+    
+    u32 count = 0;
+    u32 size = 0;
+
+    while(!done)
     {
-        return load_addr_gpr_res(itl,func,src.addr_slot);
+        switch(type->kind)
+        {
+            case type_class::pointer_t:
+            {
+                size = GPR_SIZE;
+
+                // whatever is pointed too is responsible for handling its own allocation
+                // because it comes from somewhere else we are done!
+                done = true;
+                break;
+            }
+
+            case type_class::array_t:
+            {
+                ArrayType* array_type = (ArrayType*)type;
+
+                if(is_runtime_size(array_type))
+                {
+                    size = GPR_SIZE * 2;
+                    done = true;
+                }
+
+                else
+                {
+                    count = accumulate_count(count,array_type->size);
+                    type = index_arr(type);
+                }
+                break;
+            }
+
+            default:
+            {
+                size = type_size(itl,type);
+
+                done = true;
+                break;
+            }
+        }
     }
 
-    // fixed size, array ptr is stored in its own slot!
-    else
+    if(size > GPR_SIZE)
     {
-        return collapse_struct_addr_res(itl,func,src.addr_slot);
-    }
+        count = gpr_count(count * size);
+        size = GPR_SIZE;
+    }   
+
+    return std::pair{size,count};
 }
-
-RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg)
-{
-    if(is_runtime_size(reg.type))
-    {
-        const auto addr_slot = make_struct_addr(reg.slot,0);
-        return load_addr_gpr_res(itl,func,addr_slot);
-    }
-
-    // fixed size, array ptr is stored in its own slot!
-    else
-    {
-        return reg.slot;
-    }
-}
-
-
-RegSlot load_arr_data(Interloper& itl,Function& func,const Symbol& sym)
-{
-    return load_arr_data(itl,func,typed_reg(sym));
-}
-
-
-RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg)
-{
-    if(is_runtime_size(reg.type))
-    {
-        const auto addr_slot = make_struct_addr(reg.slot,GPR_SIZE);
-        return load_addr_gpr_res(itl,func,addr_slot);
-    }
-
-    ArrayType* array_type = (ArrayType*)reg.type;
-
-    return mov_imm_res(itl,func,array_type->size);   
-}
-
-
-RegSlot load_arr_len(Interloper& itl,Function& func,const TypedAddr& src)
-{
-    if(is_runtime_size(src.type))
-    {
-        AddrSlot addr_copy = src.addr_slot;
-        addr_copy.addr.offset += GPR_SIZE;
-        return load_addr_gpr_res(itl,func,addr_copy);
-    }
-
-    ArrayType* array_type = (ArrayType*)src.type;
-    return mov_imm_res(itl,func,array_type->size);   
-}
-
-RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym)
-{
-    return load_arr_len(itl,func,typed_reg(sym));
-}
-

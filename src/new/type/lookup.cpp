@@ -333,16 +333,17 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
 
             case compound_type::arr_fixed_size:
             {
-                auto expr_res = compile_const_int_expression(itl,compound.array_size);
+                assert(false);
+                // auto expr_res = compile_const_int_expression(itl,compound.array_size);
 
-                if(!expr_res)
-                {
-                    return expr_res.error();
-                }
+                // if(!expr_res)
+                // {
+                //     return expr_res.error();
+                // }
 
-                const auto const_int = *expr_res;
+                // const auto const_int = *expr_res;
 
-                type = make_array(itl,type,const_int.value,flags);
+                // type = make_array(itl,type,const_int.value,flags);
                 break;
             }
 
