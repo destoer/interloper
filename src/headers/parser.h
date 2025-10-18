@@ -205,6 +205,7 @@ enum class type_node_kind
 
 struct TypeNode
 {
+    AstNode node;
     String name;
 
     b32 is_const;
@@ -331,7 +332,7 @@ struct AliasNode
     String name;
     String filename;
 
-    TypeNode* type;
+    TypeNode* type = nullptr;
 };
 
 

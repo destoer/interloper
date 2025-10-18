@@ -146,7 +146,7 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
       
         case token_type::plus:
         {
-            return ast_bin_arith(parser,arith_bin_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_op::add_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::minus:

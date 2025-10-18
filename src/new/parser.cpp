@@ -995,7 +995,15 @@ void print_internal(const AstNode *root, int depth)
         {
             SymbolNode* sym = (SymbolNode*)root;
 
-            printf("Symbol: %s %s\n",sym->name.buf,sym->name_space->full_name.buf);
+            if(sym->name_space)
+            {
+                printf("Symbol: %s::%s\n",sym->name_space->full_name.buf,sym->name.buf);
+            }
+            
+            else
+            {
+                printf("Symbol %s\n",sym->name.buf);
+            }
             
             break;
         }
@@ -1004,7 +1012,7 @@ void print_internal(const AstNode *root, int depth)
         {
             ArithUnaryNode* unary = (ArithUnaryNode*)root;
 
-            printf("%s",ARITH_UNARY_NAMES[u32(unary->oper)]);
+            printf("%s\n",ARITH_UNARY_NAMES[u32(unary->oper)]);
             print_internal(unary->expr,depth + 1);
             break;
         }
@@ -1100,7 +1108,7 @@ void print_internal(const AstNode *root, int depth)
 
         case ast_type::null_t:
         {
-            printf("Null");
+            printf("Null\n");
             break;
         }
 
@@ -1157,7 +1165,7 @@ void print_internal(const AstNode *root, int depth)
             for(const auto& compound : type->compound)
             {
                 print_depth(depth + 1);
-                printf("Compound: %s",COMPOUND_TYPE_NAMES[u32(compound.type)]);
+                printf("Compound: %s\n",COMPOUND_TYPE_NAMES[u32(compound.type)]);
                 if(compound.type == compound_type::arr_fixed_size)
                 {
                     print_internal(compound.array_size, depth + 2);
@@ -1223,9 +1231,14 @@ void print_internal(const AstNode *root, int depth)
         case ast_type::decl:
         {
             DeclNode* decl = (DeclNode*)root;
-            printf("%sDecl %s",decl->is_const? "const ": "",decl->name.buf);
+            printf("%sDecl %s\n",decl->is_const? "const ": "",decl->name.buf);
+            
             print_internal((AstNode*)decl->type, depth + 1);
-            print_internal(decl->expr, depth + 1);
+
+            if(decl->expr)
+            {
+                print_internal(decl->expr, depth + 1);
+            }
             break;
         }
 
@@ -1240,7 +1253,7 @@ void print_internal(const AstNode *root, int depth)
 
             else
             {
-                printf("Global decl");
+                printf("Global decl\n");
             }
 
             print_internal((AstNode*)global_decl->decl, depth + 1);
@@ -1263,7 +1276,7 @@ void print_internal(const AstNode *root, int depth)
             
             for(AstNode* arg : func_call->args)
             {
-                print_internal(arg, depth + 1);
+                print_internal(arg, depth + 2);
             }
 
             break;
@@ -1422,8 +1435,7 @@ void print_internal(const AstNode *root, int depth)
         {
             FuncNode* func = (FuncNode*)root;
 
-            printf("Function %s %x\n",func->name.buf,func->attr_flags);
-            printf("Va args: %s %s",func->va_args? "true" : "false",func->args_name.buf);
+            printf("Function %s(%x), va_args: %s\n",func->name.buf,func->attr_flags,func->args_name.buf);
 
             for(DeclNode* decl : func->args)
             {

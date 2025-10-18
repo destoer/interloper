@@ -114,7 +114,7 @@ void print_ast(Interloper& itl)
 
 Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 {
-    // parse intial input file
+    // parse initial input file
     auto start = std::chrono::high_resolution_clock::now();
 
     // build ast
