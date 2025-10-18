@@ -493,7 +493,7 @@ TypeResult compile_comparison_op(Interloper& itl,Function &func,AstNode *node, R
     }
 
     const auto cmp_err = check_comparison_operation(itl,left.type,right.type,type);
-    if(!!cmp_err)
+    if(cmp_err)
     {
         return *cmp_err;
     }
@@ -620,7 +620,7 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
                 const auto dst_addr = make_struct_addr(dst.slot,0);
 
                 const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst.type));
-                if(!!memcpy_err)
+                if(memcpy_err)
                 {
                     return *memcpy_err;
                 }
@@ -638,7 +638,7 @@ Option<itl_error> compile_move(Interloper &itl, Function &func, const TypedReg& 
                         const auto dst_addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
 
                         const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst.type));
-                        if(!!memcpy_err)
+                        if(memcpy_err)
                         {
                             return *memcpy_err;
                         }

@@ -55,7 +55,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
             if(parse_sig)
             {
                 const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
-                if(!!sig_err)
+                if(sig_err)
                 {
                     return *sig_err;
                 }

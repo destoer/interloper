@@ -373,7 +373,7 @@ Option<itl_error> compile_for_range_arr(Interloper& itl, Function& func, ForRang
         // before we compile the actual stmts
         const TypedReg load_reg = {arr_data,arr_type->contained_type};
         const auto load_err = do_ptr_load(itl,func,data,load_reg);
-        if(!!load_err)
+        if(load_err)
         {
             return *load_err;
         }
@@ -386,7 +386,7 @@ Option<itl_error> compile_for_range_arr(Interloper& itl, Function& func, ForRang
     }
 
     const auto block_err = compile_block(itl,func,for_node->block);
-    if(!!block_err)
+    if(block_err)
     {
         return *block_err;
     }

@@ -345,7 +345,7 @@ ParserResult builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type t
 ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, const Token& token)
 {
     const auto consume_left_paren_err = consume_expr(parser,ctx,token_type::left_paren);
-    if(!!consume_left_paren_err)
+    if(consume_left_paren_err)
     {
         return *consume_left_paren_err;
     }
@@ -365,7 +365,7 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, cons
     ctx.expr_tok = next_token(parser);
 
     const auto consume_right_paren_err = consume_expr(parser,ctx,token_type::right_paren);
-    if(!!consume_right_paren_err)
+    if(consume_right_paren_err)
     {
         return *consume_right_paren_err;
     }
@@ -376,7 +376,7 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, cons
 ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
 {
     auto expr_consume_err = consume_expr(parser,ctx,token_type::left_paren);
-    if(!!expr_consume_err)
+    if(expr_consume_err)
     {
         return *expr_consume_err;
     }
@@ -399,7 +399,7 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
     ctx.expr_tok = next_token(parser);
 
     const auto comma_consume_err = consume_expr(parser,ctx,token_type::comma);
-    if(!!comma_consume_err)
+    if(comma_consume_err)
     {
         return *comma_consume_err;
     }
@@ -594,7 +594,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         case token_type::sizeof_t:
         {
             const auto consume_err = consume_expr(parser,ctx,token_type::left_paren);
-            if(!!consume_err)
+            if(consume_err)
             {
                 return *consume_err;
             }
@@ -626,13 +626,13 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             if(ctx.expr_tok.type == token_type::qmark)
             {
                 const auto consume_qmark_err = consume_expr(parser,ctx,token_type::qmark);
-                if(!!consume_qmark_err)
+                if(consume_qmark_err)
                 {
                     return *consume_qmark_err;
                 }
 
                 const auto consume_c_brace_err = consume_expr(parser,ctx,token_type::right_c_brace);
-                if(!!consume_c_brace_err)
+                if(consume_c_brace_err)
                 {
                     return *consume_c_brace_err;
                 }

@@ -345,7 +345,7 @@ Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* li
                     const auto structure = struct_from_type(itl.struct_table,base_type);
 
                     const auto struct_err = compile_const_struct_list_internal(itl,(RecordNode*)list->nodes[i],structure,slot,*offset);
-                    if(!!struct_err)
+                    if(struct_err)
                     {
                         return struct_err;
                     }
@@ -363,7 +363,7 @@ Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* li
                     auto data = *data_res;
 
                     const auto assign_err = check_assign_init(itl,base_type,data.type);
-                    if(!!assign_err)
+                    if(assign_err)
                     {
                         return *assign_err;
                     }
@@ -371,7 +371,7 @@ Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* li
                     data.type = base_type;
 
                     const auto write_err = write_const_data(itl,slot,*offset,data);
-                    if(!!write_err)
+                    if(write_err)
                     {
                         return *write_err;
                     }
@@ -396,14 +396,14 @@ Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* li
 
 
                 const auto assign_err = check_assign_init(itl,base_type,data.type);
-                if(!!assign_err)
+                if(assign_err)
                 {
                     return *assign_err;
                 }
                 data.type = base_type;
 
                 const auto write_err = write_const_data(itl,slot,*offset,data);
-                if(!!write_err)
+                if(write_err)
                 {
                     return *write_err;
                 }
@@ -724,7 +724,7 @@ Option<itl_error> compile_constants(Interloper& itl)
     for(u32 c = 0; c < count(itl.constant_decl); c++)
     {
         const auto const_err = compile_constant(itl,itl.constant_decl[c]);
-        if(!!const_err)
+        if(const_err)
         {
             return const_err;
         }

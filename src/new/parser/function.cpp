@@ -3,7 +3,7 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNo
 ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 {
     const auto left_paren_err = consume(parser,token_type::left_paren);
-    if(!!left_paren_err)
+    if(left_paren_err)
     {
         return *left_paren_err;
     }
@@ -42,7 +42,7 @@ Result<AstBlock,parse_error> block_ast(Parser &parser)
     // block = '{' statement... '}'
     const auto tok = peek(parser,0);
     const auto lc_brace_err = consume(parser,token_type::left_c_brace);
-    if(!!lc_brace_err)
+    if(lc_brace_err)
     {
         return *lc_brace_err;
     }
@@ -68,7 +68,7 @@ Result<AstBlock,parse_error> block_ast(Parser &parser)
     }
     
     const auto rc_brace_err = consume(parser,token_type::right_c_brace);
-    if(!!rc_brace_err)
+    if(rc_brace_err)
     {
         return *rc_brace_err;
     }
@@ -84,7 +84,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
 
     const auto paren = peek(parser,0);
     const auto l_paren_err = consume(parser,token_type::left_paren);
-    if(!!l_paren_err)
+    if(l_paren_err)
     {
         return *l_paren_err;
     }
@@ -109,7 +109,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
         
 
         const auto colon_err = consume(parser,token_type::colon);
-        if(!!colon_err)
+        if(colon_err)
         {
             return *colon_err;
         }
@@ -148,7 +148,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
             if(!match(parser,token_type::right_paren))
             {
                 const auto comma_err = consume(parser,token_type::comma);
-                if(!!comma_err)
+                if(comma_err)
                 {
                     return *comma_err;
                 }
@@ -157,7 +157,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     }
 
     const auto right_paren_err = consume(parser,token_type::right_paren);
-    if(!!right_paren_err)
+    if(right_paren_err)
     {
         return *right_paren_err;
     }
@@ -186,7 +186,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
             if(!match(parser,token_type::sr_brace))
             {
                 const auto sr_brace_err = consume(parser,token_type::comma);
-                if(!!sr_brace_err)
+                if(sr_brace_err)
                 {
                     return *sr_brace_err;
                 }
@@ -194,7 +194,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
         }
 
         const auto sr_brace_err = consume(parser,token_type::sr_brace);
-        if(!!sr_brace_err)
+        if(sr_brace_err)
         {
             return *sr_brace_err;
         }
@@ -239,7 +239,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
         return parser_error(parser,parse_error::unexpected_token,func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
     }
 
-    if(!!check_redeclaration(itl,parser.cur_namespace,func_name.literal,"function"))
+    if(check_redeclaration(itl,parser.cur_namespace,func_name.literal,"function"))
     {
         return parse_error::itl_error;
     }

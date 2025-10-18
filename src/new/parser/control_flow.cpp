@@ -106,7 +106,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
     if(take_index)
     {
         const auto sl_err =consume(parser,token_type::sl_brace);
-        if(!!sl_err)
+        if(sl_err)
         {
             return *sl_err;
         }
@@ -115,7 +115,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
     if(take_pointer)
     {
         const auto deref_err = consume(parser,token_type::deref);
-        if(!!deref_err)
+        if(deref_err)
         {
             return *deref_err;
         }
@@ -137,7 +137,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
     if(take_index)
     {
         const auto comma_err = consume(parser,token_type::comma);
-        if(!!comma_err)
+        if(comma_err)
         {
             return *comma_err;
         }
@@ -152,14 +152,14 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
         for_node->name_two = name_two.literal;
 
         const auto sr_err = consume(parser,token_type::sr_brace);
-        if(!!sr_err)
+        if(sr_err)
         {
             return *sr_err;
         }
     }
 
     const auto in_err = consume(parser,token_type::in_t);
-    if(!!in_err)
+    if(in_err)
     {
         return *in_err;
     }
@@ -213,7 +213,7 @@ ParserResult parse_for(Parser& parser, const Token& t)
     if(term_paren)
     {
         const auto left_paren_err = consume(parser,token_type::left_paren);
-        if(!!left_paren_err)
+        if(left_paren_err)
         {
             return *left_paren_err;
         }
@@ -278,14 +278,14 @@ ParserResult parse_switch(Parser& parser, const Token& t)
 
         if(case_tok.type == token_type::default_t)
         {
-            if(!!switch_node->default_statement)
+            if(switch_node->default_statement)
             {
                 return parser_error(parser,parse_error::malformed_stmt,case_tok,"Cannot have two default statements in switch statement\n");
             }
 
             (void)consume(parser,token_type::default_t);
             const auto colon_err = consume(parser,token_type::colon);
-            if(!!colon_err)
+            if(colon_err)
             {
                 return *colon_err;
             }
@@ -303,7 +303,7 @@ ParserResult parse_switch(Parser& parser, const Token& t)
         {
             // read out the case
             const auto case_err = consume(parser,token_type::case_t);
-            if(!!case_err)
+            if(case_err)
             {
                 return *case_err;
             }
@@ -326,7 +326,7 @@ ParserResult parse_switch(Parser& parser, const Token& t)
     }
 
     const auto c_brace_err = consume(parser,token_type::right_c_brace);
-    if(!!c_brace_err)
+    if(c_brace_err)
     {
         return *c_brace_err;
     }

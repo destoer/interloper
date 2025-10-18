@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 
 
     const auto compile_err = compile(itl,source_filename,executable_path);
-    if(!!compile_err)
+    if(compile_err)
     {
         puts("NOT OK");
         return 1;

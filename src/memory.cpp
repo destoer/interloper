@@ -212,7 +212,7 @@ AddrSlot make_struct_addr(RegSlot base, u32 offset)
 //         {
 //             const auto addr = make_struct_addr(dst_slot,0);
 //             const auto memcpy_err = ir_memcpy(itl,func,addr,src_addr,size);
-//             if(!!memcpy_err)
+//             if(memcpy_err)
 //             {
 //                 return memcpy_err;
 //             }
@@ -231,7 +231,7 @@ AddrSlot make_struct_addr(RegSlot base, u32 offset)
 //                 {
 //                     const auto dst_addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
 //                     const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,size);
-//                     if(!!memcpy_err)
+//                     if(memcpy_err)
 //                     {
 //                         return memcpy_err;
 //                     }
@@ -255,7 +255,7 @@ AddrSlot make_struct_addr(RegSlot base, u32 offset)
 //         if(is_runtime_size(src_addr.type))
 //         {
 //             const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr.addr_slot,size);
-//             if(!!copy_err)
+//             if(copy_err)
 //             {
 //                 return copy_err;
 //             }
@@ -271,7 +271,7 @@ AddrSlot make_struct_addr(RegSlot base, u32 offset)
 //     else if(is_struct(src_addr.type))
 //     {
 //         const auto copy_err = do_addr_copy(itl,func,dst_slot,src_addr.addr_slot,size);
-//         if(!!copy_err)
+//         if(copy_err)
 //         {
 //             return copy_err;
 //         }

@@ -155,7 +155,7 @@ Option<itl_error> check_comparison_operation(Interloper& itl,const Type *ltype, 
     else if(is_pointer(ltype) && is_pointer(rtype))
     {
         const auto ptr_err = type_check_pointer(itl,ltype,rtype,assign_type::none);
-        if(!!ptr_err)
+        if(ptr_err)
         {
             return *ptr_err;
         }
@@ -239,7 +239,7 @@ Option<itl_error> check_const(Interloper&itl, const Type* ltype, const Type* rty
     while(!done)
     {
         const auto const_err = check_const_internal(itl,ltype,rtype,type,was_reference);
-        if(!!const_err)
+        if(const_err)
         {
             return const_err;
         }
@@ -408,7 +408,7 @@ Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Ty
 
     {
         const auto null_err = type_check_pointer_nullable(itl,base_ltype,base_rtype,assign_kind);
-        if(!!null_err)
+        if(null_err)
         {
             return null_err;
         }
@@ -446,7 +446,7 @@ Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Ty
                 case type_class::pointer_t:
                 {
                     const auto null_err = type_check_pointer_nullable(itl,base_ltype,base_rtype,assign_kind);
-                    if(!!null_err)
+                    if(null_err)
                     {
                         return null_err;
                     }
@@ -748,7 +748,7 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
     if(is_plain(rtype) && is_plain(ltype))
     {
         const auto plain_err = check_assign_plain(itl,ltype,rtype);
-        if(!!plain_err)
+        if(plain_err)
         {
             return plain_err;
         }
@@ -760,7 +760,7 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         if(is_pointer(ltype))
         {
             const auto ptr_err = type_check_pointer(itl,ltype,rtype,type);
-            if(!!ptr_err)
+            if(ptr_err)
             {
                 return ptr_err;
             }
@@ -769,7 +769,7 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         else if(is_array(ltype))
         {
             const auto array_err = type_check_array(itl,ltype,rtype,type);
-            if(!!array_err)
+            if(array_err)
             {
                 return array_err;
             }

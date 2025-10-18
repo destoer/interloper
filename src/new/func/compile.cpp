@@ -136,7 +136,7 @@ TypeResult push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_ty
         const auto src_addr = make_struct_addr(arg_reg.slot,0);
 
         const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
-        if(!!memcpy_err)
+        if(memcpy_err)
         {
             return *memcpy_err;
         }
@@ -187,7 +187,7 @@ Option<itl_error> push_args(Interloper& itl, Function& func, ArgPass& pass, Func
 
         // type check the arg
         const auto assign_err = check_assign_arg(itl,arg_type,passed_type);
-        if(!!assign_err)
+        if(assign_err)
         {
             return assign_err;
         }
@@ -235,7 +235,7 @@ Result<u32,itl_error> push_va_args(Interloper& itl, Function& func, FuncCallNode
         const u32 arr_offset = a * rtti_cache.any_struct_size;
 
         const auto any_err = compile_any_arr(itl,func,call_node->args[arg_idx],any_arr_ptr,arr_offset);
-        if(!!any_err)
+        if(any_err)
         {
             return *any_err;
         }
@@ -438,7 +438,7 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
         const TypedReg dst = {dst_slot,sig.return_type[0]};
         const TypedReg src = {rv,sig.return_type[0]};
         const auto move_err = compile_move(itl,func,dst,src);
-        if(!!move_err)
+        if(move_err)
         {
             return *move_err;
         }
@@ -666,7 +666,7 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
     }
 
     const auto arg_err = push_args(itl,func,pass,call_node,sig,start_arg);
-    if(!!arg_err)
+    if(arg_err)
     {
         destroy_arg_pass(pass);
         return *arg_err;
@@ -677,7 +677,7 @@ TypeResult compile_scoped_function_call(Interloper &itl,NameSpace* name_space,Fu
     if(hidden_args)
     {
         const auto hidden_err = push_hidden_args(itl,func,pass,tuple_node,dst_slot,sig.return_type);
-        if(!!hidden_err)
+        if(hidden_err)
         {
             destroy_arg_pass(pass);
             return *hidden_err;
@@ -738,7 +738,7 @@ Option<itl_error> compile_function(Interloper& itl, Function& func)
         }
 
         const auto block_err = compile_block(itl,func,node.block);
-        if(!!block_err)
+        if(block_err)
         {
             return block_err;
         }
@@ -812,7 +812,7 @@ Option<itl_error> compile_functions(Interloper &itl)
     {
         auto& func = *itl.func_table.used[f];
         const auto func_err = compile_function(itl,func);
-        if(!!func_err)
+        if(func_err)
         {
             return func_err;
         }

@@ -187,7 +187,7 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
     else if(!type_exists(itl,type_decl->name))
     {
         const auto recur_err = handle_recursive_type(itl,structure.name,type_decl,&type_idx_override);
-        if(!!recur_err)
+        if(recur_err)
         {
             destroy_struct(structure);
             return *recur_err;

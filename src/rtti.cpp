@@ -150,7 +150,7 @@ Option<itl_error> cache_rtti_structs(Interloper& itl)
     add_member_cache_req(any_cache_req,"type",&rtti.any_type_offset);
 
     const auto any_err = cache_structure(itl,any_cache_req);
-    if(!!any_err)
+    if(any_err)
     {
         return any_err;
     }
@@ -159,7 +159,7 @@ Option<itl_error> cache_rtti_structs(Interloper& itl)
     add_member_cache_req(builtin_cache_req,"builtin",&rtti.builtin_type_offset);
 
     const auto builtin_err = cache_structure(itl,builtin_cache_req);
-    if(!!builtin_err)
+    if(builtin_err)
     {
         return builtin_err;
     }
@@ -168,7 +168,7 @@ Option<itl_error> cache_rtti_structs(Interloper& itl)
     add_member_cache_req(pointer_cache_req,"contained_type",&rtti.pointer_contained_offset);
 
     const auto pointer_err = cache_structure(itl,pointer_cache_req);
-    if(!!pointer_err)
+    if(pointer_err)
     {
         return pointer_err;
     }
@@ -468,7 +468,7 @@ Option<itl_error> compile_any_internal(Interloper& itl, Function& func, AstNode*
                 const auto src_addr = make_struct_addr(arg_reg.slot,0);
 
                 const auto memcpy_err = ir_memcpy(itl,func,dst_addr,src_addr,stack_size);
-                if(!!memcpy_err)
+                if(memcpy_err)
                 {
                     return memcpy_err;
                 }
@@ -513,7 +513,7 @@ Result<u32,itl_error> compile_any(Interloper& itl, Function& func, AstNode* arg_
 
     // Handle stack alloc and store itself caller will handle deallocation of stack
     const auto any_err = compile_any_internal(itl,func,arg_node,NULL_SLOT,0);
-    if(!!any_err)
+    if(any_err)
     {
         return *any_err;
     }

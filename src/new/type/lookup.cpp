@@ -114,7 +114,7 @@ Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,con
         // def parsing failed in some fashion just bail out
         // there are no options left
         const auto def_err = parse_def(itl,type_def);
-        if(!!def_err)
+        if(def_err)
         {
             return option::none;
         }
@@ -219,7 +219,7 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
                         TypeDef& type_def = *((TypeDef*)user_type);
 
                         const auto type_err = parse_def(itl,type_def);
-                        if(!!type_err)
+                        if(type_err)
                         {
                             return *type_err;
                         }
@@ -267,7 +267,7 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
 
                 // parse the function sig
                 const auto func_err = parse_func_sig(itl,itl.symbol_table.ctx->name_space,type->sig,*type_decl->func_type,func_sig_kind::function_pointer);
-                if(!!func_err)
+                if(func_err)
                 {
                     return *func_err;
                 }

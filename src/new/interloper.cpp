@@ -119,7 +119,7 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 
     // build ast
     const auto parse_err = parse(itl,initial_filename);
-    if(!!parse_err)
+    if(parse_err)
     {
         if(itl.print_ast)
         {
@@ -177,14 +177,20 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     declare_compiler_type_aliases(itl);
 
     const auto parse_err = parsing(itl,initial_filename);
-    if(!!parse_err)
+    if(parse_err)
     {
         puts("Parsing error");
         destroy_itl(itl);
         return itl_error::parse_error;
     }
 
-    assert(false);
+    const auto type_check_err = type_check_ast(itl);
+    if(type_check_err)
+    {
+        destroy_itl(itl);
+        return *type_check_err;
+    }
+
 
     return option::none;
 }

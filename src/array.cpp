@@ -241,7 +241,7 @@ TypeResult read_arr(Interloper &itl,Function &func,AstNode *node, RegSlot dst_sl
     }
 
     const auto err = do_addr_load(itl,func,dst_slot,index);
-    if(!!err)
+    if(err)
     {
         return *err;
     }
@@ -270,7 +270,7 @@ Option<itl_error> write_arr(Interloper &itl,Function &func,AstNode *node,const T
     else
     {
         const auto store_err = do_addr_store(itl,func,src.slot,index);
-        if(!!store_err)
+        if(store_err)
         {
             return *store_err;
         }
@@ -297,7 +297,7 @@ Option<itl_error> assign_vla_initializer(Interloper& itl, Function& func, Record
     const auto ptr = *data_res;
 
     const auto ptr_assign_err = check_assign(itl,make_reference(itl,type->contained_type),ptr.type);
-    if(!!ptr_assign_err)
+    if(ptr_assign_err)
     {
         return ptr_assign_err;
     }
@@ -314,7 +314,7 @@ Option<itl_error> assign_vla_initializer(Interloper& itl, Function& func, Record
     const auto len = *len_res;
 
     const auto len_assign_err = check_assign(itl,make_builtin(itl,GPR_SIZE_TYPE),len.type);
-    if(!!len_assign_err)
+    if(len_assign_err)
     {
         return len_assign_err;
     }
@@ -432,7 +432,7 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
                 {
                     const auto structure = struct_from_type(itl.struct_table,base_type);
                     const auto struct_err = traverse_struct_initializer(itl,func,(RecordNode*)list->nodes[i],*addr_slot,structure);
-                    if(!!struct_err)
+                    if(struct_err)
                     {
                         return struct_err;
                     }
@@ -450,14 +450,14 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
                     auto reg = *res;
 
                     const auto assign_err = check_assign_init(itl,base_type,reg.type);
-                    if(!!assign_err)
+                    if(assign_err)
                     {
                         return assign_err;
                     }
 
                     const TypedAddr dst_addr = {*addr_slot,base_type};
                     const auto store_err = do_addr_store(itl,func,reg.slot,dst_addr);
-                    if(!!store_err)
+                    if(store_err)
                     {
                         return store_err;
                     }
@@ -481,14 +481,14 @@ Option<itl_error> traverse_arr_initializer_internal(Interloper& itl,Function& fu
                 auto reg = *res;
 
                 const auto assign_err = check_assign_init(itl,base_type,reg.type);
-                if(!!assign_err)
+                if(assign_err)
                 {
                     return assign_err;
                 }
 
                 const TypedAddr dst_addr = {*addr_slot,base_type};
                 const auto store_err = do_addr_store(itl,func,reg.slot,dst_addr);
-                if(!!store_err)
+                if(store_err)
                 {
                     return store_err;
                 }
@@ -552,7 +552,7 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
                 sub_addr.addr.offset += (i * next_type->sub_size);
 
                 const auto recur_err = default_construct_arr(itl,func,next_type,sub_addr);
-                if(!!recur_err)
+                if(recur_err)
                 {
                     return *recur_err;
                 }
@@ -572,7 +572,7 @@ Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayTyp
             {
                 // TODO: just default construct it for now!
                 const auto struct_err = compile_struct_decl_default(itl,func,structure,struct_addr);
-                if(!!struct_err)
+                if(struct_err)
                 {
                     return struct_err;
                 }
@@ -617,7 +617,7 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
         if(decl_node->expr->type != ast_type::no_init)
         {
             const auto assign_err = compile_arr_assign(itl,func,decl_node->expr,typed_reg(array));
-            if(!!assign_err)
+            if(assign_err)
             {
                 return assign_err;
             }
@@ -641,7 +641,7 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
         {
             const auto addr_slot = make_struct_addr(array.reg.slot,0);
             const auto construct_err = default_construct_arr(itl,func,array_type,addr_slot);
-            if(!!construct_err)
+            if(construct_err)
             {
                 return construct_err;
             }
@@ -651,7 +651,7 @@ Option<itl_error> compile_arr_decl(Interloper& itl, Function& func, const DeclNo
         {
             const auto addr_slot = make_pointer_addr(array.reg.slot,0);
             const auto construct_err = default_construct_arr(itl,func,array_type,addr_slot);
-            if(!!construct_err)
+            if(construct_err)
             {
                 return construct_err;
             }

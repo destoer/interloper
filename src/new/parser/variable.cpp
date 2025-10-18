@@ -133,7 +133,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
             case token_type::deref:
             {
                 const auto err = consume(parser,token_type::deref);
-                if(!!err)
+                if(err)
                 {
                     return *err;
                 }
@@ -146,7 +146,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
             case token_type::qmark:
             {
                 const auto err = consume(parser,token_type::qmark);
-                if(!!err)
+                if(err)
                 {
                     return *err;
                 }
@@ -162,7 +162,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                 while(peek(parser,0).type == token_type::sl_brace)
                 {
                     const auto err = consume(parser,token_type::sl_brace);
-                    if(!!err)
+                    if(err)
                     {
                         return *err;
                     }
@@ -172,7 +172,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                     {
                         push_var(type->compound,make_compound_type(compound_type::arr_var_size));
                         const auto err = consume(parser,token_type::sr_brace);
-                        if(!!err)
+                        if(err)
                         {
                             return *err;
                         }
@@ -184,7 +184,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                         if(peek(parser,0).type == token_type::qmark)
                         {
                             const auto qmark_err = consume(parser,token_type::qmark);
-                            if(!!qmark_err)
+                            if(qmark_err)
                             {
                                 return *qmark_err;
                             }
@@ -192,7 +192,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                             push_var(type->compound,make_compound_type(compound_type::arr_deduce_size));
                         
                             const auto sr_err = consume(parser,token_type::sr_brace);
-                            if(!!sr_err)
+                            if(sr_err)
                             {
                                 return *sr_err;
                             }
@@ -260,7 +260,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
     }
 
     const auto colon_err = consume(parser,token_type::colon);
-    if(!!colon_err)
+    if(colon_err)
     {
         return *colon_err;
     }
@@ -287,7 +287,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
         case token_type::equal:
         {
             const auto err = consume(parser,token_type::equal);
-            if(!!err)
+            if(err)
             {
                 return *err;
             }
@@ -349,7 +349,7 @@ ParserResult auto_decl(Parser &parser)
     }
 
     const auto err = consume(parser,token_type::decl);
-    if(!!err)
+    if(err)
     {
         return *err;
     }
@@ -452,7 +452,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                 if(match(parser,token_type::decl))
                 {
                     const auto err = consume(parser,token_type::decl);
-                    if(!!err)
+                    if(err)
                     {
                         return *err;
                     }
@@ -462,7 +462,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                 else
                 {
                     const auto err = consume(parser,token_type::equal);
-                    if(!!err)
+                    if(err)
                     {
                         return *err;
                     }
@@ -497,7 +497,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
 
                 tuple_node->func_call = (FuncCallNode*)*func_call_res;
                 const auto err = consume(parser,token_type::semi_colon);
-                if(!!err)
+                if(err)
                 {
                     return *err;
                 }
@@ -533,7 +533,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
             {
                 const auto slice_opt = try_parse_slice(parser,member_tok);
 
-                if(!!slice_opt)
+                if(slice_opt)
                 {
                     const auto slice = *slice_opt;
 
@@ -601,7 +601,7 @@ ParserResult array_index(Parser& parser,const Token& t)
 ParserResult arr_slice(Parser& parser,const Token& t)
 {
     const auto sl_err =consume(parser,token_type::sl_brace);
-    if(!!sl_err)
+    if(sl_err)
     {
         return *sl_err;
     }
@@ -671,7 +671,7 @@ ParserResult arr_access(Parser& parser, const Token& t)
 {
     const auto slice_opt = try_parse_slice(parser,t);
 
-    if(!!slice_opt)
+    if(slice_opt)
     {
         return *slice_opt;
     }

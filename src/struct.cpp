@@ -34,7 +34,7 @@ Option<itl_error> traverse_designated_initializer_list(Interloper& itl, Function
         addr_member.addr.offset += member.offset;
 
         const auto err = struct_list_write(itl,func,addr_member,member,init.expr);
-        if(!!err)
+        if(err)
         {
             destroy_bit_set(set);
             return err;
@@ -243,7 +243,7 @@ Option<itl_error> write_struct(Interloper& itl,Function& func, const TypedReg& s
     const auto dst_addr = *member_addr_res;
 
     const auto assign_err = check_assign(itl,dst_addr.type,src.type);
-    if(!!assign_err)
+    if(assign_err)
     {
         return *assign_err;
     }
@@ -280,7 +280,7 @@ TypeResult read_struct(Interloper& itl,Function& func, RegSlot dst_slot, AstNode
     }
 
     const auto load_err = do_addr_load(itl,func,dst_slot,src_addr);
-    if(!!load_err)
+    if(load_err)
     {
         return *load_err;
     }
@@ -324,7 +324,7 @@ Option<itl_error> traverse_struct_initializer(Interloper& itl, Function& func, R
         addr_member.addr.offset += member.offset;
 
         const auto err = struct_list_write(itl,func,addr_member,member,node->nodes[i]);
-        if(!!err)
+        if(err)
         {
             return err;
         }
@@ -388,7 +388,7 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
         {
             const auto nested_structure = struct_from_type(itl.struct_table,member.type);
             const auto decl_err = compile_struct_decl_default(itl,func,nested_structure,member_addr);
-            if(!!decl_err)
+            if(decl_err)
             {
                 return decl_err;
             }
@@ -397,7 +397,7 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
         else if(is_array(member.type))
         {
             const auto init_err = default_construct_arr(itl,func,(ArrayType*)member.type,member_addr);
-            if(!!init_err)
+            if(init_err)
             {
                 return init_err;
             }
@@ -414,7 +414,7 @@ Option<itl_error> compile_struct_decl_default(Interloper& itl, Function& func, c
             const RegSlot tmp = imm_zero(itl,func);
             const TypedAddr dst_addr = {member_addr,member.type};
             const auto store_err = do_addr_store(itl,func,tmp,dst_addr);
-            if(!!store_err)
+            if(store_err)
             {
                 return store_err;
             }

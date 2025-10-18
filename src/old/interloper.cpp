@@ -350,7 +350,7 @@ Option<itl_error> compile_decl(Interloper &itl,Function &func, AstNode *line, b3
         case type_class::array_t:
         {   
             const auto decl_err = compile_arr_decl(itl,func,decl_node,slot);
-            if(!!decl_err)
+            if(decl_err)
             {
                 return decl_err;
             }
@@ -360,7 +360,7 @@ Option<itl_error> compile_decl(Interloper &itl,Function &func, AstNode *line, b3
         case type_class::struct_t:
         {
             const auto struct_err = compile_struct_decl(itl,func,decl_node,slot);
-            if(!!struct_err)
+            if(struct_err)
             {
                 return struct_err;
             }
@@ -370,7 +370,7 @@ Option<itl_error> compile_decl(Interloper &itl,Function &func, AstNode *line, b3
         default:
         {
             const auto decl_err = compile_basic_decl(itl,func,decl_node,ltype,slot);
-            if(!!decl_err)
+            if(decl_err)
             {
                 return decl_err;
             }
@@ -472,7 +472,7 @@ Result<BlockSlot,itl_error> compile_basic_block(Interloper& itl, Function& func,
 {
     const BlockSlot block_slot = new_basic_block(itl,func);
     const auto block_err = compile_block(itl,func,block_node);
-    if(!!block_err)
+    if(block_err)
     {
         return *block_err;
     }
@@ -540,7 +540,7 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
                     }
 
                     const auto assign_err = check_assign_init(itl,func.sig.return_type[0],*rtype_res);
-                    if(!!assign_err)
+                    if(assign_err)
                     {
                         return *assign_err;
                     }
@@ -559,7 +559,7 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
                     }
 
                     const auto assign_err = check_assign_init(itl,func.sig.return_type[0],*rtype_res);
-                    if(!!assign_err)
+                    if(assign_err)
                     {
                         return assign_err;
                     }  
@@ -578,7 +578,7 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
                     }
 
                     const auto assign_err = check_assign_init(itl,func.sig.return_type[0],*rtype_res);
-                    if(!!assign_err)
+                    if(assign_err)
                     {
                         return *assign_err;
                     }  
@@ -607,14 +607,14 @@ Option<itl_error> compile_return(Interloper& itl, Function& func, AstNode* line)
 
                 // check each param
                 const auto assign_err = check_assign(itl,func.sig.return_type[r],src.type);
-                if(!!assign_err)
+                if(assign_err)
                 {
                     return *assign_err;
                 }
 
                 const TypedReg ptr = {make_sym_reg_slot(func.sig.args[r]),func.sig.return_type[r]};
                 const auto store_err = do_ptr_store(itl,func,src.slot,ptr);
-                if(!!store_err)
+                if(store_err)
                 {
                     return *store_err;
                 }
@@ -673,7 +673,7 @@ Option<itl_error> compile_globals(Interloper& itl)
         auto context_guard = switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
         
         const auto decl_err = compile_decl(itl,func,(AstNode*)decl_node->decl,true);
-        if(!!decl_err)
+        if(decl_err)
         {
             return decl_err;
         }
@@ -693,7 +693,7 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     if(itl.rtti_enable)
     {
         const auto cache_err = cache_rtti_structs(itl);
-        if(!!cache_err)
+        if(cache_err)
         {
             return cache_err;
         }
@@ -707,25 +707,25 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     }
 
     const auto main_err = check_startup_func(itl,"main",itl.global_namespace);
-    if(!!main_err)
+    if(main_err)
     {
         return main_err;
     }
 
     const auto start_err = check_startup_func(itl,"start",itl.global_namespace);
-    if(!!start_err)
+    if(start_err)
     {
         return start_err;
     }
 
     const auto memcpy_err = check_startup_func(itl,"memcpy",itl.std_name_space);
-    if(!!memcpy_err)
+    if(memcpy_err)
     {
         return memcpy_err;
     }
     
     const auto zero_err = check_startup_func(itl,"zero_mem",itl.std_name_space);
-    if(!!zero_err)
+    if(zero_err)
     {
         return zero_err;
     }
@@ -797,7 +797,7 @@ Option<itl_error> code_generation(Interloper& itl)
     auto start = std::chrono::high_resolution_clock::now();
 
     const auto start_err = check_startup_defs(itl);
-    if(!!start_err)
+    if(start_err)
     {
         destroy_itl(itl);
         return start_err;
@@ -807,14 +807,14 @@ Option<itl_error> code_generation(Interloper& itl)
 
     // compile all our constant values 
     const auto const_err = compile_constants(itl);
-    if(!!const_err)
+    if(const_err)
     {
         destroy_itl(itl);
         return const_err;
     }
 
     const auto global_err = compile_globals(itl);
-    if(!!global_err)
+    if(global_err)
     {
         destroy_itl(itl);
         return global_err;      
@@ -827,7 +827,7 @@ Option<itl_error> code_generation(Interloper& itl)
     // how do we want to handle getting to the entry point / address allocation?
     // do we want a "label" for each function? 
     const auto func_err = compile_functions(itl);
-    if(!!func_err)
+    if(func_err)
     {
         destroy_itl(itl);
         return func_err;

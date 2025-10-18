@@ -110,14 +110,14 @@ builtin_type builtin_type_from_tok(const Token& tok)
 ParserResult const_assert(Parser& parser,const Token& t)
 {
     const auto left_paren_err = consume(parser,token_type::left_paren);
-    if(!!left_paren_err)
+    if(left_paren_err)
     {
         return *left_paren_err;
     }
 
     const auto expr = expr_terminate(parser,"const_assert",token_type::right_paren);
     const auto right_paren_err = consume(parser,token_type::semi_colon);
-    if(!!right_paren_err)
+    if(right_paren_err)
     {
         return *right_paren_err;
     }
@@ -167,7 +167,7 @@ ParserResult parse_ret(Parser& parser, const Token& t)
     else
     {
         const auto term_err = consume(parser,token_type::semi_colon);
-        if(!!term_err)
+        if(term_err)
         {
             return *term_err;
         }
@@ -407,7 +407,7 @@ Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
     u32 flags = 0;
 
     const auto left_paren_err = consume(parser,token_type::left_paren);
-    if(!!left_paren_err)
+    if(left_paren_err)
     {
         return *left_paren_err;
     }
@@ -443,7 +443,7 @@ Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
     }
 
     const auto right_paren_err = consume(parser,token_type::right_paren);
-    if(!!right_paren_err)
+    if(right_paren_err)
     {
         return *right_paren_err;
     }
@@ -484,7 +484,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 (void)consume(parser,token_type::struct_t);
                 
                 const auto struct_decl_err = struct_decl(itl,parser,flags);
-                if(!!struct_decl_err)
+                if(struct_decl_err)
                 {
                     return struct_decl_err;
                 }
@@ -496,7 +496,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 (void)consume(parser,token_type::enum_t);
 
                 const auto enum_decl_err = enum_decl(itl,parser,flags);
-                if(!!enum_decl_err)
+                if(enum_decl_err)
                 {
                     return enum_decl_err;
                 } 
@@ -508,7 +508,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 (void)consume(parser,token_type::func);
 
                 const auto func_err = func_decl(itl,parser,flags);
-                if(!!func_err)
+                if(func_err)
                 {
                     return func_err;
                 }
@@ -551,7 +551,7 @@ Result<Array<String>,parse_error> split_namespace_internal(Parser& parser, const
         if(match(parser,token_type::scope))
         {
             const auto scope_err = consume(parser,token_type::scope);
-            if(!!scope_err)
+            if(scope_err)
             {
                 destroy_arr(name_space);
                 return *scope_err;
@@ -604,7 +604,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
             if(match(parser,token_type::logical_lt))
             {
                 const auto lt_err = consume(parser,token_type::logical_lt);
-                if(!!lt_err)
+                if(lt_err)
                 {
                     return lt_err;
                 }
@@ -619,7 +619,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
                 const auto name_tok = next_token(parser);
 
                 const auto gt_err = consume(parser,token_type::logical_gt);
-                if(!!gt_err)
+                if(gt_err)
                 {
                     return gt_err;
                 }
@@ -652,7 +652,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         case token_type::func:
         {
             const auto func_err = func_decl(itl,parser,0);
-            if(!!func_err)
+            if(func_err)
             {
                 return func_err;
             }
@@ -662,7 +662,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         case token_type::struct_t:
         {
             const auto struct_err = struct_decl(itl,parser);
-            if(!!struct_err)
+            if(struct_err)
             {
                 return struct_err;
             }
@@ -672,7 +672,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         case token_type::enum_t:
         {
             const auto enum_err = enum_decl(itl,parser,0);
-            if(!!enum_err)
+            if(enum_err)
             {
                 return enum_err;
             }
@@ -682,7 +682,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         case token_type::type_alias:
         {
             const auto type_err = type_alias(itl,parser);
-            if(!!type_err)
+            if(type_err)
             {
                 return type_err;
             }
@@ -796,14 +796,14 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
         if(match(parser,token_type::hash))
         {
             const auto hash_err = consume(parser,token_type::hash);
-            if(!!hash_err)
+            if(hash_err)
             {
                 destroy_parser(parser);
                 return hash_err;
             }
 
             const auto directive_err = parse_directive(itl,parser);
-            if(!!directive_err)
+            if(directive_err)
             {
                 destroy_parser(parser);
                 return directive_err;
@@ -814,7 +814,7 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
         else
         {
             const auto parse_err = parse_top_level_token(itl,parser,queue);
-            if(!!parse_err)
+            if(parse_err)
             {
                 destroy_parser(parser);
                 return parse_err;
@@ -881,7 +881,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 
         destroy_arr(file);
 
-        if(!!err)
+        if(err)
         {
             break;
         }
@@ -1385,7 +1385,7 @@ void print_internal(const AstNode *root, int depth)
                 print_block(switch_case.block, depth + 2);
             }
 
-            if(!!switch_node->default_statement)
+            if(switch_node->default_statement)
             {
                 const auto& default_case = *switch_node->default_statement;
                 print_internal(default_case.statement, depth + 2);

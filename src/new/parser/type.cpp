@@ -22,7 +22,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
     if(token.type == token_type::symbol)
     {
         const auto eq_res = consume(parser,token_type::equal);
-        if(!!eq_res)
+        if(eq_res)
         {
             return *eq_res;
         }
@@ -38,7 +38,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
 
         const String& name = token.literal;
 
-        if(!!check_redeclaration(itl,parser.cur_namespace,name,"type alias"))
+        if(check_redeclaration(itl,parser.cur_namespace,name,"type alias"))
         {
             return parse_error::itl_error;
         }
@@ -46,7 +46,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
         AstNode* alias_node = ast_alias(parser,rtype,name,parser.cur_file,token);
     
         const auto term_err = consume(parser,token_type::semi_colon);
-        if(!!term_err)
+        if(term_err)
         {
             return *term_err;
         }
@@ -73,7 +73,7 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
         return parser_error(parser,parse_error::unexpected_token,name,"expected name after struct decl got %s\n",tok_name(name.type));
     }
 
-    if(!!check_redeclaration(itl,parser.cur_namespace,name.literal,"struct"))
+    if(check_redeclaration(itl,parser.cur_namespace,name.literal,"struct"))
     {
         return parse_error::itl_error;
     }
@@ -96,7 +96,7 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
     }
 
     const auto left_c_brace_err = consume(parser,token_type::left_c_brace);
-    if(!!left_c_brace_err)
+    if(left_c_brace_err)
     {
         return *left_c_brace_err;
     }
@@ -138,7 +138,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
     }
 
     const auto redecl_err = check_redeclaration(itl,parser.cur_namespace,name_tok.literal,"enum");
-    if(!!redecl_err)
+    if(redecl_err)
     {
         return parse_error::itl_error;
     }
@@ -164,7 +164,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
     }
 
     const auto left_c_brace_err = consume(parser,token_type::left_c_brace);
-    if(!!left_c_brace_err)
+    if(left_c_brace_err)
     {
         return *left_c_brace_err;
     }
@@ -204,7 +204,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
         else
         {
             const auto comma_err = consume(parser,token_type::comma);
-            if(!!comma_err)
+            if(comma_err)
             {
                 return *comma_err;
             }
