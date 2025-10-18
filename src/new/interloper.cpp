@@ -101,14 +101,14 @@ void print_ast(Interloper& itl)
     // print type defs
     for(u32 t = 0; t < count(itl.type_decl); t++)
     {
-        print(itl.type_decl[t]);
+        print(itl, itl.type_decl[t]);
     }
 
     // print function defs
     for(u32 f = 0; f < count(itl.func_table.table); f++)
     {
         auto& func = itl.func_table.table[f];
-        print((AstNode*)func.root);    
+        print(itl, (AstNode*)func.root);    
     }    
 }
 

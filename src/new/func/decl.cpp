@@ -1,4 +1,5 @@
 void print_func_decl(Interloper& itl,const Function &func);
+Option<itl_error> type_check_block(Interloper& itl, AstBlock &block);
 
 FunctionTable make_func_table()
 {
@@ -41,54 +42,66 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNo
 
 Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
 {
-    // havent finalised this func
-    if(!func_def.func)
+    // have finalised this func
+    if(func_def.func)
     {
-        Function func;
-        func.name = func_def.name;
-        func.root = func_def.root;
-        func.name_space = func_def.name_space;
+        return func_def.func;
+    }
 
-        // parse in function signature on demand
-        if(func.root)
+    Function func;
+    func.name = func_def.name;
+    func.root = func_def.root;
+    func.name_space = func_def.name_space;
+
+    // parse in function signature on demand
+    if(func.root)
+    {
+        if(parse_sig)
         {
-            if(parse_sig)
+            const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
+            if(sig_err)
             {
-                const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
-                if(sig_err)
-                {
-                    return *sig_err;
-                }
+                return *sig_err;
             }
-
-            if(func_def.root)
-            {
-                func.sig.attr_flags = func_def.root->attr_flags;
-            }
-
         }
 
-        // dummy func creation
-        else
+        if(func_def.root)
         {
-            push_var(func.sig.return_type,make_builtin(itl,builtin_type::void_t));
-
-            // create a dummy basic block
-            new_basic_block(itl,func);
+            func.sig.attr_flags = func_def.root->attr_flags;
         }
 
-        // add as a label as it this will be need to referenced by call instrs
-        // in the ir to get the name back
-        func.label_slot = add_label(itl.symbol_table,func.name);
+    }
 
-        // write back the slot
-        func_def.func = (Function*)allocate(itl.func_table.arena,sizeof(Function));
+    // dummy func creation
+    else
+    {
+        push_var(func.sig.return_type,make_builtin(itl,builtin_type::void_t));
 
-        // add the actual func
-        *func_def.func = func;
+        // create a dummy basic block
+        new_basic_block(itl,func);
+    }
 
-        // mark it used
-        push_var(itl.func_table.used,func_def.func);
+    // add as a label as it this will be need to referenced by call instrs
+    // in the ir to get the name back
+    func.label_slot = add_label(itl.symbol_table,func.name);
+
+    // write back the slot
+    func_def.func = (Function*)allocate(itl.func_table.arena,sizeof(Function));
+
+    // add the actual func
+    *func_def.func = func;
+
+    // mark it used
+    push_var(itl.func_table.used,func_def.func);
+
+    if(func.root)
+    {
+        const auto block_err = type_check_block(itl,func.root->block);
+
+        if(block_err)
+        {
+            return *block_err;
+        }
     }
 
     return func_def.func;   

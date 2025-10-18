@@ -119,9 +119,6 @@ struct [[nodiscard]] FileContextGuard
     Interloper& itl;
 };
 
-
-void print(const AstNode *root);
-
 inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
 {
     itl.error_count += 1;

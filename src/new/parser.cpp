@@ -903,41 +903,41 @@ void print_depth(int depth)
     printf(" %d ",depth);    
 }
 
-void print_internal(const AstNode *root, int depth);
+void print_internal(Interloper& itl, const AstNode *root, int depth);
 
 template<typename T>
-void print_bin_oper(const ExprBinOperNode<T>* bin,const char* NAMES[], int depth)
+void print_bin_oper(Interloper& itl, const ExprBinOperNode<T>* bin,const char* NAMES[], int depth)
 {
     printf("%s\n",NAMES[u32(bin->oper)]);
 
-    print_internal(bin->left,depth + 1);
-    print_internal(bin->right,depth + 1);
+    print_internal(itl,bin->left,depth + 1);
+    print_internal(itl,bin->right,depth + 1);
 }
 
 template<ast_type type>
-void print_unary(UnaryNode<type>* unary, const char* name, int depth)
+void print_unary(Interloper& itl, UnaryNode<type>* unary, const char* name, int depth)
 {
     printf("%s",name);
-    print_internal(unary->expr,depth + 1);
+    print_internal(itl,unary->expr,depth + 1);
 }
 
-void print_block(const AstBlock& block, int depth)
+void print_block(Interloper& itl,const AstBlock& block, int depth)
 {
     for(AstNode* node : block.statement)
     {
-        print_internal(node, depth + 1);
+        print_internal(itl,node, depth + 1);
     }
 }
 
-void print_if_stmt(const IfStmt& stmt, const char* name, int depth)
+void print_if_stmt(Interloper& itl,const IfStmt& stmt, const char* name, int depth)
 {
     print_depth(depth + 1);
     printf("%s\n",name);
-    print_internal(stmt.expr, depth + 2);
-    print_block(stmt.block, depth + 2);
+    print_internal(itl,stmt.expr, depth + 2);
+    print_block(itl,stmt.block, depth + 2);
 }
 
-void print_internal(const AstNode *root, int depth)
+void print_internal(Interloper& itl,const AstNode *root, int depth)
 {
     if(!root)
     {
@@ -961,33 +961,33 @@ void print_internal(const AstNode *root, int depth)
             printf("%s\n",AST_NAMES[u32(root->type)]);
 
             auto equal = (EqualNode*)root;
-            print_internal(equal->left,depth + 1);
-            print_internal(equal->right,depth + 1);
+            print_internal(itl,equal->left,depth + 1);
+            print_internal(itl,equal->right,depth + 1);
             break;
         }
 
         case ast_type::arith_bin:
         {
-            print_bin_oper((ArithBinNode*)root,ARITH_BIN_NAMES,depth);
+            print_bin_oper(itl,(ArithBinNode*)root,ARITH_BIN_NAMES,depth);
             break;
         }
 
         case ast_type::shift:
         {
-            print_bin_oper((ShiftNode*)root,SHIFT_NAMES,depth);
+            print_bin_oper(itl,(ShiftNode*)root,SHIFT_NAMES,depth);
             break;    
         }
 
 
         case ast_type::comparison:
         {
-            print_bin_oper((CmpNode*)root,COMPARISON_NAMES,depth);
+            print_bin_oper(itl,(CmpNode*)root,COMPARISON_NAMES,depth);
             break;
         }
 
         case ast_type::boolean_logic:
         {
-            print_bin_oper((BooleanLogicNode*)root,BOOLEAN_LOGIC_NAMES,depth);
+            print_bin_oper(itl,(BooleanLogicNode*)root,BOOLEAN_LOGIC_NAMES,depth);
             break;
         }
 
@@ -1013,7 +1013,7 @@ void print_internal(const AstNode *root, int depth)
             ArithUnaryNode* unary = (ArithUnaryNode*)root;
 
             printf("%s\n",ARITH_UNARY_NAMES[u32(unary->oper)]);
-            print_internal(unary->expr,depth + 1);
+            print_internal(itl,unary->expr,depth + 1);
             break;
         }
 
@@ -1022,7 +1022,7 @@ void print_internal(const AstNode *root, int depth)
             TypeOperatorNode* type = (TypeOperatorNode*)root;
 
             printf("Type operator %s\n",TYPE_OPER_NAMES[u32(type->oper)]);
-            print_internal((AstNode*)type->type,depth + 1);
+            print_internal(itl,(AstNode*)type->type,depth + 1);
             break;
         }
 
@@ -1030,8 +1030,8 @@ void print_internal(const AstNode *root, int depth)
         {
             CastNode* cast = (CastNode*)root;
             printf("Cast\n");
-            print_internal((AstNode*)cast->type, depth + 1);
-            print_internal(cast->expr, depth + 1);
+            print_internal(itl,(AstNode*)cast->type, depth + 1);
+            print_internal(itl,cast->expr, depth + 1);
 
             break;
         }
@@ -1051,7 +1051,7 @@ void print_internal(const AstNode *root, int depth)
             for(const auto& initializer: list->initializer)
             {
                 print_depth(depth + 1);
-                print_internal(initializer.expr, depth + 2);
+                print_internal(itl,initializer.expr, depth + 2);
             }
 
             break;
@@ -1070,13 +1070,13 @@ void print_internal(const AstNode *root, int depth)
 
             printf("%s\n",initializer->struct_name.buf);
 
-            print_internal(initializer->initializer, depth + 1);
+            print_internal(itl,initializer->initializer, depth + 1);
             break;
         }
 
         case ast_type::sizeof_t:
         {
-            print_unary((SizeOfNode*)root,"sizeof",depth);
+            print_unary(itl,(SizeOfNode*)root,"sizeof",depth);
             break;
         }
 
@@ -1114,13 +1114,13 @@ void print_internal(const AstNode *root, int depth)
 
         case ast_type::deref:
         {
-            print_unary((DerefNode*)root,"deref",depth);
+            print_unary(itl,(DerefNode*)root,"deref",depth);
             break;
         }
 
         case ast_type::addrof:
         {
-            print_unary((AddrOfNode*)root,"addrof",depth);
+            print_unary(itl,(AddrOfNode*)root,"addrof",depth);
             break;
         }
 
@@ -1138,7 +1138,7 @@ void print_internal(const AstNode *root, int depth)
             printf("Initializer list\n");
             for(AstNode* init : list->list)
             {
-                print_internal(init, depth + 1);
+                print_internal(itl,init, depth + 1);
             }
         
             break;
@@ -1148,7 +1148,7 @@ void print_internal(const AstNode *root, int depth)
         {
             BlockNode* block = (BlockNode*)root;
             printf("Block\n");
-            print_block(block->block, depth);
+            print_block(itl,block->block, depth);
             break;
         }
 
@@ -1160,7 +1160,8 @@ void print_internal(const AstNode *root, int depth)
                 printf("%s::",type->name_space->full_name.buf);
             }
 
-            printf("%stype %s\n",type->is_const? "const " : "",type->name.buf);
+            // TODO: I think we need a custom printing function at this point.
+            printf("%stype %s (%s)\n",type->is_const? "const " : "",type->name.buf,type_name(itl,type->node.expr_type).buf);
 
             for(const auto& compound : type->compound)
             {
@@ -1168,13 +1169,13 @@ void print_internal(const AstNode *root, int depth)
                 printf("Compound: %s\n",COMPOUND_TYPE_NAMES[u32(compound.type)]);
                 if(compound.type == compound_type::arr_fixed_size)
                 {
-                    print_internal(compound.array_size, depth + 2);
+                    print_internal(itl,compound.array_size, depth + 2);
                 }
             }
 
             if(type->func_type)
             {
-                print_internal((AstNode*)type->func_type,depth + 1);
+                print_internal(itl,(AstNode*)type->func_type,depth + 1);
             }
             break;
         }
@@ -1183,7 +1184,7 @@ void print_internal(const AstNode *root, int depth)
         {
             AliasNode* alias = (AliasNode*)root;
             printf("Type alias %s\n",alias->name.buf);
-            print_internal((AstNode*)alias->type, depth + 1);
+            print_internal(itl,(AstNode*)alias->type, depth + 1);
             break;
         }
 
@@ -1194,12 +1195,12 @@ void print_internal(const AstNode *root, int depth)
 
             for(DeclNode* member : struct_node->members)
             {
-                print_internal((AstNode*)member, depth + 1);
+                print_internal(itl,(AstNode*)member, depth + 1);
             }
 
             if(struct_node->forced_first)
             {
-                print_internal((AstNode*)struct_node->forced_first, depth + 1);
+                print_internal(itl,(AstNode*)struct_node->forced_first, depth + 1);
             }
 
             break;
@@ -1216,13 +1217,13 @@ void print_internal(const AstNode *root, int depth)
                 printf("Member %s\n",member.name.buf);
                 if(member.initializer)
                 {
-                    print_internal(member.initializer, depth + 2);
+                    print_internal(itl,member.initializer, depth + 2);
                 }
             }
 
             if(enum_node->type)
             {
-                print_internal((AstNode*)enum_node->type, depth + 1);
+                print_internal(itl,(AstNode*)enum_node->type, depth + 1);
             }
 
             break;
@@ -1233,11 +1234,11 @@ void print_internal(const AstNode *root, int depth)
             DeclNode* decl = (DeclNode*)root;
             printf("%sDecl %s\n",decl->is_const? "const ": "",decl->name.buf);
             
-            print_internal((AstNode*)decl->type, depth + 1);
+            print_internal(itl,(AstNode*)decl->type, depth + 1);
 
             if(decl->expr)
             {
-                print_internal(decl->expr, depth + 1);
+                print_internal(itl,decl->expr, depth + 1);
             }
             break;
         }
@@ -1256,7 +1257,7 @@ void print_internal(const AstNode *root, int depth)
                 printf("Global decl\n");
             }
 
-            print_internal((AstNode*)global_decl->decl, depth + 1);
+            print_internal(itl,(AstNode*)global_decl->decl, depth + 1);
             break;
         }
 
@@ -1264,7 +1265,7 @@ void print_internal(const AstNode *root, int depth)
         {
             AutoDeclNode* auto_decl = (AutoDeclNode*)root;
             printf("Auto decl %s\n",auto_decl->name.buf);
-            print_internal(auto_decl->expr, depth + 1);
+            print_internal(itl,auto_decl->expr, depth + 1);
             break;
         }
 
@@ -1272,11 +1273,11 @@ void print_internal(const AstNode *root, int depth)
         {
             FuncCallNode* func_call = (FuncCallNode*)root;
             printf("Function call\n");
-            print_internal(func_call->expr, depth + 1);
+            print_internal(itl,func_call->expr, depth + 1);
             
             for(AstNode* arg : func_call->args)
             {
-                print_internal(arg, depth + 2);
+                print_internal(itl,arg, depth + 2);
             }
 
             break;
@@ -1286,11 +1287,11 @@ void print_internal(const AstNode *root, int depth)
         {
             TupleAssignNode* tuple = (TupleAssignNode*)root;
             printf("Tuple assign %s\n",tuple->auto_decl? "auto" : "");
-            print_internal((AstNode*)tuple->func_call, depth + 1);
+            print_internal(itl,(AstNode*)tuple->func_call, depth + 1);
             
             for(AstNode* sym : tuple->symbols)
             {
-                print_internal(sym, depth + 1);
+                print_internal(itl,sym, depth + 1);
             }
 
             break;
@@ -1301,11 +1302,11 @@ void print_internal(const AstNode *root, int depth)
             StructAccessNode* struct_access = (StructAccessNode*)root;
             printf("Struct access\n");
 
-            print_internal(struct_access->expr, depth + 1);
+            print_internal(itl,struct_access->expr, depth + 1);
 
             for(AstNode* member : struct_access->members)
             {
-                print_internal(member, depth + 2);
+                print_internal(itl,member, depth + 2);
             }
 
             break;
@@ -1326,7 +1327,7 @@ void print_internal(const AstNode *root, int depth)
 
             for(AstNode* index : index_node->indexes)
             {
-                print_internal(index, depth + 1);
+                print_internal(itl,index, depth + 1);
             }
 
             break;
@@ -1340,12 +1341,12 @@ void print_internal(const AstNode *root, int depth)
 
             if(slice->lower)
             {
-                print_internal(slice->lower, depth + 1);
+                print_internal(itl,slice->lower, depth + 1);
             }
 
             if(slice->upper)
             {
-                print_internal(slice->upper, depth + 1);
+                print_internal(itl,slice->upper, depth + 1);
             }
 
             break;
@@ -1356,11 +1357,11 @@ void print_internal(const AstNode *root, int depth)
             printf("For iter\n");
             ForIterNode* for_iter = (ForIterNode*)root;
 
-            print_internal(for_iter->initializer, depth + 1);
-            print_internal(for_iter->cond, depth + 1);
-            print_internal(for_iter->post, depth + 1);
+            print_internal(itl,for_iter->initializer, depth + 1);
+            print_internal(itl,for_iter->cond, depth + 1);
+            print_internal(itl,for_iter->post, depth + 1);
 
-            print_block(for_iter->block, depth + 2);
+            print_block(itl,for_iter->block, depth + 2);
             break;
         }
 
@@ -1368,7 +1369,7 @@ void print_internal(const AstNode *root, int depth)
         {
             ForRangeNode* for_range = (ForRangeNode*)root;
             printf("For [%s%s : %s]\n",for_range->take_pointer? "@" : "",for_range->name_one.buf,for_range->name_two.buf);
-            print_block(for_range->block, depth + 1);
+            print_block(itl,for_range->block, depth + 1);
             break;
         }
 
@@ -1377,19 +1378,19 @@ void print_internal(const AstNode *root, int depth)
             SwitchNode* switch_node = (SwitchNode*)root;
             printf("Switch\n");
 
-            print_internal(switch_node->expr, depth + 1);
+            print_internal(itl,switch_node->expr, depth + 1);
 
             for(const auto& switch_case : switch_node->statements)
             {
-                print_internal(switch_case.statement, depth + 2);
-                print_block(switch_case.block, depth + 2);
+                print_internal(itl,switch_case.statement, depth + 2);
+                print_block(itl,switch_case.block, depth + 2);
             }
 
             if(switch_node->default_statement)
             {
                 const auto& default_case = *switch_node->default_statement;
-                print_internal(default_case.statement, depth + 2);
-                print_block(default_case.block, depth + 2);
+                print_internal(itl,default_case.statement, depth + 2);
+                print_block(itl,default_case.block, depth + 2);
             }
 
             break;
@@ -1401,16 +1402,16 @@ void print_internal(const AstNode *root, int depth)
             IfNode* if_node = (IfNode*)root;
             printf("If stmt\n");
 
-            print_if_stmt(if_node->if_stmt,"If", depth);
+            print_if_stmt(itl,if_node->if_stmt,"If", depth);
 
             for(auto& else_if_stmt : if_node->else_if_stmt)
             {
-                print_if_stmt(else_if_stmt, "Else if", depth);
+                print_if_stmt(itl,else_if_stmt, "Else if", depth);
             }
 
             print_depth(depth + 1);
             printf("Else\n");
-            print_block(if_node->else_stmt, depth + 2);
+            print_block(itl,if_node->else_stmt, depth + 2);
 
             break;
         }
@@ -1420,14 +1421,14 @@ void print_internal(const AstNode *root, int depth)
             WhileNode* while_node = (WhileNode*)root;
 
             printf("While\n");
-            print_internal(while_node->expr, depth + 1);
-            print_block(while_node->block, depth + 2);
+            print_internal(itl,while_node->expr, depth + 1);
+            print_block(itl,while_node->block, depth + 2);
             break;
         }
 
         case ast_type::const_assert:
         {
-            print_unary((ConstAssert*)root,"Const assert", depth);
+            print_unary(itl,(ConstAssert*)root,"Const assert", depth);
             break;
         }
 
@@ -1439,14 +1440,14 @@ void print_internal(const AstNode *root, int depth)
 
             for(DeclNode* decl : func->args)
             {
-                print_internal((AstNode*)decl, depth + 1);
+                print_internal(itl,(AstNode*)decl, depth + 1);
             }
 
-            print_block(func->block, depth + 2);
+            print_block(itl,func->block, depth + 2);
 
             for(TypeNode* type : func->return_type)
             {
-                print_internal((AstNode*)type, depth + 1);
+                print_internal(itl,(AstNode*)type, depth + 1);
             }
 
             break;
@@ -1459,7 +1460,7 @@ void print_internal(const AstNode *root, int depth)
 
             for(AstNode* expr : ret->expr)
             {
-                print_internal(expr, depth + 1);
+                print_internal(itl,expr, depth + 1);
             }
             break;
         }
@@ -1467,9 +1468,9 @@ void print_internal(const AstNode *root, int depth)
     }
 }
 
-void print(const AstNode *root)
+void print(Interloper& itl, const AstNode *root)
 {
-    print_internal(root,0);
+    print_internal(itl,root,0);
 }
 
 

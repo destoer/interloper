@@ -101,6 +101,7 @@ inline const char *AST_NAMES[] =
 
 struct AstNode
 {
+    Type* expr_type = nullptr;
     ast_type type;
     u32 idx;
 };

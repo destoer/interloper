@@ -168,8 +168,13 @@ b32 def_has_indirection(const TypeNode *type_decl)
 }
 
 
-TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
+TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
+    if(type_decl->node.expr_type)
+    {
+        return type_decl->node.expr_type;
+    }
+
     Type* type = nullptr;
 
     // override that makes entire type constant
@@ -368,12 +373,12 @@ TypeResult get_type(Interloper& itl, const TypeNode* type_decl,u32 struct_idx_ov
         }
     }
 
-
+    type_decl->node.expr_type = type;
     return type;
 }
 
 // get back a type that does not need further deduction i.e no size deduction
-TypeResult get_complete_type(Interloper& itl, const TypeNode* type_decl)
+TypeResult get_complete_type(Interloper& itl, TypeNode* type_decl)
 {
     return get_type(itl,type_decl,INVALID_TYPE,true);
 }
