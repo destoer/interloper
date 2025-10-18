@@ -929,6 +929,14 @@ void print_block(const AstBlock& block, int depth)
     }
 }
 
+void print_if_stmt(const IfStmt& stmt, const char* name, int depth)
+{
+    print_depth(depth + 1);
+    printf("%s\n",name);
+    print_internal(stmt.expr, depth + 2);
+    print_block(stmt.block, depth + 2);
+}
+
 void print_internal(const AstNode *root, int depth)
 {
     if(!root)
@@ -1211,12 +1219,245 @@ void print_internal(const AstNode *root, int depth)
 
             break;
         }
+
+        case ast_type::decl:
+        {
+            DeclNode* decl = (DeclNode*)root;
+            printf("%sDecl %s",decl->is_const? "const ": "",decl->name.buf);
+            print_internal((AstNode*)decl->type, depth + 1);
+            print_internal(decl->expr, depth + 1);
+            break;
+        }
+
+        case ast_type::global_decl:
+        {
+            GlobalDeclNode* global_decl = (GlobalDeclNode*)root;
+
+            if(global_decl->name_space)
+            {
+                printf("Global decl %s\n",global_decl->name_space->full_name.buf);
+            }
+
+            else
+            {
+                printf("Global decl");
+            }
+
+            print_internal((AstNode*)global_decl->decl, depth + 1);
+            break;
+        }
+
+        case ast_type::auto_decl:
+        {
+            AutoDeclNode* auto_decl = (AutoDeclNode*)root;
+            printf("Auto decl %s\n",auto_decl->name.buf);
+            print_internal(auto_decl->expr, depth + 1);
+            break;
+        }
+
+        case ast_type::function_call:
+        {
+            FuncCallNode* func_call = (FuncCallNode*)root;
+            printf("Function call\n");
+            print_internal(func_call->expr, depth + 1);
+            
+            for(AstNode* arg : func_call->args)
+            {
+                print_internal(arg, depth + 1);
+            }
+
+            break;
+        }
+
+        case ast_type::tuple_assign:
+        {
+            TupleAssignNode* tuple = (TupleAssignNode*)root;
+            printf("Tuple assign %s\n",tuple->auto_decl? "auto" : "");
+            print_internal((AstNode*)tuple->func_call, depth + 1);
+            
+            for(AstNode* sym : tuple->symbols)
+            {
+                print_internal(sym, depth + 1);
+            }
+
+            break;
+        }
+
+        case ast_type::struct_access:
+        {
+            StructAccessNode* struct_access = (StructAccessNode*)root;
+            printf("Struct access\n");
+
+            print_internal(struct_access->expr, depth + 1);
+
+            for(AstNode* member : struct_access->members)
+            {
+                print_internal(member, depth + 2);
+            }
+
+            break;
+        }
+
+        case ast_type::access_member:
+        {
+            AccessMemberNode* access_member = (AccessMemberNode*)root;
+            printf("Access member %s\n",access_member->name.buf);
+            break;
+        }
+
+        case ast_type::index:
+        {
+            IndexNode* index_node = (IndexNode*)root;
+
+            printf("Index %s\n",index_node->name.buf);
+
+            for(AstNode* index : index_node->indexes)
+            {
+                print_internal(index, depth + 1);
+            }
+
+            break;
+        }
+
+        case ast_type::slice:
+        {
+            SliceNode* slice = (SliceNode*)root;
+
+            printf("Slice %s\n",slice->name.buf);
+
+            if(slice->lower)
+            {
+                print_internal(slice->lower, depth + 1);
+            }
+
+            if(slice->upper)
+            {
+                print_internal(slice->upper, depth + 1);
+            }
+
+            break;
+        }
+
+        case ast_type::for_iter:
+        {
+            printf("For iter\n");
+            ForIterNode* for_iter = (ForIterNode*)root;
+
+            print_internal(for_iter->initializer, depth + 1);
+            print_internal(for_iter->cond, depth + 1);
+            print_internal(for_iter->post, depth + 1);
+
+            print_block(for_iter->block, depth + 2);
+            break;
+        }
+
+        case ast_type::for_range:
+        {
+            ForRangeNode* for_range = (ForRangeNode*)root;
+            printf("For [%s%s : %s]\n",for_range->take_pointer? "@" : "",for_range->name_one.buf,for_range->name_two.buf);
+            print_block(for_range->block, depth + 1);
+            break;
+        }
+
+        case ast_type::switch_t:
+        {
+            SwitchNode* switch_node = (SwitchNode*)root;
+            printf("Switch\n");
+
+            print_internal(switch_node->expr, depth + 1);
+
+            for(const auto& switch_case : switch_node->statements)
+            {
+                print_internal(switch_case.statement, depth + 2);
+                print_block(switch_case.block, depth + 2);
+            }
+
+            if(!!switch_node->default_statement)
+            {
+                const auto& default_case = *switch_node->default_statement;
+                print_internal(default_case.statement, depth + 2);
+                print_block(default_case.block, depth + 2);
+            }
+
+            break;
+        }
+
+
+        case ast_type::if_t:
+        {
+            IfNode* if_node = (IfNode*)root;
+            printf("If stmt\n");
+
+            print_if_stmt(if_node->if_stmt,"If", depth);
+
+            for(auto& else_if_stmt : if_node->else_if_stmt)
+            {
+                print_if_stmt(else_if_stmt, "Else if", depth);
+            }
+
+            print_depth(depth + 1);
+            printf("Else\n");
+            print_block(if_node->else_stmt, depth + 2);
+
+            break;
+        }
+
+        case ast_type::while_t:
+        {
+            WhileNode* while_node = (WhileNode*)root;
+
+            printf("While\n");
+            print_internal(while_node->expr, depth + 1);
+            print_block(while_node->block, depth + 2);
+            break;
+        }
+
+        case ast_type::const_assert:
+        {
+            print_unary((ConstAssert*)root,"Const assert", depth);
+            break;
+        }
+
+        case ast_type::function:
+        {
+            FuncNode* func = (FuncNode*)root;
+
+            printf("Function %s %x\n",func->name.buf,func->attr_flags);
+            printf("Va args: %s %s",func->va_args? "true" : "false",func->args_name.buf);
+
+            for(DeclNode* decl : func->args)
+            {
+                print_internal((AstNode*)decl, depth + 1);
+            }
+
+            print_block(func->block, depth + 2);
+
+            for(TypeNode* type : func->return_type)
+            {
+                print_internal((AstNode*)type, depth + 1);
+            }
+
+            break;
+        }
+
+        case ast_type::ret:
+        {
+            RetNode* ret = (RetNode*)root;
+            printf("Ret\n");
+
+            for(AstNode* expr : ret->expr)
+            {
+                print_internal(expr, depth + 1);
+            }
+            break;
+        }
+
     }
 }
 
 void print(const AstNode *root)
 {
-    print_internal(root,false,0);
+    print_internal(root,0);
 }
 
 
