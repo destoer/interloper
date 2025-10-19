@@ -140,11 +140,6 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 
     itl.parsing_time = std::chrono::duration<double, std::milli>(end-start).count();
 
-    if(itl.print_ast)
-    {
-        print_ast(itl);
-    }
-
     return option::none;
 }
 
@@ -186,10 +181,20 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     const auto type_check_err = type_check_ast(itl);
     if(type_check_err)
     {
+        if(itl.print_ast)
+        {
+            print_ast(itl);
+        }
+
         destroy_itl(itl);
         return *type_check_err;
     }
 
+    if(itl.print_ast)
+    {
+        print_ast(itl);
+    }
+    
 
     return option::none;
 }

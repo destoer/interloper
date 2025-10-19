@@ -938,7 +938,7 @@ void print_if_stmt(Interloper& itl,const IfStmt& stmt, const char* name, int dep
 }
 
 
-void print_ast(const String& fmt, ...)
+void print_ast(Interloper& itl, const String& fmt, ...)
 {
     // %S  String
     // %s  string
@@ -948,6 +948,9 @@ void print_ast(const String& fmt, ...)
     // %t  Type
     // %n  Namespace
     // %f  float
+
+    va_list args;
+    va_start(args,fmt);
 
     for(size_t i = 0; i < fmt.size; i++)
     {
@@ -964,13 +967,75 @@ void print_ast(const String& fmt, ...)
         const char specifier = fmt[++i];
         switch(specifier)
         {
-            default:
+            case 's':
             {
-                assert(false);
+                const char* str = va_arg(args,char*);
+                printf("%s",str);
+                break;
+            }
+
+            case 'S':
+            {
+                const String str = va_arg(args,String);
+                printf("%s",str.buf);
+
+                break;
+            }
+
+            case 'x':
+            {
+                const u32 value = va_arg(args,u32);
+                printf("0x%x",value);
+                break;
+            }
+
+            case 'X':
+            {
+                const u64 value = va_arg(args,u64);
+                printf("0x%lx",value);
+                break;
+            }
+
+            case 'd':
+            {
+                const u32 depth = va_arg(args,u32);
+                print_depth(depth);
+                break;
+            }
+
+            case 't':
+            {
+                const Type* type = va_arg(args,Type*);
+                if(type)
+                {
+                    printf("(%s)",type_name(itl,type).buf);
+                }
+                break;
+            }
+
+            case 'n':
+            {
+                const NameSpace* name_space = va_arg(args,NameSpace*);
+                if(name_space)
+                {
+                    printf("%s::",name_space->full_name.buf);
+                }
+
+                break;
+            }
+
+            case 'f':
+            {
+                const f64 value = va_arg(args,f64);
+                printf("%f",value);
                 break;
             }
         }
     }
+
+    putchar('\n');
+
+    va_end(args);
 }
 
 
@@ -1031,7 +1096,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::symbol:
         {
             SymbolNode* sym = (SymbolNode*)root;
-            print_ast("Symbol: %n%S %t",sym->name_space,sym->name,sym->node.expr_type);
+            print_ast(itl,"Symbol: %n%S %t",sym->name_space,sym->name,sym->node.expr_type);
             break;
         }
 
@@ -1087,7 +1152,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::struct_initializer:
         {
             StructInitializerNode* initializer = (StructInitializerNode*)root;
-            print_ast("Struct initializer %s %n%S",initializer->is_return? "return" : "",initializer->name_space,initializer->struct_name);
+            print_ast(itl,"Struct initializer %s %n%S",initializer->is_return? "return" : "",initializer->name_space,initializer->struct_name);
             print_internal(itl,initializer->initializer, depth + 1);
             break;
         }
@@ -1174,11 +1239,11 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             TypeNode* type = (TypeNode*)root;
 
-            print_ast("%ntype %s %S %t",type->name_space,type->is_const? "const" : "",type->name,type->node.expr_type);
+            print_ast(itl,"%ntype %s %S %t",type->name_space,type->is_const? "const" : "",type->name,type->node.expr_type);
 
             for(const auto& compound : type->compound)
             {
-                print_ast("%dCompound: %s\n",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
+                print_ast(itl,"%dCompound: %s\n",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
 
                 if(compound.type == compound_type::arr_fixed_size)
                 {
