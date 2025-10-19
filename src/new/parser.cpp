@@ -1,7 +1,8 @@
 #include <interloper.h>
 #include <unistd.h>
 
-Result<AstBlock,parse_error> block_ast(Parser &parser);
+Option<parse_error> block_ast(Parser &parser, AstBlock* block);
+Result<AstBlock*,parse_error> block_ast_unpinned(Parser &parser);
 Option<ParserResult> try_parse_slice(Parser& parser, const Token& t);
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 ParserResult statement(Parser &parser);
@@ -302,14 +303,15 @@ ParserResult statement(Parser &parser)
             // block expects to see the left c brace
             prev_token(parser);
 
-            auto block_res = block_ast(parser);
+            BlockNode* block_node = ast_block(parser,t);
+            auto block_err = block_ast(parser,&block_node->block);
 
-            if(!block_res)
+            if(block_err)
             {
-                return block_res.error();
+                return *block_err;
             }
 
-            return ast_block(parser,block_res.value(),t);
+            return (AstNode*)block_node;
         }
 
         // assume one cond for now
@@ -921,9 +923,9 @@ void print_unary(Interloper& itl, UnaryNode<type>* unary, const char* name, int 
     print_internal(itl,unary->expr,depth + 1);
 }
 
-void print_block(Interloper& itl,const AstBlock& block, int depth)
+void print_block(Interloper& itl,const AstBlock* block, int depth)
 {
-    for(AstNode* node : block.statement)
+    for(AstNode* node : block->statement)
     {
         print_internal(itl,node, depth + 1);
     }
@@ -1231,7 +1233,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             BlockNode* block = (BlockNode*)root;
             printf("Block\n");
-            print_block(itl,block->block, depth);
+            print_block(itl,&block->block, depth);
             break;
         }
 
@@ -1439,7 +1441,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             print_internal(itl,for_iter->cond, depth + 1);
             print_internal(itl,for_iter->post, depth + 1);
 
-            print_block(itl,for_iter->block, depth + 2);
+            print_block(itl,&for_iter->block, depth + 2);
             break;
         }
 
@@ -1447,7 +1449,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             ForRangeNode* for_range = (ForRangeNode*)root;
             printf("For [%s%s : %s]\n",for_range->take_pointer? "@" : "",for_range->name_one.buf,for_range->name_two.buf);
-            print_block(itl,for_range->block, depth + 1);
+            print_block(itl,&for_range->block, depth + 1);
             break;
         }
 
@@ -1489,7 +1491,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             print_depth(depth + 1);
             printf("Else\n");
-            print_block(itl,if_node->else_stmt, depth + 2);
+            print_block(itl,&if_node->else_stmt, depth + 2);
 
             break;
         }
@@ -1500,7 +1502,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             printf("While\n");
             print_internal(itl,while_node->expr, depth + 1);
-            print_block(itl,while_node->block, depth + 2);
+            print_block(itl,&while_node->block, depth + 2);
             break;
         }
 
@@ -1521,7 +1523,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 print_internal(itl,(AstNode*)decl, depth + 1);
             }
 
-            print_block(itl,func->block, depth + 2);
+            print_block(itl,&func->block, depth + 2);
 
             for(TypeNode* type : func->return_type)
             {

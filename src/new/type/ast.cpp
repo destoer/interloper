@@ -52,9 +52,18 @@ Option<itl_error> check_startup_defs(Interloper& itl)
 
 Option<itl_error> type_check_block(Interloper& itl, AstBlock& block)
 {
-    UNUSED(itl); UNUSED(block);
+    for(AstNode* stmt : block.statement)
+    {
+        switch(stmt->type)
+        {
+            default:
+            {
+                return compile_error(itl,itl_error::invalid_expr,"Type checker unknown node %s",AST_NAMES[u32(stmt->type)]);
+            }
+        }
+    }
 
-    assert(false);
+    return option::none;
 }
 
 

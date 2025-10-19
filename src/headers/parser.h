@@ -485,17 +485,10 @@ struct Case
 
     // Allowed to be blank for a default
     AstNode* statement = nullptr;
-    AstBlock block;
+
+    // Cannot get a fixed address on this. So we have to shove it on the heap
+    AstBlock* block = nullptr;
 };
-
-Case make_case(AstNode* statement, AstBlock block)
-{
-    Case out;
-    out.statement = statement;
-    out.block = block;
-
-    return out;
-}
 
 
 struct SwitchNode
@@ -510,13 +503,8 @@ struct SwitchNode
 struct IfStmt
 {
     AstNode* expr = nullptr;
-    AstBlock block;
+    AstBlock* block = nullptr;
 };
-
-IfStmt make_if_stmt(AstNode* expr, AstBlock block)
-{
-    return IfStmt {expr,block};
-}
 
 struct IfNode
 {
@@ -646,16 +634,6 @@ T* alloc_node(Parser& parser,ast_type type, const Token& token)
 
     return ret_node;
 }
-
-
-AstBlock make_block_ast(Parser& parser)
-{
-    AstBlock out;
-    add_ast_pointer(parser,&out.statement.data);
-
-    return out;
-}
-
 
 template<ast_type type, typename T>
 ParserResult ast_expr_oper_bin(Parser& parser, T oper, ParserResult left_res, ParserResult right_res, const Token& token)
@@ -1048,13 +1026,12 @@ IfNode* ast_if(Parser& parser, const Token& token)
     return if_node;
 }
 
-AstNode* ast_while(Parser& parser,AstNode* expr, AstBlock block,const Token& token)
+WhileNode* ast_while(Parser& parser,AstNode* expr,const Token& token)
 {
     WhileNode* while_node = alloc_node<WhileNode>(parser,ast_type::while_t,token);
     while_node->expr = expr;
-    while_node->block = block;
 
-    return (AstNode*)while_node;   
+    return while_node;   
 }
 
 AstNode *ast_func(Parser& parser,const String &name, const String& filename, const Token& token)
@@ -1077,12 +1054,9 @@ RetNode* ast_ret(Parser& parser, const Token& token)
     return ret;
 }
 
-AstNode* ast_block(Parser& parser, AstBlock block,const Token& token)
+BlockNode* ast_block(Parser& parser, const Token& token)
 {
-    BlockNode* block_node = alloc_node<BlockNode>(parser,ast_type::block,token);
-    block_node->block = block;
-
-    return (AstNode*)block_node;
+    return alloc_node<BlockNode>(parser,ast_type::block,token);
 }
 
 // scan file for row and column info

@@ -82,14 +82,11 @@ ParserResult parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
         prev_token(parser);
     }  
     
-    auto block_res = block_ast(parser);
-    if(!block_res)
+    auto block_err = block_ast(parser,&for_node->block);
+    if(block_err)
     {
-        return block_res.error();
+        return *block_err;
     }
-
-    // for stmt parsed now compile the actual block
-    for_node->block = *block_res;
 
     return (AstNode*)for_node;
 }
@@ -192,14 +189,11 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
         prev_token(parser);
     }
 
-    auto block_res = block_ast(parser);
-    if(!block_res)
+    auto block_err = block_ast(parser,&for_node->block);
+    if(block_err)
     {
-        return block_res.error();
+        return *block_err;
     }
-
-    // for stmt parsed now compile the actual block
-    for_node->block = *block_res;
 
     return (AstNode*)for_node;
 }
@@ -260,6 +254,22 @@ ParserResult parse_for(Parser& parser, const Token& t)
 }
 
 
+
+Result<Case,parse_error> make_case(Parser& parser, AstNode* statement)
+{
+    Case case_stmt;
+
+    case_stmt.statement = statement;
+    auto block_res = block_ast_unpinned(parser);
+    if(!block_res)
+    {
+        return block_res.error();
+    }
+
+    case_stmt.block = *block_res;
+    return case_stmt;
+}
+
 ParserResult parse_switch(Parser& parser, const Token& t)
 {
     auto expr_res = expr_terminate(parser,"switch statement",token_type::left_c_brace);
@@ -290,13 +300,14 @@ ParserResult parse_switch(Parser& parser, const Token& t)
                 return *colon_err;
             }
 
-            auto block_res = block_ast(parser);
-            if(!block_res)
+
+            const auto case_res = make_case(parser,nullptr);
+            if(case_res)
             {
-                return block_res.error();
+                return case_res.error();
             }
 
-            switch_node->default_statement = make_case(nullptr,*block_res);  
+            switch_node->default_statement = *case_res;
         }
 
         else
@@ -308,20 +319,20 @@ ParserResult parse_switch(Parser& parser, const Token& t)
                 return *case_err;
             }
 
-            auto case_res = expr_terminate(parser,"switch case",token_type::colon);
+            auto case_expr_res = expr_terminate(parser,"switch case",token_type::colon);
+            if(!case_expr_res)
+            {
+                return case_expr_res;
+            }
+
+            AstNode* case_expr = *case_expr_res; 
+            auto case_res = make_case(parser,case_expr);
             if(!case_res)
             {
-                return case_res;
+                return case_res.error();
             }
 
-            AstNode* case_node = *case_res; 
-            auto block_res = block_ast(parser);
-            if(!block_res)
-            {
-                return block_res.error();
-            }
-
-            push_var(switch_node->statements,make_case(case_node,*block_res));
+            push_var(switch_node->statements,*case_res);
         }
     }
 
@@ -331,6 +342,11 @@ ParserResult parse_switch(Parser& parser, const Token& t)
         return *c_brace_err;
     }
     return (AstNode*)switch_node;
+}
+
+IfStmt make_if_stmt(AstNode* expr, AstBlock* block)
+{
+    return IfStmt {expr,block};
 }
 
 ParserResult parse_if(Parser& parser, const Token& t)
@@ -343,7 +359,7 @@ ParserResult parse_if(Parser& parser, const Token& t)
         return expr_res;
     }
 
-    auto body_res = block_ast(parser);
+    auto body_res = block_ast_unpinned(parser);
     if(!body_res)
     {
         return body_res.error();
@@ -370,7 +386,7 @@ ParserResult parse_if(Parser& parser, const Token& t)
                     return expr_res;
                 }
 
-                auto body_res = block_ast(parser);
+                auto body_res = block_ast_unpinned(parser);
                 if(!body_res)
                 {
                     return body_res.error();
@@ -382,13 +398,12 @@ ParserResult parse_if(Parser& parser, const Token& t)
             // just a plain else
             else
             {
-                auto block_res = block_ast(parser);
-                if(!block_res)
+                auto block_err = block_ast(parser,&if_node->else_stmt);
+                if(block_err)
                 {
-                    return block_res.error();
+                    return *block_err;
                 }
 
-                if_node->else_stmt = *block_res;
                 done = true;
             }
         }
@@ -410,12 +425,14 @@ ParserResult parse_while(Parser& parser,const Token& t)
         return expr_res;
     }
 
-    auto body_res = block_ast(parser);
-    if(!body_res)
+    WhileNode* while_node = ast_while(parser,*expr_res,t);
+
+    auto body_err = block_ast(parser,&while_node->block);
+    if(!body_err)
     {
-        return body_res.error();
+        return *body_err;
     }
 
-    return ast_while(parser,*expr_res,*body_res,t);
+    return (AstNode*)while_node;
 }
 

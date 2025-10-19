@@ -35,9 +35,27 @@ ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 }
 
 
-Result<AstBlock,parse_error> block_ast(Parser &parser)
+// Many uses of a block ast are actually in an array where we cannot pin the ast pointer.
+// so we need a wrapper to throw it on the heap.
+Result<AstBlock*,parse_error> block_ast_unpinned(Parser &parser)
 {
-    // now parse out the block
+    auto block = (AstBlock*)allocate(*parser.ast_allocator,sizeof(AstBlock));
+    *block = {};
+
+    auto block_err = block_ast(parser,block);
+    if(block_err)
+    {
+        return *block_err;
+    }
+
+    return block;
+}
+
+// NOTE: AstBlock should be a pinned memory location that cannot move!
+Option<parse_error> block_ast(Parser &parser, AstBlock* block)
+{
+    // Track the block array for freeing
+    add_ast_pointer(parser,&block->statement.data);
 
     // block = '{' statement... '}'
     const auto tok = peek(parser,0);
@@ -46,8 +64,6 @@ Result<AstBlock,parse_error> block_ast(Parser &parser)
     {
         return *lc_brace_err;
     }
-
-    AstBlock block = make_block_ast(parser);
 
     // parse out all our statements
     while(!match(parser,token_type::right_c_brace))
@@ -64,15 +80,10 @@ Result<AstBlock,parse_error> block_ast(Parser &parser)
             return stmt_res.error();
         }
 
-        push_var(block.statement,*stmt_res);
+        push_var(block->statement,*stmt_res);
     }
     
-    const auto rc_brace_err = consume(parser,token_type::right_c_brace);
-    if(rc_brace_err)
-    {
-        return *rc_brace_err;
-    }
-    return block;
+    return consume(parser,token_type::right_c_brace);
 }
 
 
@@ -254,13 +265,11 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
     FuncNode* func = *func_res;
     func->attr_flags = flags;
 
-    auto block_res = block_ast(parser);
-    if(!block_res)
+    auto block_err = block_ast(parser,&func->block);
+    if(block_err)
     {
-        return block_res.error();
+        return *block_err;
     }
-
-    func->block = *block_res; 
 
     // finally add the function def
     add_func(itl,func_name.literal,parser.cur_namespace,func);
