@@ -1,6 +1,6 @@
 #include <interloper.h>
 
-#include "new/interloper.cpp"
+#include "interloper.cpp"
 #include "test.cpp"
 
 void parse_flags(Interloper& itl,const char* flags)

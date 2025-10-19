@@ -1,5 +1,5 @@
 #include <interloper.h>
-#include <op_table.inl>
+#include "backend/op_table.inl"
 
 #include "backend/pool.cpp"
 #include "backend/emitter.cpp"

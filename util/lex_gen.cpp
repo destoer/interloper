@@ -1,7 +1,7 @@
 #include <destoer/destoer.h>
 using namespace destoer;
 
-#include <lexer_lut.cpp>
+#include "parser/lexer_lut.cpp"
 
 void dump_state_table(int argc, char* argv[])
 {
