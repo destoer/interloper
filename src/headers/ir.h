@@ -195,7 +195,7 @@ enum class op_type
     jne,
 
     // DIRECTIVES
-    // varabile on the stack is out of scope
+    // variable on the stack is out of scope
     // so we can reclaim allocation on the stack
     DIRECTIVE,
     alloc_slot,

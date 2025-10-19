@@ -47,6 +47,9 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     return option::none;
 }
 
+// Don't care so much about the legality of structures here, we just want to blindly check the type
+// And do name resolution, as we are going to have to reswitch the AST when we compile anyways.
+
 Option<itl_error> type_check_block(Interloper& itl, AstBlock& block)
 {
     UNUSED(itl); UNUSED(block);

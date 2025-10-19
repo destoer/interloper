@@ -1,16 +1,17 @@
 #include <interloper.h>
 #include <op_table.inl>
 
-#include "pool.cpp"
-#include "emitter.cpp"
-#include "rewrite_arch_ir.cpp"
-#include "cfg.cpp"
-#include "asm.cpp"
-#include "x86_emitter.cpp"
-#include "stack_allocator.cpp"
-#include "linear_alloc.cpp"
-#include "disass.cpp"
-#include "ir_x86.cpp"
+#include "backend/pool.cpp"
+#include "backend/emitter.cpp"
+#include "backend/rewrite_arch_ir.cpp"
+#include "backend/cfg.cpp"
+#include "backend/asm.cpp"
+#include "backend/x86_emitter.cpp"
+#include "backend/stack_allocator.cpp"
+#include "backend/linear_alloc.cpp"
+#include "backend/disass.cpp"
+#include "backend/ir_x86.cpp"
+#include "backend/elf.cpp"
 
 
 OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* node)

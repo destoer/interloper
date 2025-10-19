@@ -1,4 +1,4 @@
-#include <reg.cpp>
+#include "reg.cpp"
 
 void reload_slot(Interloper& itl, Function& func, const Reg& reg);
 
@@ -349,5 +349,5 @@ void emit_label1(Interloper& itl,Function& func, LabelSlot slot)
     emit_block_func(func,opcode);
 }
 
-#include <emit_opcode.cpp>
-#include <directive.cpp>
+#include "emit_opcode.cpp"
+#include "directive.cpp"

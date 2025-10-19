@@ -937,6 +937,43 @@ void print_if_stmt(Interloper& itl,const IfStmt& stmt, const char* name, int dep
     print_block(itl,stmt.block, depth + 2);
 }
 
+
+void print_ast(const String& fmt, ...)
+{
+    // %S  String
+    // %s  string
+    // %x  hex
+    // %l  long hex 
+    // %d  depth print
+    // %t  Type
+    // %n  Namespace
+    // %f  float
+
+    for(size_t i = 0; i < fmt.size; i++)
+    {
+        const char token = fmt[i];
+
+        if(token != '%')
+        {
+            putchar(token);
+            continue;
+        }
+
+        assert(i != fmt.size);
+
+        const char specifier = fmt[++i];
+        switch(specifier)
+        {
+            default:
+            {
+                assert(false);
+                break;
+            }
+        }
+    }
+}
+
+
 void print_internal(Interloper& itl,const AstNode *root, int depth)
 {
     if(!root)
@@ -994,17 +1031,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::symbol:
         {
             SymbolNode* sym = (SymbolNode*)root;
-
-            if(sym->name_space)
-            {
-                printf("Symbol: %s::%s\n",sym->name_space->full_name.buf,sym->name.buf);
-            }
-            
-            else
-            {
-                printf("Symbol %s\n",sym->name.buf);
-            }
-            
+            print_ast("Symbol: %n%S %t",sym->name_space,sym->name,sym->node.expr_type);
             break;
         }
 
@@ -1060,16 +1087,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::struct_initializer:
         {
             StructInitializerNode* initializer = (StructInitializerNode*)root;
-
-            printf("Struct initializer %s: ",initializer->is_return? "return" : "");
-
-            if(initializer->name_space)
-            {
-                printf("%s::",initializer->name_space->full_name.buf);
-            }
-
-            printf("%s\n",initializer->struct_name.buf);
-
+            print_ast("Struct initializer %s %n%S",initializer->is_return? "return" : "",initializer->name_space,initializer->struct_name);
             print_internal(itl,initializer->initializer, depth + 1);
             break;
         }
@@ -1155,18 +1173,13 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::type:
         {
             TypeNode* type = (TypeNode*)root;
-            if(type->name_space)
-            {
-                printf("%s::",type->name_space->full_name.buf);
-            }
 
-            // TODO: I think we need a custom printing function at this point.
-            printf("%stype %s (%s)\n",type->is_const? "const " : "",type->name.buf,type_name(itl,type->node.expr_type).buf);
+            print_ast("%ntype %s %S %t",type->name_space,type->is_const? "const" : "",type->name,type->node.expr_type);
 
             for(const auto& compound : type->compound)
             {
-                print_depth(depth + 1);
-                printf("Compound: %s\n",COMPOUND_TYPE_NAMES[u32(compound.type)]);
+                print_ast("%dCompound: %s\n",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
+
                 if(compound.type == compound_type::arr_fixed_size)
                 {
                     print_internal(itl,compound.array_size, depth + 2);
@@ -1472,7 +1485,6 @@ void print(Interloper& itl, const AstNode *root)
 {
     print_internal(itl,root,0);
 }
-
 
 
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx)
