@@ -85,8 +85,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
         // something else
         else
         {
-            return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %s and %s",
-                type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %t and %t",ltype,rtype);
         }
     }
 
@@ -109,8 +108,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
     // one or more user defined
     else
     {
-        return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %s and %s",
-            type_name(itl,ltype).buf,type_name(itl,rtype).buf);   
+        return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %t and %t",ltype,rtype);   
     }
 }
 
@@ -127,8 +125,7 @@ Option<itl_error> check_comparison_operation(Interloper& itl,const Type *ltype, 
         {
             if(is_signed(rtype) != is_signed(ltype))
             {
-                return compile_error(itl,itl_error::int_type_error,"logical comparision on different signs %s and %s",
-                    type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return compile_error(itl,itl_error::int_type_error,"logical comparision on different signs %t and %t",ltype,rtype);
             }
         }
 
@@ -147,8 +144,7 @@ Option<itl_error> check_comparison_operation(Interloper& itl,const Type *ltype, 
         // something else
         else
         {
-            return compile_error(itl,itl_error::undefined_type_oper,"logical operation undefined for %s and %s",
-                type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::undefined_type_oper,"logical operation undefined for %t and %t",ltype,rtype);
         }
     }
 
@@ -173,16 +169,14 @@ Option<itl_error> check_comparison_operation(Interloper& itl,const Type *ltype, 
 
         if(enum_ltype->enum_idx != enum_rtype->enum_idx)
         {
-            return compile_error(itl,itl_error::enum_type_error,"expected enum of the same type for comparisons %s : %s",
-                type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::enum_type_error,"expected enum of the same type for comparisons %t : %t",ltype,rtype);
         }
     }
 
     // no matching operator
     else 
     {
-        return compile_error(itl,itl_error::undefined_type_oper,"logical operation on user defined type: %s : %s",
-            type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return compile_error(itl,itl_error::undefined_type_oper,"logical operation on user defined type: %t : %t",ltype,rtype);
     }   
 
     return option::none;
@@ -197,8 +191,7 @@ Option<itl_error> check_const_internal(Interloper&itl, const Type* ltype, const 
     // but we only really care for assigns on the "top level" if its a pointer
     if(is_const(ltype) && type == assign_type::assign && !was_reference)
     {
-        return compile_error(itl,itl_error::const_type_error,"cannot assign rtype to const ltype: %s = %s",
-            type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return compile_error(itl,itl_error::const_type_error,"cannot assign rtype to const ltype: %t = %t",ltype,rtype);
     }
 
     // for an rtype a copy is fine, unless it was a reference in which case
@@ -207,8 +200,7 @@ Option<itl_error> check_const_internal(Interloper&itl, const Type* ltype, const 
     {
         if(!is_const(ltype) && was_reference)
         {
-            return compile_error(itl,itl_error::const_type_error,"cannot assign const ref rtype to ltype: %s = %s",
-                type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::const_type_error,"cannot assign const ref rtype to ltype: %t = %t",ltype,rtype);
         }
     }
 
@@ -394,8 +386,7 @@ Option<itl_error> type_check_pointer_nullable(Interloper& itl, const PointerType
 
     if(ltype->pointer_kind == pointer_type::reference && rtype->pointer_kind == pointer_type::nullable)
     {
-        return compile_error(itl,itl_error::pointer_type_error,"Cannot assign a nullable pointer to a reference %s = %s",
-            type_name(itl,(Type*)ltype).buf,type_name(itl,(Type*)rtype).buf);
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot assign a nullable pointer to a reference %t = %t",(Type*)ltype,(Type*)rtype);
     }
 
     return option::none;
@@ -482,8 +473,7 @@ Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Ty
 
     if(!is_plain(ltype) || !is_plain(rtype))
     {
-        return compile_error(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s",
-            type_name(itl,(Type*)base_ltype).buf,type_name(itl,(Type*)base_rtype).buf);
+        return compile_error(itl,itl_error::pointer_type_error,"expected pointer of type %t got %t",(Type*)base_ltype,(Type*)base_rtype);
     }
 
     // anything else
@@ -492,8 +482,7 @@ Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Ty
         // if base types still aren't equal we have a problem!
         if(!plain_type_equal(ltype,rtype))
         {
-            return compile_error(itl,itl_error::pointer_type_error,"expected pointer of type %s got %s",
-                type_name(itl,(Type*)base_ltype).buf,type_name(itl,(Type*)base_rtype).buf);
+            return compile_error(itl,itl_error::pointer_type_error,"expected pointer of type %t got %t",(Type*)base_ltype,(Type*)base_rtype);
         }
     }
 
@@ -514,14 +503,14 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
             // would narrow (assign is illegal)
             if(builtin_size(builtin_l) < builtin_size(builtin_r))
             {
-                return compile_error(itl,itl_error::int_type_error,"narrowing conversion %s = %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return compile_error(itl,itl_error::int_type_error,"narrowing conversion %t = %t",ltype,rtype);
             }
 
             // unsigned cannot assign to signed
             // TODO: do we want to be this pedantic with integer conversions?
             if(!is_signed(ltype) && is_signed(rtype))
             {
-                return compile_error(itl,itl_error::int_type_error,"unsigned = signed (%s = %s)",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return compile_error(itl,itl_error::int_type_error,"unsigned = signed (%t = %t)",ltype,rtype);
             }
         }
 
@@ -532,7 +521,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
             // void is not assignable!
             if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
             {
-                return compile_error(itl,itl_error::undefined_type_oper,"void assign %s = %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return compile_error(itl,itl_error::undefined_type_oper,"void assign %t = %t",ltype,rtype);
             }
 
             // same type is fine
@@ -541,10 +530,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
             }
 
-            else
-            {
-                return compile_error(itl,itl_error::undefined_type_oper,"invalid assign %s = %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-            }           
+            return compile_error(itl,itl_error::undefined_type_oper,"invalid assign %t = %t",ltype,rtype);     
         }
     }
 
@@ -555,7 +541,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
         if(struct_ltype->struct_idx != struct_rtype->struct_idx)
         {
-            return compile_error(itl,itl_error::struct_error,"struct assign of different types %s = %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::struct_error,"struct assign of different types %t = %t",ltype,rtype);
         }
     }
 
@@ -566,7 +552,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
         if(enum_ltype->enum_idx != enum_rtype->enum_idx)
         {
-            return compile_error(itl,itl_error::struct_error,"enum assign of different types %s = %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::struct_error,"enum assign of different types %t = %t",ltype,rtype);
         }        
     }
 
@@ -577,14 +563,12 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
         if(count(func_ltype->sig.args) != count(func_rtype->sig.args))
         {
-            return compile_error(itl,itl_error::mismatched_args,"func pointers have mismatched arg sizes %s = %s",
-                type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::mismatched_args,"func pointers have mismatched arg sizes %t = %t",ltype,rtype);
         }
 
         if(count(func_ltype->sig.return_type) != count(func_rtype->sig.return_type))
         {
-            return compile_error(itl,itl_error::mismatched_args,"func pointers have mismatched return type sizes %s = %s",
-                type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::mismatched_args,"func pointers have mismatched return type sizes %t = %t",ltype,rtype);
         }
 
         // check every type in function pointer is equal
@@ -598,8 +582,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
             if(!type_equal(lsym.type,rsym.type))
             {
-                return compile_error(itl,itl_error::mismatched_args,"func pointer arg type %d does not match:\n%s = %s",
-                    a,type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return compile_error(itl,itl_error::mismatched_args,"func pointer arg type %d does not match:\n%t = %t",a,ltype,rtype);
             }
         }
 
@@ -608,8 +591,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
         {
             if(!type_equal(func_ltype->sig.return_type[r],func_rtype->sig.return_type[r]))
             {
-                return compile_error(itl,itl_error::mismatched_args,"func pointer return type %d does not match:\n%s = %s",
-                    r,type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return compile_error(itl,itl_error::mismatched_args,"func pointer return type %d does not match:\n%t = %t",r,ltype,rtype);
             }
         }
 
@@ -617,7 +599,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
     else
     {
-        return compile_error(itl,itl_error::undefined_type_oper,"cannot assign %s = %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return compile_error(itl,itl_error::undefined_type_oper,"cannot assign %t = %t",ltype,rtype);
     }
 
     return option::none;
@@ -629,7 +611,7 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
     // must be the same
     if(!is_array(rtype))
     {
-        return compile_error(itl,itl_error::array_type_error,"expected array of %s got %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+        return compile_error(itl,itl_error::array_type_error,"expected array of %t got %t",ltype,rtype);
     }
 
     // single dimension can trivally convert to a vla
@@ -643,8 +625,7 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
         {
             if(!is_runtime_size(ltype))
             {
-                return compile_error(itl,itl_error::array_type_error,"%s = %s, cannot assign to fixed size array",
-                    type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                return compile_error(itl,itl_error::array_type_error,"%t = %t, cannot assign to fixed size array",ltype,rtype);
             }
         } 
 
@@ -669,8 +650,7 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
     {
         if(ltype->kind != rtype->kind)
         {
-            return compile_error(itl,itl_error::array_type_error,"expected array of underlying type %s got %s",
-                type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::array_type_error,"expected array of underlying type %t got %t",ltype,rtype);
         }
 
         switch(ltype->kind)
@@ -688,8 +668,7 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
                 {
                     if(!is_runtime_size(ltype))
                     {
-                        return compile_error(itl,itl_error::array_type_error,"%s = %s, cannot assign to fixed size array",
-                            type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                        return compile_error(itl,itl_error::array_type_error,"%t = %t, cannot assign to fixed size array",ltype,rtype);
                     }
                 }
 
@@ -699,8 +678,7 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
                     // provide better error messagee for vlas
                     if(is_runtime_size(ltype) != is_runtime_size(rtype))
                     {
-                        return compile_error(itl,itl_error::array_type_error,"%s = %s, cannot assign different array types beyond 1d",
-                            type_name(itl,ltype).buf,type_name(itl,rtype).buf);                            
+                        return compile_error(itl,itl_error::array_type_error,"%t = %t, cannot assign different array types beyond 1d",ltype,rtype);                            
                     }
 
                     return compile_error(itl,itl_error::array_type_error,"expected array of size %d got %d",array_ltype->size,array_rtype->size);
@@ -722,8 +700,7 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
             {
                 if(cast_builtin(ltype) != cast_builtin(rtype))
                 {
-                    return compile_error(itl,itl_error::array_type_error,"Cannot assign array with different underlying type %s != %s",
-                        type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+                    return compile_error(itl,itl_error::array_type_error,"Cannot assign array with different underlying type %t != %t",ltype,rtype);
                 }
                 done = true;
                 break;
@@ -777,7 +754,7 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
 
         else
         {
-            return compile_error(itl,itl_error::mismatched_args,"cannot assign %s = %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
+            return compile_error(itl,itl_error::mismatched_args,"cannot assign %t = %t",ltype,rtype);
         }
     }
 

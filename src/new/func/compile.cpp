@@ -202,7 +202,7 @@ Result<u32,itl_error> push_va_args(Interloper& itl, Function& func, FuncCallNode
 
     if(!itl.rtti_enable)
     {
-        return compile_error(itl,itl_error::missing_args,"[COMPILE]: attempted to use va_args without rtti: %s",name.buf);
+        return compile_error(itl,itl_error::missing_args,"[COMPILE]: attempted to use va_args without rtti: %S",name);
     }
 
     // va_arg is optional
@@ -411,7 +411,7 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
     {
         if(call_info.sig.attr_flags & ATTR_USE_RESULT)
         {
-            return compile_error(itl,itl_error::unused_result,"Result of function %s declared with attr use_result must be used",call_info.name.buf);
+            return compile_error(itl,itl_error::unused_result,"Result of function %S declared with attr use_result must be used",call_info.name);
         }
 
         else if(is_enum(sig.return_type[0]))
@@ -420,8 +420,8 @@ TypeResult handle_call(Interloper& itl, Function& func, const FuncCall& call_inf
 
             if(enumeration.use_result)
             {
-                return compile_error(itl,itl_error::unused_result,"Enum %s declared with attr use_result must be used from func %s",
-                    enumeration.name.buf,call_info.name.buf);
+                return compile_error(itl,itl_error::unused_result,"Enum %S declared with attr use_result must be used from func %S",
+                    enumeration.name,call_info.name);
             }
         }
     }
@@ -501,7 +501,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
 
                 else
                 {
-                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %s is not a function pointer or function",name.buf);       
+                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %S is not a function pointer or function",name);       
                 }
             }
 
@@ -509,12 +509,12 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
             {
                 if(global)
                 {
-                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s is not declared",name.buf);
+                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %S is not declared",name);
                 }
 
                 else
                 {
-                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %s::%s is not declared",name_space->full_name.buf,name.buf);
+                    return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %n%S is not declared",name_space,name);
                 }
             }
         }
@@ -552,7 +552,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,NameSpace* name_space
 
         if(!is_func_pointer(reg.type))
         {
-            return compile_error(itl,itl_error::undeclared,"[COMPILE]: expression of type %s is not callable",type_name(itl,reg.type).buf);
+            return compile_error(itl,itl_error::undeclared,"[COMPILE]: expression of type %S is not callable",type_name(itl,reg.type));
         }
 
         FuncPointerType* func_type = (FuncPointerType*)reg.type;
@@ -784,7 +784,7 @@ Option<itl_error> compile_function(Interloper& itl, Function& func)
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
         itl.ctx.expr = (AstNode*)func.root;
-        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf); 
+        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name); 
     }
 
     for(u32 b = 0; b < count(start_block.links); b++)
@@ -799,7 +799,7 @@ Option<itl_error> compile_function(Interloper& itl, Function& func)
 
             itl.ctx.expr = (AstNode*)func.root;   
             dump_ir_sym(itl,func,itl.symbol_table);
-            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf);
+            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name);
         }
     }
 

@@ -206,7 +206,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                 // no such definition exists, nothing we can do
                 if(!user_type)
                 {
-                    return compile_error(itl,itl_error::undeclared,"type %s is not defined",type_decl->name.buf);
+                    return compile_error(itl,itl_error::undeclared,"type %S is not defined",type_decl->name);
                 }
 
                 is_alias = user_type->kind == type_kind::alias_t;   
@@ -248,7 +248,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                         else
                         {
                             // TODO: add heuristics to scan for where!
-                            return compile_error(itl,itl_error::black_hole,"Lookup type: type %s is recursively defined",name.buf);           
+                            return compile_error(itl,itl_error::black_hole,"Lookup type: type %S is recursively defined",name);           
                         }
                     }
                 }

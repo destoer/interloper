@@ -1,7 +1,7 @@
 // TODO: Split this fairly immediately.
 
 Option<itl_error> check_startup_func(Interloper& itl, const String& name, NameSpace* name_space);
-Option<itl_error> type_check_expr(Interloper& itl, AstNode* node);
+TypeResult type_check_expr(Interloper& itl, AstNode* expr);
 
 Option<itl_error> check_startup_defs(Interloper& itl)
 {   
@@ -52,10 +52,10 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl)
 {
     if(decl->expr)
     {
-        const auto decl_err = type_check_expr(itl,decl->expr);
-        if(decl_err)
+        const auto decl_res = type_check_expr(itl,decl->expr);
+        if(!decl_res)
         {
-            return decl_err;
+            return decl_res.error();
         }
     }
 
@@ -74,17 +74,132 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl)
     return option::none;
 }
 
-Option<itl_error> type_check_expr(Interloper& itl, AstNode* expr)
+TypeResult type_check_arith_bin(Interloper& itl, ArithBinNode* expr)
+{
+    const ArithmeticInfo& arith_info = ARITH_INFO[u32(expr->oper)];
+
+    const auto left_res = type_check_expr(itl,expr->left);
+
+    if(!left_res)
+    {
+        return left_res.error();
+    }
+    
+
+    const auto right_res = type_check_expr(itl,expr->right);
+
+    if(!right_res)
+    {
+        return right_res.error();
+    }
+
+    auto left = *left_res;
+    auto right = *right_res;
+
+    // pointer arith adds the size of the underlying type
+    if(is_pointer(left) && is_integer(right))
+    {
+        if(expr->oper != arith_bin_op::add_t || expr->oper != arith_bin_op::sub_t)
+        {
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
+
+        }
+
+        return left;
+    }
+
+    // allow pointer subtraction
+    else if(is_pointer(left) && is_pointer(right))
+    {
+        if(expr->oper != arith_bin_op::sub_t)
+        {
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
+        }
+
+        return make_builtin(itl,builtin_type::u64_t);
+    }
+
+    // floating point arith
+    else if(is_float(left) && is_float(right))
+    {
+        const op_type type = arith_info.float_form;
+
+        if (type == op_type::none)
+        {
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
+        }
+
+        return make_builtin(itl,builtin_type::f64_t);
+    }
+
+    else if(is_bool(left) && is_bool(right))
+    {
+        switch(expr->oper)
+        {
+            // Treat these like integer operations
+            case arith_bin_op::or_t:
+            case arith_bin_op::and_t:
+            {
+                return make_builtin(itl,builtin_type::bool_t);
+            }
+
+            default:
+            {
+                return compile_error(itl,itl_error::invalid_expr,"operation is not defined for bool");
+            }
+        }
+    }
+
+    // integer arith
+    else if(is_integer(left) && is_integer(right))
+    {
+        return effective_arith_type(itl,left,right,expr->oper);  
+    }
+
+    // No idea!
+    return compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t and %t",left,right);
+}
+
+TypeResult assign_expr_type(AstNode* node, TypeResult result)
+{
+    if(!result)
+    {
+        return result;
+    }
+
+    return node->expr_type = *result;
+}
+
+TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 {
     switch(expr->type)
     {
+        case ast_type::value:
+        {
+            ValueNode* value_node = (ValueNode*)expr;
+            return expr->expr_type = make_builtin(itl,value_node->type);
+        }
+
+        case ast_type::arith_unary:
+        {
+            ArithUnaryNode* arith = (ArithUnaryNode*)expr;
+            return assign_expr_type(expr,type_check_expr(itl,arith->expr));
+        }
+
+        case ast_type::arith_bin:
+        {
+            ArithBinNode* arith = (ArithBinNode*)expr;
+            return assign_expr_type(expr,type_check_arith_bin(itl,arith));
+        }
+
         default:
         {
             return compile_error(itl,itl_error::invalid_expr,"Type checker(expr) unknown node %s",AST_NAMES[u32(expr->type)]);
         }
     }
 
-    return option::none;
+    assert(false);
+    return make_builtin(itl,builtin_type::void_t);
 }
 
 // Don't care so much about the legality of structures here, we just want to blindly check the type

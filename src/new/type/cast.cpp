@@ -128,8 +128,7 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, const TypedReg& ol
 
         else
         {
-            return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s",
-                type_name(itl,old_reg.type).buf,type_name(itl,new_reg.type).buf);
+            return compile_error(itl,itl_error::illegal_cast,"cannot cast %t -> %t",old_reg.type,new_reg.type);
         }
     }
 
@@ -171,8 +170,7 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, const TypedReg& ol
     {
         if(!is_vla(new_reg.type))
         {
-            return compile_error(itl,itl_error::illegal_cast,"Cannot recast to fixed array %s -> %s",
-                type_name(itl,old_reg.type).buf,type_name(itl,new_reg.type).buf);
+            return compile_error(itl,itl_error::illegal_cast,"Cannot recast to fixed array %t -> %t",old_reg.type,new_reg.type);
         }
 
         // if(!is_flat_array(old_reg.type) || !is_flat_array(new_reg.type))
@@ -196,8 +194,7 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, const TypedReg& ol
     // fuck knows
     else
     {
-        return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s",
-                type_name(itl,old_reg.type).buf,type_name(itl,new_reg.type).buf);      
+        return compile_error(itl,itl_error::illegal_cast,"cannot cast %t -> %t",old_reg,new_reg);      
     }
 
     return option::none;

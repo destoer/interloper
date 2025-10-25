@@ -96,14 +96,14 @@ TypeResult lookup_struct(Interloper& itl, NameSpace* name_space,const String& na
     const auto struct_decl_res = lookup_type_internal(itl,name_space,name);
     if(!struct_decl_res)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %s",name.buf);
+        return compile_error(itl,itl_error::struct_error,"No such struct: %S",name);
     }
 
     const auto struct_decl = *struct_decl_res;
 
     if(struct_decl->kind != type_kind::struct_t)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %s",name.buf);
+        return compile_error(itl,itl_error::struct_error,"No such struct: %S",name);
     }
 
     return make_struct(itl,struct_decl->type_idx);   
@@ -117,7 +117,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
     // no such decl exists
     if(!decl_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"%s : member type %s is not defined",struct_name.buf,type_decl->name.buf);
+        return compile_error(itl,itl_error::undeclared,"%S : member type %S is not defined",struct_name,type_decl->name);
     }
 
     // Type is allways complete we don't need any further checking
@@ -142,7 +142,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
         else
         {
             // panic to prevent having our struct collapse into a black hole
-            return compile_error(itl,itl_error::black_hole,"%s : is recursively defined via %s",struct_name.buf,type_decl->name.buf);
+            return compile_error(itl,itl_error::black_hole,"%S : is recursively defined via %S",struct_name,type_decl->name);
         }
     }
 
@@ -246,7 +246,7 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
 
     if(contains(structure.member_map,member.name))
     {
-        const auto res = compile_error(itl,itl_error::redeclaration,"%s : member %s redeclared",structure.name.buf,member.name.buf);
+        const auto res = compile_error(itl,itl_error::redeclaration,"%S : member %S redeclared",structure.name,member.name);
         destroy_struct(structure);
         return res;
     }

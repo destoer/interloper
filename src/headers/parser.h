@@ -54,7 +54,7 @@ enum class ast_type
 
 inline const char *AST_NAMES[] =
 {
-    "assign"
+    "assign",
     "arith_bin",
     "arith_unary",
     "shift",

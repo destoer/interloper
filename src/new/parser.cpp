@@ -910,7 +910,7 @@ void print_internal(Interloper& itl, const AstNode *root, int depth);
 template<typename T>
 void print_bin_oper(Interloper& itl, const ExprBinOperNode<T>* bin,const char* NAMES[], int depth)
 {
-    printf("%s\n",NAMES[u32(bin->oper)]);
+    print_ast(itl,"%s %t",NAMES[u32(bin->oper)],bin->node.expr_type);
 
     print_internal(itl,bin->left,depth + 1);
     print_internal(itl,bin->right,depth + 1);
@@ -919,7 +919,7 @@ void print_bin_oper(Interloper& itl, const ExprBinOperNode<T>* bin,const char* N
 template<ast_type type>
 void print_unary(Interloper& itl, UnaryNode<type>* unary, const char* name, int depth)
 {
-    printf("%s",name);
+    print_ast(itl,"%s %t",name,unary->node.expr_type);
     print_internal(itl,unary->expr,depth + 1);
 }
 
@@ -940,19 +940,17 @@ void print_if_stmt(Interloper& itl,const IfStmt& stmt, const char* name, int dep
 }
 
 
-void print_ast(Interloper& itl, const String& fmt, ...)
+void print_itl(Interloper& itl, const String& fmt, va_list args)
 {
     // %S  String
     // %s  string
     // %x  hex
     // %l  long hex 
-    // %d  depth print
+    // %d  int print
+    // %D  depth print
     // %t  Type
     // %n  Namespace
     // %f  float
-
-    va_list args;
-    va_start(args,fmt);
 
     for(size_t i = 0; i < fmt.size; i++)
     {
@@ -1000,10 +998,25 @@ void print_ast(Interloper& itl, const String& fmt, ...)
 
             case 'd':
             {
+                const u32 value = va_arg(args,u32);
+                printf("%d",value);
+                break;
+            }
+
+            case 'l':
+            {
+                const u64 value = va_arg(args,u64);
+                printf("%ld",value);
+                break;
+            }
+
+            case 'D':
+            {
                 const u32 depth = va_arg(args,u32);
                 print_depth(depth);
                 break;
             }
+
 
             case 't':
             {
@@ -1032,8 +1045,18 @@ void print_ast(Interloper& itl, const String& fmt, ...)
                 printf("%f",value);
                 break;
             }
+
+            default: assert(false);
         }
     }
+}
+
+void print_ast(Interloper& itl, const String& fmt, ...)
+{
+    va_list args;
+    va_start(args,fmt);
+
+    print_itl(itl,fmt,args);
 
     putchar('\n');
 
@@ -1106,7 +1129,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             ArithUnaryNode* unary = (ArithUnaryNode*)root;
 
-            printf("%s\n",ARITH_UNARY_NAMES[u32(unary->oper)]);
+            print_ast(itl,"%s %t",ARITH_UNARY_NAMES[u32(unary->oper)],unary->node.expr_type);
             print_internal(itl,unary->expr,depth + 1);
             break;
         }
@@ -1180,7 +1203,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::value:
         {
             ValueNode* value = (ValueNode*)root;
-            printf("Value %lx (%s)\n",value->value, builtin_type_name(value->type));
+            print_ast(itl,"Value %l (%s) %t",value->value, builtin_type_name(value->type),value->node.expr_type);
             break;
         }
 
@@ -1245,7 +1268,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             for(const auto& compound : type->compound)
             {
-                print_ast(itl,"%dCompound: %s\n",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
+                print_ast(itl,"%DCompound: %s\n",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
 
                 if(compound.type == compound_type::arr_fixed_size)
                 {

@@ -94,7 +94,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         // check for duplicate members
         if(contains(enumeration.member_map,member.name))
         {
-            const auto res = compile_error(itl,itl_error::redeclaration,"Enum %s member %s redefined!",enumeration.name.buf,member.name.buf);
+            const auto res = compile_error(itl,itl_error::redeclaration,"Enum %S member %S redefined!",enumeration.name,member.name);
             destroy_enum(enumeration);
             return res;
         }

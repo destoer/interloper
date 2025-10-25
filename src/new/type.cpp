@@ -121,7 +121,7 @@ ConstValueResult access_builtin_type_info(Interloper& itl, builtin_type type, co
         return ConstValue{make_builtin(itl,builtin_type::u32_t),info.min};
     }
 
-    return compile_error(itl,itl_error::undefined_type_oper,"unknown type info for builtin type %s.%s",TYPE_NAMES[u32(type)],member_name.buf);
+    return compile_error(itl,itl_error::undefined_type_oper,"unknown type info for builtin type %s.%S",TYPE_NAMES[u32(type)],member_name);
 }
 
 
@@ -165,7 +165,7 @@ ConstValueResult access_type_info(Interloper& itl,const TypeDecl& type_decl, con
 
             else
             {
-                return compile_error(itl,itl_error::enum_type_error,"unknown type info for struct %s",type_decl.name.buf);
+                return compile_error(itl,itl_error::enum_type_error,"unknown type info for struct %S",type_decl.name);
             }
         }
 
@@ -182,13 +182,13 @@ ConstValueResult access_type_info(Interloper& itl,const TypeDecl& type_decl, con
 
             else
             {
-                return compile_error(itl,itl_error::enum_type_error,"unknown type info for enum %s",type_decl.name.buf);
+                return compile_error(itl,itl_error::enum_type_error,"unknown type info for enum %S",type_decl.name);
             }
         }
 
         case type_kind::alias_t:
         {
-            return compile_error(itl,itl_error::generic_type_error,"cannot access type properties on alias %s",type_decl.name.buf);
+            return compile_error(itl,itl_error::generic_type_error,"cannot access type properties on alias %S",type_decl.name);
         }
     }
 
@@ -312,7 +312,7 @@ Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
         case type_def_state::checking:
         {
             // TODO: add heuristics to scan for where!
-            return compile_error(itl,itl_error::black_hole,"Parse def: type %s is recursively defined",def.decl.name.buf);
+            return compile_error(itl,itl_error::black_hole,"Parse def: type %S is recursively defined",def.decl.name);
         }
 
         // already checked we don't care

@@ -6,8 +6,8 @@ Option<itl_error> check_redeclaration(Interloper& itl, NameSpace* root, const St
 
     if(existing_def)
     {
-        return compile_error(itl,itl_error::redeclaration,"%s (%s) has been redeclared as a %s!",
-            name.buf,definition_type_name(existing_def),checked_def_type.buf);
+        return compile_error(itl,itl_error::redeclaration,"%S (%s) has been redeclared as a %S!",
+            name,definition_type_name(existing_def),checked_def_type);
     }
 
     return option::none;
