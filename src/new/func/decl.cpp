@@ -40,7 +40,7 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNo
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 
-Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, b32 parse_sig = true)
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def)
 {
     // have finalised this func
     if(func_def.func)
@@ -56,20 +56,16 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     // parse in function signature on demand
     if(func.root)
     {
-        if(parse_sig)
+        const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
+        if(sig_err)
         {
-            const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
-            if(sig_err)
-            {
-                return *sig_err;
-            }
+            return *sig_err;
         }
-
+        
         if(func_def.root)
         {
             func.sig.attr_flags = func_def.root->attr_flags;
         }
-
     }
 
     // dummy func creation
@@ -87,6 +83,12 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
 
     // write back the slot
     func_def.func = (Function*)allocate(itl.func_table.arena,sizeof(Function));
+
+    // Cache the call information for the func
+    func.call_info.label_slot = func.label_slot;
+    func.call_info.sig = func.sig;
+    func.call_info.name = func.name;
+    func.call_info.func_pointer = false;
 
     // add the actual func
     *func_def.func = func;

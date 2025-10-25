@@ -80,6 +80,20 @@ struct FuncPointerType
     FuncSig sig;
 };
 
+struct FuncCall
+{
+    FuncSig sig = {};
+    String name = {};
+
+    union
+    {
+        LabelSlot label_slot;
+        RegSlot reg_slot = {};
+    };
+
+    // tag for above union
+    b32 func_pointer = false;
+};
 
 struct Function
 {
@@ -100,6 +114,8 @@ struct Function
     b32 used = false;
 
     b32 leaf_func = true;
+
+    FuncCall call_info;
 };
 
 
@@ -121,6 +137,7 @@ struct FunctionTable
     ArenaAllocator arena;
 };
 
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def);
 
 b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 

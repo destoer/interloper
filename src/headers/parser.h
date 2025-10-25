@@ -94,6 +94,7 @@ inline const char *AST_NAMES[] =
     "for_range",
     "switch",
     "if",
+    "while",
     "const_assert",
     "function",
     "ret"
@@ -1096,3 +1097,4 @@ ParserResult arr_access(Parser& parser, const Token& t);
 ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t);
 ParserResult array_index(Parser& parser,const Token& t);
 ParserResult var(Parser& parser, NameSpace* name_space, const Token& sym_tok, b32 allow_call = false);
+void print(Interloper& itl, const AstNode *root);
