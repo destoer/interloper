@@ -98,6 +98,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
 
     if(func.root)
     {
+        auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
         const auto block_err = type_check_block(itl,func,func.root->block);
 
         if(block_err)

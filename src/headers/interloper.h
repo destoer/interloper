@@ -28,7 +28,6 @@ struct Interloper
     FileContext ctx;
 
     FunctionTable func_table;
-    Array<DeclNode*> global_def;
 
     // Cur scope saved in FileContext
     NameSpace* global_namespace = nullptr;
@@ -138,7 +137,7 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
 
     if(itl.ctx.filename != "")
     {
-        const auto [line,col] = get_line_info(itl.ctx.filename,itl.ctx.file_index);
+        const auto [line,col] = get_line_info(itl.ctx.filename,itl.ctx.expr->idx);
 
         printf("error: %s %d:%d: ",itl.ctx.filename.buf,line,col);
 
@@ -228,3 +227,4 @@ void push_context(Interloper& itl);
 void pop_context(Interloper& itl);
 void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
 FileContextGuard switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
+Option<itl_error> compile_constants(Interloper& itl);

@@ -16,7 +16,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 #include "func.cpp"
 #include "struct.cpp"
 #include "enum.cpp"
-
+#include "constant.cpp"
 
 void destroy_ast(Interloper& itl)
 {
@@ -33,7 +33,8 @@ void destroy_ast(Interloper& itl)
     destroy_allocator(itl.ast_allocator);
     destroy_allocator(itl.ast_string_allocator);
 
-    destroy_arr(itl.global_def);
+    destroy_arr(itl.global_decl);
+    destroy_arr(itl.constant_decl);
     destroy_arr(itl.saved_ctx);
 
     itl.ctx.expr = nullptr;

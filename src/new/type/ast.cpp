@@ -334,11 +334,15 @@ TypeResult type_check_sym(Interloper& itl, SymbolNode* sym_node)
 
 TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 {
+    itl.ctx.expr = expr;
+
     switch(expr->type)
     {
         case ast_type::value:
         {
             ValueNode* value_node = (ValueNode*)expr;
+            expr->known_value = value_node->value;
+
             return expr->expr_type = make_builtin(itl,value_node->type);
         }
 
@@ -415,6 +419,8 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
 {
     for(AstNode* stmt : block.statement)
     {
+        itl.ctx.expr = stmt;
+
         switch(stmt->type)
         {
             case ast_type::decl:
@@ -464,6 +470,12 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
 
 Option<itl_error> type_check_ast(Interloper& itl)
 {
+    const auto const_err = compile_constants(itl);
+    if(const_err)
+    {
+        return const_err;
+    }
+
     // Forcibly check startup funcs
     // This will trigger type checking of further functions
     const auto startup_err = check_startup_defs(itl);

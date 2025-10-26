@@ -3,7 +3,6 @@
 
 struct FileContext
 {
-    u32 file_index = 0;
     String filename = "";
     NameSpace *name_space = nullptr;
     AstNode* expr = nullptr;
@@ -21,8 +20,7 @@ struct Symbol
     u32 arg_offset = NON_ARG;
     u32 references = 0;
 
-    bool known_value = false;
-    u64 constant_value = 0;
+    Option<u64> known_value = option::none;
 
     FileContext ctx;
 };

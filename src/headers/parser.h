@@ -105,6 +105,9 @@ struct AstNode
     Type* expr_type = nullptr;
     ast_type type;
     u32 idx;
+    // Resulting value of this node is known.
+    // Stored here to keep consistency with const expressions.
+    Option<u64> known_value = option::none;
 };
 
 // Subtype expr bin oper

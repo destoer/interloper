@@ -1347,7 +1347,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             if(decl->node.expr_type)
             {
                 auto& sym = sym_from_slot(itl.symbol_table,decl->sym_slot);
-                print_ast(itl,"%sDecl %S\n",decl->is_const? "const ": "",sym.name);
+                print_ast(itl,"%sDecl %S",decl->is_const? "const ": "",sym.name);
             }
 
             else
