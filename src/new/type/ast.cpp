@@ -65,11 +65,20 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl)
         return type_res.error();
     }
 
-    decl->node.expr_type = *type_res;
+    Type* ltype = *type_res;
 
-    // TODO: check declaration mark symbol slot for decl in node.    
-    // decl->slot = 
+    decl->node.expr_type = ltype;
 
+    const auto sym_ptr = get_sym(itl.symbol_table,decl->name);
+
+    if(sym_ptr)
+    {
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->name,sym_ptr->type);
+    }
+
+    // add new symbol table entry, and cache it in inside the decl
+    Symbol &sym = add_symbol(itl,decl->name,ltype);
+    decl->sym_slot = sym.reg.slot.sym_slot;
 
     return option::none;
 }
@@ -310,6 +319,20 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call)
     return call_info.sig.return_type[0];
 }
 
+TypeResult type_check_sym(Interloper& itl, SymbolNode* sym_node)
+{
+    auto sym_res = symbol(itl,sym_node);
+    if(!sym_res)
+    {
+        return sym_res.error();
+    }
+
+    TypedReg sym = *sym_res;
+    sym_node->sym_slot = sym.slot.sym_slot;
+
+    return sym_node->node.expr_type = sym.type;
+}
+
 TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 {
     switch(expr->type)
@@ -318,6 +341,12 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
         {
             ValueNode* value_node = (ValueNode*)expr;
             return expr->expr_type = make_builtin(itl,value_node->type);
+        }
+
+        case ast_type::symbol:
+        {
+            SymbolNode* sym_node = (SymbolNode*)expr;
+            return type_check_sym(itl,sym_node);
         }
 
         case ast_type::arith_unary:
@@ -348,10 +377,42 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
     return make_builtin(itl,builtin_type::void_t);
 }
 
+Option<itl_error> type_check_return(Interloper& itl, Function& func, RetNode* ret_node)
+{
+    const u32 return_count = count(ret_node->expr);
+
+    if(return_count != count(func.sig.return_type))
+    {
+        return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %S : %d != %d",
+            func.name,return_count,count(func.sig.return_type));
+    }
+
+    for(u32 r = 0; r < return_count; r++)
+    {
+        AstNode* expr = ret_node->expr[r];
+
+        auto expr_res = type_check_expr(itl,expr);
+
+        if(!expr_res)
+        {
+            return expr_res.error();
+        }
+
+        const auto assign_err = check_assign_init(itl,func.sig.return_type[r],*expr_res);
+
+        if(assign_err)
+        {
+            return assign_err;
+        }
+    }
+
+    return option::none;
+}
+
 // Don't care so much about the legality of structures here, we just want to blindly check the type
 // And do name resolution, as we are going to have to reswitch the AST when we compile anyways.
 
-Option<itl_error> type_check_block(Interloper& itl, AstBlock& block)
+Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& block)
 {
     for(AstNode* stmt : block.statement)
     {
@@ -368,6 +429,17 @@ Option<itl_error> type_check_block(Interloper& itl, AstBlock& block)
                 break;
             }
 
+            case ast_type::ret:
+            {
+                const auto ret_err = type_check_return(itl,func,(RetNode*)stmt);
+                if(ret_err)
+                {
+                    return ret_err;
+                }
+
+                break;
+            }
+
             default:
             {
                 return compile_error(itl,itl_error::invalid_expr,"Type checker(stmt) unknown node %s",AST_NAMES[u32(stmt->type)]);
@@ -375,7 +447,6 @@ Option<itl_error> type_check_block(Interloper& itl, AstBlock& block)
         }
     }
 
-    assert(false);
     return option::none;
 }
 

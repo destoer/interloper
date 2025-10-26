@@ -1,5 +1,5 @@
 void print_func_decl(Interloper& itl,const Function &func);
-Option<itl_error> type_check_block(Interloper& itl, AstBlock &block);
+Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock &block);
 
 FunctionTable make_func_table()
 {
@@ -98,7 +98,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
 
     if(func.root)
     {
-        const auto block_err = type_check_block(itl,func.root->block);
+        const auto block_err = type_check_block(itl,func,func.root->block);
 
         if(block_err)
         {

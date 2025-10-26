@@ -27,6 +27,10 @@ struct Symbol
     FileContext ctx;
 };
 
+struct SymbolNode;
+RegResult symbol(Interloper &itl, SymbolNode* sym_node);
+Symbol &add_symbol(Interloper &itl,const String &name, Type *type);
+
 struct Label 
 {
     String name;

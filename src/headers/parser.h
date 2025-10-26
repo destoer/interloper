@@ -238,7 +238,7 @@ struct SymbolNode
         // Before Type checking
         String name;
         // After Type checking;
-        SymSlot slot;
+        SymSlot sym_slot;
     };
 };
 
@@ -350,11 +350,18 @@ struct DeclNode
 {
     AstNode node;
 
-    String name;
     TypeNode* type = nullptr;
     AstNode* expr = nullptr;
 
     b32 is_const = false;
+
+    union
+    {
+        // Before type checking
+        String name;
+        // After type checking
+        SymSlot sym_slot = {INVALID_HANDLE};
+    };
 };
 
 struct GlobalDeclNode

@@ -1120,8 +1120,17 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
         case ast_type::symbol:
         {
-            SymbolNode* sym = (SymbolNode*)root;
-            print_ast(itl,"Symbol: %n%S %t",sym->name_space,sym->name,sym->node.expr_type);
+            SymbolNode* sym_node = (SymbolNode*)root;
+            if(sym_node->node.expr_type)
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,sym.name,sym_node->node.expr_type);
+            }
+
+            else
+            {
+                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,sym_node->name,sym_node->node.expr_type);
+            }
             break;
         }
 
@@ -1335,7 +1344,16 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::decl:
         {
             DeclNode* decl = (DeclNode*)root;
-            printf("%sDecl %s\n",decl->is_const? "const ": "",decl->name.buf);
+            if(decl->node.expr_type)
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,decl->sym_slot);
+                print_ast(itl,"%sDecl %S\n",decl->is_const? "const ": "",sym.name);
+            }
+
+            else
+            {
+                print_ast(itl,"%sDecl %S",decl->is_const? "const ": "",decl->name);
+            }
             
             print_internal(itl,(AstNode*)decl->type, depth + 1);
 
