@@ -470,6 +470,8 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
 
 Option<itl_error> type_check_ast(Interloper& itl)
 {
+    auto start = std::chrono::high_resolution_clock::now();
+
     const auto const_err = compile_constants(itl);
     if(const_err)
     {
@@ -485,6 +487,9 @@ Option<itl_error> type_check_ast(Interloper& itl)
     }
 
     // Type check globals
+
+    auto end = std::chrono::high_resolution_clock::now();
+    itl.type_checking_time = std::chrono::duration<double, std::milli>(end-start).count();
 
     return option::none;
 }

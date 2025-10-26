@@ -103,6 +103,7 @@ struct Interloper
     double code_gen_time = 0.0;
     double parsing_time = 0.0;
     double optimise_time = 0.0;
+    double type_checking_time = 0.0;
 };
 
 void pop_context(Interloper& itl);

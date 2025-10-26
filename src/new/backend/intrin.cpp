@@ -226,7 +226,7 @@ TypeResult type_check_syscall(Interloper &itl,FuncCallNode *func_call)
         return compile_error(itl,itl_error::mismatched_args,"Expected integer for syscall number");
     }
 
-    for(u32 arg = 1; arg <= arg_size + 1; arg++)
+    for(u32 arg = 1; arg < arg_size; arg++)
     {
         const auto type_res = type_check_expr(itl,func_call->args[arg]);
         if(!type_res)

@@ -40,6 +40,25 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNo
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 
+Option<itl_error> type_check_function(Interloper& itl, Function& func)
+{
+    auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
+
+    // put arguments on the symbol table they are marked as args
+    // so we know to access them "above" to stack pointer
+    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+
+    // put each arg into scope and copy it regs into args
+    for(u32 a = 0; a < count(func.sig.args); a++)
+    {
+        const SymSlot slot = func.sig.args[a];
+        auto &sym = sym_from_slot(itl.symbol_table,slot);
+        add_sym_to_scope(itl.symbol_table,sym);
+    }
+
+    return type_check_block(itl,func,func.root->block);
+}
+
 Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def)
 {
     // have finalised this func
@@ -98,9 +117,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
 
     if(func.root)
     {
-        auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
-        const auto block_err = type_check_block(itl,func,func.root->block);
-
+        const auto block_err = type_check_function(itl,func);
         if(block_err)
         {
             return *block_err;
