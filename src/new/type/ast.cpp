@@ -252,24 +252,23 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,AstNode* expr)
 TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call)
 {
     // Check for intrinsic.
-    // if(func_call->expr->type == ast_type::symbol)
-    // {
-    //     SymbolNode* sym_node = (SymbolNode*)func_call->expr;
-    //     if(!sym_node->name_space)
-    //     {
-    //         const auto& name = sym_node->name;
+    if(func_call->expr->type == ast_type::symbol)
+    {
+        SymbolNode* sym_node = (SymbolNode*)func_call->expr;
+        if(!sym_node->name_space)
+        {
+            const auto& name = sym_node->name;
 
-    //         // check this is not an intrinsic function
-    //         s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,name);
+            // check this is not an intrinsic function
+            s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,name);
 
-    //         if(idx != INVALID_HASH_SLOT)
-    //         {
-    //             assert(false);
-    //             // const auto handler = INTRIN_TABLE[idx].v;
-    //             // return handler(itl,func,node,dst_slot);
-    //         }
-    //     }
-    // }
+            if(idx != INVALID_HASH_SLOT)
+            {
+                const auto handler = INTRIN_TABLE[idx].v;
+                return assign_expr_type(&func_call->node,handler.type_check(itl,func_call));
+            }
+        }
+    }
 
     // Check function exists.
     // get the signature of what we are actually calling
@@ -435,6 +434,18 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
                 if(ret_err)
                 {
                     return ret_err;
+                }
+
+                break;
+            }
+
+            case ast_type::function_call:
+            {
+                FuncCallNode* func_call = (FuncCallNode*)stmt;
+                const auto func_res = assign_expr_type(stmt,type_check_function_call(itl,func_call));
+                if(!func_res)
+                {
+                    return func_res.error();
                 }
 
                 break;

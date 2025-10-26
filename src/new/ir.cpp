@@ -12,6 +12,7 @@
 #include "backend/disass.cpp"
 #include "backend/ir_x86.cpp"
 #include "backend/elf.cpp"
+#include "backend/intrin.cpp"
 
 
 OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* node)
