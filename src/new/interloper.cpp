@@ -9,7 +9,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 #include "parser/lexer.cpp"
 #include "namespace.cpp"
 #include "symbol.cpp"
-#include "ir.cpp"
+#include "backend.cpp"
 #include "memory.cpp"
 #include "array.cpp"
 #include "parser.cpp"
@@ -202,6 +202,13 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
         print_ast(itl);
     }
     
+
+    const auto backend_err = backend(itl);
+    if(backend_err)
+    {
+        destroy_itl(itl);
+        return *backend_err;
+    }
 
     return option::none;
 }
