@@ -177,6 +177,20 @@ void emit_reg2(Interloper& itl,Function& func, RegSlot dst, RegSlot src)
 }
 
 // emitter for reg_t 3
+void emit_reg3_unchecked(Interloper& itl,Function& func, op_type type, RegSlot dst, RegSlot v1, RegSlot v2)
+{
+    // sanity checking fmt
+    const auto OP_INFO = opcode_three_info(type);
+
+    handle_src_storage(itl,func,v1,is_arg_float_const(OP_INFO.type[1]));
+    handle_src_storage(itl,func,v2,is_arg_float_const(OP_INFO.type[2]));
+
+    const Opcode opcode = make_reg3_instr(type,dst,v1,v2);
+    emit_block_func(func,opcode);
+
+    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
+}
+
 template<const op_type type>
 void emit_reg3(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
 {
@@ -190,13 +204,7 @@ void emit_reg3(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot 
     static_assert(is_arg_src_const(OP_INFO.type[2]));
     static_assert(OP_INFO.args == 3);
 
-    handle_src_storage(itl,func,v1,is_arg_float_const(OP_INFO.type[1]));
-    handle_src_storage(itl,func,v2,is_arg_float_const(OP_INFO.type[2]));
-
-    const Opcode opcode = make_reg3_instr(type,dst,v1,v2);
-    emit_block_func(func,opcode);
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
+    emit_reg3_unchecked(itl,func,type,dst,v1,v2);
 }
 
 template<const op_type type>
@@ -296,6 +304,20 @@ void emit_imm1(Interloper& itl, Function& func, u64 imm)
     emit_block_func(func,opcode);    
 }
 
+
+void emit_imm3_unchecked(Interloper& itl, Function& func, op_type type, RegSlot dst, RegSlot src, u64 imm)
+{
+    const auto OP_INFO = opcode_three_info(type);
+
+    handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[1]));
+
+    const Opcode opcode = make_imm3_instr(type,dst,src,imm);
+    emit_block_func(func,opcode);    
+
+    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
+}
+
+
 template<const op_type type>
 void emit_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
@@ -309,12 +331,7 @@ void emit_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 im
     static_assert(OP_INFO.type[2] == arg_type::imm);
     static_assert(OP_INFO.args == 3);
 
-    handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[1]));
-
-    const Opcode opcode = make_imm3_instr(type,dst,src,imm);
-    emit_block_func(func,opcode);    
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
+    emit_imm3_unchecked(itl,func,type,dst,src,imm);
 }
 
 template<const op_type type>

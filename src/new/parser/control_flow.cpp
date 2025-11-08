@@ -428,7 +428,7 @@ ParserResult parse_while(Parser& parser,const Token& t)
     WhileNode* while_node = ast_while(parser,*expr_res,t);
 
     auto body_err = block_ast(parser,&while_node->block);
-    if(!body_err)
+    if(body_err)
     {
         return *body_err;
     }

@@ -40,6 +40,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
     else 
     {
+        assert(false);
         Function& func_call = *itl.memcpy;
 
         ArgPass pass = make_arg_pass(func_call.sig);

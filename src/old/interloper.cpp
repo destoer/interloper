@@ -136,7 +136,7 @@ Type* value(Interloper& itl,Function& func,AstNode *node, RegSlot dst_slot)
 }
 
 
-TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node,known_value_type known_type)
+TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node,)
 {
     ValueNode* value_node = (ValueNode*)node;
     Value value = value_node->value;
@@ -144,11 +144,6 @@ TypedReg value_tmp(Interloper& itl, Function& func, AstNode* node,known_value_ty
     Type* type = value_type(itl,value);
     RegSlot dst_slot = new_typed_tmp(itl,func,type);
 
-    // Caller is not getting rid of this move
-    if(known_type != known_value_type::elided)
-    {
-        mov_imm(itl,func,dst_slot,value.v);
-    }
 
     return make_known_reg(dst_slot,type,value.v,known_type);  
 }
