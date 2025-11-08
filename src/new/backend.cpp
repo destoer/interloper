@@ -86,10 +86,117 @@ void setup_passing_convention(Interloper& itl, Function& func)
     }
 }
 
+
+void compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
+{
+    UNUSED(func); UNUSED(dst_slot);
+
+    if(!node)
+    {
+        crash_and_burn("nullptr in compile_expression");
+    }
+
+    log(itl.itl_log,"(%s:%d) Compiling expression %s\n",itl.ctx.filename.buf,node->idx,AST_NAMES[u32(node->type)]);
+
+    itl.ctx.expr = node;
+   
+    switch(node->type)
+    {
+        default:
+        {
+            compile_panic(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'",AST_NAMES[u32(node->type)]);
+        }
+    }
+}
+
+void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym)
+{
+    const auto slot = sym.reg.slot;
+
+    alloc_slot(itl,func,slot,false);
+    
+    if(decl_node->expr->type == ast_type::no_init)
+    {
+        return;
+    }
+
+    // No initializer
+    if(!decl_node->expr)
+    {
+        if(is_float(sym.type))
+        {
+            movf_imm(itl,func,slot,0.0);
+        }
+
+        else
+        {
+            mov_imm(itl,func,slot,0);
+        }
+        return;
+    }
+
+
+    // normal assign
+    compile_expression(itl,func,decl_node->expr,slot);
+
+    if(is_unsigned_integer(sym.type))
+    {
+        clip_arith_type(itl,func,slot,slot,sym.reg.size);
+    }
+}
+
+void compile_decl(Interloper &itl,Function &func, AstNode *line)
+{
+    const DeclNode* decl_node = (DeclNode*)line;
+
+    auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym_slot);
+
+
+    switch(sym.type->kind)
+    {
+        case type_class::array_t:
+        {   
+            unimplemented("Array");
+            break;
+        }
+
+        case type_class::struct_t:
+        {
+            unimplemented("Struct");
+            break;
+        }
+
+        default:
+        {
+            compile_basic_decl(itl,func,decl_node,sym);
+            break;
+        }
+    }
+}
+
 void compile_block(Interloper& itl, Function& func,AstBlock& block)
 {
-    UNUSED(itl); UNUSED(func); UNUSED(block);
-    assert(false);
+    for(AstNode* stmt : block.statement)
+    {
+        itl.ctx.expr = stmt;
+
+        switch(stmt->type)
+        {
+            // variable declaration
+            case ast_type::decl:
+            {
+                compile_decl(itl,func,stmt);
+                break;
+            }
+
+
+            default:
+            {
+                compile_panic(itl,itl_error::invalid_expr,"Unknown statement: %s",AST_NAMES[u32(stmt->type)]);
+                break;
+            }
+        }
+    }
 }
 
 Option<itl_error> compile_function(Interloper& itl, Function& func)

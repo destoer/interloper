@@ -1,8 +1,6 @@
-
-
-
-
-
+void load_addr_slot(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot addr_slot, u32 size, b32 sign, b32 is_float);
+void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot addr_slot, u32 size,b32 is_float);
+RegSlot collapse_struct_addr_oper(Interloper& itl, Function& func, const AddrSlot struct_slot);
 
 Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
@@ -16,67 +14,57 @@ Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_
     return func_def;
 }
 
-// Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
-// {
-//     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
-//     // because this alot of boilerplate
+void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
+{
+    // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
+    // because this alot of boilerplate
 
-//     static constexpr u32 COPY_LIMIT = 32;
+    static constexpr u32 COPY_LIMIT = 32;
 
-//     // multiple of 8 and under the copy limit (don't do this when stack only, as it generates awful code)
-//     if(size < COPY_LIMIT && (size & 7) == 0 && !itl.stack_alloc) 
-//     {
-//         const auto tmp = new_tmp(func, 8);
+    // multiple of 8 and under the copy limit (don't do this when stack only, as it generates awful code)
+    if(size < COPY_LIMIT && (size & 7) == 0 && !itl.stack_alloc) 
+    {
+        const auto tmp = new_tmp(func, 8);
 
-//         const u32 count = size / 8;
+        const u32 count = size / 8;
 
-//         for(u32 i = 0; i < count; i++)
-//         {
-//             load_addr_slot(itl,func,tmp,src_addr,8,false,false);
-//             store_addr_slot(itl,func,tmp,dst_addr,8,false);
+        for(u32 i = 0; i < count; i++)
+        {
+            load_addr_slot(itl,func,tmp,src_addr,8,false,false);
+            store_addr_slot(itl,func,tmp,dst_addr,8,false);
 
-//             src_addr.addr.offset += 8;
-//             dst_addr.addr.offset += 8;
-//         }    
-//     }
+            src_addr.addr.offset += 8;
+            dst_addr.addr.offset += 8;
+        }    
+    }
 
-//     else 
-//     {
-//         // emit a call to memcpy with args
-//         // check function is declared
-//         auto func_def_res = find_complete_func(itl,itl.std_name_space,"memcpy");
+    else 
+    {
+        Function& func_call = *itl.memcpy;
 
-//         if(!func_def_res)
-//         {
-//             return func_def_res.error();
-//         }
+        ArgPass pass = make_arg_pass(func_call.sig);
 
-//         Function &func_call = *func_def_res.value();
+        const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
-//         ArgPass pass = make_arg_pass(func_call.sig);
+        const RegSlot src_ptr = collapse_struct_addr_oper(itl,func,src_addr);
+        const RegSlot dst_ptr = collapse_struct_addr_oper(itl,func,dst_addr);
 
-//         const RegSlot imm_slot = mov_imm_res(itl,func,size);
+        const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
+        const TypedReg src = {src_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+        const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+        pass_arg(itl,func,pass,imm,2);
+        pass_arg(itl,func,pass,src,1);
+        pass_arg(itl,func,pass,dst,0);
 
-//         const RegSlot src_ptr = collapse_struct_addr_oper(itl,func,src_addr);
-//         const RegSlot dst_ptr = collapse_struct_addr_oper(itl,func,dst_addr);
+        const u32 arg_clean = pass_args(itl,func,pass);
 
-//         const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
-//         const TypedReg src = {src_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-//         const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-//         pass_arg(itl,func,pass,imm,2);
-//         pass_arg(itl,func,pass,src,1);
-//         pass_arg(itl,func,pass,dst,0);
+        call(itl,func,func_call.label_slot);
+        unlock_reg_set(itl,func,func_call.sig.locked_set);
 
-//         const u32 arg_clean = pass_args(itl,func,pass);
+        clean_args(itl,func,arg_clean);
+    }
 
-//         call(itl,func,func_call.label_slot);
-//         unlock_reg_set(itl,func,func_call.sig.locked_set);
-
-//         clean_args(itl,func,arg_clean);
-//     }
-
-//     return option::none;
-// }
+}
 
 // Option<itl_error> ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 // {

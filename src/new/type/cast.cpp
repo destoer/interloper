@@ -173,11 +173,6 @@ Option<itl_error> handle_cast(Interloper& itl,Function& func, const TypedReg& ol
             return compile_error(itl,itl_error::illegal_cast,"Cannot recast to fixed array %t -> %t",old_reg.type,new_reg.type);
         }
 
-        // if(!is_flat_array(old_reg.type) || !is_flat_array(new_reg.type))
-        // {
-        //     return compile_error(itl,itl_error::illegal_cast,"Expected recast from flat array to flat array got: %s -> %s",
-        //         type_name(itl,old_reg.type).buf,type_name(itl,new_reg.type).buf);
-        // }
 
         const u32 new_size = type_size(itl,index_arr(new_reg.type));
         const u32 old_size = type_size(itl,index_arr(old_reg.type));

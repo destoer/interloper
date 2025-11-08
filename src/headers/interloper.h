@@ -104,6 +104,9 @@ struct Interloper
     double parsing_time = 0.0;
     double optimise_time = 0.0;
     double type_checking_time = 0.0;
+
+    // Startup functions
+    Function* memcpy = nullptr;
 };
 
 void pop_context(Interloper& itl);
@@ -121,7 +124,7 @@ struct [[nodiscard]] FileContextGuard
 
 void print_itl(Interloper& itl, const String& fmt, va_list args);
 
-inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
+inline itl_error compile_verror(Interloper &itl,itl_error error,const char *fmt, va_list args)
 {
     itl.error_count += 1;
 
@@ -143,12 +146,7 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
         printf("error: %s %d:%d: ",itl.ctx.filename.buf,line,col);
 
 
-        va_list args; 
-        va_start(args, fmt);
-        
         print_itl(itl,fmt,args);
-
-        va_end(args);
         putchar('\n');
 
         print_line(itl.ctx.filename,line);
@@ -158,16 +156,32 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
     {
         printf("error: ");
 
-        va_list args; 
-        va_start(args, fmt);
-        
         print_itl(itl,fmt,args);
-
-        va_end(args);
         putchar('\n');
     }
 
     return error;
+}
+
+inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
+{
+    va_list args; 
+    va_start(args, fmt);
+    const auto err = compile_verror(itl,error,fmt,args);
+    va_end(args);
+
+    return err;
+}
+
+
+inline void compile_panic(Interloper &itl,itl_error error,const char *fmt, ...)
+{
+    puts("Panic: ");
+    va_list args; 
+    va_start(args, fmt);
+    UNUSED(compile_verror(itl,error,fmt,args));
+    va_end(args);
+    exit(1);
 }
 
 void itl_warning(const char* fmt, ...)

@@ -147,7 +147,7 @@ b32 func_exists(Interloper& itl, const String& name, NameSpace* name_space)
     return lookup_func_def_scope(itl,name_space,name) != nullptr;
 }
 
-Option<itl_error> check_startup_func(Interloper& itl, const String& name, NameSpace* name_space)
+Result<Function*,itl_error> check_startup_func(Interloper& itl, const String& name, NameSpace* name_space)
 {
     auto def_opt = lookup_func_def_scope(itl,name_space,name);
 
@@ -157,13 +157,7 @@ Option<itl_error> check_startup_func(Interloper& itl, const String& name, NameSp
         return compile_error(itl,itl_error::undeclared,"%S is not defined!",name);
     }
 
-    const auto func_res = finalise_func(itl,*def_opt);
-    if(!func_res)
-    {
-        return func_res.error();
-    }
-
-    return option::none;    
+    return finalise_func(itl,*def_opt);
 }
 
 Function* lookup_opt_scoped_function(Interloper& itl, NameSpace* name_space, const String& name)
@@ -205,7 +199,6 @@ Function& lookup_internal_function(Interloper& itl, const String& name)
     return *func_opt;
 }
 
-// #include "intrin.cpp"
 
 
 void print_func_sig(Interloper& itl, const FuncSig& sig)

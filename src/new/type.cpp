@@ -44,6 +44,7 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
 #include "type/lookup.cpp"
 #include "type/checker.cpp"
 #include "type/ast.cpp"
+#include "type/cast.cpp"
 
 void add_type_to_scope(NameSpace* name_space, TypeDecl* decl)
 {

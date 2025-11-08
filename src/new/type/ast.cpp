@@ -1,7 +1,8 @@
 // TODO: Split this fairly immediately.
 
-Option<itl_error> check_startup_func(Interloper& itl, const String& name, NameSpace* name_space);
+Result<Function*,itl_error> check_startup_func(Interloper& itl, const String& name, NameSpace* name_space);
 TypeResult type_check_expr(Interloper& itl, AstNode* expr);
+void reserve_global_alloc(Interloper& itl, Symbol& sym);
 
 Option<itl_error> check_startup_defs(Interloper& itl)
 {   
@@ -14,30 +15,32 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     //     }
     // }
 
-    // itl.std_name_space = find_name_space(itl,"std");
+    itl.std_name_space = find_name_space(itl,"std");
 
-    // if(!itl.std_name_space)
-    // {
-    //     return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
-    // }
-
-    const auto main_err = check_startup_func(itl,"main",itl.global_namespace);
-    if(main_err)
+    if(!itl.std_name_space)
     {
-        return main_err;
+        return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
     }
 
-    const auto start_err = check_startup_func(itl,"start",itl.global_namespace);
-    if(start_err)
+    const auto main_res = check_startup_func(itl,"main",itl.global_namespace);
+    if(!main_res)
     {
-        return start_err;
+        return main_res.error();
     }
 
-    // const auto memcpy_err = check_startup_func(itl,"memcpy",itl.std_name_space);
-    // if(memcpy_err)
-    // {
-    //     return memcpy_err;
-    // }
+    const auto start_res = check_startup_func(itl,"start",itl.global_namespace);
+    if(!start_res)
+    {
+        return start_res.error();
+    }
+
+    const auto memcpy_res = check_startup_func(itl,"memcpy",itl.std_name_space);
+    if(!memcpy_res)
+    {
+        return memcpy_res.error();
+    }
+
+    itl.memcpy = *memcpy_res;
     
     // const auto zero_err = check_startup_func(itl,"zero_mem",itl.std_name_space);
     // if(zero_err)
@@ -79,6 +82,14 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl)
     // add new symbol table entry, and cache it in inside the decl
     Symbol &sym = add_symbol(itl,decl->name,ltype);
     decl->sym_slot = sym.reg.slot.sym_slot;
+
+    if(!decl->expr && is_reference(ltype))
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s",type_name(itl,ltype).buf);
+    }
+
+    // Reserve global data
+    reserve_global_alloc(itl,sym);
 
     return option::none;
 }
