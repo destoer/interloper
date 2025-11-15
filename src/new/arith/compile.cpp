@@ -1,7 +1,7 @@
 bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSlot dst_slot, const TypedReg& left, Type* rtype, u64 value)
 {
     const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
-    const auto sign = is_signed(left.type) && is_signed(rtype);
+    const auto sign = is_signed(left.type) || is_signed(rtype);
 
     switch(arith)
     {
@@ -64,31 +64,42 @@ void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegS
 {
     const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
 
-    TypedReg left = {};
-    TypedReg right = {};
-
     if(node->right->known_value)
     {
         const auto value = *node->right->known_value;
-        left = compile_oper(itl,func,node->left);
+        const auto left = compile_oper(itl,func,node->left);
+
         if(emit_known_rvalue(itl,func,node->oper,dst_slot,left,node->right->expr_type,value))
         {
             return;
         } 
+
+        const auto right = compile_oper(itl,func,node->right);
+        emit_integer_ir(itl,func,node->oper,dst_slot,left,right);
     }
 
     // If this is commutative we can just switch the operands
     else if(node->left->known_value && arith_info.commutative)
     {
         const auto value = *node->left->known_value;
-        right = compile_oper(itl,func,node->right);
+        const auto right = compile_oper(itl,func,node->right);
+
         if(emit_known_rvalue(itl,func,node->oper,dst_slot,right,node->left->expr_type,value))
         {
             return;
-        } 
+        }
+        
+        const auto left = compile_oper(itl,func,node->left);
+        emit_integer_ir(itl,func,node->oper,dst_slot,left,right);
     }
 
-    emit_integer_ir(itl,func,node->oper,dst_slot,left,right);
+    else
+    {
+        const auto left = compile_oper(itl,func,node->left);
+        const auto right = compile_oper(itl,func,node->right);
+
+        emit_integer_ir(itl,func,node->oper,dst_slot,left,right);
+    }
 }
 
 void emit_float_arith(Interloper& itl, Function& func, ArithBinNode* node, RegSlot dst_slot)
