@@ -223,9 +223,11 @@ Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
             return func_call_res.error();
         }
 
-        Function* func_call = *func_call_res;
+        const auto func_call = *func_call_res;
+
         return func_call->call_info;
     }
+
 
     // no known function 
     // check if this is instead a function pointer call
@@ -260,7 +262,29 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,AstNode* expr)
 }
 
 
-TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call)
+Option<itl_error> check_unbound_return(Interloper& itl, const FuncCall& call_info)
+{
+    if(call_info.sig.attr_flags & ATTR_USE_RESULT)
+    {
+        return compile_error(itl,itl_error::unused_result,"Result of function %S declared with attr use_result must be used",call_info.name);
+    }
+
+    else if(is_enum(call_info.sig.return_type[0]))
+    {
+        const auto& enumeration = enum_from_type(itl.enum_table,call_info.sig.return_type[0]);
+
+        if(enumeration.use_result)
+        {
+            return compile_error(itl,itl_error::unused_result,"Enum %S declared with attr use_result must be used from func %S",
+                enumeration.name,call_info.name);
+        }
+    }
+    
+    return option::none;
+}
+
+
+TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bool result_bound)
 {
     // Check for intrinsic.
     if(func_call->expr->type == ast_type::symbol)
@@ -275,6 +299,9 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call)
 
             if(idx != INVALID_HASH_SLOT)
             {
+                func_call->type = func_call_type::intrinsic;
+                func_call->intrinsic_idx = idx;
+
                 const auto handler = INTRIN_TABLE[idx].v;
                 return assign_expr_type(&func_call->node,handler.type_check(itl,func_call));
             }
@@ -290,7 +317,8 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call)
         return call_info_res.error();
     }
 
-    const auto call_info = *call_info_res;
+    func_call->call = *call_info_res;
+    const auto& call_info = func_call->call;
 
     if(call_info.sig.va_args)
     {
@@ -323,6 +351,15 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call)
         }
     }
 
+    if(!result_bound)
+    {
+        const auto err = check_unbound_return(itl,call_info);
+        if(err)
+        {
+            return *err;
+        }
+    }
+
     // Type check tuple return (if any)
     // TODO: Skip for now.
     assert(count(call_info.sig.return_type) == 1);
@@ -337,8 +374,13 @@ TypeResult type_check_sym(Interloper& itl, SymbolNode* sym_node)
         return sym_res.error();
     }
 
-    TypedReg sym = *sym_res;
-    sym_node->sym_slot = sym.slot.sym_slot;
+    TypedReg reg = *sym_res;
+    const auto slot = reg.slot.sym_slot;
+    sym_node->sym_slot = slot;
+
+    // Cache known value;
+    auto& sym = sym_from_slot(itl.symbol_table,slot);
+    sym_node->node.known_value = sym.known_value;
 
     return sym_node->node.expr_type = sym.type;
 }
@@ -378,7 +420,7 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
         case ast_type::function_call:
         {
             FuncCallNode* func_call = (FuncCallNode*)expr;
-            return assign_expr_type(expr,type_check_function_call(itl,func_call));
+            return assign_expr_type(expr,type_check_function_call(itl,func_call,true));
         }
 
         default:
@@ -459,7 +501,7 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
             case ast_type::function_call:
             {
                 FuncCallNode* func_call = (FuncCallNode*)stmt;
-                const auto func_res = assign_expr_type(stmt,type_check_function_call(itl,func_call));
+                const auto func_res = assign_expr_type(stmt,type_check_function_call(itl,func_call,false));
                 if(!func_res)
                 {
                     return func_res.error();

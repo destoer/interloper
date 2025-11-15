@@ -51,6 +51,11 @@ RegSlot addrof_res(Interloper& itl, Function& func, StructAddr struct_addr)
 
 void clean_args(Interloper& itl, Function& func, u32 v)
 {
+    if(v == 0)
+    {
+        return;
+    }
+    
     emit_imm1<op_type::clean_args>(itl,func,v);
 }
 

@@ -7,9 +7,6 @@ Option<ParserResult> try_parse_slice(Parser& parser, const Token& t);
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 ParserResult statement(Parser &parser);
 
-static constexpr u32 ATTR_NO_REORDER = (1 << 0);
-static constexpr u32 ATTR_FLAG = (1 << 1);
-static constexpr u32 ATTR_USE_RESULT = (1 << 2);
 
 const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 

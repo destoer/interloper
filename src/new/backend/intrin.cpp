@@ -2,6 +2,9 @@ void load_addr_slot(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot add
 void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot addr_slot, u32 size,b32 is_float);
 RegSlot collapse_struct_addr_oper(Interloper& itl, Function& func, const AddrSlot struct_slot);
 
+Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot);
+ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node);
+
 Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
 {
     Function* func_def = lookup_opt_scoped_function(itl,name_space,name);
@@ -117,85 +120,11 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 //     return option::none;
 // }
 
-// TypeResult intrin_syscall_x86(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
-// {
-//     FuncCallNode* func_call = (FuncCallNode*)node;
-
-//     const u32 arg_size = count(func_call->args);
-
-//     if(arg_size < 1)
-//     {
-//         return compile_error(itl,itl_error::mismatched_args,"expected 3 args for intrin_syscall got %d",arg_size);
-//     }
-
-//     // make sure this register doesn't get reused
-//     lock_reg(itl,func,make_spec_reg_slot(spec_reg::rax));
-//     auto syscall_num_res = compile_const_int_expression(itl,func_call->args[0]);
-//     if(!syscall_num_res)
-//     {
-//         return syscall_num_res.error();
-//     }
-
-//     const auto syscall_value = *syscall_num_res;
-
-//     mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value.value);
-//     u32 unlock_set = set_bit(0,special_reg_to_reg(itl.arch,spec_reg::rax));
-
-    
-//     const spec_reg REG_ARGS[6] = {spec_reg::rdi,spec_reg::rsi,spec_reg::rdx,spec_reg::r10,spec_reg::r8,spec_reg::r9};
-
-//     for(u32 arg = 1; arg <= 6; arg++)
-//     {
-//         if(arg_size >= arg + 1)
-//         {
-//             const spec_reg locked_reg = REG_ARGS[arg-1];
-//             const auto reg = make_spec_reg_slot(locked_reg);
-//             lock_reg(itl,func,reg);
-//             unlock_set = set_bit(unlock_set,special_reg_to_reg(itl.arch,locked_reg));
-
-//             const auto type_res = compile_expression(itl,func,func_call->args[arg],reg);
-//             if(!type_res)
-//             {
-//                 return type_res;
-//             }
-
-//             const Type* type = *type_res;
-
-//             if(!is_trivial_copy(type))
-//             {
-//                 return compile_error(itl,itl_error::mismatched_args,"arg %d of type %s does not fit inside a gpr",arg,type_name(itl,type).buf);
-//             }
-//         }
-//     }
-
-//     syscall(itl,func);
-
-//     if(!is_special_reg(dst_slot,spec_reg::null))
-//     {
-//         // move result
-//         mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rax));
-//     }
-    
-//     unlock_reg_set(itl,func,unlock_set);
-
-//     return make_builtin(itl,builtin_type::s64_t);   
-// }
-
-// TypeResult intrin_syscall(Interloper &itl,Function &func,AstNode *node, RegSlot dst_slot)
-// {
-//     switch(itl.arch)
-//     {
-//         case arch_target::x86_64_t:
-//         {
-//             return intrin_syscall_x86(itl,func,node,dst_slot);
-//         }
-//     }
-
-//     assert(false);
-// }
 
 TypeResult type_check_syscall(Interloper &itl,FuncCallNode *func_call)
 {
+    assert(itl.arch == arch_target::x86_64_t);
+
     const u32 arg_size = count(func_call->args);
 
     if(arg_size < 1)
@@ -204,15 +133,10 @@ TypeResult type_check_syscall(Interloper &itl,FuncCallNode *func_call)
     }
 
     // TODO: Should probably just replace this with a value.
-    auto syscall_num_res = type_check_expr(itl,func_call->args[0]);
+    auto syscall_num_res = type_check_const_int_expression(itl,func_call->args[0]);
     if(!syscall_num_res)
     {
         return syscall_num_res.error();
-    }
-
-    if(!is_integer(*syscall_num_res))
-    {
-        return compile_error(itl,itl_error::mismatched_args,"Expected integer for syscall number");
     }
 
     for(u32 arg = 1; arg < arg_size; arg++)
@@ -234,8 +158,48 @@ TypeResult type_check_syscall(Interloper &itl,FuncCallNode *func_call)
     return make_builtin(itl,builtin_type::s64_t);    
 }
 
+Type* compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, RegSlot dst_slot)
+{
+    const u32 arg_size = count(func_call->args);
+
+    // make sure this register doesn't get reused
+    lock_reg(itl,func,make_spec_reg_slot(spec_reg::rax));
+    const auto syscall_value = *func_call->args[0]->known_value;
+
+    mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value);
+    u32 unlock_set = set_bit(0,special_reg_to_reg(itl.arch,spec_reg::rax));
+
+    
+    const spec_reg REG_ARGS[6] = {spec_reg::rdi,spec_reg::rsi,spec_reg::rdx,spec_reg::r10,spec_reg::r8,spec_reg::r9};
+
+    for(u32 arg = 1; arg <= 6; arg++)
+    {
+        if(arg_size >= arg + 1)
+        {
+            const spec_reg locked_reg = REG_ARGS[arg-1];
+            const auto reg = make_spec_reg_slot(locked_reg);
+            lock_reg(itl,func,reg);
+            unlock_set = set_bit(unlock_set,special_reg_to_reg(itl.arch,locked_reg));
+
+            compile_expression(itl,func,func_call->args[arg],reg);
+        }
+    }
+
+    syscall(itl,func);
+
+    if(!is_special_reg(dst_slot,spec_reg::null))
+    {
+        // move result
+        mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rax));
+    }
+    
+    unlock_reg_set(itl,func,unlock_set);
+
+    return make_builtin(itl,builtin_type::s64_t);      
+}
+
 const HashNode<String,IntrinHandler> INTRIN_TABLE[INTRIN_TABLE_SIZE] = 
 {
-    {"",nullptr},
-    {"intrin_syscall",{nullptr,type_check_syscall}},
+    {"",{nullptr,nullptr}},
+    {"intrin_syscall",{compile_syscall,type_check_syscall}},
 };

@@ -420,11 +420,25 @@ struct EnumNode
     u32 attr_flags = 0;
 };
 
+enum class func_call_type
+{
+    intrinsic,
+    call,
+};
+
 struct FuncCallNode
 {
     AstNode node;
 
-    AstNode* expr =  nullptr;
+    AstNode* expr = nullptr;
+    func_call_type type = func_call_type::call;
+
+    union
+    {
+        FuncCall call = {};
+        size_t intrinsic_idx;
+    };
+
     Array<AstNode*> args;
 };
 
@@ -567,6 +581,11 @@ enum class [[nodiscard]] parse_error
     itl_error,
     lexer_error,
 };
+
+static constexpr u32 ATTR_NO_REORDER = (1 << 0);
+static constexpr u32 ATTR_FLAG = (1 << 1);
+static constexpr u32 ATTR_USE_RESULT = (1 << 2);
+
 
 using ParserResult = Result<AstNode*,parse_error>;
 

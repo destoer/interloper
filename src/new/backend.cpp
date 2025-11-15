@@ -14,12 +14,17 @@
 #include "backend/elf.cpp"
 #include "backend/intrin.cpp"
 #include "backend/ir.cpp"
+#include "backend/memory.cpp"
+
 
 
 TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node);
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot);
 AddrSlot generate_indexed_pointer(Interloper& itl, Function& func, RegSlot base, RegSlot index, u32 scale, u32 offset);
 void collapse_struct_addr(Interloper& itl, Function& func, RegSlot dst_slot, const AddrSlot struct_slot);
+
+Type* compile_function_call(Interloper& itl, Function& func, FuncCallNode* call_node, RegSlot dst_slot);
+void compile_return(Interloper &itl,Function &func, RetNode* ret_node);
 
 Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
 {
@@ -314,6 +319,18 @@ TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node)
     }
 }
 
+Type* compile_symbol(Interloper& itl, Function& func, SymbolNode* sym_node, RegSlot dst_slot)
+{
+    auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+
+    const TypedReg src = typed_reg(sym);
+    const TypedReg dst = {dst_slot,src.type};
+
+    compile_move(itl,func,dst,src);
+
+    return sym.type;
+}
+
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
 {
     if(!node)
@@ -336,9 +353,19 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
     switch(node->type)
     {
+        case ast_type::symbol:
+        {
+            return compile_symbol(itl,func,(SymbolNode*)node,dst_slot);
+        }
+
         case ast_type::arith_bin:
         {
             return compile_arith_bin(itl,func,(ArithBinNode*)node,dst_slot);
+        }
+
+        case ast_type::function_call:
+        {
+            return compile_function_call(itl,func,(FuncCallNode*)node,dst_slot);
         }
 
         default:
@@ -387,10 +414,8 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     }
 }
 
-void compile_decl(Interloper &itl,Function &func, AstNode *line)
+void compile_decl(Interloper &itl,Function &func, DeclNode* decl_node)
 {
-    const DeclNode* decl_node = (DeclNode*)line;
-
     auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym_slot);
 
 
@@ -427,15 +452,25 @@ void compile_block(Interloper& itl, Function& func,AstBlock& block)
             // variable declaration
             case ast_type::decl:
             {
-                compile_decl(itl,func,stmt);
+                compile_decl(itl,func,(DeclNode*)stmt);
                 break;
             }
 
+            case ast_type::ret:
+            {
+                compile_return(itl,func,(RetNode*)stmt);
+                break;
+            }
+
+            case ast_type::function_call:
+            {
+                compile_function_call(itl,func,(FuncCallNode*)stmt,make_spec_reg_slot(spec_reg::null));
+                break;
+            }
 
             default:
             {
-                dump_ir_sym(itl,func,itl.symbol_table);
-                compile_panic(itl,itl_error::invalid_expr,"Unknown statement: %s",AST_NAMES[u32(stmt->type)]);
+                compile_panic(itl,itl_error::invalid_expr,"[COMPILE]: Unknown statement: %s",AST_NAMES[u32(stmt->type)]);
                 break;
             }
         }
@@ -468,13 +503,22 @@ Option<itl_error> compile_functions(Interloper& itl)
     for(Function* func : itl.func_table.used)
     {
         const auto func_err = compile_function(itl,*func);
-        if(!func_err)
+        if(func_err)
         {
             return func_err;
         }
     }
 
     return option::none;
+}
+
+void dump_sym_ir(Interloper &itl)
+{
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
+    {
+        auto& func = *itl.func_table.used[f];
+        dump_ir_sym(itl,func,itl.symbol_table);
+    }
 }
 
 Option<itl_error> backend(Interloper& itl)
@@ -485,6 +529,10 @@ Option<itl_error> backend(Interloper& itl)
         return func_err;
     }
 
-    UNUSED(itl);
-    assert(false);   
+    if(itl.print_ir)
+    {
+        dump_sym_ir(itl);
+    }
+
+    return option::none;
 }

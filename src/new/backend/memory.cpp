@@ -383,3 +383,106 @@ void do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedReg
     const TypedAddr addr = {make_pointer_addr(reg.slot,offset),reg.type};
     do_addr_store(itl,func,src_slot,addr);
 }
+
+
+// we dont want the 2nd stage IR handling how things need to be copied
+// as it does not have the information required easily accessible
+void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const TypedReg& src)
+{
+    // check the operation is even legal
+
+    // can be moved by a simple data copy 
+    // NOTE: we use this here so we dont have to care about the underlying type if its a pointer
+    if(is_trivial_copy(dst.type) && is_trivial_copy(src.type))
+    {
+        if(is_float(dst.type))
+        {
+            mov_float(itl,func,dst.slot,src.slot);
+        }
+
+        else
+        {
+            mov_reg(itl,func,dst.slot,src.slot);
+        }
+    }
+
+    else if(is_vla(dst.type) && is_array(src.type))
+    {
+        RegSlot addr_slot;
+        
+        switch(dst.slot.kind)
+        {
+            case reg_kind::tmp:
+            case reg_kind::sym:
+            {
+                const StructAddr struct_addr = {make_addr(dst.slot,0)};
+
+                addr_slot = addrof_res(itl,func,struct_addr);
+                break;
+            }
+
+            case reg_kind::spec:
+            {
+                switch(dst.slot.spec)
+                {
+                    case spec_reg::rv_struct:
+                    {
+                        addr_slot = make_sym_reg_slot(func.sig.args[0]);
+                        break;
+                    }
+
+                    default: assert(false);
+                }
+
+                break;
+            }
+        }
+
+        const RegSlot data_slot = load_arr_data(itl,func,src);
+        store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE,false);
+
+        const RegSlot len_slot = load_arr_len(itl,func,src);
+        store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false);
+    }
+
+    // requires special handling to move
+    else if(is_struct(dst.type) && is_struct(src.type))
+    {
+        switch(dst.slot.kind)
+        {
+            case reg_kind::sym:
+            case reg_kind::tmp:
+            {
+                const auto src_addr = make_struct_addr(src.slot,0);
+                const auto dst_addr = make_struct_addr(dst.slot,0);
+
+                ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst.type));
+                break;
+            }
+
+            case reg_kind::spec:
+            {
+                switch(dst.slot.spec)
+                {
+                    // copy out the structure using the hidden pointer in the first arg
+                    case spec_reg::rv_struct:
+                    {
+                        const auto src_addr = make_struct_addr(src.slot,0);
+                        const auto dst_addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
+
+                        ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst.type));
+                        break;
+                    }
+
+                    default: assert(false);
+                }
+                break;
+            }
+        }
+    }
+
+    else
+    {
+        assert(false);
+    }
+}
