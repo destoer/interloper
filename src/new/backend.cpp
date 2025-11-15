@@ -500,6 +500,8 @@ Option<itl_error> compile_function(Interloper& itl, Function& func)
 
 Option<itl_error> compile_functions(Interloper& itl)
 {
+    auto start = std::chrono::high_resolution_clock::now();
+
     for(Function* func : itl.func_table.used)
     {
         const auto func_err = compile_function(itl,*func);
@@ -509,20 +511,31 @@ Option<itl_error> compile_functions(Interloper& itl)
         }
     }
 
+    auto end = std::chrono::high_resolution_clock::now();
+    itl.code_gen_time = std::chrono::duration<double, std::milli>(end-start).count();
+
     return option::none;
 }
 
 void dump_sym_ir(Interloper &itl)
 {
-    for(u32 f = 0; f < count(itl.func_table.used); f++)
+    for(Function* func : itl.func_table.used)
     {
-        auto& func = *itl.func_table.used[f];
-        dump_ir_sym(itl,func,itl.symbol_table);
+        dump_ir_sym(itl,*func,itl.symbol_table);
     }
 }
 
-Option<itl_error> backend(Interloper& itl)
+void dump_reg_ir(Interloper &itl)
 {
+    for(Function* func : itl.func_table.used)
+    {
+        dump_ir_reg(itl,*func,itl.symbol_table);
+    }
+}
+
+Option<itl_error> backend(Interloper& itl, const String& executable_path)
+{
+
     const auto func_err = compile_functions(itl);
     if(func_err)
     {
@@ -533,6 +546,57 @@ Option<itl_error> backend(Interloper& itl)
     {
         dump_sym_ir(itl);
     }
+    
+    auto start = std::chrono::high_resolution_clock::now();
+
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            rewrite_x86_ir(itl);
+            break;
+        }
+    }
+
+    if(itl.print_ir)
+    {
+        dump_sym_ir(itl);
+    }
+
+    // perform register allocation on used functions
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
+    {
+        auto& func = *itl.func_table.used[f];
+
+        allocate_registers(itl,func);
+
+        if(itl.print_stack_allocation || itl.print_reg_allocation)
+        {
+            putchar('\n');
+        }
+    }
+
+    if(itl.print_ir)
+    {
+        dump_reg_ir(itl);
+    }
+
+    // emit the actual target asm
+    emit_asm(itl);
+
+    switch(itl.os)
+    {
+        case os_target::linux_t:
+        {
+            emit_elf(itl,executable_path);
+            break;
+        }
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    itl.backend_time = std::chrono::duration<double, std::milli>(end-start).count();
+
+    printf("OK\n\n");
 
     return option::none;
 }
