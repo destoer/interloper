@@ -48,14 +48,16 @@ u32 gpr_count(u32 size)
 }
 
 
-b32 is_mem_unallocated(Reg& reg)
-{
-    return reg.offset == UNALLOCATED_OFFSET;
-}
+
 
 b32 is_mem_allocated(Reg& reg)
 {
-    return reg.offset != UNALLOCATED_OFFSET;
+    return reg.flags & STACK_ALLOCATED;
+}
+
+b32 is_mem_unallocated(Reg& reg)
+{
+    return !is_mem_allocated(reg);
 }
 
 b32 is_stack_unallocated(Reg& reg)
@@ -180,8 +182,8 @@ Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
 
     u32 size = type_size(itl,type);
 
-    // tmp's derived from expression are allways atleast gpr sized
-    // this ensures that intermediate results allways get stored at 
+    // tmp's derived from expression are always atleast gpr sized
+    // this ensures that intermediate results always get stored at 
     // "max" precision
     if(slot.kind == reg_kind::tmp && size < GPR_SIZE)
     {

@@ -1,4 +1,4 @@
-// TODO: we need to handle 16 byte alignemnt
+// TODO: we need to handle 16 byte alignment
 // if we need to call external functions or use sse
 
 struct StackAlloc
@@ -6,16 +6,16 @@ struct StackAlloc
     Array<ArrayAllocation> array_allocation;
 
     // how much has our stack been screwed up by function calls etc
-    // so how much do we need to offset accesses to varaibles
+    // so how much do we need to offset accesses to variables
     u32 stack_offset = 0;
 
     // where does each section for alloc start?
     u32 stack_alloc[4] = {0};
 
-    // how much of each type of var is there at the momemnt?
+    // how much of each type of var is there at the moment?
     u32 size_count[4] = {0};
 
-    // what is the total ammount of space that this functions stack requires!
+    // what is the total amount of space that this functions stack requires!
     u32 stack_size = 0;
 
     Array<RegSlot> pending_allocation;
@@ -81,6 +81,7 @@ void stack_reserve_reg(StackAlloc& alloc, Reg& ir_reg)
 
     ir_reg.offset = stack_reserve_internal(alloc,ir_reg.size,ir_reg.count);
 
+    ir_reg.flags |= STACK_ALLOCATED;
     ir_reg.flags |= PENDING_STACK_ALLOCATION;
 
     log(alloc.print,"initial stack offset for register at %x allocated\n",ir_reg.slot,ir_reg.offset);
@@ -106,7 +107,7 @@ u32 align_val(u32 v,u32 alignment)
 
 void align(u32 *alloc, u32 alignment)
 {
-    // make sure the last start posistion is even
+    // make sure the last start position is even
     const u32 idx = log2(alignment);
 
     alloc[idx] = align_val(alloc[idx],alignment);
@@ -252,7 +253,7 @@ u32 allocate_global_array(GlobalAlloc& alloc,SymbolTable& table ,SymSlot slot, u
 void finalise_global_offset(Interloper& itl)
 {
     // okay now we know how many vars are in each section
-    // align them and compute the final intial offsets
+    // align them and compute the final initial offsets
 
     auto& alloc = itl.global_alloc;
 
@@ -265,7 +266,7 @@ void finalise_global_offset(Interloper& itl)
 
     // now we need to give each symbol is final offset from the start of the global table
     
-    // by definiton globals (if any) will be stored inside the "top" symbol table
+    // by definition globals (if any) will be stored inside the "top" symbol table
     for(u32 g = 0; g < count(itl.symbol_table.global); g++)
     {
         const auto slot = itl.symbol_table.global[g];

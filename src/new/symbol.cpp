@@ -113,7 +113,6 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
     Symbol symbol = {};
     symbol.name = copy_string(*table.string_allocator,name);
     symbol.type = type;
-    symbol.arg_offset = arg;
 
     const auto reg_slot = make_sym_reg_slot(sym_slot);
 
@@ -124,8 +123,9 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
     if(symbol.arg_offset != NON_ARG)
     {
         symbol.reg.flags |= FUNC_ARG;
-        symbol.reg.offset = 0;
     }
+
+    symbol.arg_offset = arg;
 
     return symbol;
 }

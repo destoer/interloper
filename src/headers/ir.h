@@ -495,8 +495,6 @@ extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
 
 static constexpr u32 NON_ARG = 0xffffffff;
 
-static constexpr u32 UNALLOCATED_OFFSET = 0xffff'ffff;
-
 static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
 enum class operand_type
@@ -947,6 +945,7 @@ static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
 static constexpr u32 CONST = 1 << 4;
 static constexpr u32 FUNC_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
+static constexpr u32 STACK_ALLOCATED = 1 << 7;
 
 
 // TODO:
@@ -976,7 +975,7 @@ struct Reg
     // intialized during register allocation
 
     // where is the current offset for its section?
-    u32 offset = UNALLOCATED_OFFSET;
+    u32 offset = 0;
 
     // Where is this register globally allocated if at all
     u32 global_reg = REG_FREE;

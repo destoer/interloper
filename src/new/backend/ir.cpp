@@ -462,9 +462,6 @@ OpcodeNode* rewrite_directives(Interloper& itl,LinearAlloc &alloc,Block& block, 
 
             auto& reg = reg_from_slot(slot,alloc);
 
-            // double check this value has actually been put into memory...
-            //assert(reg.offset != UNALLOCATED_OFFSET);
-
             const s32 stack_offset = opcode.v[2].imm;
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
 
