@@ -12,7 +12,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 #include "backend.cpp"
 #include "array.cpp"
 #include "parser.cpp"
-#include "func.cpp"
+#include "func/decl.cpp"
 #include "struct.cpp"
 #include "enum.cpp"
 #include "constant.cpp"

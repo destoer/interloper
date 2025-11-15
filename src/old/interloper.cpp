@@ -41,7 +41,7 @@ Option<itl_error> compile_init_list(Interloper& itl, Function& func, Type* ltype
 #include "struct.cpp"
 #include "enum.cpp"
 #include "rtti.cpp"
-#include "func.cpp"
+#include "func/decl.cpp"
 #include "array.cpp"
 #include "constant.cpp"
 #include "control_flow.cpp"

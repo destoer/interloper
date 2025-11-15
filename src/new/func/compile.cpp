@@ -223,3 +223,21 @@ Type* compile_function_call(Interloper& itl, Function& func, FuncCallNode* call_
 
     return call_node->node.expr_type;
 }
+
+void setup_passing_convention(Interloper& itl, Function& func)
+{
+    lock_reg_set(itl,func,func.sig.locked_set);
+
+    // Setup calling convention
+    for(u32 a = 0; a < count(func.sig.args); a++)
+    {
+        const SymSlot slot = func.sig.args[a];
+        const u32 arg_reg = func.sig.pass_as_reg[a];
+
+        if(arg_reg != NON_ARG)
+        {
+            const spec_reg arg = spec_reg(SPECIAL_REG_ARG_START + arg_reg);
+            mov_unlock(itl,func,make_sym_reg_slot(slot),make_spec_reg_slot(arg));
+        }
+    }
+}
