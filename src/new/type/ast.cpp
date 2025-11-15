@@ -253,6 +253,17 @@ Option<itl_error> type_check_ast(Interloper& itl)
 
     // Type check globals
 
+
+    // Check all declared symbols are used.
+    for(auto& sym : itl.symbol_table.slot_lookup)
+    {
+        if(sym.references == 0 && sym.reg.segment == reg_segment::local && sym.name[0] != '_')
+        {
+            trash_context(itl,sym.ctx);
+            return compile_error(itl,itl_error::unused_symbol,"Symbol %s is never used",sym.name.buf);
+        }
+    }
+
     auto end = std::chrono::high_resolution_clock::now();
     itl.type_checking_time = std::chrono::duration<double, std::milli>(end-start).count();
 
