@@ -334,6 +334,13 @@ void compile_block(Interloper& itl, Function& func,AstBlock& block)
                 break;
             }
 
+            case ast_type::block:
+            {
+                BlockNode* nested_block = (BlockNode*)stmt;
+                compile_block(itl,func,nested_block->block);
+                break;
+            }
+
             case ast_type::function_call:
             {
                 compile_function_call(itl,func,(FuncCallNode*)stmt,make_spec_reg_slot(spec_reg::null));

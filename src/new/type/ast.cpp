@@ -2,6 +2,7 @@ Result<Function*,itl_error> check_startup_func(Interloper& itl, const String& na
 TypeResult type_check_expr(Interloper& itl, AstNode* expr);
 void reserve_global_alloc(Interloper& itl, Symbol& sym);
 TypeResult assign_expr_type(AstNode* node, TypeResult result);
+SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table);
 
 #include "func/checker.cpp"
 #include "arith/checker.cpp"
@@ -254,6 +255,21 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
                 break;
             }
 
+            case ast_type::block:
+            {
+                BlockNode* nested_block = (BlockNode*)stmt;
+
+                // We now have a new scope.
+                auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+
+                const auto block_err = type_check_block(itl,func,nested_block->block);
+                if(block_err)
+                {
+                    return block_err;
+                }
+                
+                break;
+            }
 
             case ast_type::auto_decl:
             {
