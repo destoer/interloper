@@ -97,6 +97,36 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl)
     return option::none;
 }
 
+Option<itl_error> type_check_auto_decl(Interloper &itl, AutoDeclNode* decl)
+{
+
+    const auto decl_res = type_check_expr(itl,decl->expr);
+    if(!decl_res)
+    {
+        return decl_res.error();
+    }
+
+    const auto rtype = *decl_res;
+    decl->node.expr_type = rtype;
+
+    const auto sym_ptr = get_sym(itl.symbol_table,decl->name);
+
+    if(sym_ptr)
+    {
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->name,sym_ptr->type);
+    }
+
+    // add new symbol table entry, and cache it in inside the decl
+    Symbol &sym = add_symbol(itl,decl->name,rtype);
+    decl->sym_slot = sym.reg.slot.sym_slot;
+
+    // Reserve global data
+    reserve_global_alloc(itl,sym);
+
+    return option::none;
+}
+
+
 
 TypeResult assign_expr_type(AstNode* node, TypeResult result)
 {
@@ -129,7 +159,7 @@ TypeResult type_check_sym(Interloper& itl, SymbolNode* sym_node)
     return sym_node->node.expr_type = sym.type;
 }
 
-TypeResult type_check_assign(Interloper& itl, AssignNode* assign) 
+Option<itl_error> type_check_assign(Interloper& itl, AssignNode* assign) 
 {
     const auto left_res = type_check_expr(itl,assign->left);
     if(!left_res) 
@@ -150,11 +180,11 @@ TypeResult type_check_assign(Interloper& itl, AssignNode* assign)
     const auto assign_err = check_assign(itl,left,right);
     if(assign_err)
     {
-        return *assign_err;
+        return assign_err;
     }
 
     assign->node.expr_type = right;
-    return right;
+    return option::none;
 }
 
 TypeResult type_check_expr(Interloper& itl, AstNode* expr)
@@ -174,12 +204,6 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
         case ast_type::symbol:
         {
             return type_check_sym(itl,(SymbolNode*)expr);
-        }
-
-
-        case ast_type::assign:
-        {
-            return type_check_assign(itl,(AssignNode*)expr);
         }
 
         case ast_type::arith_unary:
@@ -230,12 +254,24 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
                 break;
             }
 
+
+            case ast_type::auto_decl:
+            {
+                const auto decl_err = type_check_auto_decl(itl,(AutoDeclNode*)stmt);
+                if(decl_err)
+                {
+                    return decl_err;
+                }
+
+                break;
+            }
+
             case ast_type::assign:
             {
-                const auto assign_res = type_check_assign(itl, (AssignNode*)stmt);
-                if(!assign_res)
+                const auto assign_err = type_check_assign(itl, (AssignNode*)stmt);
+                if(assign_err)
                 {
-                    return assign_res.error();
+                    return assign_err;
                 }
 
                 break;

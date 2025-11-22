@@ -345,8 +345,15 @@ struct AutoDeclNode
 {
     AstNode node;
 
-    String name;
     AstNode* expr = nullptr;
+
+    union
+    {
+        // Before type checking
+        String name;
+        // After type checking
+        SymSlot sym_slot = {INVALID_HANDLE};
+    };
 };
 
 struct DeclNode

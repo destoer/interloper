@@ -50,7 +50,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
 
 
     // now check a function exit is reachable from the entry block of the function
-    // for a void func this should allways be possible as everything should hit the bottom return
+    // for a void func this should always be possible as everything should hit the bottom return
     // that does not have an early return...
 
     auto& start_block = func.emitter.program[0];
@@ -196,11 +196,6 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
 
     alloc_slot(itl,func,slot,false);
     
-    if(decl_node->expr->type == ast_type::no_init)
-    {
-        return;
-    }
-
     // No initializer
     if(!decl_node->expr)
     {
@@ -213,6 +208,12 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         {
             mov_imm(itl,func,slot,0);
         }
+        return;
+    }
+
+    // Explicitly uninitialized do not assign anything
+    if(decl_node->expr->type == ast_type::no_init)
+    {
         return;
     }
 
@@ -253,6 +254,53 @@ void compile_decl(Interloper &itl,Function &func, DeclNode* decl_node)
     }
 }
 
+void compile_auto_decl(Interloper &itl,Function &func, AutoDeclNode* auto_decl)
+{
+    auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym_slot);
+
+    // save the alloc node so we can fill the info in later
+    alloc_slot(itl,func,sym.reg.slot,!is_plain_type(sym.type));
+    compile_expression(itl,func,auto_decl->expr,sym.reg.slot);
+}
+
+void compile_assign(Interloper& itl, Function& func, AssignNode *assign)
+{
+    switch(assign->left->type)
+    {
+        case ast_type::symbol:
+        {
+            SymbolNode* sym_node = (SymbolNode*)assign->left;
+            auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+
+
+            const RegSlot slot = sym.reg.slot;
+            const u32 size = sym.reg.size;
+            const Type *ltype = sym.type;
+
+            // handle initializer list
+            if(assign->right->type == ast_type::initializer_list)
+            {
+                assert(false);
+                return;
+            }
+
+            compile_expression(itl,func,assign->right,slot);
+
+            if(is_unsigned_integer(ltype))
+            {
+                clip_arith_type(itl,func,slot,slot,size);
+            }
+            break;
+        }
+
+        default:
+        {
+            compile_panic(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_NAMES[u32(assign->left->type)]);
+            break;
+        }
+    }
+}
+
 void compile_block(Interloper& itl, Function& func,AstBlock& block)
 {
     for(AstNode* stmt : block.statement)
@@ -265,6 +313,18 @@ void compile_block(Interloper& itl, Function& func,AstBlock& block)
             case ast_type::decl:
             {
                 compile_decl(itl,func,(DeclNode*)stmt);
+                break;
+            }
+
+            case ast_type::auto_decl:
+            {
+                compile_auto_decl(itl,func,(AutoDeclNode*)stmt);
+                break;
+            }
+
+            case ast_type::assign:
+            {
+                compile_assign(itl,func,(AssignNode*)stmt);
                 break;
             }
 
