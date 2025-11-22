@@ -1084,7 +1084,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             printf("%s\n",AST_NAMES[u32(root->type)]);
 
-            auto equal = (EqualNode*)root;
+            auto equal = (AssignNode*)root;
             print_internal(itl,equal->left,depth + 1);
             print_internal(itl,equal->right,depth + 1);
             break;

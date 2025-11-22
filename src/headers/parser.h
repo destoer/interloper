@@ -141,7 +141,7 @@ struct ExprBinNode
     AstNode* right = nullptr;
 };
 
-using EqualNode = ExprBinNode<ast_type::assign>;
+using AssignNode = ExprBinNode<ast_type::assign>;
 
 
 struct BuiltinAccessNode

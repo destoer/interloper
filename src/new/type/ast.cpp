@@ -129,6 +129,34 @@ TypeResult type_check_sym(Interloper& itl, SymbolNode* sym_node)
     return sym_node->node.expr_type = sym.type;
 }
 
+TypeResult type_check_assign(Interloper& itl, AssignNode* assign) 
+{
+    const auto left_res = type_check_expr(itl,assign->left);
+    if(!left_res) 
+    {
+        return left_res.error();
+    }
+
+    const auto right_res = type_check_expr(itl,assign->right);
+    if(!right_res)
+    {
+        return right_res.error();
+    }
+    
+    const auto left = *left_res;
+    const auto right = *right_res;
+
+
+    const auto assign_err = check_assign(itl,left,right);
+    if(assign_err)
+    {
+        return *assign_err;
+    }
+
+    assign->node.expr_type = right;
+    return right;
+}
+
 TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 {
     itl.ctx.expr = expr;
@@ -145,8 +173,13 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 
         case ast_type::symbol:
         {
-            SymbolNode* sym_node = (SymbolNode*)expr;
-            return type_check_sym(itl,sym_node);
+            return type_check_sym(itl,(SymbolNode*)expr);
+        }
+
+
+        case ast_type::assign:
+        {
+            return type_check_assign(itl,(AssignNode*)expr);
         }
 
         case ast_type::arith_unary:
@@ -177,8 +210,6 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
     return make_builtin(itl,builtin_type::void_t);
 }
 
-// Don't care so much about the legality of structures here, we just want to blindly check the type
-// And do name resolution, as we are going to have to reswitch the AST when we compile anyways.
 
 Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& block)
 {
@@ -198,6 +229,18 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
 
                 break;
             }
+
+            case ast_type::assign:
+            {
+                const auto assign_res = type_check_assign(itl, (AssignNode*)stmt);
+                if(!assign_res)
+                {
+                    return assign_res.error();
+                }
+
+                break;
+            }
+
 
             case ast_type::ret:
             {
