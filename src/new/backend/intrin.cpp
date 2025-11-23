@@ -155,10 +155,10 @@ TypeResult type_check_syscall(Interloper &itl,FuncCallNode *func_call)
         }
     }
 
-    return make_builtin(itl,builtin_type::s64_t);    
+   return func_call->node.expr_type = make_builtin(itl,builtin_type::s64_t);    
 }
 
-Type* compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, RegSlot dst_slot)
+void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, RegSlot dst_slot)
 {
     const u32 arg_size = count(func_call->args);
 
@@ -193,9 +193,7 @@ Type* compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, Re
         mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rax));
     }
     
-    unlock_reg_set(itl,func,unlock_set);
-
-    return make_builtin(itl,builtin_type::s64_t);      
+    unlock_reg_set(itl,func,unlock_set);    
 }
 
 const HashNode<String,IntrinHandler> INTRIN_TABLE[INTRIN_TABLE_SIZE] = 

@@ -55,8 +55,12 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     return option::none;
 }
 
-Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl)
+Option<itl_error> type_check_decl(Interloper &itl,Function& func, AstNode* node)
 {
+    UNUSED(func);
+
+    DeclNode* decl = (DeclNode*)node;
+
     if(decl->expr)
     {
         const auto decl_res = type_check_expr(itl,decl->expr);
@@ -98,8 +102,11 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl)
     return option::none;
 }
 
-Option<itl_error> type_check_auto_decl(Interloper &itl, AutoDeclNode* decl)
+Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* stmt)
 {
+    UNUSED(func);
+
+    AutoDeclNode* decl = (AutoDeclNode*)stmt;
 
     const auto decl_res = type_check_expr(itl,decl->expr);
     if(!decl_res)
@@ -141,8 +148,10 @@ TypeResult assign_expr_type(AstNode* node, TypeResult result)
 
 
 
-TypeResult type_check_sym(Interloper& itl, SymbolNode* sym_node)
+TypeResult type_check_sym(Interloper& itl, AstNode* expr)
 {
+    SymbolNode* sym_node = (SymbolNode*)expr;
+
     auto sym_res = symbol(itl,sym_node);
     if(!sym_res)
     {
@@ -160,8 +169,12 @@ TypeResult type_check_sym(Interloper& itl, SymbolNode* sym_node)
     return sym_node->node.expr_type = sym.type;
 }
 
-Option<itl_error> type_check_assign(Interloper& itl, AssignNode* assign) 
+Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stmt) 
 {
+    UNUSED(func);
+
+    AssignNode* assign = (AssignNode*)stmt;
+
     const auto left_res = type_check_expr(itl,assign->left);
     if(!left_res) 
     {
@@ -188,142 +201,58 @@ Option<itl_error> type_check_assign(Interloper& itl, AssignNode* assign)
     return option::none;
 }
 
+TypeResult type_check_expr_unk(Interloper& itl, AstNode* expr)
+{
+    return compile_panic(itl,itl_error::invalid_expr,"Type checker(expr) unknown node %s",AST_INFO[u32(expr->type)].name);
+}
+
+TypeResult type_check_value(Interloper& itl, AstNode* expr)
+{
+    ValueNode* value_node = (ValueNode*)expr;
+    expr->known_value = value_node->value;
+
+    return expr->expr_type = make_builtin(itl,value_node->type);
+}
+
 TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 {
     itl.ctx.expr = expr;
-
-    switch(expr->type)
-    {
-        case ast_type::value:
-        {
-            ValueNode* value_node = (ValueNode*)expr;
-            expr->known_value = value_node->value;
-
-            return expr->expr_type = make_builtin(itl,value_node->type);
-        }
-
-        case ast_type::symbol:
-        {
-            return type_check_sym(itl,(SymbolNode*)expr);
-        }
-
-        case ast_type::arith_unary:
-        {
-            return type_check_arith_unary(itl,(ArithUnaryNode*)expr);
-        }
-
-        case ast_type::arith_bin:
-        {
-            ArithBinNode* arith = (ArithBinNode*)expr;
-            return assign_expr_type(expr,type_check_arith_bin(itl,arith));
-        }
-
-        case ast_type::function_call:
-        {
-            FuncCallNode* func_call = (FuncCallNode*)expr;
-            return assign_expr_type(expr,type_check_function_call(itl,func_call,true));
-        }
-
-        default:
-        {
-            return compile_error(itl,itl_error::invalid_expr,"Type checker(expr) unknown node %s",AST_NAMES[u32(expr->type)]);
-        }
-    }
-
-    assert(false);
-    return make_builtin(itl,builtin_type::void_t);
+    const auto& ast_info = AST_INFO[u32(expr->type)];
+    return ast_info.type_check_expr(itl,expr);
 }
 
+
+Option<itl_error> type_check_stmt_unk(Interloper& itl, Function& func, AstNode* stmt)
+{
+    UNUSED(func);
+    return compile_panic(itl,itl_error::invalid_expr,"Type checker(stmt) unknown node %s",AST_INFO[u32(stmt->type)].name);
+}
 
 Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& block)
 {
     for(AstNode* stmt : block.statement)
     {
         itl.ctx.expr = stmt;
+        const auto& ast_info = AST_INFO[u32(stmt->type)];
+        const auto stmt_err = ast_info.type_check_stmt(itl,func,stmt);
 
-        switch(stmt->type)
+        if(stmt_err)
         {
-            case ast_type::decl:
-            {
-                const auto decl_err = type_check_decl(itl, (DeclNode*)stmt);
-                if(decl_err)
-                {
-                    return decl_err;
-                }
-
-                break;
-            }
-
-            case ast_type::block:
-            {
-                BlockNode* nested_block = (BlockNode*)stmt;
-
-                // We now have a new scope.
-                auto scope_guard = enter_new_anon_scope(itl.symbol_table);
-
-                const auto block_err = type_check_block(itl,func,nested_block->block);
-                if(block_err)
-                {
-                    return block_err;
-                }
-                
-                break;
-            }
-
-            case ast_type::auto_decl:
-            {
-                const auto decl_err = type_check_auto_decl(itl,(AutoDeclNode*)stmt);
-                if(decl_err)
-                {
-                    return decl_err;
-                }
-
-                break;
-            }
-
-            case ast_type::assign:
-            {
-                const auto assign_err = type_check_assign(itl, (AssignNode*)stmt);
-                if(assign_err)
-                {
-                    return assign_err;
-                }
-
-                break;
-            }
-
-
-            case ast_type::ret:
-            {
-                const auto ret_err = type_check_return(itl,func,(RetNode*)stmt);
-                if(ret_err)
-                {
-                    return ret_err;
-                }
-
-                break;
-            }
-
-            case ast_type::function_call:
-            {
-                FuncCallNode* func_call = (FuncCallNode*)stmt;
-                const auto func_res = assign_expr_type(stmt,type_check_function_call(itl,func_call,false));
-                if(!func_res)
-                {
-                    return func_res.error();
-                }
-
-                break;
-            }
-
-            default:
-            {
-                return compile_error(itl,itl_error::invalid_expr,"Type checker(stmt) unknown node %s",AST_NAMES[u32(stmt->type)]);
-            }
+            return stmt_err;
         }
     }
 
     return option::none;
+}
+
+Option<itl_error> type_check_block_stmt(Interloper& itl, Function& func, AstNode* stmt)
+{
+    BlockNode* nested_block = (BlockNode*)stmt;
+
+    // We now have a new scope.
+    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+
+    return type_check_block(itl,func,nested_block->block);
 }
 
 

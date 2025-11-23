@@ -130,14 +130,22 @@ TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node)
     }
 }
 
-void compile_symbol(Interloper& itl, Function& func, SymbolNode* sym_node, RegSlot dst_slot)
+void compile_symbol(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
 {
+    SymbolNode* sym_node = (SymbolNode*)expr;
+
     auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
 
     const TypedReg src = typed_reg(sym);
     const TypedReg dst = {dst_slot,src.type};
 
     compile_move(itl,func,dst,src);
+}
+
+void compile_expr_unk(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot)
+{
+    UNUSED(func); UNUSED(dst_slot);
+    (void)compile_panic(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'",AST_INFO[u32(node->type)].name);
 }
 
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot)
@@ -147,7 +155,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         crash_and_burn("nullptr in compile_expression");
     }
 
-    log(itl.itl_log,"(%s:%d) Compiling expression %s\n",itl.ctx.filename.buf,node->idx,AST_NAMES[u32(node->type)]);
+    log(itl.itl_log,"(%s:%d) Compiling expression %s\n",itl.ctx.filename.buf,node->idx,AST_INFO[u32(node->type)].name);
 
     itl.ctx.expr = node;
    
@@ -159,40 +167,8 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
         return node->expr_type;
     }
 
-
-    switch(node->type)
-    {
-        case ast_type::symbol:
-        {
-            compile_symbol(itl,func,(SymbolNode*)node,dst_slot);
-            break;
-        }
-
-        case ast_type::arith_bin:
-        {
-            compile_arith_bin(itl,func,(ArithBinNode*)node,dst_slot);
-            break;
-        }
-
-        case ast_type::arith_unary:
-        {   
-            compile_arith_unary(itl,func,(ArithUnaryNode*)node,dst_slot);
-            break;
-        }
-
-        case ast_type::function_call:
-        {
-            compile_function_call(itl,func,(FuncCallNode*)node,dst_slot);
-            break;
-        }
-
-        default:
-        {
-            compile_panic(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'",AST_NAMES[u32(node->type)]);
-            break;
-        }
-    }
-
+    const auto& ast_info = AST_INFO[u32(node->type)];
+    ast_info.compile_expr(itl,func,node,dst_slot);
     return node->expr_type;
 }
 
@@ -233,8 +209,10 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     }
 }
 
-void compile_decl(Interloper &itl,Function &func, DeclNode* decl_node)
+void compile_decl(Interloper &itl,Function &func,AstNode* stmt)
 {
+    DeclNode* decl_node = (DeclNode*)stmt;
+
     auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym_slot);
 
 
@@ -260,8 +238,10 @@ void compile_decl(Interloper &itl,Function &func, DeclNode* decl_node)
     }
 }
 
-void compile_auto_decl(Interloper &itl,Function &func, AutoDeclNode* auto_decl)
+void compile_auto_decl(Interloper &itl,Function &func, AstNode* stmt)
 {
+    AutoDeclNode* auto_decl = (AutoDeclNode*)stmt;
+
     auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym_slot);
 
     // save the alloc node so we can fill the info in later
@@ -269,8 +249,10 @@ void compile_auto_decl(Interloper &itl,Function &func, AutoDeclNode* auto_decl)
     compile_expression(itl,func,auto_decl->expr,sym.reg.slot);
 }
 
-void compile_assign(Interloper& itl, Function& func, AssignNode *assign)
+void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 {
+    AssignNode *assign = (AssignNode*)stmt;
+
     switch(assign->left->type)
     {
         case ast_type::symbol:
@@ -301,10 +283,16 @@ void compile_assign(Interloper& itl, Function& func, AssignNode *assign)
 
         default:
         {
-            compile_panic(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_NAMES[u32(assign->left->type)]);
+            (void)compile_panic(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_INFO[u32(assign->left->type)].name);
             break;
         }
     }
+}
+
+void compile_stmt_unk(Interloper& itl, Function& func, AstNode* node)
+{
+    UNUSED(func);
+    (void)compile_panic(itl,itl_error::invalid_expr,"[COMPILE]: Unknown statement: %s",AST_INFO[u32(node->type)].name);   
 }
 
 void compile_block(Interloper& itl, Function& func,AstBlock& block)
@@ -312,54 +300,15 @@ void compile_block(Interloper& itl, Function& func,AstBlock& block)
     for(AstNode* stmt : block.statement)
     {
         itl.ctx.expr = stmt;
-
-        switch(stmt->type)
-        {
-            // variable declaration
-            case ast_type::decl:
-            {
-                compile_decl(itl,func,(DeclNode*)stmt);
-                break;
-            }
-
-            case ast_type::auto_decl:
-            {
-                compile_auto_decl(itl,func,(AutoDeclNode*)stmt);
-                break;
-            }
-
-            case ast_type::assign:
-            {
-                compile_assign(itl,func,(AssignNode*)stmt);
-                break;
-            }
-
-            case ast_type::ret:
-            {
-                compile_return(itl,func,(RetNode*)stmt);
-                break;
-            }
-
-            case ast_type::block:
-            {
-                BlockNode* nested_block = (BlockNode*)stmt;
-                compile_block(itl,func,nested_block->block);
-                break;
-            }
-
-            case ast_type::function_call:
-            {
-                compile_function_call(itl,func,(FuncCallNode*)stmt,make_spec_reg_slot(spec_reg::null));
-                break;
-            }
-
-            default:
-            {
-                compile_panic(itl,itl_error::invalid_expr,"[COMPILE]: Unknown statement: %s",AST_NAMES[u32(stmt->type)]);
-                break;
-            }
-        }
+        const auto& ast_info = AST_INFO[u32(stmt->type)];
+        ast_info.compile_stmt(itl,func,stmt);
     }
+}
+
+void compile_block_stmt(Interloper& itl, Function& func, AstNode* stmt)
+{
+    BlockNode* nested_block = (BlockNode*)stmt;
+    compile_block(itl,func,nested_block->block);
 }
 
 Option<itl_error> compile_function(Interloper& itl, Function& func)

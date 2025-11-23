@@ -215,7 +215,7 @@ Option<itl_error> compile_scoped_stmt(Interloper& itl, Function& func, AstNode* 
     {
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for stmt: %s",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for stmt: %s",AST_INFO[u32(node->type)].name);
         }
     }
 
@@ -228,7 +228,7 @@ TypeResult compile_scoped_expression(Interloper& itl, Function& func, AstNode* n
     {
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"Scope is not valid for expression: %s",AST_INFO[u32(node->type)].name);
         }
     }
 }
@@ -244,7 +244,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
         return make_builtin(itl,builtin_type::void_t);
     }
 
-    log(itl.itl_log,"(%s:%d) Compiling experssion %s\n",itl.ctx.filename.buf,node->idx,AST_NAMES[u32(node->type)]);
+    log(itl.itl_log,"(%s:%d) Compiling experssion %s\n",itl.ctx.filename.buf,node->idx,AST_INFO[u32(node->type)].name);
 
     itl.ctx.expr = node;
    
@@ -252,7 +252,7 @@ TypeResult compile_expression(Interloper &itl,Function &func,AstNode *node,RegSl
     {
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"[COMPILE]: invalid expression '%s'",AST_INFO[u32(node->type)].name);
         }
     }
 }
@@ -498,7 +498,7 @@ Option<itl_error> compile_assign(Interloper& itl, Function& func, AstNode* line)
     {
         default:
         {
-            return compile_error(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_NAMES[u32(assign_node->left->type)]);
+            return compile_error(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_INFO[u32(assign_node->left->type)].name);
         }
     }
 

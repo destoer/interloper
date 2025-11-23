@@ -1288,7 +1288,7 @@ static constexpr u32 INTRIN_TABLE_SIZE = 2;
 
 
 struct FuncCallNode;
-using INTRIN_EMIT_FUNC = Type* (*)(Interloper &itl,Function &func,FuncCallNode *func_call, RegSlot dst_slot);
+using INTRIN_EMIT_FUNC = void (*)(Interloper &itl,Function &func,FuncCallNode *func_call, RegSlot dst_slot);
 using INTRIN_TYPE_FUNC = TypeResult (*)(Interloper &itl,FuncCallNode *func_call);
 
 struct IntrinHandler

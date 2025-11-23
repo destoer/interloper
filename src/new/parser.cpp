@@ -1082,7 +1082,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
     {
         case ast_type::assign:
         {
-            printf("%s\n",AST_NAMES[u32(root->type)]);
+            printf("%s\n",AST_INFO[u32(root->type)].name);
 
             auto equal = (AssignNode*)root;
             print_internal(itl,equal->left,depth + 1);

@@ -568,7 +568,7 @@ TypeResult take_addr(Interloper &itl,Function &func,AstNode *node,RegSlot dst_sl
     {
         default:
         {
-            return compile_error(itl,itl_error::unimplemented,"Load addr not implemented on ast type: %s",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::unimplemented,"Load addr not implemented on ast type: %s",AST_INFO[u32(node->type)].name);
         }
     }
 }

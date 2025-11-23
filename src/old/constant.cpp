@@ -205,7 +205,7 @@ ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
     {
         default:
         {
-            return compile_error(itl,itl_error::const_type_error,"unrecognised operation for const expr: %s",AST_NAMES[u32(node->type)]);
+            return compile_error(itl,itl_error::const_type_error,"unrecognised operation for const expr: %s",AST_INFO[u32(node->type)].name);
         }
     }    
 }

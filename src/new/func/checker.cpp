@@ -66,7 +66,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,AstNode* expr)
     }
 
     // is an expression
-    assert(false);
+    unimplemented("expression calling sig");
 }
 
 
@@ -91,7 +91,6 @@ Option<itl_error> check_unbound_return(Interloper& itl, const FuncCall& call_inf
     return option::none;
 }
 
-
 TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bool result_bound)
 {
     // Check for intrinsic.
@@ -103,7 +102,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
             const auto& name = sym_node->name;
 
             // check this is not an intrinsic function
-            s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,name);
+            const s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,name);
 
             if(idx != INVALID_HASH_SLOT)
             {
@@ -111,7 +110,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
                 func_call->intrinsic_idx = idx;
 
                 const auto handler = INTRIN_TABLE[idx].v;
-                return assign_expr_type(&func_call->node,handler.type_check(itl,func_call));
+                return handler.type_check(itl,func_call);
             }
         }
     }
@@ -130,7 +129,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
 
     if(call_info.sig.va_args)
     {
-        assert(false);
+        unimplemented("va args");
     }
 
     // ^ this is a bad approximation for the args but roll with it for now.
@@ -174,9 +173,23 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
     return call_info.sig.return_type[0];
 }
 
-
-Option<itl_error> type_check_return(Interloper& itl, Function& func, RetNode* ret_node)
+Option<itl_error> type_check_function_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
+    UNUSED(func);
+
+    return type_check_function_call(itl,(FuncCallNode*)stmt,false).remap_to_err();
+}
+
+TypeResult type_check_function_expr(Interloper& itl, AstNode* expr)
+{
+    return type_check_function_call(itl,(FuncCallNode*)expr,true);
+}
+
+
+Option<itl_error> type_check_return(Interloper& itl, Function& func, AstNode* stmt)
+{
+    RetNode* ret_node = (RetNode*)stmt;
+
     const u32 return_count = count(ret_node->expr);
 
     if(return_count != count(func.sig.return_type))

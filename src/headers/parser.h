@@ -52,53 +52,6 @@ enum class ast_type
     ret,
 };
 
-inline const char *AST_NAMES[] =
-{
-    "assign",
-    "arith_bin",
-    "arith_unary",
-    "shift",
-    "comparison",
-    "boolean_logic",
-    "symbol",
-    "builtin_access",
-    "type_operator",
-    "cast",
-    "initializer_list",
-    "designated_initializer_list",
-    "struct_initializer",
-    "sizeof",
-    "no_init",
-    "ignore",
-    "value",
-    "float",
-    "null",
-    "deref",
-    "addrof",
-    "string",
-    "block",
-    "type",
-    "type_alias",
-    "struct",
-    "enum",
-    "decl",
-    "global_decl",
-    "auto_decl",
-    "tuple_assign",
-    "function_call",
-    "struct_access",
-    "access_member",
-    "index",
-    "slice",
-    "for_iter",
-    "for_range",
-    "switch",
-    "if",
-    "while",
-    "const_assert",
-    "function",
-    "ret"
-};
 
 struct AstNode
 {
@@ -109,6 +62,24 @@ struct AstNode
     // Stored here to keep consistency with const expressions.
     Option<u64> known_value = option::none;
 };
+
+using TYPE_CHECK_EXPR_FPTR = TypeResult (*)(Interloper& itl, AstNode* node);
+using TYPE_CHECK_STMT_FPTR = Option<itl_error> (*)(Interloper& itl, Function& func, AstNode* node);
+
+using COMPILE_EXPR_FPTR = void (*)(Interloper& itl, Function& func, AstNode* node, RegSlot dst_slot);
+using COMPILE_STMT_FPTR = void (*)(Interloper& itl, Function& func, AstNode* node);
+
+struct AstInfo
+{
+    const char* name = nullptr;
+    TYPE_CHECK_EXPR_FPTR type_check_expr = nullptr;
+    TYPE_CHECK_STMT_FPTR type_check_stmt = nullptr; 
+    COMPILE_EXPR_FPTR compile_expr = nullptr;
+    COMPILE_STMT_FPTR compile_stmt = nullptr;
+};
+
+extern const AstInfo AST_INFO[];
+
 
 // Subtype expr bin oper
 template<typename T>

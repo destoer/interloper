@@ -148,8 +148,10 @@ void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, Reg
     }
 }
 
-void compile_arith_bin(Interloper& itl, Function& func, ArithBinNode* node, RegSlot dst_slot)
+void compile_arith_bin(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
 {
+    ArithBinNode* node = (ArithBinNode*)expr;
+
     const auto type = node->node.expr_type;
 
     // TODO: Consider switching on an enum saved during type checking.
@@ -174,12 +176,14 @@ void compile_arith_bin(Interloper& itl, Function& func, ArithBinNode* node, RegS
 
     else
     {
-        compile_panic(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t",type);
+        (void)compile_panic(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t",type);
     }
 }
 
-void compile_arith_unary(Interloper& itl, Function& func, ArithUnaryNode* unary, RegSlot dst_slot)
+void compile_arith_unary(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
 {
+    ArithUnaryNode* unary = (ArithUnaryNode*)expr;
+
     switch(unary->oper)
     {
         case arith_unary_op::add_t:

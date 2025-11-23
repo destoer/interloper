@@ -42,8 +42,10 @@ u32 pass_args(Interloper& itl, Function& func, ArgPass& pass)
     return arg_clean;
 }
 
-void compile_return(Interloper &itl,Function &func, RetNode* ret_node)
+void compile_return(Interloper &itl,Function &func, AstNode* stmt)
 {
+    RetNode* ret_node = (RetNode*)stmt;
+
     // No return value just issue a ret
     if(!ret_node->expr)
     {
@@ -157,7 +159,7 @@ u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node)
 
     if(sig.va_args)
     {
-        assert(false);
+        unimplemented("va args");
     }
 
     push_args(itl,func,pass,call_node,sig,start_arg);
@@ -165,7 +167,7 @@ u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node)
 
     if(hidden_args)
     {
-        assert(false);
+        unimplemented("hidden args");
     }
 
     return pass_args(itl,func,pass);
@@ -208,20 +210,25 @@ void handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Reg
     unlock_reg_set(itl,func,sig.locked_set);
 }
 
-Type* compile_function_call(Interloper& itl, Function& func, FuncCallNode* call_node, RegSlot dst_slot)
+void compile_function_call_expr(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
 {
+    FuncCallNode* call_node = (FuncCallNode*)expr;
+
     // Check if we are calling an intrinsic.
     if(call_node->type == func_call_type::intrinsic)
     {
         const auto handler = INTRIN_TABLE[call_node->intrinsic_idx].v;
-        return handler.emit(itl,func,call_node,dst_slot);
+        handler.emit(itl,func,call_node,dst_slot);
+        return;
     }
 
     const u32 arg_clean = pass_function_args(itl,func,call_node);
-
     handle_call(itl,func,call_node->call,dst_slot,arg_clean);
+}
 
-    return call_node->node.expr_type;
+void compile_function_call_stmt(Interloper& itl, Function& func, AstNode* stmt)
+{
+    compile_function_call_expr(itl,func,stmt,make_spec_reg_slot(spec_reg::null));
 }
 
 void setup_passing_convention(Interloper& itl, Function& func)
