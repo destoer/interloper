@@ -83,3 +83,43 @@ TypeResult type_check_arith_bin(Interloper& itl, ArithBinNode* expr)
     // No idea!
     return compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t and %t",left,right);
 }
+
+TypeResult type_check_arith_unary(Interloper& itl, ArithUnaryNode* unary)
+{
+    const auto expr_res = type_check_expr(itl,unary->expr);
+    if(!expr_res)
+    {
+        return expr_res;
+    }
+
+    const auto rtype = *expr_res;
+
+    switch(unary->oper)
+    {
+        case arith_unary_op::add_t:
+        case arith_unary_op::bitwise_not_t:
+        case arith_unary_op::sub_t:
+        {
+            if(!is_integer(rtype))
+            {
+                return compile_error(itl,itl_error::int_type_error,"Unary %s only defined on int got: %t",ARITH_UNARY_NAMES[u32(unary->oper)],rtype);
+            }
+
+            return unary->node.expr_type = rtype;
+        }
+        
+        case arith_unary_op::logical_not_t:
+        {
+            // integer or pointer, eq to zero
+            if(is_integer(rtype) || is_pointer(rtype) || is_array(rtype) || is_bool(rtype))
+            {
+                return unary->node.expr_type = make_builtin(itl,builtin_type::bool_t);
+            }
+
+            return compile_error(itl,itl_error::bool_type_error,"compile: logical_not expected any of(integer, array, pointer, bool)  got: %t",rtype);
+        }
+    }
+
+    assert(false);
+    return make_builtin(itl,builtin_type::void_t);
+}

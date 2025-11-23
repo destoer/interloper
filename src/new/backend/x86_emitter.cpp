@@ -278,7 +278,7 @@ void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, u64 imm)
         push_u32(emitter,imm);
     }
 
-    // cannot fit
+    // cannot fit 
     else
     {
         assert(false);
@@ -791,7 +791,7 @@ void and_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 
     else if(v1 == 0xffff'ffff)
     {
-        // rely on 32 bit zero extenstion
+        // rely on 32 bit zero extension
         // NOTE: this may generate weird looking instructions
         // like mov eax, eax
         // mov r32, r32

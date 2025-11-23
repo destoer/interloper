@@ -174,6 +174,12 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
             break;
         }
 
+        case ast_type::arith_unary:
+        {   
+            compile_arith_unary(itl,func,(ArithUnaryNode*)node,dst_slot);
+            break;
+        }
+
         case ast_type::function_call:
         {
             compile_function_call(itl,func,(FuncCallNode*)node,dst_slot);
@@ -280,7 +286,7 @@ void compile_assign(Interloper& itl, Function& func, AssignNode *assign)
             // handle initializer list
             if(assign->right->type == ast_type::initializer_list)
             {
-                assert(false);
+                unimplemented("initializer list");
                 return;
             }
 

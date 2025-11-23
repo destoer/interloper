@@ -630,7 +630,7 @@ void init_regs(LinearAlloc& alloc)
 
 }
 
-// NOTE: this relieso on pow2
+// NOTE: this relies on pow2
 static_assert(MACHINE_REG_SIZE == 32);
 
 struct ActiveReg

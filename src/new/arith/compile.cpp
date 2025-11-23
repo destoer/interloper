@@ -177,3 +177,69 @@ void compile_arith_bin(Interloper& itl, Function& func, ArithBinNode* node, RegS
         compile_panic(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t",type);
     }
 }
+
+void compile_arith_unary(Interloper& itl, Function& func, ArithUnaryNode* unary, RegSlot dst_slot)
+{
+    switch(unary->oper)
+    {
+        case arith_unary_op::add_t:
+        {
+            compile_expression(itl,func,unary->expr,dst_slot);
+            break;
+        }
+        
+        case arith_unary_op::sub_t:
+        {
+            const auto reg = compile_oper(itl,func,unary->expr);
+
+            if(is_float(reg.type))
+            {
+                const RegSlot slot = movf_imm_res(itl,func,0.0);
+                subf(itl,func,dst_slot,slot,reg.slot);
+            }
+
+
+            else
+            {
+                const RegSlot slot = mov_imm_res(itl,func,0);
+                sub(itl,func,dst_slot,slot,reg.slot);
+            }
+
+            break;
+        }
+
+        case arith_unary_op::bitwise_not_t:
+        {
+            const auto reg = compile_oper(itl,func,unary->expr);
+
+            not_reg(itl,func,dst_slot,reg.slot);
+            break;
+        }
+
+        case arith_unary_op::logical_not_t:
+        {
+            const auto reg = compile_oper(itl,func,unary->expr);
+
+            // integer or pointer, eq to zero
+            if(is_integer(reg.type) || is_pointer(reg.type))
+            {
+                cmp_eq_imm(itl,func,dst_slot,reg.slot,0);
+            }
+
+            // Zero length array
+            else if(is_array(reg.type))
+            {
+                const auto len = load_arr_len(itl,func,reg);
+                cmp_eq_imm(itl,func,dst_slot,len,0);
+            }
+
+            else
+            {
+                // xor can invert our boolean which is either 1 or 0
+                xor_imm(itl,func,dst_slot,reg.slot,1);
+            }
+
+            break;
+        }
+    }
+}

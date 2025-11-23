@@ -209,8 +209,7 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 
         case ast_type::arith_unary:
         {
-            ArithUnaryNode* arith = (ArithUnaryNode*)expr;
-            return assign_expr_type(expr,type_check_expr(itl,arith->expr));
+            return type_check_arith_unary(itl,(ArithUnaryNode*)expr);
         }
 
         case ast_type::arith_bin:

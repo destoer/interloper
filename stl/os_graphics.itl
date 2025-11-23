@@ -15,7 +15,7 @@ struct OSWindow
 
     root_win : u32;
 
-    // dimenstions
+    // dimensions
     screen_x : u32;
     screen_y : u32;
 
@@ -857,7 +857,7 @@ func os_process_events(std_win: Window@) win_result
         return win_result::closed;
     }
 
-    // while socket has data or we are waiting for specific notificaiton
+    // while socket has data or we are waiting for specific notification
     while(net::socket_has_data(&win.sock))
     {
         buf := &win.packet;
@@ -893,7 +893,7 @@ func os_process_events(std_win: Window@) win_result
                 x_key_event(std_win,key,true);
             }
 
-            // TODO: why are the key release events not allways firing?
+            // TODO: why are the key release events not always firing?
             case x_reply_type::key_release:
             {
                 key := std::read_buffer_u8(buf,1);
@@ -1146,7 +1146,7 @@ struct XQueryExtension
     pad2: u16;
 }
 
-struct ExtenstionQuery
+struct ExtensionQuery
 {
     replied: bool;
     opcode: u8;
@@ -1155,7 +1155,7 @@ struct ExtenstionQuery
 
 func ext_query_callback(win: OSWindow@, _len: u32, data: byte?) win_result
 {
-    ext_query := cast(ExtenstionQuery@,data);
+    ext_query := cast(ExtensionQuery@,data);
     ext_query.replied = true;
     ext_query.enabled = cast(bool,std::read_buffer_u8(&win.packet,8));
     ext_query.opcode = std::read_buffer_u8(&win.packet,9);
@@ -1163,7 +1163,7 @@ func ext_query_callback(win: OSWindow@, _len: u32, data: byte?) win_result
     return win_result::ok;
 }
 
-func query_extenstion(std_win: Window@, str: const string) [ExtenstionQuery, net_result]
+func query_extension(std_win: Window@, str: const string) [ExtensionQuery, net_result]
 {
     win := &std_win.os_win;
 
@@ -1175,7 +1175,7 @@ func query_extenstion(std_win: Window@, str: const string) [ExtenstionQuery, net
     bytes := x11_req_len(pad + str.len);
     query.len += bytes;
 
-    query_reply: ExtenstionQuery;
+    query_reply: ExtensionQuery;
 
     [ext_query_seq, res] := send_req(win,&query,sizeof_data(XQueryExtension));
     if(res != net_result::ok)
@@ -1239,7 +1239,7 @@ func enable_big_req(std_win: Window@) [bool, net_result]
     win := &std_win.os_win;
 
     // send ext query
-    [ext_query, res] := query_extenstion(std_win,"BIG-REQUESTS");
+    [ext_query, res] := query_extension(std_win,"BIG-REQUESTS");
 
     if(res != net_result::ok)
     {
