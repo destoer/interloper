@@ -168,7 +168,7 @@ CompoundType make_compound_type(compound_type type)
 
 CompoundType make_compound_type_fixed(AstNode* expr)
 {
-    return CompoundType {compound_type::arr_deduce_size,expr};
+    return CompoundType {compound_type::arr_fixed_size,expr};
 }
 
 
