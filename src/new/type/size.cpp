@@ -20,7 +20,7 @@ u32 type_size(Interloper& itl,const Type *type)
         {
             const auto& enumeration = enum_from_type(itl.enum_table,type);
 
-            // return size of underyling integeral type
+            // return size of underlying integral type
             if(enumeration.underlying_type && is_integer(enumeration.underlying_type))
             {
                 return type_size(itl,enumeration.underlying_type);

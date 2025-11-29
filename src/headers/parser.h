@@ -195,11 +195,23 @@ struct TypeNode
     Array<CompoundType> compound;
 };
 
+enum class cast_oper
+{
+    move,
+    sign_extend,
+    clip,
+    compare,
+    to_float,
+    from_float,
+    recast_array,
+};
+
 struct CastNode
 {
     AstNode node;
     TypeNode* type = nullptr;
     AstNode* expr = nullptr;
+    cast_oper oper = cast_oper::move;
 };
 
 struct SymbolNode

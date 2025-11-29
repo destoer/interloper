@@ -112,7 +112,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
     }
 }
 
-Option<itl_error> check_comparison_operation(Interloper& itl,const Type *ltype, const Type *rtype, comparison_op type)
+TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const Type *rtype, comparison_op type)
 {
     // both are builtin
     if(is_builtin(rtype) && is_builtin(ltype))
@@ -179,7 +179,7 @@ Option<itl_error> check_comparison_operation(Interloper& itl,const Type *ltype, 
         return compile_error(itl,itl_error::undefined_type_oper,"logical operation on user defined type: %t : %t",ltype,rtype);
     }   
 
-    return option::none;
+    return make_builtin(itl,builtin_type::bool_t);
 }
 
 
@@ -524,13 +524,11 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
                 return compile_error(itl,itl_error::undefined_type_oper,"void assign %t = %t",ltype,rtype);
             }
 
-            // same type is fine
-            else if(builtin_r == builtin_l)
+            // must be same type
+            else if(builtin_r != builtin_l)
             {
-
+                return compile_error(itl,itl_error::undefined_type_oper,"invalid assign %t = %t",ltype,rtype);     
             }
-
-            return compile_error(itl,itl_error::undefined_type_oper,"invalid assign %t = %t",ltype,rtype);     
         }
     }
 

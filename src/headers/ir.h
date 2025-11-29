@@ -283,13 +283,13 @@ static constexpr u32 COMPARISON_OP_SIZE = 6;
 
 static const char* COMPARISON_NAMES[COMPARISON_OP_SIZE] = 
 {
-    "lt",
-    "le",
-    "gt",
-    "ge",
+    "<",
+    "<=",
+    ">",
+    ">=",
 
-    "eq",
-    "ne"
+    "==",
+    "!="
 };
 
 enum class boolean_logic_op
@@ -300,8 +300,8 @@ enum class boolean_logic_op
 
 static const char* BOOLEAN_LOGIC_NAMES[] =
 {
-    "and",
-    "or"
+    "&&",
+    "||"
 };
 
 enum class arith_unary_op

@@ -247,3 +247,125 @@ void compile_arith_unary(Interloper& itl, Function& func, AstNode* expr, RegSlot
         }
     }
 }
+
+// handles <, <=, >, >=, ==, !=
+void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    CmpNode* cmp = (CmpNode*)expr;
+    const auto type = cmp->oper;
+
+    const auto left = compile_oper(itl,func,cmp->left);
+    const auto right = compile_oper(itl,func,cmp->right);
+
+
+    // float 
+    if(is_float(left.type))
+    {
+        static constexpr op_type COMPARISON_OPCODE[COMPARISON_OP_SIZE] = 
+        {
+            op_type::cmpflt_reg,op_type::cmpfle_reg,op_type::cmpfgt_reg,op_type::cmpfge_reg,
+            op_type::cmpfeq_reg,op_type::cmpfne_reg,        
+        };
+
+        const op_type opcode_type = COMPARISON_OPCODE[u32(type)];
+        emit_reg3_unchecked(itl,func,opcode_type,dst_slot,left.slot,right.slot);
+    }
+
+    // integer operation
+    else
+    {
+        // 0 is unsigned, 1 is signed
+        static constexpr op_type COMPARISON_OPCODE[2][COMPARISON_OP_SIZE] = 
+        {
+            {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
+            op_type::cmpeq_reg,op_type::cmpne_reg},
+
+            {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
+            op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg},
+        };
+
+        const b32 sign = is_signed(left.type);
+
+        const op_type opcode_type = COMPARISON_OPCODE[u32(sign)][u32(type)];
+        emit_reg3_unchecked(itl,func,opcode_type,dst_slot,left.slot,right.slot);
+    }
+}
+
+void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot start_block, BlockSlot exit_block, RegSlot dst_slot, enum boolean_logic_op type)
+{
+    auto &blocks = func.emitter.program;
+
+    for(u32 b = start_block.handle; b < count(blocks) - 1; b++)
+    {
+        auto &block = func.emitter.program[b];
+        const BlockSlot next = block_from_idx(b + 1);
+
+        if(block.list.finish)
+        {
+            if(block.list.finish->value.op == op_type::exit_block)
+            {
+                remove(block.list,block.list.finish);
+                emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);
+            }
+        }
+    }
+}
+
+void compile_boolean_logic_op(Interloper& itl,Function &func,BooleanLogicNode* logic, RegSlot dst_slot,u32 depth)
+{
+    BlockSlot left_block = cur_block(func);
+
+    if(logic->left->type == ast_type::boolean_logic)
+    {
+        BooleanLogicNode* logic_left = (BooleanLogicNode*)logic->left;
+
+        if(logic_left->oper == logic->oper)
+        {
+            compile_boolean_logic_op(itl,func,logic_left,dst_slot,depth + 1);
+        }
+
+        // switched from and to or
+        // Which means our skip needs to be placed after all of these have compiled
+        else
+        {
+            compile_expression(itl,func,logic->left,dst_slot);
+            left_block = cur_block(func);
+        }
+    }
+
+    else
+    {
+        compile_expression(itl,func,logic->left,dst_slot);
+    }
+
+    // First block needs to jump to exit
+    if(depth == 0)
+    {
+        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
+        emit_block_internal(func,left_block,exit_block);
+    }
+
+    // Give this a new block we can jump over
+    const BlockSlot right_block = new_basic_block(itl,func);
+    compile_expression(itl,func,logic->right,dst_slot);
+
+    // We are now at the top of the stack create and then rewrite in all the block exits
+    if(depth == 0)
+    {
+        const BlockSlot exit_block = add_fall(itl,func);
+        emit_short_circuit_branches(itl,func,left_block,exit_block,dst_slot,logic->oper);
+    }
+
+    // Any further blocks need an exit jump after compilation
+    else
+    {
+        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
+        emit_block_internal(func,right_block,exit_block);
+    }
+}
+
+void compile_boolean_logic(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    BooleanLogicNode* logic = (BooleanLogicNode*)expr;
+    compile_boolean_logic_op(itl,func,logic,dst_slot,0);
+}

@@ -70,7 +70,7 @@ func main() s32
     res5 := !is_uge(7,10) && is_uge(10,10) && !is_ugt(10,10) && is_ugt(50,20); 
     res6 :=  is_ule(5,5) && !is_ule(25,3) && is_ult(0,100) && !is_ult(1000,7); 
 
-    // anyything less than one is false
+    // anything less than one is false
     // eq to < 1
     or := true || cast(bool,-1);
 

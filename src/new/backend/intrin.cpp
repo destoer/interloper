@@ -155,7 +155,7 @@ TypeResult type_check_syscall(Interloper &itl,FuncCallNode *func_call)
         }
     }
 
-   return func_call->node.expr_type = make_builtin(itl,builtin_type::s64_t);    
+   return make_builtin(itl,builtin_type::s64_t);    
 }
 
 void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, RegSlot dst_slot)

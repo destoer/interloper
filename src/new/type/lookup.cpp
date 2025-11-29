@@ -277,7 +277,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                     return *func_err;
                 }
 
-                return (Type*)type;
+                return type_decl->node.expr_type = (Type*)type;
             }
 
             case type_node_kind::builtin:

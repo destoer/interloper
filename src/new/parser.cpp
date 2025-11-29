@@ -1382,7 +1382,16 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::auto_decl:
         {
             AutoDeclNode* auto_decl = (AutoDeclNode*)root;
-            printf("Auto decl %s\n",auto_decl->name.buf);
+            if(auto_decl->node.expr_type)
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym_slot);
+                print_ast(itl,"Auto decl %S\n",sym.name);
+            }
+
+            else
+            {
+                print_ast(itl,"Auto decl %S\n",auto_decl->name);
+            }
             print_internal(itl,auto_decl->expr, depth + 1);
             break;
         }

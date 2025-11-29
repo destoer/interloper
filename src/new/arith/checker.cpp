@@ -1,3 +1,123 @@
+TypeResult type_check_boolean_logic(Interloper& itl, AstNode* expr) {
+    BooleanLogicNode* logic = (BooleanLogicNode*)expr;
+
+    const auto left_res = type_check_expr(itl,logic->left);
+
+    if(!left_res)
+    {
+        return left_res.error();
+    }
+    
+
+    const auto right_res = type_check_expr(itl,logic->right);
+
+    if(!right_res)
+    {
+        return right_res.error();
+    }
+    
+    const auto ltype = *left_res;
+    const auto rtype = *right_res;
+   
+    if(!is_bool(ltype) || !is_bool(rtype))
+    {
+        return compile_error(itl,itl_error::bool_type_error,"Boolean logic is only defined on bools %t %s %t",
+            ltype,BOOLEAN_LOGIC_NAMES[u32(logic->oper)],rtype);
+    }
+
+    return make_builtin(itl,builtin_type::bool_t);
+}
+
+
+Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v)
+{
+    // unsigned value against signed value
+    // if one side is signed and the other unsigned
+    // allow comparision if the unsigned is a static value that
+    // the signed side can represent
+    if(!is_signed(value) && is_signed(oper))
+    {
+        // value is within range of operand value
+        // change value to a the signed type
+        if(v <= builtin_max(cast_builtin(oper)))
+        {
+            return true;
+        }
+
+        else
+        {
+            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %t",v,oper);
+        }
+    }
+
+    // value is outside the range of the other type
+    else if(is_signed(value) == is_signed(oper))
+    {
+        if(builtin_size(cast_builtin(value)) > builtin_size(cast_builtin(oper)))
+        {
+            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %t",v,oper);
+        }
+    }
+
+    return false;
+}
+
+
+TypeResult type_check_comparison(Interloper& itl, AstNode* expr) 
+{
+    CmpNode* cmp = (CmpNode*)expr;
+
+    auto left_res = type_check_expr(itl,cmp->left);
+    if(!left_res)
+    {
+        return left_res.error();
+    }
+
+    auto right_res = type_check_expr(itl,cmp->right);
+    if(!right_res)
+    {
+        return right_res.error();
+    }
+
+    auto ltype = *left_res;
+    auto rtype = *right_res;
+
+    // if one side is a value do type checking
+    if(is_integer(ltype) && is_integer(rtype))
+    {
+        // Coerce the known value to the other operands type if we have checked this is fine.
+        if(cmp->left->known_value)
+        {
+            const auto coerce_res = check_static_cmp(itl,ltype,rtype,*cmp->left->known_value);
+            if(!coerce_res)
+            {
+                return coerce_res.error();
+            }
+            
+            if(*coerce_res)
+            {
+                ltype = rtype;
+            }
+        }
+
+        else if(cmp->right->known_value)
+        {
+            const auto coerce_res = check_static_cmp(itl,rtype,ltype,*cmp->right->known_value);
+            if(!coerce_res)
+            {
+                return coerce_res.error();
+            }
+
+            if(*coerce_res)
+            {
+                rtype = ltype;
+            }
+        } 
+    }
+    
+    return check_comparison_operation(itl,ltype,rtype,cmp->oper);
+}
+
 TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 {
     ArithBinNode* bin = (ArithBinNode*)expr;
@@ -30,7 +150,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 
         }
 
-        return expr->expr_type = left;
+        return left;
     }
 
     // allow pointer subtraction
@@ -41,7 +161,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
         }
 
-        return expr->expr_type = make_builtin(itl,builtin_type::u64_t);
+        return make_builtin(itl,builtin_type::u64_t);
     }
 
     // floating point arith
@@ -54,7 +174,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
         }
 
-        return expr->expr_type = make_builtin(itl,builtin_type::f64_t);
+        return make_builtin(itl,builtin_type::f64_t);
     }
 
     else if(is_bool(left) && is_bool(right))
@@ -65,7 +185,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
             case arith_bin_op::or_t:
             case arith_bin_op::and_t:
             {
-                return expr->expr_type = make_builtin(itl,builtin_type::bool_t);
+                return make_builtin(itl,builtin_type::bool_t);
             }
 
             default:
@@ -78,7 +198,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // integer arith
     else if(is_integer(left) && is_integer(right))
     {
-        return assign_expr_type(expr,effective_arith_type(itl,left,right,bin->oper));  
+        return effective_arith_type(itl,left,right,bin->oper);  
     }
 
     // No idea!
@@ -108,7 +228,7 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
                 return compile_error(itl,itl_error::int_type_error,"Unary %s only defined on int got: %t",ARITH_UNARY_NAMES[u32(unary->oper)],rtype);
             }
 
-            return unary->node.expr_type = rtype;
+            return rtype;
         }
         
         case arith_unary_op::logical_not_t:
@@ -116,7 +236,7 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
             // integer or pointer, eq to zero
             if(is_integer(rtype) || is_pointer(rtype) || is_array(rtype) || is_bool(rtype))
             {
-                return unary->node.expr_type = make_builtin(itl,builtin_type::bool_t);
+                return make_builtin(itl,builtin_type::bool_t);
             }
 
             return compile_error(itl,itl_error::bool_type_error,"compile: logical_not expected any of(integer, array, pointer, bool)  got: %t",rtype);

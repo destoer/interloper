@@ -166,7 +166,7 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
     auto& sym = sym_from_slot(itl.symbol_table,slot);
     sym_node->node.known_value = sym.known_value;
 
-    return sym_node->node.expr_type = sym.type;
+    return sym.type;
 }
 
 Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stmt) 
@@ -211,14 +211,16 @@ TypeResult type_check_value(Interloper& itl, AstNode* expr)
     ValueNode* value_node = (ValueNode*)expr;
     expr->known_value = value_node->value;
 
-    return expr->expr_type = make_builtin(itl,value_node->type);
+    return make_builtin(itl,value_node->type);
 }
 
 TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 {
     itl.ctx.expr = expr;
     const auto& ast_info = AST_INFO[u32(expr->type)];
-    return ast_info.type_check_expr(itl,expr);
+    // NOTE: This is an expensive check to run everywhere.
+    // But tagging the ast is too error prone without it.
+    return assign_expr_type(expr,ast_info.type_check_expr(itl,expr));
 }
 
 
