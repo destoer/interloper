@@ -236,6 +236,7 @@ struct [[nodiscard]] SymbolScopeGuard
 
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, const Type* type);
 Symbol* get_sym(SymbolTable &sym_table,const String &sym);
+Symbol* get_sym_internal(SymbolTable &sym_table,const String &sym, NameSpace* name_space);
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot);
 
 Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);

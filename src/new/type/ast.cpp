@@ -152,18 +152,21 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
 {
     SymbolNode* sym_node = (SymbolNode*)expr;
 
-    auto sym_res = symbol(itl,sym_node);
-    if(!sym_res)
+    // We make a copy of this, for oper_eq so it can trip twice on the same node.
+    if(sym_node->node.expr_type)
     {
-        return sym_res.error();
+        return sym_node->node.expr_type;
     }
 
-    TypedReg reg = *sym_res;
-    const auto slot = reg.slot.sym_slot;
-    sym_node->sym_slot = slot;
+    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
+    if(!sym_ptr)
+    {
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%S' used before declaration",sym_node->name);
+    }
 
-    // Cache known value;
-    auto& sym = sym_from_slot(itl.symbol_table,slot);
+    const auto &sym = *sym_ptr;
+
+    sym_node->sym_slot = sym.reg.slot.sym_slot;
     sym_node->node.known_value = sym.known_value;
 
     return sym.type;

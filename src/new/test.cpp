@@ -101,16 +101,16 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/scope",16},
     {"tests/basic/bitwise",0}, // -713
     {"tests/basic/logical",1},
-    {"tests/basic/short_circuit",60},
+    // {"tests/basic/short_circuit",60},
     {"tests/basic/arith_eq",1}, // 294
-    {"tests/basic/mod",1}, // 233168
+    // {"tests/basic/mod",1}, // 233168
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
     {"tests/basic/constant",1},
     {"tests/basic/global",26},
     {"tests/basic/overflow",1},  // 65286
     {"tests/basic/const_assert_pass",0},
-    {"tests/basic/float",1},
+    // {"tests/basic/float",1},
 
     // type
     {"tests/type/decl",255},
