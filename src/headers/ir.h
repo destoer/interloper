@@ -348,8 +348,8 @@ static const char* ARITH_BIN_NAMES[] =
 
 enum class shift_op
 {
-    left_shift,
-    right_shift,
+    left,
+    right,
 };
 
 static const char* SHIFT_NAMES[] = 

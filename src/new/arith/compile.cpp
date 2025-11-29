@@ -180,6 +180,39 @@ void compile_arith_bin(Interloper& itl, Function& func, AstNode* expr, RegSlot d
     }
 }
 
+void compile_shift(Interloper& itl,Function& func, AstNode* expr, RegSlot dst_slot)
+{
+    ShiftNode* shift = (ShiftNode*)expr;
+
+    const auto left = compile_oper(itl,func,shift->left);
+    const auto right = compile_oper(itl,func,shift->right);
+
+    switch(shift->oper)
+    {
+        case shift_op::right:
+        {
+            // if signed do a arithmetic shift 
+            if(is_signed(shift->node.expr_type))
+            {
+                asr(itl,func,dst_slot,left.slot,right.slot);
+            }
+
+            else
+            {
+                lsr(itl,func,dst_slot,left.slot,right.slot);
+            }
+
+            break;
+        }
+
+        case shift_op::left:
+        {
+            lsl(itl,func,dst_slot,left.slot,right.slot);
+            break;
+        }
+    }
+}
+
 void compile_arith_unary(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
 {
     ArithUnaryNode* unary = (ArithUnaryNode*)expr;

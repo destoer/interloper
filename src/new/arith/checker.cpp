@@ -1,7 +1,15 @@
-TypeResult type_check_boolean_logic(Interloper& itl, AstNode* expr) {
-    BooleanLogicNode* logic = (BooleanLogicNode*)expr;
+struct BinType
+{
+    Type* ltype;
+    Type* rtype;
+};
 
-    const auto left_res = type_check_expr(itl,logic->left);
+using BinTypeResult = Result<BinType,itl_error>;
+
+template<typename T>
+BinTypeResult type_check_expr_bin(Interloper& itl, ExprBinOperNode<T>* bin)
+{
+    const auto left_res = type_check_expr(itl,bin->left);
 
     if(!left_res)
     {
@@ -9,20 +17,50 @@ TypeResult type_check_boolean_logic(Interloper& itl, AstNode* expr) {
     }
     
 
-    const auto right_res = type_check_expr(itl,logic->right);
+    const auto right_res = type_check_expr(itl,bin->right);
 
     if(!right_res)
     {
         return right_res.error();
     }
     
-    const auto ltype = *left_res;
-    const auto rtype = *right_res;
-   
-    if(!is_bool(ltype) || !is_bool(rtype))
+    return BinType {*left_res,*right_res};
+}
+
+TypeResult type_check_shift(Interloper& itl, AstNode* expr) {
+    ShiftNode* shift = (ShiftNode*)expr;
+
+    auto bin_res = type_check_expr_bin(itl,shift);
+    if(!bin_res)
+    {
+        return bin_res.error();
+    }
+
+    const auto& bin = *bin_res;
+
+    if(!(is_integer(bin.ltype) && is_integer(bin.rtype)))
+    {
+        return compile_error(itl,itl_error::int_type_error,"shifts only defined for integers, got %t and %t",bin.ltype,bin.rtype);
+    }
+
+    return bin.ltype;
+}
+
+TypeResult type_check_boolean_logic(Interloper& itl, AstNode* expr) {
+    BooleanLogicNode* logic = (BooleanLogicNode*)expr;
+
+    auto bin_res = type_check_expr_bin(itl,logic);
+    if(!bin_res)
+    {
+        return bin_res.error();
+    }
+
+    const auto& bin = *bin_res;
+
+    if(!is_bool(bin.ltype) || !is_bool(bin.rtype))
     {
         return compile_error(itl,itl_error::bool_type_error,"Boolean logic is only defined on bools %t %s %t",
-            ltype,BOOLEAN_LOGIC_NAMES[u32(logic->oper)],rtype);
+            bin.ltype,BOOLEAN_LOGIC_NAMES[u32(logic->oper)],bin.rtype);
     }
 
     return make_builtin(itl,builtin_type::bool_t);
@@ -67,28 +105,21 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
 {
     CmpNode* cmp = (CmpNode*)expr;
 
-    auto left_res = type_check_expr(itl,cmp->left);
-    if(!left_res)
+    auto bin_res = type_check_expr_bin(itl,cmp);
+    if(!bin_res)
     {
-        return left_res.error();
+        return bin_res.error();
     }
 
-    auto right_res = type_check_expr(itl,cmp->right);
-    if(!right_res)
-    {
-        return right_res.error();
-    }
-
-    auto ltype = *left_res;
-    auto rtype = *right_res;
+    auto bin = *bin_res;
 
     // if one side is a value do type checking
-    if(is_integer(ltype) && is_integer(rtype))
+    if(is_integer(bin.ltype) && is_integer(bin.rtype))
     {
         // Coerce the known value to the other operands type if we have checked this is fine.
         if(cmp->left->known_value)
         {
-            const auto coerce_res = check_static_cmp(itl,ltype,rtype,*cmp->left->known_value);
+            const auto coerce_res = check_static_cmp(itl,bin.ltype,bin.rtype,*cmp->left->known_value);
             if(!coerce_res)
             {
                 return coerce_res.error();
@@ -96,13 +127,13 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
             
             if(*coerce_res)
             {
-                ltype = rtype;
+                bin.ltype = bin.rtype;
             }
         }
 
         else if(cmp->right->known_value)
         {
-            const auto coerce_res = check_static_cmp(itl,rtype,ltype,*cmp->right->known_value);
+            const auto coerce_res = check_static_cmp(itl,bin.rtype,bin.ltype,*cmp->right->known_value);
             if(!coerce_res)
             {
                 return coerce_res.error();
@@ -110,53 +141,45 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
 
             if(*coerce_res)
             {
-                rtype = ltype;
+                bin.rtype = bin.ltype;
             }
         } 
     }
     
-    return check_comparison_operation(itl,ltype,rtype,cmp->oper);
+    return check_comparison_operation(itl,bin.ltype,bin.rtype,cmp->oper);
 }
 
 TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 {
-    ArithBinNode* bin = (ArithBinNode*)expr;
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(bin->oper)];
+    ArithBinNode* arith = (ArithBinNode*)expr;
+    const auto type = arith->oper;
 
-    const auto left_res = type_check_expr(itl,bin->left);
+    const ArithmeticInfo& arith_info = ARITH_INFO[u32(type)];
 
-    if(!left_res)
+    auto bin_res = type_check_expr_bin(itl,arith);
+    if(!bin_res)
     {
-        return left_res.error();
-    }
-    
-
-    const auto right_res = type_check_expr(itl,bin->right);
-
-    if(!right_res)
-    {
-        return right_res.error();
+        return bin_res.error();
     }
 
-    auto left = *left_res;
-    auto right = *right_res;
+    const auto& bin = *bin_res;
 
     // pointer arith adds the size of the underlying type
-    if(is_pointer(left) && is_integer(right))
+    if(is_pointer(bin.ltype) && is_integer(bin.rtype))
     {
-        if(bin->oper != arith_bin_op::add_t || bin->oper != arith_bin_op::sub_t)
+        if(type != arith_bin_op::add_t || type != arith_bin_op::sub_t)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
 
         }
 
-        return left;
+        return bin.ltype;
     }
 
     // allow pointer subtraction
-    else if(is_pointer(left) && is_pointer(right))
+    else if(is_pointer(bin.ltype) && is_pointer(bin.rtype))
     {
-        if(bin->oper != arith_bin_op::sub_t)
+        if(type != arith_bin_op::sub_t)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
         }
@@ -165,11 +188,9 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     }
 
     // floating point arith
-    else if(is_float(left) && is_float(right))
+    else if(is_float(bin.ltype) && is_float(bin.rtype))
     {
-        const op_type type = arith_info.float_form;
-
-        if (type == op_type::none)
+        if (arith_info.float_form == op_type::none)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
         }
@@ -177,9 +198,9 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
         return make_builtin(itl,builtin_type::f64_t);
     }
 
-    else if(is_bool(left) && is_bool(right))
+    else if(is_bool(bin.ltype) && is_bool(bin.rtype))
     {
-        switch(bin->oper)
+        switch(type)
         {
             // Treat these like integer operations
             case arith_bin_op::or_t:
@@ -196,13 +217,13 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     }
 
     // integer arith
-    else if(is_integer(left) && is_integer(right))
+    else if(is_integer(bin.ltype) && is_integer(bin.rtype))
     {
-        return effective_arith_type(itl,left,right,bin->oper);  
+        return effective_arith_type(itl,bin.ltype,bin.rtype,type);  
     }
 
     // No idea!
-    return compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t and %t",left,right);
+    return compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t and %t",bin.ltype,bin.rtype);
 }
 
 TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)

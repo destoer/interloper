@@ -3,7 +3,7 @@ const AstInfo AST_INFO[] =
     {"assign",type_check_expr_unk,type_check_assign,compile_expr_unk,compile_assign},
     {"arith_bin",type_check_arith_bin,type_check_stmt_unk,compile_arith_bin,compile_stmt_unk},
     {"arith_unary",type_check_arith_unary,type_check_stmt_unk,compile_arith_unary,compile_stmt_unk},
-    {"shift",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"shift",type_check_shift,type_check_stmt_unk,compile_shift,compile_stmt_unk},
     {"comparison",type_check_comparison,type_check_stmt_unk,compile_comparison,compile_stmt_unk},
     {"boolean_logic",type_check_boolean_logic,type_check_stmt_unk,compile_boolean_logic,compile_stmt_unk},
     {"symbol",type_check_sym,type_check_stmt_unk,compile_symbol,compile_stmt_unk},

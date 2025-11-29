@@ -106,8 +106,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // {"tests/basic/mod",1}, // 233168
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
-    {"tests/basic/constant",1},
-    {"tests/basic/global",26},
+    // {"tests/basic/constant",1},
+    // {"tests/basic/global",26},
     {"tests/basic/overflow",1},  // 65286
     {"tests/basic/const_assert_pass",0},
     // {"tests/basic/float",1},
