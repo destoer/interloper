@@ -1,5 +1,6 @@
 #include <interloper.h>
 #include "array/storage.cpp"
+#include "array/checker.cpp"
 
 // for stack allocated arrays i.e ones with fixed sizes at the top level of the decl, We do this to get the base type size
 // So we don't have to end up padding this out at higher alignments.

@@ -1451,7 +1451,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             IndexNode* index_node = (IndexNode*)root;
 
             printf("Index %s\n",index_node->name.buf);
-
+            
             for(AstNode* index : index_node->indexes)
             {
                 print_internal(itl,index, depth + 1);

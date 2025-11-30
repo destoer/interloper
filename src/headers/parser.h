@@ -445,8 +445,10 @@ struct TupleAssignNode
 struct IndexNode 
 {
     AstNode node;
-
+    
     String name;
+    SymSlot sym_slot;
+    
     Array<AstNode*> indexes;
 };
 
