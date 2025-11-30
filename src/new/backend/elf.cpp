@@ -624,8 +624,6 @@ void write_elf(Elf& elf)
 
     file_write_arr(fp,elf.buffer.data,elf.buffer.size);
 
-    // TODO: set the executable perms on the file
-
     fp.close();
 }
 
@@ -857,7 +855,7 @@ void emit_elf(Interloper& itl, const String& executable_path)
     Elf elf = make_elf(itl,executable_path);
 
     // Add every function in the emitter
-    // NOTE: this adds just the definitons
+    // NOTE: this adds just the definitions
     // we wont push the data in until we finalise the elf
 
     auto& asm_emitter = itl.asm_emitter;
@@ -871,7 +869,7 @@ void emit_elf(Interloper& itl, const String& executable_path)
 
     finalise_elf(itl,elf);
 
-    // now we know the poistions go back and "link" the text section
+    // now we know the positions go back and "link" the text section
     link_elf(itl,elf);
 
     write_elf(elf);

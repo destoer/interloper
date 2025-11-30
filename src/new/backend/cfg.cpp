@@ -183,7 +183,7 @@ void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot 
 
     const auto& target_block = block_from_slot(func,target);
 
-    // TODO: handle src storage
+    handle_src_storage(itl,func,reg_slot,false);
 
     const Opcode opcode = make_cond_branch_instr(branch_type,target_block.label_slot,reg_slot);
     emit_block_internal(func,block,opcode);

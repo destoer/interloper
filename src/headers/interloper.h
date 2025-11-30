@@ -237,7 +237,7 @@ inline f64 bit_cast_to_f64(u64 v)
     return bit_cast<f64,u64>(v);
 }
 
-ConstValueResult compile_const_int_expression(Interloper& itl, AstNode* node);
+ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);

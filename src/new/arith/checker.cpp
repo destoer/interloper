@@ -16,7 +16,6 @@ BinTypeResult type_check_expr_bin(Interloper& itl, ExprBinOperNode<T>* bin)
         return left_res.error();
     }
     
-
     const auto right_res = type_check_expr(itl,bin->right);
 
     if(!right_res)
@@ -266,4 +265,33 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
 
     assert(false);
     return make_builtin(itl,builtin_type::void_t);
+}
+
+TypeResult type_check_deref(Interloper& itl, AstNode* expr)
+{
+    DerefNode* deref = (DerefNode*)expr;
+
+    const auto res = type_check_expr(itl,deref->expr);
+
+    if(!res)
+    {
+        return res.error();
+    }
+
+    auto type = *res;
+
+    // make sure we actually have a pointer
+    if(!is_pointer(type))
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Expected pointer got: %t",type);
+    }
+
+    PointerType* pointer = (PointerType*)type;
+
+    if(pointer->pointer_kind == pointer_type::nullable)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference a nullable pointer %t",type);
+    }
+
+    return pointer->contained_type;
 }
