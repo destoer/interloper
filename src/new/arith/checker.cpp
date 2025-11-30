@@ -267,6 +267,22 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
     return make_builtin(itl,builtin_type::void_t);
 }
 
+TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
+{
+    AddrOfNode* addr = (AddrOfNode*)expr;
+
+    const auto res = type_check_expr(itl,addr->expr);
+
+    if(!res)
+    {
+        return res.error();
+    }
+
+    auto type = *res;
+
+    return make_reference(itl,type);
+}
+
 TypeResult type_check_deref(Interloper& itl, AstNode* expr)
 {
     DerefNode* deref = (DerefNode*)expr;
