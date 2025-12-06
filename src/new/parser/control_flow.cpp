@@ -367,6 +367,7 @@ ParserResult parse_if(Parser& parser, const Token& t)
     }
 
     if_node->if_stmt = make_if_stmt(*expr_res,*body_res);
+    if_node->count += 1;
 
     bool done = false;
     
@@ -408,6 +409,8 @@ ParserResult parse_if(Parser& parser, const Token& t)
                 if_node->else_clause = true;
                 done = true;
             }
+
+            if_node->count += 1;
         }
 
         // this chain is done we have another token

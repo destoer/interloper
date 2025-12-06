@@ -231,6 +231,9 @@ Option<itl_error> type_check_stmt_unk(Interloper& itl, Function& func, AstNode* 
 
 Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& block)
 {
+    // We now have a new scope.
+    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+
     for(AstNode* stmt : block.statement)
     {
         itl.ctx.expr = stmt;
@@ -249,9 +252,6 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
 Option<itl_error> type_check_block_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
     BlockNode* nested_block = (BlockNode*)stmt;
-
-    // We now have a new scope.
-    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     return type_check_block(itl,func,nested_block->block);
 }

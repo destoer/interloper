@@ -544,6 +544,8 @@ struct IfNode
     IfStmt if_stmt;
     Array<IfStmt> else_if_stmt;
     AstBlock else_stmt;
+    // total number of stmts
+    u32 count = 0;
 
     bool else_clause = false;
 };

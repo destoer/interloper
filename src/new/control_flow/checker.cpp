@@ -156,6 +156,6 @@ Option<itl_error> type_check_if(Interloper& itl, Function& func, AstNode* stmt)
     {
         return option::none;
     }
-    
-    return type_check_block_stmt(itl,func,stmt);
+
+    return type_check_block(itl,func,if_node->else_stmt);
 }

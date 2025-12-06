@@ -173,6 +173,7 @@ void check_block_branch(Interloper& itl,Function& func, BlockSlot& block_slot)
 
     if(block.branch_count > 1)
     {
+        dump_ir_sym(itl,func,itl.symbol_table);
         crash_and_burn("Basic block has too many branches: at L%d\n",block.label_slot.handle);
     }
 }
