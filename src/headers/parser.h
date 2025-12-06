@@ -464,11 +464,22 @@ struct ForIterNode
     AstBlock block;
 };
 
+enum class range_cmp_op
+{
+    lt,
+    le,
+    gt,
+    ge
+};
+
+static constexpr u32 RANGE_FOR_TAKE_POINTER = (1 << 0);
+static constexpr u32 RANGE_FOR_INC = (1 << 1);
+
 struct ForRangeNode
 {
     AstNode node;
 
-    AstNode* cond;
+    AstNode* cond = nullptr;
     AstBlock block;
 
     // encode
@@ -478,7 +489,9 @@ struct ForRangeNode
     String name_one;
     String name_two;
 
-    b8 take_pointer = false;
+    // Initialized properly by type checker.
+    range_cmp_op cmp_op = range_cmp_op::lt;
+    u32 flags = 0;
 };
 
 

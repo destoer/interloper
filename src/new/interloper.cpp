@@ -56,6 +56,9 @@ void setup_type_table(Interloper& itl)
     {
         add_internal_type_decl(itl,i,TYPE_NAMES[i],type_kind::builtin);
     }
+
+    itl.usize_type = make_builtin(itl,builtin_type::u64_t);
+    itl.ssize_type = make_builtin(itl,builtin_type::s64_t);
 }
 
 void destroy_itl(Interloper &itl)

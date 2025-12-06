@@ -1387,7 +1387,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             AutoDeclNode* auto_decl = (AutoDeclNode*)root;
             const auto name = named_symbol_name(itl,root,auto_decl->sym);
-            
+
             print_ast(itl,"Auto decl %S\n",name);
             
             print_internal(itl,auto_decl->expr, depth + 1);
@@ -1493,7 +1493,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::for_range:
         {
             ForRangeNode* for_range = (ForRangeNode*)root;
-            printf("For [%s%s : %s]\n",for_range->take_pointer? "@" : "",for_range->name_one.buf,for_range->name_two.buf);
+            print_ast(itl,"For [%s%S : %S]\n",for_range->flags & RANGE_FOR_TAKE_POINTER? "@" : "",for_range->name_one,for_range->name_two);
             print_block(itl,&for_range->block, depth + 1);
             break;
         }

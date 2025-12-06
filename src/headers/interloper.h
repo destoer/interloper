@@ -56,6 +56,10 @@ struct Interloper
     ArenaAllocator type_allocator;
 
     Array<Type*> alias_table;
+
+    Type* usize_type = nullptr;
+    Type* ssize_type = nullptr;
+
     // Array copy for debug printing of ast
     Array<AstNode*> type_decl;
 
@@ -173,17 +177,15 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
     return err;
 }
 
-
-inline itl_error compile_panic(Interloper &itl,itl_error error,const char *fmt, ...)
+[[noreturn]]
+inline void compile_panic(Interloper &itl,itl_error error,const char *fmt, ...)
 {
     puts("Panic: ");
     va_list args; 
     va_start(args, fmt);
-    const auto err = compile_verror(itl,error,fmt,args);
+    (void)compile_verror(itl,error,fmt,args);
     va_end(args);
     exit(1);
-
-    return err;
 }
 
 void itl_warning(const char* fmt, ...)

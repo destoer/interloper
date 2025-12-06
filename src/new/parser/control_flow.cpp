@@ -116,9 +116,10 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
         {
             return *deref_err;
         }
+
+        for_node->flags = RANGE_FOR_TAKE_POINTER;
     }
 
-    for_node->take_pointer = take_pointer;
 
     const auto name_one = next_token(parser);
 

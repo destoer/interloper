@@ -202,7 +202,7 @@ Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stm
 
 TypeResult type_check_expr_unk(Interloper& itl, AstNode* expr)
 {
-    return compile_panic(itl,itl_error::invalid_expr,"Type checker(expr) unknown node %s",AST_INFO[u32(expr->type)].name);
+    compile_panic(itl,itl_error::invalid_expr,"Type checker(expr) unknown node %s",AST_INFO[u32(expr->type)].name);
 }
 
 TypeResult type_check_value(Interloper& itl, AstNode* expr)
@@ -226,7 +226,7 @@ TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 Option<itl_error> type_check_stmt_unk(Interloper& itl, Function& func, AstNode* stmt)
 {
     UNUSED(func);
-    return compile_panic(itl,itl_error::invalid_expr,"Type checker(stmt) unknown node %s",AST_INFO[u32(stmt->type)].name);
+    compile_panic(itl,itl_error::invalid_expr,"Type checker(stmt) unknown node %s",AST_INFO[u32(stmt->type)].name);
 }
 
 Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& block)
