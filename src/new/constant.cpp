@@ -51,11 +51,6 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     // pull type and name so we can create a symbol
     const auto name = decl_node->sym.name;
 
-    if(symbol_exists(itl.symbol_table,name))
-    {
-        return compile_error(itl,itl_error::redeclaration,"constant symbol %S redefined",name);
-    }
-
     // force constant
     decl_node->type->is_constant = true;
 
@@ -69,7 +64,13 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     Type* type = *type_res;
 
     // add into table
-    auto& sym = global? add_global(itl,name,type,true) : add_symbol(itl,name,type);
+    const auto sym_res = global? add_global(itl,name,type,true) : add_symbol(itl,name,type);
+    if(!sym_res)
+    {
+        return sym_res.error();
+    }
+
+    auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
 
     // make sure this is marked as constant
     // incase it is declared locally

@@ -87,17 +87,18 @@ Option<itl_error> type_check_decl(Interloper &itl,Function& func, AstNode* node)
         return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->sym.name,sym_ptr->type);
     }
 
-    // add new symbol table entry, and cache it in inside the decl
-    Symbol &sym = add_symbol(itl,decl->sym.name,ltype);
-    decl->sym.slot = sym.reg.slot.sym_slot;
+    auto sym_res = add_symbol(itl,decl->sym.name,ltype);
+    if(!sym_res)
+    {
+        return sym_res.error();
+    }
+
+    decl->sym.slot = *sym_res;
 
     if(!decl->expr && is_reference(ltype))
     {
         return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s",type_name(itl,ltype).buf);
     }
-
-    // Reserve global data
-    reserve_global_alloc(itl,sym);
 
     return option::none;
 }
@@ -117,19 +118,14 @@ Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* 
     const auto rtype = *decl_res;
     decl->node.expr_type = rtype;
 
-    const auto sym_ptr = get_sym(itl.symbol_table,decl->sym.name);
 
-    if(sym_ptr)
+    const auto sym_res = add_symbol(itl,decl->sym.name,rtype);
+    if(!sym_res)
     {
-        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->sym.name,sym_ptr->type);
+        return sym_res.error();
     }
 
-    // add new symbol table entry, and cache it in inside the decl
-    Symbol &sym = add_symbol(itl,decl->sym.name,rtype);
-    decl->sym.slot = sym.reg.slot.sym_slot;
-
-    // Reserve global data
-    reserve_global_alloc(itl,sym);
+    decl->sym.slot = *sym_res;
 
     return option::none;
 }

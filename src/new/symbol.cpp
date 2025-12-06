@@ -146,21 +146,34 @@ void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
     add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
-Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type)
 {
     auto& sym_table = itl.symbol_table;
+    if(symbol_exists(itl.symbol_table,name))
+    {
+        return compile_error(itl,itl_error::redeclaration,"symbol '%S' is already declared",name);
+    }
 
     auto sym = make_sym(itl,name,type);
+
+    // Reserve global data
+    reserve_global_alloc(itl,sym);
+
     push_var(sym_table.slot_lookup,sym);
 
     add_sym_to_scope(sym_table,sym);
 
-    return sym_from_slot(sym_table,slot_from_sym(sym));
+    return slot_from_sym(sym);
 }
 
-Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
+Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 {
     auto& sym_table = itl.symbol_table;
+    if(symbol_exists(itl.symbol_table,name))
+    {
+        return compile_error(itl,itl_error::redeclaration,"symbol '%S' is already declared",name);
+    }
+
 
     auto sym = make_sym(itl,name,type);
     sym.reg.segment = constant? reg_segment::constant : reg_segment::global;
@@ -178,7 +191,7 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
     const DefInfo info = {definition_type::variable,handle_from_sym(sym)};
     add(itl.global_namespace->table,sym.name, info);    
 
-    return sym_from_slot(sym_table,slot);
+    return slot;
 }
 
 LabelSlot label_from_idx(u32 handle)
