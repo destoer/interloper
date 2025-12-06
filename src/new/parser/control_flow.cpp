@@ -405,6 +405,7 @@ ParserResult parse_if(Parser& parser, const Token& t)
                     return *block_err;
                 }
 
+                if_node->else_clause = true;
                 done = true;
             }
         }

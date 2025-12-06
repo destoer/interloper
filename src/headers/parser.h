@@ -523,10 +523,18 @@ struct SwitchNode
     Option<Case> default_statement = option::none;
 };
 
+enum class if_stmt_type
+{
+    bool_t,
+    array_t,
+    not_zero_t,
+};
+
 struct IfStmt
 {
     AstNode* expr = nullptr;
     AstBlock* block = nullptr;
+    if_stmt_type type = if_stmt_type::bool_t;
 };
 
 struct IfNode
@@ -536,6 +544,8 @@ struct IfNode
     IfStmt if_stmt;
     Array<IfStmt> else_if_stmt;
     AstBlock else_stmt;
+
+    bool else_clause = false;
 };
 
 struct WhileNode

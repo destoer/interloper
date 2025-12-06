@@ -96,3 +96,66 @@ Option<itl_error> type_check_for_range(Interloper& itl, Function& func, AstNode*
         unimplemented("Array for range");
     }
 }
+
+Option<itl_error> type_check_if_stmt(Interloper& itl, Function& func, IfStmt* stmt)
+{
+    const auto cond_res = type_check_expr(itl,stmt->expr);
+    if(!cond_res)
+    {
+        return cond_res.error();
+    }
+
+    const auto ltype = *cond_res;
+
+    if(is_array(ltype))
+    {
+        stmt->type = if_stmt_type::array_t;
+    }
+
+    else if(is_pointer(ltype) || is_integer(ltype))
+    {
+        stmt->type = if_stmt_type::not_zero_t;
+    }
+
+    if(is_bool(ltype))
+    {
+        stmt->type = if_stmt_type::bool_t;
+    }
+
+    else
+    {
+        return compile_error(itl,itl_error::bool_type_error,"expected bool got %t in if condition",ltype);
+    }
+
+    return type_check_block(itl,func,*stmt->block);
+}
+
+Option<itl_error> type_check_if(Interloper& itl, Function& func, AstNode* stmt)
+{
+    IfNode* if_node = (IfNode*)stmt;
+
+    // Check if stmt
+    const auto if_err = type_check_if_stmt(itl,func,&if_node->if_stmt);
+    if(if_err)
+    {
+        return if_err;
+    }
+    
+    // Check all else if
+    for(auto& else_if_stmt : if_node->else_if_stmt)
+    {
+        const auto else_if_err = type_check_if_stmt(itl,func,&else_if_stmt);
+        if(else_if_err)
+        {
+            return else_if_err;
+        }
+    }
+
+    // Check else block if any
+    if(!if_node->else_clause)
+    {
+        return option::none;
+    }
+    
+    return type_check_block_stmt(itl,func,stmt);
+}
