@@ -1060,6 +1060,16 @@ void print_ast(Interloper& itl, const String& fmt, ...)
     va_end(args);
 }
 
+String named_symbol_name(Interloper& itl, const AstNode* node, const NamedSymbol& named_sym)
+{
+    if(node->expr_type)
+    {
+        Symbol& sym = sym_from_slot(itl.symbol_table,named_sym.slot);
+        return sym.name;
+    }
+
+    return named_sym.name;
+}
 
 void print_internal(Interloper& itl,const AstNode *root, int depth)
 {
@@ -1118,15 +1128,16 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::symbol:
         {
             SymbolNode* sym_node = (SymbolNode*)root;
+            const auto name = named_symbol_name(itl,root,sym_node->sym);
+
             if(sym_node->node.expr_type)
             {
-                auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
-                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,sym.name,sym_node->node.expr_type);
+                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
             }
 
             else
             {
-                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,sym_node->name,sym_node->node.expr_type);
+                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
             }
             break;
         }
@@ -1341,17 +1352,10 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::decl:
         {
             DeclNode* decl = (DeclNode*)root;
-            if(decl->node.expr_type)
-            {
-                auto& sym = sym_from_slot(itl.symbol_table,decl->sym_slot);
-                print_ast(itl,"%sDecl %S",decl->is_const? "const ": "",sym.name);
-            }
+            const auto name = named_symbol_name(itl,root,decl->sym);
 
-            else
-            {
-                print_ast(itl,"%sDecl %S",decl->is_const? "const ": "",decl->name);
-            }
-            
+            print_ast(itl,"%sDecl %S",decl->is_const? "const ": "",name);
+
             print_internal(itl,(AstNode*)decl->type, depth + 1);
 
             if(decl->expr)
@@ -1382,16 +1386,10 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::auto_decl:
         {
             AutoDeclNode* auto_decl = (AutoDeclNode*)root;
-            if(auto_decl->node.expr_type)
-            {
-                auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym_slot);
-                print_ast(itl,"Auto decl %S\n",sym.name);
-            }
-
-            else
-            {
-                print_ast(itl,"Auto decl %S\n",auto_decl->name);
-            }
+            const auto name = named_symbol_name(itl,root,auto_decl->sym);
+            
+            print_ast(itl,"Auto decl %S\n",name);
+            
             print_internal(itl,auto_decl->expr, depth + 1);
             break;
         }

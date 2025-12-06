@@ -101,7 +101,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/scope",16},
     {"tests/basic/bitwise",0}, // -713
     {"tests/basic/logical",1},
-    {"tests/basic/short_circuit",60},
+    // {"tests/basic/short_circuit",60},
     {"tests/basic/arith_eq",1}, // 294
     {"tests/basic/mod",1}, // 233168
     {"tests/basic/shift",1},

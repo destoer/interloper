@@ -158,7 +158,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
 {
     Member member;
-    member.name = m->name;
+    member.name = m->sym.name;
 
     TypeNode* type_decl = m->type;
 

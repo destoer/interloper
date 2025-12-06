@@ -214,18 +214,21 @@ struct CastNode
     cast_oper oper = cast_oper::move;
 };
 
+union NamedSymbol 
+{
+    // Before type checking
+    String name;
+    // After type checking
+    SymSlot slot = {INVALID_HANDLE};
+};
+
+
 struct SymbolNode
 {
     AstNode node;
     NameSpace* name_space;
 
-    union
-    {
-        // Before Type checking
-        String name;
-        // After Type checking;
-        SymSlot sym_slot;
-    };
+    NamedSymbol sym;
 };
 
 enum class type_operator
@@ -330,13 +333,7 @@ struct AutoDeclNode
 
     AstNode* expr = nullptr;
 
-    union
-    {
-        // Before type checking
-        String name;
-        // After type checking
-        SymSlot sym_slot = {INVALID_HANDLE};
-    };
+    NamedSymbol sym;
 };
 
 struct DeclNode
@@ -348,13 +345,7 @@ struct DeclNode
 
     b32 is_const = false;
 
-    union
-    {
-        // Before type checking
-        String name;
-        // After type checking
-        SymSlot sym_slot = {INVALID_HANDLE};
-    };
+    NamedSymbol sym;
 };
 
 struct GlobalDeclNode
@@ -482,6 +473,8 @@ struct ForRangeNode
 
     // encode
     // [@v, i]
+    NamedSymbol sym_one;
+    NamedSymbol sym_two;
     String name_one;
     String name_two;
 
@@ -745,7 +738,7 @@ ParserResult ast_equal(Parser& parser, ParserResult left_res, ParserResult right
 AstNode* ast_symbol(Parser& parser, NameSpace* name_space, const String& name, const Token &token)
 {
     SymbolNode* sym_node  = alloc_node<SymbolNode>(parser,ast_type::symbol,token);
-    sym_node->name = name;
+    sym_node->sym.name = name;
     sym_node->name_space = name_space;
 
     return (AstNode*)sym_node;        
@@ -924,7 +917,7 @@ AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, b32 is_cons
 {
     DeclNode* decl_node = alloc_node<DeclNode>(parser,ast_type::decl,token);
 
-    decl_node->name = name;
+    decl_node->sym.name = name;
     decl_node->type = type;
     decl_node->is_const = is_const;
 
@@ -936,7 +929,7 @@ AstNode* ast_auto_decl(Parser& parser, const String& name, AstNode* expr, const 
 {
     AutoDeclNode* decl_node = alloc_node<AutoDeclNode>(parser,ast_type::auto_decl,token);
 
-    decl_node->name = name;
+    decl_node->sym.name = name;
     decl_node->expr = expr;
 
     return (AstNode*)decl_node;        

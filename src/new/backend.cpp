@@ -117,7 +117,7 @@ TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node)
         case ast_type::symbol:
         {
             SymbolNode* sym_node  = (SymbolNode*)node;
-            const auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+            const auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
 
             return typed_reg(sym);
         }
@@ -134,7 +134,7 @@ void compile_symbol(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_
 {
     SymbolNode* sym_node = (SymbolNode*)expr;
 
-    auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+    auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
 
     const TypedReg src = typed_reg(sym);
     const TypedReg dst = {dst_slot,src.type};
@@ -213,7 +213,7 @@ void compile_decl(Interloper &itl,Function &func,AstNode* stmt)
 {
     DeclNode* decl_node = (DeclNode*)stmt;
 
-    auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym_slot);
+    auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym.slot);
 
 
     switch(sym.type->kind)
@@ -242,7 +242,7 @@ void compile_auto_decl(Interloper &itl,Function &func, AstNode* stmt)
 {
     AutoDeclNode* auto_decl = (AutoDeclNode*)stmt;
 
-    auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym_slot);
+    auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym.slot);
 
     // save the alloc node so we can fill the info in later
     alloc_slot(itl,func,sym.reg.slot,!is_plain_type(sym.type));
@@ -258,7 +258,7 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
         case ast_type::symbol:
         {
             SymbolNode* sym_node = (SymbolNode*)assign->left;
-            auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+            auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
 
 
             const RegSlot slot = sym.reg.slot;

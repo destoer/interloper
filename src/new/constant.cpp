@@ -49,7 +49,7 @@ Option<itl_error> compile_constant_initializer(Interloper& itl,Symbol& symbol, A
 Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
 {
     // pull type and name so we can create a symbol
-    const auto name = decl_node->name;
+    const auto name = decl_node->sym.name;
 
     if(symbol_exists(itl.symbol_table,name))
     {

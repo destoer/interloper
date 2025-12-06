@@ -80,16 +80,16 @@ Option<itl_error> type_check_decl(Interloper &itl,Function& func, AstNode* node)
 
     decl->node.expr_type = ltype;
 
-    const auto sym_ptr = get_sym(itl.symbol_table,decl->name);
+    const auto sym_ptr = get_sym(itl.symbol_table,decl->sym.name);
 
     if(sym_ptr)
     {
-        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->name,sym_ptr->type);
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->sym.name,sym_ptr->type);
     }
 
     // add new symbol table entry, and cache it in inside the decl
-    Symbol &sym = add_symbol(itl,decl->name,ltype);
-    decl->sym_slot = sym.reg.slot.sym_slot;
+    Symbol &sym = add_symbol(itl,decl->sym.name,ltype);
+    decl->sym.slot = sym.reg.slot.sym_slot;
 
     if(!decl->expr && is_reference(ltype))
     {
@@ -117,16 +117,16 @@ Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* 
     const auto rtype = *decl_res;
     decl->node.expr_type = rtype;
 
-    const auto sym_ptr = get_sym(itl.symbol_table,decl->name);
+    const auto sym_ptr = get_sym(itl.symbol_table,decl->sym.name);
 
     if(sym_ptr)
     {
-        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->name,sym_ptr->type);
+        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->sym.name,sym_ptr->type);
     }
 
     // add new symbol table entry, and cache it in inside the decl
-    Symbol &sym = add_symbol(itl,decl->name,rtype);
-    decl->sym_slot = sym.reg.slot.sym_slot;
+    Symbol &sym = add_symbol(itl,decl->sym.name,rtype);
+    decl->sym.slot = sym.reg.slot.sym_slot;
 
     // Reserve global data
     reserve_global_alloc(itl,sym);
@@ -158,15 +158,15 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
         return sym_node->node.expr_type;
     }
 
-    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
+    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->sym.name,sym_node->name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%S' used before declaration",sym_node->name);
+        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%S' used before declaration",sym_node->sym.name);
     }
 
     const auto &sym = *sym_ptr;
 
-    sym_node->sym_slot = sym.reg.slot.sym_slot;
+    sym_node->sym.slot = sym.reg.slot.sym_slot;
     sym_node->node.known_value = sym.known_value;
 
     return sym.type;

@@ -327,7 +327,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
         const auto a = decl[i];
         itl.ctx.expr = (AstNode*)a;
 
-        const auto name = a->name;
+        const auto name = a->sym.name;
         const auto type_res = get_complete_type(itl,a->type);
         if(!type_res)
         {

@@ -13,7 +13,7 @@ FuncCall call_info_from_func_pointer(Symbol& sym)
 
 Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
 {
-    const String& name = sym_node->name;
+    const String& name = sym_node->sym.name;
     NameSpace* name_space = sym_node->name_space;
 
     // are we looking in the global namespace or no?
@@ -99,7 +99,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
         SymbolNode* sym_node = (SymbolNode*)func_call->expr;
         if(!sym_node->name_space)
         {
-            const auto& name = sym_node->name;
+            const auto& name = sym_node->sym.name;
 
             // check this is not an intrinsic function
             const s32 idx = lookup_internal_hashtable(INTRIN_TABLE,INTRIN_TABLE_SIZE,name);
