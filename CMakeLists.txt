@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 file(GLOB src_files
 	"src/*.h"
-	"src/new/main.cpp"
+	"src/main.cpp"
 )
 
 if(WIN32)
@@ -20,7 +20,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Werror -fno-exceptions -fno-rtti  -f
 endif()
 
 include_directories("src/headers")
-include_directories("src/new")
+include_directories("src/")
 
 add_subdirectory("destoer-lib")
 add_subdirectory("util")
