@@ -240,12 +240,22 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
     switch(unary->oper)
     {
         case arith_unary_op::add_t:
-        case arith_unary_op::bitwise_not_t:
         case arith_unary_op::sub_t:
+        {
+            if(!is_integer(rtype) && !is_float(rtype))
+            {
+                return compile_error(itl,itl_error::int_type_error,"Unary arith %s only defined on ints and floats got: %t",
+                    ARITH_UNARY_NAMES[u32(unary->oper)],rtype);
+            }
+
+            return rtype;
+        }
+
+        case arith_unary_op::bitwise_not_t:
         {
             if(!is_integer(rtype))
             {
-                return compile_error(itl,itl_error::int_type_error,"Unary %s only defined on int got: %t",ARITH_UNARY_NAMES[u32(unary->oper)],rtype);
+                return compile_error(itl,itl_error::int_type_error,"Bitwise not is only defined on ints got: %t",rtype);
             }
 
             return rtype;

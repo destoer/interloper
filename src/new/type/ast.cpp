@@ -210,6 +210,13 @@ TypeResult type_check_value(Interloper& itl, AstNode* expr)
     return make_builtin(itl,value_node->type);
 }
 
+TypeResult type_check_float(Interloper& itl, AstNode* expr)
+{
+    UNUSED(expr);
+    return make_builtin(itl,builtin_type::f64_t);
+}
+
+
 TypeResult type_check_expr(Interloper& itl, AstNode* expr)
 {
     itl.ctx.expr = expr;
