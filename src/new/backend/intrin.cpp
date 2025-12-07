@@ -11,7 +11,7 @@ Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_
 
     if(!func_def)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: %s is required for struct passing",name.buf);
+        return compile_error(itl,itl_error::undeclared,"%s is required for struct passing",name.buf);
     }
 
     return func_def;

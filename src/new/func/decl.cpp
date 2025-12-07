@@ -127,7 +127,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     return func_def.func;   
 }
  
-Function& create_dummy_func(Interloper& itl, const String& name)
+Function* create_dummy_func(Interloper& itl, const String& name)
 {
     add_func(itl,name,itl.global_namespace,nullptr);
 
@@ -188,15 +188,15 @@ Function* lookup_opt_global_function(Interloper& itl, const String& name)
     return func_def.func;
 }
 
-Function& lookup_internal_function(Interloper& itl, const String& name)
+Function* lookup_internal_function(Interloper& itl, const String& name)
 {
     Function* func_opt = lookup_opt_scoped_function(itl,itl.global_namespace,name);
 
-    // assert this just for saftey
+    // assert this just for safety
     // functions looked up by this should never be missing due to startup checks
     assert(func_opt);
 
-    return *func_opt;
+    return func_opt;
 }
 
 

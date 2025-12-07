@@ -43,7 +43,7 @@ Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
 
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: function %n%S is not declared",name_space,name);
+        return compile_error(itl,itl_error::undeclared,"Function %n%S is not declared",name_space,name);
     }
 
     auto& sym = *sym_ptr;
@@ -51,7 +51,7 @@ Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
     // we have a symbol that is a function pointer we are good to go
     if(!is_func_pointer(sym.type))
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol %S is not a function pointer or function",name);       
+        return compile_error(itl,itl_error::undeclared,"Symbol %S is not a function pointer or function",name);       
     }
 
     return call_info_from_func_pointer(sym);
@@ -138,7 +138,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
     // check we have the right number of params
     if(actual_args != count(func_call->args))
     {
-        return compile_error(itl,itl_error::missing_args,"[COMPILE]: function call expected %d args got %d",actual_args,count(func_call->args));
+        return compile_error(itl,itl_error::missing_args,"Function call expected %d args got %d",actual_args,count(func_call->args));
     }  
 
     // Type check args against the sig.

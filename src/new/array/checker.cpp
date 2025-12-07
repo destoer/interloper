@@ -67,7 +67,7 @@ TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
 
     if(!arr_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: array '%S' used before declaration",index->name);     
+        return compile_error(itl,itl_error::undeclared,"Array '%S' used before declaration",index->name);     
     }
 
     const auto arr = *arr_ptr;

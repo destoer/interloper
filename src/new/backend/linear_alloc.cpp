@@ -477,7 +477,7 @@ void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
 
     // we have not spilled this value on the stack yet we need to actually allocate its posistion
 
-    if(is_stack_unallocated(ir_reg))
+    if(is_reg_mem_unallocated(ir_reg))
     {
         reserve_offset(alloc,ir_reg,reg);
     }
@@ -513,7 +513,7 @@ void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, inser
     }
 
     // reserve a space for this for a later spill
-    else if(is_stack_unallocated(ir_reg))
+    else if(is_reg_mem_unallocated(ir_reg))
     {
         reserve_offset(alloc,ir_reg,REG_FREE);
     }   
@@ -786,7 +786,7 @@ void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, 
 
     insert_node(block.list,node,opcode,type);
 
-    assert(!is_stack_unallocated(ir_reg));
+    assert(!is_reg_mem_unallocated(ir_reg));
 }
 
 

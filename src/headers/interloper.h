@@ -65,6 +65,7 @@ struct Interloper
 
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;
+    Function* global_func = nullptr;
 
     // memory collection for func pointer types
     Array<FuncSig*> func_pointer;
@@ -73,13 +74,13 @@ struct Interloper
     EnumTable enum_table;
     RttiCache rtti_cache;
 
-    // targetting info
+    // targeting info
     arch_target arch = arch_target::x86_64_t;
     os_target os = os_target::linux_t;
 
     AsmEmitter asm_emitter;
 
-    // compilier config
+    // compiler config
 
     // diagnostic
     b32 print_ast = false;

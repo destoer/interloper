@@ -52,7 +52,7 @@ u32 gpr_count(u32 size)
 
 b32 is_mem_allocated(Reg& reg)
 {
-    return reg.flags & STACK_ALLOCATED;
+    return reg.flags & (STACK_ALLOCATED | GLOBALLY_ALLOCATED);
 }
 
 b32 is_mem_unallocated(Reg& reg)
@@ -60,7 +60,7 @@ b32 is_mem_unallocated(Reg& reg)
     return !is_mem_allocated(reg);
 }
 
-b32 is_stack_unallocated(Reg& reg)
+b32 is_reg_mem_unallocated(Reg& reg)
 {
     return is_mem_unallocated(reg) && (reg.slot.kind == reg_kind::sym || reg.slot.kind == reg_kind::tmp);
 }

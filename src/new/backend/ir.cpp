@@ -4,7 +4,7 @@ OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* n
     const auto slot = node->value.v[1].reg;
     auto& reg = reg_from_slot(slot,alloc);
 
-    if(is_stack_unallocated(reg))
+    if(is_reg_mem_unallocated(reg))
     {
         assert(stored_in_mem(reg));
 
@@ -188,7 +188,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
             log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
 
-            if(is_stack_unallocated(reg))
+            if(is_reg_mem_unallocated(reg))
             {
                 assert(stored_in_mem(reg));
 

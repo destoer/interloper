@@ -367,8 +367,19 @@ void dump_reg_ir(Interloper &itl)
     }
 }
 
+void compile_globals(Interloper& itl)
+{
+    Function& func = *itl.global_func;
+
+    for(GlobalDeclNode* decl_node : itl.global_decl)
+    {
+        compile_decl(itl,func,(AstNode*)decl_node->decl);
+    }
+}
+
 Option<itl_error> backend(Interloper& itl, const String& executable_path)
 {
+    compile_globals(itl);
 
     const auto func_err = compile_functions(itl);
     if(func_err)

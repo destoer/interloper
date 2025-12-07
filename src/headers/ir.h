@@ -946,6 +946,7 @@ static constexpr u32 CONST = 1 << 4;
 static constexpr u32 FUNC_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
 static constexpr u32 STACK_ALLOCATED = 1 << 7;
+static constexpr u32 GLOBALLY_ALLOCATED = 1 << 8;
 
 
 // TODO:
@@ -1095,6 +1096,8 @@ struct GlobalAlloc
 
     Array<ArrayAllocation> array_allocation;
 };
+
+void finalise_global_offset(Interloper& itl);
 
 void sign_extend_byte(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
 void sign_extend_half(Interloper& itl, Function& func, RegSlot dst, RegSlot src);

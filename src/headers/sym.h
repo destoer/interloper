@@ -28,6 +28,7 @@ struct Symbol
 struct SymbolNode;
 RegResult symbol(Interloper &itl, SymbolNode* sym_node);
 Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type);
+Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant);
 
 struct Label 
 {
@@ -146,7 +147,7 @@ b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 Function* lookup_opt_scoped_function(Interloper& itl, NameSpace* name_space, const String& name);
 Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
-Function& lookup_internal_function(Interloper& itl, const String& name);
+Function* lookup_internal_function(Interloper& itl, const String& name);
 
 enum class func_sig_kind
 {

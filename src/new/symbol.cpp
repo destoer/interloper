@@ -156,9 +156,6 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *t
 
     auto sym = make_sym(itl,name,type);
 
-    // Reserve global data
-    reserve_global_alloc(itl,sym);
-
     push_var(sym_table.slot_lookup,sym);
 
     add_sym_to_scope(sym_table,sym);
@@ -177,6 +174,8 @@ Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *t
 
     auto sym = make_sym(itl,name,type);
     sym.reg.segment = constant? reg_segment::constant : reg_segment::global;
+
+    reserve_global_alloc(itl,sym);
 
     push_var(sym_table.slot_lookup,sym);
 
@@ -309,7 +308,7 @@ RegResult symbol(Interloper &itl, SymbolNode* sym_node)
     const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->sym.name,sym_node->name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%S' used before declaration",sym_node->sym.name);
+        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->sym.name);
     }
 
     const auto &sym = *sym_ptr;

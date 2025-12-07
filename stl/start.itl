@@ -1,7 +1,7 @@
 // import <system>
 // import <mem>
 
-// global global_setup : bool = false;
+global global_setup : bool = false;
 
 // func start()
 // {
@@ -28,6 +28,11 @@ func exit(exit_code: s32)
 // TODO: need to define for each arch
 func start()
 {
+    // NOTE: the compiler will internally set this up for us
+    init_global();
+
+    global_setup = true;
+
     rc: s32 = main();
     exit(rc);
 }

@@ -55,12 +55,8 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     return option::none;
 }
 
-Option<itl_error> type_check_decl(Interloper &itl,Function& func, AstNode* node)
+Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 {
-    UNUSED(func);
-
-    DeclNode* decl = (DeclNode*)node;
-
     if(decl->expr)
     {
         const auto decl_res = type_check_expr(itl,decl->expr);
@@ -80,14 +76,8 @@ Option<itl_error> type_check_decl(Interloper &itl,Function& func, AstNode* node)
 
     decl->node.expr_type = ltype;
 
-    const auto sym_ptr = get_sym(itl.symbol_table,decl->sym.name);
 
-    if(sym_ptr)
-    {
-        return compile_error(itl,itl_error::redeclaration,"redeclared symbol: %S: %t",decl->sym.name,sym_ptr->type);
-    }
-
-    auto sym_res = add_symbol(itl,decl->sym.name,ltype);
+    auto sym_res = global? add_global(itl,decl->sym.name,ltype,false) : add_symbol(itl,decl->sym.name,ltype);
     if(!sym_res)
     {
         return sym_res.error();
@@ -101,6 +91,13 @@ Option<itl_error> type_check_decl(Interloper &itl,Function& func, AstNode* node)
     }
 
     return option::none;
+}
+
+Option<itl_error> type_check_decl_stmt(Interloper &itl,Function& func, AstNode* node)
+{
+    UNUSED(func);
+
+    return type_check_decl(itl,(DeclNode*)node,false);
 }
 
 Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* stmt)
@@ -157,7 +154,7 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
     const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->sym.name,sym_node->name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"[COMPILE]: symbol '%S' used before declaration",sym_node->sym.name);
+        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->sym.name);
     }
 
     const auto &sym = *sym_ptr;
@@ -257,6 +254,32 @@ Option<itl_error> type_check_block_stmt(Interloper& itl, Function& func, AstNode
 }
 
 
+Function* create_dummy_func(Interloper& itl, const String& name);
+
+
+Option<itl_error> type_check_globals(Interloper& itl)
+{
+    // create a dummy void func called init_global
+    // that we can compile all our global inits into!
+    // this needs to be created here even though we don't emit into it yet.
+    // otherwise the type checker wont be able to find it
+    itl.global_func = create_dummy_func(itl,"init_global");
+
+    for(GlobalDeclNode* decl_node : itl.global_decl)
+    {
+        auto context_guard = switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
+        
+        const auto decl_err = type_check_decl(itl,decl_node->decl,true);
+        if(decl_err)
+        {
+            return decl_err;
+        }
+    }
+
+    finalise_global_offset(itl);
+    return option::none;
+}
+
 Option<itl_error> type_check_ast(Interloper& itl)
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -267,6 +290,13 @@ Option<itl_error> type_check_ast(Interloper& itl)
         return const_err;
     }
 
+    // Type check globals
+    const auto global_err = type_check_globals(itl);
+    if(global_err)
+    {
+        return global_err;
+    }
+
     // Forcibly check startup funcs
     // This will trigger type checking of further functions
     const auto startup_err = check_startup_defs(itl);
@@ -274,9 +304,6 @@ Option<itl_error> type_check_ast(Interloper& itl)
     {
         return startup_err;
     }
-
-    // Type check globals
-
 
     // Check all declared symbols are used.
     for(auto& sym : itl.symbol_table.slot_lookup)

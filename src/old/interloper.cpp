@@ -655,6 +655,8 @@ Option<itl_error> compile_block(Interloper &itl,Function &func,BlockNode *block_
 }
 
 
+Function& create_dummy_func(Interloper& itl, const String& name);
+
 Option<itl_error> compile_globals(Interloper& itl)
 {
     // create a dummy void func called init_global
