@@ -464,6 +464,7 @@ struct ForIterNode
     AstBlock block;
 };
 
+// this should have the same order as comparison_op
 enum class range_cmp_op
 {
     lt,
@@ -474,6 +475,7 @@ enum class range_cmp_op
 
 static constexpr u32 RANGE_FOR_TAKE_POINTER = (1 << 0);
 static constexpr u32 RANGE_FOR_INC = (1 << 1);
+static constexpr u32 RANGE_FOR_ARRAY = (1 << 2);
 
 struct ForRangeNode
 {
@@ -486,9 +488,7 @@ struct ForRangeNode
     // [@v, i]
     NamedSymbol sym_one;
     NamedSymbol sym_two;
-    String name_one;
-    String name_two;
-
+    
     // Initialized properly by type checker.
     range_cmp_op cmp_op = range_cmp_op::lt;
     u32 flags = 0;

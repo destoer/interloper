@@ -129,7 +129,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
     }
 
 
-    for_node->name_one = name_one.literal;
+    for_node->sym_one.name = name_one.literal;
 
     // get the 2nd name
     if(take_index)
@@ -147,7 +147,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
             return parser_error(parser,parse_error::missing_expr,name_two,"Expected name for range for statement");
         }
 
-        for_node->name_two = name_two.literal;
+        for_node->sym_two.name = name_two.literal;
 
         const auto sr_err = consume(parser,token_type::sr_brace);
         if(sr_err)

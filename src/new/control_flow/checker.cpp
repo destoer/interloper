@@ -34,12 +34,16 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
 
     CmpNode* cmp = (CmpNode*)range->cond;
 
+    // TODO: The sizing of thee integer on this needs to look at both conds and fit it to range.
     // make index the same sign as the end stmt
-    const auto sym_res = add_symbol(itl,range->name_one,is_inc? itl.usize_type : itl.ssize_type);
+    const auto sym_res = add_symbol(itl,range->sym_one.name,is_inc? itl.usize_type : itl.ssize_type);
     if(!sym_res)
     {
         return sym_res.error();
     }
+
+    range->sym_one.slot = *sym_res;
+
 
     if(!is_integer(cmp->left->expr_type) || !is_integer(cmp->right->expr_type))
     {
@@ -93,6 +97,7 @@ Option<itl_error> type_check_for_range(Interloper& itl, Function& func, AstNode*
 
     else
     {
+        range->flags |= RANGE_FOR_ARRAY;
         unimplemented("Array for range");
     }
 }

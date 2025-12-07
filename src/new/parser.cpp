@@ -1493,7 +1493,10 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::for_range:
         {
             ForRangeNode* for_range = (ForRangeNode*)root;
-            print_ast(itl,"For [%s%S : %S]\n",for_range->flags & RANGE_FOR_TAKE_POINTER? "@" : "",for_range->name_one,for_range->name_two);
+            const auto name_one = named_symbol_name(itl,root,for_range->sym_one);
+            const auto name_two = named_symbol_name(itl,root,for_range->sym_two);
+
+            print_ast(itl,"For [%s%S : %S]\n",for_range->flags & RANGE_FOR_TAKE_POINTER? "@" : "",name_one,name_two);
             print_block(itl,&for_range->block, depth + 1);
             break;
         }

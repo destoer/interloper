@@ -131,3 +131,75 @@ void compile_if(Interloper& itl, Function& func, AstNode* node)
         }
     }
 }
+
+void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
+{
+    const bool is_inc = (range->flags & RANGE_FOR_INC) == RANGE_FOR_INC;
+
+    const auto cmp_type = (comparison_op)range->cmp_op;
+
+
+    // save initial block so we can dump a branch later
+    const BlockSlot initial_block = cur_block(func);
+
+    CmpNode* cmp = (CmpNode*)range->cond;
+
+    const auto end = compile_oper(itl,func,cmp->right);
+    const auto index = typed_reg(sym_from_slot(itl.symbol_table,range->sym_one.slot));
+
+    const auto sign = is_signed(index.type);
+
+    // grab initializer
+    compile_expression(itl,func,cmp->left,index.slot);
+
+    // compile in cmp for entry
+    const RegSlot entry_cond = new_tmp(func,GPR_SIZE);
+    emit_integer_compare(itl,func,cmp_type,sign,entry_cond,index.slot,end.slot);
+
+    // compile the main loop body
+    const auto for_block = compile_basic_block(itl,func,range->block); 
+
+    // compile post inc / dec
+    if(is_inc)
+    {
+        add_imm(itl,func,index.slot,index.slot,1);
+    }
+
+    else
+    {
+        sub_imm(itl,func,index.slot,index.slot,1);
+    }
+
+    // compile body check
+    const BlockSlot end_block = cur_block(func);
+
+    // regrab end
+    const auto exit = compile_oper(itl,func,cmp->right);
+
+    const RegSlot exit_cond = new_tmp(func,GPR_SIZE);
+    emit_integer_compare(itl,func,cmp_type,sign,exit_cond,index.slot,exit.slot);
+
+    // compile in branches
+    const BlockSlot exit_block = new_basic_block(itl,func);
+
+    // emit loop branch
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
+
+    // emit branch over the loop body in initial block if cond is not met
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
+}
+
+void compile_range_for(Interloper& itl, Function& func, AstNode* stmt)
+{
+    ForRangeNode* range = (ForRangeNode*)stmt;
+
+    if(range->flags & RANGE_FOR_ARRAY)
+    {
+        unimplemented("range for array");
+    }
+
+    else
+    {
+        compile_range_for_idx(itl,func,range);
+    }
+}

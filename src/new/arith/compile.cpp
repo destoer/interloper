@@ -281,6 +281,23 @@ void compile_arith_unary(Interloper& itl, Function& func, AstNode* expr, RegSlot
     }
 }
 
+void emit_integer_compare(Interloper& itl, Function& func, comparison_op type, bool sign, RegSlot dst, RegSlot left, RegSlot right)
+{
+    // 0 is unsigned, 1 is signed
+    static constexpr op_type COMPARISON_OPCODE[2][COMPARISON_OP_SIZE] = 
+    {
+        {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
+        op_type::cmpeq_reg,op_type::cmpne_reg},
+
+        {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
+        op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg},
+    };
+
+
+    const op_type opcode_type = COMPARISON_OPCODE[u32(sign)][u32(type)];
+    emit_reg3_unchecked(itl,func,opcode_type,dst,left,right);
+}
+
 // handles <, <=, >, >=, ==, !=
 void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
 {
@@ -307,20 +324,7 @@ void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot ds
     // integer operation
     else
     {
-        // 0 is unsigned, 1 is signed
-        static constexpr op_type COMPARISON_OPCODE[2][COMPARISON_OP_SIZE] = 
-        {
-            {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
-            op_type::cmpeq_reg,op_type::cmpne_reg},
-
-            {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
-            op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg},
-        };
-
-        const b32 sign = is_signed(left.type);
-
-        const op_type opcode_type = COMPARISON_OPCODE[u32(sign)][u32(type)];
-        emit_reg3_unchecked(itl,func,opcode_type,dst_slot,left.slot,right.slot);
+        emit_integer_compare(itl,func,type,is_signed(left.type),dst_slot,left.slot,right.slot);
     }
 }
 
