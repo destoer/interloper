@@ -36,7 +36,7 @@ const AstInfo AST_INFO[] =
     {"access_member",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"index",type_check_array_index,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"slice",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
-    {"for_iter",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"for_iter",type_check_expr_unk,type_check_for_iter,compile_expr_unk,compile_for_iter},
     {"for_range",type_check_expr_unk,type_check_for_range,compile_expr_unk,compile_range_for},
     {"switch",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"if",type_check_expr_unk,type_check_if,compile_expr_unk,compile_if},

@@ -1,22 +1,3 @@
-
-
-// TypeResult add_named_symbol(Interloper& itl, NamedSymbol* named_sym, Type* type)
-// {
-//     const auto sym_ptr = get_sym(itl.symbol_table,named_sym->name);
-//     if(!sym_ptr)
-//     {
-//         return compile_error(itl,itl_error::redeclared,"symbol '%S' is already declared",named_sym->name);
-//     }
-
-//     const auto& sym = add_symbol(itl,named_sym,type);
-
-//     named_sym->slot = sym.reg.slot.sym_slot;
-
-//     return sym.type;
-// }
-
-
-
 Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRangeNode* range,range_cmp_op cmp_op, bool is_inc)
 {
     range->cmp_op = cmp_op;
@@ -101,6 +82,55 @@ Option<itl_error> type_check_for_range(Interloper& itl, Function& func, AstNode*
         unimplemented("Array for range");
     }
 }
+
+Option<itl_error> type_check_stmt_or_expr(Interloper& itl, Function& func, AstNode* stmt)
+{
+    // Allow any valid statement in this place
+    const auto& ast_info = AST_INFO[u32(stmt->type)];
+    if(ast_info.type_check_stmt != type_check_stmt_unk)
+    {
+        return ast_info.type_check_stmt(itl,func,stmt);
+    }
+
+    return ast_info.type_check_expr(itl,stmt).remap_to_err();
+}
+
+Option<itl_error> type_check_for_iter(Interloper& itl, Function& func, AstNode* stmt) {
+    ForIterNode* iter = (ForIterNode*)stmt;
+
+    // scope for any var decls in the stmt
+    auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
+
+    // compile the first stmt (usually an assign)
+    const auto pre_err = type_check_stmt_or_expr(itl,func,iter->initializer);
+    if(pre_err)
+    {
+        return pre_err;
+    }
+
+    const auto cond_res = type_check_expr(itl,iter->cond);
+    if(!cond_res)
+    {
+        return cond_res.error();
+    }
+
+    const auto cond = *cond_res;
+
+    if(!is_bool(cond))
+    {
+        return compile_error(itl,itl_error::bool_type_error,"expected bool got %t in for condition",cond);
+    }    
+
+
+    const auto post_err = type_check_stmt_or_expr(itl,func,iter->post);
+    if(post_err)
+    {
+        return post_err;
+    }
+
+    return type_check_block(itl,func,iter->block);
+}
+
 
 Option<itl_error> type_check_if_stmt(Interloper& itl, Function& func, IfStmt* stmt)
 {

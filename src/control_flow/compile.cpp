@@ -203,3 +203,47 @@ void compile_range_for(Interloper& itl, Function& func, AstNode* stmt)
         compile_range_for_idx(itl,func,range);
     }
 }
+
+
+void compile_stmt_or_expr(Interloper& itl, Function& func, AstNode* stmt)
+{
+    // Allow any valid statement in this place
+    const auto& ast_info = AST_INFO[u32(stmt->type)];
+    if(ast_info.compile_stmt != compile_stmt_unk)
+    {
+        ast_info.compile_stmt(itl,func,stmt);
+    }
+
+    else
+    {
+        compile_expression_tmp(itl,func,stmt);
+    }
+}
+
+void compile_for_iter(Interloper& itl, Function& func, AstNode* stmt)
+{
+    ForIterNode* iter = (ForIterNode*)stmt;
+
+    // Compile init stmt
+    compile_stmt_or_expr(itl,func,iter->initializer);
+
+    const auto entry = compile_oper(itl,func,iter->cond);
+    const BlockSlot initial_block = cur_block(func);
+  
+
+    // compile the body
+    const BlockSlot for_block = compile_basic_block(itl,func,iter->block);    
+
+    compile_stmt_or_expr(itl,func,iter->post);
+
+    const auto exit = compile_oper(itl,func,iter->cond);
+
+    const BlockSlot end_block = cur_block(func);
+
+    const BlockSlot exit_block = new_basic_block(itl,func);
+
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit.slot,true);
+
+    // emit branch over the loop body in initial block if cond is not met
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry.slot,false);        
+}
