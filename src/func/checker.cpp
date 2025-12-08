@@ -192,7 +192,9 @@ Option<itl_error> type_check_return(Interloper& itl, Function& func, AstNode* st
 
     const u32 return_count = count(ret_node->expr);
 
-    if(return_count != count(func.sig.return_type))
+    const bool void_return = return_count == 0 && is_void(func.sig.return_type[0]);
+
+    if(return_count != count(func.sig.return_type) && !void_return)
     {
         return compile_error(itl,itl_error::mismatched_args,"Invalid number of return parameters for function %S : %d != %d",
             func.name,return_count,count(func.sig.return_type));

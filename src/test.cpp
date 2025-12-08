@@ -101,40 +101,16 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/scope",16},
     {"tests/basic/bitwise",0}, // -713
     {"tests/basic/logical",1},
-    // {"tests/basic/short_circuit",60},
     {"tests/basic/arith_eq",1}, // 294
-    {"tests/basic/mod",1}, // 233168
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
-    // {"tests/basic/constant",1},
     {"tests/basic/global",26},
     {"tests/basic/overflow",1},  // 65286
-    // {"tests/basic/const_assert_pass",0},
-    // {"tests/basic/float",1},
-
-    // type
-    {"tests/type/decl",255},
-    {"tests/type/builtin_type",1}, // 271
-    // {"tests/type/sizeof",1},
-    // {"tests/type/default_initializer",1},
-    // {"tests/type/byte",1},
-    // {"tests/type/struct_punning",11},
-    // {"tests/type/type_query",1},
-    // {"tests/type/rtti",1},
-
-    // const
-    {"tests/const/const_pass_copy",100},
-    {"tests/const/const_valid",10},
-    {"tests/const/const_assign_value",5},
-    {"tests/const/const_ptr_ptr",0},
 
     // func
     {"tests/func/func",9},
-    {"tests/func/void_return",255},
     {"tests/func/void_no_return",0},
     {"tests/func/recur",1},
-    {"tests/func/func_pointer",50},
-    {"tests/func/func_pointer_struct_recur",21},
 
     // control flow
     {"tests/control_flow/if",25},
@@ -145,13 +121,10 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/else_if_empty",4},
     {"tests/control_flow/for",32},
     {"tests/control_flow/for_idx",10},
-    {"tests/control_flow/for_in",1},
     {"tests/control_flow/for_outer_decl",32},
     {"tests/control_flow/while",32},
 
-    {"tests/control_flow/switch_no_default",73},
-    {"tests/control_flow/switch",1}, // 447
-
+    {"tests/basic/mod",1}, // 233168
 
     // pointers
     {"tests/ptr/pointer",1}, // -2
@@ -161,7 +134,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/alias",1},
     {"tests/ptr/ptr_to_array",3},
 
-
+    {"tests/func/void_return",255},
+    {"tests/func/func_pointer",50},
+    {"tests/func/func_pointer_struct_recur",21},
 
 
     // arrays
@@ -178,6 +153,13 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_assign_vla",15},
     {"tests/array/array_recast",1},
     {"tests/array/array_slice",1},
+
+    {"tests/control_flow/for_in",1},
+    {"tests/control_flow/switch_no_default",73},
+    {"tests/control_flow/switch",1}, // 447
+
+    {"tests/basic/short_circuit",60},
+
 
     // strings
     {"tests/string/char_array",6},
@@ -206,6 +188,26 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/initializer_assign",14},
     {"tests/struct/designated_initializer",1},
 
+    {"tests/basic/float",1},
+
+    // type
+    {"tests/type/decl",255},
+    {"tests/type/builtin_type",1}, // 271
+    {"tests/type/sizeof",1},
+    {"tests/type/default_initializer",1},
+    {"tests/type/byte",1},
+    {"tests/type/struct_punning",11},
+    {"tests/type/type_query",1},
+    {"tests/type/rtti",1},
+
+    {"tests/basic/constant",1},
+    {"tests/basic/const_assert_pass",0},
+
+    // const
+    {"tests/const/const_pass_copy",100},
+    {"tests/const/const_valid",10},
+    {"tests/const/const_assign_value",5},
+    {"tests/const/const_ptr_ptr",0},
 
 
     // stl
