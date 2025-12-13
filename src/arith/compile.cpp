@@ -436,7 +436,7 @@ void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_sl
             }
 
             // get addr on symbol
-            auto &sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
+            auto &sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
 
             spill_slot(itl,func,sym.reg);
 

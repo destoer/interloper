@@ -1128,17 +1128,30 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::symbol:
         {
             SymbolNode* sym_node = (SymbolNode*)root;
-            const auto name = named_symbol_name(itl,root,sym_node->sym);
-
-            if(sym_node->node.expr_type)
+            String name = "";
+            switch(sym_node->type)
             {
-                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
+                case sym_node_type::name:
+                {
+                    name = sym_node->name;
+                    break;
+                }
+
+                case sym_node_type::sym_slot:
+                {
+                    auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+                    name = sym.name;
+                    break;
+                }
+
+                case sym_node_type::func_ptr:
+                {
+                    unimplemented("PRINT FUNCTION POINTER");
+                    break;
+                }
             }
 
-            else
-            {
-                print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
-            }
+            print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
             break;
         }
 

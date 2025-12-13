@@ -151,15 +151,16 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
         return sym_node->node.expr_type;
     }
 
-    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->sym.name,sym_node->name_space);
+    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->sym.name);
+        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->name);
     }
 
     const auto &sym = *sym_ptr;
 
-    sym_node->sym.slot = sym.reg.slot.sym_slot;
+    sym_node->sym_slot = sym.reg.slot.sym_slot;
+    sym_node->type = sym_node_type::sym_slot;
     sym_node->node.known_value = sym.known_value;
 
     return sym.type;

@@ -88,6 +88,18 @@ TypedReg compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 }
 
 
+TypedReg typed_reg_from_sym(Interloper& itl, Function& func, SymbolNode* sym_node)
+{
+    UNUSED(func);
+    if(sym_node->type == sym_node_type::sym_slot)
+    {
+        const auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+        return typed_reg(sym);
+    }
+
+    unimplemented("Func pointer sym");
+}
+
 // for compiling operands i.e we dont care where it goes as long as we get something!
 // i.e inside operators, function args, the call is responsible for making sure it goes in the right place
 // NOTE: this returns out fixed array pointers and may require conversion by caller!
@@ -116,10 +128,7 @@ TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node)
         // just want symbol name out without copying it
         case ast_type::symbol:
         {
-            SymbolNode* sym_node  = (SymbolNode*)node;
-            const auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
-
-            return typed_reg(sym);
+            return typed_reg_from_sym(itl,func,(SymbolNode*)node);
         }
 
         // compile an expr
@@ -134,9 +143,7 @@ void compile_symbol(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_
 {
     SymbolNode* sym_node = (SymbolNode*)expr;
 
-    auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
-
-    const TypedReg src = typed_reg(sym);
+    const auto src = typed_reg_from_sym(itl,func,sym_node);
     const TypedReg dst = {dst_slot,src.type};
 
     compile_move(itl,func,dst,src);
@@ -258,7 +265,7 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
         case ast_type::symbol:
         {
             SymbolNode* sym_node = (SymbolNode*)assign->left;
-            auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
+            auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
 
 
             const RegSlot slot = sym.reg.slot;

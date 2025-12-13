@@ -305,10 +305,10 @@ TypedAddr typed_addr_from_reg(const TypedReg& reg, u32 offset)
 
 RegResult symbol(Interloper &itl, SymbolNode* sym_node)
 {
-    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->sym.name,sym_node->name_space);
+    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->sym.name);
+        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->name);
     }
 
     const auto &sym = *sym_ptr;

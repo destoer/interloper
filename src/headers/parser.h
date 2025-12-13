@@ -223,12 +223,26 @@ union NamedSymbol
 };
 
 
+enum class sym_node_type
+{
+    name,
+    sym_slot,
+    func_ptr
+};
+
+
 struct SymbolNode
 {
     AstNode node;
-    NameSpace* name_space;
+    NameSpace* name_space = nullptr;
 
-    NamedSymbol sym;
+    sym_node_type type = sym_node_type::name;
+    union
+    {
+        String name;
+        SymSlot sym_slot = {INVALID_HANDLE};
+        Function* func;
+    };
 };
 
 enum class type_operator
@@ -770,7 +784,7 @@ ParserResult ast_equal(Parser& parser, ParserResult left_res, ParserResult right
 AstNode* ast_symbol(Parser& parser, NameSpace* name_space, const String& name, const Token &token)
 {
     SymbolNode* sym_node  = alloc_node<SymbolNode>(parser,ast_type::symbol,token);
-    sym_node->sym.name = name;
+    sym_node->name = name;
     sym_node->name_space = name_space;
 
     return (AstNode*)sym_node;        
