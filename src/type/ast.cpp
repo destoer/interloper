@@ -57,7 +57,7 @@ Option<itl_error> check_startup_defs(Interloper& itl)
 
 Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 {
-    if(decl->expr)
+    if(decl->expr && decl->expr->type != ast_type::no_init)
     {
         const auto decl_res = type_check_expr(itl,decl->expr);
         if(!decl_res)
