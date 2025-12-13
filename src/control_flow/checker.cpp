@@ -83,16 +83,10 @@ Option<itl_error> type_check_for_range(Interloper& itl, Function& func, AstNode*
     }
 }
 
-Option<itl_error> type_check_stmt_or_expr(Interloper& itl, Function& func, AstNode* stmt)
+Option<itl_error> type_check_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
-    // Allow any valid statement in this place
     const auto& ast_info = AST_INFO[u32(stmt->type)];
-    if(ast_info.type_check_stmt != type_check_stmt_unk)
-    {
-        return ast_info.type_check_stmt(itl,func,stmt);
-    }
-
-    return ast_info.type_check_expr(itl,stmt).remap_to_err();
+    return ast_info.type_check_stmt(itl,func,stmt);
 }
 
 Option<itl_error> type_check_for_iter(Interloper& itl, Function& func, AstNode* stmt) {
@@ -102,7 +96,7 @@ Option<itl_error> type_check_for_iter(Interloper& itl, Function& func, AstNode* 
     auto sym_scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     // compile the first stmt (usually an assign)
-    const auto pre_err = type_check_stmt_or_expr(itl,func,iter->initializer);
+    const auto pre_err = type_check_stmt(itl,func,iter->initializer);
     if(pre_err)
     {
         return pre_err;
@@ -122,7 +116,7 @@ Option<itl_error> type_check_for_iter(Interloper& itl, Function& func, AstNode* 
     }    
 
 
-    const auto post_err = type_check_stmt_or_expr(itl,func,iter->post);
+    const auto post_err = type_check_stmt(itl,func,iter->post);
     if(post_err)
     {
         return post_err;

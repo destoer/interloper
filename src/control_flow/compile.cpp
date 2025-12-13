@@ -205,19 +205,10 @@ void compile_range_for(Interloper& itl, Function& func, AstNode* stmt)
 }
 
 
-void compile_stmt_or_expr(Interloper& itl, Function& func, AstNode* stmt)
+void compile_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
-    // Allow any valid statement in this place
     const auto& ast_info = AST_INFO[u32(stmt->type)];
-    if(ast_info.compile_stmt != compile_stmt_unk)
-    {
-        ast_info.compile_stmt(itl,func,stmt);
-    }
-
-    else
-    {
-        compile_expression_tmp(itl,func,stmt);
-    }
+    ast_info.compile_stmt(itl,func,stmt);
 }
 
 void compile_for_iter(Interloper& itl, Function& func, AstNode* stmt)
@@ -225,7 +216,7 @@ void compile_for_iter(Interloper& itl, Function& func, AstNode* stmt)
     ForIterNode* iter = (ForIterNode*)stmt;
 
     // Compile init stmt
-    compile_stmt_or_expr(itl,func,iter->initializer);
+    compile_stmt(itl,func,iter->initializer);
 
     const auto entry = compile_oper(itl,func,iter->cond);
     const BlockSlot initial_block = cur_block(func);
@@ -234,7 +225,7 @@ void compile_for_iter(Interloper& itl, Function& func, AstNode* stmt)
     // compile the body
     const BlockSlot for_block = compile_basic_block(itl,func,iter->block);    
 
-    compile_stmt_or_expr(itl,func,iter->post);
+    compile_stmt(itl,func,iter->post);
 
     const auto exit = compile_oper(itl,func,iter->cond);
 
