@@ -194,3 +194,35 @@ Option<itl_error> type_check_if(Interloper& itl, Function& func, AstNode* stmt)
 
     return type_check_block(itl,func,if_node->else_stmt);
 }
+
+
+Option<itl_error> type_check_while(Interloper& itl, Function& func, AstNode* stmt)
+{
+    WhileNode* while_node = (WhileNode*)stmt;
+
+    const auto expr_res = type_check_expr(itl,while_node->expr);
+    if(!expr_res) 
+    {
+        return expr_res.error();
+    }
+
+    const auto expr = *expr_res;
+
+    if(is_integer(expr) || is_pointer(expr))
+    {
+        while_node->cond_type = while_cond_type::not_zero_t;
+    }
+
+    else if(is_bool(expr))
+    {
+        while_node->cond_type = while_cond_type::bool_t;
+    }
+
+    else
+    {
+        return compile_error(itl,itl_error::bool_type_error,"expected integer, pointer or bool got %t in for condition",expr);
+    }
+
+
+    return type_check_block(itl,func,while_node->block);
+}

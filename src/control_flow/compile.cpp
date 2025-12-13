@@ -247,3 +247,37 @@ void compile_for_iter(Interloper& itl, Function& func, AstNode* stmt)
     // emit branch over the loop body in initial block if cond is not met
     emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry.slot,false);        
 }
+
+void compile_while_node(Interloper& itl, Function& func, AstNode* stmt)
+{
+    WhileNode* while_node = (WhileNode*)stmt;
+
+
+    // compile cond
+    auto entry_cond = compile_oper(itl,func,while_node->expr);
+    const BlockSlot initial_block = cur_block(func);
+
+    if(while_node->cond_type == while_cond_type::not_zero_t)
+    {
+        entry_cond.slot = cmp_ne_imm_res(itl,func,entry_cond.slot,0);
+    }
+
+    // compile body
+    const BlockSlot while_block = compile_basic_block(itl,func,while_node->block); 
+
+    auto exit_cond = compile_oper(itl,func,while_node->expr);
+    if(while_node->cond_type == while_cond_type::not_zero_t)
+    {
+        exit_cond.slot = cmp_ne_imm_res(itl,func,exit_cond.slot,0);
+    }
+
+    const BlockSlot end_block = cur_block(func);
+
+    const BlockSlot exit_block = new_basic_block(itl,func);
+
+    // keep looping to while block if cond is true
+    emit_cond_branch(itl,func,end_block,while_block,exit_block,exit_cond.slot,true);
+
+    // emit branch over the loop body in initial block if cond is not met
+    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond.slot,false); 
+}

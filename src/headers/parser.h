@@ -550,9 +550,16 @@ struct IfNode
     bool else_clause = false;
 };
 
+enum class while_cond_type
+{
+    bool_t,
+    not_zero_t
+};
+
 struct WhileNode
 {
     AstNode node;
+    while_cond_type cond_type = while_cond_type::bool_t;
     AstNode* expr = nullptr;
     AstBlock block;
 };
