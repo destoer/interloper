@@ -429,11 +429,16 @@ void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_sl
         {
             SymbolNode* sym_node = (SymbolNode*)addr_expr;
 
-            // Assume not a function pointer for now
-            if(is_func_pointer(addr_expr->expr_type))
+            if(sym_node->type == sym_node_type::func_ptr)
             {
-                unimplemented("Take addr on function pointer");
+                // Take function pointer from function
+                if(sym_node->func)
+                {
+                    load_func_addr(itl,func,dst_slot,sym_node->func->label_slot);
+                    return;
+                }
             }
+
 
             // get addr on symbol
             auto &sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);

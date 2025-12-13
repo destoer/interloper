@@ -1146,7 +1146,8 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
                 case sym_node_type::func_ptr:
                 {
-                    unimplemented("PRINT FUNCTION POINTER");
+                    Function* func = sym_node->func;
+                    name = func->name;
                     break;
                 }
             }

@@ -133,8 +133,6 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/alias",1},
 
     {"tests/func/void_return",255},
-    {"tests/func/func_pointer",50},
-    {"tests/func/func_pointer_struct_recur",21},
 
 
     // arrays
@@ -188,6 +186,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_return",1},
     {"tests/struct/initializer_assign",14},
     {"tests/struct/designated_initializer",1},
+
+    {"tests/func/func_pointer",50},
+    {"tests/func/func_pointer_struct_recur",21},
 
     {"tests/basic/float",1},
 

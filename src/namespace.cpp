@@ -243,6 +243,11 @@ FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
     return nullptr;
 }
 
+FunctionDef* lookup_func_def(Interloper& itl, NameSpace* name_space, const String& name)
+{
+    return name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_default(itl,name);
+}
+
 void destroy_namespace_node(NameSpace* root)
 {
     if(!root)

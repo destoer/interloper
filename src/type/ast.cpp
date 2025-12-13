@@ -154,8 +154,30 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
     const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->name);
+        // Attempt to get a function pointer.
+        FunctionDef* func = lookup_func_def(itl,sym_node->name_space,sym_node->name);
+        if(!func)
+        {
+            return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->name);
+        }
+
+
+        const auto func_res = finalise_func(itl,*func);
+        if(!func_res)
+        {
+            return func_res.error();
+        }
+
+        sym_node->func = *func_res;
+        sym_node->type = sym_node_type::func_ptr;
+
+
+        FuncPointerType* type = (FuncPointerType*)alloc_type<FuncPointerType>(itl,type_class::func_pointer_t,true);
+        type->sig = sym_node->func->sig;
+
+        return (Type*)type;
     }
+
 
     const auto &sym = *sym_ptr;
 

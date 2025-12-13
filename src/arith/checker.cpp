@@ -290,6 +290,22 @@ TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
 
     auto type = *res;
 
+    if(is_func_pointer(type))
+    {
+        if(addr->expr->type == ast_type::symbol)
+        {
+            SymbolNode* sym_node = (SymbolNode*)addr->expr;
+            // Taken directly on a function name just return the type
+            if(sym_node->func)
+            {
+                return type;
+            }
+        }
+
+        // Taken on a ordinary symbol return as a pointer
+        return make_reference(itl,type);
+    }
+
     if(is_fixed_array(type))
     {
         return compile_error(itl,itl_error::array_type_error,"Cannot take pointer to fixed sized array");

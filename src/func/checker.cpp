@@ -16,10 +16,7 @@ Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
     const String& name = sym_node->name;
     NameSpace* name_space = sym_node->name_space;
 
-    // are we looking in the global namespace or no?
-    const b32 global = name_space == nullptr;
-
-    FunctionDef* func_call_def = global? lookup_func_def_default(itl,name) : lookup_func_def_scope(itl,name_space,name);
+    FunctionDef* func_call_def = lookup_func_def(itl,sym_node->name_space,sym_node->name);
 
     // Function is known Just we are done
     if(func_call_def)
