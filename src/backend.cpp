@@ -281,6 +281,18 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
             break;
         }
 
+        case ast_type::deref:
+        {
+            DerefNode* deref = (DerefNode*)assign->left;
+            const auto src = compile_oper(itl,func,assign->right);
+            auto ptr = compile_oper(itl,func,deref->expr);
+
+            // store into the pointer
+            ptr.type = deref_pointer(ptr.type); 
+            do_ptr_store(itl,func,src.slot,ptr);
+            break;
+        }
+
         default:
         {
             (void)compile_panic(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_INFO[u32(assign->left->type)].name);

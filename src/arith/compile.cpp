@@ -406,3 +406,51 @@ void compile_boolean_logic(Interloper& itl,Function &func,AstNode *expr, RegSlot
     BooleanLogicNode* logic = (BooleanLogicNode*)expr;
     compile_boolean_logic_op(itl,func,logic,dst_slot,0);
 }
+
+void compile_deref(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    DerefNode* deref = (DerefNode*)expr;
+
+    auto ptr = compile_oper(itl,func,deref->expr);
+
+    // deref the pointer
+    ptr.type = deref_pointer(ptr.type); 
+    do_ptr_load(itl,func,dst_slot,ptr); 
+}
+
+void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    AddrOfNode* addr_node = (AddrOfNode*)expr;
+    AstNode* addr_expr = addr_node->expr;
+
+    switch(addr_expr->type)
+    {
+        case ast_type::symbol:
+        {
+            SymbolNode* sym_node = (SymbolNode*)addr_expr;
+
+            // Assume not a function pointer for now
+            if(is_func_pointer(addr_expr->expr_type))
+            {
+                unimplemented("Take addr on function pointer");
+            }
+
+            // get addr on symbol
+            auto &sym = sym_from_slot(itl.symbol_table,sym_node->sym.slot);
+
+            spill_slot(itl,func,sym.reg);
+
+            const StructAddr struct_addr = {make_addr(sym.reg.slot,0)};
+
+            // actually  get the addr of the ptr
+            addrof(itl,func,dst_slot,struct_addr);
+            break;
+        }
+
+
+        default:
+        {
+            compile_panic(itl,itl_error::unimplemented,"Load addr not implemented on ast type: %s",AST_INFO[u32(addr_expr->type)].name);
+        }
+    }
+}

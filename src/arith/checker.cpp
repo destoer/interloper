@@ -290,6 +290,11 @@ TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
 
     auto type = *res;
 
+    if(is_fixed_array(type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Cannot take pointer to fixed sized array");
+    }
+
     return make_reference(itl,type);
 }
 
