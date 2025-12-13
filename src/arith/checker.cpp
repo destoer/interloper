@@ -326,3 +326,9 @@ TypeResult type_check_deref(Interloper& itl, AstNode* expr)
 
     return pointer->contained_type;
 }
+
+TypeResult type_check_null(Interloper& itl, AstNode* expr)
+{
+    UNUSED(expr);
+    return make_nullable_ptr(itl,make_builtin(itl,builtin_type::null_t));
+}

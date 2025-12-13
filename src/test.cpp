@@ -128,11 +128,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // pointers
     {"tests/ptr/pointer",1}, // -2
-    {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
     {"tests/ptr/alias",1},
-    {"tests/ptr/ptr_to_array",3},
 
     {"tests/func/void_return",255},
     {"tests/func/func_pointer",50},
@@ -153,6 +151,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_assign_vla",15},
     {"tests/array/array_recast",1},
     {"tests/array/array_slice",1},
+
+    {"tests/ptr/cast_ptr",1}, // 1020
+    {"tests/ptr/ptr_to_array",3},
 
     {"tests/control_flow/for_in",1},
     {"tests/control_flow/switch_no_default",73},

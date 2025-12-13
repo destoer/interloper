@@ -454,3 +454,9 @@ void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_sl
         }
     }
 }
+
+void compile_null(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    UNUSED(expr);
+    mov_imm(itl,func,dst_slot,0);
+}

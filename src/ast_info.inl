@@ -18,7 +18,7 @@ const AstInfo AST_INFO[] =
     {"ignore",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"value",type_check_value,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"float",type_check_float,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
-    {"null",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"null",type_check_null,type_check_stmt_unk,compile_null,compile_stmt_unk},
     {"deref",type_check_deref,type_check_stmt_unk,compile_deref,compile_stmt_unk},
     {"addrof",type_check_addrof,type_check_stmt_unk,compile_addrof,compile_stmt_unk},
     {"string",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
