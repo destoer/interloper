@@ -490,6 +490,7 @@ enum class range_cmp_op
 static constexpr u32 RANGE_FOR_TAKE_POINTER = (1 << 0);
 static constexpr u32 RANGE_FOR_INC = (1 << 1);
 static constexpr u32 RANGE_FOR_ARRAY = (1 << 2);
+static constexpr u32 RANGE_FOR_ARRAY_IDX = (1 << 3);
 
 struct ForRangeNode
 {

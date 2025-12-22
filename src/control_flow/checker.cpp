@@ -35,51 +35,88 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
     return type_check_block(itl,func,range->block);
 }
 
+
+Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForRangeNode* range)
+{
+    // This should be an array
+    const auto arr_res = type_check_expr(itl,range->cond);
+    if(!arr_res)
+    {
+        return arr_res.error();
+    }
+
+    const auto arr_type = *arr_res;
+    if(!is_array(arr_type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Expected array for range stmt got %t",arr_type);
+    }
+
+    Type* contained_type = index_arr(arr_type);
+
+    const bool pointer = (range->flags & RANGE_FOR_TAKE_POINTER) == RANGE_FOR_TAKE_POINTER;
+
+    const auto var_res = add_symbol(itl,range->sym_one.name,pointer? make_reference(itl,contained_type) : contained_type);
+    if(!var_res)
+    {
+        return var_res.error();
+    }
+
+    // Add the index variable if it is there.
+    if(range->flags & RANGE_FOR_ARRAY_IDX)
+    {
+        const auto idx_res = add_symbol(itl,range->sym_two.name,itl.usize_type);
+        if(!idx_res)
+        {
+            return idx_res.error();
+        }
+    }
+
+
+    return type_check_block(itl,func,range->block);
+}
+
 Option<itl_error> type_check_for_range(Interloper& itl, Function& func, AstNode* stmt)
 {
     ForRangeNode* range = (ForRangeNode*)stmt;
 
     const auto guard = enter_new_anon_scope(itl.symbol_table);
 
-    if(range->cond->type == ast_type::comparison)
+    if(range->flags & RANGE_FOR_ARRAY)
     {
-        CmpNode* cmp = (CmpNode*)range->cond;
-        // determine what kind of loop term we have
-        switch(cmp->oper)
-        {
-            // <= or < is inc
-            case comparison_op::lt:
-            {
-                return type_check_for_range_idx(itl,func,range,range_cmp_op::lt,true);
-            }
-
-            case comparison_op::le:
-            {
-                return type_check_for_range_idx(itl,func,range,range_cmp_op::le,true);
-            }
-
-            // >= or > is dec
-            case comparison_op::gt:
-            {
-                return type_check_for_range_idx(itl,func,range,range_cmp_op::gt,false);
-            }
-
-            case comparison_op::ge:
-            {
-                return type_check_for_range_idx(itl,func,range,range_cmp_op::ge,false);
-            }
-
-            default:
-            {
-                return compile_error(itl,itl_error::invalid_expr,"Only <, <=, >, >= are defined for range for");
-            }
-        }
+        return type_check_for_range_arr(itl,func,range); 
     }
+    
+    CmpNode* cmp = (CmpNode*)range->cond;
 
-    else
+    // determine what kind of loop term we have
+    switch(cmp->oper)
     {
-        range->flags |= RANGE_FOR_ARRAY;
-        unimplemented("Array for range");
+        // <= or < is inc
+        case comparison_op::lt:
+        {
+            return type_check_for_range_idx(itl,func,range,range_cmp_op::lt,true);
+        }
+
+        case comparison_op::le:
+        {
+            return type_check_for_range_idx(itl,func,range,range_cmp_op::le,true);
+        }
+
+        // >= or > is dec
+        case comparison_op::gt:
+        {
+            return type_check_for_range_idx(itl,func,range,range_cmp_op::gt,false);
+        }
+
+        case comparison_op::ge:
+        {
+            return type_check_for_range_idx(itl,func,range,range_cmp_op::ge,false);
+        }
+
+        default:
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Only <, <=, >, >= are defined for range for");
+        }
     }
 }
 

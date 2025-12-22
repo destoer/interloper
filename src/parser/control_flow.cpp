@@ -102,11 +102,13 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
 
     if(take_index)
     {
-        const auto sl_err =consume(parser,token_type::sl_brace);
+        const auto sl_err = consume(parser,token_type::sl_brace);
         if(sl_err)
         {
             return *sl_err;
         }
+
+        for_node->flags |= RANGE_FOR_ARRAY_IDX;
     }
 
     if(take_pointer)
@@ -189,6 +191,12 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
         for_node->cond = *cond_res;
         prev_token(parser);
     }
+
+    if(for_node->cond->type != ast_type::comparison) 
+    {
+        for_node->flags |= RANGE_FOR_ARRAY;
+    }
+
 
     auto block_err = block_ast(parser,&for_node->block);
     if(block_err)

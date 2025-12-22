@@ -87,7 +87,7 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 
     if(!decl->expr && is_reference(ltype))
     {
-        return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %s",type_name(itl,ltype).buf);
+        return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %t",ltype);
     }
 
     return option::none;

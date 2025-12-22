@@ -134,6 +134,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     {"tests/func/void_return",255},
 
+    {"tests/struct/struct",1}, // 495
 
     // arrays
     {"tests/array/array",1}, // 1061
@@ -170,7 +171,6 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
 
     // structs
-    {"tests/struct/struct",1}, // 495
     {"tests/struct/struct_initializer",1}, // 495
     {"tests/struct/pass_struct",2},
     {"tests/struct/return_struct",3},
