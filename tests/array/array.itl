@@ -15,7 +15,7 @@ func main() s32
     {
         if(x[i])
         {
-            for(j : u32 = i * 2; j < x.len; j += i)
+            for(j : usize = i * 2; j < x.len; j += i)
             {
                 x[j] = false;      
             }
@@ -28,7 +28,7 @@ func main() s32
     {
         if(v)
         {
-            ans += i;
+            ans += cast(s32,i);
         }
     }
 

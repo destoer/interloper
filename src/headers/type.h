@@ -266,6 +266,12 @@ struct ArrayType
     u32 sub_size;
 };
 
+enum class array_member_access
+{
+    len,
+    data
+};
+
 static constexpr u32 VLA_SIZE = GPR_SIZE * 2;
 
 // cache for rtti, these contain offsets and struct idx for all rtti structs

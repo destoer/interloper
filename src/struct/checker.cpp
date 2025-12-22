@@ -20,6 +20,34 @@ TypeResult type_check_access_struct_member(Interloper& itl, Type* ltype, AccessM
             return member.type;
         }
 
+        case type_class::array_t:
+        {
+            member_access.type = member_access_type::array_t;
+
+            if(member_access.name == "len")
+            {
+                member_access.member = u32(array_member_access::len);
+                return itl.usize_type;
+            }
+
+            else if(member_access.name == "data")
+            {
+                ArrayType* array_type = (ArrayType*)ltype;
+
+                if(is_fixed_array(ltype))
+                {
+                    return compile_error(itl,itl_error::array_type_error,"no .data member on fixed size array");
+                }
+
+                member_access.member = u32(array_member_access::data);
+
+                // This is never considered nullable. Arrays should be checked by size
+                return make_reference(itl,array_type->contained_type);
+            }
+
+            return compile_error(itl,itl_error::undeclared,"unknown array member %S",member_access.name);
+        }
+
         default:
         {
             return compile_error(itl,itl_error::struct_error,"%t is not a struct, enum or array",ltype);
