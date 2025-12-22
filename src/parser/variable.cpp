@@ -520,6 +520,7 @@ AccessMember make_access_member_expr(AstNode* expr)
 {
     AccessMember member;
     member.expr = expr;
+    member.type = member_access_type::index_t;
 
     return member;
 }
@@ -528,6 +529,8 @@ AccessMember make_access_member_name(const String& name)
 {
     AccessMember member;
     member.name = name;
+    member.type = member_access_type::struct_t;
+
 
     return member;
 }

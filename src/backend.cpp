@@ -23,6 +23,8 @@ void collapse_struct_addr(Interloper& itl, Function& func, RegSlot dst_slot, con
 
 Type* compile_function_call(Interloper& itl, Function& func, FuncCallNode* call_node, RegSlot dst_slot);
 void compile_return(Interloper &itl,Function &func, RetNode* ret_node);
+void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym);
+void write_struct(Interloper& itl, Function& func, TypedReg src, StructAccessNode* struct_access);
 
 #include "func/compile.cpp"
 #include "arith/compile.cpp"
@@ -233,7 +235,7 @@ void compile_decl(Interloper &itl,Function &func,AstNode* stmt)
 
         case type_class::struct_t:
         {
-            unimplemented("Struct");
+            compile_struct_decl(itl,func,decl_node,sym);
             break;
         }
 
@@ -297,6 +299,13 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
             // store into the pointer
             ptr.type = deref_pointer(ptr.type); 
             do_ptr_store(itl,func,src.slot,ptr);
+            break;
+        }
+
+        case ast_type::struct_access:
+        {
+            const auto src = compile_oper(itl,func,assign->right);
+            write_struct(itl,func,src,(StructAccessNode*)assign->left);
             break;
         }
 

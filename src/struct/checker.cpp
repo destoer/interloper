@@ -16,6 +16,7 @@ TypeResult type_check_access_struct_member(Interloper& itl, Type* ltype, AccessM
             const auto member = member_opt.value();
             member_access.member = member.index;
 
+            member_access.type = member_access_type::struct_t;
             return member.type;
         }
 
@@ -54,7 +55,7 @@ TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
 
 
         // Simple case just grab the name
-        if(!member.expr)
+        if(member.type < member_access_type::slice_t)
         {
             // Check we have this member and then update the type
             const auto access_res = type_check_access_struct_member(itl,ltype,member);

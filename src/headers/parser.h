@@ -377,14 +377,30 @@ struct StructNode
     u32 attr_flags = 0;
 };
 
+enum class member_access_type
+{
+    // Tagged as name
+    struct_t, // <-- initial struct tag
+    enum_t,
+    array_t,
+    // Tagged as expr
+    slice_t,
+    index_t
+};
+
 struct AccessMember
 {    
     // What struct member does this access?
     u32 member = 0;
 
-    String name;
+    member_access_type type = member_access_type::struct_t;
+    
     // Just tag it with this non null.
-    AstNode* expr = nullptr;
+    union
+    {
+        AstNode* expr = nullptr;
+        String name;
+    };
 };
 
 struct StructAccessNode

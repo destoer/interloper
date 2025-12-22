@@ -1445,7 +1445,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             for(AccessMember member : struct_access->members)
             {
-                if(member.expr)
+                if(member.type >= member_access_type::slice_t)
                 {
                     print_internal(itl,member.expr, depth + 2);
                 }

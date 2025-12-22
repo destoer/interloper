@@ -251,6 +251,21 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
         return res;
     }
 
+    // If this has a index tag as index_t
+    if(member.expr)
+    {
+        const auto expr_res = type_check_expr(itl,member.expr);
+        if(expr_res)
+        {
+            return expr_res.error();
+        }
+    }
+
+    else if(is_reference(member.type))
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"References must have an explicit initializer: %t",member.type);
+    }
+
     add(structure.member_map,member.name,loc);
     push_var(structure.members,member); 
 
