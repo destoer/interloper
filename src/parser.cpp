@@ -1443,18 +1443,19 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             print_internal(itl,struct_access->expr, depth + 1);
 
-            for(AstNode* member : struct_access->members)
+            for(AccessMember member : struct_access->members)
             {
-                print_internal(itl,member, depth + 2);
+                if(member.expr)
+                {
+                    print_internal(itl,member.expr, depth + 2);
+                }
+
+                else
+                {
+                    print_ast(itl,"%D Access member: %S",depth + 2,member.name);
+                }
             }
 
-            break;
-        }
-
-        case ast_type::access_member:
-        {
-            AccessMemberNode* access_member = (AccessMemberNode*)root;
-            printf("Access member %s\n",access_member->name.buf);
             break;
         }
 

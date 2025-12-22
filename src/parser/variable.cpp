@@ -516,6 +516,22 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
     return (AstNode*)tuple_node;    
 }
 
+AccessMember make_access_member_expr(AstNode* expr)
+{
+    AccessMember member;
+    member.expr = expr;
+
+    return member;
+}
+
+AccessMember make_access_member_name(const String& name)
+{
+    AccessMember member;
+    member.name = name;
+
+    return member;
+}
+
 ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 {
     StructAccessNode* struct_access = ast_struct_access(parser,expr_node,t);
@@ -542,7 +558,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
                         return slice;
                     }
 
-                    push_var(struct_access->members,*slice);
+                    push_var(struct_access->members,make_access_member_expr(*slice));
                 }
 
                 else
@@ -553,16 +569,14 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
                         return index_res;
                     }
 
-                    push_var(struct_access->members,*index_res);
+                    push_var(struct_access->members,make_access_member_expr(*index_res));
                 }
             }
 
             // plain old member
             else
             {
-                AstNode* member_node = ast_access_member(parser, member_tok.literal,member_tok);
-
-                push_var(struct_access->members,member_node);
+                push_var(struct_access->members,make_access_member_name(member_tok.literal));
             }
         }
 

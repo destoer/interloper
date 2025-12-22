@@ -39,7 +39,6 @@ enum class ast_type
     tuple_assign,
     function_call,
     struct_access,
-    access_member,
     index,
     slice,
     for_iter,
@@ -384,17 +383,21 @@ struct StructNode
     u32 attr_flags = 0;
 };
 
-struct AccessMemberNode
-{
-    AstNode node;
+struct AccessMember
+{    
+    // What struct member does this access?
+    u32 member = 0;
+
     String name;
+    // Just tag it with this non null.
+    AstNode* expr = nullptr;
 };
 
 struct StructAccessNode
 {
     AstNode node;
     AstNode* expr;
-    Array<AstNode*> members;
+    Array<AccessMember> members;
 };
 
 struct EnumMemberDecl
@@ -1027,14 +1030,6 @@ StructAccessNode* ast_struct_access(Parser& parser, AstNode* expr, const Token& 
     struct_access->expr = expr;
 
     return struct_access;
-}
-
-AstNode* ast_access_member(Parser& parser, const String& name, const Token& token)
-{
-    AccessMemberNode* member_access = alloc_node<AccessMemberNode>(parser,ast_type::access_member,token);
-    member_access->name = name;
-
-    return (AstNode*)member_access;
 }
 
 AstNode* ast_index(Parser& parser,const String &name, const Token& token)
