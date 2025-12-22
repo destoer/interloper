@@ -365,8 +365,9 @@ struct AstNode;
 struct Member
 {
     String name;
-    u32 offset;
-    Type *type;
+    u32 index = 0;
+    u32 offset = 0;
+    Type *type = nullptr;
 
     AstNode* expr = nullptr;
 };

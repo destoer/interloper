@@ -293,12 +293,6 @@ struct StructInitializerNode
     b32 is_return = false;
 };
 
-
-struct AstPlain 
-{
-    AstNode node;
-};
-
 struct ValueNode
 {
     AstNode node;
@@ -551,6 +545,7 @@ enum class if_stmt_type
 struct IfStmt
 {
     AstNode* expr = nullptr;
+    // Requires a pointer so the cleanup array can pin it
     AstBlock* block = nullptr;
     if_stmt_type type = if_stmt_type::bool_t;
 };

@@ -242,7 +242,7 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
     }
 
     const u32 loc = count(structure.members);
-
+    member.index = loc;
 
     if(contains(structure.member_map,member.name))
     {
