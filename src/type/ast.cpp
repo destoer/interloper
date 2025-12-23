@@ -93,7 +93,7 @@ Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* exp
 
 Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 {
-    auto type_res = get_complete_type(itl,decl->type);
+    auto type_res = get_type(itl,decl->type);
     if(!type_res)
     {
         return type_res.error();
