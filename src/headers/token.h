@@ -296,6 +296,15 @@ struct Value
     b32 sign = false;
 };
 
+inline Value make_value(u64 v, b32 sign)
+{
+    Value value;
+    value.v = v;
+    value.sign = sign;
+
+    return value;
+}
+
 
 
 inline bool operator == (const Value &v1, const Value &v2)

@@ -148,6 +148,113 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
     return check_comparison_operation(itl,bin.ltype,bin.rtype,cmp->oper);
 }
 
+Value value_from_known_expr(AstNode* expr)
+{
+    return make_value(*expr->known_value,is_signed(expr->expr_type));
+} 
+
+
+Type* make_value_type(Interloper& itl, const Value& value)
+{
+    const auto builtin = value_type(value);
+    return make_builtin(itl,builtin);
+}
+
+Type* calc_known_value(Interloper& itl, AstNode* expr,  u64 result, bool sign)
+{
+    const auto ans = make_value(result,sign);
+    expr->known_value = ans.v;
+    return make_value_type(itl,ans);   
+}
+
+TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
+{
+    const Value left = value_from_known_expr(bin->left);
+    const Value right = value_from_known_expr(bin->right);
+    const bool final_sign = left.sign || right.sign;
+
+    switch(bin->oper)
+    {
+        case arith_bin_op::add_t:
+        {
+            return calc_known_value(itl,&bin->node,left.v + right.v,final_sign);
+        }
+
+        case arith_bin_op::sub_t:
+        {
+            return calc_known_value(itl,&bin->node,left.v - right.v,final_sign);
+        }
+
+        case arith_bin_op::mul_t:
+        {
+            return calc_known_value(itl,&bin->node,left.v * right.v,final_sign);
+        }
+
+        case arith_bin_op::mod_t:
+        {
+            if(right.v == 0)
+            {
+                return compile_error(itl,itl_error::int_type_error,"Modulus by zero");
+            }
+
+            if(final_sign)
+            {
+                return calc_known_value(itl,&bin->node,s64(left.v) % s64(right.v),final_sign);
+            }
+
+            return calc_known_value(itl,&bin->node,left.v % right.v,final_sign);
+        }
+
+        case arith_bin_op::div_t:
+        {
+            if(right.v == 0)
+            {
+                return compile_error(itl,itl_error::int_type_error,"Division by zero");
+            }
+
+            if(final_sign)
+            {
+                return calc_known_value(itl,&bin->node,s64(left.v) / s64(right.v),final_sign);
+            }
+
+            return calc_known_value(itl,&bin->node,left.v / right.v,final_sign);
+        }
+
+        case arith_bin_op::xor_t:
+        {
+            return calc_known_value(itl,&bin->node,left.v ^ right.v,final_sign);
+        }
+
+        case arith_bin_op::and_t:
+        {
+            const auto ans = make_value(left.v & right.v,final_sign);
+            bin->node.known_value = ans.v;
+
+            if(is_bool(bin->left->expr_type))
+            {
+                return make_builtin(itl,builtin_type::bool_t);
+            }
+
+            return make_value_type(itl,ans);
+        }
+
+        case arith_bin_op::or_t:
+        {
+            const auto ans = make_value(left.v | right.v,final_sign);
+            bin->node.known_value = ans.v;
+
+            if(is_bool(bin->left->expr_type))
+            {
+                return make_builtin(itl,builtin_type::bool_t);
+            }
+
+            return make_value_type(itl,ans);
+        }
+    }
+
+    assert(false);
+}
+
 TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 {
     ArithBinNode* arith = (ArithBinNode*)expr;
@@ -162,6 +269,8 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     }
 
     const auto& bin = *bin_res;
+
+    const bool known_expr = arith->left->known_value && arith->right->known_value;
 
     // pointer arith adds the size of the underlying type
     if(is_pointer(bin.ltype) && is_integer(bin.rtype))
@@ -205,6 +314,11 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
             case arith_bin_op::or_t:
             case arith_bin_op::and_t:
             {
+                if(known_expr)
+                {
+                    return compute_known_integer_arith(itl,arith);
+                }
+
                 return make_builtin(itl,builtin_type::bool_t);
             }
 
@@ -218,6 +332,11 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // integer arith
     else if(is_integer(bin.ltype) && is_integer(bin.rtype))
     {
+        if(known_expr)
+        {
+            return compute_known_integer_arith(itl,arith);
+        }
+
         return effective_arith_type(itl,bin.ltype,bin.rtype,type);  
     }
 
