@@ -215,7 +215,8 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     // normal assign
     compile_expression(itl,func,decl_node->expr,slot);
 
-    if(is_unsigned_integer(sym.type))
+    // Unknown quantity must be clipped
+    if(is_unsigned_integer(sym.type) && !decl_node->expr->known_value)
     {
         clip_arith_type(itl,func,slot,slot,sym.reg.size);
     }
@@ -286,7 +287,8 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 
             compile_expression(itl,func,assign->right,slot);
 
-            if(is_unsigned_integer(ltype))
+            // If we have assigned an unknown quantity it must be clipped.
+            if(is_unsigned_integer(ltype) && !assign->right->known_value)
             {
                 clip_arith_type(itl,func,slot,slot,size);
             }

@@ -101,8 +101,6 @@ void access_array_member(Interloper& itl, TypedAddr* addr, array_member_access m
 
         case array_member_access::len:
         {
-            addr->type = itl.usize_type;
-
             // Have to lie about the access because its not actually possible to take a pointer on this.
             if(!is_runtime_size(addr->type))
             {
@@ -113,6 +111,7 @@ void access_array_member(Interloper& itl, TypedAddr* addr, array_member_access m
             // vla
             else
             {
+                addr->type = itl.usize_type;
                 addr->addr_slot.addr.offset += GPR_SIZE;
             }
 
