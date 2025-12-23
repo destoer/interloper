@@ -4,6 +4,8 @@ void reserve_global_alloc(Interloper& itl, Symbol& sym);
 TypeResult assign_expr_type(AstNode* node, TypeResult result);
 SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table);
 
+Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type);
+
 #include "func/checker.cpp"
 #include "arith/checker.cpp"
 
@@ -72,7 +74,23 @@ Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* exp
 
         case ast_type::initializer_list:
         {
-            unimplemented("Decl initializer list");
+            switch(ltype->kind)
+            {
+                case type_class::array_t:
+                {
+                    return type_check_array_initializer(itl,(InitializerListNode*)expr,(ArrayType*)ltype);
+                }
+
+                case type_class::struct_t:
+                {
+                    unimplemented("Struct initializer list");
+                }
+
+                default:
+                {
+                    return compile_error(itl,itl_error::invalid_expr,"Initializer lists are only valid on arrays and structs");
+                }
+            }
             break;
         }
 
@@ -399,4 +417,16 @@ Option<itl_error> type_check_ast(Interloper& itl)
     itl.type_checking_time = std::chrono::duration<double, std::milli>(end-start).count();
 
     return option::none;
+}
+
+Option<itl_error> type_check_init_expr(Interloper& itl, const Type* ltype, AstNode* expr)
+{
+    auto expr_res = type_check_expr(itl,expr);
+
+    if(!expr_res)
+    {
+        return expr_res.error();
+    }
+
+    return check_assign_init(itl,ltype,*expr_res);
 }

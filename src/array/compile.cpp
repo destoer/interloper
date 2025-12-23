@@ -103,13 +103,30 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     if(!decl_node->expr)
     {
         const auto addr_slot = make_pointer_addr(array.reg.slot,0);
-        default_construct_arr(itl,func,(ArrayType*)array.type,addr_slot);   
+        default_construct_arr(itl,func,(ArrayType*)array.type,addr_slot);
+        return;  
     }
 
-    // has an initializer
-    else if(decl_node->expr->type != ast_type::no_init)
+    switch(decl_node->expr->type)
     {
-        unimplemented("Array initializer");
+        case ast_type::no_init:
+        {
+            break;
+        }
+
+        case ast_type::initializer_list:
+        {
+            unimplemented("Compile array initializer list");
+            break;
+        }
+
+        // Arbitrary expr
+        default:
+        {
+            auto reg = compile_oper(itl,func,decl_node->expr);
+            compile_move(itl,func,typed_reg(array),reg);
+            break;
+        }
     }
 }
 

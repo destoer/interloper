@@ -153,6 +153,7 @@ Option<itl_error> type_check_nested_array_initializer(Interloper& itl, Initializ
                 break;
             }
 
+            // TODO: This should probably just hit the bottom case and have type checking work naturally.
             case ast_type::string:
             {
                 unimplemented("Initializer list string");
@@ -203,18 +204,10 @@ Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListN
     // normal types
     for(AstNode* node : init_list->list)
     {
-        auto res = type_check_expr(itl,node);
-        if(!res)
+        const auto init_err = type_check_init_expr(itl,base_type,node);
+        if(init_err)
         {
-            return res.error();
-        }
-
-        auto rtype = *res;
-
-        const auto assign_err = check_assign_init(itl,base_type,rtype);
-        if(assign_err)
-        {
-            return assign_err;
+            return init_err;
         }
     }
     

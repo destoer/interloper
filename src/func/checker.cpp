@@ -199,20 +199,10 @@ Option<itl_error> type_check_return(Interloper& itl, Function& func, AstNode* st
 
     for(u32 r = 0; r < return_count; r++)
     {
-        AstNode* expr = ret_node->expr[r];
-
-        auto expr_res = type_check_expr(itl,expr);
-
-        if(!expr_res)
+        const auto init_err = type_check_init_expr(itl,func.sig.return_type[r],ret_node->expr[r]);
+        if(init_err)
         {
-            return expr_res.error();
-        }
-
-        const auto assign_err = check_assign_init(itl,func.sig.return_type[r],*expr_res);
-
-        if(assign_err)
-        {
-            return assign_err;
+            return init_err;
         }
     }
 
