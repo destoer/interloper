@@ -19,12 +19,28 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     //     }
     // }
 
-    // itl.std_name_space = find_name_space(itl,"std");
+    itl.std_name_space = find_name_space(itl,"std");
 
-    // if(!itl.std_name_space)
-    // {
-    //     return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
-    // }
+    if(!itl.std_name_space)
+    {
+        return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
+    }
+
+    const auto memcpy_res = check_startup_func(itl,"memcpy",itl.std_name_space);
+    if(!memcpy_res)
+    {
+        return memcpy_res.error();
+    }
+
+    itl.memcpy = *memcpy_res;
+
+    const auto zero_res = check_startup_func(itl,"zero_mem",itl.std_name_space);
+    if(!zero_res)
+    {
+        return zero_res.error();
+    }
+
+    itl.zero_mem = *zero_res;
 
     const auto main_res = check_startup_func(itl,"main",itl.global_namespace);
     if(!main_res)
@@ -38,19 +54,6 @@ Option<itl_error> check_startup_defs(Interloper& itl)
         return start_res.error();
     }
 
-    // const auto memcpy_res = check_startup_func(itl,"memcpy",itl.std_name_space);
-    // if(!memcpy_res)
-    // {
-    //     return memcpy_res.error();
-    // }
-
-    // itl.memcpy = *memcpy_res;
-    
-    // const auto zero_err = check_startup_func(itl,"zero_mem",itl.std_name_space);
-    // if(zero_err)
-    // {
-    //     return zero_err;
-    // }
 
     return option::none;
 }

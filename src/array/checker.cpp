@@ -1,4 +1,34 @@
 
+TypeResult type_check_pointer_index(Interloper& itl, IndexNode* index, PointerType* ptr_type)
+{
+    if(ptr_type->pointer_kind == pointer_type::nullable)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot index a nullable pointer");
+    }
+
+    const u32 indexes = count(index->indexes);
+
+    if(indexes != 1)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Expected single index for pointer");
+    }
+
+    const auto index_res = type_check_expr(itl,index->indexes[0]);
+    if(!index_res)
+    {
+        return index_res;
+    }
+
+    const Type* subscript_type = *index_res;
+
+    if(!is_integer(subscript_type))
+    {
+        return compile_error(itl,itl_error::int_type_error,"Expected integral expr for pointer subscript got %t",subscript_type);
+    }
+
+    return ptr_type->contained_type;
+}
+
 TypeResult type_check_array_index_internal(Interloper& itl, IndexNode* index,ArrayType* array_type)
 {
     Type* accessed_type = nullptr;
@@ -74,16 +104,21 @@ TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
 
     index->sym_slot = arr.reg.slot.sym_slot;
 
-    if(is_array(arr.type))
+    switch(arr.type->kind)
     {
-        return type_check_array_index_internal(itl,index,(ArrayType*)arr.type);
+        case type_class::array_t:
+        {
+            return type_check_array_index_internal(itl,index,(ArrayType*)arr.type);
+        }
+
+        case type_class::pointer_t:
+        {
+            return type_check_pointer_index(itl,index,(PointerType*)arr.type);
+        }
+
+        default:
+        {
+            return compile_error(itl,itl_error::array_type_error,"expected array or pointer for index got %t",arr.type);        
+        }
     }
-
-    else if(is_pointer(arr.type))
-    {
-        unimplemented("Type checker pointer index");
-    }
-
-
-    return compile_error(itl,itl_error::array_type_error,"expected array or pointer for index got %t",arr.type);        
 }

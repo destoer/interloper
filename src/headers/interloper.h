@@ -112,6 +112,8 @@ struct Interloper
 
     // Startup functions
     Function* memcpy = nullptr;
+
+    Function* zero_mem = nullptr;
 };
 
 void pop_context(Interloper& itl);

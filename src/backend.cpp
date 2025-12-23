@@ -26,6 +26,8 @@ void compile_return(Interloper &itl,Function &func, RetNode* ret_node);
 void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym);
 void write_struct(Interloper& itl, Function& func, TypedReg src, StructAccessNode* struct_access);
 
+void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& array);
+
 #include "func/compile.cpp"
 #include "arith/compile.cpp"
 
@@ -229,7 +231,7 @@ void compile_decl(Interloper &itl,Function &func,AstNode* stmt)
     {
         case type_class::array_t:
         {   
-            unimplemented("Array");
+            compile_array_decl(itl,func,decl_node,sym);
             break;
         }
 

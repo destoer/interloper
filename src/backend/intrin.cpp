@@ -5,17 +5,7 @@ RegSlot collapse_struct_addr_oper(Interloper& itl, Function& func, const AddrSlo
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot);
 ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node);
 
-Result<Function*,itl_error> find_complete_func(Interloper& itl, NameSpace* name_space, const String& name)
-{
-    Function* func_def = lookup_opt_scoped_function(itl,name_space,name);
-
-    if(!func_def)
-    {
-        return compile_error(itl,itl_error::undeclared,"%s is required for struct passing",name.buf);
-    }
-
-    return func_def;
-}
+void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot ptr,u32 offset,u32 size, b32 is_float);
 
 void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
 {
@@ -38,87 +28,75 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
 
             src_addr.addr.offset += 8;
             dst_addr.addr.offset += 8;
-        }    
+        } 
+        
+        return;
     }
 
-    else 
-    {
-        assert(false);
-        Function& func_call = *itl.memcpy;
+    // Issue a call to memcpy
+    Function& func_call = *itl.memcpy;
 
-        ArgPass pass = make_arg_pass(func_call.sig);
+    ArgPass pass = make_arg_pass(func_call.sig);
 
-        const RegSlot imm_slot = mov_imm_res(itl,func,size);
+    const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
-        const RegSlot src_ptr = collapse_struct_addr_oper(itl,func,src_addr);
-        const RegSlot dst_ptr = collapse_struct_addr_oper(itl,func,dst_addr);
+    const RegSlot src_ptr = collapse_struct_addr_oper(itl,func,src_addr);
+    const RegSlot dst_ptr = collapse_struct_addr_oper(itl,func,dst_addr);
 
-        const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
-        const TypedReg src = {src_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-        const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-        pass_arg(itl,func,pass,imm,2);
-        pass_arg(itl,func,pass,src,1);
-        pass_arg(itl,func,pass,dst,0);
+    const TypedReg imm = {imm_slot,itl.usize_type};
+    const TypedReg src = {src_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+    const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+    pass_arg(itl,func,pass,imm,2);
+    pass_arg(itl,func,pass,src,1);
+    pass_arg(itl,func,pass,dst,0);
 
-        const u32 arg_clean = pass_args(itl,func,pass);
+    const u32 arg_clean = pass_args(itl,func,pass);
 
-        call(itl,func,func_call.label_slot);
-        unlock_reg_set(itl,func,func_call.sig.locked_set);
+    call(itl,func,func_call.label_slot);
+    unlock_reg_set(itl,func,func_call.sig.locked_set);
 
-        clean_args(itl,func,arg_clean);
-    }
-
+    clean_args(itl,func,arg_clean);
 }
 
-// Option<itl_error> ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
-// {
+void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
+{
 
-//     static constexpr u32 INLINE_LIMIT = 256;
+    static constexpr u32 INLINE_LIMIT = 256;
 
-//     // multiple of 8 and under the copy limit
-//     if(size < INLINE_LIMIT && (size & (GPR_SIZE - 1)) == 0 && !itl.stack_alloc) 
-//     {
-//         const auto zero = imm_zero(itl,func);
+    // multiple of 8 and under the copy limit
+    if(size < INLINE_LIMIT && (size & (GPR_SIZE - 1)) == 0 && !itl.stack_alloc) 
+    {
+        const auto zero = imm_zero(itl,func);
 
-//         const u32 count = size / GPR_SIZE;
+        const u32 count = size / GPR_SIZE;
 
-//         for(u32 i = 0; i < count; i++)
-//         {
-//             store_ptr(itl,func,zero,dst_ptr,i * GPR_SIZE,GPR_SIZE,false);
-//         }    
-//     }
+        for(u32 i = 0; i < count; i++)
+        {
+            store_ptr(itl,func,zero,dst_ptr,i * GPR_SIZE,GPR_SIZE,false);
+        }
+        
+        return;
+    }
 
-//     // call into zero_mem
-//     else
-//     {
-//         auto func_def_res = find_complete_func(itl,itl.std_name_space,"zero_mem");
+    // call into zero_mem
+    Function &func_call = *itl.zero_mem;
 
-//         if(!func_def_res)
-//         {
-//             return func_def_res.error();
-//         }
+    ArgPass pass = make_arg_pass(func_call.sig);
 
-//         Function &func_call = *func_def_res.value();
+    const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
-//         ArgPass pass = make_arg_pass(func_call.sig);
+    const TypedReg imm = {imm_slot,itl.usize_type};
+    const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+    pass_arg(itl,func,pass,imm,1);
+    pass_arg(itl,func,pass,dst,0);
 
-//         const RegSlot imm_slot = mov_imm_res(itl,func,size);
+    const u32 arg_clean = pass_args(itl,func,pass);
 
-//         const TypedReg imm = {imm_slot,make_builtin(itl,GPR_SIZE_TYPE)};
-//         const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-//         pass_arg(itl,func,pass,imm,1);
-//         pass_arg(itl,func,pass,dst,0);
+    call(itl,func,func_call.label_slot);
+    unlock_reg_set(itl,func,func_call.sig.locked_set);
 
-//         const u32 arg_clean = pass_args(itl,func,pass);
-
-//         call(itl,func,func_call.label_slot);
-//         unlock_reg_set(itl,func,func_call.sig.locked_set);
-
-//         clean_args(itl,func,arg_clean);        
-//     }
-
-//     return option::none;
-// }
+    clean_args(itl,func,arg_clean); 
+}
 
 
 TypeResult type_check_syscall(Interloper &itl,FuncCallNode *func_call)
