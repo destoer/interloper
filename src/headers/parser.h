@@ -460,12 +460,20 @@ struct TupleAssignNode
     b32 auto_decl;
 };
 
+enum class index_type
+{
+    array,
+    pointer
+};
+
 struct IndexNode 
 {
     AstNode node;
     
     String name;
     SymSlot sym_slot;
+
+    index_type type = index_type::array;
     
     Array<AstNode*> indexes;
 };

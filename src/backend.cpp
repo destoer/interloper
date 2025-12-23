@@ -27,6 +27,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_n
 void write_struct(Interloper& itl, Function& func, TypedReg src, StructAccessNode* struct_access);
 
 void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& array);
+TypedAddr index_arr(Interloper& itl, Function& func, IndexNode* index);
 
 #include "func/compile.cpp"
 #include "arith/compile.cpp"
@@ -308,6 +309,15 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
         {
             const auto src = compile_oper(itl,func,assign->right);
             write_struct(itl,func,src,(StructAccessNode*)assign->left);
+            break;
+        }
+
+        case ast_type::index:
+        {
+            const auto dst = index_arr(itl,func,(IndexNode*)assign->left);
+            const auto src = compile_oper(itl,func,assign->right);
+
+            do_addr_store(itl,func,src.slot,dst);
             break;
         }
 

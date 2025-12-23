@@ -166,7 +166,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // pointer arith adds the size of the underlying type
     if(is_pointer(bin.ltype) && is_integer(bin.rtype))
     {
-        if(type != arith_bin_op::add_t || type != arith_bin_op::sub_t)
+        if(type != arith_bin_op::add_t && type != arith_bin_op::sub_t)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
 

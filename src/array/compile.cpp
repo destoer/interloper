@@ -112,3 +112,58 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         unimplemented("Array initializer");
     }
 }
+
+TypedAddr compile_pointer_index(Interloper& itl, Function& func, IndexNode* index, RegSlot ptr_slot)
+{
+    AstNode* subscript_expr = index->indexes[0];
+
+    Type* indexed_type = index->node.expr_type;
+
+    const u32 size = type_size(itl,indexed_type);
+
+    if(subscript_expr->known_value)
+    {
+        const u32 offset = *subscript_expr->known_value * size;
+        return TypedAddr {make_pointer_addr(ptr_slot,offset),indexed_type};        
+    }
+
+    const auto subscript = compile_oper(itl,func,subscript_expr);
+    const AddrSlot addr = generate_indexed_pointer(itl,func,ptr_slot,subscript.slot,size,0);
+
+    return TypedAddr {addr,indexed_type};    
+}
+
+TypedAddr index_arr(Interloper& itl, Function& func, IndexNode* index)
+{
+    RegSlot ptr_slot = make_sym_reg_slot(index->sym_slot);
+
+    switch(index->type)
+    {
+        case index_type::pointer:
+        {
+            return compile_pointer_index(itl,func,index,ptr_slot);
+        }
+
+        case index_type::array:
+        {
+            unimplemented("Compile array index");
+        }
+    }
+
+    assert(false);
+}
+
+void compile_index(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
+{
+    const auto index = index_arr(itl,func,(IndexNode*)expr);
+
+    // fixed array needs conversion by host
+    if(is_fixed_array(index.type))
+    {
+        collapse_struct_addr(itl,func,dst_slot,index.addr_slot);
+        return;
+    }
+    
+    do_addr_load(itl,func,dst_slot,index);
+}
+

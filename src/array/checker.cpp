@@ -108,11 +108,13 @@ TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
     {
         case type_class::array_t:
         {
+            index->type = index_type::array;
             return type_check_array_index_internal(itl,index,(ArrayType*)arr.type);
         }
 
         case type_class::pointer_t:
         {
+            index->type = index_type::pointer;
             return type_check_pointer_index(itl,index,(PointerType*)arr.type);
         }
 
