@@ -133,20 +133,110 @@ TypedAddr compile_pointer_index(Interloper& itl, Function& func, IndexNode* inde
     return TypedAddr {addr,indexed_type};    
 }
 
+Addr rescale_addr(Interloper& itl, Function& func, Addr addr)
+{
+    if(addr.scale > GPR_SIZE || !is_pow2(addr.scale))
+    {
+        addr.index = mul_imm_res(itl,func,addr.index,addr.scale);
+        addr.scale = 1;
+    }
+
+    return addr;
+}
+
+
+Addr collapse_array_addr(Interloper& itl, Function& func, Addr addr)
+{
+    rescale_addr(itl,func,addr);
+
+    PointerAddr pointer = {addr};
+    const RegSlot base = lea_res(itl,func,pointer);
+
+    return make_addr(base,0);
+}
+
+TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index, ArrayType* array_type, RegSlot ptr_slot)
+{
+    const u32 indexes = count(index->indexes);
+
+    Addr addr = make_addr(ptr_slot,0);
+
+    for(u32 i = 0; i < indexes; i++)
+    {
+        const bool last_index = i == indexes - 1;
+        
+        // perform the indexing operation
+        const u32 size = array_type->sub_size;
+
+        AstNode* subscript = index->indexes[i];
+
+        if(!subscript->known_value)
+        {
+            if(!is_null_reg(addr.index))
+            {
+                addr = collapse_array_addr(itl,func,addr);
+            }
+
+            const auto src = compile_oper(itl,func,index->indexes[i]);
+            addr.index = src.slot;
+            addr.scale = size;
+        }
+
+        else
+        {
+            addr.offset += *subscript->known_value * size;
+        }
+
+
+        const bool contains_arr = is_array(array_type->contained_type);
+
+        // vla and indexing is not finished need to load data ptr
+        if(is_runtime_size(array_type))
+        {
+            // this is not the last index
+            if(contains_arr && !last_index)
+            {
+                const auto tmp = new_tmp_ptr(func);
+
+                PointerAddr pointer = {rescale_addr(itl,func,addr)};
+                load_ptr_addr(itl,func,tmp,pointer,GPR_SIZE,false,false);
+
+                addr = make_addr(tmp,0);
+            }
+        }
+
+        // goto next subscript
+        if(contains_arr)
+        {
+            array_type = (ArrayType*)index_arr(array_type);
+        }
+    }
+
+    // Final crush of the scale
+    AddrSlot pointer = {rescale_addr(itl,func,addr)};
+
+    // return pointer to accessed type
+    // NOTE: this can give out a fixed array pointer.
+    // this needs conversion by the host into a VLA, this is not obtainable by
+    // taking a pointer to an array,
+    return TypedAddr{pointer,index->node.expr_type};     
+}
+
 TypedAddr index_arr(Interloper& itl, Function& func, IndexNode* index)
 {
-    RegSlot ptr_slot = make_sym_reg_slot(index->sym_slot);
+    auto& array = sym_from_slot(itl.symbol_table,index->sym_slot);
 
     switch(index->type)
     {
         case index_type::pointer:
         {
-            return compile_pointer_index(itl,func,index,ptr_slot);
+            return compile_pointer_index(itl,func,index,array.reg.slot);
         }
 
         case index_type::array:
         {
-            unimplemented("Compile array index");
+            const auto ptr_slot = load_arr_data(itl,func,array);
+            return compile_array_index(itl,func,index,(ArrayType*)array.type,ptr_slot);
         }
     }
 
