@@ -112,7 +112,7 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
         }
     }
 
-    // Now any initializers have been passed handle any array auto sizing.
+    // Now any initializers have been parsed handle any array auto sizing.
     if(is_fixed_array(ltype))
     {
         init_arr_sub_sizes(itl,ltype);

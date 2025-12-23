@@ -86,6 +86,40 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_n
     }
 }
 
+void access_array_member(Interloper& itl, TypedAddr* addr, array_member_access member)
+{
+    switch(member)
+    {
+        case array_member_access::data:
+        {
+            ArrayType* array_type = (ArrayType*)addr->type;
+
+            // This is the first member no need to adjust the offset
+            addr->type = make_reference(itl,array_type->contained_type);
+            break;
+        }
+
+        case array_member_access::len:
+        {
+            addr->type = itl.usize_type;
+
+            if(!is_runtime_size(addr->type))
+            {
+                addr->addr_slot.addr.base = make_spec_reg_slot(spec_reg::access_fixed_len_reg);
+                addr->addr_slot.struct_addr = false;
+            }
+
+            // vla
+            else
+            {
+                addr->addr_slot.addr.offset += GPR_SIZE;
+            }
+
+            break;
+        }
+    }
+}
+
 TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode* struct_access)
 {
     TypedAddr struct_addr;
@@ -161,7 +195,9 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 
             case member_access_type::array_t:
             {
-                unimplemented("Access array member");
+                const auto array_member = array_member_access(access_member.member);
+                access_array_member(itl,&struct_addr,array_member);
+                break;
             }
 
             case member_access_type::slice_t:
