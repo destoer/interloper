@@ -138,7 +138,6 @@ void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
 
     const auto cmp_type = (comparison_op)range->cmp_op;
 
-
     // save initial block so we can dump a branch later
     const BlockSlot initial_block = cur_block(func);
 

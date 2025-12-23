@@ -123,6 +123,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/for_idx",10},
     {"tests/control_flow/for_outer_decl",32},
     {"tests/control_flow/while",32},
+    {"tests/control_flow/for_in_idx",1},
 
     {"tests/basic/mod",1}, // 233168
 
@@ -135,6 +136,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/func/void_return",255},
 
     {"tests/struct/struct",1}, // 495
+
+    {"tests/control_flow/if_non_bool",1},
 
     // arrays
     {"tests/array/array",1}, // 1061
@@ -154,7 +157,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_array",3},
 
-    {"tests/control_flow/for_in",1},
+    {"tests/control_flow/for_in_arr",1},
     {"tests/control_flow/switch_no_default",73},
     {"tests/control_flow/switch",1}, // 447
 

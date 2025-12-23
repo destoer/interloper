@@ -188,7 +188,7 @@ Option<itl_error> type_check_if_stmt(Interloper& itl, Function& func, IfStmt* st
         stmt->type = if_stmt_type::not_zero_t;
     }
 
-    if(is_bool(ltype))
+    else if(is_bool(ltype))
     {
         stmt->type = if_stmt_type::bool_t;
     }

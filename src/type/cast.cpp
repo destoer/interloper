@@ -111,7 +111,7 @@ TypeResult type_check_cast(Interloper& itl, AstNode* expr)
         {
             // do nothing 0 and 1 are fine as integers
             // we do want this to require a cast though so conversions have to be explicit
-            cast->oper = cast_oper::clip;
+            cast->oper = cast_oper::move;
         } 
 
         // integer to bool
