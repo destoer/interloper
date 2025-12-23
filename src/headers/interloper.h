@@ -58,6 +58,7 @@ struct Interloper
     Array<Type*> alias_table;
 
     Type* usize_type = nullptr;
+    Type* const_usize_type = nullptr;
     Type* ssize_type = nullptr;
 
     // Array copy for debug printing of ast

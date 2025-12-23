@@ -189,13 +189,124 @@ void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
     emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
 }
 
+void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* range)
+{
+    const auto entry_arr = compile_expression_tmp(itl,func,range->cond);
+    ArrayType* arr_type = (ArrayType*)entry_arr.type;
+
+    const u32 index_size = arr_type->sub_size;
+
+    // attempting to index statically zero array
+    // we dont care
+    if(is_fixed_array(arr_type) && arr_type->size == 0)
+    {
+        return;
+    }
+
+    // save initial block so we can dump a branch later
+    const BlockSlot initial_block = cur_block(func);
+
+    const b32 track_idx = (range->flags & RANGE_FOR_ARRAY_IDX) == RANGE_FOR_ARRAY_IDX;
+    const b32 take_pointer = (range->flags & RANGE_FOR_TAKE_POINTER) == RANGE_FOR_TAKE_POINTER;
+
+    RegSlot data = make_sym_reg_slot(range->sym_one.slot);
+    RegSlot index = make_sym_reg_slot(range->sym_two.slot);
+
+    
+    if(track_idx)
+    {
+        mov_imm(itl,func,index,0);
+    }
+
+    RegSlot arr_end = {INVALID_HANDLE};
+    const auto arr_data = load_arr_data(itl,func,entry_arr);
+
+    if(is_fixed_array(arr_type))
+    {
+        arr_end = add_imm_res(itl,func,arr_data,arr_type->sub_size * arr_type->size);
+    }
+
+    else
+    {
+        // setup the loop grab data and len
+        const auto arr_len = load_arr_len(itl,func,entry_arr);
+
+        const AddrSlot addr = generate_indexed_pointer(itl,func,arr_data,arr_len,index_size,0);
+        arr_end = collapse_struct_addr_res(itl,func,addr);
+    }
+
+
+    RegSlot entry_cond = make_spec_reg_slot(spec_reg::null);
+
+    // if this is a fixed size array we dont need to check it
+    // on entry apart from the zero check handled above ^
+    // because we know it has members
+    if(is_runtime_size(arr_type))
+    {
+        // check array is not empty
+        entry_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+    }
+    
+    // compile the main loop body
+    const BlockSlot for_block = new_basic_block(itl,func);
+
+    // if we want the data actually load it for us
+    if(!take_pointer)
+    {
+        // insert the array load inside the for block
+        // before we compile the actual stmts
+        const TypedReg load_reg = {arr_data,arr_type->contained_type};
+        do_ptr_load(itl,func,data,load_reg);
+    }
+
+    // move the pointer in the data
+    else
+    {
+        mov_reg(itl,func,data,arr_data);
+    }
+
+    compile_block(itl,func,range->block);
+
+    // compile body check
+    const BlockSlot end_block = cur_block(func);
+
+    // goto next array index
+    add_imm(itl,func,arr_data,arr_data,index_size);
+
+    if(track_idx)
+    {
+        add_imm(itl,func,index,index,1);
+    }
+
+    const auto exit_cond = cmp_ne_res(itl,func,arr_data,arr_end);
+
+    // compile in branches
+    const BlockSlot exit_block = new_basic_block(itl,func);
+
+    // emit loop branch
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
+
+    if(is_runtime_size(arr_type))
+    {
+        // emit branch over the loop body if array is empty
+        emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);  
+    }
+
+    // fixed size array only need to add a fall
+    // as we know its not empty by this point
+    else
+    {
+        add_block_exit(func,initial_block,for_block);
+    }
+}
+
 void compile_range_for(Interloper& itl, Function& func, AstNode* stmt)
 {
     ForRangeNode* range = (ForRangeNode*)stmt;
 
     if(range->flags & RANGE_FOR_ARRAY)
     {
-        unimplemented("range for array");
+        compile_range_for_array(itl,func,range);
     }
 
     else

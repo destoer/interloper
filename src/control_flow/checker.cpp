@@ -61,14 +61,19 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
         return var_res.error();
     }
 
+    range->sym_one.slot = *var_res;
+
+
     // Add the index variable if it is there.
     if(range->flags & RANGE_FOR_ARRAY_IDX)
     {
-        const auto idx_res = add_symbol(itl,range->sym_two.name,itl.usize_type);
+        const auto idx_res = add_symbol(itl,range->sym_two.name,itl.const_usize_type);
         if(!idx_res)
         {
             return idx_res.error();
         }
+
+        range->sym_two.slot = *idx_res;
     }
 
 
