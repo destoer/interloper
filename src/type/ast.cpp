@@ -58,17 +58,41 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     return option::none;
 }
 
-Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
+Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* expr)
 {
-    if(decl->expr && decl->expr->type != ast_type::no_init)
+    UNUSED(ltype);
+
+    switch(expr->type)
     {
-        const auto decl_res = type_check_expr(itl,decl->expr);
-        if(!decl_res)
+        // Don't care
+        case ast_type::no_init:
         {
-            return decl_res.error();
+            break;
+        }
+
+        case ast_type::initializer_list:
+        {
+            unimplemented("Decl initializer list");
+            break;
+        }
+
+        case ast_type::designated_initializer_list:
+        {
+            unimplemented("Decl designated initializer list");
+            break;
+        }
+
+        default:
+        {
+            return type_check_expr(itl,expr).remap_to_err();
         }
     }
 
+    return option::none;
+}
+
+Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
+{
     auto type_res = get_complete_type(itl,decl->type);
     if(!type_res)
     {
@@ -79,6 +103,14 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 
     decl->node.expr_type = ltype;
 
+    if(decl->expr)
+    {
+        const auto expr_err = type_check_decl_expr(itl,ltype,decl->expr);
+        if(expr_err)
+        {
+            return expr_err;
+        }
+    }
 
     auto sym_res = global? add_global(itl,decl->sym.name,ltype,false) : add_symbol(itl,decl->sym.name,ltype);
     if(!sym_res)
