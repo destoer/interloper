@@ -124,3 +124,99 @@ TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
         }
     }
 }
+
+Option<itl_error> type_check_nested_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type)
+{
+    ArrayType* next_arr = (ArrayType*)type->contained_type;
+
+    const u32 size = type->size;
+    const u32 node_len = count(init_list->list);
+
+    if(size != node_len)
+    {
+        return compile_error(itl,itl_error::missing_initializer,"array %t expects %d initializers got %d",type,size,node_len);
+    }        
+
+    for(AstNode* node: init_list->list)
+    {
+        // descend each sub initializer until we hit one containing values
+        // for now we are just gonna print them out, and then we will figure out how to emit the inialzation code
+        switch(node->type)
+        {
+            case ast_type::initializer_list:
+            {
+                const auto traverse_err = type_check_nested_array_initializer(itl,(InitializerListNode*)node,next_arr);
+                if(traverse_err)
+                {
+                    return traverse_err;
+                }
+                break;
+            }
+
+            case ast_type::string:
+            {
+                unimplemented("Initializer list string");
+            }
+
+            // handle an array (this should fufill the current "depth req in its entirety")
+            default:
+            {
+                unimplemented("arr initializer with array");
+                break;            
+            }
+        }
+    }
+    
+    return option::none;
+}
+
+Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type)
+{
+    const u32 node_len = count(init_list->list);
+
+    // this just gets the first node size
+    if(type->size == DEDUCE_SIZE)
+    {
+        type->size = node_len;
+    }
+
+    else if(is_runtime_size(type))
+    {
+        unimplemented("Type check vla initializer");
+    }
+
+    // next type is a sub array
+    if(is_array(type->contained_type))
+    {
+        return type_check_nested_array_initializer(itl,init_list,type);
+    }
+
+    // we are getting to the value assigns!
+    Type* base_type = type->contained_type;
+
+    // separate loop incase we need to handle initializers
+    if(is_struct(base_type))
+    {
+        unimplemented("Struct array initializer");
+    }
+
+    // normal types
+    for(AstNode* node : init_list->list)
+    {
+        auto res = type_check_expr(itl,node);
+        if(!res)
+        {
+            return res.error();
+        }
+
+        auto rtype = *res;
+
+        const auto assign_err = check_assign_init(itl,base_type,rtype);
+        if(assign_err)
+        {
+            return assign_err;
+        }
+    }
+    
+    return option::none;       
+}
