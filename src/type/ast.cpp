@@ -112,6 +112,21 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
         }
     }
 
+    // Now any initializers have been passed handle any array auto sizing.
+    if(is_fixed_array(ltype))
+    {
+        init_arr_sub_sizes(itl,ltype);
+
+        ArrayType* array_type = (ArrayType*)ltype;
+
+        // this has not been initialized by traverse_arr_initializer
+        if(array_type->size == DEDUCE_SIZE)
+        {
+            return compile_error(itl,itl_error::missing_initializer,"auto sized array does not have an initializer");
+        }
+    }
+
+
     auto sym_res = global? add_global(itl,decl->sym.name,ltype,false) : add_symbol(itl,decl->sym.name,ltype);
     if(!sym_res)
     {
