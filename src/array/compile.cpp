@@ -63,6 +63,8 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
     }
 }
 
+void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType* type, AddrSlot *addr_slot);
+
 void compile_array_initializer_list(Interloper& itl, Function& func, InitializerListNode* init_list,ArrayType* type, AddrSlot *addr_slot)
 {
     switch(type->contained_type->kind)
@@ -70,7 +72,12 @@ void compile_array_initializer_list(Interloper& itl, Function& func, Initializer
         // Handle sub array
         case type_class::array_t:
         {
-            unimplemented("Compile nested array intializer");
+            // normal types
+            for(AstNode* node : init_list->list)
+            {
+                compile_array_init(itl,func,node,(ArrayType*)type->contained_type,addr_slot);
+            }
+            break;
         }
 
         // separate loop incase we need to handle initializers
@@ -97,8 +104,41 @@ void compile_array_initializer_list(Interloper& itl, Function& func, Initializer
 
             break;
         }
-    }        
+    }
 }
+
+void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType* type, AddrSlot *addr_slot)
+{
+    switch(node->type)
+    {
+        case ast_type::initializer_list:
+        {
+            compile_array_initializer_list(itl,func,(InitializerListNode*)node,type,addr_slot);
+            break;
+        } 
+
+        case ast_type::string:
+        {
+            unimplemented("String intializer");
+        }
+
+        // Do nothing.
+        case ast_type::no_init:
+        {
+            break;
+        }
+
+        default:
+        {
+            auto reg = compile_oper(itl,func,node);
+
+            const TypedAddr dst_addr = {*addr_slot,(Type*)type};
+            do_addr_store(itl,func,reg.slot,dst_addr);
+            break;
+        }
+    }
+}
+
 
 void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& array)
 {
@@ -143,28 +183,8 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         return;  
     }
 
-    switch(decl_node->expr->type)
-    {
-        case ast_type::no_init:
-        {
-            break;
-        }
-
-        case ast_type::initializer_list:
-        {
-            auto addr_slot = make_pointer_addr(array.reg.slot,0);
-            compile_array_initializer_list(itl,func,(InitializerListNode*)decl_node->expr,(ArrayType*)array.type,&addr_slot);
-            break;
-        }
-
-        // Arbitrary expr
-        default:
-        {
-            auto reg = compile_oper(itl,func,decl_node->expr);
-            compile_move(itl,func,typed_reg(array),reg);
-            break;
-        }
-    }
+    auto addr_slot = make_pointer_addr(array.reg.slot,0);
+    compile_array_init(itl,func,decl_node->expr,(ArrayType*)array.type,&addr_slot);
 }
 
 TypedAddr compile_pointer_index(Interloper& itl, Function& func, IndexNode* index, RegSlot ptr_slot)

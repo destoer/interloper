@@ -188,36 +188,26 @@ Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListN
         unimplemented("Type check vla initializer");
     }
 
-    switch(type->contained_type->kind)
+    // we are getting to the value assigns!
+    Type* base_type = type->contained_type;
+
+    // normal types
+    for(AstNode* node : init_list->list)
     {
-        // Handle sub array
-        case type_class::array_t:
+        if(node->type == ast_type::initializer_list)
         {
-            return type_check_nested_array_initializer(itl,init_list,type);
-        }
-
-        // separate loop incase we need to handle initializers
-        case type_class::struct_t:
-        {
-            unimplemented("Struct array initializer");
-        }
-
-        default:
-        {
-            // we are getting to the value assigns!
-            Type* base_type = type->contained_type;
-
-            // normal types
-            for(AstNode* node : init_list->list)
+            const auto init_err = type_check_intializer_list(itl,base_type,(InitializerListNode*)node);
+            if(init_err)
             {
-                const auto init_err = type_check_init_expr(itl,base_type,node);
-                if(init_err)
-                {
-                    return init_err;
-                }
+                return init_err;
             }
+            continue;
+        }
 
-            break;
+        const auto init_err = type_check_init_expr(itl,base_type,node);
+        if(init_err)
+        {
+            return init_err;
         }
     }
 

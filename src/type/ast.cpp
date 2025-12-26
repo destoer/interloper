@@ -60,6 +60,27 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     return option::none;
 }
 
+Option<itl_error> type_check_intializer_list(Interloper& itl,Type* ltype, InitializerListNode* init_list)
+{
+    switch(ltype->kind)
+    {
+        case type_class::array_t:
+        {
+            return type_check_array_initializer(itl,init_list,(ArrayType*)ltype);
+        }
+
+        case type_class::struct_t:
+        {
+            unimplemented("Struct initializer list");
+        }
+
+        default:
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Initializer lists are only valid on arrays and structs");
+        }
+    }
+}
+
 Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* expr)
 {
     UNUSED(ltype);
@@ -74,24 +95,7 @@ Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* exp
 
         case ast_type::initializer_list:
         {
-            switch(ltype->kind)
-            {
-                case type_class::array_t:
-                {
-                    return type_check_array_initializer(itl,(InitializerListNode*)expr,(ArrayType*)ltype);
-                }
-
-                case type_class::struct_t:
-                {
-                    unimplemented("Struct initializer list");
-                }
-
-                default:
-                {
-                    return compile_error(itl,itl_error::invalid_expr,"Initializer lists are only valid on arrays and structs");
-                }
-            }
-            break;
+            return type_check_intializer_list(itl,ltype,(InitializerListNode*)expr);
         }
 
         case ast_type::designated_initializer_list:
