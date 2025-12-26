@@ -144,7 +144,6 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_size",16},
     {"tests/array/array_initializer",16},
     {"tests/array/array_conv",6},
-    {"tests/array/array_conv_struct",6},
     {"tests/array/array_auto_size",16},
     {"tests/array/array_take_pointer",5},
     {"tests/array/array_of_ptr",6},
@@ -189,6 +188,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_return",1},
     {"tests/struct/initializer_assign",14},
     {"tests/struct/designated_initializer",1},
+
+    {"tests/array/array_conv_struct",6},
 
     {"tests/func/func_pointer",50},
     {"tests/func/func_pointer_struct_recur",21},
