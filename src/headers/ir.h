@@ -627,7 +627,6 @@ struct TypedReg
 {
     RegSlot slot;
     Type* type = nullptr;
-    u32 flags = 0;
 };
 
 enum class known_value_type
