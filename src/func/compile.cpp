@@ -106,19 +106,59 @@ void compile_return(Interloper &itl,Function &func, AstNode* stmt)
     ret(itl,func);
 }
 
+void push_array(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, AstNode* node, u32 arg_idx)
+{
+    // pass a static string, by inserting as const data in the program
+    if(node->type == ast_type::string)
+    {
+        StringNode* string_node = (StringNode*)node;
+
+        const u32 size = string_node->string.size;
+
+        // push the len offset
+        const RegSlot len_slot = mov_imm_res(itl,func,size);
+        push_arg(itl,func,pass,len_slot);
+
+        // push the data offset
+        const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,string_node->string);
+
+        const RegSlot addr_slot = pool_addr_res(itl,func,pool_slot,0);
+        push_arg(itl,func,pass,addr_slot);
+        return;
+    }
+
+    auto reg = compile_oper(itl,func,node);
+
+    if(is_runtime_size(arg_type))
+    {
+        // push in reverse order let our internal functions handle vla conversion
+        const RegSlot len_slot = load_arr_len(itl,func,reg);
+        push_arg(itl,func,pass,len_slot);
+
+        const RegSlot data_slot = load_arr_data(itl,func,reg);
+        push_arg(itl,func,pass,data_slot);
+    }
+
+    // fixed sized array
+    else
+    {
+        pass_arg(itl,func,pass,reg,arg_idx);
+    }   
+}
+
 void push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, AstNode* node, u32 arg_idx)
 {
     switch(arg_type->kind)
     {
         case type_class::struct_t:
         {
-            assert(false);
+            unimplemented("Push struct");
             break;
         }
 
         case type_class::array_t:
         {
-            assert(false);
+            push_array(itl,func,pass,arg_type,node,arg_idx);
             break;
         }
 
