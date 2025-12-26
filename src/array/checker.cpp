@@ -125,6 +125,8 @@ TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
     }
 }
 
+Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type);
+
 Option<itl_error> type_check_nested_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type)
 {
     ArrayType* next_arr = (ArrayType*)type->contained_type;
@@ -145,7 +147,7 @@ Option<itl_error> type_check_nested_array_initializer(Interloper& itl, Initializ
         {
             case ast_type::initializer_list:
             {
-                const auto traverse_err = type_check_nested_array_initializer(itl,(InitializerListNode*)node,next_arr);
+                const auto traverse_err = type_check_array_initializer(itl,(InitializerListNode*)node,next_arr);
                 if(traverse_err)
                 {
                     return traverse_err;
@@ -186,30 +188,38 @@ Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListN
         unimplemented("Type check vla initializer");
     }
 
-    // next type is a sub array
-    if(is_array(type->contained_type))
+    switch(type->contained_type->kind)
     {
-        return type_check_nested_array_initializer(itl,init_list,type);
-    }
-
-    // we are getting to the value assigns!
-    Type* base_type = type->contained_type;
-
-    // separate loop incase we need to handle initializers
-    if(is_struct(base_type))
-    {
-        unimplemented("Struct array initializer");
-    }
-
-    // normal types
-    for(AstNode* node : init_list->list)
-    {
-        const auto init_err = type_check_init_expr(itl,base_type,node);
-        if(init_err)
+        // Handle sub array
+        case type_class::array_t:
         {
-            return init_err;
+            return type_check_nested_array_initializer(itl,init_list,type);
+        }
+
+        // separate loop incase we need to handle initializers
+        case type_class::struct_t:
+        {
+            unimplemented("Struct array initializer");
+        }
+
+        default:
+        {
+            // we are getting to the value assigns!
+            Type* base_type = type->contained_type;
+
+            // normal types
+            for(AstNode* node : init_list->list)
+            {
+                const auto init_err = type_check_init_expr(itl,base_type,node);
+                if(init_err)
+                {
+                    return init_err;
+                }
+            }
+
+            break;
         }
     }
-    
+
     return option::none;       
 }

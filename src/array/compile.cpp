@@ -15,7 +15,6 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
 
         store_addr_slot(itl,func,zero,addr_slot,GPR_SIZE,false);
         addr_slot.addr.offset += GPR_SIZE;
-
         return;
     }
 
@@ -62,6 +61,43 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
             break;
         }
     }
+}
+
+void compile_array_initializer_list(Interloper& itl, Function& func, InitializerListNode* init_list,ArrayType* type, AddrSlot *addr_slot)
+{
+    switch(type->contained_type->kind)
+    {
+        // Handle sub array
+        case type_class::array_t:
+        {
+            unimplemented("Compile nested array intializer");
+        }
+
+        // separate loop incase we need to handle initializers
+        case type_class::struct_t:
+        {
+            unimplemented("Compile Struct array initializer");
+        }
+
+        default:
+        {
+            // we are getting to the value assigns!
+            Type* base_type = type->contained_type;
+            const u32 size = type_size(itl,base_type);
+
+            // normal types
+            for(AstNode* node : init_list->list)
+            {
+                auto reg = compile_oper(itl,func,node);
+
+                const TypedAddr dst_addr = {*addr_slot,base_type};
+                do_addr_store(itl,func,reg.slot,dst_addr);
+                addr_slot->addr.offset += size;
+            }
+
+            break;
+        }
+    }        
 }
 
 void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& array)
@@ -116,7 +152,8 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
 
         case ast_type::initializer_list:
         {
-            unimplemented("Compile array initializer list");
+            auto addr_slot = make_pointer_addr(array.reg.slot,0);
+            compile_array_initializer_list(itl,func,(InitializerListNode*)decl_node->expr,(ArrayType*)array.type,&addr_slot);
             break;
         }
 
