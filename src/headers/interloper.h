@@ -60,6 +60,7 @@ struct Interloper
     Type* usize_type = nullptr;
     Type* const_usize_type = nullptr;
     Type* ssize_type = nullptr;
+    Type* void_type = nullptr;
 
     // Array copy for debug printing of ast
     Array<AstNode*> type_decl;

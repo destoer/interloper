@@ -6,7 +6,6 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
         range->flags |= RANGE_FOR_INC;
     }
 
-
     const auto cmp_res = type_check_comparison(itl,range->cond);
     if(!cmp_res)
     {
@@ -24,7 +23,7 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
     }
 
     range->sym_one.slot = *sym_res;
-
+    range->sym_two.slot = {INVALID_HANDLE};
 
     if(!is_integer(cmp->left->expr_type) || !is_integer(cmp->right->expr_type))
     {
@@ -63,7 +62,6 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
 
     range->sym_one.slot = *var_res;
 
-
     // Add the index variable if it is there.
     if(range->flags & RANGE_FOR_ARRAY_IDX)
     {
@@ -76,6 +74,10 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
         range->sym_two.slot = *idx_res;
     }
 
+    else
+    {
+        range->sym_two.slot = {INVALID_HANDLE};
+    }
 
     return type_check_block(itl,func,range->block);
 }
@@ -127,6 +129,7 @@ Option<itl_error> type_check_for_range(Interloper& itl, Function& func, AstNode*
 
 Option<itl_error> type_check_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
+    stmt->expr_type = itl.void_type;
     const auto& ast_info = AST_INFO[u32(stmt->type)];
     return ast_info.type_check_stmt(itl,func,stmt);
 }

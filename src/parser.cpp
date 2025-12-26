@@ -1064,6 +1064,11 @@ String named_symbol_name(Interloper& itl, const AstNode* node, const NamedSymbol
 {
     if(node->expr_type)
     {
+        if(named_sym.slot.handle == INVALID_HANDLE)
+        {
+            return "";
+        }
+
         Symbol& sym = sym_from_slot(itl.symbol_table,named_sym.slot);
         return sym.name;
     }
@@ -1234,7 +1239,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::value:
         {
             ValueNode* value = (ValueNode*)root;
-            print_ast(itl,"Value %l (%s) %t",value->value, builtin_type_name(value->type),value->node.expr_type);
+            print_ast(itl,"Value %X (%s) %t",value->value, builtin_type_name(value->type),value->node.expr_type);
             break;
         }
 
@@ -1299,7 +1304,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             for(const auto& compound : type->compound)
             {
-                print_ast(itl,"%DCompound: %s\n",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
+                print_ast(itl,"%DCompound: %s",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
 
                 if(compound.type == compound_type::arr_fixed_size)
                 {
@@ -1402,7 +1407,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             AutoDeclNode* auto_decl = (AutoDeclNode*)root;
             const auto name = named_symbol_name(itl,root,auto_decl->sym);
 
-            print_ast(itl,"Auto decl %S\n",name);
+            print_ast(itl,"Auto decl %S",name);
             
             print_internal(itl,auto_decl->expr, depth + 1);
             break;
@@ -1477,7 +1482,8 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             SliceNode* slice = (SliceNode*)root;
 
-            printf("Slice %s\n",slice->name.buf);
+            const auto name = named_symbol_name(itl,root,slice->sym);
+            print_ast(itl,"Slice %S",name);
 
             if(slice->lower)
             {
@@ -1511,8 +1517,9 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             const auto name_one = named_symbol_name(itl,root,for_range->sym_one);
             const auto name_two = named_symbol_name(itl,root,for_range->sym_two);
 
-            print_ast(itl,"For [%s%S : %S]\n",for_range->flags & RANGE_FOR_TAKE_POINTER? "@" : "",name_one,name_two);
-            print_block(itl,&for_range->block, depth + 1);
+            print_ast(itl,"For [%s%S,  %S]",for_range->flags & RANGE_FOR_TAKE_POINTER? "@" : "",name_one,name_two);
+            print_internal(itl,for_range->cond, depth + 1);
+            print_block(itl,&for_range->block, depth + 2);
             break;
         }
 

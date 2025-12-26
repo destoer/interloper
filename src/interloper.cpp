@@ -61,7 +61,11 @@ void setup_type_table(Interloper& itl)
 
     itl.usize_type = make_builtin(itl,builtin_type::u64_t);
     itl.const_usize_type = make_builtin(itl,builtin_type::u64_t,true);
+    
     itl.ssize_type = make_builtin(itl,builtin_type::s64_t);
+
+    itl.void_type = make_builtin(itl,builtin_type::void_t);
+
 }
 
 void destroy_itl(Interloper &itl)
@@ -195,11 +199,6 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     const auto type_check_err = type_check_ast(itl);
     if(type_check_err)
     {
-        if(itl.print_ast)
-        {
-            print_ast(itl);
-        }
-
         destroy_itl(itl);
         return *type_check_err;
     }

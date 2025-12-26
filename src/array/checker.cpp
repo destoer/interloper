@@ -213,3 +213,73 @@ Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListN
 
     return option::none;       
 }
+
+Option<itl_error> type_check_slice_bound(Interloper& itl, AstNode* bound)
+{
+    const auto res = type_check_expr(itl,bound);
+    if(!res)
+    {
+        return res.error();
+    }
+
+    const auto index = *res;
+
+    if(!is_integer(index))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Expected integer for slice bound got %t",index);   
+    }
+
+    return option::none;
+} 
+
+TypeResult type_check_array_slice(Interloper& itl, AstNode* expr)
+{
+    SliceNode* slice = (SliceNode*)expr;
+
+    const auto arr_name = slice->sym.name;
+    const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
+
+    if(!arr_ptr)
+    {
+        return compile_error(itl,itl_error::undeclared,"Array '%S' used before declaration",arr_name);      
+    }
+
+    const auto sym = *arr_ptr;
+    slice->sym.slot = sym.reg.slot.sym_slot;    
+
+    if(!is_array(sym.type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Expected array or pointer for slice got %t",sym.type);       
+    }
+
+    // Lower is populated add to data
+    if(slice->lower)
+    {
+        const auto err = type_check_slice_bound(itl,slice->lower);
+        if(err)
+        {
+            return *err;
+        }
+    }
+    
+    // Upper is populated set the length
+    if(slice->upper)
+    {
+        const auto err = type_check_slice_bound(itl,slice->upper);
+        if(err)
+        {
+            return *err;
+        }
+    }
+
+    // If array type is not runtime size make it!
+    if(!is_runtime_size(sym.type))
+    {
+        auto copy_arr_type = (ArrayType*)copy_type(itl,sym.type);
+        copy_arr_type->size = RUNTIME_SIZE;
+
+        return (Type*)copy_arr_type;
+    }
+
+    return sym.type;
+}

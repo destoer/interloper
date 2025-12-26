@@ -343,6 +343,8 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
         {
             return stmt_err;
         }
+
+        stmt->expr_type = itl.void_type;
     }
 
     return option::none;

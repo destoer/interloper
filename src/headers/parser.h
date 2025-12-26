@@ -54,9 +54,11 @@ enum class ast_type
 
 struct AstNode
 {
-    Type* expr_type = nullptr;
     ast_type type;
     u32 idx;
+
+    Type* expr_type = nullptr;
+
     // Resulting value of this node is known.
     // Stored here to keep consistency with const expressions.
     Option<u64> known_value = option::none;
@@ -216,9 +218,9 @@ struct CastNode
 union NamedSymbol 
 {
     // Before type checking
-    String name;
+    String name = "";
     // After type checking
-    SymSlot slot = {INVALID_HANDLE};
+    SymSlot slot;
 };
 
 
@@ -482,7 +484,7 @@ struct SliceNode
 {
     AstNode node;
 
-    String name;
+    NamedSymbol sym;
     AstNode* lower = nullptr;
     AstNode* upper = nullptr;
 };
@@ -1065,7 +1067,7 @@ AstNode* ast_index(Parser& parser,const String &name, const Token& token)
 AstNode* ast_slice(Parser& parser,const String &name, const Token& token)
 {
     SliceNode* slice_node = alloc_node<SliceNode>(parser,ast_type::slice,token);
-    slice_node->name = name;
+    slice_node->sym.name = name;
 
     return (AstNode*)slice_node;
 }
