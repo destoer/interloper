@@ -149,7 +149,7 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 
         case ast_type::index:
         {
-            unimplemented("Index array struct");
+            struct_addr = index_arr(itl,func,(IndexNode*)struct_access->expr);
             break;
         }
 

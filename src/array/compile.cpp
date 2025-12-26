@@ -80,7 +80,6 @@ void compile_array_initializer_list(Interloper& itl, Function& func, Initializer
             break;
         }
 
-        // separate loop incase we need to handle initializers
         case type_class::struct_t:
         {
             unimplemented("Compile Struct array initializer");
