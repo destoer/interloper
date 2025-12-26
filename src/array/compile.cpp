@@ -174,10 +174,17 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         }
     }
 
+    // VLA allocate the struct
+    else
+    {
+        alloc_slot(itl,func,array.reg.slot,true);
+    }
+
     // Default init
     if(!decl_node->expr)
     {
-        const auto addr_slot = make_pointer_addr(array.reg.slot,0);
+        // VLA is a struct on the stack and must be treated as such
+        const auto addr_slot = is_runtime_size(array.type)? make_struct_addr(array.reg.slot,0) : make_pointer_addr(array.reg.slot,0);
         default_construct_arr(itl,func,(ArrayType*)array.type,addr_slot);
         return;  
     }

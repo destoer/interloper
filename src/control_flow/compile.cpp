@@ -190,7 +190,15 @@ void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
 
 void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* range)
 {
-    const auto entry_arr = compile_expression_tmp(itl,func,range->cond);
+    auto entry_arr = compile_oper(itl,func,range->cond);
+
+    // We will use this as a running pointer by loading array data.
+    // We need a copy if this is a fixed array or we will trash the pointer
+    if(!is_runtime_size(entry_arr.type))
+    {
+        entry_arr.slot = copy_reg(itl,func,entry_arr.slot);
+    }
+
     ArrayType* arr_type = (ArrayType*)entry_arr.type;
 
     const u32 index_size = arr_type->sub_size;
