@@ -452,6 +452,13 @@ void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_sl
             break;
         }
 
+        case ast_type::index:
+        {
+            const auto index = index_arr(itl,func,(IndexNode*)addr_expr);
+            collapse_struct_addr(itl,func,dst_slot,index.addr_slot);
+            break;
+        }
+
 
         default:
         {

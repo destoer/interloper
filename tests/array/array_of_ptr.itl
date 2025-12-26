@@ -12,7 +12,7 @@ func main() s32
 
     for([v , i] in buf)
     {
-        @v = i + i;
+        @v = cast(u32,i + i);
     }
 
     return x + y + z;
