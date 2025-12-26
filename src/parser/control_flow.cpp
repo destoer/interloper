@@ -311,7 +311,7 @@ ParserResult parse_switch(Parser& parser, const Token& t)
 
 
             const auto case_res = make_case(parser,nullptr);
-            if(case_res)
+            if(!case_res)
             {
                 return case_res.error();
             }

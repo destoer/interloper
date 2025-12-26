@@ -13,7 +13,7 @@ import <internal>
 // import <array>
 // import <hash_table>
 
-// import <bit>
+import <bit>
 // import <util>
 // import <sort>
 

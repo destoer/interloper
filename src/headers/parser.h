@@ -555,6 +555,7 @@ struct Case
 struct SwitchNode
 {
     AstNode node;
+    u64 gap = 0;
 
     AstNode* expr = nullptr;
     Array<Case> statements;

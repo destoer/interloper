@@ -390,3 +390,146 @@ void compile_while_node(Interloper& itl, Function& func, AstNode* stmt)
     // emit branch over the loop body in initial block if cond is not met
     emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond.slot,false); 
 }
+
+void compile_switch_jump_table(Interloper& itl, Function& func, SwitchNode* switch_node)
+{
+    const u32 size = count(switch_node->statements);
+
+    // get the table limits i.e min max
+    const s64 min = switch_node->statements[0].value;
+    const s64 max = switch_node->statements[size - 1].value;
+    const u64 range = (max - min) + 1;
+
+    // compile the actual switch expr
+    const auto switch_reg = compile_oper(itl,func,switch_node->expr);
+
+    // save our cur block so we can emit the default block dispatch later
+    const BlockSlot range_block = cur_block(func);
+
+    // finally emit the dispatch on the table now we know where to exit if the table bounds get execeeded
+    const RegSlot switch_slot = new_tmp(func,GPR_SIZE);
+    sub_imm(itl,func,switch_slot,switch_reg.slot,min);
+
+    const RegSlot default_cmp = new_tmp(func,GPR_SIZE);
+    cmp_unsigned_gt_imm(itl,func,default_cmp,switch_slot,max - min);
+
+    // NOTE: branch is emitted later as we dont know where it goes yet
+
+    // emit the switch table dispatch
+    const BlockSlot dispatch_block = new_basic_block(itl,func);
+
+
+    // reserve space for the table inside the constant pool
+    const PoolSlot pool_slot = reserve_const_pool_section(itl.const_pool,pool_type::jump_table,GPR_SIZE * range);
+    const RegSlot table_addr = pool_addr_res(itl,func,pool_slot,0);
+
+    const auto addr = generate_indexed_pointer(itl,func,table_addr,switch_slot,GPR_SIZE,0);
+
+    // load the address out of the jump table
+    const RegSlot target = load_addr_gpr_res(itl,func,addr);
+
+    // branch on it
+    branch_reg(itl,func,target);
+
+    // finally compile all the blocks, and populate the jump table
+
+    // compile each stmt block
+    for(auto& stmt : switch_node->statements)
+    {
+        const BlockSlot case_slot = compile_basic_block(itl,func,*stmt.block);
+
+        // add link from dispatch to case
+        add_block_exit(func,dispatch_block,case_slot);
+
+        const Block& case_block = block_from_slot(func,case_slot);
+        stmt.label = case_block.label_slot;
+
+        stmt.end_block = cur_block(func);
+    }
+
+    // NOTE: as default is allways the last block it does not need to have a jump to the exit
+    BlockSlot default_block = {INVALID_BLOCK_HANDLE};
+
+
+    // if there is no default then our exit label is the end
+    if(switch_node->default_statement)
+    {
+        auto default_stmt = *switch_node->default_statement;
+
+        default_block = compile_basic_block(itl,func,*default_stmt.block);
+        add_block_exit(func,dispatch_block,default_block);
+    }
+
+    BlockSlot default_block_end = cur_block(func);
+
+    // create a exit block for every case to jump to when its done
+    const BlockSlot exit_block = new_basic_block(itl,func);
+
+    // if there is no explicit default the default is just after the switch ends
+    if(!switch_node->default_statement)
+    {
+        default_block = exit_block;
+    }
+
+    else
+    {
+        // default falls through to exit
+        add_block_exit(func,default_block_end,exit_block);
+    }
+
+
+    // we have default posisiton now we can emit the branch for the range checking failing
+    emit_cond_branch(itl,func,range_block,default_block,dispatch_block,default_cmp,true);
+
+    // populate the jump table
+    u32 case_idx = 0;
+
+    const LabelSlot default_label = block_from_slot(func,default_block).label_slot; 
+
+    // NOTE: we do a second pass because we did not know where the default block is stored when
+    // we compiled all the switch statements
+    for(u32 i = 0; i < range; i++)
+    {
+        const u32 addr = i * GPR_SIZE;
+        auto& stmt = switch_node->statements[case_idx];
+
+        // current jump table entry matches case
+        if(stmt.value - min == i)
+        {
+            write_const_pool_label(itl.const_pool,pool_slot, addr, stmt.label);
+            case_idx++;
+
+            // add jump to the exit block
+            emit_branch(itl,func,stmt.end_block,exit_block);
+        }
+
+        // as statements as sorted this means there is no match emit default
+        else
+        {
+            write_const_pool_label(itl.const_pool,pool_slot, addr, default_label);
+        }
+    }    
+}
+
+void compile_switch(Interloper& itl, Function& func, AstNode* stmt)
+{
+    SwitchNode* switch_node = (SwitchNode*)stmt;
+
+    // TODO: measure what a good value for this is
+    static constexpr u32 JUMP_TABLE_LIMIT = 64;
+
+    // TODO: support doing a hybrid approach, of dividing into binary tree searching
+    // on jump tables
+
+    // use a jump table
+    if(switch_node->gap < JUMP_TABLE_LIMIT)
+    {
+        compile_switch_jump_table(itl,func,switch_node);
+    }
+
+    // use a binary search
+    else
+    {
+        unimplemented("binary search");
+    }
+}

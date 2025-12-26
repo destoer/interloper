@@ -265,3 +265,137 @@ Option<itl_error> type_check_while(Interloper& itl, Function& func, AstNode* stm
 
     return type_check_block(itl,func,while_node->block);
 }
+
+Option<itl_error> type_check_switch(Interloper& itl, Function& func, AstNode* stmt)
+{
+    SwitchNode* switch_node = (SwitchNode*)stmt;
+    const u32 size = count(switch_node->statements);
+
+    enum class switch_kind
+    {
+        integer,
+        enum_t,
+    };
+
+    switch_kind switch_type = switch_kind::integer;
+    Enum enumeration;
+
+    if(size == 0)
+    {
+        return compile_error(itl,itl_error::missing_args,"Switch statement has no cases");
+    }
+    
+    const auto expr_res = type_check_expr(itl,switch_node->expr);
+    if(!expr_res)
+    {
+        return expr_res.error();
+    }
+
+    const auto target_type = *expr_res;
+
+    if(is_enum(target_type))
+    {
+        switch_type = switch_kind::enum_t;
+        enumeration = enum_from_type(itl.enum_table,target_type);
+    }
+
+    else if(is_integer(target_type))
+    {
+        switch_type = switch_kind::integer;
+    }
+
+    else
+    {
+        return compile_error(itl,itl_error::int_type_error,"Expected enum or int for switch stmt");
+    }
+
+
+    switch(switch_type)
+    {
+        case switch_kind::integer:
+        {
+            for(auto& stmt : switch_node->statements)
+            {
+                const auto stmt_res = type_check_expr(itl,stmt.statement);
+                if(!stmt_res)
+                {
+                    return stmt_res.error();
+                }
+
+                const auto type = *stmt_res;
+                if(!is_integer(type))
+                {
+                    return compile_error(itl,itl_error::int_type_error,"Expected integer case for switch statemnt");
+                }
+
+                if(!stmt.statement->known_value)
+                {
+                    return compile_error(itl,itl_error::int_type_error,"Switch case must be a comple time integer");
+                }
+
+                const auto block_err = type_check_block(itl,func,*stmt.block);
+                if(block_err)
+                {
+                    return block_err;
+                }
+
+                stmt.value = *stmt.statement->known_value;
+            }
+
+            break;
+        }
+
+        case switch_kind::enum_t:
+        {
+            unimplemented("Type check switch on enum");
+        }
+    }
+
+    if(switch_node->default_statement)
+    {
+        auto default_stmt = *switch_node->default_statement;
+
+        const auto block_err = type_check_block(itl,func,*default_stmt.block);
+        if(block_err)
+        {
+            return block_err;
+        }
+    }
+
+    // sort the statements, so we can pull out the gaps
+    // and binary search them if we need to when emiting the statement dispatcher
+    heap_sort(switch_node->statements,[](const Case& v1, const Case& v2)
+    {
+        return v1.value > v2.value;
+    });
+
+    // check every statement on a enum has a handler
+    if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != enumeration.member_map.size)
+    {
+        // TODO: print the missing cases
+        return compile_error(itl,itl_error::undeclared,"switch on enum %S missing cases:",enumeration.name);    
+    }
+
+
+    // gap check all the statements and figure out 
+    // if they are close enough to encode as a binary table
+    // or if a binary search should be employed instead
+    for(u32 i = 0; i < size - 1; i++)
+    {
+        const u64 cur_gap = switch_node->statements[i + 1].value - switch_node->statements[i].value;
+
+        // these statements have no gap, this means they are duplicated
+        if(cur_gap == 0)
+        {
+            return compile_error(itl,itl_error::redeclaration,"duplicate case %d",switch_node->statements[i].value);
+        }
+
+        switch_node->gap += cur_gap;
+    }
+
+
+    // get the number of extra gaps
+    switch_node->gap -= size - 1;
+
+    return option::none;
+}
