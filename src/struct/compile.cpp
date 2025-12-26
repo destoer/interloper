@@ -35,7 +35,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
             // Just zero it.
             default:
             {
-                const RegSlot tmp = imm_zero(itl,func);
+                const TypedReg tmp = {imm_zero(itl,func),itl.usize_type};
                 const TypedAddr dst_addr = {member_addr,member.type};
                 do_addr_store(itl,func,tmp,dst_addr);
                 break;
@@ -218,7 +218,7 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 void write_struct(Interloper& itl, Function& func, TypedReg src, StructAccessNode* struct_access)
 {
     const auto dst_addr = compute_member_addr(itl,func,struct_access);
-    do_addr_store(itl,func,src.slot,dst_addr);
+    do_addr_store(itl,func,src,dst_addr);
 }
 
 void read_struct(Interloper& itl, Function& func, StructAccessNode* struct_access, RegSlot dst_slot)

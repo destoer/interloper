@@ -360,28 +360,42 @@ void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot ad
 }
 
 
-void do_addr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedAddr& dst)
+void do_addr_store(Interloper &itl,Function &func,const TypedReg& src,const TypedAddr& dst)
 {
+    if(is_array(src.type))
+    {
+        auto tmp_addr = dst.addr_slot;
+
+        const auto data = load_arr_data(itl,func,src);
+        store_addr_slot(itl,func,data,tmp_addr,GPR_SIZE,false);
+
+        tmp_addr.addr.offset += GPR_SIZE;
+
+        const auto len = load_arr_len(itl,func,src);
+        store_addr_slot(itl,func,len,tmp_addr,GPR_SIZE,false);
+        return;
+    }
+
     const u32 size = type_size(itl,dst.type);
 
     if(size <= GPR_SIZE)
     {
         const b32 fp = is_float(dst.type);
-        store_addr_slot(itl,func,src_slot,dst.addr_slot,size,fp);
+        store_addr_slot(itl,func,src.slot,dst.addr_slot,size,fp);
     }
 
     // large copy
     else
     {      
-        const auto src_addr = make_struct_addr(src_slot,0);
+        const auto src_addr = make_struct_addr(src.slot,0);
         ir_memcpy(itl,func,dst.addr_slot,src_addr,size);        
     } 
 }
 
-void do_ptr_store(Interloper &itl,Function &func,RegSlot src_slot,const TypedReg& reg, u32 offset = 0)
+void do_ptr_store(Interloper &itl,Function &func,const TypedReg& src,const TypedReg& ptr, u32 offset = 0)
 {
-    const TypedAddr addr = {make_pointer_addr(reg.slot,offset),reg.type};
-    do_addr_store(itl,func,src_slot,addr);
+    const TypedAddr addr = {make_pointer_addr(ptr.slot,offset),ptr.type};
+    do_addr_store(itl,func,src,addr);
 }
 
 
@@ -406,18 +420,15 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
         }
     }
 
-    else if(is_vla(dst.type) && is_array(src.type))
+    else if(is_array(dst.type) && is_array(src.type))
     {
-        RegSlot addr_slot;
-        
         switch(dst.slot.kind)
         {
             case reg_kind::tmp:
             case reg_kind::sym:
             {
-                const StructAddr struct_addr = {make_addr(dst.slot,0)};
-
-                addr_slot = addrof_res(itl,func,struct_addr);
+                const TypedAddr struct_addr = typed_addr_from_reg(dst,0);
+                do_addr_store(itl,func,src,struct_addr);
                 break;
             }
 
@@ -427,7 +438,9 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
                 {
                     case spec_reg::rv_struct:
                     {
-                        addr_slot = make_sym_reg_slot(func.sig.args[0]);
+                        const auto addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                        const TypedAddr struct_addr = {addr,dst.type};
+                        do_addr_store(itl,func,src,struct_addr);
                         break;
                     }
 
@@ -437,12 +450,6 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
                 break;
             }
         }
-
-        const RegSlot data_slot = load_arr_data(itl,func,src);
-        store_ptr(itl,func,data_slot,addr_slot,0,GPR_SIZE,false);
-
-        const RegSlot len_slot = load_arr_len(itl,func,src);
-        store_ptr(itl,func,len_slot,addr_slot,GPR_SIZE,GPR_SIZE,false);
     }
 
     // requires special handling to move

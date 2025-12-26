@@ -303,7 +303,7 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 
             // store into the pointer
             ptr.type = deref_pointer(ptr.type); 
-            do_ptr_store(itl,func,src.slot,ptr);
+            do_ptr_store(itl,func,src,ptr);
             break;
         }
 
@@ -319,7 +319,7 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
             const auto dst = index_arr(itl,func,(IndexNode*)assign->left);
             const auto src = compile_oper(itl,func,assign->right);
 
-            do_addr_store(itl,func,src.slot,dst);
+            do_addr_store(itl,func,src,dst);
             break;
         }
 

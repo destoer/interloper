@@ -97,7 +97,7 @@ void compile_array_initializer_list(Interloper& itl, Function& func, Initializer
                 auto reg = compile_oper(itl,func,node);
 
                 const TypedAddr dst_addr = {*addr_slot,base_type};
-                do_addr_store(itl,func,reg.slot,dst_addr);
+                do_addr_store(itl,func,reg,dst_addr);
                 addr_slot->addr.offset += size;
             }
 
@@ -132,7 +132,7 @@ void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType
             auto reg = compile_oper(itl,func,node);
 
             const TypedAddr dst_addr = {*addr_slot,(Type*)type};
-            do_addr_store(itl,func,reg.slot,dst_addr);
+            do_addr_store(itl,func,reg,dst_addr);
             break;
         }
     }
@@ -180,16 +180,16 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         alloc_slot(itl,func,array.reg.slot,true);
     }
 
+    auto addr_slot = is_runtime_size(array.type)? make_struct_addr(array.reg.slot,0) : make_pointer_addr(array.reg.slot,0);
+
     // Default init
     if(!decl_node->expr)
     {
         // VLA is a struct on the stack and must be treated as such
-        const auto addr_slot = is_runtime_size(array.type)? make_struct_addr(array.reg.slot,0) : make_pointer_addr(array.reg.slot,0);
         default_construct_arr(itl,func,(ArrayType*)array.type,addr_slot);
         return;  
     }
 
-    auto addr_slot = make_pointer_addr(array.reg.slot,0);
     compile_array_init(itl,func,decl_node->expr,(ArrayType*)array.type,&addr_slot);
 }
 
