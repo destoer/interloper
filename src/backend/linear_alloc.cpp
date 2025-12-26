@@ -730,10 +730,8 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
     init_regs(alloc);
 
     // perform the allocation
-    for(u32 r = 0; r < count(range); r++)
+    for(auto& cur : range)
     {
-        auto& cur = range[r];
-
         // actually run the allocation
         auto& ir_reg = reg_from_slot(itl,func,cur.slot);
 

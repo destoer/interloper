@@ -451,11 +451,9 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     }
 
     // perform register allocation on used functions
-    for(u32 f = 0; f < count(itl.func_table.used); f++)
+    for(auto& func : itl.func_table.used)
     {
-        auto& func = *itl.func_table.used[f];
-
-        allocate_registers(itl,func);
+        allocate_registers(itl,*func);
 
         if(itl.print_stack_allocation || itl.print_reg_allocation)
         {

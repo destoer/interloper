@@ -56,30 +56,19 @@ void finalise_labels(Interloper& itl, u64 base)
     itl.asm_emitter.base_vaddr = base;
 
     // record all func label locations
-    for(u32 f = 0; f < count(itl.asm_emitter.func); f++)
+    for(auto &asm_func : itl.asm_emitter.func)
     {
-        auto& asm_func = itl.asm_emitter.func[f];
         auto& ir_func = *asm_func.ir_func; 
 
-        {
-            const u64 vaddr = base + asm_func.offset;
-            itl.symbol_table.label_lookup[ir_func.label_slot.handle].offset = vaddr;
-        }
+        const u64 vaddr = base + asm_func.offset;
+        itl.symbol_table.label_lookup[ir_func.label_slot.handle].offset = vaddr;
         
         // record all block label offsets
+        for(auto& block : ir_func.emitter.program)
         {
-            
-
-            for(u32 b = 0; b < count(ir_func.emitter.program); b++)
-            {
-                auto& block = ir_func.emitter.program[b];
-
-                itl.symbol_table.label_lookup[block.label_slot.handle].offset += base;
-            }
+            itl.symbol_table.label_lookup[block.label_slot.handle].offset += base;
         }
     }
-
-    
 }
 
 void write_cur_rel_offset(Interloper& itl, LabelSlot slot)

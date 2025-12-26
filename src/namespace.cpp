@@ -92,9 +92,8 @@ NameSpace* scan_namespace(const NameSpace* root, const Array<String>& name_space
     {
         bool found = false;
 
-        for(size_t i = 0; i < count(root->nodes); i++)
+        for(const auto node : root->nodes)
         {
-            const auto node = root->nodes[i];
             if(node->name_space == name_space[name_idx])
             {
                 found = true;
@@ -120,11 +119,11 @@ NameSpace* scan_namespace(const NameSpace* root, const Array<String>& name_space
 
 NameSpace* find_name_space(Interloper& itl, const String& name)
 {
-    for(size_t i = 0; i < count(itl.global_namespace->nodes); i++)
+    for(auto& node : itl.global_namespace->nodes)
     {
-        if(itl.global_namespace->nodes[i]->name_space == name)
+        if(node->name_space == name)
         {
-            return itl.global_namespace->nodes[i];
+            return node;
         }
     }
 
@@ -255,9 +254,9 @@ void destroy_namespace_node(NameSpace* root)
         return;
     }
 
-    for(size_t i = 0; i < count(root->nodes); i++)
+    for(auto& node : root->nodes)
     {
-        destroy_namespace_node(root->nodes[i]);
+        destroy_namespace_node(node);
     }
 
     destroy_table(root->table);

@@ -311,9 +311,8 @@ void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table)
     printf("%s:\n",func.name.buf);
 
     u32 l = 0;
-    for(u32 b = 0; b < count(func.emitter.program); b++)
+    for(auto& block : func.emitter.program)
     {   
-        const auto &block = func.emitter.program[b];
         //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
     
         const auto label = label_from_slot(table.label_lookup,block.label_slot);

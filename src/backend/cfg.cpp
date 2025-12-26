@@ -117,9 +117,9 @@ void add_func_exit(Function& func, BlockSlot slot)
     auto& block = block_from_slot(func,slot);
 
     // if this block exits then we cant actually reach any other blocks
-    for(u32 e = 0; e < count(block.exit); e++)
+    for(auto& exit : block.exit)
     {
-        remove_block_exit(func,slot,block.exit[e]);
+        remove_block_exit(func,slot,exit);
     }
 
     block.flags = block.flags | HAS_FUNC_EXIT | REACH_FUNC_EXIT;
@@ -376,11 +376,8 @@ void connect_flow_graph(Interloper& itl,Function& func)
 void compute_use_def(Interloper& itl,Function& func)
 {
     // each block
-    for(u32 b = 0; b < count(func.emitter.program); b++)
+    for(auto& block : func.emitter.program)
     {
-        const BlockSlot slot = block_from_idx(b);
-        auto& block = block_from_slot(func,slot);
-
         // ignore empty blocks
         if(!block.list.start)
         {

@@ -216,9 +216,8 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
 
 void destroy_sym_table(SymbolTable &sym_table)
 {
-    for(u32 s = 0; s < count(sym_table.slot_lookup); s++)
+    for(auto& sym : sym_table.slot_lookup)
     {
-        auto& sym = sym_table.slot_lookup[s];
         destroy_reg(sym.reg);
     }
 
