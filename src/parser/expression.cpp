@@ -285,7 +285,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
             const auto cur = next_token(parser);
             next_expr_token(parser,ctx);
 
-            NameSpace* name_space = scan_namespace(parser.global_namespace,name_space_strings); 
+            NameSpace* name_space = scan_namespace(parser,name_space_strings); 
             
             // Read out struct initializer
             if(cur.type == token_type::symbol && ctx.expr_tok.type == token_type::left_c_brace)
@@ -300,9 +300,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
                     return list_res;
                 }
 
-                auto initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
-                
-                return initializer;
+                return ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
             }
 
             return parse_sym(parser,ctx,name_space,cur);

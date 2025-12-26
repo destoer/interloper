@@ -74,7 +74,7 @@ func main() s32
     {
         if(!ran[i])
         {
-            std::exit(30 + i);
+            std::exit(30 + cast(s32,i));
         }
     }
 

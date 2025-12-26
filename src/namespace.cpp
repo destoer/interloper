@@ -82,23 +82,20 @@ NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocato
     return new_scope;
 }
 
-
-NameSpace* scan_namespace(const NameSpace* root, const Array<String>& name_space)
+NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
 {
     u32 name_idx = 0;
-    NameSpace *result = nullptr;
 
     while(name_idx != count(name_space))
     {
         bool found = false;
 
-        for(const auto node : root->nodes)
+        for(const auto node : parser.global_namespace->nodes)
         {
             if(node->name_space == name_space[name_idx])
             {
                 found = true;
                 name_idx++;
-                root = node;
 
                 if(name_idx == count(name_space))
                 {
@@ -109,12 +106,12 @@ NameSpace* scan_namespace(const NameSpace* root, const Array<String>& name_space
 
         if(!found)
         {
-            return nullptr;
+            break;
         }
     }
     
-    assert(false);
-    return result;
+    // Namespace does not allready exist create it!
+    return new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,name_space);
 }
 
 NameSpace* find_name_space(Interloper& itl, const String& name)

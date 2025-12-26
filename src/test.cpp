@@ -162,16 +162,6 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     {"tests/basic/short_circuit",60},
 
-
-    // strings
-    {"tests/string/char_array",6},
-    {"tests/string/write_string",0},
-    {"tests/string/write_string_static",0},
-    {"tests/string/str_conv",1},
-    {"tests/string/stl_string",27},
-
-
-
     // structs
     {"tests/struct/struct_initializer",1}, // 495
     {"tests/struct/pass_struct",2},
@@ -233,6 +223,12 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/enum/enum_struct",11},
     {"tests/enum/enum_flag",1},
 
+    // strings
+    {"tests/string/char_array",6},
+    {"tests/string/write_string",0},
+    {"tests/string/write_string_static",0},
+    {"tests/string/str_conv",1},
+    {"tests/string/stl_string",27},
 
     // type alias
     {"tests/type_alias/type_alias",65},

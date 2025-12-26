@@ -20,11 +20,6 @@ global global_setup : bool = false;
 
 constant SYSCALL_EXIT : u32 = 60;
 
-func exit(exit_code: s32)
-{
-    intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
-}
-
 // TODO: need to define for each arch
 func start()
 {
@@ -34,5 +29,5 @@ func start()
     global_setup = true;
 
     rc: s32 = main();
-    exit(rc);
+    std::exit(rc);
 }

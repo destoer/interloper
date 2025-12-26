@@ -15,13 +15,7 @@ Result<NameSpace*,parse_error> parse_name_space(Parser& parser)
 
         auto strings = *strings_res;
 
-        name_space = scan_namespace(parser.global_namespace,strings);
-
-        // Namespace does not allready exist create it!
-        if(!name_space)
-        {
-            name_space = new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,strings);
-        }
+        name_space = scan_namespace(parser,strings);
 
         destroy_arr(strings);
     }
@@ -483,7 +477,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                         return namespace_res.error();
                     }
 
-                    name_space = scan_namespace(parser.global_namespace,*namespace_res);
+                    name_space = scan_namespace(parser,*namespace_res);
 
                     next = next_token(parser);
                 }

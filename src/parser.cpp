@@ -732,13 +732,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             auto name_space = *name_space_res;
 
-            parser.cur_namespace = scan_namespace(itl.global_namespace,name_space);
-
-            // Namespace does not allready exist create it!
-            if(!parser.cur_namespace)
-            {
-                parser.cur_namespace = new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,name_space);
-            }
+            parser.cur_namespace = scan_namespace(parser,name_space);
 
             destroy_arr(name_space);
 

@@ -104,3 +104,8 @@ func swap_mem(v1: byte@, v2: byte@, size: usize)
         v2[i] = tmp;
     }
 }
+
+func exit(exit_code: s32)
+{
+    intrin_syscall(SYSCALL_EXIT,exit_code,0,0);
+}
