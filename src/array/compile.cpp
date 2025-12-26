@@ -337,3 +337,48 @@ void compile_index(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_s
     do_addr_load(itl,func,dst_slot,index);
 }
 
+
+void compile_array_slice(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
+{
+    SliceNode* slice = (SliceNode*)expr;
+
+    auto& arr = sym_from_slot(itl.symbol_table,slice->sym.slot);
+
+    RegSlot data_slot = load_arr_data(itl,func,arr);
+    RegSlot slice_lower = make_spec_reg_slot(spec_reg::null);
+
+    // Lower is populated add to data
+    if(slice->lower)
+    {
+        const auto index = compile_oper(itl,func,slice->lower);
+
+        slice_lower = index.slot;
+
+        const RegSlot offset_slot = mul_imm_res(itl,func,index.slot,type_size(itl,index_arr(arr.type)));
+        data_slot = add_res(itl,func,data_slot,offset_slot);
+    }
+
+    store_arr_data(itl,func,dst_slot,data_slot);
+
+    RegSlot data_len = make_spec_reg_slot(spec_reg::null);
+    
+    // Upper is populated set the length
+    if(slice->upper)
+    {
+        const auto index = compile_oper(itl,func,slice->upper);
+        data_len = index.slot;
+    }
+
+    else
+    {
+        data_len = load_arr_len(itl,func,arr);
+    }
+    
+    // Sub lower slice if present
+    if(slice->lower)
+    {
+        data_len = sub_res(itl,func,data_len,slice_lower);
+    }
+
+    store_arr_len(itl,func,dst_slot,data_len); 
+}
