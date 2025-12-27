@@ -106,7 +106,7 @@ void compile_return(Interloper &itl,Function &func, AstNode* stmt)
     ret(itl,func);
 }
 
-void push_array(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, AstNode* node, u32 arg_idx)
+void push_array(Interloper& itl, Function& func, ArgPass& pass, ArrayType* arg_type, AstNode* node, u32 arg_idx)
 {
     // pass a static string, by inserting as const data in the program
     if(node->type == ast_type::string)
@@ -146,19 +146,41 @@ void push_array(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, 
     }   
 }
 
+void push_struct(Interloper& itl, Function& func, ArgPass& pass, StructType* arg_type, AstNode* node)
+{
+    const auto structure = struct_from_type(itl.struct_table,arg_type);
+
+    const auto arg_reg = compile_oper(itl,func,node);
+    const u32 aligned_size = align_val(structure.size,GPR_SIZE);
+
+    // alloc the struct size for our copy
+    alloc_stack(itl,func,aligned_size);
+
+    // need to save SP as it will get pushed last
+    const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
+    const auto dst_addr = make_pointer_addr(dst_ptr,0);
+
+    const auto src_addr = make_struct_addr(arg_reg.slot,0);
+
+    ir_memcpy(itl,func,dst_addr,src_addr,structure.size);
+
+    // clean up the stack push
+    pass.arg_clean += aligned_size / GPR_SIZE;
+}
+
 void push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, AstNode* node, u32 arg_idx)
 {
     switch(arg_type->kind)
     {
         case type_class::struct_t:
         {
-            unimplemented("Push struct");
+            push_struct(itl,func,pass,(StructType*)arg_type,node);
             break;
         }
 
         case type_class::array_t:
         {
-            push_array(itl,func,pass,arg_type,node,arg_idx);
+            push_array(itl,func,pass,(ArrayType*)arg_type,node,arg_idx);
             break;
         }
 
