@@ -57,6 +57,16 @@ func mem_equal(v1: const byte@, v2: const byte@, size: usize) bool
     return true;   
 }
 
+func array_equal(v1: const byte[], v2: const byte[]) bool
+{
+    if v1.len != v2.len
+    {
+        return false;
+    }
+
+    return mem_equal(v1.data,v2.data,v1.len);
+}
+
 func zero_mem(dst: byte@, size : usize)
 {
     end : const byte@ = dst + size;

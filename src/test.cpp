@@ -194,6 +194,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/type/byte",1},
     {"tests/type/struct_punning",11},
     {"tests/type/type_query",1},
+    {"tests/func/va_args",120},
     {"tests/type/rtti",1},
 
     {"tests/basic/constant",1},
