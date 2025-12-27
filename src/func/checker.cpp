@@ -129,17 +129,16 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
         unimplemented("va args");
     }
 
-    // ^ this is a bad approximation for the args but roll with it for now.
-    const u32 actual_args = count(call_info.sig.args);
+    const auto expected_args = make_span(call_info.sig.args, call_info.sig.hidden_args);
 
     // check we have the right number of params
-    if(actual_args != count(func_call->args))
+    if(expected_args.size != count(func_call->args))
     {
-        return compile_error(itl,itl_error::missing_args,"Function call expected %d args got %d",actual_args,count(func_call->args));
+        return compile_error(itl,itl_error::missing_args,"Function call expected %d args got %d",expected_args.size,count(func_call->args));
     }  
 
     // Type check args against the sig.
-    for(u32 a = 0; a < actual_args; a++)
+    for(u32 a = 0; a < expected_args.size; a++)
     {
         auto rtype_res = type_check_expr(itl,func_call->args[a]);
         if(!rtype_res)
@@ -147,7 +146,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
             return rtype_res.error();
         }
 
-        auto& sym = sym_from_slot(itl.symbol_table,call_info.sig.args[a]);
+        auto& sym = sym_from_slot(itl.symbol_table,expected_args[a]);
         const auto pass_err = check_assign_arg(itl,sym.type,*rtype_res);
         if(pass_err)
         {
