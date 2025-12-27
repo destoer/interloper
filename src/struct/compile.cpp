@@ -226,7 +226,7 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
         }
     }
 
-    const auto& structure = struct_from_type(itl.struct_table,(StructType*)struct_addr.type);
+    
 
     // perform each member access
     for(const AccessMember& access_member: struct_access->members)
@@ -246,6 +246,7 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
         {
             case member_access_type::struct_t:
             {
+                const auto& structure = struct_from_type(itl.struct_table,(StructType*)struct_addr.type);
                 const auto& member = structure.members[access_member.member];
 
                 struct_addr.addr_slot.addr.offset += member.offset;  

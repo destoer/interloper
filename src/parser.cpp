@@ -1438,7 +1438,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::struct_access:
         {
             StructAccessNode* struct_access = (StructAccessNode*)root;
-            printf("Struct access\n");
+            print_ast(itl,"Struct access %t",struct_access->node.expr_type);
 
             print_internal(itl,struct_access->expr, depth + 1);
 
