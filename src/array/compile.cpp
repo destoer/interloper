@@ -40,7 +40,7 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
         {
             // TODO: replace this with a zero_mem primitive
             // if the struct has no initializers
-            const auto structure = struct_from_type(itl.struct_table,type->contained_type);
+            const auto structure = struct_from_type(itl.struct_table,(StructType*)type->contained_type);
 
             auto struct_addr = addr_slot;
 

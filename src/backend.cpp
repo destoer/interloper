@@ -278,13 +278,6 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
             const u32 size = sym.reg.size;
             const Type *ltype = sym.type;
 
-            // handle initializer list
-            if(assign->right->type == ast_type::initializer_list)
-            {
-                unimplemented("initializer list");
-                return;
-            }
-
             compile_expression(itl,func,assign->right,slot);
 
             // If we have assigned an unknown quantity it must be clipped.

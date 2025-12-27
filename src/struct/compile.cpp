@@ -21,7 +21,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
             // Just recurse this
             case type_class::struct_t:
             {
-                const auto nested_structure = struct_from_type(itl.struct_table,member.type);
+                const auto nested_structure = struct_from_type(itl.struct_table,(StructType*)member.type);
                 compile_struct_decl_default(itl,func,nested_structure,member_addr);
                 break;
             }
@@ -44,28 +44,55 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     }
 }
 
-void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym)
+void compile_struct_init(Interloper& itl, Function& func, StructType* struct_type,  AddrSlot* addr_slot ,AstNode* expr);
+
+void compile_struct_initializer_list(Interloper& itl, Function& func, Struct& structure, AddrSlot* addr_slot, InitializerListNode* init_list)
 {
-    const TypedReg reg = typed_reg(sym);
-    alloc_slot(itl,func,reg.slot,true);
-
-
-    auto structure = struct_from_type(itl.struct_table,reg.type);
-
-    // Default init
-    if(!decl_node->expr)
+    for(u32 i = 0; i < count(init_list->list); i++)
     {
-        const AddrSlot addr_slot = make_struct_addr(reg.slot,0);
-        compile_struct_decl_default(itl,func,structure,addr_slot);
-        return;
+        AstNode* node = init_list->list[i];
+        auto& member = structure.members[i];
+
+        auto member_addr = *addr_slot;
+        member_addr.addr.offset = member.offset;
+
+        switch(member.type->kind)
+        {
+            // Handle sub array
+            case type_class::array_t:
+            {
+                compile_array_init(itl,func,node,(ArrayType*)member.type,&member_addr);
+                break;
+            }
+
+            case type_class::struct_t:
+            {
+                compile_struct_init(itl,func,(StructType*)member.type,&member_addr,node);
+                break;
+            }
+
+            default:
+            {
+                auto reg = compile_oper(itl,func,node);
+
+                const TypedAddr dst_addr = {member_addr,member.type};
+                do_addr_store(itl,func,reg,dst_addr);
+                break;
+            }
+        }
     }
+}
 
+void compile_struct_init(Interloper& itl, Function& func, StructType* struct_type,  AddrSlot* addr_slot ,AstNode* node)
+{
+    auto& structure = struct_from_type(itl.struct_table,struct_type);
 
-    switch(decl_node->expr->type)
+    switch(node->type)
     {
         case ast_type::initializer_list:
         {
-            unimplemented("Initializer list");
+            compile_struct_initializer_list(itl,func,structure,addr_slot,(InitializerListNode*)node);
+            break;
         }
 
         case ast_type::designated_initializer_list:
@@ -80,10 +107,33 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_n
 
         default:
         {
-            compile_expression(itl,func,decl_node->expr,reg.slot);
+            auto reg = compile_oper(itl,func,node);
+
+            const TypedAddr dst_addr = {*addr_slot,(Type*)struct_type};
+            do_addr_store(itl,func,reg,dst_addr);
             break;
         }
+    }    
+}
+
+void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym)
+{
+    const TypedReg reg = typed_reg(sym);
+    alloc_slot(itl,func,reg.slot,true);
+
+    auto struct_type = (StructType*)reg.type;
+    auto structure = struct_from_type(itl.struct_table,struct_type);
+
+    // Default init
+    if(!decl_node->expr)
+    {
+        const AddrSlot addr_slot = make_struct_addr(reg.slot,0);
+        compile_struct_decl_default(itl,func,structure,addr_slot);
+        return;
     }
+
+    AddrSlot addr_slot = make_struct_addr(reg.slot,0);
+    compile_struct_init(itl,func,struct_type,&addr_slot,decl_node->expr);
 }
 
 void access_array_member(Interloper& itl, TypedAddr* addr, array_member_access member)
@@ -161,7 +211,7 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
         }
     }
 
-    const auto& structure = struct_from_type(itl.struct_table,struct_addr.type);
+    const auto& structure = struct_from_type(itl.struct_table,(StructType*)struct_addr.type);
 
     // perform each member access
     for(const AccessMember& access_member: struct_access->members)

@@ -12,7 +12,7 @@ u32 type_size(Interloper& itl,const Type *type)
 
         case type_class::struct_t:
         {
-            const auto& structure = struct_from_type(itl.struct_table,type);
+            const auto& structure = struct_from_type(itl.struct_table,(StructType*)type);
             return structure.size;
         }
 
@@ -95,7 +95,7 @@ u32 data_size(Interloper& itl,const Type *type)
     {
         case type_class::struct_t:
         {
-            const auto& structure = struct_from_type(itl.struct_table,type);
+            const auto& structure = struct_from_type(itl.struct_table,(StructType*)type);
             return structure.data_size;
         }   
 

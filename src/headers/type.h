@@ -408,7 +408,7 @@ enum class struct_state
 
 
 using StructTable = Array<Struct>;
-Struct& struct_from_type(StructTable& struct_table, const Type* type);
+Struct& struct_from_type(StructTable& struct_table, const StructType* struct_type);
 
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u64_t;
 

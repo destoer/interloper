@@ -54,7 +54,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         if(is_struct(enumeration.underlying_type))
         {
             // reserve space for it inside the const pool
-            const auto& structure = struct_from_type(itl.struct_table,enumeration.underlying_type);
+            const auto& structure = struct_from_type(itl.struct_table,(StructType*)enumeration.underlying_type);
             
             const u32 data_size = structure.size * count(node->member);
             enumeration.struct_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
@@ -114,7 +114,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
             member.value = member_count++;
 
             // compile in member access
-            auto& structure = struct_from_type(itl.struct_table,enumeration.underlying_type);
+            auto& structure = struct_from_type(itl.struct_table,(StructType*)enumeration.underlying_type);
             UNUSED(structure);
 
 

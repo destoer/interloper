@@ -48,7 +48,7 @@ String type_name(Interloper& itl,const Type *type)
             {
                 push_const_name(itl,prefix,type,"const ");
 
-                const auto structure =  struct_from_type(itl.struct_table,type);
+                const auto structure =  struct_from_type(itl.struct_table,(StructType*)type);
                 plain = structure.name;
                 done = true;
                 break;                

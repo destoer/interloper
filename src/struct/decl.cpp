@@ -43,10 +43,8 @@ void destroy_struct_table(StructTable& struct_table)
 }
 
 
-Struct& struct_from_type(StructTable& struct_table, const Type* type)
+Struct& struct_from_type(StructTable& struct_table, const StructType* struct_type)
 {
-    StructType* struct_type = (StructType*)type;
-
     return struct_table[struct_type->struct_idx];
 }   
 
@@ -71,7 +69,7 @@ Option<Member> get_member(StructTable& struct_table, const Type* type, const Str
         return option::none;
     }
 
-    auto& structure = struct_from_type(struct_table,type);
+    auto& structure = struct_from_type(struct_table,(StructType*)type);
 
     return get_member(structure,member_name);
 }

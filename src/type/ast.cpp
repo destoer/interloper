@@ -5,6 +5,7 @@ TypeResult assign_expr_type(AstNode* node, TypeResult result);
 SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table);
 
 Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type);
+Option<itl_error> type_check_struct_initializer(Interloper& itl, InitializerListNode* init_list, Struct& structure);
 
 #include "func/checker.cpp"
 #include "arith/checker.cpp"
@@ -71,7 +72,8 @@ Option<itl_error> type_check_intializer_list(Interloper& itl,Type* ltype, Initia
 
         case type_class::struct_t:
         {
-            unimplemented("Struct initializer list");
+            auto& structure = struct_from_type(itl.struct_table,(StructType*)ltype);
+            return type_check_struct_initializer(itl,init_list,structure);
         }
 
         default:

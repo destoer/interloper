@@ -107,3 +107,56 @@ TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
 
     return ltype;
 }
+
+Option<itl_error> type_check_struct_initializer(Interloper& itl, InitializerListNode* init_list, Struct& structure)
+{
+    const u32 node_len = count(init_list->list);
+    const u32 member_size = count(structure.members);
+
+    if(node_len != member_size)
+    {
+        return compile_error(itl,itl_error::undeclared,"Struct initializer missing initializer expected %d got %d",member_size,node_len);
+    }
+
+    for(u32 i = 0; i < node_len; i++)
+    {
+        AstNode* node = init_list->list[i];
+        auto& member = structure.members[i];
+
+        switch(node->type)
+        {
+            case ast_type::initializer_list:
+            {
+                const auto sub_init_err = type_check_intializer_list(itl,member.type,(InitializerListNode*)node);
+                if(sub_init_err)
+                {
+                    return sub_init_err;
+                }
+                break;
+            }
+
+            case ast_type::designated_initializer_list:
+            {
+                unimplemented("Type check designated initializer list");
+            }
+
+            case ast_type::struct_initializer:
+            {
+                unimplemented("Type check struct initializer");
+            }
+
+            default: 
+            {
+                const auto err = type_check_init_expr(itl,member.type,node);
+                if(err)
+                {
+                    return err;
+                }
+
+                break;
+            }
+        }
+    }
+
+    return option::none;
+}
