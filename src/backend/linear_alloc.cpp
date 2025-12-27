@@ -209,7 +209,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
 
             auto& ir_reg = reg_from_slot(itl,func,slot);
 
-            if(is_arg(ir_reg) && !contains(table,slot))
+            if(is_stack_arg(ir_reg) && !contains(table,slot))
             {
                 const auto live_op = make_op(op_type::live_var,make_reg_operand(slot));
                 node = insert_at(block.list,node,live_op);

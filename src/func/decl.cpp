@@ -250,7 +250,7 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
 
     else
     {
-        Symbol sym = make_sym(itl,name,type,*arg_offset);
+        Symbol sym = make_sym_arg(itl,name,type,*arg_offset);
         add_var(itl.symbol_table,sym);
 
         push_var(sig.args,sym.reg.slot.sym_slot);

@@ -104,7 +104,7 @@ b32 symbol_exists(SymbolTable &sym_table,const String &sym)
 }
 
 
-Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG)
+Symbol make_sym(Interloper& itl,const String& name, Type* type)
 {
     auto& table = itl.symbol_table;
 
@@ -118,19 +118,20 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
 
     symbol.reg = make_reg(itl,reg_slot,type);
     symbol.ctx = itl.ctx;
-
-    // mark an offset so it is not unallocated
-    if(symbol.arg_offset != NON_ARG)
-    {
-        symbol.reg.flags |= FUNC_ARG;
-    }
-
-    symbol.arg_offset = arg;
+    symbol.arg_offset = NON_ARG;
 
     return symbol;
 }
 
+Symbol make_sym_arg(Interloper& itl,const String& name, Type* type, u32 arg_offset)
+{
+    auto sym = make_sym(itl,name,type);
 
+    sym.arg_offset = arg_offset;
+    sym.reg.flags |= (STACK_ARG | STACK_ALLOCATED);
+    
+    return sym;
+}
 
 
 // add symbol to slot lookup
@@ -227,9 +228,9 @@ void destroy_sym_table(SymbolTable &sym_table)
 }
 
 
-bool is_arg(const Symbol &sym)
+bool is_stack_arg(const Symbol &sym)
 {
-    return sym.arg_offset != NON_ARG;
+    return sym.reg.flags & STACK_ARG;
 }
 
 void print(Interloper& itl,const Symbol& sym)

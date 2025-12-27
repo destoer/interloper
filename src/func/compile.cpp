@@ -207,15 +207,80 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
     }
 }
 
+
+void push_struct_return(Interloper& itl, Function& func, ArgPass& pass,const FuncSig& sig, RegSlot dst_slot)
+{
+    Type* type = sig.return_type[0];
+
+    switch(dst_slot.kind)
+    {
+        case reg_kind::sym:
+        {
+            const StructAddr struct_addr = {make_addr(dst_slot,0)};
+
+            const RegSlot addr = addrof_res(itl,func,struct_addr);
+            const TypedReg reg = {addr,make_reference(itl,type)};
+            pass_arg(itl,func,pass,reg,0);
+            break;
+        }
+
+        case reg_kind::tmp:
+        {
+            alloc_slot(itl,func,dst_slot,true);
+            const StructAddr struct_addr = {make_addr(dst_slot,0)};
+
+            const RegSlot addr = addrof_res(itl,func,struct_addr);
+            const TypedReg reg = {addr,make_reference(itl,type)};
+            pass_arg(itl,func,pass,reg,0);
+            break;
+        }
+
+        case reg_kind::spec:
+        {
+            switch(dst_slot.spec)
+            {
+                case spec_reg::rv_struct: 
+                {
+                    const TypedReg reg = {make_sym_reg_slot(func.sig.args[0]),make_reference(itl,type)};
+                    pass_arg(itl,func,pass,reg,0);
+                    break;
+                }
+
+                default:
+                {
+                    crash_and_burn("spec reg unhandled: %s\n",spec_reg_name(dst_slot.spec)); 
+                    break;  
+                } 
+            }
+        }
+    }    
+}
+
+void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass,const FuncSig& sig, RegSlot dst_slot)
+{
+    if(!sig.hidden_args)
+    {
+        return;
+    }
+
+    // TODO: This does not yet account for tuples
+    if(sig.hidden_args == 1)
+    {
+        push_struct_return(itl,func,pass,sig,dst_slot);
+        return;
+    }
+
+    unimplemented("Multiple hidden args %d",sig.hidden_args);
+}
+
 // Returns number of arguments to clean
-u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node)
+u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node, RegSlot dst_slot)
 {
     auto& sig = call_node->call.sig;
 
     // handle argument pushing
     ArgPass pass = make_arg_pass(sig);
     
-    const s32 hidden_args = sig.hidden_args;
     u32 start_arg = count(sig.args) - 1;
     // const u32 actual_args = count(sig.args) - hidden_args;
 
@@ -225,13 +290,8 @@ u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node)
     }
 
     push_args(itl,func,pass,call_node,sig,start_arg);
-
-
-    if(hidden_args)
-    {
-        unimplemented("hidden args");
-    }
-
+    push_hidden_args(itl,func,pass,sig,dst_slot);
+    
     return pass_args(itl,func,pass);
 }
 
@@ -284,7 +344,7 @@ void compile_function_call_expr(Interloper& itl, Function& func, AstNode* expr, 
         return;
     }
 
-    const u32 arg_clean = pass_function_args(itl,func,call_node);
+    const u32 arg_clean = pass_function_args(itl,func,call_node,dst_slot);
     handle_call(itl,func,call_node->call,dst_slot,arg_clean);
 }
 

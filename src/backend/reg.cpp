@@ -133,9 +133,9 @@ b32 is_local(const Reg& reg)
     return !is_global(reg);  
 }
 
-b32 is_arg(const Reg& reg)
+b32 is_stack_arg(const Reg& reg)
 {
-    return reg.flags & FUNC_ARG;
+    return reg.flags & STACK_ARG;
 }
 
 enum class reg_file_kind 

@@ -107,6 +107,13 @@ void compile_struct_init(Interloper& itl, Function& func, StructType* struct_typ
 
         default:
         {
+            // If this is just a plain symbol we don't want to move a copy.
+            if(is_direct_addr(*addr_slot))
+            {
+                compile_expression(itl,func,node,addr_slot->addr.base);
+                return;
+            }
+
             auto reg = compile_oper(itl,func,node);
 
             const TypedAddr dst_addr = {*addr_slot,(Type*)struct_type};

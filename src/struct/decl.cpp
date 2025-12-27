@@ -253,7 +253,7 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
     if(member.expr)
     {
         const auto expr_res = type_check_expr(itl,member.expr);
-        if(expr_res)
+        if(!expr_res)
         {
             return expr_res.error();
         }

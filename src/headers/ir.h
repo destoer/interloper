@@ -758,6 +758,11 @@ struct AddrSlot
     b32 struct_addr = false;
 };
 
+inline bool is_direct_addr(const AddrSlot& addr_slot)
+{
+    return addr_slot.struct_addr && addr_slot.addr.index == make_spec_reg_slot(spec_reg::null) && addr_slot.addr.offset == 0;
+}
+
 
 AddrSlot make_struct_addr(RegSlot slot, u32 offset);
 AddrSlot make_pointer_addr(RegSlot slot, u32 offset);
@@ -942,7 +947,7 @@ static constexpr u32 STORED_IN_MEM = 1 << 1;
 static constexpr u32 ALIASED = 1 << 2;
 static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
 static constexpr u32 CONST = 1 << 4;
-static constexpr u32 FUNC_ARG = 1 << 5;
+static constexpr u32 STACK_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
 static constexpr u32 STACK_ALLOCATED = 1 << 7;
 static constexpr u32 GLOBALLY_ALLOCATED = 1 << 8;
