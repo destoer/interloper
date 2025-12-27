@@ -6,7 +6,6 @@ OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* n
 
     if(is_reg_mem_unallocated(reg))
     {
-        log_reg(true,*alloc.table,"Allocated: %r ?\n",reg.slot);
         assert(stored_in_mem(reg));
 
         stack_reserve_reg(alloc.stack_alloc,reg);
