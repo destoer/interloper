@@ -46,17 +46,19 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     }
 }
 
-void compile_struct_init(Interloper& itl, Function& func, StructType* struct_type,  AddrSlot* addr_slot ,AstNode* expr);
+void compile_struct_init(Interloper& itl, Function& func,AstNode* expr, StructType* struct_type,  AddrSlot* addr_slot);
 
-void compile_struct_initializer_list(Interloper& itl, Function& func, Struct& structure, AddrSlot* addr_slot, InitializerListNode* init_list)
+void compile_struct_initializer_list(Interloper& itl, Function& func, Struct& structure, AddrSlot addr_slot, InitializerListNode* init_list)
 {
+    const u32 base = addr_slot.addr.offset;
+
     for(u32 i = 0; i < count(init_list->list); i++)
     {
         AstNode* node = init_list->list[i];
         auto& member = structure.members[i];
 
-        auto member_addr = *addr_slot;
-        member_addr.addr.offset = member.offset;
+        auto member_addr = addr_slot;
+        member_addr.addr.offset = base + member.offset;
 
         switch(member.type->kind)
         {
@@ -69,7 +71,7 @@ void compile_struct_initializer_list(Interloper& itl, Function& func, Struct& st
 
             case type_class::struct_t:
             {
-                compile_struct_init(itl,func,(StructType*)member.type,&member_addr,node);
+                compile_struct_init(itl,func,node,(StructType*)member.type,&member_addr);
                 break;
             }
 
@@ -85,7 +87,7 @@ void compile_struct_initializer_list(Interloper& itl, Function& func, Struct& st
     }
 }
 
-void compile_struct_init(Interloper& itl, Function& func, StructType* struct_type,  AddrSlot* addr_slot ,AstNode* node)
+void compile_struct_init(Interloper& itl, Function& func, AstNode* node, StructType* struct_type,  AddrSlot* addr_slot)
 {
     auto& structure = struct_from_type(itl.struct_table,struct_type);
 
@@ -93,7 +95,8 @@ void compile_struct_init(Interloper& itl, Function& func, StructType* struct_typ
     {
         case ast_type::initializer_list:
         {
-            compile_struct_initializer_list(itl,func,structure,addr_slot,(InitializerListNode*)node);
+            compile_struct_initializer_list(itl,func,structure,*addr_slot,(InitializerListNode*)node);
+            addr_slot->addr.offset += structure.size;
             break;
         }
 
@@ -104,7 +107,8 @@ void compile_struct_init(Interloper& itl, Function& func, StructType* struct_typ
 
         case ast_type::no_init:
         {
-            return;
+            addr_slot->addr.offset += structure.size;
+            break;
         }
 
         default:
@@ -113,6 +117,7 @@ void compile_struct_init(Interloper& itl, Function& func, StructType* struct_typ
             if(is_direct_addr(*addr_slot))
             {
                 compile_expression(itl,func,node,addr_slot->addr.base);
+                addr_slot->addr.offset += structure.size;
                 return;
             }
 
@@ -120,9 +125,10 @@ void compile_struct_init(Interloper& itl, Function& func, StructType* struct_typ
 
             const TypedAddr dst_addr = {*addr_slot,(Type*)struct_type};
             do_addr_store(itl,func,reg,dst_addr);
+            addr_slot->addr.offset += structure.size;
             break;
         }
-    }    
+    }
 }
 
 void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym)
@@ -142,7 +148,7 @@ void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_n
     }
 
     AddrSlot addr_slot = make_struct_addr(reg.slot,0);
-    compile_struct_init(itl,func,struct_type,&addr_slot,decl_node->expr);
+    compile_struct_init(itl,func,decl_node->expr,struct_type,&addr_slot);
 }
 
 void access_array_member(Interloper& itl, TypedAddr* addr, array_member_access member)

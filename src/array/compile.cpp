@@ -64,6 +64,7 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
 }
 
 void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType* type, AddrSlot *addr_slot);
+void compile_struct_init(Interloper& itl, Function& func,AstNode* expr, StructType* struct_type,  AddrSlot* addr_slot);
 
 void compile_array_initializer_list(Interloper& itl, Function& func, InitializerListNode* init_list,ArrayType* type, AddrSlot *addr_slot)
 {
@@ -82,21 +83,25 @@ void compile_array_initializer_list(Interloper& itl, Function& func, Initializer
 
         case type_class::struct_t:
         {
-            unimplemented("Compile Struct array initializer");
+            // normal types
+            for(AstNode* node : init_list->list)
+            {
+                compile_struct_init(itl,func,node,(StructType*)type->contained_type,addr_slot);
+            }
+
+            break;
         }
 
         default:
         {
-            // we are getting to the value assigns!
-            Type* base_type = type->contained_type;
-            const u32 size = type_size(itl,base_type);
+            const u32 size = type_size(itl,type->contained_type);
 
             // normal types
             for(AstNode* node : init_list->list)
             {
                 auto reg = compile_oper(itl,func,node);
 
-                const TypedAddr dst_addr = {*addr_slot,base_type};
+                const TypedAddr dst_addr = {*addr_slot,type->contained_type};
                 do_addr_store(itl,func,reg,dst_addr);
                 addr_slot->addr.offset += size;
             }
@@ -108,6 +113,8 @@ void compile_array_initializer_list(Interloper& itl, Function& func, Initializer
 
 void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType* type, AddrSlot *addr_slot)
 {
+    const u32 size = type_memory_size(itl,(Type*)type);
+
     switch(node->type)
     {
         case ast_type::initializer_list:
@@ -121,9 +128,10 @@ void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType
             unimplemented("String intializer");
         }
 
-        // Do nothing.
+        // Leave memory unitialzied
         case ast_type::no_init:
         {
+            addr_slot->addr.offset += size;
             break;
         }
 
@@ -133,6 +141,7 @@ void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType
 
             const TypedAddr dst_addr = {*addr_slot,(Type*)type};
             do_addr_store(itl,func,reg,dst_addr);
+            addr_slot->addr.offset += size;
             break;
         }
     }
