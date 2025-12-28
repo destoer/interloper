@@ -67,6 +67,74 @@ TypeResult type_check_access_struct_member(Interloper& itl, Type* ltype, AccessM
     }
 }
 
+TypeResult type_check_struct_initializer(Interloper& itl, StructInitializerNode* init)
+{
+    // Get structure
+    auto struct_res = lookup_struct(itl,init->name_space,init->struct_name);
+    if(!struct_res)
+    {
+        return struct_res.error();
+    }
+
+    auto struct_type = *struct_res;
+    auto& structure = struct_from_type(itl.struct_table,struct_type);
+
+    switch(init->initializer->type)
+    {
+        case ast_type::initializer_list:
+        {
+            const auto init_err = type_check_struct_initializer_list(itl,(InitializerListNode*)init->initializer,structure);
+            if(init_err)
+            {
+                return *init_err;
+            }
+            break;
+        }
+
+        default:
+        {
+            compile_panic(itl,itl_error::invalid_expr,"%s is not a valid expr for struct init",AST_INFO[u32(init->initializer->type)].name);
+            break;
+        }
+    }
+
+    // This may be used in a stmt needs an explicit assign
+    return init->node.expr_type = (Type*)struct_type;
+}
+
+TypeResult type_check_struct_initializer_expr(Interloper& itl, AstNode* expr)
+{
+    return type_check_struct_initializer(itl,(StructInitializerNode*)expr);
+}
+
+
+Option<itl_error> type_check_struct_initializer_stmt(Interloper& itl,Function& func, AstNode* stmt)
+{
+    StructInitializerNode* struct_init = (StructInitializerNode*)stmt;
+
+    if(!struct_init->is_return)
+    {
+        return compile_error(itl,itl_error::invalid_statement,"Struct initializer stmt must be for a return");
+    }
+
+    if(count(func.sig.args) != 1)
+    {
+        return compile_error(itl,itl_error::invalid_statement,"Struct initializer stmt must be for a single return");
+    }
+
+    auto res = type_check_struct_initializer(itl,struct_init);
+    if(!res)
+    {
+        return res.error();
+    }
+
+    // Type check against return
+    return check_assign_init(itl,func.sig.return_type[0],*res);
+}
+
+
+
+
 TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMember& member_access)
 {
     member_access.type = member_access_type::index_t;
@@ -87,7 +155,7 @@ TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMe
 
     member_access.expr_type = *index_res;
     index->node.expr_type = member_access.expr_type;
-    
+
     return member_access.expr_type;
 }
 
@@ -157,7 +225,7 @@ TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
     return ltype;
 }
 
-Option<itl_error> type_check_struct_initializer(Interloper& itl, InitializerListNode* init_list, Struct& structure)
+Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, Struct& structure)
 {
     const u32 node_len = count(init_list->list);
     const u32 member_size = count(structure.members);

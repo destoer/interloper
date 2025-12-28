@@ -89,7 +89,7 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 }
 
 
-TypeResult lookup_struct(Interloper& itl, NameSpace* name_space,const String& name)
+Result<StructType*,itl_error> lookup_struct(Interloper& itl, NameSpace* name_space,const String& name)
 {
     const auto struct_decl_res = lookup_type_internal(itl,name_space,name);
     if(!struct_decl_res)
@@ -104,7 +104,7 @@ TypeResult lookup_struct(Interloper& itl, NameSpace* name_space,const String& na
         return compile_error(itl,itl_error::struct_error,"No such struct: %S",name);
     }
 
-    return make_struct(itl,struct_decl->type_idx);   
+    return (StructType*)make_struct(itl,struct_decl->type_idx);   
 }
 
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)

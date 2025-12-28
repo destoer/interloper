@@ -12,7 +12,7 @@ const AstInfo AST_INFO[] =
     {"cast",type_check_cast,type_check_stmt_unk,compile_cast,compile_stmt_unk},
     {"initializer_list",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"designated_initializer_list",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
-    {"struct_initializer",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"struct_initializer",type_check_struct_initializer_expr,type_check_struct_initializer_stmt,compile_expr_unk,compile_stmt_unk},
     {"sizeof",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"no_init",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"ignore",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
