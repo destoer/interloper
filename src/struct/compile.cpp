@@ -185,6 +185,47 @@ void access_array_member(Interloper& itl, TypedAddr* addr, array_member_access m
     }
 }
 
+void access_index_member(Interloper& itl, Function& func,TypedAddr* struct_addr, const AccessMember& access_member)
+{
+    const auto& structure = struct_from_type(itl.struct_table,(StructType*)struct_addr->type);
+    const auto& member = structure.members[access_member.member];
+    struct_addr->type = member.type;
+
+    if(is_runtime_size(struct_addr->type))
+    {
+        const RegSlot vla_ptr = new_tmp_ptr(func);
+        const TypedAddr src_addr = {struct_addr->addr_slot,make_reference(itl,index_arr(struct_addr->type))};
+        
+        do_addr_load(itl,func,vla_ptr,src_addr);
+
+        struct_addr->addr_slot = make_pointer_addr(vla_ptr,0);
+    }
+
+    // fixed size collpase the offset
+    else
+    {
+        struct_addr->addr_slot.addr.offset += member.offset;
+    }
+
+    IndexNode* index = (IndexNode*)access_member.expr;
+
+    switch(index->type)
+    {
+        case index_type::pointer:
+        {
+            const auto ptr_slot = collapse_struct_addr_oper(itl,func,struct_addr->addr_slot);
+            *struct_addr = compile_pointer_index(itl,func,index,ptr_slot);
+            break;
+        }
+
+        case index_type::array:
+        {
+            *struct_addr = compile_array_index(itl,func,index,(ArrayType*)struct_addr->type,struct_addr->addr_slot);
+            break;
+        }
+    }
+}
+
 TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode* struct_access)
 {
     TypedAddr struct_addr;
@@ -273,7 +314,8 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 
             case member_access_type::index_t:
             {
-                unimplemented("Access index");
+                access_index_member(itl,func,&struct_addr,access_member);
+                break;
             }
         }
     }

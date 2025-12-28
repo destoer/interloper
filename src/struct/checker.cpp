@@ -86,6 +86,8 @@ TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMe
     }
 
     member_access.expr_type = *index_res;
+    index->node.expr_type = member_access.expr_type;
+    
     return member_access.expr_type;
 }
 

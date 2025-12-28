@@ -222,33 +222,37 @@ TypedAddr compile_pointer_index(Interloper& itl, Function& func, IndexNode* inde
     return TypedAddr {addr,indexed_type};    
 }
 
-Addr rescale_addr(Interloper& itl, Function& func, Addr addr)
+AddrSlot rescale_addr(Interloper& itl, Function& func, AddrSlot addr_slot)
 {
-    if(addr.scale > GPR_SIZE || !is_pow2(addr.scale))
+    if(addr_slot.addr.scale > GPR_SIZE || !is_pow2(addr_slot.addr.scale))
     {
-        addr.index = mul_imm_res(itl,func,addr.index,addr.scale);
-        addr.scale = 1;
+        addr_slot.addr.index = mul_imm_res(itl,func,addr_slot.addr.index,addr_slot.addr.scale);
+        addr_slot.addr.scale = 1;
     }
 
-    return addr;
+    return addr_slot;
 }
 
-
-Addr collapse_array_addr(Interloper& itl, Function& func, Addr addr)
+AddrSlot make_addr_from_pointer(const PointerAddr pointer)
 {
-    rescale_addr(itl,func,addr);
-
-    PointerAddr pointer = {addr};
-    const RegSlot base = lea_res(itl,func,pointer);
-
-    return make_addr(base,0);
+    return AddrSlot {pointer.addr,false};
 }
 
-TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index, ArrayType* array_type, RegSlot ptr_slot)
+
+PointerAddr collapse_array_addr(Interloper& itl, Function& func, AddrSlot addr_slot)
+{
+    rescale_addr(itl,func,addr_slot);
+
+    const RegSlot base = collapse_struct_addr_res(itl,func,addr_slot);
+    return PointerAddr{ make_addr(base,0) };
+}
+
+
+// This takes a AddrSlot so that fixed size arrays are quick to access in sub indexed structs
+TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index, ArrayType* array_type, const AddrSlot& addr_base)
 {
     const u32 indexes = count(index->indexes);
-
-    Addr addr = make_addr(ptr_slot,0);
+    auto addr_slot = addr_base;
 
     for(u32 i = 0; i < indexes; i++)
     {
@@ -261,19 +265,19 @@ TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index,
 
         if(!subscript->known_value)
         {
-            if(!is_null_reg(addr.index))
+            if(!is_null_reg(addr_slot.addr.index))
             {
-                addr = collapse_array_addr(itl,func,addr);
+                addr_slot = make_addr_from_pointer(collapse_array_addr(itl,func,addr_slot));
             }
 
             const auto src = compile_oper(itl,func,index->indexes[i]);
-            addr.index = src.slot;
-            addr.scale = size;
+            addr_slot.addr.index = src.slot;
+            addr_slot.addr.scale = size;
         }
 
         else
         {
-            addr.offset += *subscript->known_value * size;
+            addr_slot.addr.offset += *subscript->known_value * size;
         }
 
 
@@ -287,10 +291,10 @@ TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index,
             {
                 const auto tmp = new_tmp_ptr(func);
 
-                PointerAddr pointer = {rescale_addr(itl,func,addr)};
+                PointerAddr pointer = collapse_array_addr(itl,func,addr_slot);
                 load_ptr_addr(itl,func,tmp,pointer,GPR_SIZE,false,false);
 
-                addr = make_addr(tmp,0);
+                addr_slot = make_pointer_addr(tmp,0);
             }
         }
 
@@ -302,13 +306,13 @@ TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index,
     }
 
     // Final crush of the scale
-    AddrSlot pointer = {rescale_addr(itl,func,addr)};
+    AddrSlot indexed_pointer = rescale_addr(itl,func,addr_slot);
 
     // return pointer to accessed type
     // NOTE: this can give out a fixed array pointer.
     // this needs conversion by the host into a VLA, this is not obtainable by
     // taking a pointer to an array,
-    return TypedAddr{pointer,index->node.expr_type};     
+    return TypedAddr{indexed_pointer,index->node.expr_type};     
 }
 
 TypedAddr index_arr(Interloper& itl, Function& func, IndexNode* index)
@@ -325,7 +329,8 @@ TypedAddr index_arr(Interloper& itl, Function& func, IndexNode* index)
         case index_type::array:
         {
             const auto ptr_slot = load_arr_data(itl,func,array);
-            return compile_array_index(itl,func,index,(ArrayType*)array.type,ptr_slot);
+            const auto pointer_addr = make_pointer_addr(ptr_slot,0);
+            return compile_array_index(itl,func,index,(ArrayType*)array.type,pointer_addr);
         }
     }
 
