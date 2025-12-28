@@ -115,6 +115,36 @@ Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* exp
     return option::none;
 }
 
+TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
+{
+    TypeOperatorNode* type_oper = (TypeOperatorNode*)expr;
+    const auto type_res = get_type(itl,type_oper->type);
+    if(!type_res)
+    {
+        return type_res;
+    }
+
+    Type* type = *type_res;
+
+
+    switch(type_oper->oper)
+    {
+        case type_operator::sizeof_type_t:
+        {
+            type_oper->node.known_value = type_size(itl,type);
+            break;
+        }
+
+        case type_operator::sizeof_data_t:
+        {
+            type_oper->node.known_value = data_size(itl,type);
+            break;
+        }
+    }
+
+    return itl.usize_type;
+}
+
 Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 {
     auto type_res = get_type(itl,decl->type);
