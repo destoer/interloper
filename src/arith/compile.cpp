@@ -418,6 +418,8 @@ void compile_deref(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slo
     do_ptr_load(itl,func,dst_slot,ptr); 
 }
 
+TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode* struct_access);
+
 void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
 {
     AddrOfNode* addr_node = (AddrOfNode*)expr;
@@ -458,6 +460,13 @@ void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_sl
             collapse_struct_addr(itl,func,dst_slot,index.addr_slot);
             break;
         }
+
+        case ast_type::struct_access:
+        {
+            const auto addr = compute_member_addr(itl,func,(StructAccessNode*)addr_expr);
+            collapse_struct_addr(itl,func,dst_slot,addr.addr_slot);
+            break;
+        }   
 
 
         default:
