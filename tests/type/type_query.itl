@@ -1,10 +1,17 @@
 
+struct Foo
+{
+    x: u32;
+    y: u32;
+}
+
 // expected 1
 func main() s32
 {
-    res1 : bool = u32.size == 4;
+    res1 := u32.size == 4;
+    res2 := Foo.size == 8;
 
-    res : bool = res1;
+    res := res1 && res2;
 
     return cast(s32,res);
 }

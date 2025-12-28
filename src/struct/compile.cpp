@@ -189,7 +189,10 @@ void access_index_member(Interloper& itl, Function& func,TypedAddr* struct_addr,
 {
     const auto& structure = struct_from_type(itl.struct_table,(StructType*)struct_addr->type);
     const auto& member = structure.members[access_member.member];
+
     struct_addr->type = member.type;
+    // fixed size should just collpase the offset
+    struct_addr->addr_slot.addr.offset += member.offset;
 
     if(is_runtime_size(struct_addr->type))
     {
@@ -199,12 +202,6 @@ void access_index_member(Interloper& itl, Function& func,TypedAddr* struct_addr,
         do_addr_load(itl,func,vla_ptr,src_addr);
 
         struct_addr->addr_slot = make_pointer_addr(vla_ptr,0);
-    }
-
-    // fixed size collpase the offset
-    else
-    {
-        struct_addr->addr_slot.addr.offset += member.offset;
     }
 
     IndexNode* index = (IndexNode*)access_member.expr;
