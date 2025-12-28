@@ -1451,7 +1451,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
                 else
                 {
-                    print_ast(itl,"%D Access member: %S",depth + 2,member.name);
+                    print_ast(itl,"%D Access member: %S %t",depth + 2,member.name,member.expr_type);
                 }
             }
 

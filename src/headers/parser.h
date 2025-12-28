@@ -394,6 +394,9 @@ struct AccessMember
 {    
     // What struct member does this access?
     u32 member = 0;
+    
+    // What type is this member access?
+    Type* expr_type = nullptr;
 
     member_access_type type = member_access_type::struct_t;
     

@@ -89,6 +89,29 @@ TypeResult type_check_array_index_internal(Interloper& itl, IndexNode* index,Arr
     return accessed_type;
 }
 
+TypeResult type_check_index_internal(Interloper& itl, IndexNode* index, Type* type)
+{
+    switch(type->kind)
+    {
+        case type_class::array_t:
+        {
+            index->type = index_type::array;
+            return type_check_array_index_internal(itl,index,(ArrayType*)type);
+        }
+
+        case type_class::pointer_t:
+        {
+            index->type = index_type::pointer;
+            return type_check_pointer_index(itl,index,(PointerType*)type);
+        }
+
+        default:
+        {
+            return compile_error(itl,itl_error::array_type_error,"Expected array or pointer for index got %t",type);        
+        }
+    }
+}
+
 TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
 {
     IndexNode* index = (IndexNode*)expr;
@@ -104,25 +127,7 @@ TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
 
     index->sym_slot = arr.reg.slot.sym_slot;
 
-    switch(arr.type->kind)
-    {
-        case type_class::array_t:
-        {
-            index->type = index_type::array;
-            return type_check_array_index_internal(itl,index,(ArrayType*)arr.type);
-        }
-
-        case type_class::pointer_t:
-        {
-            index->type = index_type::pointer;
-            return type_check_pointer_index(itl,index,(PointerType*)arr.type);
-        }
-
-        default:
-        {
-            return compile_error(itl,itl_error::array_type_error,"expected array or pointer for index got %t",arr.type);        
-        }
-    }
+    return type_check_index_internal(itl,index,arr.type);
 }
 
 Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type);
