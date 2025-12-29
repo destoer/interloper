@@ -190,7 +190,7 @@ struct ConstData
         f64 f;
 
         // Pointer to other const pool var
-        // Used to return arrays, pointers structs
+        // Used to return arrays, pointers, structs
         ConstDataPointer data_pointer = {};
     };
 
@@ -218,6 +218,24 @@ ConstData make_const_float(Interloper& itl,f64 v)
     data.type = make_builtin(itl,builtin_type::f64_t);
 
     return data;
+}
+
+ConstData make_const_compound(ConstDataPointer data_pointer, Type* type)
+{
+    ConstData data;
+    data.data_pointer = data_pointer;
+    data.type = type;
+
+    return data;
+}
+
+ConstDataPointer make_const_pool_pointer(PoolSlot slot, u32 offset)
+{
+    ConstDataPointer pointer;
+    pointer.slot = slot;
+    pointer.offset = offset;
+
+    return pointer;
 }
 
 Option<itl_error> write_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, u64 v, u32 size)

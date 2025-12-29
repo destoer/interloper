@@ -22,22 +22,22 @@ ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
 
 
 
-// Option<itl_error> compile_const_list_internal(Interloper& itl,InitializerListNode* init_list, Type* type, PoolSlot slot, u32 offset)
-// {
-//     UNUSED(init_list); UNUSED(slot); UNUSED(offset);
+Option<itl_error> compile_const_list_internal(Interloper& itl,InitializerListNode* init_list, Type* type, PoolSlot slot, u32 offset)
+{
+    UNUSED(init_list); UNUSED(slot); UNUSED(offset);
 
-//     switch(type->kind)
-//     {
-//         default:
-//         {
-//             return compile_error(itl,itl_error::invalid_expr,"Initializer list only valid for arrays and structs not %t",type);
-//         }
-//     }
-// }
+    switch(type->kind)
+    {
+        default:
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Initializer list only valid for arrays and structs not %t",type);
+        }
+    }
+}
 
 // Option<itl_error> compile_const_struct_list_internal(Interloper& itl,InitializerListNode* init_list, const Struct& structure, PoolSlot slot, u32 offset)
 // {
-//     const u32 node_len = count(list->nodes);
+//     const u32 node_len = count(init_list->nodes);
 //     const u32 member_size = count(structure.members);
 
 //     if(node_len != member_size)
@@ -60,7 +60,6 @@ ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
 //                 {
 //                     return err;
 //                 }
-
 //                 break;
 //             }
 
@@ -92,36 +91,44 @@ ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
 //     return option::none;     
 // }
 
-// Option<itl_error> compile_const_struct_initializer_list(Interloper& itl, Symbol& structure, InitializerListNode* init_list)
-// {
-//     // allocate struct
-//     const u32 data_size = type_size(itl,structure.type);
-//     const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
+ConstDataResult compile_const_struct_initializer_list(Interloper& itl, Symbol& structure, InitializerListNode* init_list)
+{
+    // allocate struct
+    const u32 data_size = type_size(itl,structure.type);
+    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
 
-//     // assign offset
-//     structure.reg.offset = data_slot.handle;
+    // assign offset
+    structure.reg.offset = data_slot.handle;
 
-//     const auto& struct_info = struct_from_type(itl.struct_table,structure.type);
+    // const auto& struct_info = struct_from_type(itl.struct_table,(StructType*)structure.type);
 
-//     // do init
-//     return compile_const_struct_list_internal(itl,init_list,struct_info,data_slot,0);
-// }
+    // do init
+    // const auto err = compile_const_struct_list_internal(itl,init_list,struct_info,data_slot,0);
+    // if(err)
+    // {
+    //     return *err;
+    // }
 
-// Option<itl_error> compile_const_struct_expr(Interloper& itl, Symbol& symbol, AstNode* expr)
-// {
-//     switch(expr->type)
-//     {
-//         case ast_type::initializer:
-//         {   
-//             return compile_const_struct_initializer_list(itl,symbol,expr);
-//         }
+    UNUSED(init_list);
 
-//         default:
-//         {
-//             return type_check_expr(itl,expr);
-//         }
-//     }
-// }
+    return make_const_compound(make_const_pool_pointer(data_slot,0),structure.type);
+}
+
+ConstDataResult compile_const_struct_expr(Interloper& itl, Symbol& symbol, AstNode* expr)
+{
+    switch(expr->type)
+    {
+        case ast_type::initializer_list:
+        {   
+            return compile_const_struct_initializer_list(itl,symbol,(InitializerListNode*)expr);
+        }
+
+        default: 
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Invalid expr for const struct init: %s",AST_INFO[u32(expr->type)].name);
+        }
+    }
+}
 
 ConstDataResult compile_const_builtin_expr(Interloper& itl, AstNode* expr)
 {
@@ -138,7 +145,7 @@ ConstDataResult compile_const_builtin_expr(Interloper& itl, AstNode* expr)
         return compile_error(itl,itl_error::const_type_error,"Builtin const expression of %t is not statically known",type);
     }
     
-    return ConstData {*expr->known_value,expr->expr_type};
+    return make_const_builtin(*expr->known_value,type);
 }
 
 ConstDataResult compile_const_expr(Interloper& itl, Symbol& symbol, AstNode* expr)
@@ -147,11 +154,10 @@ ConstDataResult compile_const_expr(Interloper& itl, Symbol& symbol, AstNode* exp
 
     switch(symbol.type->kind)
     {
-        // case type_class::struct_t:
-        // {
-        //     const auto err = compile_const_struct_expr(itl,symbol,expr);
-        //     return error_or(err,symbol.type);
-        // }
+        case type_class::struct_t:
+        {
+           return compile_const_struct_expr(itl,symbol,expr);
+        }
 
         case type_class::builtin_t:
         {
@@ -167,17 +173,16 @@ ConstDataResult compile_const_expr(Interloper& itl, Symbol& symbol, AstNode* exp
 
 Option<itl_error> compile_constant_initializer(Interloper& itl,Symbol& symbol, AstNode* expr)
 {
-    const auto data_res = compile_const_expr(itl,symbol,expr);
+    const auto res = compile_const_expr(itl,symbol,expr);
 
-    if(!data_res)
+    if(!res)
     {
-        return data_res.error();
+        return res.error();
     }
 
-    const auto data = *data_res; 
+    symbol.known_value = expr->known_value;
 
-    // Static value is allready known from semantic checking.
-    symbol.known_value = data.v;
+    const auto data = *res;
     return check_assign_init(itl,symbol.type,data.type);
 }
 
