@@ -72,7 +72,7 @@ Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const
     // if one side is signed and the other unsigned
     // allow comparision if the unsigned is a static value that
     // the signed side can represent
-    if(!is_signed(value) && is_signed(oper))
+    if(is_signed(value) != is_signed(oper))
     {
         // value is within range of operand value
         // change value to a the signed type
@@ -466,4 +466,20 @@ TypeResult type_check_null(Interloper& itl, AstNode* expr)
 {
     UNUSED(expr);
     return make_nullable_ptr(itl,make_builtin(itl,builtin_type::null_t));
+}
+
+TypeResult type_check_sizeof(Interloper& itl, AstNode* expr)
+{
+    SizeOfNode* size_node = (SizeOfNode*)expr;
+    const auto res = type_check_expr(itl,size_node->expr);
+    if(!res)
+    {
+        return res;
+    }
+
+    auto value = make_value(type_memory_size(itl,*res),false);
+
+    size_node->node.known_value = value.v; 
+
+    return make_value_type(itl,value);
 }
