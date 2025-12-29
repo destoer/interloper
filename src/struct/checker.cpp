@@ -257,11 +257,6 @@ Option<itl_error> type_check_struct_initializer_list(Interloper& itl, Initialize
                 unimplemented("Type check designated initializer list");
             }
 
-            case ast_type::struct_initializer:
-            {
-                unimplemented("Type check struct initializer");
-            }
-
             default: 
             {
                 const auto err = type_check_init_expr(itl,member.type,node);
