@@ -207,7 +207,6 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
     // if one side is a value do type checking
     else if(is_integer(bin.ltype) && is_integer(bin.rtype))
     {
-
         // Coerce the known value to the other operands type if we have checked this is fine.
         if(cmp->left->known_value)
         {
