@@ -62,6 +62,27 @@ TypeResult type_check_boolean_logic(Interloper& itl, AstNode* expr) {
             bin.ltype,BOOLEAN_LOGIC_NAMES[u32(logic->oper)],bin.rtype);
     }
 
+    if(logic->left->known_value && logic->right->known_value)
+    {
+        const auto left = *logic->left->known_value;
+        const auto right = *logic->right->known_value;
+
+        switch(logic->oper)
+        {
+            case boolean_logic_op::and_t:
+            {
+                logic->node.known_value = right && left;
+                break;
+            }
+
+            case boolean_logic_op::or_t:
+            {
+                logic->node.known_value = right || left;
+                break;
+            }
+        }
+    }
+
     return make_builtin(itl,builtin_type::bool_t);
 }
 
