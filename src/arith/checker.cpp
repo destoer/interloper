@@ -72,7 +72,7 @@ Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const
     // if one side is signed and the other unsigned
     // allow comparision if the unsigned is a static value that
     // the signed side can represent
-    if(is_signed(value) != is_signed(oper))
+    if(!is_signed(value) && is_signed(oper))
     {
         // value is within range of operand value
         // change value to a the signed type
@@ -100,6 +100,68 @@ Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const
 }
 
 
+TypeResult check_known_cmp(Interloper& itl, CmpNode* cmp)
+{
+    const auto res = check_comparison_operation(itl,cmp->left->expr_type,cmp->right->expr_type,cmp->oper);
+    if(!res)
+    {
+        return res;
+    }
+
+    const b32 sign = is_signed(cmp->left->expr_type);
+
+    const u64 left = *cmp->left->known_value;
+    const u64 right = *cmp->right->known_value;
+
+    switch(cmp->oper)
+    {
+        case comparison_op::lt: 
+        {
+            cmp->node.known_value = sign? s64(left) < s64(right) : left < right;
+            break;
+        }
+
+        case comparison_op::le: 
+        {
+            cmp->node.known_value = sign? s64(left) <= s64(right) : left <= right;
+            break;
+        }
+
+        case comparison_op::gt: 
+        {
+            cmp->node.known_value = sign? s64(left) > s64(right) : left > right;
+            break;
+        }
+
+        case comparison_op::ge: 
+        {
+            cmp->node.known_value = sign? s64(left) >= s64(right) : left >= right;
+            break;
+        }
+
+        case comparison_op::eq: 
+        {
+            cmp->node.known_value = left == right;
+            break;
+        }
+        
+        case comparison_op::ne: 
+        {
+            cmp->node.known_value = left != right;
+            break;
+        }
+    }
+
+    return res;
+}
+
+
+bool compare_decay_integer(const Type* type)
+{
+    return is_pointer(type) || is_enum(type) || is_integer(type) || is_bool(type);
+}
+
+
 TypeResult type_check_comparison(Interloper& itl, AstNode* expr) 
 {
     CmpNode* cmp = (CmpNode*)expr;
@@ -112,9 +174,19 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
 
     auto bin = *bin_res;
 
-    // if one side is a value do type checking
-    if(is_integer(bin.ltype) && is_integer(bin.rtype))
+    // Statically known comparison that is integer based
+    if(cmp->left->known_value && cmp->right->known_value)
     {
+        if(compare_decay_integer(bin.ltype) && compare_decay_integer(bin.rtype))
+        {
+            return check_known_cmp(itl,cmp);
+        }
+    }
+
+    // if one side is a value do type checking
+    else if(is_integer(bin.ltype) && is_integer(bin.rtype))
+    {
+
         // Coerce the known value to the other operands type if we have checked this is fine.
         if(cmp->left->known_value)
         {
