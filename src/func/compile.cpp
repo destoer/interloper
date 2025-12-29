@@ -302,18 +302,18 @@ void handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Reg
     // NOTE: func struct will hold a void value if it has nothing
     const bool returns_value = !is_void(sig.return_type[0]);
 
-    if(!call_info.func_pointer)
+    // func pointer
+    if(call_info.flags & FUNC_CALL_FUNC_POINTER_FLAG)
+    {
+        call_reg(itl,func,call_info.reg_slot);
+    }
+
+    else
     {
         // emit call to label slot
         // the actual address will have to resolved as the last compile step
         // once we know the size of all the code
         call(itl,func,call_info.label_slot);
-    }
-
-    // func pointer
-    else
-    {
-        call_reg(itl,func,call_info.reg_slot);
     }
 
     // clean up args after the function call
@@ -342,6 +342,12 @@ void compile_function_call_expr(Interloper& itl, Function& func, AstNode* expr, 
         const auto handler = INTRIN_TABLE[call_node->intrinsic_idx].v;
         handler.emit(itl,func,call_node,dst_slot);
         return;
+    }
+    
+    if(call_node->call.flags & FUNC_CALL_FUNC_POINTER_EXPR_FLAG)
+    {
+        const auto reg = compile_oper(itl,func,call_node->expr);
+        call_node->call.reg_slot = reg.slot;
     }
 
     const u32 arg_clean = pass_function_args(itl,func,call_node,dst_slot);

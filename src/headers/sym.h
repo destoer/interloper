@@ -83,6 +83,9 @@ struct FuncPointerType
     FuncSig sig;
 };
 
+const u32 FUNC_CALL_FUNC_POINTER_FLAG = (1 << 0);
+const u32 FUNC_CALL_FUNC_POINTER_EXPR_FLAG = (1 << 1);
+
 struct FuncCall
 {
     FuncSig sig = {};
@@ -94,8 +97,7 @@ struct FuncCall
         RegSlot reg_slot = {};
     };
 
-    // tag for above union
-    b32 func_pointer = false;
+    u32 flags = 0;
 };
 
 struct Function

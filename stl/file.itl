@@ -221,7 +221,6 @@ func buffer_file_read(file : File@) file_read_res
 {
     [len, res] := os_read(file.handle,file.buf.data,FILE_DEFAULT_BUFFER_SIZE);
 
-    // TODO: this should be a switch
     if(len == 0)
     {
         file.flags = file.flags | file_flag::eof;

@@ -1,12 +1,18 @@
+FuncCall call_info_from_type(FuncPointerType* func_type, u32 flags)
+{
+    FuncCall call_info;
+    call_info.sig = func_type->sig;
+    call_info.flags =  flags | FUNC_CALL_FUNC_POINTER_FLAG;
+
+    return call_info;
+}
+
 FuncCall call_info_from_func_pointer(Symbol& sym)
 {
-    FuncPointerType* func_type = (FuncPointerType*)sym.type;
+    auto call_info = call_info_from_type((FuncPointerType*)sym.type,0);
 
-    FuncCall call_info;
     call_info.reg_slot = sym.reg.slot;
-    call_info.sig = func_type->sig;
     call_info.name = sym.name;
-    call_info.func_pointer = true;
 
     return call_info;
 }
@@ -62,8 +68,19 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,AstNode* expr)
         return get_symbol_sig(itl,(SymbolNode*)expr);
     }
 
-    // is an expression
-    unimplemented("expression calling sig");
+    const auto res = type_check_expr(itl,expr);
+    if(!res)
+    {
+        return res.error();
+    }
+
+    const auto type = *res;
+    if(!is_func_pointer(type))
+    {
+        return compile_error(itl,itl_error::invalid_expr,"%t is not a function pointer",type);
+    }
+    
+    return call_info_from_type((FuncPointerType*)type,FUNC_CALL_FUNC_POINTER_EXPR_FLAG);
 }
 
 

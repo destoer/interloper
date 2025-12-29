@@ -45,7 +45,6 @@ enum builtin_type : BuiltinTypeData
 
     f64_t = {false,false,8,0,0xffffffff_ffffffff},
 
-    // TODO: i think we need usize
     null_t = {false,false, 8,0,0},
 }
 

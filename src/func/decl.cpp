@@ -107,7 +107,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     func.call_info.label_slot = func.label_slot;
     func.call_info.sig = func.sig;
     func.call_info.name = func.name;
-    func.call_info.func_pointer = false;
+    func.call_info.flags = 0;
 
     // add the actual func
     *func_def.func = func;
