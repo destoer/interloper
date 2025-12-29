@@ -206,6 +206,17 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/const/const_assign_value",5},
     {"tests/const/const_ptr_ptr",0},
 
+    // tuple
+    {"tests/tuple/tuple",1},
+
+    // enum
+    {"tests/enum/enum",1},
+    {"tests/enum/switch_enum",10},
+    {"tests/enum/enum_struct",11},
+    {"tests/enum/enum_flag",1},
+
+    // type alias
+    {"tests/type_alias/type_alias",65},
 
     // stl
     {"tests/stl/mem",1},
@@ -216,26 +227,12 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/stl/hash_table",1},
     {"tests/stl/math",0},
 
-
-
-    // enum
-    {"tests/enum/enum",1},
-    {"tests/enum/switch_enum",10},
-    {"tests/enum/enum_struct",11},
-    {"tests/enum/enum_flag",1},
-
     // strings
     {"tests/string/char_array",6},
     {"tests/string/write_string",0},
     {"tests/string/write_string_static",0},
     {"tests/string/str_conv",1},
     {"tests/string/stl_string",27},
-
-    // type alias
-    {"tests/type_alias/type_alias",65},
-
-    // tuple
-    {"tests/tuple/tuple",1},
 };
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);

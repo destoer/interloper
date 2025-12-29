@@ -481,3 +481,9 @@ void compile_null(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot
     UNUSED(expr);
     mov_imm(itl,func,dst_slot,0);
 }
+
+void compile_float(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    FloatNode* float_node = (FloatNode*)expr;
+    movf_imm(itl,func,dst_slot,float_node->value);
+}
