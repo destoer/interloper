@@ -1,4 +1,3 @@
-
 Option<itl_error> access_member(Interloper& itl, Type* ltype, AccessMember& member_access, const String& name)
 {
     const auto member_opt = get_member(itl.struct_table,ltype,name);
@@ -90,6 +89,18 @@ TypeResult type_check_struct_initializer(Interloper& itl, StructInitializerNode*
             }
             break;
         }
+
+            
+        case ast_type::designated_initializer_list:
+        {
+            const auto init_err = type_check_struct_designated_initializer_list(itl,(Type*)struct_type,(DesignatedListNode*)init->initializer);
+            if(init_err)
+            {
+                return *init_err;
+            }
+            break;
+        }
+
 
         default:
         {
@@ -225,6 +236,93 @@ TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
     return ltype;
 }
 
+
+Option<itl_error> type_check_struct_initializer_list_item(Interloper& itl, Type* ltype, AstNode* node)
+{
+    switch(node->type)
+    {
+        case ast_type::initializer_list:
+        {
+            const auto sub_init_err = type_check_intializer_list(itl,ltype,(InitializerListNode*)node);
+            if(sub_init_err)
+            {
+                return sub_init_err;
+            }
+            break;
+        }
+
+        case ast_type::designated_initializer_list:
+        {
+            const auto sub_init_err = type_check_struct_designated_initializer_list(itl,ltype,(DesignatedListNode*)node);
+            if(sub_init_err)
+            {
+                return sub_init_err;
+            }
+
+            break;
+        }
+
+        default: 
+        {
+            const auto err = type_check_init_expr(itl,ltype,node);
+            if(err)
+            {
+                return err;
+            }
+
+            break;
+        }
+    }
+    
+    return option::none;
+}
+
+
+Option<itl_error> type_check_struct_designated_initializer_list(Interloper& itl, Type* ltype, DesignatedListNode* init_list)
+{
+    if(!is_struct(ltype))
+    {
+        return compile_error(itl,itl_error::struct_error,"Expected struct for designated list node got %t",ltype);
+    }
+
+    auto& structure = struct_from_type(itl.struct_table,(StructType*)ltype);
+
+    const u32 member_size = count(structure.members);
+    BitSet set = make_bit_set(member_size);
+
+    for(auto& initializer : init_list->initializer)
+    {
+        const u32* member_idx = lookup(structure.member_map,initializer.name);
+        if(!member_idx)
+        {
+            destroy_bit_set(set);
+            return compile_error(itl,itl_error::struct_error,"No such member %S in structure %S",initializer.name,structure.name);
+        }
+
+        initializer.member = *member_idx;
+
+        // Note that we have seen this member
+        set_bit_set(set,initializer.member);
+        const auto member = structure.members[initializer.member];
+
+        const auto err = type_check_struct_initializer_list_item(itl,member.type,initializer.expr);
+        if(err)
+        {
+            destroy_bit_set(set);
+            return err;
+        }
+    } 
+
+    if(set.count != member_size)
+    {
+        destroy_bit_set(set);
+        return compile_error(itl,itl_error::struct_error,"struct designated initializer missing initializer expected %d got %d",member_size,set.count);
+    }
+
+    destroy_bit_set(set);
+    return option::none;    
+}
+
 Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, Struct& structure)
 {
     const u32 node_len = count(init_list->list);
@@ -240,33 +338,10 @@ Option<itl_error> type_check_struct_initializer_list(Interloper& itl, Initialize
         AstNode* node = init_list->list[i];
         auto& member = structure.members[i];
 
-        switch(node->type)
+        const auto err = type_check_struct_initializer_list_item(itl,member.type,node);
+        if(err)
         {
-            case ast_type::initializer_list:
-            {
-                const auto sub_init_err = type_check_intializer_list(itl,member.type,(InitializerListNode*)node);
-                if(sub_init_err)
-                {
-                    return sub_init_err;
-                }
-                break;
-            }
-
-            case ast_type::designated_initializer_list:
-            {
-                unimplemented("Type check designated initializer list");
-            }
-
-            default: 
-            {
-                const auto err = type_check_init_expr(itl,member.type,node);
-                if(err)
-                {
-                    return err;
-                }
-
-                break;
-            }
+            return err;
         }
     }
 

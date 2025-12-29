@@ -275,6 +275,7 @@ struct DesignatedInitializer
 {
     AstNode* expr = nullptr;
     String name;
+    u32 member = 0;
 };
 
 struct DesignatedListNode

@@ -6,6 +6,7 @@ SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table);
 
 Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type);
 Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, Struct& structure);
+Option<itl_error> type_check_struct_designated_initializer_list(Interloper& itl, Type* ltype, DesignatedListNode* init_list);
 
 #include "func/checker.cpp"
 #include "arith/checker.cpp"
@@ -102,8 +103,7 @@ Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* exp
 
         case ast_type::designated_initializer_list:
         {
-            unimplemented("Decl designated initializer list");
-            break;
+            return type_check_struct_designated_initializer_list(itl,ltype,(DesignatedListNode*)expr);
         }
 
         default:
