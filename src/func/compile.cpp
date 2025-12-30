@@ -55,52 +55,51 @@ void compile_return(Interloper &itl,Function &func, AstNode* stmt)
 
     const size_t args = count(ret_node->expr);
 
-    if(args == 1)
-    {
-        const RegSlot rv = make_spec_reg_slot(return_reg_from_type(func.sig.return_type[0]));
-
-        AstNode* expr = ret_node->expr[0];
-
-        switch(rv.spec)
-        {
-            case spec_reg::rv_struct:
-            {
-                compile_expression(itl,func,expr,rv);
-                break;
-            }
-
-            case spec_reg::rv_fpr:
-            {
-                // Compile this into a tmp and then move it out so its easy to lock.
-                const auto tmp = new_float(func);
-                compile_expression(itl,func,expr,tmp);
-                mov_float(itl,func,rv,tmp);
-                break;
-            }
-
-            case spec_reg::rv_gpr:
-            {
-                // Compile this into a tmp and then move it out so its easy to lock.
-                const auto tmp = new_tmp(func,GPR_SIZE);
-                compile_expression(itl,func,expr,tmp);
-                mov_reg(itl,func,rv,tmp);
-                break;
-            }
-
-            default: assert(false);
-        }
-    }
-
     // Multiple return store pointer to each
-    else
+    if(args != 1)
     {
         for(u32 r = 0; r < count(func.sig.return_type); r++)
         {
             const auto src = compile_oper(itl,func,ret_node->expr[r]);
-
             const TypedReg ptr = {make_sym_reg_slot(func.sig.args[r]),func.sig.return_type[r]};
             do_ptr_store(itl,func,src,ptr);
         }
+
+        ret(itl,func);
+        return;
+    }
+
+
+    const RegSlot rv = make_spec_reg_slot(return_reg_from_type(func.sig.return_type[0]));
+    AstNode* expr = ret_node->expr[0];
+
+    switch(rv.spec)
+    {
+        case spec_reg::rv_struct:
+        {
+            compile_expression(itl,func,expr,rv);
+            break;
+        }
+
+        case spec_reg::rv_fpr:
+        {
+            // Compile this into a tmp and then move it out so its easy to lock.
+            const auto tmp = new_float(func);
+            compile_expression(itl,func,expr,tmp);
+            mov_float(itl,func,rv,tmp);
+            break;
+        }
+
+        case spec_reg::rv_gpr:
+        {
+            // Compile this into a tmp and then move it out so its easy to lock.
+            const auto tmp = new_tmp(func,GPR_SIZE);
+            compile_expression(itl,func,expr,tmp);
+            mov_reg(itl,func,rv,tmp);
+            break;
+        }
+
+        default: assert(false);
     }
 
     ret(itl,func);

@@ -30,7 +30,7 @@ const AstInfo AST_INFO[] =
     {"decl",type_check_expr_unk,type_check_decl_stmt,compile_expr_unk,compile_decl},
     {"global_decl",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"auto_decl",type_check_expr_unk,type_check_auto_decl,compile_expr_unk,compile_auto_decl},
-    {"tuple_assign",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"tuple_assign",type_check_expr_unk,type_check_tuple_assign,compile_expr_unk,compile_stmt_unk},
     {"function_call",type_check_function_expr,type_check_function_stmt,compile_function_call_expr,compile_function_call_stmt},
     {"struct_access",type_check_struct_access,type_check_stmt_unk,compile_struct_access,compile_stmt_unk},
     {"index",type_check_array_index,type_check_stmt_unk,compile_index,compile_stmt_unk},

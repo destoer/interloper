@@ -1,3 +1,5 @@
+void print_func_sig(Interloper& itl, const FuncSig& sig);
+
 FuncCall call_info_from_type(FuncPointerType* func_type, u32 flags)
 {
     FuncCall call_info;
@@ -180,9 +182,6 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
         }
     }
 
-    // Type check tuple return (if any)
-    // TODO: Skip for now.
-    assert(count(call_info.sig.return_type) == 1);
     return call_info.sig.return_type[0];
 }
 
@@ -219,6 +218,73 @@ Option<itl_error> type_check_return(Interloper& itl, Function& func, AstNode* st
         if(init_err)
         {
             return init_err;
+        }
+    }
+
+    return option::none;
+}
+
+Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNode* stmt)
+{
+    UNUSED(func);
+
+    TupleAssignNode* tuple_assign = (TupleAssignNode*)stmt;
+
+    const auto func_res = type_check_function_call(itl,(FuncCallNode*)tuple_assign->func_call,true);
+    if(!func_res)
+    {
+        return func_res.error();
+    }
+
+    if(tuple_assign->func_call->type != func_call_type::call)
+    {
+        return compile_error(itl,itl_error::invalid_statement,"Expected function call not intrinsic for tuple");
+    }
+
+    auto& sig = tuple_assign->func_call->call.sig;
+
+    const u32 symbol_size = count(tuple_assign->symbols);
+    const u32 return_size = count(sig.return_type);
+
+    if(symbol_size != return_size)
+    {
+        return compile_error(itl,itl_error::out_of_bounds,"Expected %d symbols got %d",return_size, symbol_size);
+    }
+
+    for(u32 i = 0; i < return_size; i++)
+    {
+        AstNode* node = tuple_assign->symbols[i];
+        Type* rtype = sig.return_type[i];
+
+        // Handle any auto declarations.
+        if(tuple_assign->auto_decl && node->type == ast_type::symbol)
+        {
+            SymbolNode* sym_node = (SymbolNode*)node;
+            const Symbol* sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
+
+            // Handle a auto decl
+            if(!sym_ptr)
+            {
+                const auto sym_res = add_symbol(itl,sym_node->name,rtype);
+                if(!sym_res)
+                {
+                    return sym_res.error();
+                }   
+            }
+        }
+
+        const auto left_res = type_check_expr(itl,node);
+        if(!left_res)
+        {
+            return left_res.error();
+        }
+
+        const auto ltype = *left_res;
+        const auto err = check_assign_init(itl,ltype,rtype);
+
+        if(err)
+        {
+            return err;
         }
     }
 
