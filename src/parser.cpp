@@ -1427,9 +1427,9 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             printf("Tuple assign %s\n",tuple->auto_decl? "auto" : "");
             print_internal(itl,(AstNode*)tuple->func_call, depth + 1);
             
-            for(AstNode* sym : tuple->symbols)
+            for(const TupleAssignSymbol& sym : tuple->symbols)
             {
-                print_internal(itl,sym, depth + 1);
+                print_internal(itl,sym.expr, depth + 1);
             }
 
             break;

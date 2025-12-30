@@ -456,14 +456,20 @@ struct FuncCallNode
     Array<AstNode*> args;
 };
 
+struct TupleAssignSymbol
+{
+    AstNode* expr = nullptr;
+    SymSlot new_decl = {INVALID_HANDLE};
+};
+
 
 struct TupleAssignNode
 {
     AstNode node;
 
-    Array<AstNode*> symbols;
-    FuncCallNode* func_call;
-    b32 auto_decl;
+    Array<TupleAssignSymbol> symbols;
+    FuncCallNode* func_call = nullptr;
+    b32 auto_decl = false;
 };
 
 enum class index_type

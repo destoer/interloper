@@ -255,7 +255,55 @@ void push_struct_return(Interloper& itl, Function& func, ArgPass& pass,const Fun
     }    
 }
 
-void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass,const FuncSig& sig, RegSlot dst_slot)
+TypedReg compile_addrof_res(Interloper& itl,Function &func,AstNode *expr);
+
+void push_tuple_return(Interloper& itl, Function& func, ArgPass& pass, const FuncSig& sig, TupleAssignNode* tuple_assign)
+{
+    for(s32 a = count(tuple_assign->symbols) -1; a >= 0; a--)
+    {
+        AstNode* expr = tuple_assign->symbols[a].expr;
+        switch(expr->type)
+        {
+            case ast_type::ignore:
+            {
+                Type* rtype = sig.return_type[a];
+
+                const auto tmp = new_struct(func,type_size(itl,rtype));
+                const StructAddr struct_addr = {make_addr(tmp,0)};
+
+                const auto addr_slot = addrof_res(itl,func,struct_addr);
+                const TypedReg reg = {addr_slot,make_reference(itl,rtype)};
+                pass_arg(itl,func,pass,reg,a);
+                break;
+            }
+
+            case ast_type::deref:
+            {
+                DerefNode* deref = (DerefNode*)expr;
+                const auto reg = compile_oper(itl,func,deref->expr);
+                pass_arg(itl,func,pass,reg,a);
+                break;
+            }
+
+            // Fall back on taking an address
+            default:
+            {
+                SymSlot new_decl = tuple_assign->symbols[a].new_decl;
+
+                if(new_decl.handle != INVALID_HANDLE)
+                {
+                    alloc_slot(itl,func,make_sym_reg_slot(new_decl),is_plain_type(expr->expr_type));
+                }
+
+                const auto reg = compile_addrof_res(itl,func,expr);
+                pass_arg(itl,func,pass,reg,a);
+                break;
+            }
+        }
+    }    
+}
+
+void push_hidden_args(Interloper& itl, Function& func, TupleAssignNode* tuple_assign, ArgPass& pass,const FuncSig& sig, RegSlot dst_slot)
 {
     if(!sig.hidden_args)
     {
@@ -269,11 +317,14 @@ void push_hidden_args(Interloper& itl, Function& func, ArgPass& pass,const FuncS
         return;
     }
 
-    unimplemented("Multiple hidden args %d",sig.hidden_args);
+    else if(tuple_assign)
+    {
+        push_tuple_return(itl,func,pass,sig,tuple_assign);
+    }
 }
 
 // Returns number of arguments to clean
-u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node, RegSlot dst_slot)
+u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node,TupleAssignNode* tuple_assign, RegSlot dst_slot)
 {
     auto& sig = call_node->call.sig;
 
@@ -289,7 +340,7 @@ u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node,
     }
 
     push_args(itl,func,pass,call_node,sig,start_arg);
-    push_hidden_args(itl,func,pass,sig,dst_slot);
+    push_hidden_args(itl,func,tuple_assign,pass,sig,dst_slot);
     
     return pass_args(itl,func,pass);
 }
@@ -331,9 +382,21 @@ void handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Reg
     unlock_reg_set(itl,func,sig.locked_set);
 }
 
-void compile_function_call_expr(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
+void compile_function_call(Interloper& itl, Function& func, AstNode* call_node_ast, RegSlot dst_slot)
 {
-    FuncCallNode* call_node = (FuncCallNode*)expr;
+    FuncCallNode* call_node = nullptr;
+    TupleAssignNode* tuple_assign = nullptr;
+
+    if(call_node_ast->type == ast_type::function_call)
+    {
+        call_node = (FuncCallNode*)call_node_ast;
+    }
+
+    else
+    {
+        tuple_assign = (TupleAssignNode*)call_node_ast;
+        call_node = tuple_assign->func_call;
+    }
 
     // Check if we are calling an intrinsic.
     if(call_node->type == func_call_type::intrinsic)
@@ -349,13 +412,23 @@ void compile_function_call_expr(Interloper& itl, Function& func, AstNode* expr, 
         call_node->call.reg_slot = reg.slot;
     }
 
-    const u32 arg_clean = pass_function_args(itl,func,call_node,dst_slot);
-    handle_call(itl,func,call_node->call,dst_slot,arg_clean);
+    const u32 arg_clean = pass_function_args(itl,func,call_node,tuple_assign,dst_slot);
+    handle_call(itl,func,call_node->call,dst_slot,arg_clean);    
+}
+
+void compile_function_call_expr(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
+{
+    compile_function_call(itl,func,expr,dst_slot);
 }
 
 void compile_function_call_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
-    compile_function_call_expr(itl,func,stmt,make_spec_reg_slot(spec_reg::null));
+    compile_function_call(itl,func,stmt,make_spec_reg_slot(spec_reg::null));
+}
+
+void compile_tuple_assign_stmt(Interloper& itl, Function& func, AstNode* stmt)
+{
+    compile_function_call(itl,func,stmt,make_spec_reg_slot(spec_reg::null));
 }
 
 void setup_passing_convention(Interloper& itl, Function& func)

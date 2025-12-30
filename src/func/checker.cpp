@@ -253,13 +253,13 @@ Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNo
 
     for(u32 i = 0; i < return_size; i++)
     {
-        AstNode* node = tuple_assign->symbols[i];
+        auto& symbol = tuple_assign->symbols[i];
         Type* rtype = sig.return_type[i];
 
         // Handle any auto declarations.
-        if(tuple_assign->auto_decl && node->type == ast_type::symbol)
+        if(tuple_assign->auto_decl && symbol.expr->type == ast_type::symbol)
         {
-            SymbolNode* sym_node = (SymbolNode*)node;
+            SymbolNode* sym_node = (SymbolNode*)symbol.expr;
             const Symbol* sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
 
             // Handle a auto decl
@@ -269,11 +269,13 @@ Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNo
                 if(!sym_res)
                 {
                     return sym_res.error();
-                }   
+                }
+                
+                symbol.new_decl = *sym_res;
             }
         }
 
-        const auto left_res = type_check_expr(itl,node);
+        const auto left_res = type_check_expr(itl,symbol.expr);
         if(!left_res)
         {
             return left_res.error();

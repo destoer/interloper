@@ -420,11 +420,8 @@ void compile_deref(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slo
 
 TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode* struct_access);
 
-void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+void compile_addrof_expr(Interloper& itl,Function &func,AstNode *addr_expr, RegSlot dst_slot)
 {
-    AddrOfNode* addr_node = (AddrOfNode*)expr;
-    AstNode* addr_expr = addr_node->expr;
-
     switch(addr_expr->type)
     {
         case ast_type::symbol:
@@ -440,7 +437,6 @@ void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_sl
                     return;
                 }
             }
-
 
             // get addr on symbol
             auto &sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
@@ -472,8 +468,24 @@ void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_sl
         default:
         {
             compile_panic(itl,itl_error::unimplemented,"Load addr not implemented on ast type: %s",AST_INFO[u32(addr_expr->type)].name);
+            break;
         }
     }
+}
+
+
+void compile_addrof(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    AddrOfNode* addr_node = (AddrOfNode*)expr;
+    compile_addrof_expr(itl,func,addr_node->expr,dst_slot);
+}
+
+TypedReg compile_addrof_res(Interloper& itl,Function &func,AstNode *expr)
+{
+    const auto dst_slot = new_tmp(func,GPR_SIZE);
+    compile_addrof_expr(itl,func,expr,dst_slot);
+
+    return TypedReg{ dst_slot, make_reference(itl,expr->expr_type) };
 }
 
 void compile_null(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)

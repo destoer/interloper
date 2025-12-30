@@ -21,8 +21,6 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 AddrSlot generate_indexed_pointer(Interloper& itl, Function& func, RegSlot base, RegSlot index, u32 scale, u32 offset);
 void collapse_struct_addr(Interloper& itl, Function& func, RegSlot dst_slot, const AddrSlot struct_slot);
 
-Type* compile_function_call(Interloper& itl, Function& func, FuncCallNode* call_node, RegSlot dst_slot);
-void compile_return(Interloper &itl,Function &func, RetNode* ret_node);
 void compile_struct_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym);
 void write_struct(Interloper& itl, Function& func, TypedReg src, StructAccessNode* struct_access);
 

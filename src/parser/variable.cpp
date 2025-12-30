@@ -428,7 +428,8 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
             }
         }
 
-        push_var(tuple_node->symbols,sym_node);
+        const TupleAssignSymbol sym = {sym_node,{INVALID_HANDLE}};
+        push_var(tuple_node->symbols,sym);
 
         const auto delim = next_token(parser);
 
