@@ -84,37 +84,6 @@ Option<itl_error> type_check_intializer_list(Interloper& itl,Type* ltype, Initia
     }
 }
 
-Option<itl_error> type_check_decl_expr(Interloper& itl,Type* ltype, AstNode* expr)
-{
-    UNUSED(ltype);
-
-    switch(expr->type)
-    {
-        // Don't care
-        case ast_type::no_init:
-        {
-            break;
-        }
-
-        case ast_type::initializer_list:
-        {
-            return type_check_intializer_list(itl,ltype,(InitializerListNode*)expr);
-        }
-
-        case ast_type::designated_initializer_list:
-        {
-            return type_check_struct_designated_initializer_list(itl,ltype,(DesignatedListNode*)expr);
-        }
-
-        default:
-        {
-            return type_check_expr(itl,expr).remap_to_err();
-        }
-    }
-
-    return option::none;
-}
-
 TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
 {
     TypeOperatorNode* type_oper = (TypeOperatorNode*)expr;
@@ -159,7 +128,7 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 
     if(decl->expr)
     {
-        const auto expr_err = type_check_decl_expr(itl,ltype,decl->expr);
+        const auto expr_err = type_check_init_expr(itl,ltype,decl->expr);
         if(expr_err)
         {
             return expr_err;
@@ -170,8 +139,9 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
     if(is_fixed_array(ltype))
     {
         init_arr_sub_sizes(itl,ltype);
-
+        
         ArrayType* array_type = (ArrayType*)ltype;
+
 
         // this has not been initialized by traverse_arr_initializer
         if(array_type->size == DEDUCE_SIZE)
@@ -457,14 +427,36 @@ Option<itl_error> type_check_ast(Interloper& itl)
     return option::none;
 }
 
-Option<itl_error> type_check_init_expr(Interloper& itl, const Type* ltype, AstNode* expr)
+Option<itl_error> type_check_init_expr(Interloper& itl, Type* ltype, AstNode* expr)
 {
-    auto expr_res = type_check_expr(itl,expr);
-
-    if(!expr_res)
+    switch(expr->type)
     {
-        return expr_res.error();
-    }
+        // Don't care
+        case ast_type::no_init:
+        {
+            return option::none;
+        }
 
-    return check_assign_init(itl,ltype,*expr_res);
+        case ast_type::initializer_list:
+        {
+            return type_check_intializer_list(itl,ltype,(InitializerListNode*)expr);
+        }
+
+        case ast_type::designated_initializer_list:
+        {
+            return type_check_struct_designated_initializer_list(itl,ltype,(DesignatedListNode*)expr);
+        }
+
+        default:
+        {
+            auto expr_res = type_check_expr(itl,expr);
+
+            if(!expr_res)
+            {
+                return expr_res.error();
+            }
+
+            return check_assign_init(itl,ltype,*expr_res);
+        }
+    }
 }

@@ -196,8 +196,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // TODO: Fix with context senstive parsing
     // {"tests/type/type_query",1},
 
-    {"tests/basic/constant",1},
     {"tests/basic/const_assert_pass",0},
+    {"tests/basic/constant",1},
 
     // const
     {"tests/const/const_pass_copy",100},

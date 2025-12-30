@@ -32,7 +32,7 @@ func sum_arr(arr : const u32[]) s32
 func main() s32
 {
     // test basic
-    res1 := (u32.size * BITS_IN_BYTE) == 32;
+    res1 := (sizeof_type(u32) * BITS_IN_BYTE) == 32;
 
     // test arr
     res2 := sum_arr(TABLE) == 15;

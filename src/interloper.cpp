@@ -4,7 +4,7 @@ RegSlot load_arr_len(Interloper& itl,Function& func,const Symbol& sym);
 RegSlot load_arr_data(Interloper& itl,Function& func,const TypedReg& reg);
 RegSlot load_arr_len(Interloper& itl,Function& func,const TypedReg& reg);
 
-Option<itl_error> type_check_init_expr(Interloper& itl, const Type* ltype, AstNode* expr);
+Option<itl_error> type_check_init_expr(Interloper& itl, Type* ltype, AstNode* expr);
 
 #include "itl/context.cpp"
 
