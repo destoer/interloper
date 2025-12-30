@@ -133,7 +133,7 @@ struct UnaryNode
 };
 
 using SizeOfNode = UnaryNode<ast_type::sizeof_t>;
-using ConstAssert = UnaryNode<ast_type::const_assert>;
+using ConstAssertNode = UnaryNode<ast_type::const_assert>;
 using DerefNode = UnaryNode<ast_type::deref>;
 using AddrOfNode = UnaryNode<ast_type::addrof>;
 

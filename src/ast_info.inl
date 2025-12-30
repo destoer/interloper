@@ -40,7 +40,7 @@ const AstInfo AST_INFO[] =
     {"switch",type_check_expr_unk,type_check_switch,compile_expr_unk,compile_switch},
     {"if",type_check_expr_unk,type_check_if,compile_expr_unk,compile_if},
     {"while",type_check_expr_unk,type_check_while,compile_expr_unk,compile_while_node},
-    {"const_assert",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"const_assert",type_check_expr_unk,type_check_const_assert,compile_expr_unk,compile_stmt_stub},
     {"function",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"ret",type_check_expr_unk,type_check_return,compile_expr_unk,compile_return},
 };

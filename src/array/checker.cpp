@@ -294,3 +294,31 @@ TypeResult type_check_string(Interloper& itl, AstNode* expr)
     UNUSED(expr);
     return make_array(itl,make_builtin(itl,builtin_type::c8_t,true),RUNTIME_SIZE);
 }
+
+Option<itl_error> type_check_const_assert(Interloper& itl, Function& func, AstNode* stmt)
+{
+    UNUSED(func);
+
+    ConstAssertNode* assert_node = (ConstAssertNode*)stmt;
+    const auto res = type_check_expr(itl,assert_node->expr);
+    if(!res)
+    {
+        return res.error();
+    }
+
+
+    const auto type = *res;
+    if(!is_bool(type) || !assert_node->expr->known_value)
+    {
+        return compile_error(itl,itl_error::bool_type_error,"Const assert expression is not a compile time bool %t",type);
+    }
+
+    const bool pass = *assert_node->expr->known_value;
+
+    if(!pass)
+    {
+        return compile_error(itl,itl_error::const_assert,"Compile time assertion failed");
+    }
+
+    return option::none;
+}

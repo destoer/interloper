@@ -1572,7 +1572,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
         case ast_type::const_assert:
         {
-            print_unary(itl,(ConstAssert*)root,"Const assert", depth);
+            print_unary(itl,(ConstAssertNode*)root,"Const assert", depth);
             break;
         }
 
