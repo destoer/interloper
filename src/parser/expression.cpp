@@ -250,7 +250,7 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
 
 
-ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& t)
+ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
 {
     // look ahead extra tokens that would change the meaning of this
     switch(ctx.expr_tok.type)
@@ -261,7 +261,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
             // correct the state machine
             prev_token(parser);
 
-            auto call_res = func_call(parser,ast_symbol(parser,name_space,t.literal,t),t); 
+            auto call_res = func_call(parser,ast_symbol(parser,name_space,cur.literal,cur),cur); 
             next_expr_token(parser,ctx);
 
             return call_res;
@@ -282,13 +282,17 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
 
             Array<String> name_space_strings = *name_space_res;
 
-            const auto cur = next_token(parser);
+            const auto cur_next = next_token(parser);
             next_expr_token(parser,ctx);
 
             NameSpace* name_space = scan_namespace(parser,name_space_strings); 
-            
+            return parse_sym(parser,ctx,name_space,cur_next);
+        }
+
+        default:
+        {
             // Read out struct initializer
-            if(cur.type == token_type::symbol && ctx.expr_tok.type == token_type::left_c_brace)
+            if(ctx.expr_tok.type == token_type::left_c_brace && parser_type_exists(parser,name_space,cur.literal,type_kind::struct_t))
             {
                 const auto struct_name = cur;
                 const auto start = ctx.expr_tok;
@@ -303,16 +307,11 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
                 return ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
             }
 
-            return parse_sym(parser,ctx,name_space,cur);
-        }
 
-        default:
-        {
             prev_token(parser);
-            auto var_res = var(parser,name_space,t,true);
+            auto var_res = var(parser,name_space,cur,true);
 
             next_expr_token(parser,ctx);
-
             return var_res;
         }
         break;
