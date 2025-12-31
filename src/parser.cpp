@@ -837,6 +837,8 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     return option::none;
 }
 
+void destroy_file_tokens(Interloper& itl);
+
 Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 {
     const char *itl_path = nullptr;
@@ -913,6 +915,8 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 
         func_def.root = *parse_res;
     }
+
+    destroy_file_tokens(itl);
 
     return err;
 }

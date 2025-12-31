@@ -1148,7 +1148,7 @@ void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
     }
     
     s64 offset = s64(opcode.offset);
-    s64 scale = s64(opcode.scale);
+    const s64 scale = s64(opcode.scale);
 
     const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 

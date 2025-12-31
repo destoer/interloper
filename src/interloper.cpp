@@ -43,16 +43,20 @@ void destory_parser_allocator(ParserAllocator& alloc)
     destroy_allocator(alloc.string_allocator);
 }
 
-void destroy_ast(Interloper& itl)
+void destroy_file_tokens(Interloper& itl)
 {
-    destory_parser_allocator(itl.parser_alloc);
-
     for(auto& token_arr : itl.file_tokens)
     {
         destroy_arr(token_arr);
     }
 
-    destroy_arr(itl.file_tokens);
+    destroy_arr(itl.file_tokens);    
+}
+
+void destroy_ast(Interloper& itl)
+{
+    destory_parser_allocator(itl.parser_alloc);
+    destroy_file_tokens(itl);
 
     destroy_arr(itl.global_decl);
     destroy_arr(itl.constant_decl);
