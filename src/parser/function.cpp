@@ -39,7 +39,7 @@ ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 // so we need a wrapper to throw it on the heap.
 Result<AstBlock*,parse_error> block_ast_unpinned(Parser &parser)
 {
-    auto block = (AstBlock*)allocate(*parser.ast_allocator,sizeof(AstBlock));
+    auto block = (AstBlock*)allocate(*parser.allocator.ast_allocator,sizeof(AstBlock));
     *block = {};
 
     auto block_err = block_ast(parser,block);
@@ -91,7 +91,7 @@ Option<parse_error> block_ast(Parser &parser, AstBlock* block)
 // NOTE: this is used to parse signatures for function pointers
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
-    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.cur_file,token);
+    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.context.cur_file,token);
 
     const auto paren = peek(parser,0);
     const auto l_paren_err = consume(parser,token_type::left_paren);
@@ -250,7 +250,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
         return parser_error(parser,parse_error::unexpected_token,func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
     }
 
-    if(check_redeclaration(itl,parser.cur_namespace,func_name.literal,"function"))
+    if(check_redeclaration(itl,parser.context.cur_namespace,func_name.literal,"function"))
     {
         return parse_error::itl_error;
     }
@@ -272,6 +272,6 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
     }
 
     // finally add the function def
-    add_func(itl,func_name.literal,parser.cur_namespace,func);
+    add_func(itl,func_name.literal,parser.context.cur_namespace,func);
     return option::none;
 }

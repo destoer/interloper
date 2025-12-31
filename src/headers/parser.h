@@ -681,9 +681,19 @@ struct ParserContext
 };
 
 
+enum class top_level_decl
+{
+    func,
+    global,
+    constant,
+    struct_t,
+    enum_t,
+    type_alias
+};
 
 struct TopLevelDefiniton
 {
+    top_level_decl type;
     // Have the tokens been read out into the relevant structure?
     bool parsed = false;
     // TODO: Where should this be owned?
@@ -694,8 +704,7 @@ struct TopLevelDefiniton
 enum class parser_mode
 {
     scan_top_level,
-    scan_type,
-    scan_function,
+    parse,
 };
 
 struct Parser
@@ -747,7 +756,7 @@ void add_ast_pointer(Parser& parser, void* pointer);
 template<typename T>
 T* alloc_node(Parser& parser,ast_type type, const Token& token)
 {
-    AstNode* node = (AstNode*)allocate(*parser.ast_allocator,sizeof(T));
+    AstNode* node = (AstNode*)allocate(*parser.allocator.ast_allocator,sizeof(T));
 
     // default init the actual type
     T* ret_node = (T*)node;
@@ -1193,8 +1202,8 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
     va_start(args, fmt);
     vprintf(fmt,args);
     va_end(args);
-    const auto [line,col] = get_line_info(parser.cur_file,token.idx);
-    printf("at: %s line %d col %d\n\n",parser.cur_file.buf,line,col);
+    const auto [line,col] = get_line_info(parser.context.cur_file,token.idx);
+    printf("at: %s line %d col %d\n\n",parser.context.cur_file.buf,line,col);
 
     parser.line = line;
     parser.col = col;

@@ -48,6 +48,8 @@ struct Interloper
     ArenaAllocator namespace_allocator;
 
     AstPointers ast_arrays;
+
+    Array<Array<Token>> file_tokens;
     
     // for longer lived strings, e.g func defs symbol names etc
     ArenaAllocator string_allocator;

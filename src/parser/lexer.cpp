@@ -1,11 +1,11 @@
 #include <lexer.h>
 
 
-void print_tokens(const Array<Token> &tokens)
+void print_tokens(const Span<Token> &tokens)
 {
-    for(u32 t = 0; t < count(tokens); t++)
+    for(const auto& token : tokens)
     {
-        print_token(tokens[t]);
+        print_token(token);
     }
 }
 

@@ -38,12 +38,12 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
 
         const String& name = token.literal;
 
-        if(check_redeclaration(itl,parser.cur_namespace,name,"type alias"))
+        if(check_redeclaration(itl,parser.context.cur_namespace,name,"type alias"))
         {
             return parse_error::itl_error;
         }
 
-        AstNode* alias_node = ast_alias(parser,rtype,name,parser.cur_file,token);
+        AstNode* alias_node = ast_alias(parser,rtype,name,parser.context.cur_file,token);
     
         const auto term_err = consume(parser,token_type::semi_colon);
         if(term_err)
@@ -51,7 +51,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
             return *term_err;
         }
 
-        add_type_definition(itl, type_def_kind::alias_t,alias_node, name, parser.cur_file,parser.cur_namespace);
+        add_type_definition(itl, type_def_kind::alias_t,alias_node, name, parser.context.cur_file,parser.context.cur_namespace);
     }
 
     else 
@@ -73,12 +73,12 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
         return parser_error(parser,parse_error::unexpected_token,name,"expected name after struct decl got %s\n",tok_name(name.type));
     }
 
-    if(check_redeclaration(itl,parser.cur_namespace,name.literal,"struct"))
+    if(check_redeclaration(itl,parser.context.cur_namespace,name.literal,"struct"))
     {
         return parse_error::itl_error;
     }
 
-    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.cur_file,name);
+    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.context.cur_file,name);
 
     struct_node->attr_flags = flags;
 
@@ -123,7 +123,7 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
         (void)consume(parser,token_type::semi_colon);
     }
 
-    add_type_definition(itl, type_def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.cur_file,parser.cur_namespace);
+    add_type_definition(itl, type_def_kind::struct_t,(AstNode*)struct_node, struct_node->name, parser.context.cur_file,parser.context.cur_namespace);
     return option::none;
 }
 
@@ -137,13 +137,13 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
         return parse_error::itl_error;
     }
 
-    const auto redecl_err = check_redeclaration(itl,parser.cur_namespace,name_tok.literal,"enum");
+    const auto redecl_err = check_redeclaration(itl,parser.context.cur_namespace,name_tok.literal,"enum");
     if(redecl_err)
     {
         return parse_error::itl_error;
     }
 
-    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.cur_file,name_tok);
+    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.context.cur_file,name_tok);
 
 
     if(match(parser,token_type::colon))
@@ -222,6 +222,6 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
     }
 
     // add the type decl
-    add_type_definition(itl, type_def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.cur_file,parser.cur_namespace);
+    add_type_definition(itl, type_def_kind::enum_t,(AstNode*)enum_node, enum_node->name, parser.context.cur_file,parser.context.cur_namespace);
     return option::none;
 }

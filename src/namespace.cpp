@@ -90,7 +90,7 @@ NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
     {
         bool found = false;
 
-        for(const auto node : parser.global_namespace->nodes)
+        for(const auto node : parser.context.global_namespace->nodes)
         {
             if(node->name_space == name_space[name_idx])
             {
@@ -111,7 +111,7 @@ NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
     }
     
     // Namespace does not allready exist create it!
-    return new_named_scope(*parser.namespace_allocator,*parser.global_string_allocator,parser.global_namespace,name_space);
+    return new_named_scope(*parser.allocator.namespace_allocator,*parser.allocator.global_string_allocator,parser.context.global_namespace,name_space);
 }
 
 NameSpace* find_name_space(Interloper& itl, const String& name)

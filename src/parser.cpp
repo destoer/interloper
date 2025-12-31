@@ -14,29 +14,29 @@ Parser make_parser(const String& cur_file,NameSpace* root, ArenaAllocator* names
     ArenaAllocator *global_string_allocator,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
 {
     Parser parser;
-    parser.ast_allocator = ast_allocator;
-    parser.string_allocator = string_allocator;
-    parser.global_string_allocator = global_string_allocator;
-    parser.namespace_allocator = namespace_allocator;
+    parser.allocator.ast_allocator = ast_allocator;
+    parser.allocator.string_allocator = string_allocator;
+    parser.allocator.global_string_allocator = global_string_allocator;
+    parser.allocator.namespace_allocator = namespace_allocator;
 
     // NOTE: this relies on get_program_name to allocate the string correctly
-    parser.cur_file = cur_file;
-    parser.cur_path = extract_path(parser.cur_file);
-    parser.ast_arrays = ast_arrays;
-    parser.global_namespace = root;
-    parser.cur_namespace = parser.global_namespace;
+    parser.context.cur_file = cur_file;
+    parser.context.cur_path = extract_path(parser.context.cur_file);
+    parser.allocator.ast_arrays = ast_arrays;
+    parser.context.global_namespace = root;
+    parser.context.cur_namespace = parser.context.global_namespace;
 
     return parser;
 }
 
 void add_ast_pointer(Parser& parser, void* pointer)
 {
-    push_raw_var(*parser.ast_arrays,pointer);
+    push_raw_var(*parser.allocator.ast_arrays,pointer);
 }
 
 Token next_token(Parser &parser)
 {
-    if(parser.tok_idx >= count(parser.tokens))
+    if(parser.tok_idx >= parser.tokens.size)
     {
         // TODO: make this return the actual file end
         // for row and col
@@ -58,7 +58,7 @@ void prev_token(Parser &parser)
 Token peek(Parser &parser,u32 v)
 {
     const auto idx = parser.tok_idx + v;
-    if(idx >= count(parser.tokens))
+    if(idx >= parser.tokens.size)
     {
         return token_plain(token_type::eof,0);
     }
@@ -69,7 +69,7 @@ Token peek(Parser &parser,u32 v)
 
 Option<parse_error> consume(Parser &parser,token_type type)
 {
-    const auto t = parser.tok_idx >= count(parser.tokens)? token_type::eof : parser.tokens[parser.tok_idx].type;
+    const auto t = parser.tok_idx >= parser.tokens.size? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     if(t != type)
     {
@@ -82,7 +82,7 @@ Option<parse_error> consume(Parser &parser,token_type type)
 
 bool match(Parser &parser,token_type type)
 {
-    const auto t = parser.tok_idx >= count(parser.tokens)? token_type::eof : parser.tokens[parser.tok_idx].type;
+    const auto t = parser.tok_idx >= parser.tokens.size? token_type::eof : parser.tokens[parser.tok_idx].type;
 
     return t == type;
 }
@@ -398,7 +398,7 @@ String get_program_name(ArenaAllocator& allocator,const String& filename)
 
 void destroy_parser(Parser& parser)
 {
-    destroy_arr(parser.tokens);
+    UNUSED(parser);
 }
 
 Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
@@ -633,7 +633,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
             {
                 const auto name_tok = next_token(parser);
 
-                const auto full_path = cat_string(itl.string_allocator,parser.cur_path,get_program_name(itl.string_allocator,name_tok.literal));
+                const auto full_path = cat_string(itl.string_allocator,parser.context.cur_path,get_program_name(itl.string_allocator,name_tok.literal));
 
                 add_file(queue,full_path);
             }
@@ -699,7 +699,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             DeclNode* decl = (DeclNode*)decl_res.value();
 
-            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_namespace,t);
+            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.context.cur_file,parser.context.cur_namespace,t);
 
             push_var(itl.constant_decl,const_decl);
             break; 
@@ -716,7 +716,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             DeclNode* decl = (DeclNode*)decl_res.value();
 
-            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.cur_file,parser.cur_namespace,t);
+            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.context.cur_file,parser.context.cur_namespace,t);
 
             push_var(itl.global_decl,global_decl);
             break; 
@@ -732,7 +732,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             auto name_space = *name_space_res;
 
-            parser.cur_namespace = scan_namespace(parser,name_space);
+            parser.context.cur_namespace = scan_namespace(parser,name_space);
 
             destroy_arr(name_space);
 
@@ -768,20 +768,27 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     // Parse out the file
     Parser parser = make_parser(filename,itl.global_namespace,&itl.namespace_allocator,&itl.string_allocator,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
 
-    if(tokenize(file,filename,parser.string_allocator,parser.tokens))
+    const u32 cur = count(itl.file_tokens);
+    resize(itl.file_tokens,cur + 1);
+
+    if(tokenize(file,filename,parser.allocator.string_allocator,itl.file_tokens[cur]))
     {
         destroy_parser(parser);
         itl.first_error_code = itl_error::lexer_error;
         return parse_error::lexer_error;
     }
     
+    // Give it a complete file span
+    parser.tokens = make_span(itl.file_tokens[cur],0);
+
+
     if(itl.print_tokens)
     {
         printf("tokens for file: %s\n",filename.buf);
         print_tokens(parser.tokens);
     }
     
-    const auto size = count(parser.tokens);
+    const auto size = parser.tokens.size;
 
     while(parser.tok_idx < size)
     {
