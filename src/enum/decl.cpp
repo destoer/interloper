@@ -203,10 +203,8 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
 
 
-Enum enum_from_type(EnumTable& enum_table, const Type* type)
+Enum enum_from_type(EnumTable& enum_table, const EnumType* enum_type)
 {
-    EnumType* enum_type = (EnumType*)type;
-
     return enum_table[enum_type->enum_idx];
 }   
 
@@ -215,4 +213,23 @@ Type* make_enum_type(Interloper& itl,Enum& enumeration)
 {
     const u32 flags = enumeration.use_result? TYPE_USE_RESULT : 0;
     return make_enum(itl,enumeration.type_idx,flags);
+}
+
+
+Result<EnumType*,itl_error> lookup_enum(Interloper& itl, NameSpace* name_space,const String& name)
+{
+    const auto enum_decl_res = lookup_type_internal(itl,name_space,name);
+    if(!enum_decl_res)
+    {
+        return compile_error(itl,itl_error::enum_type_error,"No such enum: %S",name);
+    }
+
+    const auto enum_decl = *enum_decl_res;
+
+    if(enum_decl->kind != type_kind::enum_t)
+    {
+        return compile_error(itl,itl_error::enum_type_error,"No such enum: %S",name);
+    }
+
+    return (EnumType*)make_enum(itl,enum_decl->type_idx);   
 }

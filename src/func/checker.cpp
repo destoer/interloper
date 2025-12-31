@@ -95,7 +95,7 @@ Option<itl_error> check_unbound_return(Interloper& itl, const FuncCall& call_inf
 
     else if(is_enum(call_info.sig.return_type[0]))
     {
-        const auto& enumeration = enum_from_type(itl.enum_table,call_info.sig.return_type[0]);
+        const auto& enumeration = enum_from_type(itl.enum_table,(EnumType*)call_info.sig.return_type[0]);
 
         if(enumeration.use_result)
         {

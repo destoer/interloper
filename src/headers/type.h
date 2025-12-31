@@ -364,7 +364,7 @@ using EnumTable = Array<Enum>;
 
 
 Option<Enum> get_enum(EnumTable& enum_table, const String& name);
-Enum enum_from_type(EnumTable& enum_table, const Type* type);
+Enum enum_from_type(EnumTable& enum_table, const EnumType* enum_type);
 
 struct AstNode;
 

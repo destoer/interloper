@@ -27,7 +27,7 @@ const AstInfo AST_INFO[] =
     {"type_alias",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"struct",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"enum",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
-    {"enum_member",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"enum_member",type_check_enum_member,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"decl",type_check_expr_unk,type_check_decl_stmt,compile_expr_unk,compile_decl},
     {"global_decl",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"auto_decl",type_check_expr_unk,type_check_auto_decl,compile_expr_unk,compile_auto_decl},

@@ -296,7 +296,7 @@ Option<itl_error> type_check_switch(Interloper& itl, Function& func, AstNode* st
     if(is_enum(target_type))
     {
         switch_type = switch_kind::enum_t;
-        enumeration = enum_from_type(itl.enum_table,target_type);
+        enumeration = enum_from_type(itl.enum_table,(EnumType*)target_type);
     }
 
     else if(is_integer(target_type))

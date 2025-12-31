@@ -58,7 +58,7 @@ String type_name(Interloper& itl,const Type *type)
             {
                 push_const_name(itl,prefix,type,"const ");
 
-                const auto enumeration = enum_from_type(itl.enum_table,type);
+                const auto enumeration = enum_from_type(itl.enum_table,(EnumType*)type);
                 plain = enumeration.name;  
                 done = true;
                 break;              
