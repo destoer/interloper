@@ -1318,6 +1318,13 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             break;
         }
 
+        case ast_type::enum_member:
+        {
+            EnumMemberNode* member_node = (EnumMemberNode*)root;
+            print_ast(itl,"Enum member: %n%S:%S %t",member_node->name_space,member_node->name,member_node->member,member_node->node.expr_type);
+            break;
+        }
+
         case ast_type::arith_unary:
         {
             ArithUnaryNode* unary = (ArithUnaryNode*)root;

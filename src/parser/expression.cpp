@@ -248,7 +248,27 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
     assert(false);
 }
 
+EnumMemberNode* parse_enum_member(Parser& parser, const Token& member_name, const Array<String>& name_space_strings)
+{
+    NameSpace* name_space = nullptr;
 
+    const u32 count_minus_one = count(name_space_strings) - 1;
+    
+    // If there is only a single namespace this can only be the enum name if it exists at all.
+    if(count_minus_one != 0)
+    {   
+        name_space = scan_namespace(parser,clip_array(name_space_strings,count_minus_one));
+    }
+
+    const auto enum_name = name_space_strings[count_minus_one];
+
+    if(!parser_type_exists(parser,name_space,enum_name,type_kind::enum_t))
+    {
+        return nullptr;
+    }
+
+    return ast_enum_member(parser,name_space,enum_name,member_name.literal,member_name);
+}
 
 ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
 {
@@ -284,6 +304,12 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
 
             const auto cur_next = next_token(parser);
             next_expr_token(parser,ctx);
+
+            EnumMemberNode* member = parse_enum_member(parser,cur_next,name_space_strings); 
+            if(member)
+            {
+                return (AstNode*)member;
+            }
 
             NameSpace* name_space = scan_namespace(parser,name_space_strings); 
             return parse_sym(parser,ctx,name_space,cur_next);

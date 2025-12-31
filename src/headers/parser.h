@@ -33,6 +33,7 @@ enum class ast_type
     type_alias,
     struct_t,
     enum_t,
+    enum_member,
     decl,
     global_decl,
     auto_decl,
@@ -434,6 +435,15 @@ struct EnumNode
     u32 attr_flags = 0;
 };
 
+struct EnumMemberNode
+{
+    AstNode node;
+
+    NameSpace* name_space = nullptr;
+    String name;
+    String member;
+};
+
 enum class func_call_type
 {
     intrinsic,
@@ -833,6 +843,16 @@ AstNode* ast_symbol(Parser& parser, NameSpace* name_space, const String& name, c
     return (AstNode*)sym_node;        
 }
 
+
+EnumMemberNode* ast_enum_member(Parser& parser, NameSpace* name_space, const String& enum_name, const String& member_name, const Token& token)
+{
+    EnumMemberNode* member_node  = alloc_node<EnumMemberNode>(parser,ast_type::enum_member,token);
+    member_node->name = enum_name;
+    member_node->member = member_name;
+    member_node->name_space = name_space;
+
+    return member_node;
+}
 
 AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& field,const Token& token)
 {
