@@ -308,7 +308,7 @@ RegResult symbol(Interloper &itl, SymbolNode* sym_node)
     const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
     if(!sym_ptr)
     {
-        return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->name);
+        return compile_error(itl,itl_error::undeclared,"Symbol '%n%S' used before declaration",sym_node->name_space,sym_node->name);
     }
 
     const auto &sym = *sym_ptr;

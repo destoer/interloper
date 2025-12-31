@@ -232,7 +232,7 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
         FunctionDef* func = lookup_func_def(itl,sym_node->name_space,sym_node->name);
         if(!func)
         {
-            return compile_error(itl,itl_error::undeclared,"Symbol '%S' used before declaration",sym_node->name);
+            return compile_error(itl,itl_error::undeclared,"Symbol '%n%S' used before declaration",sym_node->name_space,sym_node->name);
         }
 
 

@@ -746,8 +746,8 @@ ParserResult var(Parser& parser, NameSpace* name_space, const Token& sym_tok, b3
 
         default:
         {
-           node = ast_symbol(parser,name_space,sym_tok.literal,sym_tok);
-           break;
+            node = ast_symbol(parser,name_space,sym_tok.literal,sym_tok);
+            break;
         }
     }
 
