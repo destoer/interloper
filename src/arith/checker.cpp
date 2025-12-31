@@ -575,3 +575,93 @@ TypeResult type_check_sizeof(Interloper& itl, AstNode* expr)
 
     return make_value_type(itl,value);
 }
+
+TypeResult access_builtin_type_info(Interloper& itl, AstNode* node, builtin_type type, const String& member_name)
+{
+    const BuiltinTypeInfo& info = builtin_type_info[u32(type)];
+
+    if(member_name == "size")
+    {
+        node->known_value = u64(info.size);
+    }
+
+    else if(member_name == "max")
+    {
+        node->known_value = u64(info.max);
+    }
+
+    else if(member_name == "min")
+    {
+        node->known_value = u64(info.min);
+    }
+
+    else
+    {
+        return compile_error(itl,itl_error::generic_type_error,"unknown type info for builtin type %s.%S",TYPE_NAMES[u32(type)],member_name);
+    }
+
+    return info.is_signed? itl.ssize_type : itl.usize_type;
+}
+
+TypeResult type_check_builtin_type_info(Interloper& itl, AstNode* expr)
+{
+    BuiltinAccessNode* builtin_info = (BuiltinAccessNode*)expr;
+    return access_builtin_type_info(itl,&builtin_info->node,builtin_info->type,builtin_info->field);
+}
+
+TypeResult type_check_user_type_info(Interloper& itl, AstNode* expr)
+{
+    UserTypeInfoNode* user_info = (UserTypeInfoNode*)expr;
+
+    auto type_decl_opt = lookup_type_internal(itl,user_info->name_space,user_info->type_name);
+    if(!type_decl_opt)
+    {
+        return compile_error(itl,itl_error::undeclared,"No such type %n%S",user_info->name_space,user_info->type_name);
+    }
+
+    TypeDecl* type_decl = *type_decl_opt;
+    const auto& member_name = user_info->member_name;
+
+    switch(type_decl->kind)
+    {
+        case type_kind::builtin:
+        {
+            builtin_type type = builtin_type(type_decl->type_idx);
+            return access_builtin_type_info(itl,&user_info->node,type,member_name);
+        }
+
+        case type_kind::struct_t:
+        {
+            if(member_name == "size")
+            {
+                const auto& structure = itl.struct_table[type_decl->type_idx];
+                user_info->node.known_value = structure.size;
+
+                return itl.usize_type;
+            }
+
+            return compile_error(itl,itl_error::struct_error,"Unknown type info for struct %S",type_decl->name);
+        }
+
+        case type_kind::enum_t:
+        {
+            if(member_name == "len")
+            {
+                const auto enumeration = itl.enum_table[type_decl->type_idx];
+
+                user_info->node.known_value = enumeration.member_map.size;
+
+                return itl.usize_type;
+            }
+
+            return compile_error(itl,itl_error::enum_type_error,"Unknown type info for enum %S",type_decl->name);
+        }
+
+        case type_kind::alias_t:
+        {
+            return compile_error(itl,itl_error::generic_type_error,"Cannot access type properties on alias %S",type_decl->name);
+        }
+    }
+
+    assert(false);
+}
