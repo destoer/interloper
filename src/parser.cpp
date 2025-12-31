@@ -11,14 +11,12 @@ ParserResult statement(Parser &parser);
 constexpr u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 constexpr u32 AST_STRING_INITIAL_SIZE = 4 * 1024;
 
-Parser make_parser(const String& cur_file,NameSpace* root, ParserAllocator* alloc)
+Parser make_parser(NameSpace* root, ParserAllocator* alloc)
 {
     Parser parser;
     parser.alloc = alloc;
 
     // NOTE: this relies on get_program_name to allocate the string correctly
-    parser.context.cur_file = cur_file;
-    parser.context.cur_path = extract_path(parser.context.cur_file);
     parser.context.global_namespace = root;
     parser.context.cur_namespace = parser.context.global_namespace;
 
@@ -759,17 +757,30 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
     return option::none;
 }
 
+void reset_parser(Parser& parser, const String& filename)
+{
+    parser.context.cur_file = filename;
+    parser.context.cur_path = extract_path(parser.context.cur_file);
+
+    parser.context.cur_namespace = parser.context.global_namespace;
+
+    parser.tok_idx = 0;
+    parser.error_count = 0;
+    parser.idx = 0;
+    parser.line = 0;
+    parser.col = 0;
+}
+
 Option<parse_error> parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
 {
-    // Parse out the file
-    Parser parser = make_parser(filename,itl.global_namespace,&itl.parser_alloc);
+    auto& parser = itl.parser;
+    reset_parser(parser,filename);
 
     const u32 cur = count(itl.file_tokens);
     resize(itl.file_tokens,cur + 1);
 
     if(tokenize(file,filename,&parser.alloc->string_allocator,itl.file_tokens[cur]))
     {
-        destroy_parser(parser);
         itl.first_error_code = itl_error::lexer_error;
         return parse_error::lexer_error;
     }
@@ -791,17 +802,11 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
         // check for a directive
         if(match(parser,token_type::hash))
         {
-            const auto hash_err = consume(parser,token_type::hash);
-            if(hash_err)
-            {
-                destroy_parser(parser);
-                return hash_err;
-            }
+            (void)consume(parser,token_type::hash);
 
             const auto directive_err = parse_directive(itl,parser);
             if(directive_err)
             {
-                destroy_parser(parser);
                 return directive_err;
             }
         }
@@ -812,13 +817,11 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
             const auto parse_err = parse_top_level_token(itl,parser,queue);
             if(parse_err)
             {
-                destroy_parser(parser);
                 return parse_err;
             }
         }
     }
 
-    destroy_parser(parser);
     return option::none;
 }
 

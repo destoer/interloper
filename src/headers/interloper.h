@@ -27,6 +27,8 @@ struct Interloper
     Array<FileContext> saved_ctx;
     FileContext ctx;
 
+    Parser parser;
+
     FunctionTable func_table;
 
     // Cur scope saved in FileContext

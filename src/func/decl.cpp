@@ -154,7 +154,7 @@ Result<Function*,itl_error> check_startup_func(Interloper& itl, const String& na
     // ensure the entry functions are defined
     if(!def_opt)
     {
-        return compile_error(itl,itl_error::undeclared,"%S is not defined!",name);
+        return compile_error(itl,itl_error::undeclared,"Startup function %S is not defined!",name);
     }
 
     return finalise_func(itl,*def_opt);

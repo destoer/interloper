@@ -47,6 +47,13 @@ void destroy_ast(Interloper& itl)
 {
     destory_parser_allocator(itl.parser_alloc);
 
+    for(auto& token_arr : itl.file_tokens)
+    {
+        destroy_arr(token_arr);
+    }
+
+    destroy_arr(itl.file_tokens);
+
     destroy_arr(itl.global_decl);
     destroy_arr(itl.constant_decl);
     destroy_arr(itl.saved_ctx);
@@ -54,6 +61,8 @@ void destroy_ast(Interloper& itl)
     itl.ctx.expr = nullptr;
     itl.ctx.filename = ""; 
     itl.ctx.name_space = nullptr;
+
+    destroy_parser(itl.parser);
 }
 
 
@@ -197,6 +206,8 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);
+
+    itl.parser = make_parser(itl.global_namespace,&itl.parser_alloc);
 
     const auto parse_err = parsing(itl,initial_filename);
     if(parse_err)
