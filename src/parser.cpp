@@ -1360,6 +1360,13 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             break;
         }
 
+        case ast_type::user_type_info:
+        {
+            UserTypeInfoNode* type_info = (UserTypeInfoNode*)root;
+            print_ast(itl,"User type info %n%S.%S",type_info->name_space,type_info->type_name,type_info->member_name);
+            break;
+        }
+
 
         case ast_type::designated_initializer_list:
         {

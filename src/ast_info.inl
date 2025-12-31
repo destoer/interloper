@@ -8,6 +8,7 @@ const AstInfo AST_INFO[] =
     {"boolean_logic",type_check_boolean_logic,type_check_stmt_unk,compile_boolean_logic,compile_stmt_unk},
     {"symbol",type_check_sym,type_check_stmt_unk,compile_symbol,compile_stmt_unk},
     {"builtin_access",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"user_type_info",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"type_operator",type_check_type_operator,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"cast",type_check_cast,type_check_stmt_unk,compile_cast,compile_stmt_unk},
     {"initializer_list",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},

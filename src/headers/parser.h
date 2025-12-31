@@ -14,6 +14,7 @@ enum class ast_type
     boolean_logic,
     symbol,
     builtin_access,
+    user_type_info,
     type_operator,
     cast,
     initializer_list,
@@ -232,6 +233,14 @@ enum class sym_node_type
     func_ptr
 };
 
+struct UserTypeInfoNode
+{
+    AstNode node;
+
+    NameSpace* name_space = nullptr;
+    String type_name;
+    String member_name;
+};
 
 struct SymbolNode
 {
@@ -862,6 +871,17 @@ AstNode *ast_builtin_access(Parser& parser, builtin_type type, const String& fie
     builtin_access->field = field;
 
     return (AstNode*)builtin_access;
+}
+
+AstNode* ast_user_type_info_access(Parser& parser,NameSpace* name_space,const String& type_name, const String& member_name, const Token& token)
+{
+    UserTypeInfoNode* type_info = alloc_node<UserTypeInfoNode>(parser,ast_type::user_type_info,token);
+
+    type_info->name_space = name_space;
+    type_info->type_name = type_name;
+    type_info->member_name = member_name;
+
+    return (AstNode*)type_info;    
 }
 
 AstNode* ast_type_operator(Parser& parser, TypeNode* type,type_operator kind, const Token& token)

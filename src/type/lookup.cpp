@@ -133,7 +133,7 @@ Option<TypeDecl*> lookup_type_scoped(Interloper& itl,NameSpace* name_space,const
     return lookup_type_internal(itl,name_space,name);
 }
 
-bool parser_type_exists(Parser& parser, NameSpace* name_space, const String& name, type_kind kind)
+bool parser_type_kind_exists(Parser& parser, NameSpace* name_space, const String& name, type_kind kind)
 { 
     if(!name_space)
     {
@@ -147,6 +147,17 @@ bool parser_type_exists(Parser& parser, NameSpace* name_space, const String& nam
     }
 
     return def->type_decl->kind == kind;
+}
+
+
+bool parser_type_exists(Parser& parser, NameSpace* name_space, const String& name)
+{ 
+    if(!name_space)
+    {
+        name_space = parser.context.cur_namespace;
+    }
+
+    return lookup_definition(name_space,name) != nullptr;
 }
 
 

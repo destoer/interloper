@@ -262,7 +262,7 @@ EnumMemberNode* parse_enum_member(Parser& parser, const Token& member_name, cons
 
     const auto enum_name = name_space_strings[count_minus_one];
 
-    if(!parser_type_exists(parser,name_space,enum_name,type_kind::enum_t))
+    if(!parser_type_kind_exists(parser,name_space,enum_name,type_kind::enum_t))
     {
         return nullptr;
     }
@@ -318,7 +318,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
         default:
         {
             // Read out struct initializer
-            if(ctx.expr_tok.type == token_type::left_c_brace && parser_type_exists(parser,name_space,cur.literal,type_kind::struct_t))
+            if(ctx.expr_tok.type == token_type::left_c_brace && parser_type_kind_exists(parser,name_space,cur.literal,type_kind::struct_t))
             {
                 const auto struct_name = cur;
                 const auto start = ctx.expr_tok;

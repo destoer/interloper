@@ -530,6 +530,23 @@ AccessMember make_access_member_name(const String& name)
     return member;
 }
 
+ParserResult parse_user_type_info(Parser& parser, NameSpace* name_space, const String& type_name, const Token& token)
+{
+    const auto dot_err = consume(parser,token_type::dot);
+    if(dot_err)
+    {
+        return *dot_err;
+    }
+
+    if(!match(parser,token_type::symbol))
+    {
+        return parser_error(parser,parse_error::malformed_stmt,token,"Expected symbol for user type info got %s\n",tok_name(peek(parser,0).type));
+    }
+
+    auto member_name = next_token(parser);
+    return ast_user_type_info_access(parser,name_space,type_name,member_name.literal,token);
+}   
+
 ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 {
     StructAccessNode* struct_access = ast_struct_access(parser,expr_node,t);
@@ -719,6 +736,11 @@ ParserResult var(Parser& parser, NameSpace* name_space, const Token& sym_tok, b3
     {
         case token_type::dot:
         {   
+            if(parser_type_exists(parser,name_space,sym_tok.literal))
+            {
+                return parse_user_type_info(parser,name_space,sym_tok.literal,sym_tok);
+            }
+
             auto access_res = struct_access(parser,ast_symbol(parser,name_space,sym_tok.literal,sym_tok),sym_tok);
             if(!access_res)
             {
