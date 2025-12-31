@@ -1,4 +1,4 @@
-void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root);
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, const Option<TopLevelDefiniton>& parser_def);
 
 ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 {
@@ -237,24 +237,13 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     return f;
 }
 
-Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
+Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, u32 flags)
 {
-    // func_dec = func ident(arg...) return_type 
-    // arg = ident : type,
-
     // what is the name of our function?
     const auto func_name = next_token(parser);
 
-    if(func_name.type != token_type::symbol)
-    {
-        return parser_error(parser,parse_error::unexpected_token,func_name,"expected function name got: %s!\n",tok_name(func_name.type));  
-    }
-
-    if(check_redeclaration(itl,parser.context.cur_namespace,func_name.literal,"function"))
-    {
-        return parse_error::itl_error;
-    }
-
+    // func_dec = func ident(arg...) return_type 
+    // arg = ident : type,
     auto func_res = parse_func_sig(parser,func_name.literal,func_name);
 
     if(!func_res)
@@ -272,6 +261,86 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
     }
 
     // finally add the function def
-    add_func(itl,func_name.literal,parser.context.cur_namespace,func);
+    return func;
+}
+
+TopLevelDefiniton make_top_level_def(Parser& parser, const Span<Token>& tokens, u32 flags)
+{
+    TopLevelDefiniton def;
+    def.parsed = false;
+    def.tokens = tokens;
+    def.context = parser.context;
+    def.flags = flags;
+
+    return def;
+}
+
+Result<Span<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& type, const String& name, const Span<Token>& start_span)
+{
+    s32 brace_depth = 0;
+    const auto& start = start_span[0];
+
+    // Scan for function end
+    for(u32 t = 0; t < start_span.size; t++)
+    {
+        const auto& tok = start_span[t];
+        switch(tok.type)
+        {
+            case token_type::left_c_brace:
+            {
+                brace_depth += 1;
+                break;
+            }
+
+            case token_type::right_c_brace:
+            {
+                brace_depth -= 1;
+
+                if(brace_depth == 0)
+                {
+                    parser.tok_idx += t;
+                    return clip_span(start_span,t + 1);
+                }
+                break;
+            }
+
+            default: 
+            {
+                break;
+            }
+        }
+    }
+
+    return parser_error(parser,parse_error::malformed_stmt,start,"%s %s is not closed by a }\n",type.buf, name.buf);    
+}
+
+Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
+{
+    const auto start_span = make_span(parser.tokens,parser.tok_idx);
+
+    // what is the name of our function?
+    const auto func_name = next_token(parser);
+
+    if(func_name.type != token_type::symbol)
+    {
+        return parser_error(parser,parse_error::unexpected_token,func_name,"Expected function name got: %s!\n",tok_name(func_name.type));  
+    }
+
+    if(check_redeclaration(itl,parser.context.cur_namespace,func_name.literal,"function"))
+    {
+        return parse_error::itl_error;
+    }
+
+    const auto res = scan_brace_stmt(parser,"Function",func_name.literal,start_span);
+    if(!res)
+    {
+        return res.error();
+    }
+
+    const auto func_def = *res;
+
+    const auto def = make_top_level_def(parser,func_def,flags);
+    add_func(itl,func_name.literal,parser.context.cur_namespace,def);
+
     return option::none;
 }

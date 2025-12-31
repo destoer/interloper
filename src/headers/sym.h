@@ -1,5 +1,6 @@
 #pragma once
 #include <error.h>
+#include <parser.h>
 
 struct FileContext
 {
@@ -124,9 +125,27 @@ struct Function
 };
 
 
+struct ParserContext 
+{
+    String cur_file = "";
+    NameSpace* cur_namespace = nullptr;
+    NameSpace* global_namespace = nullptr;
+    String cur_path = "";    
+};
+
+struct TopLevelDefiniton
+{
+    // Have the tokens been read out into the relevant structure?
+    bool parsed = false;
+    Span<Token> tokens;
+    ParserContext context;
+    u32 flags = 0;
+};
+
 struct FunctionDef
 {
     FuncNode* root = nullptr;
+    TopLevelDefiniton parser_def;
     // NOTE: we may not actually compile the function
     // we also don't want the memory to move when we insert
     // new ones

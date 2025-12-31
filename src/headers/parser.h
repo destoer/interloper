@@ -671,34 +671,6 @@ struct ParserAllocator
     ArenaAllocator* namespace_allocator = nullptr;
 };
 
-struct ParserContext 
-{
-    String cur_file = "";
-    NameSpace* cur_namespace = nullptr;
-    NameSpace* global_namespace = nullptr;
-    String cur_path = "";    
-};
-
-
-enum class top_level_decl
-{
-    func,
-    global,
-    constant,
-    struct_t,
-    enum_t,
-    type_alias
-};
-
-struct TopLevelDefiniton
-{
-    top_level_decl type;
-    // Have the tokens been read out into the relevant structure?
-    bool parsed = false;
-    // TODO: Where should this be owned?
-    Span<Token> tokens;
-    ParserContext context;
-};
 
 enum class parser_mode
 {
@@ -1202,7 +1174,7 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
     vprintf(fmt,args);
     va_end(args);
     const auto [line,col] = get_line_info(parser.context.cur_file,token.idx);
-    printf("at: %s line %d col %d\n\n",parser.context.cur_file.buf,line,col);
+    printf("At: %s line %d col %d\n\n",parser.context.cur_file.buf,line,col);
 
     parser.line = line;
     parser.col = col;

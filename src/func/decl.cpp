@@ -22,14 +22,19 @@ void destroy_func_table(FunctionTable& func_table)
     destroy_allocator(func_table.arena);
 }
 
-void add_func(Interloper& itl, const String& name, NameSpace* name_space, FuncNode* root)
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, const Option<TopLevelDefiniton>& parser_def)
 {
     FunctionDef func_def;
 
     // Make sure our function is not allocated on the
     // same string allocator as the AST
     func_def.name = alloc_name_space_name(itl.string_allocator,name_space->full_name,name);
-    func_def.root = root;
+    if(parser_def)
+    {
+        func_def.parser_def = *parser_def;
+    }
+    
+    func_def.root = nullptr;
     func_def.func = nullptr;
     func_def.name_space = name_space;
     
@@ -129,7 +134,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
  
 Function* create_dummy_func(Interloper& itl, const String& name)
 {
-    add_func(itl,name,itl.global_namespace,nullptr);
+    add_func(itl,name,itl.global_namespace,option::none);
 
     FunctionDef& func_def = *lookup_func_def_global(itl,name);
     

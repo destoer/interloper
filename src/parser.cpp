@@ -771,6 +771,18 @@ void reset_parser(Parser& parser, const String& filename)
     parser.col = 0;
 }
 
+void switch_parse_def(Parser& parser, TopLevelDefiniton& def)
+{
+    parser.tokens = def.tokens;
+    parser.context = def.context;
+
+    parser.tok_idx = 0;
+    parser.error_count = 0;
+    parser.idx = 0;
+    parser.line = 0;
+    parser.col = 0;    
+}
+
 Option<parse_error> parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
 {
     auto& parser = itl.parser;
@@ -888,6 +900,19 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 
     destroy_arr(queue.stack);
     destroy_set(queue.set);
+
+    // Now parse in all the functions
+    for(auto& func_def : itl.func_table.table)
+    {
+        switch_parse_def(itl.parser,func_def.parser_def);
+        const auto parse_res = parse_func_decl(itl.parser,func_def.parser_def.flags);
+        if(!parse_res)
+        {
+            return parse_res.error();
+        }
+
+        func_def.root = *parse_res;
+    }
 
     return err;
 }
