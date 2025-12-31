@@ -111,7 +111,7 @@ NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
     }
     
     // Namespace does not allready exist create it!
-    return new_named_scope(*parser.allocator.namespace_allocator,*parser.allocator.global_string_allocator,parser.context.global_namespace,name_space);
+    return new_named_scope(*parser.alloc->namespace_allocator,*parser.alloc->global_string_allocator,parser.context.global_namespace,name_space);
 }
 
 NameSpace* find_name_space(Interloper& itl, const String& name)

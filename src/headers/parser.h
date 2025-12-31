@@ -659,16 +659,15 @@ using ParserResult = Result<AstNode*,parse_error>;
 
 using AstPointers = Array<void**>;
 
-struct ParserAllocation
+struct ParserAllocator
 {
     // Destroy with ast
-    ArenaAllocator* ast_allocator = nullptr;
-    ArenaAllocator* string_allocator = nullptr;
+    ArenaAllocator ast_allocator;
+    ArenaAllocator string_allocator;
+    AstPointers ast_arrays;
 
-    // Longer lived string allocator lasts until compiler end
+    // Longer lived string allocator that lasts until compilation end
     ArenaAllocator* global_string_allocator = nullptr;
-    AstPointers* ast_arrays = nullptr;
-
     ArenaAllocator* namespace_allocator = nullptr;
 };
 
@@ -709,7 +708,7 @@ enum class parser_mode
 
 struct Parser
 {
-    ParserAllocation allocator;
+    ParserAllocator* alloc;
     ParserContext context;
 
     parser_mode mode;
@@ -756,7 +755,7 @@ void add_ast_pointer(Parser& parser, void* pointer);
 template<typename T>
 T* alloc_node(Parser& parser,ast_type type, const Token& token)
 {
-    AstNode* node = (AstNode*)allocate(*parser.allocator.ast_allocator,sizeof(T));
+    AstNode* node = (AstNode*)allocate(parser.alloc->ast_allocator,sizeof(T));
 
     // default init the actual type
     T* ret_node = (T*)node;

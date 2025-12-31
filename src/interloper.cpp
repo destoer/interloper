@@ -21,20 +21,31 @@ Option<itl_error> type_check_init_expr(Interloper& itl, Type* ltype, AstNode* ex
 #include "control_flow.cpp"
 #include "ast_info.inl"
 
-void destroy_ast(Interloper& itl)
+
+void setup_parser_allocator(Interloper& itl)
 {
-    // TODO: should we just allocate the arrays with our own allocator
-    // instead of malloc so we can just destruct the entire heap?
-    // we need to figure out how to impl one anyways
-    for(u32 i = 0; i < count(itl.ast_arrays); i++)
+    itl.parser_alloc.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
+    itl.parser_alloc.string_allocator = make_allocator(AST_STRING_INITIAL_SIZE);
+    itl.parser_alloc.global_string_allocator = &itl.string_allocator;
+    itl.parser_alloc.namespace_allocator = &itl.namespace_allocator;
+}
+
+void destory_parser_allocator(ParserAllocator& alloc)
+{
+    for(void** array_ptr : alloc.ast_arrays)
     {
-       free(*itl.ast_arrays[i]);
+       free(*array_ptr);
     }
 
-    destroy_arr(itl.ast_arrays);
+    destroy_arr(alloc.ast_arrays);
 
-    destroy_allocator(itl.ast_allocator);
-    destroy_allocator(itl.ast_string_allocator);
+    destroy_allocator(alloc.ast_allocator);
+    destroy_allocator(alloc.string_allocator);
+}
+
+void destroy_ast(Interloper& itl)
+{
+    destory_parser_allocator(itl.parser_alloc);
 
     destroy_arr(itl.global_decl);
     destroy_arr(itl.constant_decl);
@@ -169,9 +180,6 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     itl.first_error_code = itl_error::unimplemented;
     itl.error_count = 0;
 
-    itl.ast_allocator = make_allocator(AST_ALLOC_DEFAULT_SIZE);
-    itl.ast_string_allocator = make_allocator(STRING_INITIAL_SIZE);
-
     itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);
     itl.type_allocator = make_allocator(TYPE_INITIAL_SIZE);
@@ -182,6 +190,8 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     itl.symbol_table.ctx = &itl.ctx;
 
     itl.func_table = make_func_table();
+
+    setup_parser_allocator(itl);
 
     setup_namespace(itl);
 

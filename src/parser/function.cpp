@@ -39,7 +39,7 @@ ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 // so we need a wrapper to throw it on the heap.
 Result<AstBlock*,parse_error> block_ast_unpinned(Parser &parser)
 {
-    auto block = (AstBlock*)allocate(*parser.allocator.ast_allocator,sizeof(AstBlock));
+    auto block = (AstBlock*)allocate(parser.alloc->ast_allocator,sizeof(AstBlock));
     *block = {};
 
     auto block_err = block_ast(parser,block);

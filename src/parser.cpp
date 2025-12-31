@@ -8,21 +8,17 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_
 ParserResult statement(Parser &parser);
 
 
-const u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
+constexpr u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
+constexpr u32 AST_STRING_INITIAL_SIZE = 4 * 1024;
 
-Parser make_parser(const String& cur_file,NameSpace* root, ArenaAllocator* namespace_allocator,
-    ArenaAllocator *global_string_allocator,ArenaAllocator* ast_allocator,ArenaAllocator* string_allocator, AstPointers* ast_arrays)
+Parser make_parser(const String& cur_file,NameSpace* root, ParserAllocator* alloc)
 {
     Parser parser;
-    parser.allocator.ast_allocator = ast_allocator;
-    parser.allocator.string_allocator = string_allocator;
-    parser.allocator.global_string_allocator = global_string_allocator;
-    parser.allocator.namespace_allocator = namespace_allocator;
+    parser.alloc = alloc;
 
     // NOTE: this relies on get_program_name to allocate the string correctly
     parser.context.cur_file = cur_file;
     parser.context.cur_path = extract_path(parser.context.cur_file);
-    parser.allocator.ast_arrays = ast_arrays;
     parser.context.global_namespace = root;
     parser.context.cur_namespace = parser.context.global_namespace;
 
@@ -31,7 +27,7 @@ Parser make_parser(const String& cur_file,NameSpace* root, ArenaAllocator* names
 
 void add_ast_pointer(Parser& parser, void* pointer)
 {
-    push_raw_var(*parser.allocator.ast_arrays,pointer);
+    push_raw_var(parser.alloc->ast_arrays,pointer);
 }
 
 Token next_token(Parser &parser)
@@ -766,12 +762,12 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 Option<parse_error> parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
 {
     // Parse out the file
-    Parser parser = make_parser(filename,itl.global_namespace,&itl.namespace_allocator,&itl.string_allocator,&itl.ast_allocator,&itl.ast_string_allocator,&itl.ast_arrays);
+    Parser parser = make_parser(filename,itl.global_namespace,&itl.parser_alloc);
 
     const u32 cur = count(itl.file_tokens);
     resize(itl.file_tokens,cur + 1);
 
-    if(tokenize(file,filename,parser.allocator.string_allocator,itl.file_tokens[cur]))
+    if(tokenize(file,filename,&parser.alloc->string_allocator,itl.file_tokens[cur]))
     {
         destroy_parser(parser);
         itl.first_error_code = itl_error::lexer_error;
