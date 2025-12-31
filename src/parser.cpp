@@ -92,6 +92,87 @@ builtin_type builtin_type_from_tok(const Token& tok)
     return builtin_type(s32(tok.type) - s32(token_type::u8));
 }
 
+
+TopLevelDefiniton make_top_level_def(Parser& parser, const Span<Token>& tokens, u32 flags)
+{
+    TopLevelDefiniton def;
+    def.parsed = false;
+    def.tokens = tokens;
+    def.context = parser.context;
+    def.flags = flags;
+
+    return def;
+}
+
+Result<Span<Token>,parse_error> scan_colon_stmt(Parser& parser, const String& type, const String& name, const Span<Token>& start_span)
+{
+    // Scan for function end
+    for(u32 t = 0; t < start_span.size; t++)
+    {
+        const auto& tok = start_span[t];
+        switch(tok.type)
+        {
+            case token_type::semi_colon:
+            {
+                parser.tok_idx += t;
+                return clip_span(start_span,t + 1);
+            }
+
+            default: 
+            {
+                break;
+            }
+        }
+    }
+
+    return parser_error(parser,parse_error::malformed_stmt,start_span[0],"%s %s is not terminated by a ;\n",type.buf, name.buf);     
+}
+
+Result<Span<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& type, const String& name, const Span<Token>& start_span)
+{
+    s32 brace_depth = 0;
+    const auto& start = start_span[0];
+
+    // Scan for function end
+    for(u32 t = 0; t < start_span.size; t++)
+    {
+        const auto& tok = start_span[t];
+        switch(tok.type)
+        {
+            case token_type::left_c_brace:
+            {
+                brace_depth += 1;
+                break;
+            }
+
+            case token_type::right_c_brace:
+            {
+                brace_depth -= 1;
+
+                if(brace_depth == 0)
+                {
+                    // Allow a stray collon
+                    if(start_span.size >= t + 1 && start_span[t + 1].type == token_type::semi_colon)
+                    {
+                        t += 1;
+                    }
+
+                    parser.tok_idx += t;
+                    return clip_span(start_span,t + 1);
+                }
+                break;
+            }
+
+            default: 
+            {
+                break;
+            }
+        }
+    }
+
+    return parser_error(parser,parse_error::malformed_stmt,start,"%s %s is not closed by a }\n",type.buf, name.buf);    
+}
+
 #include "parser/expression.cpp"
 #include "parser/variable.cpp"
 #include "parser/type.cpp"
@@ -903,6 +984,9 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     destroy_arr(queue.stack);
     destroy_set(queue.set);
 
+    // Tokens are scanned into sections so we can build up type names.
+    // Then we can parse them properly with sensitive typing.
+
     // Now parse in all the functions
     for(auto& func_def : itl.func_table.table)
     {
@@ -916,8 +1000,52 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
         func_def.root = *parse_res;
     }
 
-    destroy_file_tokens(itl);
+    // Parse in all types
+    for(TypeDef* type_def : itl.type_decl)
+    {
+        switch_parse_def(itl.parser,type_def->type_def);
 
+        switch(type_def->kind)
+        {
+            case type_def_kind::enum_t:
+            {
+                const auto parse_res = parse_enum_decl(itl.parser,type_def->type_def.flags);
+                if(!parse_res)
+                {
+                    return parse_res.error();
+                }
+
+                type_def->root = (AstNode*)parse_res.value();
+                break;
+            }
+            
+            case type_def_kind::struct_t:
+            {
+                const auto parse_res = parse_struct_decl(itl.parser,type_def->type_def.flags);
+                if(!parse_res)
+                {
+                    return parse_res.error();
+                }
+
+                type_def->root = (AstNode*)parse_res.value();
+                break;
+            }
+
+            case type_def_kind::alias_t:
+            {
+                const auto parse_res = parse_alias_decl(itl.parser);
+                if(!parse_res)
+                {
+                    return parse_res.error();
+                }
+
+                type_def->root = (AstNode*)parse_res.value();
+                break;
+            }
+        }
+    }
+
+    destroy_file_tokens(itl);
     return err;
 }
 

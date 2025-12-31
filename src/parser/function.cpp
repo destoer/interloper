@@ -264,56 +264,6 @@ Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, u32 flags)
     return func;
 }
 
-TopLevelDefiniton make_top_level_def(Parser& parser, const Span<Token>& tokens, u32 flags)
-{
-    TopLevelDefiniton def;
-    def.parsed = false;
-    def.tokens = tokens;
-    def.context = parser.context;
-    def.flags = flags;
-
-    return def;
-}
-
-Result<Span<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& type, const String& name, const Span<Token>& start_span)
-{
-    s32 brace_depth = 0;
-    const auto& start = start_span[0];
-
-    // Scan for function end
-    for(u32 t = 0; t < start_span.size; t++)
-    {
-        const auto& tok = start_span[t];
-        switch(tok.type)
-        {
-            case token_type::left_c_brace:
-            {
-                brace_depth += 1;
-                break;
-            }
-
-            case token_type::right_c_brace:
-            {
-                brace_depth -= 1;
-
-                if(brace_depth == 0)
-                {
-                    parser.tok_idx += t;
-                    return clip_span(start_span,t + 1);
-                }
-                break;
-            }
-
-            default: 
-            {
-                break;
-            }
-        }
-    }
-
-    return parser_error(parser,parse_error::malformed_stmt,start,"%s %s is not closed by a }\n",type.buf, name.buf);    
-}
-
 Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
 {
     const auto start_span = make_span(parser.tokens,parser.tok_idx);

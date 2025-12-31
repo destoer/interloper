@@ -136,7 +136,7 @@ void print_ast(Interloper& itl)
     // print type defs
     for(u32 t = 0; t < count(itl.type_decl); t++)
     {
-        print(itl, itl.type_decl[t]);
+        print(itl, itl.type_decl[t]->root);
     }
 
     // print function defs

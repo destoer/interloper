@@ -64,7 +64,7 @@ struct Interloper
     Type* void_type = nullptr;
 
     // Array copy for debug printing of ast
-    Array<AstNode*> type_decl;
+    Array<TypeDef*> type_decl;
 
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;

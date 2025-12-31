@@ -78,7 +78,8 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
 }
 
 
-void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, const String& name, const String& filename, NameSpace* name_space)
+void add_type_definition(Interloper& itl, type_def_kind kind, const TopLevelDefiniton& type_def, const String& name, 
+    const String& filename, NameSpace* name_space)
 {
     TypeDef* definition = alloc_type_decl<TypeDef>(itl);
 
@@ -88,12 +89,12 @@ void add_type_definition(Interloper& itl, type_def_kind kind, AstNode* root, con
     definition->decl.kind = type_kind(kind);
 
     definition->filename = filename;
-    definition->root = root;
+    definition->root = nullptr;
+    definition->type_def = type_def;
     definition->kind = kind;
 
-
+    push_var(itl.type_decl,definition);
     add_type_to_scope(name_space,(TypeDecl*)definition);
-    push_var(itl.type_decl,root);
 }
 
 
