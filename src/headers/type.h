@@ -192,7 +192,7 @@ struct TypeDef
     type_def_kind kind;
 
     // the defintion root -> depends on the type!
-    AstNode* root;
+    AstNode* root = nullptr;
 };
 
 enum class assign_type

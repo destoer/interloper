@@ -659,27 +659,55 @@ using ParserResult = Result<AstNode*,parse_error>;
 
 using AstPointers = Array<void**>;
 
-struct Parser
+struct ParserAllocation
 {
-    // what is our current token?
-    u32 tok_idx = 0;
-
-    Array<Token> tokens;
-
     // Destroy with ast
-    ArenaAllocator* ast_allocator;
-    ArenaAllocator* string_allocator;
+    ArenaAllocator* ast_allocator = nullptr;
+    ArenaAllocator* string_allocator = nullptr;
 
     // Longer lived string allocator lasts until compiler end
-    ArenaAllocator* global_string_allocator;
-    AstPointers* ast_arrays;
+    ArenaAllocator* global_string_allocator = nullptr;
+    AstPointers* ast_arrays = nullptr;
 
-    ArenaAllocator* namespace_allocator;
-    
+    ArenaAllocator* namespace_allocator = nullptr;
+};
+
+struct ParserContext 
+{
     String cur_file = "";
     NameSpace* cur_namespace = nullptr;
     NameSpace* global_namespace = nullptr;
-    String cur_path = "";
+    String cur_path = "";    
+};
+
+
+
+struct TopLevelDefiniton
+{
+    // Have the tokens been read out into the relevant structure?
+    bool parsed = false;
+    // TODO: Where should this be owned?
+    Span<Token> tokens;
+    ParserContext context;
+};
+
+enum class parser_mode
+{
+    scan_top_level,
+    scan_type,
+    scan_function,
+};
+
+struct Parser
+{
+    ParserAllocation allocator;
+    ParserContext context;
+
+    parser_mode mode;
+
+    // what is our current token?
+    u32 tok_idx = 0;
+    Span<Token> tokens;
 
     // error handling
     u32 error_count = 0;
@@ -687,7 +715,6 @@ struct Parser
     u32 line = 0;
     u32 col = 0;
 };
-
 
 const u32 EXPR_TERMINATED_FLAG_BIT = 0;
 const u32 EXPR_HIT_TERMINATOR_FLAG_BIT = 1;
