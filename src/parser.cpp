@@ -1,3 +1,4 @@
+#include "parser.h"
 #include <interloper.h>
 #include <unistd.h>
 
@@ -1392,6 +1393,12 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::sizeof_t:
         {
             print_unary(itl,(SizeOfNode*)root,"sizeof",depth);
+            break;
+        }
+
+        case ast_type::cast_ref:
+        {
+            print_unary(itl,(CastRefNode*)root,"cast_ref",depth);
             break;
         }
 

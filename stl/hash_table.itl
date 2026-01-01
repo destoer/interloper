@@ -132,7 +132,8 @@ func hash_table_lookup(table: const HashTable@, key: const byte@) byte?
 
     if node
     {
-        return node.value;
+        node_reference := cast_ref(node);
+        return node_reference.value;
     }
 
     return NULL;
@@ -184,8 +185,10 @@ func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byt
     // key present just memcpy it
     if(node)
     {
-        memcpy(node.value,value,table.value_size);
-        return node.value;
+        node_reference := cast_ref(node);
+
+        memcpy(node_reference.value,value,table.value_size);
+        return node_reference.value;
     }
 
     // did not exist in bucket add it

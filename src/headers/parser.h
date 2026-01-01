@@ -17,6 +17,7 @@ enum class ast_type
     user_type_info,
     type_operator,
     cast,
+    cast_ref,
     initializer_list,
     designated_initializer_list,
     struct_initializer,
@@ -138,6 +139,8 @@ using SizeOfNode = UnaryNode<ast_type::sizeof_t>;
 using ConstAssertNode = UnaryNode<ast_type::const_assert>;
 using DerefNode = UnaryNode<ast_type::deref>;
 using AddrOfNode = UnaryNode<ast_type::addrof>;
+using CastRefNode = UnaryNode<ast_type::cast_ref>;
+
 
 enum class compound_type
 {
@@ -962,6 +965,11 @@ ParserResult ast_addrof(Parser& parser, ParserResult expr, const Token& token)
 ParserResult ast_const_assert(Parser& parser,ParserResult expr, const Token& token)
 {
     return ast_unary<ast_type::const_assert>(parser,expr,token);
+}
+
+ParserResult ast_cast_ref(Parser& parser,ParserResult expr, const Token& token)
+{
+    return ast_unary<ast_type::cast_ref>(parser,expr,token);
 }
 
 AstNode* ast_plain(Parser& parser, ast_type type, const Token& token)

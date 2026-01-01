@@ -11,6 +11,7 @@ const AstInfo AST_INFO[] =
     {"user_type_info",type_check_user_type_info,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"type_operator",type_check_type_operator,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"cast",type_check_cast,type_check_stmt_unk,compile_cast,compile_stmt_unk},
+    {"cast_ref",type_check_cast_ref,type_check_stmt_unk,compile_cast_ref,compile_stmt_unk},
     {"initializer_list",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"designated_initializer_list",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"struct_initializer",type_check_struct_initializer_expr,type_check_struct_initializer_stmt,compile_struct_initializer,compile_struct_return},

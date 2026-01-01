@@ -284,6 +284,12 @@ Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNo
         auto& symbol = tuple_assign->symbols[i];
         Type* rtype = sig.return_type[i];
 
+
+        if(symbol.expr->type == ast_type::ignore)
+        {
+            continue;
+        }
+
         // Handle any auto declarations.
         if(tuple_assign->auto_decl && symbol.expr->type == ast_type::symbol)
         {

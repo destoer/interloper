@@ -627,6 +627,20 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             return ast_sizeof(parser,expr_res,t);    
         }
 
+        // cast_ref(<expr>)
+        case token_type::cast_ref:
+        {
+            const auto consume_err = consume_expr(parser,ctx,token_type::left_paren);
+            if(consume_err)
+            {
+                return *consume_err;
+            }
+
+            auto expr_res = expr_terminate_in_expr(parser,ctx,"cast_ref",token_type::right_paren);
+
+            return ast_cast_ref(parser,expr_res,t);    
+        }
+
         // sizeof_type(<type>)
         case token_type::sizeof_type_t:
         {

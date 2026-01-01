@@ -311,7 +311,7 @@ TypeResult type_check_array_slice(Interloper& itl, AstNode* expr)
 TypeResult type_check_string(Interloper& itl, AstNode* expr)
 {
     UNUSED(expr);
-    return itl.string_type;
+    return itl.const_string_type;
 }
 
 Option<itl_error> type_check_const_assert(Interloper& itl, Function& func, AstNode* stmt)

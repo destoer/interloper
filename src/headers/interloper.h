@@ -61,9 +61,12 @@ struct Interloper
     Type* usize_type = nullptr;
     Type* const_usize_type = nullptr;
     Type* ssize_type = nullptr;
+    
     Type* void_type = nullptr;
     Type* byte_ptr_type = nullptr;
+
     Type* string_type = nullptr;
+    Type* const_string_type = nullptr;
 
     // Array copy for debug printing of ast
     Array<TypeDef*> type_decl;

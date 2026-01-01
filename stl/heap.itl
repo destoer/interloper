@@ -87,7 +87,7 @@ func verify_node(heap: const Heap@,node: const HeapNode?)
         return;
     }
 
-    node_reference := cast(HeapNode@,node);
+    node_reference := cast_ref(node);
 
     if(node_reference.blocks > heap.capacity)
     {
@@ -119,7 +119,7 @@ func verify_heap(heap: const Heap@)
     while(cur)
     {
         // TODO: This is a interesting test case for flow typing.
-        cur_reference := cast(HeapNode@,cur);
+        cur_reference := cast_ref(cur);
 
         if(cur_reference.prev != prev)
         {
@@ -142,7 +142,7 @@ func free_heap(heap : Heap@, ptr : byte@?)
     verify_heap(heap);
 
     // block info is behind the buffer
-    node := cast(HeapNode@,@ptr) - 1;
+    node := cast(HeapNode@, @ptr) - 1;
 
     if(node.blocks > heap.max_allocation)
     {
@@ -162,7 +162,7 @@ func free_heap(heap : Heap@, ptr : byte@?)
     // TODO: Remove jank with flow typing (this could be hardcoded on the ast fairly easily)
     if(next)
     {
-        next_reference := cast(HeapNode@,next);
+        next_reference := cast_ref(next);
         if(next_reference.free && (node + node.blocks) == next_reference)
         {
             node.blocks += next_reference.blocks;
@@ -173,7 +173,7 @@ func free_heap(heap : Heap@, ptr : byte@?)
             // Link prev of new next
             if(node.next)
             {
-                ref_next := cast(HeapNode@,node.next);
+                ref_next := cast_ref(node.next);
                 ref_next.prev = node;
             }
         }
@@ -184,7 +184,7 @@ func free_heap(heap : Heap@, ptr : byte@?)
     // Attempt to collapse lower
     if(prev)
     {
-        prev_reference := cast(HeapNode@,prev);
+        prev_reference := cast_ref(prev);
         if(prev_reference.free && (prev_reference + prev_reference.blocks) == node)
         {
             prev_reference.blocks += node.blocks;
@@ -195,7 +195,7 @@ func free_heap(heap : Heap@, ptr : byte@?)
             // Link back prev of node next
             if(prev_reference.next) 
             {
-                ref_next := cast(HeapNode@,prev_reference.next);
+                ref_next := cast_ref(prev_reference.next);
                 ref_next.prev = prev_reference;
             }
         }
@@ -221,7 +221,7 @@ func find_first_fit(heap: Heap@, req_blocks: usize) HeapNode?
 
     while(cur)
     {
-        cur_reference := cast(HeapNode@,cur);
+        cur_reference := cast_ref(cur);
 
         if(cur_reference.blocks >= req_blocks && cur_reference.free)
         {
@@ -265,7 +265,7 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
         
     }
 
-    cur_reference := cast(HeapNode@, cur);
+    cur_reference := cast_ref(cur);
 
     if(cur_reference.blocks == req_blocks)
     {
@@ -296,7 +296,7 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
         // Repoint the surrounding blocks
         if(new.next)
         {
-            new_next := cast(HeapNode@,new.next);
+            new_next := cast_ref(new.next);
             new_next.prev = new;
         }
 
@@ -344,7 +344,7 @@ func realloc_heap(heap : Heap@, ptr: byte@?, count: usize,size: usize) bool
     }
 
     // copy over the old data to the new buffer
-    node := cast(HeapNode@,old) - 1;
+    node := cast(HeapNode@, old) - 1;
 
     // need to make sure we dont trash the buffer if this shrinks
     copy_size := min_u64((node.blocks - 1) * HEAP_BLOCK_SIZE,count * size);
@@ -408,12 +408,12 @@ func add_heap_block(heap : Heap@, node: HeapNode@)
         return;
     }
 
-    cur_reference := cast(HeapNode@,cur);
+    cur_reference := cast_ref(cur);
 
     // just insert at end
     while(cur_reference.next)
     {
-        cur_reference = cast(HeapNode@,cur_reference.next);
+        cur_reference = cast_ref(cur_reference.next);
     }
 
     cur_reference.next = node;
@@ -430,7 +430,7 @@ func add_buffer(heap : Heap@, ptr : byte@, size : usize)
     // NOTE: we need a block to actually store it
     blocks := (size / HEAP_BLOCK_SIZE);
 
-    node := cast(HeapNode@,ptr);
+    node := cast(HeapNode@, ptr);
     node.blocks = blocks;
     node.next = NULL;
     node.prev = NULL;

@@ -99,7 +99,7 @@ func read_env()
     // Lets split them. We could use the util function but we are going
     // to do further splitting and don't want to alloc extra memory.
 
-    var_start: u32 = 0;
+    var_start: usize = 0;
 
     for [@v, i] in bin.buf 
     {

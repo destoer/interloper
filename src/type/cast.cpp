@@ -1,4 +1,5 @@
 
+#include "error.h"
 #include <type_traits>
 void clip_arith_type(Interloper &itl, Function& func,RegSlot dst_slot, RegSlot src_slot, u32 size)
 {
@@ -227,7 +228,36 @@ TypeResult type_check_cast(Interloper& itl, AstNode* expr)
     return new_type;
 }
 
+TypeResult type_check_cast_ref(Interloper& itl, AstNode* expr)
+{
+    CastRefNode* cast = (CastRefNode*)expr;
+    
+    const auto expr_res = type_check_expr(itl,cast->expr);
+    if(!expr_res)
+    {
+        return expr_res;
+    }
+
+    const auto old_pointer = *expr_res;
+    if(!is_pointer(old_pointer))
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cast ref requires a pointer got %t",old_pointer);
+    }
+
+
+    return make_reference(itl, deref_pointer(old_pointer));
+}
+
 TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node);
+
+
+void compile_cast_ref(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
+{
+    CastRefNode* cast = (CastRefNode*)expr;
+
+    const auto reg = compile_oper(itl,func,cast->expr);
+    mov_reg(itl,func,dst_slot,reg.slot);
+}
 
 void compile_cast(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
 {
