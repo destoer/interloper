@@ -22,5 +22,10 @@ TypeResult type_check_enum_member(Interloper& itl, AstNode* expr)
 
     member_node->node.known_value = member->value;
 
+    if(enumeration.underlying_type && is_integer(enumeration.underlying_type))
+    {
+        return enumeration.underlying_type;
+    }
+    
     return (Type*)enum_type;
 }
