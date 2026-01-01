@@ -1,3 +1,4 @@
+#include "ir.h"
 bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSlot dst_slot, const TypedReg& left, Type* rtype, u64 value)
 {
     const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
@@ -508,20 +509,23 @@ void compile_stmt_stub(Interloper& itl,Function &func,AstNode *stmt)
 
 
 
-void store_const_string(Interloper& itl, Function& func, const String& literal, const RegSlot arr_slot)
+void store_const_string(Interloper& itl, Function& func, const String& literal, AddrSlot* addr_slot)
 {
     // we can set this up directly from the const pool
     const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
 
     const RegSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
-    store_arr_data(itl,func,arr_slot,arr_data);
+    store_addr_slot(itl,func,arr_data,*addr_slot,GPR_SIZE,false);
+    addr_slot->addr.offset += GPR_SIZE;
 
     const RegSlot arr_size = mov_imm_res(itl,func,literal.size);
-    store_arr_len(itl,func,arr_slot,arr_size);
+    store_addr_slot(itl,func,arr_size,*addr_slot,GPR_SIZE,false);
+    addr_slot->addr.offset += GPR_SIZE;
 }
 
 void compile_string(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
 {
     const auto string_node = (StringNode*)expr;
-    store_const_string(itl,func,string_node->string,dst_slot);
+    auto addr_slot = make_struct_addr(dst_slot, 0);
+    store_const_string(itl,func,string_node->string,&addr_slot);
 }

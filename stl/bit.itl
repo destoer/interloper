@@ -14,7 +14,7 @@ func hamming_weight(set: u64) u32
 
     for(i in 0 < (u64.size * BITS_IN_BYTE))
     {
-        sum += cast(u32,is_set(set,i));
+        sum += cast(u32,is_set(set,cast(u32,i)));
     }
 
     return sum;

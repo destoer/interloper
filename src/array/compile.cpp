@@ -125,7 +125,9 @@ void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType
 
         case ast_type::string:
         {
-            unimplemented("String intializer");
+            StringNode* string_node = (StringNode*)node;
+            store_const_string(itl,func,string_node->string,addr_slot);
+            break;
         }
 
         // Leave memory unitialzied
