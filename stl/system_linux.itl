@@ -526,6 +526,8 @@ func os_socket_close(socket: net::Socket@) net_result
 }
 
 
+import <input>
+
 constant KEYCODE_W: u32 = 25;
 constant KEYCODE_S: u32 = 39;
 constant KEYCODE_D: u32 = 40;

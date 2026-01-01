@@ -3,24 +3,6 @@ import <mem>
 
 global global_setup : bool = false;
 
-// func start()
-// {
-//     // NOTE: the compiler will internally set this up for us
-//     init_global();
-
-//     global_setup = true;
-
-//     std::init_itl_context();
-
-//     rc: s32 = main();
-//     std::println("Exiting with: {}",rc);
-
-//     std::exit(rc);
-// }
-
-constant SYSCALL_EXIT : u32 = 60;
-
-// TODO: need to define for each arch
 func start()
 {
     // NOTE: the compiler will internally set this up for us
@@ -28,6 +10,10 @@ func start()
 
     global_setup = true;
 
+    std::init_itl_context();
+
     rc: s32 = main();
+    std::println("Exiting with: {}",rc);
+
     std::exit(rc);
 }

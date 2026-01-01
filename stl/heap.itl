@@ -33,8 +33,8 @@ struct Heap
 
 
 constant HEAP_DEFAULT_BLOCK_COUNT : u32 = 1024;
-constant HEAP_BLOCK_SIZE : u32 = HeapNode.size;
-constant HEAP_DEFAULT_ALLOC_SIZE : u32 = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_COUNT;
+constant HEAP_BLOCK_SIZE : usize = HeapNode.size;
+constant HEAP_DEFAULT_ALLOC_SIZE : usize = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_COUNT;
 
 constant HEAP_CANARY_START : u64 = 0xCAFE_DEAD_C0DE_BABE;
 constant HEAP_CANARY_END : u64 = 0xFACE_DEAD_FEED_CAFE;
@@ -116,14 +116,17 @@ func verify_heap(heap: const Heap@)
 
     while(cur)
     {
-        if(cur.prev != prev)
+        // TODO: This is a interesting test case for flow typing.
+        cur_reference := cast(HeapNode@,cur);
+
+        if(cur_reference.prev != prev)
         {
             crash_and_burn_oom("Prev does not match on heap");
         }
 
         verify_node(heap,cur);
         prev = cur;
-        cur = cur.next;
+        cur = cur_reference.next;
     }
 }
 

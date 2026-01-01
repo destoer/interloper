@@ -2,7 +2,6 @@ namespace gfx;
 
 import <colour>
 import <os_graphics>
-import <input>
 
 struct Window
 {
