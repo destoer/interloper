@@ -5,7 +5,7 @@ TypeResult assign_expr_type(AstNode* node, TypeResult result);
 SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table);
 
 Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListNode* init_list, ArrayType* type);
-Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, Struct& structure);
+Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, const Struct structure);
 Option<itl_error> type_check_struct_designated_initializer_list(Interloper& itl, Type* ltype, DesignatedListNode* init_list);
 
 Option<itl_error> cache_rtti_structs(Interloper& itl);
@@ -128,14 +128,18 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
     decl->node.expr_type = ltype;
 
     // Have to add this before checking the init expr or it may fail for globals
-    auto sym_res = global? add_global(itl,decl->sym.name,ltype,false) : add_symbol(itl,decl->sym.name,ltype);
-    if(!sym_res)
+    if(global)
     {
-        return sym_res.error();
+        auto sym_res = add_global(itl,decl->sym.name,ltype,false);
+        if(!sym_res)
+        {
+            return sym_res.error();
+        }
+
+        decl->sym.slot = *sym_res;
     }
 
-    decl->sym.slot = *sym_res;
-
+    
     if(decl->expr)
     {
         const auto expr_err = type_check_init_expr(itl,ltype,decl->expr);
@@ -144,6 +148,18 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
             return expr_err;
         }
     }
+
+    if(!global)
+    {
+        auto sym_res = add_symbol(itl,decl->sym.name,ltype);
+        if(!sym_res)
+        {
+            return sym_res.error();
+        }
+
+        decl->sym.slot = *sym_res;
+    }
+
 
     // Now any initializers have been parsed handle any array auto sizing.
     if(is_fixed_array(ltype))

@@ -343,7 +343,8 @@ Option<itl_error> type_check_struct_designated_initializer_list(Interloper& itl,
     return option::none;    
 }
 
-Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, Struct& structure)
+// This intentionally doesn't take a reference for the struct to prevent UAF bugs when new structures are being added.
+Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, const Struct structure)
 {
     const u32 node_len = count(init_list->list);
     const u32 member_size = count(structure.members);

@@ -159,36 +159,45 @@ func free_heap(heap : Heap@, ptr : byte@?)
     next := node.next;
 
     // attempt to collapse upper
-    if(next && next.free && (node + node.blocks) == next)
+    // TODO: Remove jank with flow typing (this could be hardcoded on the ast fairly easily)
+    if(next)
     {
-        node.blocks += next.blocks;
-
-        // Link over next
-        node.next = next.next;
-
-        // Link prev of new next
-        if(node.next)
+        next_reference := cast(HeapNode@,next);
+        if(next_reference.free && (node + node.blocks) == next_reference)
         {
-            ref_next := cast(HeapNode@,node.next);
-            ref_next.prev = node;
+            node.blocks += next_reference.blocks;
+
+            // Link over next
+            node.next = next_reference.next;
+
+            // Link prev of new next
+            if(node.next)
+            {
+                ref_next := cast(HeapNode@,node.next);
+                ref_next.prev = node;
+            }
         }
     }
     
     prev := node.prev;
 
     // Attempt to collapse lower
-    if(prev && prev.free && (prev + prev.blocks) == node)
+    if(prev)
     {
-        prev.blocks += node.blocks;
-
-        // Link over node
-        prev.next = node.next;
-
-        // Link back prev of node next
-        if(prev.next) 
+        prev_reference := cast(HeapNode@,prev);
+        if(prev_reference.free && (prev_reference + prev_reference.blocks) == node)
         {
-            ref_next := cast(HeapNode@,prev.next);
-            ref_next.prev = prev;
+            prev_reference.blocks += node.blocks;
+
+            // Link over node
+            prev_reference.next = node.next;
+
+            // Link back prev of node next
+            if(prev_reference.next) 
+            {
+                ref_next := cast(HeapNode@,prev_reference.next);
+                ref_next.prev = prev_reference;
+            }
         }
     }
 }
