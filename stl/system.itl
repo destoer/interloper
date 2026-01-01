@@ -2,7 +2,7 @@ namespace std;
 // TODO: for now just hardbake this
 import <system_linux>
 
-constant EXIT_INVALID_FILE : s32 = -3;
+constant EXIT_INVALID_FILE : s32 = 0x35;
 
-constant FAILURE_OPEN_STDOUT : s32 = -200;
-constant FAILURE_OPEN_STDIN : s32 = -201;
+constant FAILURE_OPEN_STDOUT : s32 = 0x33;
+constant FAILURE_OPEN_STDIN : s32 = 0x34;
