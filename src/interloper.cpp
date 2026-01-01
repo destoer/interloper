@@ -17,6 +17,7 @@ Option<itl_error> type_check_init_expr(Interloper& itl, Type* ltype, AstNode* ex
 #include "func/decl.cpp"
 #include "struct.cpp"
 #include "enum.cpp"
+#include "rtti.cpp"
 #include "constant.cpp"
 #include "control_flow.cpp"
 #include "ast_info.inl"
@@ -131,7 +132,7 @@ void destroy_itl(Interloper &itl)
     destroy_allocator(itl.type_allocator);
 }
 
-void print_ast(Interloper& itl)
+void print_itl(Interloper& itl)
 {
     // print type defs
     for(u32 t = 0; t < count(itl.type_decl); t++)
@@ -158,7 +159,7 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
     {
         if(itl.print_ast)
         {
-            print_ast(itl);
+            print_itl(itl);
         }
 
         // flag as generic parser error
@@ -178,7 +179,7 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 
     if(itl.print_ast)
     {
-        print_ast(itl);
+        print_itl(itl);
     }
 
 
@@ -230,7 +231,7 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
 
     if(itl.print_ast)
     {
-        print_ast(itl);
+        print_itl(itl);
     }
     
 

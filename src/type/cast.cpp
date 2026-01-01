@@ -1,4 +1,5 @@
 
+#include <type_traits>
 void clip_arith_type(Interloper &itl, Function& func,RegSlot dst_slot, RegSlot src_slot, u32 size)
 {
     switch(size)
@@ -35,6 +36,36 @@ void clip_arith_type(Interloper &itl, Function& func,RegSlot dst_slot, RegSlot s
 }
 
 
+u64 cast_const(Interloper& itl, Type* old_type, Type* new_type, u64 value)
+{
+    const u32 new_size = type_size(itl,new_type);
+    const u32 old_size = type_size(itl,old_type);
+
+    if(!is_signed(old_type) && is_signed(new_type))
+    {
+        switch(old_size)
+        {
+            case 1: return sign_extend_type<u64>(s8(value)); 
+            case 2: return sign_extend_type<u64>(s16(value)); 
+            case 4: return sign_extend_type<u64>(s32(value)); 
+            default: return value;
+        }
+    }
+
+    else if(new_size < old_size)
+    {
+        switch(new_size)
+        {
+            case 1: return value & 0xff; 
+            case 2: return value & 0xffff; 
+            case 4: return value & 0xffff'ffff; 
+            default: return value;        
+        }
+    }
+
+    return value;
+}
+
 TypeResult type_check_cast(Interloper& itl, AstNode* expr)
 {
     CastNode* cast = (CastNode*)expr;
@@ -55,6 +86,12 @@ TypeResult type_check_cast(Interloper& itl, AstNode* expr)
     }
 
     Type* new_type = *new_type_res;
+
+    if(cast->expr->known_value && is_integer(new_type))
+    {
+        const u64 value = *cast->expr->known_value;
+        cast->node.known_value = cast_const(itl,old_type,new_type,value);
+    }
 
     // handle side effects of the cast
     // builtin type

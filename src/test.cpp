@@ -193,8 +193,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/type/default_initializer",1},
     {"tests/type/byte",1},
     {"tests/type/struct_punning",11},
-    // TODO: Fix with context senstive parsing
-    // {"tests/type/type_query",1},
+    {"tests/type/type_query",1},
 
     {"tests/basic/const_assert_pass",0},
     {"tests/basic/constant",1},
@@ -347,5 +346,5 @@ void run_tests(const char* flags)
     auto current = std::chrono::system_clock::now();
 
     auto count = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count()) / 1000.0;
-    printf("total time taken %f\n",count);
+    printf("total time taken %f seconds\n",count);
 }

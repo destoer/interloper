@@ -132,7 +132,8 @@ struct [[nodiscard]] FileContextGuard
     Interloper& itl;
 };
 
-void print_itl(Interloper& itl, const String& fmt, va_list args);
+void vprint_itl(Interloper& itl, const String& fmt, va_list args);
+void print_itl(Interloper& itl, const String& fmt, ...);
 
 inline itl_error compile_verror(Interloper &itl,itl_error error,const char *fmt, va_list args)
 {
@@ -156,7 +157,7 @@ inline itl_error compile_verror(Interloper &itl,itl_error error,const char *fmt,
         printf("error: %s %d:%d: ",itl.ctx.filename.buf,line,col);
 
 
-        print_itl(itl,fmt,args);
+        vprint_itl(itl,fmt,args);
         putchar('\n');
 
         print_line(itl.ctx.filename,line);
@@ -166,7 +167,7 @@ inline itl_error compile_verror(Interloper &itl,itl_error error,const char *fmt,
     {
         printf("error: ");
 
-        print_itl(itl,fmt,args);
+        vprint_itl(itl,fmt,args);
         putchar('\n');
     }
 

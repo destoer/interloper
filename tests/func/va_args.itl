@@ -4,8 +4,6 @@ func sum_ints(boop : s32,args: ...) s32
 {
     for(arg in args)
     {
-        // this requres tmp struct loading
-        // we will just hack around if for now while we test this 
         v := rtti::int_from_any(arg);
 
         boop += cast(s32,v);

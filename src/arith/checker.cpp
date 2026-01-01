@@ -436,6 +436,35 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     return compile_error(itl,itl_error::int_type_error,"Cannot perform arithmetic operations on %t and %t",bin.ltype,bin.rtype);
 }
 
+u64 compute_known_unary_arith(ArithUnaryNode* unary)
+{
+    const auto value = *unary->expr->known_value;
+    switch(unary->oper)
+    {
+        case arith_unary_op::add_t:
+        {
+            return +value;
+        }
+
+        case arith_unary_op::sub_t:
+        {
+            return -value;
+        }
+
+        case arith_unary_op::bitwise_not_t:
+        {
+            return ~value;
+        }
+
+        case arith_unary_op::logical_not_t:
+        {
+            return !value;
+        }
+    }
+
+    assert(false);
+}
+
 TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
 {
     ArithUnaryNode* unary = (ArithUnaryNode*)expr;
@@ -447,6 +476,11 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
     }
 
     const auto rtype = *expr_res;
+
+    if(unary->expr->known_value && is_integer(rtype))
+    {
+        unary->node.known_value = compute_known_unary_arith(unary);
+    }
 
     switch(unary->oper)
     {

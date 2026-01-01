@@ -8,20 +8,22 @@ Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListN
 Option<itl_error> type_check_struct_initializer_list(Interloper& itl, InitializerListNode* init_list, Struct& structure);
 Option<itl_error> type_check_struct_designated_initializer_list(Interloper& itl, Type* ltype, DesignatedListNode* init_list);
 
+Option<itl_error> cache_rtti_structs(Interloper& itl);
+
 #include "func/checker.cpp"
 #include "arith/checker.cpp"
 
 
 Option<itl_error> check_startup_defs(Interloper& itl)
 {   
-    // if(itl.rtti_enable)
-    // {
-    //     const auto cache_err = cache_rtti_structs(itl);
-    //     if(cache_err)
-    //     {
-    //         return cache_err;
-    //     }
-    // }
+    if(itl.rtti_enable)
+    {
+        const auto cache_err = cache_rtti_structs(itl);
+        if(cache_err)
+        {
+            return cache_err;
+        }
+    }
 
     itl.std_name_space = find_name_space(itl,"std");
 
@@ -346,7 +348,10 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
             return stmt_err;
         }
 
-        stmt->expr_type = itl.void_type;
+        if(!stmt->expr_type)
+        {
+            stmt->expr_type = itl.void_type;
+        }
     }
 
     return option::none;

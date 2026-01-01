@@ -152,7 +152,7 @@ Result<Span<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& ty
                 if(brace_depth == 0)
                 {
                     // Allow a stray collon
-                    if(start_span.size >= t + 1 && start_span[t + 1].type == token_type::semi_colon)
+                    if(start_span.size > t + 1 && start_span[t + 1].type == token_type::semi_colon)
                     {
                         t += 1;
                     }
@@ -1064,7 +1064,7 @@ void print_internal(Interloper& itl, const AstNode *root, int depth);
 template<typename T>
 void print_bin_oper(Interloper& itl, const ExprBinOperNode<T>* bin,const char* NAMES[], int depth)
 {
-    print_ast(itl,"%s %t",NAMES[u32(bin->oper)],bin->node.expr_type);
+    print_itl(itl,"%s %t",NAMES[u32(bin->oper)],bin->node.expr_type);
 
     print_internal(itl,bin->left,depth + 1);
     print_internal(itl,bin->right,depth + 1);
@@ -1073,7 +1073,7 @@ void print_bin_oper(Interloper& itl, const ExprBinOperNode<T>* bin,const char* N
 template<ast_type type>
 void print_unary(Interloper& itl, UnaryNode<type>* unary, const char* name, int depth)
 {
-    print_ast(itl,"%s %t",name,unary->node.expr_type);
+    print_itl(itl,"%s %t",name,unary->node.expr_type);
     print_internal(itl,unary->expr,depth + 1);
 }
 
@@ -1094,7 +1094,7 @@ void print_if_stmt(Interloper& itl,const IfStmt& stmt, const char* name, int dep
 }
 
 
-void print_itl(Interloper& itl, const String& fmt, va_list args)
+void vprint_itl(Interloper& itl, const String& fmt, va_list args)
 {
     // %S  String
     // %s  string
@@ -1205,12 +1205,12 @@ void print_itl(Interloper& itl, const String& fmt, va_list args)
     }
 }
 
-void print_ast(Interloper& itl, const String& fmt, ...)
+void print_itl(Interloper& itl, const String& fmt, ...)
 {
     va_list args;
     va_start(args,fmt);
 
-    print_itl(itl,fmt,args);
+    vprint_itl(itl,fmt,args);
 
     putchar('\n');
 
@@ -1314,14 +1314,14 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 }
             }
 
-            print_ast(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
+            print_itl(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
             break;
         }
 
         case ast_type::enum_member:
         {
             EnumMemberNode* member_node = (EnumMemberNode*)root;
-            print_ast(itl,"Enum member: %n%S:%S %t",member_node->name_space,member_node->name,member_node->member,member_node->node.expr_type);
+            print_itl(itl,"Enum member: %n%S:%S %t",member_node->name_space,member_node->name,member_node->member,member_node->node.expr_type);
             break;
         }
 
@@ -1329,7 +1329,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             ArithUnaryNode* unary = (ArithUnaryNode*)root;
 
-            print_ast(itl,"%s %t",ARITH_UNARY_NAMES[u32(unary->oper)],unary->node.expr_type);
+            print_itl(itl,"%s %t",ARITH_UNARY_NAMES[u32(unary->oper)],unary->node.expr_type);
             print_internal(itl,unary->expr,depth + 1);
             break;
         }
@@ -1363,7 +1363,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::user_type_info:
         {
             UserTypeInfoNode* type_info = (UserTypeInfoNode*)root;
-            print_ast(itl,"User type info %n%S.%S",type_info->name_space,type_info->type_name,type_info->member_name);
+            print_itl(itl,"User type info %n%S.%S",type_info->name_space,type_info->type_name,type_info->member_name);
             break;
         }
 
@@ -1384,7 +1384,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::struct_initializer:
         {
             StructInitializerNode* initializer = (StructInitializerNode*)root;
-            print_ast(itl,"Struct initializer %s %n%S",initializer->is_return? "return" : "",initializer->name_space,initializer->struct_name);
+            print_itl(itl,"Struct initializer %s %n%S",initializer->is_return? "return" : "",initializer->name_space,initializer->struct_name);
             print_internal(itl,initializer->initializer, depth + 1);
             break;
         }
@@ -1410,7 +1410,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::value:
         {
             ValueNode* value = (ValueNode*)root;
-            print_ast(itl,"Value %X (%s) %t",value->value, builtin_type_name(value->type),value->node.expr_type);
+            print_itl(itl,"Value %X (%s) %t",value->value, builtin_type_name(value->type),value->node.expr_type);
             break;
         }
 
@@ -1471,11 +1471,11 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             TypeNode* type = (TypeNode*)root;
 
-            print_ast(itl,"%ntype %s %S %t",type->name_space,type->is_const? "const" : "",type->name,type->node.expr_type);
+            print_itl(itl,"%ntype %s %S %t",type->name_space,type->is_const? "const" : "",type->name,type->node.expr_type);
 
             for(const auto& compound : type->compound)
             {
-                print_ast(itl,"%DCompound: %s",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
+                print_itl(itl,"%DCompound: %s",depth + 1, COMPOUND_TYPE_NAMES[u32(compound.type)]);
 
                 if(compound.type == compound_type::arr_fixed_size)
                 {
@@ -1544,7 +1544,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             DeclNode* decl = (DeclNode*)root;
             const auto name = named_symbol_name(itl,root,decl->sym);
 
-            print_ast(itl,"%sDecl %S",decl->is_const? "const ": "",name);
+            print_itl(itl,"%sDecl %S",decl->is_const? "const ": "",name);
 
             print_internal(itl,(AstNode*)decl->type, depth + 1);
 
@@ -1578,7 +1578,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             AutoDeclNode* auto_decl = (AutoDeclNode*)root;
             const auto name = named_symbol_name(itl,root,auto_decl->sym);
 
-            print_ast(itl,"Auto decl %S",name);
+            print_itl(itl,"Auto decl %S",name);
             
             print_internal(itl,auto_decl->expr, depth + 1);
             break;
@@ -1615,7 +1615,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::struct_access:
         {
             StructAccessNode* struct_access = (StructAccessNode*)root;
-            print_ast(itl,"Struct access %t",struct_access->node.expr_type);
+            print_itl(itl,"Struct access %t",struct_access->node.expr_type);
 
             print_internal(itl,struct_access->expr, depth + 1);
 
@@ -1628,7 +1628,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
                 else
                 {
-                    print_ast(itl,"%D Access member: %S %t",depth + 2,member.name,member.expr_type);
+                    print_itl(itl,"%D Access member: %S %t",depth + 2,member.name,member.expr_type);
                 }
             }
 
@@ -1654,7 +1654,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             SliceNode* slice = (SliceNode*)root;
 
             const auto name = named_symbol_name(itl,root,slice->sym);
-            print_ast(itl,"Slice %S",name);
+            print_itl(itl,"Slice %S",name);
 
             if(slice->lower)
             {
@@ -1688,7 +1688,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             const auto name_one = named_symbol_name(itl,root,for_range->sym_one);
             const auto name_two = named_symbol_name(itl,root,for_range->sym_two);
 
-            print_ast(itl,"For [%s%S,  %S]",for_range->flags & RANGE_FOR_TAKE_POINTER? "@" : "",name_one,name_two);
+            print_itl(itl,"For [%s%S,  %S]",for_range->flags & RANGE_FOR_TAKE_POINTER? "@" : "",name_one,name_two);
             print_internal(itl,for_range->cond, depth + 1);
             print_block(itl,&for_range->block, depth + 2);
             break;
