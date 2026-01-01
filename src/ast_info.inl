@@ -23,7 +23,7 @@ const AstInfo AST_INFO[] =
     {"null",type_check_null,type_check_stmt_unk,compile_null,compile_stmt_unk},
     {"deref",type_check_deref,type_check_stmt_unk,compile_deref,compile_stmt_unk},
     {"addrof",type_check_addrof,type_check_stmt_unk,compile_addrof,compile_stmt_unk},
-    {"string",type_check_string,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"string",type_check_string,type_check_stmt_unk,compile_string,compile_stmt_unk},
     {"block",type_check_expr_unk,type_check_block_stmt,compile_expr_unk,compile_block_stmt},
     {"type",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"type_alias",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},

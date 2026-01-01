@@ -505,3 +505,23 @@ void compile_stmt_stub(Interloper& itl,Function &func,AstNode *stmt)
 {
     UNUSED(itl); UNUSED(func); UNUSED(stmt);
 }
+
+
+
+void store_const_string(Interloper& itl, Function& func, const String& literal, const RegSlot arr_slot)
+{
+    // we can set this up directly from the const pool
+    const PoolSlot pool_slot = push_const_pool_string(itl.const_pool,literal);
+
+    const RegSlot arr_data = pool_addr_res(itl,func,pool_slot,0);
+    store_arr_data(itl,func,arr_slot,arr_data);
+
+    const RegSlot arr_size = mov_imm_res(itl,func,literal.size);
+    store_arr_len(itl,func,arr_slot,arr_size);
+}
+
+void compile_string(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
+{
+    const auto string_node = (StringNode*)expr;
+    store_const_string(itl,func,string_node->string,dst_slot);
+}

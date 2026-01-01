@@ -159,7 +159,7 @@ func free_heap(heap : Heap@, ptr : byte@?)
     next := node.next;
 
     // attempt to collapse upper
-    // TODO: Remove jank with flow typing (this could be hardcoded on the ast fairly easily)
+    // TODO: Remove jank with flow typing 
     if(next)
     {
         next_reference := cast_ref(next);
