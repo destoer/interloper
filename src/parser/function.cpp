@@ -266,7 +266,7 @@ Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, u32 flags)
 
 Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
 {
-    const auto start_span = make_span(parser.tokens,parser.tok_idx);
+    const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
 
     // what is the name of our function?
     const auto func_name = next_token(parser);

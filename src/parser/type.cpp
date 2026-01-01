@@ -17,7 +17,7 @@ Option<itl_error> check_redeclaration(Interloper& itl, NameSpace* root, const St
 Option<parse_error> type_alias(Interloper& itl, Parser &parser)
 {
     // type_alias literal '=' type ';'
-    const auto start_span = make_span(parser.tokens,parser.tok_idx);
+    const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
     const auto token = next_token(parser);
 
     const String& name = token.literal;
@@ -78,7 +78,7 @@ Result<AliasNode*, parse_error> parse_alias_decl(Parser &parser)
 
 Option<parse_error> struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
 {
-    const auto start_span = make_span(parser.tokens,parser.tok_idx);
+    const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
     const auto name = next_token(parser);
 
     if(name.type != token_type::symbol)
@@ -158,7 +158,7 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, u32 flags = 0
 
 Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
 {
-    const auto start_span = make_span(parser.tokens,parser.tok_idx);
+    const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
 
     const auto name_tok = next_token(parser);
 

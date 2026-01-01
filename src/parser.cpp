@@ -115,7 +115,7 @@ Result<Span<Token>,parse_error> scan_colon_stmt(Parser& parser, const String& ty
             case token_type::semi_colon:
             {
                 parser.tok_idx += t;
-                return clip_span(start_span,t + 1);
+                return make_span(start_span,0, t + 1);
             }
 
             default: 
@@ -158,7 +158,7 @@ Result<Span<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& ty
                     }
 
                     parser.tok_idx += t;
-                    return clip_span(start_span,t + 1);
+                    return make_span(start_span,0, t + 1);
                 }
                 break;
             }
@@ -879,7 +879,7 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     }
     
     // Give it a complete file span
-    parser.tokens = make_span(itl.file_tokens[cur],0);
+    parser.tokens = make_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
 
 
     if(itl.print_tokens)

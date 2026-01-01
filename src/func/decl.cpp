@@ -1,3 +1,7 @@
+#include "destoer/destoer.h"
+#include "ir.h"
+#include "parser.h"
+#include "sym.h"
 void print_func_decl(Interloper& itl,const Function &func);
 Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock &block);
 
@@ -366,4 +370,16 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     sig.call_stack_size = arg_offset;
 
     return option::none;
+}
+
+Span<SymSlot> sig_user_span(const FuncSig& sig)
+{
+    const u32 user_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
+    return make_span(sig.args, sig.hidden_args, user_arg_len);    
+}
+
+Span<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args)
+{
+    const u32 user_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
+    return make_span(args, user_arg_len, count(args) - user_arg_len);      
 }

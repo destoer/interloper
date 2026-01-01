@@ -107,6 +107,9 @@ Option<itl_error> check_unbound_return(Interloper& itl, const FuncCall& call_inf
     return option::none;
 }
 
+Span<SymSlot> sig_user_span(const FuncSig& sig);
+Span<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args);
+
 TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bool result_bound)
 {
     // Check for intrinsic.
@@ -143,21 +146,46 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
     func_call->call = *call_info_res;
     const auto& call_info = func_call->call;
 
+    u32 passed_args = count(func_call->args);
+
+    const auto user_args = sig_user_span(call_info.sig);
+
     if(call_info.sig.va_args)
     {
-        unimplemented("va args");
+        if(!itl.rtti_enable)
+        {
+            return compile_error(itl,itl_error::missing_args,"Attempted to use va_args without rtti: %S",call_info.name);
+        }
+
+        // va_arg is optional
+        if(passed_args < user_args.size)
+        {
+            return compile_error(itl,itl_error::missing_args,"Function call va_args expected at least %d args got %d",
+                user_args.size, passed_args);   
+        }
+
+        const auto any_args = sig_any_span(call_info.sig, func_call->args);
+        for(AstNode* node: any_args)
+        {
+            const auto res = type_check_expr(itl,node);
+            if(!res)
+            {
+                return res.error();
+            }
+        }
+
+        passed_args -= any_args.size;
     }
 
-    const auto expected_args = make_span(call_info.sig.args, call_info.sig.hidden_args);
-
+    
     // check we have the right number of params
-    if(expected_args.size != count(func_call->args))
+    if(user_args.size != passed_args)
     {
-        return compile_error(itl,itl_error::missing_args,"Function call expected %d args got %d",expected_args.size,count(func_call->args));
+        return compile_error(itl,itl_error::missing_args,"Function call expected %d args got %d",user_args.size,passed_args);
     }  
 
     // Type check args against the sig.
-    for(u32 a = 0; a < expected_args.size; a++)
+    for(u32 a = 0; a < user_args.size; a++)
     {
         auto rtype_res = type_check_expr(itl,func_call->args[a]);
         if(!rtype_res)
@@ -165,7 +193,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
             return rtype_res.error();
         }
 
-        auto& sym = sym_from_slot(itl.symbol_table,expected_args[a]);
+        auto& sym = sym_from_slot(itl.symbol_table,user_args[a]);
         const auto pass_err = check_assign_arg(itl,sym.type,*rtype_res);
         if(pass_err)
         {

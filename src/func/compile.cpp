@@ -192,17 +192,15 @@ void push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, As
     }
 }
 
-void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig, u32 start_arg)
+void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig)
 {
-    const s32 hidden_args = sig.hidden_args;
+    const auto user_args = sig_user_span(sig);
 
-    // push args in reverse order and type check them
-    for(s32 i = start_arg; i >= hidden_args; i--)
+    // push args in reverse order
+    for(s32 arg_idx = user_args.size - 1; arg_idx >= 0; arg_idx--)
     {
-        const u32 arg_idx = i - hidden_args;
         auto& sym = sym_from_slot(itl.symbol_table,sig.args[arg_idx]);
-
-        push_arg(itl,func,pass,sym.type,call_node->args[arg_idx],i);
+        push_arg(itl,func,pass,sym.type,call_node->args[arg_idx],arg_idx + sig.hidden_args);
     }
 }
 
@@ -331,15 +329,12 @@ u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node,
     // handle argument pushing
     ArgPass pass = make_arg_pass(sig);
     
-    u32 start_arg = count(sig.args) - 1;
-    // const u32 actual_args = count(sig.args) - hidden_args;
-
     if(sig.va_args)
     {
         unimplemented("va args");
     }
 
-    push_args(itl,func,pass,call_node,sig,start_arg);
+    push_args(itl,func,pass,call_node,sig);
     push_hidden_args(itl,func,tuple_assign,pass,sig,dst_slot);
     
     return pass_args(itl,func,pass);
