@@ -125,8 +125,16 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
     }
 
     Type* ltype = *type_res;
-
     decl->node.expr_type = ltype;
+
+    // Have to add this before checking the init expr or it may fail for globals
+    auto sym_res = global? add_global(itl,decl->sym.name,ltype,false) : add_symbol(itl,decl->sym.name,ltype);
+    if(!sym_res)
+    {
+        return sym_res.error();
+    }
+
+    decl->sym.slot = *sym_res;
 
     if(decl->expr)
     {
@@ -151,15 +159,6 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
             return compile_error(itl,itl_error::missing_initializer,"auto sized array does not have an initializer");
         }
     }
-
-
-    auto sym_res = global? add_global(itl,decl->sym.name,ltype,false) : add_symbol(itl,decl->sym.name,ltype);
-    if(!sym_res)
-    {
-        return sym_res.error();
-    }
-
-    decl->sym.slot = *sym_res;
 
     if(!decl->expr && is_reference(ltype))
     {
@@ -379,7 +378,6 @@ Option<itl_error> type_check_globals(Interloper& itl)
     for(GlobalDeclNode* decl_node : itl.global_decl)
     {
         auto context_guard = switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
-        
         const auto decl_err = type_check_decl(itl,decl_node->decl,true);
         if(decl_err)
         {
