@@ -168,12 +168,21 @@ void push_struct(Interloper& itl, Function& func, ArgPass& pass, StructType* arg
     pass.arg_clean += aligned_size / GPR_SIZE;
 }
 
+u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node);
+
 void push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, AstNode* node, u32 arg_idx)
 {
     switch(arg_type->kind)
     {
         case type_class::struct_t:
         {
+            if(is_any(itl,arg_type))
+            {
+                const u32 size = compile_any(itl,func,node);
+                pass.arg_clean += size / GPR_SIZE;
+                break;
+            }
+
             push_struct(itl,func,pass,(StructType*)arg_type,node);
             break;
         }

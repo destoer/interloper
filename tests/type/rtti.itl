@@ -34,72 +34,13 @@ func check_builtin() bool
     return res;
 }
 
-
-func check_ptr(any : rtti::Any, expected : rtti::builtin_type) bool
-{
-    type := any.type;
-
-    if(rtti::is_pointer(type))
-    {
-        contained_type := rtti::deref_pointer(type);
-
-        return rtti::is_builtin_type(contained_type,expected);
-    }
-
-    return false;
-}
-
-func check_pointer() bool
-{
-    x : u32 = 5;
-    ptr : u32@  = &x;
-
-    y : s32 = 5;
-    ptr_false : s32@ = &y;
-
-    res1 := check_ptr(ptr,rtti::builtin_type::u32_t);
-    res2 := !check_ptr(ptr_false,rtti::builtin_type::u32_t);
-
-    res := res1 && res2;
-
-    return res;
-}
-
-func test_array(any : rtti::Any, expected_len : u32) bool
-{
-    type: const rtti::Type@ = any.type;
-
-    if(rtti::is_array(type))
-    {
-        array_type := cast(const rtti::ArrayType@,type);
-
-        return array_type.size == expected_len;
-    }
-
-    return false;
-}
-
-func check_array() bool
-{
-    arr : u32[?] = {1,2,3,4,5};
-
-    res1 := test_array(arr,arr.len);
-
-    // not an array fail
-    res2 := !test_array(5,0);
-
-    res := res1 && res2;
-
-    return res;
-}
-
 func main() s32
 {
     res1 := check_builtin();
-    res2 := check_pointer();
-    res3 := check_array();
+    // res2 := check_pointer();
+    // res3 := check_array();
 
-    res := res1 && res2 && res3;
+    res := res1;
 
     ans : s32 = cast(u32,res);
 

@@ -1,20 +1,3 @@
-b32 is_any(Interloper& itl, const Type* type)
-{
-    if(!itl.rtti_enable)
-    {
-        return false;
-    }
-
-    if(is_struct(type))
-    {
-        StructType* struct_type = (StructType*)type;
-
-        return struct_type->struct_idx == itl.rtti_cache.any_idx;
-    }
-
-    return false;
-}
-
 Result<u32,itl_error> cache_struct_index(Interloper& itl, NameSpace* name_space, const String& name)
 {
     auto type_opt = lookup_type_scoped(itl,name_space,name);

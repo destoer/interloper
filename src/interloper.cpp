@@ -129,7 +129,7 @@ void destroy_itl(Interloper &itl)
 
     destroy_arr(itl.func_pointer);
 
-    // destroy_rtti_cache(itl.rtti_cache);
+    destroy_rtti_cache(itl.rtti_cache);
 
     destroy_allocator(itl.type_allocator);
 }

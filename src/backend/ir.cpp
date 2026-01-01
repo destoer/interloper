@@ -1,4 +1,5 @@
 
+#include "ir.h"
 OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* node)
 {
     const auto slot = node->value.v[1].reg;
@@ -6,6 +7,7 @@ OpcodeNode* rewrite_access_struct(LinearAlloc &alloc,Block &block, OpcodeNode* n
 
     if(is_reg_mem_unallocated(reg))
     {
+        disass_opcode_sym(node->value,*alloc.table,arch_target::x86_64_t);
         assert(stored_in_mem(reg));
 
         stack_reserve_reg(alloc.stack_alloc,reg);

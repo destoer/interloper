@@ -489,6 +489,23 @@ Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Ty
     return option::none;
 }
 
+b32 is_any(Interloper& itl, const Type* type)
+{
+    if(!itl.rtti_enable)
+    {
+        return false;
+    }
+
+    if(is_struct(type))
+    {
+        StructType* struct_type = (StructType*)type;
+
+        return struct_type->struct_idx == itl.rtti_cache.any_idx;
+    }
+
+    return false;
+}
+
 Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const Type* rtype)
 {
     // both are builtin
@@ -717,6 +734,12 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
 
 Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype, assign_type type)
 {
+    // Assign to any is fine for any type.
+    if(is_any(itl,ltype))
+    {
+        return option::none;
+    }
+
     const Type* ltype_copy = ltype;
     const Type* rtype_copy = rtype;
 
