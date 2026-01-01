@@ -3,7 +3,7 @@
 void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot);
 
 
-void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
+void default_construct_array(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
 {
     // VLA just setup the struct
     if(!is_fixed_array(type))
@@ -30,7 +30,7 @@ void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, Addr
                 auto sub_addr = addr_slot;
                 sub_addr.addr.offset += (i * next_type->sub_size);
 
-                default_construct_arr(itl,func,next_type,sub_addr);
+                default_construct_array(itl,func,next_type,sub_addr);
             }
 
             break;
@@ -195,7 +195,7 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     if(!decl_node->expr)
     {
         // VLA is a struct on the stack and must be treated as such
-        default_construct_arr(itl,func,(ArrayType*)array.type,addr_slot);
+        default_construct_array(itl,func,(ArrayType*)array.type,addr_slot);
         return;  
     }
 

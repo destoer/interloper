@@ -243,4 +243,4 @@ Symbol* get_sym(SymbolTable &sym_table,const String &sym);
 Symbol* get_sym_internal(SymbolTable &sym_table,const String &sym, NameSpace* name_space);
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot);
 
-void default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);
+void default_construct_array(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);

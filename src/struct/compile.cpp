@@ -1,6 +1,8 @@
 
 #include "parser.h"
+#include "sym.h"
 #include "type.h"
+
 void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot)
 {
     // TODO: add a opt to just memset the entire thing in one go / bulk store
@@ -32,7 +34,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
             case type_class::array_t:
             {
-                unimplemented("Default construct arr");
+                default_construct_array(itl, func, (ArrayType*)member.type, member_addr);
                 break;
             }
 
