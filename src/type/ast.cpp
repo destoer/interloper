@@ -269,6 +269,11 @@ Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stm
 
     AssignNode* assign = (AssignNode*)stmt;
 
+    if(assign->left->type == ast_type::ignore)
+    {
+        return type_check_expr(itl,assign->right).remap_to_err();
+    }
+
     const auto left_res = type_check_expr(itl,assign->left);
     if(!left_res) 
     {
@@ -291,7 +296,6 @@ Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stm
         return assign_err;
     }
 
-    assign->node.expr_type = right;
     return option::none;
 }
 

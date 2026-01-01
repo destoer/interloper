@@ -740,9 +740,6 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         return option::none;
     }
 
-    const Type* ltype_copy = ltype;
-    const Type* rtype_copy = rtype;
-
     if(is_plain(rtype) && is_plain(ltype))
     {
         const auto plain_err = check_assign_plain(itl,ltype,rtype);
@@ -774,13 +771,13 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         }
 
         else
-        {
+        {            
             return compile_error(itl,itl_error::mismatched_args,"cannot assign %t = %t",ltype,rtype);
         }
     }
 
     // we know this will descend properly so check const!
-    return check_const(itl,ltype_copy,rtype_copy,type);
+    return check_const(itl,ltype,rtype,type);
 }
 
 // check ordinary assign

@@ -1,4 +1,5 @@
 
+#include "interloper.h"
 TypeResult type_check_pointer_index(Interloper& itl, IndexNode* index, PointerType* ptr_type)
 {
     if(ptr_type->pointer_kind == pointer_type::nullable)
@@ -190,7 +191,25 @@ Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListN
 
     else if(is_runtime_size(type))
     {
-        unimplemented("Type check vla initializer");
+        if(count(init_list->list) != 2)
+        {
+            return compile_error(itl, itl_error::invalid_expr, "Expected 2 initializers for vla in init list");
+        }
+
+        const auto data_type = make_reference(itl, type->contained_type);
+        const auto data_err = type_check_init_expr(itl,data_type,init_list->list[0]);
+        if(data_err)
+        {
+            return data_err;
+        }
+
+        const auto size_err = type_check_init_expr(itl,itl.usize_type,init_list->list[1]);
+        if(size_err)
+        {
+            return size_err;
+        }
+
+        return option::none;
     }
 
     // we are getting to the value assigns!

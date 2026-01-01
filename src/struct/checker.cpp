@@ -148,7 +148,7 @@ Option<itl_error> type_check_struct_initializer_stmt(Interloper& itl,Function& f
         return compile_error(itl,itl_error::invalid_statement,"Struct initializer stmt must be for a return");
     }
 
-    if(count(func.sig.args) != 1)
+    if(count(func.sig.return_type) != 1)
     {
         return compile_error(itl,itl_error::invalid_statement,"Struct initializer stmt must be for a single return");
     }
