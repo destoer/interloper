@@ -314,6 +314,12 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
             break;
         }
 
+        case ast_type::ignore:
+        {
+            compile_expression(itl,func,assign->right,new_tmp(func,GPR_SIZE));
+            break;
+        }
+
         default:
         {
             (void)compile_panic(itl,itl_error::invalid_expr,"could not assign to expr: %s",AST_INFO[u32(assign->left->type)].name);
