@@ -59,6 +59,26 @@ TypeResult type_check_access_struct_member(Interloper& itl, Type* ltype, AccessM
             return compile_error(itl,itl_error::undeclared,"unknown array member %S",member_access.name);
         }
 
+        case type_class::enum_t:
+        {
+            member_access.type = member_access_type::enum_t;
+            
+            auto enumeration = enum_from_type(itl.enum_table,(EnumType*)ltype);
+            if(!is_struct(enumeration.underlying_type))
+            {
+                return compile_error(itl,itl_error::undeclared,"Enum %t is not an enum struct %t",ltype,enumeration.underlying_type);
+            }
+
+            const auto access_err = access_member(itl,enumeration.underlying_type,member_access,member_access.name);
+            if(access_err)
+            {
+                return *access_err;
+            }
+            
+            return member_access.expr_type;            
+        }
+
+
         default:
         {
             return compile_error(itl,itl_error::struct_error,"%t is not a struct, enum or array",ltype);

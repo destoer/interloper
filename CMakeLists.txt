@@ -13,11 +13,7 @@ file(GLOB src_files
 	"src/main.cpp"
 )
 
-if(WIN32)
 
-else()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Werror -fno-exceptions -fno-rtti  -fomit-frame-pointer -Wall -Wextra -O0 -march=native -fmax-errors=15")
-endif()
 
 include_directories("src/headers")
 include_directories("src/")
@@ -27,5 +23,11 @@ add_subdirectory("util")
 
 add_executable(interloper ${src_files})
 target_link_libraries(interloper destoer)
+
+if(WIN32)
+
+else()
+target_compile_options(interloper PRIVATE -g -Werror -fno-exceptions -fno-rtti  -fomit-frame-pointer -Wall -Wextra -O0 -march=native -fmax-errors=15)
+endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

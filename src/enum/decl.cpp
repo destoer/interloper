@@ -1,3 +1,5 @@
+Option<itl_error> compile_const_struct_list_internal(Interloper& itl,InitializerListNode* init_list, const Struct& structure, PoolSlot slot, u32* offset);
+
 void destroy_enum(Enum& enumeration)
 {
     destroy_table(enumeration.member_map);
@@ -115,15 +117,35 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
 
             // compile in member access
             auto& structure = struct_from_type(itl.struct_table,(StructType*)enumeration.underlying_type);
-            UNUSED(structure);
 
 
-            switch(member_decl.initializer->type)
+            AstNode* init_expr = member_decl.initializer;
+            itl.ctx.expr = init_expr;
+
+            const auto type_err = type_check_init_expr(itl,enumeration.underlying_type,init_expr);
+            if(type_err)
             {
+                return *type_err;
+            }
+
+            switch(init_expr->type)
+            {
+                case ast_type::initializer_list:
+                {
+                    u32 offset = m * structure.size;
+
+                    const auto struct_err = compile_const_struct_list_internal(itl,(InitializerListNode*)init_expr,structure,
+                        enumeration.struct_slot, &offset);
+                    if(struct_err)
+                    {
+                        return *struct_err;
+                    }
+                    break;
+                }
+
                 default:
                 {
-                    unimplemented("enum struct expr init");
-                    break;
+                    return compile_error(itl,itl_error::invalid_statement,"Unknown enum struct initializer: %s",AST_INFO[u32(init_expr->type)]);
                 }
             }
         }
@@ -132,7 +154,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
         {
             if(member_decl.initializer)
             {
-                assert(false);
+                unimplemented("Integer enum");
                 UNUSED(set);
                 // value_used = true;
 

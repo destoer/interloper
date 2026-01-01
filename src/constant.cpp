@@ -23,6 +23,24 @@ ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
     return ConstValue{node->expr_type,*node->known_value};
 }
 
+Result<u32,itl_error> const_write_in_string(Interloper& itl, StringNode* string_node, PoolSlot slot, u32 offset)
+{
+    const String string = string_node->string;
+
+    // add string into const pool
+    const auto data_slot = push_const_pool_string(itl.const_pool,string);
+
+    // make sure we pull the section after pushing data
+    auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+    // write in vla data
+    write_const_pool_vla(itl.const_pool,section,offset,data_slot,string.size);
+    offset += VLA_SIZE;
+    
+    return offset;    
+}
+
+
 
 Option<itl_error> compile_const_struct_list_internal(Interloper& itl,InitializerListNode* init_list, const Struct& structure, PoolSlot slot, u32* offset)
 {
@@ -41,6 +59,16 @@ Option<itl_error> compile_const_struct_list_internal(Interloper& itl,Initializer
                 if(err)
                 {
                     return err;
+                }
+                break;
+            }
+
+            case ast_type::string:
+            {
+                const auto write_res = const_write_in_string(itl,(StringNode*)node,slot,*offset + member.offset);
+                if(!write_res)
+                {
+                    return write_res.error();
                 }
                 break;
             }
@@ -218,7 +246,7 @@ ConstDataResult compile_const_array_expr(Interloper& itl, ArrayType* type, AstNo
 
         default: 
         {
-            return compile_error(itl,itl_error::invalid_expr,"Invalid expr for const struct init: %s",AST_INFO[u32(expr->type)].name);
+            return compile_error(itl,itl_error::invalid_expr,"Invalid expr for const array init: %s",AST_INFO[u32(expr->type)].name);
         }
     }
 }
@@ -228,7 +256,8 @@ ConstDataResult compile_const_builtin_expr(Interloper& itl, AstNode* expr)
 {
     if(!expr->known_value)
     {
-        return compile_error(itl,itl_error::const_type_error,"Builtin const expression of %t is not statically known",expr->expr_type);
+        return compile_error(itl,itl_error::const_type_error,"Builtin const expression(%s) of %t is not statically known",
+            AST_INFO[u32(expr->type)].name,expr->expr_type);
     }
     
     return make_const_builtin(*expr->known_value,expr->expr_type);

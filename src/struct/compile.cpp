@@ -1,4 +1,6 @@
 
+#include "parser.h"
+#include "type.h"
 void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot)
 {
     // TODO: add a opt to just memset the entire thing in one go / bulk store
@@ -239,6 +241,38 @@ void access_index_member(Interloper& itl, Function& func,TypedAddr* struct_addr,
     }
 }
 
+void access_enum_struct_member(Interloper& itl,Function& func, const AccessMember& member_access, TypedAddr* struct_addr)
+{
+    const auto enumeration = enum_from_type(itl.enum_table, (EnumType*)struct_addr->type);
+    const auto& structure = struct_from_type(itl.struct_table,(StructType*)enumeration.underlying_type);
+    const auto& member = structure.members[member_access.member];
+
+    // get the start of the table
+    const auto enum_table_slot = pool_addr_res(itl,func,enumeration.struct_slot,0);
+
+    // get the enum index
+    RegSlot enum_slot = INVALID_SYM_REG_SLOT;
+    
+    // we allready directly have the enum
+    if(struct_addr->addr_slot.struct_addr)
+    {
+        assert(struct_addr->addr_slot.addr.offset == 0);
+        enum_slot = struct_addr->addr_slot.addr.base;
+    }
+
+    // ordinary access on a pointer, we must deref it
+    else
+    {
+        enum_slot = new_tmp(func,GPR_SIZE);
+        load_addr_slot(itl,func,enum_slot,struct_addr->addr_slot,ENUM_SIZE,false,false);
+    }
+
+    // finally index the table
+    const auto addr = generate_indexed_pointer(itl,func,enum_table_slot,enum_slot,structure.size,member.offset);
+    struct_addr->addr_slot = addr;
+    struct_addr->type = member.type;
+}
+
 TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode* struct_access)
 {
     TypedAddr struct_addr;
@@ -310,7 +344,8 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 
             case member_access_type::enum_t:
             {
-                unimplemented("Access enum member");
+                access_enum_struct_member(itl, func, access_member, &struct_addr);
+                break;
             }
 
             case member_access_type::array_t:
