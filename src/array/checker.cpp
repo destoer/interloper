@@ -292,7 +292,7 @@ TypeResult type_check_array_slice(Interloper& itl, AstNode* expr)
 TypeResult type_check_string(Interloper& itl, AstNode* expr)
 {
     UNUSED(expr);
-    return make_array(itl,make_builtin(itl,builtin_type::c8_t,true),RUNTIME_SIZE);
+    return itl.string_type;
 }
 
 Option<itl_error> type_check_const_assert(Interloper& itl, Function& func, AstNode* stmt)

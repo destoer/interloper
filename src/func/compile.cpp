@@ -1,4 +1,5 @@
 
+#include "ir.h"
 ArgPass make_arg_pass(const FuncSig& sig)
 {
     ArgPass pass;
@@ -205,6 +206,45 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
 }
 
 
+void compile_any_arr(Interloper& itl, Function& func, AstNode* arg_node, const Option<AddrSlot>& addr);
+
+void push_va_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* call_node,const FuncSig& sig)
+{
+    const auto any_args = sig_any_span(sig,call_node->args);
+
+    // alloc storage for array
+    // this is easy because we know how many args we have
+    auto& rtti_cache = itl.rtti_cache;
+
+    const u32 any_arr_size = align_val(any_args.size * rtti_cache.any_struct_size,GPR_SIZE);
+
+    alloc_stack(itl,func,any_arr_size);
+
+    const auto any_arr_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
+    auto addr_slot = make_pointer_addr(any_arr_ptr, 0);
+
+    for(AstNode* node: any_args)
+    {
+        compile_any_arr(itl,func,node,addr_slot);
+        addr_slot.addr.offset += rtti_cache.any_struct_size;
+    }
+
+    // alloc vla
+    alloc_stack(itl,func,VLA_SIZE);
+
+    // and store it
+    const RegSlot any_len_slot = mov_imm_res(itl,func,any_args.size);
+
+    const auto SP_SLOT = make_spec_reg_slot(spec_reg::sp);
+
+    // store data
+    store_ptr(itl,func,any_arr_ptr,SP_SLOT,0,GPR_SIZE,false);
+    store_ptr(itl,func,any_len_slot,SP_SLOT,GPR_SIZE,GPR_SIZE,false);      
+
+    const u32 total_size = any_arr_size + VLA_SIZE;
+    pass.arg_clean += total_size / GPR_SIZE;
+}
+
 void push_struct_return(Interloper& itl, Function& func, ArgPass& pass,const FuncSig& sig, RegSlot dst_slot)
 {
     Type* type = sig.return_type[0];
@@ -331,7 +371,7 @@ u32 pass_function_args(Interloper& itl, Function& func, FuncCallNode* call_node,
     
     if(sig.va_args)
     {
-        unimplemented("va args");
+        push_va_args(itl,func,pass,call_node,sig);
     }
 
     push_args(itl,func,pass,call_node,sig);

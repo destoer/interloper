@@ -91,6 +91,8 @@ void setup_type_table(Interloper& itl)
 
     itl.void_type = make_builtin(itl,builtin_type::void_t);
 
+    itl.byte_ptr_type = make_reference(itl,make_builtin(itl,builtin_type::byte_t));
+    itl.string_type = make_array(itl,make_builtin(itl,builtin_type::c8_t,true),RUNTIME_SIZE);
 }
 
 void destroy_itl(Interloper &itl)
