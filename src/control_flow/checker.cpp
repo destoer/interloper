@@ -266,6 +266,66 @@ Option<itl_error> type_check_while(Interloper& itl, Function& func, AstNode* stm
     return type_check_block(itl,func,while_node->block);
 }
 
+Option<itl_error> type_check_switch_enum(Interloper& itl, Function& func, EnumType* target_type, Case& stmt)
+{
+    const auto stmt_res = type_check_expr(itl,stmt.statement);
+    if(!stmt_res)
+    {
+        return stmt_res.error();
+    }
+
+    const auto type = *stmt_res;
+    if(!is_enum(type))
+    {
+        return compile_error(itl,itl_error::int_type_error,"Expected integer case for switch statemnt");
+    }
+
+    EnumType* case_type = (EnumType*)type;
+
+    if(case_type->enum_idx != target_type->enum_idx)
+    {
+        return compile_error(itl,itl_error::enum_type_error,"differing enums %t : %t in switch statement",(Type*)target_type,type);
+    }
+
+    const auto block_err = type_check_block(itl,func,*stmt.block);
+    if(block_err)
+    {
+        return block_err;
+    }
+
+    stmt.value = *stmt.statement->known_value;
+    return option::none;    
+}
+
+Option<itl_error> type_check_switch_int(Interloper& itl, Function& func, Case& stmt)
+{
+    const auto stmt_res = type_check_expr(itl,stmt.statement);
+    if(!stmt_res)
+    {
+        return stmt_res.error();
+    }
+
+    const auto type = *stmt_res;
+    if(!is_integer(type))
+    {
+        return compile_error(itl,itl_error::int_type_error,"Expected integer case for switch statemnt");
+    }
+
+    if(!stmt.statement->known_value)
+    {
+        return compile_error(itl,itl_error::int_type_error,"Switch case must be a comple time integer");
+    }
+
+    const auto block_err = type_check_block(itl,func,*stmt.block);
+    if(block_err)
+    {
+        return block_err;
+    }
+
+    stmt.value = *stmt.statement->known_value;
+    return option::none;  
+}
+
 Option<itl_error> type_check_switch(Interloper& itl, Function& func, AstNode* stmt)
 {
     SwitchNode* switch_node = (SwitchNode*)stmt;
@@ -316,30 +376,11 @@ Option<itl_error> type_check_switch(Interloper& itl, Function& func, AstNode* st
         {
             for(auto& stmt : switch_node->statements)
             {
-                const auto stmt_res = type_check_expr(itl,stmt.statement);
-                if(!stmt_res)
+                const auto err = type_check_switch_int(itl,func,stmt);
+                if(err)
                 {
-                    return stmt_res.error();
+                    return err;
                 }
-
-                const auto type = *stmt_res;
-                if(!is_integer(type))
-                {
-                    return compile_error(itl,itl_error::int_type_error,"Expected integer case for switch statemnt");
-                }
-
-                if(!stmt.statement->known_value)
-                {
-                    return compile_error(itl,itl_error::int_type_error,"Switch case must be a comple time integer");
-                }
-
-                const auto block_err = type_check_block(itl,func,*stmt.block);
-                if(block_err)
-                {
-                    return block_err;
-                }
-
-                stmt.value = *stmt.statement->known_value;
             }
 
             break;
@@ -347,7 +388,15 @@ Option<itl_error> type_check_switch(Interloper& itl, Function& func, AstNode* st
 
         case switch_kind::enum_t:
         {
-            unimplemented("Type check switch on enum");
+            for(auto& stmt : switch_node->statements)
+            {
+                const auto err = type_check_switch_enum(itl,func,(EnumType*)target_type,stmt);
+                if(err)
+                {
+                    return err;
+                }
+            }
+            break;
         }
     }
 
