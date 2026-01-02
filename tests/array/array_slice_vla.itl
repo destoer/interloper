@@ -1,0 +1,15 @@
+
+func main() s32
+{
+    buffer: byte[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+    vla: byte[] = buffer;
+
+    slice_lower := vla[4:];
+    slice_upper := vla[:14];
+    slice_both := vla[5:11];
+
+    ans1 := slice_lower.len == 12 && slice_upper.len == 14 && slice_both.len == 6;
+    ans2 := slice_lower[0] == 5 && slice_upper[0] == 1 && slice_both[0] == 6;
+
+    return cast(s32,ans1 && ans2);
+}

@@ -155,6 +155,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_assign_vla",15},
     {"tests/array/array_recast",1},
     {"tests/array/array_slice",1},
+    {"tests/array/array_slice_vla",1},
 
     {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_array",3},
