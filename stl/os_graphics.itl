@@ -1037,7 +1037,7 @@ func create_gfx_ctx(win: OSWindow@) net_result
 func update_max_lines(win: OSWindow@)
 {
     // what is the max number of lines we can push in one go?
-    win.max_lines = win.max_req / (win.win_x * sizeof_type(u32));
+    win.max_lines = win.max_req / (win.win_x * cast(u32,sizeof_type(u32)));
 
     log::debug(X11_PREFIX,"max lines: {}",win.max_lines);
 }

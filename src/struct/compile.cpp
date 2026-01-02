@@ -18,9 +18,12 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
         if(member.expr)
         {
-            const auto reg = compile_oper(itl,func,member.expr);
-            const TypedAddr dst_addr = {member_addr,member.type};
-            do_addr_store(itl,func,reg,dst_addr);
+            if(member.expr->type != ast_type::no_init)
+            {
+                const auto reg = compile_oper(itl,func,member.expr);
+                const TypedAddr dst_addr = {member_addr,member.type};
+                do_addr_store(itl,func,reg,dst_addr);
+            }
             continue;
         }
 
