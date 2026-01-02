@@ -1,3 +1,4 @@
+import <time>
 namespace std;
 
 func test_f64(v1: f64, ans: f64, name: const string)

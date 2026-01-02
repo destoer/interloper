@@ -10,7 +10,6 @@ using namespace destoer;
 #include <type.h>
 #include <sym.h>
 #include <ir.h>
-#include <interpretter.h>
 
 
 struct Interloper

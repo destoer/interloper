@@ -299,7 +299,7 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
         new.canary_start = HEAP_CANARY_START;
         new.canary_end = HEAP_CANARY_END;
 
-        // Point new block at its neighbours
+        // Point new block at its neighbors
         new.prev = cur_reference;
         new.next = cur_reference.next;
 
@@ -394,7 +394,7 @@ func alloc_heap_panic(heap : Heap@, count : usize, size : usize) byte@
     }
 
     // Pointer has been checked this is now safe to treat as a reference
-    return cast(byte@,ptr);
+    return cast_ref(ptr);
 }
 
 func alloc_global_heap_panic(count : usize, size : usize) byte@

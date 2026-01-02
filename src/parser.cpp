@@ -684,22 +684,47 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
                     return lt_err;
                 }
 
-                if(!match(parser,token_type::symbol))
+                StringBuffer buffer;
+                push_string(buffer,itl.stl_path);
+
+                bool done = false;
+                
+                while(!done)
                 {
-                    const auto err = next_token(parser);
-                    return parser_error(parser,parse_error::missing_expr,next_token(parser),"expected string for import got %s : %s\n",
-                        tok_name(err.type),err.literal.buf);
+                    const auto cur = next_token(parser);
+
+                    switch(cur.type)
+                    {
+                        case token_type::symbol:
+                        {
+                            push_string(buffer,cur.literal);
+                            break;
+                        }
+
+                        case token_type::divide:
+                        {
+                            push_char(buffer,'/');
+                            break;
+                        }
+
+                        case token_type::logical_gt:
+                        {
+                            done = true;
+                            break;
+                        }
+
+                        default:
+                        {
+                            destroy_arr(buffer);
+                            return parser_error(parser,parse_error::malformed_stmt,cur,"Unexpected token during import %s",tok_name(cur.type));
+                        }
+                    }
                 }
 
-                const auto name_tok = next_token(parser);
+                push_char(buffer,'\0');
 
-                const auto gt_err = consume(parser,token_type::logical_gt);
-                if(gt_err)
-                {
-                    return gt_err;
-                }
-
-                const auto full_path = cat_string(itl.string_allocator,itl.stl_path,get_program_name(itl.string_allocator,name_tok.literal)); 
+                const auto full_path = get_program_name(itl.string_allocator,make_string(buffer));
+                destroy_arr(buffer);
 
                 add_file(queue, full_path);
             }
@@ -927,7 +952,11 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 
     if(file_exists("interloper"))
     {
-        itl_path = ".";
+        char buffer[256];
+        getcwd(buffer,sizeof(buffer));
+
+        auto alloc_path = copy_string(itl.string_allocator,buffer);
+        itl_path = alloc_path.buf;
     }
 
     else

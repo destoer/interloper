@@ -1,0 +1,49 @@
+namespace std;
+
+constant SYSCALL_TIME : u32 = 201;
+constant SYSCALL_TIME_OF_DAY: u32 = 96;
+constant SYSCALL_NANOSLEEP : u32 = 35;
+
+
+
+func time() s64
+{
+    x : s64 = 0;
+    intrin_syscall(SYSCALL_TIME,&x);
+
+    return x;
+}
+
+#attr(no_reorder)
+struct TimeVal
+{
+    sec : s64;
+    usec : s64;
+}
+
+func os_timestamp_ms() f64
+{
+    time : TimeVal;
+    intrin_syscall(SYSCALL_TIME_OF_DAY,&time,NULL);
+
+    ms := (cast(f64,time.sec) * 1000.0) + (cast(f64,time.usec) / 1000.0);
+
+    //std::print("time {} {} {}\n",ms,time.sec,time.usec);
+
+    return ms;
+}
+
+struct TimeSpec
+{
+    sec : s64;
+    nsec : s64;
+}
+
+func os_sleep_ms(ms : u64)
+{
+    spec : TimeSpec;
+    spec.sec = ms / MS_TO_SEC;
+    spec.nsec = (ms % MS_TO_SEC) * MS_TO_NSEC;
+    intrin_syscall(SYSCALL_NANOSLEEP,&spec,NULL);
+} 
+
