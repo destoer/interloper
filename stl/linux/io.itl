@@ -1,0 +1,242 @@
+namespace std;
+
+import <file>
+
+constant SYSCALL_READ : u32 = 0;
+constant SYSCALL_WRITE : u32 = 1;
+constant SYSCALL_OPEN : u32 = 2;
+constant SYSCALL_CLOSE : u32 = 3;
+constant SYSCALL_LSEEK : u32 = 8;
+
+
+// FILE IO
+
+constant OS_INVALID_READ : s64 = -1;
+
+// NOTE: this is expecting a null terminated string
+func os_open(filename : const c8@, mode : file_mode, opt : file_opt) byte@
+{
+    // convert our high level enums to an os flag
+    os_flag : u32 = 0;
+
+    constant OS_OPEN_READ_ONLY: u32 = 0;
+    constant OS_OPEN_WRITE_ONLY: u32 = 1;
+    constant OS_OPEN_CREATE : u32 = 0x40;
+    constant OS_OPEN_APPEND : u32 = 0x400;
+
+    switch(mode)
+    {
+        case file_mode::read:
+        {
+            os_flag = OS_OPEN_READ_ONLY;
+        }
+    
+        case file_mode::write:
+        {
+            os_flag = OS_OPEN_WRITE_ONLY;
+        }
+    }
+
+    switch(opt)
+    {
+        case file_opt::open:
+        {
+
+        }
+
+        case file_opt::create:
+        {
+            os_flag |= OS_OPEN_CREATE;
+        }
+
+        case file_opt::append:
+        {
+            os_flag |= OS_OPEN_APPEND;
+        }
+    }
+
+
+    return cast(byte@,intrin_syscall(SYSCALL_OPEN,filename,os_flag));
+}
+
+func os_close(handle : const byte?) result
+{
+    if(intrin_syscall(SYSCALL_CLOSE,handle) < 0)
+    {
+        return result::err;
+    }
+
+    return result::ok;
+}
+
+func os_write(handle : const byte?, data : const byte@, len : usize) s64
+{
+    return intrin_syscall(SYSCALL_WRITE,handle,data,len);
+}
+
+func os_write_str_raw(data : const byte@, len : usize) s64
+{
+    return os_write(cast(byte@,1),data,len);
+}
+
+func os_write_str(str: const string) s64
+{
+    return os_write_str_raw(str.data,str.len);
+}
+
+func os_read(handle : const byte?, data : byte@, len : usize) [u64, result]
+{
+    rc := intrin_syscall(SYSCALL_READ,handle,data,len);
+
+    if(rc < 0)
+    {
+        log_errno("Read error: {}",rc);
+        return 0, result::err;
+    }
+
+    return cast(u64,rc), result::ok;
+}
+
+constant SEEK_CUR : u32 = 1;
+
+func lseek(handle : const byte?, seek : u32, offset : s64) s64
+{
+    return intrin_syscall(SYSCALL_LSEEK,handle,offset,seek);
+}
+
+func os_seek(handle : const byte?, seek : file_seek_mode, offset : s64) s64
+{
+    // i.e this is allready in the native format
+    // start -> 0
+    // cur -> 1
+    // end -> 2
+    return lseek(handle,cast(u32,seek),offset);
+}
+
+func os_tell(handle : const byte?) s64
+{
+    return lseek(handle,SEEK_CUR,0);
+}
+
+constant INVALID_FILE_HANDLE : s64 = -1;
+
+func is_os_handle_valid(handle : byte?) bool
+{
+    return cast(s64,handle) >= 0;
+}
+
+
+// STD IO
+
+global stdout : File = open_stdout();
+global stdin : File = open_stdin();
+
+func open_stdout() File
+{
+    [fp,err] := open_file("/dev/stdout",file_mode::write,file_opt::open);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDOUT);
+    }
+
+    fp.flags = fp.flags | file_flag::line_buffer;
+    return fp;
+}
+
+func open_stdin() File
+{
+    [fp,err] := open_file("/dev/stdin",file_mode::read,file_opt::open);
+
+    if(err)
+    {
+        exit(FAILURE_OPEN_STDIN);
+    }
+
+    return fp;
+}
+
+func write_str_raw_file(file: File@, data : const c8@, len : usize)
+{
+    if(len == 0)
+    {
+        return;
+    }
+
+    else if(!data)
+    {
+        write_file_str(file,"NULL");
+    }
+
+    else
+    {
+        write_file_mem(file,data,len);
+    }   
+}
+
+func write_str_raw(data : const c8@, len : usize)
+{
+    if(!global_setup)
+    {
+        std::exit(0xbb);
+    }
+
+    write_str_raw_file(&stdout,data,len);
+}
+
+
+func write_string_file(file: File@, str: const string)
+{
+    if(str.len == 0)
+    {
+        return;
+    }
+
+    else if(!str.data)
+    {
+        write_file_str(file,"NULL");
+    }
+
+    else
+    {
+        write_file_str(file,str);
+    }
+}
+
+func write_string(str: const string)
+{
+    if(!global_setup)
+    {
+        std::exit(0xbb);
+    }
+
+    write_string_file(&stdout,str);
+}
+
+
+func read_line(str : string) string
+{
+    // if we are going to request input
+    // flush any stdout so we get our prompt
+    if(stdout.buffer_size)
+    {
+        flush_write(&stdout);
+    }
+
+    [str,rc] := read_file_line(&stdin,str);
+
+    if(rc != file_read_res::success)
+    {
+        crash_and_burn("Failed to read from stdin!?");
+    }
+
+    return str;
+}
+
+
+func log_errno(fmt: const string, errno: s64)
+{
+    number := -errno;
+
+    log::error("Linux Syscall",fmt,number);
+} 

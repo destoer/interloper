@@ -1,0 +1,20 @@
+namespace std;
+
+import <input>
+
+constant KEYCODE_W: u32 = 25;
+constant KEYCODE_S: u32 = 39;
+constant KEYCODE_D: u32 = 40;
+constant KEYCODE_A: u32 = 38;
+
+constant KEYCODE_ESC: u32 = 9;
+
+func os_default_key_map(map: input::button_t[256])
+{
+    map[KEYCODE_W] = input::button_t::up;
+    map[KEYCODE_S] = input::button_t::down;
+    map[KEYCODE_D] = input::button_t::right;
+    map[KEYCODE_A] = input::button_t::left;
+
+    map[KEYCODE_ESC] = input::button_t::start;
+}

@@ -1,11 +1,12 @@
 #pragma once
 #include <error.h>
+#include <parser.h>
 
 struct FileContext
 {
-    AstNode *expr = nullptr;
     String filename = "";
     NameSpace *name_space = nullptr;
+    AstNode* expr = nullptr;
 };
 
 // NOTE: this may move during expression compilation
@@ -20,11 +21,15 @@ struct Symbol
     u32 arg_offset = NON_ARG;
     u32 references = 0;
 
-    bool known_value = false;
-    u64 constant_value = 0;
+    Option<u64> known_value = option::none;
 
     FileContext ctx;
 };
+
+struct SymbolNode;
+RegResult symbol(Interloper &itl, SymbolNode* sym_node);
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type);
+Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant);
 
 struct Label 
 {
@@ -79,6 +84,22 @@ struct FuncPointerType
     FuncSig sig;
 };
 
+const u32 FUNC_CALL_FUNC_POINTER_FLAG = (1 << 0);
+const u32 FUNC_CALL_FUNC_POINTER_EXPR_FLAG = (1 << 1);
+
+struct FuncCall
+{
+    FuncSig sig = {};
+    String name = {};
+
+    union
+    {
+        LabelSlot label_slot;
+        RegSlot reg_slot = {};
+    };
+
+    u32 flags = 0;
+};
 
 struct Function
 {
@@ -99,12 +120,14 @@ struct Function
     b32 used = false;
 
     b32 leaf_func = true;
-};
 
+    FuncCall call_info;
+};
 
 struct FunctionDef
 {
     FuncNode* root = nullptr;
+    TopLevelDefiniton parser_def;
     // NOTE: we may not actually compile the function
     // we also don't want the memory to move when we insert
     // new ones
@@ -120,13 +143,14 @@ struct FunctionTable
     ArenaAllocator arena;
 };
 
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def);
 
 b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 
 Function* lookup_opt_scoped_function(Interloper& itl, NameSpace* name_space, const String& name);
 Function* lookup_opt_global_function(Interloper& itl, const String& name);
 
-Function& lookup_internal_function(Interloper& itl, const String& name);
+Function* lookup_internal_function(Interloper& itl, const String& name);
 
 enum class func_sig_kind
 {
@@ -216,6 +240,7 @@ struct [[nodiscard]] SymbolScopeGuard
 
 std::pair<u32,u32> calc_arr_allocation(Interloper& itl, const Type* type);
 Symbol* get_sym(SymbolTable &sym_table,const String &sym);
+Symbol* get_sym_internal(SymbolTable &sym_table,const String &sym, NameSpace* name_space);
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot);
 
-Option<itl_error> default_construct_arr(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);
+void default_construct_array(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot);

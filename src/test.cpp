@@ -38,7 +38,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/const/const_invalid_assign",itl_error::const_type_error},
     {"tests/const/const_pass_invalid_ptr.itl",itl_error::const_type_error},
     {"tests/const/const_invalid_ptr_assign.itl",itl_error::const_type_error},
-    //{"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
+    {"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
 
     // func
     {"tests/func/no_main",itl_error::undeclared},
@@ -101,40 +101,19 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/scope",16},
     {"tests/basic/bitwise",0}, // -713
     {"tests/basic/logical",1},
-    {"tests/basic/short_circuit",60},
     {"tests/basic/arith_eq",1}, // 294
-    {"tests/basic/mod",1}, // 233168
     {"tests/basic/shift",1},
     {"tests/basic/comment",0},
-    {"tests/basic/constant",1},
     {"tests/basic/global",26},
     {"tests/basic/overflow",1},  // 65286
-    {"tests/basic/const_assert_pass",0},
-    {"tests/basic/float",1},
-
-    // type
-    {"tests/type/decl",255},
-    {"tests/type/builtin_type",1}, // 271
-    {"tests/type/sizeof",1},
-    {"tests/type/default_initializer",1},
-    {"tests/type/byte",1},
-    {"tests/type/struct_punning",11},
-    {"tests/type/type_query",1},
-    {"tests/type/rtti",1},
-
-    // const
-    {"tests/const/const_pass_copy",100},
-    {"tests/const/const_valid",10},
-    {"tests/const/const_assign_value",5},
-    {"tests/const/const_ptr_ptr",0},
 
     // func
     {"tests/func/func",9},
-    {"tests/func/void_return",255},
     {"tests/func/void_no_return",0},
     {"tests/func/recur",1},
-    {"tests/func/func_pointer",50},
-    {"tests/func/func_pointer_struct_recur",21},
+
+    {"tests/basic/arith_non_const",29},
+    {"tests/basic/bitwise_non_const",0},
 
     // control flow
     {"tests/control_flow/if",25},
@@ -145,31 +124,29 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/else_if_empty",4},
     {"tests/control_flow/for",32},
     {"tests/control_flow/for_idx",10},
-    {"tests/control_flow/for_in",1},
     {"tests/control_flow/for_outer_decl",32},
     {"tests/control_flow/while",32},
+    {"tests/control_flow/for_in_idx",1},
 
-    {"tests/control_flow/switch_no_default",73},
-    {"tests/control_flow/switch",1}, // 447
-
+    {"tests/basic/mod",1}, // 233168
 
     // pointers
     {"tests/ptr/pointer",1}, // -2
-    {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
     {"tests/ptr/alias",1},
-    {"tests/ptr/ptr_to_array",3},
 
+    {"tests/func/void_return",255},
 
+    {"tests/struct/struct",1}, // 495
 
+    {"tests/control_flow/if_non_bool",1},
 
     // arrays
     {"tests/array/array",1}, // 1061
     {"tests/array/array_size",16},
     {"tests/array/array_initializer",16},
     {"tests/array/array_conv",6},
-    {"tests/array/array_conv_struct",6},
     {"tests/array/array_auto_size",16},
     {"tests/array/array_take_pointer",5},
     {"tests/array/array_of_ptr",6},
@@ -179,17 +156,18 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_recast",1},
     {"tests/array/array_slice",1},
 
-    // strings
-    {"tests/string/char_array",6},
-    {"tests/string/write_string",0},
-    {"tests/string/write_string_static",0},
-    {"tests/string/str_conv",1},
-    {"tests/string/stl_string",27},
+    {"tests/ptr/cast_ptr",1}, // 1020
+    {"tests/ptr/ptr_to_array",3},
 
+    {"tests/control_flow/for_in_arr",1},
+    {"tests/control_flow/switch_no_default",73},
+    {"tests/control_flow/switch",1}, // 447
 
+    {"tests/array/array_vla_init",15},
+
+    {"tests/basic/short_circuit",60},
 
     // structs
-    {"tests/struct/struct",1}, // 495
     {"tests/struct/struct_initializer",1}, // 495
     {"tests/struct/pass_struct",2},
     {"tests/struct/return_struct",3},
@@ -206,7 +184,45 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/initializer_assign",14},
     {"tests/struct/designated_initializer",1},
 
+    {"tests/array/array_conv_struct",6},
 
+    {"tests/func/func_pointer",50},
+    {"tests/func/func_pointer_struct_recur",21},
+
+    {"tests/basic/float",1},
+
+    // type
+    {"tests/type/decl",255},
+    {"tests/type/builtin_type",1}, // 271
+    {"tests/type/sizeof",1},
+    {"tests/type/default_initializer",1},
+    {"tests/type/byte",1},
+    {"tests/type/struct_punning",11},
+    {"tests/type/type_query",1},
+
+    {"tests/basic/const_assert_pass",0},
+    {"tests/basic/constant",1},
+
+    // const
+    {"tests/const/const_pass_copy",100},
+    {"tests/const/const_valid",10},
+    {"tests/const/const_assign_value",5},
+    {"tests/const/const_ptr_ptr",0},
+
+    // tuple
+    {"tests/tuple/tuple",1},
+
+    // enum
+    {"tests/enum/enum",1},
+    {"tests/enum/switch_enum",10},
+    {"tests/enum/enum_struct",11},
+    {"tests/enum/enum_flag",1},
+
+    // type alias
+    {"tests/type_alias/type_alias",65},
+
+    {"tests/func/va_args",120},
+    {"tests/type/rtti",1},
 
     // stl
     {"tests/stl/mem",1},
@@ -216,21 +232,14 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/stl/file_bin",1},
     {"tests/stl/hash_table",1},
     {"tests/stl/math",0},
+    {"tests/stl/format",1},
 
-
-
-    // enum
-    {"tests/enum/enum",1},
-    {"tests/enum/switch_enum",10},
-    {"tests/enum/enum_struct",11},
-    {"tests/enum/enum_flag",1},
-
-
-    // type alias
-    {"tests/type_alias/type_alias",65},
-
-    // tuple
-    {"tests/tuple/tuple",1},
+    // strings
+    {"tests/string/char_array",6},
+    {"tests/string/write_string",0},
+    {"tests/string/write_string_static",0},
+    {"tests/string/str_conv",1},
+    {"tests/string/stl_string",27},
 };
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);
@@ -343,5 +352,5 @@ void run_tests(const char* flags)
     auto current = std::chrono::system_clock::now();
 
     auto count = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count()) / 1000.0;
-    printf("total time taken %f\n",count);
+    printf("total time taken %f seconds\n",count);
 }

@@ -3,7 +3,7 @@
 // https://projecteuler.net/problem=1
 
 // multiple of 3 or 5
-func is_multiple(x: s32) bool
+func is_multiple(x: u64) bool
 {
     return ((x % 3) == 0) || ((x % 5) == 0);
 }
@@ -13,7 +13,7 @@ func is_multiple(x: s32) bool
 
 func main() s32
 {
-    ans : s32 = 0;
+    ans : u64 = 0;
 
     for(x in 0 < 1000)
     {

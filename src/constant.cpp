@@ -1,898 +1,71 @@
+ConstDataResult compile_const_expr(Interloper& itl, Type* type, AstNode* expr);
+Option<itl_error> compile_const_list_internal(Interloper& itl,InitializerListNode* init_list, Type* type, PoolSlot slot, u32* offset);
 
-b32 is_constant(const Symbol& sym)
-{
-    return sym.reg.segment == reg_segment::constant;
-}
-
-// NOTE: type checking rules are less strict than in "runtime" expressions
-Option<itl_error> check_const_cmp(Interloper& itl, Type* ltype, Type* rtype)
-{
-    b32 valid = (is_integer(ltype) && is_integer(rtype)) || (is_bool(ltype) && is_bool(rtype));
-    
-    if(!valid)
-    {
-        return compile_error(itl,itl_error::const_type_error,"Could not compare types: %s : %s",type_name(itl,ltype).buf,type_name(itl,rtype).buf);
-    }
-
-    return option::none;
-}
-
-void clip_const_type(ConstData& data, u32 size)
-{
-    switch(size)
-    {
-        case 1: data.v &= 0xff; break;
-        case 2: data.v &= 0xffff; break;
-        case 4: data.v &= 0xffff'ffff; break;
-        case 8: break;
-
-        default: assert(false); break;
-    }    
-}
-
-Option<itl_error> handle_const_cast(Interloper& itl, Type* new_type, ConstData& data)
-{
-    const Type* old_type = data.type;
-
-    // assign the new type
-    data.type = new_type; 
-
-    // handle side effects of the cast
-    // builtin type
-    if(is_plain_builtin(old_type) && is_plain_builtin(new_type))
-    {
-        const auto builtin_old = cast_builtin(old_type);
-        const auto builtin_new = cast_builtin(new_type);
-
-        // integer
-        // any cast is fine, just make sure to clip if the new type has smaller storage
-        if(is_integer(old_type) && is_integer(new_type))
-        {
-            // larger type -> smaller type
-            // truncate value (mask)
-            if(builtin_size(builtin_old) > builtin_size(builtin_new))
-            {
-                clip_const_type(data,builtin_size(builtin_new));
-            }
-
-            return option::none;
-        }
-
-        // bool to integer
-        // no conversion needd
-        else if(builtin_old == builtin_type::bool_t && is_integer(new_type))
-        {
-            return option::none;
-        } 
-
-        // integer to bool
-        // if integer is > 0, its true else false
-        else if(is_integer(old_type) && builtin_new == builtin_type::bool_t)
-        {
-            if(is_signed(old_type))
-            {
-                data.v = s64(data.v) > 0;
-            }
-
-            // unsigned
-            else
-            {
-                data.v = u64(data.v) > 0;
-            }
-
-            return option::none;
-        }        
-
-        else
-        {
-            return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s",type_name(itl,old_type).buf,type_name(itl,new_type).buf);
-        }
-    }
-
-    // cast from enum to int is fine
-    else if(is_enum(old_type) && is_integer(new_type))
-    {
-        return option::none;
-    }
-
-    // as is integer to enum
-    else if(is_integer(old_type) && is_enum(new_type))
-    {
-        return option::none;
-    }
-
-    // cast does nothing just move the reg, its only acknowledgement your doing something screwy
-    // NOTE: we will check size accesses on reads to ensure nothing goes wrong doing this
-    else if(is_pointer(old_type) && is_pointer(new_type))
-    {
-        return option::none;
-    }
-
-    // pointer to int is illegal in const expr
-    else if(is_pointer(old_type) && is_integer(new_type))
-    {
-        return compile_error(itl,itl_error::illegal_cast,"pointer to int cast is illegal in constant expr %s -> %s",
-            type_name(itl,old_type).buf,type_name(itl,new_type).buf);
-    }
-
-    // as is integer to pointer
-    else if(is_integer(old_type) && is_pointer(new_type))
-    {
-        return compile_error(itl,itl_error::illegal_cast,"int to pointer cast is illegal in constant expr %s -> %s",
-            type_name(itl,old_type).buf,type_name(itl,new_type).buf);
-    }
-
-    // fuck knows
-    else
-    {
-        return compile_error(itl,itl_error::illegal_cast,"cannot cast %s -> %s",type_name(itl,old_type).buf,type_name(itl,new_type).buf);     
-    }   
-}
-
-ConstDataResult compile_const_expression(Interloper& itl, AstNode* node);
-
-Result<std::pair<ConstData,ConstData>,itl_error> const_bin_op(Interloper& itl, BinNode* bin_node)
-{
-    const auto left_res = compile_const_expression(itl,bin_node->left);
-    const auto right_res = compile_const_expression(itl,bin_node->right);
-    if(!left_res)
-    {
-        return left_res.error();
-    }
-
-    if(!right_res)
-    {
-        return left_res.error();
-    }
-    
-    return std::pair{*left_res,*right_res};
-}
-
-template<typename FUNC>
-ConstDataResult compile_const_bin_op(Interloper& itl, BinNode* bin_node, arith_op arith, FUNC func)
-{
-    const auto left_res = compile_const_expression(itl,bin_node->left);
-    const auto right_res = compile_const_expression(itl,bin_node->right);
-    if(!left_res)
-    {
-        return left_res;
-    }
-
-    if(!right_res)
-    {
-        return right_res;
-    }
-    
-    const auto left = *left_res;
-    const auto right = *right_res;
-
-    const u64 ans = func(left,right);
-    auto type_res = effective_arith_type(itl,left.type,right.type,arith);
+ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
+{   
+    const auto type_res = type_check_expr(itl,node);
     if(!type_res)
     {
         return type_res.error();
     }
 
-    return make_const_builtin(ans,*type_res);  
+    // not valid if this is not an int
+    if(!is_integer(node->expr_type))
+    {
+        return compile_error(itl,itl_error::int_type_error,"expected integer for const int expr got %t",node->expr_type); 
+    }
+
+    if(!node->known_value)
+    {
+        return compile_error(itl,itl_error::int_type_error,"Value for const integer expression is not known");
+    }
+
+    return ConstValue{node->expr_type,*node->known_value};
 }
 
-template<typename FUNC>
-ConstDataResult compile_const_shift_op(Interloper& itl, BinNode* bin_node, FUNC func)
+Result<u32,itl_error> const_write_in_string(Interloper& itl, StringNode* string_node, PoolSlot slot, u32 offset)
 {
-    const auto left_res = compile_const_expression(itl,bin_node->left);
-    const auto right_res = compile_const_expression(itl,bin_node->right);
-    if(!left_res)
-    {
-        return left_res;
-    }
+    const String string = string_node->string;
 
-    if(!right_res)
-    {
-        return right_res;
-    }
+    // add string into const pool
+    const auto data_slot = push_const_pool_string(itl.const_pool,string);
+
+    // make sure we pull the section after pushing data
+    auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+    // write in vla data
+    write_const_pool_vla(itl.const_pool,section,offset,data_slot,string.size);
+    offset += VLA_SIZE;
     
-    const auto left = *left_res;
-    const auto right = *right_res;
-
-    const u64 ans = func(left,right);
-
-    return make_const_builtin(ans,left.type);  
-}
-
-ConstDataResult compile_const_expression(Interloper& itl, AstNode* node)
-{
-    switch(node->type)
-    {
-        case ast_type::value:
-        {
-            ValueNode* value_node = (ValueNode*)node;
-            Value value = value_node->value;
-
-            return make_const_builtin(value.v,value_type(itl,value));               
-        }
-
-        case ast_type::float_t:
-        {
-            FloatNode* float_node = (FloatNode*)node;
-
-            return make_const_float(itl,float_node->value);
-        }
-
-        case ast_type::char_t:
-        {
-            CharNode* char_node = (CharNode*)node;
-
-            return make_const_builtin(char_node->character,make_builtin(itl,builtin_type::c8_t));            
-        }
-
-        case ast_type::symbol:
-        {
-            // TODO: atm this requires correct decl order
-            // as we dont have a locking mechanism or a way to lookup exprs
-            auto sym_res = symbol(itl,node);
-            if(!sym_res)
-            {
-                return sym_res.error();
-            }
-
-            auto reg = *sym_res;
-
-            // pull sym
-            auto& sym = sym_from_slot(itl.symbol_table,reg.slot.sym_slot);
-
-            if(!is_constant(sym))
-            {
-                return compile_error(itl,itl_error::const_type_error,"symbol %s is not constant",sym.name.buf);
-            }
-
-            return read_const_sym(itl,sym);
-        }
-
-        case ast_type::plus:
-        {
-
-            // unary plus
-            if(node->fmt == ast_fmt::unary)
-            {
-                UnaryNode* unary_node = (UnaryNode*)node;
-
-                // negate by doing 0 - v
-                return compile_const_expression(itl,unary_node->next);
-            }
-
-            else
-            {
-                BinNode* bin_node = (BinNode*)node;
-
-                auto res = const_bin_op(itl,bin_node);
-                if(!res)
-                {
-                    return res.error();
-                }
-
-                const auto [left,right] = *res;
-
-                if(is_pointer(left.type) && is_integer(right.type))
-                {
-                    unimplemented("const pointer add");
-                }
-
-                else
-                {
-                    const u64 ans = left.v + right.v;
-                    auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::add_t);
-                    if(!type_res)
-                    {
-                        return type_res.error();
-                    }
-
-                    return make_const_builtin(ans,*type_res);
-                }
-            }
-        }
-
-        case ast_type::bitwise_and:
-        {
-            BinNode* bin_node = (BinNode*)node;
-            return compile_const_bin_op(itl,bin_node,arith_op::and_t,[](const ConstData& left, const ConstData& right)
-            {
-                return left.v & right.v;
-            });  
-        }
-
-
-        // TODO: Should not pass add for arith ops
-        case ast_type::shift_l:
-        {
-            BinNode* bin_node = (BinNode*)node;
-            return compile_const_shift_op(itl,bin_node,[](const ConstData& left, const ConstData& right)
-            {
-                return left.v << right.v;
-            });               
-        }
-
-        case ast_type::shift_r:
-        {
-            BinNode* bin_node = (BinNode*)node;
-            return compile_const_shift_op(itl,bin_node,[](const ConstData& left, const ConstData& right)
-            {
-                return left.v >> right.v;
-            });         
-        }
-
-        case ast_type::times:
-        {
-            BinNode* bin_node = (BinNode*)node;
-            return compile_const_bin_op(itl,bin_node,arith_op::mul_t,[](const ConstData& left, const ConstData& right)
-            {
-                return left.v * right.v;
-            });     
-        }
-
-        case ast_type::minus:
-        {
-            // unary minus
-            if(node->fmt == ast_fmt::unary)
-            {
-                UnaryNode* unary_node = (UnaryNode*)node;
-
-                auto data_res = compile_const_expression(itl,unary_node->next);
-                if(!data_res)
-                {
-                    return data_res;
-                }
-                auto data = *data_res;
-
-                data.v = -data.v;
-                return data;
-            }
-
-            else
-            {
-                BinNode* bin_node = (BinNode*)node;
-
-                auto res = const_bin_op(itl,bin_node);
-                if(!res)
-                {
-                    return res.error();
-                }
-
-                const auto [left,right] = *res;
-                
-                if(is_pointer(left.type) && is_integer(right.type))
-                {
-                    unimplemented("const pointer sub");
-                }
-
-                else
-                {
-                    const u64 ans = left.v - right.v;
-                    auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::sub_t);
-                    if(!type_res)
-                    {
-                        return type_res.error();
-                    }
-
-                    return make_const_builtin(ans,*type_res);
-                }
-            }
-        }
-
-        case ast_type::mod:
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            auto res = const_bin_op(itl,bin_node);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            const auto [left,right] = *res;
-
-            if(right.v == 0)
-            {
-                return compile_error(itl,itl_error::int_type_error,"attempted to mod by zero in const expr");
-            }
-
-            const u64 ans = is_signed(left.type)? s64(left.v) % s64(right.v) : left.v % right.v;
-            auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::mod_t);
-            if(!type_res)
-            {
-                return type_res.error();
-            }
-
-            return make_const_builtin(ans,*type_res);          
-        }
-
-        case ast_type::divide:
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            auto res = const_bin_op(itl,bin_node);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            const auto [left,right] = *res;
-
-            if(right.v == 0)
-            {
-                return compile_error(itl,itl_error::int_type_error,"attempted to divide by zero in const expr");
-            }
-
-            const u64 ans = left.v / right.v;
-            auto type_res = effective_arith_type(itl,left.type,right.type,arith_op::div_t);
-            if(!type_res)
-            {
-                return type_res.error();
-            }
-
-            return make_const_builtin(ans,*type_res);
-        }
-
-        case ast_type::false_t:
-        {
-            return make_const_builtin(0,make_builtin(itl,builtin_type::bool_t));
-        }
-
-        case ast_type::true_t:
-        {
-            return make_const_builtin(1,make_builtin(itl,builtin_type::bool_t));
-        }
-
-        case ast_type::logical_eq:
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            auto res = const_bin_op(itl,bin_node);
-            if(!res)
-            {
-                return res.error();
-            }
-
-            const auto [left,right] = *res;
-
-            const auto cmp_err = check_const_cmp(itl,left.type,right.type);
-            if(!!cmp_err)
-            {
-                return *cmp_err;
-            }
-
-            const b32 ans = left.v == right.v;
-
-            return make_const_builtin(ans,make_builtin(itl,builtin_type::bool_t));
-        }
-
-        case ast_type::cast:
-        {
-            BinNode* bin_node = (BinNode*)node;
-
-            auto data_res = compile_const_expression(itl,bin_node->right);
-            auto new_type_res = get_type(itl,(TypeNode*)bin_node->left);
-            if(!data_res)
-            {
-                return data_res.error();
-            }
-
-            if(!new_type_res)
-            {
-                return new_type_res.error();
-            }
-
-            auto data = *data_res;
-
-            const auto cast_err = handle_const_cast(itl,*new_type_res,data);
-            if(!!cast_err)
-            {
-                return *cast_err;
-            }
-            return data;            
-        }
-
-        case ast_type::access_struct:
-        {
-            // are we accessing type info on a type name?
-            BinNode* member_root = (BinNode*)node;
-            AstNode* expr_node = member_root->left;
-
-            if(expr_node->type == ast_type::symbol)
-            {
-                RecordNode* members = (RecordNode*)member_root->right;
-
-                // potential type info access
-                if(count(members->nodes) == 1 && members->nodes[0]->type == ast_type::access_member)
-                {
-                    LiteralNode* sym_node = (LiteralNode*)expr_node;
-                    const auto name = sym_node->literal;
-
-                    auto type_decl_opt = lookup_type(itl,name);
-                    if(!!type_decl_opt)
-                    {
-                        TypeDecl* type_decl = *type_decl_opt;
-
-                        LiteralNode* member_node = (LiteralNode*) members->nodes[0];
-
-                        auto type_info_res = access_type_info(itl,*type_decl,member_node->literal);
-                        if(!type_info_res)
-                        {
-                            return type_info_res.error();
-                        }
-
-                        auto [type,ans] = *type_info_res;
-
-                        return make_const_builtin(ans,type);
-                    }
-                }
-            }
-
-            // ordinary struct access
-
-            return compile_error(itl,itl_error::const_type_error,"struct access not supported in constant expr");
-        }
-
-        default:
-        {
-            return compile_error(itl,itl_error::const_type_error,"unrecognised operation for const expr: %s",AST_NAMES[u32(node->type)]);
-        }
-    }    
-}
-
-ConstValueResult compile_const_int_expression(Interloper& itl, AstNode* node)
-{
-    const auto data_res = compile_const_expression(itl,node);
-    if(!data_res)
-    {
-        return data_res.error();
-    }
-
-    auto data = *data_res;
-
-    // not valid if this is not an int
-    if(!is_integer(data.type))
-    {
-        return compile_error(itl,itl_error::int_type_error,"expected integer for const int expr got %s",type_name(itl,data.type).buf); 
-    }
-
-    return ConstValue{data.type,data.v};
-}
-
-
-Result<bool,itl_error> compile_const_bool_expression(Interloper& itl, AstNode* node)
-{
-    const auto data_res = compile_const_expression(itl,node);
-    if(!data_res)
-    {
-        return data_res.error();
-    }
-
-    auto data = *data_res;
-
-    // not valid if this is not an int
-    if(!is_bool(data.type))
-    {
-        return compile_error(itl,itl_error::int_type_error,"expected bool for const bool expr got %s",type_name(itl,data.type).buf);
-    }
-
-    return bool(data.v);
-}
-
-Option<itl_error> compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset);
-
-
-Result<u32,itl_error> const_write_in_string(Interloper& itl, LiteralNode* literal_node, Type* type, PoolSlot slot, u32 offset)
-{
-    if(!is_string(type))
-    {
-        return compile_error(itl,itl_error::string_type_error,"expected string got %s",type_name(itl,(Type*)type).buf);
-    }
-
-    ArrayType* array_type = (ArrayType*)type;
-
-    const String literal = literal_node->literal;
-
-    if(is_runtime_size(array_type))
-    {
-        // add string into const pool
-        const auto data_slot = push_const_pool_string(itl.const_pool,literal);
-
-        // make sure we pull the section after pushing data
-        auto& section = pool_section_from_slot(itl.const_pool,slot);
-
-        // write in vla data
-        write_const_pool_vla(itl.const_pool,section,offset,data_slot,literal.size);
-        offset += VLA_SIZE;
-    }
-
-    // fixed size
-    else
-    {
-        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array");         
-    }
-
     return offset;    
 }
 
-Option<itl_error> compile_const_arr_list_internal(Interloper& itl,RecordNode* list, ArrayType* type, PoolSlot slot, u32* offset)
+
+
+Option<itl_error> compile_const_struct_list_internal(Interloper& itl,InitializerListNode* init_list, const Struct& structure, PoolSlot slot, u32* offset)
 {
-    const u32 node_len = count(list->nodes);
-
-    if(is_runtime_size(type))
-    {
-        return compile_error(itl,itl_error::array_type_error,"cannot assign initializer to vla");
-    }
-
-    // next type is a sub array
-    if(is_array(type->contained_type))
-    {
-        ArrayType* next_arr = (ArrayType*)type->contained_type;
-
-        const u32 count = type->size;
-
-        // type check the actual amount is right
-        // TODO: this should allow not specifying the full amount but for now just keep it simple
-        if(count != node_len)
-        {
-            return compile_error(itl,itl_error::missing_initializer,"array %s expects %d initializers got %d",
-                type_name(itl,(Type*)type).buf,count,node_len);
-        }        
-
-        for(u32 n = 0; n < node_len; n++)
-        {
-            AstNode* node = list->nodes[n];
-
-            // descend each sub initializer until we hit one containing values
-            // for now we are just gonna print them out, and then we will figure out how to emit the initialization code
-            switch(node->type)
-            {
-                case ast_type::initializer_list:
-                {
-                    const auto arr_err = compile_const_arr_list_internal(itl,(RecordNode*)node,next_arr,slot,offset);
-                    if(!!arr_err)
-                    {
-                        return arr_err;
-                    }
-                    break;
-                }
-
-                case ast_type::string:
-                {
-                    auto offset_res = const_write_in_string(itl,(LiteralNode*)node,(Type*)next_arr,slot,*offset);
-                    if(!offset_res)
-                    {
-                        return offset_res.error();
-                    }
-
-                    *offset = *offset_res;
-                    break;
-                }
-
-                // handle an array (this should fufill the current "depth req in its entirety")
-                default:
-                {
-                    unimplemented("arr initializer with array");
-                    break;            
-                }
-            }
-        }
-    }
-
-    // we are getting to the value assigns!
-    else
-    {  
-        Type* base_type = type->contained_type;
-
-        const u32 size = type_size(itl,base_type);
-
-        // seperate loop incase we need to handle initializers
-        if(is_struct(base_type))
-        {
-            for(u32 i = 0; i < node_len; i++)
-            {
-                // struct initalizer
-                if(list->nodes[i]->type == ast_type::initializer_list)
-                {
-                    const auto structure = struct_from_type(itl.struct_table,base_type);
-
-                    const auto struct_err = compile_const_struct_list_internal(itl,(RecordNode*)list->nodes[i],structure,slot,*offset);
-                    if(!!struct_err)
-                    {
-                        return struct_err;
-                    }
-                }
-
-                // allready finished struct
-                else
-                {
-                    auto data_res = compile_const_expression(itl,list->nodes[i]);
-                    if(!data_res)
-                    {
-                        return data_res.error();
-                    }
-
-                    auto data = *data_res;
-
-                    const auto assign_err = check_assign_init(itl,base_type,data.type);
-                    if(!!assign_err)
-                    {
-                        return *assign_err;
-                    }
-
-                    data.type = base_type;
-
-                    const auto write_err = write_const_data(itl,slot,*offset,data);
-                    if(!!write_err)
-                    {
-                        return *write_err;
-                    }
-                }
-
-                *offset = *offset + size;
-            }
-        }
-
-        // normal types
-        else
-        {
-            for(u32 i = 0; i < node_len; i++)
-            {
-                auto data_res = compile_const_expression(itl,list->nodes[i]);
-                if(!data_res)
-                {
-                    return data_res.error();
-                }
-
-                auto data = *data_res;
-
-
-                const auto assign_err = check_assign_init(itl,base_type,data.type);
-                if(!!assign_err)
-                {
-                    return *assign_err;
-                }
-                data.type = base_type;
-
-                const auto write_err = write_const_data(itl,slot,*offset,data);
-                if(!!write_err)
-                {
-                    return *write_err;
-                }
-                *offset = *offset + size;
-            }
-        }           
-    }
-
-    return option::none; 
-}
-
-PoolSlot add_const_vla(Interloper& itl, Symbol& array, PoolSlot data_slot,u64 len)
-{
-    const auto vla_slot = push_const_pool_vla(itl.const_pool,data_slot,len);
-
-    array.reg.offset = vla_slot.handle;
-
-    return vla_slot;
-}
-
-// returns data slot
-PoolSlot add_const_fixed_array(Interloper& itl, Symbol& array)
-{
-    // okay now reinit subsizes now we know the complete type
-    init_arr_sub_sizes(itl,(Type*)array.type);
-    
-    // preallocate the arr data
-    const u32 data_size = type_memory_size(itl,array.type);
-
-    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
-
-    const auto pointer_slot = push_const_pool_fixed_array(itl.const_pool,data_slot);
-
-    // mark as location
-    array.reg.offset = pointer_slot.handle;
-
-    return data_slot;    
-}
-
-Option<itl_error> compile_const_arr_initializer_list(Interloper& itl, Symbol& array, AstNode* node)
-{
-    if(is_runtime_size(array.type))
-    {
-        return compile_error(itl,itl_error::array_type_error,"Cannot use initializer list with vla");
-    }
-
-    // scan each part of initializer quickly
-    // and determine the size, so we can figure out how
-    // much we need to alloc into the pool 
-    // NOTE: we still check that the sizes are the same later
-    RecordNode* record_node = (RecordNode*)node;
-
-    auto record_cur = record_node;
-    ArrayType* type_cur = (ArrayType*)array.type;
-
-    b32 done = false;
-
-    while(!done)
-    {
-        const u32 size = count(record_cur->nodes);
-
-        if(type_cur->size == DEDUCE_SIZE)
-        {
-            type_cur->size = size;
-        }
-
-        // can we descend any more?
-        const b32 valid = is_array(type_cur->contained_type) && (size != 0) && (record_cur->nodes[0]->type == ast_type::initializer_list);
-
-        done = !valid;
-
-        if(valid)
-        {
-            type_cur = (ArrayType*)type_cur->contained_type;
-            record_cur = (RecordNode*)record_cur->nodes[0];
-        }
-    }
-
-    // prealloc data inside the const pool for this
-    const auto data_slot = add_const_fixed_array(itl,array);
-
-    // actually insert the data into the const pool for the list
-    u32 offset = 0;
-    return compile_const_arr_list_internal(itl,record_node,(ArrayType*)array.type,data_slot,&offset);
-}
-
-Option<itl_error> compile_const_struct_list_internal(Interloper& itl,RecordNode* list, const Struct& structure, PoolSlot slot, u32 offset)
-{
-    const u32 node_len = count(list->nodes);
     const u32 member_size = count(structure.members);
 
-    if(node_len != member_size)
-    {
-        return compile_error(itl,itl_error::undeclared,"struct initializer missing initializer expected %d got %d",member_size,node_len);
-    }
-    
-    for(u32 i = 0; i < count(structure.members); i++)
+    for(u32 i = 0; i < member_size; i++)
     {
         const auto member = structure.members[i];
+        AstNode* node = init_list->list[i];
     
-        // either sub struct OR array member initializer
-        switch(list->nodes[i]->type)
+        switch(node->type)
         {
             case ast_type::initializer_list:
             {
-                if(is_array(member.type))
+                const auto err = compile_const_list_internal(itl,(InitializerListNode*)node,member.type,slot,offset);
+                if(err)
                 {
-                    u32 arr_offset = offset + member.offset;
-                    auto type = member.type;
-
-                    const auto arr_err = compile_const_arr_list_internal(itl,(RecordNode*)list->nodes[i],(ArrayType*)type,slot,&arr_offset);
-                    if(!!arr_err)
-                    {
-                        return arr_err;
-                    }
-                }
-
-                else if(is_struct(member.type))
-                {
-                    const Struct& sub_struct = struct_from_type(itl.struct_table,member.type);
-                    const auto struct_err =compile_const_struct_list_internal(itl,(RecordNode*)list->nodes[i],sub_struct,slot,offset + member.offset);
-                    if(!!struct_err)
-                    {
-                        return struct_err;
-                    }
-                }
-
-                else
-                {
-                    return compile_error(itl,itl_error::struct_error,"nested struct initializer for basic type %s : %s",
-                        member.name.buf,type_name(itl,member.type).buf);
+                    return err;
                 }
                 break;
             }
 
             case ast_type::string:
             {
-                const auto write_res = const_write_in_string(itl,(LiteralNode*)list->nodes[i],member.type,slot,offset + member.offset);
+                const auto write_res = const_write_in_string(itl,(StringNode*)node,slot,*offset + member.offset);
                 if(!write_res)
                 {
                     return write_res.error();
@@ -900,11 +73,12 @@ Option<itl_error> compile_const_struct_list_internal(Interloper& itl,RecordNode*
                 break;
             }
 
+
             // we have a list of plain values we can actually initialize
             default:
             {
                 // get the operand and type check it
-                auto data_res = compile_const_expression(itl,list->nodes[i]);
+                auto data_res = compile_const_expr(itl,member.type,node);
                 if(!data_res)
                 {
                     return data_res.error();
@@ -912,217 +86,273 @@ Option<itl_error> compile_const_struct_list_internal(Interloper& itl,RecordNode*
 
                 auto data = *data_res;
 
-                const auto assign_err = check_assign(itl,member.type,data.type);
-                if(!!assign_err)
-                {
-                    return assign_err;
-                }
+                // Need to upcast this
                 data.type = member.type;
 
-                const auto write_err = write_const_data(itl,slot,member.offset + offset,data);
-                if(!!write_err)
+                const auto write_err = write_const_data(itl,slot,member.offset + *offset,data);
+                if(write_err)
                 {
                     return write_err;
                 }
+                break;
             }
         }
     }
 
+    *offset += structure.size;
+
     return option::none;     
 }
 
-Option<itl_error> compile_const_struct_initializer_list(Interloper& itl, Symbol& structure, AstNode* node)
+
+
+Option<itl_error> compile_const_array_list_internal(Interloper& itl,InitializerListNode* init_list, ArrayType* type, PoolSlot slot, u32* offset)
 {
-    RecordNode* record_node = (RecordNode*)node;
+    if(is_runtime_size(type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Cannot use initializer list with const vla");
+    }
 
-    // allocate struct
-    const u32 data_size = type_size(itl,structure.type);
-    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
+    const u32 size = type_size(itl,type->contained_type);
 
-    // assign offset
-    structure.reg.offset = data_slot.handle;
+    for(AstNode* node: init_list->list)
+    {
+        switch(node->type)
+        {
+            case ast_type::initializer_list:
+            {
+                const auto err = compile_const_list_internal(itl,(InitializerListNode*)node,type->contained_type,slot,offset);
+                if(err)
+                {
+                    return err;
+                }
+                break;
+            }
+            
+            default:
+            {
+                auto data_res = compile_const_expr(itl,type->contained_type,node);
+                if(!data_res)
+                {
+                    return data_res.error();
+                }
 
-    const auto& struct_info = struct_from_type(itl.struct_table,structure.type);
+                auto data = *data_res;
+                data.type = type->contained_type;
 
-    // do init
-    return compile_const_struct_list_internal(itl,record_node,struct_info,data_slot,0);
+                const auto write_err = write_const_data(itl,slot,*offset,data);
+                if(write_err)
+                {
+                    return *write_err;
+                }
+                *offset = *offset + size;
+                break;
+            }
+        }
+    }
+
+    return option::none;
 }
 
-
-Option<itl_error> compile_constant_initializer(Interloper& itl, Symbol& sym, AstNode* node)
+Option<itl_error> compile_const_list_internal(Interloper& itl,InitializerListNode* init_list, Type* type, PoolSlot slot, u32* offset)
 {
-    switch(sym.type->kind)
+    switch(type->kind)
     {
-        case type_class::builtin_t:
+        case type_class::struct_t:
         {
-            const builtin_type type = cast_builtin(sym.type);
-            
-            switch(type)
-            {
-                // integers
-                case builtin_type::u8_t:
-                case builtin_type::u16_t:
-                case builtin_type::u32_t:
-                case builtin_type::u64_t:
-                case builtin_type::s8_t:
-                case builtin_type::s16_t:
-                case builtin_type::s32_t:
-                case builtin_type::s64_t:
-                case builtin_type::byte_t:
-                case builtin_type::c8_t:
-                {
-                    // compile expression
-                    auto res = compile_const_int_expression(itl,node);
-                    if(!res)
-                    {
-                        return res.error();
-                    }
-
-                    auto const_value = *res;
-
-                    // now we know the value we can get an exact type out of the result
-                    Value value;
-                    value.v = const_value.value;
-                    value.sign = is_signed(const_value.type);
-                    
-                    const_value.type = value_type(itl,value);
-
-                    // push to const pool and save handle as offset for later loading...
-                    const auto slot = push_const_pool(itl.const_pool,pool_type::var,&value.v,builtin_size(type));
-                    sym.reg.offset = slot.handle;
-                    
-                    sym.known_value = true;
-                    sym.constant_value = value.v;
-
-                    return check_assign_init(itl,sym.type,const_value.type);
-                }
-
-
-                case builtin_type::bool_t:
-                {
-                    const auto res = compile_const_bool_expression(itl,node);
-                    if(!res)
-                    {
-                        return res.error();
-                    }
-
-
-                    const auto slot = push_const_pool(itl.const_pool,pool_type::var,&res.value(),GPR_SIZE);
-                    sym.reg.offset = slot.handle;
-
-                    sym.known_value = true;
-                    sym.constant_value = *res;
-
-                    return option::none;                
-                }
-
-                case builtin_type::f64_t:
-                {
-                    assert(false);
-                    break;
-                }
-
-                // these should not be possible...
-                case builtin_type::null_t:
-                {
-                    return compile_error(itl,itl_error::undefined_type_oper,"null as dst type in constant expression!?");
-                }
-
-                case builtin_type::void_t:
-                {
-                    return compile_error(itl,itl_error::undefined_type_oper,"void as dst type in constant expression!?");
-                } 
-            }
-
-            break;   
+            auto& structure = struct_from_type(itl.struct_table,(StructType*)type);
+            return compile_const_struct_list_internal(itl,init_list,structure,slot,offset);
         }
 
         case type_class::array_t:
         {
-            // initializer
-            switch(node->type)
-            {
-                case ast_type::initializer_list:
-                {
-                    return compile_const_arr_initializer_list(itl,sym,node);
-                }
+            return compile_const_array_list_internal(itl,init_list,(ArrayType*)type,slot,offset);
+        }
 
-                case ast_type::string:
-                {
-                    if(!is_string(sym.type))
-                    {
-                        return compile_error(itl,itl_error::string_type_error,"expected string got %s",type_name(itl,sym.type).buf);
-                    }
+        default:
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Initializer list only valid for arrays and structs not %t",type);
+        }
+    }
+}
 
-                    LiteralNode* literal_node = (LiteralNode*)node;
-                    const String literal = literal_node->literal;
+ConstDataResult compile_const_array_initializer_list(Interloper& itl, ArrayType* type, InitializerListNode* init_list)
+{
+    if(is_runtime_size(type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Cannot use initializer list with vla");
+    }
 
-                    if(is_runtime_size(sym.type))
-                    {
-                        const auto data_slot = push_const_pool_string(itl.const_pool,literal);
+    // preallocate the arr data
+    const u32 data_size = type_memory_size(itl,(Type*)type);
 
-                        const auto pointer_slot = push_const_pool_vla(itl.const_pool,data_slot,literal.size);
+    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
 
-                        // mark as location
-                        sym.reg.offset = pointer_slot.handle; 
-                    }
+    const auto pointer_slot = push_const_pool_fixed_array(itl.const_pool,data_slot);
 
-                    // fixed size
-                    else
-                    {
-                        return compile_error(itl,itl_error::string_type_error,"cannot assign string literal to fixed sized array");       
-                    }
+    // actually insert the data into the const pool for the list
+    u32 offset = 0;
+    const auto err = compile_const_array_list_internal(itl,init_list,type,data_slot,&offset);
+    if(err)
+    {
+        return *err;
+    }
 
-                    return option::none;
-                }
+    return make_const_compound(make_const_pool_pointer(pointer_slot,0),0);
+}
 
-                default:
-                {
-                    unimplemented("arbitrary assign const array");
-                    return option::none;
-                }
-            }
+ConstDataResult compile_const_struct_initializer_list(Interloper& itl, StructType* type, InitializerListNode* init_list)
+{
+    // allocate struct
+    const u32 data_size = type_size(itl,(Type*)type);
+    const auto data_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,data_size);
+
+    const auto& struct_info = struct_from_type(itl.struct_table,type);
+
+    u32 offset = 0;
+    const auto err = compile_const_struct_list_internal(itl,init_list,struct_info,data_slot,&offset);
+    if(err)
+    {
+        return *err;
+    }
+
+    return make_const_compound(make_const_pool_pointer(data_slot,0),(Type*)type);
+}
+
+ConstDataResult compile_const_struct_expr(Interloper& itl, StructType* type, AstNode* expr)
+{
+    switch(expr->type)
+    {
+        case ast_type::initializer_list:
+        {   
+            return compile_const_struct_initializer_list(itl,type,(InitializerListNode*)expr);
+        }
+
+        default: 
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Invalid expr for const struct init: %s",AST_INFO[u32(expr->type)].name);
+        }
+    }
+}
+
+ConstDataResult compile_const_array_expr(Interloper& itl, ArrayType* type, AstNode* expr)
+{
+    switch(expr->type)
+    {
+        case ast_type::initializer_list:
+        {   
+            return compile_const_array_initializer_list(itl,type,(InitializerListNode*)expr);
+        }
+
+        case ast_type::string:
+        {
+            StringNode* string_node = (StringNode*)expr;
+            const auto data_slot = push_const_pool_string(itl.const_pool,string_node->string);
+            const auto pointer_slot = push_const_pool_vla(itl.const_pool,data_slot,string_node->string.size);
+            
+            return make_const_compound(make_const_pool_pointer(pointer_slot,0),0);
+        }
+
+        default: 
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Invalid expr for const array init: %s",AST_INFO[u32(expr->type)].name);
+        }
+    }
+}
+
+
+ConstDataResult compile_const_builtin_expr(Interloper& itl, AstNode* expr)
+{
+    if(!expr->known_value)
+    {
+        return compile_error(itl,itl_error::const_type_error,"Builtin const expression(%s) of %t is not statically known",
+            AST_INFO[u32(expr->type)].name,expr->expr_type);
+    }
+    
+    return make_const_builtin(*expr->known_value,expr->expr_type);
+}
+
+ConstDataResult compile_const_expr(Interloper& itl, Type* type, AstNode* expr)
+{
+    switch(type->kind)
+    {
+        case type_class::struct_t:
+        {
+           return compile_const_struct_expr(itl,(StructType*)type,expr);
+        }
+
+        case type_class::array_t:
+        {
+            return compile_const_array_expr(itl,(ArrayType*)type,expr);
+        }
+
+        case type_class::builtin_t:
+        {
+            return compile_const_builtin_expr(itl,expr);
+        }
+
+        default:
+        {
+            return compile_error(itl,itl_error::invalid_expr,"Type %t is not allowed in a const expression",type);
+        }
+    }
+}
+
+Option<itl_error> compile_constant_initializer(Interloper& itl,Symbol& symbol, AstNode* expr)
+{
+    // Type check the expr so we don't have to repeat it in here.
+    const auto err = type_check_init_expr(itl,symbol.type,expr);
+    if(err)
+    {
+        return err;
+    }
+
+    const auto data_res = compile_const_expr(itl,symbol.type,expr);
+
+    if(!data_res)
+    {
+        return data_res.error();
+    }
+
+    const auto data = *data_res;
+
+    switch(symbol.type->kind)
+    {
+        case type_class::builtin_t:
+        {
+            symbol.known_value = expr->known_value;
             break;
         }
 
         case type_class::struct_t:
         {
-            switch(node->type)
-            {
-                case ast_type::initializer_list:
-                {
-                    return compile_const_struct_initializer_list(itl,sym,node);
-                }
-
-                default:
-                {
-                    unimplemented("arbitary assign const struct");
-                    return option::none;
-                }            
-            }
-
+            // assign offset
+            symbol.reg.offset = data.data_pointer.slot.handle;
             break;
         }
 
-        default: assert(false);
+        case type_class::array_t:
+        {
+            symbol.reg.offset = data.data_pointer.slot.handle;
+            break;            
+        }
+
+        default:
+        {
+            return compile_error(itl,itl_error::const_type_error,"Cannot handle const data for type %t",symbol.type);
+        }
     }
 
-    assert(false);
     return option::none;
 }
-
 
 Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b32 global)
 {
     // pull type and name so we can create a symbol
-    const auto name = decl_node->name;
-
-    if(symbol_exists(itl.symbol_table,name))
-    {
-        return compile_error(itl,itl_error::redeclaration,"constant symbol %s redefined",name.buf);
-    }
+    const auto name = decl_node->sym.name;
 
     // force constant
+    decl_node->is_const = true;
     decl_node->type->is_constant = true;
 
     // build the typing info
@@ -1135,7 +365,13 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     Type* type = *type_res;
 
     // add into table
-    auto& sym = global? add_global(itl,name,type,true) : add_symbol(itl,name,type);
+    const auto sym_res = global? add_global(itl,name,type,true) : add_symbol(itl,name,type);
+    if(!sym_res)
+    {
+        return sym_res.error();
+    }
+
+    auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
 
     // make sure this is marked as constant
     // incase it is declared locally
@@ -1151,38 +387,50 @@ Option<itl_error> compile_constant(Interloper& itl, GlobalDeclNode* node)
     return compile_constant_decl(itl,node->decl,true);
 }
 
-void add_compiler_constant(Interloper& itl, const String& name, builtin_type builtin, u64 value)
+
+Option<itl_error> add_compiler_constant(Interloper& itl, const String& name, builtin_type builtin, u64 value)
 {
     auto type = make_builtin(itl,builtin);
 
-    auto& sym = add_global(itl,name,type,true);
+    auto sym_res = add_global(itl,name,type,true);
+    if(!sym_res)
+    {
+        return sym_res.error();
+    }
+
+    auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
 
     // push to const pool and save handle as offset for later loading...
     const auto slot = push_const_pool(itl.const_pool,pool_type::var,&value,builtin_size(builtin));
     sym.reg.offset = slot.handle;    
+    sym.known_value = value;
+
+    return option::none;
 }
 
 
-void declare_compiler_constants(Interloper& itl)
+Option<itl_error> declare_compiler_constants(Interloper& itl)
 {
     switch(itl.arch)
     {
         case arch_target::x86_64_t:
         {
-            add_compiler_constant(itl,"LITTLE_ENDIAN",builtin_type::bool_t,true);
-            break;
+            return add_compiler_constant(itl,"LITTLE_ENDIAN",builtin_type::bool_t,true);
         }
     }
+
+    return option::none;
 }
+
 
 Option<itl_error> compile_constants(Interloper& itl)
 {
-    for(u32 c = 0; c < count(itl.constant_decl); c++)
+    for(GlobalDeclNode* decl : itl.constant_decl)
     {
-        const auto const_err = compile_constant(itl,itl.constant_decl[c]);
-        if(!!const_err)
+        const auto decl_err = compile_constant(itl,decl);
+        if(decl_err)
         {
-            return const_err;
+            return decl_err;
         }
     }
 

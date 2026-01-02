@@ -1,0 +1,28 @@
+
+func and(x: s32, y: s32) s32
+{
+    return x & y;
+}
+
+func or(x: s32, y: s32) s32
+{
+    return x | y;
+}
+
+func xor(x: s32, y: s32) s32
+{
+    return x ^ y;
+}
+
+// expected -713 (0)
+func main() s32 {
+    x := and(1000000,0x7ff);
+
+    x = or(x,0xff);
+
+    x = xor(x,55);
+
+    x = ~x;
+
+    return x + 713;
+}

@@ -10,7 +10,6 @@ using namespace destoer;
 #include <type.h>
 #include <sym.h>
 #include <ir.h>
-#include <interpretter.h>
 
 
 struct Interloper
@@ -27,8 +26,9 @@ struct Interloper
     Array<FileContext> saved_ctx;
     FileContext ctx;
 
+    Parser parser;
+
     FunctionTable func_table;
-    Array<DeclNode*> global_def;
 
     // Cur scope saved in FileContext
     NameSpace* global_namespace = nullptr;
@@ -44,11 +44,10 @@ struct Interloper
 
     // Arena's
     ArenaAllocator list_allocator;
-    ArenaAllocator ast_allocator;
-    ArenaAllocator ast_string_allocator;
     ArenaAllocator namespace_allocator;
 
-    AstPointers ast_arrays;
+    ParserAllocator parser_alloc;
+    Array<Array<Token>> file_tokens;
     
     // for longer lived strings, e.g func defs symbol names etc
     ArenaAllocator string_allocator;
@@ -57,11 +56,23 @@ struct Interloper
     ArenaAllocator type_allocator;
 
     Array<Type*> alias_table;
+
+    Type* usize_type = nullptr;
+    Type* const_usize_type = nullptr;
+    Type* ssize_type = nullptr;
+    
+    Type* void_type = nullptr;
+    Type* byte_ptr_type = nullptr;
+
+    Type* string_type = nullptr;
+    Type* const_string_type = nullptr;
+
     // Array copy for debug printing of ast
-    Array<AstNode*> type_decl;
+    Array<TypeDef*> type_decl;
 
     Array<GlobalDeclNode*> constant_decl;
     Array<GlobalDeclNode*> global_decl;
+    Function* global_func = nullptr;
 
     // memory collection for func pointer types
     Array<FuncSig*> func_pointer;
@@ -70,13 +81,13 @@ struct Interloper
     EnumTable enum_table;
     RttiCache rtti_cache;
 
-    // targetting info
+    // targeting info
     arch_target arch = arch_target::x86_64_t;
     os_target os = os_target::linux_t;
 
     AsmEmitter asm_emitter;
 
-    // compilier config
+    // compiler config
 
     // diagnostic
     b32 print_ast = false;
@@ -104,6 +115,12 @@ struct Interloper
     double code_gen_time = 0.0;
     double parsing_time = 0.0;
     double optimise_time = 0.0;
+    double type_checking_time = 0.0;
+
+    // Startup functions
+    Function* memcpy = nullptr;
+
+    Function* zero_mem = nullptr;
 };
 
 void pop_context(Interloper& itl);
@@ -119,10 +136,10 @@ struct [[nodiscard]] FileContextGuard
     Interloper& itl;
 };
 
+void vprint_itl(Interloper& itl, const String& fmt, va_list args);
+void print_itl(Interloper& itl, const String& fmt, ...);
 
-void print(const AstNode *root, b32 override_seperator = false);
-
-inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
+inline itl_error compile_verror(Interloper &itl,itl_error error,const char *fmt, va_list args)
 {
     itl.error_count += 1;
 
@@ -137,17 +154,14 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
         return error;
     }
 
-    if(itl.ctx.expr)
+    if(itl.ctx.filename != "")
     {
         const auto [line,col] = get_line_info(itl.ctx.filename,itl.ctx.expr->idx);
 
         printf("error: %s %d:%d: ",itl.ctx.filename.buf,line,col);
 
 
-        va_list args; 
-        va_start(args, fmt);
-        vprintf(fmt,args);
-        va_end(args);
+        vprint_itl(itl,fmt,args);
         putchar('\n');
 
         print_line(itl.ctx.filename,line);
@@ -157,14 +171,32 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
     {
         printf("error: ");
 
-        va_list args; 
-        va_start(args, fmt);
-        vprintf(fmt,args);
-        va_end(args);
+        vprint_itl(itl,fmt,args);
         putchar('\n');
     }
 
     return error;
+}
+
+inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, ...)
+{
+    va_list args; 
+    va_start(args, fmt);
+    const auto err = compile_verror(itl,error,fmt,args);
+    va_end(args);
+
+    return err;
+}
+
+[[noreturn]]
+inline void compile_panic(Interloper &itl,itl_error error,const char *fmt, ...)
+{
+    puts("Panic: ");
+    va_list args; 
+    va_start(args, fmt);
+    (void)compile_verror(itl,error,fmt,args);
+    va_end(args);
+    exit(1);
 }
 
 void itl_warning(const char* fmt, ...)
@@ -218,10 +250,11 @@ inline f64 bit_cast_to_f64(u64 v)
     return bit_cast<f64,u64>(v);
 }
 
-ConstValueResult compile_const_int_expression(Interloper& itl, AstNode* node);
+ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node);
 u32 align_val(u32 v,u32 alignment);
 
 void push_context(Interloper& itl);
 void pop_context(Interloper& itl);
 void trash_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
 FileContextGuard switch_context(Interloper& itl, String filename,NameSpace* cur_scope, AstNode* expr);
+Option<itl_error> compile_constants(Interloper& itl);

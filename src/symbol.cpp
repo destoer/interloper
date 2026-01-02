@@ -104,7 +104,7 @@ b32 symbol_exists(SymbolTable &sym_table,const String &sym)
 }
 
 
-Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG)
+Symbol make_sym(Interloper& itl,const String& name, Type* type)
 {
     auto& table = itl.symbol_table;
 
@@ -113,24 +113,25 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type,u32 arg = NON_ARG
     Symbol symbol = {};
     symbol.name = copy_string(*table.string_allocator,name);
     symbol.type = type;
-    symbol.arg_offset = arg;
 
     const auto reg_slot = make_sym_reg_slot(sym_slot);
 
     symbol.reg = make_reg(itl,reg_slot,type);
     symbol.ctx = itl.ctx;
-
-    // mark an offset so it is not unallocated
-    if(symbol.arg_offset != NON_ARG)
-    {
-        symbol.reg.flags |= FUNC_ARG;
-        symbol.reg.offset = 0;
-    }
+    symbol.arg_offset = NON_ARG;
 
     return symbol;
 }
 
+Symbol make_sym_arg(Interloper& itl,const String& name, Type* type, u32 arg_offset)
+{
+    auto sym = make_sym(itl,name,type);
 
+    sym.arg_offset = arg_offset;
+    sym.reg.flags |= (STACK_ARG | STACK_ALLOCATED);
+    
+    return sym;
+}
 
 
 // add symbol to slot lookup
@@ -146,24 +147,36 @@ void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
     add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
-Symbol &add_symbol(Interloper &itl,const String &name, Type *type)
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type)
 {
     auto& sym_table = itl.symbol_table;
+    if(symbol_exists(itl.symbol_table,name))
+    {
+        return compile_error(itl,itl_error::redeclaration,"symbol '%S' is already declared",name);
+    }
 
     auto sym = make_sym(itl,name,type);
+
     push_var(sym_table.slot_lookup,sym);
 
     add_sym_to_scope(sym_table,sym);
 
-    return sym_from_slot(sym_table,slot_from_sym(sym));
+    return slot_from_sym(sym);
 }
 
-Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
+Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 {
     auto& sym_table = itl.symbol_table;
+    if(symbol_exists(itl.symbol_table,name))
+    {
+        return compile_error(itl,itl_error::redeclaration,"symbol '%S' is already declared",name);
+    }
+
 
     auto sym = make_sym(itl,name,type);
     sym.reg.segment = constant? reg_segment::constant : reg_segment::global;
+
+    reserve_global_alloc(itl,sym);
 
     push_var(sym_table.slot_lookup,sym);
 
@@ -178,7 +191,7 @@ Symbol& add_global(Interloper& itl,const String &name, Type *type, b32 constant)
     const DefInfo info = {definition_type::variable,handle_from_sym(sym)};
     add(itl.global_namespace->table,sym.name, info);    
 
-    return sym_from_slot(sym_table,slot);
+    return slot;
 }
 
 LabelSlot label_from_idx(u32 handle)
@@ -204,9 +217,8 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
 
 void destroy_sym_table(SymbolTable &sym_table)
 {
-    for(u32 s = 0; s < count(sym_table.slot_lookup); s++)
+    for(auto& sym : sym_table.slot_lookup)
     {
-        auto& sym = sym_table.slot_lookup[s];
         destroy_reg(sym.reg);
     }
 
@@ -216,9 +228,9 @@ void destroy_sym_table(SymbolTable &sym_table)
 }
 
 
-bool is_arg(const Symbol &sym)
+bool is_stack_arg(const Symbol &sym)
 {
-    return sym.arg_offset != NON_ARG;
+    return sym.reg.flags & STACK_ARG;
 }
 
 void print(Interloper& itl,const Symbol& sym)
@@ -274,6 +286,11 @@ TypedReg typed_reg(const Symbol& sym)
     return TypedReg{sym.reg.slot,sym.type};
 }
 
+TypedAddr typed_addr_from_reg(const TypedReg& reg, u32 offset)
+{
+    return TypedAddr{make_pointer_addr(reg.slot,offset),reg.type};
+}
+
 TypedAddr typed_addr(const Symbol& sym)
 {
     // A fixed array is not a real struct so we have to lie.
@@ -285,7 +302,16 @@ TypedAddr typed_addr(const Symbol& sym)
     return TypedAddr{make_struct_addr(sym.reg.slot,0),sym.type};
 }
 
-TypedAddr typed_addr_from_reg(const TypedReg& reg, u32 offset)
+
+RegResult symbol(Interloper &itl, SymbolNode* sym_node)
 {
-    return TypedAddr{make_pointer_addr(reg.slot,offset),reg.type};
+    const auto sym_ptr = get_sym_internal(itl.symbol_table,sym_node->name,sym_node->name_space);
+    if(!sym_ptr)
+    {
+        return compile_error(itl,itl_error::undeclared,"Symbol '%n%S' used before declaration",sym_node->name_space,sym_node->name);
+    }
+
+    const auto &sym = *sym_ptr;
+
+    return typed_reg(sym);
 }

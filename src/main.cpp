@@ -107,17 +107,18 @@ int main(int argc, char *argv[])
 
 
     const auto compile_err = compile(itl,source_filename,executable_path);
-    if(!!compile_err)
+    if(compile_err)
     {
         puts("NOT OK");
         return 1;
     }
 
     printf("Parsing time %.2lf ms\n",itl.parsing_time);
-    printf("Code gen and type checking %0.2lf ms\n",itl.code_gen_time);
+    printf("Type checking time %.02lf ms\n",itl.type_checking_time);
+    printf("Code gen %0.2lf ms\n",itl.code_gen_time);
     printf("Optimisation time %.2lf ms\n",itl.optimise_time);
     printf("Backend time %.2lf ms\n",itl.backend_time);
-    printf("Total compiler time: %.2lf ms\n",itl.parsing_time + itl.code_gen_time + itl.optimise_time + itl.backend_time);
+    printf("Total compiler time: %.2lf ms\n",itl.parsing_time + itl.code_gen_time + itl.optimise_time + itl.backend_time + itl.type_checking_time);
 
     destroy_itl(itl);
 

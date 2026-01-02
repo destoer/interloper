@@ -11,9 +11,13 @@ func main() s32
 
     z : s32 = x + y + 2;
 
-    x = y = z;
+    // Do some useless store / load
+    y = z;
+    x = y;
 
-    a : s32 = x = y = z * 5;
+    y = z * 5;
+    x = y;
+    a : s32 = x;
 
     v : s32 = (((a * x) / (y * 5)) * ((x + z) - 5));
 

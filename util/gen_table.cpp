@@ -45,6 +45,7 @@ const char* KEYWORD[][2] =
     {tok_name(token_type::struct_t),"token_type::struct_t"},
 
     {tok_name(token_type::cast),"token_type::cast"},
+    {tok_name(token_type::cast_ref),"token_type::cast_ref"},
     {tok_name(token_type::sizeof_t),"token_type::sizeof_t"},
     {tok_name(token_type::sizeof_type_t),"token_type::sizeof_type_t"},
     {tok_name(token_type::sizeof_data_t),"token_type::sizeof_data_t"},

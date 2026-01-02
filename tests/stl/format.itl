@@ -1,0 +1,9 @@
+
+
+func main() s32
+{
+    str := std::format("Hello {} is {} + {}\n","John",20, 0.5);
+    std::write_string(str.buf);
+
+    return cast(s32,std::str_equal(str.buf,"Hello John is 20 + 0.500000\n"));
+}

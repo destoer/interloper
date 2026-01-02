@@ -82,24 +82,20 @@ NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocato
     return new_scope;
 }
 
-
-NameSpace* scan_namespace(const NameSpace* root, const Array<String>& name_space)
+NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
 {
     u32 name_idx = 0;
-    NameSpace *result = nullptr;
 
     while(name_idx != count(name_space))
     {
         bool found = false;
 
-        for(size_t i = 0; i < count(root->nodes); i++)
+        for(const auto node : parser.context.global_namespace->nodes)
         {
-            const auto node = root->nodes[i];
             if(node->name_space == name_space[name_idx])
             {
                 found = true;
                 name_idx++;
-                root = node;
 
                 if(name_idx == count(name_space))
                 {
@@ -110,21 +106,21 @@ NameSpace* scan_namespace(const NameSpace* root, const Array<String>& name_space
 
         if(!found)
         {
-            return nullptr;
+            break;
         }
     }
     
-    assert(false);
-    return result;
+    // Namespace does not allready exist create it!
+    return new_named_scope(*parser.alloc->namespace_allocator,*parser.alloc->global_string_allocator,parser.context.global_namespace,name_space);
 }
 
 NameSpace* find_name_space(Interloper& itl, const String& name)
 {
-    for(size_t i = 0; i < count(itl.global_namespace->nodes); i++)
+    for(auto& node : itl.global_namespace->nodes)
     {
-        if(itl.global_namespace->nodes[i]->name_space == name)
+        if(node->name_space == name)
         {
-            return itl.global_namespace->nodes[i];
+            return node;
         }
     }
 
@@ -243,6 +239,11 @@ FunctionDef* lookup_func_def_default(Interloper& itl, const String& name)
     return nullptr;
 }
 
+FunctionDef* lookup_func_def(Interloper& itl, NameSpace* name_space, const String& name)
+{
+    return name_space? lookup_func_def_scope(itl,name_space,name) : lookup_func_def_default(itl,name);
+}
+
 void destroy_namespace_node(NameSpace* root)
 {
     if(!root)
@@ -250,9 +251,9 @@ void destroy_namespace_node(NameSpace* root)
         return;
     }
 
-    for(size_t i = 0; i < count(root->nodes); i++)
+    for(auto& node : root->nodes)
     {
-        destroy_namespace_node(root->nodes[i]);
+        destroy_namespace_node(node);
     }
 
     destroy_table(root->table);

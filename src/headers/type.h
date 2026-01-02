@@ -190,9 +190,10 @@ struct TypeDef
 
     String filename;
     type_def_kind kind;
+    TopLevelDefiniton type_def;
 
     // the defintion root -> depends on the type!
-    AstNode* root;
+    AstNode* root = nullptr;
 };
 
 enum class assign_type
@@ -264,6 +265,12 @@ struct ArrayType
     
     // size of indexing array
     u32 sub_size;
+};
+
+enum class array_member_access
+{
+    len,
+    data
 };
 
 static constexpr u32 VLA_SIZE = GPR_SIZE * 2;
@@ -357,7 +364,7 @@ using EnumTable = Array<Enum>;
 
 
 Option<Enum> get_enum(EnumTable& enum_table, const String& name);
-Enum enum_from_type(EnumTable& enum_table, const Type* type);
+Enum enum_from_type(EnumTable& enum_table, const EnumType* enum_type);
 
 struct AstNode;
 
@@ -365,8 +372,9 @@ struct AstNode;
 struct Member
 {
     String name;
-    u32 offset;
-    Type *type;
+    u32 index = 0;
+    u32 offset = 0;
+    Type *type = nullptr;
 
     AstNode* expr = nullptr;
 };
@@ -401,8 +409,9 @@ enum class struct_state
 
 
 using StructTable = Array<Struct>;
-Struct& struct_from_type(StructTable& struct_table, const Type* type);
+Struct& struct_from_type(StructTable& struct_table, const StructType* struct_type);
 
 static const builtin_type GPR_SIZE_TYPE = builtin_type::u64_t;
 
 Option<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name);
+builtin_type value_type(const Value& value);

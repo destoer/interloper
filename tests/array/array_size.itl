@@ -5,5 +5,5 @@ func main() s32
 {
     x : u32[4 * 4];
 
-    return x.len;
+    return cast(s32,x.len);
 }

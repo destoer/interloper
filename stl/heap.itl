@@ -3,6 +3,7 @@ namespace std;
 #attr(no_reorder)
 struct HeapNode
 {
+    // enemy of the disaster.
     canary_start : u64;
 
     next : HeapNode?;
@@ -20,8 +21,8 @@ struct Heap
 {
     free_list : HeapNode? = NULL;
 
-    min: HeapNode?;
-    max: HeapNode?;
+    min: HeapNode? = cast(HeapNode?,u64.max);
+    max: HeapNode? = NULL;
 
     // NOTE: this is in block counts
     used : u64;
@@ -33,8 +34,8 @@ struct Heap
 
 
 constant HEAP_DEFAULT_BLOCK_COUNT : u32 = 1024;
-constant HEAP_BLOCK_SIZE : u32 = HeapNode.size;
-constant HEAP_DEFAULT_ALLOC_SIZE : u32 = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_COUNT;
+constant HEAP_BLOCK_SIZE : usize = HeapNode.size;
+constant HEAP_DEFAULT_ALLOC_SIZE : usize = HEAP_BLOCK_SIZE * HEAP_DEFAULT_BLOCK_COUNT;
 
 constant HEAP_CANARY_START : u64 = 0xCAFE_DEAD_C0DE_BABE;
 constant HEAP_CANARY_END : u64 = 0xFACE_DEAD_FEED_CAFE;
@@ -87,19 +88,21 @@ func verify_node(heap: const Heap@,node: const HeapNode?)
         return;
     }
 
-    if(node.blocks > heap.capacity)
+    node_reference := cast_ref(node);
+
+    if(node_reference.blocks > heap.capacity)
     {
-        crash_and_burn_oom("Blocks exceeded on heap node");
+        crash_and_burn("Blocks exceeded on heap node {} > {}",node_reference.blocks, heap.capacity);
     }
 
     if(node > heap.max || node < heap.min)
     {
-        crash_and_burn_oom("Node on heap is out of range");
+        crash_and_burn("Node on heap is out of range {} <  {} < {}", cast(byte@,node), cast(byte@,heap.max), cast(byte@,heap.min));
     }
 
-    if(node.canary_start != HEAP_CANARY_START || node.canary_end != HEAP_CANARY_END) 
+    if(node_reference.canary_start != HEAP_CANARY_START || node_reference.canary_end != HEAP_CANARY_END) 
     {
-        crash_and_burn_oom("Heap canary trashed");
+        crash_and_burn("Heap canary trashed");
     }
 }
 
@@ -116,14 +119,17 @@ func verify_heap(heap: const Heap@)
 
     while(cur)
     {
-        if(cur.prev != prev)
+        // TODO: This is a interesting test case for flow typing.
+        cur_reference := cast_ref(cur);
+
+        if(cur_reference.prev != prev)
         {
-            crash_and_burn_oom("Prev does not match on heap");
+            crash_and_burn("Prev does not match on heap {} {}",cast(byte@,cur_reference.prev),cast(byte@,prev));
         }
 
         verify_node(heap,cur);
         prev = cur;
-        cur = cur.next;
+        cur = cur_reference.next;
     }
 }
 
@@ -137,11 +143,11 @@ func free_heap(heap : Heap@, ptr : byte@?)
     verify_heap(heap);
 
     // block info is behind the buffer
-    node := cast(HeapNode@,@ptr) - 1;
+    node := cast(HeapNode@, @ptr) - 1;
 
     if(node.blocks > heap.max_allocation)
     {
-        crash_and_burn_oom("Node exceeds max allocation");
+        crash_and_burn("Node exceeds max allocation {} > {}", node.blocks, heap.max_allocation);
     }
 
     // set our ptr to null
@@ -154,36 +160,45 @@ func free_heap(heap : Heap@, ptr : byte@?)
     next := node.next;
 
     // attempt to collapse upper
-    if(next && next.free && (node + node.blocks) == next)
+    // TODO: Remove jank with flow typing 
+    if(next)
     {
-        node.blocks += next.blocks;
-
-        // Link over next
-        node.next = next.next;
-
-        // Link prev of new next
-        if(node.next)
+        next_reference := cast_ref(next);
+        if(next_reference.free && (node + node.blocks) == next_reference)
         {
-            ref_next := cast(HeapNode@,node.next);
-            ref_next.prev = node;
+            node.blocks += next_reference.blocks;
+
+            // Link over next
+            node.next = next_reference.next;
+
+            // Link prev of new next
+            if(node.next)
+            {
+                ref_next := cast_ref(node.next);
+                ref_next.prev = node;
+            }
         }
     }
     
     prev := node.prev;
 
     // Attempt to collapse lower
-    if(prev && prev.free && (prev + prev.blocks) == node)
+    if(prev)
     {
-        prev.blocks += node.blocks;
-
-        // Link over node
-        prev.next = node.next;
-
-        // Link back prev of node next
-        if(prev.next) 
+        prev_reference := cast_ref(prev);
+        if(prev_reference.free && (prev_reference + prev_reference.blocks) == node)
         {
-            ref_next := cast(HeapNode@,prev.next);
-            ref_next.prev = prev;
+            prev_reference.blocks += node.blocks;
+
+            // Link over node
+            prev_reference.next = node.next;
+
+            // Link back prev of node next
+            if(prev_reference.next) 
+            {
+                ref_next := cast_ref(prev_reference.next);
+                ref_next.prev = prev_reference;
+            }
         }
     }
 }
@@ -207,12 +222,14 @@ func find_first_fit(heap: Heap@, req_blocks: usize) HeapNode?
 
     while(cur)
     {
-        if(cur.blocks >= req_blocks && cur.free)
+        cur_reference := cast_ref(cur);
+
+        if(cur_reference.blocks >= req_blocks && cur_reference.free)
         {
             return cur;
         }
 
-        cur = cur.next;
+        cur = cur_reference.next;
     }
 
     return NULL;
@@ -249,48 +266,50 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
         
     }
 
-    if(cur.blocks == req_blocks)
+    cur_reference := cast_ref(cur);
+
+    if(cur_reference.blocks == req_blocks)
     {
-        cur.free = false;
+        cur_reference.free = false;
     }
 
-    else if(cur.blocks >= req_blocks)
+    else if(cur_reference.blocks >= req_blocks)
     {
-        new := cur;
+        new := cur_reference;
 
-        remain := cur.blocks - req_blocks;
+        remain := cur_reference.blocks - req_blocks;
 
         // fragment the block
-        cur.blocks = req_blocks;
-        cur.free = false;
+        cur_reference.blocks = req_blocks;
+        cur_reference.free = false;
 
-        new += cur.blocks;
+        new += cur_reference.blocks;
         new.blocks = remain;
         new.free = true;
 
         new.canary_start = HEAP_CANARY_START;
         new.canary_end = HEAP_CANARY_END;
 
-        // Point new block at its neighbours
-        new.prev = cur;
-        new.next = cur.next;
+        // Point new block at its neighbors
+        new.prev = cur_reference;
+        new.next = cur_reference.next;
 
         // Repoint the surrounding blocks
         if(new.next)
         {
-            new_next := cast(HeapNode@,new.next);
+            new_next := cast_ref(new.next);
             new_next.prev = new;
         }
 
-        cur.next = new;
+        cur_reference.next = new;
     }
 
     // mark heap usage
-    heap.used += cur.blocks;
+    heap.used += cur_reference.blocks;
     heap.total_allocation_bytes += size;
-    heap.max_allocation = max_u64(heap.max_allocation,cur.blocks);
+    heap.max_allocation = max_u64(heap.max_allocation,cur_reference.blocks);
     
-    return cur + 1;
+    return cur_reference + 1;
 }
 
 #attr(use_result)
@@ -326,7 +345,7 @@ func realloc_heap(heap : Heap@, ptr: byte@?, count: usize,size: usize) bool
     }
 
     // copy over the old data to the new buffer
-    node := cast(HeapNode@,old) - 1;
+    node := cast(HeapNode@, old) - 1;
 
     // need to make sure we dont trash the buffer if this shrinks
     copy_size := min_u64((node.blocks - 1) * HEAP_BLOCK_SIZE,count * size);
@@ -346,7 +365,7 @@ func realloc_heap_panic(heap : Heap@, ptr: byte@@, count: usize,size: usize)
 {
     if(realloc_heap(heap,ptr,count,size))
     {
-        crash_and_burn_oom("out of memory for heap realloc");
+        crash_and_burn("out of memory for heap realloc");
     }
 }
 
@@ -357,11 +376,11 @@ func alloc_heap_panic(heap : Heap@, count : usize, size : usize) byte@
 
     if(!ptr)
     {
-        crash_and_burn_oom("out of memory for heap alloc");
+        crash_and_burn("out of memory for heap alloc");
     }
 
     // Pointer has been checked this is now safe to treat as a reference
-    return cast(byte@,ptr);
+    return cast_ref(ptr);
 }
 
 func alloc_global_heap_panic(count : usize, size : usize) byte@
@@ -390,14 +409,16 @@ func add_heap_block(heap : Heap@, node: HeapNode@)
         return;
     }
 
+    cur_reference := cast_ref(cur);
+
     // just insert at end
-    while(cur.next)
+    while(cur_reference.next)
     {
-        cur = cur.next;
+        cur_reference = cast_ref(cur_reference.next);
     }
 
-    cur.next = node;
-    node.prev = cur;
+    cur_reference.next = node;
+    node.prev = cur_reference;
 }
 
 func add_buffer(heap : Heap@, ptr : byte@, size : usize)
@@ -410,7 +431,7 @@ func add_buffer(heap : Heap@, ptr : byte@, size : usize)
     // NOTE: we need a block to actually store it
     blocks := (size / HEAP_BLOCK_SIZE);
 
-    node := cast(HeapNode@,ptr);
+    node := cast(HeapNode@, ptr);
     node.blocks = blocks;
     node.next = NULL;
     node.prev = NULL;

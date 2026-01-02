@@ -11,3 +11,23 @@ struct Lexer
 
     b32 error = false;
 };
+
+
+struct NameSpace;
+
+struct ParserContext 
+{
+    String cur_file = "";
+    NameSpace* cur_namespace = nullptr;
+    NameSpace* global_namespace = nullptr;
+    String cur_path = "";    
+};
+
+struct TopLevelDefiniton
+{
+    // Have the tokens been read out into the relevant structure?
+    bool parsed = false;
+    Span<Token> tokens;
+    ParserContext context;
+    u32 flags = 0;
+};

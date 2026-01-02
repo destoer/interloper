@@ -2,7 +2,7 @@ func arr_len(buf_ptr: u32@[]) s32
 {
     arr := @buf_ptr;
 
-    return arr.len;
+    return cast(s32,arr.len);
 }
 
 // expected compile error

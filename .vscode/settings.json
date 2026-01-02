@@ -51,5 +51,10 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "typeinfo": "cpp"
-    }
+    },
+    "cSpell.words": [
+        "colour",
+        "finalise",
+        "ltype"
+    ]
 }

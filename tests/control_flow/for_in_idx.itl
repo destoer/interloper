@@ -1,0 +1,13 @@
+
+
+func main() s32
+{
+    ans: usize = 0;
+
+    for(i in 0 < 100)
+    {
+        ans += i;
+    }
+
+    return cast(s32,ans == 4950);
+}

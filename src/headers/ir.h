@@ -195,7 +195,7 @@ enum class op_type
     jne,
 
     // DIRECTIVES
-    // varabile on the stack is out of scope
+    // variable on the stack is out of scope
     // so we can reclaim allocation on the stack
     DIRECTIVE,
     alloc_slot,
@@ -270,16 +270,27 @@ b32 is_directive(op_type type)
 // will be converted to a specific counterpart in op_type
 enum class comparison_op
 {
-    cmplt_reg,
-    cmple_reg,
-    cmpgt_reg,
-    cmpge_reg,
+    lt,
+    le,
+    gt,
+    ge,
 
-    cmpeq_reg,
-    cmpne_reg,
+    eq,
+    ne,
 };
 
-static constexpr u32 LOGIC_OP_SIZE = 6;
+static constexpr u32 COMPARISON_OP_SIZE = 6;
+
+static const char* COMPARISON_NAMES[COMPARISON_OP_SIZE] = 
+{
+    "<",
+    "<=",
+    ">",
+    ">=",
+
+    "==",
+    "!="
+};
 
 enum class boolean_logic_op
 {
@@ -287,9 +298,29 @@ enum class boolean_logic_op
     or_t,
 };
 
+static const char* BOOLEAN_LOGIC_NAMES[] =
+{
+    "&&",
+    "||"
+};
 
+enum class arith_unary_op
+{
+    add_t,
+    sub_t,
+    bitwise_not_t,
+    logical_not_t,
+};
 
-enum class arith_op
+static const char* ARITH_UNARY_NAMES[] =
+{
+    "+",
+    "-",
+    "~",
+    "!",
+};
+
+enum class arith_bin_op
 {
     add_t,
     sub_t,
@@ -301,27 +332,52 @@ enum class arith_op
     or_t,
 };
 
-static constexpr u32 ARITH_OP_SIZE = 8;
+static constexpr u32 ARITH_BIN_OP_SIZE = 8;
+
+static const char* ARITH_BIN_NAMES[] = 
+{
+    "+",
+    "-",
+    "*",
+    "%",
+    "/",
+    "^",
+    "&",
+    "|"
+};
+
+enum class shift_op
+{
+    left,
+    right,
+};
+
+static const char* SHIFT_NAMES[] = 
+{
+    "<<",
+    ">>"
+};
 
 struct ArithmeticInfo
 {
-    enum arith_op arith;
+    enum arith_bin_op arith;
     bool commutative = false;
-    op_type reg_form = op_type::END;
+    op_type reg_unsigned_form = op_type::END;
+    op_type reg_signed_form = op_type::END;
     op_type imm_form = op_type::END;
     op_type float_form = op_type::END;
 };
 
-static constexpr ArithmeticInfo ARITH_INFO[ARITH_OP_SIZE] = 
+static constexpr ArithmeticInfo ARITH_INFO[ARITH_BIN_OP_SIZE] = 
 {
-    {arith_op::add_t,true,op_type::add_reg,op_type::add_imm,op_type::addf_reg},
-    {arith_op::sub_t,false,op_type::sub_reg,op_type::sub_imm,op_type::subf_reg},
-    {arith_op::mul_t,true,op_type::mul_reg,op_type::mul_imm,op_type::mulf_reg},
-    {arith_op::mod_t,false,op_type::none,op_type::none,op_type::none},
-    {arith_op::div_t,false,op_type::none,op_type::none,op_type::divf_reg},
-    {arith_op::xor_t,true,op_type::xor_reg,op_type::xor_imm,op_type::none},
-    {arith_op::and_t,true,op_type::and_reg,op_type::and_imm,op_type::none},
-    {arith_op::or_t,true,op_type::or_reg,op_type::none,op_type::none},
+    {arith_bin_op::add_t,true,op_type::add_reg,op_type::add_reg,op_type::add_imm,op_type::addf_reg},
+    {arith_bin_op::sub_t,false,op_type::sub_reg,op_type::sub_reg,op_type::sub_imm,op_type::subf_reg},
+    {arith_bin_op::mul_t,true,op_type::mul_reg,op_type::mul_reg,op_type::mul_imm,op_type::mulf_reg},
+    {arith_bin_op::mod_t,false,op_type::umod_reg,op_type::smod_reg,op_type::none,op_type::none},
+    {arith_bin_op::div_t,false,op_type::udiv_reg,op_type::sdiv_reg,op_type::none,op_type::divf_reg},
+    {arith_bin_op::xor_t,true,op_type::xor_reg,op_type::xor_reg,op_type::xor_imm,op_type::none},
+    {arith_bin_op::and_t,true,op_type::and_reg,op_type::and_reg,op_type::and_imm,op_type::none},
+    {arith_bin_op::or_t,true,op_type::or_reg,op_type::or_reg,op_type::none,op_type::none},
 };
 
 
@@ -438,8 +494,6 @@ using BlockSlot = Slot<slot_type::block>;
 extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
 
 static constexpr u32 NON_ARG = 0xffffffff;
-
-static constexpr u32 UNALLOCATED_OFFSET = 0xffff'ffff;
 
 static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
 
@@ -569,19 +623,10 @@ struct RegSlot
     reg_kind kind = reg_kind::sym;
 };
 
-static constexpr u32 TYPED_REG_FLAG_KNOWN_VALUE = (1 << 0);
-static constexpr u32 TYPED_REG_FLAG_ELIDED_VALUE = (1 << 1); 
-
 struct TypedReg
 {
     RegSlot slot;
     Type* type = nullptr;
-
-    // NOTE: this has no invalidation so use carefully.
-    // TODO: We can keep this around long term when we have SSA
-    // AND use values stored long term in symbols
-    u64 known_value = 0;
-    u32 flags = 0;
 };
 
 enum class known_value_type
@@ -589,23 +634,6 @@ enum class known_value_type
     elided,
     stored
 };
-
-inline bool is_value_known(const TypedReg& reg)
-{
-    return reg.flags & TYPED_REG_FLAG_KNOWN_VALUE;
-}
-
-inline TypedReg make_known_reg(RegSlot dst_slot, Type* type, u64 value,known_value_type known_type)
-{
-    u32 flags = TYPED_REG_FLAG_KNOWN_VALUE;
-
-    if(known_type == known_value_type::elided)
-    {
-        flags |= TYPED_REG_FLAG_ELIDED_VALUE;
-    }
-
-    return TypedReg {dst_slot,type,value,flags};
-}
 
 using RegResult = destoer::Result<TypedReg,itl_error>;
 
@@ -729,6 +757,11 @@ struct AddrSlot
     // slot is not a pointer and refers to an actual variable
     b32 struct_addr = false;
 };
+
+inline bool is_direct_addr(const AddrSlot& addr_slot)
+{
+    return addr_slot.struct_addr && addr_slot.addr.index == make_spec_reg_slot(spec_reg::null) && addr_slot.addr.offset == 0;
+}
 
 
 AddrSlot make_struct_addr(RegSlot slot, u32 offset);
@@ -914,8 +947,10 @@ static constexpr u32 STORED_IN_MEM = 1 << 1;
 static constexpr u32 ALIASED = 1 << 2;
 static constexpr u32 PENDING_STACK_ALLOCATION = 1 << 3;
 static constexpr u32 CONST = 1 << 4;
-static constexpr u32 FUNC_ARG = 1 << 5;
+static constexpr u32 STACK_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
+static constexpr u32 STACK_ALLOCATED = 1 << 7;
+static constexpr u32 GLOBALLY_ALLOCATED = 1 << 8;
 
 
 // TODO:
@@ -945,7 +980,7 @@ struct Reg
     // intialized during register allocation
 
     // where is the current offset for its section?
-    u32 offset = UNALLOCATED_OFFSET;
+    u32 offset = 0;
 
     // Where is this register globally allocated if at all
     u32 global_reg = REG_FREE;
@@ -1066,6 +1101,8 @@ struct GlobalAlloc
     Array<ArrayAllocation> array_allocation;
 };
 
+void finalise_global_offset(Interloper& itl);
+
 void sign_extend_byte(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
 void sign_extend_half(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
 void sign_extend_word(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
@@ -1104,7 +1141,7 @@ using AddrResult = Result<AddrSlot,itl_error>;
 using TypedAddrResult = Result<TypedAddr,itl_error>;
 
 // intrin
-Option<itl_error> ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
+void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size);
 
 enum class arch_target
 {
@@ -1252,3 +1289,19 @@ enum class ir_pass
     reg_alloc,
 }
 */
+
+// intrin
+static constexpr u32 INTRIN_TABLE_SIZE = 2;
+
+
+struct FuncCallNode;
+using INTRIN_EMIT_FUNC = void (*)(Interloper &itl,Function &func,FuncCallNode *func_call, RegSlot dst_slot);
+using INTRIN_TYPE_FUNC = TypeResult (*)(Interloper &itl,FuncCallNode *func_call);
+
+struct IntrinHandler
+{
+    INTRIN_EMIT_FUNC emit = nullptr;
+    INTRIN_TYPE_FUNC type_check = nullptr;
+};
+
+extern const HashNode<String,IntrinHandler> INTRIN_TABLE[INTRIN_TABLE_SIZE];

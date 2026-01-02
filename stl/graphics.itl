@@ -2,7 +2,6 @@ namespace gfx;
 
 import <colour>
 import <os_graphics>
-import <input>
 
 struct Window
 {
@@ -42,7 +41,7 @@ enum win_result
     err,
 }
 
-constant WINDOW_PREFIX :  string = "WINDOW ";
+constant WINDOW_PREFIX : const string = "WINDOW ";
 
 func blank_screen(screen: u32[])
 {

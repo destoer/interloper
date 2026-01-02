@@ -1,0 +1,38 @@
+
+
+func main() s32
+{
+    res1 := false;
+
+    x: u32 = 1;
+    if(x) 
+    {
+        res1 = true;
+    }
+
+
+    x = 0;
+    if(x)
+    {
+        res1 = false;
+    }
+
+    ptr: u32? = &x;
+
+    res2 := false;
+
+    if(ptr)
+    {
+        res2 = true;
+    }
+
+    ptr = NULL;
+    if(ptr)
+    {
+        res2 = false;
+    }
+
+    ans := res1 && res2;
+
+    return cast(s32,ans);
+}

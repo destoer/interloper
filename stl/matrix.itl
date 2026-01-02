@@ -5,7 +5,7 @@ struct Mat4D
     mat: f64[4][4];
 }
 
-constant MAT4_IDENT: Mat4D = {{
+global MAT4_IDENT: const Mat4D = {{
     {1.0,0.0,0.0,0.0},
     {0.0,1.0,0.0,0.0},
     {0.0,0.0,1.0,0.0},

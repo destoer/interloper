@@ -13,19 +13,19 @@ func scan_verticies(line: const string[]) [result,std::Vec3F]
     ans: std::Vec3F = {?};
 
     [res, ans.x] := std::string_to_double(line[1]);
-    if(res == result::err)
+    if res == result::err
     {
         return res, ans;
     }
 
     [res, ans.y] = std::string_to_double(line[2]);
-    if(res == result::err)
+    if res == result::err
     {
         return res, ans;
     }
 
     [res, ans.z] = std::string_to_double(line[3]);
-    if(res == result::err)
+    if res == result::err
     {
         return res, ans;
     }
@@ -53,19 +53,19 @@ func scan_face(faces: std::Array@,verticies: const std::Array@,line: const strin
 
     tri: Triangle = {?};
     res := read_face_vertex(&tri.points[0],verticies,v1.v);
-    if(res == result::err)
+    if res == result::err
     {
         return res;
     }
 
     res = read_face_vertex(&tri.points[1],verticies,v2.v);
-    if(res == result::err)
+    if res == result::err
     {
         return res;
     }
 
     res = read_face_vertex(&tri.points[2],verticies,v3.v);
-    if(res == result::err)
+    if res == result::err
     {
         return res;
     }
@@ -87,7 +87,7 @@ func load_model(path: const string) [result, Model]
 
     [fp,file_err] := std::open_file(path,std::file_mode::read,std::file_opt::open);
 
-    if(file_err)
+    if file_err
     {
         log::error(TAG,"Could not open model file {}",path);
         return result::err, model;
@@ -99,7 +99,7 @@ func load_model(path: const string) [result, Model]
     verticies := std::make_array(sizeof_type(std::Vec3F));
     model_faces := std::make_array(sizeof_type(Triangle));
 
-    while(rc == std::file_read_res::success)
+    while rc == std::file_read_res::success
     {
         [str,rc] := std::read_file_line(&fp,buf);
         
@@ -120,7 +120,7 @@ func load_model(path: const string) [result, Model]
                 [err, vec] := scan_verticies(split);
                 std::push_array(&verticies,&vec);
 
-                if(err == result::err)
+                if err == result::err 
                 {
                     log::error(TAG,"Format error in model {}",str);
                     return result::err, model;
@@ -135,7 +135,7 @@ func load_model(path: const string) [result, Model]
                     return result::err, model;
                 }
 
-                if(scan_face(&model_faces,&verticies,split) == result::err)
+                if scan_face(&model_faces,&verticies,split) == result::err
                 {
                     log::error(TAG,"Vertex index out of range: {}",str,std::count_array(&verticies));
                     return result::err, model;
@@ -149,7 +149,7 @@ func load_model(path: const string) [result, Model]
 
     model.faces = cast(Triangle[],std::array_buffer(&model_faces));
 
-    if(!model.faces)
+    if !model.faces
     {
         log::error(TAG,"Model has no faces!");
         return result::err, model;   
