@@ -163,6 +163,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/switch_no_default",73},
     {"tests/control_flow/switch",1}, // 447
 
+    {"tests/array/array_vla_init",15},
+
     {"tests/basic/short_circuit",60},
 
     // structs

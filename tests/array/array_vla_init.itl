@@ -1,0 +1,17 @@
+
+
+func main() s32
+{
+    buf: s32[?] = {1,2,3,4,5};
+
+    vla: s32[] = {&buf[0],buf.len};
+
+    sum: s32 = 0;
+
+    for(x in vla)
+    {
+        sum += x;
+    }
+
+    return sum;
+}
