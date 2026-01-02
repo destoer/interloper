@@ -311,12 +311,12 @@ func read_file_line(file : File@, str : string) [string, file_read_res]
         pending := file.buffer_size;
 
         // setup pointers to scan for '\n'
-        start := &file.buf[file.buffer_offset];
+        start := &file.buffer.buf[file.buffer_offset];
         ptr := start;
 
         // max is end of the buffer or str len, whatever is lowest
         max_read := min_u64(pending,remain);
-        end := &file.buf[file.buffer_offset + max_read];
+        end := &file.buffer.buf[file.buffer_offset + max_read];
 
         while(ptr != end)
         {

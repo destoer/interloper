@@ -17,16 +17,7 @@ Option<itl_error> declare_compiler_constants(Interloper& itl);
 
 
 Option<itl_error> check_startup_defs(Interloper& itl)
-{   
-    if(itl.rtti_enable)
-    {
-        const auto cache_err = cache_rtti_structs(itl);
-        if(cache_err)
-        {
-            return cache_err;
-        }
-    }
-
+{
     itl.std_name_space = find_name_space(itl,"std");
 
     if(!itl.std_name_space)
@@ -414,6 +405,15 @@ Option<itl_error> type_check_globals(Interloper& itl)
 Option<itl_error> type_check_ast(Interloper& itl)
 {
     auto start = std::chrono::high_resolution_clock::now();
+
+    if(itl.rtti_enable)
+    {
+        const auto cache_err = cache_rtti_structs(itl);
+        if(cache_err)
+        {
+            return cache_err;
+        }
+    }
 
     const auto comp_err = declare_compiler_constants(itl);
     if(comp_err)
