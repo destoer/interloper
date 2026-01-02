@@ -380,7 +380,7 @@ void do_addr_store(Interloper &itl,Function &func,const TypedReg& src,const Type
 
     if(size <= GPR_SIZE)
     {
-        const b32 fp = is_float(dst.type);
+        const b32 fp = is_float(src.type);
         store_addr_slot(itl,func,src.slot,dst.addr_slot,size,fp);
     }
 
