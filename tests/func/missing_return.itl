@@ -3,7 +3,7 @@
 
 
 
-func test(x : s32) s32
+func test(_x : s32) s32
 {
 
 }
