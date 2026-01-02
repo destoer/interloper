@@ -4,6 +4,11 @@ func sum_ints(boop : s32,args: ...) s32
 {
     for(arg in args)
     {
+        if(!rtti::is_builtin(arg.type))
+        {
+            return -1;
+        }
+
         v := rtti::int_from_any(arg);
 
         boop += cast(s32,v);
