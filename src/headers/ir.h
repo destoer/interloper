@@ -376,7 +376,7 @@ static constexpr ArithmeticInfo ARITH_INFO[ARITH_BIN_OP_SIZE] =
     {arith_bin_op::mod_t,false,op_type::umod_reg,op_type::smod_reg,op_type::none,op_type::none},
     {arith_bin_op::div_t,false,op_type::udiv_reg,op_type::sdiv_reg,op_type::none,op_type::divf_reg},
     {arith_bin_op::xor_t,true,op_type::xor_reg,op_type::xor_reg,op_type::xor_imm,op_type::none},
-    {arith_bin_op::and_t,true,op_type::xor_reg,op_type::xor_reg,op_type::and_imm,op_type::none},
+    {arith_bin_op::and_t,true,op_type::and_reg,op_type::and_reg,op_type::and_imm,op_type::none},
     {arith_bin_op::or_t,true,op_type::or_reg,op_type::or_reg,op_type::none,op_type::none},
 };
 
