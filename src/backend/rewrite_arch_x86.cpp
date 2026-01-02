@@ -109,7 +109,18 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::add_imm:
         {
-            if(node->value.v[0] == node->value.v[1])
+            const auto imm = node->value.v[2].imm;
+
+            // TODO: This needs amore widescale fix with the IR rewrite (where it will be far easier to implement).
+            if(!fit_into_s32(imm))
+            {
+                const auto old = node->value;
+                const auto tmp = make_reg_operand(new_tmp(func,GPR_SIZE));
+                node->value = make_op(op_type::mov_imm,tmp,make_imm_operand(imm));
+                node = insert_after(block.list,node,make_op(op_type::add_reg,old.v[0],old.v[1],tmp));
+            }
+
+            else if(node->value.v[0] == node->value.v[1])
             {
                 return rewrite_imm3_two(block,node,op_type::add_imm2);
             }

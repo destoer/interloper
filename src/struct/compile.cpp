@@ -284,6 +284,11 @@ void access_slice_member(Interloper& itl,Function& func, const AccessMember& mem
 {
     SliceNode* slice_node = (SliceNode*)member_access.expr;
 
+    const auto& structure = struct_from_type(itl.struct_table,(StructType*)struct_addr->type);
+    const auto& member = structure.members[member_access.member];
+
+    struct_addr->addr_slot.addr.offset += member.offset;
+
     const RegSlot dst_slot = new_struct(func,GPR_SIZE * 2);
     compile_array_slice(itl,func,slice_node,*struct_addr,dst_slot);
 
