@@ -368,13 +368,9 @@ void compile_index(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_s
 }
 
 
-void compile_array_slice(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
+void compile_array_slice(Interloper& itl, Function& func, SliceNode* slice, const TypedAddr& addr, RegSlot dst_slot)
 {
-    SliceNode* slice = (SliceNode*)expr;
-
-    auto& arr = sym_from_slot(itl.symbol_table,slice->sym.slot);
-
-    RegSlot data_slot = load_arr_data(itl,func,arr);
+    RegSlot data_slot = load_arr_data(itl,func,addr);
     RegSlot slice_lower = make_spec_reg_slot(spec_reg::null);
 
     // Lower is populated add to data
@@ -384,7 +380,7 @@ void compile_array_slice(Interloper& itl, Function& func, AstNode* expr, RegSlot
 
         slice_lower = index.slot;
 
-        const RegSlot offset_slot = mul_imm_res(itl,func,index.slot,type_size(itl,index_arr(arr.type)));
+        const RegSlot offset_slot = mul_imm_res(itl,func,index.slot,type_size(itl,index_arr(addr.type)));
         data_slot = add_res(itl,func,data_slot,offset_slot);
     }
 
@@ -401,7 +397,7 @@ void compile_array_slice(Interloper& itl, Function& func, AstNode* expr, RegSlot
 
     else
     {
-        data_len = load_arr_len(itl,func,arr);
+        data_len = load_arr_len(itl,func,addr);
     }
     
     // Sub lower slice if present
@@ -411,4 +407,12 @@ void compile_array_slice(Interloper& itl, Function& func, AstNode* expr, RegSlot
     }
 
     store_arr_len(itl,func,dst_slot,data_len); 
+}
+
+void compile_array_slice_expr(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
+{
+    SliceNode* slice = (SliceNode*)expr;
+    auto& arr = sym_from_slot(itl.symbol_table,slice->sym.slot);
+
+    compile_array_slice(itl,func,slice,typed_addr(arr),dst_slot);
 }

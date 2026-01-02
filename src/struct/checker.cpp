@@ -190,6 +190,39 @@ TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMe
     return member_access.expr_type;
 }
 
+TypeResult type_check_access_slice_member(Interloper& itl, Type* ltype, AccessMember& member_access)
+{
+    member_access.type = member_access_type::slice_t;
+
+    SliceNode* slice = (SliceNode*)member_access.expr;
+
+    const auto name = slice->sym.name;
+    const auto access_err = access_member(itl,ltype,member_access,name);
+    if(access_err)
+    {
+        return *access_err;
+    }
+    
+    if(!is_array(member_access.expr_type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Cannot take slice on non array member %S %t",
+            name,member_access.expr_type);
+    }
+
+    const auto slice_res = type_check_array_slice(itl,(ArrayType*)member_access.expr_type, slice);
+    if(!slice_res)
+    {
+        return slice_res;
+    }
+
+    member_access.expr_type = *slice_res;
+    slice->node.expr_type = member_access.expr_type;
+    slice->sym.slot = {INVALID_HANDLE};
+
+    return member_access.expr_type;
+}
+
+
 TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
 {
     StructAccessNode* struct_access = (StructAccessNode*)expr;
@@ -244,6 +277,19 @@ TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
 
                 ltype = *access_res;
                 break;                
+            }
+
+            case ast_type::slice:
+            {
+                // Check we have this member and then update the type
+                const auto access_res = type_check_access_slice_member(itl,ltype,member_access);
+                if(!access_res)
+                {
+                    return access_res;
+                }
+
+                ltype = *access_res;
+                break;                               
             }
 
             default:

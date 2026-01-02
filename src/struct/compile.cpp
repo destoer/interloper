@@ -280,6 +280,16 @@ void access_enum_struct_member(Interloper& itl,Function& func, const AccessMembe
     struct_addr->type = member.type;
 }
 
+void access_slice_member(Interloper& itl,Function& func, const AccessMember& member_access, TypedAddr* struct_addr)
+{
+    SliceNode* slice_node = (SliceNode*)member_access.expr;
+
+    const RegSlot dst_slot = new_struct(func,GPR_SIZE * 2);
+    compile_array_slice(itl,func,slice_node,*struct_addr,dst_slot);
+
+    *struct_addr = {make_struct_addr(dst_slot,0), member_access.expr_type};
+}
+
 TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode* struct_access)
 {
     TypedAddr struct_addr;
@@ -364,7 +374,8 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 
             case member_access_type::slice_t:
             {
-                unimplemented("Access slice");
+                access_slice_member(itl, func, access_member, &struct_addr);
+                break;
             }
 
             case member_access_type::index_t:

@@ -3,6 +3,7 @@ namespace std;
 #attr(no_reorder)
 struct HeapNode
 {
+    // enemy of the disaster.
     canary_start : u64;
 
     next : HeapNode?;

@@ -256,26 +256,8 @@ Option<itl_error> type_check_slice_bound(Interloper& itl, AstNode* bound)
     return option::none;
 } 
 
-TypeResult type_check_array_slice(Interloper& itl, AstNode* expr)
+TypeResult type_check_array_slice(Interloper& itl, ArrayType* ltype, SliceNode* slice)
 {
-    SliceNode* slice = (SliceNode*)expr;
-
-    const auto arr_name = slice->sym.name;
-    const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
-
-    if(!arr_ptr)
-    {
-        return compile_error(itl,itl_error::undeclared,"Array '%S' used before declaration",arr_name);      
-    }
-
-    const auto sym = *arr_ptr;
-    slice->sym.slot = sym.reg.slot.sym_slot;    
-
-    if(!is_array(sym.type))
-    {
-        return compile_error(itl,itl_error::array_type_error,"Expected array or pointer for slice got %t",sym.type);       
-    }
-
     // Lower is populated add to data
     if(slice->lower)
     {
@@ -297,15 +279,38 @@ TypeResult type_check_array_slice(Interloper& itl, AstNode* expr)
     }
 
     // If array type is not runtime size make it!
-    if(!is_runtime_size(sym.type))
+    if(!is_runtime_size(ltype))
     {
-        auto copy_arr_type = (ArrayType*)copy_type(itl,sym.type);
+        auto copy_arr_type = (ArrayType*)copy_type(itl,(Type*)ltype);
         copy_arr_type->size = RUNTIME_SIZE;
 
         return (Type*)copy_arr_type;
     }
 
-    return sym.type;
+    return (Type*)ltype;
+}
+
+TypeResult type_check_array_slice_expr(Interloper& itl, AstNode* expr)
+{
+    SliceNode* slice = (SliceNode*)expr;
+
+    const auto arr_name = slice->sym.name;
+    const auto arr_ptr = get_sym(itl.symbol_table,arr_name);
+
+    if(!arr_ptr)
+    {
+        return compile_error(itl,itl_error::undeclared,"Array '%S' used before declaration",arr_name);      
+    }
+
+    const auto sym = *arr_ptr;
+    slice->sym.slot = sym.reg.slot.sym_slot;    
+
+    if(!is_array(sym.type))
+    {
+        return compile_error(itl,itl_error::array_type_error,"Expected array or pointer for slice got %t",sym.type);       
+    }
+
+    return type_check_array_slice(itl,(ArrayType*)sym.type,slice);
 }
 
 TypeResult type_check_string(Interloper& itl, AstNode* expr)

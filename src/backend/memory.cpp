@@ -274,7 +274,7 @@ void do_addr_load(Interloper &itl,Function &func,RegSlot dst_slot,const TypedAdd
 
 void do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,const TypedReg& reg, u32 offset = 0)
 {
-    const TypedAddr src_addr = typed_addr_from_reg(reg,offset); 
+   const TypedAddr src_addr = typed_addr_from_reg(reg,offset); 
    do_addr_load(itl,func,dst_slot,src_addr);
 }
 

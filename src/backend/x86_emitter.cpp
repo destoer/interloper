@@ -281,7 +281,7 @@ void push_reg_base_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, u64 imm)
     // cannot fit 
     else
     {
-        assert(false);
+        crash_and_burn("Cannot fit base disp imm %lx",imm);
     }
 }
 
@@ -324,7 +324,7 @@ void push_reg_base_index_disp(AsmEmitter& emitter,x86_reg reg, x86_reg base, x86
     // cannot fit
     else
     {
-        assert(false);
+        crash_and_burn("Cannot fit index disp imm %lx",imm);
     }
 }
 
@@ -580,7 +580,7 @@ void emit_arith_imm(AsmEmitter& emitter, x86_reg dst, s64 v1, u32 opcode_ext)
     // -> add dst, t0
     else
     {
-        assert(false);
+        crash_and_burn("Cannot fit arith imm %lx",v1);
     }
 }
 
