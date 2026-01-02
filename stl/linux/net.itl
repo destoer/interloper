@@ -36,7 +36,7 @@ func linux_socket(domain: u32, type: u32, protocol : u32) s64
     return intrin_syscall(SYSCALL_SOCKET,domain,type,protocol);
 }
 
-func linux_connect(handle : s64,addr : byte@,size : u32) s64
+func linux_connect(handle : s64,addr : byte@,size : usize) s64
 {
     return intrin_syscall(SYSCALL_CONNECT,handle,addr,size);
 }

@@ -3,7 +3,7 @@ namespace gfx;
 // TODO: move this later
 import <socket>
 
-constant X11_PREFIX : string = "X WINDOW";
+constant X11_PREFIX : const string = "X WINDOW";
 
 // https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
 struct OSWindow

@@ -244,6 +244,15 @@ ConstDataResult compile_const_array_expr(Interloper& itl, ArrayType* type, AstNo
             return compile_const_array_initializer_list(itl,type,(InitializerListNode*)expr);
         }
 
+        case ast_type::string:
+        {
+            StringNode* string_node = (StringNode*)expr;
+            const auto data_slot = push_const_pool_string(itl.const_pool,string_node->string);
+            const auto pointer_slot = push_const_pool_vla(itl.const_pool,data_slot,string_node->string.size);
+            
+            return make_const_compound(make_const_pool_pointer(pointer_slot,0),0);
+        }
+
         default: 
         {
             return compile_error(itl,itl_error::invalid_expr,"Invalid expr for const array init: %s",AST_INFO[u32(expr->type)].name);
@@ -343,6 +352,7 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     const auto name = decl_node->sym.name;
 
     // force constant
+    decl_node->is_const = true;
     decl_node->type->is_constant = true;
 
     // build the typing info
@@ -375,6 +385,41 @@ Option<itl_error> compile_constant(Interloper& itl, GlobalDeclNode* node)
 {
     auto context_guard = switch_context(itl,node->filename,node->name_space,(AstNode*)node);
     return compile_constant_decl(itl,node->decl,true);
+}
+
+
+Option<itl_error> add_compiler_constant(Interloper& itl, const String& name, builtin_type builtin, u64 value)
+{
+    auto type = make_builtin(itl,builtin);
+
+    auto sym_res = add_global(itl,name,type,true);
+    if(!sym_res)
+    {
+        return sym_res.error();
+    }
+
+    auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+
+    // push to const pool and save handle as offset for later loading...
+    const auto slot = push_const_pool(itl.const_pool,pool_type::var,&value,builtin_size(builtin));
+    sym.reg.offset = slot.handle;    
+    sym.known_value = value;
+
+    return option::none;
+}
+
+
+Option<itl_error> declare_compiler_constants(Interloper& itl)
+{
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            return add_compiler_constant(itl,"LITTLE_ENDIAN",builtin_type::bool_t,true);
+        }
+    }
+
+    return option::none;
 }
 
 

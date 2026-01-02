@@ -10,6 +10,8 @@ Option<itl_error> type_check_struct_designated_initializer_list(Interloper& itl,
 
 Option<itl_error> cache_rtti_structs(Interloper& itl);
 
+Option<itl_error> declare_compiler_constants(Interloper& itl);
+
 #include "func/checker.cpp"
 #include "arith/checker.cpp"
 
@@ -412,6 +414,12 @@ Option<itl_error> type_check_globals(Interloper& itl)
 Option<itl_error> type_check_ast(Interloper& itl)
 {
     auto start = std::chrono::high_resolution_clock::now();
+
+    const auto comp_err = declare_compiler_constants(itl);
+    if(comp_err)
+    {
+        return comp_err;
+    }
 
     const auto const_err = compile_constants(itl);
     if(const_err)
