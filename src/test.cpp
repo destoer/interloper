@@ -135,6 +135,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/ptr/ptr_to_ptr",1,},
     {"tests/ptr/null",1},
     {"tests/ptr/alias",1},
+    {"tests/ptr/cast_ref",5},
 
     {"tests/func/void_return",255},
 

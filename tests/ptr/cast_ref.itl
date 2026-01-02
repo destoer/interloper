@@ -1,0 +1,8 @@
+
+func main() s32
+{
+    x: s32 = 5;
+    null_ptr: s32? = &x;
+
+    return @cast_ref(null_ptr);
+}
