@@ -1,9 +1,5 @@
-
-
-TypeResult type_check_enum_member(Interloper& itl, AstNode* expr)
-{
-    EnumMemberNode* member_node = (EnumMemberNode*)expr;
-    
+TypeResult type_check_enum_member(Interloper& itl, EnumMemberNode* member_node, bool force_true_type)
+{    
     auto enum_type_res = lookup_enum(itl,member_node->name_space,member_node->name);
     if(!enum_type_res)
     {
@@ -22,10 +18,15 @@ TypeResult type_check_enum_member(Interloper& itl, AstNode* expr)
 
     member_node->node.known_value = member->value;
 
-    if(enumeration.underlying_type && is_integer(enumeration.underlying_type))
+    if(!force_true_type && enumeration.underlying_type && is_integer(enumeration.underlying_type))
     {
         return enumeration.underlying_type;
     }
     
     return (Type*)enum_type;
+}
+
+TypeResult type_check_enum_member_expr(Interloper& itl, AstNode* expr)
+{
+    return type_check_enum_member(itl,(EnumMemberNode*)expr,false);
 }

@@ -268,16 +268,34 @@ Option<itl_error> type_check_while(Interloper& itl, Function& func, AstNode* stm
 
 Option<itl_error> type_check_switch_enum(Interloper& itl, Function& func, EnumType* target_type, Case& stmt)
 {
-    const auto stmt_res = type_check_expr(itl,stmt.statement);
-    if(!stmt_res)
+    Type* type = nullptr;
+
+    // Override in a switch to get the actual case info.
+    if(stmt.statement->type == ast_type::enum_member)
     {
-        return stmt_res.error();
+        const auto stmt_res = type_check_enum_member(itl,(EnumMemberNode*)stmt.statement,true);
+        if(!stmt_res)
+        {
+            return stmt_res.error();
+        }
+
+        type = *stmt_res;  
     }
 
-    const auto type = *stmt_res;
+    else
+    {
+        const auto stmt_res = type_check_expr(itl,stmt.statement);
+        if(!stmt_res)
+        {
+            return stmt_res.error();
+        }
+
+        type = *stmt_res;
+    }
+
     if(!is_enum(type))
     {
-        return compile_error(itl,itl_error::int_type_error,"Expected integer case for switch statemnt");
+        return compile_error(itl,itl_error::int_type_error,"Expected enum case for switch statement");
     }
 
     EnumType* case_type = (EnumType*)type;
@@ -355,8 +373,8 @@ Option<itl_error> type_check_switch(Interloper& itl, Function& func, AstNode* st
 
     if(is_enum(target_type))
     {
-        switch_type = switch_kind::enum_t;
         enumeration = enum_from_type(itl.enum_table,(EnumType*)target_type);
+        switch_type = switch_kind::enum_t;
     }
 
     else if(is_integer(target_type))
