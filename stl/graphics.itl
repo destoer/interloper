@@ -41,7 +41,7 @@ enum win_result
     err,
 }
 
-constant WINDOW_PREFIX :  string = "WINDOW ";
+constant WINDOW_PREFIX : string = "WINDOW ";
 
 func blank_screen(screen: u32[])
 {

@@ -252,10 +252,10 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
     // If this has a index tag as index_t
     if(member.expr)
     {
-        const auto expr_res = type_check_expr(itl,member.expr);
-        if(!expr_res)
+        const auto err = type_check_init_expr(itl,member.type,member.expr);
+        if(err)
         {
-            return expr_res.error();
+            return *err;
         }
     }
     
