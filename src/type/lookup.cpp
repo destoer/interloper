@@ -157,7 +157,7 @@ bool parser_type_exists(Parser& parser, NameSpace* name_space, const String& nam
         name_space = parser.context.cur_namespace;
     }
 
-    return lookup_definition(name_space,name) != nullptr;
+    return lookup_typed_definition(name_space,name,definition_type::type) != nullptr;
 }
 
 

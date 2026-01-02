@@ -597,8 +597,8 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 
         else
         {
-            return parser_error(parser,parse_error::unexpected_token,member_tok,"expected struct member got %s(%s)\n",
-                member_tok.literal.buf,tok_name(member_tok.type));           
+            return parser_error(parser,parse_error::unexpected_token,member_tok,"expected struct member got %S(%s)\n",
+                member_tok.literal,tok_name(member_tok.type));           
         }
     }
 

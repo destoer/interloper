@@ -66,6 +66,7 @@ Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
 
             default:
             {
+                assert(false);
                 return parser_error(parser,parse_error::invalid_lbp,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
             }
         }
