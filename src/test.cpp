@@ -232,6 +232,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/stl/file_bin",1},
     {"tests/stl/hash_table",1},
     {"tests/stl/math",0},
+    {"tests/stl/format",1},
 
     // strings
     {"tests/string/char_array",6},

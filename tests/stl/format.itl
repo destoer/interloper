@@ -1,0 +1,8 @@
+
+
+func main() s32
+{
+    str := std::format("Hello {} is {}","John",20);
+
+    return cast(s32,std::str_equal(str.buf,"Hello John is 20"));
+}
