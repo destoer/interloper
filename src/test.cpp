@@ -38,7 +38,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/const/const_invalid_assign",itl_error::const_type_error},
     {"tests/const/const_pass_invalid_ptr.itl",itl_error::const_type_error},
     {"tests/const/const_invalid_ptr_assign.itl",itl_error::const_type_error},
-    //{"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
+    {"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
 
     // func
     {"tests/func/no_main",itl_error::undeclared},
