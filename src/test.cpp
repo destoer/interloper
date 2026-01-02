@@ -187,6 +187,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/designated_initializer",1},
 
     {"tests/array/array_conv_struct",6},
+    {"tests/array/array_slice_struct",1},
 
     {"tests/func/func_pointer",50},
     {"tests/func/func_pointer_struct_recur",21},

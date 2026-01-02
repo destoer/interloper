@@ -5,6 +5,10 @@
 #include "sym.h"
 #include "type.h"
 
+
+void compile_struct_init(Interloper& itl, Function& func,AstNode* expr, StructType* struct_type,  AddrSlot* addr_slot);
+void compile_struct_initializer_item(Interloper& itl, Function& func, const AddrSlot& addr_slot, const Member& member, AstNode* node);
+
 void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& structure,AddrSlot addr_slot)
 {
     // TODO: add a opt to just memset the entire thing in one go / bulk store
@@ -13,19 +17,14 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     // default construction
     for(const auto& member : structure.members)
     {
-        AddrSlot member_addr = addr_slot;
-        member_addr.addr.offset += member.offset;
-
         if(member.expr)
         {
-            if(member.expr->type != ast_type::no_init)
-            {
-                const auto reg = compile_oper(itl,func,member.expr);
-                const TypedAddr dst_addr = {member_addr,member.type};
-                do_addr_store(itl,func,reg,dst_addr);
-            }
+            compile_struct_initializer_item(itl,func,addr_slot,member,member.expr);
             continue;
         }
+
+        AddrSlot member_addr = addr_slot;
+        member_addr.addr.offset += member.offset;
 
         switch(member.type->kind)
         {
@@ -55,9 +54,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
     }
 }
 
-void compile_struct_init(Interloper& itl, Function& func,AstNode* expr, StructType* struct_type,  AddrSlot* addr_slot);
-
-void compile_struct_initializer_item(Interloper& itl, Function& func, const AddrSlot& addr_slot, Member& member, AstNode* node)
+void compile_struct_initializer_item(Interloper& itl, Function& func, const AddrSlot& addr_slot, const Member& member, AstNode* node)
 {
     const u32 base = addr_slot.addr.offset;
 
@@ -288,6 +285,7 @@ void access_slice_member(Interloper& itl,Function& func, const AccessMember& mem
     const auto& member = structure.members[member_access.member];
 
     struct_addr->addr_slot.addr.offset += member.offset;
+    struct_addr->type = member.type;
 
     const RegSlot dst_slot = new_struct(func,GPR_SIZE * 2);
     compile_array_slice(itl,func,slice_node,*struct_addr,dst_slot);

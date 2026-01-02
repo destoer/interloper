@@ -1,0 +1,30 @@
+
+struct Bucket
+{
+    values: u32[10] = {1,2,3,4,5,6,7,8,9,10};
+    values_vla: u32[] = {?};
+};
+
+func main() s32
+{
+    bucket: Bucket;
+    bucket.values_vla = bucket.values;
+
+    sum_vla: u32 = 0;
+
+    for(v in bucket.values_vla[:6])
+    {
+        sum_vla += v;
+    }
+
+    sum_fixed: u32 = 0;
+
+    for(v in bucket.values[:5])
+    {
+        sum_fixed += v;
+    }
+
+    ans := sum_fixed == 15 && sum_vla == 21;
+
+    return cast(s32,ans);
+}
