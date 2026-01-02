@@ -1,0 +1,44 @@
+
+// expected 29
+func plus(x: s32, y: s32) s32
+{
+    return x + y;
+}
+
+func div(x: s32, y: s32) s32
+{
+    return x / y;
+}
+
+func times(x: s32, y: s32) s32
+{
+    return x * y;
+}
+
+
+func minus(x: s32, y: s32) s32
+{
+    return x - y;
+}
+
+func mod(x: s32, y: s32) s32
+{
+    return x % y;
+}
+
+
+
+func main() s32
+{
+    a := plus(7,2);
+
+    d := div(7,2);
+
+    m := times(7,2);
+
+    s := minus(7,2);
+
+    v := mod(-5, 3);
+
+    return a + d + m + s + v;
+}

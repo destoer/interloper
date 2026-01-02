@@ -112,6 +112,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/func/void_no_return",0},
     {"tests/func/recur",1},
 
+    {"tests/basic/arith_non_const",29},
+    {"tests/basic/bitwise_non_const",0},
+
     // control flow
     {"tests/control_flow/if",25},
     {"tests/control_flow/else_if",1}, // 45077
