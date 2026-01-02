@@ -114,8 +114,8 @@ void destroy_itl(Interloper &itl)
     destroy_func_table(itl.func_table);
 
     // destroy typing tables
-    // destroy_struct_table(itl.struct_table);
-    // destroy_enum_table(itl.enum_table);
+    destroy_struct_table(itl.struct_table);
+    destroy_enum_table(itl.enum_table);
     destroy_arr(itl.alias_table);
 
     destroy_arr(itl.name_space_buffer);

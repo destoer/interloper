@@ -478,7 +478,10 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
                         return namespace_res.error();
                     }
 
-                    name_space = scan_namespace(parser,*namespace_res);
+                    auto array = *namespace_res;
+
+                    name_space = scan_namespace(parser,array);
+                    destroy_arr(array);
 
                     next = next_token(parser);
                 }

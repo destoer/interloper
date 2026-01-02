@@ -309,10 +309,12 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
             EnumMemberNode* member = parse_enum_member(parser,cur_next,name_space_strings); 
             if(member)
             {
+                destroy_arr(name_space_strings);
                 return (AstNode*)member;
             }
 
-            NameSpace* name_space = scan_namespace(parser,name_space_strings); 
+            NameSpace* name_space = scan_namespace(parser,name_space_strings);
+            destroy_arr(name_space_strings); 
             return parse_sym(parser,ctx,name_space,cur_next);
         }
 
