@@ -20,8 +20,8 @@ struct Heap
 {
     free_list : HeapNode? = NULL;
 
-    min: HeapNode?;
-    max: HeapNode?;
+    min: HeapNode? = cast(HeapNode?,u64.max);
+    max: HeapNode? = NULL;
 
     // NOTE: this is in block counts
     used : u64;
@@ -130,16 +130,6 @@ func verify_heap(heap: const Heap@)
         prev = cur;
         cur = cur_reference.next;
     }
-}
-
-func check_heap_pointer_valid(heap: const Heap@, ptr: const byte?) bool
-{
-    if(ptr > heap.max)
-    {
-        return false;
-    }
-
-    return ptr < heap.min;
 }
 
 func free_heap(heap : Heap@, ptr : byte@?)
@@ -386,11 +376,6 @@ func alloc_heap_panic(heap : Heap@, count : usize, size : usize) byte@
     if(!ptr)
     {
         crash_and_burn_oom("out of memory for heap alloc");
-    }
-
-    if(!check_heap_pointer_valid(heap,ptr))
-    {
-        std::exit(21);
     }
 
     // Pointer has been checked this is now safe to treat as a reference

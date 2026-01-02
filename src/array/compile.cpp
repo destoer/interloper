@@ -6,7 +6,7 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 void default_construct_array(Interloper& itl, Function& func,ArrayType* type, AddrSlot addr_slot)
 {
     // VLA just setup the struct
-    if(!is_fixed_array(type))
+    if(is_runtime_size(type))
     {
         const auto zero = mov_imm_res(itl,func,0);
 
@@ -68,6 +68,20 @@ void compile_struct_init(Interloper& itl, Function& func,AstNode* expr, StructTy
 
 void compile_array_initializer_list(Interloper& itl, Function& func, InitializerListNode* init_list,ArrayType* type, AddrSlot *addr_slot)
 {
+    if(is_runtime_size(type))
+    {
+        const auto data = compile_oper(itl,func,init_list->list[0]);
+
+        store_addr_slot(itl,func,data.slot,*addr_slot,GPR_SIZE,false);
+        addr_slot->addr.offset += GPR_SIZE;
+
+        const auto len = compile_oper(itl,func,init_list->list[1]);
+
+        store_addr_slot(itl,func,len.slot,*addr_slot,GPR_SIZE,false);
+        addr_slot->addr.offset += GPR_SIZE;
+        return;        
+    }
+
     switch(type->contained_type->kind)
     {
         // Handle sub array
@@ -130,7 +144,7 @@ void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType
             break;
         }
 
-        // Leave memory unitialzied
+        // Leave memory uninitialized
         case ast_type::no_init:
         {
             addr_slot->addr.offset += size;
