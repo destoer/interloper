@@ -423,11 +423,14 @@ func print_args(fmt : const string, args : const rtti::Any[])
     fprint_args(&stdout,fmt,args);
 }
 
-func format_args(_fmt : const string, _args : const rtti::Any[]) String
+func format_args(fmt : const string, args : const rtti::Any[]) String
 {
-    out: String;
+    file := open_memory_file();
+    fprint_args(&file,fmt,args);    
 
-    return out;
+    string := string_from_array(&file.buffer);
+
+    return string;
 }
 
 func format(fmt: const string, args : ...) String

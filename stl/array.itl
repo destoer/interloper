@@ -119,6 +119,13 @@ func destroy_array(arr: Array@)
     arr.buf.len = 0;
 }
 
+func take_array(array: Array@)
+{
+    array.size = 0;
+    array.buf.len = 0;
+    array.buf.data = cast_ref(NULL);
+}
+
 func reserve_array_mem(arr: Array@, size : usize)
 {
     realloc_heap_panic(&itl_context.heap,&arr.buf.data,size,sizeof_type(byte));

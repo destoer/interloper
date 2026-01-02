@@ -338,6 +338,17 @@ struct String
     size: usize;
 }
 
+func string_from_array(array: Array@) String
+{
+    str: String;
+    str.size = array.size;
+    str.buf = cast(string,array.buf);
+    take_array(array);
+
+    return str;
+}
+
+
 func reserve_string_mem(str : String@, size : usize)
 {
     realloc_heap_panic(&itl_context.heap,cast(byte@@,&str.buf.data),size,sizeof_type(c8));

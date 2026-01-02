@@ -24,6 +24,7 @@ enum file_flag : u32
     error,
     eof,  
     line_buffer,
+    memory_file,
 }
 
 
@@ -35,7 +36,7 @@ struct File
     handle : byte?;
     
     // for buffered io
-    buf : byte[];
+    buffer : Array;
     
     mode : file_mode;
 
@@ -57,6 +58,16 @@ func file_valid(file : const File@) bool
     return (file.flags & file_flag::error) == 0;
 }
 
+func open_memory_file() File
+{
+    file: File;
+    file.flags |= file_flag::memory_file;
+    file.mode = file_mode::write;
+
+    return file;
+}
+
+
 func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
 {
     file : File;    
@@ -76,7 +87,7 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
         return file,true;
     }
 
-    file.buf = byte_arr_heap(&itl_context.heap,FILE_DEFAULT_BUFFER_SIZE);
+    file.buffer = make_sized_array(1,FILE_DEFAULT_BUFFER_SIZE);
 
     return file,false;
 }
@@ -111,13 +122,13 @@ func close_file(file : File@)
     file.handle = cast(byte@,INVALID_FILE_HANDLE);
 
     // free our buffer
-    free_heap(&itl_context.heap,&file.buf.data);
+    destroy_array(&file.buffer);
 }
 
 
 func flush_write(file : File@) 
 {
-    os_write(file.handle,&file.buf[0],file.buffer_size);
+    os_write(file.handle,&file.buffer.buf[0],file.buffer_size);
     file.buffer_size = 0;
     file.buffer_offset = 0;
 }
@@ -125,7 +136,7 @@ func flush_write(file : File@)
 // NOTE: this does no error checking
 func buffer_file_write(file : File@, buf : const byte@, len : usize)
 {
-    memcpy(&file.buf[file.buffer_offset],buf,len);
+    memcpy(&file.buffer.buf[file.buffer_offset],buf,len);
 
     file.buffer_offset += len;
     file.buffer_size += len;     
@@ -138,6 +149,11 @@ func write_file_str(file : File@, str : const string) s64
 
 func write_file_line_buffer(file : File@, buf : const byte@, len : usize) s64
 {
+    if(file.flags & file_flag::memory_file)
+    {
+        return write_memory_file(file,buf,len);
+    }
+
     if(!file_valid(file))
     {
         exit(EXIT_INVALID_FILE);
@@ -149,7 +165,7 @@ func write_file_line_buffer(file : File@, buf : const byte@, len : usize) s64
     while(buf != end)
     {
         // buffer is full flush it to disk
-        if(file.buf.len == file.buffer_size)
+        if(file.buffer.buf.len == file.buffer_size)
         {
             flush_write(file);
         }        
@@ -157,7 +173,7 @@ func write_file_line_buffer(file : File@, buf : const byte@, len : usize) s64
         char := @buf;
         buf += 1;
 
-        file.buf[file.buffer_offset] = char;
+        file.buffer.buf[file.buffer_offset] = char;
 
         file.buffer_offset += 1;
         file.buffer_size += 1;
@@ -172,8 +188,20 @@ func write_file_line_buffer(file : File@, buf : const byte@, len : usize) s64
     return len;    
 }
 
-func write_file_mem(file : File@,buf : const byte@, len : usize) s64
+
+func write_memory_file(file : File@,buf : const byte@, len : usize) ssize
 {
+    push_mem(&file.buffer,buf,len);
+    return cast(ssize,len);
+}
+
+func write_file_mem(file : File@,buf : const byte@, len : usize) ssize
+{
+    if(file.flags & file_flag::memory_file)
+    {
+        return write_memory_file(file,buf,len);
+    }
+
     if(!file_valid(file))
     {
         exit(EXIT_INVALID_FILE);
@@ -199,13 +227,13 @@ func write_file_mem(file : File@,buf : const byte@, len : usize) s64
     while(remain != 0)
     {
         // buffer is full flush it to disk
-        if(file.buf.len == file.buffer_size)
+        if(file.buffer.buf.len == file.buffer_size)
         {
             flush_write(file);
         }
 
         // full? flush it to disk and rebuffer the remaining
-        buffer_size := min_u64(remain,file.buf.len - file.buffer_size);
+        buffer_size := min_u64(remain,file.buffer.buf.len - file.buffer_size);
 
         buffer_file_write(file,buf,buffer_size);
 
@@ -219,7 +247,7 @@ func write_file_mem(file : File@,buf : const byte@, len : usize) s64
 
 func buffer_file_read(file : File@) file_read_res
 {
-    [len, res] := os_read(file.handle,file.buf.data,FILE_DEFAULT_BUFFER_SIZE);
+    [len, res] := os_read(file.handle,file.buffer.buf.data,FILE_DEFAULT_BUFFER_SIZE);
 
     if(len == 0)
     {
@@ -241,7 +269,7 @@ func buffer_file_read(file : File@) file_read_res
 // flush file buffer, into passed buffer
 func flush_read(file : File@, ptr : byte@, len : usize)
 {
-    memcpy(ptr,&file.buf[file.buffer_offset],len);
+    memcpy(ptr,&file.buffer.buf[file.buffer_offset],len);
 
     file.buffer_offset += len;
     file.buffer_size -= len;  
@@ -249,6 +277,11 @@ func flush_read(file : File@, ptr : byte@, len : usize)
 
 func read_file_line(file : File@, str : string) [string, file_read_res]
 {
+    if(file.flags & file_flag::memory_file)
+    {
+        crash_and_burn("Cannot read line from a memory file");
+    }
+
     if(!file_valid(file))
     {
         exit(EXIT_INVALID_FILE);
@@ -342,6 +375,11 @@ func read_file_mem(file : File@, buf : byte[]) [usize, file_read_res]
 
 func read_file_raw(file : File@,buf : byte@, len : usize) [usize, file_read_res]
 {
+    if(file.flags & file_flag::memory_file)
+    {
+        crash_and_burn("Cannot read from a memory file");
+    }
+
     if(!file_valid(file))
     {
         exit(EXIT_INVALID_FILE);
