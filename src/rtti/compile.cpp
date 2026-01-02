@@ -38,7 +38,6 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
         do_addr_store(itl,func,arr_ptr,any_data_addr);
     }
 
-
     else
     {
         compile_panic(itl,itl_error::invalid_expr,"Compile any for unhandled type: %t",reg.type);

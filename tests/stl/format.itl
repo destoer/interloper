@@ -2,7 +2,8 @@
 
 func main() s32
 {
-    str := std::format("Hello {} is {}","John",20);
+    str := std::format("Hello {} is 20\n","John",20);
+    std::write_string(str.buf);
 
-    return cast(s32,std::str_equal(str.buf,"Hello John is 20"));
+    return cast(s32,std::str_equal(str.buf,"Hello John is 20\n"));
 }

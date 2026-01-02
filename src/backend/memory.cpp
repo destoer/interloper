@@ -362,7 +362,7 @@ void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot ad
 
 void do_addr_store(Interloper &itl,Function &func,const TypedReg& src,const TypedAddr& dst)
 {
-    if(is_array(src.type))
+    if(is_runtime_size(dst.type))
     {
         auto tmp_addr = dst.addr_slot;
 
