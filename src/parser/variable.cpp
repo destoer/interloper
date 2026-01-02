@@ -543,6 +543,11 @@ ParserResult parse_user_type_info(Parser& parser, NameSpace* name_space, const S
         return parser_error(parser,parse_error::malformed_stmt,token,"Expected symbol for user type info got %s\n",tok_name(peek(parser,0).type));
     }
 
+    if(match(parser,token_type::dot))
+    {
+        return parser_error(parser,parse_error::malformed_stmt,token,"User type access should only have one member %S",type_name);
+    }
+
     auto member_name = next_token(parser);
     return ast_user_type_info_access(parser,name_space,type_name,member_name.literal,token);
 }   
