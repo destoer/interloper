@@ -209,7 +209,7 @@ void push_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* cal
     // push args in reverse order
     for(s32 arg_idx = user_args.size - 1; arg_idx >= 0; arg_idx--)
     {
-        auto& sym = sym_from_slot(itl.symbol_table,sig.args[arg_idx]);
+        auto& sym = sym_from_slot(itl.symbol_table,user_args[arg_idx]);
         push_arg(itl,func,pass,sym.type,call_node->args[arg_idx],arg_idx + sig.hidden_args);
     }
 }
