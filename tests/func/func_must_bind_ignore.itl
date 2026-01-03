@@ -1,0 +1,19 @@
+#attr(use_result)
+func divide(x: u32, y: u32, ans: u32@) bool
+{
+    if y == 0
+    {
+        return true;
+    }
+
+    @ans = x / y;
+
+    return false;
+}
+
+func main() s32
+{
+    ans: u32 = 0;
+    _ = divide(1,0,&ans);
+    return ans;
+}

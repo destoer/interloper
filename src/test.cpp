@@ -118,6 +118,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/bitwise_non_const",0},
 
     {"tests/func/func_must_bind",5},
+    {"tests/func/func_must_bind_ignore",0},
 
     // control flow
     {"tests/control_flow/if",25},
