@@ -57,7 +57,7 @@ Option<itl_error> check_startup_defs(Interloper& itl)
     return option::none;
 }
 
-Option<itl_error> type_check_intializer_list(Interloper& itl,Type* ltype, InitializerListNode* init_list)
+Option<itl_error> type_check_initializer_list(Interloper& itl,Type* ltype, InitializerListNode* init_list)
 {
     switch(ltype->kind)
     {
@@ -470,7 +470,7 @@ Option<itl_error> type_check_init_expr(Interloper& itl, Type* ltype, AstNode* ex
 
         case ast_type::initializer_list:
         {
-            return type_check_intializer_list(itl,ltype,(InitializerListNode*)expr);
+            return type_check_initializer_list(itl,ltype,(InitializerListNode*)expr);
         }
 
         case ast_type::designated_initializer_list:

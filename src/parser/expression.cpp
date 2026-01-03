@@ -768,8 +768,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %S\n",
-                tok_name(t.type),ctx.expression_name);
+            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
         }
     }
 

@@ -151,7 +151,7 @@ func resize_array(arr : Array@, size : usize)
     // need to ask for more memory
     else
     {
-        reserve_array_mem(arr,bytes * 2);
+        reserve_array_mem(arr,bytes);
         arr.buf.len = bytes;
     }
 }

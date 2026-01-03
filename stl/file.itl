@@ -159,6 +159,12 @@ func write_file_line_buffer(file : File@, buf : const byte@, len : usize) s64
         exit(EXIT_INVALID_FILE);
     }
 
+    // There is no buffering on this file
+    if(!file.buffer.buf.len)
+    {
+        os_write(file.handle,buf,len);
+    }
+
     // buffer in data until we see a new line and then flush it
     end := buf + len;
 
@@ -211,6 +217,13 @@ func write_file_mem(file : File@,buf : const byte@, len : usize) ssize
     if(file.flags & file_flag::line_buffer)
     {
         return write_file_line_buffer(file,buf,len);
+    }
+
+    // There is no buffering on this file
+    if(!file.buffer.buf.len)
+    {
+        os_write(file.handle,buf,len);
+        return len;
     }
 
     // write is larger than buffer size, just dump everything
@@ -285,6 +298,12 @@ func read_file_line(file : File@, str : string) [string, file_read_res]
     if(!file_valid(file))
     {
         exit(EXIT_INVALID_FILE);
+    }
+
+    // There is no buffering on this file
+    if(!file.buffer.buf.len)
+    {
+        crash_and_burn("Read on unbuffered file");
     }
 
     // buffer is empty rebuffer it
@@ -384,6 +403,13 @@ func read_file_raw(file : File@,buf : byte@, len : usize) [usize, file_read_res]
     {
         exit(EXIT_INVALID_FILE);
     }
+
+    // TODO: Handle this case.
+    if(!file.buffer.buf.len)
+    {
+        crash_and_burn("Read on unbuffered file");
+    }
+
 
     // enough in the buffer just pass it back out
     if(len <= file.buffer_size)

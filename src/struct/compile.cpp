@@ -56,6 +56,11 @@ void compile_struct_decl_default(Interloper& itl, Function& func, const Struct& 
 
 void compile_struct_initializer_item(Interloper& itl, Function& func, const AddrSlot& addr_slot, const Member& member, AstNode* node)
 {
+    if(node->type == ast_type::no_init)
+    {
+        return;
+    }
+
     const u32 base = addr_slot.addr.offset;
 
     auto member_addr = addr_slot;

@@ -10,7 +10,7 @@ struct HeapNode
     prev : HeapNode?;
 
     // NOTE: inclusive Node
-    blocks : u64;
+    blocks : usize;
 
     free: bool;
 
@@ -25,11 +25,11 @@ struct Heap
     max: HeapNode? = NULL;
 
     // NOTE: this is in block counts
-    used : u64;
-    capacity : u64;
-    max_allocation: u64;
+    used : usize;
+    capacity : usize;
+    max_allocation: usize;
 
-    total_allocation_bytes: u64;
+    total_allocation_bytes: usize;
 }
 
 
@@ -241,25 +241,24 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
     verify_heap(heap);
 
     bytes := count * size;
-
     req_blocks := ((bytes + HEAP_BLOCK_SIZE - 1) / HEAP_BLOCK_SIZE) + 1;
 
 
     cur := find_first_fit(heap,req_blocks);
 
-    if(!cur)
+    if !cur
     {
         req := max_u64(req_blocks * HEAP_BLOCK_SIZE,HEAP_DEFAULT_ALLOC_SIZE);
 
         // out of memory try get some more
-        if(!request_buffer(heap,req))
+        if !request_buffer(heap,req)
         {
             return NULL;
         }
         
         cur = find_first_fit(heap,req_blocks);
 
-        if(!cur)
+        if !cur
         {
             return NULL;
         }
@@ -268,12 +267,12 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
 
     cur_reference := cast_ref(cur);
 
-    if(cur_reference.blocks == req_blocks)
+    if cur_reference.blocks == req_blocks
     {
         cur_reference.free = false;
     }
 
-    else if(cur_reference.blocks >= req_blocks)
+    else if cur_reference.blocks >= req_blocks
     {
         new := cur_reference;
 
@@ -295,7 +294,7 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
         new.next = cur_reference.next;
 
         // Repoint the surrounding blocks
-        if(new.next)
+        if new.next
         {
             new_next := cast_ref(new.next);
             new_next.prev = new;
@@ -303,10 +302,10 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
 
         cur_reference.next = new;
     }
-
+    
     // mark heap usage
     heap.used += cur_reference.blocks;
-    heap.total_allocation_bytes += size;
+    heap.total_allocation_bytes += req_blocks * HEAP_BLOCK_SIZE;
     heap.max_allocation = max_u64(heap.max_allocation,cur_reference.blocks);
     
     return cur_reference + 1;
@@ -321,7 +320,6 @@ func realloc_heap(heap : Heap@, ptr: byte@?, count: usize,size: usize) bool
     // first alloc just behave like alloc
     if(!old)
     {
-        _ = alloc_heap(heap,count,size);
         new := alloc_heap(heap,count,size);
 
         if(new != NULL)

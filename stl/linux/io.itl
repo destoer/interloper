@@ -176,11 +176,6 @@ func write_str_raw_file(file: File@, data : const c8@, len : usize)
 
 func write_str_raw(data : const c8@, len : usize)
 {
-    if(!global_setup)
-    {
-        std::exit(0xbb);
-    }
-
     write_str_raw_file(&stdout,data,len);
 }
 
@@ -205,11 +200,6 @@ func write_string_file(file: File@, str: const string)
 
 func write_string(str: const string)
 {
-    if(!global_setup)
-    {
-        std::exit(0xbb);
-    }
-
     write_string_file(&stdout,str);
 }
 

@@ -220,7 +220,7 @@ Option<itl_error> type_check_array_initializer(Interloper& itl, InitializerListN
     {
         if(node->type == ast_type::initializer_list)
         {
-            const auto init_err = type_check_intializer_list(itl,base_type,(InitializerListNode*)node);
+            const auto init_err = type_check_initializer_list(itl,base_type,(InitializerListNode*)node);
             if(init_err)
             {
                 return init_err;

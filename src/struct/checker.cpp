@@ -309,7 +309,7 @@ Option<itl_error> type_check_struct_initializer_list_item(Interloper& itl, Type*
     {
         case ast_type::initializer_list:
         {
-            const auto sub_init_err = type_check_intializer_list(itl,ltype,(InitializerListNode*)node);
+            const auto sub_init_err = type_check_initializer_list(itl,ltype,(InitializerListNode*)node);
             if(sub_init_err)
             {
                 return sub_init_err;

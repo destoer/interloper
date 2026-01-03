@@ -69,13 +69,36 @@ func test_realloc() bool
     return res == 3200;
 }
 
-func stress_heap() bool
-{
-    arr : byte[10]@;
 
-    for(@ptr in arr)
+
+struct Block
+{
+    ptr: byte?;
+    size: usize;
+}
+
+func check_overlap(ptr: byte?, arr: Block[]) bool
+{
+    for block in arr
     {
-        @ptr = std::alloc_heap(&itl_context.heap,1,55);
+        if block.ptr < ptr && ptr < block.ptr + block.size
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+func stress_heap(initial: usize) bool
+{
+    arr : Block[10];
+
+    for(@block in arr)
+    {
+        size := 55;
+        block.ptr = std::alloc_heap_panic(&itl_context.heap,1,size);
+        block.size = size;
     }
 
     pattern : u32[?] = 
@@ -85,29 +108,43 @@ func stress_heap() bool
 
     for(i in pattern)
     {
-        if(arr[i])
+        for(@block in arr)
         {
-            std::free_heap(&itl_context.heap,&arr[i]);
+            if(check_overlap(block.ptr,arr))
+            {
+                std::exit(5);
+            }
+        }
+
+        if(arr[i].ptr)
+        {
+            std::free_heap(&itl_context.heap,&arr[i].ptr);
         }
 
         else
         {
-            arr[i] = std::alloc_heap(&itl_context.heap,1,i * 128);
+            size :=  i * 128;
+            arr[i].ptr = std::alloc_heap_panic(&itl_context.heap,1,size);
+            arr[i].size = i;
         }
     }
 
-    for(@ptr in arr)
+    for(@block in arr)
     {
-        std::free_heap(&itl_context.heap,ptr);
+        std::free_heap(&itl_context.heap,&block.ptr);
     }
 
     std::heap_usage(&itl_context.heap);
-    return global_heap.used == 0;
+    return itl_context.heap.used == initial;
 }
 
 func main() s32
 {
-    pass := test_heap();
+    // Need to take this as some allocations have already run
+    // inside of the STL.
+    initial := itl_context.heap.used;
+
+    pass := test_arena() && test_heap() && test_realloc() && stress_heap(initial);
 
     return cast(s32,pass);
 }
