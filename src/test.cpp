@@ -45,6 +45,8 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/func/invalid_args",itl_error::missing_args},
     {"tests/func/redefine_func",itl_error::redeclaration},
     {"tests/func/missing_return",itl_error::missing_return},
+    {"tests/func/func_must_bind_fail",itl_error::unused_result},
+
 
     // control_flow
     {"tests/control_flow/switch_duplicate",itl_error::redeclaration},
@@ -114,6 +116,8 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     {"tests/basic/arith_non_const",29},
     {"tests/basic/bitwise_non_const",0},
+
+    {"tests/func/func_must_bind",5},
 
     // control flow
     {"tests/control_flow/if",25},

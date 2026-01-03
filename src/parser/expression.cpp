@@ -66,7 +66,6 @@ Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
 
             default:
             {
-                assert(false);
                 return parser_error(parser,parse_error::invalid_lbp,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
             }
         }
@@ -769,8 +768,8 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %s\n",
-                tok_name(t.type),ctx.expression_name.buf);
+            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %S\n",
+                tok_name(t.type),ctx.expression_name);
         }
     }
 
