@@ -9,7 +9,7 @@ struct Point
 constant POINT : Point = {-1,4};
 
 
-// constant HELLO : string = "Hello";
+constant HELLO : const string = "Hello";
 
 constant TABLE : u32[?] = {1,2,3,4,5};
 
@@ -45,7 +45,9 @@ func main() s32
     // test array of structs
     res4 := ((STRUCT_TABLE[0].x * STRUCT_TABLE[0].y) + (STRUCT_TABLE[1].x * STRUCT_TABLE[1].y)) == 41;
     
-    ans := res1 && res2 && res3 && res4;
+    res5 := std::str_equal(HELLO,"Hello");
+
+    ans := res1 && res2 && res3 && res4 && res5;
 
     return cast(s32,ans);
 }
