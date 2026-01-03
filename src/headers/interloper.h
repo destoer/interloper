@@ -17,6 +17,7 @@ struct Interloper
     Array<u8> program;
 
     u32 error_count = 0;
+    u32 max_error_count = 15;
     itl_error first_error_code;
 
     u32 arith_depth = 0;
@@ -149,7 +150,7 @@ inline itl_error compile_verror(Interloper &itl,itl_error error,const char *fmt,
     }
 
     // Only report the first 15 errors
-    else if(itl.error_count > 15)
+    else if(itl.error_count > itl.max_error_count)
     {
         return error;
     }

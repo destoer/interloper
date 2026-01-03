@@ -357,7 +357,10 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
 
         if(stmt_err)
         {
-            return stmt_err;
+            if(itl.error_count >= itl.max_error_count)
+            {
+                return stmt_err;
+            }
         }
 
         if(!stmt->expr_type)
@@ -464,6 +467,12 @@ Option<itl_error> type_check_ast(Interloper& itl)
 
     auto end = std::chrono::high_resolution_clock::now();
     itl.type_checking_time = std::chrono::duration<double, std::milli>(end-start).count();
+
+    // Ensure if we have had atleast one error we fail
+    if(itl.error_count != 0)
+    {
+        return itl.first_error_code;
+    }
 
     return option::none;
 }
