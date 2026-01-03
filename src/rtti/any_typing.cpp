@@ -18,6 +18,8 @@ void destroy_rtti_cache(RttiCache& cache)
         destroy_trie(cache.builtin_type_cache[i]);
         cache.builtin_type_cache[i] = {};
     }
+
+    cache = {};
 }
 
 TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type);

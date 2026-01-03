@@ -356,7 +356,6 @@ void run_tests(const char* flags)
             destroy_itl(itl);
             
             const auto &test = PROGRAM_ERROR_TEST[i];
-
             (void)compile(itl,test.name,"./out");
 
             if(itl.first_error_code != test.error)
