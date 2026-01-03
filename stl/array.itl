@@ -297,9 +297,9 @@ func buffer_file_array(buffer: Array@, file: File@, buffer_size: usize) [usize, 
     return len, res;
 }
 
-func dump_array_bytes(arr: const Array@)
+func dump_array_bytes(array: const Array@)
 {
-    for([v, i] in 0 < arr.buf)
+    for([v, i] in array.buf)
     {
         if((i & 15) == 0)
         {

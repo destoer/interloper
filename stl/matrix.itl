@@ -48,7 +48,7 @@ func mul_mat4(m1: const Mat4D@,m2: const Mat4D@) Mat4D
         {
             for i in 0 < MAT_4D_SIZE
             {
-                ans.mat[r][c] += v1.mat[r][i] * v2.mat[i][c];
+                ans.mat[r][c] += m1.mat[r][i] * m2.mat[i][c];
             }
         }
     }     

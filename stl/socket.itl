@@ -8,7 +8,6 @@ struct Socket
     type: net_type;
 }
 
-// TODO: add udp
 enum net_type
 {
     tcp,
@@ -23,7 +22,7 @@ func ip_to_net_addr(str: const string) [u32,bool]
     // scan each int and shift
     for(i in 0 < 4)
     {
-        [value,str] := parse_value(str);
+        [value,str] := std::parse_value(str);
         buf[i] = cast(u8,value.v);
 
         // nothing left to parse
@@ -62,8 +61,8 @@ func socket_valid(sock: const Socket@) bool
 func connect(ip: const string, port: u16, type: net_type) Socket
 {
     return Socket {
-        type,
-        std::os_connect(ip,port,type)
+        std::os_connect(ip,port,type),
+        type
     };
 }
 
@@ -73,9 +72,9 @@ func socket_has_data(sock: Socket@) bool
     return std::os_socket_has_data(sock);
 }
 
-func listen(port: u32, type: net_type) Socket
+func listen(_port: u32, _type: net_type) Socket
 {
-    unimplemented("hey! listen!");
+    std::unimplemented("hey! listen!");
 }
 
 func recv_raw(sock: Socket@, ptr: byte@, size : usize) [u64, net_result]
@@ -98,7 +97,8 @@ func recv_raw(sock: Socket@, ptr: byte@, size : usize) [u64, net_result]
 
 func recv(sock: Socket@, buf : byte[]) [u64, net_result]
 {
-    return recv_raw(sock,buf.data,buf.len);
+    [bytes, res] := recv_raw(sock,buf.data,buf.len);
+    return bytes, res;
 }
 
 func recv_ignore(sock: Socket@, size : u32) net_result

@@ -282,7 +282,7 @@ func query_tree(win: OSWindow@, root : u32)
     query : XQueryTree;
     query.window = root;
 
-    send_req(&win.sock,&query,sizeof_data(XQueryTree));
+    send_req(win,&query,sizeof_data(XQueryTree));
 }
 
 

@@ -442,6 +442,16 @@ Option<itl_error> type_check_ast(Interloper& itl)
         return startup_err;
     }
 
+    // Type check every func even if we don't compile it.
+    for(auto& func_def : itl.func_table.table)
+    {
+        const auto res = finalise_func(itl, func_def, true);
+        if(!res)
+        {
+            return res.error();
+        }
+    }
+
     // Check all declared symbols are used.
     for(auto& sym : itl.symbol_table.slot_lookup)
     {

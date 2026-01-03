@@ -68,7 +68,7 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     return type_check_block(itl,func,func.root->block);
 }
 
-Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def)
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, bool forced)
 {
     // have finalised this func
     if(func_def.func)
@@ -121,8 +121,11 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     // add the actual func
     *func_def.func = func;
 
-    // mark it used
-    push_var(itl.func_table.used,func_def.func);
+    if(!forced)
+    {
+        // mark it used
+        push_var(itl.func_table.used,func_def.func);
+    }
 
     if(func.root)
     {

@@ -1,4 +1,5 @@
 namespace std;
+import <socket>
 
 constant SYSCALL_SOCKET : u32 = 41;
 constant SYSCALL_CONNECT : u32 = 42;
@@ -92,19 +93,19 @@ func os_socket_has_data(socket: net::Socket@) bool
     return len > 0;
 }
 
-func os_connect(ip: const string, port: u16, type: net_type) [byte@, result]
+func os_connect(ip: const string, port: u16, type: net::net_type) [byte@, result]
 {
     handle : s64 = INVALID_SOCKET_HANDLE;
 
     switch(type)
     {
-        case net_type::tcp:
+        case net::net_type::tcp:
         {
             // get a socket descriptor
             handle = linux_socket(AF_INET,SOCK_STREAM,0);
         }
 
-        case net_type::udp:
+        case net::net_type::udp:
         {
             // get a socket descriptor
             handle = linux_socket(AF_INET,SOCK_DGRAM,0);
@@ -114,7 +115,7 @@ func os_connect(ip: const string, port: u16, type: net_type) [byte@, result]
     // couldn't even open the socket we are done
     if(handle < 0)
     {
-       return cast(byte@,INVALID_SOCKET_HANDLE);
+       return cast(byte@,INVALID_SOCKET_HANDLE), result::err;
     }
 
     // actually connect
@@ -125,24 +126,24 @@ func os_connect(ip: const string, port: u16, type: net_type) [byte@, result]
     addr.family = AF_INET;
     addr.port = host_to_network_u16(port);
 
-    [addr.addr,err] := ip_to_net_addr(ip);
+    [addr.addr,err] := net::ip_to_net_addr(ip);
 
     if(err)
     {
-        os_close(cast(byte@,handle));
-        return cast(byte@,INVALID_SOCKET_HANDLE);
+        _ = os_close(cast(byte@,handle));
+        return cast(byte@,INVALID_SOCKET_HANDLE), result::err;
     }
 
     // check connection is fine
     if(linux_connect(handle,&addr,sizeof_type(SockAddrIn)) != 0)
     {
-        os_close(cast(byte@,handle));
-        return cast(byte@,INVALID_SOCKET_HANDLE);
+        _ = os_close(cast(byte@,handle));
+        return cast(byte@,INVALID_SOCKET_HANDLE), result::err;
     }
 
     // okay we have a connected socket
     // return the linux handle
-    return cast(byte@,handle);
+    return cast(byte@,handle), result::ok;
 }
 
 constant MSG_NOSIGNAL : u32 = 0x4000;

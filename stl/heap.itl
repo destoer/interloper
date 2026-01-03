@@ -76,8 +76,9 @@ func print_heap(heap: const Heap@)
     // TODO: need to work on rtti so we dont need casts for this
     while(cur)
     {
-        print("node {} : {x} -> {}\n",cast(byte@,cur),cur.blocks,cast(byte@,cur.next));
-        cur = cur.next;
+        cur_reference := cast_ref(cur);
+        print("node {} : {x} -> {}\n",cast(byte@,cur_reference),cur_reference.blocks,cast(byte@,cur_reference.next));
+        cur = cur_reference.next;
     }
 }
 
@@ -388,7 +389,7 @@ func alloc_global_heap_panic(count : usize, size : usize) byte@
 
 func realloc_global_heap_panic(ptr: byte@@, count: usize,size: usize)
 {
-    return realloc_heap_panic(&itl_context.heap,count,size);
+    realloc_heap_panic(&itl_context.heap,ptr,count,size);
 }
 
 func free_global_heap(ptr : byte@?)

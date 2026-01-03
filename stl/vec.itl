@@ -49,7 +49,7 @@ func vec2f_sub(v1: const Vec2F@, v2: const Vec2F@) Vec2F
     return Vec2F {v1.x - v2.x, v1.y - v2.y};
 }
 
-func vec2f_scale(v1: const Vec2F@, scale: u32) Vec2F
+func vec2f_scale(v1: const Vec2F@, scale: f64) Vec2F
 {
     return Vec2F {v1.x * scale, v1.y * scale};
 }
@@ -58,8 +58,8 @@ func vec2f_scale(v1: const Vec2F@, scale: u32) Vec2F
 func rand_vec2f(x0: s64, x1: s64, y0: s64, y1: s64) Vec2F
 {
     return Vec2F {
-        std::rand_range_s64(x0,x1),
-        std::rand_range_s64(y0,y1)
+        cast(f64,std::rand_range_s64(x0,x1)),
+        cast(f64,std::rand_range_s64(y0,y1))
     };
 }
 

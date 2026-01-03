@@ -128,6 +128,7 @@ struct FunctionDef
 {
     FuncNode* root = nullptr;
     TopLevelDefiniton parser_def;
+
     // NOTE: we may not actually compile the function
     // we also don't want the memory to move when we insert
     // new ones
@@ -143,7 +144,7 @@ struct FunctionTable
     ArenaAllocator arena;
 };
 
-Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def);
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, bool forced = false);
 
 b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 

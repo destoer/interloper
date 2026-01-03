@@ -54,3 +54,5 @@ lexer_lut
 out
 build/
 compile_commands.json
+
+bin/
