@@ -9,6 +9,13 @@ func divide(v1: u32, v2: u32) [u32,bool]
     return 0, true;
 }
 
+func ignore() bool
+{
+    [ans, _] := divide(5,0);
+
+    return ans == 0;
+}
+
 func numbers() [u32,u32]
 {
     return 5, 10;
@@ -86,8 +93,10 @@ func main() s32
 
     test4 : bool = pointer();
 
+    test5 : bool = ignore();
+
     // every test passed?
-    pass : bool = test1 && test2 && test3 && test4;
+    pass : bool = test1 && test2 && test3 && test4 && test5;
 
     return cast(s32,pass);
 }
