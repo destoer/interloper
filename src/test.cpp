@@ -355,5 +355,5 @@ void run_tests(const char* flags)
     auto current = std::chrono::system_clock::now();
 
     auto count = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count()) / 1000.0;
-    printf("total time taken %f seconds\n",count);
+    printf("Ran %d tests in %f seconds\n",PROGRAM_CORRECT_TEST_SIZE + PROGRAM_ERROR_TEST_SIZE, count);
 }

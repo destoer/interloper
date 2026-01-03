@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
         if(argc >= 4)
         {
             executable_path = argv[3];
+            itl.compile_only = true;
         }
     }
 
@@ -96,6 +97,7 @@ int main(int argc, char *argv[])
         if(argc >= 3)
         {
             executable_path = argv[2];
+            itl.compile_only = true;
         }
     }
 
