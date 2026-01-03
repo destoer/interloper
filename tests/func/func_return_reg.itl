@@ -5,9 +5,9 @@
 
 // expected 30
 
-func spill(in: s32) s32
+func spill(input: s32) s32
 {
-    return in * 2;
+    return input * 2;
 }
 
 func main() s32

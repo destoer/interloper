@@ -1,1 +1,27 @@
-// TODO: need to revisit this when we have heap allocation
+
+
+func get_vla() u32[]
+{
+    vla := std::arr_heap_u32(&itl_context.heap,5);
+
+    for([@v, i] in vla)
+    {
+        @v = cast(u32,i);
+    }
+
+    return vla;
+}
+
+func main() s32
+{
+    vla := get_vla();
+
+    sum: u32 = 0;
+
+    for(v in vla)
+    {
+        sum += v;
+    }
+
+    return sum;
+}

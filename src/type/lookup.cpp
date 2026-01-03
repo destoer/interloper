@@ -332,6 +332,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
         type->flags |= const_flag;
     }
 
+    b32 deduction = false;
     b32 indirection = false;
 
     // arrays, pointers
@@ -382,22 +383,22 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
 
             case compound_type::arr_deduce_size:
             {
+                deduction = true;
+
                 if(complete_type)
                 {
                     return compile_error(itl,itl_error::mismatched_args,"type is constant and cannot be deduced by assign");
                 }
 
-                // i.e we cant have a pointer to an array with a size deduction
-                // it has to hold the indirection...
-                if(indirection)
-                {
-                    return compile_error(itl,itl_error::mismatched_args,"cannot have deduction for array size where indirection allready exists");
-                }
-
                 type = make_array(itl,type,DEDUCE_SIZE,flags);
-
                 break;
             }
+        }
+
+        // Any deduction has to proceed the indirection as the deduction is done by an assignment.
+        if(indirection && deduction)
+        {
+            return compile_error(itl,itl_error::mismatched_args,"cannot have deduction for array size where indirection already exists");
         }
     }
 

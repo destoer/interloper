@@ -16,7 +16,7 @@ func main() s32
     buf: u8[10] = {1,2,3,4,5,6,7,8,9,10};
     buf_copy: u8[10];
 
-    memcpy(&buf_copy[0],&buf[0],buf.len);
+    std::memcpy(&buf_copy[0],&buf[0],buf.len);
 
     return sum(buf_copy);
 }

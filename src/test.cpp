@@ -36,9 +36,9 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
 
     // const
     {"tests/const/const_invalid_assign",itl_error::const_type_error},
-    {"tests/const/const_pass_invalid_ptr.itl",itl_error::const_type_error},
-    {"tests/const/const_invalid_ptr_assign.itl",itl_error::const_type_error},
-    {"tests/const/const_array_index_invalid.itl",itl_error::const_type_error},
+    {"tests/const/const_pass_invalid_ptr",itl_error::const_type_error},
+    {"tests/const/const_invalid_ptr_assign",itl_error::const_type_error},
+    {"tests/const/const_array_index_invalid",itl_error::const_type_error},
 
     // func
     {"tests/func/no_main",itl_error::undeclared},
@@ -66,7 +66,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/array/deref_array_of_ptr_invalid",itl_error::pointer_type_error},
     {"tests/array/array_assign_vla_fixed",itl_error::array_type_error},
     {"tests/array/array_assign_vla_multi",itl_error::array_type_error},
-    {"tests/array/array_out_bounds.itl",itl_error::out_of_bounds},
+    {"tests/array/array_out_bounds",itl_error::out_of_bounds},
 
 
     // strings
@@ -84,6 +84,8 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/enum/enum_invalid_member",itl_error::enum_type_error},
     {"tests/enum/enum_redeclare_member",itl_error::redeclaration},
     {"tests/enum/enum_redeclare",itl_error::redeclaration},
+    {"tests/enum/switch_enum_missing_cases",itl_error::missing_case},
+
 
     // type alias
 
@@ -98,6 +100,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // basic
     {"tests/basic/first",9},
     {"tests/basic/arith",29},
+    {"tests/basic/single_assign",1},
     {"tests/basic/assign",0}, // 1190
     {"tests/basic/unary",0},// -11
     {"tests/basic/scope",16},
@@ -108,9 +111,11 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/basic/comment",0},
     {"tests/basic/global",26},
     {"tests/basic/overflow",1},  // 65286
+    {"tests/basic/add_u64",1},
 
     // func
     {"tests/func/func",9},
+    {"tests/func/func_return_reg",30},
     {"tests/func/void_no_return",0},
     {"tests/func/recur",1},
 
@@ -165,6 +170,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_array",3},
+    {"tests/ptr/memcpy",55},
 
     {"tests/control_flow/for_in_arr",1},
     {"tests/control_flow/switch_no_default",73},
@@ -190,6 +196,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_return",1},
     {"tests/struct/initializer_assign",14},
     {"tests/struct/designated_initializer",1},
+    {"tests/struct/no_reorder",16},
 
     {"tests/array/array_conv_struct",6},
     {"tests/array/array_slice_struct",1},
@@ -242,12 +249,18 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/stl/math",0},
     {"tests/stl/format",1},
 
+    {"tests/array/array_vla_return",10},
+
     // strings
     {"tests/string/char_array",6},
     {"tests/string/write_string",0},
     {"tests/string/write_string_static",0},
     {"tests/string/str_conv",1},
     {"tests/string/stl_string",27},
+    {"tests/string/string_array",1},
+
+    // namespace
+    // {"tests/namespace/same_name",80}
 };
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);
@@ -307,7 +320,6 @@ void run_tests(const char* flags)
 
     puts("running tests....");
     auto start = std::chrono::system_clock::now();
-
 
     b32 fail = false;
 

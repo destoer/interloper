@@ -14,10 +14,10 @@ func main() s32
 
     arr : u32[?][] = {arr1, arr2, arr3, arr4,arr5};
 
-    // 18, 40
+    // 14, 41
 
-    len : u32 = 0;
-    total : u32 = 0;
+    len : usize = 0;
+    total : usize = 0;
 
     for(arr_sub in arr)
     {
@@ -29,5 +29,7 @@ func main() s32
         }
     }
 
-    return len * total;
+    ans := len * total == 574;
+    
+    return cast(s32,ans);
 }

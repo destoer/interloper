@@ -440,7 +440,7 @@ Option<itl_error> type_check_switch(Interloper& itl, Function& func, AstNode* st
     if(switch_type == switch_kind::enum_t && !switch_node->default_statement && size != enumeration.member_map.size)
     {
         // TODO: print the missing cases
-        return compile_error(itl,itl_error::undeclared,"switch on enum %S missing cases:",enumeration.name);    
+        return compile_error(itl,itl_error::missing_case,"switch on enum %S missing cases:",enumeration.name);    
     }
 
 

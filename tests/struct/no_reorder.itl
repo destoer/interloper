@@ -11,5 +11,5 @@ struct Foo
 
 func main() s32 
 {
-    return Foo.size;
+    return cast(s32,Foo.size);
 }

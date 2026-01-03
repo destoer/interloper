@@ -31,6 +31,7 @@ enum class [[nodiscard]] itl_error
     const_type_error,
     const_assert,
     rtti_error,
+    missing_case,
     unimplemented,
     unused_symbol,
 };
@@ -65,6 +66,7 @@ static const char* ERROR_NAME[] =
     "const type error",
     "const assert",
     "rtti error",
+    "missing case",
     "unimplemented",
     "unused_symbol"
 };
