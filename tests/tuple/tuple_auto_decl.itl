@@ -1,0 +1,13 @@
+
+
+func numbers() [s32, s32]
+{
+    return 5, 3;
+}
+
+func main() s32
+{
+    [x,y] := numbers();
+
+    return x * y;
+}

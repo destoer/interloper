@@ -67,6 +67,8 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/array/array_assign_vla_fixed",itl_error::array_type_error},
     {"tests/array/array_assign_vla_multi",itl_error::array_type_error},
     {"tests/array/array_out_bounds",itl_error::out_of_bounds},
+    {"tests/array/array_invalid_assign",itl_error::array_type_error},
+    {"tests/array/array_conv_multi",itl_error::array_type_error},
 
 
     // strings
@@ -91,6 +93,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
 
     // tuple
     {"tests/tuple/tuple_invalid_assign",itl_error::undefined_type_oper},
+    {"tests/tuple/tuple_invalid_return",itl_error::mismatched_args},
 };
 
 static constexpr u32 PROGRAM_ERROR_TEST_SIZE = sizeof(PROGRAM_ERROR_TEST) / sizeof(ProgramErrorTest);
@@ -167,6 +170,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/array/array_recast",1},
     {"tests/array/array_slice",1},
     {"tests/array/array_slice_vla",1},
+    {"tests/array/array_multi_vla",1},
 
     {"tests/ptr/cast_ptr",1}, // 1020
     {"tests/ptr/ptr_to_array",3},
@@ -226,6 +230,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // tuple
     {"tests/tuple/tuple",1},
+    {"tests/tuple/tuple_auto_decl",15},
 
     // enum
     {"tests/enum/enum",1},

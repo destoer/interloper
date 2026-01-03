@@ -332,8 +332,8 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
         type->flags |= const_flag;
     }
 
-    b32 deduction = false;
-    b32 indirection = false;
+    s32 last_deduction = 0;
+    s32 lowest_indirection = count(type_decl->compound) + 1;
 
     // arrays, pointers
     // NOTE: parse backwards so the plain type
@@ -348,21 +348,21 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
             case compound_type::ptr:
             {
                 type = make_pointer(itl,type,pointer_type::reference,flags);
-                indirection = true;
+                lowest_indirection = c;
                 break;
             }
 
             case compound_type::nullable_ptr:
             {
                 type = make_pointer(itl,type,pointer_type::nullable,flags);
-                indirection = true;
+                lowest_indirection = c;
                 break;
             }
 
             case compound_type::arr_var_size:
             {
                 type = make_array(itl,type,RUNTIME_SIZE,flags);
-                indirection = true;
+                lowest_indirection = c;
                 break;
             }
 
@@ -383,7 +383,10 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
 
             case compound_type::arr_deduce_size:
             {
-                deduction = true;
+                if(c > last_deduction)
+                {
+                    last_deduction = c;
+                }
 
                 if(complete_type)
                 {
@@ -394,12 +397,12 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                 break;
             }
         }
+    }
 
-        // Any deduction has to proceed the indirection as the deduction is done by an assignment.
-        if(indirection && deduction)
-        {
-            return compile_error(itl,itl_error::mismatched_args,"cannot have deduction for array size where indirection already exists");
-        }
+    // Any deduction has to proceed the indirection as the deduction is done by an assignment.
+    if(last_deduction > lowest_indirection)
+    {
+        return compile_error(itl,itl_error::mismatched_args,"Cannot have deduction for array size where indirection already exists");
     }
 
     type_decl->node.expr_type = type;
