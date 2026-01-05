@@ -2,13 +2,30 @@ namespace std;
 
 func memcpy(dst: byte@, src: const byte@, size: usize)
 {
+    // Copy as max size first
+    usize_dst := cast(usize@,dst);
+    usize_src := cast(usize@,src);
+
+    units := size / sizeof_type(usize);
     index: usize = 0;
 
-    // just do a simple copy for now
+    while(index != units)
+    {
+        usize_dst[index] = usize_src[index];
+        index += 1;
+    }
+
+    // Copy remainder
+    dst = cast(byte@,&usize_dst[index]);
+    src = cast(byte@,&usize_src[index]);
+
+    index = 0;
+    size &= sizeof_type(usize) - 1;
+
     while(index != size)
     {
         dst[index] = src[index];
-        index += 1;
+        index += 1;        
     }
 }
 
@@ -69,8 +86,21 @@ func array_equal(v1: const byte[], v2: const byte[]) bool
 
 func zero_mem(dst: byte@, size : usize)
 {
-    end : const byte@ = dst + size;
+    // Copy max size
+    usize_dst := cast(usize@,dst);
+    units := size / sizeof_type(usize);
+    usize_end := &usize_dst[units];
 
+    while(usize_dst != usize_end)
+    {
+        @usize_dst = 0;
+        usize_dst += 1;
+    }
+
+    // Copy remainder
+    dst = cast(byte@,usize_dst);
+    end := &dst[(size & (sizeof_type(usize) - 1))];
+    
     while(dst != end)
     {
         @dst = 0;

@@ -136,6 +136,11 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
             return oper_eq(parser,ctx,left,t,arith_bin_op::or_t);
         }
 
+        case token_type::bitwise_and_eq:
+        {
+            return oper_eq(parser,ctx,left,t,arith_bin_op::and_t);
+        }
+
         case token_type::equal:
         {
             // right precedence rbp = lbp -1 so that things on the right 

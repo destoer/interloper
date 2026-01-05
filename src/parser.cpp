@@ -309,6 +309,7 @@ ParserResult statement(Parser &parser)
                 case token_type::divide_eq:
                 case token_type::times_eq:
                 case token_type::bitwise_or_eq:
+                case token_type::bitwise_and_eq:
                 {
                     prev_token(parser);
                     return statement_terminate(parser,"assignment");

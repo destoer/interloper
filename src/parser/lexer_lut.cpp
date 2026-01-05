@@ -732,7 +732,7 @@ static constexpr u32 LEX_ACTIVE_STATES[LEX_ACTIVE_STATE_SIZE][LEX_CLASS_SIZE]
 	u32(token_type::operator_and), //gt
 	u32(token_type::operator_and), //lt
 	u32(token_type::operator_and), //colon
-	u32(token_type::operator_and), //equal
+	u32(token_type::bitwise_and_eq), //equal
 	u32(token_type::operator_and), //not
 	u32(token_type::operator_and), //dot
 	u32(token_type::operator_and), //mod
