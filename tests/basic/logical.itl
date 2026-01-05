@@ -2,7 +2,7 @@
 
 func is_positive(x : s32) bool
 {
-    // comparision with zero works regardless of sign
+    // comparison with zero works regardless of sign
     return !(x < 0);
 }
 

@@ -685,7 +685,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
                 }
 
                 StringBuffer buffer;
-                push_string(buffer,itl.stl_path);
+                push_string(itl.string_allocator,buffer,itl.stl_path);
 
                 bool done = false;
                 
@@ -697,13 +697,13 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
                     {
                         case token_type::symbol:
                         {
-                            push_string(buffer,cur.literal);
+                            push_string(itl.string_allocator,buffer,cur.literal);
                             break;
                         }
 
                         case token_type::divide:
                         {
-                            push_char(buffer,'/');
+                            push_char(itl.string_allocator,buffer,'/');
                             break;
                         }
 
@@ -715,16 +715,13 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
                         default:
                         {
-                            destroy_arr(buffer);
                             return parser_error(parser,parse_error::malformed_stmt,cur,"Unexpected token during import %s",tok_name(cur.type));
                         }
                     }
                 }
 
-                push_char(buffer,'\0');
-
+                push_char(itl.string_allocator,buffer,'\0');
                 const auto full_path = get_program_name(itl.string_allocator,make_string(buffer));
-                destroy_arr(buffer);
 
                 add_file(queue, full_path);
             }
@@ -953,7 +950,11 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     if(file_exists("interloper"))
     {
         char buffer[256];
-        getcwd(buffer,sizeof(buffer));
+        if(!getcwd(buffer,sizeof(buffer)))
+        {
+            fprintf(stderr,"Could not find install dir env var INTERLOPER_INSTALL_DIR\n");
+            return parse_error::itl_error;
+        }
 
         auto alloc_path = copy_string(itl.string_allocator,buffer);
         itl_path = alloc_path.buf;
