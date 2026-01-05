@@ -244,12 +244,13 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
     bytes := count * size;
     req_blocks := ((bytes + HEAP_BLOCK_SIZE - 1) / HEAP_BLOCK_SIZE) + 1;
 
-
     cur := find_first_fit(heap,req_blocks);
+
+    data_block_size := req_blocks * HEAP_BLOCK_SIZE;
 
     if !cur
     {
-        req := max_u64(req_blocks * HEAP_BLOCK_SIZE,HEAP_DEFAULT_ALLOC_SIZE);
+        req := max_u64(data_block_size,HEAP_DEFAULT_ALLOC_SIZE);
 
         // out of memory try get some more
         if !request_buffer(heap,req)
@@ -306,10 +307,14 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
     
     // mark heap usage
     heap.used += cur_reference.blocks;
-    heap.total_allocation_bytes += req_blocks * HEAP_BLOCK_SIZE;
+    heap.total_allocation_bytes += data_block_size;
     heap.max_allocation = max_u64(heap.max_allocation,cur_reference.blocks);
     
-    return cur_reference + 1;
+    data_block := &cur_reference[1];
+    // Don't bust the new node.
+    std::zero_mem(data_block,data_block_size - HEAP_BLOCK_SIZE);
+
+    return data_block;
 }
 
 #attr(use_result)
