@@ -417,8 +417,8 @@ struct AccessMember
     // Just tag it with this non null.
     union
     {
-        AstNode* expr = nullptr;
-        String name;
+        AstNode* expr;
+        String name = {};
     };
 };
 

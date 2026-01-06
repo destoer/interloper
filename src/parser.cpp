@@ -462,14 +462,15 @@ void add_file(FileQueue& queue, const String& filename)
     }
 }
 
+// Ensure passed string is already on the arena allocator or static.
 String get_program_name(ArenaAllocator& allocator,const String& filename)
 {
-    if(!contains_ext(filename))
+    if(string_ends_with(filename,".itl"))
     {
-        return cat_string(allocator,filename,".itl");
+        return filename;
     }
 
-    return filename;
+    return cat_string(allocator,filename,".itl");
 }
 
 
