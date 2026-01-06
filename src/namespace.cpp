@@ -70,13 +70,10 @@ DefInfo* lookup_typed_definition(NameSpace* name_space, const String& name, defi
 }
 
 
-NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocator,NameSpace* root, const Array<String>& name)
+NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocator,NameSpace* root, const String& name)
 {
-    // TODO: this is wrong but we don't have nested scopes atm so we dont care
-    assert(count(name) == 1);
-
     NameSpace* new_scope = new_anon_scope(arena,root);
-    new_scope->name_space = copy_string(string_allocator,name[0]);
+    new_scope->name_space = copy_string(string_allocator,name);
     new_scope->full_name = new_scope->name_space;
 
     return new_scope;
@@ -84,16 +81,20 @@ NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocato
 
 NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
 {
+    NameSpace* root = parser.context.global_namespace;
+
     u32 name_idx = 0;
 
     while(name_idx != count(name_space))
     {
         bool found = false;
 
-        for(const auto node : parser.context.global_namespace->nodes)
+        for(NameSpace* node : root->nodes)
         {
             if(node->name_space == name_space[name_idx])
             {
+                root = node;
+
                 found = true;
                 name_idx++;
 
@@ -109,9 +110,16 @@ NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
             break;
         }
     }
-    
+
     // Namespace does not allready exist create it!
-    return new_named_scope(*parser.alloc->namespace_allocator,*parser.alloc->global_string_allocator,parser.context.global_namespace,name_space);
+    const Span<String> new_space = make_span(name_space,name_idx,count(name_space) - name_idx);
+
+    for(const String& name : new_space)
+    {
+        root = new_named_scope(*parser.alloc->namespace_allocator,*parser.alloc->global_string_allocator,root,name);
+    }
+
+    return root;
 }
 
 NameSpace* find_name_space(Interloper& itl, const String& name)
