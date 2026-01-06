@@ -1,6 +1,5 @@
 namespace std;
 
-#attr(no_reorder)
 struct Vec3F
 {
     x: f64;
@@ -8,7 +7,30 @@ struct Vec3F
     z: f64;
 }
 
-func print_vec3f(tag: const string,v1: Vec3F)
+func vec3f_add(v1: const Vec3F@, v2: const Vec3F@) Vec3F
+{
+    return Vec3F {
+        x: v1.x + v2.x,
+        y: v1.y + v2.y,
+        z: v1.z + v2.z
+    };
+}
+
+func vec3f_sub(v1: const Vec3F@, v2: const Vec3F@) Vec3F
+{
+    return Vec3F {
+        x: v1.x - v2.x,
+        y: v1.y - v2.y,
+        z: v1.z - v2.z
+    };
+}
+
+func vec3f_dot(v1: const Vec3F@, v2: const Vec3F@) f64
+{
+    return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
+}
+
+func print_vec3f(tag: const string, v1: Vec3F)
 {
     println("{}: {} : {} : {}",tag,v1.x,v1.y,v1.z);
 }
