@@ -1,0 +1,26 @@
+namespace std;
+
+struct Vec2I
+{
+    x: s64;
+    y: s64;
+}
+
+func vec2i_add(v1: const Vec2I, v2: const Vec2I) Vec2I
+{
+    return Vec2I {v1.x + v2.x,v1.y + v2.y};
+}
+
+func ved2i_clamp_zero(v1: const Vec2I@,limit: const Vec2I@) Vec2I
+{
+    return Vec2I {
+        clamp_s64(v1.x,0,limit.x),
+        clamp_s64(v1.y,0,limit.y)
+    };
+}
+
+
+func print_vec2i(tag: const string,v1: Vec2I)
+{
+    println("{}: {} : {}",tag,v1.x,v1.y);
+}

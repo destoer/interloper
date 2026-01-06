@@ -139,6 +139,11 @@ func clamp_u64(v1: u64, min: u64, max: u64) u64
 }
 
 
+func float_eq(f1: f64, f2: f64) bool
+{
+    epsilon := 0.01;
+    return fabs(f1 - f2) <= epsilon; 
+}
 
 /*
 func log10(v: f64) u64
