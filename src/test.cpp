@@ -69,6 +69,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/array/array_out_bounds",itl_error::out_of_bounds},
     {"tests/array/array_invalid_assign",itl_error::array_type_error},
     {"tests/array/array_conv_multi",itl_error::array_type_error},
+    {"tests/array/fixed_array_member_pointer",itl_error::array_type_error},
 
 
     // strings

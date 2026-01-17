@@ -21,6 +21,8 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
     {
         case type_class::struct_t:
         {
+            // Don't override the member type here or we will clobber it for other member operations
+
             const auto access_err = access_struct_member(itl,(StructType*)ltype,member_access,name);
             if(access_err)
             {
@@ -41,7 +43,7 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
 
             if(is_fixed && access->flags & STRUCT_TAKE_ADDR_FLAG)
             {
-                return compile_error(itl,itl_error::array_type_error,"Cannot take pointers of fixed array members");
+                return compile_error(itl,itl_error::array_type_error,"Cannot take pointers on fixed array members");
             }
 
             if(name == "len")
