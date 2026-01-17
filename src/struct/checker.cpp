@@ -14,7 +14,7 @@ Option<itl_error> access_member(Interloper& itl, Type* ltype, AccessMember& memb
     return option::none;
 }
 
-TypeResult type_check_access_struct_member(Interloper& itl, Type* ltype, AccessMember& member_access)
+TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* access, Type* ltype, AccessMember& member_access)
 {
     switch(ltype->kind)
     {
@@ -33,27 +33,40 @@ TypeResult type_check_access_struct_member(Interloper& itl, Type* ltype, AccessM
 
         case type_class::array_t:
         {
+            ArrayType* array_type = (ArrayType*)ltype;
+
             member_access.type = member_access_type::array_t;
+            const bool is_fixed = is_fixed_array(array_type);
+
+            if(is_fixed && access->flags & STRUCT_TAKE_ADDR_FLAG)
+            {
+                return compile_error(itl,itl_error::array_type_error,"Cannot take pointers of fixed array members");
+            }
 
             if(member_access.name == "len")
             {
+                if(is_fixed)
+                {
+                    access->node.known_value = array_type->size;
+                }
+
                 member_access.member = u32(array_member_access::len);
-                return itl.usize_type;
+                return is_fixed? itl.const_usize_type : itl.usize_type;
             }
 
             else if(member_access.name == "data")
             {
-                ArrayType* array_type = (ArrayType*)ltype;
-
-                if(is_fixed_array(ltype))
+                if(is_fixed)
                 {
-                    return compile_error(itl,itl_error::array_type_error,"no .data member on fixed size array");
+                    access->flags |= FIXED_ARRAY_ACCESS_DATA_FLAG;
                 }
 
                 member_access.member = u32(array_member_access::data);
 
+                const u32 flags = is_fixed? TYPE_FLAG_CONST : 0;
+
                 // This is never considered nullable. Arrays should be checked by size
-                return make_reference(itl,array_type->contained_type);
+                return make_reference(itl,array_type->contained_type,flags);
             }
 
             return compile_error(itl,itl_error::undeclared,"unknown array member %S",member_access.name);
@@ -254,7 +267,7 @@ TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
         if(member_access.type < member_access_type::slice_t)
         {
             // Check we have this member and then update the type
-            const auto access_res = type_check_access_struct_member(itl,ltype,member_access);
+            const auto access_res = type_check_access_struct_member(itl,struct_access,ltype,member_access);
             if(!access_res)
             {
                 return access_res;

@@ -422,10 +422,14 @@ struct AccessMember
     };
 };
 
+static constexpr u32 STRUCT_TAKE_ADDR_FLAG = (1 << 0);
+static constexpr u32 FIXED_ARRAY_ACCESS_DATA_FLAG = (1 << 1);
+
 struct StructAccessNode
 {
     AstNode node;
     AstNode* expr;
+    u32 flags = 0;
     Array<AccessMember> members;
 };
 

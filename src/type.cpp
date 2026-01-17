@@ -16,10 +16,10 @@ const BuiltinTypeInfo builtin_type_info[BUILTIN_TYPE_SIZE] =
     {builtin_type::u32_t, true, false ,4, 0, 0xffffffff},
     {builtin_type::u64_t, true, false ,8,  0, u64(0xffffffff'ffffffff)},
 
-    {builtin_type::s8_t, true, true, 1, u64(-(0xff / 2)), (0xff / 2)},
-    {builtin_type::s16_t, true, true ,2,  u64(-(0xffff / 2)), (0xffff / 2)},
-    {builtin_type::s32_t, true, true ,4,  u64(-(0xffffffff / 2)), (0xffffffff / 2)},
-    {builtin_type::s64_t, true, true ,8,  u64(-(0xffffffff'ffffffff / 2)), u64(0xffffffff'ffffffff / 2)},
+    {builtin_type::s8_t, true, true, 1, u64(-s64(0xff / 2)), (0xff / 2)},
+    {builtin_type::s16_t, true, true ,2,  u64(-s64(0xffff / 2)), (0xffff / 2)},
+    {builtin_type::s32_t, true, true ,4,  u64(-s64(0xffffffff / 2)), (0xffffffff / 2)},
+    {builtin_type::s64_t, true, true ,8,  u64(-s64(0xffffffff'ffffffff / 2)), u64(0xffffffff'ffffffff / 2)},
 
     {builtin_type::c8_t, true, false, 1, 0, 0xff},
 

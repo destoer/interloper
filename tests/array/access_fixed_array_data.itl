@@ -1,0 +1,23 @@
+
+func main() s32
+{
+    arr: s32[?] = {1,2,3,4};
+    sum1: s32 = 0;
+
+    for(i in 0 < arr.len)
+    {
+        sum1 += arr.data[i]
+    }
+
+    data := arr.data;
+
+    sum2: s32 = 0;
+    for(i in 0 < arr.len)
+    {
+        sum2 += data[i]
+    }
+    
+    ans := sum1 == 10 && sum2 == 10;
+
+    return cast(s32,ans);
+}

@@ -193,20 +193,9 @@ void access_array_member(Interloper& itl, TypedAddr* addr, array_member_access m
 
         case array_member_access::len:
         {
-            // Have to lie about the access because its not actually possible to take a pointer on this.
-            if(!is_runtime_size(addr->type))
-            {
-                addr->addr_slot.addr.base = make_spec_reg_slot(spec_reg::access_fixed_len_reg);
-                addr->addr_slot.struct_addr = false;
-            }
-
-            // vla
-            else
-            {
-                addr->type = itl.usize_type;
-                addr->addr_slot.addr.offset += GPR_SIZE;
-            }
-
+            // Fixed size handled by known value.
+            addr->type = itl.usize_type;
+            addr->addr_slot.addr.offset += GPR_SIZE;
             break;
         }
     }
@@ -407,13 +396,11 @@ void read_struct(Interloper& itl, Function& func, StructAccessNode* struct_acces
 {
     const auto src_addr = compute_member_addr(itl,func,struct_access);
 
-    // len access on fixed sized array
-    if(is_special_reg(src_addr.addr_slot.addr.base,spec_reg::access_fixed_len_reg))
+    if(struct_access->flags & FIXED_ARRAY_ACCESS_DATA_FLAG)
     {
-        const ArrayType* array_type = (ArrayType*)src_addr.type;
-        mov_imm(itl,func,dst_slot,array_type->size);
+        collapse_struct_addr(itl,func,dst_slot,src_addr.addr_slot);
         return;
-    }    
+    }
 
     do_addr_load(itl,func,dst_slot,src_addr);
 }

@@ -32,10 +32,10 @@ enum builtin_type : BuiltinTypeData
     u32_t = {true, false ,4, 0, 0xffffffff},
     u64_t = {true, false ,8,  0, 0xffffffff_ffffffff},
 
-    s8_t = {true, true, 1, cast(u64,-(0xff / 2)), (0xff / 2)},
-    s16_t = {true, true ,2,  cast(u64,-(0xffff / 2)), (0xffff / 2)},
-    s32_t = {true, true ,4,  cast(u64,-(0xffffffff / 2)), (0xffffffff / 2)},
-    s64_t = {true, true ,8,  cast(u64,-(0xffffffff_ffffffff / 2)), 0xffffffff_ffffffff / 2},
+    s8_t = {true, true, 1, cast(u64,-cast(s64,(0xff / 2))), (0xff / 2)},
+    s16_t = {true, true ,2,  cast(u64,-cast(s64,(0xffff / 2))), (0xffff / 2)},
+    s32_t = {true, true ,4,  cast(u64,-(cast(s64,0xffffffff / 2))), (0xffffffff / 2)},
+    s64_t = {true, true ,8,  cast(u64,-cast(s64,0xffffffff_ffffffff / 2)), 0xffffffff_ffffffff / 2},
 
     c8_t = {true, false, 1, 0, 0xff},
 
