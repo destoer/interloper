@@ -89,11 +89,11 @@ TypeResult type_check_boolean_logic(Interloper& itl, AstNode* expr) {
 
 Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const Type* oper, u64 v)
 {
-    // unsigned value against signed value
-    // if one side is signed and the other unsigned
+    const bool value_sign = is_signed(value);
+
     // allow comparision if the unsigned is a static value that
-    // the signed side can represent
-    if(!is_signed(value) && is_signed(oper))
+    // fits within the range (this works for both sign and unsigned opers)
+    if(!value_sign)
     {
         // value is within range of operand value
         // change value to a the signed type
@@ -102,19 +102,40 @@ Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const
             return true;
         }
 
-        else
-        {
-            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %t",v,oper);
-        }
+        return compile_error(itl,itl_error::out_of_bounds,"value: %X exceeds type %t",v,oper);
     }
 
-    // value is outside the range of the other type
-    else if(is_signed(value) == is_signed(oper))
+    
+    // If signs differ on and the known value is not unsigned we cannot do checks.
+    else if(is_signed(value) != is_signed(oper))
     {
-        if(builtin_size(cast_builtin(value)) > builtin_size(cast_builtin(oper)))
+        return false;
+    }
+
+    // same sign
+
+    if(value_sign)
+    {
+        const auto min = s64(builtin_min(cast_builtin(oper)));
+        const auto max = s64(builtin_max(cast_builtin(oper)));
+        const auto signed_value = s64(v);
+
+        if(signed_value < min || signed_value > max)
         {
-            return compile_error(itl,itl_error::out_of_bounds,"value: %x exceeds type %t",v,oper);
+            return compile_error(itl,itl_error::out_of_bounds,"value: exceeds type bounds %t: %l < %l < %l",oper,min,signed_value,max);
         }
+
+        return true;
+    }
+
+    else 
+    {
+        if(v <= builtin_max(cast_builtin(oper)))
+        {
+            return true;
+        }
+
+        return compile_error(itl,itl_error::out_of_bounds,"value: %X exceeds type %t",v,oper);
     }
 
     return false;
@@ -525,6 +546,11 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
 TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
 {
     AddrOfNode* addr = (AddrOfNode*)expr;
+    if(addr->expr->type == ast_type::struct_access)
+    {
+        StructAccessNode* access = (StructAccessNode*)addr->expr;
+        access->flags |= STRUCT_TAKE_ADDR_FLAG;
+    }
 
     const auto res = type_check_expr(itl,addr->expr);
 
