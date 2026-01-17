@@ -64,7 +64,6 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
                     return compile_error(itl,itl_error::out_of_bounds,"Array data field is not indexable",member_access.name);
                 }
 
-                // If we are doing something besides a member we shouldn't just compute an addr
                 if(is_fixed)
                 {
                     access->flags |= FIXED_ARRAY_ACCESS_DATA_FLAG;
