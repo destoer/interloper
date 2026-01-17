@@ -514,11 +514,11 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
     return (AstNode*)tuple_node;    
 }
 
-AccessMember make_access_member_expr(AstNode* expr)
+AccessMember make_access_member_expr(AstNode* expr, member_access_type type)
 {
     AccessMember member;
     member.expr = expr;
-    member.type = member_access_type::index_t;
+    member.type = type;
 
     return member;
 }
@@ -527,6 +527,7 @@ AccessMember make_access_member_name(const String& name)
 {
     AccessMember member;
     member.name = name;
+    // This will be overriden based on the type of access later
     member.type = member_access_type::struct_t;
 
 
@@ -581,7 +582,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
                         return slice;
                     }
 
-                    push_var(struct_access->members,make_access_member_expr(*slice));
+                    push_var(struct_access->members,make_access_member_expr(*slice,member_access_type::slice_t));
                 }
 
                 else
@@ -592,7 +593,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
                         return index_res;
                     }
 
-                    push_var(struct_access->members,make_access_member_expr(*index_res));
+                    push_var(struct_access->members,make_access_member_expr(*index_res,member_access_type::index_t));
                 }
             }
 

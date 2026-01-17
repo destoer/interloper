@@ -1,10 +1,11 @@
-Option<itl_error> access_member(Interloper& itl, Type* ltype, AccessMember& member_access, const String& name)
+Option<itl_error> access_struct_member(Interloper& itl, StructType* struct_type, AccessMember& member_access, const String& name)
 {
-    const auto member_opt = get_member(itl.struct_table,ltype,name);
+    auto structure = struct_from_type(itl.struct_table,struct_type);
+    const auto member_opt = get_member(structure,name);
 
     if(!member_opt)
     {
-        return compile_error(itl,itl_error::undeclared,"No such member %S for type %t",name,ltype);
+        return compile_error(itl,itl_error::undeclared,"No such member %S for type %t",name,struct_type);
     }
 
     const auto member = member_opt.value();
@@ -14,15 +15,13 @@ Option<itl_error> access_member(Interloper& itl, Type* ltype, AccessMember& memb
     return option::none;
 }
 
-TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* access, Type* ltype, AccessMember& member_access)
+TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* access, Type* ltype, AccessMember& member_access, const String& name)
 {
     switch(ltype->kind)
     {
         case type_class::struct_t:
         {
-            member_access.type = member_access_type::struct_t;
-
-            const auto access_err = access_member(itl,ltype,member_access,member_access.name);
+            const auto access_err = access_struct_member(itl,(StructType*)ltype,member_access,name);
             if(access_err)
             {
                 return *access_err;
@@ -35,6 +34,8 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
         {
             ArrayType* array_type = (ArrayType*)ltype;
 
+            const auto old = member_access.type;
+
             member_access.type = member_access_type::array_t;
             const bool is_fixed = is_fixed_array(array_type);
 
@@ -43,7 +44,7 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
                 return compile_error(itl,itl_error::array_type_error,"Cannot take pointers of fixed array members");
             }
 
-            if(member_access.name == "len")
+            if(name == "len")
             {
                 if(is_fixed)
                 {
@@ -51,11 +52,17 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
                 }
 
                 member_access.member = u32(array_member_access::len);
-                return is_fixed? itl.const_usize_type : itl.usize_type;
+                return member_access.expr_type = is_fixed? itl.const_usize_type : itl.usize_type;
             }
 
-            else if(member_access.name == "data")
+            else if(name == "data")
             {
+                if(old >= member_access_type::slice_t)
+                {
+                    return compile_error(itl,itl_error::out_of_bounds,"Array data field is not indexable",name);
+                }
+
+                // If we are doing something besides a member we shouldn't just compute an addr
                 if(is_fixed)
                 {
                     access->flags |= FIXED_ARRAY_ACCESS_DATA_FLAG;
@@ -66,10 +73,10 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
                 const u32 flags = is_fixed? TYPE_FLAG_CONST : 0;
 
                 // This is never considered nullable. Arrays should be checked by size
-                return make_reference(itl,array_type->contained_type,flags);
+                return member_access.expr_type = make_reference(itl,array_type->contained_type,flags);
             }
 
-            return compile_error(itl,itl_error::undeclared,"unknown array member %S",member_access.name);
+            return compile_error(itl,itl_error::undeclared,"unknown array member %S",name);
         }
 
         case type_class::enum_t:
@@ -82,10 +89,10 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
                 return compile_error(itl,itl_error::undeclared,"Enum %t is not an enum struct %t",ltype,enumeration.underlying_type);
             }
 
-            const auto access_err = access_member(itl,enumeration.underlying_type,member_access,member_access.name);
-            if(access_err)
+            const auto access_res = type_check_access_struct_member(itl,access,enumeration.underlying_type,member_access,name);
+            if(!access_res)
             {
-                return *access_err;
+                return access_res.error();
             }
             
             return member_access.expr_type;            
@@ -179,18 +186,18 @@ Option<itl_error> type_check_struct_initializer_stmt(Interloper& itl,Function& f
 
 
 
-TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMember& member_access)
+TypeResult type_check_access_index_member(Interloper& itl,StructAccessNode* access, Type* ltype, AccessMember& member_access)
 {
-    member_access.type = member_access_type::index_t;
-
     IndexNode* index = (IndexNode*)member_access.expr;
 
-    const auto access_err = access_member(itl,ltype,member_access,index->name);
-    if(access_err)
+    const auto access_res = type_check_access_struct_member(itl,access,ltype,member_access,index->name);
+    if(!access_res)
     {
-        return *access_err;
+        return access_res.error();
     }
-    
+
+
+
     const auto index_res = type_check_index_internal(itl,index,member_access.expr_type);
     if(!index_res)
     {
@@ -203,17 +210,15 @@ TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMe
     return member_access.expr_type;
 }
 
-TypeResult type_check_access_slice_member(Interloper& itl, Type* ltype, AccessMember& member_access)
+TypeResult type_check_access_slice_member(Interloper& itl,StructAccessNode* access, Type* ltype, AccessMember& member_access)
 {
-    member_access.type = member_access_type::slice_t;
-
     SliceNode* slice = (SliceNode*)member_access.expr;
 
     const auto name = slice->sym.name;
-    const auto access_err = access_member(itl,ltype,member_access,name);
-    if(access_err)
+    const auto access_res = type_check_access_struct_member(itl,access,ltype,member_access,name);
+    if(!access_res)
     {
-        return *access_err;
+        return access_res.error();
     }
     
     if(!is_array(member_access.expr_type))
@@ -262,52 +267,46 @@ TypeResult type_check_struct_access(Interloper& itl, AstNode* expr)
             ltype = deref_pointer(ltype);
         }
 
-
-        // Simple case just grab the name
-        if(member_access.type < member_access_type::slice_t)
+        switch(member_access.type)
         {
-            // Check we have this member and then update the type
-            const auto access_res = type_check_access_struct_member(itl,struct_access,ltype,member_access);
-            if(!access_res)
-            {
-                return access_res;
-            }
-
-            ltype = *access_res;
-            continue;
-        }
-
-        switch(member_access.expr->type)
-        {
-            case ast_type::index:
+            case member_access_type::index_t:
             {
                 // Check we have this member and then update the type
-                const auto access_res = type_check_access_index_member(itl,ltype,member_access);
+                const auto access_res = type_check_access_index_member(itl,struct_access,ltype,member_access);
                 if(!access_res)
                 {
                     return access_res;
                 }
 
                 ltype = *access_res;
-                break;                
+                break;          
             }
 
-            case ast_type::slice:
+            case member_access_type::slice_t:
             {
                 // Check we have this member and then update the type
-                const auto access_res = type_check_access_slice_member(itl,ltype,member_access);
+                const auto access_res = type_check_access_slice_member(itl,struct_access,ltype,member_access);
                 if(!access_res)
                 {
                     return access_res;
                 }
 
                 ltype = *access_res;
-                break;                               
+                break;     
             }
 
+            // Simple case just grab the name
             default:
             {
-                return compile_error(itl,itl_error::struct_error,"Unknown struct access %s",AST_INFO[u32(member_access.expr->type)].name);
+                // Check we have this member and then update the type
+                const auto access_res = type_check_access_struct_member(itl,struct_access,ltype,member_access,member_access.name);
+                if(!access_res)
+                {
+                    return access_res;
+                }
+
+                ltype = *access_res;
+                break;
             }
         }
     }
