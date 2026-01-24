@@ -60,6 +60,27 @@ func find_mem(haystack: const byte[], needle: const byte[]) [usize, result]
 
 func mem_equal(v1: const byte@, v2: const byte@, size: usize) bool
 {
+    // Cmp as usize first
+    units := size / sizeof_type(usize);
+    usize_v1 := cast(const usize@,v1);
+    usize_v2 := cast(const usize@,v2);
+
+    for _i in 0 < units
+    {
+        if(@usize_v1 != @usize_v2)
+        {
+            return false;
+        }
+
+        usize_v1 += 1;
+        usize_v2 += 1;
+    }
+
+    // Compare remainder
+    v1 = cast(byte@,usize_v1);
+    v2 = cast(byte@,usize_v2);
+    size &= sizeof_type(usize) - 1;
+    
     for _i in 0 < size
     {
         if(@v1 != @v2)
