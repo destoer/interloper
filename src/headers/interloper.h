@@ -68,6 +68,8 @@ struct Interloper
     Type* string_type = nullptr;
     Type* const_string_type = nullptr;
 
+    Type* const_byte_type = nullptr;
+
     // Array copy for debug printing of ast
     Array<TypeDef*> type_decl;
 
@@ -122,6 +124,7 @@ struct Interloper
     Function* memcpy = nullptr;
     Function* zero_mem = nullptr;
     Function* mem_equal = nullptr;
+    Function* array_equal = nullptr;
     Function* start = nullptr;
 };
 

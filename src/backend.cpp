@@ -86,8 +86,10 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
 
 TypedReg compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 {
-    const RegSlot dst_slot = new_typed_tmp(itl,func,node->expr_type);
-    return TypedReg{dst_slot, compile_expression(itl,func,node,dst_slot)};
+    const auto dst = new_typed_tmp(itl,func,node->expr_type);
+    compile_expression(itl,func,node,dst.slot);
+
+    return dst;
 }
 
 
@@ -120,9 +122,9 @@ TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node)
     {
         case known_value_type::gpr_t:
         {
-            const RegSlot dst_slot = new_typed_tmp(itl,func,node->expr_type);
-            mov_imm(itl,func,dst_slot,node->known_value.gpr);
-            return TypedReg {dst_slot,node->expr_type};
+            const auto dst = new_typed_tmp(itl,func,node->expr_type);
+            mov_imm(itl,func,dst.slot,node->known_value.gpr);
+            return dst;
         }
 
         case known_value_type::fpr_t:

@@ -70,7 +70,8 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/array/array_invalid_assign",itl_error::array_type_error},
     {"tests/array/array_conv_multi",itl_error::array_type_error},
     {"tests/array/fixed_array_member_pointer",itl_error::array_type_error},
-
+    {"tests/array/array_equal_fixed_diff",itl_error::array_type_error},
+    {"tests/array/array_equal_invalid_type",itl_error::int_type_error},
 
     // strings
 
@@ -183,6 +184,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/control_flow/switch",1}, // 447
 
     {"tests/array/array_vla_init",15},
+    {"tests/array/array_equal",1},
 
     {"tests/basic/short_circuit",60},
 
@@ -336,6 +338,8 @@ void run_tests(const char* flags)
 
     Interloper itl;
 
+    u32 tests_run = 0;
+
     for(u32 i = 0; i < PROGRAM_CORRECT_TEST_SIZE; i++)
     {
         auto& test = PROGRAM_CORRECT_TEST[i];
@@ -351,6 +355,7 @@ void run_tests(const char* flags)
         //     fail = true;
         //     break;
         // }
+        tests_run += 1;
     }
 
     if(!fail)
@@ -370,6 +375,7 @@ void run_tests(const char* flags)
             }
 
             printf("Pass: %s\n",test.name);
+            tests_run += 1;
         }
     }
 
@@ -379,6 +385,9 @@ void run_tests(const char* flags)
     puts("\nfinished testing\n");
     auto current = std::chrono::system_clock::now();
 
+    const char* pass_name = fail? "unsuccessfully" : "successfully";
+    const u32 total_tests = PROGRAM_CORRECT_TEST_SIZE + PROGRAM_ERROR_TEST_SIZE;
     auto count = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count()) / 1000.0;
-    printf("Ran %d tests in %f seconds\n",PROGRAM_CORRECT_TEST_SIZE + PROGRAM_ERROR_TEST_SIZE, count);
+
+    printf("Ran %d of %d tests %s in %f seconds\n",total_tests,tests_run,pass_name, count);
 }

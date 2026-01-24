@@ -1,4 +1,4 @@
-
+Option<itl_error> check_assign_no_const(Interloper& itl,const Type *ltype, const Type *rtype);
 
 builtin_type value_type(const Value& value)
 {
@@ -188,6 +188,34 @@ TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const T
             return compile_error(itl,itl_error::struct_error,"expected Struct of the same type for comparisons %t : %t",ltype,rtype);
         }
     }
+
+    else if(is_array(ltype) && is_array(rtype))
+    {
+        if(type != comparison_op::eq && type != comparison_op::ne)
+        {
+            return compile_error(itl,itl_error::array_type_error,"comparision on array is only defined for '==' and '!='");
+        }
+
+        const ArrayType* array_ltype = (ArrayType*)ltype;
+        const ArrayType* array_rtype = (ArrayType*)rtype;
+        
+        if(is_array(array_ltype->contained_type) || is_array(array_ltype->contained_type))
+        {
+            return compile_error(itl,itl_error::array_type_error,"Array comparison must be 1d %t == %t",ltype,rtype);
+        }
+
+        if(is_fixed_array(array_ltype) && is_fixed_array(array_rtype) && array_ltype->size != array_rtype->size)
+        {
+            return compile_error(itl,itl_error::array_type_error,"Array comparison on fixed array of differing sizes %t == %t",ltype,rtype);
+        }
+        
+        const auto err = check_assign_no_const(itl,array_ltype->contained_type,array_rtype->contained_type);
+        if(err)
+        {
+            return *err;
+        }
+    }
+
 
     // no matching operator
     else 
@@ -792,6 +820,11 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         }
     }
 
+    if(type == assign_type::no_const)
+    {
+        return option::none;
+    }
+
     // we know this will descend properly so check const!
     return check_const(itl,ltype,rtype,type);
 }
@@ -800,6 +833,12 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
 Option<itl_error> check_assign(Interloper& itl,const Type *ltype, const Type *rtype)
 {
     return check_assign_internal(itl,ltype,rtype,assign_type::assign);
+}
+
+// check ordinary assign
+Option<itl_error> check_assign_no_const(Interloper& itl,const Type *ltype, const Type *rtype)
+{
+    return check_assign_internal(itl,ltype,rtype,assign_type::no_const);
 }
 
 Option<itl_error> check_assign_arg(Interloper& itl, const Type* ltype, const Type* rtype)

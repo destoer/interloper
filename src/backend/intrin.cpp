@@ -11,10 +11,13 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
 // NOTE: This only handles gpr sized returns, and does not handle hidden args
 void call_intrin_func(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs, RegSlot dst_slot)
 {
+    const auto user_args = sig_user_span(func_call.sig);
+
     ArgPass pass = make_arg_pass(func_call.sig);
-    for(s32 i = regs.size - 1; i >= 0; i--)
+    for(s32 arg_idx = regs.size - 1; arg_idx >= 0; arg_idx--)
     {
-        const auto& reg = regs[i];
+        const auto& reg = regs[arg_idx];
+        auto& arg = sym_from_slot(itl.symbol_table,user_args[arg_idx]);
 
         switch(reg.type->kind)
         {
@@ -26,13 +29,27 @@ void call_intrin_func(Interloper& itl, Function& func, const Function& func_call
 
             case type_class::array_t:
             {
-                unimplemented("Pass array");
+                if(is_runtime_size(arg.type))
+                {
+                    // push in reverse order let our internal functions handle vla conversion
+                    const RegSlot len_slot = load_arr_len(itl,func,reg);
+                    push_arg(itl,func,pass,len_slot);
+
+                    const RegSlot data_slot = load_arr_data(itl,func,reg);
+                    push_arg(itl,func,pass,data_slot);
+                }
+
+                // fixed sized array
+                else
+                {
+                    pass_arg(itl,func,pass,reg,arg_idx);
+                }                   
                 break;
             }
 
             default:
             {
-                pass_arg(itl,func,pass,regs[i],i);
+                pass_arg(itl,func,pass,regs[arg_idx],arg_idx);
                 break;
             }
         }        
@@ -76,6 +93,33 @@ void ir_mem_equal(Interloper& itl, Function& func, AddrSlot v1_addr, AddrSlot v2
 
     call_intrin_func(itl,func,*itl.mem_equal,make_span(regs,0,REGS_SIZE),dst_slot);
 }
+
+void ir_array_equal(Interloper& itl, Function& func, TypedReg v1, TypedReg v2, RegSlot dst_slot)
+{
+    const auto size = type_size(itl,index_arr(v1.type));
+
+    // Already bytes we can just pass this directly with no conversion
+    if(size == sizeof(u8))
+    {
+        static constexpr u32 REGS_SIZE = 2;
+        const TypedReg regs[REGS_SIZE] = {v1,v2};    
+        call_intrin_func(itl,func,*itl.array_equal,make_span(regs,0,REGS_SIZE),dst_slot);
+        return;
+    }
+
+    // Convert both arrays to byte vla
+    const TypedReg v1_bytes = new_typed_tmp(itl,func,itl.const_byte_type);
+    const TypedReg v2_bytes = new_typed_tmp(itl,func,itl.const_byte_type);
+
+    recast_array(itl,func,(ArrayType*)itl.const_byte_type,v1,v1_bytes.slot);
+    recast_array(itl,func,(ArrayType*)itl.const_byte_type,v2,v2_bytes.slot);
+
+    static constexpr u32 REGS_SIZE = 2;
+    const TypedReg regs[REGS_SIZE] = {v1_bytes,v2_bytes};    
+
+    call_intrin_func(itl,func,*itl.array_equal,make_span(regs,0,REGS_SIZE),dst_slot);
+}
+
 
 void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
 {

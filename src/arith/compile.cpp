@@ -324,14 +324,20 @@ void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot ds
 
     else if(is_struct(left.type))
     {
-        if(type == comparison_op::eq)
+        ir_mem_equal(itl,func,make_struct_addr(left.slot,0),make_struct_addr(right.slot,0),type_size(itl,left.type),dst_slot);
+        
+        if(type == comparison_op::ne)
         {
-            ir_mem_equal(itl,func,make_struct_addr(left.slot,0),make_struct_addr(right.slot,0),type_size(itl,left.type),dst_slot);
+            xor_imm(itl,func,dst_slot,dst_slot,1);
         }
+    }
 
-        else
+    else if(is_array(left.type))
+    {
+        ir_array_equal(itl,func,left,right,dst_slot);
+
+        if(type == comparison_op::ne)
         {
-            ir_mem_equal(itl,func,make_struct_addr(left.slot,0),make_struct_addr(right.slot,0),type_size(itl,left.type),dst_slot);
             xor_imm(itl,func,dst_slot,dst_slot,1);
         }
     }

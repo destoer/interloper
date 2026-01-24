@@ -259,6 +259,20 @@ void compile_cast_ref(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_
     mov_reg(itl,func,dst_slot,reg.slot);
 }
 
+void recast_array(Interloper& itl, Function& func,ArrayType* new_type, const TypedReg& reg, RegSlot dst_slot)
+{
+    const u32 new_size = type_size(itl,index_arr(new_type));
+    const u32 old_size = type_size(itl,index_arr(reg.type));
+
+    const auto data_slot = load_arr_data(itl,func,reg);
+    store_arr_data(itl,func,dst_slot,data_slot);
+
+    const auto len_slot = load_arr_len(itl,func,reg);
+    const auto byte_slot = mul_imm_res(itl,func,len_slot,old_size);
+    const auto converted_len = udiv_imm_res(itl,func,byte_slot,new_size);
+    store_arr_len(itl,func,dst_slot,converted_len);
+}
+
 void compile_cast(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
 {
     CastNode* cast = (CastNode*)expr;
@@ -340,16 +354,7 @@ void compile_cast(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot
 
         case cast_oper::recast_array:
         {
-            const u32 new_size = type_size(itl,index_arr(cast->node.expr_type));
-            const u32 old_size = type_size(itl,index_arr(reg.type));
-
-            const auto data_slot = load_arr_data(itl,func,reg);
-            store_arr_data(itl,func,dst_slot,data_slot);
-
-            const auto len_slot = load_arr_len(itl,func,reg);
-            const auto byte_slot = mul_imm_res(itl,func,len_slot,old_size);
-            const auto converted_len = udiv_imm_res(itl,func,byte_slot,new_size);
-            store_arr_len(itl,func,dst_slot,converted_len);
+            recast_array(itl,func,(ArrayType*)cast->node.expr_type,reg,dst_slot);
             break;
         }
     }

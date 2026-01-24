@@ -36,6 +36,7 @@ Option<itl_error> check_startup_defs(Interloper& itl)
         {&itl.memcpy,"memcpy",itl.std_name_space},
         {&itl.zero_mem,"zero_mem",itl.std_name_space},
         {&itl.mem_equal,"mem_equal",itl.std_name_space},
+        {&itl.array_equal,"array_equal",itl.std_name_space},
         {nullptr,"main",itl.global_namespace},
         {&itl.start,"start",itl.global_namespace},
     };

@@ -201,6 +201,7 @@ enum class assign_type
     assign,
     arg,
     initializer,
+    no_const,
     none,
 };
 
