@@ -108,7 +108,7 @@ func load_model(path: const string) [result, Model]
             std::split_str_in(str," ",&paramters);
             split := cast(string[],std::array_buffer(&paramters));
 
-            if std::str_equal(split[0],"v")
+            if split[0] == "v"
             {
                 if split.len != 4
                 {
@@ -127,7 +127,7 @@ func load_model(path: const string) [result, Model]
                 }
             }
 
-            else if std::str_equal(split[0],"f")
+            else if split[0] == "f"
             {
                 if split.len != 4
                 {

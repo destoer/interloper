@@ -32,7 +32,7 @@ func set_log_level_from_env(env_name: const string)
     {
         level := cast(log_level,raw_level);
 
-        if(std::str_equal(str,level.name))
+        if(str == level.name)
         {
             max_log_level = level;
         }

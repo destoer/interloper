@@ -24,7 +24,7 @@ func hash_cmp_str(v1: const byte@, v2: const byte@, _key_size: u64) bool
     str1 := @cast(string@,v1);
     str2 := @cast(string@,v2);
 
-    return str_equal(str1,str2);
+    return str1 == str2;
 }
 
 

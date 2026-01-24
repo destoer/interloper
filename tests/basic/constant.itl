@@ -45,7 +45,7 @@ func main() s32
     // test array of structs
     res4 := ((STRUCT_TABLE[0].x * STRUCT_TABLE[0].y) + (STRUCT_TABLE[1].x * STRUCT_TABLE[1].y)) == 41;
     
-    res5 := std::str_equal(HELLO,"Hello");
+    res5 := HELLO == "Hello";
 
     res6 := FLOAT == 1.0;
 

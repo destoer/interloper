@@ -256,17 +256,6 @@ func str_duplicate(str: const string) string
     return out;
 }
 
-func str_equal(v1 : const string, v2 : const string) bool
-{
-    // different len, not equal
-    if(v1.len != v2.len)
-    {
-        return false;
-    }
-
-    return mem_equal(v1.data,v2.data,v1.len);
-}
-
 func find_str(str: const string, search: const string) const string
 {
     blank: const string = {str.data,0};
@@ -277,7 +266,7 @@ func find_str(str: const string, search: const string) const string
 
     for i: s32 = 0; i + search.len < str.len; i += 1
     {
-        if(std::str_equal(str[i : i + search.len],search))
+        if(str[i : i + search.len] == search)
         {
             return str[i:];
         }

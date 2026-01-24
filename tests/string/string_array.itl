@@ -4,7 +4,7 @@ func main() s32
 {
     strings : const string[?] = {"Hello","World"};
 
-    ans := std::str_equal(strings[0],"Hello") && std::str_equal(strings[1],"World");
+    ans :=  strings[0] == "Hello" && strings[1] == "World";
 
     return cast(s32,ans);
 }
