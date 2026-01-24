@@ -88,9 +88,9 @@ TypeResult type_check_cast(Interloper& itl, AstNode* expr)
 
     Type* new_type = *new_type_res;
 
-    if(cast->expr->known_value && is_integer(new_type))
+    if(known_gpr_node(cast->expr) && is_integer(new_type))
     {
-        const u64 value = *cast->expr->known_value;
+        const u64 value = cast->expr->known_value.gpr;
         cast->node.known_value = cast_const(itl,old_type,new_type,value);
     }
 

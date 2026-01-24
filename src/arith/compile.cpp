@@ -65,9 +65,9 @@ void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegS
 {
     const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
 
-    if(node->right->known_value)
+    if(known_gpr_node(node->right))
     {
-        const auto value = *node->right->known_value;
+        const auto value = node->right->known_value.gpr;
         const auto left = compile_oper(itl,func,node->left);
 
         if(emit_known_rvalue(itl,func,node->oper,dst_slot,left,node->right->expr_type,value))
@@ -80,9 +80,9 @@ void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegS
     }
 
     // If this is commutative we can just switch the operands
-    else if(node->left->known_value && arith_info.commutative)
+    else if(known_gpr_node(node->left) && arith_info.commutative)
     {
-        const auto value = *node->left->known_value;
+        const auto value = node->left->known_value.gpr;
         const auto right = compile_oper(itl,func,node->right);
 
         if(emit_known_rvalue(itl,func,node->oper,dst_slot,right,node->left->expr_type,value))
@@ -125,9 +125,9 @@ void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, Reg
 
     const auto left = compile_oper(itl,func,node->left);
 
-    if(node->right->known_value)
+    if(known_gpr_node(node->right))
     {
-        const auto value = *node->right->known_value * size;
+        const auto value = node->right->known_value.gpr * size;
         emit_imm3_unchecked(itl,func,arith_info.imm_form,dst_slot,left.slot,value);
     }
 

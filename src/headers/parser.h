@@ -54,7 +54,6 @@ enum class ast_type
     ret,
 };
 
-
 struct AstNode
 {
     ast_type type;
@@ -64,8 +63,19 @@ struct AstNode
 
     // Resulting value of this node is known.
     // Stored here to keep consistency with const expressions.
-    Option<u64> known_value = option::none;
+    KnownValue known_value;
 };
+
+inline bool known_gpr_node(const AstNode* node)
+{
+    return node->known_value.type == known_value_type::gpr_t;
+}
+
+inline bool known_gpr_expr(const AstNode* v1, const AstNode* v2)
+{
+    return known_gpr_node(v1) && known_gpr_node(v2);
+}
+
 
 using TYPE_CHECK_EXPR_FPTR = TypeResult (*)(Interloper& itl, AstNode* node);
 using TYPE_CHECK_STMT_FPTR = Option<itl_error> (*)(Interloper& itl, Function& func, AstNode* node);

@@ -226,9 +226,9 @@ TypedAddr compile_pointer_index(Interloper& itl, Function& func, IndexNode* inde
 
     const u32 size = type_size(itl,indexed_type);
 
-    if(subscript_expr->known_value)
+    if(known_gpr_node(subscript_expr))
     {
-        const u32 offset = *subscript_expr->known_value * size;
+        const u32 offset = subscript_expr->known_value.gpr * size;
         return TypedAddr {make_pointer_addr(ptr_slot,offset),indexed_type};        
     }
 
@@ -279,7 +279,13 @@ TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index,
 
         AstNode* subscript = index->indexes[i];
 
-        if(!subscript->known_value)
+        if(known_gpr_node(subscript))
+        {
+            addr_slot.addr.offset += subscript->known_value.gpr * size;
+
+        }
+
+        else
         {
             if(!is_null_reg(addr_slot.addr.index))
             {
@@ -289,11 +295,6 @@ TypedAddr compile_array_index(Interloper& itl, Function& func, IndexNode* index,
             const auto src = compile_oper(itl,func,index->indexes[i]);
             addr_slot.addr.index = src.slot;
             addr_slot.addr.scale = size;
-        }
-
-        else
-        {
-            addr_slot.addr.offset += *subscript->known_value * size;
         }
 
 

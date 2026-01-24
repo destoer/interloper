@@ -62,10 +62,10 @@ TypeResult type_check_boolean_logic(Interloper& itl, AstNode* expr) {
             bin.ltype,BOOLEAN_LOGIC_NAMES[u32(logic->oper)],bin.rtype);
     }
 
-    if(logic->left->known_value && logic->right->known_value)
+    if(known_gpr_expr(logic->left,logic->right))
     {
-        const auto left = *logic->left->known_value;
-        const auto right = *logic->right->known_value;
+        const auto left = logic->left->known_value.gpr;
+        const auto right = logic->right->known_value.gpr;
 
         switch(logic->oper)
         {
@@ -152,8 +152,8 @@ TypeResult check_known_cmp(Interloper& itl, CmpNode* cmp)
 
     const b32 sign = is_signed(cmp->left->expr_type);
 
-    const u64 left = *cmp->left->known_value;
-    const u64 right = *cmp->right->known_value;
+    const u64 left = cmp->left->known_value.gpr;
+    const u64 right = cmp->right->known_value.gpr;
 
     switch(cmp->oper)
     {
@@ -217,7 +217,7 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
     auto bin = *bin_res;
 
     // Statically known comparison that is integer based
-    if(cmp->left->known_value && cmp->right->known_value)
+    if(known_gpr_expr(cmp->left,cmp->right))
     {
         if(compare_decay_integer(bin.ltype) && compare_decay_integer(bin.rtype))
         {
@@ -229,9 +229,9 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
     else if(is_integer(bin.ltype) && is_integer(bin.rtype))
     {
         // Coerce the known value to the other operands type if we have checked this is fine.
-        if(cmp->left->known_value)
+        if(known_gpr_node(cmp->left))
         {
-            const auto coerce_res = check_static_cmp(itl,bin.ltype,bin.rtype,*cmp->left->known_value);
+            const auto coerce_res = check_static_cmp(itl,bin.ltype,bin.rtype,cmp->left->known_value.gpr);
             if(!coerce_res)
             {
                 return coerce_res.error();
@@ -243,9 +243,9 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
             }
         }
 
-        else if(cmp->right->known_value)
+        else if(known_gpr_node(cmp->right))
         {
-            const auto coerce_res = check_static_cmp(itl,bin.rtype,bin.ltype,*cmp->right->known_value);
+            const auto coerce_res = check_static_cmp(itl,bin.rtype,bin.ltype,cmp->right->known_value.gpr);
             if(!coerce_res)
             {
                 return coerce_res.error();
@@ -263,7 +263,7 @@ TypeResult type_check_comparison(Interloper& itl, AstNode* expr)
 
 Value value_from_known_expr(AstNode* expr)
 {
-    return make_value(*expr->known_value,is_signed(expr->expr_type));
+    return make_value(expr->known_value.gpr,is_signed(expr->expr_type));
 } 
 
 
@@ -383,7 +383,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 
     const auto& bin = *bin_res;
 
-    const bool known_expr = arith->left->known_value && arith->right->known_value;
+    const bool known_expr = known_gpr_expr(arith->left,arith->right);
 
     // pointer arith adds the size of the underlying type
     if(is_pointer(bin.ltype) && is_integer(bin.rtype))
@@ -459,7 +459,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 
 u64 compute_known_unary_arith(ArithUnaryNode* unary)
 {
-    const auto value = *unary->expr->known_value;
+    const auto value = unary->expr->known_value.gpr;
     switch(unary->oper)
     {
         case arith_unary_op::add_t:
@@ -498,7 +498,7 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
 
     const auto rtype = *expr_res;
 
-    if(unary->expr->known_value && is_integer(rtype))
+    if(known_gpr_node(unary->expr) && is_integer(rtype))
     {
         unary->node.known_value = compute_known_unary_arith(unary);
     }
