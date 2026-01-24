@@ -323,7 +323,9 @@ TypeResult type_check_value(Interloper& itl, AstNode* expr)
 
 TypeResult type_check_float(Interloper& itl, AstNode* expr)
 {
-    UNUSED(expr);
+    FloatNode* float_node = (FloatNode*)expr;
+    expr->known_value = float_node->value;
+
     return make_builtin(itl,builtin_type::f64_t);
 }
 

@@ -263,13 +263,23 @@ ConstDataResult compile_const_array_expr(Interloper& itl, ArrayType* type, AstNo
 
 ConstDataResult compile_const_builtin_expr(Interloper& itl, AstNode* expr)
 {
-    if(!known_gpr_node(expr))
+    switch(expr->known_value.type)
     {
-        return compile_error(itl,itl_error::const_type_error,"Builtin const expression(%s) of %t is not statically known",
-            AST_INFO[u32(expr->type)].name,expr->expr_type);
+        case known_value_type::gpr_t:
+        {
+            return make_const_int(expr->known_value.gpr,expr->expr_type);
+        }
+
+        case known_value_type::fpr_t:
+        {
+            return make_const_float(expr->known_value.fpr,expr->expr_type);
+        }
+
+        case known_value_type::none_t: break;
     }
     
-    return make_const_builtin(expr->known_value.gpr,expr->expr_type);
+    return compile_error(itl,itl_error::const_type_error,"Builtin const expression(%s) of %t is not statically known",
+        AST_INFO[u32(expr->type)].name,expr->expr_type);
 }
 
 ConstDataResult compile_const_expr(Interloper& itl, Type* type, AstNode* expr)
