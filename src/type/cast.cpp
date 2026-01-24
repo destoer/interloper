@@ -268,9 +268,23 @@ void recast_array(Interloper& itl, Function& func,ArrayType* new_type, const Typ
     store_arr_data(itl,func,dst_slot,data_slot);
 
     const auto len_slot = load_arr_len(itl,func,reg);
-    const auto byte_slot = mul_imm_res(itl,func,len_slot,old_size);
-    const auto converted_len = udiv_imm_res(itl,func,byte_slot,new_size);
-    store_arr_len(itl,func,dst_slot,converted_len);
+
+    if(new_size == old_size)
+    {
+        store_arr_len(itl,func,dst_slot,len_slot);
+    }
+
+    else if(new_size > old_size)
+    {
+        const auto converted_len = udiv_imm_res(itl,func,len_slot,new_size / old_size);
+        store_arr_len(itl,func,dst_slot,converted_len);
+    }
+
+    else
+    {
+        const auto converted_len = mul_imm_res(itl,func,len_slot,old_size / new_size);
+        store_arr_len(itl,func,dst_slot,converted_len);        
+    }
 }
 
 void compile_cast(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot)
