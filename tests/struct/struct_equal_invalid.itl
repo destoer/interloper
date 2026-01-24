@@ -1,0 +1,16 @@
+struct Foo {
+    i : u32;
+}
+
+struct Bar {
+    i: u32;
+}
+
+func main() s32
+{
+    foo: Foo;
+    bar: Bar;
+
+    ans := foo == bar;
+    return cast(s32,ans);
+}

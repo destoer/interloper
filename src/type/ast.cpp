@@ -15,6 +15,13 @@ Option<itl_error> declare_compiler_constants(Interloper& itl);
 #include "func/checker.cpp"
 #include "arith/checker.cpp"
 
+struct StartupFuncReq
+{
+    Function** func = nullptr;
+    String name;
+    NameSpace* name_space = nullptr;
+};
+
 
 Option<itl_error> check_startup_defs(Interloper& itl)
 {
@@ -25,34 +32,26 @@ Option<itl_error> check_startup_defs(Interloper& itl)
         return compile_error(itl,itl_error::undeclared,"std namespace is not declared");
     }
 
-    const auto memcpy_res = check_startup_func(itl,"memcpy",itl.std_name_space);
-    if(!memcpy_res)
-    {
-        return memcpy_res.error();
+    const StartupFuncReq startup_req[] = {
+        {&itl.memcpy,"memcpy",itl.std_name_space},
+        {&itl.zero_mem,"zero_mem",itl.std_name_space},
+        {&itl.mem_equal,"mem_equal",itl.std_name_space},
+        {nullptr,"main",itl.global_namespace},
+        {&itl.start,"start",itl.global_namespace},
+    };
+
+    for(const auto& req : startup_req) {
+        const auto res = check_startup_func(itl,req.name,req.name_space);
+        if(!res)
+        {
+            return res.error();
+        }
+        
+        if(req.func)
+        {
+            *req.func = *res;
+        }
     }
-
-    itl.memcpy = *memcpy_res;
-
-    const auto zero_res = check_startup_func(itl,"zero_mem",itl.std_name_space);
-    if(!zero_res)
-    {
-        return zero_res.error();
-    }
-
-    itl.zero_mem = *zero_res;
-
-    const auto main_res = check_startup_func(itl,"main",itl.global_namespace);
-    if(!main_res)
-    {
-        return main_res.error();
-    }
-
-    const auto start_res = check_startup_func(itl,"start",itl.global_namespace);
-    if(!start_res)
-    {
-        return start_res.error();
-    }
-
 
     return option::none;
 }

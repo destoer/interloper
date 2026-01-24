@@ -173,6 +173,22 @@ TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const T
         }
     }
 
+    else if(is_struct(ltype) && is_struct(rtype))
+    {
+        if(type != comparison_op::eq && type != comparison_op::ne)
+        {
+            return compile_error(itl,itl_error::struct_error,"comparision on structs is only defined for '==' and '!='");
+        }
+
+        const StructType* struct_ltype = (StructType*)ltype;
+        const StructType* struct_rtype = (StructType*)rtype;
+        
+        if(struct_ltype->struct_idx != struct_rtype->struct_idx)
+        {
+            return compile_error(itl,itl_error::struct_error,"expected Struct of the same type for comparisons %t : %t",ltype,rtype);
+        }
+    }
+
     // no matching operator
     else 
     {

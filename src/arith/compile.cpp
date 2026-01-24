@@ -322,6 +322,20 @@ void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot ds
         emit_reg3_unchecked(itl,func,opcode_type,dst_slot,left.slot,right.slot);
     }
 
+    else if(is_struct(left.type))
+    {
+        if(type == comparison_op::eq)
+        {
+            ir_mem_equal(itl,func,make_struct_addr(left.slot,0),make_struct_addr(right.slot,0),type_size(itl,left.type),dst_slot);
+        }
+
+        else
+        {
+            ir_mem_equal(itl,func,make_struct_addr(left.slot,0),make_struct_addr(right.slot,0),type_size(itl,left.type),dst_slot);
+            xor_imm(itl,func,dst_slot,dst_slot,1);
+        }
+    }
+
     // integer operation
     else
     {

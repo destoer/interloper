@@ -6,8 +6,10 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node);
 
 void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot ptr,u32 offset,u32 size, b32 is_float);
+void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const TypedReg& src);
 
-void call_intrin_func(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs)
+// NOTE: This only handles gpr sized returns, and does not handle hidden args
+void call_intrin_func(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs, RegSlot dst_slot)
 {
     ArgPass pass = make_arg_pass(func_call.sig);
     for(s32 i = regs.size - 1; i >= 0; i--)
@@ -39,9 +41,40 @@ void call_intrin_func(Interloper& itl, Function& func, const Function& func_call
     const u32 arg_clean = pass_args(itl,func,pass);
 
     call(itl,func,func_call.label_slot);
-    unlock_reg_set(itl,func,func_call.sig.locked_set);
-
     clean_args(itl,func,arg_clean); 
+
+    auto& sig = func_call.sig;
+    const bool returns_value = count(sig.return_type) >= 1;
+
+    // store the return value back into a reg (if its actually bound)
+    if(returns_value && !is_special_reg(dst_slot,spec_reg::null))
+    {
+        const RegSlot rv = make_spec_reg_slot(return_reg_from_type(sig.return_type[0]));
+        const TypedReg dst = {dst_slot,sig.return_type[0]};
+        const TypedReg src = {rv,sig.return_type[0]};
+        compile_move(itl,func,dst,src);
+    }
+
+    unlock_reg_set(itl,func,func_call.sig.locked_set);
+}
+
+void call_intrin_func_no_return(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs)
+{
+    call_intrin_func(itl,func,func_call,regs,make_spec_reg_slot(spec_reg::null));
+}
+
+void ir_mem_equal(Interloper& itl, Function& func, AddrSlot v1_addr, AddrSlot v2_addr, u32 size, RegSlot dst_slot)
+{
+    const RegSlot imm_slot = mov_imm_res(itl,func,size);
+
+    const TypedReg v1 = {collapse_struct_addr_oper(itl,func,v1_addr),make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+    const TypedReg v2 = {collapse_struct_addr_oper(itl,func,v2_addr),make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
+    const TypedReg imm = {imm_slot,itl.usize_type};
+
+    static constexpr u32 REGS_SIZE = 3;
+    const TypedReg regs[REGS_SIZE] = {v1,v2,imm};    
+
+    call_intrin_func(itl,func,*itl.mem_equal,make_span(regs,0,REGS_SIZE),dst_slot);
 }
 
 void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
@@ -78,7 +111,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     static constexpr u32 REGS_SIZE = 3;
     const TypedReg regs[REGS_SIZE] = {dst,src,imm};    
 
-    call_intrin_func(itl,func,*itl.memcpy,make_span(regs,0,REGS_SIZE));
+    call_intrin_func_no_return(itl,func,*itl.memcpy,make_span(regs,0,REGS_SIZE));
 }
 
 
@@ -109,7 +142,7 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     static constexpr u32 REGS_SIZE = 2;
     const TypedReg regs[REGS_SIZE] = {dst,imm};
     
-    call_intrin_func(itl,func,*itl.zero_mem,make_span(regs,0,REGS_SIZE));
+    call_intrin_func_no_return(itl,func,*itl.zero_mem,make_span(regs,0,REGS_SIZE));
 }
 
 

@@ -477,8 +477,7 @@ void write_symtab(Interloper& itl, Elf& elf, u64 text_vaddr, u64 const_vaddr)
 
     // write entry point (i.e find start)
 
-    auto str = String("start");
-    const auto& start = *lookup_internal_function(itl,str);
+    const auto& start = *itl.start;
     auto& start_label = label_from_slot(itl.symbol_table.label_lookup,start.label_slot);
 
     write_mem(elf.buffer,offsetof(Elf64_Ehdr,e_entry),start_label.offset);
