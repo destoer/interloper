@@ -7,12 +7,33 @@ ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
 
 void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot ptr,u32 offset,u32 size, b32 is_float);
 
-void call_reg_func(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs)
+void call_intrin_func(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs)
 {
     ArgPass pass = make_arg_pass(func_call.sig);
     for(s32 i = regs.size - 1; i >= 0; i--)
     {
-        pass_arg(itl,func,pass,regs[i],i);
+        const auto& reg = regs[i];
+
+        switch(reg.type->kind)
+        {
+            case type_class::struct_t:
+            {
+                unimplemented("Pass struct");
+                break;
+            }
+
+            case type_class::array_t:
+            {
+                unimplemented("Pass array");
+                break;
+            }
+
+            default:
+            {
+                pass_arg(itl,func,pass,regs[i],i);
+                break;
+            }
+        }        
     }
 
     const u32 arg_clean = pass_args(itl,func,pass);
@@ -25,9 +46,6 @@ void call_reg_func(Interloper& itl, Function& func, const Function& func_call, c
 
 void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
 {
-    // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
-    // because this alot of boilerplate
-
     static constexpr u32 COPY_LIMIT = 32;
 
     // multiple of 8 and under the copy limit (don't do this when stack only, as it generates awful code)
@@ -60,14 +78,13 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     static constexpr u32 REGS_SIZE = 3;
     const TypedReg regs[REGS_SIZE] = {dst,src,imm};    
 
-    call_reg_func(itl,func,*itl.memcpy,make_span(regs,0,REGS_SIZE));
+    call_intrin_func(itl,func,*itl.memcpy,make_span(regs,0,REGS_SIZE));
 }
 
 
 
 void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 {
-
     static constexpr u32 INLINE_LIMIT = 256;
 
     // multiple of 8 and under the copy limit
@@ -92,7 +109,7 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     static constexpr u32 REGS_SIZE = 2;
     const TypedReg regs[REGS_SIZE] = {dst,imm};
     
-    call_reg_func(itl,func,*itl.zero_mem,make_span(regs,0,REGS_SIZE));
+    call_intrin_func(itl,func,*itl.zero_mem,make_span(regs,0,REGS_SIZE));
 }
 
 
