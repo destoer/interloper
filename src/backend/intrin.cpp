@@ -7,6 +7,22 @@ ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
 
 void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot ptr,u32 offset,u32 size, b32 is_float);
 
+void call_reg_func(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs)
+{
+    ArgPass pass = make_arg_pass(func_call.sig);
+    for(s32 i = regs.size - 1; i >= 0; i--)
+    {
+        pass_arg(itl,func,pass,regs[i],i);
+    }
+
+    const u32 arg_clean = pass_args(itl,func,pass);
+
+    call(itl,func,func_call.label_slot);
+    unlock_reg_set(itl,func,func_call.sig.locked_set);
+
+    clean_args(itl,func,arg_clean); 
+}
+
 void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_addr, u32 size)
 {
     // TODO: if we reuse internal calling multiple times in the IR we need to make something that will do this for us
@@ -33,11 +49,6 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
         return;
     }
 
-    // Issue a call to memcpy
-    Function& func_call = *itl.memcpy;
-
-    ArgPass pass = make_arg_pass(func_call.sig);
-
     const RegSlot imm_slot = mov_imm_res(itl,func,size);
 
     const RegSlot src_ptr = collapse_struct_addr_oper(itl,func,src_addr);
@@ -46,17 +57,13 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     const TypedReg imm = {imm_slot,itl.usize_type};
     const TypedReg src = {src_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
     const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-    pass_arg(itl,func,pass,imm,2);
-    pass_arg(itl,func,pass,src,1);
-    pass_arg(itl,func,pass,dst,0);
+    static constexpr u32 REGS_SIZE = 3;
+    const TypedReg regs[REGS_SIZE] = {dst,src,imm};    
 
-    const u32 arg_clean = pass_args(itl,func,pass);
-
-    call(itl,func,func_call.label_slot);
-    unlock_reg_set(itl,func,func_call.sig.locked_set);
-
-    clean_args(itl,func,arg_clean);
+    call_reg_func(itl,func,*itl.memcpy,make_span(regs,0,REGS_SIZE));
 }
+
+
 
 void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
 {
@@ -78,24 +85,14 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
         return;
     }
 
-    // call into zero_mem
-    Function &func_call = *itl.zero_mem;
-
-    ArgPass pass = make_arg_pass(func_call.sig);
 
     const RegSlot imm_slot = mov_imm_res(itl,func,size);
-
     const TypedReg imm = {imm_slot,itl.usize_type};
     const TypedReg dst = {dst_ptr,make_reference(itl,make_builtin(itl,builtin_type::byte_t))};
-    pass_arg(itl,func,pass,imm,1);
-    pass_arg(itl,func,pass,dst,0);
-
-    const u32 arg_clean = pass_args(itl,func,pass);
-
-    call(itl,func,func_call.label_slot);
-    unlock_reg_set(itl,func,func_call.sig.locked_set);
-
-    clean_args(itl,func,arg_clean); 
+    static constexpr u32 REGS_SIZE = 2;
+    const TypedReg regs[REGS_SIZE] = {dst,imm};
+    
+    call_reg_func(itl,func,*itl.zero_mem,make_span(regs,0,REGS_SIZE));
 }
 
 
