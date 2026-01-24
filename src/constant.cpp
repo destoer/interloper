@@ -15,12 +15,12 @@ ConstValueResult type_check_const_int_expression(Interloper& itl, AstNode* node)
         return compile_error(itl,itl_error::int_type_error,"expected integer for const int expr got %t",node->expr_type); 
     }
 
-    if(!node->known_value)
+    if(!known_gpr_node(node))
     {
         return compile_error(itl,itl_error::int_type_error,"Value for const integer expression is not known");
     }
 
-    return ConstValue{node->expr_type,*node->known_value};
+    return ConstValue{node->expr_type,node->known_value.gpr};
 }
 
 Result<u32,itl_error> const_write_in_string(Interloper& itl, StringNode* string_node, PoolSlot slot, u32 offset)
@@ -263,13 +263,23 @@ ConstDataResult compile_const_array_expr(Interloper& itl, ArrayType* type, AstNo
 
 ConstDataResult compile_const_builtin_expr(Interloper& itl, AstNode* expr)
 {
-    if(!expr->known_value)
+    switch(expr->known_value.type)
     {
-        return compile_error(itl,itl_error::const_type_error,"Builtin const expression(%s) of %t is not statically known",
-            AST_INFO[u32(expr->type)].name,expr->expr_type);
+        case known_value_type::gpr_t:
+        {
+            return make_const_int(expr->known_value.gpr,expr->expr_type);
+        }
+
+        case known_value_type::fpr_t:
+        {
+            return make_const_float(expr->known_value.fpr,expr->expr_type);
+        }
+
+        case known_value_type::none_t: break;
     }
     
-    return make_const_builtin(*expr->known_value,expr->expr_type);
+    return compile_error(itl,itl_error::const_type_error,"Builtin const expression(%s) of %t is not statically known",
+        AST_INFO[u32(expr->type)].name,expr->expr_type);
 }
 
 ConstDataResult compile_const_expr(Interloper& itl, Type* type, AstNode* expr)

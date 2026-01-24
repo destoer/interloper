@@ -311,7 +311,7 @@ Option<itl_error> type_check_switch_enum(Interloper& itl, Function& func, EnumTy
         return block_err;
     }
 
-    stmt.value = *stmt.statement->known_value;
+    stmt.value = stmt.statement->known_value.gpr;
     return option::none;    
 }
 
@@ -326,12 +326,12 @@ Option<itl_error> type_check_switch_int(Interloper& itl, Function& func, Case& s
     const auto type = *stmt_res;
     if(!is_integer(type))
     {
-        return compile_error(itl,itl_error::int_type_error,"Expected integer case for switch statemnt");
+        return compile_error(itl,itl_error::int_type_error,"Expected integer case for switch statement");
     }
 
     if(!stmt.statement->known_value)
     {
-        return compile_error(itl,itl_error::int_type_error,"Switch case must be a comple time integer");
+        return compile_error(itl,itl_error::int_type_error,"Switch case must be a compile time integer");
     }
 
     const auto block_err = type_check_block(itl,func,*stmt.block);
@@ -340,7 +340,7 @@ Option<itl_error> type_check_switch_int(Interloper& itl, Function& func, Case& s
         return block_err;
     }
 
-    stmt.value = *stmt.statement->known_value;
+    stmt.value = stmt.statement->known_value.gpr;
     return option::none;  
 }
 

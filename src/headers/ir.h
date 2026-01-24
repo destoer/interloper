@@ -625,11 +625,6 @@ struct TypedReg
     Type* type = nullptr;
 };
 
-enum class known_value_type
-{
-    elided,
-    stored
-};
 
 using RegResult = destoer::Result<TypedReg,itl_error>;
 

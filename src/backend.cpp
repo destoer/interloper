@@ -116,13 +116,23 @@ TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node)
     // for error printing
     itl.ctx.expr = node;
 
-    // Value is known just return out
-    if(node->known_value) 
+    switch(node->known_value.type)
     {
-        const auto value = *node->known_value;
-        const RegSlot dst_slot = new_typed_tmp(itl,func,node->expr_type);
-        mov_imm(itl,func,dst_slot,value);
-        return TypedReg {dst_slot,node->expr_type};
+        case known_value_type::gpr_t:
+        {
+            const RegSlot dst_slot = new_typed_tmp(itl,func,node->expr_type);
+            mov_imm(itl,func,dst_slot,node->known_value.gpr);
+            return TypedReg {dst_slot,node->expr_type};
+        }
+
+        case known_value_type::fpr_t:
+        {
+            const RegSlot dst_slot = new_float(func);
+            movf_imm(itl,func,dst_slot,node->known_value.fpr);
+            return TypedReg {dst_slot,node->expr_type};
+        }
+
+        case known_value_type::none_t: break;
     }
 
 
@@ -169,12 +179,21 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
     itl.ctx.expr = node;
    
-    // Value is known just return out
-    if(node->known_value) 
+    switch(node->known_value.type)
     {
-        const auto value = *node->known_value;
-        mov_imm(itl,func,dst_slot,value);
-        return node->expr_type;
+        case known_value_type::gpr_t:
+        {
+            mov_imm(itl,func,dst_slot,node->known_value.gpr);
+            return node->expr_type;
+        }
+
+        case known_value_type::fpr_t:
+        {
+            movf_imm(itl,func,dst_slot,node->known_value.fpr);
+            return node->expr_type;
+        }
+
+        case known_value_type::none_t: break;
     }
 
     const auto& ast_info = AST_INFO[u32(node->type)];
@@ -214,7 +233,7 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     compile_expression(itl,func,decl_node->expr,slot);
 
     // Unknown quantity must be clipped
-    if(is_unsigned_integer(sym.type) && !decl_node->expr->known_value)
+    if(is_unsigned_integer(sym.type) && !known_gpr_node(decl_node->expr))
     {
         clip_arith_type(itl,func,slot,slot,sym.reg.size);
     }
@@ -279,7 +298,7 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
             compile_expression(itl,func,assign->right,slot);
 
             // If we have assigned an unknown quantity it must be clipped.
-            if(is_unsigned_integer(ltype) && !assign->right->known_value)
+            if(is_unsigned_integer(ltype) && !known_gpr_node(assign->right))
             {
                 clip_arith_type(itl,func,slot,slot,size);
             }

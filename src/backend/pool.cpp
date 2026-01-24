@@ -200,7 +200,7 @@ struct ConstData
 
 using ConstDataResult = Result<ConstData,itl_error>;
 
-ConstData make_const_builtin(u64 v, Type* type)
+ConstData make_const_int(u64 v, Type* type)
 {
     ConstData data;
 
@@ -210,12 +210,12 @@ ConstData make_const_builtin(u64 v, Type* type)
     return data;
 }
 
-ConstData make_const_float(Interloper& itl,f64 v)
+ConstData make_const_float(f64 v, Type* type)
 {
     ConstData data;
 
     data.f = v;
-    data.type = make_builtin(itl,builtin_type::f64_t);
+    data.type = type;
 
     return data;
 }

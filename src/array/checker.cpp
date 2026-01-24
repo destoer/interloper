@@ -54,9 +54,9 @@ TypeResult type_check_array_index_internal(Interloper& itl, IndexNode* index,Arr
 
         const bool last_index = i == indexes - 1;
         
-        if(subscript->known_value)
+        if(known_gpr_node(subscript))
         {
-            const auto subscript_value = *subscript->known_value; 
+            const auto subscript_value = subscript->known_value.gpr; 
 
             // We know both the bounds and subscript check the access is in range.
             if(is_fixed_array(array_type))
@@ -332,12 +332,12 @@ Option<itl_error> type_check_const_assert(Interloper& itl, Function& func, AstNo
 
 
     const auto type = *res;
-    if(!is_bool(type) || !assert_node->expr->known_value)
+    if(!is_bool(type) || !known_gpr_node(assert_node->expr))
     {
         return compile_error(itl,itl_error::bool_type_error,"Const assert expression is not a compile time bool %t",type);
     }
 
-    const bool pass = *assert_node->expr->known_value;
+    const bool pass = assert_node->expr->known_value.gpr;
 
     if(!pass)
     {

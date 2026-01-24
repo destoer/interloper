@@ -142,7 +142,7 @@ void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, Reg
 
     // make sure this register doesn't get reused
     lock_reg(itl,func,make_spec_reg_slot(spec_reg::rax));
-    const auto syscall_value = *func_call->args[0]->known_value;
+    const auto syscall_value = func_call->args[0]->known_value.gpr;
 
     mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value);
     u32 unlock_set = set_bit(0,special_reg_to_reg(itl.arch,spec_reg::rax));

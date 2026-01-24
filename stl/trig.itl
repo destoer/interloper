@@ -95,14 +95,21 @@ func fmod(value: f64, limit: f64) f64
 func sine(value: f64) f64
 {
     value = fmod(value,360.0);
+    idx := cast(u32,value);
 
-    return SINE_LUT[cast(u32,value)];
+    v1 := SINE_LUT[idx];
+    v2 := SINE_LUT[idx + 1];
+
+    return v1 + ((v2 - v1) * (value - cast(f64,idx)));
 }
 
-// TODO: There are better ways to do a LUT than this.
 func cos(value: f64) f64
 {
     value = fmod(value,360.0);
+    idx := cast(u32,value);
 
-    return COS_LUT[cast(u32,value)];
+    v1 := COS_LUT[idx];
+    v2 := COS_LUT[idx + 1];
+
+    return v1 + ((v2 - v1) * (value - cast(f64,idx)));
 }

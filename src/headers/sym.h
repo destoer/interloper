@@ -9,6 +9,38 @@ struct FileContext
     AstNode* expr = nullptr;
 };
 
+
+enum class known_value_type
+{
+    gpr_t,
+    fpr_t,
+    none_t,
+};
+
+struct KnownValue
+{
+    union
+    {
+        u64 gpr = 0;
+        f64 fpr;
+    };
+
+    KnownValue() : gpr(0), type(known_value_type::none_t) {}
+    KnownValue(u32 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(u64 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(s64 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(bool v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(f64 v) : fpr(v), type(known_value_type::fpr_t) {}
+
+    bool operator !() 
+    {
+        return type == known_value_type::none_t;
+    }
+
+    known_value_type type = known_value_type::none_t;
+};
+
+
 // NOTE: this may move during expression compilation
 // prefer holding a slot to a reference
 struct Symbol
@@ -21,7 +53,7 @@ struct Symbol
     u32 arg_offset = NON_ARG;
     u32 references = 0;
 
-    Option<u64> known_value = option::none;
+    KnownValue known_value;
 
     FileContext ctx;
 };
