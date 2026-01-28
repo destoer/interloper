@@ -48,7 +48,6 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/func/func_must_bind_fail",itl_error::unused_result},
     {"tests/func/format_attr_fail",itl_error::invalid_statement},
 
-
     // control_flow
     {"tests/control_flow/switch_duplicate",itl_error::redeclaration},
 

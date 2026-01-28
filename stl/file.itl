@@ -377,13 +377,7 @@ func read_file_line(file : File@, str : string) [string, file_read_res]
         }
     }
 
-    // TODO: we dont no return detection yet
     crash_and_burn("unreachable");
-
-    // no newline hit return str
-    buf : string;
-
-    return buf,file_read_res::error;
 }
 
 func read_file_mem(file : File@, buf : byte[]) [usize, file_read_res]

@@ -399,6 +399,12 @@ void handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Reg
 {
     auto& sig = call_info.sig;
 
+    // If this func is declared no return consider it has reaching an exit
+    if(sig.attribute.flags & ATTR_NO_RETURN)
+    {
+        add_func_exit(func,cur_block(func));
+    }
+
     // NOTE: func struct will hold a void value if it has nothing
     const bool returns_value = !is_void(sig.return_type[0]);
 
