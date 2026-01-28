@@ -197,6 +197,11 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
 
             if(cur_named_return)
             {
+                if(!named_return && f->return_type)
+                {
+                    return parser_error(parser,parse_error::malformed_stmt,paren,"All return types must have a name or none\n");
+                }
+
                 named_return = true;                
                 if(!match(parser,token_type::symbol))
                 {
