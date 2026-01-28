@@ -269,17 +269,20 @@ void recast_array(Interloper& itl, Function& func,ArrayType* new_type, const Typ
 
     const auto len_slot = load_arr_len(itl,func,reg);
 
+    // ab = cd
     if(new_size == old_size)
     {
         store_arr_len(itl,func,dst_slot,len_slot);
     }
 
+    // b / (c / a) = d
     else if(new_size > old_size)
     {
         const auto converted_len = udiv_imm_res(itl,func,len_slot,new_size / old_size);
         store_arr_len(itl,func,dst_slot,converted_len);
     }
 
+    // b * (a / c) = d
     else
     {
         const auto converted_len = mul_imm_res(itl,func,len_slot,old_size / new_size);

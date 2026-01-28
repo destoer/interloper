@@ -24,15 +24,23 @@ AddrSlot make_struct_addr(RegSlot base, u32 offset)
     return {make_addr(base,offset),true};
 }
 
-AddrSlot generate_indexed_pointer(Interloper& itl, Function& func, RegSlot base, RegSlot index, u32 scale, u32 offset)
+
+AddrSlot rescale_addr(Interloper& itl, Function& func, AddrSlot addr_slot)
 {
-    if(scale > GPR_SIZE || !is_pow2(scale))
+    if(addr_slot.addr.scale > GPR_SIZE || !is_pow2(addr_slot.addr.scale))
     {
-        index = mul_imm_res(itl,func,index,scale);
-        scale = 1;
+        addr_slot.addr.index = mul_imm_res(itl,func,addr_slot.addr.index,addr_slot.addr.scale);
+        addr_slot.addr.scale = 1;
     }
 
-    return make_indexed_pointer_addr(base,index,scale,offset);
+    return addr_slot;
+}
+
+
+AddrSlot generate_indexed_pointer(Interloper& itl, Function& func, RegSlot base, RegSlot index, u32 scale, u32 offset)
+{
+    auto pointer = make_indexed_pointer_addr(base,index,scale,offset);
+    return rescale_addr(itl,func,pointer);
 }
 
 void collapse_struct_addr(Interloper& itl, Function& func, RegSlot dst_slot, const AddrSlot struct_slot)

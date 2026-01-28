@@ -238,17 +238,6 @@ TypedAddr compile_pointer_index(Interloper& itl, Function& func, IndexNode* inde
     return TypedAddr {addr,indexed_type};    
 }
 
-AddrSlot rescale_addr(Interloper& itl, Function& func, AddrSlot addr_slot)
-{
-    if(addr_slot.addr.scale > GPR_SIZE || !is_pow2(addr_slot.addr.scale))
-    {
-        addr_slot.addr.index = mul_imm_res(itl,func,addr_slot.addr.index,addr_slot.addr.scale);
-        addr_slot.addr.scale = 1;
-    }
-
-    return addr_slot;
-}
-
 AddrSlot make_addr_from_pointer(const PointerAddr pointer)
 {
     return AddrSlot {pointer.addr,false};
@@ -371,21 +360,42 @@ void compile_index(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_s
 
 void compile_array_slice(Interloper& itl, Function& func, SliceNode* slice, const TypedAddr& addr, RegSlot dst_slot)
 {
-    RegSlot data_slot = load_arr_data(itl,func,addr);
     RegSlot slice_lower = make_spec_reg_slot(spec_reg::null);
+    const u32 data_size = type_size(itl,index_arr(addr.type));
 
     // Lower is populated add to data
     if(slice->lower)
     {
         const auto index = compile_oper(itl,func,slice->lower);
-
         slice_lower = index.slot;
+        AddrSlot array_addr = addr.addr_slot;
 
-        const RegSlot offset_slot = mul_imm_res(itl,func,index.slot,type_size(itl,index_arr(addr.type)));
-        data_slot = add_res(itl,func,data_slot,offset_slot);
+        // If this is an unscaled addr just tack it on
+        if(is_fixed_array(addr.type) && is_null_reg(array_addr.addr.index))
+        {            
+            array_addr.addr.index = slice_lower;
+            array_addr.addr.scale = data_size;
+
+            rescale_addr(itl,func,array_addr);
+        }
+
+        else
+        {
+            RegSlot data_slot = load_arr_data(itl,func,addr);
+            array_addr = generate_indexed_pointer(itl,func,data_slot,index.slot,data_size,0);
+        }
+
+        const auto data_slot = collapse_struct_addr_res(itl,func,array_addr);
+        store_arr_data(itl,func,dst_slot,data_slot);
     }
 
-    store_arr_data(itl,func,dst_slot,data_slot);
+    else
+    {
+        RegSlot data_slot = load_arr_data(itl,func,addr);
+        store_arr_data(itl,func,dst_slot,data_slot);
+    }
+
+    
 
     RegSlot data_len = make_spec_reg_slot(spec_reg::null);
     
