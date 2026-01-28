@@ -206,7 +206,7 @@ ParserResult parse_ret(Parser& parser, const Token& t)
     // return value is optional
     if(!match(parser,token_type::semi_colon))
     {
-        if(peek(parser,1).type == token_type::left_c_brace)
+        if(match(parser,token_type::left_c_brace,1))
         {
             auto initializer_res = parse_struct_initializer(parser);
 
@@ -321,7 +321,7 @@ ParserResult statement(Parser &parser)
                     const auto sym_tok = t;
 
                     // Struct assign
-                    if(peek(parser,1).type == token_type::symbol && peek(parser,2).type == token_type::left_c_brace)
+                    if(match(parser,token_type::symbol,1) && match(parser,token_type::left_c_brace,2))
                     {
                         (void)consume(parser,token_type::equal);
                         AstNode* left = ast_symbol(parser,nullptr,sym_tok.literal,sym_tok);
@@ -636,7 +636,7 @@ Result<Array<String>,parse_error> split_namespace_internal(Parser& parser, const
             }
 
             // Last token after :: is not to be treated as part of the namespace
-            if(peek(parser,1).type != token_type::scope && !full_namespace)
+            if(!match(parser,token_type::scope,1) && !full_namespace)
             {
                 goto done;
             }

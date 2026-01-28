@@ -4,7 +4,7 @@ Result<NameSpace*,parse_error> parse_name_space(Parser& parser)
     NameSpace* name_space = nullptr;
 
     // We have a namespace to parse
-    if(peek(parser,1).type == token_type::scope)
+    if(match(parser,token_type::scope,1))
     {
         auto strings_res = split_namespace(parser,peek(parser,0));
 
@@ -153,7 +153,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
             // array decl
             case token_type::sl_brace:
             {
-                while(peek(parser,0).type == token_type::sl_brace)
+                while(match(parser,token_type::sl_brace))
                 {
                     const auto err = consume(parser,token_type::sl_brace);
                     if(err)
@@ -162,7 +162,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                     }
 
                     // var size
-                    if(peek(parser,0).type == token_type::sr_brace)
+                    if(match(parser,token_type::sr_brace))
                     {
                         push_var(type->compound,make_compound_type(compound_type::arr_var_size));
                         const auto err = consume(parser,token_type::sr_brace);
@@ -175,7 +175,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
                     else 
                     {
                         // figure out this size later
-                        if(peek(parser,0).type == token_type::qmark)
+                        if(match(parser,token_type::qmark))
                         {
                             const auto qmark_err = consume(parser,token_type::qmark);
                             if(qmark_err)
@@ -287,7 +287,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
             }
 
             // Struct assign
-            if(match(parser,token_type::symbol) && peek(parser,1).type == token_type::left_c_brace)
+            if(match(parser,token_type::symbol) && match(parser,token_type::left_c_brace,1))
             {
                 auto initializer_res = parse_struct_initializer(parser);
 
@@ -349,7 +349,7 @@ ParserResult auto_decl(Parser &parser)
     }
 
     // Struct assign
-    if(match(parser,token_type::symbol) && peek(parser,1).type == token_type::left_c_brace)
+    if(match(parser,token_type::symbol) && match(parser,token_type::left_c_brace,1))
     {
         auto initializer_res = parse_struct_initializer(parser);
 
