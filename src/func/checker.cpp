@@ -113,24 +113,26 @@ Span<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args);
 Option<itl_error> check_format_arg(Interloper& itl, FuncCallNode* func_call, const FuncSig& sig, const Attribute& attr)
 {
     AstNode* node = func_call->args[attr.resolved_idx];
+    if(node->type != ast_type::string)
+    {
+        return;
+    }
 
     u32 args = 0;
     bool open = false;
 
-    if(node->type == ast_type::string)
+    StringNode* string_node = (StringNode*)node;
+    for(size_t i = 0; i < string_node->string.size; i++)
     {
-        StringNode* string_node = (StringNode*)node;
-        for(size_t i = 0; i < string_node->string.size; i++)
-        {
-            open = open || string_node->string[i] == '{';
+        open = open || string_node->string[i] == '{';
 
-            if(open && string_node->string[i] == '}')
-            {
-                args += 1;
-                open = false;
-            }
-        } 
-    }
+        if(open && string_node->string[i] == '}')
+        {
+            args += 1;
+            open = false;
+        }
+    } 
+    
 
     const auto any_args = sig_any_span(sig, func_call->args);
     if(any_args.size != args)
