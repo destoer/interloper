@@ -330,6 +330,17 @@ void sub_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
     emit_imm3<op_type::sub_imm>(itl,func,dst,src,imm);
 }
 
+
+RegSlot sub_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+
+    sub_imm(itl,func,tmp,src,imm);
+
+    return tmp;
+}
+
+
 void cmp_signed_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
     emit_imm3<op_type::cmpsgt_imm>(itl,func,dst,src,imm);

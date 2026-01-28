@@ -389,5 +389,5 @@ void run_tests(const char* flags)
     const u32 total_tests = PROGRAM_CORRECT_TEST_SIZE + PROGRAM_ERROR_TEST_SIZE;
     auto count = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count()) / 1000.0;
 
-    printf("Ran %d of %d tests %s in %f seconds\n",total_tests,tests_run,pass_name, count);
+    printf("Ran %d of %d tests %s in %f seconds\n",tests_run,total_tests,pass_name, count);
 }
