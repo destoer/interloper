@@ -75,9 +75,10 @@ Option<parse_error> consume(Parser &parser,token_type type)
     return option::none;
 }
 
-bool match(Parser &parser,token_type type)
+bool match(Parser &parser,token_type type, u32 offset)
 {
-    const auto t = parser.tok_idx >= parser.tokens.size? token_type::eof : parser.tokens[parser.tok_idx].type;
+    const u32 idx = parser.tok_idx + offset;
+    const auto t = idx >= parser.tokens.size? token_type::eof : parser.tokens[idx].type;
 
     return t == type;
 }
@@ -205,7 +206,7 @@ ParserResult parse_ret(Parser& parser, const Token& t)
     // return value is optional
     if(!match(parser,token_type::semi_colon))
     {
-        if(peek(parser,1).type == token_type::left_c_brace)
+        if(match(parser,token_type::left_c_brace,1))
         {
             auto initializer_res = parse_struct_initializer(parser);
 
@@ -320,7 +321,7 @@ ParserResult statement(Parser &parser)
                     const auto sym_tok = t;
 
                     // Struct assign
-                    if(peek(parser,1).type == token_type::symbol && peek(parser,2).type == token_type::left_c_brace)
+                    if(match(parser,token_type::symbol,1) && match(parser,token_type::left_c_brace,2))
                     {
                         (void)consume(parser,token_type::equal);
                         AstNode* left = ast_symbol(parser,nullptr,sym_tok.literal,sym_tok);
@@ -635,7 +636,7 @@ Result<Array<String>,parse_error> split_namespace_internal(Parser& parser, const
             }
 
             // Last token after :: is not to be treated as part of the namespace
-            if(peek(parser,1).type != token_type::scope && !full_namespace)
+            if(!match(parser,token_type::scope,1) && !full_namespace)
             {
                 goto done;
             }
@@ -1805,9 +1806,18 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             print_block(itl,&func->block, depth + 2);
 
-            for(TypeNode* type : func->return_type)
+            for(const FuncReturnVar& var : func->return_type)
             {
-                print_internal(itl,(AstNode*)type, depth + 1);
+                if(!var.name)
+                {
+                    print_internal(itl,(AstNode*)var.type, depth + 1);
+                }
+
+                else
+                {
+                    print_itl(itl,"%D%S",depth,var.name);
+                    print_internal(itl,(AstNode*)var.type, depth + 2);
+                }
             }
 
             break;

@@ -293,8 +293,8 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     // NOTE: void return's will have a void type
     if(count(node.return_type) == 1)
     {
-        itl.ctx.expr = (AstNode*)node.return_type[0];
-        auto type_res = get_complete_type(itl,node.return_type[0]);
+        itl.ctx.expr = (AstNode*)node.return_type[0].type;
+        auto type_res = get_complete_type(itl,node.return_type[0].type);
         if(!type_res)
         {
             return type_res.error();
@@ -315,8 +315,8 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     {
         for(u32 a = 0; a < count(node.return_type); a++)
         {
-            itl.ctx.expr = (AstNode*)node.return_type[a];
-            auto type_res = get_complete_type(itl,node.return_type[a]);
+            itl.ctx.expr = (AstNode*)node.return_type[a].type;
+            auto type_res = get_complete_type(itl,node.return_type[a].type);
             if(!type_res)
             {
                 return type_res.error();    

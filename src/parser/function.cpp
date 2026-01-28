@@ -133,7 +133,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
             f->va_args = true;
             f->args_name = lit_tok.literal;
 
-            // by definiton this must be the last arg!
+            // by definition this must be the last arg!
             if(!match(parser,token_type::right_paren))
             {
                 return parser_error(parser,parse_error::malformed_stmt,lit_tok,"va_args can only be placed as the last arg : got %s\n",
@@ -173,6 +173,8 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
         return *right_paren_err;
     }
 
+    b32 named_return = false;
+
     // tuple type
     if(match(parser,token_type::sl_brace))
     {
@@ -184,7 +186,34 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
             {
                 return parser_error(parser,parse_error::invalid_terminator,paren,"unterminated function declaration!\n");
             }
-            
+
+            FuncReturnVar var = {"",nullptr};
+
+            const bool cur_named_return = match(parser,token_type::colon,1);
+            if(named_return && !cur_named_return)
+            {
+                return parser_error(parser,parse_error::malformed_stmt,paren,"All return types must have a name or none\n");
+            }
+
+            if(cur_named_return)
+            {
+                if(!named_return && f->return_type)
+                {
+                    return parser_error(parser,parse_error::malformed_stmt,paren,"All return types must have a name or none\n");
+                }
+
+                named_return = true;                
+                if(!match(parser,token_type::symbol))
+                {
+                    return parser_error(parser,parse_error::malformed_stmt,paren,"Expected name in named return value\n");
+                }
+
+                const auto sym = next_token(parser);
+                var.name = sym.literal;
+
+                (void)consume(parser,token_type::colon);
+            }
+
             auto return_type_res = parse_type(parser);
 
             if(!return_type_res)
@@ -192,7 +221,8 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
                 return return_type_res.error();
             }
 
-            push_var(f->return_type,*return_type_res);
+            var.type = *return_type_res;
+            push_var(f->return_type,var);
 
             if(!match(parser,token_type::sr_brace))
             {
@@ -214,6 +244,21 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     // single type
     else if(!match(parser,token_type::left_c_brace) && !match(parser,token_type::semi_colon))
     {
+        FuncReturnVar var = {"",nullptr};
+
+        if(match(parser,token_type::colon,1))
+        {
+            if(!match(parser,token_type::symbol))
+            {
+                return parser_error(parser,parse_error::malformed_stmt,paren,"Expected name in named return value\n");
+            }
+
+            const auto sym = next_token(parser);
+            var.name = sym.literal;
+
+            (void)consume(parser,token_type::colon);
+        }
+
         auto return_type_res = parse_type(parser);
 
         if(!return_type_res)
@@ -221,7 +266,8 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
             return return_type_res.error();
         }
 
-        push_var(f->return_type,*return_type_res);
+        var.type = *return_type_res;
+        push_var(f->return_type,var);
     }
 
     // void
@@ -231,7 +277,8 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
         return_type->builtin = builtin_type::void_t;
         return_type->kind = type_node_kind::builtin;
 
-        push_var(f->return_type,return_type);
+        const FuncReturnVar var = {"",return_type};
+        push_var(f->return_type,var);
     }
 
     return f;

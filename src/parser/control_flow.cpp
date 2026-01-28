@@ -6,7 +6,7 @@ ParserResult parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
 
     // handle first stmt
     // decl 
-    if(peek(parser,1).type == token_type::colon)
+    if(match(parser,token_type::colon,1))
     {
         auto decl_res = declaration(parser,token_type::semi_colon);
         if(!decl_res)
@@ -18,7 +18,7 @@ ParserResult parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
     }
 
     // auto decl
-    else if(peek(parser,1).type == token_type::decl)
+    else if(match(parser,token_type::decl,1))
     {
         auto decl_res = auto_decl(parser);
         if(!decl_res)
@@ -210,7 +210,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
 ParserResult parse_for(Parser& parser, const Token& t)
 {
     // allow statement to wrapped a in a set of parens
-    const bool term_paren = peek(parser,0).type == token_type::left_paren;
+    const bool term_paren = match(parser,token_type::left_paren);
 
     // ignore the first paren
     if(term_paren)
@@ -225,11 +225,11 @@ ParserResult parse_for(Parser& parser, const Token& t)
     // check for range for
     // first look for tuple
     // [v, i] in arr
-    if(peek(parser,0).type == token_type::sl_brace)
+    if(match(parser,token_type::sl_brace))
     {
         // pointer in tuple
         // [@v, i] in arr
-        if(peek(parser,1).type == token_type::deref)
+        if(match(parser,token_type::deref,1))
         {
             return parse_for_range(parser,t,term_paren,true,true);
         }
@@ -243,14 +243,14 @@ ParserResult parse_for(Parser& parser, const Token& t)
 
     // potential pointer for array iter
     // just @v in arr
-    else if(peek(parser,0).type == token_type::deref)
+    else if(match(parser,token_type::deref))
     {
         return parse_for_range(parser,t,term_paren,false,true);
     }
 
     // check for idx range
     // i in 0 < size
-    else if(peek(parser,1).type == token_type::in_t)
+    else if(match(parser,token_type::in_t,1))
     {
         return parse_for_range(parser,t,term_paren,false,false);
     }
@@ -381,12 +381,12 @@ ParserResult parse_if(Parser& parser, const Token& t)
     
     while(!done)
     {
-        if(peek(parser,0).type == token_type::else_t)
+        if(match(parser,token_type::else_t))
         {
             (void)consume(parser,token_type::else_t);
 
             // we have an else if
-            if(peek(parser,0).type == token_type::if_t)
+            if(match(parser,token_type::if_t))
             {
                 (void)consume(parser,token_type::if_t);
 
