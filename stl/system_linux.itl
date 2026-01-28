@@ -17,6 +17,7 @@ func at_exit()
     // close_file(&stdout);
 }
 
+#attr(no_return)
 func exit(exit_code: s32)
 {
     at_exit();

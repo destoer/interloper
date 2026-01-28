@@ -115,7 +115,7 @@ Option<itl_error> check_format_arg(Interloper& itl, FuncCallNode* func_call, con
     AstNode* node = func_call->args[attr.resolved_idx];
     if(node->type != ast_type::string)
     {
-        return;
+        return option::none;
     }
 
     u32 args = 0;

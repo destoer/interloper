@@ -469,6 +469,7 @@ func crash_and_burn_args(fmt: const string, args: const rtti::Any[])
 }
 
 #attr(format = fmt)
+#attr(no_return)
 func crash_and_burn(fmt: const string, args: ...)
 {
     crash_and_burn_args(fmt,args);
@@ -486,6 +487,7 @@ func unimplemented_args(fmt: const string, args: const rtti::Any[])
 }
 
 #attr(format = fmt)
+#attr(no_return)
 func unimplemented(fmt: const string, args: ...)
 {
     unimplemented_args(fmt,args);

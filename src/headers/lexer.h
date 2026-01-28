@@ -26,6 +26,7 @@ struct ParserContext
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
 static constexpr u32 ATTR_FLAG = (1 << 1);
 static constexpr u32 ATTR_USE_RESULT = (1 << 2);
+static constexpr u32 ATTR_NO_RETURN = (1 << 3);
 
 enum class attr_type
 {

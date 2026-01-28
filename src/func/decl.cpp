@@ -89,6 +89,8 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         {
             return *sig_err;
         }
+
+        func.root->attr = func.sig.attribute;
     }
 
     // dummy func creation

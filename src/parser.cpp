@@ -481,10 +481,21 @@ void destroy_parser(Parser& parser)
 }
 
 
-Result<ParsedAttr,parse_error> parse_attr(Parser& parser, const Token& tok)
+bool match_cont_directive(Parser& parser, const String& name)
 {
-    ParsedAttr attr;
+    if(match(parser,token_type::hash) && match(parser,token_type::symbol,1))
+    {
+        (void)consume(parser,token_type::hash);
+        const auto name_tok = next_token(parser);
 
+        return name_tok.literal == name;
+    }
+
+    return false;
+}
+
+Option<parse_error> parse_attr_internal(Parser& parser, const Token& tok, ParsedAttr& attr)
+{
     const auto left_paren_err = consume(parser,token_type::left_paren);
     if(left_paren_err)
     {
@@ -516,6 +527,11 @@ Result<ParsedAttr,parse_error> parse_attr(Parser& parser, const Token& tok)
         attr.flags |= ATTR_USE_RESULT;
     }
     
+    else if(attr_name == "no_return")
+    {
+        attr.flags |= ATTR_NO_RETURN;
+    }
+
     else if(attr_name == "format")
     {
         if(!match(parser,token_type::equal) || !match(parser,token_type::symbol,1))
@@ -537,10 +553,23 @@ Result<ParsedAttr,parse_error> parse_attr(Parser& parser, const Token& tok)
         return parser_error(parser,parse_error::malformed_stmt,tok,"Unknown attr %s\n",attr_name.buf);
     }
 
-    const auto right_paren_err = consume(parser,token_type::right_paren);
-    if(right_paren_err)
+    return consume(parser,token_type::right_paren);
+}
+
+Result<ParsedAttr,parse_error> parse_attr(Parser& parser, const Token& tok)
+{
+    bool done = false;
+    ParsedAttr attr;
+
+    while(!done)
     {
-        return *right_paren_err;
+        const auto err = parse_attr_internal(parser,tok,attr);
+        if(err)
+        {
+            return *err;
+        }
+
+        done = !match_cont_directive(parser,"attr");
     }
 
     return attr;
@@ -609,7 +638,6 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 }
                 break;        
             }
-
 
             default:
             {
