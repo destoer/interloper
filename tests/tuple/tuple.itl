@@ -1,5 +1,6 @@
 
-func divide(v1: u32, v2: u32) [u32,bool]
+// Return values can be named
+func divide(v1: u32, v2: u32) [value: u32, error: bool]
 {
     if(v2 != 0)
     {

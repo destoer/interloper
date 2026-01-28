@@ -650,6 +650,11 @@ struct WhileNode
     AstBlock block;
 };
 
+struct FuncReturnVar
+{
+    String name;
+    TypeNode* type = nullptr;
+};
 
 struct FuncNode
 {
@@ -658,7 +663,7 @@ struct FuncNode
     String name;
     String filename;
 
-    Array<TypeNode*> return_type;
+    Array<FuncReturnVar> return_type;
     AstBlock block;
     Array<DeclNode*> args;
 
@@ -1245,7 +1250,7 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
 }
 
 void print_depth(int depth);
-bool match(Parser &parser,token_type type);
+bool match(Parser &parser,token_type type, u32 offset = 0);
 Option<parse_error> consume(Parser &parser,token_type type);
 Token peek(Parser &parser,u32 v);
 void prev_token(Parser &parser);

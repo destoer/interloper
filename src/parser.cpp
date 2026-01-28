@@ -75,9 +75,10 @@ Option<parse_error> consume(Parser &parser,token_type type)
     return option::none;
 }
 
-bool match(Parser &parser,token_type type)
+bool match(Parser &parser,token_type type, u32 offset)
 {
-    const auto t = parser.tok_idx >= parser.tokens.size? token_type::eof : parser.tokens[parser.tok_idx].type;
+    const u32 idx = parser.tok_idx + offset;
+    const auto t = idx >= parser.tokens.size? token_type::eof : parser.tokens[idx].type;
 
     return t == type;
 }
@@ -1805,9 +1806,18 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
             print_block(itl,&func->block, depth + 2);
 
-            for(TypeNode* type : func->return_type)
+            for(const FuncReturnVar& var : func->return_type)
             {
-                print_internal(itl,(AstNode*)type, depth + 1);
+                if(!var.name)
+                {
+                    print_internal(itl,(AstNode*)var.type, depth + 1);
+                }
+
+                else
+                {
+                    print_itl(itl,"%D%S",depth,var.name);
+                    print_internal(itl,(AstNode*)var.type, depth + 2);
+                }
             }
 
             break;
