@@ -46,6 +46,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/func/redefine_func",itl_error::redeclaration},
     {"tests/func/missing_return",itl_error::missing_return},
     {"tests/func/func_must_bind_fail",itl_error::unused_result},
+    {"tests/func/format_attr_fail",itl_error::invalid_statement},
 
 
     // control_flow

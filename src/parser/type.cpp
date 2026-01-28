@@ -38,7 +38,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
         return span_res.error();
     }
 
-    const auto alias_def = make_top_level_def(parser,*span_res,0);
+    const auto alias_def = make_top_level_def(parser,*span_res,{});
     add_type_definition(itl, type_def_kind::alias_t, alias_def, name, parser.context.cur_file,parser.context.cur_namespace);
     return option::none;
 }
@@ -76,7 +76,7 @@ Result<AliasNode*, parse_error> parse_alias_decl(Parser &parser)
     return alias_node;
 }
 
-Option<parse_error> struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
+Option<parse_error> struct_decl(Interloper& itl,Parser& parser, const ParsedAttr& attr)
 {
     const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
     const auto name = next_token(parser);
@@ -99,18 +99,18 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, u32 flags = 0)
 
     const auto struct_def = *res;
 
-    const auto def = make_top_level_def(parser,struct_def,flags);
+    const auto def = make_top_level_def(parser,struct_def,attr);
     add_type_definition(itl, type_def_kind::struct_t,def, name.literal, parser.context.cur_file,parser.context.cur_namespace);
 
     return option::none;
 }
 
-Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, u32 flags = 0)
+Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedAttr& attr)
 {
     const auto name = next_token(parser);
     StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.context.cur_file,name);
 
-    struct_node->attr_flags = flags;
+    struct_node->attr_flags = attr.flags;
 
     // Does this struct have a forced first member?
     if(match(parser,token_type::left_paren))
@@ -156,7 +156,7 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, u32 flags = 0
     return struct_node;
 }
 
-Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
+Option<parse_error> enum_decl(Interloper& itl,Parser& parser, const ParsedAttr &attr)
 {
     const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
 
@@ -182,13 +182,13 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, u32 flags)
 
     const auto enum_def = *res;
 
-    const auto def = make_top_level_def(parser,enum_def,flags);
+    const auto def = make_top_level_def(parser,enum_def,attr);
     add_type_definition(itl, type_def_kind::enum_t,def, name_tok.literal, parser.context.cur_file,parser.context.cur_namespace);
 
     return option::none;
 }
 
-Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser, u32 flags)
+Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &attr)
 {
     const auto name_tok = next_token(parser);
 
@@ -206,9 +206,9 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser, u32 flags)
         enum_node->type = *type_res;
     }
 
-    if((flags & ATTR_FLAG) && !enum_node->type)
+    if((attr.flags & ATTR_FLAG) && !enum_node->type)
     {
-        return parser_error(parser,parse_error::malformed_stmt,next_token(parser),"Flag enum must specify underlying intergeral type");       
+        return parser_error(parser,parse_error::malformed_stmt,next_token(parser),"Flag enum must specify underlying integral type");       
     }
 
     const auto left_c_brace_err = consume(parser,token_type::left_c_brace);
@@ -217,7 +217,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser, u32 flags)
         return *left_c_brace_err;
     }
 
-    enum_node->attr_flags = flags;
+    enum_node->attr_flags = attr.flags;
 
     // push each member till we hit the terminating brace
     while(!match(parser,token_type::right_c_brace))
@@ -233,7 +233,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser, u32 flags)
         EnumMemberDecl member;
         member.name = member_tok.literal;
 
-        // see if we have an initlizer
+        // see if we have an initializer
         if(match(parser,token_type::equal))
         {
             (void)consume(parser,token_type::equal);

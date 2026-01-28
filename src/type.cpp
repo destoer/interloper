@@ -78,7 +78,7 @@ void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, t
 }
 
 
-void add_type_definition(Interloper& itl, type_def_kind kind, const TopLevelDefiniton& type_def, const String& name, 
+void add_type_definition(Interloper& itl, type_def_kind kind, const TopLevelDefinition& type_def, const String& name, 
     const String& filename, NameSpace* name_space)
 {
     TypeDef* definition = alloc_type_decl<TypeDef>(itl);
@@ -332,11 +332,17 @@ Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
 }
 
 
+void destroy_attribute(ParsedAttr attribute)
+{
+    destroy_arr(attribute.attr);
+}
+
 void destroy_sig(FuncSig& sig)
 {
     destroy_arr(sig.return_type);
     destroy_arr(sig.args);
     destroy_arr(sig.pass_as_reg);
+    destroy_attribute(sig.attribute);
 }
 
 void destroy_func(Function& func)

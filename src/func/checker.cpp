@@ -88,7 +88,7 @@ Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,AstNode* expr)
 
 Option<itl_error> check_unbound_return(Interloper& itl, const FuncCall& call_info)
 {
-    if(call_info.sig.attr_flags & ATTR_USE_RESULT)
+    if(call_info.sig.attribute.flags & ATTR_USE_RESULT)
     {
         return compile_error(itl,itl_error::unused_result,"Result of function %S declared with attr use_result must be used",call_info.name);
     }
@@ -109,6 +109,37 @@ Option<itl_error> check_unbound_return(Interloper& itl, const FuncCall& call_inf
 
 Span<SymSlot> sig_user_span(const FuncSig& sig);
 Span<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args);
+
+Option<itl_error> check_format_arg(Interloper& itl, FuncCallNode* func_call, const FuncSig& sig, const Attribute& attr)
+{
+    AstNode* node = func_call->args[attr.resolved_idx];
+
+    u32 args = 0;
+    bool open = false;
+
+    if(node->type == ast_type::string)
+    {
+        StringNode* string_node = (StringNode*)node;
+        for(size_t i = 0; i < string_node->string.size; i++)
+        {
+            open = open || string_node->string[i] == '{';
+
+            if(open && string_node->string[i] == '}')
+            {
+                args += 1;
+                open = false;
+            }
+        } 
+    }
+
+    const auto any_args = sig_any_span(sig, func_call->args);
+    if(any_args.size != args)
+    {
+        return compile_error(itl,itl_error::invalid_statement,"Format string expects %d args got %d",args,any_args.size);
+    }
+    
+    return option::none;
+}
 
 TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bool result_bound)
 {
@@ -149,7 +180,6 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
     u32 passed_args = count(func_call->args);
 
     const auto user_args = sig_user_span(call_info.sig);
-
     if(call_info.sig.va_args)
     {
         if(!itl.rtti_enable)
@@ -183,6 +213,24 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
     {
         return compile_error(itl,itl_error::missing_args,"Function call expected %d args got %d",user_args.size,passed_args);
     }  
+
+    for(const auto& attr : call_info.sig.attribute.attr)
+    {
+        switch(attr.type)
+        {
+            case attr_type::fmt_t:
+            {
+                const auto fmt_err = check_format_arg(itl,func_call,call_info.sig,attr);
+                if(fmt_err)
+                {
+                    return *fmt_err;
+                }
+
+                break;
+            }
+        }
+    }
+
 
     // Type check args against the sig.
     for(u32 a = 0; a < user_args.size; a++)

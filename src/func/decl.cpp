@@ -26,7 +26,7 @@ void destroy_func_table(FunctionTable& func_table)
     destroy_allocator(func_table.arena);
 }
 
-void add_func(Interloper& itl, const String& name, NameSpace* name_space, const Option<TopLevelDefiniton>& parser_def)
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, const Option<TopLevelDefinition>& parser_def)
 {
     FunctionDef func_def;
 
@@ -88,11 +88,6 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         if(sig_err)
         {
             return *sig_err;
-        }
-        
-        if(func_def.root)
-        {
-            func.sig.attr_flags = func_def.root->attr_flags;
         }
     }
 
@@ -287,6 +282,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
 {
     // about to move to a different context
     auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
+    sig.attribute = node.attr;
 
     u32 arg_offset = 0;
 
@@ -332,6 +328,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     }
 
     const auto decl = node.args;
+    HashTable<String,u32> name_to_arg = make_table<String,u32>();
 
     // rip every arg
     for(u32 i = 0; i < count(decl); i++)
@@ -340,14 +337,46 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
         itl.ctx.expr = (AstNode*)a;
 
         const auto name = a->sym.name;
+        if(contains(name_to_arg,name))
+        {
+            destroy_table(name_to_arg);
+            return compile_error(itl,itl_error::redeclaration,"Arg %S has been declared twice",name);
+        }
+
+        add(name_to_arg,name,i);
+
+
         const auto type_res = get_complete_type(itl,a->type);
         if(!type_res)
         {
+            destroy_table(name_to_arg);
             return type_res.error();
         }
 
         add_sig_arg(itl,sig,name,*type_res,&arg_offset);
     }
+
+    for(auto& attr : sig.attribute.attr)
+    {
+        switch(attr.type)
+        {
+            case attr_type::fmt_t:
+            {
+                const auto arg_opt = lookup(name_to_arg,attr.var_name);
+                if(!arg_opt)
+                {
+                    destroy_table(name_to_arg);
+                    return compile_error(itl,itl_error::invalid_statement,"Could not find attr name in sig %S",attr.var_name);
+                }
+
+                attr.resolved_idx = *arg_opt;
+                break;
+            }
+        }
+    }
+
+    destroy_table(name_to_arg);
+
 
     // add va args
     if(node.va_args && itl.rtti_enable)

@@ -92,7 +92,8 @@ struct FuncSig
     b32 va_args = false;
     u32 hidden_args = 0;
     u32 call_stack_size = 0;
-    u32 attr_flags = 0;
+
+    ParsedAttr attribute;
 };
 
 
@@ -159,7 +160,7 @@ struct Function
 struct FunctionDef
 {
     FuncNode* root = nullptr;
-    TopLevelDefiniton parser_def;
+    TopLevelDefinition parser_def;
 
     // NOTE: we may not actually compile the function
     // we also don't want the memory to move when we insert

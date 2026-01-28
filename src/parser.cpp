@@ -95,13 +95,13 @@ builtin_type builtin_type_from_tok(const Token& tok)
 }
 
 
-TopLevelDefiniton make_top_level_def(Parser& parser, const Span<Token>& tokens, u32 flags)
+TopLevelDefinition make_top_level_def(Parser& parser, const Span<Token>& tokens, const ParsedAttr& attr)
 {
-    TopLevelDefiniton def;
+    TopLevelDefinition def;
     def.parsed = false;
     def.tokens = tokens;
     def.context = parser.context;
-    def.flags = flags;
+    def.attr = attr;
 
     return def;
 }
@@ -480,9 +480,10 @@ void destroy_parser(Parser& parser)
     UNUSED(parser);
 }
 
-Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
+
+Result<ParsedAttr,parse_error> parse_attr(Parser& parser, const Token& tok)
 {
-    u32 flags = 0;
+    ParsedAttr attr;
 
     const auto left_paren_err = consume(parser,token_type::left_paren);
     if(left_paren_err)
@@ -490,29 +491,45 @@ Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
         return *left_paren_err;
     }
 
-    const auto attr = next_token(parser);
+    const auto attr_name_tok = next_token(parser);
 
-    if(attr.type != token_type::symbol)
+    if(attr_name_tok.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,tok,"Expected name for attr got %s\n",tok_name(attr.type));
+        return parser_error(parser,parse_error::unexpected_token,tok,"Expected name for attr got %s\n",tok_name(attr_name_tok.type));
     }
 
-    const auto attr_name = attr.literal;
+    const auto attr_name = attr_name_tok.literal;
 
-    // TODO: change this to a pregenned hashtable if it starts getting big
+    // TODO: change this to a static hashtable if it starts getting big
     if(attr_name == "no_reorder")
     {
-        flags |= ATTR_NO_REORDER;
+        attr.flags |= ATTR_NO_REORDER;
     }
 
     else if(attr_name == "flag")
     {
-        flags |= ATTR_FLAG;
+        attr.flags |= ATTR_FLAG;
     }
 
     else if(attr_name == "use_result")
     {
-        flags |= ATTR_USE_RESULT;
+        attr.flags |= ATTR_USE_RESULT;
+    }
+    
+    else if(attr_name == "format")
+    {
+        if(!match(parser,token_type::equal) || !match(parser,token_type::symbol,1))
+        {
+            return parser_error(parser,parse_error::unexpected_token,tok,"Expected = <name> for format attr");
+        }
+
+        (void)consume(parser,token_type::equal);
+        const auto sym = next_token(parser);
+
+        Attribute attribute;
+        attribute.var_name = sym.literal;
+        attribute.type = attr_type::fmt_t;
+        push_var(attr.attr,attribute);
     }
 
     else
@@ -526,7 +543,7 @@ Result<u32,parse_error> parse_attr(Parser& parser, const Token& tok)
         return *right_paren_err;
     }
 
-    return flags;
+    return attr;
 }
 
 Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
@@ -543,14 +560,14 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
 
     if(name == "attr")
     {
-        const auto flags_res = parse_attr(parser,next);
+        const auto attr_res = parse_attr(parser,next);
 
-        if(!flags_res)
+        if(!attr_res)
         {
-            return flags_res.error();
+            return attr_res.error();
         }
 
-        const u32 flags = *flags_res;
+        const auto attr = *attr_res;
 
         const auto stmt = peek(parser,0);
 
@@ -561,7 +578,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
             {
                 (void)consume(parser,token_type::struct_t);
                 
-                const auto struct_decl_err = struct_decl(itl,parser,flags);
+                const auto struct_decl_err = struct_decl(itl,parser,attr);
                 if(struct_decl_err)
                 {
                     return struct_decl_err;
@@ -573,7 +590,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
             {
                 (void)consume(parser,token_type::enum_t);
 
-                const auto enum_decl_err = enum_decl(itl,parser,flags);
+                const auto enum_decl_err = enum_decl(itl,parser,attr);
                 if(enum_decl_err)
                 {
                     return enum_decl_err;
@@ -585,7 +602,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
             {
                 (void)consume(parser,token_type::func);
 
-                const auto func_err = func_decl(itl,parser,flags);
+                const auto func_err = func_decl(itl,parser,attr);
                 if(func_err)
                 {
                     return func_err;
@@ -751,7 +768,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         // function declartion
         case token_type::func:
         {
-            const auto func_err = func_decl(itl,parser,0);
+            const auto func_err = func_decl(itl,parser,{});
             if(func_err)
             {
                 return func_err;
@@ -761,7 +778,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
         case token_type::struct_t:
         {
-            const auto struct_err = struct_decl(itl,parser);
+            const auto struct_err = struct_decl(itl,parser,{});
             if(struct_err)
             {
                 return struct_err;
@@ -771,7 +788,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
         case token_type::enum_t:
         {
-            const auto enum_err = enum_decl(itl,parser,0);
+            const auto enum_err = enum_decl(itl,parser,{});
             if(enum_err)
             {
                 return enum_err;
@@ -878,7 +895,7 @@ void reset_parser(Parser& parser, const String& filename)
     parser.col = 0;
 }
 
-void switch_parse_def(Parser& parser, TopLevelDefiniton& def)
+void switch_parse_def(Parser& parser, TopLevelDefinition& def)
 {
     parser.tokens = def.tokens;
     parser.context = def.context;
@@ -1025,7 +1042,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     for(auto& func_def : itl.func_table.table)
     {
         switch_parse_def(itl.parser,func_def.parser_def);
-        const auto parse_res = parse_func_decl(itl.parser,func_def.parser_def.flags);
+        const auto parse_res = parse_func_decl(itl.parser,func_def.parser_def.attr);
         if(!parse_res)
         {
             return parse_res.error();
@@ -1043,7 +1060,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
         {
             case type_def_kind::enum_t:
             {
-                const auto parse_res = parse_enum_decl(itl.parser,type_def->type_def.flags);
+                const auto parse_res = parse_enum_decl(itl.parser,type_def->type_def.attr);
                 if(!parse_res)
                 {
                     return parse_res.error();
@@ -1055,7 +1072,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
             
             case type_def_kind::struct_t:
             {
-                const auto parse_res = parse_struct_decl(itl.parser,type_def->type_def.flags);
+                const auto parse_res = parse_struct_decl(itl.parser,type_def->type_def.attr);
                 if(!parse_res)
                 {
                     return parse_res.error();
@@ -1797,7 +1814,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             FuncNode* func = (FuncNode*)root;
 
-            printf("Function %s(%x), va_args: %s\n",func->name.buf,func->attr_flags,func->args_name.buf);
+            printf("Function %s(%x), va_args: %s\n",func->name.buf,func->attr.flags,func->args_name.buf);
 
             for(DeclNode* decl : func->args)
             {

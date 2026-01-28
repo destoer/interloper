@@ -433,6 +433,7 @@ func format_args(fmt : const string, args : const rtti::Any[]) String
     return string;
 }
 
+#attr(format = fmt)
 func format(fmt: const string, args : ...) String
 {
     return format_args(fmt,args);
@@ -444,11 +445,13 @@ func println_args(fmt : const string, args : const rtti::Any[])
     linefeed();
 }
 
+#attr(format = fmt)
 func print(fmt: const string, args : ...)
 {
     print_args(fmt,args);
 }
 
+#attr(format = fmt)
 func println(fmt: const string, args : ...)
 {
     print_args(fmt,args);
@@ -465,6 +468,7 @@ func crash_and_burn_args(fmt: const string, args: const rtti::Any[])
     exit(2);
 }
 
+#attr(format = fmt)
 func crash_and_burn(fmt: const string, args: ...)
 {
     crash_and_burn_args(fmt,args);
@@ -481,6 +485,7 @@ func unimplemented_args(fmt: const string, args: const rtti::Any[])
     exit(2);
 }
 
+#attr(format = fmt)
 func unimplemented(fmt: const string, args: ...)
 {
     unimplemented_args(fmt,args);

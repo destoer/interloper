@@ -190,9 +190,9 @@ struct TypeDef
 
     String filename;
     type_def_kind kind;
-    TopLevelDefiniton type_def;
+    TopLevelDefinition type_def;
 
-    // the defintion root -> depends on the type!
+    // the definition root -> depends on the type!
     AstNode* root = nullptr;
 };
 

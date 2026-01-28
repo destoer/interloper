@@ -1,0 +1,6 @@
+
+func main() s32
+{
+    std::println("Missing {}");
+    return 0;
+}

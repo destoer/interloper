@@ -1,4 +1,4 @@
-void add_func(Interloper& itl, const String& name, NameSpace* name_space, const Option<TopLevelDefiniton>& parser_def);
+void add_func(Interloper& itl, const String& name, NameSpace* name_space, const Option<TopLevelDefinition>& parser_def);
 
 ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 {
@@ -284,7 +284,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     return f;
 }
 
-Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, u32 flags)
+Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, const ParsedAttr& attr)
 {
     // what is the name of our function?
     const auto func_name = next_token(parser);
@@ -299,7 +299,7 @@ Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, u32 flags)
     }
 
     FuncNode* func = *func_res;
-    func->attr_flags = flags;
+    func->attr = attr;
 
     auto block_err = block_ast(parser,&func->block);
     if(block_err)
@@ -311,7 +311,7 @@ Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, u32 flags)
     return func;
 }
 
-Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
+Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr &attr)
 {
     const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
 
@@ -336,7 +336,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, u32 flags)
 
     const auto func_def = *res;
 
-    const auto def = make_top_level_def(parser,func_def,flags);
+    const auto def = make_top_level_def(parser,func_def,attr);
     add_func(itl,func_name.literal,parser.context.cur_namespace,def);
 
     return option::none;

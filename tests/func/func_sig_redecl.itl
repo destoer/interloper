@@ -1,0 +1,9 @@
+
+func square(x: s32, x: s32) {
+    return x * x;
+}
+
+func main() s32
+{
+    return square(1,2);
+}

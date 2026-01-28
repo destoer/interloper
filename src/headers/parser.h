@@ -669,7 +669,7 @@ struct FuncNode
 
     b32 va_args = false;
     String args_name;
-    u32 attr_flags = 0;
+    ParsedAttr attr;
 };
 
 struct RetNode
@@ -689,11 +689,6 @@ enum class [[nodiscard]] parse_error
     itl_error,
     lexer_error,
 };
-
-static constexpr u32 ATTR_NO_REORDER = (1 << 0);
-static constexpr u32 ATTR_FLAG = (1 << 1);
-static constexpr u32 ATTR_USE_RESULT = (1 << 2);
-
 
 using ParserResult = Result<AstNode*,parse_error>;
 
