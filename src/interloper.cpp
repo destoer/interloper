@@ -88,6 +88,7 @@ void setup_type_table(Interloper& itl)
     itl.const_usize_type = make_builtin(itl,builtin_type::u64_t,true);
     
     itl.ssize_type = make_builtin(itl,builtin_type::s64_t);
+    itl.const_ssize_type = make_builtin(itl,builtin_type::s64_t,true);
 
     itl.void_type = make_builtin(itl,builtin_type::void_t);
 

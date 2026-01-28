@@ -1,3 +1,40 @@
+TypeResult check_signed_fit(Interloper& itl, Type* unsigned_type)
+{
+    if(is_builtin_type(unsigned_type,builtin_type::u64_t))
+    {
+        return compile_error(itl,itl_error::int_type_error,"Cannot compare s64 and u64");
+    }
+
+    // Can probably constraint this more but just be lazy
+    return itl.ssize_type;
+}
+
+TypeResult find_in_idx(Interloper& itl, Type* ltype, Type* rtype, bool is_inc)
+{
+    const bool lsign = is_signed(ltype);
+    const bool rsign = is_signed(rtype);
+
+    if(lsign != rsign)
+    {
+        return check_signed_fit(itl,lsign? rtype : ltype);
+    }
+
+    if(!is_inc)
+    {
+        const auto largest = type_size(itl,ltype) > type_size(itl,rtype)? ltype : rtype;
+
+        if(is_builtin_type(largest,builtin_type::u64_t))
+        {
+            return compile_error(itl,itl_error::int_type_error,"Cannot compare s64 and u64 forced decrement");
+        }
+
+        return itl.ssize_type;
+    }
+
+
+    return lsign? itl.ssize_type : itl.usize_type;
+}
+
 Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRangeNode* range,range_cmp_op cmp_op, bool is_inc)
 {
     range->cmp_op = cmp_op;
@@ -14,9 +51,20 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
 
     CmpNode* cmp = (CmpNode*)range->cond;
 
-    // TODO: The sizing of thee integer on this needs to look at both conds and fit it to range.
-    // make index the same sign as the end stmt
-    const auto sym_res = add_symbol(itl,range->sym_one.name,is_inc? itl.usize_type : itl.ssize_type);
+
+    if(!is_integer(cmp->left->expr_type) || !is_integer(cmp->right->expr_type))
+    {
+        return compile_error(itl,itl_error::bool_type_error,"expected integer's in range condition got %t %t",
+            cmp->left->expr_type,cmp->right->expr_type);
+    }    
+
+    const auto index_res = find_in_idx(itl,cmp->left->expr_type,cmp->right->expr_type,is_inc);
+    if(!index_res)
+    {
+        return index_res.error();
+    }
+
+    const auto sym_res = add_symbol(itl,range->sym_one.name,*index_res);
     if(!sym_res)
     {
         return sym_res.error();
@@ -25,11 +73,6 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
     range->sym_one.slot = *sym_res;
     range->sym_two.slot = {INVALID_HANDLE};
 
-    if(!is_integer(cmp->left->expr_type) || !is_integer(cmp->right->expr_type))
-    {
-        return compile_error(itl,itl_error::bool_type_error,"expected integer's in range condition got %t %t",
-            cmp->left->expr_type,cmp->right->expr_type);
-    }    
 
     return type_check_block(itl,func,range->block);
 }

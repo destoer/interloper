@@ -60,7 +60,9 @@ struct Interloper
 
     Type* usize_type = nullptr;
     Type* const_usize_type = nullptr;
+
     Type* ssize_type = nullptr;
+    Type* const_ssize_type = nullptr;
     
     Type* void_type = nullptr;
     Type* byte_ptr_type = nullptr;
