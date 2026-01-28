@@ -240,6 +240,11 @@ Option<itl_error> type_check_return(Interloper& itl, Function& func, AstNode* st
             func.name,return_count,count(func.sig.return_type));
     }
 
+    if(return_count == 1 && ret_node->expr[0]->type == ast_type::no_init) 
+    {
+        return compile_error(itl,itl_error::invalid_expr,"Single returns must be initialized");   
+    }
+
     for(u32 r = 0; r < return_count; r++)
     {
         const auto init_err = type_check_init_expr(itl,func.sig.return_type[r],ret_node->expr[r]);

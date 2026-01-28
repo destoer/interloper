@@ -149,7 +149,7 @@ func string_to_double(str: const string) [result,f64]
 {
     if !str
     {
-        return result::err, 0.0;
+        return result::err, {?};
     }
 
     start_idx := 0;
@@ -173,7 +173,7 @@ func string_to_double(str: const string) [result,f64]
             // This should not occur twice
             if(fractional)
             {
-                return result::err, 0.0;
+                return result::err, {?};
             }
 
             fractional = true;

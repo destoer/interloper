@@ -8,7 +8,6 @@ import <log>
 import <time>
 import <system>
 
-import <mem>
 import <alloc>
 import <array>
 import <hash_table>

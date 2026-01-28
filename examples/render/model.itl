@@ -8,26 +8,26 @@ struct Model
     faces: Triangle[];
 }
 
-func scan_verticies(line: const string[]) [result,std::Vec3F]
+func scan_verticies(line: const string[]) [res: result,vertices: std::Vec3F]
 {
     ans: std::Vec3F = {?};
 
     [res, ans.x] := std::string_to_double(line[1]);
     if res == result::err
     {
-        return res, ans;
+        return res, {?};
     }
 
     [res, ans.y] = std::string_to_double(line[2]);
     if res == result::err
     {
-        return res, ans;
+        return res, {?};
     }
 
     [res, ans.z] = std::string_to_double(line[3]);
     if res == result::err
     {
-        return res, ans;
+        return res, {?};
     }
 
     return result::ok, ans;
@@ -90,7 +90,7 @@ func load_model(path: const string) [result, Model]
     if file_err
     {
         log::error(TAG,"Could not open model file {}",path);
-        return result::err, model;
+        return result::err, {?};
     }
 
     rc := std::file_read_res::success;
@@ -113,7 +113,7 @@ func load_model(path: const string) [result, Model]
                 if split.len != 4
                 {
                     log::error(TAG,"Invalid number of args for vertices {}: {}",split.len, str);
-                    return result::err, model;
+                    return result::err, {?};
                 }
 
                 // TODO: check arg len
@@ -123,7 +123,7 @@ func load_model(path: const string) [result, Model]
                 if err == result::err 
                 {
                     log::error(TAG,"Format error in model {}",str);
-                    return result::err, model;
+                    return result::err, {?};
                 }
             }
 
@@ -132,13 +132,13 @@ func load_model(path: const string) [result, Model]
                 if split.len != 4
                 {
                     log::error(TAG,"Invalid number of args for faces {}: {}",split.len,str);
-                    return result::err, model;
+                    return result::err, {?};
                 }
 
                 if scan_face(&model_faces,&verticies,split) == result::err
                 {
                     log::error(TAG,"Vertex index out of range: {}",str,std::count_array(&verticies));
-                    return result::err, model;
+                    return result::err, {?};
                 }
             }
         }
@@ -152,7 +152,7 @@ func load_model(path: const string) [result, Model]
     if !model.faces
     {
         log::error(TAG,"Model has no faces!");
-        return result::err, model;   
+        return result::err, {?};   
     }
 
     log::debug(TAG,"Loaded model: {} of {} faces",path,model.faces.len);

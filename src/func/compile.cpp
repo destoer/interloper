@@ -61,6 +61,12 @@ void compile_return(Interloper &itl,Function &func, AstNode* stmt)
     {
         for(u32 r = 0; r < count(func.sig.return_type); r++)
         {
+            // Do nothing
+            if(ret_node->expr[r]->type == ast_type::no_init)
+            {
+                continue;
+            }
+
             const auto src = compile_oper(itl,func,ret_node->expr[r]);
             const TypedReg ptr = {make_sym_reg_slot(func.sig.args[r]),func.sig.return_type[r]};
             do_ptr_store(itl,func,src,ptr);
