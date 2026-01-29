@@ -39,6 +39,18 @@ func test_mat()
 
 }
 
+func test_trig()
+{
+    std::assert_float_eq(std::sin(66.0),0.9135,"sin(66)");
+    std::assert_float_eq(std::cos(66.0),0.4067,"cos(66)");
+
+    std::assert_float_eq(std::cos(361.0),0.9998,"cos(361)");
+    std::assert_float_eq(std::sin(361.0),0.0174,"sin(361)");
+
+    std::assert_float_eq(std::cos(-24.0),0.9135,"cos(-24)");
+    std::assert_float_eq(std::sin(-24.0),-0.4067,"sin(-24)");
+}
+
 func test_tri()
 {
     tri1: std::Vec2F[3] = {{10.0, 70.0},   {50.0, 160.0},  {70.0, 80.0}}; 
@@ -53,6 +65,7 @@ func main() s32
 {
     test_vec();
     test_tri();
+    test_trig();
 
     return 0;
 }

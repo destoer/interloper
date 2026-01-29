@@ -39,6 +39,18 @@ func assert_log(cond: bool, fmt: const string, args: ...)
     }
 }
 
+func assert_float_eq(ans: f64, expected: f64, fmt: const string, args: ...)
+{
+    if(!float_eq(ans,expected))
+    {
+        std::print("Assert failed: ");
+        println_args(fmt,args);
+        std::println("{} != {}",ans,expected);
+        exit(1);
+    }
+}
+
+
 func assert(cond : bool)
 {
     if(!cond)
