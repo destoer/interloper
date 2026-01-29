@@ -395,7 +395,27 @@ func print_arg(file: File@, arg : rtti::Any, specifier : c8)
 
         case rtti::type_class::struct_t:
         {
-            unimplemented("struct print");
+            struct_type := cast(const rtti::StructType@,type);
+            structure := struct_type.structure;
+
+            fprint(file,"{} {",structure.name);
+
+            any: rtti::Any = {arg.data,cast_ref(NULL),true};
+
+            for [member, i] in structure.member {
+                fprint(file,"{}: ",member.name);
+
+                any.data = &arg.data[member.offset];
+                any.type = member.type;
+                print_arg(file,any,specifier);
+
+
+                if i != structure.member.len - 1 {
+                    write_string_file(file,", ");
+                }
+            }
+
+            write_string_file(file,"}");
         }
 
         case rtti::type_class::enum_t:
@@ -427,9 +447,9 @@ func fprint_args(file: File@, fmt : const string, args : const rtti::Any[])
     {
         char := fmt[i];
 
-        if(char == '{')
+        if(char == '{' && fmt.len > i + 1)
         {
-            if(fmt.len <= i + 1 || arg_count == args.len)
+            if(arg_count == args.len)
             {
                 crash_and_burn("ran out of args in print()");
             }

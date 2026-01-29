@@ -24,6 +24,8 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
 
     const bool stored_extern = !is_trivial_copy(reg.type);
 
+    // TODO: Use a better switch on this.
+
     // goes directly in the pointer
     if(!stored_extern)
     {
@@ -40,6 +42,12 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
         do_addr_store(itl,func,arr_ptr,any_data_addr);
     }
 
+    else if(is_struct(reg.type))
+    {
+        // store data
+        do_addr_store(itl,func,reg,any_data_addr);  
+    }
+
     else
     {
         compile_panic(itl,itl_error::invalid_expr,"Compile any for unhandled type: %t",reg.type);
@@ -51,8 +59,6 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
 
     const auto stored_extern_reg = TypedReg { mov_imm_res(itl,func,stored_extern), itl.bool_type };
     do_addr_store(itl,func,stored_extern_reg,any_stored_extern_addr);
-
-
 }
 
 
