@@ -77,7 +77,7 @@ struct ArrayType (type : const Type)
     sub_size : const u32;
 }
 
-struct Member 
+struct StructMember 
 {
     name: const string;
     offset: const usize;
@@ -87,17 +87,28 @@ struct Member
 struct Struct
 {
     name: const string;
-    members: const Member[];
+    member: const StructMember[];
 }
 
 struct StructType (type : const Type)
 {
-    structure: Struct@;
+    structure: const Struct@;
+}
+
+struct EnumMember
+{
+    name: const String;
+}
+
+struct Enum
+{
+    name: const String;
+    member: const EnumMember[];
 }
 
 struct EnumType (type : const Type)
 {
-    enum_idx : const u32;
+    enumeration: const Enum@;
 }
 
 struct Any
