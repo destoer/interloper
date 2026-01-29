@@ -400,7 +400,20 @@ func print_arg(file: File@, arg : rtti::Any, specifier : c8)
 
         case rtti::type_class::enum_t:
         {
-            unimplemented("enum print");
+            enum_type := cast(const rtti::EnumType@,type);
+            enumeration := enum_type.enumeration;
+
+            member_opt := rtti::find_member(enumeration,rtti::enum_idx_from_any(arg));
+            if member_opt == NULL
+            {
+                fprint(file,"{}::{}",enumeration.name,"unknown_member");
+            }
+
+            else
+            {
+                member := cast_ref(member_opt);
+                fprint(file,"{}::{}",enumeration.name,member.name);
+            }
         }
     }
 }
@@ -445,6 +458,12 @@ func fprint_args(file: File@, fmt : const string, args : const rtti::Any[])
             putchar_file(file, char);
         }
     }
+}
+
+#attr(format = fmt)
+func fprint(file: File@,fmt: const string, args: ...)
+{  
+    fprint_args(file,fmt,args);
 }
 
 func print_args(fmt : const string, args : const rtti::Any[])
