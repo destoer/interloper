@@ -7,6 +7,26 @@ func check_builtin_type(any : rtti::Any, expected : rtti::builtin_type) bool
     return rtti::is_builtin_type(type,expected);
 }
 
+func check_enum_type(any: rtti::Any, expected_name: const string, expected_member: const string) bool
+{
+    if any.type.kind != rtti::type_class::enum_t
+    {
+        return false;
+    }
+
+    enum_type := cast(const rtti::EnumType@,any.type);
+    member_opt := rtti::find_member(enum_type.enumeration,rtti::enum_idx_from_any(any));
+
+    if !member_opt 
+    {
+        return false;
+    }
+
+    member := cast_ref(member_opt);
+
+    return enum_type.enumeration.name == expected_name && member.name == expected_member;
+}
+
 func check_builtin() bool
 {
     res1 := check_builtin_type(cast(u32,1),rtti::builtin_type::u32_t);
@@ -34,15 +54,18 @@ func check_builtin() bool
     return res;
 }
 
+func check_enum() bool
+{
+    return check_enum_type(result::ok,"result","ok");
+}
+
 func main() s32
 {
     res1 := check_builtin();
+    res2 := check_enum();
     // res2 := check_pointer();
     // res3 := check_array();
 
-    res := res1;
-
-    ans : s32 = cast(u32,res);
-
-    return ans;
+    ans := res1 && res2;
+    return cast(s32,ans);
 }
