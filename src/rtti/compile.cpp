@@ -57,8 +57,11 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
 
         case type_class::struct_t:
         {
+            const StructAddr struct_addr = {make_addr(reg.slot,0)};
+            const auto struct_ptr = TypedReg{addrof_res(itl,func,struct_addr), itl.byte_ptr_type};
+
             // store data
-            do_addr_store(itl,func,reg,any_data_addr);  
+            do_addr_store(itl,func,struct_ptr,any_data_addr);  
             stored_extern = true;
             break;
         }
@@ -130,10 +133,8 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
             // alloc the struct size for our copy
             alloc_stack(itl,func,stack_size);
 
-            const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-
             // need to save SP as it will get pushed last
-            const RegSlot dst_ptr = copy_reg(itl,func,SP_SLOT);
+            const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
             const auto dst_addr = make_pointer_addr(dst_ptr,0);
 
             const auto src_addr = make_struct_addr(arg_reg.slot,0);
@@ -158,8 +159,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
         // alloc the struct size for our copy
         alloc_stack(itl,func,stack_size);
 
-        const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-        const auto dst_addr = make_pointer_addr(SP_SLOT,0);
+        const auto dst_addr = make_pointer_addr(make_spec_reg_slot(spec_reg::sp),0);
         make_any(itl,func,dst_addr,arg_reg);
     }
 

@@ -280,17 +280,6 @@ static constexpr u32 VLA_SIZE = GPR_SIZE * 2;
 // NOTE: These are pulled from the defs in the type.itl file rather than having the compiler insert them
 // so that any struct differences as a result of compile target is handled for us
 
-// TODO: im quite sure for caching compound types
-// we need to have a trie with a node holding something like
-/*
-struct TypeCacheNode
-{
-    Type* type;
-    PoolSlot slot;
-}
-
-*/
-
 struct TypeTrieNode
 {
     PoolSlot slot = {INVALID_HANDLE};

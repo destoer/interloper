@@ -248,11 +248,24 @@ func char_from_any(any : const Any) c8
 }
 
 
-func find_member(enumeration: const Enum@, value: u32) name: const EnumMember?
+func find_enum_member(enumeration: const Enum@, value: u32) name: const EnumMember?
 {
     for @member in enumeration.member
     {
         if member.value == value
+        {
+            return member;
+        }
+    }
+
+    return NULL;
+}
+
+func find_struct_member(structure: const Struct@, name: const string) name: const StructMember?
+{
+    for @member in structure.member
+    {
+        if member.name == name
         {
             return member;
         }

@@ -414,6 +414,6 @@ Span<SymSlot> sig_user_span(const FuncSig& sig)
 
 Span<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args)
 {
-    const u32 user_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
-    return make_span(args, user_arg_len, count(args) - user_arg_len);      
+    const u32 any_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
+    return make_span(args, any_arg_len, count(args) - any_arg_len);      
 }
