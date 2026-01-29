@@ -132,6 +132,7 @@ Option<itl_error> cache_rtti_structs(Interloper& itl)
     StructCacheReq any_cache_req = make_struct_cache_req(rtti_name_space,"Any",&rtti.any_idx,&rtti.any_struct_size);
     add_member_cache_req(any_cache_req,"data",&rtti.any_data_offset);
     add_member_cache_req(any_cache_req,"type",&rtti.any_type_offset);
+    add_member_cache_req(any_cache_req,"stored_extern",&rtti.any_stored_extern_offset);
 
     const auto any_err = cache_structure(itl,any_cache_req);
     if(!!any_err)

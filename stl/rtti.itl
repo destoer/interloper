@@ -89,18 +89,19 @@ struct EnumType (type : const Type)
 
 struct Any
 {
-    // NOTE: for types < GPR_SIZE they are written directly into the pointer
-    // use the helper functions to get at the data
     data : const byte@;
-
     type : const Type@;
+
+    // Data is stored at the pointer not in it.
+    stored_extern: bool;
 }
 
 // struct for generic vla
+#attr(no_reorder)
 struct Vla
 {
     data : const byte@;
-    len : u64;
+    len : usize;
 }
 
 func is_builtin(type: const Type@) bool
@@ -167,7 +168,24 @@ func is_array(type : const Type@) bool
 
 func int_from_any(any : const Any) u64
 {
-    return cast(u64,any.data);
+    if !any.stored_extern
+    {
+        return cast(u64,any.data);
+    }
+
+    // Memcpy it out from the memory
+    size: usize = sizeof_type(usize);
+
+    // Clip to better approximation if its a builtin
+    if(is_builtin(any.type))
+    {
+        builtin := cast_builtin(any.type);
+        size = builtin.size;
+    }
+    
+    ans: u64;
+    std::memcpy(&ans,any.data,size);
+    return ans;
 }
 
 func float_from_any(any : const Any) f64

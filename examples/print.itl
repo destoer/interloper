@@ -28,6 +28,9 @@ func main() s32
 
     std::print("{} : {} : {} : {} : {}\n",5.5 + 2.25,15.5,-182.0,0.125,135.5238975982375352532);
 
+    int_array: u32[?] = {1,2,3,4};
+    std::println("{}",int_array);
+
     //invalid print
     //std::print("{} : {}\n","boop");
 

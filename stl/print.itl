@@ -349,9 +349,7 @@ func print_arg(file: File@, arg : rtti::Any, specifier : c8)
 
                 else
                 {
-                    v := rtti::int_from_any(arg);
-
-                    char_ptr : const c8@ = cast(const c8@,v);
+                    char_ptr : const c8@ = cast(const c8@,arg.data);
 
                     buffer: const string = {char_ptr,array_type.size};
                     write_string_file(file, buffer);
@@ -360,7 +358,38 @@ func print_arg(file: File@, arg : rtti::Any, specifier : c8)
 
             else
             {
-                unimplemented("array print");
+                any: rtti::Any = {cast_ref(NULL),array_type.contained_type,true};
+                len: usize = 0;
+
+   
+                if(rtti::is_runtime_size(array_type.size))
+                {
+                    vla := cast(rtti::Vla@,arg.data);
+                    any.data = vla.data;
+                    len = vla.len;
+                }
+
+                else
+                {
+                    any.data = arg.data;
+                    len = array_type.size;
+                }
+
+                write_string_file(file,"[");
+
+                for i in 0 < len 
+                {
+                    print_arg(file,any,specifier);
+
+                    if i != len - 1
+                    {
+                        write_string_file(file,", ");
+                    }
+
+                    any.data += array_type.sub_size;
+                }
+
+                write_string_file(file,"] ");
             }
         }
 

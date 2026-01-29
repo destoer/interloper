@@ -22,11 +22,13 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
     auto any_data_addr = TypedAddr{addr, itl.byte_ptr_type};
     any_data_addr.addr_slot.addr.offset = base_offset + rtti.any_data_offset;
 
+    const bool stored_extern = !is_trivial_copy(reg.type);
+
     // goes directly in the pointer
-    if(is_trivial_copy(reg.type))
+    if(!stored_extern)
     {
         // store data
-        do_addr_store(itl,func,reg,any_data_addr);              
+        do_addr_store(itl,func,reg,any_data_addr);
     } 
 
     // allready in memory just store a the pointer to it
@@ -42,6 +44,15 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
     {
         compile_panic(itl,itl_error::invalid_expr,"Compile any for unhandled type: %t",reg.type);
     }
+
+    // store extern flag
+    auto any_stored_extern_addr = TypedAddr{addr, itl.byte_ptr_type};
+    any_stored_extern_addr.addr_slot.addr.offset = base_offset + rtti.any_stored_extern_offset;
+
+    const auto stored_extern_reg = TypedReg { mov_imm_res(itl,func,stored_extern), itl.bool_type };
+    do_addr_store(itl,func,stored_extern_reg,any_stored_extern_addr);
+
+
 }
 
 
