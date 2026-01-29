@@ -126,50 +126,99 @@ Option<itl_error> cache_structure(Interloper& itl, StructCacheReq& req)
 Option<itl_error> cache_rtti_structs(Interloper& itl)
 {
     auto& rtti = itl.rtti_cache;
-    
+    rtti.enum_type_cache = make_table<u32,TypeTrieNode>();
+    rtti.struct_type_cache = make_table<u32,TypeTrieNode>();
+
     NameSpace* rtti_name_space = find_name_space(itl,"rtti");
 
-    StructCacheReq any_cache_req = make_struct_cache_req(rtti_name_space,"Any",&rtti.any_idx,&rtti.any_struct_size);
+    StructCacheReq any_cache_req = make_struct_cache_req(rtti_name_space,"Any",&rtti.any_idx,&rtti.any_size);
     add_member_cache_req(any_cache_req,"data",&rtti.any_data_offset);
     add_member_cache_req(any_cache_req,"type",&rtti.any_type_offset);
     add_member_cache_req(any_cache_req,"stored_extern",&rtti.any_stored_extern_offset);
 
     const auto any_err = cache_structure(itl,any_cache_req);
-    if(!!any_err)
+    if(any_err)
     {
         return any_err;
     }
 
-    StructCacheReq builtin_cache_req = make_struct_cache_req(rtti_name_space,"BuiltinType",nullptr,&rtti.builtin_type_struct_size);
+    StructCacheReq builtin_cache_req = make_struct_cache_req(rtti_name_space,"BuiltinType",nullptr,&rtti.builtin_type_size);
     add_member_cache_req(builtin_cache_req,"builtin",&rtti.builtin_type_offset);
 
     const auto builtin_err = cache_structure(itl,builtin_cache_req);
-    if(!!builtin_err)
+    if(builtin_err)
     {
         return builtin_err;
     }
 
-    StructCacheReq pointer_cache_req = make_struct_cache_req(rtti_name_space,"PointerType",nullptr,&rtti.pointer_struct_size);
+    StructCacheReq pointer_cache_req = make_struct_cache_req(rtti_name_space,"PointerType",nullptr,&rtti.pointer_size);
     add_member_cache_req(pointer_cache_req,"contained_type",&rtti.pointer_contained_offset);
 
     const auto pointer_err = cache_structure(itl,pointer_cache_req);
-    if(!!pointer_err)
+    if(pointer_err)
     {
         return pointer_err;
     }
 
-    StructCacheReq array_cache_req = make_struct_cache_req(rtti_name_space,"ArrayType",nullptr,&rtti.array_struct_size);
+    StructCacheReq array_cache_req = make_struct_cache_req(rtti_name_space,"ArrayType",nullptr,&rtti.array_size);
     add_member_cache_req(array_cache_req,"contained_type",&rtti.array_contained_offset);
     add_member_cache_req(array_cache_req,"size",&rtti.array_size_offset);
     add_member_cache_req(array_cache_req,"sub_size",&rtti.array_sub_size_offset);
 
-    return cache_structure(itl,array_cache_req);
+    const auto array_err = cache_structure(itl,array_cache_req);
+    if(array_err)
+    {
+        return array_err;
+    }
 
-/*
-    rtti.enum_idx = cache_struct(itl,"EnumType");
+    StructCacheReq enum_type_cache_req = make_struct_cache_req(rtti_name_space,"EnumType",nullptr,&rtti.enum_type_size);
+    add_member_cache_req(enum_type_cache_req,"enumeration",&rtti.enum_type_enumeration_offset);
+    const auto enum_type_err = cache_structure(itl,enum_type_cache_req);
+    if(enum_type_err)
+    {
+        return enum_type_err;
+    }
+
+    StructCacheReq enum_struct_cache_req = make_struct_cache_req(rtti_name_space,"Enum",nullptr,&rtti.enumeration_size);
+    add_member_cache_req(enum_struct_cache_req,"name",&rtti.enumeration_name_offset);
+    add_member_cache_req(enum_struct_cache_req,"member",&rtti.enumeration_member_offset);
+    const auto enum_struct_err = cache_structure(itl,enum_struct_cache_req);
+    if(enum_struct_err)
+    {
+        return enum_struct_err;
+    }
 
 
+    StructCacheReq enum_member_cache_req = make_struct_cache_req(rtti_name_space,"EnumMember",nullptr,&rtti.enum_member_size);
+    add_member_cache_req(enum_member_cache_req,"name",&rtti.enum_member_name_offset);
+    add_member_cache_req(enum_member_cache_req,"value",&rtti.enum_member_value_offset);
+    const auto enum_member_err = cache_structure(itl,enum_member_cache_req);
+    if(enum_member_err)
+    {
+        return enum_member_err;
+    }
 
-    rtti.struct_idx = cache_struct(itl,"StructType");
-*/
+    StructCacheReq struct_type_cache_req = make_struct_cache_req(rtti_name_space,"StructType",nullptr,&rtti.struct_type_size);
+    add_member_cache_req(struct_type_cache_req,"structure",&rtti.struct_type_structure_offset);
+    const auto struct_type_err = cache_structure(itl,struct_type_cache_req);
+    if(struct_type_err)
+    {
+        return struct_type_err;
+    }
+
+    StructCacheReq structure_cache_req = make_struct_cache_req(rtti_name_space,"Struct",nullptr,&rtti.structure_size);
+    add_member_cache_req(structure_cache_req,"name",&rtti.structure_name_offset);
+    add_member_cache_req(structure_cache_req,"member",&rtti.structure_member_offset);
+    const auto structure_err = cache_structure(itl,structure_cache_req);
+    if(structure_err)
+    {
+        return structure_err;
+    }
+
+    StructCacheReq struct_member_cache_req = make_struct_cache_req(rtti_name_space,"StructMember",nullptr,&rtti.struct_member_size);
+    add_member_cache_req(struct_member_cache_req,"name",&rtti.struct_member_name_offset);
+    add_member_cache_req(struct_member_cache_req,"offset",&rtti.struct_member_offset_offset);
+    add_member_cache_req(struct_member_cache_req,"type",&rtti.struct_member_type_offset);
+
+    return cache_structure(itl,struct_member_cache_req);
 }

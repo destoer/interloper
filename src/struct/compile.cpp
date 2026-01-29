@@ -226,7 +226,8 @@ void access_index_member(Interloper& itl, Function& func,TypedAddr* struct_addr,
     {
         case index_type::pointer:
         {
-            const auto ptr_slot = collapse_struct_addr_oper(itl,func,struct_addr->addr_slot);
+            const auto ptr_slot = new_tmp(func,GPR_SIZE);
+            do_addr_load(itl,func,ptr_slot,*struct_addr);
             *struct_addr = compile_pointer_index(itl,func,index,ptr_slot);
             break;
         }

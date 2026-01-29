@@ -22,27 +22,56 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
     auto any_data_addr = TypedAddr{addr, itl.byte_ptr_type};
     any_data_addr.addr_slot.addr.offset = base_offset + rtti.any_data_offset;
 
-    const bool stored_extern = !is_trivial_copy(reg.type);
+    bool stored_extern = false;
 
-    // goes directly in the pointer
-    if(!stored_extern)
+    // TODO: Use a better switch on this.
+    switch(reg.type->kind)
     {
-        // store data
-        do_addr_store(itl,func,reg,any_data_addr);
-    } 
+        case type_class::enum_t:
+        case type_class::func_pointer_t:
+        case type_class::pointer_t:
+        case type_class::builtin_t:
+        {
+            do_addr_store(itl,func,reg,any_data_addr);
+            break;
+        }
 
-    // allready in memory just store a the pointer to it
-    else if(is_vla(reg.type))
-    {
-        const StructAddr struct_addr = {make_addr(reg.slot,0)};
-        const auto arr_ptr = TypedReg{addrof_res(itl,func,struct_addr), itl.byte_ptr_type};
+        case type_class::array_t:
+        {
+            if(is_vla(reg.type))
+            {
+                const StructAddr struct_addr = {make_addr(reg.slot,0)};
+                const auto arr_ptr = TypedReg{addrof_res(itl,func,struct_addr), itl.byte_ptr_type};
 
-        do_addr_store(itl,func,arr_ptr,any_data_addr);
-    }
+                do_addr_store(itl,func,arr_ptr,any_data_addr);
+            }
 
-    else
-    {
-        compile_panic(itl,itl_error::invalid_expr,"Compile any for unhandled type: %t",reg.type);
+            else
+            {
+                do_addr_store(itl,func,reg,any_data_addr);
+            }
+
+            stored_extern = true;
+            break;
+        }
+
+        case type_class::struct_t:
+        {
+            const StructAddr struct_addr = {make_addr(reg.slot,0)};
+            const auto struct_ptr = TypedReg{addrof_res(itl,func,struct_addr), itl.byte_ptr_type};
+
+            // store data
+            do_addr_store(itl,func,struct_ptr,any_data_addr);  
+            stored_extern = true;
+            break;
+        }
+
+
+        default:
+        {
+            compile_panic(itl,itl_error::invalid_expr,"Cannot store %t as rtti",reg.type);
+            break;
+        }
     }
 
     // store extern flag
@@ -51,8 +80,6 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
 
     const auto stored_extern_reg = TypedReg { mov_imm_res(itl,func,stored_extern), itl.bool_type };
     do_addr_store(itl,func,stored_extern_reg,any_stored_extern_addr);
-
-
 }
 
 
@@ -77,7 +104,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
         if(!addr)
         {
             // alloc the struct size for our copy
-            alloc_stack(itl,func,rtti.any_struct_size);
+            alloc_stack(itl,func,rtti.any_size);
 
             const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
             const auto addr_slot = make_pointer_addr(SP_SLOT, 0);
@@ -99,17 +126,15 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
     // is allready an any just copy the struct
     if(is_any(itl,arg_reg.type))
     {
-        const u32 stack_size = rtti.any_struct_size;
+        const u32 stack_size = rtti.any_size;
 
         if(!addr)
         {
             // alloc the struct size for our copy
             alloc_stack(itl,func,stack_size);
 
-            const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-
             // need to save SP as it will get pushed last
-            const RegSlot dst_ptr = copy_reg(itl,func,SP_SLOT);
+            const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
             const auto dst_addr = make_pointer_addr(dst_ptr,0);
 
             const auto src_addr = make_struct_addr(arg_reg.slot,0);
@@ -127,15 +152,14 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
 
 
     // Plain variable
-    const u32 stack_size = rtti.any_struct_size;
+    const u32 stack_size = rtti.any_size;
 
     if(!addr)
     {
         // alloc the struct size for our copy
         alloc_stack(itl,func,stack_size);
 
-        const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-        const auto dst_addr = make_pointer_addr(SP_SLOT,0);
+        const auto dst_addr = make_pointer_addr(make_spec_reg_slot(spec_reg::sp),0);
         make_any(itl,func,dst_addr,arg_reg);
     }
 
@@ -149,7 +173,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
 u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
 {
     // for now this just always takes size of the any struct
-    const u32 size = align_val(itl.rtti_cache.any_struct_size,GPR_SIZE);
+    const u32 size = align_val(itl.rtti_cache.any_size,GPR_SIZE);
 
     // Handle stack alloc and store itself caller will handle deallocation of stack
     compile_any_internal(itl,func,arg_node,option::none);

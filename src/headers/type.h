@@ -280,17 +280,6 @@ static constexpr u32 VLA_SIZE = GPR_SIZE * 2;
 // NOTE: These are pulled from the defs in the type.itl file rather than having the compiler insert them
 // so that any struct differences as a result of compile target is handled for us
 
-// TODO: im quite sure for caching compound types
-// we need to have a trie with a node holding something like
-/*
-struct TypeCacheNode
-{
-    Type* type;
-    PoolSlot slot;
-}
-
-*/
-
 struct TypeTrieNode
 {
     PoolSlot slot = {INVALID_HANDLE};
@@ -303,6 +292,8 @@ struct TypeTrieNode
 struct RttiCache
 {
     TypeTrieNode builtin_type_cache[BUILTIN_TYPE_SIZE];
+    HashTable<u32,TypeTrieNode> enum_type_cache;
+    HashTable<u32,TypeTrieNode> struct_type_cache;
 
     // how many bytes does this take in the binary?
     u32 type_data_size = 0;
@@ -314,31 +305,55 @@ struct RttiCache
     u32 any_data_offset = 0;
     u32 any_type_offset = 0;
     u32 any_stored_extern_offset = 0;
-    u32 any_struct_size = 0;
+    u32 any_size = 0;
 
     // type struct cache
-    u32 type_struct_size = 0;
+    u32 type_size = 0;
     u32 type_class_offset = 0;
 
     // builtin
     u32 builtin_type_offset = 0;
-    u32 builtin_type_struct_size = 0;
+    u32 builtin_type_size = 0;
 
     // pointer struct cache
     u32 pointer_contained_offset = 0;
-    u32 pointer_struct_size = 0;
+    u32 pointer_size = 0;
 
     // array
     u32 array_contained_offset = 0;
     u32 array_size_offset = 0;
     u32 array_sub_size_offset = 0;
-    u32 array_struct_size = 0;
+    u32 array_size = 0;
 
-    u32 enum_idx = 0;
+    // enum
+    u32 enum_type_enumeration_offset = 0;
+    u32 enum_type_size = 0;
 
-    u32 struct_idx = 0;
+    // Enum
+    u32 enumeration_size = 0;
+    u32 enumeration_name_offset = 0;
+    u32 enumeration_member_offset = 0;
+
+    // EnumMember
+    u32 enum_member_size = 0;
+    u32 enum_member_name_offset = 0;
+    u32 enum_member_value_offset = 0;
+
+    // struct 
+    u32 struct_type_size = 0;
+    u32 struct_type_structure_offset = 0;
+
+    // Struct
+    u32 structure_size = 0;
+    u32 structure_name_offset = 0;
+    u32 structure_member_offset = 0;
+
+    // StructMember
+    u32 struct_member_size = 0;
+    u32 struct_member_name_offset = 0;
+    u32 struct_member_offset_offset = 0;
+    u32 struct_member_type_offset = 0;
 };
-
 
 struct EnumMember
 {

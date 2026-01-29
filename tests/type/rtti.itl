@@ -7,6 +7,68 @@ func check_builtin_type(any : rtti::Any, expected : rtti::builtin_type) bool
     return rtti::is_builtin_type(type,expected);
 }
 
+func check_enum_type(any: rtti::Any, expected_name: const string, expected_member: const string) bool
+{
+    if any.type.kind != rtti::type_class::enum_t
+    {
+        return false;
+    }
+
+    enum_type := cast(const rtti::EnumType@,any.type);
+    member_opt := rtti::find_enum_member(enum_type.enumeration,rtti::enum_idx_from_any(any));
+
+    if !member_opt 
+    {
+        return false;
+    }
+
+    member := cast_ref(member_opt);
+
+    return enum_type.enumeration.name == expected_name && member.name == expected_member;
+}
+
+func check_vec2i_struct_member(any: rtti::Any, structure: const rtti::Struct@, name: const string, value: s64) bool
+{
+    member_opt := rtti::find_struct_member(structure,name);
+    if !member_opt
+    {
+        return false;
+    }
+
+    member := cast_ref(member_opt);
+
+    if !rtti::is_builtin_type(member.type,rtti::builtin_type::s64_t)
+    {
+        return false;
+    }
+
+    any.type = member.type;
+    any.data = &any.data[member.offset];
+    any.stored_extern = true;
+
+    actual := cast(s64,rtti::int_from_any(any));
+
+    return actual == value;
+}
+
+func check_struct_vec2i_type(any: rtti::Any,x: s64, y: s64) bool
+{
+    if any.type.kind != rtti::type_class::struct_t
+    {
+        return false;
+    }    
+
+    struct_type := cast(const rtti::StructType@,any.type);
+    structure := struct_type.structure;
+
+    if structure.name != "Vec2I"
+    {
+        return false;
+    }
+
+    return check_vec2i_struct_member(any,structure,"x",x) && check_vec2i_struct_member(any,structure,"y",y);
+}
+
 func check_builtin() bool
 {
     res1 := check_builtin_type(cast(u32,1),rtti::builtin_type::u32_t);
@@ -34,15 +96,26 @@ func check_builtin() bool
     return res;
 }
 
+func check_enum() bool
+{
+    return check_enum_type(result::ok,"result","ok");
+}
+
+func check_struct() bool
+{
+    vec := std::Vec2I {x: 5, y: 10};
+
+    return check_struct_vec2i_type(vec,vec.x,vec.y);
+}
+
 func main() s32
 {
     res1 := check_builtin();
+    res2 := check_enum();
+    res3 := check_struct();
     // res2 := check_pointer();
     // res3 := check_array();
 
-    res := res1;
-
-    ans : s32 = cast(u32,res);
-
-    return ans;
+    ans := res1 && res2 && res3;
+    return cast(s32,ans);
 }

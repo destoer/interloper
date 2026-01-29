@@ -77,14 +77,39 @@ struct ArrayType (type : const Type)
     sub_size : const u32;
 }
 
+struct StructMember 
+{
+    name: const string;
+    offset: const usize;
+    type: const Type@;
+}
+
+struct Struct
+{
+    name: const string;
+    member: const StructMember[];
+}
+
 struct StructType (type : const Type)
 {
-    struct_idx : const u32;
+    structure: const Struct@;
+}
+
+struct EnumMember
+{
+    name: const string;
+    value: const u32;
+}
+
+struct Enum
+{
+    name: const string;
+    member: const EnumMember[];
 }
 
 struct EnumType (type : const Type)
 {
-    enum_idx : const u32;
+    enumeration: const Enum@;
 }
 
 struct Any
@@ -188,6 +213,18 @@ func int_from_any(any : const Any) u64
     return ans;
 }
 
+func enum_idx_from_any(any : const Any) idx: u32
+{
+    if !any.stored_extern
+    {
+        return cast(u32,any.data);
+    }
+
+    ptr := cast(const u32@, any.data);
+    return @ptr;
+}
+
+
 func float_from_any(any : const Any) f64
 {
     v := cast(u64,any.data);
@@ -208,4 +245,31 @@ func char_from_any(any : const Any) c8
     v := int_from_any(any);
 
     return cast(c8,v);
+}
+
+
+func find_enum_member(enumeration: const Enum@, value: u32) name: const EnumMember?
+{
+    for @member in enumeration.member
+    {
+        if member.value == value
+        {
+            return member;
+        }
+    }
+
+    return NULL;
+}
+
+func find_struct_member(structure: const Struct@, name: const string) name: const StructMember?
+{
+    for @member in structure.member
+    {
+        if member.name == name
+        {
+            return member;
+        }
+    }
+
+    return NULL;
 }

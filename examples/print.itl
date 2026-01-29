@@ -1,4 +1,17 @@
 
+struct Point
+{
+    x: s32;
+    y: s32;
+}
+
+enum scale_t
+{
+    low,
+    med,
+    high,
+}
+
 func main() s32
 {
     std::println("Hello world I am Interloper.");
@@ -30,6 +43,11 @@ func main() s32
 
     int_array: u32[?] = {1,2,3,4};
     std::println("{}",int_array);
+
+    std::println("{} {} {}",scale_t::low,scale_t::med,scale_t::high);
+
+    point := Point {3, 5};
+    std::println("{}",point);
 
     //invalid print
     //std::print("{} : {}\n","boop");

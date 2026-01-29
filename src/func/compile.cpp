@@ -231,7 +231,7 @@ void push_va_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* 
     // this is easy because we know how many args we have
     auto& rtti_cache = itl.rtti_cache;
 
-    const u32 any_arr_size = align_val(any_args.size * rtti_cache.any_struct_size,GPR_SIZE);
+    const u32 any_arr_size = align_val(any_args.size * rtti_cache.any_size,GPR_SIZE);
 
     alloc_stack(itl,func,any_arr_size);
 
@@ -241,7 +241,7 @@ void push_va_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* 
     for(AstNode* node: any_args)
     {
         compile_any_arr(itl,func,node,addr_slot);
-        addr_slot.addr.offset += rtti_cache.any_struct_size;
+        addr_slot.addr.offset += rtti_cache.any_size;
     }
 
     // alloc vla
