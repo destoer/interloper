@@ -19,6 +19,20 @@ void destroy_rtti_cache(RttiCache& cache)
         cache.builtin_type_cache[i] = {};
     }
 
+    for(auto& node : cache.enum_type_cache)
+    {
+        destroy_trie(node.v);
+    }
+
+    destroy_table(cache.enum_type_cache);
+
+    for(auto& node : cache.struct_type_cache)
+    {
+        destroy_trie(node.v);
+    }
+
+    destroy_table(cache.struct_type_cache);
+
     cache = {};
 }
 
