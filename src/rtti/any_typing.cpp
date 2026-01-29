@@ -123,6 +123,8 @@ TypeTrieNode& make_rtti_pointer(Interloper& itl, const PointerType* pointer_type
 
     push_var(root.nodes,node);
 
+    rtti.type_data_size += section.size;
+
     // return newly inserted node
     return root.nodes[count(root.nodes) - 1];    
 }
@@ -196,6 +198,8 @@ TypeTrieNode& make_rtti_enum(Interloper& itl, EnumType* enum_type)
     write_const_pool(itl.const_pool,enum_type_section,rtti.type_class_offset,u32(rtti_type_class::enum_t));
     write_const_pool_pointer(itl.const_pool,enum_type_section,rtti.enum_type_enumeration_offset,enum_struct_slot);
 
+    rtti.type_data_size += member_section.size + enum_struct_section.size + enum_type_section.size;
+
     TypeTrieNode node;
     node.slot = enum_type_slot;
     node.type = (Type*)enum_type;
@@ -247,6 +251,8 @@ TypeTrieNode& make_rtti_struct(Interloper& itl, const StructType* struct_type)
 
     write_const_pool(itl.const_pool,type_section,rtti.type_class_offset,u32(rtti_type_class::struct_t));
     write_const_pool_pointer(itl.const_pool,type_section,rtti.struct_type_structure_offset,struct_slot);
+
+    rtti.type_data_size += member_section.size + struct_section.size + type_section.size;
 
     TypeTrieNode node;
     node.slot = type_slot;
