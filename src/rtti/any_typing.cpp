@@ -140,6 +140,65 @@ TypeTrieNode& make_rtti_builtin(Interloper& itl, const Type* type)
     return root;    
 }
 
+    // // Fill in enum
+    // const auto slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.enum_type_struct_size);
+    // auto& section = pool_section_from_slot(itl.const_pool,slot);
+
+
+
+    // const auto pointer_slot = push_const_pool_vla(itl.const_pool,member_data,string_node->string.size);
+
+TypeTrieNode& make_rtti_enum(Interloper& itl, EnumType* enum_type)
+{
+    auto& rtti = itl.rtti_cache;
+
+    TypeTrieNode* enum_node = lookup(rtti.enum_type_cache,enum_type->enum_idx);
+    if(enum_node)
+    {
+        return *enum_node;
+    }
+
+    auto enumeration = enum_from_type(itl.enum_table,enum_type);
+    const u32 member_size = enumeration.member_map.size;
+
+    // Write in members
+    const auto member_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.enum_member_size * member_size);
+    auto& member_section = pool_section_from_slot(itl.const_pool,member_slot);
+
+    u32 member_idx = 0;
+    for(const auto& member_node : enumeration.member_map)
+    {
+        const auto& member = member_node.v;
+        const auto name_slot = push_const_pool_string(itl.const_pool,member.name);
+
+        const u32 base = member_idx * rtti.enum_member_size;
+
+        write_const_pool_vla(itl.const_pool,member_section,base + rtti.enum_member_name_offset,name_slot,member.name.size);
+        write_const_pool(itl.const_pool,member_section,base + rtti.enum_member_value_offset,member.value);
+        member_idx += 1;
+    }
+
+    // Write in enum struct
+    const auto enum_struct_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.enum_struct_struct_size);
+    auto& enum_struct_section = pool_section_from_slot(itl.const_pool,enum_struct_slot);
+
+    write_const_pool_vla(itl.const_pool,enum_struct_section,rtti.enum_struct_member_offset,member_slot,member_size);
+    const auto name_slot = push_const_pool_string(itl.const_pool,enumeration.name);
+    write_const_pool_vla(itl.const_pool,enum_struct_section,rtti.enum_struct_name_offset,name_slot,enumeration.name.size);
+
+    // Write in type
+    const auto enum_type_slot = reserve_const_pool_section(itl.const_pool,pool_type::var,rtti.enum_type_struct_size);
+    auto& enum_type_section = pool_section_from_slot(itl.const_pool,enum_type_slot);
+    write_const_pool(itl.const_pool,enum_type_section,rtti.type_class_offset,u32(rtti_type_class::enum_t));
+    write_const_pool_pointer(itl.const_pool,enum_type_section,rtti.enum_type_enumeration_offset,enum_struct_slot);
+
+    TypeTrieNode node;
+    node.slot = enum_type_slot;
+    node.type = (Type*)enum_type;
+
+    return *add(rtti.enum_type_cache,enum_type->enum_idx,node);
+}
+
 TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
 {
     switch(type->kind)
@@ -158,6 +217,12 @@ TypeTrieNode& make_rtti_internal(Interloper& itl, const Type* type)
         {
             return make_rtti_builtin(itl,type);
         }
+
+        case type_class::enum_t:
+        {
+            return make_rtti_enum(itl,(EnumType*)type);
+        }
+
 
         default:
         {

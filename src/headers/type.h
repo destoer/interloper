@@ -303,7 +303,8 @@ struct TypeTrieNode
 struct RttiCache
 {
     TypeTrieNode builtin_type_cache[BUILTIN_TYPE_SIZE];
-    // Solution for struct is probably a hash map to the struct idx?
+    HashTable<u32,TypeTrieNode> enum_type_cache;
+    HashTable<u32,TypeTrieNode> struct_type_cache;
 
     // how many bytes does this take in the binary?
     u32 type_data_size = 0;
@@ -335,7 +336,19 @@ struct RttiCache
     u32 array_sub_size_offset = 0;
     u32 array_struct_size = 0;
 
-    u32 enum_idx = 0;
+    // enum
+    u32 enum_type_enumeration_offset = 0;
+    u32 enum_type_struct_size = 0;
+
+    // Enum
+    u32 enum_struct_struct_size = 0;
+    u32 enum_struct_name_offset = 0;
+    u32 enum_struct_member_offset = 0;
+
+    // EnumMember
+    u32 enum_member_size = 0;
+    u32 enum_member_name_offset = 0;
+    u32 enum_member_value_offset = 0;
 
     u32 struct_idx = 0;
 };

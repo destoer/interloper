@@ -97,12 +97,13 @@ struct StructType (type : const Type)
 
 struct EnumMember
 {
-    name: const String;
+    name: const string;
+    value: const u32;
 }
 
 struct Enum
 {
-    name: const String;
+    name: const string;
     member: const EnumMember[];
 }
 
