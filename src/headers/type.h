@@ -313,6 +313,7 @@ struct RttiCache
     u32 any_idx = 0;
     u32 any_data_offset = 0;
     u32 any_type_offset = 0;
+    u32 any_stored_extern_offset = 0;
     u32 any_struct_size = 0;
 
     // type struct cache

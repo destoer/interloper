@@ -72,6 +72,8 @@ struct Interloper
 
     Type* const_byte_type = nullptr;
 
+    Type* bool_type = nullptr;
+
     // Array copy for debug printing of ast
     Array<TypeDef*> type_decl;
 
