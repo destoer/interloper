@@ -303,6 +303,7 @@ struct TypeTrieNode
 struct RttiCache
 {
     TypeTrieNode builtin_type_cache[BUILTIN_TYPE_SIZE];
+    // Solution for struct is probably a hash map to the struct idx?
 
     // how many bytes does this take in the binary?
     u32 type_data_size = 0;
