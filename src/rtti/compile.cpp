@@ -22,35 +22,53 @@ void make_any(Interloper& itl,Function& func, const AddrSlot& addr, const TypedR
     auto any_data_addr = TypedAddr{addr, itl.byte_ptr_type};
     any_data_addr.addr_slot.addr.offset = base_offset + rtti.any_data_offset;
 
-    const bool stored_extern = !is_trivial_copy(reg.type);
+    bool stored_extern = false;
 
     // TODO: Use a better switch on this.
-
-    // goes directly in the pointer
-    if(!stored_extern)
+    switch(reg.type->kind)
     {
-        // store data
-        do_addr_store(itl,func,reg,any_data_addr);
-    } 
+        case type_class::enum_t:
+        case type_class::func_pointer_t:
+        case type_class::pointer_t:
+        case type_class::builtin_t:
+        {
+            do_addr_store(itl,func,reg,any_data_addr);
+            break;
+        }
 
-    // allready in memory just store a the pointer to it
-    else if(is_vla(reg.type))
-    {
-        const StructAddr struct_addr = {make_addr(reg.slot,0)};
-        const auto arr_ptr = TypedReg{addrof_res(itl,func,struct_addr), itl.byte_ptr_type};
+        case type_class::array_t:
+        {
+            if(is_vla(reg.type))
+            {
+                const StructAddr struct_addr = {make_addr(reg.slot,0)};
+                const auto arr_ptr = TypedReg{addrof_res(itl,func,struct_addr), itl.byte_ptr_type};
 
-        do_addr_store(itl,func,arr_ptr,any_data_addr);
-    }
+                do_addr_store(itl,func,arr_ptr,any_data_addr);
+            }
 
-    else if(is_struct(reg.type))
-    {
-        // store data
-        do_addr_store(itl,func,reg,any_data_addr);  
-    }
+            else
+            {
+                do_addr_store(itl,func,reg,any_data_addr);
+            }
 
-    else
-    {
-        compile_panic(itl,itl_error::invalid_expr,"Compile any for unhandled type: %t",reg.type);
+            stored_extern = true;
+            break;
+        }
+
+        case type_class::struct_t:
+        {
+            // store data
+            do_addr_store(itl,func,reg,any_data_addr);  
+            stored_extern = true;
+            break;
+        }
+
+
+        default:
+        {
+            compile_panic(itl,itl_error::invalid_expr,"Cannot store %t as rtti",reg.type);
+            break;
+        }
     }
 
     // store extern flag
