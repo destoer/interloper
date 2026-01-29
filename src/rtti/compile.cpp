@@ -77,7 +77,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
         if(!addr)
         {
             // alloc the struct size for our copy
-            alloc_stack(itl,func,rtti.any_struct_size);
+            alloc_stack(itl,func,rtti.any_size);
 
             const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
             const auto addr_slot = make_pointer_addr(SP_SLOT, 0);
@@ -99,7 +99,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
     // is allready an any just copy the struct
     if(is_any(itl,arg_reg.type))
     {
-        const u32 stack_size = rtti.any_struct_size;
+        const u32 stack_size = rtti.any_size;
 
         if(!addr)
         {
@@ -127,7 +127,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
 
 
     // Plain variable
-    const u32 stack_size = rtti.any_struct_size;
+    const u32 stack_size = rtti.any_size;
 
     if(!addr)
     {
@@ -149,7 +149,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
 u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node)
 {
     // for now this just always takes size of the any struct
-    const u32 size = align_val(itl.rtti_cache.any_struct_size,GPR_SIZE);
+    const u32 size = align_val(itl.rtti_cache.any_size,GPR_SIZE);
 
     // Handle stack alloc and store itself caller will handle deallocation of stack
     compile_any_internal(itl,func,arg_node,option::none);

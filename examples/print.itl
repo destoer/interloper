@@ -46,6 +46,9 @@ func main() s32
 
     std::println("{} {} {}",scale_t::low,scale_t::med,scale_t::high);
 
+    point := Point {3, 5};
+    std::println("{}",point);
+
     //invalid print
     //std::print("{} : {}\n","boop");
 
