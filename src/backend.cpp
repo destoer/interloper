@@ -2,8 +2,8 @@
 
 // #include "backend/op_table.inl"
 #include "backend/pool.cpp"
-#include "backend/emitter.cpp"
 #include "backend/reg.cpp"
+#include "backend/emitter.cpp"
 // #include "backend/rewrite_arch_ir.cpp"
 // #include "backend/cfg.cpp"
 #include "backend/asm.cpp"
