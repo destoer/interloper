@@ -369,6 +369,7 @@ static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_OP_SIZE] =
 enum class op_group
 {
     implicit,
+    branch_label,
     directive 
 };
 
@@ -417,6 +418,17 @@ struct Implicit
     implicit_type type;
 };
 
+enum class branch_label_type
+{
+    call
+};
+
+struct BranchLabel
+{
+    branch_label_type type;
+    LabelSlot label;
+};
+
 struct Opcode
 {
     op_group group = op_group::directive;
@@ -424,6 +436,7 @@ struct Opcode
     union
     {
         Directive directive = {};
+        BranchLabel branch_label;
         Implicit implicit;
     };
 };
