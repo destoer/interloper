@@ -77,6 +77,127 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"lsr %r, %x",2,{arg_type::dst_src_reg,arg_type::imm,arg_type::none}},
 
     
+    // STORE_STRUCT
+    {op_group::addr_t,"store_struct_u8 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_u16 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_u32 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_u64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"store_struct_f64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
+
+    // LOAD_STRUCT
+    {op_group::addr_t,"load_struct_s8 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_s16 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_s32 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+
+    {op_group::addr_t,"load_struct_u8 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_u16 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_u32 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_u64 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+    {op_group::addr_t,"load_struct_f64 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
+
+    // LOAD
+    {op_group::addr_t,"lb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"ld %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lf %r, [%i]",3,{arg_type::dst_float,arg_type::src_reg,arg_type::src_reg}},
+
+    {op_group::addr_t,"lsb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lsh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lsw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    
+    // STORE
+    {op_group::addr_t,"sb %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sh %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sw %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sd %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"sf %r, [%i]",3,{arg_type::src_float,arg_type::src_reg,arg_type::src_reg}},
+
+    // LEA
+    {op_group::addr_t,"lea %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    // FPR_ARITH_REG_THREE
+    {op_group::reg_t,"addf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"subf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"mulf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"divf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
+
+    // FPR_ARITH_REG_TWO
+    {op_group::reg_t,"addf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
+    {op_group::reg_t,"subf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
+    {op_group::reg_t,"mulf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
+    {op_group::reg_t,"divf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
+
+    // FPR_CMP_REG_THREE
+    {op_group::reg_t,"cmpflt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"cmpfle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"cmpfgt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"cmpfge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"cmpfeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
+    {op_group::reg_t,"cmpfne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
+
+
+    // FPR_SET_FLAG_CMP
+    {op_group::reg_t,"setflt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfle %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+    // FPR_SET_FLAG_EQ
+    {op_group::reg_t,"setfeq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setfne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+    // FPR_CONVERT
+    {op_group::reg_t,"cvtfi %r, %r",2,{arg_type::dst_reg,arg_type::src_float,arg_type::none}},
+    {op_group::reg_t,"cvtif %r, %r",2,{arg_type::dst_float,arg_type::src_reg,arg_type::none}},
+
+
+    // GPR_CMP_UNSIGNED_REG_THREE
+    {op_group::reg_t,"cmpult %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpule %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpuge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    // GPR_CMP_SIGNED_REG_THREE
+    {op_group::reg_t,"cmpslt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpsle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpsgt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpsge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    // GPR_CMP_EQ_REG_THREE
+    {op_group::reg_t,"cmpeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::reg_t,"cmpne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    // GPR_SET_FLAG_CMP_SIGNED_REG
+    {op_group::reg_t,"setslt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setsle %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setsgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setsge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+    // GPR_SET_FLAG_CMP_UNSIGNED_REG
+    {op_group::reg_t,"setult %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setule %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setugt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setuge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+    // GPR_SET_FLAG_EQ
+    {op_group::reg_t,"seteq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"setne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
+
+
+    // X86_REG_TWO
+    {op_group::reg_t,"udiv_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"sdiv_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"umod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"smod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+
+    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+
+    // X86_IMPLICIT
+    {op_group::implicit_t,"cqo",0,{arg_type::none,arg_type::none,arg_type::none}},
 
     // DIRECTIVE
 
@@ -88,6 +209,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
     {op_group::reg_t,"not %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
 
+    {op_group::imm_t,"cmpugt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
 
 
@@ -104,68 +226,28 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
 
 
 
-    {op_group::implicit_t,"cqo",0,{arg_type::none,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"udiv_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"sdiv_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"umod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"smod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
     {op_group::reg_t,"not %r",1,{arg_type::dst_src_reg,arg_type::none,arg_type::none}},
 
     // float
-    {op_group::addr_t,"lf %r, [%i]",3,{arg_type::dst_float,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"sf %r, [%i]",3,{arg_type::src_float,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"addf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"subf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"mulf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"divf %r, %r, %r",3,{arg_type::dst_float,arg_type::src_float,arg_type::src_float}},
 
-    {op_group::reg_t,"cmpflt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"cmpfle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"cmpfgt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"cmpfge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"cmpfeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
-    {op_group::reg_t,"cmpfne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_float,arg_type::src_float}},
+
+
 
     {op_group::reg_t,"cmp_flags_float %r, %r",2,{arg_type::src_float,arg_type::src_float,arg_type::none}},
 
-    {op_group::reg_t,"setflt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setfle %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setfgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setfge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
-    {op_group::reg_t,"setfeq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setfne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
-    {op_group::reg_t,"addf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
-    {op_group::reg_t,"subf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
-    {op_group::reg_t,"mulf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
-    {op_group::reg_t,"divf %r, %r",2,{arg_type::dst_src_float,arg_type::src_float,arg_type::none}},
 
-    {op_group::reg_t,"cvtfi %r, %r",2,{arg_type::dst_reg,arg_type::src_float,arg_type::none}},
-    {op_group::reg_t,"cvtif %r, %r",2,{arg_type::dst_float,arg_type::src_reg,arg_type::none}},
+
 
     // load
-    {op_group::addr_t,"lb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"lh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"lw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"ld %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-
-    {op_group::addr_t,"lsb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"lsh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"lsw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
     // store
-    {op_group::addr_t,"sb %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"sh %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"sw %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"sd %r, [%i]",3,{arg_type::src_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    {op_group::addr_t,"lea %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    
 
     {op_group::reg_t,"push %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"pop %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
@@ -182,23 +264,14 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::imm_t,"swi %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
     // compare unsigned
-    {op_group::imm_t,"cmpugt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::reg_t,"cmpult %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpule %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpuge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
 
     // compare signed
     {op_group::imm_t,"cmpsgt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::reg_t,"cmpslt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpsle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpsgt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpsge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
 
     // dont care about sign for equality
-    {op_group::reg_t,"cmpeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::reg_t,"cmpne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
 
     {op_group::imm_t,"cmpeq %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::imm_t,"cmpne %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
@@ -207,19 +280,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cmp_flags %r, %r",2,{arg_type::src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"cmp_flags_imm %r, %x",2,{arg_type::src_reg,arg_type::imm,arg_type::none}},
 
-    // flag signed
-    {op_group::reg_t,"setslt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setsle %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setsgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setsge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-
-    {op_group::reg_t,"setult %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setule %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setugt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setuge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-
-    {op_group::reg_t,"seteq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"setne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
     {op_group::branch_t,"bnc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
     {op_group::branch_t,"bc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
@@ -267,21 +327,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::addr_t,"addrof %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::src_reg}},
     {op_group::reg_t,"load_func_addr %r, %a",2,{arg_type::dst_reg,arg_type::label,arg_type::none}},
 
-    {op_group::addr_t,"load_struct_s8 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"load_struct_s16 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"load_struct_s32 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-
-    {op_group::addr_t,"load_struct_u8 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"load_struct_u16 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"load_struct_u32 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"load_struct_u64 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"load_struct_f64 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
-
-    {op_group::addr_t,"store_struct_u8 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"store_struct_u16 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"store_struct_u32 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"store_struct_u64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
-    {op_group::addr_t,"store_struct_f64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
 
     {op_group::slot_t,"pool_addr %r, %x %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::imm}},
 
