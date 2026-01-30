@@ -415,6 +415,7 @@ struct Struct
     u32 data_size = 0;
 
     u32 type_idx = 0;
+    bool holds_refs = false;
 };
 
 enum class struct_state 

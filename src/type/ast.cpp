@@ -109,6 +109,8 @@ TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
     return itl.usize_type;
 }
 
+Option<itl_error> check_struct_init_ref(Interloper& itl, Type* type);
+
 Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 {
     auto type_res = get_type(itl,decl->type);
@@ -141,6 +143,16 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
             return expr_err;
         }
     }
+
+    else
+    {
+        const auto err = check_struct_init_ref(itl,ltype);
+        if(err)
+        {
+            return err;
+        }
+    }
+
 
     if(!global)
     {

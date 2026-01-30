@@ -428,3 +428,21 @@ Option<itl_error> type_check_struct_initializer_list(Interloper& itl, Initialize
 
     return option::none;
 }
+
+Option<itl_error> check_struct_init_ref(Interloper& itl, Type* type)
+{
+    if(!is_struct(type))
+    {
+        return option::none;
+    }
+
+    const auto& structure = struct_from_type(itl.struct_table,(StructType*)type);
+
+    if(structure.holds_refs)
+    {
+        // TODO: This should list members
+        return compile_error(itl,itl_error::pointer_type_error,"Struct %t holds refences and cannot be default initialized",type);
+    }
+
+    return option::none;
+}

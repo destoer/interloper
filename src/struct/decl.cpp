@@ -167,22 +167,8 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
 
     u32 type_idx_override = INVALID_TYPE;
 
-    // TODO: function pointer currently requires in order decl
-    // or deduction will fail
-    if(type_decl->func_type)
-    {
-        auto type_res = get_type(itl,type_decl,type_idx_override,true);
-
-        if(!type_res)
-        {
-            destroy_struct(structure);
-            return type_res.error();
-        }
-
-        member.type = *type_res;
-    }
-
-    else if(!type_exists(itl,type_decl->name))
+    // If this type could we recursive we may need to override the idx if its held by a reference.
+    if(type_decl->kind == type_node_kind::user && !type_exists(itl,type_decl->name))
     {
         const auto recur_err = handle_recursive_type(itl,structure.name,type_decl,&type_idx_override);
         if(recur_err)
@@ -190,31 +176,25 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
             destroy_struct(structure);
             return *recur_err;
         }
-
-        auto type_res = get_type(itl,type_decl,type_idx_override,true);
-
-        if(!type_res)
-        {
-            destroy_struct(structure);
-            return type_res.error();
-        }
-
-        member.type = *type_res;
     }
 
-    else
+    // Now grab the type
+    auto type_res = get_type(itl,type_decl,type_idx_override,true);
+
+    if(!type_res)
     {
-        auto type_res = get_type(itl,type_decl,type_idx_override,true);
-
-        if(!type_res)
-        {
-            destroy_struct(structure);
-            return type_res.error();
-        }
-
-        member.type = *type_res;
+        destroy_struct(structure);
+        return type_res.error();
     }
 
+    member.type = *type_res;
+
+    structure.holds_refs = structure.holds_refs || is_reference(member.type);
+    if(is_struct(member.type))
+    {
+        auto& member_struct = struct_from_type(itl.struct_table,(StructType*)member.type);
+        structure.holds_refs = structure.holds_refs || member_struct.holds_refs;
+    }
 
 
     // we will deal with this later
@@ -392,7 +372,6 @@ Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
 
     finalise_member_offsets(itl,structure,size_count,forced_first_loc,flags);
     
-
     if(itl.print_types)
     {
         print_struct(itl,structure);
