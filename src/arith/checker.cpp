@@ -373,7 +373,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     ArithBinNode* arith = (ArithBinNode*)expr;
     const auto type = arith->oper;
 
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(type)];
+    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(type)];
 
     auto bin_res = type_check_expr_bin(itl,arith);
     if(!bin_res)
@@ -411,34 +411,29 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // floating point arith
     else if(is_float(bin.ltype) && is_float(bin.rtype))
     {
-        if (arith_info.float_form == op_type::none)
+        if(arith_info.flags & ARITH_BIN_FLAG_FLOAT_ENABLED)
         {
-            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
+            return make_builtin(itl,builtin_type::f64_t);
         }
 
-        return make_builtin(itl,builtin_type::f64_t);
+        return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
     }
 
     else if(is_bool(bin.ltype) && is_bool(bin.rtype))
     {
-        switch(type)
+        if(arith_info.flags & ARITH_BIN_FLAG_BOOL_ENABLED)
         {
-            // Treat these like integer operations
-            case arith_bin_op::or_t:
-            case arith_bin_op::and_t:
+            if(known_expr)
             {
-                if(known_expr)
-                {
-                    return compute_known_integer_arith(itl,arith);
-                }
-
-                return make_builtin(itl,builtin_type::bool_t);
+                return compute_known_integer_arith(itl,arith);
             }
 
-            default:
-            {
-                return compile_error(itl,itl_error::invalid_expr,"operation is not defined for bool");
-            }
+            return make_builtin(itl,builtin_type::bool_t);
+        }
+
+        else
+        {
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for bool");
         }
     }
 
