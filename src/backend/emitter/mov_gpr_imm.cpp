@@ -1,8 +1,16 @@
+const RegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, RegBuffer& reg)
+{
+    u32 dst = 0;
+    reg.dst[dst++] = mov_imm.dst_ir;
+    reg.dst.size = dst;
+
+    reg.src.size = 0;
+
+    return reg;
+}
+
 void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
 {
-    UNUSED(itl);
-
-    handle_dst_storage(itl,func,dst);
     MovGprImm mov_imm;
     mov_imm.dst_ir = dst;
     mov_imm.imm = imm;
@@ -11,7 +19,7 @@ void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
     opcode.group = op_group::mov_gpr_imm;
     opcode.mov_gpr_imm = mov_imm;
 
-    emit_block_func(func,opcode);
+    emit_block_func(itl,func,opcode);
 }
 
 RegSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)

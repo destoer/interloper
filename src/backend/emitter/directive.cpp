@@ -1,19 +1,53 @@
+const RegSpan directive_reg_span(const Directive& directive, RegBuffer& reg)
+{
+    reg.src.size = 0;
+    reg.dst.size = 0;
+
+    for(const auto& oper : directive.operand)
+    {
+        switch(oper.type)
+        {
+            case directive_operand_type::dst_src:
+            {
+                reg.dst[reg.dst.size++] = oper.reg;
+                reg.src[reg.src.size++] = oper.reg;
+                break;
+            }
+
+
+            case directive_operand_type::dst:
+            {
+                reg.dst[reg.dst.size++] = oper.reg;
+                break;
+            }
+
+            case directive_operand_type::src:
+            {
+                reg.src[reg.src.size++] = oper.reg;
+                break;
+            }
+
+            default: break;
+        }
+    }
+
+    return reg;
+}
+
 void emit_directive(Interloper& itl, Function& func, const Directive& directive)
 {
-    UNUSED(itl);
-
     Opcode opcode;
     opcode.group = op_group::directive;
     opcode.directive = directive;
 
-    emit_block_func(func,opcode);
+    emit_block_func(itl,func,opcode);
 }
 
-DirectiveOperand make_reg_operand(RegSlot slot)
+DirectiveOperand make_reg_operand(RegSlot slot,ir_reg_type reg_type)
 {
     DirectiveOperand oper;
     oper.reg = slot;
-    oper.type = directive_operand_type::reg;
+    oper.type = directive_operand_type(reg_type);
 
     return oper;
 }
@@ -44,16 +78,17 @@ DirectiveOperand make_label_operand(LabelSlot slot)
 
     return oper;
 }
+
 DirectiveOperand make_spec_operand(spec_reg reg)
 {
-    return make_reg_operand(make_spec_reg_slot(reg));
+    return make_reg_operand(make_spec_reg_slot(reg),ir_reg_type::directive);
 }
 
-void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, RegSlot reg)
+void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, RegSlot reg, ir_reg_type reg_type)
 {
     Directive directive;
     directive.type = type;
-    directive.operand[0] = make_reg_operand(reg);
+    directive.operand[0] = make_reg_operand(reg,reg_type);
     emit_directive(itl,func,directive);  
 }
 
@@ -75,13 +110,16 @@ void unlock_reg_set(Interloper& itl, Function& func, u64 set)
     emit_directive_imm1(itl,func,directive_type::unlock_reg_set,set);
 }
 
+void lock_reg(Interloper& itl, Function& func, spec_reg reg)
+{
+    emit_directive_reg1(itl,func,directive_type::lock_reg,make_spec_reg_slot(reg),ir_reg_type::directive);
+}
 
 
 void push_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
 {
     pass.arg_clean++;
-    handle_src_storage(itl,func,src);
-    emit_directive_reg1(itl,func,directive_type::push_arg,src);
+    emit_directive_reg1(itl,func,directive_type::push_arg,src,ir_reg_type::src);
 }
 
 void reload_slot(Interloper& itl, Function& func, const Reg& reg)
@@ -91,7 +129,7 @@ void reload_slot(Interloper& itl, Function& func, const Reg& reg)
         return;
     }
 
-    emit_directive_reg1(itl,func,directive_type::reload_slot,reg.slot);
+    emit_directive_reg1(itl,func,directive_type::reload_slot,reg.slot,ir_reg_type::directive);
 }
 
 void spill_slot(Interloper& itl, Function& func, const Reg& reg)
@@ -101,5 +139,5 @@ void spill_slot(Interloper& itl, Function& func, const Reg& reg)
         return;
     }
 
-    emit_directive_reg1(itl,func,directive_type::spill_slot,reg.slot);
+    emit_directive_reg1(itl,func,directive_type::spill_slot,reg.slot,ir_reg_type::src);
 }

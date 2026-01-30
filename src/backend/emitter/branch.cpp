@@ -1,12 +1,11 @@
 
 void emit_branch_label(Interloper& itl, Function& func, branch_label_type type, LabelSlot label)
 {   
-    UNUSED(itl);
     Opcode opcode;
     opcode.group = op_group::branch_label;
     opcode.branch_label = {type,label};
 
-    emit_block_func(func,opcode);
+    emit_block_func(itl,func,opcode);
 }
 
 void call(Interloper& itl, Function& func, LabelSlot label)
