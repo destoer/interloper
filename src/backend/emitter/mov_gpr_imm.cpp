@@ -1,4 +1,4 @@
-const RegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, RegBuffer& reg)
+ConstRegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, RegSpan& reg)
 {
     u32 dst = 0;
     reg.dst[dst++] = mov_imm.dst_ir;

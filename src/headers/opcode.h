@@ -233,34 +233,34 @@ RegSlot make_spec_reg_slot(spec_reg reg)
     return handle;
 }
 
-struct RegBuffer
-{
-    Buffer<RegSlot> dst;
-    Buffer<RegSlot> src;
-};
-
 struct RegSpan
 {
-    RegSpan(const RegBuffer& buffer)
-    {   
-        dst = buffer.dst;
-        src = buffer.src;
-    }
-
-    RegSpan()
-    {
-
-    }
-
     Span<RegSlot> dst;
     Span<RegSlot> src;
 };
 
-RegBuffer make_reg_buffer(RegSlot* dst, RegSlot* src, size_t size)
+struct ConstRegSpan
 {
-    RegBuffer regs;
-    regs.dst = make_buffer(dst,0,size);
-    regs.src = make_buffer(src,0,size);
+    ConstRegSpan(const RegSpan& span)
+    {   
+        dst = span.dst;
+        src = span.src;
+    }
+
+    ConstRegSpan()
+    {
+
+    }
+
+    ConstSpan<RegSlot> dst;
+    ConstSpan<RegSlot> src;
+};
+
+RegSpan make_reg_span(RegSlot* dst, RegSlot* src, size_t size)
+{
+    RegSpan regs;
+    regs.dst = make_span(dst,0,size);
+    regs.src = make_span(src,0,size);
 
     return regs;
 }

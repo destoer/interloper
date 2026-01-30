@@ -1,4 +1,4 @@
-const RegSpan directive_reg_span(const Directive& directive, RegBuffer& reg)
+ConstRegSpan directive_reg_span(const Directive& directive, RegSpan& reg)
 {
     reg.src.size = 0;
     reg.dst.size = 0;
