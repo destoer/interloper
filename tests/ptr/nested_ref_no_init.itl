@@ -1,0 +1,20 @@
+struct RefTest
+{
+    v1: s32@;
+};
+
+struct Box
+{
+    ref: RefTest;
+}
+
+func main() s32
+{
+    x: s32 = 1;
+
+    box: Box;
+
+    box.ref.v1 = &x;
+
+    return @box.ref.v1;
+}
