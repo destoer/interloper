@@ -368,6 +368,7 @@ static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_OP_SIZE] =
 
 enum class op_group
 {
+    implicit,
     directive 
 };
 
@@ -395,13 +396,25 @@ struct DirectiveOperand
 
 enum class directive_type
 {
-    push_arg
+    push_arg,
+    reload_slot,
+    spill_slot,
 };
 
 struct Directive
 {
     directive_type type;
     DirectiveOperand operand[3];
+};
+
+enum class implicit_type
+{
+    syscall,
+};
+
+struct Implicit
+{
+    implicit_type type;
 };
 
 struct Opcode
@@ -411,5 +424,6 @@ struct Opcode
     union
     {
         Directive directive = {};
+        Implicit implicit;
     };
 };

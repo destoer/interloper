@@ -96,15 +96,17 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::addr_t,"load_struct_f64 %r, [%i]",3,{arg_type::dst_reg,arg_type::directive,arg_type::directive}},
 
     // LOAD
+    {op_group::addr_t,"lsb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lsh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+    {op_group::addr_t,"lsw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
     {op_group::addr_t,"lb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::addr_t,"lh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::addr_t,"lw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::addr_t,"ld %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::addr_t,"lf %r, [%i]",3,{arg_type::dst_float,arg_type::src_reg,arg_type::src_reg}},
 
-    {op_group::addr_t,"lsb %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"lsh %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
-    {op_group::addr_t,"lsw %r, [%i]",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
 
     
     // STORE
