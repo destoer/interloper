@@ -232,7 +232,7 @@ void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, Reg
     const u32 arg_size = count(func_call->args);
 
     // make sure this register doesn't get reused
-    lock_reg(itl,func,make_spec_reg_slot(spec_reg::rax));
+    lock_reg(itl,func,spec_reg::rax);
     const auto syscall_value = func_call->args[0]->known_value.gpr;
 
     mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value);
@@ -246,11 +246,10 @@ void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, Reg
         if(arg_size >= arg + 1)
         {
             const spec_reg locked_reg = REG_ARGS[arg-1];
-            const auto reg = make_spec_reg_slot(locked_reg);
-            lock_reg(itl,func,reg);
+            lock_reg(itl,func,locked_reg);
             unlock_set = set_bit(unlock_set,special_reg_to_reg(itl.arch,locked_reg));
 
-            compile_expression(itl,func,func_call->args[arg],reg);
+            compile_expression(itl,func,func_call->args[arg],make_spec_reg_slot(locked_reg));
         }
     }
 

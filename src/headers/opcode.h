@@ -192,7 +192,6 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
     assert(false);
 }
 
-
 u32 hash_slot(u32 size, RegSlot slot)
 {
     switch(slot.kind)
@@ -234,11 +233,50 @@ RegSlot make_spec_reg_slot(spec_reg reg)
     return handle;
 }
 
+struct RegBuffer
+{
+    Buffer<RegSlot> dst;
+    Buffer<RegSlot> src;
+};
+
+struct RegSpan
+{
+    RegSpan(const RegBuffer& buffer)
+    {   
+        dst = buffer.dst;
+        src = buffer.src;
+    }
+
+    RegSpan()
+    {
+
+    }
+
+    Span<RegSlot> dst;
+    Span<RegSlot> src;
+};
+
+RegBuffer make_reg_buffer(RegSlot* dst, RegSlot* src, size_t size)
+{
+    RegBuffer regs;
+    regs.dst = make_buffer(dst,0,size);
+    regs.src = make_buffer(src,0,size);
+
+    return regs;
+}
 
 struct Addr
 {
     RegSlot base;
     RegSlot index = make_spec_reg_slot(spec_reg::null);
+    u32 scale = 1;
+    u32 offset = 0;
+};
+
+struct LoweredAddr
+{
+    lowered_reg base = 0;
+    lowered_reg index = u32(spec_reg::null);
     u32 scale = 1;
     u32 offset = 0;
 };
@@ -373,14 +411,27 @@ enum class op_group
     implicit,
     branch_label,
     directive,
-    mov_gpr_imm
+    mov_gpr_imm,
+    take_addr,
+};
+
+enum class ir_reg_type
+{
+    src,
+    dst,
+    dst_src,
+    directive,    
 };
 
 enum class directive_operand_type
 {
+    // Bottom of this must match ir_reg_type
+    src,
+    dst,
+    dst_src,
+    directive_reg,
     decimal,
     imm,
-    reg,
     label,
 };
 
@@ -394,7 +445,7 @@ struct DirectiveOperand
         LabelSlot label;
     };
 
-    directive_operand_type type = directive_operand_type::reg;
+    directive_operand_type type = directive_operand_type::dst_src;
 };
 
 enum class directive_type
@@ -403,7 +454,8 @@ enum class directive_type
     reload_slot,
     spill_slot,
     clean_args,
-    unlock_reg_set
+    unlock_reg_set,
+    lock_reg,
 };
 
 struct Directive
@@ -444,6 +496,29 @@ struct MovGprImm
     u64 imm;      
 };
 
+enum class take_addr_type
+{
+    addrof,
+    lea
+};
+
+struct TakeAddr
+{
+    take_addr_type type = take_addr_type::addrof;
+
+    union
+    {
+        Addr addr_ir = {};
+        LoweredAddr addr;
+    };
+
+    union
+    {
+        RegSlot dst_ir = {};
+        lowered_reg dst_reg;
+    };
+};
+
 struct Opcode
 {
     op_group group = op_group::directive;
@@ -454,7 +529,10 @@ struct Opcode
         BranchLabel branch_label;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
+        TakeAddr take_addr;
     };
 
     bool lowered = false;
 };
+
+static constexpr u32 MAX_OPCODE_REGS = 8;

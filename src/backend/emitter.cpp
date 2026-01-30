@@ -2,6 +2,7 @@
 
 void reload_slot(Interloper& itl, Function& func, const Reg& dst);
 void spill_slot(Interloper& itl, Function& func, const Reg& src);
+const RegSpan opcode_reg_span(const Opcode& opcode, RegBuffer& reg);
 
 void handle_src_storage(Interloper& itl, Function& func, RegSlot src)
 {
@@ -34,6 +35,27 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot)
 }
 
 
+void handle_storage(Interloper& itl, Function& func, const RegSpan& regs)
+{
+    for(const auto& src: regs.src)
+    {
+        handle_src_storage(itl,func,src);
+    }
+
+    for(const auto& dst: regs.dst)
+    {
+        handle_dst_storage(itl,func,dst);
+    }
+}
+
+const RegSpan blank_reg_span(RegBuffer& reg)
+{
+    reg.dst.size = 0;
+    reg.src.size = 0;
+
+    return reg;
+}
+
 // NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
 OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, const Opcode& opcode)
 {
@@ -45,8 +67,11 @@ OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, const Opcod
     return list.finish;    
 }
 
-OpcodeNode* emit_block_func(Function& func,const Opcode& opcode)
+OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode)
 {
+    const auto& reg = opcode_reg_span(opcode,itl.reg_buffer);
+    handle_storage(itl,func,reg);
+
     return emit_block_internal(func,cur_block(func),opcode);
 }
 
@@ -55,3 +80,23 @@ OpcodeNode* emit_block_func(Function& func,const Opcode& opcode)
 #include "emitter/mov_gpr_imm.cpp"
 #include "emitter/branch.cpp"
 #include "emitter/implicit.cpp"
+#include "emitter/addr.cpp"
+
+const RegSpan opcode_reg_span(const Opcode& opcode, RegBuffer& reg)
+{
+    if(opcode.lowered)
+    {
+        return blank_reg_span(reg);
+    }
+
+    switch(opcode.group)
+    {
+        case op_group::implicit: return blank_reg_span(reg); 
+        case op_group::branch_label: return blank_reg_span(reg); 
+        case op_group::directive: return directive_reg_span(opcode.directive,reg); 
+        case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
+        case op_group::take_addr: return take_addr_reg_span(opcode.take_addr,reg); 
+    }
+
+    return reg;
+}
