@@ -1,4 +1,4 @@
-const RegSpan take_addr_reg_span(const TakeAddr& take_addr, RegBuffer& reg)
+ConstRegSpan take_addr_reg_span(const TakeAddr& take_addr, RegSpan& reg)
 {
     u32 dst = 0;
     reg.dst[dst++] = take_addr.dst_ir;

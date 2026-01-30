@@ -2,7 +2,7 @@
 
 void reload_slot(Interloper& itl, Function& func, const Reg& dst);
 void spill_slot(Interloper& itl, Function& func, const Reg& src);
-const RegSpan opcode_reg_span(const Opcode& opcode, RegBuffer& reg);
+ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg);
 
 void handle_src_storage(Interloper& itl, Function& func, RegSlot src)
 {
@@ -35,20 +35,20 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot)
 }
 
 
-void handle_storage(Interloper& itl, Function& func, const RegSpan& regs)
+void handle_storage(Interloper& itl, Function& func, const ConstRegSpan& reg)
 {
-    for(const auto& src: regs.src)
+    for(const auto& src: reg.src)
     {
         handle_src_storage(itl,func,src);
     }
 
-    for(const auto& dst: regs.dst)
+    for(const auto& dst: reg.dst)
     {
         handle_dst_storage(itl,func,dst);
     }
 }
 
-const RegSpan blank_reg_span(RegBuffer& reg)
+const ConstRegSpan blank_reg_span(RegSpan& reg)
 {
     reg.dst.size = 0;
     reg.src.size = 0;
@@ -69,7 +69,7 @@ OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, const Opcod
 
 OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode)
 {
-    const auto& reg = opcode_reg_span(opcode,itl.reg_buffer);
+    const auto reg = opcode_reg_span(opcode,itl.reg_span);
     handle_storage(itl,func,reg);
 
     return emit_block_internal(func,cur_block(func),opcode);
@@ -82,7 +82,7 @@ OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode
 #include "emitter/implicit.cpp"
 #include "emitter/addr.cpp"
 
-const RegSpan opcode_reg_span(const Opcode& opcode, RegBuffer& reg)
+ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
 {
     if(opcode.lowered)
     {
