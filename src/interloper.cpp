@@ -244,12 +244,12 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     }
     
 
-    const auto backend_err = backend(itl,executable_path);
-    if(backend_err)
-    {
-        destroy_itl(itl);
-        return *backend_err;
-    }
+    // const auto backend_err = backend(itl,executable_path);
+    // if(backend_err)
+    // {
+    //     destroy_itl(itl);
+    //     return *backend_err;
+    // }
 
     return option::none;
 }

@@ -5,43 +5,6 @@ void destroy_reg(Reg& ir_reg)
     destroy_arr(ir_reg.local_uses);
 }
 
-b32 is_arg_reg(arg_type type)
-{
-    return type <= arg_type::dst_src_reg;
-}
-
-b32 is_arg_src(arg_type type)
-{
-    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
-}
-
-constexpr b32 is_arg_src_const(arg_type type)
-{
-    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
-}
-
-b32 is_arg_dst(arg_type type)
-{
-    return type >= arg_type::dst_reg && type <= arg_type::dst_src_reg;
-}
-
-constexpr b32 is_arg_dst_const(arg_type type)
-{
-    return type >= arg_type::dst_reg && type <= arg_type::dst_src_reg;
-}
-
-
-b32 is_arg_float(arg_type type)
-{
-    return type == arg_type::dst_src_float || type == arg_type::src_float || type ==  arg_type::dst_float;
-}
-
-constexpr b32 is_arg_float_const(arg_type type)
-{
-    return type == arg_type::dst_src_float || type == arg_type::src_float || type ==  arg_type::dst_float;
-}
-
-
 u32 gpr_count(u32 size)
 {
     return size / GPR_SIZE;
@@ -341,12 +304,6 @@ bool is_local_reg(const Reg &reg)
 {
     return !is_aliased(reg) && is_local(reg) && !stored_in_mem(reg);
 }
-
-const OpInfo& info_from_op(const Opcode& opcode)
-{
-    return OPCODE_TABLE[u32(opcode.op)];
-}
-
 
 b32 is_callee_saved(arch_target arch,u32 reg_idx)
 {
