@@ -23,6 +23,8 @@ using TmpSlot = Slot<slot_type::tmp>;
 using LabelSlot = Slot<slot_type::label>;
 using BlockSlot = Slot<slot_type::block>;
 
+using lowered_reg = u32;
+
 
 template<slot_type T>
 b32 is_valid_slot(Slot<T> slot)
@@ -370,7 +372,8 @@ enum class op_group
 {
     implicit,
     branch_label,
-    directive 
+    directive,
+    mov_gpr_imm
 };
 
 enum class directive_operand_type
@@ -380,7 +383,6 @@ enum class directive_operand_type
     reg,
     label,
 };
-
 
 struct DirectiveOperand
 {
@@ -431,6 +433,17 @@ struct BranchLabel
     LabelSlot label;
 };
 
+struct MovGprImm
+{
+    union
+    {
+        RegSlot dst_ir = {};
+        lowered_reg dst_reg;
+    };
+
+    u64 imm;      
+};
+
 struct Opcode
 {
     op_group group = op_group::directive;
@@ -440,6 +453,7 @@ struct Opcode
         Directive directive = {};
         BranchLabel branch_label;
         Implicit implicit;
+        MovGprImm mov_gpr_imm;
     };
 
     bool lowered = false;
