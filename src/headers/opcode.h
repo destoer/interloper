@@ -400,6 +400,8 @@ enum class directive_type
     push_arg,
     reload_slot,
     spill_slot,
+    clean_args,
+    unlock_reg_set
 };
 
 struct Directive
@@ -439,4 +441,6 @@ struct Opcode
         BranchLabel branch_label;
         Implicit implicit;
     };
+
+    bool lowered = false;
 };
