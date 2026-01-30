@@ -159,6 +159,12 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpuge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
+    // GPR_CMP_UNSIGNED_IMM_THREE
+    {op_group::imm_t,"cmpsgt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+
+    // GPR_CMP_UNSIGNED_IMM_THREE
+    {op_group::imm_t,"cmpugt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+
     // GPR_CMP_SIGNED_REG_THREE
     {op_group::reg_t,"cmpslt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpsle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
@@ -168,6 +174,10 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     // GPR_CMP_EQ_REG_THREE
     {op_group::reg_t,"cmpeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
+
+    // GPR_CMP_EQ_IMM_THREE
+    {op_group::imm_t,"cmpeq %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"cmpne %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
     // GPR_SET_FLAG_CMP_SIGNED_REG
     {op_group::reg_t,"setslt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
@@ -196,103 +206,58 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
+    {op_group::reg_t,"test %r, %r",2,{arg_type::src_reg,arg_type::src_reg,arg_type::none}},
+
+
     // X86_IMPLICIT
     {op_group::implicit_t,"cqo",0,{arg_type::none,arg_type::none,arg_type::none}},
 
-    // DIRECTIVE
+    // CMP_FLAGS_REG
+    {op_group::reg_t,"cmp_flags_gpr %r, %r",2,{arg_type::src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"cmp_flags_fpr %r, %r",2,{arg_type::src_float,arg_type::src_float,arg_type::none}},
 
-    {op_group::reg_t,"mov_unlock %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+    // CMP_FLAGS_IMM
+    {op_group::reg_t,"cmp_flags_imm %r, %x",2,{arg_type::src_reg,arg_type::imm,arg_type::none}},
 
-
-
-
-
-    {op_group::reg_t,"not %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
-
-    {op_group::imm_t,"cmpugt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-
-
-
-
-
-    // main arith reg2
-
-
-
-
-
-
-
-
-
-
-
-
-    {op_group::reg_t,"not %r",1,{arg_type::dst_src_reg,arg_type::none,arg_type::none}},
-
-    // float
-
-
-
-
-    {op_group::reg_t,"cmp_flags_float %r, %r",2,{arg_type::src_float,arg_type::src_float,arg_type::none}},
-
-
-
-
-
-
-    // load
-
-    // store
-
-
-    
-
+    // STACK
     {op_group::reg_t,"push %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"pop %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
+    // STACKM
     {op_group::regm_t, "pushm %m",1,{arg_type::imm,arg_type::none,arg_type::none}},
     {op_group::regm_t, "popm %m", 1,{arg_type::imm,arg_type::none,arg_type::none}},
 
-    {op_group::implicit_t,"call %a",1,{arg_type::label,arg_type::none,arg_type::none}},
-    {op_group::reg_t,"call %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
-    {op_group::implicit_t,"leave",0,{arg_type::none,arg_type::none,arg_type::none}},
-    {op_group::implicit_t,"ret",0,{arg_type::none,arg_type::none,arg_type::none}},
-
-    {op_group::implicit_t,"syscall",0,{arg_type::none,arg_type::none,arg_type::none}},
-    {op_group::imm_t,"swi %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
-
-    // compare unsigned
-
-
-    // compare signed
-    {op_group::imm_t,"cmpsgt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-
-
-    // dont care about sign for equality
-
-
-    {op_group::imm_t,"cmpeq %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-    {op_group::imm_t,"cmpne %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-
-    // compare flags
-    {op_group::reg_t,"cmp_flags %r, %r",2,{arg_type::src_reg,arg_type::src_reg,arg_type::none}},
-    {op_group::reg_t,"cmp_flags_imm %r, %x",2,{arg_type::src_reg,arg_type::imm,arg_type::none}},
-
-
+    // BRANCH_LABEL_REG_COND
     {op_group::branch_t,"bnc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
     {op_group::branch_t,"bc %a, %r",2,{arg_type::label,arg_type::src_reg,arg_type::none}},
-    {op_group::branch_t,"b %a",1,{arg_type::label,arg_type::none,arg_type::none}},
-    {op_group::branch_reg_t,"b %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
-
-    // x86 jump
-    {op_group::reg_t,"test %r, %r",2,{arg_type::src_reg,arg_type::src_reg,arg_type::none}},
+    
+    // BRANCH_LABEL_FLAG_COND
     {op_group::branch_t,"je %a",1,{arg_type::label,arg_type::none,arg_type::none}},
     {op_group::branch_t,"jne %a",1,{arg_type::label,arg_type::none,arg_type::none}},
 
+    // BRANCH_REG
+    {op_group::branch_reg_t,"b %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"call %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
+
+    // BRANCH_LABEL
+    {op_group::implicit_t,"call %a",1,{arg_type::label,arg_type::none,arg_type::none}},
+    {op_group::branch_t,"b %a",1,{arg_type::label,arg_type::none,arg_type::none}},
+
+    // IMPLICIT
+    {op_group::implicit_t,"leave",0,{arg_type::none,arg_type::none,arg_type::none}},
+    {op_group::implicit_t,"ret",0,{arg_type::none,arg_type::none,arg_type::none}},
+    {op_group::implicit_t,"syscall",0,{arg_type::none,arg_type::none,arg_type::none}},
+
+    // NOT <-- Might be a better grouping for these
+    {op_group::reg_t,"not %r",1,{arg_type::dst_src_reg,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"not %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+
+    // DIRECTIVE
+
     // directives
     {op_group::slot_t,"DIRECTIVE",0,{arg_type::none,arg_type::none,arg_type::none}},
+    {op_group::reg_t,"mov_unlock %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
+
     {op_group::slot_t,"alloc_slot %r, %x",2,{arg_type::directive,arg_type::imm,arg_type::none}},
     
     {op_group::slot_t,"alloc_local_array %r, %x, %x",3,{arg_type::dst_reg,arg_type::imm,arg_type::imm}},
@@ -301,9 +266,6 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"push_arg %r",1,{arg_type::src_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"push_float_arg %r",1,{arg_type::src_float,arg_type::none,arg_type::none}},
 
-    // perform cleanup after a function call
-    // free the stack space for args
-    // restore callee saved registers
     {op_group::imm_t, "alloc_stack %x",1,{arg_type::directive,arg_type::none,arg_type::none}},
     {op_group::imm_t, "clean_args %x",1,{arg_type::imm,arg_type::none,arg_type::none}},
 
