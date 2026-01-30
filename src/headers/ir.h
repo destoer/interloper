@@ -358,80 +358,6 @@ static const char* SHIFT_NAMES[] =
     ">>"
 };
 
-struct ArithmeticInfo
-{
-    enum arith_bin_op arith;
-    bool commutative = false;
-    op_type reg_unsigned_form = op_type::END;
-    op_type reg_signed_form = op_type::END;
-    op_type imm_form = op_type::END;
-    op_type float_form = op_type::END;
-};
-
-static constexpr ArithmeticInfo ARITH_INFO[ARITH_BIN_OP_SIZE] = 
-{
-    {arith_bin_op::add_t,true,op_type::add_reg,op_type::add_reg,op_type::add_imm,op_type::addf_reg},
-    {arith_bin_op::sub_t,false,op_type::sub_reg,op_type::sub_reg,op_type::sub_imm,op_type::subf_reg},
-    {arith_bin_op::mul_t,true,op_type::mul_reg,op_type::mul_reg,op_type::mul_imm,op_type::mulf_reg},
-    {arith_bin_op::mod_t,false,op_type::umod_reg,op_type::smod_reg,op_type::none,op_type::none},
-    {arith_bin_op::div_t,false,op_type::udiv_reg,op_type::sdiv_reg,op_type::none,op_type::divf_reg},
-    {arith_bin_op::xor_t,true,op_type::xor_reg,op_type::xor_reg,op_type::xor_imm,op_type::none},
-    {arith_bin_op::and_t,true,op_type::and_reg,op_type::and_reg,op_type::and_imm,op_type::none},
-    {arith_bin_op::or_t,true,op_type::or_reg,op_type::or_reg,op_type::none,op_type::none},
-};
-
-
-static constexpr u32 OPCODE_SIZE = static_cast<u32>(op_type::END)+1;
-
-
-enum class op_group
-{
-    reg_t,
-    regm_t,
-    imm_t,
-    addr_t,
-    implicit_t,
-    branch_t,
-    branch_reg_t,
-    slot_t,
-};
-
-inline bool is_group_branch(op_group group) 
-{
-    return group == op_group::branch_t || group == op_group::branch_reg_t;
-}
-
-enum class arg_type
-{
-    // NOTE: these 3 must be first
-    src_reg,
-    src_float,
-
-    dst_reg,
-    dst_float,
-
-    // double duty, used in reg2 opcodes
-    // i.e add dst, v1
-    dst_src_float,
-    dst_src_reg,
-
-
-    imm,
-    label,
-    directive,
-    none,
-};
-
-
-struct OpInfo
-{
-    op_group group;
-    String fmt_string;
-    u32 args;
-    arg_type type[3];
-};
-
-
 enum class slot_type
 {
     symbol,
@@ -491,28 +417,12 @@ using LabelSlot = Slot<slot_type::label>;
 
 using BlockSlot = Slot<slot_type::block>;
 
-extern const OpInfo OPCODE_TABLE[OPCODE_SIZE];
-
 static constexpr u32 NON_ARG = 0xffffffff;
 
 static constexpr u32 LOCATION_GLOBAL = 0xfffffffe;
-
-enum class operand_type
-{
-    decimal,
-    imm,
-    reg,
-    label,
-    // Register thatt should not be re written
-    directive_reg,
-    // Post rewrite
-    lowered,
-};
-
-
 static constexpr u32 SPECIAL_REG_START = 0x7000'0000;
 
-// These constants are large so they cant be confused with any legitmate register
+// These constants are large so they cant be confused with any legitimate register
 enum class spec_reg
 {
     // generic
@@ -688,40 +598,6 @@ RegSlot make_spec_reg_slot(spec_reg reg)
 const RegSlot INVALID_SYM_REG_SLOT = make_sym_reg_slot({INVALID_HANDLE});
 
 
-struct Operand
-{
-    union 
-    {
-        f64 decimal;
-        u64 imm;
-        u64 lowered;
-        RegSlot reg = {INVALID_SYM_REG_SLOT};
-        LabelSlot label;
-    };
-
-    operand_type type = operand_type::reg;
-};
-
-inline bool operator == (const Operand& v1, const Operand &v2)
-{
-    if(v1.type != v2.type)
-    {
-        return false;
-    }
-
-    switch(v1.type)
-    {
-        case operand_type::decimal: return v1.decimal == v2.decimal;
-        case operand_type::imm: return v1.imm == v2.imm;
-        case operand_type::reg: return v1.reg == v2.reg;
-        case operand_type::label: return v1.label == v2.label;
-        case operand_type::lowered: return v1.lowered == v2.lowered;
-        case operand_type::directive_reg: return v1.reg == v2.reg; 
-    }
-
-    assert(false);
-}
-
 struct Addr
 {
     RegSlot base;
@@ -761,177 +637,8 @@ Addr make_addr(RegSlot slot, u32 offset);
 
 struct Opcode
 {
-    op_type op; 
-    Operand v[3];
-    u32 scale;
-    u32 offset;
+    u32 foo;
 };
-
-inline Operand make_reg_operand(RegSlot slot)
-{
-    Operand oper;
-    oper.reg = slot;
-    oper.type = operand_type::reg;
-
-    return oper;
-}
-
-inline Operand make_decimal_operand(f64 decimal)
-{
-    Operand oper;
-    oper.decimal = decimal;
-    oper.type = operand_type::decimal;
-
-    return oper;
-}
-
-inline Operand make_imm_operand(u64 imm)
-{
-    Operand oper;
-    oper.imm = imm;
-    oper.type = operand_type::imm;
-
-    return oper;
-}
-
-inline Operand make_label_operand(LabelSlot slot)
-{
-    Operand oper;
-    oper.label = slot;
-    oper.type = operand_type::label;
-
-    return oper;
-}
-
-inline Operand make_lowered_operand(u64 value)
-{
-    Operand oper;
-    oper.lowered = value;
-    oper.type = operand_type::lowered;
-
-    return oper;
-}
-
-inline Operand make_spec_operand(spec_reg reg)
-{
-    return make_reg_operand(make_spec_reg_slot(reg));
-}
-
-inline Operand make_directive_reg(RegSlot slot)
-{
-    Operand oper;
-    oper.reg = slot;
-    oper.type = operand_type::directive_reg;
-
-    return oper;   
-}
-
-static const Operand BLANK_OPERAND = BLANK_OPERAND;
-
-inline Opcode make_lowered_implicit_instr(op_type type)
-{
-    return Opcode {type, BLANK_OPERAND,BLANK_OPERAND,BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_lowered_reg1_instr(op_type type, u64 r1)
-{
-    return Opcode {type,make_lowered_operand(r1),BLANK_OPERAND,BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_lowered_reg2_instr(op_type type, u64 r1, u64 r2)
-{
-    return Opcode {type,make_lowered_operand(r1),make_lowered_operand(r2),BLANK_OPERAND,0,0};
-}
-
-
-inline Opcode make_lowered_imm1_instr(op_type type, u64 imm)
-{
-    return Opcode {type,make_lowered_operand(imm),BLANK_OPERAND,BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_lowered_imm2_instr(op_type type, u64 r1, u64 imm)
-{
-    return Opcode {type,make_lowered_operand(r1),make_lowered_operand(imm),BLANK_OPERAND,0,0};
-}
-
-
-inline Opcode make_lowered_base_addr_instr(op_type type, u64 dst, u64 base, u32 offset)
-{
-    return Opcode {type,make_lowered_operand(dst),make_lowered_operand(base),make_lowered_operand(u32(spec_reg::null)),1,offset};
-}
-
-inline Opcode make_op(op_type type, Operand v1 = BLANK_OPERAND, Operand v2 = BLANK_OPERAND, Operand v3 = BLANK_OPERAND)
-{
-    return Opcode {type,v1,v2,v3,0,0};
-}
-
-inline Opcode make_addr_op(op_type type, Operand v1, Operand v2, Operand v3, u32 scale, u32 offset)
-{
-    return Opcode {type,v1,v2,v3,scale,offset};
-}
-
-
-inline Opcode make_directive_instr(op_type type, Operand v1, Operand v2, Operand v3)
-{
-    return Opcode {type,v1,v2,v3,0,0};
-}
-
-
-inline Opcode make_addr_instr(op_type type, RegSlot v1, Addr addr)
-{
-    return Opcode{type, make_reg_operand(v1),make_reg_operand(addr.base),make_reg_operand(addr.index),addr.scale,addr.offset};
-}
-
-inline Opcode make_reg1_instr(op_type type, RegSlot v1)
-{
-    return Opcode{type, make_reg_operand(v1),BLANK_OPERAND,BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_reg2_instr(op_type type, RegSlot v1, RegSlot v2)
-{
-    return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_reg3_instr(op_type type, RegSlot v1, RegSlot v2, RegSlot v3)
-{
-    return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),make_reg_operand(v3),0,0};
-}
-
-inline Opcode make_imm1_instr(op_type type, u64 imm)
-{
-    return Opcode{type, make_imm_operand(imm),BLANK_OPERAND,BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_imm2_instr(op_type type, RegSlot v1, u64 imm)
-{
-    return Opcode{type, make_reg_operand(v1),make_imm_operand(imm),BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_imm3_instr(op_type type, RegSlot v1, RegSlot v2, u64 imm)
-{
-    return Opcode{type, make_reg_operand(v1),make_reg_operand(v2),make_imm_operand(imm),0,0};
-}
-
-inline Opcode make_float_imm2_instr(op_type type, RegSlot v1, f64 decimal)
-{
-    return Opcode{type, make_reg_operand(v1),make_decimal_operand(decimal),BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_branch_instr(op_type type, LabelSlot label)
-{
-    return Opcode{type, make_label_operand(label),BLANK_OPERAND,BLANK_OPERAND,0,0};
-}
-
-inline Opcode make_cond_branch_instr(op_type type, LabelSlot label, RegSlot cond)
-{
-    return Opcode{type, make_label_operand(label),make_reg_operand(cond),BLANK_OPERAND,0,0};
-}
-
-
-inline Opcode make_implicit_instr(op_type type)
-{
-    return Opcode{type, BLANK_OPERAND,BLANK_OPERAND,BLANK_OPERAND,0,0};
-}
 
 static constexpr u32 SIGNED_FLAG = 1 << 0;
 static constexpr u32 STORED_IN_MEM = 1 << 1;
