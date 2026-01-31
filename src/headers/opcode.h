@@ -428,7 +428,9 @@ enum class op_group
     lea,
     addrof,
     load,
+    load_struct,
     store,
+    store_struct,
     mov_reg,
 };
 
@@ -614,7 +616,9 @@ struct Opcode
         Lea lea;
         AddrOf addrof;
         Load load;
+        LoadStruct load_struct;
         Store store;
+        StoreStruct store_struct;
     };
 
     bool lowered = false;
