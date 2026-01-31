@@ -35,17 +35,23 @@ ConstRegSpan addr_opcode_reg_span(const AddrOpcode<type,IS_LOAD>& addr_op, RegSp
     return reg;
 }
 
+template<typename T, typename op_type>
+T make_addr_op(RegSlot dst,const Addr& addr, op_type type)
+{
+    T addr_op;
+    addr_op.v1.ir = dst;
+    addr_op.addr_ir = addr;
+    addr_op.type = type;
+    
+    return addr_op;
+}
+
 void emit_take_addr(Interloper& itl, Function& func, RegSlot dst,const Addr& addr, take_addr_type type)
 {
     Opcode opcode;
     opcode.group = op_group::take_addr;
 
-    TakeAddr take_addr;
-    take_addr.v1.ir = dst;
-    take_addr.addr_ir = addr;
-    take_addr.type = type;
-    
-    opcode.take_addr = take_addr;
+    opcode.take_addr = make_addr_op<TakeAddr>(dst,addr,type);
     emit_block_func(itl,func,opcode);
 }
 
@@ -83,12 +89,15 @@ void emit_load(Interloper& itl, Function& func, RegSlot dst, const PointerAddr& 
     Opcode opcode;
     opcode.group = op_group::load;
 
-    Load load;
-    load.type = type;
-    load.v1.ir = dst;
-    load.addr_ir = pointer.addr;
+    opcode.load = make_addr_op<Load>(dst,pointer.addr,type);;
+    emit_block_func(itl,func,opcode);
+}
 
-    opcode.load = load;
+void emit_store(Interloper& itl, Function& func, RegSlot src, const PointerAddr& pointer, store_type type)
+{
+    Opcode opcode;
+    opcode.group = op_group::store;
 
+    opcode.store = make_addr_op<Store>(src,pointer.addr,type);
     emit_block_func(itl,func,opcode);
 }

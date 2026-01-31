@@ -427,6 +427,7 @@ enum class op_group
     arith_imm_three,
     take_addr,
     load,
+    store,
     mov_reg,
 };
 
@@ -544,6 +545,16 @@ enum class load_type
     lf,
 };
 
+enum class store_type
+{
+    sb,
+    sh,
+    sw,
+    sd,
+    
+    sf,
+};
+
 enum class take_addr_type
 {
     addrof,
@@ -553,6 +564,7 @@ enum class take_addr_type
 
 using TakeAddr = AddrOpcode<take_addr_type,true>;
 using Load = AddrOpcode<load_type,true>;
+using Store = AddrOpcode<store_type,false>;
 
 template<typename op_type>
 struct ImmThree
@@ -595,6 +607,7 @@ struct Opcode
         MovReg mov_reg;
         TakeAddr take_addr;
         Load load;
+        Store store;
     };
 
     bool lowered = false;

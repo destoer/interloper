@@ -240,40 +240,15 @@ static void store_ptr_addr(Interloper &itl,Function& func,RegSlot src_slot,Point
 {
     if(is_float)
     {
-        store_float(itl,func,src_slot,addr);
+        emit_store(itl,func,src_slot,addr,store_type::sf);
+        return;
     }
 
-    else
-    {
-        switch(size)
-        {
-            case 1:
-            {
-                store_byte(itl,func,src_slot,addr);
-                break;
-            }
+    const u32 log_size = log2(size);
+    assert(log_size <= 3);
 
-            case 2: 
-            {
-                store_half(itl,func,src_slot,addr);
-                break;
-            }
-
-            case 4:
-            {
-                store_word(itl,func,src_slot,addr);
-                break;
-            }
-
-            case 8:
-            {
-                store_double(itl,func,src_slot,addr);
-                break;
-            }
-
-            default: assert(false);
-        }
-    }    
+    static constexpr store_type STORE_TYPE[] = {store_type::sb,store_type::sh,store_type::sw,store_type::sd};
+    emit_store(itl,func,dst,pointer,STORE_TYPE[log_size]);
 }
 
 
