@@ -1,6 +1,6 @@
 
-template<typename type,const bool IS_LOAD>
-ConstRegSpan addr_opcode_reg_span(const AddrOpcode<type,IS_LOAD>& addr_op, RegSpan& reg)
+template<typename type,const bool IS_LOAD, const bool STRUCT_ADDR>
+ConstRegSpan addr_opcode_reg_span(const AddrOpcode<type,IS_LOAD,STRUCT_ADDR>& addr_op, RegSpan& reg)
 {
     reg.dst.size = 0;
     reg.src.size = 0;
@@ -15,22 +15,12 @@ ConstRegSpan addr_opcode_reg_span(const AddrOpcode<type,IS_LOAD>& addr_op, RegSp
         reg.src[reg.src.size++] = addr_op.v1.ir;
     }
 
-    if constexpr(std::is_same_v<type,take_addr_type>)
-    {
-        if(addr_op.type != take_addr_type::addrof)
-        {
-            reg.src[reg.src.size++] = addr_op.addr_ir.base;
-        }
-
-        reg.src[reg.src.size++] = addr_op.addr_ir.index;
-    }
-
-    else
+    if constexpr(!STRUCT_ADDR)
     {
         reg.src[reg.src.size++] = addr_op.addr_ir.base;
-        reg.src[reg.src.size++] = addr_op.addr_ir.index;
     }
 
+    reg.src[reg.src.size++] = addr_op.addr_ir.index;
 
     return reg;
 }
@@ -46,22 +36,17 @@ T make_addr_op(RegSlot dst,const Addr& addr, op_type type)
     return addr_op;
 }
 
-void emit_take_addr(Interloper& itl, Function& func, RegSlot dst,const Addr& addr, take_addr_type type)
-{
-    Opcode opcode;
-    opcode.group = op_group::take_addr;
-
-    opcode.take_addr = make_addr_op<TakeAddr>(dst,addr,type);
-    emit_block_func(itl,func,opcode);
-}
-
 void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struct_addr)
 {
     // mark reg as aliased
     auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
     reg.flags |= ALIASED;
 
-    emit_take_addr(itl,func,dst,struct_addr.addr, take_addr_type::addrof);
+    Opcode opcode;
+    opcode.group = op_group::addrof;
+
+    opcode.addrof = make_addr_op<AddrOf>(dst,struct_addr.addr,take_addr::addrof);
+    emit_block_func(itl,func,opcode);
 }
 
 void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer)
@@ -73,7 +58,11 @@ void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer
         return;
     }
 
-    emit_take_addr(itl,func,dst,pointer.addr, take_addr_type::lea);
+    Opcode opcode;
+    opcode.group = op_group::lea;
+
+    opcode.lea = make_addr_op<Lea>(dst,pointer.addr,take_addr::lea);
+    emit_block_func(itl,func,opcode);
 }
 
 RegSlot lea_res(Interloper& itl,Function& func, const PointerAddr& addr)
