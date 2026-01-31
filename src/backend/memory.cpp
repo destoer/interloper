@@ -1,3 +1,9 @@
+static constexpr store_type STORE_TYPE[] = {store_type::sb,store_type::sh,store_type::sw,store_type::sd};
+
+static constexpr load_type UNSIGNED_LOAD_TYPE[] = {load_type::lb,load_type::lh,load_type::lw,load_type::ld};
+static constexpr load_type SIGNED_LOAD_TYPE[] = {load_type::lsb,load_type::lsh,load_type::lsw,load_type::ld};
+
+
 Addr make_addr(RegSlot base, u32 offset)
 {
     return {base,make_spec_reg_slot(spec_reg::null),1,offset};
@@ -101,41 +107,31 @@ static void load_ptr_addr(Interloper &itl,Function& func,RegSlot dst,PointerAddr
 
     if(is_signed)
     {
-        static constexpr load_type LOAD_TYPE[] = {load_type::lsb,load_type::lsh,load_type::lsw,load_type::ld};
-        emit_load(itl,func,dst,pointer,LOAD_TYPE[log_size]);
+        emit_load(itl,func,dst,pointer,SIGNED_LOAD_TYPE[log_size]);
         return;
     }
 
-    static constexpr load_type LOAD_TYPE[] = {load_type::lb,load_type::lh,load_type::lw,load_type::ld};
-    emit_load(itl,func,dst,pointer,LOAD_TYPE[log_size]);
+    emit_load(itl,func,dst,pointer,UNSIGNED_LOAD_TYPE[log_size]);
 }
 
-void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,StructAddr addr,u32 size, b32 is_signed, b32 is_float)
+void load_struct(Interloper &itl,Function& func,RegSlot dst,StructAddr addr,u32 size, b32 is_signed, b32 is_float)
 {
     if(is_float)
     {
-        load_struct_internal(itl,func,op_type::load_struct_f64,dst_slot,addr);  
+        emit_load_struct(itl,func,dst,addr,load_type::lf);  
+        return;
     }
 
-    else if(is_signed)
+    const u32 log_size = log2(size);
+    assert(log_size <= 3);
+
+    if(is_signed)
     {
-        const op_type SIGNED_LOAD_STRUCT_TABLE[] = {op_type::load_struct_s8,op_type::load_struct_s16,op_type::load_struct_s32,op_type::load_struct_u64};
-        const u32 idx = log2(size);
-
-        assert(idx <= 3);
-
-        load_struct_internal(itl,func,SIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr);     
+        emit_load_struct(itl,func,dst,addr,SIGNED_LOAD_TYPE[log_size]);
+        return;
     }
 
-    else
-    {
-        const op_type UNSIGNED_LOAD_STRUCT_TABLE[] = {op_type::load_struct_u8,op_type::load_struct_u16,op_type::load_struct_u32,op_type::load_struct_u64};
-        const u32 idx = log2(size);
-
-        assert(idx <= 3);
-
-        load_struct_internal(itl,func,UNSIGNED_LOAD_STRUCT_TABLE[idx],dst_slot,addr);     
-    }
+    emit_load_struct(itl,func,dst,addr,UNSIGNED_LOAD_TYPE[log_size]);
 }
 
 void load_addr_slot(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot addr_slot, u32 size, b32 sign, b32 is_float)
@@ -236,19 +232,19 @@ void do_ptr_load(Interloper &itl,Function &func,RegSlot dst_slot,const TypedReg&
    do_addr_load(itl,func,dst_slot,src_addr);
 }
 
-static void store_ptr_addr(Interloper &itl,Function& func,RegSlot src_slot,PointerAddr addr,u32 size, b32 is_float)
+
+static void store_ptr_addr(Interloper &itl,Function& func,RegSlot src,PointerAddr pointer,u32 size, b32 is_float)
 {
     if(is_float)
     {
-        emit_store(itl,func,src_slot,addr,store_type::sf);
+        emit_store(itl,func,src,pointer,store_type::sf);
         return;
     }
 
     const u32 log_size = log2(size);
     assert(log_size <= 3);
 
-    static constexpr store_type STORE_TYPE[] = {store_type::sb,store_type::sh,store_type::sw,store_type::sd};
-    emit_store(itl,func,dst,pointer,STORE_TYPE[log_size]);
+    emit_store(itl,func,src,pointer,STORE_TYPE[log_size]);
 }
 
 
@@ -263,18 +259,14 @@ void store_struct(Interloper &itl,Function& func,RegSlot src_slot,StructAddr add
 {
     if(is_float)
     {
-        load_struct_internal(itl,func,op_type::store_struct_f64,src_slot,addr);
+        emit_store_struct(itl,func,src_slot,addr,store_type::sf);
+        return;
     }
 
-    else
-    {
-        const op_type STORE_STRUCT_TABLE[] = {op_type::store_struct_u8,op_type::store_struct_u16,op_type::store_struct_u32,op_type::store_struct_u64};
-        const u32 idx = log2(size);
+    const u32 idx = log2(size);
+    assert(idx <= 3);
 
-        assert(idx <= 3);
-
-        load_struct_internal(itl,func,STORE_STRUCT_TABLE[idx],src_slot,addr);
-    }      
+    emit_store_struct(itl,func,src_slot,addr,STORE_TYPE[idx]);
 }
 
 void store_addr_slot(Interloper &itl,Function &func,RegSlot src_slot,AddrSlot addr_slot, u32 size,b32 is_float)
