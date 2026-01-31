@@ -38,7 +38,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"sxh %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"sxw %r, %r",2,{arg_type::dst_reg,arg_type::src_reg,arg_type::none}},
 
-    // GPR_IMM_THREE
+    // ARITH_IMM_THREE
     {op_group::imm_t,"add %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::imm_t,"sub %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::imm_t,"mul %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
