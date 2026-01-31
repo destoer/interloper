@@ -78,6 +78,8 @@ OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode
 
 #include "emitter/directive.cpp"
 #include "emitter/mov_gpr_imm.cpp"
+#include "emitter/mov_reg.cpp"
+#include "emitter/arith.cpp"
 #include "emitter/branch.cpp"
 #include "emitter/implicit.cpp"
 #include "emitter/addr.cpp"
@@ -95,7 +97,9 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::branch_label: return blank_reg_span(reg); 
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
+        case op_group::gpr_imm_three: return gpr_imm_three_reg_span(opcode.gpr_imm_three,reg);
         case op_group::take_addr: return take_addr_reg_span(opcode.take_addr,reg); 
+        case op_group::mov_reg: return mov_reg_reg_span(opcode.mov_reg,reg);
     }
 
     return reg;

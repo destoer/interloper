@@ -1,7 +1,7 @@
 ConstRegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, RegSpan& reg)
 {
     u32 dst = 0;
-    reg.dst[dst++] = mov_imm.dst_ir;
+    reg.dst[dst++] = mov_imm.dst.ir;
     reg.dst.size = dst;
 
     reg.src.size = 0;
@@ -12,7 +12,7 @@ ConstRegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, RegSpan& reg)
 void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
 {
     MovGprImm mov_imm;
-    mov_imm.dst_ir = dst;
+    mov_imm.dst.ir = dst;
     mov_imm.imm = imm;
 
     Opcode opcode;
