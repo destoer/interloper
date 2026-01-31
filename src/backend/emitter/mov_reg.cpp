@@ -31,3 +31,8 @@ void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 {
     emit_mov_reg(itl,func,dst,src,mov_reg_type::gpr);
 }
+
+void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
+{
+    emit_mov_reg(itl,func,dst,src,mov_reg_type::fpr);
+}

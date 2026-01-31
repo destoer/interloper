@@ -479,6 +479,7 @@ struct DirectiveOperand
 enum class directive_type
 {
     push_arg,
+    push_float_arg,
     reload_slot,
     spill_slot,
     clean_args,
@@ -495,6 +496,7 @@ struct Directive
 enum class implicit_type
 {
     syscall,
+    ret,
 };
 
 struct Implicit
