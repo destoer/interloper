@@ -425,7 +425,8 @@ enum class op_group
     directive,
     mov_gpr_imm,
     arith_imm_three,
-    take_addr,
+    lea,
+    addrof,
     load,
     store,
     mov_reg,
@@ -517,7 +518,7 @@ struct MovGprImm
 };
 
 
-template<typename op_type,const bool IS_LOAD>
+template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT>
 struct AddrOpcode
 {
     op_type type;
@@ -555,16 +556,21 @@ enum class store_type
     sf,
 };
 
-enum class take_addr_type
+enum class take_addr
 {
+    lea,
     addrof,
-    lea
 };
 
 
-using TakeAddr = AddrOpcode<take_addr_type,true>;
-using Load = AddrOpcode<load_type,true>;
-using Store = AddrOpcode<store_type,false>;
+using Load = AddrOpcode<load_type,true,false>;
+using LoadStruct = AddrOpcode<load_type,true,true>;
+
+using Store = AddrOpcode<store_type,false,false>;
+using StoreStruct = AddrOpcode<store_type,false,true>;
+
+using Lea = AddrOpcode<take_addr,true,false>;
+using AddrOf = AddrOpcode<take_addr,true,true>;
 
 template<typename op_type>
 struct ImmThree
@@ -605,7 +611,8 @@ struct Opcode
         MovGprImm mov_gpr_imm;
         ArithImmThree arith_imm_three;
         MovReg mov_reg;
-        TakeAddr take_addr;
+        Lea lea;
+        AddrOf addrof;
         Load load;
         Store store;
     };
