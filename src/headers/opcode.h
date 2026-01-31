@@ -424,7 +424,7 @@ enum class op_group
     branch_label,
     directive,
     mov_gpr_imm,
-    gpr_imm_three,
+    arith_imm_three,
     take_addr,
     load,
     mov_reg,
@@ -554,15 +554,18 @@ enum class take_addr_type
 using TakeAddr = AddrOpcode<take_addr_type,true>;
 using Load = AddrOpcode<load_type,true>;
 
-struct GprImmThree
+template<typename op_type>
+struct ImmThree
 {
-    arith_bin_op type;
+    op_type type;
 
     IrRegister dst;
     IrRegister src;
 
     u64 imm = 0;
 };
+
+using ArithImmThree = ImmThree<arith_bin_op>;
 
 enum class mov_reg_type
 {
@@ -588,7 +591,7 @@ struct Opcode
         BranchLabel branch_label;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
-        GprImmThree gpr_imm_three;
+        ArithImmThree arith_imm_three;
         MovReg mov_reg;
         TakeAddr take_addr;
         Load load;

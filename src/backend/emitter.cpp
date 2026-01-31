@@ -97,7 +97,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::branch_label: return blank_reg_span(reg); 
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
-        case op_group::gpr_imm_three: return gpr_imm_three_reg_span(opcode.gpr_imm_three,reg);
+        case op_group::arith_imm_three: return imm_three_reg_span(opcode.arith_imm_three,reg);
         case op_group::take_addr: return addr_opcode_reg_span(opcode.take_addr,reg); 
         case op_group::load: return addr_opcode_reg_span(opcode.load,reg); 
         case op_group::mov_reg: return mov_reg_reg_span(opcode.mov_reg,reg);
