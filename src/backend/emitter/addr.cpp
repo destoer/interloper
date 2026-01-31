@@ -1,17 +1,36 @@
-ConstRegSpan take_addr_reg_span(const TakeAddr& take_addr, RegSpan& reg)
-{
-    u32 dst = 0;
-    reg.dst[dst++] = take_addr.dst.ir;
-    reg.dst.size = dst;
 
-    u32 src = 0;
-    if(take_addr.type != take_addr_type::addrof)
+template<typename type,const bool IS_LOAD>
+ConstRegSpan addr_opcode_reg_span(const AddrOpcode<type,IS_LOAD>& addr_op, RegSpan& reg)
+{
+    reg.dst.size = 0;
+    reg.src.size = 0;
+
+    if constexpr(IS_LOAD)
     {
-        reg.src[src++] = take_addr.addr_ir.base;
-        reg.src[src++] = take_addr.addr_ir.index;
+        reg.dst[reg.dst.size++] = addr_op.v1.ir;
     }
 
-    reg.src.size = src;
+    else
+    {
+        reg.src[reg.src.size++] = addr_op.v1.ir;
+    }
+
+    if constexpr(std::is_same_v<type,take_addr_type>)
+    {
+        if(addr_op.type != take_addr_type::addrof)
+        {
+            reg.src[reg.src.size++] = addr_op.addr_ir.base;
+        }
+
+        reg.src[reg.src.size++] = addr_op.addr_ir.index;
+    }
+
+    else
+    {
+        reg.src[reg.src.size++] = addr_op.addr_ir.base;
+        reg.src[reg.src.size++] = addr_op.addr_ir.index;
+    }
+
 
     return reg;
 }
@@ -22,7 +41,7 @@ void emit_take_addr(Interloper& itl, Function& func, RegSlot dst,const Addr& add
     opcode.group = op_group::take_addr;
 
     TakeAddr take_addr;
-    take_addr.dst.ir = dst;
+    take_addr.v1.ir = dst;
     take_addr.addr_ir = addr;
     take_addr.type = type;
     
@@ -30,7 +49,7 @@ void emit_take_addr(Interloper& itl, Function& func, RegSlot dst,const Addr& add
     emit_block_func(itl,func,opcode);
 }
 
-void addrof(Interloper& itl,Function& func, RegSlot dst, StructAddr struct_addr)
+void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struct_addr)
 {
     // mark reg as aliased
     auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
@@ -39,7 +58,7 @@ void addrof(Interloper& itl,Function& func, RegSlot dst, StructAddr struct_addr)
     emit_take_addr(itl,func,dst,struct_addr.addr, take_addr_type::addrof);
 }
 
-void lea(Interloper& itl,Function& func, RegSlot dst, PointerAddr pointer)
+void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer)
 {
     // This has no indexing don't bother
     if(is_null_reg(pointer.addr.index))
@@ -51,7 +70,7 @@ void lea(Interloper& itl,Function& func, RegSlot dst, PointerAddr pointer)
     emit_take_addr(itl,func,dst,pointer.addr, take_addr_type::lea);
 }
 
-RegSlot lea_res(Interloper& itl,Function& func, PointerAddr addr)
+RegSlot lea_res(Interloper& itl,Function& func, const PointerAddr& addr)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
     lea(itl,func,tmp,addr);
@@ -59,3 +78,17 @@ RegSlot lea_res(Interloper& itl,Function& func, PointerAddr addr)
     return tmp;
 }
 
+void emit_load(Interloper& itl, Function& func, RegSlot dst, const PointerAddr& pointer, load_type type)
+{
+    Opcode opcode;
+    opcode.group = op_group::load;
+
+    Load load;
+    load.type = type;
+    load.v1.ir = dst;
+    load.addr_ir = pointer.addr;
+
+    opcode.load = load;
+
+    emit_block_func(itl,func,opcode);
+}
