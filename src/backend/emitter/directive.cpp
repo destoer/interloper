@@ -122,6 +122,13 @@ void push_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
     emit_directive_reg1(itl,func,directive_type::push_arg,src,ir_reg_type::src);
 }
 
+void push_float_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
+{
+    pass.arg_clean++;
+    emit_directive_reg1(itl,func,directive_type::push_float_arg,src,ir_reg_type::src);
+}
+
+
 void reload_slot(Interloper& itl, Function& func, const Reg& reg)
 {
     if(stored_in_mem(reg))

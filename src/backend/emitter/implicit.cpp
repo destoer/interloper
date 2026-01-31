@@ -12,3 +12,8 @@ void syscall(Interloper& itl, Function& func)
 {
     emit_implicit(itl,func,implicit_type::syscall);
 }
+
+void ret(Interloper& itl, Function& func)
+{
+    emit_implicit(itl,func,implicit_type::ret);
+}
