@@ -300,9 +300,21 @@ struct AddrSlot
     b32 struct_addr = false;
 };
 
+enum class cmp_sign_op
+{
+    lt,
+    le,
+    gt,
+    ge,    
+};
 
-// general operation defined for unsigned or unsigned ints
-// will be converted to a specific counterpart in op_type
+enum class cmp_eq_op
+{
+    eq,
+    ne,    
+};
+
+
 enum class comparison_op
 {
     lt,
@@ -414,6 +426,7 @@ enum class op_group
     mov_gpr_imm,
     gpr_imm_three,
     take_addr,
+    load,
     mov_reg,
 };
 
@@ -502,15 +515,11 @@ struct MovGprImm
     u64 imm;      
 };
 
-enum class take_addr_type
-{
-    addrof,
-    lea
-};
 
-struct TakeAddr
+template<typename op_type,const bool IS_LOAD>
+struct AddrOpcode
 {
-    take_addr_type type = take_addr_type::addrof;
+    op_type type;
 
     union
     {
@@ -518,8 +527,32 @@ struct TakeAddr
         LoweredAddr addr;
     };
 
-    IrRegister dst;
+    IrRegister v1;    
 };
+
+enum class load_type
+{
+    lb,
+    lh,
+    lw,
+    ld,
+
+    lsb,
+    lsh,
+    lsw,
+
+    lf,
+};
+
+enum class take_addr_type
+{
+    addrof,
+    lea
+};
+
+
+using TakeAddr = AddrOpcode<take_addr_type,true>;
+using Load = AddrOpcode<load_type,true>;
 
 struct GprImmThree
 {
@@ -558,6 +591,7 @@ struct Opcode
         GprImmThree gpr_imm_three;
         MovReg mov_reg;
         TakeAddr take_addr;
+        Load load;
     };
 
     bool lowered = false;

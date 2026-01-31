@@ -88,76 +88,26 @@ void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_sl
 }
 
 
-static void load_ptr_addr(Interloper &itl,Function& func,RegSlot dst_slot,PointerAddr addr,u32 size, b32 is_signed, b32 is_float)
+static void load_ptr_addr(Interloper &itl,Function& func,RegSlot dst,PointerAddr pointer,u32 size, b32 is_signed, b32 is_float)
 {
     if(is_float)
     {
-        load_float(itl,func,dst_slot,addr);
+        emit_load(itl,func,dst,pointer,load_type::lf);
+        return;
     }
 
-    else if(is_signed)
+    const u32 log_size = log2(size);
+    assert(log_size <= 3);
+
+    if(is_signed)
     {
-        switch(size)
-        {
-            case 1:
-            {
-                load_signed_byte(itl,func,dst_slot,addr);
-                break;
-            }
-
-            case 2: 
-            {
-                load_signed_half(itl,func,dst_slot,addr);
-                break;
-            }
-
-            case 4:
-            {
-                load_signed_word(itl,func,dst_slot,addr);
-                break;
-            }
-
-            case 8:
-            {
-                load_double(itl,func,dst_slot,addr);
-                break;
-            }
-
-            default: assert(false);
-        }        
+        static constexpr load_type LOAD_TYPE[] = {load_type::lsb,load_type::lsh,load_type::lsw,load_type::ld};
+        emit_load(itl,func,dst,pointer,LOAD_TYPE[log_size]);
+        return;
     }
 
-    else
-    {
-        switch(size)
-        {
-            case 1:
-            {
-                load_byte(itl,func,dst_slot,addr);
-                break;
-            }
-
-            case 2: 
-            {
-                load_half(itl,func,dst_slot,addr);
-                break;
-            }
-
-            case 4:
-            {
-                load_word(itl,func,dst_slot,addr);
-                break;
-            }
-
-            case 8:
-            {
-                load_double(itl,func,dst_slot,addr);
-                break;
-            }
-
-            default: assert(false);
-        }
-    }
+    static constexpr load_type LOAD_TYPE[] = {load_type::lb,load_type::lh,load_type::lw,load_type::ld};
+    emit_load(itl,func,dst,pointer,LOAD_TYPE[log_size]);
 }
 
 void load_struct(Interloper &itl,Function& func,RegSlot dst_slot,StructAddr addr,u32 size, b32 is_signed, b32 is_float)
