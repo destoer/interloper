@@ -412,7 +412,9 @@ enum class op_group
     branch_label,
     directive,
     mov_gpr_imm,
+    gpr_imm_three,
     take_addr,
+    mov_reg,
 };
 
 enum class ir_reg_type
@@ -421,6 +423,15 @@ enum class ir_reg_type
     dst,
     dst_src,
     directive,    
+};
+
+struct IrRegister
+{
+    union
+    {
+        RegSlot ir = {};
+        lowered_reg reg;
+    };
 };
 
 enum class directive_operand_type
@@ -487,12 +498,7 @@ struct BranchLabel
 
 struct MovGprImm
 {
-    union
-    {
-        RegSlot dst_ir = {};
-        lowered_reg dst_reg;
-    };
-
+    IrRegister dst;
     u64 imm;      
 };
 
@@ -512,11 +518,31 @@ struct TakeAddr
         LoweredAddr addr;
     };
 
-    union
-    {
-        RegSlot dst_ir = {};
-        lowered_reg dst_reg;
-    };
+    IrRegister dst;
+};
+
+struct GprImmThree
+{
+    arith_bin_op type;
+
+    IrRegister dst;
+    IrRegister src;
+
+    u64 imm = 0;
+};
+
+enum class mov_reg_type
+{
+    gpr,
+    fpr
+};
+
+struct MovReg
+{
+    mov_reg_type type;
+
+    IrRegister dst;
+    IrRegister src;
 };
 
 struct Opcode
@@ -529,6 +555,8 @@ struct Opcode
         BranchLabel branch_label;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
+        GprImmThree gpr_imm_three;
+        MovReg mov_reg;
         TakeAddr take_addr;
     };
 
