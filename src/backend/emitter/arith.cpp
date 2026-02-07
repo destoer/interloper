@@ -44,8 +44,5 @@ void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 
 RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
 {
-    const auto tmp = new_tmp(func,GPR_SIZE);
-    add_imm(itl,func,tmp,src,imm);
-
-    return tmp;
+    return opcode_res2(itl,func,src,imm,add_imm);
 }

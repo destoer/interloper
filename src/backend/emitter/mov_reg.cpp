@@ -34,10 +34,7 @@ void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 
 RegSlot copy_reg(Interloper& itl, Function& func, RegSlot src)
 {
-    const auto dst = new_tmp(func,GPR_SIZE);
-    emit_mov_reg(itl,func,dst,src,mov_reg_type::gpr);
-
-    return dst;
+    return opcode_res1(itl,func,src,mov_reg);
 }
 
 void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)

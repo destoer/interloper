@@ -24,10 +24,7 @@ void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
 
 RegSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
 {
-    const auto tmp = new_tmp(func,GPR_SIZE);
-    mov_imm(itl,func,tmp,imm);
-
-    return tmp;
+    return opcode_res1(itl,func,imm,mov_imm);
 }
 
 RegSlot imm_zero(Interloper& itl, Function& func)

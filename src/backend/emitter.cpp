@@ -75,6 +75,25 @@ OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode
     return emit_block_internal(func,cur_block(func),opcode);
 }
 
+template<typename T, typename OPCODE_FUNC>
+RegSlot opcode_res1(Interloper& itl,Function& func, const T& arg, const OPCODE_FUNC& opcode_func)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    opcode_func(itl,func,tmp,arg);
+
+    return tmp;
+}
+
+
+template<typename T, typename Y, typename OPCODE_FUNC>
+RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, const OPCODE_FUNC& opcode_func)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    opcode_func(itl,func,tmp,v1,v2);
+
+    return tmp;
+}
+
 
 #include "emitter/directive.cpp"
 #include "emitter/mov_gpr_imm.cpp"

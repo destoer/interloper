@@ -49,6 +49,11 @@ void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struc
     emit_block_func(itl,func,opcode);
 }
 
+RegSlot addrof_res(Interloper& itl,Function& func, const StructAddr& struct_addr)
+{
+    return opcode_res1(itl,func,struct_addr,addrof);  
+}
+
 void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer)
 {
     // This has no indexing don't bother
@@ -67,10 +72,7 @@ void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer
 
 RegSlot lea_res(Interloper& itl,Function& func, const PointerAddr& addr)
 {
-    const auto tmp = new_tmp(func,GPR_SIZE);
-    lea(itl,func,tmp,addr);
-
-    return tmp;
+    return opcode_res1(itl,func,addr,lea); 
 }
 
 void emit_load(Interloper& itl, Function& func, RegSlot dst, const PointerAddr& pointer, load_type type)
