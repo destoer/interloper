@@ -490,6 +490,7 @@ enum class directive_type
     lock_reg,
     pool_addr,
     alloc_stack,
+    alloc_slot,
 };
 
 struct Directive

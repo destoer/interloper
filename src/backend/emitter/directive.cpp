@@ -187,3 +187,13 @@ void alloc_stack(Interloper& itl, Function& func, u32 size)
 {
     emit_directive_imm1(itl,func,directive_type::alloc_stack,size);
 }
+
+void alloc_slot(Interloper& itl, Function& func, RegSlot src, bool forced)
+{
+    Directive directive;
+    directive.type = directive_type::alloc_slot;
+    directive.operand[0] = make_reg_operand(src,ir_reg_type::directive);
+    directive.operand[1] = make_imm_operand(forced);
+    directive.size = 2;
+    emit_directive(itl,func,directive);      
+}
