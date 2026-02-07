@@ -2,8 +2,6 @@
 #include <destoer/destoer.h>
 #include <ir.h>
 
-using PoolSlot = Slot<slot_type::pool>;
-
 // POOL
 enum class pool_type 
 {

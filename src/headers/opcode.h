@@ -22,6 +22,7 @@ using SymSlot = Slot<slot_type::symbol>;
 using TmpSlot = Slot<slot_type::tmp>;
 using LabelSlot = Slot<slot_type::label>;
 using BlockSlot = Slot<slot_type::block>;
+using PoolSlot = Slot<slot_type::pool>;
 
 using lowered_reg = u32;
 
@@ -460,6 +461,7 @@ enum class directive_operand_type
     directive_reg,
     decimal,
     imm,
+    pool,
     label,
 };
 
@@ -471,6 +473,7 @@ struct DirectiveOperand
         u64 imm;
         RegSlot reg = {INVALID_SYM_REG_SLOT};
         LabelSlot label;
+        PoolSlot pool;
     };
 
     directive_operand_type type = directive_operand_type::dst_src;
@@ -485,12 +488,15 @@ enum class directive_type
     clean_args,
     unlock_reg_set,
     lock_reg,
+    pool_addr,
+    alloc_stack,
 };
 
 struct Directive
 {
     directive_type type;
     DirectiveOperand operand[3];
+    u32 size = 0;
 };
 
 enum class implicit_type
