@@ -423,6 +423,7 @@ enum class op_group
 {
     implicit,
     branch_label,
+    branch_reg,
     directive,
     mov_gpr_imm,
     arith_imm_three,
@@ -511,14 +512,17 @@ struct Implicit
     implicit_type type;
 };
 
-enum class branch_label_type
+
+
+enum class branch_type
 {
-    call
+    call,
+    branch,
 };
 
 struct BranchLabel
 {
-    branch_label_type type;
+    branch_type type;
     LabelSlot label;
 };
 
@@ -610,6 +614,12 @@ struct MovReg
     IrRegister src;
 };
 
+struct BranchReg
+{
+    branch_type type;
+    IrRegister src;
+};
+
 struct Opcode
 {
     op_group group = op_group::directive;
@@ -628,6 +638,7 @@ struct Opcode
         LoadStruct load_struct;
         Store store;
         StoreStruct store_struct;
+        BranchReg branch_reg;
     };
 
     bool lowered = false;
