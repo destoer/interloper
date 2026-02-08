@@ -386,7 +386,7 @@ static const char* SHIFT_NAMES[] =
 static constexpr u32 ARITH_BIN_FLAG_FLOAT_ENABLED = (1 << 0);
 static constexpr u32 ARITH_BIN_FLAG_BOOL_ENABLED = (1 << 1);
 
-enum class arith_bin_op
+enum class arith_bin_type
 {
     add_t,
     sub_t,
@@ -404,9 +404,9 @@ struct ArithBinInfo
     u32 flags = 0;
 };
 
-static constexpr u32 ARITH_BIN_OP_SIZE = 8;
+static constexpr u32 ARITH_BIN_TYPE_SIZE = 8;
 
-static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_OP_SIZE] = 
+static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_TYPE_SIZE] = 
 {
     {"+", ARITH_BIN_FLAG_FLOAT_ENABLED}, 
     {"-", ARITH_BIN_FLAG_FLOAT_ENABLED},
@@ -598,7 +598,7 @@ struct ImmThree
     u64 imm = 0;
 };
 
-using ArithImmThree = ImmThree<arith_bin_op>;
+using ArithImmThree = ImmThree<arith_bin_type>;
 
 enum class mov_reg_type
 {

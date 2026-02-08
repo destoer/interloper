@@ -22,7 +22,7 @@ ImmThree<op_type> make_imm_three(RegSlot dst, RegSlot src, u64 imm, op_type type
     return imm_three;
 }
 
-void emit_gpr_imm_three(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)
+void emit_gpr_imm_three(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_type type)
 {
     Opcode opcode;
     opcode.group = op_group::arith_imm_three;
@@ -39,7 +39,7 @@ void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
         return;
     }
 
-    emit_gpr_imm_three(itl,func,dst,src,imm,arith_bin_op::add_t);
+    emit_gpr_imm_three(itl,func,dst,src,imm,arith_bin_type::add_t);
 }
 
 RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
