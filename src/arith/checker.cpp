@@ -288,22 +288,22 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
 
     switch(bin->oper)
     {
-        case arith_bin_op::add_t:
+        case arith_bin_type::add_t:
         {
             return calc_known_value(itl,&bin->node,left.v + right.v,final_sign);
         }
 
-        case arith_bin_op::sub_t:
+        case arith_bin_type::sub_t:
         {
             return calc_known_value(itl,&bin->node,left.v - right.v,final_sign);
         }
 
-        case arith_bin_op::mul_t:
+        case arith_bin_type::mul_t:
         {
             return calc_known_value(itl,&bin->node,left.v * right.v,final_sign);
         }
 
-        case arith_bin_op::mod_t:
+        case arith_bin_type::mod_t:
         {
             if(right.v == 0)
             {
@@ -318,7 +318,7 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
             return calc_known_value(itl,&bin->node,left.v % right.v,final_sign);
         }
 
-        case arith_bin_op::div_t:
+        case arith_bin_type::div_t:
         {
             if(right.v == 0)
             {
@@ -333,12 +333,12 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
             return calc_known_value(itl,&bin->node,left.v / right.v,final_sign);
         }
 
-        case arith_bin_op::xor_t:
+        case arith_bin_type::xor_t:
         {
             return calc_known_value(itl,&bin->node,left.v ^ right.v,final_sign);
         }
 
-        case arith_bin_op::and_t:
+        case arith_bin_type::and_t:
         {
             const auto ans = make_value(left.v & right.v,final_sign);
             bin->node.known_value = ans.v;
@@ -351,7 +351,7 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
             return make_value_type(itl,ans);
         }
 
-        case arith_bin_op::or_t:
+        case arith_bin_type::or_t:
         {
             const auto ans = make_value(left.v | right.v,final_sign);
             bin->node.known_value = ans.v;
@@ -388,7 +388,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // pointer arith adds the size of the underlying type
     if(is_pointer(bin.ltype) && is_integer(bin.rtype))
     {
-        if(type != arith_bin_op::add_t && type != arith_bin_op::sub_t)
+        if(type != arith_bin_type::add_t && type != arith_bin_type::sub_t)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
 
@@ -400,7 +400,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // allow pointer subtraction
     else if(is_pointer(bin.ltype) && is_pointer(bin.rtype))
     {
-        if(type != arith_bin_op::sub_t)
+        if(type != arith_bin_type::sub_t)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
         }

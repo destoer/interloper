@@ -1,12 +1,12 @@
 #include "ir.h"
-bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSlot dst_slot, const TypedReg& left, Type* rtype, u64 value)
+bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,RegSlot dst_slot, const TypedReg& left, Type* rtype, u64 value)
 {
     const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
     const auto sign = is_signed(left.type) || is_signed(rtype);
 
     switch(arith)
     {
-        case arith_bin_op::div_t:
+        case arith_bin_type::div_t:
         {
             if(sign)
             {
@@ -17,7 +17,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSl
             return true;
         }
 
-        case arith_bin_op::mod_t:
+        case arith_bin_type::mod_t:
         {
             if(sign)
             {
@@ -28,7 +28,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSl
             return true;      
         }
 
-        case arith_bin_op::mul_t:
+        case arith_bin_type::mul_t:
         {
             mul_imm(itl,func,dst_slot,left.slot,value);
             return true;
@@ -51,7 +51,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSl
 }
 
 
-void emit_integer_ir(Interloper& itl, Function& func, arith_bin_op arith, RegSlot dst_slot, TypedReg left, TypedReg right)
+void emit_integer_ir(Interloper& itl, Function& func, arith_bin_type arith, RegSlot dst_slot, TypedReg left, TypedReg right)
 {
     const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
 
@@ -135,7 +135,7 @@ void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, Reg
     {
         const auto right = compile_oper(itl,func,node->right);
 
-        if(node->oper == arith_bin_op::sub_t)
+        if(node->oper == arith_bin_type::sub_t)
         {
             const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
             emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,offset_slot);
