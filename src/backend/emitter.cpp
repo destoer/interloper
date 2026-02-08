@@ -114,6 +114,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
     {
         case op_group::implicit: return blank_reg_span(reg); 
         case op_group::branch_label: return blank_reg_span(reg); 
+        case op_group::branch_reg: return branch_reg_span(opcode.branch_reg,reg);
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
         case op_group::arith_imm_three: return imm_three_reg_span(opcode.arith_imm_three,reg);
