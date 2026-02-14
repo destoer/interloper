@@ -1,8 +1,8 @@
 #include "ir.h"
 bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,RegSlot dst_slot, const TypedReg& left, Type* rtype, u64 value)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
     const auto sign = is_signed(left.type) || is_signed(rtype);
+    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(arith)];
 
     switch(arith)
     {
@@ -37,12 +37,12 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,Reg
         default:
         {
             const op_type type = arith_info.imm_form;
-            if(type == op_type::none)
+            if(!(arith_info.flags & ARITH_BIN_IMM_SUPPORT))
             {
                 return false;
             }
 
-            emit_imm3_unchecked(itl,func,type,dst_slot,left.slot,value);
+            emit_imm3_unchecked(itl,func,arith,dst_slot,left.slot,value);
             return true; 
         }
     }
@@ -54,7 +54,6 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,Reg
 void emit_integer_ir(Interloper& itl, Function& func, arith_bin_type arith, RegSlot dst_slot, TypedReg left, TypedReg right)
 {
     const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
-
     const bool sign = is_signed(left.type);
 
     const op_type type = sign? arith_info.reg_signed_form : arith_info.reg_unsigned_form;
