@@ -118,6 +118,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
         case op_group::arith_imm_three: return imm_three_reg_span(opcode.arith_imm_three,reg);
+        case op_group::arith_reg_three: return reg_three_reg_span(opcode.arith_reg_three,reg);
         case op_group::load: return addr_opcode_reg_span(opcode.load,reg);
         case op_group::load_struct: return addr_opcode_reg_span(opcode.load_struct,reg);
         case op_group::store: return addr_opcode_reg_span(opcode.store,reg);

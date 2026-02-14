@@ -385,6 +385,7 @@ static const char* SHIFT_NAMES[] =
 
 static constexpr u32 ARITH_BIN_FLAG_FLOAT_ENABLED = (1 << 0);
 static constexpr u32 ARITH_BIN_FLAG_BOOL_ENABLED = (1 << 1);
+static constexpr u32 ARITH_BIN_IMM_SUPPORT = (1 << 2);
 
 enum class arith_bin_type
 {
@@ -398,24 +399,40 @@ enum class arith_bin_type
     or_t,
 };
 
+enum class arith_bin_op
+{
+    add_t,
+    sub_t,
+    mul_t,
+    umod_t,
+    smod_t,
+    sdiv_t,
+    udiv_t,
+    xor_t,
+    and_t,
+    or_t,
+};
+
 struct ArithBinInfo
 {
     const char* name = nullptr;
     u32 flags = 0;
+    arith_bin_op signed_form;
+    arith_bin_op unsigned_form;
 };
 
 static constexpr u32 ARITH_BIN_TYPE_SIZE = 8;
 
 static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_TYPE_SIZE] = 
 {
-    {"+", ARITH_BIN_FLAG_FLOAT_ENABLED}, 
-    {"-", ARITH_BIN_FLAG_FLOAT_ENABLED},
-    {"*", ARITH_BIN_FLAG_FLOAT_ENABLED},
-    {"%", 0},
-    {"/", ARITH_BIN_FLAG_FLOAT_ENABLED},
-    {"^", 0},
-    {"&", ARITH_BIN_FLAG_BOOL_ENABLED},
-    {"|",  ARITH_BIN_FLAG_BOOL_ENABLED}
+    {"+", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::add_t,arith_bin_op::add_t}, 
+    {"-", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::sub_t,arith_bin_op::sub_t},
+    {"*", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::mul_t,arith_bin_op::mul_t},
+    {"%", 0,arith_bin_op::smod_t,arith_bin_op::umod_t},
+    {"/", ARITH_BIN_FLAG_FLOAT_ENABLED,arith_bin_op::sdiv_t,arith_bin_op::udiv_t},
+    {"^", ARITH_BIN_IMM_SUPPORT,arith_bin_op::xor_t,arith_bin_op::xor_t},
+    {"&", ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::and_t,arith_bin_op::and_t},
+    {"|",  ARITH_BIN_FLAG_BOOL_ENABLED,arith_bin_op::or_t,arith_bin_op::or_t}
 };
 
 
@@ -427,6 +444,7 @@ enum class op_group
     directive,
     mov_gpr_imm,
     arith_imm_three,
+    arith_reg_three,
     lea,
     addrof,
     load,
@@ -606,7 +624,20 @@ struct ImmThree
     u64 imm = 0;
 };
 
-using ArithImmThree = ImmThree<arith_bin_type>;
+template<typename op_type>
+struct RegThree
+{
+    op_type type;
+
+    IrRegister dst;
+    IrRegister v1;
+    IrRegister v2;
+
+    u64 imm = 0;
+};
+
+using ArithImmThree = ImmThree<arith_bin_op>;
+using ArithRegThree = RegThree<arith_bin_op>;
 
 enum class mov_reg_type
 {
@@ -639,6 +670,7 @@ struct Opcode
         Implicit implicit;
         MovGprImm mov_gpr_imm;
         ArithImmThree arith_imm_three;
+        ArithRegThree arith_reg_three;
         MovReg mov_reg;
         Lea lea;
         AddrOf addrof;
