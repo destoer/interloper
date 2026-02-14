@@ -444,6 +444,12 @@ enum class ir_reg_type
     directive,    
 };
 
+struct DirectiveReg
+{
+    RegSlot slot;
+    ir_reg_type type;
+};
+
 struct IrRegister
 {
     union
@@ -487,8 +493,10 @@ enum class directive_type
     reload_slot,
     spill_slot,
     clean_args,
+    lock_reg_set,
     unlock_reg_set,
     lock_reg,
+    mov_unlock,
     pool_addr,
     alloc_stack,
     alloc_slot,

@@ -500,7 +500,7 @@ void setup_passing_convention(Interloper& itl, Function& func)
         if(arg_reg != NON_ARG)
         {
             const spec_reg arg = spec_reg(SPECIAL_REG_ARG_START + arg_reg);
-            mov_unlock(itl,func,make_sym_reg_slot(slot),make_spec_reg_slot(arg));
+            mov_unlock(itl,func,make_sym_reg_slot(slot),arg);
         }
     }
 }

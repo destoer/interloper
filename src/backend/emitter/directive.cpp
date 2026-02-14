@@ -96,14 +96,25 @@ DirectiveOperand make_pool_operand(PoolSlot slot)
 }
 
 
-void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, RegSlot reg, ir_reg_type reg_type)
+void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, const DirectiveReg& reg)
 {
     Directive directive;
     directive.type = type;
-    directive.operand[0] = make_reg_operand(reg,reg_type);
+    directive.operand[0] = make_reg_operand(reg.slot,reg.type);
     directive.size = 1;
     emit_directive(itl,func,directive);  
 }
+
+void emit_directive_reg2(Interloper& itl, Function& func, directive_type type, const DirectiveReg& v1, const DirectiveReg& v2)
+{
+    Directive directive;
+    directive.type = type;
+    directive.operand[0] = make_reg_operand(v1.slot,v1.type);
+    directive.operand[0] = make_reg_operand(v2.slot,v2.type);
+    directive.size = 2;
+    emit_directive(itl,func,directive);  
+}
+
 
 void emit_directive_imm1(Interloper& itl, Function& func, directive_type type, u64 imm)
 {
@@ -124,22 +135,31 @@ void unlock_reg_set(Interloper& itl, Function& func, u64 set)
     emit_directive_imm1(itl,func,directive_type::unlock_reg_set,set);
 }
 
+
+void lock_reg_set(Interloper& itl, Function& func, u64 set)
+{
+    emit_directive_imm1(itl,func,directive_type::lock_reg_set,set);
+}
+
 void lock_reg(Interloper& itl, Function& func, spec_reg reg)
 {
-    emit_directive_reg1(itl,func,directive_type::lock_reg,make_spec_reg_slot(reg),ir_reg_type::directive);
+    const DirectiveReg v1 = {make_spec_reg_slot(reg),ir_reg_type::directive};
+    emit_directive_reg1(itl,func,directive_type::lock_reg,v1);
 }
 
 
 void push_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
 {
     pass.arg_clean++;
-    emit_directive_reg1(itl,func,directive_type::push_arg,src,ir_reg_type::src);
+    const DirectiveReg v1 = {src,ir_reg_type::src};
+    emit_directive_reg1(itl,func,directive_type::push_arg,v1);
 }
 
 void push_float_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
 {
     pass.arg_clean++;
-    emit_directive_reg1(itl,func,directive_type::push_float_arg,src,ir_reg_type::src);
+    const DirectiveReg v1 = {src,ir_reg_type::src};
+    emit_directive_reg1(itl,func,directive_type::push_float_arg,v1);
 }
 
 
@@ -150,7 +170,8 @@ void reload_slot(Interloper& itl, Function& func, const Reg& reg)
         return;
     }
 
-    emit_directive_reg1(itl,func,directive_type::reload_slot,reg.slot,ir_reg_type::directive);
+    const DirectiveReg v1 = {reg.slot,ir_reg_type::directive};
+    emit_directive_reg1(itl,func,directive_type::reload_slot,v1);
 }
 
 void spill_slot(Interloper& itl, Function& func, const Reg& reg)
@@ -160,9 +181,16 @@ void spill_slot(Interloper& itl, Function& func, const Reg& reg)
         return;
     }
 
-    emit_directive_reg1(itl,func,directive_type::spill_slot,reg.slot,ir_reg_type::src);
+    const DirectiveReg v1 = {reg.slot,ir_reg_type::src};
+    emit_directive_reg1(itl,func,directive_type::spill_slot,v1);
 }
 
+void mov_unlock(Interloper& itl, Function& func, RegSlot dst, spec_reg spec)
+{
+    const DirectiveReg v1 = {dst,ir_reg_type::dst};
+    const DirectiveReg v2 = {make_spec_reg_slot(spec),ir_reg_type::src};
+    emit_directive_reg2(itl,func,directive_type::mov_unlock,v1,v2);
+}
 
 void pool_addr(Interloper& itl, Function& func, RegSlot dst, PoolSlot pool_slot, u32 offset)
 {
