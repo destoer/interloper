@@ -1,7 +1,7 @@
 #include <lexer.h>
 
 
-void print_tokens(const Span<Token> &tokens)
+void print_tokens(const ConstSpan<Token> &tokens)
 {
     for(const auto& token : tokens)
     {

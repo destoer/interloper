@@ -9,7 +9,7 @@ void store_ptr(Interloper &itl,Function& func,RegSlot src_slot,RegSlot ptr,u32 o
 void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const TypedReg& src);
 
 // NOTE: This only handles gpr sized returns, and does not handle hidden args
-void call_intrin_func(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs, RegSlot dst_slot)
+void call_intrin_func(Interloper& itl, Function& func, const Function& func_call, const ConstSpan<TypedReg>& regs, RegSlot dst_slot)
 {
     const auto user_args = sig_user_span(func_call.sig);
 
@@ -75,7 +75,7 @@ void call_intrin_func(Interloper& itl, Function& func, const Function& func_call
     unlock_reg_set(itl,func,func_call.sig.locked_set);
 }
 
-void call_intrin_func_no_return(Interloper& itl, Function& func, const Function& func_call, const Span<TypedReg>& regs)
+void call_intrin_func_no_return(Interloper& itl, Function& func, const Function& func_call, const ConstSpan<TypedReg>& regs)
 {
     call_intrin_func(itl,func,func_call,regs,make_spec_reg_slot(spec_reg::null));
 }
@@ -91,7 +91,7 @@ void ir_mem_equal(Interloper& itl, Function& func, AddrSlot v1_addr, AddrSlot v2
     static constexpr u32 REGS_SIZE = 3;
     const TypedReg regs[REGS_SIZE] = {v1,v2,imm};    
 
-    call_intrin_func(itl,func,*itl.mem_equal,make_span(regs,0,REGS_SIZE),dst_slot);
+    call_intrin_func(itl,func,*itl.mem_equal,make_const_span(regs,0,REGS_SIZE),dst_slot);
 }
 
 void ir_array_equal(Interloper& itl, Function& func, TypedReg v1, TypedReg v2, RegSlot dst_slot)
@@ -103,7 +103,7 @@ void ir_array_equal(Interloper& itl, Function& func, TypedReg v1, TypedReg v2, R
     {
         static constexpr u32 REGS_SIZE = 2;
         const TypedReg regs[REGS_SIZE] = {v1,v2};    
-        call_intrin_func(itl,func,*itl.array_equal,make_span(regs,0,REGS_SIZE),dst_slot);
+        call_intrin_func(itl,func,*itl.array_equal,make_const_span(regs,0,REGS_SIZE),dst_slot);
         return;
     }
 
@@ -117,7 +117,7 @@ void ir_array_equal(Interloper& itl, Function& func, TypedReg v1, TypedReg v2, R
     static constexpr u32 REGS_SIZE = 2;
     const TypedReg regs[REGS_SIZE] = {v1_bytes,v2_bytes};    
 
-    call_intrin_func(itl,func,*itl.array_equal,make_span(regs,0,REGS_SIZE),dst_slot);
+    call_intrin_func(itl,func,*itl.array_equal,make_const_span(regs,0,REGS_SIZE),dst_slot);
 }
 
 
@@ -155,7 +155,7 @@ void ir_memcpy(Interloper&itl, Function& func, AddrSlot dst_addr, AddrSlot src_a
     static constexpr u32 REGS_SIZE = 3;
     const TypedReg regs[REGS_SIZE] = {dst,src,imm};    
 
-    call_intrin_func_no_return(itl,func,*itl.memcpy,make_span(regs,0,REGS_SIZE));
+    call_intrin_func_no_return(itl,func,*itl.memcpy,make_const_span(regs,0,REGS_SIZE));
 }
 
 
@@ -186,7 +186,7 @@ void ir_zero(Interloper&itl, Function& func, RegSlot dst_ptr, u32 size)
     static constexpr u32 REGS_SIZE = 2;
     const TypedReg regs[REGS_SIZE] = {dst,imm};
     
-    call_intrin_func_no_return(itl,func,*itl.zero_mem,make_span(regs,0,REGS_SIZE));
+    call_intrin_func_no_return(itl,func,*itl.zero_mem,make_const_span(regs,0,REGS_SIZE));
 }
 
 

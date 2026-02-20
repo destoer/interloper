@@ -112,7 +112,7 @@ NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
     }
 
     // Namespace does not allready exist create it!
-    const Span<String> new_space = make_span(name_space,name_idx,count(name_space) - name_idx);
+    const auto new_space = make_const_span(name_space,name_idx,count(name_space) - name_idx);
 
     for(const String& name : new_space)
     {

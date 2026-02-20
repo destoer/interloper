@@ -723,7 +723,7 @@ struct Parser
 
     // what is our current token?
     u32 tok_idx = 0;
-    Span<Token> tokens;
+    ConstSpan<Token> tokens;
 
     // error handling
     u32 error_count = 0;

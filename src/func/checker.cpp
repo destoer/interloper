@@ -107,8 +107,8 @@ Option<itl_error> check_unbound_return(Interloper& itl, const FuncCall& call_inf
     return option::none;
 }
 
-Span<SymSlot> sig_user_span(const FuncSig& sig);
-Span<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args);
+ConstSpan<SymSlot> sig_user_span(const FuncSig& sig);
+ConstSpan<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args);
 
 Option<itl_error> check_format_arg(Interloper& itl, FuncCallNode* func_call, const FuncSig& sig, const Attribute& attr)
 {

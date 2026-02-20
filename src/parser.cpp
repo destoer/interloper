@@ -95,7 +95,7 @@ builtin_type builtin_type_from_tok(const Token& tok)
 }
 
 
-TopLevelDefinition make_top_level_def(Parser& parser, const Span<Token>& tokens, const ParsedAttr& attr)
+TopLevelDefinition make_top_level_def(Parser& parser, const ConstSpan<Token>& tokens, const ParsedAttr& attr)
 {
     TopLevelDefinition def;
     def.parsed = false;
@@ -106,7 +106,7 @@ TopLevelDefinition make_top_level_def(Parser& parser, const Span<Token>& tokens,
     return def;
 }
 
-Result<Span<Token>,parse_error> scan_colon_stmt(Parser& parser, const String& type, const String& name, const Span<Token>& start_span)
+Result<ConstSpan<Token>,parse_error> scan_colon_stmt(Parser& parser, const String& type, const String& name, const ConstSpan<Token>& start_span)
 {
     // Scan for function end
     for(u32 t = 0; t < start_span.size; t++)
@@ -117,7 +117,7 @@ Result<Span<Token>,parse_error> scan_colon_stmt(Parser& parser, const String& ty
             case token_type::semi_colon:
             {
                 parser.tok_idx += t;
-                return make_span(start_span,0, t + 1);
+                return make_const_span(start_span,0, t + 1);
             }
 
             default: 
@@ -130,7 +130,7 @@ Result<Span<Token>,parse_error> scan_colon_stmt(Parser& parser, const String& ty
     return parser_error(parser,parse_error::malformed_stmt,start_span[0],"%s %s is not terminated by a ;\n",type.buf, name.buf);     
 }
 
-Result<Span<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& type, const String& name, const Span<Token>& start_span)
+Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& type, const String& name, const ConstSpan<Token>& start_span)
 {
     s32 brace_depth = 0;
     const auto& start = start_span[0];
@@ -160,7 +160,7 @@ Result<Span<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& ty
                     }
 
                     parser.tok_idx += t;
-                    return make_span(start_span,0, t + 1);
+                    return make_const_span(start_span,0, t + 1);
                 }
                 break;
             }
@@ -950,7 +950,7 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     }
     
     // Give it a complete file span
-    parser.tokens = make_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
+    parser.tokens = make_const_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
 
 
     if(itl.print_tokens)

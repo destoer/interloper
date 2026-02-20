@@ -406,14 +406,14 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     return option::none;
 }
 
-Span<SymSlot> sig_user_span(const FuncSig& sig)
+ConstSpan<SymSlot> sig_user_span(const FuncSig& sig)
 {
     const u32 user_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
-    return make_span(sig.args, sig.hidden_args, user_arg_len);    
+    return make_const_span(sig.args, sig.hidden_args, user_arg_len);    
 }
 
-Span<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args)
+ConstSpan<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args)
 {
     const u32 any_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
-    return make_span(args, any_arg_len, count(args) - any_arg_len);      
+    return make_const_span(args, any_arg_len, count(args) - any_arg_len);      
 }

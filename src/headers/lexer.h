@@ -54,7 +54,7 @@ struct TopLevelDefinition
 {
     // Have the tokens been read out into the relevant structure?
     bool parsed = false;
-    Span<Token> tokens;
+    ConstSpan<Token> tokens;
     ParserContext context;
     ParsedAttr attr;
 };

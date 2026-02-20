@@ -313,7 +313,7 @@ Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, const ParsedAttr& 
 
 Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr &attr)
 {
-    const auto start_span = make_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
 
     // what is the name of our function?
     const auto func_name = next_token(parser);
