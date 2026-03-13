@@ -96,7 +96,7 @@ RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, co
 
 
 #include "emitter/directive.cpp"
-#include "emitter/mov_gpr_imm.cpp"
+#include "emitter/mov_imm.cpp"
 #include "emitter/mov_reg.cpp"
 #include "emitter/arith.cpp"
 #include "emitter/branch.cpp"
@@ -117,6 +117,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::branch_reg: return branch_reg_span(opcode.branch_reg,reg);
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
+        case op_group::mov_fpr_imm: return mov_fpr_imm_reg_span(opcode.mov_fpr_imm,reg); 
         case op_group::arith_imm3: return imm3_reg_span(opcode.arith_imm3,reg);
         case op_group::arith_gpr3: return reg3_reg_span(opcode.arith_gpr3,reg);
         case op_group::arith_fpr3: return reg3_reg_span(opcode.arith_fpr3,reg);

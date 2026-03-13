@@ -485,6 +485,7 @@ enum class op_group
     branch_reg,
     directive,
     mov_gpr_imm,
+    mov_fpr_imm,
     arith_imm3,
     arith_gpr3,
     arith_fpr3,
@@ -603,6 +604,12 @@ struct MovGprImm
     u64 imm;      
 };
 
+struct MovFprImm
+{
+    IrRegister dst;
+    f64 imm;
+};
+
 
 template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT>
 struct AddrOpcode
@@ -719,6 +726,7 @@ struct Opcode
         BranchLabel branch_label;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
+        MovFprImm mov_fpr_imm;
         ArithImm3 arith_imm3;
         ArithGpr3 arith_gpr3;
         ArithFpr3 arith_fpr3;
