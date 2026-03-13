@@ -36,13 +36,13 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,Reg
 
         default:
         {
-            const op_type type = arith_info.imm_form;
             if(!(arith_info.flags & ARITH_BIN_IMM_SUPPORT))
             {
                 return false;
             }
-
-            emit_imm3_unchecked(itl,func,arith,dst_slot,left.slot,value);
+            
+            const auto arith_op = sign? arith_info.signed_form : arith_info.unsigned_form;
+            emit_gpr_imm_three(itl,func,dst_slot,left.slot,value,arith_op);
             return true; 
         }
     }

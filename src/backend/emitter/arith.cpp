@@ -109,6 +109,11 @@ void lsr_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
     emit_shift_imm_three(itl,func,dst,src,imm,shift_op::lsr);
 }
 
+void lsl_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
+{
+    emit_shift_imm_three(itl,func,dst,src,imm,shift_op::lsl);
+}
+
 
 void udiv_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
 {
@@ -132,6 +137,30 @@ void udiv_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
         // just emulate this instr as no arch is likely to have it
         const auto v2 = mov_imm_res(itl,func,imm);
         emit_gpr_reg_three(itl,func,dst,src,v2,arith_bin_op::udiv_t);
+    }
+}
+
+void mul_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
+{
+    // Not sure if we should have a higher level function for this?
+    if(is_pow2(imm))
+    {
+        const u32 shift = log2(imm);
+
+        if(shift == 0)
+        {
+            mov_reg(itl,func,dst,src);
+        } 
+
+        else 
+        {
+            lsl_imm(itl,func,dst,src,shift);
+        }
+    }
+
+    else
+    {
+        emit_gpr_imm_three(itl,func,dst,src,imm,arith_bin_op::mul_t);
     }
 }
 
