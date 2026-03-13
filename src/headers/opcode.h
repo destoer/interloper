@@ -369,10 +369,17 @@ static const char* ARITH_UNARY_NAMES[] =
 };
 
 
-enum class shift_op
+enum class shift_type
 {
     left,
     right,
+};
+
+enum class shift_op
+{
+    lsr,
+    asr,
+    lsl
 };
 
 static const char* SHIFT_NAMES[] = 
@@ -381,6 +388,12 @@ static const char* SHIFT_NAMES[] =
     ">>"
 };
 
+static const char* SHIFT_OP_NAMES[] = 
+{
+    "lsl",
+    "asr",
+    "lsl"
+};
 
 
 static constexpr u32 ARITH_BIN_FLAG_FLOAT_ENABLED = (1 << 0);
@@ -452,6 +465,7 @@ enum class op_group
     store,
     store_struct,
     mov_reg,
+    shift_imm_three,
 };
 
 enum class ir_reg_type
@@ -639,6 +653,8 @@ struct RegThree
 using ArithImmThree = ImmThree<arith_bin_op>;
 using ArithRegThree = RegThree<arith_bin_op>;
 
+using ShiftImmThree = ImmThree<shift_op>;
+
 enum class mov_reg_type
 {
     gpr,
@@ -679,6 +695,7 @@ struct Opcode
         Store store;
         StoreStruct store_struct;
         BranchReg branch_reg;
+        ShiftImmThree shift_imm_three;
     };
 
     bool lowered = false;
