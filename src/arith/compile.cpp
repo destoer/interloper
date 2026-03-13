@@ -42,7 +42,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,Reg
             }
             
             const auto arith_op = sign? arith_info.signed_form : arith_info.unsigned_form;
-            emit_gpr_imm_three(itl,func,dst_slot,left.slot,value,arith_op);
+            emit_gpr_imm3(itl,func,dst_slot,left.slot,value,arith_op);
             return true; 
         }
     }

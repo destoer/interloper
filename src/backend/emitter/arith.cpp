@@ -49,7 +49,7 @@ RegThree<op_type> make_reg_three(RegSlot dst, RegSlot v1, RegSlot v2, op_type ty
 }
 
 
-void emit_gpr_imm_three(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)
+void emit_gpr_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)
 {
     Opcode opcode;
     opcode.group = op_group::arith_imm_three;
@@ -58,7 +58,7 @@ void emit_gpr_imm_three(Interloper& itl, Function& func, RegSlot dst, RegSlot sr
     emit_block_func(itl,func,opcode);
 }
 
-void emit_shift_imm_three(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, shift_op type)
+void emit_shift_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, shift_op type)
 {
     Opcode opcode;
     opcode.group = op_group::shift_imm_three;
@@ -68,7 +68,7 @@ void emit_shift_imm_three(Interloper& itl, Function& func, RegSlot dst, RegSlot 
 }
 
 
-void emit_gpr_reg_three(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, arith_bin_op type)
+void emit_gpr_reg3(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, arith_bin_op type)
 {
     Opcode opcode;
     opcode.group = op_group::arith_reg_three;
@@ -85,7 +85,7 @@ void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
         return;
     }
 
-    emit_gpr_imm_three(itl,func,dst,src,imm,arith_bin_op::add_t);
+    emit_gpr_imm3(itl,func,dst,src,imm,arith_bin_op::add_t);
 }
 
 void umod_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
@@ -100,18 +100,18 @@ void umod_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
     {
         // just emulate this instr as no arch is likely to have it
         const auto v2 = mov_imm_res(itl,func,imm);
-        emit_gpr_reg_three(itl,func,dst,src,v2,arith_bin_op::umod_t);
+        emit_gpr_reg3(itl,func,dst,src,v2,arith_bin_op::umod_t);
     }
 }
 
 void lsr_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_shift_imm_three(itl,func,dst,src,imm,shift_op::lsr);
+    emit_shift_imm3(itl,func,dst,src,imm,shift_op::lsr);
 }
 
 void lsl_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
-    emit_shift_imm_three(itl,func,dst,src,imm,shift_op::lsl);
+    emit_shift_imm3(itl,func,dst,src,imm,shift_op::lsl);
 }
 
 
@@ -136,7 +136,7 @@ void udiv_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
     {
         // just emulate this instr as no arch is likely to have it
         const auto v2 = mov_imm_res(itl,func,imm);
-        emit_gpr_reg_three(itl,func,dst,src,v2,arith_bin_op::udiv_t);
+        emit_gpr_reg3(itl,func,dst,src,v2,arith_bin_op::udiv_t);
     }
 }
 
@@ -160,7 +160,7 @@ void mul_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 
     else
     {
-        emit_gpr_imm_three(itl,func,dst,src,imm,arith_bin_op::mul_t);
+        emit_gpr_imm3(itl,func,dst,src,imm,arith_bin_op::mul_t);
     }
 }
 
