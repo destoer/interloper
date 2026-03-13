@@ -53,16 +53,16 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,Reg
 
 void emit_integer_ir(Interloper& itl, Function& func, arith_bin_type arith, RegSlot dst_slot, TypedReg left, TypedReg right)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
+    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(arith)];
     const bool sign = is_signed(left.type);
 
-    const op_type type = sign? arith_info.reg_signed_form : arith_info.reg_unsigned_form;
-    emit_reg3_unchecked(itl,func,type,dst_slot,left.slot,right.slot);
+    const arith_bin_op type = sign? arith_info.signed_form : arith_info.unsigned_form;
+    emit_gpr_reg3(itl,func,dst_slot,left.slot,right.slot,type);
 }
 
 void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegSlot dst_slot)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
+    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(node->oper)];
 
     if(known_gpr_node(node->right))
     {
@@ -79,7 +79,7 @@ void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegS
     }
 
     // If this is commutative we can just switch the operands
-    else if(known_gpr_node(node->left) && arith_info.commutative)
+    else if(known_gpr_node(node->left) && arith_info.flags & ARITH_BIN_COMMUTATIVE)
     {
         const auto value = node->left->known_value.gpr;
         const auto right = compile_oper(itl,func,node->right);
@@ -103,14 +103,12 @@ void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegS
 }
 
 void emit_float_arith(Interloper& itl, Function& func, ArithBinNode* node, RegSlot dst_slot)
-{
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
-
+{   
     const auto left = compile_oper(itl,func,node->left);
     const auto right = compile_oper(itl,func,node->right);
 
-    const op_type type = arith_info.float_form;
-    emit_reg3_unchecked(itl,func,type,dst_slot,left.slot,right.slot);
+    const auto type = arith_bin_to_fpr(node->oper);
+    emit_fpr_reg3(itl,func,dst_slot,left.slot,right.slot,type);
 }
 
 

@@ -399,14 +399,15 @@ static const char* SHIFT_OP_NAMES[] =
 static constexpr u32 ARITH_BIN_FLAG_FLOAT_ENABLED = (1 << 0);
 static constexpr u32 ARITH_BIN_FLAG_BOOL_ENABLED = (1 << 1);
 static constexpr u32 ARITH_BIN_IMM_SUPPORT = (1 << 2);
+static constexpr u32 ARITH_BIN_COMMUTATIVE = (1 << 3);
 
 enum class arith_bin_type
 {
     add_t,
     sub_t,
     mul_t,
-    mod_t,
     div_t,
+    mod_t,
     xor_t,
     and_t,
     or_t,
@@ -426,6 +427,20 @@ enum class arith_bin_op
     or_t,
 };
 
+enum class fpr_arith
+{
+    add_t,
+    sub_t,
+    mul_t,
+    div_t
+};
+
+inline fpr_arith arith_bin_to_fpr(arith_bin_type type)
+{
+    assert(type <= arith_bin_type::div_t);
+    return fpr_arith(u32(type));
+}
+
 struct ArithBinInfo
 {
     const char* name = nullptr;
@@ -438,14 +453,14 @@ static constexpr u32 ARITH_BIN_TYPE_SIZE = 8;
 
 static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_TYPE_SIZE] = 
 {
-    {"+", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::add_t,arith_bin_op::add_t}, 
+    {"+", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::add_t,arith_bin_op::add_t}, 
     {"-", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::sub_t,arith_bin_op::sub_t},
-    {"*", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::mul_t,arith_bin_op::mul_t},
-    {"%", 0,arith_bin_op::smod_t,arith_bin_op::umod_t},
+    {"*", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::mul_t,arith_bin_op::mul_t},
     {"/", ARITH_BIN_FLAG_FLOAT_ENABLED,arith_bin_op::sdiv_t,arith_bin_op::udiv_t},
-    {"^", ARITH_BIN_IMM_SUPPORT,arith_bin_op::xor_t,arith_bin_op::xor_t},
-    {"&", ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::and_t,arith_bin_op::and_t},
-    {"|",  ARITH_BIN_FLAG_BOOL_ENABLED,arith_bin_op::or_t,arith_bin_op::or_t}
+    {"%", 0,arith_bin_op::smod_t,arith_bin_op::umod_t},
+    {"^", ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::xor_t,arith_bin_op::xor_t},
+    {"&", ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::and_t,arith_bin_op::and_t},
+    {"|",  ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_COMMUTATIVE,arith_bin_op::or_t,arith_bin_op::or_t}
 };
 
 
@@ -456,8 +471,9 @@ enum class op_group
     branch_reg,
     directive,
     mov_gpr_imm,
-    arith_imm_three,
-    arith_reg_three,
+    arith_imm3,
+    arith_gpr3,
+    arith_fpr3,
     lea,
     addrof,
     load,
@@ -465,7 +481,7 @@ enum class op_group
     store,
     store_struct,
     mov_reg,
-    shift_imm_three,
+    shift_imm3,
 };
 
 enum class ir_reg_type
@@ -650,10 +666,11 @@ struct RegThree
     u64 imm = 0;
 };
 
-using ArithImmThree = ImmThree<arith_bin_op>;
-using ArithRegThree = RegThree<arith_bin_op>;
+using ArithImm3 = ImmThree<arith_bin_op>;
+using ArithGpr3 = RegThree<arith_bin_op>;
+using ArithFpr3 = RegThree<fpr_arith>;
 
-using ShiftImmThree = ImmThree<shift_op>;
+using ShiftImm3 = ImmThree<shift_op>;
 
 enum class mov_reg_type
 {
@@ -685,8 +702,9 @@ struct Opcode
         BranchLabel branch_label;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
-        ArithImmThree arith_imm_three;
-        ArithRegThree arith_reg_three;
+        ArithImm3 arith_imm3;
+        ArithGpr3 arith_gpr3;
+        ArithFpr3 arith_fpr3;
         MovReg mov_reg;
         Lea lea;
         AddrOf addrof;
@@ -695,7 +713,7 @@ struct Opcode
         Store store;
         StoreStruct store_struct;
         BranchReg branch_reg;
-        ShiftImmThree shift_imm_three;
+        ShiftImm3 shift_imm3;
     };
 
     bool lowered = false;
