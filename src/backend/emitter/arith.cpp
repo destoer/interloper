@@ -67,6 +67,16 @@ void emit_shift_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, 
     emit_block_func(itl,func,opcode);
 }
 
+void emit_shift_reg3(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, shift_op type)
+{
+    Opcode opcode;
+    opcode.group = op_group::shift_reg3;
+
+    opcode.shift_reg3 = make_reg3(dst,v1,v2,type);
+    emit_block_func(itl,func,opcode);
+}
+
+
 
 void emit_gpr_reg3(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, arith_bin_op type)
 {

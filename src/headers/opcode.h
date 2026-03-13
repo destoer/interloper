@@ -382,6 +382,15 @@ enum class shift_op
     lsl
 };
 
+inline shift_op shift_type_to_op(shift_type type, bool sign)
+{
+    switch(type)
+    {
+        case shift_type::right: return sign? shift_op::asr : shift_op::lsr;
+        case shift_type::left: return shift_op::lsl; 
+    }
+}
+
 static const char* SHIFT_NAMES[] = 
 {
     "<<",
@@ -479,6 +488,7 @@ enum class op_group
     arith_imm3,
     arith_gpr3,
     arith_fpr3,
+    shift_reg3,
     lea,
     addrof,
     load,
@@ -659,6 +669,9 @@ struct ImmThree
     u64 imm = 0;
 };
 
+using ShiftImm3 = ImmThree<shift_op>;
+using ArithImm3 = ImmThree<arith_bin_op>;
+
 template<typename op_type>
 struct RegThree
 {
@@ -671,11 +684,10 @@ struct RegThree
     u64 imm = 0;
 };
 
-using ArithImm3 = ImmThree<arith_bin_op>;
 using ArithGpr3 = RegThree<arith_bin_op>;
 using ArithFpr3 = RegThree<fpr_arith>;
+using ShiftReg3 = RegThree<shift_op>;
 
-using ShiftImm3 = ImmThree<shift_op>;
 
 enum class mov_reg_type
 {
@@ -719,6 +731,7 @@ struct Opcode
         StoreStruct store_struct;
         BranchReg branch_reg;
         ShiftImm3 shift_imm3;
+        ShiftReg3 shift_reg3;
     };
 
     bool lowered = false;

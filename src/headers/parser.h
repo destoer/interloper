@@ -106,7 +106,7 @@ struct ExprBinOperNode
 };
 
 using ArithBinNode = ExprBinOperNode<arith_bin_type>;
-using ShiftNode = ExprBinOperNode<shift_op>;
+using ShiftNode = ExprBinOperNode<shift_type>;
 using CmpNode = ExprBinOperNode<comparison_op>;
 using BooleanLogicNode = ExprBinOperNode<boolean_logic_op>;
 
