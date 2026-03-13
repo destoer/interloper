@@ -463,6 +463,11 @@ static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_TYPE_SIZE] =
     {"|",  ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_COMMUTATIVE,arith_bin_op::or_t,arith_bin_op::or_t}
 };
 
+inline arith_bin_op arith_type_to_op(arith_bin_type type, bool sign)
+{
+    const auto& arith_info = ARITH_BIN_INFO[u32(type)];
+    return sign? arith_info.signed_form : arith_info.unsigned_form;
+}
 
 enum class op_group
 {

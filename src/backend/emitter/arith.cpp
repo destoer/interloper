@@ -184,3 +184,8 @@ RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
 {
     return opcode_res2(itl,func,src,imm,add_imm);
 }
+
+void sub(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
+{
+    emit_gpr_reg3(itl,func,dst,v1,v2,arith_bin_op::sub_t);
+}

@@ -41,7 +41,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,Reg
                 return false;
             }
             
-            const auto arith_op = sign? arith_info.signed_form : arith_info.unsigned_form;
+            const auto arith_op = arith_type_to_op(arith,sign);
             emit_gpr_imm3(itl,func,dst_slot,left.slot,value,arith_op);
             return true; 
         }
@@ -53,10 +53,8 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,Reg
 
 void emit_integer_ir(Interloper& itl, Function& func, arith_bin_type arith, RegSlot dst_slot, TypedReg left, TypedReg right)
 {
-    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(arith)];
-    const bool sign = is_signed(left.type);
+    const auto type = arith_type_to_op(arith,is_signed(left.type));
 
-    const arith_bin_op type = sign? arith_info.signed_form : arith_info.unsigned_form;
     emit_gpr_reg3(itl,func,dst_slot,left.slot,right.slot,type);
 }
 
@@ -114,8 +112,6 @@ void emit_float_arith(Interloper& itl, Function& func, ArithBinNode* node, RegSl
 
 void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, RegSlot dst_slot)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
-
     // get size of pointed to type
     Type *contained_type = deref_pointer(node->left->expr_type);
     const u32 size = type_size(itl,contained_type);
@@ -124,8 +120,10 @@ void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, Reg
 
     if(known_gpr_node(node->right))
     {
+        const auto type = arith_type_to_op(node->oper,is_signed(node->right->expr_type));
+
         const auto value = node->right->known_value.gpr * size;
-        emit_imm3_unchecked(itl,func,arith_info.imm_form,dst_slot,left.slot,value);
+        emit_gpr_imm3(itl,func,dst_slot,left.slot,value,type);
     }
 
     else
@@ -135,7 +133,7 @@ void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, Reg
         if(node->oper == arith_bin_type::sub_t)
         {
             const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
-            emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,offset_slot);
+            sub(itl,func,dst_slot,left.slot,offset_slot);
         }
 
         else
