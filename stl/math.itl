@@ -4,6 +4,8 @@ import <trig>
 
 namespace std;
 
+constant PI: f64 = 3.14159265358979323846;
+
 func is_even(v : u64) bool 
 {
     return (v & 1) == 0;

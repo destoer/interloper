@@ -193,14 +193,35 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
 }
 
 
+func rotate(points: const std::Vec3F@, angle: f64) std::Vec3F {
+    cos_a := std::cos(angle);
+    sin_a := std::sin(angle);
+
+    rot := std::Mat4D {{
+        {cos_a,0.0,sin_a,0.0},
+        {0.0,1.0,0.0,0.0},
+        {-sin_a,0.0,cos_a,0.0},
+        {0.0,0.0,0.0,1.0}
+    }};
+
+    return std::mul_vec3_mat4(points,&rot);
+}
 
 func render(win: gfx::Window@, model: const Model@)
 {
     gfx::blank_screen(win.screen);
 
+    points: std::Vec3F[3] = {?};
+
+    angle := std::PI / 6.0;
+
     for @tri in model.faces
     {
-        draw_triangle(win,tri.points,RED);
+        points[0] = rotate(&tri.points[0],angle);
+        points[1] = rotate(&tri.points[1],angle);
+        points[2] = rotate(&tri.points[2],angle);
+
+        draw_triangle(win,points,RED);
     }
 }
 

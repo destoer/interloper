@@ -38,7 +38,7 @@ func mul_vec3_mat4(v1: const Vec3F@,m1: const Mat4D@) Vec3F
 
 func mul_mat4(m1: const Mat4D@,m2: const Mat4D@) Mat4D
 {   
-    ans: Mat4D = {?};
+    ans: Mat4D;
 
     constant MAT_4D_SIZE: u32 = 4;
 
