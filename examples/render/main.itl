@@ -11,14 +11,6 @@ func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
     return cast(u32,x) < cast(u32,win.width) && cast(u32,y) < cast(u32,win.height);
 }
 
-func screen_tri_to_device(half_size: const std::Vec2F@, tri: const std::Vec3F[3], out: std::Vec2F[3])
-{
-    for [@v, i] in out {
-        v.x = (tri[i].x + 1.0) * half_size.x;
-        v.y = (1.0 - tri[i].y) * half_size.y;
-    }
-}
-
 func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, colour: u32)
 {
     x1 := p1.x;
@@ -134,10 +126,12 @@ func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: con
 
 func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: u32)
 {
-    // TODO: For now just drop all the z cord 
-    tri: std::Vec2F[3] = {?};
 
-    screen_tri_to_device(&win.half_size,tri_screen,tri);
+    tri: std::Vec2F[3] = {
+        {tri_screen[0].x,tri_screen[0].y},
+        {tri_screen[1].x,tri_screen[1].y},
+        {tri_screen[2].x,tri_screen[2].y},
+    };
 
     // Compute the bounding box
     max := std::Vec2I {0,0};
@@ -172,7 +166,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
 
             if in_triangle & win.z_buffer[offset] <= z
             {
-                scaled := (z * 0.5) + 0.5;
+                scaled := std::clamp_f64((z * 0.5) + 0.5,0.0,1.0);
 
                 colourz := gfx::Colour{scaled,scaled,scaled};
                 colourz_rgba := gfx::colour_to_rgba(&colourz);
@@ -193,7 +187,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
 }
 
 
-func rotate(points: const std::Vec3F@, angle: f64) std::Vec3F {
+func rotate(angle: f64) std::Mat4D {
     cos_a := std::cos(angle);
     sin_a := std::sin(angle);
 
@@ -204,20 +198,52 @@ func rotate(points: const std::Vec3F@, angle: f64) std::Vec3F {
         {0.0,0.0,0.0,1.0}
     }};
 
-    return std::mul_vec3_mat4(points,&rot);
+    return rot;
+}
+
+func project(win: gfx::Window@) std::Mat4D {
+    proj := std::Mat4D {{
+        {win.half_size.x,0.0,0.0,win.half_size.x},
+        {0.0,-win.half_size.y,0.0,win.half_size.y},
+        {0.0,0.0,1.0,0.0},
+        {0.0,0.0,0.0,1.0}
+    }};
+
+    return proj;
+}
+
+func perspective() std::Mat4D {
+    scale := -(1.0 / 3.0);
+
+    persp := std::Mat4D {{
+        {1.0,0.0,0.0,0.0},
+        {0.0,1.0,0.0,0.0},
+        {0.0,0.0,1.0,0.0},
+        {0.0,0.0,scale,1.0}
+    }};
+
+    return persp;
 }
 
 func render(win: gfx::Window@, model: const Model@, angle: f64)
 {
     gfx::blank_screen(win.screen);
 
+    rot := rotate(angle);
+    persp := perspective();
+
+    v2 := std::mul_mat4(&persp,&rot);
+
+    proj := project(win);
+    transform := std::mul_mat4(&proj,&v2);
+
+
     for @tri in model.faces
     {
         points: std::Vec3F[3] = {?};
-
-        points[0] = rotate(&tri.points[0],angle);
-        points[1] = rotate(&tri.points[1],angle);
-        points[2] = rotate(&tri.points[2],angle);
+        points[0] = std::mul_vec3_mat4(&tri.points[0],&transform);
+        points[1] = std::mul_vec3_mat4(&tri.points[1],&transform);
+        points[2] = std::mul_vec3_mat4(&tri.points[2],&transform);
 
         draw_triangle(win,points,RED);
     }

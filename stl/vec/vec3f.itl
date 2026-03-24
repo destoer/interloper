@@ -25,6 +25,22 @@ func vec3f_sub(v1: const Vec3F@, v2: const Vec3F@) Vec3F
     };
 }
 
+func vec3_scale(v1: const Vec3F@, scale: f64) Vec3F {
+    return Vec3F {
+        v1.x * scale,
+        v1.y * scale,
+        v1.z * scale
+    };
+}
+
+func vec3_div(v1: const Vec3F@, scale: f64) Vec3F {
+    return Vec3F {
+        v1.x / scale,
+        v1.y / scale,
+        v1.z / scale
+    };
+}
+
 func vec3f_dot(v1: const Vec3F@, v2: const Vec3F@) f64
 {
     return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);

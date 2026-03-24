@@ -142,6 +142,23 @@ func clamp_u64(v1: u64, min: u64, max: u64) u64
 }
 
 
+func clamp_f64(v1: f64, min: f64, max: f64) f64
+{
+    if(v1 < min) 
+    {
+        return min;
+    }
+
+    else if(v1 > max)
+    {
+        return max;
+    }
+
+    return v1;
+}
+
+
+
 func float_eq(f1: f64, f2: f64) bool
 {
     epsilon := 0.01;

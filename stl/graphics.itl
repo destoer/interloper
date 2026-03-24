@@ -77,7 +77,7 @@ func clear_z_buffer(win: Window@)
     for @v in win.z_buffer
     {
         // Set a to a value lower precedence than we can get otherwhise
-        @v = -2.0;
+        @v = -1000.0;
     }
 }
 
@@ -156,6 +156,8 @@ func start_frame(win : Window@) win_result
 
 func end_frame(win : Window@)
 {
+    clear_z_buffer(win);
+
     win.end_timestamp = std::timestamp_ms();
 
     taken := win.end_timestamp - win.start_timestamp;
