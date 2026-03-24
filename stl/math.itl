@@ -148,6 +148,20 @@ func float_eq(f1: f64, f2: f64) bool
     return fabs(f1 - f2) <= epsilon; 
 }
 
+
+func pow_s64(v1: s64, pow: s64) s64 
+{
+    if pow == 0 {
+        return v1;
+    }
+
+    for _i in 0 < pow - 1 {
+        v1 *= v1;
+    }
+
+    return v1;
+}
+
 /*
 func log10(v: f64) u64
 

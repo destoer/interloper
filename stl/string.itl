@@ -78,15 +78,16 @@ func is_digit(c: c8) bool
 // where it left off along with value
 func parse_value(str : const string) [Value, const string]
 {
-    value : Value;
-    data := str.data;
-    end := str.data + str.len;
-
     // empty string
     if(!str_valid(str))
     {
-        return value, str;
+        return {?}, str;
     }
+
+    value : Value;
+
+    data := str.data;
+    end := &str[str.len];
 
     if(str[0] == '-')
     {
@@ -152,7 +153,7 @@ func string_to_double(str: const string) [result,f64]
         return result::err, {?};
     }
 
-    start_idx := 0;
+    start_idx: u32 = 0;
 
     negative := str[0] == '-';
     fractional := false;
@@ -166,7 +167,7 @@ func string_to_double(str: const string) [result,f64]
     ans := 0.0;
     fract_scale := 10.0;
 
-    for char in str[start_idx:]
+    for [char, i] in str[start_idx:]
     {
         if char == '.'
         {
@@ -177,6 +178,35 @@ func string_to_double(str: const string) [result,f64]
             }
 
             fractional = true;
+        }
+
+        else if char == 'e' 
+        {
+            exp_idx := start_idx + i + 1;
+
+            if exp_idx == str.len 
+            {
+                return result::err, {?};
+            }
+
+            scale := parse_s64(str[exp_idx:]); 
+
+            if scale < 0 
+            {
+                ans /= cast(f64,pow_s64(10,-scale));
+            } 
+            
+            else 
+            {
+                ans *= cast(f64,pow_s64(10,scale));
+            }   
+
+            if negative
+            {
+                ans = -ans;
+            }
+
+            return result::ok, ans;
         }
 
         else
