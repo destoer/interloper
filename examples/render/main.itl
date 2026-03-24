@@ -207,16 +207,14 @@ func rotate(points: const std::Vec3F@, angle: f64) std::Vec3F {
     return std::mul_vec3_mat4(points,&rot);
 }
 
-func render(win: gfx::Window@, model: const Model@)
+func render(win: gfx::Window@, model: const Model@, angle: f64)
 {
     gfx::blank_screen(win.screen);
 
-    points: std::Vec3F[3] = {?};
-
-    angle := std::PI / 6.0;
-
     for @tri in model.faces
     {
+        points: std::Vec3F[3] = {?};
+
         points[0] = rotate(&tri.points[0],angle);
         points[1] = rotate(&tri.points[1],angle);
         points[2] = rotate(&tri.points[2],angle);
@@ -257,6 +255,8 @@ func main() s32
         return -1;
     }
 
+    angle := 0.0;
+
     while(!win.quit)
     {
         if(gfx::start_frame(&win) == gfx::win_result::err)
@@ -271,7 +271,8 @@ func main() s32
             log::info(TAG,"Quitting");
         }
 
-        render(&win,&model);
+        render(&win,&model,angle);
+        angle += 1.0;
 
         if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)
         {
