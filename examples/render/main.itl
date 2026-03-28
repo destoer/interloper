@@ -213,7 +213,7 @@ func project(win: gfx::Window@) std::Mat4D {
 }
 
 func perspective(f: f64) std::Mat4D {
-    scale := -(1.0 / f);
+    scale := -1.0 / f;
 
     persp := std::Mat4D {{
         {1.0,0.0,0.0,0.0},
@@ -255,12 +255,16 @@ func look_at(eye: const std::Vec3F@, centre: const std::Vec3F@, up: const std::V
     return std::mul_mat4(&m1, &m2);
 }
 
-func render(win: gfx::Window@, model: const Model@, _angle: f64)
+func render(win: gfx::Window@, model: const Model@, angle: f64)
 {
     gfx::blank_screen(win.screen);
 
     // camera pos
-    eye := std::Vec3F {-1.0,0.0,2.0}; 
+    eye := std::Vec3F {0.0,0.0,2.0}; 
+
+    rot := rotate(angle);
+
+    eye = std::mul_vec3_mat4(&eye,&rot);
 
     // camera direction
     centre := std::Vec3F {0.0,0.0,0.0}; 

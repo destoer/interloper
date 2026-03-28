@@ -421,8 +421,8 @@ void compute_use_def(Interloper& itl,Function& func)
                         add(block.use,slot); 
                     }
 
-                    // used as dst, def 
-                    else if(is_arg_dst(info.type[r]))
+                    // used as dst without use def
+                    if(is_arg_dst(info.type[r]) && !contains(block.use,slot))
                     {
                         add(block.def,slot);
                     }

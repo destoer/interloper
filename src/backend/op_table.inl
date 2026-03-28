@@ -68,7 +68,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"umod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"smod_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
-    {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
+    {op_group::reg_t,"lsl_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"lsr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
     {op_group::reg_t,"asr_x86 %r, %r",2,{arg_type::dst_src_reg,arg_type::src_reg,arg_type::none}},
 
@@ -243,7 +243,7 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::addr_t,"store_struct_u64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
     {op_group::addr_t,"store_struct_f64 %r, [%i]",3,{arg_type::src_reg,arg_type::directive,arg_type::directive}},
 
-    {op_group::slot_t,"pool_addr %r, %x %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::imm}},
+    {op_group::slot_t,"pool_addr %r, %x, %x",3,{arg_type::dst_reg,arg_type::directive,arg_type::imm}},
 
     {op_group::reg_t,"load_const_float %r, %x, %f",3,arg_type::dst_reg,arg_type::directive,arg_type::directive},
 
