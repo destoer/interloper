@@ -179,6 +179,25 @@ func pow_s64(v1: s64, pow: s64) s64
     return v1;
 }
 
+func sqrt(square: f64) f64 {
+    if square < 0.0 {
+        return 0.0;
+    }
+
+    // Initial guess
+    root := square / 3.0;
+
+    // Newtons methods with fixed iterations 
+    // TODO: Should probably just check for convergence
+    // https://math.mit.edu/~stevenj/18.335/newton-sqrt.pdf
+    for _i in 0 < 32 {
+        root = (root + (square / root)) * 0.5;
+    }
+
+    return root;
+}
+
+
 /*
 func log10(v: f64) u64
 
