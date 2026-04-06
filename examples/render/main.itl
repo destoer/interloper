@@ -186,7 +186,6 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
     }
 }
 
-
 func rotate(angle: f64) std::Mat4D {
     cos_a := std::cos(angle);
     sin_a := std::sin(angle);

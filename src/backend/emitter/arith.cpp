@@ -1,5 +1,5 @@
 template<typename type>
-ConstRegSpan imm3_reg_span(const ImmThree<type> imm, RegSpan& span)
+ConstRegSpan imm3_reg_span(const ImmThree<type>& imm, RegSpan& span)
 {
     span.src[0] = imm.src.ir;
     span.src.size = 1;
@@ -23,7 +23,7 @@ ImmThree<op_type> make_imm3(RegSlot dst, RegSlot src, u64 imm, op_type type)
 }
 
 template<typename type>
-ConstRegSpan reg3_reg_span(const RegThree<type> reg, RegSpan& span)
+ConstRegSpan reg3_reg_span(const RegThree<type>& reg, RegSpan& span)
 {
     reg.src[0] = reg.v1.ir;
     reg.src[1] = reg.v2.ir;
@@ -198,4 +198,10 @@ RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
 void sub(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
 {
     emit_gpr_reg3(itl,func,dst,v1,v2,arith_bin_op::sub_t);
+}
+
+
+void subf(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
+{
+    emit_fpr_reg3(itl,func,dst,v1,v2,fpr_arith::sub_t);
 }

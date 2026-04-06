@@ -496,8 +496,8 @@ enum class op_group
     load_struct,
     store,
     store_struct,
-    mov_reg,
     shift_imm3,
+    unary_reg2,
 };
 
 enum class ir_reg_type
@@ -695,20 +695,23 @@ using ArithGpr3 = RegThree<arith_bin_op>;
 using ArithFpr3 = RegThree<fpr_arith>;
 using ShiftReg3 = RegThree<shift_op>;
 
-
-enum class mov_reg_type
+enum class unary_reg_op
 {
-    gpr,
-    fpr
+    mov_gpr_reg,
+    mov_fpr_reg,
+    bitwise_not,
 };
 
-struct MovReg
+template<typename op_type>
+struct UnaryReg2
 {
-    mov_reg_type type;
-
+    op_type type;
     IrRegister dst;
     IrRegister src;
 };
+
+using UnaryRegTwo = UnaryReg2<unary_reg_op>;
+
 
 struct BranchReg
 {
@@ -730,7 +733,6 @@ struct Opcode
         ArithImm3 arith_imm3;
         ArithGpr3 arith_gpr3;
         ArithFpr3 arith_fpr3;
-        MovReg mov_reg;
         Lea lea;
         AddrOf addrof;
         Load load;
@@ -740,6 +742,7 @@ struct Opcode
         BranchReg branch_reg;
         ShiftImm3 shift_imm3;
         ShiftReg3 shift_reg3;
+        UnaryRegTwo unary_reg2;
     };
 
     bool lowered = false;
