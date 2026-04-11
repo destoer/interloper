@@ -286,14 +286,7 @@ void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot ds
     // float 
     if(is_float(left.type))
     {
-        static constexpr op_type COMPARISON_OPCODE[COMPARISON_OP_SIZE] = 
-        {
-            op_type::cmpflt_reg,op_type::cmpfle_reg,op_type::cmpfgt_reg,op_type::cmpfge_reg,
-            op_type::cmpfeq_reg,op_type::cmpfne_reg,        
-        };
-
-        const op_type opcode_type = COMPARISON_OPCODE[u32(type)];
-        emit_reg3_unchecked(itl,func,opcode_type,dst_slot,left.slot,right.slot);
+        emit_cmp_fpr3(itl,func,dst_slot,left.slot,right.slot,type);
     }
 
     else if(is_struct(left.type))

@@ -519,6 +519,7 @@ enum class op_group
     unary_reg2,
     cmp_imm3,
     cmp_gpr3,
+    cmp_fpr3,
 };
 
 enum class ir_reg_type
@@ -772,6 +773,7 @@ struct Opcode
         UnaryRegTwo unary_reg2;
         CmpImm3 cmp_imm3;
         CmpGpr3 cmp_gpr3;
+        CmpFpr3 cmp_fpr3;
     };
 
     bool lowered = false;
