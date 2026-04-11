@@ -316,6 +316,12 @@ void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot ds
     }
 }
 
+void mark_block_exit(Function& func, BlockSlot slot)
+{
+    auto& block = block_from_slot(func,slot);
+    block.flags |= EXIT_BLOCK_EMIT;
+}
+
 void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot start_block, BlockSlot exit_block, RegSlot dst_slot, enum boolean_logic_op type)
 {
     auto &blocks = func.emitter.program;
@@ -325,13 +331,10 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
         auto &block = func.emitter.program[b];
         const BlockSlot next = block_from_idx(b + 1);
 
-        if(block.list.finish)
+        if(block.flags & EXIT_BLOCK_EMIT)
         {
-            if(block.list.finish->value.op == op_type::exit_block)
-            {
-                remove(block.list,block.list.finish);
-                emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);
-            }
+            emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);
+            block.flags &= ~EXIT_BLOCK_EMIT;
         }
     }
 }
@@ -384,8 +387,7 @@ void compile_boolean_logic_op(Interloper& itl,Function &func,BooleanLogicNode* l
     // Any further blocks need an exit jump after compilation
     else
     {
-        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
-        emit_block_internal(func,right_block,exit_block);
+        mark_block_exit(func,right_block);
     }
 }
 
