@@ -502,6 +502,7 @@ enum class op_group
     implicit,
     branch_label,
     branch_reg,
+    branch_cond,
     directive,
     mov_gpr_imm,
     mov_fpr_imm,
@@ -619,6 +620,29 @@ struct BranchLabel
     branch_type type;
     LabelSlot label;
 };
+
+struct BranchCmp
+{
+    branch_type type;
+    cmp_sign_op cmp_type;
+    IrRegister v1;
+    IrRegister V2;
+    LabelSlot label;
+};
+
+enum class branch_cond_type
+{
+    cond,
+    not_cond,
+};
+
+struct BranchCond
+{
+    branch_cond_type type;
+    IrRegister src;
+    LabelSlot label;
+};
+
 
 struct MovGprImm
 {
@@ -755,6 +779,7 @@ struct Opcode
     {
         Directive directive = {};
         BranchLabel branch_label;
+        BranchCond branch_cond;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
         MovFprImm mov_fpr_imm;

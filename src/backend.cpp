@@ -5,7 +5,7 @@
 #include "backend/reg.cpp"
 #include "backend/emitter.cpp"
 // #include "backend/rewrite_arch_ir.cpp"
-// #include "backend/cfg.cpp"
+#include "backend/cfg.cpp"
 #include "backend/asm.cpp"
 // #include "backend/x86_emitter.cpp"
 #include "backend/stack_allocator.cpp"

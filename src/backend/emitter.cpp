@@ -57,8 +57,11 @@ const ConstRegSpan blank_reg_span(RegSpan& reg)
 }
 
 // NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
-OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, const Opcode& opcode)
+OpcodeNode* emit_block_internal(Interloper& itl, Function& func,BlockSlot block_slot, const Opcode& opcode)
 {
+    const auto reg = opcode_reg_span(opcode,itl.reg_span);
+    handle_storage(itl,func,reg);
+
     auto& block = block_from_slot(func,block_slot);
 
     auto &list = block.list;
@@ -69,10 +72,7 @@ OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, const Opcod
 
 OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode)
 {
-    const auto reg = opcode_reg_span(opcode,itl.reg_span);
-    handle_storage(itl,func,reg);
-
-    return emit_block_internal(func,cur_block(func),opcode);
+    return emit_block_internal(itl,func,cur_block(func),opcode);
 }
 
 template<typename T, typename OPCODE_FUNC>
@@ -117,6 +117,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::implicit: return blank_reg_span(reg); 
         case op_group::branch_label: return blank_reg_span(reg); 
         case op_group::branch_reg: return branch_reg_span(opcode.branch_reg,reg);
+        case op_group::branch_cond: return branch_cond_reg_span(opcode.branch_cond,reg);
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
         case op_group::mov_fpr_imm: return mov_fpr_imm_reg_span(opcode.mov_fpr_imm,reg); 
