@@ -97,7 +97,8 @@ RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, co
 
 #include "emitter/directive.cpp"
 #include "emitter/mov_imm.cpp"
-#include "emitter/arith.cpp"
+#include "emitter/arith_reg.cpp"
+#include "emitter/arith_imm.cpp"
 #include "emitter/branch.cpp"
 #include "emitter/implicit.cpp"
 #include "emitter/addr.cpp"
