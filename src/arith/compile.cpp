@@ -259,18 +259,18 @@ void compile_arith_unary(Interloper& itl, Function& func, AstNode* expr, RegSlot
 void emit_integer_compare(Interloper& itl, Function& func, comparison_op type, bool sign, RegSlot dst, RegSlot left, RegSlot right)
 {
     // 0 is unsigned, 1 is signed
-    static constexpr op_type COMPARISON_OPCODE[2][COMPARISON_OP_SIZE] = 
+    static constexpr cmp_sign_op COMPARISON_OPCODE[2][CMP_SIGN_OP_SIZE] = 
     {
-        {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
-        op_type::cmpeq_reg,op_type::cmpne_reg},
+        {cmp_sign_op::ult,cmp_sign_op::ule,cmp_sign_op::ugt,cmp_sign_op::uge,
+        cmp_sign_op::eq,cmp_sign_op::ne},
 
-        {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
-        op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg},
+        {cmp_sign_op::slt,cmp_sign_op::sle,cmp_sign_op::sgt,cmp_sign_op::sge,
+        cmp_sign_op::eq,cmp_sign_op::ne},
     };
 
 
-    const op_type opcode_type = COMPARISON_OPCODE[u32(sign)][u32(type)];
-    emit_reg3_unchecked(itl,func,opcode_type,dst,left,right);
+    const auto opcode_type = COMPARISON_OPCODE[u32(sign)][u32(type)];
+    emit_cmp_gpr3(itl,func,dst,left,right,opcode_type);
 }
 
 // handles <, <=, >, >=, ==, !=

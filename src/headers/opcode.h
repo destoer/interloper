@@ -317,6 +317,24 @@ enum class cmp_sign_op
     ne, 
 };
 
+static constexpr u32 CMP_SIGN_OP_SIZE = 10;
+
+static const char* CMP_SIGN_NAMES[CMP_SIGN_OP_SIZE] = 
+{
+    "<",
+    "<=",
+    ">",
+    ">=",
+
+    "<",
+    "<=",
+    ">",
+    ">=",
+
+    "==",
+    "!="
+};
+
 enum class comparison_op
 {
     lt,
@@ -328,9 +346,9 @@ enum class comparison_op
     ne,
 };
 
-static constexpr u32 COMPARISON_OP_SIZE = 6;
+static constexpr u32 CMP_OP_SIZE = 6;
 
-static const char* COMPARISON_NAMES[COMPARISON_OP_SIZE] = 
+static const char* CMP_NAMES[CMP_OP_SIZE] = 
 {
     "<",
     "<=",
@@ -500,6 +518,7 @@ enum class op_group
     shift_imm3,
     unary_reg2,
     cmp_imm3,
+    cmp_gpr3,
 };
 
 enum class ir_reg_type
@@ -752,6 +771,7 @@ struct Opcode
         ShiftReg3 shift_reg3;
         UnaryRegTwo unary_reg2;
         CmpImm3 cmp_imm3;
+        CmpGpr3 cmp_gpr3;
     };
 
     bool lowered = false;

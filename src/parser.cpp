@@ -1356,7 +1356,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
         case ast_type::comparison:
         {
-            print_bin_oper(itl,(CmpNode*)root,COMPARISON_NAMES,depth);
+            print_bin_oper(itl,(CmpNode*)root,CMP_NAMES,depth);
             break;
         }
 
