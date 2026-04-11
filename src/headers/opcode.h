@@ -303,18 +303,19 @@ struct AddrSlot
 
 enum class cmp_sign_op
 {
-    lt,
-    le,
-    gt,
-    ge,    
-};
+    ult,
+    ule,
+    ugt,
+    uge,   
+    
+    slt,
+    sle,
+    sgt,
+    sge,  
 
-enum class cmp_eq_op
-{
     eq,
-    ne,    
+    ne, 
 };
-
 
 enum class comparison_op
 {
@@ -498,6 +499,7 @@ enum class op_group
     store_struct,
     shift_imm3,
     unary_reg2,
+    cmp_imm3,
 };
 
 enum class ir_reg_type
@@ -676,9 +678,6 @@ struct ImmThree
     u64 imm = 0;
 };
 
-using ShiftImm3 = ImmThree<shift_op>;
-using ArithImm3 = ImmThree<arith_bin_op>;
-
 template<typename op_type>
 struct RegThree
 {
@@ -691,9 +690,18 @@ struct RegThree
     u64 imm = 0;
 };
 
+using ShiftImm3 = ImmThree<shift_op>;
+using ArithImm3 = ImmThree<arith_bin_op>;
+
 using ArithGpr3 = RegThree<arith_bin_op>;
 using ArithFpr3 = RegThree<fpr_arith>;
 using ShiftReg3 = RegThree<shift_op>;
+
+
+using CmpGpr3 = RegThree<cmp_sign_op>;
+using CmpFpr3 = RegThree<comparison_op>;
+using CmpImm3 = ImmThree<cmp_sign_op>;
+
 
 enum class unary_reg_op
 {
@@ -743,6 +751,7 @@ struct Opcode
         ShiftImm3 shift_imm3;
         ShiftReg3 shift_reg3;
         UnaryRegTwo unary_reg2;
+        CmpImm3 cmp_imm3;
     };
 
     bool lowered = false;

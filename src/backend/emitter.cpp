@@ -102,6 +102,7 @@ RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, co
 #include "emitter/implicit.cpp"
 #include "emitter/addr.cpp"
 #include "emitter/unary.cpp"
+#include "emitter/cmp.cpp"
 
 ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
 {
@@ -130,6 +131,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::lea: return addr_opcode_reg_span(opcode.lea,reg);
         case op_group::addrof: return addr_opcode_reg_span(opcode.addrof,reg);  
         case op_group::unary_reg2: return unary_reg2_reg_span(opcode.unary_reg2,reg);
+        case op_group::cmp_imm3: return imm3_reg_span(opcode.cmp_imm3,reg);
     }
 
     return reg;

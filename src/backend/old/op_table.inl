@@ -158,45 +158,40 @@ constexpr OpInfo OPCODE_TABLE[OPCODE_SIZE] =
     {op_group::reg_t,"cvtif %r, %r",2,{arg_type::dst_float,arg_type::src_reg,arg_type::none}},
 
 
-    // GPR_CMP_UNSIGNED_REG_THREE
+    // GPR_CMP_REG_THREE
     {op_group::reg_t,"cmpult %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpule %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpugt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpuge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    // GPR_CMP_UNSIGNED_IMM_THREE
-    {op_group::imm_t,"cmpsgt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-
-    // GPR_CMP_UNSIGNED_IMM_THREE
-    {op_group::imm_t,"cmpugt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
-
-    // GPR_CMP_SIGNED_REG_THREE
     {op_group::reg_t,"cmpslt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpsle %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpsgt %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpsge %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    // GPR_CMP_EQ_REG_THREE
     {op_group::reg_t,"cmpeq %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
     {op_group::reg_t,"cmpne %r, %r, %r",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::src_reg}},
 
-    // GPR_CMP_EQ_IMM_THREE
+
+    // GPR_CMP_REG_IMM_THREE
+    {op_group::imm_t,"cmpsgt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+    {op_group::imm_t,"cmpugt %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
+
     {op_group::imm_t,"cmpeq %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
     {op_group::imm_t,"cmpne %r, %r, %x",3,{arg_type::dst_reg,arg_type::src_reg,arg_type::imm}},
 
-    // GPR_SET_FLAG_CMP_SIGNED_REG
+
+    // GPR_SET_FLAG_CMP_REG
     {op_group::reg_t,"setslt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setsle %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setsgt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setsge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
-    // GPR_SET_FLAG_CMP_UNSIGNED_REG
     {op_group::reg_t,"setult %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setule %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setugt %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setuge %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
-    // GPR_SET_FLAG_EQ
     {op_group::reg_t,"seteq %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
     {op_group::reg_t,"setne %r",1,{arg_type::dst_reg,arg_type::none,arg_type::none}},
 
