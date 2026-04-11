@@ -225,3 +225,13 @@ void alloc_slot(Interloper& itl, Function& func, RegSlot src, bool forced)
     directive.size = 2;
     emit_directive(itl,func,directive);      
 }
+
+void load_func_addr(Interloper& itl, Function& func, RegSlot dst, LabelSlot label)
+{
+    Directive directive;
+    directive.type = directive_type::load_func_addr;
+    directive.operand[0] = make_reg_operand(dst,ir_reg_type::dst);
+    directive.operand[1] = make_label_operand(label);
+    directive.size = 2;
+    emit_directive(itl,func,directive);
+}

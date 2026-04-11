@@ -587,6 +587,7 @@ enum class directive_type
     pool_addr,
     alloc_stack,
     alloc_slot,
+    load_func_addr,
 };
 
 struct Directive

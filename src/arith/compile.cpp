@@ -370,8 +370,7 @@ void compile_boolean_logic_op(Interloper& itl,Function &func,BooleanLogicNode* l
     // First block needs to jump to exit
     if(depth == 0)
     {
-        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
-        emit_block_internal(func,left_block,exit_block);
+        mark_block_exit(func,left_block);
     }
 
     // Give this a new block we can jump over

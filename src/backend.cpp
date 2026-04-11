@@ -414,18 +414,22 @@ Option<itl_error> compile_functions(Interloper& itl)
 
 void dump_sym_ir(Interloper &itl)
 {
-    for(Function* func : itl.func_table.used)
-    {
-        dump_ir_sym(itl,*func,itl.symbol_table);
-    }
+    UNUSED(itl);
+    unimplemented("dump sym ir");
+    // for(Function* func : itl.func_table.used)
+    // {
+    //     dump_ir_sym(itl,*func,itl.symbol_table);
+    // }
 }
 
 void dump_reg_ir(Interloper &itl)
 {
-    for(Function* func : itl.func_table.used)
-    {
-        dump_ir_reg(itl,*func,itl.symbol_table);
-    }
+    UNUSED(itl);
+    unimplemented("dump reg ir");
+    // for(Function* func : itl.func_table.used)
+    // {
+    //     dump_ir_reg(itl,*func,itl.symbol_table);
+    // }
 }
 
 void compile_globals(Interloper& itl)
@@ -440,6 +444,8 @@ void compile_globals(Interloper& itl)
 
 Option<itl_error> backend(Interloper& itl, const String& executable_path)
 {
+    UNUSED(executable_path);
+
     compile_globals(itl);
 
     const auto func_err = compile_functions(itl);
