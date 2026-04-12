@@ -53,6 +53,18 @@ void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
     emit_gpr_imm3(itl,func,dst,src,imm,arith_bin_op::add_t);
 }
 
+void sub_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
+{
+    if(imm == 0)
+    {
+        mov_reg(itl,func,dst,src);
+        return;
+    }
+
+    emit_gpr_imm3(itl,func,dst,src,imm,arith_bin_op::sub_t);
+}
+
+
 void umod_imm(Interloper& itl, Function& func, RegSlot dst,RegSlot src,u64 imm)
 {
     if(is_pow2(imm))
@@ -138,6 +150,11 @@ RegSlot udiv_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm)
 RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
 {
     return opcode_res2(itl,func,src,imm,add_imm);
+}
+
+RegSlot sub_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
+{
+    return opcode_res2(itl,func,src,imm,sub_imm);
 }
 
 void xor_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)

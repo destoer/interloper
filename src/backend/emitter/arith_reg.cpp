@@ -59,6 +59,11 @@ void sub(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
     emit_gpr_reg3(itl,func,dst,v1,v2,arith_bin_op::sub_t);
 }
 
+RegSlot sub_res(Interloper& itl,Function& func, RegSlot v1, RegSlot v2)
+{
+    return opcode_res2(itl,func,v1,v2,sub);
+}
+
 
 void subf(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
 {
