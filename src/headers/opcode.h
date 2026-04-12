@@ -471,7 +471,6 @@ inline fpr_arith arith_bin_to_fpr(arith_bin_type type)
 
 struct ArithBinInfo
 {
-    const char* name = nullptr;
     u32 flags = 0;
     arith_bin_op signed_form;
     arith_bin_op unsigned_form;
@@ -481,14 +480,26 @@ static constexpr u32 ARITH_BIN_TYPE_SIZE = 8;
 
 static const ArithBinInfo ARITH_BIN_INFO[ARITH_BIN_TYPE_SIZE] = 
 {
-    {"+", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::add_t,arith_bin_op::add_t}, 
-    {"-", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::sub_t,arith_bin_op::sub_t},
-    {"*", ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::mul_t,arith_bin_op::mul_t},
-    {"/", ARITH_BIN_FLAG_FLOAT_ENABLED,arith_bin_op::sdiv_t,arith_bin_op::udiv_t},
-    {"%", 0,arith_bin_op::smod_t,arith_bin_op::umod_t},
-    {"^", ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::xor_t,arith_bin_op::xor_t},
-    {"&", ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::and_t,arith_bin_op::and_t},
-    {"|",  ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_COMMUTATIVE,arith_bin_op::or_t,arith_bin_op::or_t}
+    {ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::add_t,arith_bin_op::add_t}, 
+    {ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT,arith_bin_op::sub_t,arith_bin_op::sub_t},
+    {ARITH_BIN_FLAG_FLOAT_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::mul_t,arith_bin_op::mul_t},
+    {ARITH_BIN_FLAG_FLOAT_ENABLED,arith_bin_op::sdiv_t,arith_bin_op::udiv_t},
+    {0,arith_bin_op::smod_t,arith_bin_op::umod_t},
+    {ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::xor_t,arith_bin_op::xor_t},
+    {ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_IMM_SUPPORT | ARITH_BIN_COMMUTATIVE,arith_bin_op::and_t,arith_bin_op::and_t},
+    {ARITH_BIN_FLAG_BOOL_ENABLED | ARITH_BIN_COMMUTATIVE,arith_bin_op::or_t,arith_bin_op::or_t}
+};
+
+static const char* ARITH_BIN_NAMES[ARITH_BIN_TYPE_SIZE] =
+{
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "^",
+    "&",
+    "|",
 };
 
 inline arith_bin_op arith_type_to_op(arith_bin_type type, bool sign)
