@@ -171,12 +171,12 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
         case token_type::shift_l:
         {
-            return ast_shift(parser,shift_op::left,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_shift(parser,shift_type::left,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::shift_r:
         {
-            return ast_shift(parser,shift_op::right,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_shift(parser,shift_type::right,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
         }
 
         case token_type::times:

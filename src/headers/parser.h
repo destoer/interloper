@@ -803,7 +803,7 @@ ParserResult ast_bin_arith(Parser& parser, arith_bin_type oper, ParserResult lef
     return ast_expr_oper_bin<ast_type::arith_bin>(parser,oper,left_res,right_res,token);
 }
 
-ParserResult ast_shift(Parser& parser, shift_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
+ParserResult ast_shift(Parser& parser, shift_type oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
     return ast_expr_oper_bin<ast_type::shift>(parser,oper,left_res,right_res,token);
 }
