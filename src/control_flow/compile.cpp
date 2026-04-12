@@ -68,13 +68,13 @@ void compile_if_stmt(Interloper& itl, Function& func, const IfStmt& stmt, IfComp
         compile->exit_block = add_fall(itl,func);
 
         // if cond not met just branch into exit block
-        emit_cond_branch(itl,func,cmp_block,compile->exit_block,body_block,cond.slot,false);
+        emit_cond_branch(itl,func,cmp_block,compile->exit_block,body_block,cond.slot,branch_cond_type::not_cond);
     }
 
     else
     {
         // indicate we need to jump the exit block
-        emit_exit_block(itl,func);
+        mark_block_exit(func,cur_block(func));
 
         // About to hit an else stmt we wont have another cond
         if(compile->count == compile->compiled + 1 && compile->else_stmt)
@@ -85,7 +85,7 @@ void compile_if_stmt(Interloper& itl, Function& func, const IfStmt& stmt, IfComp
             compile->compiled += 1;
 
             // add branch over body we compiled to else statement
-            emit_cond_branch(itl,func,cmp_block,else_block,body_block,cond.slot,false);
+            emit_cond_branch(itl,func,cmp_block,else_block,body_block,cond.slot,branch_cond_type::not_cond);
 
             // By definition this is the last stmt
             compile->exit_block = add_fall(itl,func);
@@ -97,7 +97,7 @@ void compile_if_stmt(Interloper& itl, Function& func, const IfStmt& stmt, IfComp
             const BlockSlot chain_slot = new_basic_block(itl,func);
 
             // add branch over the body we compiled earlier
-            emit_cond_branch(itl,func,cmp_block,chain_slot,body_block,cond.slot,false);
+            emit_cond_branch(itl,func,cmp_block,chain_slot,body_block,cond.slot,branch_cond_type::not_cond);
         }
     }
 }
@@ -121,13 +121,10 @@ void compile_if(Interloper& itl, Function& func, AstNode* node)
     {
         auto &block = func.emitter.program[b];
 
-        if(block.list.finish)
+        if(block.flags & EXIT_BLOCK_EMIT)
         {
-            if(block.list.finish->value.op == op_type::exit_block)
-            {
-                remove(block.list,block.list.finish);
-                emit_branch(itl,func,block.block_slot,compile.exit_block);
-            }
+            emit_branch(itl,func,block.block_slot,compile.exit_block);
+            block.flags &= ~EXIT_BLOCK_EMIT;
         }
     }
 }
@@ -182,10 +179,10 @@ void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // emit loop branch
-    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
+    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,branch_cond_type::cond);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);
+    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,branch_cond_type::not_cond);
 }
 
 void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* range)

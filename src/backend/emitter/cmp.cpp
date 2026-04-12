@@ -32,3 +32,20 @@ void cmp_eq_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 i
 {
     emit_cmp_imm3(itl,func,dst,src,imm,cmp_sign_op::eq);
 }
+
+
+void cmp_ne_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
+{
+    emit_cmp_imm3(itl,func,dst,src,imm,cmp_sign_op::ne);
+}
+
+RegSlot cmp_eq_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
+{
+    return opcode_res2(itl,func,src,imm,cmp_eq_imm);
+}
+
+
+RegSlot cmp_ne_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
+{
+    return opcode_res2(itl,func,src,imm,cmp_ne_imm);
+}
