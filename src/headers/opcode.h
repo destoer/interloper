@@ -588,6 +588,8 @@ enum class directive_type
     alloc_stack,
     alloc_slot,
     load_func_addr,
+    alloc_local_array,
+    alloc_global_array,
 };
 
 struct Directive

@@ -177,16 +177,15 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         {
             case reg_segment::local:
             {
-                const auto opcode = make_op(op_type::alloc_local_array,make_reg_operand(array.reg.slot),make_imm_operand(arr_size),make_imm_operand(arr_count));
-                emit_block_func(func,opcode);
+                alloc_local_array(itl,func,array.reg.slot,arr_size,arr_count);
                 break;
             }
+
             // just dump addr
             case reg_segment::global:
             {
                 const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,array.reg.slot.sym_slot,arr_size,arr_count);
-                const auto opcode = make_op(op_type::alloc_global_array,make_reg_operand(array.reg.slot),make_imm_operand(alloc_idx));
-                emit_block_func(func,opcode);
+                alloc_global_array(itl,func,array.reg.slot,alloc_idx);
                 break;
             }
 

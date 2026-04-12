@@ -125,6 +125,40 @@ void emit_directive_imm1(Interloper& itl, Function& func, directive_type type, u
     emit_directive(itl,func,directive);  
 }
 
+void emit_directive_reg_imm2(Interloper& itl, Function& func, directive_type type, const DirectiveReg& v1, u64 v2, u64 v3)
+{
+    Directive directive;
+    directive.type = type;
+    directive.operand[0] = make_reg_operand(v1.slot,v1.type);
+    directive.operand[1] = make_imm_operand(v2);
+    directive.operand[2] = make_imm_operand(v3);
+    directive.size = 3;
+    emit_directive(itl,func,directive);      
+}
+
+void emit_directive_reg_imm1(Interloper& itl, Function& func, directive_type type, const DirectiveReg& v1, u64 v2)
+{
+    Directive directive;
+    directive.type = type;
+    directive.operand[0] = make_reg_operand(v1.slot,v1.type);
+    directive.operand[1] = make_imm_operand(v2);
+    directive.size = 2;
+    emit_directive(itl,func,directive);      
+}
+
+void alloc_local_array(Interloper& itl, Function& func, RegSlot dst, const u64 size, const u64 count)
+{
+    const DirectiveReg dst_reg = {dst,ir_reg_type::directive};
+    emit_directive_reg_imm2(itl,func,directive_type::alloc_local_array,dst_reg,size,count);
+}
+
+void alloc_global_array(Interloper& itl, Function& func, RegSlot dst, const u64 alloc_idx)
+{
+    const DirectiveReg dst_reg = {dst,ir_reg_type::directive};
+    emit_directive_reg_imm1(itl,func,directive_type::alloc_global_array,dst_reg,alloc_idx);
+}
+
+
 void clean_args(Interloper& itl, Function& func, u64 args)
 {
     emit_directive_imm1(itl,func,directive_type::clean_args,args);
