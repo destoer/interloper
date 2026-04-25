@@ -608,6 +608,25 @@ enum class directive_type
     alloc_global_array,
 };
 
+static const char* DIRECTIVE_NAMES[] = 
+{
+    "push_arg",
+    "push_float_arg",
+    "reload_slot",
+    "spill_slot",
+    "clean_args",
+    "lock_reg_set",
+    "unlock_reg_set",
+    "lock_reg",
+    "mov_unlock",
+    "pool_addr",
+    "alloc_stack",
+    "alloc_slot",
+    "load_func_addr",
+    "alloc_local_array",
+    "alloc_global_array",
+};
+
 struct Directive
 {
     directive_type type;
