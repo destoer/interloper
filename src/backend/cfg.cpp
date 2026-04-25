@@ -378,8 +378,60 @@ void connect_flow_graph(Interloper& itl,Function& func)
 // TODO: would it be cheaper to do this inside the emitter?
 void compute_use_def(Interloper& itl,Function& func)
 {
-    UNUSED(itl); UNUSED(func);
-    puts("Warning USE DEF IS STUBBED");
+    // each block
+    for(auto& block : func.emitter.program)
+    {
+        // ignore empty blocks
+        if(!block.list.start)
+        {
+            continue;
+        }
+        
+        // run a pass on the block
+        for(const OpcodeNode& node : block.list)
+        {
+            const auto regs = opcode_reg_span(node.value,itl.reg_span);
+
+            for(const auto& src : regs.src)
+            {
+                // Not interested in special regs
+                if(is_special_reg(src))
+                {
+                    continue;
+                }
+
+                auto& ir_reg = reg_from_slot(itl.symbol_table,func,src);
+
+                // ir reg, that is not stored in memory
+                if(!stored_in_mem(ir_reg) && !contains(block.def,src))
+                {
+                    // used as src, without a def -> use
+                    add(block.use,src); 
+                }
+            }
+
+            for(const auto& dst : regs.dst)
+            {
+                // Not interested in special regs
+                if(is_special_reg(dst))
+                {
+                    continue;
+                }
+
+                auto& ir_reg = reg_from_slot(itl.symbol_table,func,dst);
+
+                // used as dst, def 
+                if(!stored_in_mem(ir_reg) && !contains(block.use,dst))
+                {
+                    add(block.def,dst);
+                }
+            }
+        }
+
+        // if block has a use of a var it must be an input
+        // computed here for speed rather than in liveness func
+        set_union(block.live_in,block.use);        
+    }
 }
 
 
