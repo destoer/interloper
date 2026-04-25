@@ -161,3 +161,8 @@ void xor_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 {
     emit_gpr_imm3(itl,func,dst,src,imm,arith_bin_op::xor_t);
 }
+
+void and_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
+{
+    emit_gpr_imm3(itl,func,dst,src,imm,arith_bin_op::and_t);
+}
