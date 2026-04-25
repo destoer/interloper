@@ -653,6 +653,12 @@ enum class branch_type
     branch,
 };
 
+static const char* BRANCH_NAMES[] = 
+{
+    "call",
+    "b",
+};
+
 struct BranchLabel
 {
     branch_type type;

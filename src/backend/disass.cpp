@@ -64,6 +64,7 @@ void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt
     // %p  pool
     // %a  address
     // %m  register set
+    // %s  string
 
     for(size_t i = 0; i < fmt.size; i++)
     {
@@ -124,6 +125,13 @@ void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt
                 const LabelSlot label = va_arg(args,LabelSlot);
                 const String& name = disass.table.label_lookup[label.handle].name;
                 printf("%s",name.buf);
+                break;
+            }
+
+            case 's':
+            {
+                const char* str = va_arg(args,const char*);
+                printf("%s",str);
                 break;
             }
 
@@ -190,12 +198,19 @@ void disass_mov_gpr_imm(const Opcode& opcode, const Disass& disass)
     print_disass(opcode,disass,"mov %r, %x",mov.dst,mov.imm);
 }
 
+void disass_branch_label(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_label;
+    print_disass(opcode,disass,"%s %r, %a",BRANCH_NAMES[u32(branch.type)],branch.label);
+}
+
 void disass_opcode(const Opcode& opcode, const Disass& disass)
 {
     switch(opcode.group)
     {
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
+        case op_group::branch_label: disass_branch_label(opcode,disass); break;
         default: unimplemented("Cannot disassemble group: %d",opcode.group); break;
     }
 }
