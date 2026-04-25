@@ -141,6 +141,11 @@ void mul_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
     }
 }
 
+RegSlot mul_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm)
+{
+    return opcode_res2(itl,func,src,imm,mul_imm);
+}
+
 RegSlot udiv_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm)
 {
     return opcode_res2(itl,func,src,imm,udiv_imm);
