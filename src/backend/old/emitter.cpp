@@ -12,28 +12,7 @@ OpcodeNode* get_cur_end(IrEmitter& emitter)
     return get_cur_list(emitter).finish;    
 }
 
-void destroy_block(Block& block)
-{
-    destroy_arr(block.entry);
-    destroy_arr(block.exit);
 
-    destroy_set(block.live_in);
-    destroy_set(block.live_out);
-    destroy_set(block.def);
-    destroy_set(block.use);
-
-    destroy_arr(block.links);
-}
-
-void destroy_emitter(IrEmitter& emitter)
-{
-    for(u32 b = 0; b < count(emitter.program); b++)
-    {
-        destroy_block(emitter.program[b]);
-    }
-
-    destroy_arr(emitter.program);
-}
 
 constexpr OpInfo opcode_three_info(op_type type)
 {

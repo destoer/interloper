@@ -141,3 +141,27 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
 
     return reg;
 }
+
+
+void destroy_block(Block& block)
+{
+    destroy_arr(block.entry);
+    destroy_arr(block.exit);
+
+    destroy_set(block.live_in);
+    destroy_set(block.live_out);
+    destroy_set(block.def);
+    destroy_set(block.use);
+
+    destroy_arr(block.links);
+}
+
+void destroy_emitter(IrEmitter& emitter)
+{
+    for(u32 b = 0; b < count(emitter.program); b++)
+    {
+        destroy_block(emitter.program[b]);
+    }
+
+    destroy_arr(emitter.program);
+}

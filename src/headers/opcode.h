@@ -777,6 +777,8 @@ enum class unary_reg_op
     mov_gpr_reg,
     mov_fpr_reg,
     bitwise_not,
+    cvt_if,
+    cvt_fi
 };
 
 

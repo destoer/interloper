@@ -59,3 +59,13 @@ void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 {
     emit_unary_reg_two(itl,func,dst,src,unary_reg_op::mov_fpr_reg);
 }
+
+void cvt_fi(Interloper& itl, Function& func, RegSlot dst, RegSlot v1)
+{
+    emit_unary_reg_two(itl,func,dst,v1,unary_reg_op::cvt_fi);
+}
+
+void cvt_if(Interloper& itl, Function& func, RegSlot dst, RegSlot v1)
+{
+    emit_unary_reg_two(itl,func,dst,v1,unary_reg_op::cvt_if);
+}
