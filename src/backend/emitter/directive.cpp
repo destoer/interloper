@@ -110,7 +110,7 @@ void emit_directive_reg2(Interloper& itl, Function& func, directive_type type, c
     Directive directive;
     directive.type = type;
     directive.operand[0] = make_reg_operand(v1.slot,v1.type);
-    directive.operand[0] = make_reg_operand(v2.slot,v2.type);
+    directive.operand[1] = make_reg_operand(v2.slot,v2.type);
     directive.size = 2;
     emit_directive(itl,func,directive);  
 }
