@@ -15,5 +15,6 @@ void syscall(Interloper& itl, Function& func)
 
 void ret(Interloper& itl, Function& func)
 {
+    add_func_exit(func,cur_block(func));
     emit_implicit(itl,func,implicit_type::ret);
 }
