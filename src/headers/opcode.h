@@ -640,6 +640,12 @@ enum class implicit_type
     ret,
 };
 
+static const char* IMPLICIT_NAMES[] = 
+{
+    "syscall",
+    "ret"
+};
+
 struct Implicit
 {
     implicit_type type;

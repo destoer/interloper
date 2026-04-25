@@ -241,6 +241,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
 {
     switch(opcode.group)
     {
+        case op_group::implicit: printf("%s\n",IMPLICIT_NAMES[u32(opcode.implicit.type)]); break;
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
         case op_group::branch_label: disass_branch_label(opcode,disass); break;
