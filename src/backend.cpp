@@ -77,7 +77,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
             auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
 
             itl.ctx.expr = (AstNode*)func.root;   
-            dump_ir_sym(itl,func,itl.symbol_table);
+            dump_ir(itl,func,itl.symbol_table);
             return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name);
         }
     }
@@ -412,19 +412,11 @@ Option<itl_error> compile_functions(Interloper& itl)
     return option::none;
 }
 
-void dump_sym_ir(Interloper &itl)
+void dump_itl_ir(Interloper &itl)
 {
     for(Function* func : itl.func_table.used)
     {
-        dump_ir_sym(itl,*func,itl.symbol_table);
-    }
-}
-
-void dump_reg_ir(Interloper &itl)
-{
-    for(Function* func : itl.func_table.used)
-    {
-        dump_ir_reg(itl,*func,itl.symbol_table);
+        dump_ir(itl,*func,itl.symbol_table);
     }
 }
 
@@ -452,7 +444,7 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
 
     if(itl.print_ir)
     {
-        dump_sym_ir(itl);
+        dump_itl_ir(itl);
     }
     
     auto start = std::chrono::high_resolution_clock::now();

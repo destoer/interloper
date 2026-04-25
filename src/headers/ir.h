@@ -237,9 +237,7 @@ enum class os_target
 };
 
 
-void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table,arch_target arch);
-void disass_opcode_raw(const Opcode &opcode,arch_target arch);
-void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table);
+void dump_ir(Interloper& itl,Function &func,SymbolTable& table);
 
 struct AsmFunc
 {
