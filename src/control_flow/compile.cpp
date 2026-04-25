@@ -476,8 +476,8 @@ void compile_switch_jump_table(Interloper& itl, Function& func, SwitchNode* swit
     }
 
 
-    // we have default posisiton now we can emit the branch for the range checking failing
-    emit_cond_branch(itl,func,range_block,default_block,dispatch_block,default_cmp,true);
+    // we have default position now we can emit the branch for the range checking failing
+    branch_nez(itl,func,range_block,default_block,dispatch_block,default_cmp);
 
     // populate the jump table
     u32 case_idx = 0;

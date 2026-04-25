@@ -319,6 +319,7 @@ enum class cmp_sign_op
 
 static constexpr u32 CMP_SIGN_OP_SIZE = 10;
 
+[[maybe_unused]]
 static const char* CMP_SIGN_NAMES[CMP_SIGN_OP_SIZE] = 
 {
     "<",
@@ -408,6 +409,8 @@ inline shift_op shift_type_to_op(shift_type type, bool sign)
         case shift_type::right: return sign? shift_op::asr : shift_op::lsr;
         case shift_type::left: return shift_op::lsl; 
     }
+
+    assert(false);
 }
 
 static const char* SHIFT_NAMES[] = 
@@ -416,6 +419,7 @@ static const char* SHIFT_NAMES[] =
     ">>"
 };
 
+[[maybe_unused]]
 static const char* SHIFT_OP_NAMES[] = 
 {
     "lsl",
@@ -635,6 +639,12 @@ struct BranchLabel
     LabelSlot label;
 };
 
+struct BranchReg
+{
+    branch_type type;
+    IrRegister src;
+};
+
 struct BranchCmp
 {
     branch_type type;
@@ -777,13 +787,6 @@ struct UnaryReg2
 };
 
 using UnaryRegTwo = UnaryReg2<unary_reg_op>;
-
-
-struct BranchReg
-{
-    branch_type type;
-    IrRegister src;
-};
 
 struct Opcode
 {

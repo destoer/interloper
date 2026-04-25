@@ -63,3 +63,8 @@ void call_reg(Interloper& itl, Function& func, RegSlot src)
 {
     emit_branch_reg(itl,func,branch_type::call,src);
 }
+
+void branch_reg(Interloper& itl, Function& func, RegSlot src)
+{
+    emit_branch_reg(itl,func,branch_type::branch,src);
+}

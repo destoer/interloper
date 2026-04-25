@@ -1,8 +1,8 @@
 template<typename type>
 ConstRegSpan reg3_reg_span(const RegThree<type>& reg, RegSpan& span)
 {
-    reg.src[0] = reg.v1.ir;
-    reg.src[1] = reg.v2.ir;
+    span.src[0] = reg.v1.ir;
+    span.src[1] = reg.v2.ir;
     span.src.size = 2;
 
     span.dst[0] = reg.dst.ir;
