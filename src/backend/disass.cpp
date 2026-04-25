@@ -174,12 +174,8 @@ void disass_directive(const Opcode& opcode, const Disass& disass)
             case directive_operand_type::label: printf("L%d",operand.label.handle); break;
         }
 
-        if(i == 0)
-        {
-            printf(" ");
-        }
 
-        else if(i != directive.size - 1)
+        if(i != directive.size - 1)
         {
             printf(", ");
         }
