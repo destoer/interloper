@@ -83,8 +83,8 @@ void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt
         {
             case 'r':
             {
-                const RegSlot reg = va_arg(args,RegSlot);
-                print_ir_reg(disass.table,reg);
+                const IrRegister reg = va_arg(args,IrRegister);
+                print_ir_reg(disass.table,reg.ir);
                 break;
             }
 
@@ -204,6 +204,12 @@ void disass_branch_label(const Opcode& opcode, const Disass& disass)
     print_disass(opcode,disass,"%s %a",BRANCH_NAMES[u32(branch.type)],branch.label);
 }
 
+template<typename type>
+void disass_unary_reg2(const Opcode& opcode, const Disass& disass, const UnaryReg2<type>& unary, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r, %r",names[u32(unary.type)],unary.dst,unary.src);
+}
+
 void disass_opcode(const Opcode& opcode, const Disass& disass)
 {
     switch(opcode.group)
@@ -211,6 +217,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
         case op_group::branch_label: disass_branch_label(opcode,disass); break;
+        case op_group::unary_reg2: disass_unary_reg2(opcode,disass,opcode.unary_reg2,UNARY_REG_NAMES); break;
         default: unimplemented("Cannot disassemble group: %d",opcode.group); break;
     }
 }

@@ -806,6 +806,15 @@ enum class unary_reg_op
     cvt_fi
 };
 
+static const char* UNARY_REG_NAMES[] =
+{
+    "mov",
+    "movf",
+    "not",
+    "cvt_if",
+    "cvt_fi"
+};
+
 
 enum class sign_extend_op
 {
