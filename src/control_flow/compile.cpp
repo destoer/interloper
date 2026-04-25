@@ -409,7 +409,7 @@ void compile_switch_jump_table(Interloper& itl, Function& func, SwitchNode* swit
     sub_imm(itl,func,switch_slot,switch_reg.slot,min);
 
     const RegSlot default_cmp = new_tmp(func,GPR_SIZE);
-    cmp_unsigned_gt_imm(itl,func,default_cmp,switch_slot,max - min);
+    cmp_ugt_imm(itl,func,default_cmp,switch_slot,max - min);
 
     // NOTE: branch is emitted later as we dont know where it goes yet
 

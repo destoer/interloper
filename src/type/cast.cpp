@@ -328,13 +328,13 @@ void compile_cast(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot
         {
             if(is_signed(reg.type))
             {
-                cmp_signed_gt_imm(itl,func,dst_slot,reg.slot,0);
+                cmp_sgt_imm(itl,func,dst_slot,reg.slot,0);
             }
 
             // unsigned
             else
             {
-                cmp_unsigned_gt_imm(itl,func,dst_slot,reg.slot,0);
+                cmp_ugt_imm(itl,func,dst_slot,reg.slot,0);
             }
             
             break;

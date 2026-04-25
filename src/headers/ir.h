@@ -196,8 +196,8 @@ void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
 
 void and_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
 
-void cmp_signed_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
-void cmp_unsigned_gt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
+void cmp_sgt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
+void cmp_ugt_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm);
 
 void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm);
 
