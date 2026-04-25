@@ -752,6 +752,12 @@ enum class take_addr
 };
 
 
+static const char* TAKE_ADDR_NAMES[] =
+{
+    "lea",
+    "addrof"
+};
+
 using Load = AddrOpcode<load_type,true,false>;
 using LoadStruct = AddrOpcode<load_type,true,true>;
 
