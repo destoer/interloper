@@ -333,7 +333,7 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
 
         if(block.flags & EXIT_BLOCK_EMIT)
         {
-            const auto branch_type = type == boolean_logic_op::and_t? branch_cond_type::not_cond : branch_cond_type::cond;
+            const auto branch_type = type == boolean_logic_op::and_t? branch_cond_type::eqz : branch_cond_type::nez;
             emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,branch_type);
             block.flags &= ~EXIT_BLOCK_EMIT;
         }

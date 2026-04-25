@@ -190,6 +190,16 @@ void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot 
     check_block_branch(itl,func,block);
 }
 
+void branch_nez(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot)
+{
+    emit_cond_branch(itl,func,block,target,fall,reg_slot,branch_cond_type::nez);
+}
+
+void branch_eqz(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot)
+{
+    emit_cond_branch(itl,func,block,target,fall,reg_slot,branch_cond_type::eqz);
+}
+
 void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot target)
 {
     const auto& target_block = block_from_slot(func,target);

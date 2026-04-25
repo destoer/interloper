@@ -646,8 +646,8 @@ struct BranchCmp
 
 enum class branch_cond_type
 {
-    cond,
-    not_cond,
+    eqz,
+    nez,
 };
 
 struct BranchCond

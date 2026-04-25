@@ -68,7 +68,7 @@ void compile_if_stmt(Interloper& itl, Function& func, const IfStmt& stmt, IfComp
         compile->exit_block = add_fall(itl,func);
 
         // if cond not met just branch into exit block
-        emit_cond_branch(itl,func,cmp_block,compile->exit_block,body_block,cond.slot,branch_cond_type::not_cond);
+        branch_eqz(itl,func,cmp_block,compile->exit_block,body_block,cond.slot);
     }
 
     else
@@ -85,7 +85,8 @@ void compile_if_stmt(Interloper& itl, Function& func, const IfStmt& stmt, IfComp
             compile->compiled += 1;
 
             // add branch over body we compiled to else statement
-            emit_cond_branch(itl,func,cmp_block,else_block,body_block,cond.slot,branch_cond_type::not_cond);
+            
+            branch_eqz(itl,func,cmp_block,else_block,body_block,cond.slot);
 
             // By definition this is the last stmt
             compile->exit_block = add_fall(itl,func);
@@ -97,7 +98,7 @@ void compile_if_stmt(Interloper& itl, Function& func, const IfStmt& stmt, IfComp
             const BlockSlot chain_slot = new_basic_block(itl,func);
 
             // add branch over the body we compiled earlier
-            emit_cond_branch(itl,func,cmp_block,chain_slot,body_block,cond.slot,branch_cond_type::not_cond);
+            branch_eqz(itl,func,cmp_block,chain_slot,body_block,cond.slot);
         }
     }
 }
@@ -179,10 +180,10 @@ void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // emit loop branch
-    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,branch_cond_type::cond);
+    branch_nez(itl,func,end_block,for_block,exit_block,exit_cond);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,branch_cond_type::not_cond);
+    branch_eqz(itl,func,initial_block,exit_block,for_block,entry_cond);
 }
 
 void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* range)
@@ -288,12 +289,12 @@ void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* rang
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // emit loop branch
-    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit_cond,true);
+    branch_nez(itl,func,end_block,for_block,exit_block,exit_cond);
 
     if(is_runtime_size(arr_type))
     {
         // emit branch over the loop body if array is empty
-        emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry_cond,false);  
+        branch_eqz(itl,func,initial_block,exit_block,for_block,entry_cond);  
     }
 
     // fixed size array only need to add a fall
@@ -348,10 +349,10 @@ void compile_for_iter(Interloper& itl, Function& func, AstNode* stmt)
 
     const BlockSlot exit_block = new_basic_block(itl,func);
 
-    emit_cond_branch(itl,func,end_block,for_block,exit_block,exit.slot,true);
+    branch_nez(itl,func,end_block,for_block,exit_block,exit.slot);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,for_block,entry.slot,false);        
+    branch_eqz(itl,func,initial_block,exit_block,for_block,entry.slot);        
 }
 
 void compile_while_node(Interloper& itl, Function& func, AstNode* stmt)
@@ -382,10 +383,10 @@ void compile_while_node(Interloper& itl, Function& func, AstNode* stmt)
     const BlockSlot exit_block = new_basic_block(itl,func);
 
     // keep looping to while block if cond is true
-    emit_cond_branch(itl,func,end_block,while_block,exit_block,exit_cond.slot,true);
+    branch_nez(itl,func,end_block,while_block,exit_block,exit_cond.slot);
 
     // emit branch over the loop body in initial block if cond is not met
-    emit_cond_branch(itl,func,initial_block,exit_block,while_block,entry_cond.slot,false); 
+    branch_eqz(itl,func,initial_block,exit_block,while_block,entry_cond.slot); 
 }
 
 void compile_switch_jump_table(Interloper& itl, Function& func, SwitchNode* switch_node)
