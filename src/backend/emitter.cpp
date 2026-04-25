@@ -133,6 +133,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::lea: return addr_opcode_reg_span(opcode.lea,reg);
         case op_group::addrof: return addr_opcode_reg_span(opcode.addrof,reg);  
         case op_group::unary_reg2: return unary_reg2_reg_span(opcode.unary_reg2,reg);
+        case op_group::sign_extend: return unary_reg2_reg_span(opcode.sign_extend,reg);
         case op_group::cmp_imm3: return imm3_reg_span(opcode.cmp_imm3,reg);
         case op_group::cmp_gpr3: return reg3_reg_span(opcode.cmp_gpr3,reg);
         case op_group::cmp_fpr3: return reg3_reg_span(opcode.cmp_fpr3,reg);

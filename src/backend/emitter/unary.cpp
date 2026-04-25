@@ -31,6 +31,15 @@ void emit_unary_reg_two(Interloper& itl, Function& func, RegSlot dst, RegSlot sr
     emit_block_func(itl,func,opcode);
 }
 
+void emit_sign_extend(Interloper& itl, Function& func, RegSlot dst, RegSlot src,  sign_extend_op type)
+{
+    Opcode opcode;
+    opcode.group = op_group::sign_extend;
+
+    opcode.sign_extend = make_unary_reg2(dst,src,type);
+    emit_block_func(itl,func,opcode);
+}
+
 void not_reg(Interloper& itl,Function& func, RegSlot dst, RegSlot src)
 {
     emit_unary_reg_two(itl,func,dst,src,unary_reg_op::bitwise_not);

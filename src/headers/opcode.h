@@ -533,6 +533,7 @@ enum class op_group
     store_struct,
     shift_imm3,
     unary_reg2,
+    sign_extend,
     cmp_imm3,
     cmp_gpr3,
     cmp_fpr3,
@@ -778,6 +779,14 @@ enum class unary_reg_op
     bitwise_not,
 };
 
+
+enum class sign_extend_op
+{
+    sxb,
+    sxh,
+    sxw
+};
+
 template<typename op_type>
 struct UnaryReg2
 {
@@ -787,6 +796,7 @@ struct UnaryReg2
 };
 
 using UnaryRegTwo = UnaryReg2<unary_reg_op>;
+using SignExtend = UnaryReg2<sign_extend_op>;
 
 struct Opcode
 {
@@ -813,6 +823,7 @@ struct Opcode
         ShiftImm3 shift_imm3;
         ShiftReg3 shift_reg3;
         UnaryRegTwo unary_reg2;
+        SignExtend sign_extend;
         CmpImm3 cmp_imm3;
         CmpGpr3 cmp_gpr3;
         CmpFpr3 cmp_fpr3;

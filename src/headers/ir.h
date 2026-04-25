@@ -186,10 +186,7 @@ struct GlobalAlloc
 };
 
 void finalise_global_offset(Interloper& itl);
-
-void sign_extend_byte(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
-void sign_extend_half(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
-void sign_extend_word(Interloper& itl, Function& func, RegSlot dst, RegSlot src);
+void emit_sign_extend(Interloper& itl, Function& func, RegSlot dst, RegSlot src,  sign_extend_op type);
 
 void cvt_fi(Interloper& itl, Function& func, RegSlot dst, RegSlot v1);
 void cvt_if(Interloper& itl, Function& func, RegSlot dst, RegSlot v1);

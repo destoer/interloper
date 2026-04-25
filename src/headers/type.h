@@ -15,7 +15,8 @@ enum class builtin_type
     u16_t,
     u32_t,
     u64_t,
-
+    
+    // In order with sign_extend_type
     s8_t,
     s16_t,
     s32_t,
