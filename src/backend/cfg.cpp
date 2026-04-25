@@ -420,7 +420,7 @@ void compute_use_def(Interloper& itl,Function& func)
 
                 auto& ir_reg = reg_from_slot(itl.symbol_table,func,dst);
 
-                // used as dst, def 
+                // used as dst before use, def 
                 if(!stored_in_mem(ir_reg) && !contains(block.use,dst))
                 {
                     add(block.def,dst);

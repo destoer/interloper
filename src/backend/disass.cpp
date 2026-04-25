@@ -3,6 +3,7 @@
 void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table)
 {
     UNUSED(itl); UNUSED(func); UNUSED(table);
+    assert(false);
     // printf("%s:\n",func.name.buf);
 
     // u32 l = 0;
@@ -18,6 +19,36 @@ void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table)
     //     {
     //         printf("\t");
     //         disass_opcode_sym(node.value,table,itl.arch);
+    //     }
+
+    //     l++;
+    // }
+
+    // printf("\n");       
+}
+
+
+void dump_ir_reg(Interloper& itl,Function &func,SymbolTable& table)
+{
+    UNUSED(itl); UNUSED(func); UNUSED(table);
+    assert(false);
+
+    // printf("%s:\n",func.name.buf);
+
+    // u32 l = 0;
+    // for(u32 b = 0; b < count(func.emitter.program); b++)
+    // {   
+    //     const auto &block = func.emitter.program[b];
+    //     //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
+    
+    //     const auto label = label_from_slot(table.label_lookup,block.label_slot);
+    //     printf("%s:\n",label.name.buf);
+        
+
+    //     for(const OpcodeNode& node : block.list)
+    //     {
+    //         printf("\t");
+    //         disass_opcode_reg(node.value,table,itl.arch);
     //     }
 
     //     l++;

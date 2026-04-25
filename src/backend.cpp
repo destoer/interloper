@@ -65,7 +65,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
         itl.ctx.expr = (AstNode*)func.root;
-        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf); 
+        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name); 
     }
 
     for(BlockSlot slot : start_block.links)
@@ -78,7 +78,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
 
             itl.ctx.expr = (AstNode*)func.root;   
             dump_ir_sym(itl,func,itl.symbol_table);
-            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf);
+            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name);
         }
     }
 
@@ -414,22 +414,18 @@ Option<itl_error> compile_functions(Interloper& itl)
 
 void dump_sym_ir(Interloper &itl)
 {
-    UNUSED(itl);
-    unimplemented("dump sym ir");
-    // for(Function* func : itl.func_table.used)
-    // {
-    //     dump_ir_sym(itl,*func,itl.symbol_table);
-    // }
+    for(Function* func : itl.func_table.used)
+    {
+        dump_ir_sym(itl,*func,itl.symbol_table);
+    }
 }
 
 void dump_reg_ir(Interloper &itl)
 {
-    UNUSED(itl);
-    unimplemented("dump reg ir");
-    // for(Function* func : itl.func_table.used)
-    // {
-    //     dump_ir_reg(itl,*func,itl.symbol_table);
-    // }
+    for(Function* func : itl.func_table.used)
+    {
+        dump_ir_reg(itl,*func,itl.symbol_table);
+    }
 }
 
 void compile_globals(Interloper& itl)
