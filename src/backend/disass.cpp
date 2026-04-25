@@ -177,7 +177,7 @@ void disass_directive(const Opcode& opcode, const Disass& disass)
             }
 
             case directive_operand_type::decimal: printf("%f",operand.decimal); break;
-            case directive_operand_type::imm: printf("%lx",operand.imm); break;
+            case directive_operand_type::imm: printf("0x%lx",operand.imm); break;
             case directive_operand_type::pool: printf("%x",operand.pool.handle); break;
             case directive_operand_type::label: printf("L%d",operand.label.handle); break;
         }
@@ -201,7 +201,7 @@ void disass_mov_gpr_imm(const Opcode& opcode, const Disass& disass)
 void disass_branch_label(const Opcode& opcode, const Disass& disass)
 {
     auto& branch = opcode.branch_label;
-    print_disass(opcode,disass,"%s %r, %a",BRANCH_NAMES[u32(branch.type)],branch.label);
+    print_disass(opcode,disass,"%s %a",BRANCH_NAMES[u32(branch.type)],branch.label);
 }
 
 void disass_opcode(const Opcode& opcode, const Disass& disass)
