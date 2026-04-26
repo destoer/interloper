@@ -168,13 +168,13 @@ void emit_directive_reg_set(Interloper& itl, Function& func, directive_type type
 
 void alloc_local_array(Interloper& itl, Function& func, RegSlot dst, const u64 size, const u64 count)
 {
-    const DirectiveReg dst_reg = {dst,ir_reg_type::directive};
+    const DirectiveReg dst_reg = {dst,ir_reg_type::dst};
     emit_directive_reg_imm2(itl,func,directive_type::alloc_local_array,dst_reg,size,count);
 }
 
 void alloc_global_array(Interloper& itl, Function& func, RegSlot dst, const u64 alloc_idx)
 {
-    const DirectiveReg dst_reg = {dst,ir_reg_type::directive};
+    const DirectiveReg dst_reg = {dst,ir_reg_type::dst};
     emit_directive_reg_imm1(itl,func,directive_type::alloc_global_array,dst_reg,alloc_idx);
 }
 
