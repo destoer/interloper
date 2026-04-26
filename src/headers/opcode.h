@@ -800,6 +800,17 @@ enum class store_type
     sf,
 };
 
+const char* STORE_NAMES[] = 
+{
+    "sb",
+    "sh",
+    "sw",
+    "sd",
+
+    "sf",
+};
+
+
 const char* STORE_STRUCT_NAMES[] =
 {
     "store_struct_u8",
