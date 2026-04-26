@@ -273,6 +273,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::store: disass_addr(opcode,disass,opcode.store,STORE_NAMES); break;
         case op_group::arith_gpr3: disass_reg3(opcode,disass,opcode.arith_gpr3,ARITH_NAMES); break;
         case op_group::cmp_gpr3: disass_reg3(opcode,disass,opcode.cmp_gpr3,CMP_SIGN_NAMES); break;
+        case op_group::cmp_imm3: disass_imm3(opcode,disass,opcode.cmp_imm3,CMP_SIGN_NAMES); break;
         case op_group::arith_imm3: disass_imm3(opcode,disass,opcode.arith_imm3,ARITH_NAMES); break;
         case op_group::shift_imm3: disass_imm3(opcode,disass,opcode.shift_imm3,SHIFT_OP_NAMES); break;
         default: unimplemented("Cannot disassemble group: %d",opcode.group); break;
