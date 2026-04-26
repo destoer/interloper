@@ -255,6 +255,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::unary_reg2: disass_unary_reg2(opcode,disass,opcode.unary_reg2,UNARY_REG_NAMES); break;
         case op_group::lea: disass_addr(opcode,disass,opcode.lea,TAKE_ADDR_NAMES); break;
         case op_group::addrof: disass_addr(opcode,disass,opcode.addrof,TAKE_ADDR_NAMES); break;
+        case op_group::load_struct: disass_addr(opcode,disass,opcode.load_struct,LOAD_STRUCT_NAMES); break;
         default: unimplemented("Cannot disassemble group: %d",opcode.group); break;
     }
 }

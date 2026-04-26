@@ -748,6 +748,34 @@ enum class load_type
     lf,
 };
 
+const char* LOAD_TYPE_NAMES[] =
+{
+    "lb",
+    "lh",
+    "lw",
+    "ld",
+
+    "lsb",
+    "lsh",
+    "lsw",
+
+    "lf",
+};
+
+const char* LOAD_STRUCT_NAMES[] =
+{
+    "load_struct_u8",
+    "load_struct_u16",
+    "load_struct_u32",
+    "load_struct_u64",
+
+    "load_struct_s8",
+    "load_struct_s16",
+    "load_struct_s32",
+
+    "load_struct_f64",    
+};
+
 enum class store_type
 {
     sb,
