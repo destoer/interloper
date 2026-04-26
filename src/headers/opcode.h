@@ -760,7 +760,7 @@ enum class load_type
     lf,
 };
 
-const char* LOAD_TYPE_NAMES[] =
+const char* LOAD_NAMES[] =
 {
     "lb",
     "lh",

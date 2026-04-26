@@ -269,6 +269,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::addrof: disass_addr(opcode,disass,opcode.addrof,TAKE_ADDR_NAMES); break;
         case op_group::load_struct: disass_addr(opcode,disass,opcode.load_struct,LOAD_STRUCT_NAMES); break;
         case op_group::store_struct: disass_addr(opcode,disass,opcode.store_struct,STORE_STRUCT_NAMES); break;
+        case op_group::load: disass_addr(opcode,disass,opcode.load,LOAD_NAMES); break;
         case op_group::store: disass_addr(opcode,disass,opcode.store,STORE_NAMES); break;
         case op_group::arith_gpr3: disass_reg3(opcode,disass,opcode.arith_gpr3,ARITH_NAMES); break;
         case op_group::cmp_gpr3: disass_reg3(opcode,disass,opcode.cmp_gpr3,CMP_SIGN_NAMES); break;
