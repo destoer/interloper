@@ -161,18 +161,27 @@ void alloc_global_array(Interloper& itl, Function& func, RegSlot dst, const u64 
 
 void clean_args(Interloper& itl, Function& func, u64 args)
 {
-    emit_directive_imm1(itl,func,directive_type::clean_args,args);
+    if(args != 0)
+    {
+        emit_directive_imm1(itl,func,directive_type::clean_args,args);
+    }
 }
 
 void unlock_reg_set(Interloper& itl, Function& func, u64 set)
 {
-    emit_directive_imm1(itl,func,directive_type::unlock_reg_set,set);
+    if(set != 0)
+    {
+        emit_directive_imm1(itl,func,directive_type::unlock_reg_set,set);
+    }
 }
 
 
 void lock_reg_set(Interloper& itl, Function& func, u64 set)
 {
-    emit_directive_imm1(itl,func,directive_type::lock_reg_set,set);
+    if(set != 0)
+    {
+        emit_directive_imm1(itl,func,directive_type::lock_reg_set,set);
+    }
 }
 
 void lock_reg(Interloper& itl, Function& func, spec_reg reg)

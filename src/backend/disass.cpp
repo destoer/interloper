@@ -176,7 +176,7 @@ void disass_directive(const Opcode& opcode, const Disass& disass)
 
             case directive_operand_type::decimal: printf("%f",operand.decimal); break;
             case directive_operand_type::imm: printf("0x%lx",operand.imm); break;
-            case directive_operand_type::pool: printf("%x",operand.pool.handle); break;
+            case directive_operand_type::pool: printf("0x%x",operand.pool.handle); break;
             case directive_operand_type::label: printf("L%d",operand.label.handle); break;
         }
 
@@ -254,7 +254,7 @@ void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<ty
 void disass_branch_cond(const Opcode& opcode, const Disass& disass)
 {
     auto& branch = opcode.branch_cond;
-    print_disass(opcode,disass,"%s %r, %a\n",BRANCH_COND_NAMES[u32(branch.type)],branch.src,branch.label);
+    print_disass(opcode,disass,"%s %a, %r\n",BRANCH_COND_NAMES[u32(branch.type)],branch.src,branch.label);
 }
 
 template<typename type>

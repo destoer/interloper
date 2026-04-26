@@ -670,12 +670,14 @@ enum class implicit_type
 {
     syscall,
     ret,
+    spill_func_bounds
 };
 
 static const char* IMPLICIT_NAMES[] = 
 {
     "syscall",
-    "ret"
+    "ret",
+    "spill_func_bounds"
 };
 
 struct Implicit

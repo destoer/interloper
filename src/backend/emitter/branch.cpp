@@ -55,12 +55,18 @@ void emit_branch_reg(Interloper& itl, Function& func, branch_type type, RegSlot 
 
 void call(Interloper& itl, Function& func, LabelSlot label)
 {
+    func.leaf_func = false;
+    spill_func_bounds(itl,func);
+
     const auto branch = make_branch_label(branch_type::call,label);
     emit_block_func(itl,func,branch);
 }
 
 void call_reg(Interloper& itl, Function& func, RegSlot src)
 {
+    func.leaf_func = false;
+    spill_func_bounds(itl,func);
+
     emit_branch_reg(itl,func,branch_type::call,src);
 }
 
