@@ -6,7 +6,7 @@ struct Disass
     arch_target arch;
 };
 
-void print_regm(u64 slot)
+void print_regm(u64 set)
 {
     printf("{");
 
@@ -14,7 +14,7 @@ void print_regm(u64 slot)
 
     for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
     {
-        if(is_set(slot,r))
+        if(is_set(set,r))
         {
             printf("%s%s",count != 0? "," : "",X86_NAMES[r]);
             count++;
@@ -176,8 +176,14 @@ void disass_directive(const Opcode& opcode, const Disass& disass)
 
             case directive_operand_type::decimal: printf("%f",operand.decimal); break;
             case directive_operand_type::imm: printf("0x%lx",operand.imm); break;
+            case directive_operand_type::reg_set: print_regm(operand.reg_set); break;
             case directive_operand_type::pool: printf("0x%x",operand.pool.handle); break;
-            case directive_operand_type::label: printf("L%d",operand.label.handle); break;
+            case directive_operand_type::label: 
+            {
+                const String& name = disass.table.label_lookup[operand.label.handle].name;
+                printf("%s",name.buf); 
+                break;
+            }
         }
 
 
@@ -199,7 +205,7 @@ void disass_mov_gpr_imm(const Opcode& opcode, const Disass& disass)
 void disass_mov_fpr_imm(const Opcode& opcode, const Disass& disass)
 {
     auto& mov = opcode.mov_fpr_imm;
-    print_disass(opcode,disass,"mov %r, %f\n",mov.dst,mov.imm);
+    print_disass(opcode,disass,"movf %r, %f\n",mov.dst,mov.imm);
 }
 
 
@@ -254,7 +260,7 @@ void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<ty
 void disass_branch_cond(const Opcode& opcode, const Disass& disass)
 {
     auto& branch = opcode.branch_cond;
-    print_disass(opcode,disass,"%s %a, %r\n",BRANCH_COND_NAMES[u32(branch.type)],branch.src,branch.label);
+    print_disass(opcode,disass,"%s %a, %r\n",BRANCH_COND_NAMES[u32(branch.type)],branch.label,branch.src);
 }
 
 template<typename type>

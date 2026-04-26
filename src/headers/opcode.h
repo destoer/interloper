@@ -431,7 +431,7 @@ static const char* SHIFT_NAMES[] =
 
 static const char* SHIFT_OP_NAMES[] = 
 {
-    "lsl",
+    "lsr",
     "asr",
     "lsl"
 };
@@ -603,6 +603,7 @@ enum class directive_operand_type
     directive_reg,
     decimal,
     imm,
+    reg_set,
     pool,
     label,
 };
@@ -613,6 +614,7 @@ struct DirectiveOperand
     {
         f64 decimal;
         u64 imm;
+        u64 reg_set;
         RegSlot reg = {INVALID_SYM_REG_SLOT};
         LabelSlot label;
         PoolSlot pool;
@@ -911,8 +913,8 @@ static const char* UNARY_REG_NAMES[] =
     "mov",
     "movf",
     "not",
-    "cvt_if",
-    "cvt_fi"
+    "cvtif",
+    "cvtfi"
 };
 
 

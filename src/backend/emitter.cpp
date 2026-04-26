@@ -34,20 +34,6 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot)
     }
 }
 
-
-void handle_storage(Interloper& itl, Function& func, const ConstRegSpan& reg)
-{
-    for(const auto& src: reg.src)
-    {
-        handle_src_storage(itl,func,src);
-    }
-
-    for(const auto& dst: reg.dst)
-    {
-        handle_dst_storage(itl,func,dst);
-    }
-}
-
 const ConstRegSpan blank_reg_span(RegSpan& reg)
 {
     reg.dst.size = 0;
@@ -60,13 +46,22 @@ const ConstRegSpan blank_reg_span(RegSpan& reg)
 OpcodeNode* emit_block_internal(Interloper& itl, Function& func,BlockSlot block_slot, const Opcode& opcode)
 {
     const auto reg = opcode_reg_span(opcode,itl.reg_span);
-    handle_storage(itl,func,reg);
+
+    for(const auto& src: reg.src)
+    {
+        handle_src_storage(itl,func,src);
+    }
 
     auto& block = block_from_slot(func,block_slot);
 
     auto &list = block.list;
     append(list,opcode);
     
+    for(const auto& dst: reg.dst)
+    {
+        handle_dst_storage(itl,func,dst);
+    }
+
     return list.finish;    
 }
 

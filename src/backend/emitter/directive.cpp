@@ -72,6 +72,16 @@ DirectiveOperand make_imm_operand(u64 imm)
     return oper;
 }
 
+DirectiveOperand make_reg_set_operand(u64 set)
+{
+    DirectiveOperand oper;
+    oper.reg_set = set;
+    oper.type = directive_operand_type::reg_set;
+
+    return oper;
+}
+
+
 DirectiveOperand make_label_operand(LabelSlot slot)
 {
     DirectiveOperand oper;
@@ -146,6 +156,16 @@ void emit_directive_reg_imm1(Interloper& itl, Function& func, directive_type typ
     emit_directive(itl,func,directive);      
 }
 
+void emit_directive_reg_set(Interloper& itl, Function& func, directive_type type, u64 set)
+{
+    Directive directive;
+    directive.type = type;
+    directive.operand[0] = make_reg_set_operand(set);
+    directive.size = 1;
+    emit_directive(itl,func,directive);      
+}
+
+
 void alloc_local_array(Interloper& itl, Function& func, RegSlot dst, const u64 size, const u64 count)
 {
     const DirectiveReg dst_reg = {dst,ir_reg_type::directive};
@@ -171,7 +191,7 @@ void unlock_reg_set(Interloper& itl, Function& func, u64 set)
 {
     if(set != 0)
     {
-        emit_directive_imm1(itl,func,directive_type::unlock_reg_set,set);
+        emit_directive_reg_set(itl,func,directive_type::unlock_reg_set,set);
     }
 }
 
@@ -180,7 +200,7 @@ void lock_reg_set(Interloper& itl, Function& func, u64 set)
 {
     if(set != 0)
     {
-        emit_directive_imm1(itl,func,directive_type::lock_reg_set,set);
+        emit_directive_reg_set(itl,func,directive_type::lock_reg_set,set);
     }
 }
 
