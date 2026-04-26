@@ -249,6 +249,12 @@ void disass_reg3(const Opcode& opcode, const Disass& disass,const RegThree<type>
     print_disass(opcode,disass,"%s %r, %r, %r\n",names[u32(reg.type)],reg.dst,reg.v1,reg.v2);
 }
 
+template<typename type>
+void disass_imm3(const Opcode& opcode, const Disass& disass,const ImmThree<type>& imm, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r, %r, %x\n",names[u32(imm.type)],imm.dst,imm.src,imm.imm);
+}
+
 void disass_opcode(const Opcode& opcode, const Disass& disass)
 {
     switch(opcode.group)
@@ -265,6 +271,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::store_struct: disass_addr(opcode,disass,opcode.store_struct,STORE_STRUCT_NAMES); break;
         case op_group::store: disass_addr(opcode,disass,opcode.store,STORE_NAMES); break;
         case op_group::arith_gpr3: disass_reg3(opcode,disass,opcode.arith_gpr3,ARITH_NAMES); break;
+        case op_group::arith_imm3: disass_imm3(opcode,disass,opcode.arith_imm3,ARITH_NAMES); break;
         default: unimplemented("Cannot disassemble group: %d",opcode.group); break;
     }
 }
