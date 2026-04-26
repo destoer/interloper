@@ -419,7 +419,6 @@ static const char* SHIFT_NAMES[] =
     ">>"
 };
 
-[[maybe_unused]]
 static const char* SHIFT_OP_NAMES[] = 
 {
     "lsl",
