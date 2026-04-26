@@ -459,6 +459,20 @@ enum class arith_bin_op
     or_t,
 };
 
+static const char* ARITH_NAMES[] =
+{
+    "add",
+    "sub",
+    "mul",
+    "umod",
+    "smod",
+    "sdiv",
+    "udiv",
+    "xor",
+    "and",
+    "or"
+};
+
 enum class fpr_arith
 {
     add_t,
@@ -827,8 +841,6 @@ struct RegThree
     IrRegister dst;
     IrRegister v1;
     IrRegister v2;
-
-    u64 imm = 0;
 };
 
 using ShiftImm3 = ImmThree<shift_op>;
