@@ -196,11 +196,25 @@ void disass_mov_gpr_imm(const Opcode& opcode, const Disass& disass)
     print_disass(opcode,disass,"mov %r, %x\n",mov.dst,mov.imm);
 }
 
+void disass_mov_fpr_imm(const Opcode& opcode, const Disass& disass)
+{
+    auto& mov = opcode.mov_fpr_imm;
+    print_disass(opcode,disass,"mov %r, %f\n",mov.dst,mov.imm);
+}
+
+
 void disass_branch_label(const Opcode& opcode, const Disass& disass)
 {
     auto& branch = opcode.branch_label;
     print_disass(opcode,disass,"%s %a\n",BRANCH_NAMES[u32(branch.type)],branch.label);
 }
+
+void disass_branch_reg(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_reg;
+    print_disass(opcode,disass,"%s %r\n",BRANCH_NAMES[u32(branch.type)],branch.src);
+}
+
 
 template<typename type>
 void disass_unary_reg2(const Opcode& opcode, const Disass& disass, const UnaryReg2<type>& unary, const char* names[])
@@ -263,8 +277,11 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::branch_cond: disass_branch_cond(opcode,disass); break;
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
+        case op_group::mov_fpr_imm: disass_mov_fpr_imm(opcode,disass); break;
         case op_group::branch_label: disass_branch_label(opcode,disass); break;
+        case op_group::branch_reg: disass_branch_reg(opcode,disass); break;
         case op_group::unary_reg2: disass_unary_reg2(opcode,disass,opcode.unary_reg2,UNARY_REG_NAMES); break;
+        case op_group::sign_extend: disass_unary_reg2(opcode,disass,opcode.sign_extend,SIGN_EXTEND_NAMES); break;
         case op_group::lea: disass_addr(opcode,disass,opcode.lea,TAKE_ADDR_NAMES); break;
         case op_group::addrof: disass_addr(opcode,disass,opcode.addrof,TAKE_ADDR_NAMES); break;
         case op_group::load_struct: disass_addr(opcode,disass,opcode.load_struct,LOAD_STRUCT_NAMES); break;
@@ -272,11 +289,13 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::load: disass_addr(opcode,disass,opcode.load,LOAD_NAMES); break;
         case op_group::store: disass_addr(opcode,disass,opcode.store,STORE_NAMES); break;
         case op_group::arith_gpr3: disass_reg3(opcode,disass,opcode.arith_gpr3,ARITH_NAMES); break;
+        case op_group::arith_fpr3: disass_reg3(opcode,disass,opcode.arith_fpr3,FPR_ARITH_NAMES); break;
+        case op_group::shift_reg3: disass_reg3(opcode,disass,opcode.shift_reg3,SHIFT_NAMES); break;
         case op_group::cmp_gpr3: disass_reg3(opcode,disass,opcode.cmp_gpr3,CMP_SIGN_NAMES); break;
         case op_group::cmp_imm3: disass_imm3(opcode,disass,opcode.cmp_imm3,CMP_SIGN_NAMES); break;
+        case op_group::cmp_fpr3: disass_reg3(opcode,disass,opcode.cmp_fpr3,CMP_FPR_NAMES); break;
         case op_group::arith_imm3: disass_imm3(opcode,disass,opcode.arith_imm3,ARITH_NAMES); break;
         case op_group::shift_imm3: disass_imm3(opcode,disass,opcode.shift_imm3,SHIFT_OP_NAMES); break;
-        default: unimplemented("Cannot disassemble group: %d",opcode.group); break;
     }
 }
 

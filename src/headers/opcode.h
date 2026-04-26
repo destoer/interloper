@@ -359,6 +359,17 @@ static const char* CMP_NAMES[CMP_OP_SIZE] =
     "!="
 };
 
+static const char* CMP_FPR_NAMES[CMP_OP_SIZE] = 
+{
+    "cmpflt",
+    "cmpfle",
+    "cmpfgt",
+    "cmpfge",
+
+    "cmpfeq",
+    "cmpfne"
+};
+
 enum class boolean_logic_op
 {
     and_t,
@@ -478,6 +489,15 @@ enum class fpr_arith
     mul_t,
     div_t
 };
+
+const char* FPR_ARITH_NAMES[] =
+{
+    "addf",
+    "subf",
+    "mulf",
+    "divf"
+};
+
 
 inline fpr_arith arith_bin_to_fpr(arith_bin_type type)
 {
@@ -899,6 +919,13 @@ enum class sign_extend_op
     sxb,
     sxh,
     sxw
+};
+
+const char* SIGN_EXTEND_NAMES[] =
+{
+    "sxb",
+    "sxh",
+    "sxw"
 };
 
 template<typename op_type>
