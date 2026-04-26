@@ -800,6 +800,16 @@ enum class store_type
     sf,
 };
 
+const char* STORE_STRUCT_NAMES[] =
+{
+    "store_struct_u8",
+    "store_struct_u16",
+    "store_struct_u32",
+    "store_struct_u64",
+
+    "store_struct_f64",    
+};
+
 enum class take_addr
 {
     lea,
