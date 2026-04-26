@@ -319,21 +319,20 @@ enum class cmp_sign_op
 
 static constexpr u32 CMP_SIGN_OP_SIZE = 10;
 
-[[maybe_unused]]
 static const char* CMP_SIGN_NAMES[CMP_SIGN_OP_SIZE] = 
 {
-    "<",
-    "<=",
-    ">",
-    ">=",
+    "cmpult",
+    "cmpule",
+    "cmpugt",
+    "cmpuge",
 
-    "<",
-    "<=",
-    ">",
-    ">=",
+    "cmpslt",
+    "cmpsle",
+    "cmpsgt",
+    "cmpsge",
 
-    "==",
-    "!="
+    "cmpeq",
+    "cmpne"
 };
 
 enum class comparison_op
