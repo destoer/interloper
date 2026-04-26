@@ -237,11 +237,18 @@ void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<ty
     printf("]\n");
 }
 
+void disass_branch_cond(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_cond;
+    print_disass(opcode,disass,"%s %r, %a\n",BRANCH_COND_NAMES[u32(branch.type)],branch.src,branch.label);
+}
+
 void disass_opcode(const Opcode& opcode, const Disass& disass)
 {
     switch(opcode.group)
     {
         case op_group::implicit: printf("%s\n",IMPLICIT_NAMES[u32(opcode.implicit.type)]); break;
+        case op_group::branch_cond: disass_branch_cond(opcode,disass); break;
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
         case op_group::branch_label: disass_branch_label(opcode,disass); break;

@@ -692,6 +692,13 @@ enum class branch_cond_type
     nez,
 };
 
+// TODO: change these once we have confirmed a match
+static const char* BRANCH_COND_NAMES[] =
+{
+    "bnc",
+    "bc"
+};
+
 struct BranchCond
 {
     branch_cond_type type;
