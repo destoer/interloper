@@ -649,7 +649,7 @@ static const char* DIRECTIVE_NAMES[] =
     "clean_args",
     "lock_reg_set",
     "unlock_reg_set",
-    "lock_reg",
+    "lock",
     "mov_unlock",
     "pool_addr",
     "alloc_stack",
