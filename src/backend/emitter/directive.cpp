@@ -244,7 +244,7 @@ void spill_slot(Interloper& itl, Function& func, const Reg& reg)
         return;
     }
 
-    const DirectiveReg v1 = {reg.slot,ir_reg_type::src};
+    const DirectiveReg v1 = {reg.slot,ir_reg_type::directive};
     emit_directive_reg1(itl,func,directive_type::spill_slot,v1);
 }
 
