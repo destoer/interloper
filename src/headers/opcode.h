@@ -568,6 +568,7 @@ enum class op_group
     mov_gpr_imm,
     mov_fpr_imm,
     arith_imm3,
+    arith_imm2,
     arith_gpr3,
     arith_gpr2,
     arith_fpr3,
@@ -891,6 +892,16 @@ struct ImmThree
     u64 imm = 0;
 };
 
+
+template<typename op_type>
+struct ImmTwo
+{
+    op_type type;
+    IrRegister dst;
+
+    u64 imm = 0;
+};
+
 template<typename op_type>
 struct RegThree
 {
@@ -903,6 +914,7 @@ struct RegThree
 
 using ShiftImm3 = ImmThree<shift_op>;
 using ArithImm3 = ImmThree<arith_bin_op>;
+using ArithImm2 = ImmTwo<arith_bin_op>;
 
 using ArithGpr3 = RegThree<arith_bin_op>;
 using ArithFpr3 = RegThree<fpr_arith>;
@@ -972,6 +984,7 @@ struct Opcode
         MovGprImm mov_gpr_imm;
         MovFprImm mov_fpr_imm;
         ArithImm3 arith_imm3;
+        ArithImm2 arith_imm2;
         ArithGpr3 arith_gpr3;
         ArithGpr2 arith_gpr2;
         ArithFpr3 arith_fpr3;

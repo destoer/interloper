@@ -10,6 +10,17 @@ ConstRegSpan imm3_reg_span(const ImmThree<type>& imm, RegSpan& span)
     return span;
 }
 
+template<typename type>
+ConstRegSpan imm2_reg_span(const ImmTwo<type>& imm, RegSpan& span)
+{
+    span.src.size = 0;
+
+    span.dst[0] = imm.dst.ir;
+    span.dst.size = 1;
+
+    return span;
+}
+
 template<typename op_type>
 ImmThree<op_type> make_imm3(RegSlot dst, RegSlot src, u64 imm, op_type type)
 {

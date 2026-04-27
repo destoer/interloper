@@ -48,6 +48,34 @@ OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg
     return node->next;
 }
 
+
+// TODO: Handle large imm's and opcodes with no immediate encoding
+template<typename type>
+OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm3, ImmTwo<type>* imm2, op_group new_group) 
+{
+    const auto dst = imm3.dst.ir;
+    const auto src = imm3.src.ir;
+    const auto imm = imm3.imm;
+
+    // add dst, src, imm
+    // -> mov dst, src
+    // -> add dst, imm
+    if(src != dst)
+    {
+        insert_mov_reg2(block,node,dst,src,reg_type::gpr_t);
+    }
+
+    // same dst can just rewrite here
+    imm2->dst.ir = dst;
+    imm2->imm = imm;
+
+    imm2->type = imm3.type;
+    node->value.group = new_group;
+
+    return node->next;
+}
+
+
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
     UNUSED(itl); UNUSED(func);
@@ -61,6 +89,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_BIN_COMMUTATIVE);
         }
 
+        case op_group::arith_imm3:
+        {
+            return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
+        }
+
         case op_group::implicit: break;
         case op_group::branch_label: break;
         case op_group::branch_cond: break;
@@ -70,6 +103,8 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::unary_reg2: break;
         case op_group::addrof: break;
         case op_group::load_struct: break;
+        case op_group::store: break;
+        case op_group::store_struct: break;
         default: 
         {
             dump_ir(itl,func,itl.symbol_table);
