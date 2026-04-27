@@ -482,6 +482,20 @@ static const char* ARITH_NAMES[] =
     "or"
 };
 
+
+static constexpr u64 ARITH_COMMUTATIVE = 
+    true << 0 |
+    true << 1 |
+    true << 2 |
+    false << 3 |
+    false << 4 |
+    false << 5 |
+    false << 6 |
+    true << 7 |
+    true << 8 |
+    true << 9;
+
+
 enum class fpr_arith
 {
     add_t,
@@ -555,6 +569,7 @@ enum class op_group
     mov_fpr_imm,
     arith_imm3,
     arith_gpr3,
+    arith_gpr2,
     arith_fpr3,
     shift_reg3,
     lea,
@@ -942,6 +957,7 @@ struct UnaryReg2
 
 using UnaryRegTwo = UnaryReg2<unary_reg_op>;
 using SignExtend = UnaryReg2<sign_extend_op>;
+using ArithGpr2 = UnaryReg2<arith_bin_op>;
 
 struct Opcode
 {
@@ -957,6 +973,7 @@ struct Opcode
         MovFprImm mov_fpr_imm;
         ArithImm3 arith_imm3;
         ArithGpr3 arith_gpr3;
+        ArithGpr2 arith_gpr2;
         ArithFpr3 arith_fpr3;
         Lea lea;
         AddrOf addrof;

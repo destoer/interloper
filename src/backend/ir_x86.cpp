@@ -1,0 +1,106 @@
+void insert_mov_reg2(Block& block, OpcodeNode* node, RegSlot dst, RegSlot src, reg_type type)
+{
+    Opcode opcode;
+    opcode.unary_reg2 = make_unary_reg2(dst,src,type == reg_type::gpr_t? unary_reg_op::mov_gpr_reg : unary_reg_op::mov_fpr_reg);
+    opcode.group = op_group::unary_reg2;
+
+    insert_at(block.list,node,opcode);
+}
+
+template<typename type>
+OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg3, UnaryReg2<type>* reg2, 
+    op_group new_group, reg_type rtype, const u64 commutative_set) 
+{
+    const auto dst = reg3.dst.ir;
+    const auto v1 = reg3.v1.ir;
+    const auto v2 = reg3.v2.ir;
+
+    // add dst, dst, v2
+    // -> add dst, v2
+    if(dst == v1)
+    {
+        reg2->dst.ir = dst;
+        reg2->src.ir = v2;
+    }
+
+    // add dst, v1, dst
+    // -> add dst, v1
+    else if(dst == v2 && is_set(commutative_set,u32(reg3.type)))
+    {
+        reg2->dst.ir = dst;
+        reg2->src.ir = v1;
+    }
+
+    // add dst, v1, v2
+    // -> mov dst, v1
+    // -> add dst, v2
+    else
+    {
+        insert_mov_reg2(block,node,dst,v1,rtype);
+
+        reg2->dst.ir = dst;
+        reg2->src.ir = v2;       
+    }
+
+    reg2->type = reg3.type;
+    node->value.group = new_group;
+
+    return node->next;
+}
+
+OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
+{
+    UNUSED(itl); UNUSED(func);
+
+    auto& opcode = node->value;
+
+    switch(opcode.group)
+    {
+        case op_group::arith_gpr3:
+        { 
+            return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_BIN_COMMUTATIVE);
+        }
+
+        case op_group::implicit: break;
+        case op_group::branch_label: break;
+        case op_group::branch_cond: break;
+        case op_group::mov_gpr_imm: break;
+        case op_group::mov_fpr_imm: break;
+        case op_group::directive: break;
+        case op_group::unary_reg2: break;
+        case op_group::addrof: break;
+        case op_group::load_struct: break;
+        default: 
+        {
+            dump_ir(itl,func,itl.symbol_table);
+            unimplemented("rewrite x86 group: %d",opcode.group);
+            break;
+        } 
+    }
+
+    return node->next;
+}
+
+
+void rewrite_x86_func(Interloper& itl, Function& func)
+{
+    for(u32 b = 0; b < count(func.emitter.program); b++)
+    {
+        auto& block = func.emitter.program[b];
+        OpcodeNode* node = block.list.start;
+
+        while(node)
+        {
+            node = rewrite_x86_opcode(itl,func,block,node);
+        }
+    }
+}
+
+void rewrite_x86_ir(Interloper& itl)
+{
+    for(u32 f = 0; f < count(itl.func_table.used); f++)
+    {
+        auto& func = *itl.func_table.used[f];
+        rewrite_x86_func(itl,func);   
+    }
+}

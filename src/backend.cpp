@@ -11,7 +11,7 @@
 #include "backend/stack_allocator.cpp"
 // #include "backend/linear_alloc.cpp"
 #include "backend/disass.cpp"
-// #include "backend/ir_x86.cpp"
+#include "backend/ir_x86.cpp"
 // #include "backend/elf.cpp"
 #include "backend/intrin.cpp"
 // #include "backend/ir.cpp"
@@ -447,7 +447,22 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
         dump_itl_ir(itl);
     }
     
+
     auto start = std::chrono::high_resolution_clock::now();
+
+    switch(itl.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            rewrite_x86_ir(itl);
+            break;
+        }
+    }
+
+    if(itl.print_ir)
+    {
+        dump_itl_ir(itl);
+    }
 
     auto end = std::chrono::high_resolution_clock::now();
     itl.backend_time = std::chrono::duration<double, std::milli>(end-start).count();
