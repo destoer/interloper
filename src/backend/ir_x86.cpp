@@ -94,6 +94,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
         }
 
+        case op_group::shift_imm3:
+        {
+            return lower_imm3(block,node,opcode.shift_imm3,&opcode.shift_imm2,op_group::shift_imm2);
+        }
+
         case op_group::implicit: break;
         case op_group::branch_label: break;
         case op_group::branch_cond: break;

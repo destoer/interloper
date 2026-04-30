@@ -580,6 +580,7 @@ enum class op_group
     store,
     store_struct,
     shift_imm3,
+    shift_imm2,
     unary_reg2,
     sign_extend,
     cmp_imm3,
@@ -913,6 +914,7 @@ struct RegThree
 };
 
 using ShiftImm3 = ImmThree<shift_op>;
+using ShiftImm2 = ImmTwo<shift_op>;
 using ArithImm3 = ImmThree<arith_bin_op>;
 using ArithImm2 = ImmTwo<arith_bin_op>;
 
@@ -996,6 +998,7 @@ struct Opcode
         StoreStruct store_struct;
         BranchReg branch_reg;
         ShiftImm3 shift_imm3;
+        ShiftImm2 shift_imm2;
         ShiftReg3 shift_reg3;
         UnaryRegTwo unary_reg2;
         SignExtend sign_extend;

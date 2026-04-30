@@ -310,6 +310,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::arith_imm3: disass_imm3(opcode,disass,opcode.arith_imm3,ARITH_NAMES); break;
         case op_group::arith_imm2: disass_imm2(opcode,disass,opcode.arith_imm2,ARITH_NAMES); break;
         case op_group::shift_imm3: disass_imm3(opcode,disass,opcode.shift_imm3,SHIFT_OP_NAMES); break;
+        case op_group::shift_imm2: disass_imm2(opcode,disass,opcode.shift_imm2,SHIFT_OP_NAMES); break;
     }
 }
 
