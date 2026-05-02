@@ -11,11 +11,33 @@ ConstRegSpan unary_reg2_reg_span(const UnaryReg2<op_type>& unary, RegSpan& span)
 }
 
 template<typename op_type>
+ConstRegSpan unary_reg1_reg_span(const UnaryReg1<op_type>& unary, RegSpan& span)
+{
+    span.dst[0] = unary.dst.ir;
+    span.dst.size = 1;
+
+    span.src.size = 0;
+
+    return span;    
+}
+
+
+template<typename op_type>
 UnaryReg2<op_type> make_unary_reg2(RegSlot dst, RegSlot src, op_type type)
 {
     UnaryReg2<op_type> unary;
     unary.dst.ir = dst;
     unary.src.ir = src;
+    unary.type = type;
+
+    return unary;
+}
+
+template<typename op_type>
+UnaryReg1<op_type> make_unary_reg1(RegSlot dst, op_type type)
+{
+    UnaryReg1<op_type> unary;
+    unary.dst.ir = dst;
     unary.type = type;
 
     return unary;

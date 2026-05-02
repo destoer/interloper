@@ -335,6 +335,20 @@ static const char* CMP_SIGN_NAMES[CMP_SIGN_OP_SIZE] =
     "cmpne"
 };
 
+static const char* SET_FROM_SIGN_OP[CMP_SIGN_OP_SIZE] = 
+{
+    "setult",
+    "setule",
+    "setugt",
+    "setuge",
+    "setslt",
+    "setsle",
+    "setsgt",
+    "setsge",
+    "seteq",
+    "setne"
+};
+
 enum class comparison_op
 {
     lt,
@@ -586,6 +600,8 @@ enum class op_group
     cmp_imm3,
     cmp_gpr3,
     cmp_fpr3,
+    reg2_src,
+    set_from_flag,
 };
 
 enum class ir_reg_type
@@ -913,12 +929,43 @@ struct RegThree
     IrRegister v2;
 };
 
+template<typename op_type>
+struct RegTwoDst
+{
+    op_type type;
+
+    IrRegister dst;
+    IrRegister src;
+};
+
+
+enum class reg_two_src
+{
+    cmp_flags_gpr,
+};
+
+static const char* REG_TWO_SRC_NAMES[] = 
+{
+    "cmp_flags",
+};
+
+
+struct RegTwoSrc
+{
+    reg_two_src type;
+
+    IrRegister v1;
+    IrRegister v2;
+};
+
+
 using ShiftImm3 = ImmThree<shift_op>;
 using ShiftImm2 = ImmTwo<shift_op>;
 using ArithImm3 = ImmThree<arith_bin_op>;
 using ArithImm2 = ImmTwo<arith_bin_op>;
 
 using ArithGpr3 = RegThree<arith_bin_op>;
+using ArithGpr2 = RegTwoDst<arith_bin_op>;
 using ArithFpr3 = RegThree<fpr_arith>;
 using ShiftReg3 = RegThree<shift_op>;
 
@@ -926,7 +973,6 @@ using ShiftReg3 = RegThree<shift_op>;
 using CmpGpr3 = RegThree<cmp_sign_op>;
 using CmpFpr3 = RegThree<comparison_op>;
 using CmpImm3 = ImmThree<cmp_sign_op>;
-
 
 enum class unary_reg_op
 {
@@ -969,9 +1015,18 @@ struct UnaryReg2
     IrRegister src;
 };
 
+
+template<typename op_type>
+struct UnaryReg1
+{
+    op_type type;
+    IrRegister dst;
+};
+
 using UnaryRegTwo = UnaryReg2<unary_reg_op>;
 using SignExtend = UnaryReg2<sign_extend_op>;
-using ArithGpr2 = UnaryReg2<arith_bin_op>;
+using SetFromFlag = UnaryReg1<cmp_sign_op>;
+
 
 struct Opcode
 {
@@ -1005,6 +1060,8 @@ struct Opcode
         CmpImm3 cmp_imm3;
         CmpGpr3 cmp_gpr3;
         CmpFpr3 cmp_fpr3;
+        RegTwoSrc reg2_src;
+        SetFromFlag set_from_flag;
     };
 
     bool lowered = false;

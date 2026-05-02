@@ -119,7 +119,7 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::arith_imm3: return imm3_reg_span(opcode.arith_imm3,reg);
         case op_group::arith_imm2: return imm2_reg_span(opcode.arith_imm2,reg);
         case op_group::arith_gpr3: return reg3_reg_span(opcode.arith_gpr3,reg);
-        case op_group::arith_gpr2: return unary_reg2_reg_span(opcode.arith_gpr2,reg);
+        case op_group::arith_gpr2: return reg2_dst_reg_span(opcode.arith_gpr2,reg);
         case op_group::arith_fpr3: return reg3_reg_span(opcode.arith_fpr3,reg);
         case op_group::shift_imm3: return imm3_reg_span(opcode.shift_imm3,reg);
         case op_group::shift_imm2: return imm2_reg_span(opcode.shift_imm2,reg);
@@ -135,6 +135,8 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::cmp_imm3: return imm3_reg_span(opcode.cmp_imm3,reg);
         case op_group::cmp_gpr3: return reg3_reg_span(opcode.cmp_gpr3,reg);
         case op_group::cmp_fpr3: return reg3_reg_span(opcode.cmp_fpr3,reg);
+        case op_group::reg2_src: return reg2_src_reg_span(opcode.reg2_src,reg);
+        case op_group::set_from_flag: return unary_reg1_reg_span(opcode.set_from_flag,reg);
     }
 
     return reg;

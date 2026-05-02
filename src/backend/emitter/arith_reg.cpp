@@ -13,6 +13,53 @@ ConstRegSpan reg3_reg_span(const RegThree<type>& reg, RegSpan& span)
 
 
 template<typename op_type>
+RegTwoDst<op_type> make_reg2_dst(RegSlot dst, RegSlot v1,op_type type)
+{
+    RegTwoDst<op_type> reg_two;
+    reg_two.type = type;
+    reg_two.dst.ir = dst;
+    reg_two.src.ir = v1;
+
+    return reg_two;
+}
+
+
+RegTwoSrc make_reg2_src(RegSlot v1, RegSlot v2,reg_two_src type)
+{
+    RegTwoSrc reg_two;
+    reg_two.type = type;
+    reg_two.v1.ir = v1;
+    reg_two.v2.ir = v2;
+
+    return reg_two;
+}
+
+template<typename type>
+ConstRegSpan reg2_dst_reg_span(const RegTwoDst<type>& reg, RegSpan& span)
+{
+    span.src[0] = reg.src.ir;
+    span.src[1] = reg.dst.ir;
+    span.src.size = 2;
+
+    span.dst[0] = reg.dst.ir;
+    span.dst.size = 1;
+
+    return span;
+}
+
+ConstRegSpan reg2_src_reg_span(const RegTwoSrc& reg, RegSpan& span)
+{
+    span.src[0] = reg.v1.ir;
+    span.src[1] = reg.v2.ir;
+    span.src.size = 2;
+
+    span.dst.size = 0;
+
+    return span;
+}
+
+
+template<typename op_type>
 RegThree<op_type> make_reg3(RegSlot dst, RegSlot v1, RegSlot v2, op_type type)
 {
     RegThree<op_type> reg_three;

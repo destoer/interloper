@@ -8,7 +8,7 @@ void insert_mov_reg2(Block& block, OpcodeNode* node, RegSlot dst, RegSlot src, r
 }
 
 template<typename type>
-OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg3, UnaryReg2<type>* reg2, 
+OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg3, RegTwoDst<type>* reg2, 
     op_group new_group, reg_type rtype, const u64 commutative_set) 
 {
     const auto dst = reg3.dst.ir;
@@ -76,6 +76,34 @@ OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm
 }
 
 
+OpcodeNode* lower_reg3_cmp_flag_reg(Block& block, OpcodeNode* node)
+{
+    auto& opcode = node->value;
+
+    const auto& cmp = opcode.cmp_gpr3;
+    const auto dst = cmp.dst.ir;
+    const auto v1 = cmp.v1.ir;
+    const auto v2 = cmp.v2.ir;
+
+    const auto type = cmp.type;
+
+    // cmpsgt dst,v1,v2
+    // -> cmp_flags v1, v2
+    // -> setsgt dst
+    opcode.reg2_src = make_reg2_src(v1,v2,reg_two_src::cmp_flags_gpr);
+    opcode.group = op_group::reg2_src;  
+
+
+    Opcode set;
+    set.set_from_flag = make_unary_reg1(dst,type);
+    set.group = op_group::set_from_flag;
+
+    node = insert_after(block.list,node,set);
+
+    return node->next;
+}
+
+
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
     UNUSED(itl); UNUSED(func);
@@ -97,6 +125,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::shift_imm3:
         {
             return lower_imm3(block,node,opcode.shift_imm3,&opcode.shift_imm2,op_group::shift_imm2);
+        }
+
+        case op_group::cmp_gpr3:
+        {
+            return lower_reg3_cmp_flag_reg(block,node);
         }
 
         case op_group::implicit: break;

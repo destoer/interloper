@@ -228,6 +228,12 @@ void disass_unary_reg2(const Opcode& opcode, const Disass& disass, const UnaryRe
     print_disass(opcode,disass,"%s %r, %r\n",names[u32(unary.type)],unary.dst,unary.src);
 }
 
+template<typename type>
+void disass_unary_reg1(const Opcode& opcode, const Disass& disass, const UnaryReg1<type>& unary, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r\n",names[u32(unary.type)],unary.dst);
+}
+
 template<typename type, const bool IS_LOAD, const bool IS_STRUCT>
 void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<type,IS_LOAD,IS_STRUCT>& addr_op, const char* names[])
 {
@@ -270,6 +276,17 @@ void disass_reg3(const Opcode& opcode, const Disass& disass,const RegThree<type>
 }
 
 template<typename type>
+void disass_reg2_dst(const Opcode& opcode, const Disass& disass,const RegTwoDst<type>& reg, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r, %r\n",names[u32(reg.type)],reg.dst,reg.src);
+}
+
+void disass_reg2_src(const Opcode& opcode, const Disass& disass,const RegTwoSrc& reg)
+{
+    print_disass(opcode,disass,"%s %r, %r\n",REG_TWO_SRC_NAMES[u32(reg.type)],reg.v1,reg.v2);
+}
+
+template<typename type>
 void disass_imm3(const Opcode& opcode, const Disass& disass,const ImmThree<type>& imm, const char* names[])
 {
     print_disass(opcode,disass,"%s %r, %r, %x\n",names[u32(imm.type)],imm.dst,imm.src,imm.imm);
@@ -301,7 +318,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::load: disass_addr(opcode,disass,opcode.load,LOAD_NAMES); break;
         case op_group::store: disass_addr(opcode,disass,opcode.store,STORE_NAMES); break;
         case op_group::arith_gpr3: disass_reg3(opcode,disass,opcode.arith_gpr3,ARITH_NAMES); break;
-        case op_group::arith_gpr2: disass_unary_reg2(opcode,disass,opcode.arith_gpr2,ARITH_NAMES); break;
+        case op_group::arith_gpr2: disass_reg2_dst(opcode,disass,opcode.arith_gpr2,ARITH_NAMES); break;
         case op_group::arith_fpr3: disass_reg3(opcode,disass,opcode.arith_fpr3,FPR_ARITH_NAMES); break;
         case op_group::shift_reg3: disass_reg3(opcode,disass,opcode.shift_reg3,SHIFT_OP_NAMES); break;
         case op_group::cmp_gpr3: disass_reg3(opcode,disass,opcode.cmp_gpr3,CMP_SIGN_NAMES); break;
@@ -311,6 +328,8 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::arith_imm2: disass_imm2(opcode,disass,opcode.arith_imm2,ARITH_NAMES); break;
         case op_group::shift_imm3: disass_imm3(opcode,disass,opcode.shift_imm3,SHIFT_OP_NAMES); break;
         case op_group::shift_imm2: disass_imm2(opcode,disass,opcode.shift_imm2,SHIFT_OP_NAMES); break;
+        case op_group::reg2_src: disass_reg2_src(opcode,disass,opcode.reg2_src); break;
+        case op_group::set_from_flag: disass_unary_reg1(opcode,disass,opcode.set_from_flag,SET_FROM_SIGN_OP); break;
     }
 }
 
