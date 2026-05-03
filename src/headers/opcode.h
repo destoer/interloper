@@ -497,7 +497,7 @@ static const char* ARITH_NAMES[] =
 };
 
 
-static constexpr u64 ARITH_COMMUTATIVE = 
+static constexpr u64 ARITH_GPR_COMMUTATIVE = 
     true << 0 |
     true << 1 |
     true << 2 |
@@ -517,6 +517,13 @@ enum class fpr_arith
     mul_t,
     div_t
 };
+
+static constexpr u64 ARITH_FPR_COMMUTATIVE = 
+    true << 0 |
+    false << 1 |
+    true << 2 |
+    false << 3;
+
 
 const char* FPR_ARITH_NAMES[] =
 {
@@ -586,6 +593,7 @@ enum class op_group
     arith_gpr3,
     arith_gpr2,
     arith_fpr3,
+    arith_fpr2,
     shift_reg3,
     shift_reg2,
     lea,
@@ -987,6 +995,7 @@ using ArithImm2 = ImmTwoDst<arith_bin_op>;
 using ArithGpr3 = RegThree<arith_bin_op>;
 using ArithGpr2 = RegTwoDst<arith_bin_op>;
 using ArithFpr3 = RegThree<fpr_arith>;
+using ArithFpr2 = RegTwoDst<fpr_arith>;
 using ShiftReg3 = RegThree<shift_op>;
 using ShiftReg2 = RegTwoDst<shift_op>;
 
@@ -1066,6 +1075,7 @@ struct Opcode
         ArithGpr3 arith_gpr3;
         ArithGpr2 arith_gpr2;
         ArithFpr3 arith_fpr3;
+        ArithFpr2 arith_fpr2;
         Lea lea;
         AddrOf addrof;
         Load load;

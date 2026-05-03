@@ -139,8 +139,14 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
     {
         case op_group::arith_gpr3:
         { 
-            return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_BIN_COMMUTATIVE);
+            return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
         }
+
+        case op_group::arith_fpr3:
+        { 
+            return lower_reg3(block,node,opcode.arith_fpr3, &opcode.arith_fpr2, op_group::arith_fpr2,reg_type::float_t,ARITH_FPR_COMMUTATIVE);
+        }
+
 
         case op_group::shift_reg3:
         {
