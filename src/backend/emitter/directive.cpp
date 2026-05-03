@@ -126,12 +126,19 @@ void emit_directive_reg2(Interloper& itl, Function& func, directive_type type, c
 }
 
 
-void emit_directive_imm1(Interloper& itl, Function& func, directive_type type, u64 imm)
+Directive make_directive_imm1(directive_type type, u64 imm)
 {
     Directive directive;
     directive.type = type;
     directive.operand[0] = make_imm_operand(imm);
     directive.size = 1;
+
+    return directive;
+}
+
+void emit_directive_imm1(Interloper& itl, Function& func, directive_type type, u64 imm)
+{
+    const auto directive = make_directive_imm1(type,imm);
     emit_directive(itl,func,directive);  
 }
 

@@ -84,13 +84,20 @@ void emit_load(Interloper& itl, Function& func, RegSlot dst, const PointerAddr& 
     emit_block_func(itl,func,opcode);
 }
 
-void emit_store(Interloper& itl, Function& func, RegSlot src, const PointerAddr& pointer, store_type type)
+Opcode make_store(RegSlot src, const Addr& addr, store_type type)
 {
     Opcode opcode;
     opcode.group = op_group::store;
 
-    opcode.store = make_addr_op<Store>(src,pointer.addr,type);
-    emit_block_func(itl,func,opcode);
+    opcode.store = make_addr_op<Store>(src,addr,type);
+
+    return opcode;
+}
+
+void emit_store(Interloper& itl, Function& func, RegSlot src, const PointerAddr& pointer, store_type type)
+{
+    const auto store = make_store(src,pointer.addr,type);
+    emit_block_func(itl,func,store);
 }
 
 void emit_load_struct(Interloper& itl, Function& func, RegSlot dst, const StructAddr& struct_addr, load_type type)

@@ -257,3 +257,18 @@ OpcodeNode* lower_fpr_const(Interloper& itl, Block& block, OpcodeNode* node)
 
     return node->next;
 }
+
+OpcodeNode* lower_push_float_arg(Block& block, OpcodeNode* node)
+{
+    auto& directive = node->value.directive;
+    const auto src = directive.operand[0].reg;
+
+    const auto alloc_stack = make_directive_imm1(directive_type::alloc_stack,8);
+    directive = alloc_stack;
+
+    const auto addr = make_addr(make_spec_reg_slot(spec_reg::sp),0);
+    const auto store = make_store(src,addr,store_type::sf);
+    node = insert_after(block.list,node,store);
+
+    return node->next;
+}

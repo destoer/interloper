@@ -128,12 +128,21 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             }
         }
 
+        case op_group::directive:
+        {
+            switch(opcode.directive.type)
+            {
+                case directive_type::push_float_arg: return lower_push_float_arg(block,node);
+                default: return node->next;
+            }
+        }
+
+
 
         case op_group::branch_cond_flag: break;
         case op_group::implicit: break;
         case op_group::branch_label: break;
         case op_group::mov_gpr_imm: break;
-        case op_group::directive: break;
         case op_group::unary_reg1: break;
         case op_group::lea: break;
         case op_group::addrof: break;
