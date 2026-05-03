@@ -699,6 +699,7 @@ enum class directive_type
     load_func_addr,
     alloc_local_array,
     alloc_global_array,
+    load_const_float,
 };
 
 static const char* DIRECTIVE_NAMES[] = 
@@ -718,6 +719,7 @@ static const char* DIRECTIVE_NAMES[] =
     "load_func_addr",
     "alloc_local_array",
     "alloc_global_array",
+    "load_const_float"
 };
 
 struct Directive

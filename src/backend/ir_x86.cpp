@@ -35,8 +35,6 @@ OpcodeNode* lower_x86_fixed(Block& block, OpcodeNode* node, const RegThree<op_ty
 
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
-    UNUSED(itl);
-
     auto& opcode = node->value;
 
     switch(opcode.group)
@@ -59,6 +57,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             }
 
             break;
+        }
+
+        case op_group::mov_fpr_imm:
+        {
+            return lower_fpr_const(itl,block,node);
         }
 
         case op_group::arith_fpr3:
@@ -130,7 +133,6 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::implicit: break;
         case op_group::branch_label: break;
         case op_group::mov_gpr_imm: break;
-        case op_group::mov_fpr_imm: break;
         case op_group::directive: break;
         case op_group::unary_reg1: break;
         case op_group::lea: break;

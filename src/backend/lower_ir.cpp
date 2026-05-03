@@ -196,3 +196,30 @@ OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
 
     return node->next;
 }
+
+OpcodeNode* lower_fpr_const(Interloper& itl, Block& block, OpcodeNode* node)
+{
+    UNUSED(block);
+
+    const auto& mov = node->value.mov_fpr_imm;
+    const auto dst = mov.dst.ir;
+    const auto decimal = mov.imm;
+
+    // dump float in the const pool table so we can do a relative load
+    const auto pool_slot = push_const_pool(itl.const_pool,pool_type::var,&decimal,sizeof(f64));
+
+    auto& opcode = node->value;
+
+    opcode.group = op_group::directive;
+
+    Directive directive;
+    directive.type = directive_type::load_const_float;
+    directive.operand[0] = make_reg_operand(dst,ir_reg_type::dst);
+    directive.operand[1] = make_pool_operand(pool_slot);
+    directive.operand[2] = make_decimal_operand(decimal);
+    directive.size = 3;
+
+    opcode.directive = directive;
+
+    return node->next;
+}
