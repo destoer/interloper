@@ -97,13 +97,23 @@ OpcodeNode* lower_reg3_opt(Function& func,Block& block, OpcodeNode* node, const 
     return node->next;
 }
 
-// TODO: Handle large imm's
-template<typename type,op_group group3,op_group group2>
-OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type,group3>& imm3, ImmTwoDst<type,group2>* imm2) 
+template<typename type,op_group group_imm3,op_group group2,op_group group_reg3>
+OpcodeNode* lower_imm3(Function& func, Block& block, OpcodeNode* node, 
+    const ImmThree<type,group_imm3>& imm3, ImmTwoDst<type,group2>* imm2, RegThree<type,group_reg3>* reg3) 
 {
     const auto dst = imm3.dst.ir;
     const auto src = imm3.src.ir;
     const auto imm = imm3.imm;
+
+    if(!fit_into_u32(imm))
+    {
+        const auto tmp = new_tmp(func,GPR_SIZE);
+        insert_at(block.list,node,make_mov_imm(tmp,imm));
+        make_reg3_opcode(node->value,reg3,dst,src,tmp,imm3.type);
+
+        // Need another rewrite pass on the reg3 we have just written
+        return node;
+    }
 
     // add dst, src, imm
     // -> mov dst, src
@@ -123,13 +133,14 @@ OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type,group
     return node->next;
 }
 
-template<typename type,op_group group3,op_group group2>
-OpcodeNode* lower_imm3_opt(Block& block, OpcodeNode* node, const ImmThree<type,group3>& imm3, ImmTwoDst<type,group2>* imm2) 
+template<typename type,op_group group_imm3,op_group group2,op_group group_reg3>
+OpcodeNode* lower_imm3_opt(Function& func,
+    Block& block, OpcodeNode* node, const ImmThree<type,group_imm3>& imm3, ImmTwoDst<type,group2>* imm2,RegThree<type,group_reg3>* reg3) 
 {
     // only lower if it would result in a shorter encoding
-    if(imm3.dst.ir == imm3.src.ir)
+    if(imm3.dst.ir == imm3.src.ir || !fit_into_u32(imm3.imm))
     {
-        return lower_imm3(block,node,imm3,imm2);
+        return lower_imm3(func,block,node,imm3,imm2,reg3);
     }
 
     return node->next;

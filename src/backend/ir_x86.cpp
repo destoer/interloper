@@ -87,9 +87,9 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         {
             switch(opcode.arith_imm3.type)
             {
-                case arith_bin_op::add_t: return lower_imm3_opt(block,node,opcode.arith_imm3,&opcode.arith_imm2);
+                case arith_bin_op::add_t: return lower_imm3_opt(func,block,node,opcode.arith_imm3,&opcode.arith_imm2,&opcode.arith_gpr3);
                 case arith_bin_op::mul_t: return lower_no_imm(func,block,node);
-                default: return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2);
+                default: return lower_imm3(func,block,node,opcode.arith_imm3,&opcode.arith_imm2,&opcode.arith_gpr3);
             } 
 
             break;
@@ -97,7 +97,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::shift_imm3:
         {
-            return lower_imm3(block,node,opcode.shift_imm3,&opcode.shift_imm2);
+            return lower_imm3(func,block,node,opcode.shift_imm3,&opcode.shift_imm2,&opcode.shift_reg3);
         }
 
         case op_group::cmp_gpr3:
