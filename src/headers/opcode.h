@@ -585,6 +585,7 @@ enum class op_group
     branch_label,
     branch_reg,
     branch_cond,
+    branch_cond_flag,
     directive,
     mov_gpr_imm,
     mov_fpr_imm,
@@ -772,16 +773,31 @@ enum class branch_cond_type
 };
 
 // TODO: change these once we have confirmed a match
+// beqz
+// bnez
 static const char* BRANCH_COND_NAMES[] =
 {
     "bnc",
     "bc"
 };
 
+// TODO: change these once we have confirmed a match
+static const char* JUMP_COND_NAMES[] =
+{
+    "je",
+    "jne"
+};
+
 struct BranchCond
 {
     branch_cond_type type;
     IrRegister src;
+    LabelSlot label;
+};
+
+struct BranchCondFlag
+{
+    branch_cond_type type;
     LabelSlot label;
 };
 
@@ -971,12 +987,14 @@ enum class reg_two_src
 {
     cmp_flags_gpr,
     cmp_flags_fpr,
+    test
 };
 
 static const char* REG_TWO_SRC_NAMES[] = 
 {
     "cmp_flags",
     "cmp_flags_float",
+    "test",
 };
 
 
@@ -1069,6 +1087,7 @@ struct Opcode
         Directive directive = {};
         BranchLabel branch_label;
         BranchCond branch_cond;
+        BranchCondFlag branch_cond_flag;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
         MovFprImm mov_fpr_imm;

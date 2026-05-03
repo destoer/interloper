@@ -269,6 +269,13 @@ void disass_branch_cond(const Opcode& opcode, const Disass& disass)
     print_disass(opcode,disass,"%s %a, %r\n",BRANCH_COND_NAMES[u32(branch.type)],branch.label,branch.src);
 }
 
+
+void disass_branch_cond_flag(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_cond_flag;
+    print_disass(opcode,disass,"%s %a\n",JUMP_COND_NAMES[u32(branch.type)],branch.label);
+}
+
 template<typename type>
 void disass_reg3(const Opcode& opcode, const Disass& disass,const RegThree<type>& reg, const char* names[])
 {
@@ -309,6 +316,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
     {
         case op_group::implicit: printf("%s\n",IMPLICIT_NAMES[u32(opcode.implicit.type)]); break;
         case op_group::branch_cond: disass_branch_cond(opcode,disass); break;
+        case op_group::branch_cond_flag: disass_branch_cond_flag(opcode,disass); break;
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
         case op_group::mov_fpr_imm: disass_mov_fpr_imm(opcode,disass); break;

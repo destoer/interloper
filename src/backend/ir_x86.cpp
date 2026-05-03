@@ -1,7 +1,28 @@
+OpcodeNode* lower_x86_cond_branch(Block& block, OpcodeNode* node)
+{
+    auto& branch = node->value.branch_cond;
+    const auto slot = branch.src.ir;
+    const auto cond = branch.type;
+    const auto label = branch.label;
+
+    Opcode opcode;
+    opcode.group = op_group::branch_cond_flag;
+    opcode.branch_cond_flag = BranchCondFlag { cond,label };
+    node->value = opcode;
+
+    Opcode test;
+    test.reg2_src = make_reg2_src(slot,slot,reg_two_src::test);
+    test.group = op_group::reg2_src;
+    node = insert_at(block.list,node,test);
+            
+    return node->next;
+}
+
+
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
     UNUSED(itl);
-    
+
     auto& opcode = node->value;
 
     switch(opcode.group)
@@ -57,9 +78,14 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             return lower_imm3_cmp_flag(block,node);
         }
 
+        case op_group::branch_cond:
+        {
+            return lower_x86_cond_branch(block,node);
+        }
+
+        case op_group::branch_cond_flag: break;
         case op_group::implicit: break;
         case op_group::branch_label: break;
-        case op_group::branch_cond: break;
         case op_group::mov_gpr_imm: break;
         case op_group::mov_fpr_imm: break;
         case op_group::directive: break;

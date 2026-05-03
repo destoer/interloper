@@ -7,10 +7,11 @@ void insert_mov_reg2(Block& block, OpcodeNode* node, RegSlot dst, RegSlot src, r
     insert_at(block.list,node,opcode);
 }
 
-template<typename type>
-OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg3, RegTwoDst<type>* reg2, 
+template<typename op_type>
+OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<op_type>& reg3, RegTwoDst<op_type>* reg2, 
     op_group new_group, reg_type rtype, const u64 commutative_set) 
 {
+    const auto type = reg3.type;
     const auto dst = reg3.dst.ir;
     const auto v1 = reg3.v1.ir;
     const auto v2 = reg3.v2.ir;
@@ -31,9 +32,9 @@ OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg
         reg2->src.ir = v1;
     }
 
-    // add dst, v1, v2
+    // sub dst, v1, v2
     // -> mov dst, v1
-    // -> add dst, v2
+    // -> sub dst, v2
     else
     {
         insert_mov_reg2(block,node,dst,v1,rtype);
@@ -42,7 +43,7 @@ OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg
         reg2->src.ir = v2;       
     }
 
-    reg2->type = reg3.type;
+    reg2->type = type;
     node->value.group = new_group;
 
     return node->next;
