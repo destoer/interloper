@@ -970,11 +970,13 @@ struct RegTwoDst
 enum class reg_two_src
 {
     cmp_flags_gpr,
+    cmp_flags_fpr,
 };
 
 static const char* REG_TWO_SRC_NAMES[] = 
 {
     "cmp_flags",
+    "cmp_flags_float",
 };
 
 

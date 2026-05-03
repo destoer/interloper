@@ -87,7 +87,7 @@ OpcodeNode* set_from_flag(Block& block, OpcodeNode* node, RegSlot dst, cmp_sign_
     return node->next;    
 }
 
-OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node)
+OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, reg_type rtype)
 {
     auto& opcode = node->value;
 
@@ -101,8 +101,10 @@ OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node)
     // cmpsgt dst,v1,v2
     // -> cmp_flags v1, v2
     // -> setsgt dst
-    opcode.reg2_src = make_reg2_src(v1,v2,reg_two_src::cmp_flags_gpr);
-    opcode.group = op_group::reg2_src;  
+
+    const auto flags_type = rtype == reg_type::gpr_t? reg_two_src::cmp_flags_gpr : reg_two_src::cmp_flags_fpr;
+    opcode.reg2_src = make_reg2_src(v1,v2,flags_type);
+    opcode.group = op_group::reg2_src;
 
     return set_from_flag(block,node,dst,type);
 }
@@ -147,7 +149,6 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             return lower_reg3(block,node,opcode.arith_fpr3, &opcode.arith_fpr2, op_group::arith_fpr2,reg_type::float_t,ARITH_FPR_COMMUTATIVE);
         }
 
-
         case op_group::shift_reg3:
         {
             return lower_reg3(block,node,opcode.shift_reg3, &opcode.shift_reg2, op_group::shift_reg2,reg_type::gpr_t,0);
@@ -165,7 +166,12 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::cmp_gpr3:
         {
-            return lower_reg3_cmp_flag(block,node);
+            return lower_reg3_cmp_flag(block,node,reg_type::gpr_t);
+        }
+
+        case op_group::cmp_fpr3:
+        {
+            return lower_reg3_cmp_flag(block,node,reg_type::float_t);
         }
 
         case op_group::cmp_imm3:
@@ -188,12 +194,14 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::store_struct: break;
         case op_group::branch_reg: break;
         case op_group::arith_gpr2: break;
-        default: 
-        {
-            dump_ir(itl,func,itl.symbol_table);
-            unimplemented("rewrite x86 group: %d",opcode.group);
-            break;
-        } 
+        case op_group::arith_fpr2: break;
+        case op_group::shift_reg2: break;
+        case op_group::shift_imm2: break;
+        case op_group::sign_extend: break;
+        case op_group::reg2_src: break;
+        case op_group::imm2_src: break;
+        case op_group::set_from_flag: break;
+        case op_group::arith_imm2: break;
     }
 
     return node->next;
