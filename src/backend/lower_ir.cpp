@@ -49,8 +49,20 @@ OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<op_type>& 
     return node->next;
 }
 
+template<typename op_type>
+OpcodeNode* lower_reg3_opt(Block& block, OpcodeNode* node, const RegThree<op_type>& reg3, RegTwoDst<op_type>* reg2, 
+    op_group new_group, reg_type rtype, const u64 commutative_set) 
+{
+    // lower if it will crush the encoding
+    if(reg3.dst.ir == reg3.v1.ir || (is_set(u32(reg3.type),commutative_set) && reg3.dst.ir == reg3.v2.ir))
+    {
+        return lower_reg3(block,node,reg3,reg2,new_group,rtype,commutative_set);
+    }
 
-// TODO: Handle large imm's and opcodes with no immediate encoding
+    return node->next;
+}
+
+// TODO: Handle large imm's
 template<typename type>
 OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm3, ImmTwoDst<type>* imm2, op_group new_group) 
 {
@@ -76,6 +88,17 @@ OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm
     return node->next;
 }
 
+template<typename type>
+OpcodeNode* lower_imm3_opt(Block& block, OpcodeNode* node, const ImmThree<type>& imm3, ImmTwoDst<type>* imm2, op_group new_group) 
+{
+    // only lower if it would result in a shorter encoding
+    if(imm3.dst.ir == imm3.src.ir)
+    {
+        return lower_imm3(block,node,imm3,imm2,new_group);
+    }
+
+    return node->next;
+}
 
 OpcodeNode* set_from_flag(Block& block, OpcodeNode* node, RegSlot dst, cmp_sign_op type)
 {

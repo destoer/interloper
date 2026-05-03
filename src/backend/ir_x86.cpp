@@ -18,7 +18,6 @@ OpcodeNode* lower_x86_cond_branch(Block& block, OpcodeNode* node)
     return node->next;
 }
 
-
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
     UNUSED(itl);
@@ -28,14 +27,18 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
     switch(opcode.group)
     {
         case op_group::arith_gpr3:
-        { 
-            // Do not have to lower add
-            if(opcode.arith_gpr3.type == arith_bin_op::add_t)
+        {
+            switch(opcode.arith_gpr3.type)
             {
-                return node->next;
+                case arith_bin_op::add_t: 
+                {
+                    return lower_reg3_opt(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
+                }
+
+                default: return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
             }
 
-            return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
+            break;
         }
 
         case op_group::arith_fpr3:
@@ -52,7 +55,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         {
             switch(opcode.arith_imm3.type)
             {
-                case arith_bin_op::add_t:  return node->next;
+                case arith_bin_op::add_t: return lower_imm3_opt(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
                 case arith_bin_op::mul_t: return lower_no_imm(func,block,node);
                 default: return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
             } 
