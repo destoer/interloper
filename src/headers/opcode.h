@@ -601,6 +601,7 @@ enum class op_group
     cmp_gpr3,
     cmp_fpr3,
     reg2_src,
+    imm2_src,
     set_from_flag,
 };
 
@@ -911,10 +912,28 @@ struct ImmThree
 
 
 template<typename op_type>
-struct ImmTwo
+struct ImmTwoDst
 {
     op_type type;
     IrRegister dst;
+
+    u64 imm = 0;
+};
+
+enum class imm_two_src
+{
+    cmp_flags_imm
+};
+
+static const char* IMM_TWO_SRC_NAMES[] =
+{
+    "cmp_flags_imm",
+};
+
+struct ImmTwoSrc
+{
+    imm_two_src type;
+    IrRegister src;
 
     u64 imm = 0;
 };
@@ -960,9 +979,9 @@ struct RegTwoSrc
 
 
 using ShiftImm3 = ImmThree<shift_op>;
-using ShiftImm2 = ImmTwo<shift_op>;
+using ShiftImm2 = ImmTwoDst<shift_op>;
 using ArithImm3 = ImmThree<arith_bin_op>;
-using ArithImm2 = ImmTwo<arith_bin_op>;
+using ArithImm2 = ImmTwoDst<arith_bin_op>;
 
 using ArithGpr3 = RegThree<arith_bin_op>;
 using ArithGpr2 = RegTwoDst<arith_bin_op>;
@@ -1061,6 +1080,7 @@ struct Opcode
         CmpGpr3 cmp_gpr3;
         CmpFpr3 cmp_fpr3;
         RegTwoSrc reg2_src;
+        ImmTwoSrc imm2_src;
         SetFromFlag set_from_flag;
     };
 

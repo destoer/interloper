@@ -51,7 +51,7 @@ OpcodeNode* lower_reg3(Block& block, OpcodeNode* node, const RegThree<type>& reg
 
 // TODO: Handle large imm's and opcodes with no immediate encoding
 template<typename type>
-OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm3, ImmTwo<type>* imm2, op_group new_group) 
+OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm3, ImmTwoDst<type>* imm2, op_group new_group) 
 {
     const auto dst = imm3.dst.ir;
     const auto src = imm3.src.ir;
@@ -76,7 +76,18 @@ OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm
 }
 
 
-OpcodeNode* lower_reg3_cmp_flag_reg(Block& block, OpcodeNode* node)
+OpcodeNode* set_from_flag(Block& block, OpcodeNode* node, RegSlot dst, cmp_sign_op type)
+{
+    Opcode set;
+    set.set_from_flag = make_unary_reg1(dst,type);
+    set.group = op_group::set_from_flag;
+
+    node = insert_after(block.list,node,set);
+
+    return node->next;    
+}
+
+OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node)
 {
     auto& opcode = node->value;
 
@@ -93,15 +104,29 @@ OpcodeNode* lower_reg3_cmp_flag_reg(Block& block, OpcodeNode* node)
     opcode.reg2_src = make_reg2_src(v1,v2,reg_two_src::cmp_flags_gpr);
     opcode.group = op_group::reg2_src;  
 
-
-    Opcode set;
-    set.set_from_flag = make_unary_reg1(dst,type);
-    set.group = op_group::set_from_flag;
-
-    node = insert_after(block.list,node,set);
-
-    return node->next;
+    return set_from_flag(block,node,dst,type);
 }
+
+OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)
+{
+    auto& opcode = node->value;
+
+    const auto& cmp = opcode.cmp_imm3;
+    const auto dst = cmp.dst.ir;
+    const auto src = cmp.src.ir;
+    const auto imm = cmp.imm;
+
+    const auto type = cmp.type;
+
+    // cmpsgt dst, src, imm
+    // -> cmp_flags_imm src, imm
+    // -> setsgt dst
+    opcode.imm2_src = make_imm2_src(src,imm,imm_two_src::cmp_flags_imm);
+    opcode.group = op_group::imm2_src;  
+
+    return set_from_flag(block,node,dst,type);
+}
+
 
 
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
@@ -129,7 +154,12 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::cmp_gpr3:
         {
-            return lower_reg3_cmp_flag_reg(block,node);
+            return lower_reg3_cmp_flag(block,node);
+        }
+
+        case op_group::cmp_imm3:
+        {
+            return lower_imm3_cmp_flag(block,node);
         }
 
         case op_group::implicit: break;
@@ -139,7 +169,9 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::mov_fpr_imm: break;
         case op_group::directive: break;
         case op_group::unary_reg2: break;
+        case op_group::lea: break;
         case op_group::addrof: break;
+        case op_group::load: break;
         case op_group::load_struct: break;
         case op_group::store: break;
         case op_group::store_struct: break;

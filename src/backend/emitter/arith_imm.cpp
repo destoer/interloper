@@ -11,7 +11,7 @@ ConstRegSpan imm3_reg_span(const ImmThree<type>& imm, RegSpan& span)
 }
 
 template<typename type>
-ConstRegSpan imm2_reg_span(const ImmTwo<type>& imm, RegSpan& span)
+ConstRegSpan imm2_dst_reg_span(const ImmTwoDst<type>& imm, RegSpan& span)
 {
     span.src.size = 0;
 
@@ -20,6 +20,17 @@ ConstRegSpan imm2_reg_span(const ImmTwo<type>& imm, RegSpan& span)
 
     return span;
 }
+
+ConstRegSpan imm2_src_reg_span(const ImmTwoSrc& imm, RegSpan& span)
+{
+    span.dst.size = 0;
+
+    span.src[0] = imm.src.ir;
+    span.src.size = 1;
+
+    return span;
+}
+
 
 template<typename op_type>
 ImmThree<op_type> make_imm3(RegSlot dst, RegSlot src, u64 imm, op_type type)
@@ -33,6 +44,15 @@ ImmThree<op_type> make_imm3(RegSlot dst, RegSlot src, u64 imm, op_type type)
     return imm_three;
 }
 
+ImmTwoSrc make_imm2_src(RegSlot src, u64 imm,imm_two_src type)
+{
+    ImmTwoSrc imm_two;
+    imm_two.type = type;
+    imm_two.src.ir = src;
+    imm_two.imm = imm;
+
+    return imm_two;
+}
 
 void emit_gpr_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)
 {

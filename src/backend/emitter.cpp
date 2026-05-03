@@ -117,13 +117,14 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
         case op_group::mov_fpr_imm: return mov_fpr_imm_reg_span(opcode.mov_fpr_imm,reg); 
         case op_group::arith_imm3: return imm3_reg_span(opcode.arith_imm3,reg);
-        case op_group::arith_imm2: return imm2_reg_span(opcode.arith_imm2,reg);
+        case op_group::arith_imm2: return imm2_dst_reg_span(opcode.arith_imm2,reg);
         case op_group::arith_gpr3: return reg3_reg_span(opcode.arith_gpr3,reg);
         case op_group::arith_gpr2: return reg2_dst_reg_span(opcode.arith_gpr2,reg);
         case op_group::arith_fpr3: return reg3_reg_span(opcode.arith_fpr3,reg);
         case op_group::shift_imm3: return imm3_reg_span(opcode.shift_imm3,reg);
-        case op_group::shift_imm2: return imm2_reg_span(opcode.shift_imm2,reg);
+        case op_group::shift_imm2: return imm2_dst_reg_span(opcode.shift_imm2,reg);
         case op_group::shift_reg3: return reg3_reg_span(opcode.shift_reg3,reg);
+        case op_group::imm2_src: return imm2_src_reg_span(opcode.imm2_src,reg);
         case op_group::load: return addr_opcode_reg_span(opcode.load,reg);
         case op_group::load_struct: return addr_opcode_reg_span(opcode.load_struct,reg);
         case op_group::store: return addr_opcode_reg_span(opcode.store,reg);

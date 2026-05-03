@@ -293,9 +293,14 @@ void disass_imm3(const Opcode& opcode, const Disass& disass,const ImmThree<type>
 }
 
 template<typename type>
-void disass_imm2(const Opcode& opcode, const Disass& disass,const ImmTwo<type>& imm, const char* names[])
+void disass_imm2_dst(const Opcode& opcode, const Disass& disass,const ImmTwoDst<type>& imm, const char* names[])
 {
     print_disass(opcode,disass,"%s %r, %x\n",names[u32(imm.type)],imm.dst,imm.imm);
+}
+
+void disass_imm2_src(const Opcode& opcode, const Disass& disass,const ImmTwoSrc& imm)
+{
+    print_disass(opcode,disass,"%s %r, %x\n",IMM_TWO_SRC_NAMES[u32(imm.type)],imm.src,imm.imm);
 }
 
 void disass_opcode(const Opcode& opcode, const Disass& disass)
@@ -325,10 +330,11 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::cmp_imm3: disass_imm3(opcode,disass,opcode.cmp_imm3,CMP_SIGN_NAMES); break;
         case op_group::cmp_fpr3: disass_reg3(opcode,disass,opcode.cmp_fpr3,CMP_FPR_NAMES); break;
         case op_group::arith_imm3: disass_imm3(opcode,disass,opcode.arith_imm3,ARITH_NAMES); break;
-        case op_group::arith_imm2: disass_imm2(opcode,disass,opcode.arith_imm2,ARITH_NAMES); break;
+        case op_group::arith_imm2: disass_imm2_dst(opcode,disass,opcode.arith_imm2,ARITH_NAMES); break;
         case op_group::shift_imm3: disass_imm3(opcode,disass,opcode.shift_imm3,SHIFT_OP_NAMES); break;
-        case op_group::shift_imm2: disass_imm2(opcode,disass,opcode.shift_imm2,SHIFT_OP_NAMES); break;
+        case op_group::shift_imm2: disass_imm2_dst(opcode,disass,opcode.shift_imm2,SHIFT_OP_NAMES); break;
         case op_group::reg2_src: disass_reg2_src(opcode,disass,opcode.reg2_src); break;
+        case op_group::imm2_src: disass_imm2_src(opcode,disass,opcode.imm2_src); break;
         case op_group::set_from_flag: disass_unary_reg1(opcode,disass,opcode.set_from_flag,SET_FROM_SIGN_OP); break;
     }
 }
