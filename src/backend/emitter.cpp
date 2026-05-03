@@ -141,7 +141,8 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::cmp_gpr3: return reg3_reg_span(opcode.cmp_gpr3,reg);
         case op_group::cmp_fpr3: return reg3_reg_span(opcode.cmp_fpr3,reg);
         case op_group::reg2_src: return reg2_src_reg_span(opcode.reg2_src,reg);
-        case op_group::set_from_flag: return unary_reg1_reg_span(opcode.set_from_flag,reg);
+        case op_group::set_from_flag_fpr: return unary_reg1_reg_span(opcode.set_from_flag_fpr,reg);
+        case op_group::set_from_flag_gpr: return unary_reg1_reg_span(opcode.set_from_flag_gpr,reg);
         case op_group::x86_fixed: return reg2_dst_reg_span(opcode.x86_fixed,reg);
     }
 

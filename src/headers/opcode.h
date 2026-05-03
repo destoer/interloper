@@ -335,7 +335,7 @@ static const char* CMP_SIGN_NAMES[CMP_SIGN_OP_SIZE] =
     "cmpne"
 };
 
-static const char* SET_FROM_SIGN_OP[CMP_SIGN_OP_SIZE] = 
+static const char* SET_FROM_GPR_NAMES[CMP_SIGN_OP_SIZE] = 
 {
     "setult",
     "setule",
@@ -383,6 +383,18 @@ static const char* CMP_FPR_NAMES[CMP_OP_SIZE] =
     "cmpfeq",
     "cmpfne"
 };
+
+static const char* SET_FROM_FPR_NAMES[CMP_OP_SIZE] = 
+{
+    "setflt",
+    "setfle",
+    "setfgt",
+    "setfge",
+
+    "setfeq",
+    "setfne"
+};
+
 
 enum class boolean_logic_op
 {
@@ -613,7 +625,8 @@ enum class op_group
     cmp_fpr3,
     reg2_src,
     imm2_src,
-    set_from_flag,
+    set_from_flag_gpr,
+    set_from_flag_fpr,
     x86_fixed,
 };
 
@@ -1111,7 +1124,8 @@ struct UnaryReg1
 using UnaryRegTwo = UnaryReg2<unary_reg2_op>;
 using UnaryRegOne = UnaryReg1<unary_reg1_op>;
 using SignExtend = UnaryReg2<sign_extend_op>;
-using SetFromFlag = UnaryReg1<cmp_sign_op>;
+using SetFromFlagGpr = UnaryReg1<cmp_sign_op>;
+using SetFromFlagFpr = UnaryReg1<comparison_op>;
 
 
 struct Opcode
@@ -1152,7 +1166,8 @@ struct Opcode
         CmpFpr3 cmp_fpr3;
         RegTwoSrc reg2_src;
         ImmTwoSrc imm2_src;
-        SetFromFlag set_from_flag;
+        SetFromFlagFpr set_from_flag_fpr;
+        SetFromFlagGpr set_from_flag_gpr;
         X86Fixed x86_fixed;
     };
 

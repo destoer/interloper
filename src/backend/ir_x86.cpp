@@ -98,12 +98,12 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::cmp_gpr3:
         {
-            return lower_reg3_cmp_flag(block,node,reg_type::gpr_t);
+            return lower_reg3_cmp_flag<cmp_sign_op,reg_type::gpr_t>(block,node,opcode.cmp_gpr3,&opcode.set_from_flag_gpr,op_group::set_from_flag_gpr);
         }
 
         case op_group::cmp_fpr3:
         {
-            return lower_reg3_cmp_flag(block,node,reg_type::float_t);
+            return lower_reg3_cmp_flag<comparison_op,reg_type::float_t>(block,node,opcode.cmp_fpr3,&opcode.set_from_flag_fpr,op_group::set_from_flag_fpr);
         }
 
         case op_group::cmp_imm3:
@@ -147,7 +147,8 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::sign_extend: break;
         case op_group::reg2_src: break;
         case op_group::imm2_src: break;
-        case op_group::set_from_flag: break;
+        case op_group::set_from_flag_gpr: break;
+         case op_group::set_from_flag_fpr: break;
         case op_group::arith_imm2: break;
         case op_group::x86_fixed: break;
     }

@@ -100,37 +100,32 @@ OpcodeNode* lower_imm3_opt(Block& block, OpcodeNode* node, const ImmThree<type>&
     return node->next;
 }
 
-OpcodeNode* set_from_flag(Block& block, OpcodeNode* node, RegSlot dst, cmp_sign_op type)
+template<typename op_type, const reg_type RTYPE>
+OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<op_type>& cmp3, UnaryReg1<op_type>* set,op_group group)
 {
-    Opcode set;
-    set.set_from_flag = make_unary_reg1(dst,type);
-    set.group = op_group::set_from_flag;
 
-    node = insert_after(block.list,node,set);
+    const auto dst = cmp3.dst.ir;
+    const auto v1 = cmp3.v1.ir;
+    const auto v2 = cmp3.v2.ir;
 
-    return node->next;    
-}
-
-OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, reg_type rtype)
-{
-    auto& opcode = node->value;
-
-    const auto& cmp = opcode.cmp_gpr3;
-    const auto dst = cmp.dst.ir;
-    const auto v1 = cmp.v1.ir;
-    const auto v2 = cmp.v2.ir;
-
-    const auto type = cmp.type;
+    const auto type = cmp3.type;
 
     // cmpsgt dst,v1,v2
     // -> cmp_flags v1, v2
     // -> setsgt dst
 
-    const auto flags_type = rtype == reg_type::gpr_t? reg_two_src::cmp_flags_gpr : reg_two_src::cmp_flags_fpr;
-    opcode.reg2_src = make_reg2_src(v1,v2,flags_type);
-    opcode.group = op_group::reg2_src;
+    const auto rtype = RTYPE ==  reg_type::float_t? reg_two_src::cmp_flags_fpr : reg_two_src::cmp_flags_gpr;
+    Opcode cmp_flags;
+    cmp_flags.group = op_group::reg2_src;
+    cmp_flags.reg2_src = make_reg2_src(v1,v2,rtype);
+    insert_at(block.list,node,cmp_flags);
 
-    return set_from_flag(block,node,dst,type);
+    auto& opcode = node->value;
+    opcode.group = group;
+    *set = make_unary_reg1(dst,type);
+
+    return node->next;
+
 }
 
 OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)
@@ -150,7 +145,13 @@ OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)
     opcode.imm2_src = make_imm2_src(src,imm,imm_two_src::cmp_flags_imm);
     opcode.group = op_group::imm2_src;  
 
-    return set_from_flag(block,node,dst,type);
+    Opcode set;
+    set.group = op_group::set_from_flag_gpr;
+    set.set_from_flag_gpr = make_unary_reg1(dst,type);
+
+    node = insert_after(block.list,node,set);
+
+    return node->next;
 }
 
 
