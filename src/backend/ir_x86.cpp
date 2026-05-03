@@ -142,6 +142,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_BIN_COMMUTATIVE);
         }
 
+        case op_group::shift_reg3:
+        {
+            return lower_reg3(block,node,opcode.shift_reg3, &opcode.shift_reg2, op_group::shift_reg2,reg_type::gpr_t,0);
+        }
+
         case op_group::arith_imm3:
         {
             return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
@@ -175,6 +180,8 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::load_struct: break;
         case op_group::store: break;
         case op_group::store_struct: break;
+        case op_group::branch_reg: break;
+        case op_group::arith_gpr2: break;
         default: 
         {
             dump_ir(itl,func,itl.symbol_table);

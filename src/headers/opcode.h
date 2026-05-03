@@ -587,6 +587,7 @@ enum class op_group
     arith_gpr2,
     arith_fpr3,
     shift_reg3,
+    shift_reg2,
     lea,
     addrof,
     load,
@@ -987,6 +988,7 @@ using ArithGpr3 = RegThree<arith_bin_op>;
 using ArithGpr2 = RegTwoDst<arith_bin_op>;
 using ArithFpr3 = RegThree<fpr_arith>;
 using ShiftReg3 = RegThree<shift_op>;
+using ShiftReg2 = RegTwoDst<shift_op>;
 
 
 using CmpGpr3 = RegThree<cmp_sign_op>;
@@ -1074,6 +1076,7 @@ struct Opcode
         ShiftImm3 shift_imm3;
         ShiftImm2 shift_imm2;
         ShiftReg3 shift_reg3;
+        ShiftReg2 shift_reg2;
         UnaryRegTwo unary_reg2;
         SignExtend sign_extend;
         CmpImm3 cmp_imm3;
