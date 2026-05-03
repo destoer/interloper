@@ -26,7 +26,7 @@ OpcodeNode* lower_x86_fixed(Block& block, OpcodeNode* node, const RegThree<op_ty
     const auto v1 = reg.v1.ir;
     const auto v2 = reg.v2.ir;
 
-    insert_mov_reg2(block,node,dst,v1,reg_type::gpr_t);
+    insert_mov_reg2_at(block,node,dst,v1,reg_type::gpr_t);
     node->value.group = op_group::x86_fixed;
     node->value.x86_fixed = make_reg2_dst(dst,v2,fixed);
 
@@ -45,7 +45,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             {
                 case arith_bin_op::add_t: 
                 {
-                    return lower_reg3_opt(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
+                    return lower_reg3_opt(func,block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
                 }
 
                 case arith_bin_op::udiv_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::udiv);
@@ -53,7 +53,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
                 case arith_bin_op::smod_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::smod);
                 case arith_bin_op::umod_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::umod);
 
-                default: return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
+                default: return lower_reg3(func,block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
             }
 
             break;
@@ -66,7 +66,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::arith_fpr3:
         { 
-            return lower_reg3(block,node,opcode.arith_fpr3, &opcode.arith_fpr2, op_group::arith_fpr2,reg_type::float_t,ARITH_FPR_COMMUTATIVE);
+            return lower_reg3(func,block,node,opcode.arith_fpr3, &opcode.arith_fpr2, op_group::arith_fpr2,reg_type::float_t,ARITH_FPR_COMMUTATIVE);
         }
 
 
