@@ -150,7 +150,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::reg2_src: break;
         case op_group::imm2_src: break;
         case op_group::set_from_flag_gpr: break;
-         case op_group::set_from_flag_fpr: break;
+        case op_group::set_from_flag_fpr: break;
         case op_group::arith_imm2: break;
         case op_group::x86_fixed: break;
     }

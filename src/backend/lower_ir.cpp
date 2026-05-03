@@ -184,7 +184,7 @@ OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
 {
     const auto& unary = node->value.unary_reg2;
     const auto dst = unary.dst.ir; 
-    const auto src = unary.dst.ir;
+    const auto src = unary.src.ir;
 
     if(src != dst)
     {
