@@ -130,6 +130,30 @@ OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)
 }
 
 
+OpcodeNode* lower_no_imm(Function& func, Block& block,OpcodeNode* node)
+{
+    const auto &imm = node->value.arith_imm3;
+    const auto dst = imm.dst.ir;
+    const auto src = imm.src.ir;
+    const auto value = imm.imm;
+    const auto type = imm.type;
+
+    // mul dst, src, imm
+    // -> mov t0, imm
+    // -> mul dst, src, t0
+    const auto tmp_slot = new_tmp(func,GPR_SIZE);
+
+    node->value = make_mov_imm(tmp_slot,value);
+
+    Opcode opcode;
+    opcode.arith_gpr3 = make_reg3(dst,src,tmp_slot,type);
+    opcode.group = op_group::arith_gpr3;
+
+    node = insert_after(block.list,node,opcode);
+
+    // NOTE: another writing pass has to happen on this opcode
+    return node;   
+}
 
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
@@ -141,6 +165,12 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
     {
         case op_group::arith_gpr3:
         { 
+            // Do not have to lower add
+            if(opcode.arith_gpr3.type == arith_bin_op::add_t)
+            {
+                return node->next;
+            }
+
             return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
         }
 
@@ -156,7 +186,12 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::arith_imm3:
         {
-            return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
+            switch(opcode.arith_imm3.type)
+            {
+                case arith_bin_op::add_t:  return node->next;
+                case arith_bin_op::mul_t: return lower_no_imm(func,block,node);
+                default: return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
+            } 
         }
 
         case op_group::shift_imm3:

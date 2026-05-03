@@ -21,7 +21,7 @@ ConstRegSpan mov_fpr_imm_reg_span(const MovFprImm& mov_imm, RegSpan& reg)
 }
 
 
-void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
+Opcode make_mov_imm(RegSlot dst, u64 imm)
 {
     MovGprImm mov_imm;
     mov_imm.dst.ir = dst;
@@ -31,6 +31,12 @@ void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
     opcode.group = op_group::mov_gpr_imm;
     opcode.mov_gpr_imm = mov_imm;
 
+    return opcode;
+}
+
+void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
+{
+    const auto opcode = make_mov_imm(dst,imm);
     emit_block_func(itl,func,opcode);
 }
 
