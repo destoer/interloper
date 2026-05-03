@@ -86,13 +86,23 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             return lower_x86_cond_branch(block,node);
         }
 
+        case op_group::unary_reg2:
+        {
+            switch(opcode.unary_reg2.type)
+            {
+                case unary_reg2_op::bitwise_not: return lower_unary_reg2(block,node,unary_reg1_op::bitwise_not);  
+                default: return node->next;
+            }
+        }
+
+
         case op_group::branch_cond_flag: break;
         case op_group::implicit: break;
         case op_group::branch_label: break;
         case op_group::mov_gpr_imm: break;
         case op_group::mov_fpr_imm: break;
         case op_group::directive: break;
-        case op_group::unary_reg2: break;
+        case op_group::unary_reg1: break;
         case op_group::lea: break;
         case op_group::addrof: break;
         case op_group::load: break;

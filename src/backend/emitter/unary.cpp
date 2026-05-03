@@ -43,7 +43,7 @@ UnaryReg1<op_type> make_unary_reg1(RegSlot dst, op_type type)
     return unary;
 }
 
-void emit_unary_reg_two(Interloper& itl, Function& func, RegSlot dst, RegSlot src, unary_reg_op type)
+void emit_unary_reg_two(Interloper& itl, Function& func, RegSlot dst, RegSlot src, unary_reg2_op type)
 {
     Opcode opcode;
     opcode.group = op_group::unary_reg2;
@@ -64,12 +64,12 @@ void emit_sign_extend(Interloper& itl, Function& func, RegSlot dst, RegSlot src,
 
 void not_reg(Interloper& itl,Function& func, RegSlot dst, RegSlot src)
 {
-    emit_unary_reg_two(itl,func,dst,src,unary_reg_op::bitwise_not);
+    emit_unary_reg_two(itl,func,dst,src,unary_reg2_op::bitwise_not);
 }
 
 void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 {
-    emit_unary_reg_two(itl,func,dst,src,unary_reg_op::mov_gpr_reg);
+    emit_unary_reg_two(itl,func,dst,src,unary_reg2_op::mov_gpr_reg);
 }
 
 RegSlot copy_reg(Interloper& itl, Function& func, RegSlot src)
@@ -79,15 +79,15 @@ RegSlot copy_reg(Interloper& itl, Function& func, RegSlot src)
 
 void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 {
-    emit_unary_reg_two(itl,func,dst,src,unary_reg_op::mov_fpr_reg);
+    emit_unary_reg_two(itl,func,dst,src,unary_reg2_op::mov_fpr_reg);
 }
 
 void cvt_fi(Interloper& itl, Function& func, RegSlot dst, RegSlot v1)
 {
-    emit_unary_reg_two(itl,func,dst,v1,unary_reg_op::cvt_fi);
+    emit_unary_reg_two(itl,func,dst,v1,unary_reg2_op::cvt_fi);
 }
 
 void cvt_if(Interloper& itl, Function& func, RegSlot dst, RegSlot v1)
 {
-    emit_unary_reg_two(itl,func,dst,v1,unary_reg_op::cvt_if);
+    emit_unary_reg_two(itl,func,dst,v1,unary_reg2_op::cvt_if);
 }

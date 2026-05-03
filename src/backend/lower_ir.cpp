@@ -1,7 +1,7 @@
 void insert_mov_reg2(Block& block, OpcodeNode* node, RegSlot dst, RegSlot src, reg_type type)
 {
     Opcode opcode;
-    opcode.unary_reg2 = make_unary_reg2(dst,src,type == reg_type::gpr_t? unary_reg_op::mov_gpr_reg : unary_reg_op::mov_fpr_reg);
+    opcode.unary_reg2 = make_unary_reg2(dst,src,type == reg_type::gpr_t? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg);
     opcode.group = op_group::unary_reg2;
 
     insert_at(block.list,node,opcode);
@@ -177,4 +177,21 @@ OpcodeNode* lower_no_imm(Function& func, Block& block,OpcodeNode* node)
 
     // NOTE: another writing pass has to happen on this opcode
     return node;   
+}
+
+OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
+{
+    const auto& unary = node->value.unary_reg2;
+    const auto dst = unary.dst.ir; 
+    const auto src = unary.dst.ir;
+
+    if(src != dst)
+    {
+        insert_mov_reg2(block,node,dst,src,reg_type::gpr_t);
+    }
+
+    node->value.group = op_group::unary_reg1;
+    node->value.unary_reg1 = make_unary_reg1(dst,type);
+
+    return node->next;
 }

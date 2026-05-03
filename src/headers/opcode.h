@@ -606,6 +606,7 @@ enum class op_group
     shift_imm3,
     shift_imm2,
     unary_reg2,
+    unary_reg1,
     sign_extend,
     cmp_imm3,
     cmp_gpr3,
@@ -1024,7 +1025,7 @@ using CmpGpr3 = RegThree<cmp_sign_op>;
 using CmpFpr3 = RegThree<comparison_op>;
 using CmpImm3 = ImmThree<cmp_sign_op>;
 
-enum class unary_reg_op
+enum class unary_reg2_op
 {
     mov_gpr_reg,
     mov_fpr_reg,
@@ -1033,7 +1034,7 @@ enum class unary_reg_op
     cvt_fi
 };
 
-static const char* UNARY_REG_NAMES[] =
+static const char* UNARY_REG_TWO_NAMES[] =
 {
     "mov",
     "movf",
@@ -1042,6 +1043,15 @@ static const char* UNARY_REG_NAMES[] =
     "cvtfi"
 };
 
+enum class unary_reg1_op
+{
+    bitwise_not,
+};
+
+static const char* UNARY_REG_ONE_NAMES[] = 
+{
+    "not",
+};
 
 enum class sign_extend_op
 {
@@ -1073,7 +1083,8 @@ struct UnaryReg1
     IrRegister dst;
 };
 
-using UnaryRegTwo = UnaryReg2<unary_reg_op>;
+using UnaryRegTwo = UnaryReg2<unary_reg2_op>;
+using UnaryRegOne = UnaryReg1<unary_reg1_op>;
 using SignExtend = UnaryReg2<sign_extend_op>;
 using SetFromFlag = UnaryReg1<cmp_sign_op>;
 
@@ -1109,6 +1120,7 @@ struct Opcode
         ShiftReg3 shift_reg3;
         ShiftReg2 shift_reg2;
         UnaryRegTwo unary_reg2;
+        UnaryRegOne unary_reg1;
         SignExtend sign_extend;
         CmpImm3 cmp_imm3;
         CmpGpr3 cmp_gpr3;

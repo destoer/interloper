@@ -322,7 +322,8 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::mov_fpr_imm: disass_mov_fpr_imm(opcode,disass); break;
         case op_group::branch_label: disass_branch_label(opcode,disass); break;
         case op_group::branch_reg: disass_branch_reg(opcode,disass); break;
-        case op_group::unary_reg2: disass_unary_reg2(opcode,disass,opcode.unary_reg2,UNARY_REG_NAMES); break;
+        case op_group::unary_reg2: disass_unary_reg2(opcode,disass,opcode.unary_reg2,UNARY_REG_TWO_NAMES); break;
+        case op_group::unary_reg1: disass_unary_reg1(opcode,disass,opcode.unary_reg1,UNARY_REG_ONE_NAMES); break;
         case op_group::sign_extend: disass_unary_reg2(opcode,disass,opcode.sign_extend,SIGN_EXTEND_NAMES); break;
         case op_group::lea: disass_addr(opcode,disass,opcode.lea,TAKE_ADDR_NAMES); break;
         case op_group::addrof: disass_addr(opcode,disass,opcode.addrof,TAKE_ADDR_NAMES); break;
