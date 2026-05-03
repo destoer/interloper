@@ -347,6 +347,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::reg2_src: disass_reg2_src(opcode,disass,opcode.reg2_src); break;
         case op_group::imm2_src: disass_imm2_src(opcode,disass,opcode.imm2_src); break;
         case op_group::set_from_flag: disass_unary_reg1(opcode,disass,opcode.set_from_flag,SET_FROM_SIGN_OP); break;
+        case op_group::x86_fixed: disass_reg2_dst(opcode,disass,opcode.x86_fixed,X86_FIXED_NAMES); break;
     }
 }
 

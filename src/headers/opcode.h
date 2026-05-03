@@ -614,6 +614,7 @@ enum class op_group
     reg2_src,
     imm2_src,
     set_from_flag,
+    x86_fixed,
 };
 
 enum class ir_reg_type
@@ -984,6 +985,28 @@ struct RegTwoDst
 };
 
 
+enum class x86_fixed_type
+{
+	lsl,
+	asr,
+	lsr,
+	udiv,
+	sdiv,
+	umod,
+	smod,
+};
+
+const char* X86_FIXED_NAMES[] = 
+{
+	"lsl_x86",
+	"asr_x86",
+	"lsr_x86",
+	"udiv_x86",
+	"sdiv_x86",
+	"umod_x86",
+	"smod_x86",
+};
+
 enum class reg_two_src
 {
     cmp_flags_gpr,
@@ -1019,6 +1042,8 @@ using ArithFpr3 = RegThree<fpr_arith>;
 using ArithFpr2 = RegTwoDst<fpr_arith>;
 using ShiftReg3 = RegThree<shift_op>;
 using ShiftReg2 = RegTwoDst<shift_op>;
+
+using X86Fixed = RegTwoDst<x86_fixed_type>;
 
 
 using CmpGpr3 = RegThree<cmp_sign_op>;
@@ -1128,6 +1153,7 @@ struct Opcode
         RegTwoSrc reg2_src;
         ImmTwoSrc imm2_src;
         SetFromFlag set_from_flag;
+        X86Fixed x86_fixed;
     };
 
     bool lowered = false;

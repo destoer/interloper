@@ -18,6 +18,21 @@ OpcodeNode* lower_x86_cond_branch(Block& block, OpcodeNode* node)
     return node->next;
 }
 
+
+template<typename op_type>
+OpcodeNode* lower_x86_fixed(Block& block, OpcodeNode* node, const RegThree<op_type>& reg, x86_fixed_type fixed)
+{
+    const auto dst = reg.dst.ir;
+    const auto v1 = reg.v1.ir;
+    const auto v2 = reg.v2.ir;
+
+    insert_mov_reg2(block,node,dst,v1,reg_type::gpr_t);
+    node->value.group = op_group::x86_fixed;
+    node->value.x86_fixed = make_reg2_dst(dst,v2,fixed);
+
+    return node->next;
+}
+
 OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,OpcodeNode* node)
 {
     UNUSED(itl);
@@ -35,6 +50,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
                     return lower_reg3_opt(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
                 }
 
+                case arith_bin_op::udiv_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::udiv);
+                case arith_bin_op::sdiv_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::sdiv);
+                case arith_bin_op::smod_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::smod);
+                case arith_bin_op::umod_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::umod);
+
                 default: return lower_reg3(block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
             }
 
@@ -46,9 +66,17 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             return lower_reg3(block,node,opcode.arith_fpr3, &opcode.arith_fpr2, op_group::arith_fpr2,reg_type::float_t,ARITH_FPR_COMMUTATIVE);
         }
 
+
         case op_group::shift_reg3:
         {
-            return lower_reg3(block,node,opcode.shift_reg3, &opcode.shift_reg2, op_group::shift_reg2,reg_type::gpr_t,0);
+            switch(opcode.shift_reg3.type)
+            {
+                case shift_op::lsr: return lower_x86_fixed(block,node,opcode.shift_reg3,x86_fixed_type::lsr);
+                case shift_op::lsl: return lower_x86_fixed(block,node,opcode.shift_reg3,x86_fixed_type::lsl);
+                case shift_op::asr: return lower_x86_fixed(block,node,opcode.shift_reg3,x86_fixed_type::asr);
+            }
+
+            break;
         }
 
         case op_group::arith_imm3:
@@ -59,6 +87,8 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
                 case arith_bin_op::mul_t: return lower_no_imm(func,block,node);
                 default: return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
             } 
+
+            break;
         }
 
         case op_group::shift_imm3:
@@ -119,6 +149,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::imm2_src: break;
         case op_group::set_from_flag: break;
         case op_group::arith_imm2: break;
+        case op_group::x86_fixed: break;
     }
 
     return node->next;
