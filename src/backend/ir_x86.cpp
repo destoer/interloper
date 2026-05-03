@@ -19,16 +19,17 @@ OpcodeNode* lower_x86_cond_branch(Block& block, OpcodeNode* node)
 }
 
 
-template<typename op_type>
-OpcodeNode* lower_x86_fixed(Block& block, OpcodeNode* node, const RegThree<op_type>& reg, x86_fixed_type fixed)
+template<typename op_type,op_group group>
+OpcodeNode* lower_x86_fixed(Block& block, OpcodeNode* node, const RegThree<op_type,group>& reg, x86_fixed_type fixed)
 {
     const auto dst = reg.dst.ir;
     const auto v1 = reg.v1.ir;
     const auto v2 = reg.v2.ir;
 
     insert_mov_reg2_at(block,node,dst,v1,reg_type::gpr_t);
-    node->value.group = op_group::x86_fixed;
-    node->value.x86_fixed = make_reg2_dst(dst,v2,fixed);
+
+    auto& opcode = node->value;
+    make_reg2_dst_opcode(opcode,&opcode.x86_fixed,dst,v2,fixed);
 
     return node->next;
 }
@@ -45,7 +46,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             {
                 case arith_bin_op::add_t: 
                 {
-                    return lower_reg3_opt(func,block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
+                    return lower_reg3_opt(func,block,node,opcode.arith_gpr3, &opcode.arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
                 }
 
                 case arith_bin_op::udiv_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::udiv);
@@ -53,7 +54,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
                 case arith_bin_op::smod_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::smod);
                 case arith_bin_op::umod_t: return lower_x86_fixed(block,node,opcode.arith_gpr3,x86_fixed_type::umod);
 
-                default: return lower_reg3(func,block,node,opcode.arith_gpr3, &opcode.arith_gpr2, op_group::arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
+                default: return lower_reg3(func,block,node,opcode.arith_gpr3, &opcode.arith_gpr2,reg_type::gpr_t,ARITH_GPR_COMMUTATIVE);
             }
 
             break;
@@ -66,7 +67,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::arith_fpr3:
         { 
-            return lower_reg3(func,block,node,opcode.arith_fpr3, &opcode.arith_fpr2, op_group::arith_fpr2,reg_type::float_t,ARITH_FPR_COMMUTATIVE);
+            return lower_reg3(func,block,node,opcode.arith_fpr3, &opcode.arith_fpr2,reg_type::float_t,ARITH_FPR_COMMUTATIVE);
         }
 
 
@@ -86,9 +87,9 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         {
             switch(opcode.arith_imm3.type)
             {
-                case arith_bin_op::add_t: return lower_imm3_opt(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
+                case arith_bin_op::add_t: return lower_imm3_opt(block,node,opcode.arith_imm3,&opcode.arith_imm2);
                 case arith_bin_op::mul_t: return lower_no_imm(func,block,node);
-                default: return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2,op_group::arith_imm2);
+                default: return lower_imm3(block,node,opcode.arith_imm3,&opcode.arith_imm2);
             } 
 
             break;
@@ -96,17 +97,17 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_group::shift_imm3:
         {
-            return lower_imm3(block,node,opcode.shift_imm3,&opcode.shift_imm2,op_group::shift_imm2);
+            return lower_imm3(block,node,opcode.shift_imm3,&opcode.shift_imm2);
         }
 
         case op_group::cmp_gpr3:
         {
-            return lower_reg3_cmp_flag<cmp_sign_op,reg_type::gpr_t>(block,node,opcode.cmp_gpr3,&opcode.set_from_flag_gpr,op_group::set_from_flag_gpr);
+            return lower_reg3_cmp_flag<cmp_sign_op,reg_type::gpr_t>(block,node,opcode.cmp_gpr3,&opcode.set_from_flag_gpr);
         }
 
         case op_group::cmp_fpr3:
         {
-            return lower_reg3_cmp_flag<comparison_op,reg_type::float_t>(block,node,opcode.cmp_fpr3,&opcode.set_from_flag_fpr,op_group::set_from_flag_fpr);
+            return lower_reg3_cmp_flag<comparison_op,reg_type::float_t>(block,node,opcode.cmp_fpr3,&opcode.set_from_flag_fpr);
         }
 
         case op_group::cmp_imm3:

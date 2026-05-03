@@ -1,6 +1,6 @@
 
-template<typename type,const bool IS_LOAD, const bool STRUCT_ADDR>
-ConstRegSpan addr_opcode_reg_span(const AddrOpcode<type,IS_LOAD,STRUCT_ADDR>& addr_op, RegSpan& reg)
+template<typename type,const bool IS_LOAD, const bool STRUCT_ADDR,op_group group>
+ConstRegSpan addr_opcode_reg_span(const AddrOpcode<type,IS_LOAD,STRUCT_ADDR,group>& addr_op, RegSpan& reg)
 {
     reg.dst.size = 0;
     reg.src.size = 0;

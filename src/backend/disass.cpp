@@ -222,20 +222,20 @@ void disass_branch_reg(const Opcode& opcode, const Disass& disass)
 }
 
 
-template<typename type>
-void disass_unary_reg2(const Opcode& opcode, const Disass& disass, const UnaryReg2<type>& unary, const char* names[])
+template<typename type,op_group group>
+void disass_unary_reg2(const Opcode& opcode, const Disass& disass, const UnaryReg2<type,group>& unary, const char* names[])
 {
     print_disass(opcode,disass,"%s %r, %r\n",names[u32(unary.type)],unary.dst,unary.src);
 }
 
-template<typename type>
-void disass_unary_reg1(const Opcode& opcode, const Disass& disass, const UnaryReg1<type>& unary, const char* names[])
+template<typename type,op_group group>
+void disass_unary_reg1(const Opcode& opcode, const Disass& disass, const UnaryReg1<type,group>& unary, const char* names[])
 {
     print_disass(opcode,disass,"%s %r\n",names[u32(unary.type)],unary.dst);
 }
 
-template<typename type, const bool IS_LOAD, const bool IS_STRUCT>
-void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<type,IS_LOAD,IS_STRUCT>& addr_op, const char* names[])
+template<typename type, const bool IS_LOAD, const bool IS_STRUCT,op_group group>
+void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<type,IS_LOAD,IS_STRUCT,group>& addr_op, const char* names[])
 {
     assert(!opcode.lowered);
     const auto& addr = addr_op.addr_ir;
@@ -276,14 +276,14 @@ void disass_branch_cond_flag(const Opcode& opcode, const Disass& disass)
     print_disass(opcode,disass,"%s %a\n",JUMP_COND_NAMES[u32(branch.type)],branch.label);
 }
 
-template<typename type>
-void disass_reg3(const Opcode& opcode, const Disass& disass,const RegThree<type>& reg, const char* names[])
+template<typename type,op_group group>
+void disass_reg3(const Opcode& opcode, const Disass& disass,const RegThree<type,group>& reg, const char* names[])
 {
     print_disass(opcode,disass,"%s %r, %r, %r\n",names[u32(reg.type)],reg.dst,reg.v1,reg.v2);
 }
 
-template<typename type>
-void disass_reg2_dst(const Opcode& opcode, const Disass& disass,const RegTwoDst<type>& reg, const char* names[])
+template<typename type,op_group group>
+void disass_reg2_dst(const Opcode& opcode, const Disass& disass,const RegTwoDst<type,group>& reg, const char* names[])
 {
     print_disass(opcode,disass,"%s %r, %r\n",names[u32(reg.type)],reg.dst,reg.src);
 }
@@ -293,14 +293,14 @@ void disass_reg2_src(const Opcode& opcode, const Disass& disass,const RegTwoSrc&
     print_disass(opcode,disass,"%s %r, %r\n",REG_TWO_SRC_NAMES[u32(reg.type)],reg.v1,reg.v2);
 }
 
-template<typename type>
-void disass_imm3(const Opcode& opcode, const Disass& disass,const ImmThree<type>& imm, const char* names[])
+template<typename type,op_group group>
+void disass_imm3(const Opcode& opcode, const Disass& disass,const ImmThree<type,group>& imm, const char* names[])
 {
     print_disass(opcode,disass,"%s %r, %r, %x\n",names[u32(imm.type)],imm.dst,imm.src,imm.imm);
 }
 
-template<typename type>
-void disass_imm2_dst(const Opcode& opcode, const Disass& disass,const ImmTwoDst<type>& imm, const char* names[])
+template<typename type,op_group group>
+void disass_imm2_dst(const Opcode& opcode, const Disass& disass,const ImmTwoDst<type,group>& imm, const char* names[])
 {
     print_disass(opcode,disass,"%s %r, %x\n",names[u32(imm.type)],imm.dst,imm.imm);
 }

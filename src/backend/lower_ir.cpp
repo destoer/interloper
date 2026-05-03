@@ -1,7 +1,8 @@
 OpcodeNode* insert_mov_reg2(Block& block, OpcodeNode* node, RegSlot dst, RegSlot src, reg_type type, insertion_type insert_type)
 {
     Opcode opcode;
-    opcode.unary_reg2 = make_unary_reg2(dst,src,type == reg_type::gpr_t? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg);
+    const auto rtype = type == reg_type::gpr_t? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg;
+    opcode.unary_reg2 = make_unary_reg2<unary_reg2_op,op_group::unary_reg2>(dst,src,rtype);
     opcode.group = op_group::unary_reg2;
 
     return insert_node(block.list,node,opcode,insert_type);
@@ -19,9 +20,9 @@ OpcodeNode* insert_mov_reg2_after(Block& block, OpcodeNode* node, RegSlot dst, R
 
 
 
-template<typename op_type>
-OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const RegThree<op_type>& reg3, RegTwoDst<op_type>* reg2, 
-    op_group new_group, reg_type rtype, const u64 commutative_set) 
+template<typename op_type,op_group group3,op_group group2>
+OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const RegThree<op_type,group3>& reg3, RegTwoDst<op_type,group2>* reg2, 
+    reg_type rtype, const u64 commutative_set) 
 {
     const auto type = reg3.type;
     const auto dst = reg3.dst.ir;
@@ -36,7 +37,7 @@ OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const Reg
     {
         reg2->dst.ir = dst;
         reg2->src.ir = v2;
-        node->value.group = new_group;
+        node->value.group = group2;
     }
 
 
@@ -48,7 +49,7 @@ OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const Reg
         {
             reg2->dst.ir = dst;
             reg2->src.ir = v1;
-            node->value.group = new_group;
+            node->value.group = group2;
         }
 
         // sub dst, v1, dst
@@ -62,7 +63,7 @@ OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const Reg
 
             reg2->dst.ir = tmp;
             reg2->src.ir = dst;
-            node->value.group = new_group;
+            node->value.group = group2;
 
             node = insert_mov_reg2_after(block,node,dst,tmp,rtype);
         }
@@ -77,28 +78,28 @@ OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const Reg
 
         reg2->dst.ir = dst;
         reg2->src.ir = v2;     
-        node->value.group = new_group;
+        node->value.group = group2;
     }
 
     return node->next;
 }
 
-template<typename op_type>
-OpcodeNode* lower_reg3_opt(Function& func,Block& block, OpcodeNode* node, const RegThree<op_type>& reg3, RegTwoDst<op_type>* reg2, 
-    op_group new_group, reg_type rtype, const u64 commutative_set) 
+template<typename op_type,op_group group3,op_group group2>
+OpcodeNode* lower_reg3_opt(Function& func,Block& block, OpcodeNode* node, const RegThree<op_type,group3>& reg3, RegTwoDst<op_type,group2>* reg2, 
+    reg_type rtype, const u64 commutative_set) 
 {
     // lower if it will crush the encoding
     if(reg3.dst.ir == reg3.v1.ir || (is_set(u32(reg3.type),commutative_set) && reg3.dst.ir == reg3.v2.ir))
     {
-        return lower_reg3(func,block,node,reg3,reg2,new_group,rtype,commutative_set);
+        return lower_reg3(func,block,node,reg3,reg2,rtype,commutative_set);
     }
 
     return node->next;
 }
 
 // TODO: Handle large imm's
-template<typename type>
-OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm3, ImmTwoDst<type>* imm2, op_group new_group) 
+template<typename type,op_group group3,op_group group2>
+OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type,group3>& imm3, ImmTwoDst<type,group2>* imm2) 
 {
     const auto dst = imm3.dst.ir;
     const auto src = imm3.src.ir;
@@ -117,25 +118,25 @@ OpcodeNode* lower_imm3(Block& block, OpcodeNode* node, const ImmThree<type>& imm
     imm2->imm = imm;
 
     imm2->type = imm3.type;
-    node->value.group = new_group;
+    node->value.group = group2;
 
     return node->next;
 }
 
-template<typename type>
-OpcodeNode* lower_imm3_opt(Block& block, OpcodeNode* node, const ImmThree<type>& imm3, ImmTwoDst<type>* imm2, op_group new_group) 
+template<typename type,op_group group3,op_group group2>
+OpcodeNode* lower_imm3_opt(Block& block, OpcodeNode* node, const ImmThree<type,group3>& imm3, ImmTwoDst<type,group2>* imm2) 
 {
     // only lower if it would result in a shorter encoding
     if(imm3.dst.ir == imm3.src.ir)
     {
-        return lower_imm3(block,node,imm3,imm2,new_group);
+        return lower_imm3(block,node,imm3,imm2);
     }
 
     return node->next;
 }
 
-template<typename op_type, const reg_type RTYPE>
-OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<op_type>& cmp3, UnaryReg1<op_type>* set,op_group group)
+template<typename op_type, const reg_type RTYPE,op_group group2,op_group group1>
+OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<op_type,group2>& cmp3, UnaryReg1<op_type,group1>* set)
 {
 
     const auto dst = cmp3.dst.ir;
@@ -155,8 +156,8 @@ OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<o
     insert_at(block.list,node,cmp_flags);
 
     auto& opcode = node->value;
-    opcode.group = group;
-    *set = make_unary_reg1(dst,type);
+    opcode.group = group1;
+    *set = make_unary_reg1<op_type,group1>(dst,type);
 
     return node->next;
 
@@ -180,8 +181,7 @@ OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)
     opcode.group = op_group::imm2_src;  
 
     Opcode set;
-    set.group = op_group::set_from_flag_gpr;
-    set.set_from_flag_gpr = make_unary_reg1(dst,type);
+    make_unary_reg1_opcode(set,&set.set_from_flag_gpr,dst,type);
 
     node = insert_after(block.list,node,set);
 
@@ -205,13 +205,10 @@ OpcodeNode* lower_no_imm(Function& func, Block& block,OpcodeNode* node)
     node->value = make_mov_imm(tmp_slot,value);
 
     Opcode opcode;
-    opcode.arith_gpr3 = make_reg3(dst,src,tmp_slot,type);
-    opcode.group = op_group::arith_gpr3;
-
-    node = insert_after(block.list,node,opcode);
+    make_reg3_opcode(opcode,&opcode.arith_gpr3,dst,src,tmp_slot,type);
 
     // NOTE: another writing pass has to happen on this opcode
-    return node;   
+    return insert_after(block.list,node,opcode);
 }
 
 OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
@@ -226,7 +223,7 @@ OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
     }
 
     node->value.group = op_group::unary_reg1;
-    node->value.unary_reg1 = make_unary_reg1(dst,type);
+    node->value.unary_reg1 = make_unary_reg1<unary_reg1_op,op_group::unary_reg1>(dst,type);
 
     return node->next;
 }

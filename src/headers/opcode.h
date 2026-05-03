@@ -832,7 +832,7 @@ struct MovFprImm
 };
 
 
-template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT>
+template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT, op_group group>
 struct AddrOpcode
 {
     op_type type;
@@ -932,16 +932,16 @@ static const char* TAKE_ADDR_NAMES[] =
     "addrof"
 };
 
-using Load = AddrOpcode<load_type,true,false>;
-using LoadStruct = AddrOpcode<load_type,true,true>;
+using Load = AddrOpcode<load_type,true,false,op_group::load>;
+using LoadStruct = AddrOpcode<load_type,true,true,op_group::load_struct>;
 
-using Store = AddrOpcode<store_type,false,false>;
-using StoreStruct = AddrOpcode<store_type,false,true>;
+using Store = AddrOpcode<store_type,false,false,op_group::store>;
+using StoreStruct = AddrOpcode<store_type,false,true,op_group::store_struct>;
 
-using Lea = AddrOpcode<take_addr,true,false>;
-using AddrOf = AddrOpcode<take_addr,true,true>;
+using Lea = AddrOpcode<take_addr,true,false,op_group::lea>;
+using AddrOf = AddrOpcode<take_addr,true,true,op_group::addrof>;
 
-template<typename op_type>
+template<typename op_type, op_group group>
 struct ImmThree
 {
     op_type type;
@@ -953,7 +953,7 @@ struct ImmThree
 };
 
 
-template<typename op_type>
+template<typename op_type, op_group group>
 struct ImmTwoDst
 {
     op_type type;
@@ -980,7 +980,7 @@ struct ImmTwoSrc
     u64 imm = 0;
 };
 
-template<typename op_type>
+template<typename op_type, op_group group>
 struct RegThree
 {
     op_type type;
@@ -990,7 +990,7 @@ struct RegThree
     IrRegister v2;
 };
 
-template<typename op_type>
+template<typename op_type, op_group group>
 struct RegTwoDst
 {
     op_type type;
@@ -1046,24 +1046,24 @@ struct RegTwoSrc
 };
 
 
-using ShiftImm3 = ImmThree<shift_op>;
-using ShiftImm2 = ImmTwoDst<shift_op>;
-using ArithImm3 = ImmThree<arith_bin_op>;
-using ArithImm2 = ImmTwoDst<arith_bin_op>;
+using ShiftImm3 = ImmThree<shift_op,op_group::shift_imm3>;
+using ShiftImm2 = ImmTwoDst<shift_op,op_group::shift_imm2>;
+using ArithImm3 = ImmThree<arith_bin_op,op_group::arith_imm3>;
+using ArithImm2 = ImmTwoDst<arith_bin_op,op_group::arith_imm2>;
 
-using ArithGpr3 = RegThree<arith_bin_op>;
-using ArithGpr2 = RegTwoDst<arith_bin_op>;
-using ArithFpr3 = RegThree<fpr_arith>;
-using ArithFpr2 = RegTwoDst<fpr_arith>;
-using ShiftReg3 = RegThree<shift_op>;
-using ShiftReg2 = RegTwoDst<shift_op>;
+using ArithGpr3 = RegThree<arith_bin_op,op_group::arith_gpr3>;
+using ArithGpr2 = RegTwoDst<arith_bin_op,op_group::arith_gpr2>;
+using ArithFpr3 = RegThree<fpr_arith,op_group::arith_fpr3>;
+using ArithFpr2 = RegTwoDst<fpr_arith,op_group::arith_fpr2>;
+using ShiftReg3 = RegThree<shift_op,op_group::shift_reg3>;
+using ShiftReg2 = RegTwoDst<shift_op,op_group::shift_reg2>;
 
-using X86Fixed = RegTwoDst<x86_fixed_type>;
+using X86Fixed = RegTwoDst<x86_fixed_type,op_group::x86_fixed>;
 
 
-using CmpGpr3 = RegThree<cmp_sign_op>;
-using CmpFpr3 = RegThree<comparison_op>;
-using CmpImm3 = ImmThree<cmp_sign_op>;
+using CmpGpr3 = RegThree<cmp_sign_op,op_group::cmp_gpr3>;
+using CmpFpr3 = RegThree<comparison_op,op_group::cmp_fpr3>;
+using CmpImm3 = ImmThree<cmp_sign_op,op_group::cmp_imm3>;
 
 enum class unary_reg2_op
 {
@@ -1107,7 +1107,7 @@ const char* SIGN_EXTEND_NAMES[] =
     "sxw"
 };
 
-template<typename op_type>
+template<typename op_type,op_group group>
 struct UnaryReg2
 {
     op_type type;
@@ -1116,18 +1116,18 @@ struct UnaryReg2
 };
 
 
-template<typename op_type>
+template<typename op_type, op_group group>
 struct UnaryReg1
 {
     op_type type;
     IrRegister dst;
 };
 
-using UnaryRegTwo = UnaryReg2<unary_reg2_op>;
-using UnaryRegOne = UnaryReg1<unary_reg1_op>;
-using SignExtend = UnaryReg2<sign_extend_op>;
-using SetFromFlagGpr = UnaryReg1<cmp_sign_op>;
-using SetFromFlagFpr = UnaryReg1<comparison_op>;
+using UnaryRegTwo = UnaryReg2<unary_reg2_op,op_group::unary_reg2>;
+using UnaryRegOne = UnaryReg1<unary_reg1_op,op_group::unary_reg1>;
+using SignExtend = UnaryReg2<sign_extend_op,op_group::sign_extend>;
+using SetFromFlagGpr = UnaryReg1<cmp_sign_op,op_group::set_from_flag_gpr>;
+using SetFromFlagFpr = UnaryReg1<comparison_op,op_group::set_from_flag_fpr>;
 
 
 struct Opcode
