@@ -124,7 +124,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         {
             switch(opcode.unary_reg2.type)
             {
-                case unary_reg2_op::bitwise_not: return lower_unary_reg2(block,node,unary_reg1_op::bitwise_not);  
+                // case unary_reg2_op::bitwise_not: return lower_unary_reg2(block,node,unary_reg1_op::bitwise_not);  
                 default: return node->next;
             }
         }

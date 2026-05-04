@@ -149,7 +149,6 @@ OpcodeNode* lower_imm3_opt(Function& func,
 template<typename op_type, const reg_type RTYPE,op_group group2,op_group group1>
 OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<op_type,group2>& cmp3, UnaryReg1<op_type,group1>* set)
 {
-
     const auto dst = cmp3.dst.ir;
     const auto v1 = cmp3.v1.ir;
     const auto v2 = cmp3.v2.ir;
@@ -171,7 +170,6 @@ OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<o
     *set = make_unary_reg1<op_type,group1>(dst,type);
 
     return node->next;
-
 }
 
 OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)

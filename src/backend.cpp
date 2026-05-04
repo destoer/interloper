@@ -1,19 +1,18 @@
 #include <interloper.h>
 
-// #include "backend/op_table.inl"
 #include "backend/pool.cpp"
 #include "backend/reg.cpp"
 #include "backend/emitter.cpp"
-// #include "backend/rewrite_arch_ir.cpp"
 #include "backend/cfg.cpp"
 #include "backend/asm.cpp"
-// #include "backend/x86_emitter.cpp"
 #include "backend/stack_allocator.cpp"
-// #include "backend/linear_alloc.cpp"
 #include "backend/disass.cpp"
 #include "backend/lower_ir.cpp"
 #include "backend/ir_x86.cpp"
+#include "backend/linear_alloc.cpp"
+// #include "backend/reg_allocator.cpp"
 // #include "backend/elf.cpp"
+// #include "backend/x86_emitter.cpp"
 #include "backend/intrin.cpp"
 // #include "backend/ir.cpp"
 #include "backend/memory.cpp"
@@ -464,6 +463,24 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     {
         dump_itl_ir(itl);
     }
+
+
+    // perform register allocation on used functions
+    for(auto& func : itl.func_table.used)
+    {
+        allocate_registers(itl,*func);
+
+        if(itl.print_stack_allocation || itl.print_reg_allocation)
+        {
+            putchar('\n');
+        }
+    }
+
+    if(itl.print_ir)
+    {
+        dump_reg_ir(itl);
+    }
+
 
     auto end = std::chrono::high_resolution_clock::now();
     itl.backend_time = std::chrono::duration<double, std::milli>(end-start).count();
