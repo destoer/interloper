@@ -31,7 +31,7 @@ UnaryReg2<op_type,group> make_unary_reg2(RegSlot dst, RegSlot src, op_type type)
     return unary;
 }
 
-template<typename op_type,op_group group>
+template<op_group group,typename op_type>
 UnaryReg1<op_type,group> make_unary_reg1(RegSlot dst, op_type type)
 {
     UnaryReg1<op_type,group> unary;
@@ -41,31 +41,21 @@ UnaryReg1<op_type,group> make_unary_reg1(RegSlot dst, op_type type)
     return unary;
 }
 
-template<typename op_type,op_group group>
-void make_unary_reg1_opcode(Opcode& opcode, UnaryReg1<op_type,group>* unary, RegSlot dst, op_type type)
+template<op_group group, typename op_type>
+void emit_unary_reg2_opcode(Interloper& itl, Function& func, RegSlot dst, RegSlot src, op_type type)
 {
-    opcode.group = group;
-    *unary = make_unary_reg1<op_type,group>(dst,type);
-}
-
-template<typename op_type,op_group group>
-void emit_unary_reg2_opcode(Interloper& itl, Function& func, Opcode& opcode, UnaryReg2<op_type,group>* unary2, RegSlot dst, RegSlot src, op_type type)
-{
-    opcode.group = group;
-    *unary2 = make_unary_reg2<op_type,group>(dst,src,type);
+    const auto opcode = Opcode(make_unary_reg2<op_type,group>(dst,src,type));
     emit_block_func(itl,func,opcode);
 }
 
 void emit_unary_reg_two(Interloper& itl, Function& func, RegSlot dst, RegSlot src, unary_reg2_op type)
 {
-    Opcode opcode;
-    emit_unary_reg2_opcode(itl,func,opcode,&opcode.unary_reg2,dst,src,type);
+    emit_unary_reg2_opcode<op_group::unary_reg2>(itl,func,dst,src,type);
 }
 
 void emit_sign_extend(Interloper& itl, Function& func, RegSlot dst, RegSlot src,  sign_extend_op type)
 {
-    Opcode opcode;
-    emit_unary_reg2_opcode(itl,func,opcode,&opcode.sign_extend,dst,src,type);
+    emit_unary_reg2_opcode<op_group::sign_extend>(itl,func,dst,src,type);
 }
 
 void not_reg(Interloper& itl,Function& func, RegSlot dst, RegSlot src)

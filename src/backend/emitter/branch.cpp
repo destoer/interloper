@@ -15,38 +15,27 @@ ConstRegSpan branch_cond_reg_span(const BranchCond&  branch, RegSpan& span)
 
 Opcode make_branch_cond(RegSlot src, LabelSlot label, branch_cond_type type)
 {   
-    Opcode opcode;
-    opcode.group = op_group::branch_cond;
-    
     BranchCond cond;
     cond.type = type;
     cond.src.ir = src;
     cond.label = label;
 
-    opcode.branch_cond = cond;
 
-    return opcode;
+    return Opcode(cond);
 }
 
 Opcode make_branch_label(branch_type type, LabelSlot label)
 {   
-    Opcode opcode;
-    opcode.group = op_group::branch_label;
-    opcode.branch_label = {type,label};
-
-    return opcode;
+    return Opcode(BranchLabel {type,label});
 }
 
 void emit_branch_reg(Interloper& itl, Function& func, branch_type type, RegSlot src)
 {   
-    Opcode opcode;
-    opcode.group = op_group::branch_reg;
     BranchReg branch_reg;
     branch_reg.type = type;
     branch_reg.src.ir = src;
-
-    opcode.branch_reg = branch_reg;
-
+    
+    const auto opcode = Opcode(branch_reg);
     emit_block_func(itl,func,opcode);
 }
 

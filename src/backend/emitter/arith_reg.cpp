@@ -12,7 +12,7 @@ ConstRegSpan reg3_reg_span(const RegThree<type,group>& reg, RegSpan& span)
 }
 
 
-template<typename op_type,op_group group>
+template<op_group group, typename op_type>
 RegTwoDst<op_type,group> make_reg2_dst(RegSlot dst, RegSlot v1,op_type type)
 {
     RegTwoDst<op_type,group> reg_two;
@@ -22,15 +22,6 @@ RegTwoDst<op_type,group> make_reg2_dst(RegSlot dst, RegSlot v1,op_type type)
 
     return reg_two;
 }
-
-
-template<typename op_type,op_group group>
-void make_reg2_dst_opcode(Opcode& opcode, RegTwoDst<op_type,group>* reg2,RegSlot dst, RegSlot v1,op_type type)
-{
-    opcode.group = group;
-    *reg2 = make_reg2_dst<op_type,group>(dst,v1,type);
-}
-
 
 RegTwoSrc make_reg2_src(RegSlot v1, RegSlot v2,reg_two_src type)
 {
@@ -64,7 +55,7 @@ ConstRegSpan reg2_src_reg_span(const RegTwoSrc& reg, RegSpan& span)
 }
 
 
-template<typename op_type,op_group group>
+template<op_group group,typename op_type>
 RegThree<op_type,group> make_reg3(RegSlot dst, RegSlot v1, RegSlot v2, op_type type)
 {
     RegThree<op_type,group> reg_three;
@@ -76,41 +67,29 @@ RegThree<op_type,group> make_reg3(RegSlot dst, RegSlot v1, RegSlot v2, op_type t
     return reg_three;
 }
 
-template<typename op_type,op_group group>
-void make_reg3_opcode(Opcode& opcode, RegThree<op_type,group>* reg3, RegSlot dst, RegSlot v1, RegSlot v2, op_type type)
+template<op_group group,typename op_type>
+void emit_reg3_opcode(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, op_type type)
 {
-    opcode.group = group;
-    *reg3 = make_reg3<op_type,group>(dst,v1,v2,type);
+    const auto reg3 = make_reg3<group>(dst,v1,v2,type);
+    emit_block_func(itl,func,reg3);
 }
-
-
-template<typename op_type,op_group group>
-void emit_reg3_opcode(Interloper& itl, Function& func, Opcode& opcode, RegThree<op_type,group>* reg3, RegSlot dst, RegSlot v1, RegSlot v2, op_type type)
-{
-    make_reg3_opcode(opcode,reg3,dst,v1,v2,type);
-    emit_block_func(itl,func,opcode);
-}
-
 
 
 
 void emit_shift_reg3(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, shift_op type)
 {
-    Opcode opcode;
-    emit_reg3_opcode(itl,func,opcode,&opcode.shift_reg3,dst,v1,v2,type);
+    emit_reg3_opcode<op_group::shift_reg3>(itl,func,dst,v1,v2,type);
 }
 
 
 void emit_gpr_reg3(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, arith_bin_op type)
 {
-    Opcode opcode;
-    emit_reg3_opcode(itl,func,opcode,&opcode.arith_gpr3,dst,v1,v2,type);
+    emit_reg3_opcode<op_group::arith_gpr3>(itl,func,dst,v1,v2,type);
 }
 
 void emit_fpr_reg3(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, fpr_arith type)
 {
-    Opcode opcode;
-    emit_reg3_opcode(itl,func,opcode,&opcode.arith_fpr3,dst,v1,v2,type);
+    emit_reg3_opcode<op_group::arith_fpr3>(itl,func,dst,v1,v2,type);
 }
 
 void sub(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)

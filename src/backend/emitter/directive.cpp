@@ -94,44 +94,32 @@ DirectiveOperand make_pool_operand(PoolSlot slot)
 
 Opcode make_directive_one(directive_type type,const DirectiveOperand& v1)
 {
-    Opcode opcode;
-    opcode.group = op_group::directive;
-    
     Directive directive;
     directive.type = type;
     directive.operand[directive.size++] = v1;
 
-    opcode.directive = directive;
-    return opcode;
+    return Opcode(directive);
 }
 
 Opcode make_directive_two(directive_type type,const DirectiveOperand& v1,const DirectiveOperand& v2)
 {
-    Opcode opcode;
-    opcode.group = op_group::directive;
-
     Directive directive;
     directive.type = type;
     directive.operand[directive.size++] = v1;
     directive.operand[directive.size++] = v2;
 
-    opcode.directive = directive;
-    return opcode;
+    return Opcode(directive);
 }
 
 Opcode make_directive_three(directive_type type,const DirectiveOperand& v1,const DirectiveOperand& v2, const DirectiveOperand& v3)
 {
-    Opcode opcode;
-    opcode.group = op_group::directive;
-
     Directive directive;
     directive.type = type;
     directive.operand[directive.size++] = v1;
     directive.operand[directive.size++] = v2;
     directive.operand[directive.size++] = v3;
 
-    opcode.directive = directive;
-    return opcode;
+    return Opcode(directive);
 }
 
 void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, const DirectiveReg& reg)

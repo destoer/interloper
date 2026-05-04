@@ -41,10 +41,7 @@ void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struc
     auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
     reg.flags |= ALIASED;
 
-    Opcode opcode;
-    opcode.group = op_group::addrof;
-
-    opcode.addrof = make_addr_op<AddrOf>(dst,struct_addr.addr,take_addr::addrof);
+    const auto opcode = Opcode(make_addr_op<AddrOf>(dst,struct_addr.addr,take_addr::addrof));
     emit_block_func(itl,func,opcode);
 }
 
@@ -62,10 +59,7 @@ void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer
         return;
     }
 
-    Opcode opcode;
-    opcode.group = op_group::lea;
-
-    opcode.lea = make_addr_op<Lea>(dst,pointer.addr,take_addr::lea);
+    const auto opcode = Opcode(make_addr_op<Lea>(dst,pointer.addr,take_addr::lea));
     emit_block_func(itl,func,opcode);
 }
 
@@ -76,21 +70,13 @@ RegSlot lea_res(Interloper& itl,Function& func, const PointerAddr& addr)
 
 void emit_load(Interloper& itl, Function& func, RegSlot dst, const PointerAddr& pointer, load_type type)
 {
-    Opcode opcode;
-    opcode.group = op_group::load;
-
-    opcode.load = make_addr_op<Load>(dst,pointer.addr,type);;
+    const auto opcode = Opcode(make_addr_op<Load>(dst,pointer.addr,type));
     emit_block_func(itl,func,opcode);
 }
 
 Opcode make_store(RegSlot src, const Addr& addr, store_type type)
 {
-    Opcode opcode;
-    opcode.group = op_group::store;
-
-    opcode.store = make_addr_op<Store>(src,addr,type);
-
-    return opcode;
+    return Opcode(make_addr_op<Store>(src,addr,type));
 }
 
 void emit_store(Interloper& itl, Function& func, RegSlot src, const PointerAddr& pointer, store_type type)
@@ -101,18 +87,12 @@ void emit_store(Interloper& itl, Function& func, RegSlot src, const PointerAddr&
 
 void emit_load_struct(Interloper& itl, Function& func, RegSlot dst, const StructAddr& struct_addr, load_type type)
 {
-    Opcode opcode;
-    opcode.group = op_group::load_struct;
-
-    opcode.load_struct = make_addr_op<LoadStruct>(dst,struct_addr.addr,type);;
+    const auto opcode = Opcode(make_addr_op<LoadStruct>(dst,struct_addr.addr,type));
     emit_block_func(itl,func,opcode);
 }
 
 void emit_store_struct(Interloper& itl, Function& func, RegSlot src, const StructAddr& struct_addr, store_type type)
 {
-    Opcode opcode;
-    opcode.group = op_group::store_struct;
-
-    opcode.store_struct = make_addr_op<StoreStruct>(src,struct_addr.addr,type);
+    const auto opcode = Opcode(make_addr_op<StoreStruct>(src,struct_addr.addr,type));
     emit_block_func(itl,func,opcode);
 }

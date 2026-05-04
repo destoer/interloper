@@ -40,11 +40,10 @@ ImmThree<op_type,group> make_imm3(RegSlot dst, RegSlot src, u64 imm, op_type typ
     return imm_three;
 }
 
-template<typename op_type,op_group group>
-void emit_imm3_opcode(Interloper& itl, Function& func, Opcode& opcode, ImmThree<op_type,group>* imm3, RegSlot dst, RegSlot src, u64 imm, op_type type)
+template<op_group group,typename op_type>
+void emit_imm3_opcode(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, op_type type)
 {
-    opcode.group = group;
-    *imm3 = make_imm3<op_type,group>(dst,src,imm,type);
+    const auto opcode = Opcode(make_imm3<op_type,group>(dst,src,imm,type));
     emit_block_func(itl,func,opcode);
 }
 
@@ -58,17 +57,28 @@ ImmTwoSrc make_imm2_src(RegSlot src, u64 imm,imm_two_src type)
     return imm_two;
 }
 
+
+template<op_group group, typename op_type>
+ImmTwoDst<op_type,group> make_imm2_dst(RegSlot dst, u64 imm,op_type type)
+{
+    ImmTwoDst<op_type,group> imm_two;
+    imm_two.type = type;
+    imm_two.dst.ir = dst;
+    imm_two.imm = imm;
+
+    return imm_two;
+}
+
+
 void emit_gpr_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)
 {
-    Opcode opcode;
-    emit_imm3_opcode(itl,func,opcode,&opcode.arith_imm3,dst,src,imm,type);
+    emit_imm3_opcode<op_group::arith_imm3>(itl,func,dst,src,imm,type);
 }
 
 
 void emit_shift_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, shift_op type)
 {
-    Opcode opcode;
-    emit_imm3_opcode(itl,func,opcode,&opcode.shift_imm3,dst,src,imm,type);
+    emit_imm3_opcode<op_group::shift_imm3>(itl,func,dst,src,imm,type);
 }
 
 void add_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)

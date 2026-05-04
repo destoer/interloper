@@ -1,10 +1,7 @@
 
 void emit_implicit(Interloper& itl, Function& func, implicit_type type)
 {
-    Opcode opcode;
-    opcode.group = op_group::implicit;
-    opcode.implicit = {type};
-
+    const auto opcode = Opcode(Implicit {type});
     emit_block_func(itl,func,opcode);
 }
 

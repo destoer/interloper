@@ -1138,6 +1138,44 @@ struct Opcode
 {
     op_group group = op_group::directive;
 
+    Opcode(const Directive& value) : group(op_group::directive), directive(value) {}
+    Opcode(const BranchLabel& value) : group(op_group::branch_label), branch_label(value) {}
+    Opcode(const BranchCond& value) : group(op_group::branch_cond), branch_cond(value) {}
+    Opcode(const BranchCondFlag& value) : group(op_group::branch_cond_flag), branch_cond_flag(value) {}
+    Opcode(const Implicit& value) : group(op_group::implicit), implicit(value) {}
+    Opcode(const MovGprImm& value) : group(op_group::mov_gpr_imm), mov_gpr_imm(value) {} 
+    Opcode(const MovFprImm& value) : group(op_group::mov_fpr_imm), mov_fpr_imm(value) {} 
+    Opcode(const ArithImm3& value) : group(op_group::arith_imm3), arith_imm3(value) {}
+    Opcode(const ArithImm2& value) : group(op_group::arith_imm2), arith_imm2(value) {}
+    Opcode(const ArithGpr3& value) : group(op_group::arith_gpr3), arith_gpr3(value) {}
+    Opcode(const ArithGpr2& value) : group(op_group::arith_gpr2), arith_gpr2(value) {}
+    Opcode(const ArithFpr3& value) : group(op_group::arith_fpr3), arith_fpr3(value) {}
+    Opcode(const ArithFpr2& value) : group(op_group::arith_fpr2), arith_fpr2(value) {}
+    Opcode(const Lea& value) : group(op_group::lea), lea(value) {}
+    Opcode(const AddrOf& value) : group(op_group::addrof), addrof(value) {}
+    Opcode(const Load& value) : group(op_group::load), load(value) {}
+    Opcode(const LoadStruct& value) : group(op_group::load_struct), load_struct(value) {}
+    Opcode(const Store& value) : group(op_group::store), store(value) {}
+    Opcode(const StoreStruct& value) : group(op_group::store_struct), store_struct(value) {}
+    Opcode(const BranchReg& value) : group(op_group::branch_reg), branch_reg(value) {}
+    Opcode(const ShiftImm3& value) : group(op_group::shift_imm3), shift_imm3(value) {}
+    Opcode(const ShiftImm2& value) : group(op_group::shift_imm2), shift_imm2(value) {}
+    Opcode(const ShiftReg3& value) : group(op_group::shift_reg3), shift_reg3(value) {}
+    Opcode(const ShiftReg2& value) : group(op_group::shift_reg2), shift_reg2(value) {}
+    Opcode(const UnaryRegTwo& value) : group(op_group::unary_reg2), unary_reg2(value) {}
+    Opcode(const UnaryRegOne& value) : group(op_group::unary_reg1), unary_reg1(value) {}
+    Opcode(const SignExtend& value) : group(op_group::sign_extend), sign_extend(value) {}
+    Opcode(const CmpImm3& value) : group(op_group::cmp_imm3), cmp_imm3(value) {}
+    Opcode(const CmpGpr3& value) : group(op_group::cmp_gpr3), cmp_gpr3(value) {}
+    Opcode(const CmpFpr3& value) : group(op_group::cmp_fpr3), cmp_fpr3(value) {}
+    Opcode(const RegTwoSrc& value) : group(op_group::reg2_src), reg2_src(value) {}
+    Opcode(const ImmTwoSrc& value) : group(op_group::imm2_src), imm2_src(value) {}
+    Opcode(const SetFromFlagFpr& value) : group(op_group::set_from_flag_fpr), set_from_flag_fpr(value) {}
+    Opcode(const SetFromFlagGpr& value) : group(op_group::set_from_flag_gpr), set_from_flag_gpr(value) {}
+    Opcode(const X86Fixed& value) : group(op_group::x86_fixed), x86_fixed(value) {}
+
+    Opcode() {}
+
     union
     {
         Directive directive = {};

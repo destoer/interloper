@@ -23,11 +23,7 @@ Opcode make_mov_imm(RegSlot dst, u64 imm)
     mov_imm.dst.ir = dst;
     mov_imm.imm = imm;
 
-    Opcode opcode;
-    opcode.group = op_group::mov_gpr_imm;
-    opcode.mov_gpr_imm = mov_imm;
-
-    return opcode;
+    return Opcode(mov_imm);
 }
 
 void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
@@ -42,10 +38,7 @@ void movf_imm(Interloper& itl, Function& func, RegSlot dst, f64 imm)
     mov_imm.dst.ir = dst;
     mov_imm.imm = imm;
 
-    Opcode opcode;
-    opcode.group = op_group::mov_fpr_imm;
-    opcode.mov_fpr_imm = mov_imm;
-
+    const auto opcode = Opcode(mov_imm);
     emit_block_func(itl,func,opcode);
 }
 
