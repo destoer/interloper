@@ -295,6 +295,11 @@ RegSlot new_float(Function& func)
     return reg_slot;  
 }
 
+RegSlot new_max_tmp(Function& func,reg_type rtype)
+{
+    return rtype == reg_type::float_t? new_float(func) : new_tmp(func,GPR_SIZE);
+}
+
 RegSlot new_tmp_ptr(Function &func)
 {
     return new_tmp(func,GPR_SIZE);

@@ -58,7 +58,7 @@ OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const Reg
         // -> mov dst, t0
         else
         {
-            const auto tmp = rtype == reg_type::float_t? new_float(func) : new_tmp(func,GPR_SIZE);
+            const auto tmp = new_max_tmp(func,rtype);
             insert_mov_reg2_at(block,node,tmp,v1,rtype);
 
             reg2->dst.ir = tmp;
