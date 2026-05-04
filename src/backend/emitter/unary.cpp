@@ -16,8 +16,6 @@ ConstRegSpan unary_reg1_reg_span(const UnaryReg1<op_type,group>& unary, RegSpan&
     span.dst[0] = unary.dst.ir;
     span.dst.size = 1;
 
-    span.src.size = 0;
-
     return span;    
 }
 

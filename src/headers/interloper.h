@@ -134,7 +134,8 @@ struct Interloper
 
     RegSlot src_buffer[MAX_OPCODE_REGS] = {};
     RegSlot dst_buffer[MAX_OPCODE_REGS] = {};
-    RegSpan reg_span = make_reg_span(dst_buffer,src_buffer,MAX_OPCODE_REGS);
+    RegSlot dst_src_buffer[MAX_OPCODE_REGS] = {};
+    RegSpan reg_span = make_reg_span(dst_buffer,src_buffer,dst_src_buffer,MAX_OPCODE_REGS);
 };
 
 void pop_context(Interloper& itl);

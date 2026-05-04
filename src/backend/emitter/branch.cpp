@@ -2,7 +2,6 @@ ConstRegSpan branch_reg_span(const BranchReg&  branch, RegSpan& span)
 {
     span.src[0] = branch.src.ir;
     span.src.size = 1;
-    span.dst.size = 0;
 
     return span;
 }
@@ -11,8 +10,6 @@ ConstRegSpan branch_cond_reg_span(const BranchCond&  branch, RegSpan& span)
 {
     span.src[0] = branch.src.ir;
     span.src.size = 1;
-    span.dst.size = 0;
-
     return span;
 }
 

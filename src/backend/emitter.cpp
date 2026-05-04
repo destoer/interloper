@@ -38,6 +38,7 @@ const ConstRegSpan blank_reg_span(RegSpan& reg)
 {
     reg.dst.size = 0;
     reg.src.size = 0;
+    reg.dst_src.size = 0;
 
     return reg;
 }
@@ -102,18 +103,20 @@ RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, co
 
 ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
 {
+    blank_reg_span(reg);
+
     if(opcode.lowered)
     {
-        return blank_reg_span(reg);
+        return reg;
     }
 
     switch(opcode.group)
     {
-        case op_group::implicit: return blank_reg_span(reg); 
-        case op_group::branch_label: return blank_reg_span(reg); 
+        case op_group::implicit: return reg; 
+        case op_group::branch_label: return reg; 
         case op_group::branch_reg: return branch_reg_span(opcode.branch_reg,reg);
         case op_group::branch_cond: return branch_cond_reg_span(opcode.branch_cond,reg);
-        case op_group::branch_cond_flag: return blank_reg_span(reg); 
+        case op_group::branch_cond_flag: return reg; 
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
         case op_group::mov_fpr_imm: return mov_fpr_imm_reg_span(opcode.mov_fpr_imm,reg); 

@@ -375,6 +375,49 @@ void connect_flow_graph(Interloper& itl,Function& func)
     }
 }
 
+void handle_src_regs(Interloper& itl, Function& func, Block& block, const ConstSpan<RegSlot>& src_span)
+{
+    for(const auto& src : src_span)
+    {
+        // Not interested in special regs
+        if(is_special_reg(src))
+        {
+            continue;
+        }
+
+        auto& ir_reg = reg_from_slot(itl.symbol_table,func,src);
+
+        // ir reg, that is not stored in memory
+        if(!stored_in_mem(ir_reg) && !contains(block.def,src))
+        {
+            // used as src, without a def -> use
+            add(block.use,src); 
+        }
+    }
+}
+
+
+void handle_dst_regs(Interloper& itl, Function& func, Block& block, const ConstSpan<RegSlot>& dst_span)
+{
+    for(const auto& dst : dst_span)
+    {
+        // Not interested in special regs
+        if(is_special_reg(dst))
+        {
+            continue;
+        }
+
+        auto& ir_reg = reg_from_slot(itl.symbol_table,func,dst);
+
+        // used as dst before use, def 
+        if(!stored_in_mem(ir_reg) && !contains(block.use,dst))
+        {
+            add(block.def,dst);
+        }
+    }
+}
+
+
 // TODO: would it be cheaper to do this inside the emitter?
 void compute_use_def(Interloper& itl,Function& func)
 {
@@ -392,40 +435,10 @@ void compute_use_def(Interloper& itl,Function& func)
         {
             const auto regs = opcode_reg_span(node.value,itl.reg_span);
 
-            for(const auto& src : regs.src)
-            {
-                // Not interested in special regs
-                if(is_special_reg(src))
-                {
-                    continue;
-                }
+            handle_src_regs(itl,func,block,regs.src);
+            handle_src_regs(itl,func,block,regs.dst_src);
 
-                auto& ir_reg = reg_from_slot(itl.symbol_table,func,src);
-
-                // ir reg, that is not stored in memory
-                if(!stored_in_mem(ir_reg) && !contains(block.def,src))
-                {
-                    // used as src, without a def -> use
-                    add(block.use,src); 
-                }
-            }
-
-            for(const auto& dst : regs.dst)
-            {
-                // Not interested in special regs
-                if(is_special_reg(dst))
-                {
-                    continue;
-                }
-
-                auto& ir_reg = reg_from_slot(itl.symbol_table,func,dst);
-
-                // used as dst before use, def 
-                if(!stored_in_mem(ir_reg) && !contains(block.use,dst))
-                {
-                    add(block.def,dst);
-                }
-            }
+            handle_dst_regs(itl,func,block,regs.dst);
         }
 
         // if block has a use of a var it must be an input

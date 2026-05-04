@@ -238,6 +238,7 @@ struct RegSpan
 {
     Span<RegSlot> dst;
     Span<RegSlot> src;
+    Span<RegSlot> dst_src;
 };
 
 struct ConstRegSpan
@@ -246,6 +247,7 @@ struct ConstRegSpan
     {   
         dst = span.dst;
         src = span.src;
+        dst_src = span.dst_src;
     }
 
     ConstRegSpan()
@@ -255,13 +257,15 @@ struct ConstRegSpan
 
     ConstSpan<RegSlot> dst;
     ConstSpan<RegSlot> src;
+    ConstSpan<RegSlot> dst_src;
 };
 
-RegSpan make_reg_span(RegSlot* dst, RegSlot* src, size_t size)
+RegSpan make_reg_span(RegSlot* dst, RegSlot* src, RegSlot* dst_src, size_t size)
 {
     RegSpan regs;
     regs.dst = make_span(dst,0,size);
     regs.src = make_span(src,0,size);
+    regs.dst_src = make_span(dst_src,0,size);
 
     return regs;
 }

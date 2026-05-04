@@ -1,8 +1,5 @@
 ConstRegSpan directive_reg_span(const Directive& directive, RegSpan& reg)
 {
-    reg.src.size = 0;
-    reg.dst.size = 0;
-
     for(u32 i = 0; i < directive.size; i++)
     {
         const auto& oper = directive.operand[i];

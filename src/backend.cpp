@@ -465,21 +465,21 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     }
 
 
-    // perform register allocation on used functions
-    for(auto& func : itl.func_table.used)
-    {
-        allocate_registers(itl,*func);
+    // // perform register allocation on used functions
+    // for(auto& func : itl.func_table.used)
+    // {
+    //     allocate_registers(itl,*func);
 
-        if(itl.print_stack_allocation || itl.print_reg_allocation)
-        {
-            putchar('\n');
-        }
-    }
+    //     if(itl.print_stack_allocation || itl.print_reg_allocation)
+    //     {
+    //         putchar('\n');
+    //     }
+    // }
 
-    if(itl.print_ir)
-    {
-        dump_reg_ir(itl);
-    }
+    // if(itl.print_ir)
+    // {
+    //     dump_reg_ir(itl);
+    // }
 
 
     auto end = std::chrono::high_resolution_clock::now();

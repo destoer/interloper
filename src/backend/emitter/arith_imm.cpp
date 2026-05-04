@@ -13,8 +13,6 @@ ConstRegSpan imm3_reg_span(const ImmThree<type,group>& imm, RegSpan& span)
 template<typename type,op_group group>
 ConstRegSpan imm2_dst_reg_span(const ImmTwoDst<type,group>& imm, RegSpan& span)
 {
-    span.src.size = 0;
-
     span.dst[0] = imm.dst.ir;
     span.dst.size = 1;
 
@@ -23,8 +21,6 @@ ConstRegSpan imm2_dst_reg_span(const ImmTwoDst<type,group>& imm, RegSpan& span)
 
 ConstRegSpan imm2_src_reg_span(const ImmTwoSrc& imm, RegSpan& span)
 {
-    span.dst.size = 0;
-
     span.src[0] = imm.src.ir;
     span.src.size = 1;
 

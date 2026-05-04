@@ -46,11 +46,10 @@ template<typename type,op_group group>
 ConstRegSpan reg2_dst_reg_span(const RegTwoDst<type,group>& reg, RegSpan& span)
 {
     span.src[0] = reg.src.ir;
-    span.src[1] = reg.dst.ir;
-    span.src.size = 2;
+    span.src.size = 1;
 
-    span.dst[0] = reg.dst.ir;
-    span.dst.size = 1;
+    span.dst_src[0] = reg.dst.ir;
+    span.dst_src.size = 1;
 
     return span;
 }
@@ -60,8 +59,6 @@ ConstRegSpan reg2_src_reg_span(const RegTwoSrc& reg, RegSpan& span)
     span.src[0] = reg.v1.ir;
     span.src[1] = reg.v2.ir;
     span.src.size = 2;
-
-    span.dst.size = 0;
 
     return span;
 }
