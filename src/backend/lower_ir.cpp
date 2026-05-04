@@ -250,27 +250,19 @@ OpcodeNode* lower_fpr_const(Interloper& itl, Block& block, OpcodeNode* node)
 
     auto& opcode = node->value;
 
-    opcode.group = op_group::directive;
-
-    Directive directive;
-    directive.type = directive_type::load_const_float;
-    directive.operand[0] = make_reg_operand(dst,ir_reg_type::dst);
-    directive.operand[1] = make_pool_operand(pool_slot);
-    directive.operand[2] = make_decimal_operand(decimal);
-    directive.size = 3;
-
-    opcode.directive = directive;
+    opcode = make_directive_three(directive_type::load_const_float,
+        make_reg_operand(dst,ir_reg_type::dst), make_pool_operand(pool_slot),make_decimal_operand(decimal)
+    );
 
     return node->next;
 }
 
 OpcodeNode* lower_push_float_arg(Block& block, OpcodeNode* node)
 {
-    auto& directive = node->value.directive;
+    const auto& directive = node->value.directive;
     const auto src = directive.operand[0].reg;
 
-    const auto alloc_stack = make_directive_imm1(directive_type::alloc_stack,8);
-    directive = alloc_stack;
+    node->value = make_directive_one(directive_type::alloc_stack,make_imm_operand(8));
 
     const auto addr = make_addr(make_spec_reg_slot(spec_reg::sp),0);
     const auto store = make_store(src,addr,store_type::sf);

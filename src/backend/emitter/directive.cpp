@@ -33,15 +33,6 @@ ConstRegSpan directive_reg_span(const Directive& directive, RegSpan& reg)
     return reg;
 }
 
-void emit_directive(Interloper& itl, Function& func, const Directive& directive)
-{
-    Opcode opcode;
-    opcode.group = op_group::directive;
-    opcode.directive = directive;
-
-    emit_block_func(itl,func,opcode);
-}
-
 DirectiveOperand make_reg_operand(RegSlot slot,ir_reg_type reg_type)
 {
     DirectiveOperand oper;
@@ -103,70 +94,83 @@ DirectiveOperand make_pool_operand(PoolSlot slot)
 }
 
 
-void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, const DirectiveReg& reg)
+Opcode make_directive_one(directive_type type,const DirectiveOperand& v1)
 {
+    Opcode opcode;
+    opcode.group = op_group::directive;
+    
     Directive directive;
     directive.type = type;
-    directive.operand[0] = make_reg_operand(reg.slot,reg.type);
-    directive.size = 1;
-    emit_directive(itl,func,directive);  
+    directive.operand[directive.size++] = v1;
+
+    opcode.directive = directive;
+    return opcode;
+}
+
+Opcode make_directive_two(directive_type type,const DirectiveOperand& v1,const DirectiveOperand& v2)
+{
+    Opcode opcode;
+    opcode.group = op_group::directive;
+
+    Directive directive;
+    directive.type = type;
+    directive.operand[directive.size++] = v1;
+    directive.operand[directive.size++] = v2;
+
+    opcode.directive = directive;
+    return opcode;
+}
+
+Opcode make_directive_three(directive_type type,const DirectiveOperand& v1,const DirectiveOperand& v2, const DirectiveOperand& v3)
+{
+    Opcode opcode;
+    opcode.group = op_group::directive;
+
+    Directive directive;
+    directive.type = type;
+    directive.operand[directive.size++] = v1;
+    directive.operand[directive.size++] = v2;
+    directive.operand[directive.size++] = v3;
+
+    opcode.directive = directive;
+    return opcode;
+}
+
+void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, const DirectiveReg& reg)
+{
+    const auto opcode = make_directive_one(type,make_reg_operand(reg.slot,reg.type));
+    emit_block_func(itl,func,opcode);
 }
 
 void emit_directive_reg2(Interloper& itl, Function& func, directive_type type, const DirectiveReg& v1, const DirectiveReg& v2)
 {
-    Directive directive;
-    directive.type = type;
-    directive.operand[0] = make_reg_operand(v1.slot,v1.type);
-    directive.operand[1] = make_reg_operand(v2.slot,v2.type);
-    directive.size = 2;
-    emit_directive(itl,func,directive);  
+    const auto opcode = make_directive_two(type,make_reg_operand(v1.slot,v1.type),make_reg_operand(v2.slot,v2.type));
+    emit_block_func(itl,func,opcode);  
 }
 
-
-Directive make_directive_imm1(directive_type type, u64 imm)
-{
-    Directive directive;
-    directive.type = type;
-    directive.operand[0] = make_imm_operand(imm);
-    directive.size = 1;
-
-    return directive;
-}
 
 void emit_directive_imm1(Interloper& itl, Function& func, directive_type type, u64 imm)
 {
-    const auto directive = make_directive_imm1(type,imm);
-    emit_directive(itl,func,directive);  
+    const auto opcode = make_directive_one(type,make_imm_operand(imm));
+    emit_block_func(itl,func,opcode);
 }
 
 void emit_directive_reg_imm2(Interloper& itl, Function& func, directive_type type, const DirectiveReg& v1, u64 v2, u64 v3)
 {
-    Directive directive;
-    directive.type = type;
-    directive.operand[0] = make_reg_operand(v1.slot,v1.type);
-    directive.operand[1] = make_imm_operand(v2);
-    directive.operand[2] = make_imm_operand(v3);
-    directive.size = 3;
-    emit_directive(itl,func,directive);      
+    const auto opcode = make_directive_three(type,make_reg_operand(v1.slot,v1.type), make_imm_operand(v2), make_imm_operand(v3));
+    emit_block_func(itl,func,opcode);
 }
 
 void emit_directive_reg_imm1(Interloper& itl, Function& func, directive_type type, const DirectiveReg& v1, u64 v2)
 {
-    Directive directive;
-    directive.type = type;
-    directive.operand[0] = make_reg_operand(v1.slot,v1.type);
-    directive.operand[1] = make_imm_operand(v2);
-    directive.size = 2;
-    emit_directive(itl,func,directive);      
+    const auto opcode = make_directive_two(type,make_reg_operand(v1.slot,v1.type),make_imm_operand(v2));
+    emit_block_func(itl,func,opcode);    
 }
 
 void emit_directive_reg_set(Interloper& itl, Function& func, directive_type type, u64 set)
 {
-    Directive directive;
-    directive.type = type;
-    directive.operand[0] = make_reg_set_operand(set);
-    directive.size = 1;
-    emit_directive(itl,func,directive);      
+    const auto opcode = make_directive_one(type, make_reg_set_operand(set));
+    emit_block_func(itl,func,opcode);     
 }
 
 
@@ -261,13 +265,11 @@ void mov_unlock(Interloper& itl, Function& func, RegSlot dst, spec_reg spec)
 
 void pool_addr(Interloper& itl, Function& func, RegSlot dst, PoolSlot pool_slot, u32 offset)
 {
-    Directive directive;
-    directive.type = directive_type::pool_addr;
-    directive.operand[0] = make_reg_operand(dst,ir_reg_type::dst);
-    directive.operand[1] = make_pool_operand(pool_slot);
-    directive.operand[2] = make_imm_operand(offset);
-    directive.size = 3;
-    emit_directive(itl,func,directive);  
+    const auto opcode = make_directive_three(directive_type::pool_addr,
+        make_reg_operand(dst,ir_reg_type::dst), make_pool_operand(pool_slot), make_imm_operand(offset)
+    );
+
+    emit_block_func(itl,func,opcode);
 }
 
 RegSlot pool_addr_res(Interloper& itl, Function& func, PoolSlot pool_slot, u32 offset)
@@ -285,20 +287,12 @@ void alloc_stack(Interloper& itl, Function& func, u32 size)
 
 void alloc_slot(Interloper& itl, Function& func, RegSlot src, bool forced)
 {
-    Directive directive;
-    directive.type = directive_type::alloc_slot;
-    directive.operand[0] = make_reg_operand(src,ir_reg_type::directive);
-    directive.operand[1] = make_imm_operand(forced);
-    directive.size = 2;
-    emit_directive(itl,func,directive);      
+    const auto opcode = make_directive_two(directive_type::alloc_slot, make_reg_operand(src,ir_reg_type::directive),make_imm_operand(forced));
+    emit_block_func(itl,func,opcode);  
 }
 
 void load_func_addr(Interloper& itl, Function& func, RegSlot dst, LabelSlot label)
 {
-    Directive directive;
-    directive.type = directive_type::load_func_addr;
-    directive.operand[0] = make_reg_operand(dst,ir_reg_type::dst);
-    directive.operand[1] = make_label_operand(label);
-    directive.size = 2;
-    emit_directive(itl,func,directive);
+    const auto opcode = make_directive_two(directive_type::load_func_addr, make_reg_operand(dst,ir_reg_type::dst),make_label_operand(label));
+    emit_block_func(itl,func,opcode);  
 }
