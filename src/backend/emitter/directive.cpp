@@ -8,11 +8,9 @@ ConstRegSpan directive_reg_span(const Directive& directive, RegSpan& reg)
         {
             case directive_operand_type::dst_src:
             {
-                reg.dst[reg.dst.size++] = oper.reg;
-                reg.src[reg.src.size++] = oper.reg;
+                reg.dst_src[reg.dst_src.size++] = oper.reg;
                 break;
             }
-
 
             case directive_operand_type::dst:
             {
