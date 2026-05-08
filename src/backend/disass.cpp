@@ -53,6 +53,26 @@ void print_ir_reg(const SymbolTable& table, RegSlot reg)
 }
 
 
+void print_lowered_reg(const Disass& disass, lowered_reg_t reg)
+{
+    if(is_raw_special_reg(reg))
+    {
+        const u32 idx = reg - SPECIAL_REG_START;
+        printf("%s",SPECIAL_REG_NAMES[idx].buf);
+        return;
+    }
+
+
+    switch(disass.arch)
+    {
+        case arch_target::x86_64_t:
+        {
+            printf("%s",X86_NAMES[reg]);
+            break;
+        }
+    }
+    
+}
 
 void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt, va_list args)
 {
@@ -170,7 +190,13 @@ void disass_directive(const Opcode& opcode, const Disass& disass)
             case directive_operand_type::dst_src:
             case directive_operand_type::directive_reg:
             {
-                print_ir_reg(disass.table,operand.reg);
+                print_ir_reg(disass.table,operand.ir_reg);
+                break;
+            }
+
+            case directive_operand_type::lowered_reg:
+            {
+                print_lowered_reg(disass,operand.reg);
                 break;
             }
 

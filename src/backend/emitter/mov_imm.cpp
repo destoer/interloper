@@ -1,4 +1,4 @@
-ConstRegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, RegSpan& reg)
+ConstIrRegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, IrRegSpan& reg)
 {
     u32 dst = 0;
     reg.dst[dst++] = mov_imm.dst.ir;
@@ -7,7 +7,7 @@ ConstRegSpan mov_gpr_imm_reg_span(const MovGprImm& mov_imm, RegSpan& reg)
     return reg;
 }
 
-ConstRegSpan mov_fpr_imm_reg_span(const MovFprImm& mov_imm, RegSpan& reg)
+ConstIrRegSpan mov_fpr_imm_reg_span(const MovFprImm& mov_imm, IrRegSpan& reg)
 {
     u32 dst = 0;
     reg.dst[dst++] = mov_imm.dst.ir;

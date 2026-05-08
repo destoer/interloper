@@ -1,5 +1,5 @@
 template<typename op_type, op_group group>
-ConstRegSpan unary_reg2_reg_span(const UnaryReg2<op_type,group>& unary, RegSpan& span)
+ConstIrRegSpan unary_reg2_reg_span(const UnaryReg2<op_type,group>& unary, IrRegSpan& span)
 {
     span.src[0] = unary.src.ir;
     span.src.size = 1;
@@ -11,7 +11,7 @@ ConstRegSpan unary_reg2_reg_span(const UnaryReg2<op_type,group>& unary, RegSpan&
 }
 
 template<typename op_type,op_group group>
-ConstRegSpan unary_reg1_reg_span(const UnaryReg1<op_type,group>& unary, RegSpan& span)
+ConstIrRegSpan unary_reg1_reg_span(const UnaryReg1<op_type,group>& unary, IrRegSpan& span)
 {
     span.dst[0] = unary.dst.ir;
     span.dst.size = 1;

@@ -1,5 +1,5 @@
 template<typename type,op_group group>
-ConstRegSpan reg3_reg_span(const RegThree<type,group>& reg, RegSpan& span)
+ConstIrRegSpan reg3_reg_span(const RegThree<type,group>& reg, IrRegSpan& span)
 {
     span.src[0] = reg.v1.ir;
     span.src[1] = reg.v2.ir;
@@ -34,7 +34,7 @@ RegTwoSrc make_reg2_src(RegSlot v1, RegSlot v2,reg_two_src type)
 }
 
 template<typename type,op_group group>
-ConstRegSpan reg2_dst_reg_span(const RegTwoDst<type,group>& reg, RegSpan& span)
+ConstIrRegSpan reg2_dst_reg_span(const RegTwoDst<type,group>& reg, IrRegSpan& span)
 {
     span.src[0] = reg.src.ir;
     span.src.size = 1;
@@ -45,7 +45,7 @@ ConstRegSpan reg2_dst_reg_span(const RegTwoDst<type,group>& reg, RegSpan& span)
     return span;
 }
 
-ConstRegSpan reg2_src_reg_span(const RegTwoSrc& reg, RegSpan& span)
+ConstIrRegSpan reg2_src_reg_span(const RegTwoSrc& reg, IrRegSpan& span)
 {
     span.src[0] = reg.v1.ir;
     span.src[1] = reg.v2.ir;

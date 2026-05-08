@@ -235,7 +235,7 @@ OpcodeNode* lower_fpr_const(Interloper& itl, Block& block, OpcodeNode* node)
 OpcodeNode* lower_push_float_arg(Block& block, OpcodeNode* node)
 {
     const auto& directive = node->value.directive;
-    const auto src = directive.operand[0].reg;
+    const auto src = directive.operand[0].ir_reg;
 
     node->value = make_directive_one(directive_type::alloc_stack,make_imm_operand(8));
 

@@ -131,11 +131,8 @@ struct Interloper
     Function* array_equal = nullptr;
     Function* start = nullptr;
 
-
-    RegSlot src_buffer[MAX_OPCODE_REGS] = {};
-    RegSlot dst_buffer[MAX_OPCODE_REGS] = {};
-    RegSlot dst_src_buffer[MAX_OPCODE_REGS] = {};
-    RegSpan reg_span = make_reg_span(dst_buffer,src_buffer,dst_src_buffer,MAX_OPCODE_REGS);
+    IrRegSpanStorage reg_span_storage;
+    IrRegSpan reg_span = make_ir_reg_span(reg_span_storage.dst_buffer,reg_span_storage.src_buffer,reg_span_storage.dst_src_buffer,MAX_OPCODE_REGS);
 };
 
 void pop_context(Interloper& itl);

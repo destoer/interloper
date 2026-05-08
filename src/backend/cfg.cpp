@@ -433,7 +433,7 @@ void compute_use_def(Interloper& itl,Function& func)
         // run a pass on the block
         for(const OpcodeNode& node : block.list)
         {
-            const auto regs = opcode_reg_span(node.value,itl.reg_span);
+            const auto regs = opcode_ir_reg_span(node.value,itl.reg_span);
 
             handle_src_regs(itl,func,block,regs.src);
             handle_src_regs(itl,func,block,regs.dst_src);

@@ -2,7 +2,7 @@
 
 void reload_slot(Interloper& itl, Function& func, const Reg& dst);
 void spill_slot(Interloper& itl, Function& func, const Reg& src);
-ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg);
+ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg);
 
 void handle_src_storage(Interloper& itl, Function& func, RegSlot src)
 {
@@ -34,7 +34,7 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot)
     }
 }
 
-const ConstRegSpan blank_reg_span(RegSpan& reg)
+const ConstIrRegSpan blank_reg_span(IrRegSpan& reg)
 {
     reg.dst.size = 0;
     reg.src.size = 0;
@@ -46,7 +46,7 @@ const ConstRegSpan blank_reg_span(RegSpan& reg)
 // NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
 OpcodeNode* emit_block_internal(Interloper& itl, Function& func,BlockSlot block_slot, const Opcode& opcode)
 {
-    const auto reg = opcode_reg_span(opcode,itl.reg_span);
+    const auto reg = opcode_ir_reg_span(opcode,itl.reg_span);
 
     for(const auto& src: reg.src)
     {
@@ -101,10 +101,11 @@ RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, co
 #include "emitter/unary.cpp"
 #include "emitter/cmp.cpp"
 
-ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
+ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg)
 {
     blank_reg_span(reg);
 
+    // If we have lowered this opcode then there are no IR registers.
     if(opcode.lowered)
     {
         return reg;
@@ -131,12 +132,12 @@ ConstRegSpan opcode_reg_span(const Opcode& opcode, RegSpan& reg)
         case op_group::shift_reg3: return reg3_reg_span(opcode.shift_reg3,reg);
         case op_group::shift_reg2: return reg2_dst_reg_span(opcode.shift_reg2,reg);
         case op_group::imm2_src: return imm2_src_reg_span(opcode.imm2_src,reg);
-        case op_group::load: return addr_opcode_reg_span(opcode.load,reg);
-        case op_group::load_struct: return addr_opcode_reg_span(opcode.load_struct,reg);
-        case op_group::store: return addr_opcode_reg_span(opcode.store,reg);
-        case op_group::store_struct: return addr_opcode_reg_span(opcode.store_struct,reg);   
-        case op_group::lea: return addr_opcode_reg_span(opcode.lea,reg);
-        case op_group::addrof: return addr_opcode_reg_span(opcode.addrof,reg);  
+        case op_group::load: return addr_opcode_ir_reg_span(opcode.load,reg);
+        case op_group::load_struct: return addr_opcode_ir_reg_span(opcode.load_struct,reg);
+        case op_group::store: return addr_opcode_ir_reg_span(opcode.store,reg);
+        case op_group::store_struct: return addr_opcode_ir_reg_span(opcode.store_struct,reg);   
+        case op_group::lea: return addr_opcode_ir_reg_span(opcode.lea,reg);
+        case op_group::addrof: return addr_opcode_ir_reg_span(opcode.addrof,reg);  
         case op_group::unary_reg2: return unary_reg2_reg_span(opcode.unary_reg2,reg);
         case op_group::unary_reg1: return unary_reg1_reg_span(opcode.unary_reg1,reg);
         case op_group::sign_extend: return unary_reg2_reg_span(opcode.sign_extend,reg);

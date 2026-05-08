@@ -1,4 +1,4 @@
-ConstRegSpan directive_reg_span(const Directive& directive, RegSpan& reg)
+ConstIrRegSpan directive_reg_span(const Directive& directive, IrRegSpan& reg)
 {
     for(u32 i = 0; i < directive.size; i++)
     {
@@ -8,19 +8,19 @@ ConstRegSpan directive_reg_span(const Directive& directive, RegSpan& reg)
         {
             case directive_operand_type::dst_src:
             {
-                reg.dst_src[reg.dst_src.size++] = oper.reg;
+                reg.dst_src[reg.dst_src.size++] = oper.ir_reg;
                 break;
             }
 
             case directive_operand_type::dst:
             {
-                reg.dst[reg.dst.size++] = oper.reg;
+                reg.dst[reg.dst.size++] = oper.ir_reg;
                 break;
             }
 
             case directive_operand_type::src:
             {
-                reg.src[reg.src.size++] = oper.reg;
+                reg.src[reg.src.size++] = oper.ir_reg;
                 break;
             }
 
@@ -34,11 +34,22 @@ ConstRegSpan directive_reg_span(const Directive& directive, RegSpan& reg)
 DirectiveOperand make_reg_operand(RegSlot slot,ir_reg_type reg_type)
 {
     DirectiveOperand oper;
-    oper.reg = slot;
+    oper.ir_reg = slot;
     oper.type = directive_operand_type(reg_type);
 
     return oper;
 }
+
+
+DirectiveOperand make_lowered_reg_operand(lowered_reg_t reg)
+{
+    DirectiveOperand oper;
+    oper.reg = reg;
+    oper.type = directive_operand_type::lowered_reg;
+
+    return oper;
+}
+
 
 DirectiveOperand make_decimal_operand(f64 decimal)
 {
@@ -281,4 +292,22 @@ void load_func_addr(Interloper& itl, Function& func, RegSlot dst, LabelSlot labe
 {
     const auto opcode = make_directive_two(directive_type::load_func_addr, make_reg_operand(dst,ir_reg_type::dst),make_label_operand(label));
     emit_block_func(itl,func,opcode);  
+}
+
+Opcode make_spill(lowered_reg_t reg, RegSlot slot, u64 stack_offset)
+{
+    const auto reg_oper = make_lowered_reg_operand(reg);
+    const auto slot_oper = make_reg_operand(slot,ir_reg_type::directive);
+    const auto opcode = make_directive_three(directive_type::spill,reg_oper,slot_oper,make_imm_operand(stack_offset));
+
+    return opcode;
+}
+
+Opcode make_load(lowered_reg_t reg, RegSlot slot, u64 stack_offset)
+{
+    const auto reg_oper = make_lowered_reg_operand(reg);
+    const auto slot_oper = make_reg_operand(slot,ir_reg_type::directive);
+    const auto opcode = make_directive_three(directive_type::load,reg_oper,slot_oper,make_imm_operand(stack_offset));
+
+    return opcode;
 }

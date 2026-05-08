@@ -24,7 +24,7 @@ using LabelSlot = Slot<slot_type::label>;
 using BlockSlot = Slot<slot_type::block>;
 using PoolSlot = Slot<slot_type::pool>;
 
-using lowered_reg = u32;
+using lowered_reg_t = u32;
 
 
 template<slot_type T>
@@ -156,7 +156,7 @@ static const String SPECIAL_REG_NAMES[] =
 
 static_assert((sizeof(SPECIAL_REG_NAMES) / sizeof(String)) == SPECIAL_REG_SIZE);
 
-b32 is_raw_special_reg(u32 reg)
+b32 is_raw_special_reg(lowered_reg_t reg)
 {
     return reg >= SPECIAL_REG_START && reg <= SPECIAL_REG_END;
 }
@@ -234,23 +234,34 @@ RegSlot make_spec_reg_slot(spec_reg reg)
     return handle;
 }
 
-struct RegSpan
+static constexpr u32 MAX_OPCODE_REGS = 8;
+
+struct IrRegSpanStorage
+{
+    RegSlot src_buffer[MAX_OPCODE_REGS] = {};
+    RegSlot dst_buffer[MAX_OPCODE_REGS] = {};
+    RegSlot dst_src_buffer[MAX_OPCODE_REGS] = {};
+};
+
+struct IrRegSpan
 {
     Span<RegSlot> dst;
     Span<RegSlot> src;
     Span<RegSlot> dst_src;
 };
 
-struct ConstRegSpan
+
+
+struct ConstIrRegSpan
 {
-    ConstRegSpan(const RegSpan& span)
+    ConstIrRegSpan(const IrRegSpan& span)
     {   
         dst = span.dst;
         src = span.src;
         dst_src = span.dst_src;
     }
 
-    ConstRegSpan()
+    ConstIrRegSpan()
     {
 
     }
@@ -260,15 +271,31 @@ struct ConstRegSpan
     ConstSpan<RegSlot> dst_src;
 };
 
-RegSpan make_reg_span(RegSlot* dst, RegSlot* src, RegSlot* dst_src, size_t size)
+IrRegSpan make_ir_reg_span(RegSlot* dst, RegSlot* src, RegSlot* dst_src, size_t size)
 {
-    RegSpan regs;
+    IrRegSpan regs;
     regs.dst = make_span(dst,0,size);
     regs.src = make_span(src,0,size);
     regs.dst_src = make_span(dst_src,0,size);
 
     return regs;
 }
+
+struct LoweredRegSpanStorage
+{
+    lowered_reg_t src_buffer[MAX_OPCODE_REGS] = {};
+    lowered_reg_t dst_buffer[MAX_OPCODE_REGS] = {};
+    lowered_reg_t dst_src_buffer[MAX_OPCODE_REGS] = {};
+};
+
+
+struct LoweredRegSpan
+{
+    Span<lowered_reg_t> dst;
+    Span<lowered_reg_t> src;
+    Span<lowered_reg_t> dst_src; 
+};
+
 
 struct Addr
 {
@@ -280,8 +307,8 @@ struct Addr
 
 struct LoweredAddr
 {
-    lowered_reg base = 0;
-    lowered_reg index = u32(spec_reg::null);
+    lowered_reg_t base = 0;
+    lowered_reg_t index = u32(spec_reg::null);
     u32 scale = 1;
     u32 offset = 0;
 };
@@ -634,6 +661,12 @@ enum class op_group
     x86_fixed,
 };
 
+// TODO: May want to filter out calls.
+inline bool is_group_branch(op_group group) 
+{
+    return group >= op_group::branch_label && group <= op_group::branch_cond_flag;
+}
+
 enum class ir_reg_type
 {
     src,
@@ -653,7 +686,7 @@ struct IrRegister
     union
     {
         RegSlot ir = {};
-        lowered_reg reg;
+        lowered_reg_t reg;
     };
 };
 
@@ -669,6 +702,7 @@ enum class directive_operand_type
     reg_set,
     pool,
     label,
+    lowered_reg,
 };
 
 struct DirectiveOperand
@@ -678,9 +712,10 @@ struct DirectiveOperand
         f64 decimal;
         u64 imm;
         u64 reg_set;
-        RegSlot reg = {INVALID_SYM_REG_SLOT};
+        RegSlot ir_reg = {INVALID_SYM_REG_SLOT};
         LabelSlot label;
         PoolSlot pool;
+        lowered_reg_t reg;
     };
 
     directive_operand_type type = directive_operand_type::dst_src;
@@ -704,6 +739,9 @@ enum class directive_type
     alloc_local_array,
     alloc_global_array,
     load_const_float,
+    live_var,
+    spill,
+    load
 };
 
 static const char* DIRECTIVE_NAMES[] = 
@@ -723,7 +761,10 @@ static const char* DIRECTIVE_NAMES[] =
     "load_func_addr",
     "alloc_local_array",
     "alloc_global_array",
-    "load_const_float"
+    "load_const_float",
+    "live_var",
+    "spill",
+    "load"
 };
 
 struct Directive
@@ -1217,5 +1258,3 @@ struct Opcode
 
     bool lowered = false;
 };
-
-static constexpr u32 MAX_OPCODE_REGS = 8;

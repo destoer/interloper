@@ -1,4 +1,4 @@
-ConstRegSpan branch_reg_span(const BranchReg&  branch, RegSpan& span)
+ConstIrRegSpan branch_reg_span(const BranchReg&  branch, IrRegSpan& span)
 {
     span.src[0] = branch.src.ir;
     span.src.size = 1;
@@ -6,7 +6,7 @@ ConstRegSpan branch_reg_span(const BranchReg&  branch, RegSpan& span)
     return span;
 }
 
-ConstRegSpan branch_cond_reg_span(const BranchCond&  branch, RegSpan& span)
+ConstIrRegSpan branch_cond_reg_span(const BranchCond&  branch, IrRegSpan& span)
 {
     span.src[0] = branch.src.ir;
     span.src.size = 1;
