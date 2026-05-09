@@ -132,7 +132,7 @@ struct Interloper
     Function* start = nullptr;
 
     IrRegSpanStorage reg_span_storage;
-    IrRegSpan reg_span = make_ir_reg_span(reg_span_storage.dst_buffer,reg_span_storage.src_buffer,reg_span_storage.dst_src_buffer,MAX_OPCODE_REGS);
+    IrRegSpan reg_span = make_ir_reg_span(reg_span_storage);
 };
 
 void pop_context(Interloper& itl);

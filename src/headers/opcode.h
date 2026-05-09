@@ -238,9 +238,9 @@ static constexpr u32 MAX_OPCODE_REGS = 8;
 
 struct IrRegSpanStorage
 {
-    RegSlot src_buffer[MAX_OPCODE_REGS] = {};
-    RegSlot dst_buffer[MAX_OPCODE_REGS] = {};
-    RegSlot dst_src_buffer[MAX_OPCODE_REGS] = {};
+    RegSlot src[MAX_OPCODE_REGS] = {};
+    RegSlot dst[MAX_OPCODE_REGS] = {};
+    RegSlot dst_src[MAX_OPCODE_REGS] = {};
 };
 
 struct IrRegSpan
@@ -271,21 +271,21 @@ struct ConstIrRegSpan
     ConstSpan<RegSlot> dst_src;
 };
 
-IrRegSpan make_ir_reg_span(RegSlot* dst, RegSlot* src, RegSlot* dst_src, size_t size)
+IrRegSpan make_ir_reg_span(IrRegSpanStorage& storage)
 {
     IrRegSpan regs;
-    regs.dst = make_span(dst,0,size);
-    regs.src = make_span(src,0,size);
-    regs.dst_src = make_span(dst_src,0,size);
+    regs.dst = make_span(storage.dst,0,MAX_OPCODE_REGS);
+    regs.src = make_span(storage.src,0,MAX_OPCODE_REGS);
+    regs.dst_src = make_span(storage.dst_src,0,MAX_OPCODE_REGS);
 
     return regs;
 }
 
 struct LoweredRegSpanStorage
 {
-    lowered_reg_t src_buffer[MAX_OPCODE_REGS] = {};
-    lowered_reg_t dst_buffer[MAX_OPCODE_REGS] = {};
-    lowered_reg_t dst_src_buffer[MAX_OPCODE_REGS] = {};
+    lowered_reg_t src[MAX_OPCODE_REGS] = {};
+    lowered_reg_t dst[MAX_OPCODE_REGS] = {};
+    lowered_reg_t dst_src[MAX_OPCODE_REGS] = {};
 };
 
 
@@ -295,6 +295,36 @@ struct LoweredRegSpan
     Span<lowered_reg_t> src;
     Span<lowered_reg_t> dst_src; 
 };
+
+LoweredRegSpan make_lowered_reg_span(LoweredRegSpanStorage& storage)
+{
+    LoweredRegSpan regs;
+    regs.dst = make_span(storage.dst,0,MAX_OPCODE_REGS);
+    regs.src = make_span(storage.src,0,MAX_OPCODE_REGS);
+    regs.dst_src = make_span(storage.dst_src,0,MAX_OPCODE_REGS);
+
+    return regs;
+}
+
+struct ConstLoweredRegSpan
+{
+    ConstLoweredRegSpan(const ConstLoweredRegSpan& span)
+    {   
+        dst = span.dst;
+        src = span.src;
+        dst_src = span.dst_src;
+    }
+
+    ConstLoweredRegSpan()
+    {
+
+    }
+
+    ConstSpan<lowered_reg_t> dst;
+    ConstSpan<lowered_reg_t> src;
+    ConstSpan<lowered_reg_t> dst_src;
+};
+
 
 
 struct Addr

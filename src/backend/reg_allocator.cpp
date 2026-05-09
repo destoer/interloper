@@ -1,8 +1,44 @@
+void lower_opcode(Opcode& opcode, const ConstLoweredRegSpan& regs)
+{
+    UNUSED(regs);
+
+    switch(opcode.group)
+    {
+        default:
+        {
+            unimplemented("Lower registers for %d",u32(opcode.group));
+        }
+    }
+
+    opcode.lowered = true;
+}
+
+void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* node)
+{
+    const auto ir_span = opcode_ir_reg_span(node->value,alloc.ir_reg_span);
+    const auto lowered_reg_span = linear_allocate_registers(alloc,block,node,ir_span,alloc.lowered_reg_span);
+
+    auto& opcode = node->value;
+    lower_opcode(opcode,lowered_reg_span);
+}
 
 OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
 {
-    UNUSED(itl); UNUSED(func); UNUSED(alloc); UNUSED(block); UNUSED(node);
-    assert(false);
+    UNUSED(itl); UNUSED(func); 
+
+    const auto& opcode = node->value;
+
+    switch(opcode.group)
+    {
+        default:
+        {
+            allocate_and_rewrite_opcode(alloc,block,node);
+            node = node->next;
+            break;
+        }
+    }
+
+    return node;
 }
 
 void allocation_first_pass(Interloper& itl,Function &func, LinearAlloc& alloc)

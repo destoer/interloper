@@ -67,8 +67,11 @@ struct LinearAlloc
     b32 stack_only = false;
     b32 debug = false;
 
-    IrRegSpanStorage reg_span_storage;
-    IrRegSpan reg_span = make_ir_reg_span(reg_span_storage.dst_buffer,reg_span_storage.src_buffer,reg_span_storage.dst_src_buffer,MAX_OPCODE_REGS);
+    IrRegSpanStorage ir_reg_span_storage;
+    IrRegSpan ir_reg_span = make_ir_reg_span(ir_reg_span_storage);
+
+    LoweredRegSpanStorage lowered_reg_span_storage;
+    LoweredRegSpan lowered_reg_span = make_lowered_reg_span(lowered_reg_span_storage);
 };
 
 
@@ -867,7 +870,7 @@ void compute_local_uses(LinearAlloc& alloc, Block& block)
     for(const OpcodeNode& node : block.list)
     {
         const auto opcode = node.value;
-        const auto regs = opcode_ir_reg_span(opcode,alloc.reg_span);
+        const auto regs = opcode_ir_reg_span(opcode,alloc.ir_reg_span);
 
         compute_local_uses_span(alloc,regs.src,pc);
         compute_local_uses_span(alloc,regs.dst_src,pc);
@@ -1162,6 +1165,12 @@ void clean_dead_regs(LinearAlloc& alloc)
 //         allocate_and_rewrite(alloc,block,node,0);
 //     }
 // }
+
+ConstLoweredRegSpan linear_allocate_registers(LinearAlloc& alloc,Block& block,OpcodeNode* node, const ConstIrRegSpan& ir_regs,LoweredRegSpan& lowered_regs)
+{
+    UNUSED(alloc); UNUSED(block); UNUSED(node); UNUSED(ir_regs); UNUSED(lowered_regs);
+    assert(false);
+}
 
 void finish_alloc(Reg& reg,LinearAlloc& alloc)
 {
