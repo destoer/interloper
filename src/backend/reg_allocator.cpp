@@ -1,18 +1,3 @@
-void lower_opcode(Opcode& opcode, const ConstLoweredRegSpan& regs)
-{
-    UNUSED(regs);
-
-    switch(opcode.group)
-    {
-        default:
-        {
-            unimplemented("Lower registers for %d",u32(opcode.group));
-        }
-    }
-
-    opcode.lowered = true;
-}
-
 void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* node)
 {
     const auto ir_span = opcode_ir_reg_span(node->value,alloc.ir_reg_span);
