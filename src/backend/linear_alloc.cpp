@@ -74,6 +74,10 @@ struct LinearAlloc
     LoweredRegSpan lowered_reg_span = make_lowered_reg_span(lowered_reg_span_storage);
 };
 
+Reg& reg_from_slot(RegSlot slot, LinearAlloc& alloc)
+{
+    return reg_from_slot(*alloc.table,alloc.tmp_regs,slot);
+}
 
 bool marked_for_expiry(LinearAlloc& alloc, RegSlot slot);
 
@@ -443,11 +447,6 @@ bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
     }
 
     return false;
-}
-
-Reg& reg_from_slot(RegSlot slot, LinearAlloc& alloc)
-{
-    return reg_from_slot(*alloc.table,alloc.tmp_regs,slot);
 }
 
 void reserve_offset(LinearAlloc& alloc, Reg& ir_reg,u32 reg)

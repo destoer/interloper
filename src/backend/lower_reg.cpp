@@ -31,6 +31,50 @@ void lower_directive(Directive& directive, const ConstLoweredRegSpan& regs)
     }
 }
 
+template<typename op_type,const bool IS_LOAD, op_group group>
+void lower_addr_struct(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,true,group>& addr, const ConstLoweredRegSpan& regs)
+{    
+    const u32 scale = addr.addr_ir.scale;
+    const u32 offset = addr.addr_ir.offset;
+    const auto base = addr.addr_ir.base;
+
+    if constexpr(IS_LOAD)
+    {
+        addr.v1.reg = regs.dst[0];
+    }
+
+    addr.addr.index = regs.src[0];
+    addr.addr.scale = scale;
+    addr.addr.offset = offset;
+
+    addr.addr.base_ir = base;
+
+    auto& reg = reg_from_slot(addr.addr.base_ir,alloc);
+
+    // add the stack offset, so this correctly offset for when we fully rewrite this
+    if(is_local_reg(reg))
+    {
+        addr.addr.offset += alloc.stack_alloc.stack_offset;
+    }
+}
+
+template<typename op_type,const bool IS_LOAD, op_group group>
+void lower_addr_pointer(AddrOpcode<op_type,IS_LOAD,false,group>& addr, const ConstLoweredRegSpan& regs)
+{    
+    const u32 scale = addr.addr_ir.scale;
+    const u32 offset = addr.addr_ir.offset;
+
+    if constexpr(IS_LOAD)
+    {
+        addr.v1.reg = regs.dst[0];
+    }
+
+    addr.addr.index = regs.src[0];
+    addr.addr.base = regs.src[1];
+    addr.addr.scale = scale;
+    addr.addr.offset = offset;
+}
+
 void lower_mov_gpr_imm(MovGprImm& mov, const ConstLoweredRegSpan& regs)
 {
     mov.dst.reg = regs.dst[0];
@@ -43,7 +87,7 @@ void lower_unary_reg2(UnaryReg2<op_type,group>& unary, const ConstLoweredRegSpan
     unary.src.reg = regs.src[0];
 }
 
-void lower_opcode(Opcode& opcode, const ConstLoweredRegSpan& regs)
+void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
 {
     UNUSED(regs);
 
@@ -64,6 +108,26 @@ void lower_opcode(Opcode& opcode, const ConstLoweredRegSpan& regs)
         case op_group::unary_reg2:
         {
             lower_unary_reg2(opcode.unary_reg2,regs);
+            break;
+        }
+
+        case op_group::addrof:
+        {
+            // -> <addrof> <alloced reg> <slot> <stack offset>
+            // -> lea <alloced reg> <sp + whatever>
+            const auto base = opcode.addrof.addr_ir.base;
+            const auto dst = regs.dst[0];
+            auto& reg = reg_from_slot(base,alloc);
+
+            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
+
+            if(is_reg_mem_unallocated(reg))
+            {
+                assert(stored_in_mem(reg));
+                stack_reserve_reg(alloc.stack_alloc,reg);
+            }
+
+            lower_addr_struct(alloc,opcode.addrof,regs);
             break;
         }
 

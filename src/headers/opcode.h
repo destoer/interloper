@@ -360,6 +360,9 @@ struct LoweredAddr
     lowered_reg_t index = u32(spec_reg::null);
     u32 scale = 1;
     u32 offset = 0;
+
+    // Copy for struct addrs
+    RegSlot base_ir = {INVALID_SYM_REG_SLOT};
 };
 
 // Subtyped for passing to emitters to ensure context is correct.

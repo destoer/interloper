@@ -1,10 +1,12 @@
+#include "backend/lower_reg.cpp"
+
 void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* node)
 {
     const auto ir_span = opcode_ir_reg_span(node->value,alloc.ir_reg_span);
     const auto lowered_reg_span = linear_allocate_registers(alloc,block,node,ir_span,alloc.lowered_reg_span);
 
     auto& opcode = node->value;
-    lower_opcode(opcode,lowered_reg_span);
+    lower_opcode(alloc,opcode,lowered_reg_span);
 }
 
 OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
