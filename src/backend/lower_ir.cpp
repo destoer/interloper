@@ -1,6 +1,6 @@
 OpcodeNode* insert_mov_reg2(Block& block, OpcodeNode* node, RegSlot dst, RegSlot src, reg_type type, insertion_type insert_type)
 {
-    const auto rtype = type == reg_type::gpr_t? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg;
+    const auto rtype = type == reg_type::gpr? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg;
     const auto opcode = Opcode(make_unary_reg2<unary_reg2_op,op_group::unary_reg2>(dst,src,rtype));
 
     return insert_node(block.list,node,opcode,insert_type);
@@ -107,7 +107,7 @@ OpcodeNode* lower_imm3(Function& func, Block& block, OpcodeNode* node, const Imm
     // -> add dst, imm
     if(src != dst)
     {
-        insert_mov_reg2_at(block,node,dst,src,reg_type::gpr_t);
+        insert_mov_reg2_at(block,node,dst,src,reg_type::gpr);
     }
 
     node->value = Opcode(make_imm2_dst<group_imm2>(dst,imm,type));
@@ -140,7 +140,7 @@ OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<o
     // -> cmp_flags v1, v2
     // -> setsgt dst
 
-    const auto rtype = RTYPE ==  reg_type::float_t? reg_two_src::cmp_flags_fpr : reg_two_src::cmp_flags_gpr;
+    const auto rtype = RTYPE ==  reg_type::fpr? reg_two_src::cmp_flags_fpr : reg_two_src::cmp_flags_gpr;
     Opcode cmp_flags;
     cmp_flags.group = op_group::reg2_src;
     cmp_flags.reg2_src = make_reg2_src(v1,v2,rtype);
@@ -204,7 +204,7 @@ OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
 
     if(src != dst)
     {
-        insert_mov_reg2_at(block,node,dst,src,reg_type::gpr_t);
+        insert_mov_reg2_at(block,node,dst,src,reg_type::gpr);
     }
 
     node->value = Opcode(make_unary_reg1<op_group::unary_reg1>(dst,type));

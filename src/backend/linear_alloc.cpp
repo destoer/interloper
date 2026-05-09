@@ -82,16 +82,16 @@ bool is_reg_free(RegisterFile& regs,u32 reg)
     return is_set(regs.free_set & ~regs.locked_set,reg);
 }
 
-RegisterFile& get_register_file(LinearAlloc& alloc, reg_file_kind kind)
+RegisterFile& get_register_file(LinearAlloc& alloc, reg_type rtype)
 {
-    switch(kind)
+    switch(rtype)
     {
-        case reg_file_kind::fpr:
+        case reg_type::fpr:
         {
             return alloc.fpr;
         }
 
-        case reg_file_kind::gpr:
+        case reg_type::gpr:
         {
             return alloc.gpr;
         }
@@ -102,7 +102,7 @@ RegisterFile& get_register_file(LinearAlloc& alloc, reg_file_kind kind)
 
 RegisterFile& get_register_file(LinearAlloc& alloc, Reg& reg)
 {
-    return get_register_file(alloc,find_reg_set(reg));
+    return get_register_file(alloc,ir_rtype(reg));
 }
 
 void print_reg_alloc(LinearAlloc& alloc)
@@ -1401,7 +1401,7 @@ void unlock_into_reg(LinearAlloc& alloc,RegisterFile& reg_file, RegSlot dst,u32 
 void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
 {
     const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = get_register_file(alloc,find_reg_set(reg));
+    RegisterFile& reg_file = get_register_file(alloc,spec_rtype(reg));
 
     log_reg(alloc.print,*alloc.table,"Unlocking special register %s\n",spec_reg_name(reg));
 
@@ -1411,7 +1411,7 @@ void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
 void lock_special_reg(LinearAlloc& alloc,Block& block, OpcodeNode* node, spec_reg reg)
 {
     const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = get_register_file(alloc,find_reg_set(reg));
+    RegisterFile& reg_file = get_register_file(alloc,spec_rtype(reg));
 
     lock_out_reg(alloc,block,node,reg_file,location);
 }

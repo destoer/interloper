@@ -28,7 +28,7 @@ OpcodeNode* rewrite_reg3_two_commutative(Block& block, OpcodeNode* node,op_type 
     // -> add dst, v2
     else
     {
-        node->value = make_op(register_type == reg_type::float_t? op_type::movf_reg : op_type::mov_reg,dst,v1);
+        node->value = make_op(register_type == reg_type::fpr? op_type::movf_reg : op_type::mov_reg,dst,v1);
         node = insert_after(block.list,node,make_op(opcode_type,dst,v2));
     }
 
@@ -66,7 +66,7 @@ OpcodeNode* rewrite_reg3_two(Function& func, Block& block, OpcodeNode* node,op_t
     const auto v1 = node->value.v[1];
     const auto v2 = node->value.v[2];
 
-    const op_type mov_op = register_type == reg_type::float_t? op_type::movf_reg : op_type::mov_reg;
+    const op_type mov_op = register_type == reg_type::fpr? op_type::movf_reg : op_type::mov_reg;
 
     // sub dst, dst, v2
     // -> sub dst, v2
@@ -81,7 +81,7 @@ OpcodeNode* rewrite_reg3_two(Function& func, Block& block, OpcodeNode* node,op_t
     // -> mov dst, t0
     else if(dst == v2)
     {
-        const auto tmp_slot = register_type == reg_type::float_t? new_float(func) : new_tmp(func,GPR_SIZE);
+        const auto tmp_slot = register_type == reg_type::fpr? new_float(func) : new_tmp(func,GPR_SIZE);
         const auto tmp = make_reg_operand(tmp_slot);
         node->value = make_op(mov_op,tmp,v1);
         node = insert_after(block.list,node,make_op(opcode_type,tmp,v2));

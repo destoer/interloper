@@ -82,7 +82,7 @@ struct Reg
 
 reg_type rtype_from_ir(const struct Reg& reg)
 {
-    return reg.flags & REG_FLOAT? reg_type::float_t : reg_type::gpr_t;
+    return reg.flags & REG_FLOAT? reg_type::fpr : reg_type::gpr;
 }
 
 struct Interloper;

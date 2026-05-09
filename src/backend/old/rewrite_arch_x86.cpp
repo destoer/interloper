@@ -101,7 +101,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
             // Can rewrite to two addresses without an extra instr
             if(node->value.v[0] == node->value.v[1] || node->value.v[0] == node->value.v[2])
             {
-                return rewrite_reg3_two_commutative(block,node,op_type::add_reg2,reg_type::gpr_t);
+                return rewrite_reg3_two_commutative(block,node,op_type::add_reg2,reg_type::gpr);
             }
 
             return node->next;
@@ -130,7 +130,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::and_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::and_reg2,reg_type::gpr_t);
+            return rewrite_reg3_two_commutative(block,node,op_type::and_reg2,reg_type::gpr);
         }
 
         case op_type::lsl_imm:
@@ -150,7 +150,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::xor_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::xor_reg2,reg_type::gpr_t);
+            return rewrite_reg3_two_commutative(block,node,op_type::xor_reg2,reg_type::gpr);
         }
 
         case op_type::xor_imm: 
@@ -160,7 +160,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::or_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::or_reg2,reg_type::gpr_t);
+            return rewrite_reg3_two_commutative(block,node,op_type::or_reg2,reg_type::gpr);
         }
 
         case op_type::not_reg:
@@ -185,7 +185,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::sub_reg: 
         {
-            return rewrite_reg3_two(func,block,node,op_type::sub_reg2,reg_type::gpr_t);
+            return rewrite_reg3_two(func,block,node,op_type::sub_reg2,reg_type::gpr);
         }
 
         case op_type::sub_imm:
@@ -215,7 +215,7 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::mul_reg:
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::mul_reg2,reg_type::gpr_t);
+            return rewrite_reg3_two_commutative(block,node,op_type::mul_reg2,reg_type::gpr);
         }
 
         case op_type::mul_imm:
@@ -235,22 +235,22 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
 
         case op_type::addf_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::addf_reg2,reg_type::float_t);
+            return rewrite_reg3_two_commutative(block,node,op_type::addf_reg2,reg_type::fpr);
         }
     
         case op_type::subf_reg: 
         {
-            return rewrite_reg3_two(func,block,node,op_type::subf_reg2,reg_type::float_t);
+            return rewrite_reg3_two(func,block,node,op_type::subf_reg2,reg_type::fpr);
         }
 
         case op_type::mulf_reg: 
         {
-            return rewrite_reg3_two_commutative(block,node,op_type::mulf_reg2,reg_type::float_t);
+            return rewrite_reg3_two_commutative(block,node,op_type::mulf_reg2,reg_type::fpr);
         }
 
         case op_type::divf_reg: 
         {
-            return rewrite_reg3_two(func,block,node,op_type::divf_reg2,reg_type::float_t);
+            return rewrite_reg3_two(func,block,node,op_type::divf_reg2,reg_type::fpr);
         }
 
         case op_type::movf_imm:

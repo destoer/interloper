@@ -63,8 +63,8 @@ b32 operator==(const Slot<type> v1,const Slot<type> v2)
 
 enum class reg_type
 {
-    float_t,
-    gpr_t,
+    fpr,
+    gpr,
 };
 
 enum class reg_kind

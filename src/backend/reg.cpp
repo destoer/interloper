@@ -101,20 +101,15 @@ b32 is_stack_arg(const Reg& reg)
     return reg.flags & STACK_ARG;
 }
 
-enum class reg_file_kind 
-{
-    gpr,
-    fpr,
-};
 
-reg_file_kind find_reg_set(spec_reg reg)
+reg_type spec_rtype(spec_reg reg)
 {
-    return reg == spec_reg::rv_fpr? reg_file_kind::fpr : reg_file_kind::gpr;
+    return reg == spec_reg::rv_fpr? reg_type::fpr : reg_type::gpr;
 }
 
-reg_file_kind find_reg_set(const Reg& ir_reg)
+reg_type ir_rtype(const Reg& ir_reg)
 {
-    return (ir_reg.flags & REG_FLOAT)? reg_file_kind::fpr : reg_file_kind::gpr;
+    return (ir_reg.flags & REG_FLOAT)? reg_type::fpr : reg_type::gpr;
 }
 
 b32 is_special_reg(RegSlot slot)
@@ -297,7 +292,7 @@ RegSlot new_float(Function& func)
 
 RegSlot new_max_tmp(Function& func,reg_type rtype)
 {
-    return rtype == reg_type::float_t? new_float(func) : new_tmp(func,GPR_SIZE);
+    return rtype == reg_type::fpr? new_float(func) : new_tmp(func,GPR_SIZE);
 }
 
 RegSlot new_tmp_ptr(Function &func)

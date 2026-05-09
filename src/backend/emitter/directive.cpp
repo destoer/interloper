@@ -31,11 +31,11 @@ ConstIrRegSpan directive_reg_span(const Directive& directive, IrRegSpan& reg)
     return reg;
 }
 
-DirectiveOperand make_reg_operand(RegSlot slot,ir_reg_type reg_type)
+DirectiveOperand make_reg_operand(RegSlot slot,ir_reg_type rtype)
 {
     DirectiveOperand oper;
     oper.ir_reg = slot;
-    oper.type = directive_operand_type(reg_type);
+    oper.type = directive_operand_type(rtype);
 
     return oper;
 }
