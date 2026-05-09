@@ -19,7 +19,7 @@ OpcodeNode* insert_mov_reg2_after(Block& block, OpcodeNode* node, RegSlot dst, R
 
 
 template<op_group group2, typename op_type,op_group group3>
-OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const RegThree<op_type,group3>& reg3, 
+OpcodeNode* lower_reg3_ir(Function& func, Block& block, OpcodeNode* node, const RegThree<op_type,group3>& reg3, 
     reg_type rtype, const u64 commutative_set) 
 {
     const auto type = reg3.type;
@@ -72,20 +72,20 @@ OpcodeNode* lower_reg3(Function& func, Block& block, OpcodeNode* node, const Reg
 }
 
 template<op_group group2, typename op_type,op_group group3>
-OpcodeNode* lower_reg3_opt(Function& func,Block& block, OpcodeNode* node, const RegThree<op_type,group3>& reg3, 
+OpcodeNode* lower_reg3_opt_ir(Function& func,Block& block, OpcodeNode* node, const RegThree<op_type,group3>& reg3, 
     reg_type rtype, const u64 commutative_set) 
 {
     // lower if it will crush the encoding
     if(reg3.dst.ir == reg3.v1.ir || (is_set(u32(reg3.type),commutative_set) && reg3.dst.ir == reg3.v2.ir))
     {
-        return lower_reg3<group2>(func,block,node,reg3,rtype,commutative_set);
+        return lower_reg3_ir<group2>(func,block,node,reg3,rtype,commutative_set);
     }
 
     return node->next;
 }
 
 template<op_group group_imm2,op_group group_reg3,typename op_type,op_group group_imm3>
-OpcodeNode* lower_imm3(Function& func, Block& block, OpcodeNode* node, const ImmThree<op_type,group_imm3>& imm3) 
+OpcodeNode* lower_imm3_ir(Function& func, Block& block, OpcodeNode* node, const ImmThree<op_type,group_imm3>& imm3) 
 {
     const auto dst = imm3.dst.ir;
     const auto src = imm3.src.ir;
@@ -116,19 +116,19 @@ OpcodeNode* lower_imm3(Function& func, Block& block, OpcodeNode* node, const Imm
 }
 
 template<op_group group_imm2,op_group group_reg3,typename type,op_group group_imm3>
-OpcodeNode* lower_imm3_opt(Function& func, Block& block, OpcodeNode* node, const ImmThree<type,group_imm3>& imm3) 
+OpcodeNode* lower_imm3_opt_ir(Function& func, Block& block, OpcodeNode* node, const ImmThree<type,group_imm3>& imm3) 
 {
     // only lower if it would result in a shorter encoding
     if(imm3.dst.ir == imm3.src.ir || !fit_into_u32(imm3.imm))
     {
-        return lower_imm3<group_imm2,group_reg3>(func,block,node,imm3);
+        return lower_imm3_ir<group_imm2,group_reg3>(func,block,node,imm3);
     }
 
     return node->next;
 }
 
 template<op_group group1, typename op_type, const reg_type RTYPE,op_group group2>
-OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<op_type,group2>& cmp3)
+OpcodeNode* lower_reg3_cmp_flag_ir(Block& block, OpcodeNode* node, const RegThree<op_type,group2>& cmp3)
 {
     const auto dst = cmp3.dst.ir;
     const auto v1 = cmp3.v1.ir;
@@ -152,7 +152,7 @@ OpcodeNode* lower_reg3_cmp_flag(Block& block, OpcodeNode* node, const RegThree<o
     return node->next;
 }
 
-OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)
+OpcodeNode* lower_imm3_cmp_flag_ir(Block& block, OpcodeNode* node)
 {
     auto& opcode = node->value;
 
@@ -175,7 +175,7 @@ OpcodeNode* lower_imm3_cmp_flag(Block& block, OpcodeNode* node)
 }
 
 
-OpcodeNode* lower_no_imm(Function& func, Block& block,OpcodeNode* node)
+OpcodeNode* lower_no_imm_ir(Function& func, Block& block,OpcodeNode* node)
 {
     const auto &imm = node->value.arith_imm3;
     const auto dst = imm.dst.ir;
@@ -196,7 +196,7 @@ OpcodeNode* lower_no_imm(Function& func, Block& block,OpcodeNode* node)
     return insert_after(block.list,node,Opcode(reg3));
 }
 
-OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
+OpcodeNode* lower_unary_reg2_ir(Block& block, OpcodeNode* node,unary_reg1_op type)
 {
     const auto& unary = node->value.unary_reg2;
     const auto dst = unary.dst.ir; 
@@ -212,7 +212,7 @@ OpcodeNode* lower_unary_reg2(Block& block, OpcodeNode* node,unary_reg1_op type)
     return node->next;
 }
 
-OpcodeNode* lower_fpr_const(Interloper& itl, Block& block, OpcodeNode* node)
+OpcodeNode* lower_fpr_const_ir(Interloper& itl, Block& block, OpcodeNode* node)
 {
     UNUSED(block);
 
@@ -232,7 +232,7 @@ OpcodeNode* lower_fpr_const(Interloper& itl, Block& block, OpcodeNode* node)
     return node->next;
 }
 
-OpcodeNode* lower_push_float_arg(Block& block, OpcodeNode* node)
+OpcodeNode* lower_push_float_arg_ir(Block& block, OpcodeNode* node)
 {
     const auto& directive = node->value.directive;
     const auto src = directive.operand[0].ir_reg;
